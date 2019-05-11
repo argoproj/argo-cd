@@ -80,10 +80,9 @@ RUN curl -L -o /usr/local/bin/aws-iam-authenticator https://github.com/kubernete
     chmod +x /usr/local/bin/aws-iam-authenticator
 
 # Install golangci-lint
-RUN wget https://install.goreleaser.com/github.com/golangci/golangci-lint.sh  && \
-    chmod +x ./golangci-lint.sh && \
-    ./golangci-lint.sh -b $GOPATH/bin && \
-    golangci-lint linters
+ENV GOLANGCI_LINT_VERSION=1.15.0
+RUN curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b /usr/local/bin v$GOLANGCI_LINT_VERSION && \
+    golangci-lint --version
 
 COPY .golangci.yml ${GOPATH}/src/dummy/.golangci.yml
 
