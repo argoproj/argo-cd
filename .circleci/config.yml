@@ -3,7 +3,7 @@ jobs:
   build:
     working_directory: /go/src/github.com/argoproj/argo-cd
     machine:
-      - image: argoproj/argo-cd-ci-builder:v1.0.0
+      image: argoproj/argo-cd-ci-builder:v1.0.0
     steps:
       - checkout
       - restore_cache:
@@ -43,7 +43,7 @@ jobs:
   k3s:
     working_directory: /go/src/github.com/argoproj/argo-cd
     machine:
-      - image: rancher/k3s:v0.5.0
+      image: rancher/k3s:v0.5.0
     steps:
       - run:
           name: Start K3S
