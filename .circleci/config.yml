@@ -43,8 +43,9 @@ jobs:
       docker:
         - image: argoproj/argo-cd-ci-builder:v1.0.0
       steps:
-        - name: Start K3S
-          command: k3s kubectl get node
+        - run:
+            name: Start K3S
+            command: k3s kubectl get node
 workflows:
   version: 2
   workflow:
