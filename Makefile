@@ -140,7 +140,7 @@ build:
 
 .PHONY: test
 test:
-	$(TEST_CMD) -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "github.com/argoproj/argo-cd/test/e2e"`
+	$(TEST_CMD) `go list ./... | grep -v "github.com/argoproj/argo-cd/test/e2e"`
 
 .PHONY: test-e2e
 test-e2e: cli
