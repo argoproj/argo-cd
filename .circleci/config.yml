@@ -43,10 +43,13 @@ jobs:
   k3s:
     working_directory: /go/src/github.com/argoproj/argo-cd
     docker:
-      - image: argoproj/argo-cd-ci-builder:v1.0.0
+      - image: rancher/k3s:v0.5.0
     steps:
       - run:
           name: Start K3S
+          command: k3s server
+      - run:
+          name: Verify K3S
           command: k3s kubectl get node
 workflows:
   version: 2
