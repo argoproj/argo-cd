@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     working_directory: /go/src/github.com/argoproj/argo-cd
-    docker:
+    machine:
       - image: argoproj/argo-cd-ci-builder:v1.0.0
     steps:
       - checkout
@@ -42,7 +42,7 @@ jobs:
           command: k3s kubectl get node
   k3s:
     working_directory: /go/src/github.com/argoproj/argo-cd
-    docker:
+    machine:
       - image: rancher/k3s:v0.5.0
     steps:
       - run:
