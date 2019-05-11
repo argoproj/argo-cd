@@ -95,8 +95,6 @@ RUN go get -u github.com/golang/protobuf/protoc-gen-go
 RUN go get -u github.com/gogo/protobuf/gogoproto
 RUN go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
 RUN go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
-RUN go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
-RUN go get -u github.com/mattn/goreman
 RUN go get -u gotest.tools/gotestsum
 
 # Install Google's Protobuf Compiler
