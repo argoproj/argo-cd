@@ -1,5 +1,5 @@
 run:
-  deadline: 2m
+  deadline: 1m
   skip-files:
     - ".*\\.pb\\.go"
   skip-dirs:

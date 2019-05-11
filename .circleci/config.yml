@@ -23,9 +23,9 @@ jobs:
       - run:
           name: Run unit tests
           command: make test
-      - run:
-          name: Check nothing has changed
-          command: git diff --exit-code
+      #- run:
+      #    name: Check nothing has changed
+      #    command: git diff --exit-code
       - run:
           name: Uploading code coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
