@@ -314,7 +314,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	}
 
 	healthStatus, err := health.SetApplicationHealth(resourceSummaries, GetLiveObjs(managedResources), m.settings.ResourceOverrides, func(obj *unstructured.Unstructured) bool {
-		return !isSelfReferencedApp(app.Name, app.Spec.Destination, kubeutil.GetResourceKey(obj), app.Spec.Destination.Server)
+		return !isSelfReferencedApp(app, kubeutil.GetObjectRef(obj))
 	})
 
 	if err != nil {

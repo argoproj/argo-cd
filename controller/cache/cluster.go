@@ -10,7 +10,6 @@ import (
 	"github.com/argoproj/argo-cd/controller/metrics"
 
 	log "github.com/sirupsen/logrus"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -95,13 +94,8 @@ func (c *clusterInfo) createObjInfo(un *unstructured.Unstructured, appInstanceLa
 	}
 	nodeInfo := &node{
 		resourceVersion: un.GetResourceVersion(),
-		ref: v1.ObjectReference{
-			APIVersion: un.GetAPIVersion(),
-			Kind:       un.GetKind(),
-			Name:       un.GetName(),
-			Namespace:  un.GetNamespace(),
-		},
-		ownerRefs: ownerRefs,
+		ref:             kube.GetObjectRef(un),
+		ownerRefs:       ownerRefs,
 	}
 	populateNodeInfo(un, nodeInfo)
 	appName := kube.GetAppInstanceLabel(un, appInstanceLabel)
@@ -456,7 +450,7 @@ func (c *clusterInfo) onNodeUpdated(exists bool, existingNode *node, un *unstruc
 		}
 	}
 	for name, full := range toNotify {
-		c.onAppUpdated(name, full, key, c.cluster.Server)
+		c.onAppUpdated(name, full, newObj.ref)
 	}
 }
 
@@ -468,7 +462,7 @@ func (c *clusterInfo) onNodeRemoved(key kube.ResourceKey, n *node) {
 
 	c.removeNode(key)
 	if appName != "" {
-		c.onAppUpdated(appName, n.isRootAppNode(), key, c.cluster.Server)
+		c.onAppUpdated(appName, n.isRootAppNode(), n.ref)
 	}
 }
 
