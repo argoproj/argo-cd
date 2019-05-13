@@ -14,18 +14,19 @@ jobs:
       - run:
           name: Generate code
           command: make codegen
-      #- run:
-      #    name: Compile production code
-      #    command: make build
-      #- run:
-      #    name: Lint code
-      #    command: make lint
       - run:
-          name: Run unit tests
-          command: make test
+          name: Compile production code
+          command: make build
+      - run:
+          name: Lint code
+          command: make lint
+      # This uses too much memory
       #- run:
-      #    name: Check nothing has changed
-      #    command: git diff --exit-code
+      #    name: Run unit tests
+      #    command: make test
+      - run:
+          name: Check nothing has changed
+          command: git diff --exit-code
       - run:
           name: Uploading code coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
@@ -37,9 +38,9 @@ jobs:
           paths:
             - vendor
           when: always
-      - run:
-          name: Start K3S
-          command: k3s kubectl get node
+      #- run:
+      #    name: Start K3S
+      #    command: k3s kubectl get node
 workflows:
   version: 2
   workflow:
