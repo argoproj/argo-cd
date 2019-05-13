@@ -802,7 +802,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ap
 		return nil, status.Errorf(codes.FailedPrecondition, "application is deleting")
 	}
 	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil {
-		if syncReq.Revision != "" && syncReq.Revision != a.Spec.Source.TargetRevision {
+		if syncReq.Revision != "" && syncReq.Revision != util.FirstNonEmpty(a.Spec.Source.TargetRevision, "HEAD") {
 			return nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.Revision, a.Spec.Source.TargetRevision)
 		}
 	}

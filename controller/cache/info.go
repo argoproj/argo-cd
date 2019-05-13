@@ -110,13 +110,25 @@ func populateIngressInfo(un *unstructured.Unstructured, node *node) {
 				}
 
 				if port, ok, err := unstructured.NestedFieldNoCopy(path, "backend", "servicePort"); ok && err == nil && host != "" && host != nil {
-					switch fmt.Sprintf("%v", port) {
+					stringPort := ""
+					switch typedPod := port.(type) {
+					case int64:
+						stringPort = fmt.Sprintf("%d", typedPod)
+					case float64:
+						stringPort = fmt.Sprintf("%d", int64(typedPod))
+					case string:
+						stringPort = typedPod
+					default:
+						stringPort = fmt.Sprintf("%v", port)
+					}
+
+					switch stringPort {
 					case "80", "http":
 						urlsSet[fmt.Sprintf("http://%s", host)] = true
 					case "443", "https":
 						urlsSet[fmt.Sprintf("https://%s", host)] = true
 					default:
-						urlsSet[fmt.Sprintf("http://%s:%s", host, port)] = true
+						urlsSet[fmt.Sprintf("http://%s:%s", host, stringPort)] = true
 					}
 				}
 			}
@@ -149,13 +161,20 @@ func populatePodInfo(un *unstructured.Unstructured, node *node) {
 		reason = pod.Status.Reason
 	}
 
-	initializing := false
-
-	// note that I ignore initContainers
+	imagesSet := make(map[string]bool)
+	for _, container := range pod.Spec.InitContainers {
+		imagesSet[container.Image] = true
+	}
 	for _, container := range pod.Spec.Containers {
-		node.images = append(node.images, container.Image)
+		imagesSet[container.Image] = true
 	}
 
+	node.images = nil
+	for image := range imagesSet {
+		node.images = append(node.images, image)
+	}
+
+	initializing := false
 	for i := range pod.Status.InitContainerStatuses {
 		container := pod.Status.InitContainerStatuses[i]
 		restarts += int(container.RestartCount)

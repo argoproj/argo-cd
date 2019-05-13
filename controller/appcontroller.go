@@ -51,6 +51,7 @@ const (
 type ApplicationController struct {
 	cache                     *argocache.Cache
 	namespace                 string
+	server                    string
 	kubeClientset             kubernetes.Interface
 	kubectl                   kube.Kubectl
 	applicationClientset      appclientset.Interface
@@ -79,6 +80,7 @@ type ApplicationControllerConfig struct {
 
 // NewApplicationController creates new instance of ApplicationController.
 func NewApplicationController(
+	server string,
 	namespace string,
 	settingsMgr *settings_util.SettingsManager,
 	kubeClientset kubernetes.Interface,
@@ -96,6 +98,7 @@ func NewApplicationController(
 	ctrl := ApplicationController{
 		cache:                     argoCache,
 		namespace:                 namespace,
+		server:                    server,
 		kubeClientset:             kubeClientset,
 		kubectl:                   kubectlCmd,
 		applicationClientset:      applicationClientset,
@@ -125,13 +128,17 @@ func NewApplicationController(
 	return &ctrl, nil
 }
 
-func isSelfReferencedApp(appName string, namespace string, key kube.ResourceKey) bool {
-	return key.Name == appName && key.Namespace == namespace && key.Group == application.Group && key.Kind == application.ApplicationKind
+func isSelfReferencedApp(appName string, dest appv1.ApplicationDestination, objKey kube.ResourceKey, objServer string) bool {
+	return objKey.Name == appName &&
+		objKey.Namespace == dest.Namespace &&
+		dest.Server == objServer &&
+		objKey.Group == application.Group &&
+		objKey.Kind == application.ApplicationKind
 }
 
-func (ctrl *ApplicationController) handleAppUpdated(appName string, fullRefresh bool, key kube.ResourceKey) {
+func (ctrl *ApplicationController) handleAppUpdated(appName string, fullRefresh bool, key kube.ResourceKey, serverURL string) {
 	// Don't force refresh app if related resource is application itself. This prevents infinite reconciliation loop.
-	if !isSelfReferencedApp(appName, ctrl.namespace, key) {
+	if !isSelfReferencedApp(appName, appv1.ApplicationDestination{Server: ctrl.server, Namespace: ctrl.namespace}, key, serverURL) {
 		ctrl.requestAppRefresh(appName, fullRefresh)
 	}
 	ctrl.appRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, appName))
@@ -339,6 +346,10 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 	return
 }
 
+func shouldBeDeleted(app *appv1.Application, obj *unstructured.Unstructured) bool {
+	return !kube.IsCRD(obj) && !isSelfReferencedApp(app.Name, app.Spec.Destination, kube.GetResourceKey(obj), app.Spec.Destination.Server)
+}
+
 func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Application) error {
 	logCtx := log.WithField("application", app.Name)
 	logCtx.Infof("Deleting resources")
@@ -357,7 +368,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	}
 	objs := make([]*unstructured.Unstructured, 0)
 	for k := range objsMap {
-		if objsMap[k].GetDeletionTimestamp() == nil && !kube.IsCRD(objsMap[k]) {
+		if objsMap[k].GetDeletionTimestamp() == nil && shouldBeDeleted(app, objsMap[k]) {
 			objs = append(objs, objsMap[k])
 		}
 	}
@@ -379,6 +390,11 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	objsMap, err = ctrl.stateCache.GetManagedLiveObjs(app, []*unstructured.Unstructured{})
 	if err != nil {
 		return err
+	}
+	for k, obj := range objsMap {
+		if !shouldBeDeleted(app, obj) {
+			delete(objsMap, k)
+		}
 	}
 	if len(objsMap) > 0 {
 		logCtx.Infof("%d objects remaining for deletion", len(objsMap))
@@ -614,7 +630,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 			if tree, err := ctrl.getResourceTree(app, managedResources); err != nil {
 				app.Status.Conditions = []appv1.ApplicationCondition{{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()}}
 			} else {
-				app.Status.ExternalURLs = tree.GetBrowableURLs()
+				app.Status.Summary = tree.GetSummary()
 				if err = ctrl.cache.SetAppResourcesTree(app.Name, tree); err != nil {
 					logCtx.Errorf("Failed to cache resources tree: %v", err)
 					return
@@ -651,7 +667,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if err != nil {
 		logCtx.Errorf("Failed to cache app resources: %v", err)
 	} else {
-		app.Status.ExternalURLs = tree.GetBrowableURLs()
+		app.Status.Summary = tree.GetSummary()
 	}
 
 	syncErrCond := ctrl.autoSync(app, compareResult.syncStatus)
