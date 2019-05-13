@@ -51,20 +51,6 @@ const (
 	PersistentVolumeClaimKind    = "PersistentVolumeClaim"
 	CustomResourceDefinitionKind = "CustomResourceDefinition"
 	PodKind                      = "Pod"
-	NetworkPolicyKind            = "NetworkPolicy"
-	PodSecurityPolicyKind        = "PodSecurityPolicy"
-)
-
-var (
-	// obsoleteExtensionsKinds contains list of obsolete kinds from extensions group and corresponding name of new group
-	obsoleteExtensionsKinds = map[string]string{
-		DaemonSetKind:         "apps",
-		ReplicaSetKind:        "apps",
-		DeploymentKind:        "apps",
-		IngressKind:           "networking.k8s.io",
-		NetworkPolicyKind:     "networking.k8s.io",
-		PodSecurityPolicyKind: "policy",
-	}
 )
 
 type ResourceKey struct {
@@ -82,19 +68,7 @@ func (k ResourceKey) GroupKind() schema.GroupKind {
 	return schema.GroupKind{Group: k.Group, Kind: k.Kind}
 }
 
-func isObsoleteExtensionsGroupKind(group string, kind string) (string, bool) {
-	if group == "extensions" {
-		newGroup, ok := obsoleteExtensionsKinds[kind]
-		return newGroup, ok
-	}
-	return "", false
-}
-
 func NewResourceKey(group string, kind string, namespace string, name string) ResourceKey {
-	if newGroup, ok := isObsoleteExtensionsGroupKind(group, kind); ok {
-		group = newGroup
-	}
-
 	return ResourceKey{Group: group, Kind: kind, Namespace: namespace, Name: name}
 }
 

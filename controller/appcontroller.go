@@ -192,7 +192,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 				},
 			})
 		} else {
-			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, kube.GetResourceKey(live), func(child appv1.ResourceNode) {
+			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, live, func(child appv1.ResourceNode) {
 				nodes = append(nodes, child)
 			})
 			if err != nil {

@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"k8s.io/apimachinery/pkg/types"
+
 	"github.com/argoproj/argo-cd/controller/metrics"
 
 	log "github.com/sirupsen/logrus"
@@ -325,18 +327,26 @@ func (c *clusterInfo) ensureSynced() error {
 	return c.syncError
 }
 
-func (c *clusterInfo) iterateHierarchy(key kube.ResourceKey, action func(child appv1.ResourceNode)) {
+func (c *clusterInfo) iterateHierarchy(obj *unstructured.Unstructured, action func(child appv1.ResourceNode)) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	key := kube.GetResourceKey(obj)
 	if objInfo, ok := c.nodes[key]; ok {
 		action(objInfo.asResourceNode())
 		nsNodes := c.nsIndex[key.Namespace]
+		children := make(map[types.UID]*node)
 		for _, child := range nsNodes {
 			if objInfo.isParentOf(child) {
-				action(child.asResourceNode())
-				child.iterateChildren(nsNodes, map[kube.ResourceKey]bool{objInfo.resourceKey(): true}, action)
+				children[child.ref.UID] = child
 			}
 		}
+		// make sure children has no duplicates
+		for _, child := range children {
+			action(child.asResourceNode())
+			child.iterateChildren(nsNodes, map[kube.ResourceKey]bool{objInfo.resourceKey(): true}, action)
+		}
+	} else {
+		action(c.createObjInfo(obj, c.settings.GetAppInstanceLabelKey()).asResourceNode())
 	}
 }
 
@@ -382,6 +392,15 @@ func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*uns
 						}
 						return err
 					}
+				}
+			} else if _, watched := c.apisMeta[key.GroupKind()]; !watched {
+				var err error
+				managedObj, err = c.kubectl.GetResource(config, targetObj.GroupVersionKind(), targetObj.GetName(), targetObj.GetNamespace())
+				if err != nil {
+					if errors.IsNotFound(err) {
+						return nil
+					}
+					return err
 				}
 			}
 		}
