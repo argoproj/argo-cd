@@ -51,7 +51,6 @@ const (
 type ApplicationController struct {
 	cache                     *argocache.Cache
 	namespace                 string
-	server                    string
 	kubeClientset             kubernetes.Interface
 	kubectl                   kube.Kubectl
 	applicationClientset      appclientset.Interface
@@ -80,7 +79,6 @@ type ApplicationControllerConfig struct {
 
 // NewApplicationController creates new instance of ApplicationController.
 func NewApplicationController(
-	server string,
 	namespace string,
 	settingsMgr *settings_util.SettingsManager,
 	kubeClientset kubernetes.Interface,
@@ -98,7 +96,6 @@ func NewApplicationController(
 	ctrl := ApplicationController{
 		cache:                     argoCache,
 		namespace:                 namespace,
-		server:                    server,
 		kubeClientset:             kubeClientset,
 		kubectl:                   kubectlCmd,
 		applicationClientset:      applicationClientset,
@@ -128,17 +125,25 @@ func NewApplicationController(
 	return &ctrl, nil
 }
 
-func isSelfReferencedApp(appName string, dest appv1.ApplicationDestination, objKey kube.ResourceKey, objServer string) bool {
-	return objKey.Name == appName &&
-		objKey.Namespace == dest.Namespace &&
-		dest.Server == objServer &&
-		objKey.Group == application.Group &&
-		objKey.Kind == application.ApplicationKind
+func isSelfReferencedApp(app *appv1.Application, ref v1.ObjectReference) bool {
+	gvk := ref.GroupVersionKind()
+	return ref.UID == app.UID &&
+		ref.Name == app.Name &&
+		ref.Namespace == app.Namespace &&
+		gvk.Group == application.Group &&
+		gvk.Kind == application.ApplicationKind
 }
 
-func (ctrl *ApplicationController) handleAppUpdated(appName string, fullRefresh bool, key kube.ResourceKey, serverURL string) {
-	// Don't force refresh app if related resource is application itself. This prevents infinite reconciliation loop.
-	if !isSelfReferencedApp(appName, appv1.ApplicationDestination{Server: ctrl.server, Namespace: ctrl.namespace}, key, serverURL) {
+func (ctrl *ApplicationController) handleAppUpdated(appName string, fullRefresh bool, ref v1.ObjectReference) {
+	skipForceRefresh := false
+
+	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(ctrl.namespace + "/" + appName)
+	if app, ok := obj.(*appv1.Application); exists && err == nil && ok && isSelfReferencedApp(app, ref) {
+		// Don't force refresh app if related resource is application itself. This prevents infinite reconciliation loop.
+		skipForceRefresh = true
+	}
+
+	if !skipForceRefresh {
 		ctrl.requestAppRefresh(appName, fullRefresh)
 	}
 	ctrl.appRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, appName))
@@ -347,7 +352,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 }
 
 func shouldBeDeleted(app *appv1.Application, obj *unstructured.Unstructured) bool {
-	return !kube.IsCRD(obj) && !isSelfReferencedApp(app.Name, app.Spec.Destination, kube.GetResourceKey(obj), app.Spec.Destination.Server)
+	return !kube.IsCRD(obj) && !isSelfReferencedApp(app, kube.GetObjectRef(obj))
 }
 
 func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Application) error {
