@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
+
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -99,6 +101,16 @@ func NewResourceKey(group string, kind string, namespace string, name string) Re
 func GetResourceKey(obj *unstructured.Unstructured) ResourceKey {
 	gvk := obj.GroupVersionKind()
 	return NewResourceKey(gvk.Group, gvk.Kind, obj.GetNamespace(), obj.GetName())
+}
+
+func GetObjectRef(obj *unstructured.Unstructured) v1.ObjectReference {
+	return v1.ObjectReference{
+		UID:        obj.GetUID(),
+		APIVersion: obj.GetAPIVersion(),
+		Kind:       obj.GetKind(),
+		Name:       obj.GetName(),
+		Namespace:  obj.GetNamespace(),
+	}
 }
 
 // TestConfig tests to make sure the REST config is usable
