@@ -10,3 +10,7 @@ func CheckError(err error) {
 		log.Fatal(err)
 	}
 }
+
+func CheckError2(_ interface{}, err error) {
+	CheckError(err)
+}

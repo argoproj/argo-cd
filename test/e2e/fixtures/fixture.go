@@ -5,14 +5,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
-	"testing"
 	"time"
 
-	argoexec "github.com/argoproj/pkg/exec"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
@@ -116,18 +113,17 @@ func NewFixture() (*Fixture, error) {
 		plainText:        !tlsTestResult.TLS,
 	}
 
-	fixture.setUpTestRepo()
-
 	fixture.DeploymentNamespace = fixture.createDeploymentNamespace()
 	return fixture, nil
 }
 
 func (f *Fixture) setUpTestRepo() {
 	f.teardownTestRepo()
-	_, err := argoexec.RunCommand(
-		"sh", "-c",
-		fmt.Sprintf("mkdir %s && cp -R testdata/* %s && chmod 777 %s && cd %s && git init && git add . && git commit -m 'initial commit'", f.repoDirectory, f.repoDirectory, f.repoDirectory, f.repoDirectory))
-	errors.CheckError(err)
+	errors.CheckError2(execCommand("", "cp", "-R", "testdata", f.repoDirectory))
+	errors.CheckError2(execCommand(f.repoDirectory, "chmod", "777", "."))
+	errors.CheckError2(execCommand(f.repoDirectory, "git", "init"))
+	errors.CheckError2(execCommand(f.repoDirectory, "git", "add", "."))
+	errors.CheckError2(execCommand(f.repoDirectory, "git", "commit", "-q", "-m", "initial commit"))
 }
 
 func (f *Fixture) RepoURL() string {
@@ -237,26 +233,7 @@ func (f *Fixture) RunCli(args ...string) (string, error) {
 
 	args = append(args, "--server", f.apiServerAddress, "--auth-token", f.token, "--insecure")
 
-	log.WithFields(log.Fields{"args": args}).Info("running command")
-
-	cmd := exec.Command("../../dist/argocd", args...)
-	outBytes, err := cmd.Output()
-	output := string(outBytes)
-
-	if err != nil {
-		exErr, ok := err.(*exec.ExitError)
-		if ok {
-			output = output + string(exErr.Stderr)
-		}
-	}
-
-	for i, line := range strings.Split(output, "\n") {
-		log.WithFields(log.Fields{"line": line, "i": i}).Info("command output")
-	}
-
-	log.WithFields(log.Fields{"err": err}).Info("ran command")
-
-	return output, err
+	return execCommand(".", "../../dist/argocd", args...)
 }
 
 func (f *Fixture) Patch(path string, jsonPatch string) {
@@ -288,18 +265,9 @@ func (f *Fixture) Patch(path string, jsonPatch string) {
 		errors.CheckError(err)
 	}
 
-	err = ioutil.WriteFile(filename, bytes, 0644)
-	errors.CheckError(err)
-
-	output, err := argoexec.RunCommand("sh", "-c", fmt.Sprintf("cd %s && git diff", f.repoDirectory))
-	for i, line := range strings.Split(output, "\n") {
-		log.Infof("%d: %s", i, line)
-	}
-
-	log.Info("committing")
-
-	_, err = argoexec.RunCommand("sh", "-c", fmt.Sprintf("cd %s && git commit -am 'patch'", f.repoDirectory))
-	errors.CheckError(err)
+	errors.CheckError(ioutil.WriteFile(filename, bytes, 0644))
+	errors.CheckError2(execCommand(f.repoDirectory, "git", "diff"))
+	errors.CheckError2(execCommand(f.repoDirectory, "git", "commit", "-am", "patch"))
 }
 
 func waitUntilE(condition wait.ConditionFunc) error {
@@ -317,12 +285,4 @@ func waitUntilE(condition wait.ConditionFunc) error {
 		makeSureClosed()
 	}()
 	return wait.PollUntil(time.Second, condition, stop)
-}
-
-// WaitUntil periodically executes specified condition until it returns true.
-func WaitUntil(t *testing.T, condition wait.ConditionFunc) {
-	err := waitUntilE(condition)
-	if err != nil {
-		t.Fatalf("Failed to wait for expected condition: %v", err)
-	}
 }
