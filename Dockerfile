@@ -59,7 +59,8 @@ ENV HELM_VERSION=2.12.1
 RUN wget https://storage.googleapis.com/kubernetes-helm/helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
     tar -C /tmp/ -xf helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
     mv /tmp/linux-amd64/helm /usr/local/bin/helm && \
-    helm version --client
+    helm version --client && \
+    helm init --client-only
 
 # Install kustomize
 ENV KUSTOMIZE1_VERSION=1.0.11
@@ -79,16 +80,49 @@ RUN curl -L -o /usr/local/bin/aws-iam-authenticator https://github.com/kubernete
     chmod +x /usr/local/bin/aws-iam-authenticator
 
 # Install golangci-lint
-RUN wget https://install.goreleaser.com/github.com/golangci/golangci-lint.sh  && \
-    chmod +x ./golangci-lint.sh && \
-    ./golangci-lint.sh -b $GOPATH/bin && \
-    golangci-lint linters
+ENV GOLANGCI_LINT_VERSION=1.15.0
+RUN curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b /usr/local/bin v$GOLANGCI_LINT_VERSION && \
+    golangci-lint --version
 
 COPY .golangci.yml ${GOPATH}/src/dummy/.golangci.yml
 
 RUN cd ${GOPATH}/src/dummy && \
     touch dummy.go \
     golangci-lint run
+
+RUN go get -u github.com/golang/protobuf/protoc-gen-go
+RUN go get -u github.com/gogo/protobuf/gogoproto
+RUN go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+RUN go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
+
+# Install Google's Protobuf Compiler
+ENV PROTOC_VERSION=3.7.1
+RUN curl -L -o protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip && \
+    unzip protoc.zip bin/protoc -d /usr/local/ && \
+    chmod +x /usr/local/bin/protoc && \
+    unzip protoc.zip include/* -d /usr/local/ && \
+    protoc --version && \
+    rm protoc.zip
+
+# Install GO Swagger
+ENV GO_SWAGGER_VERSION=0.19.0
+RUN curl -L -o /usr/local/bin/swagger https://github.com/go-swagger/go-swagger/releases/download/v${GO_SWAGGER_VERSION}/swagger_linux_amd64 && \
+    chmod +x /usr/local/bin/swagger && \
+    swagger version
+
+# Install JQ
+ENV JQ_VERSION=1.6
+RUN curl -L -o /usr/local/bin/jq https://github.com/stedolan/jq/releases/download/jq-$JQ_VERSION/jq-linux64 && \
+    chmod +x /usr/local/bin/jq && \
+    jq --version
+
+# Install K3S
+ENV K3S_VERSION=0.5.0
+RUN curl -L -o /usr/local/bin/k3s https://github.com/rancher/k3s/releases/download/v$K3S_VERSION/k3s && \
+    chmod +x /usr/local/bin/k3s && \
+    k3s --version
+
+ENV PATH "${PATH}:${GOPATH}/bin"
 
 ####################################################################################################
 # Argo CD Base - used as the base for both the release and dev argocd images

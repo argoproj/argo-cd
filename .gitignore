@@ -9,3 +9,4 @@ site/
 cmd/**/debug
 debug.test
 coverage.out
+test-results.xml
