@@ -69,7 +69,7 @@ func getKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest
 
 // NewFixture creates e2e tests fixture: ensures that Application CRD is installed, creates temporal namespace, starts repo and api server,
 // configure currently available cluster.
-func NewFixture() (*Fixture, error) {
+func NewFixture() *Fixture {
 	config := getKubeConfig("", clientcmd.ConfigOverrides{})
 	appClient := appclientset.NewForConfigOrDie(config)
 	kubeClient := kubernetes.NewForConfigOrDie(config)
@@ -113,13 +113,11 @@ func NewFixture() (*Fixture, error) {
 		plainText:        !tlsTestResult.TLS,
 	}
 
-	fixture.DeploymentNamespace = fixture.createDeploymentNamespace()
-	return fixture, nil
+	return fixture
 }
 
 func (f *Fixture) setUpTestRepo() {
-	f.teardownTestRepo()
-	errors.CheckError2(execCommand("", "cp", "-R", "testdata", f.repoDirectory))
+	errors.CheckError2(execCommand("", "cp", "-R", "../testdata", f.repoDirectory))
 	errors.CheckError2(execCommand(f.repoDirectory, "chmod", "777", "."))
 	errors.CheckError2(execCommand(f.repoDirectory, "git", "init"))
 	errors.CheckError2(execCommand(f.repoDirectory, "git", "add", "."))
@@ -133,7 +131,9 @@ func (f *Fixture) RepoURL() string {
 // Teardown deletes test namespace resources.
 func (f *Fixture) Teardown() {
 	log.Info("tearing down")
+	f.resetSettings()
 	f.deleteApps()
+	f.deleteAppProjects()
 	f.deleteDeploymentNamespaces()
 	f.teardownTestRepo()
 }
@@ -156,9 +156,8 @@ func (f *Fixture) createDeploymentNamespace() string {
 }
 
 func (f *Fixture) SetUp() {
-	f.resetSettings()
-	f.deleteApps()
-	f.deleteAppProjects()
+	f.Teardown()
+	f.DeploymentNamespace = f.createDeploymentNamespace()
 	f.setUpTestRepo()
 }
 
@@ -233,7 +232,7 @@ func (f *Fixture) RunCli(args ...string) (string, error) {
 
 	args = append(args, "--server", f.apiServerAddress, "--auth-token", f.token, "--insecure")
 
-	return execCommand(".", "../../dist/argocd", args...)
+	return execCommand(".", "../../../dist/argocd", args...)
 }
 
 func (f *Fixture) Patch(path string, jsonPatch string) {

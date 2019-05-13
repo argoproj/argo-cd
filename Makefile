@@ -144,7 +144,7 @@ test:
 
 .PHONY: test-e2e
 test-e2e: cli
-	$(TEST_CMD) -v -failfast -timeout 20m ./test/e2e
+	$(TEST_CMD) -v -failfast -timeout 20m `go list ./... | grep test/e2e`
 
 .PHONY: start-e2e
 start-e2e: cli

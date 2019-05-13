@@ -1,4 +1,4 @@
-package e2e
+package app
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -19,6 +18,7 @@ import (
 	argorepo "github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/repository"
+	"github.com/argoproj/argo-cd/test/e2e/fixtures"
 	. "github.com/argoproj/argo-cd/test/e2e/fixtures/app"
 	"github.com/argoproj/argo-cd/util"
 	. "github.com/argoproj/argo-cd/util/argo"
@@ -29,6 +29,8 @@ import (
 const (
 	guestbookPath = "guestbook"
 )
+
+var fixture = fixtures.NewFixture()
 
 func TestAppCreation(t *testing.T) {
 
@@ -80,113 +82,6 @@ func TestTrackAppStateAndSyncApp(t *testing.T) {
 			assert.NotNil(t, app.Status.OperationState.SyncResult)
 		}).
 		Expect(OperationPhaseIs(OperationSucceeded))
-}
-
-func TestHookSuccessful(t *testing.T) {
-
-	// this is a general happy-path test for hooks
-	for _, hookType := range []string{"PreSync", "Sync", "PostSync"} {
-		t.Run("Test"+hookType, func(t *testing.T) {
-			Given(fixture, t).
-				Path("hook").
-				When().
-				Patch("hook.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "%s"}}]`, hookType)).
-				Create().
-				Sync().
-				Then().
-				Expect(OperationPhaseIs(OperationSucceeded)).
-				Expect(SyncStatusIs(SyncStatusCodeSynced)).
-				Expect(ResourceSyncStatusIs("pod", SyncStatusCodeSynced)).
-				Expect(ResourceHealthIs("pod", HealthStatusHealthy)).
-				Expect(Pod(func(p v1.Pod) bool {
-					return p.Name == "hook"
-				}))
-		})
-	}
-}
-
-func TestPreSyncHookFailure(t *testing.T) {
-
-	Given(fixture, t).
-		Path("hook").
-		When().
-		Patch("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "PreSync"}}]`).
-		// make hook fail
-		Patch("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}]`).
-		Create().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationFailed)).
-		// if a pre-sync hook fails, we should not start the main sync
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(ResourceSyncStatusIs("pod", SyncStatusCodeOutOfSync))
-}
-
-func TestSyncHookFailure(t *testing.T) {
-
-	Given(fixture, t).
-		Path("hook").
-		When().
-		// make hook fail
-		Patch("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}]`).
-		Create().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationFailed)).
-		// even thought the hook failed, we expect the pod to be in sync
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(ResourceSyncStatusIs("pod", SyncStatusCodeSynced))
-}
-
-func TestPostSyncHookFailure(t *testing.T) {
-
-	Given(fixture, t).
-		Path("hook").
-		When().
-		Patch("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "PostSync"}}]`).
-		// make hook fail
-		Patch("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}]`).
-		Create().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationFailed)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(ResourceSyncStatusIs("pod", SyncStatusCodeSynced))
-}
-
-func TestPostSyncHookPodFailure(t *testing.T) {
-
-	Given(fixture, t).
-		Path("hook").
-		When().
-		Patch("hook.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "PostSync"}}]`).
-		// make pod fail
-		Patch("pod.yaml", `[{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}]`).
-		Create().
-		Sync().
-		Then().
-		// TODO - I feel like this should be a failure, not success
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(ResourceSyncStatusIs("pod", SyncStatusCodeSynced)).
-		Expect(ResourceHealthIs("pod", HealthStatusDegraded)).
-		Expect(NotPod(func(p v1.Pod) bool {
-			return p.Name == "hook"
-		}))
-}
-
-func TestHookDeletePolicyHookSucceeded(t *testing.T) {
-
-	Given(fixture, t).
-		Path("hook").
-		When().
-		Patch("hook.yaml", `[{"op": "add", "path": "/metadata/annotations/argocd.argoproj.io~1hook-delete-policy", "value": "HookSucceeded"}]`).
-		Create().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(NotPod(func(p v1.Pod) bool {
-			return p.Name == "hook"
-		}))
 }
 
 func TestAppRollbackSuccessful(t *testing.T) {

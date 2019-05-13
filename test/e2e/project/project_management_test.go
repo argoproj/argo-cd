@@ -1,10 +1,12 @@
-package e2e
+package project
 
 import (
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/argoproj/argo-cd/test/e2e/fixtures"
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -15,6 +17,8 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/argo"
 )
+
+var fixture = fixtures.NewFixture()
 
 func assertProjHasEvent(t *testing.T, a *v1alpha1.AppProject, message string, reason string) {
 	list, err := fixture.KubeClientset.CoreV1().Events(fixture.ArgoCDNamespace).List(metav1.ListOptions{
