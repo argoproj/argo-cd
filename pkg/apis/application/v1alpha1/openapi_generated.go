@@ -891,7 +891,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSummary(ref common.Referenc
 				},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
