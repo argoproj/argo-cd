@@ -9,11 +9,6 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-# output tool versions
-protoc --version
-swagger version
-jq --version
-
 PROJECT_ROOT=$(cd $(dirname ${BASH_SOURCE})/..; pwd)
 CODEGEN_PKG=${CODEGEN_PKG:-$(cd ${PROJECT_ROOT}; ls -d -1 ./vendor/k8s.io/code-generator 2>/dev/null || echo ../code-generator)}
 PATH="${PROJECT_ROOT}/dist:${PATH}"
@@ -63,7 +58,7 @@ go build -i -o dist/protoc-gen-grpc-gateway ./vendor/github.com/grpc-ecosystem/g
 go build -i -o dist/protoc-gen-swagger ./vendor/github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
 
 # Generate server/<service>/(<service>.pb.go|<service>.pb.gw.go)
-PROTO_FILES=$(find $PROJECT_ROOT \( -name "*.proto" -and -path '*/server/*' -or -path '*/reposerver/*' -and -name "*.proto" \) | sort)
+PROTO_FILES=$(find $PROJECT_ROOT \( -name "*.proto" -and -path '*/server/*' -or -path '*/reposerver/*' -and -name "*.proto" \))
 for i in ${PROTO_FILES}; do
     # Path to the google API gateway annotations.proto will be different depending if we are
     # building natively (e.g. from workspace) vs. part of a docker build.
