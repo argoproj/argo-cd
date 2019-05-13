@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	log "github.com/sirupsen/logrus"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
@@ -30,7 +31,7 @@ type LiveStateCache interface {
 	Invalidate()
 }
 
-type AppUpdatedHandler = func(appName string, fullRefresh bool, key kube.ResourceKey, serverURL string)
+type AppUpdatedHandler = func(appName string, fullRefresh bool, ref v1.ObjectReference)
 
 func GetTargetObjKey(a *appv1.Application, un *unstructured.Unstructured, isNamespaced bool) kube.ResourceKey {
 	key := kube.GetResourceKey(un)
