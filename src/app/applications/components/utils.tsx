@@ -19,25 +19,8 @@ export interface NodeId {
     name: string;
     group: string;
 }
-
-const obsoleteExtensionsKinds: {[kind: string]: string} = {
-    DaemonSet:         'apps',
-    ReplicaSet:        'apps',
-    Deployment:        'apps',
-    Ingress:           'networking.k8s.io',
-    NetworkPolicy:     'networking.k8s.io',
-    PodSecurityPolicy: 'policy',
-};
-
 export function nodeKey(node: NodeId) {
-    let group = node.group;
-    if (node.group === 'extensions') {
-        const newGroup = obsoleteExtensionsKinds[node.kind];
-        if (newGroup) {
-            group = newGroup;
-        }
-    }
-    return [group, node.kind, node.namespace, node.name].join('/');
+    return [node.group, node.kind, node.namespace, node.name].join('/');
 }
 
 export function isSameNode(first: NodeId, second: NodeId) {

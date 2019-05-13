@@ -227,6 +227,7 @@ export interface ResourceStatus {
 }
 
 export interface ResourceRef {
+    uid: string;
     kind: string;
     namespace: string;
     name: string;

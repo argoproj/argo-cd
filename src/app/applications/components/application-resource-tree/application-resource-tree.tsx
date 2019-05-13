@@ -7,8 +7,12 @@ import * as models from '../../../shared/models';
 
 import { EmptyState } from '../../../shared/components';
 import { ApplicationURLs } from '../application-urls';
-import { ComparisonStatusIcon, getAppOverridesCount, HealthStatusIcon, ICON_CLASS_BY_KIND, isAppNode, nodeKey } from '../utils';
+import { ComparisonStatusIcon, getAppOverridesCount, HealthStatusIcon, ICON_CLASS_BY_KIND, isAppNode, NodeId, nodeKey } from '../utils';
 import { NodeUpdateAnimation } from './node-update-animation';
+
+function treeNodeKey(node: NodeId & { uid?: string }) {
+    return node.uid || nodeKey(node);
+}
 
 const color = require('color');
 
@@ -148,7 +152,8 @@ function renderLoadBalancerNode(node: dagre.Node & { label: string, color: strin
     );
 }
 
-function renderResourceNode(props: ApplicationResourceTreeProps, fullName: string, node: (ResourceTreeNode) & dagre.Node) {
+function renderResourceNode(props: ApplicationResourceTreeProps, id: string, node: (ResourceTreeNode) & dagre.Node) {
+    const fullName = nodeKey(node);
     let comparisonStatus: models.SyncStatusCode = null;
     let healthState: models.HealthStatus = null;
     if (node.status || node.health) {
@@ -196,8 +201,8 @@ function renderResourceNode(props: ApplicationResourceTreeProps, fullName: strin
 
 function findNetworkTargets(nodes: ResourceTreeNode[], networkingInfo: models.ResourceNetworkingInfo): ResourceTreeNode[] {
     let result = new Array<ResourceTreeNode>();
-    const refs = new Set((networkingInfo.targetRefs || []).map(nodeKey));
-    result = result.concat(nodes.filter((target) => refs.has(nodeKey(target))));
+    const refs = new Set((networkingInfo.targetRefs || []).map(treeNodeKey));
+    result = result.concat(nodes.filter((target) => refs.has(treeNodeKey(target))));
     if (networkingInfo.targetLabels) {
         result = result.concat(nodes.filter((target) => {
             if (target.networkingInfo && target.networkingInfo.labels) {
@@ -240,7 +245,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             resourceNode.status = status.status;
             resourceNode.hook = status.hook;
         }
-        nodeByKey.set(nodeKey(node), resourceNode);
+        nodeByKey.set(treeNodeKey(node), resourceNode);
     });
     const nodes = Array.from(nodeByKey.values());
     let roots: ResourceTreeNode[] = null;
@@ -250,28 +255,28 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         const networkNodes = nodes.filter((node) => node.networkingInfo);
         networkNodes.forEach((parent) => {
             findNetworkTargets(networkNodes, parent.networkingInfo).forEach((child) => {
-                const children = childrenByParentKey.get(nodeKey(parent)) || [];
-                hasParents.add(nodeKey(child));
+                const children = childrenByParentKey.get(treeNodeKey(parent)) || [];
+                hasParents.add(treeNodeKey(child));
                 children.push(child);
-                childrenByParentKey.set(nodeKey(parent), children);
+                childrenByParentKey.set(treeNodeKey(parent), children);
             });
         });
-        roots = networkNodes.filter((node) => !hasParents.has(nodeKey(node)));
+        roots = networkNodes.filter((node) => !hasParents.has(treeNodeKey(node)));
     } else {
         nodes.forEach((child) => {
             (child.parentRefs || []).forEach((parent) => {
-                const children = childrenByParentKey.get(nodeKey(parent)) || [];
+                const children = childrenByParentKey.get(treeNodeKey(parent)) || [];
                 children.push(child);
-                childrenByParentKey.set(nodeKey(parent), children);
+                childrenByParentKey.set(treeNodeKey(parent), children);
             });
         });
         roots = nodes.filter((node) => (node.parentRefs || []).length === 0).sort(compareNodes);
     }
 
     function processNode(node: ResourceTreeNode, root: ResourceTreeNode, colors?: string[]) {
-        graph.setNode(nodeKey(node), {...node, width: NODE_WIDTH, height: NODE_HEIGHT, root});
-        (childrenByParentKey.get(nodeKey(node)) || []).sort(compareNodes).forEach((child) => {
-            graph.setEdge(nodeKey(node), nodeKey(child), {colors});
+        graph.setNode(treeNodeKey(node), {...node, width: NODE_WIDTH, height: NODE_HEIGHT, root});
+        (childrenByParentKey.get(treeNodeKey(node)) || []).sort(compareNodes).forEach((child) => {
+            graph.setEdge(treeNodeKey(node), treeNodeKey(child), {colors});
             processNode(child, root, colors);
         });
     }
@@ -281,7 +286,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         const internalRoots = roots.filter((root) => (root.networkingInfo.ingress || []).length === 0).sort(compareNodes);
         const colorsBySource = new Map<string, string>();
         // sources are root internal services and external ingress/service IPs
-        const sources = Array.from(new Set(internalRoots.map((root) => nodeKey(root)).concat(
+        const sources = Array.from(new Set(internalRoots.map((root) => treeNodeKey(root)).concat(
             externalRoots.map((root) => root.networkingInfo.ingress.map((ingress) => ingress.hostname || ingress.ip)).reduce((first, second) => first.concat(second), []),
         )));
         // assign unique color to each traffic source
@@ -296,7 +301,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                     const loadBalancerNodeKey = `${EXTERNAL_TRAFFIC_NODE}:${key}`;
                     graph.setNode(loadBalancerNodeKey, {
                         height: NODE_HEIGHT, width: NODE_WIDTH, type: NODE_TYPES.externalLoadBalancer, label: key, color: colorsBySource.get(key)});
-                    graph.setEdge(loadBalancerNodeKey, nodeKey(root), { colors: [colorsBySource.get(key)]});
+                    graph.setEdge(loadBalancerNodeKey, treeNodeKey(root), { colors: [colorsBySource.get(key)]});
                     graph.setEdge(EXTERNAL_TRAFFIC_NODE, loadBalancerNodeKey, { colors: [colorsBySource.get(key)]});
                 });
             });
@@ -305,8 +310,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         if (internalRoots.length > 0) {
             graph.setNode(INTERNAL_TRAFFIC_NODE, { height: NODE_HEIGHT, width: 30, type: NODE_TYPES.internalTraffic });
             internalRoots.forEach((root) => {
-                processNode(root, root, [colorsBySource.get(nodeKey(root))]);
-                graph.setEdge(INTERNAL_TRAFFIC_NODE, nodeKey(root));
+                processNode(root, root, [colorsBySource.get(treeNodeKey(root))]);
+                graph.setEdge(INTERNAL_TRAFFIC_NODE, treeNodeKey(root));
             });
         }
         if (props.nodeFilter) {
@@ -316,7 +321,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     } else {
         roots.sort(compareNodes).forEach((node) => processNode(node, node));
         graph.setNode(appNodeKey(props.app), { ...appNode, width: NODE_WIDTH, height: NODE_HEIGHT });
-        roots.forEach((root) => graph.setEdge(appNodeKey(props.app), nodeKey(root)));
+        roots.forEach((root) => graph.setEdge(appNodeKey(props.app), treeNodeKey(root)));
         if (props.nodeFilter) {
             filterGraph(props.app, appNodeKey(props.app), graph, props.nodeFilter);
         }

@@ -134,7 +134,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                     const syncResourceKey = new URLSearchParams(this.props.history.location.search).get('deploy');
                     const tab = new URLSearchParams(this.props.history.location.search).get('tab');
                     const filteredRes = application.status.resources.filter((res) => {
-                        const resNode: ResourceTreeNode = {...res, root: null, info: null, parentRefs: [], resourceVersion: ''};
+                        const resNode: ResourceTreeNode = {...res, root: null, info: null, parentRefs: [], resourceVersion: '', uid: ''};
                         resNode.root = resNode;
                         return this.filterTreeNode(resNode, treeFilter);
                     });
@@ -345,7 +345,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         ).flatMap((appInfo) => {
                 const app = appInfo.app;
                 const fallbackTree: appModels.ApplicationTree = {
-                    nodes: app.status.resources.map((res) => ({...res, parentRefs: [], info: [], resourceVersion: ''})),
+                    nodes: app.status.resources.map((res) => ({...res, parentRefs: [], info: [], resourceVersion: '', uid: ''})),
                 };
                 const treeSource = new Observable<{ application: appModels.Application, tree: appModels.ApplicationTree }>((observer) => {
                     services.applications.resourceTree(app.metadata.name)
