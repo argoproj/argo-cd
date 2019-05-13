@@ -139,7 +139,6 @@ func (f *Fixture) RepoURL() string {
 // Teardown deletes test namespace resources.
 func (f *Fixture) Teardown() {
 	log.Info("cleaning up")
-	f.SetUp()
 	f.deleteDeploymentNamespace()
 	f.teardownTestRepo()
 }

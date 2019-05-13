@@ -3,18 +3,17 @@ package app
 import (
 	"time"
 
-	"github.com/argoproj/argo-cd/errors"
-
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-cd/errors"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
 // this implements the "then" part of given/when/then
 type Consequences struct {
-	context    *Context
-	actionable *Actions
+	context *Context
+	actions *Actions
 }
 
 func (c *Consequences) Expect(e Expectation) *Consequences {
@@ -41,7 +40,7 @@ func (c *Consequences) And(block func(app *Application)) *Consequences {
 }
 
 func (c *Consequences) When() *Actions {
-	return c.actionable
+	return c.actions
 }
 
 func (c *Consequences) app() *Application {
