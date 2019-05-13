@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path"
 	"path/filepath"
@@ -109,7 +110,6 @@ func NewFixture() *Fixture {
 		SettingsManager:  settings.NewSettingsManager(context.Background(), kubeClient, "argocd-e2e"),
 		apiServerAddress: apiServerAddress,
 		token:            sessionResponse.Token,
-		repoDirectory:    "/tmp/argocd-e2e",
 		plainText:        !tlsTestResult.TLS,
 	}
 
@@ -117,6 +117,9 @@ func NewFixture() *Fixture {
 }
 
 func (f *Fixture) setUpTestRepo() {
+
+	f.repoDirectory = fmt.Sprintf("/tmp/argocd-e2e-%d", rand.Uint32())
+
 	errors.CheckError2(execCommand("", "cp", "-R", "../testdata", f.repoDirectory))
 	errors.CheckError2(execCommand(f.repoDirectory, "chmod", "777", "."))
 	errors.CheckError2(execCommand(f.repoDirectory, "git", "init"))
