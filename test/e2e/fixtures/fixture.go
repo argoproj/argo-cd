@@ -12,11 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ghodss/yaml"
-
-	jsonpatch "github.com/evanphx/json-patch"
-
 	argoexec "github.com/argoproj/pkg/exec"
+	jsonpatch "github.com/evanphx/json-patch"
+	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -138,8 +136,9 @@ func (f *Fixture) RepoURL() string {
 
 // Teardown deletes test namespace resources.
 func (f *Fixture) Teardown() {
-	log.Info("cleaning up")
-	f.deleteDeploymentNamespace()
+	log.Info("tearing down")
+	f.deleteApps()
+	f.deleteDeploymentNamespaces()
 	f.teardownTestRepo()
 }
 
@@ -161,50 +160,56 @@ func (f *Fixture) createDeploymentNamespace() string {
 }
 
 func (f *Fixture) SetUp() {
+	f.resetSettings()
+	f.deleteApps()
+	f.deleteAppProjects()
+	f.setUpTestRepo()
+}
 
+func (f *Fixture) resetSettings() {
 	argoSettings, err := f.SettingsManager.GetSettings()
 	errors.CheckError(err)
-
 	if len(argoSettings.ResourceOverrides) > 0 {
 		argoSettings.ResourceOverrides = nil
 		errors.CheckError(f.SettingsManager.SaveSettings(argoSettings))
 	}
+}
 
+func (f *Fixture) deleteApps() {
 	closer, client := f.ArgoCDClientset.NewApplicationClientOrDie()
 	defer util.Close(closer)
 	apps, err := client.List(context.Background(), &application.ApplicationQuery{})
 	errors.CheckError(err)
-	err = util.RunAllAsync(len(apps.Items), func(i int) error {
-		cascade := true
-		appName := apps.Items[i].Name
+	cascade := false
+	for _, app := range apps.Items {
+		appName := app.Name
+		log.WithFields(log.Fields{"app": appName}).Info("deleting app")
 		_, err := client.Delete(context.Background(), &application.ApplicationDeleteRequest{Name: &appName, Cascade: &cascade})
-		if err != nil {
-			return nil
-		}
-		return waitUntilE(func() (bool, error) {
+		errors.CheckError(err)
+		err = waitUntilE(func() (bool, error) {
 			_, err := f.AppClientset.ArgoprojV1alpha1().Applications(f.ArgoCDNamespace).Get(appName, v1.GetOptions{})
 			if apierrors.IsNotFound(err) {
 				return true, nil
 			}
 			return false, err
 		})
-	})
-	errors.CheckError(err)
-
-	projs, err := f.AppClientset.ArgoprojV1alpha1().AppProjects(f.ArgoCDNamespace).List(v1.ListOptions{})
-	errors.CheckError(err)
-	err = util.RunAllAsync(len(projs.Items), func(i int) error {
-		if projs.Items[i].Name == "default" {
-			return nil
-		}
-		return f.AppClientset.ArgoprojV1alpha1().AppProjects(f.ArgoCDNamespace).Delete(projs.Items[i].Name, &v1.DeleteOptions{})
-	})
-	errors.CheckError(err)
-
-	f.setUpTestRepo()
+		errors.CheckError(err)
+	}
 }
 
-func (f *Fixture) deleteDeploymentNamespace() {
+func (f *Fixture) deleteAppProjects() {
+	projs, err := f.AppClientset.ArgoprojV1alpha1().AppProjects(f.ArgoCDNamespace).List(v1.ListOptions{})
+	errors.CheckError(err)
+	for _, proj := range projs.Items {
+		if proj.Name == "default" {
+			continue
+		}
+		err := f.AppClientset.ArgoprojV1alpha1().AppProjects(f.ArgoCDNamespace).Delete(proj.Name, &v1.DeleteOptions{})
+		errors.CheckError(err)
+	}
+}
+
+func (f *Fixture) deleteDeploymentNamespaces() {
 	labelSelector := labels.NewSelector()
 	req, err := labels.NewRequirement(testingLabel, selection.Equals, []string{"true"})
 	errors.CheckError(err)
@@ -215,7 +220,9 @@ func (f *Fixture) deleteDeploymentNamespace() {
 
 	for _, ns := range namespaces.Items {
 		if ns.DeletionTimestamp == nil {
-			err = f.KubeClientset.CoreV1().Namespaces().Delete(ns.Name, &v1.DeleteOptions{})
+			namespace := ns.Name
+			log.WithFields(log.Fields{"namespace": namespace}).Info("deleting namespace")
+			err = f.KubeClientset.CoreV1().Namespaces().Delete(namespace, &v1.DeleteOptions{})
 			if err != nil {
 				log.Warnf("Failed to delete e2e deployment namespace: %s", ns.Name)
 			}
@@ -263,7 +270,8 @@ func (f *Fixture) Patch(path string, jsonPatch string) {
 	patch, err := jsonpatch.DecodePatch([]byte(jsonPatch))
 	errors.CheckError(err)
 
-	if strings.HasSuffix(filename, ".yaml") {
+	isYaml := strings.HasSuffix(filename, ".yaml")
+	if isYaml {
 		log.Info("converting YAML to JSON")
 		bytes, err = yaml.YAMLToJSON(bytes)
 		errors.CheckError(err)
@@ -274,8 +282,19 @@ func (f *Fixture) Patch(path string, jsonPatch string) {
 	bytes, err = patch.Apply(bytes)
 	errors.CheckError(err)
 
+	if isYaml {
+		log.Info("converting JSON back to YAML")
+		bytes, err = yaml.JSONToYAML(bytes)
+		errors.CheckError(err)
+	}
+
 	err = ioutil.WriteFile(filename, bytes, 0644)
 	errors.CheckError(err)
+
+	output, err := argoexec.RunCommand("sh", "-c", fmt.Sprintf("cd %s && git diff", f.repoDirectory))
+	for i, line := range strings.Split(output, "\n") {
+		log.Infof("%d: %s", i, line)
+	}
 
 	log.Info("committing")
 
