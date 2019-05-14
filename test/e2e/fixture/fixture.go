@@ -61,7 +61,7 @@ func getKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest
 
 // creates e2e tests fixture: ensures that Application CRD is installed, creates temporal namespace, starts repo and api server,
 // configure currently available cluster.
-func Init() {
+func init() {
 	// set-up variables
 	config := getKubeConfig("", clientcmd.ConfigOverrides{})
 	AppClientset = appclientset.NewForConfigOrDie(config)
@@ -117,8 +117,6 @@ func DeploymentNamespace() string {
 func EnsureCleanState() {
 
 	start := time.Now()
-
-	Init()
 
 	// delete resources
 	FailOnErr(Run("", "kubectl", "-n", ArgoCDNamespace, "delete", "app", "--all"))

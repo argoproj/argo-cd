@@ -20,7 +20,7 @@ type Consequences struct {
 func (c *Consequences) Expect(e Expectation) *Consequences {
 	var message string
 	var state state
-	for start := time.Now(); time.Since(start) < 30*time.Second; time.Sleep(3 * time.Second) {
+	for start := time.Now(); time.Since(start) < 15*time.Second; time.Sleep(2 * time.Second) {
 		state, message = e(c)
 		log.WithFields(log.Fields{"message": message, "state": state}).Info("polling for expectation")
 		switch state {
