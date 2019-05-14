@@ -62,10 +62,6 @@ func getKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest
 // creates e2e tests fixture: ensures that Application CRD is installed, creates temporal namespace, starts repo and api server,
 // configure currently available cluster.
 func init() {
-
-	// trouble-shooting check to see if this busted add-on is going to cause problems
-	FailOnErr(execCommand("", "kubectl", "api-resources", "-o", "name", "--api-group", "v1beta1.metrics.k8s.io"))
-
 	// set-up variables
 	config := getKubeConfig("", clientcmd.ConfigOverrides{})
 	AppClientset = appclientset.NewForConfigOrDie(config)
@@ -123,10 +119,10 @@ func EnsureCleanState() {
 	start := time.Now()
 
 	// delete resources
-	FailOnErr(execCommand("", "kubectl", "-n", ArgoCDNamespace, "delete", "app", "--all"))
-	FailOnErr(execCommand("", "kubectl", "-n", ArgoCDNamespace, "delete", "appprojects", "--field-selector", "metadata.name!=default"))
+	FailOnErr(Run("", "kubectl", "-n", ArgoCDNamespace, "delete", "app", "--all"))
+	FailOnErr(Run("", "kubectl", "-n", ArgoCDNamespace, "delete", "appprojects", "--field-selector", "metadata.name!=default"))
 	// takes around 5s, so we don't wait
-	FailOnErr(execCommand("", "kubectl", "delete", "ns", "-l", testingLabel+"=true", "--field-selector", "status.phase=Active"))
+	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", testingLabel+"=true", "--field-selector", "status.phase=Active"))
 
 	// reset settings
 	argoSettings, err := SettingsManager.GetSettings()
@@ -143,18 +139,18 @@ func EnsureCleanState() {
 	id = strings.ToLower(rand.RandString(5))
 
 	// create tmp dir
-	FailOnErr(execCommand("", "mkdir", "-p", tmpDir))
+	FailOnErr(Run("", "mkdir", "-p", tmpDir))
 
 	// set-up tmp repo, must have unique name
-	FailOnErr(execCommand("", "cp", "-Rf", "testdata", repoDirectory()))
-	FailOnErr(execCommand(repoDirectory(), "chmod", "777", "."))
-	FailOnErr(execCommand(repoDirectory(), "git", "init"))
-	FailOnErr(execCommand(repoDirectory(), "git", "add", "."))
-	FailOnErr(execCommand(repoDirectory(), "git", "commit", "-q", "-m", "initial commit"))
+	FailOnErr(Run("", "cp", "-Rf", "testdata", repoDirectory()))
+	FailOnErr(Run(repoDirectory(), "chmod", "777", "."))
+	FailOnErr(Run(repoDirectory(), "git", "init"))
+	FailOnErr(Run(repoDirectory(), "git", "add", "."))
+	FailOnErr(Run(repoDirectory(), "git", "commit", "-q", "-m", "initial commit"))
 
 	// create namespace
-	FailOnErr(execCommand(repoDirectory(), "kubectl", "create", "ns", DeploymentNamespace()))
-	FailOnErr(execCommand(repoDirectory(), "kubectl", "label", "ns", DeploymentNamespace(), testingLabel+"=true"))
+	FailOnErr(Run(repoDirectory(), "kubectl", "create", "ns", DeploymentNamespace()))
+	FailOnErr(Run(repoDirectory(), "kubectl", "label", "ns", DeploymentNamespace(), testingLabel+"=true"))
 
 	log.WithFields(log.Fields{"duration": time.Since(start), "id": id}).Info("clean state")
 }
@@ -166,7 +162,7 @@ func RunCli(args ...string) (string, error) {
 
 	args = append(args, "--server", apiServerAddress, "--auth-token", token, "--insecure")
 
-	return execCommand("", "../../dist/argocd", args...)
+	return Run("", "../../dist/argocd", args...)
 }
 
 func Patch(path string, jsonPatch string) {
@@ -199,6 +195,6 @@ func Patch(path string, jsonPatch string) {
 	}
 
 	CheckError(ioutil.WriteFile(filename, bytes, 0644))
-	FailOnErr(execCommand(repoDirectory(), "git", "diff"))
-	FailOnErr(execCommand(repoDirectory(), "git", "commit", "-am", "patch"))
+	FailOnErr(Run(repoDirectory(), "git", "diff"))
+	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "patch"))
 }

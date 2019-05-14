@@ -26,25 +26,3 @@ Some effort has been made to balance test isolation with speed. Tests are isolat
 * A unique Git repository containing the `testdata` in `/tmp/argocd-e2e/${id}`.
 * A namespace `argocd-e2e-ns-${id}`.
 * An primary name for the app `argocd-e2e-${id}`.
-
-## Troubleshooting
-
-**Tests fails to delete `argocd-e2e-ns-*` namespaces.**
-
-This maybe due to the metrics server, run this:
-
-```bash
-kubectl api-resources 
-```
-
-If it exits with status code 1, run:
-
-```bash
-kubectl delete apiservice v1beta1.metrics.k8s.io
-```
-
-Remove `/spec/finalizers` from the namespace
-
-```bash
-kubectl edit ns argocd-e2e-ns-*
-```

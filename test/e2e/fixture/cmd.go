@@ -8,7 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func execCommand(workDir, name string, args ...string) (string, error) {
+func Run(workDir, name string, args ...string) (string, error) {
 
 	start := time.Now()
 

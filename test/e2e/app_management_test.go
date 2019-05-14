@@ -307,6 +307,9 @@ func TestDuplicatedResources(t *testing.T) {
 }
 
 func TestFailedConversion(t *testing.T) {
+
+	defer func() { _, _ = fixture.RunCli("", "kubectl", "-n", "kube-system", "delete", "metrics-server") }()
+
 	testEdgeCasesApplicationResources(t, "failed-conversion")
 }
 
