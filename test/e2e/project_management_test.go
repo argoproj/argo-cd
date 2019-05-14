@@ -1,4 +1,4 @@
-package project
+package e2e
 
 import (
 	"strconv"

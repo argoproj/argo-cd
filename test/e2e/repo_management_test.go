@@ -1,4 +1,4 @@
-package repo
+package e2e
 
 import (
 	"context"

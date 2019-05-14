@@ -1,4 +1,4 @@
-package app
+package e2e
 
 import (
 	"context"
@@ -42,7 +42,7 @@ func TestAppCreation(t *testing.T) {
 			assert.Equal(t, fixture.Name(), app.Name)
 			assert.Equal(t, fixture.RepoURL(), app.Spec.Source.RepoURL)
 			assert.Equal(t, guestbookPath, app.Spec.Source.Path)
-			assert.Equal(t, fixture.DeploymentNamespace, app.Spec.Destination.Namespace)
+			assert.Equal(t, fixture.DeploymentNamespace(), app.Spec.Destination.Namespace)
 			assert.Equal(t, common.KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
 		}).
 		Expect(Event(EventReasonResourceCreated, "create"))
@@ -235,7 +235,7 @@ func TestAppWithSecrets(t *testing.T) {
 			assert.Contains(t, diffOutput, "username: '*********'")
 
 			// local diff should ignore secrets
-			diffOutput, err = fixture.RunCli("app", "diff", app.Name, "--local", "../testdata/secrets")
+			diffOutput, err = fixture.RunCli("app", "diff", app.Name, "--local", "testdata/secrets")
 			assert.NoError(t, err)
 			assert.Empty(t, diffOutput)
 
@@ -283,7 +283,7 @@ func TestResourceDiffing(t *testing.T) {
 
 			// Make sure application is out of sync due to deployment image difference
 			assert.Equal(t, string(SyncStatusCodeOutOfSync), string(app.Status.Sync.Status))
-			diffOutput, _ := fixture.RunCli("app", "diff", app.Name, "--local", "../testdata/guestbook")
+			diffOutput, _ := fixture.RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
 			assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", fixture.DeploymentNamespace()))
 
 			// Update settings to ignore image difference
@@ -305,7 +305,6 @@ func TestResourceDiffing(t *testing.T) {
 			assert.Empty(t, diffOutput)
 			assert.NoError(t, err)
 		})
-
 }
 
 func TestEdgeCasesApplicationResources(t *testing.T) {
@@ -336,7 +335,7 @@ func TestEdgeCasesApplicationResources(t *testing.T) {
 					assert.NoError(t, err)
 
 					assert.Equal(t, string(SyncStatusCodeSynced), string(app.Status.Sync.Status))
-					diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", path.Join("../testdata", appPath))
+					diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", path.Join("testdata", appPath))
 					assert.Empty(t, diffOutput)
 					assert.NoError(t, err)
 				})
