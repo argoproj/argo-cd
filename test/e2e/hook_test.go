@@ -104,7 +104,7 @@ func TestPostSyncHookPodFailure(t *testing.T) {
 		}))
 }
 
-func TestHookDeletePolicyHookSucceeded(t *testing.T) {
+func TestHookDeletePolicyHookSucceededHookExit0(t *testing.T) {
 	Given(t).
 		Path("hook").
 		When().
@@ -113,7 +113,43 @@ func TestHookDeletePolicyHookSucceeded(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(NotPod(func(p v1.Pod) bool {
-			return p.Name == "hook"
-		}))
+		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "hook" }))
+}
+
+func TestHookDeletePolicyHookSucceededHookExit1(t *testing.T) {
+	Given(t).
+		Path("hook").
+		When().
+		Patch("hook.yaml", `[{"op": "add", "path": "/metadata/annotations/argocd.argoproj.io~1hook-delete-policy", "value": "HookSucceeded"}]`).
+		Patch("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}]`).
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationFailed)).
+		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" }))
+}
+
+func TestHookDeletePolicyHookFailedHookExit0(t *testing.T) {
+	Given(t).
+		Path("hook").
+		When().
+		Patch("hook.yaml", `[{"op": "add", "path": "/metadata/annotations/argocd.argoproj.io~1hook-delete-policy", "value": "HookFailed"}]`).
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" }))
+}
+
+func TestHookDeletePolicyHookFailedHookExit1(t *testing.T) {
+	Given(t).
+		Path("hook").
+		When().
+		Patch("hook.yaml", `[{"op": "add", "path": "/metadata/annotations/argocd.argoproj.io~1hook-delete-policy", "value": "HookFailed"}]`).
+		Patch("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}]`).
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationFailed)).
+		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "hook" }))
 }
