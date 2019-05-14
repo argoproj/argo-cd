@@ -7,11 +7,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/test/e2e/fixtures"
-	. "github.com/argoproj/argo-cd/test/e2e/fixtures/app"
+	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 )
-
-var fixture = fixtures.NewFixture()
 
 func TestPreSyncHookSuccessful(t *testing.T) {
 	testHookSuccessful(t, HookTypePreSync)
@@ -26,7 +23,7 @@ func TestPostSyncHookSuccessful(t *testing.T) {
 }
 
 func testHookSuccessful(t *testing.T, hookType HookType) {
-	Given(fixture, t).
+	Given(t).
 		Path("hook").
 		When().
 		Patch("hook.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "%s"}}]`, hookType)).
@@ -44,7 +41,7 @@ func testHookSuccessful(t *testing.T, hookType HookType) {
 
 func TestPreSyncHookFailure(t *testing.T) {
 
-	Given(fixture, t).
+	Given(t).
 		Path("hook").
 		When().
 		Patch("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "PreSync"}}]`).
@@ -61,7 +58,7 @@ func TestPreSyncHookFailure(t *testing.T) {
 
 func TestSyncHookFailure(t *testing.T) {
 
-	Given(fixture, t).
+	Given(t).
 		Path("hook").
 		When().
 		// make hook fail
@@ -77,7 +74,7 @@ func TestSyncHookFailure(t *testing.T) {
 
 func TestPostSyncHookFailure(t *testing.T) {
 
-	Given(fixture, t).
+	Given(t).
 		Path("hook").
 		When().
 		Patch("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "PostSync"}}]`).
@@ -93,7 +90,7 @@ func TestPostSyncHookFailure(t *testing.T) {
 
 func TestPostSyncHookPodFailure(t *testing.T) {
 
-	Given(fixture, t).
+	Given(t).
 		Path("hook").
 		When().
 		Patch("hook.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "PostSync"}}]`).
@@ -113,7 +110,7 @@ func TestPostSyncHookPodFailure(t *testing.T) {
 
 func TestHookDeletePolicyHookSucceeded(t *testing.T) {
 
-	Given(fixture, t).
+	Given(t).
 		Path("hook").
 		When().
 		Patch("hook.yaml", `[{"op": "add", "path": "/metadata/annotations/argocd.argoproj.io~1hook-delete-policy", "value": "HookSucceeded"}]`).

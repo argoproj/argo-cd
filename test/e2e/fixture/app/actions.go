@@ -1,5 +1,7 @@
 package app
 
+import "github.com/argoproj/argo-cd/test/e2e/fixture"
+
 // this implements the "when" part of given/when/then
 //
 // none of the func implement error checks, and that is complete intended, you should check for errors
@@ -12,10 +14,10 @@ func (a *Actions) Create() *Actions {
 
 	args := []string{
 		"app", "create", a.context.name,
-		"--repo", a.context.fixture.RepoURL(),
+		"--repo", fixture.RepoURL(),
 		"--path", a.context.path,
 		"--dest-server", a.context.destServer,
-		"--dest-namespace", a.context.fixture.DeploymentNamespace,
+		"--dest-namespace", fixture.DeploymentNamespace(),
 	}
 
 	if a.context.env != "" {
@@ -42,7 +44,7 @@ func (a *Actions) TerminateOp() *Actions {
 }
 
 func (a *Actions) Patch(file string, jsonPath string) *Actions {
-	a.context.fixture.Patch(a.context.path+"/"+file, jsonPath)
+	fixture.Patch(a.context.path+"/"+file, jsonPath)
 	return a
 }
 
@@ -60,5 +62,5 @@ func (a *Actions) Then() *Consequences {
 }
 
 func (a *Actions) runCli(args ...string) (output string, err error) {
-	return a.context.fixture.RunCli(args...)
+	return fixture.RunCli(args...)
 }

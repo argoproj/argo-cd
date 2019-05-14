@@ -4,12 +4,11 @@ import (
 	"testing"
 
 	. "github.com/argoproj/argo-cd/common"
-	. "github.com/argoproj/argo-cd/test/e2e/fixtures"
+	"github.com/argoproj/argo-cd/test/e2e/fixture"
 )
 
 // this implements the "given" part of given/when/then
 type Context struct {
-	fixture    *Fixture
 	t          *testing.T
 	path       string
 	name       string
@@ -18,9 +17,9 @@ type Context struct {
 	parameters []string
 }
 
-func Given(f *Fixture, t *testing.T) *Context {
-	f.SetUp()
-	return &Context{fixture: f, t: t, destServer: KubernetesInternalAPIServerAddr, name: "test-app"}
+func Given(t *testing.T) *Context {
+	fixture.EnsureCleanState()
+	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, name: fixture.Name()}
 }
 
 func (c *Context) Path(path string) *Context {

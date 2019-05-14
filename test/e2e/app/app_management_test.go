@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 	"path"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/argoproj/argo-cd/test/e2e/fixture"
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,8 +19,7 @@ import (
 	argorepo "github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/repository"
-	"github.com/argoproj/argo-cd/test/e2e/fixtures"
-	. "github.com/argoproj/argo-cd/test/e2e/fixtures/app"
+	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 	"github.com/argoproj/argo-cd/util"
 	. "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/diff"
@@ -30,21 +30,16 @@ const (
 	guestbookPath = "guestbook"
 )
 
-var fixture = fixtures.NewFixture()
-
 func TestAppCreation(t *testing.T) {
 
-	appName := "app-" + strconv.FormatInt(time.Now().Unix(), 10)
-
-	Given(fixture, t).
+	Given(t).
 		Path(guestbookPath).
-		Name(appName).
 		When().
 		Create().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
-			assert.Equal(t, appName, app.Name)
+			assert.Equal(t, fixture.Name(), app.Name)
 			assert.Equal(t, fixture.RepoURL(), app.Spec.Source.RepoURL)
 			assert.Equal(t, guestbookPath, app.Spec.Source.Path)
 			assert.Equal(t, fixture.DeploymentNamespace, app.Spec.Destination.Namespace)
@@ -55,7 +50,7 @@ func TestAppCreation(t *testing.T) {
 
 func TestAppDeletion(t *testing.T) {
 
-	Given(fixture, t).
+	Given(t).
 		Path(guestbookPath).
 		When().
 		Create().
@@ -70,7 +65,7 @@ func TestAppDeletion(t *testing.T) {
 
 func TestTrackAppStateAndSyncApp(t *testing.T) {
 
-	Given(fixture, t).
+	Given(t).
 		Path(guestbookPath).
 		When().
 		Create().
@@ -86,7 +81,7 @@ func TestTrackAppStateAndSyncApp(t *testing.T) {
 
 func TestAppRollbackSuccessful(t *testing.T) {
 
-	Given(fixture, t).
+	Given(t).
 		Path(guestbookPath).
 		When().
 		Create().
@@ -133,7 +128,7 @@ func TestAppRollbackSuccessful(t *testing.T) {
 
 func TestComparisonFailsIfClusterNotAdded(t *testing.T) {
 
-	Given(fixture, t).
+	Given(t).
 		Path(guestbookPath).
 		DestServer("https://not-registered-cluster/api").
 		When().
@@ -144,7 +139,7 @@ func TestComparisonFailsIfClusterNotAdded(t *testing.T) {
 
 func TestArgoCDWaitEnsureAppIsNotCrashing(t *testing.T) {
 
-	Given(fixture, t).
+	Given(t).
 		Path(guestbookPath).
 		When().
 		Create().
@@ -164,7 +159,7 @@ func TestArgoCDWaitEnsureAppIsNotCrashing(t *testing.T) {
 }
 
 func TestManipulateApplicationResources(t *testing.T) {
-	Given(fixture, t).
+	Given(t).
 		Path(guestbookPath).
 		When().
 		Create().
@@ -212,7 +207,7 @@ func TestAppWithSecrets(t *testing.T) {
 	defer util.Close(closer)
 	refresh := string(RefreshTypeNormal)
 
-	Given(fixture, t).
+	Given(t).
 		Path("secrets").
 		When().
 		Create().
@@ -225,7 +220,7 @@ func TestAppWithSecrets(t *testing.T) {
 			assert.Empty(t, diffOutput)
 
 			// patch secret and make sure app is out of sync and diff detects the change
-			_, err = fixture.KubeClientset.CoreV1().Secrets(fixture.DeploymentNamespace).Patch(
+			_, err = fixture.KubeClientset.CoreV1().Secrets(fixture.DeploymentNamespace()).Patch(
 				"test-secret", types.JSONPatchType, []byte(`[{"op": "remove", "path": "/data/username"}]`))
 			assert.NoError(t, err)
 
@@ -264,7 +259,7 @@ func TestAppWithSecrets(t *testing.T) {
 
 func TestResourceDiffing(t *testing.T) {
 
-	Given(fixture, t).
+	Given(t).
 		Path(guestbookPath).
 		When().
 		Create().
@@ -274,7 +269,7 @@ func TestResourceDiffing(t *testing.T) {
 		And(func(app *Application) {
 
 			// Patch deployment
-			_, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace).Patch(
+			_, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(
 				"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "test" }]`))
 			assert.NoError(t, err)
 
@@ -288,8 +283,8 @@ func TestResourceDiffing(t *testing.T) {
 
 			// Make sure application is out of sync due to deployment image difference
 			assert.Equal(t, string(SyncStatusCodeOutOfSync), string(app.Status.Sync.Status))
-			diffOutput, _ := fixture.RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
-			assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", fixture.DeploymentNamespace))
+			diffOutput, _ := fixture.RunCli("app", "diff", app.Name, "--local", "../testdata/guestbook")
+			assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", fixture.DeploymentNamespace()))
 
 			// Update settings to ignore image difference
 			settings, err := fixture.SettingsManager.GetSettings()
@@ -324,7 +319,7 @@ func TestEdgeCasesApplicationResources(t *testing.T) {
 
 	for name, appPath := range apps {
 		t.Run(fmt.Sprintf("Test%s", name), func(t *testing.T) {
-			Given(fixture, t).
+			Given(t).
 				Path(appPath).
 				When().
 				Create().
@@ -341,7 +336,7 @@ func TestEdgeCasesApplicationResources(t *testing.T) {
 					assert.NoError(t, err)
 
 					assert.Equal(t, string(SyncStatusCodeSynced), string(app.Status.Sync.Status))
-					diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", path.Join("testdata", appPath))
+					diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", path.Join("../testdata", appPath))
 					assert.Empty(t, diffOutput)
 					assert.NoError(t, err)
 				})
@@ -351,7 +346,7 @@ func TestEdgeCasesApplicationResources(t *testing.T) {
 
 func TestKsonnetApp(t *testing.T) {
 
-	Given(fixture, t).
+	Given(t).
 		Path("ksonnet").
 		Env("prod").
 		Parameter("guestbook-ui=image=gcr.io/heptio-images/ks-guestbook-demo:0.1").
@@ -392,7 +387,7 @@ definitions:
 
 func TestResourceAction(t *testing.T) {
 
-	Given(fixture, t).
+	Given(t).
 		Path(guestbookPath).
 		Name("test-app").
 		And(func() {
@@ -418,7 +413,7 @@ func TestResourceAction(t *testing.T) {
 				Group:        "apps",
 				Kind:         "Deployment",
 				Version:      "v1",
-				Namespace:    fixture.DeploymentNamespace,
+				Namespace:    fixture.DeploymentNamespace(),
 				ResourceName: "guestbook-ui",
 			})
 			assert.NoError(t, err)
@@ -428,13 +423,13 @@ func TestResourceAction(t *testing.T) {
 				Group:        "apps",
 				Kind:         "Deployment",
 				Version:      "v1",
-				Namespace:    fixture.DeploymentNamespace,
+				Namespace:    fixture.DeploymentNamespace(),
 				ResourceName: "guestbook-ui",
 				Action:       "sample",
 			})
 			assert.NoError(t, err)
 
-			deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace).Get("guestbook-ui", metav1.GetOptions{})
+			deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get("guestbook-ui", metav1.GetOptions{})
 			assert.NoError(t, err)
 
 			assert.Equal(t, "test", deployment.Labels["sample"])
@@ -442,7 +437,7 @@ func TestResourceAction(t *testing.T) {
 }
 
 func TestSyncResourceByLabel(t *testing.T) {
-	Given(fixture, t).
+	Given(t).
 		Path(guestbookPath).
 		Name("test-app").
 		When().
@@ -459,17 +454,17 @@ func TestSyncResourceByLabel(t *testing.T) {
 }
 
 func TestPermissions(t *testing.T) {
-	fixture.SetUp()
+	fixture.EnsureCleanState()
 	appName := "test-app"
 	_, err := fixture.RunCli("proj", "create", "test")
 	assert.NoError(t, err)
 
 	// make sure app cannot be created without permissions in project
 	output, err := fixture.RunCli("app", "create", appName, "--repo", fixture.RepoURL(),
-		"--path", guestbookPath, "--project", "test", "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace)
+		"--path", guestbookPath, "--project", "test", "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
 	assert.Error(t, err)
 	sourceError := fmt.Sprintf("application repo %s is not permitted in project 'test'", fixture.RepoURL())
-	destinationError := fmt.Sprintf("application destination {%s %s} is not permitted in project 'test'", common.KubernetesInternalAPIServerAddr, fixture.DeploymentNamespace)
+	destinationError := fmt.Sprintf("application destination {%s %s} is not permitted in project 'test'", common.KubernetesInternalAPIServerAddr, fixture.DeploymentNamespace())
 
 	assert.Contains(t, output, sourceError)
 	assert.Contains(t, output, destinationError)
@@ -484,7 +479,7 @@ func TestPermissions(t *testing.T) {
 
 	// make sure controller report permissions issues in conditions
 	_, err = fixture.RunCli("app", "create", "test-app", "--repo", fixture.RepoURL(),
-		"--path", guestbookPath, "--project", "test", "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace)
+		"--path", guestbookPath, "--project", "test", "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
 	assert.NoError(t, err)
 	defer func() {
 		err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Delete(appName, &metav1.DeleteOptions{})

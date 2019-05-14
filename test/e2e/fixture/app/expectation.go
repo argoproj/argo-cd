@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/argoproj/argo-cd/test/e2e/fixture"
+
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -121,17 +123,17 @@ func NotPod(predicate func(p v1.Pod) bool) Expectation {
 }
 
 func pods(c *Consequences) (*v1.PodList, error) {
-	c.context.fixture.KubeClientset.CoreV1()
-	pods, err := c.context.fixture.KubeClientset.CoreV1().Pods(c.context.fixture.DeploymentNamespace).List(metav1.ListOptions{})
+	fixture.KubeClientset.CoreV1()
+	pods, err := fixture.KubeClientset.CoreV1().Pods(fixture.DeploymentNamespace()).List(metav1.ListOptions{})
 	return pods, err
 }
 
 func Event(reason string, message string) Expectation {
 	return func(c *Consequences) (state, string) {
-		list, err := c.context.fixture.KubeClientset.CoreV1().Events(c.context.fixture.ArgoCDNamespace).List(metav1.ListOptions{
+		list, err := fixture.KubeClientset.CoreV1().Events(fixture.ArgoCDNamespace).List(metav1.ListOptions{
 			FieldSelector: fields.SelectorFromSet(map[string]string{
 				"involvedObject.name":      c.context.name,
-				"involvedObject.namespace": c.context.fixture.ArgoCDNamespace,
+				"involvedObject.namespace": fixture.ArgoCDNamespace,
 			}).String(),
 		})
 		if err != nil {

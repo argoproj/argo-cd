@@ -1,4 +1,4 @@
-package fixtures
+package fixture
 
 import (
 	"os/exec"
