@@ -64,7 +64,7 @@ func getKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest
 func init() {
 
 	// trouble-shooting check to see if this busted add-on is going to cause problems
-	CheckError2(execCommand("", "kubectl", "api-resources", "-o", "name", "--api-group", "v1beta1.metrics.k8s.io"))
+	FailOnErr(execCommand("", "kubectl", "api-resources", "-o", "name", "--api-group", "v1beta1.metrics.k8s.io"))
 
 	// set-up variables
 	config := getKubeConfig("", clientcmd.ConfigOverrides{})
@@ -88,7 +88,7 @@ func init() {
 	sessionResponse, err := client.Create(context.Background(), &session.SessionCreateRequest{Username: "admin", Password: adminPassword})
 	CheckError(err)
 
-	CheckError2(argocdclient.NewClient(&argocdclient.ClientOptions{
+	FailOnErr(argocdclient.NewClient(&argocdclient.ClientOptions{
 		Insecure:   true,
 		ServerAddr: apiServerAddress,
 		AuthToken:  sessionResponse.Token,
@@ -131,9 +131,9 @@ func EnsureCleanState() {
 	}
 
 	// delete resources
-	CheckError2(execCommand("", "kubectl", "-n", ArgoCDNamespace, "delete", "app", "--all", "--wait"))
-	CheckError2(execCommand("", "kubectl", "-n", ArgoCDNamespace, "delete", "appprojects", "--field-selector", "metadata.name!=default", "--wait"))
-	CheckError2(execCommand("", "kubectl", "delete", "ns", "-l", testingLabel+"=true", "--field-selector", "status.phase=Active", "--wait"))
+	FailOnErr(execCommand("", "kubectl", "-n", ArgoCDNamespace, "delete", "app", "--all", "--wait"))
+	FailOnErr(execCommand("", "kubectl", "-n", ArgoCDNamespace, "delete", "appprojects", "--field-selector", "metadata.name!=default", "--wait"))
+	FailOnErr(execCommand("", "kubectl", "delete", "ns", "-l", testingLabel+"=true", "--field-selector", "status.phase=Active", "--wait"))
 
 	// remove tmp dir
 	CheckError(os.RemoveAll(tmpDir))
@@ -141,18 +141,18 @@ func EnsureCleanState() {
 	id = strings.ToLower(rand.RandString(8))
 
 	// create tmp dir
-	CheckError2(execCommand("", "mkdir", "-p", tmpDir))
+	FailOnErr(execCommand("", "mkdir", "-p", tmpDir))
 
 	// set-up tmp repo, must have unique name
-	CheckError2(execCommand("", "cp", "-Rf", "testdata", repoDirectory()))
-	CheckError2(execCommand(repoDirectory(), "chmod", "777", "."))
-	CheckError2(execCommand(repoDirectory(), "git", "init"))
-	CheckError2(execCommand(repoDirectory(), "git", "add", "."))
-	CheckError2(execCommand(repoDirectory(), "git", "commit", "-q", "-m", "initial commit"))
+	FailOnErr(execCommand("", "cp", "-Rf", "testdata", repoDirectory()))
+	FailOnErr(execCommand(repoDirectory(), "chmod", "777", "."))
+	FailOnErr(execCommand(repoDirectory(), "git", "init"))
+	FailOnErr(execCommand(repoDirectory(), "git", "add", "."))
+	FailOnErr(execCommand(repoDirectory(), "git", "commit", "-q", "-m", "initial commit"))
 
 	// create namespace
-	CheckError2(execCommand(repoDirectory(), "kubectl", "create", "ns", DeploymentNamespace()))
-	CheckError2(execCommand(repoDirectory(), "kubectl", "label", "ns", DeploymentNamespace(), testingLabel+"=true"))
+	FailOnErr(execCommand(repoDirectory(), "kubectl", "create", "ns", DeploymentNamespace()))
+	FailOnErr(execCommand(repoDirectory(), "kubectl", "label", "ns", DeploymentNamespace(), testingLabel+"=true"))
 
 	log.WithFields(log.Fields{"duration": time.Since(start), "id": id}).Info("clean state")
 }
@@ -197,6 +197,6 @@ func Patch(path string, jsonPatch string) {
 	}
 
 	CheckError(ioutil.WriteFile(filename, bytes, 0644))
-	CheckError2(execCommand(repoDirectory(), "git", "diff"))
-	CheckError2(execCommand(repoDirectory(), "git", "commit", "-am", "patch"))
+	FailOnErr(execCommand(repoDirectory(), "git", "diff"))
+	FailOnErr(execCommand(repoDirectory(), "git", "commit", "-am", "patch"))
 }

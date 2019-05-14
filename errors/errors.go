@@ -11,6 +11,6 @@ func CheckError(err error) {
 	}
 }
 
-func CheckError2(_ interface{}, err error) {
+func FailOnErr(_ interface{}, err error) {
 	CheckError(err)
 }
