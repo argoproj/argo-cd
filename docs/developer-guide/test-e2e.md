@@ -18,6 +18,15 @@ You can observe the tests by using the UI [http://localhost:8080/applications](h
 The tests are executed by Argo Workflow defined at `.argo-ci/ci.yaml`. CI job The builds an Argo CD image, deploy argo cd components into throw-away kubernetes cluster provisioned
 using k3s and run e2e tests against it.
 
+## Test Isolation
+
+Some effort has been made to balance test isolation with speed. Tests are isolated as follows as each test gets:
+ 
+* A random 5 character ID.
+* A unique Git repository containing the `testdata` in `/tmp/argocd-e2e/${id}`.
+* A namespace `argocd-e2e-ns-${id}`.
+* An primary name for the app `argocd-e2e-${id}`.
+
 ## Troubleshooting
 
 **Tests fails to delete `argocd-e2e-ns-*` namespaces.**

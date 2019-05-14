@@ -122,6 +122,12 @@ func EnsureCleanState() {
 
 	start := time.Now()
 
+	// delete resources
+	FailOnErr(execCommand("", "kubectl", "-n", ArgoCDNamespace, "delete", "app", "--all"))
+	FailOnErr(execCommand("", "kubectl", "-n", ArgoCDNamespace, "delete", "appprojects", "--field-selector", "metadata.name!=default"))
+	// takes around 5s, so we don't wait
+	FailOnErr(execCommand("", "kubectl", "delete", "ns", "-l", testingLabel+"=true", "--field-selector", "status.phase=Active", "--wait=false"))
+
 	// reset settings
 	argoSettings, err := SettingsManager.GetSettings()
 	CheckError(err)
@@ -130,15 +136,11 @@ func EnsureCleanState() {
 		CheckError(SettingsManager.SaveSettings(argoSettings))
 	}
 
-	// delete resources
-	FailOnErr(execCommand("", "kubectl", "-n", ArgoCDNamespace, "delete", "app", "--all", "--wait"))
-	FailOnErr(execCommand("", "kubectl", "-n", ArgoCDNamespace, "delete", "appprojects", "--field-selector", "metadata.name!=default", "--wait"))
-	FailOnErr(execCommand("", "kubectl", "delete", "ns", "-l", testingLabel+"=true", "--field-selector", "status.phase=Active", "--wait"))
-
 	// remove tmp dir
 	CheckError(os.RemoveAll(tmpDir))
 
-	id = strings.ToLower(rand.RandString(8))
+	// new random ID
+	id = strings.ToLower(rand.RandString(5))
 
 	// create tmp dir
 	FailOnErr(execCommand("", "mkdir", "-p", tmpDir))
