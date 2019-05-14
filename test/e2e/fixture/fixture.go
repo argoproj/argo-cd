@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -102,7 +103,7 @@ func Name() string {
 }
 
 func repoDirectory() string {
-	return tmpDir + "/" + Name()
+	return path.Join(tmpDir, id)
 }
 
 func RepoURL() string {
@@ -110,7 +111,7 @@ func RepoURL() string {
 }
 
 func DeploymentNamespace() string {
-	return Name()
+	return fmt.Sprintf("argocd-e2e-ns-%s", id)
 }
 
 func EnsureCleanState() {
