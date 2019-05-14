@@ -8,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ghodss/yaml"
@@ -58,11 +59,14 @@ func getKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest
 	return restConfig
 }
 
-// NewFixture creates e2e tests fixture: ensures that Application CRD is installed, creates temporal namespace, starts repo and api server,
+// creates e2e tests fixture: ensures that Application CRD is installed, creates temporal namespace, starts repo and api server,
 // configure currently available cluster.
 func init() {
-	CheckError2(execCommand("", "kubectl", "api-resources"))
 
+	// trouble-shooting check to see if this busted add-on is going to cause problems
+	CheckError2(execCommand("", "kubectl", "api-resources", "-o", "name", "--api-group", "v1beta1.metrics.k8s.io"))
+
+	// set-up variables
 	config := getKubeConfig("", clientcmd.ConfigOverrides{})
 	AppClientset = appclientset.NewForConfigOrDie(config)
 	KubeClientset = kubernetes.NewForConfigOrDie(config)
@@ -116,6 +120,8 @@ func DeploymentNamespace() string {
 
 func EnsureCleanState() {
 
+	start := time.Now()
+
 	// reset settings
 	argoSettings, err := SettingsManager.GetSettings()
 	CheckError(err)
@@ -148,6 +154,7 @@ func EnsureCleanState() {
 	CheckError2(execCommand(repoDirectory(), "kubectl", "create", "ns", DeploymentNamespace()))
 	CheckError2(execCommand(repoDirectory(), "kubectl", "label", "ns", DeploymentNamespace(), testingLabel+"=true"))
 
+	log.WithFields(log.Fields{"duration": time.Since(start), "id": id}).Info("clean state")
 }
 
 func RunCli(args ...string) (string, error) {

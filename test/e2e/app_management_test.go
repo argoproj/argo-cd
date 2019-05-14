@@ -340,7 +340,7 @@ func testEdgeCasesApplicationResources(t *testing.T, appPath string) {
 			app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
 			assert.NoError(t, err)
 
-			assert.Equal(t, string(SyncStatusCodeSynced), string(app.Status.Sync.Status))
+			assert.Equal(t, SyncStatusCodeSynced, app.Status.Sync.Status)
 			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", path.Join("testdata", appPath))
 			assert.Empty(t, diffOutput)
 			assert.NoError(t, err)

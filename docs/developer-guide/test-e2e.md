@@ -17,3 +17,25 @@ You can observe the tests by using the UI [http://localhost:8080/applications](h
 
 The tests are executed by Argo Workflow defined at `.argo-ci/ci.yaml`. CI job The builds an Argo CD image, deploy argo cd components into throw-away kubernetes cluster provisioned
 using k3s and run e2e tests against it.
+
+## Troubleshooting
+
+**Tests fails to delete `argocd-e2e-ns-*` namespaces.**
+
+This maybe due to the metrics server, run this:
+
+```bash
+kubectl api-resources 
+```
+
+If it exits with status code 1, run:
+
+```bash
+kubectl delete apiservice v1beta1.metrics.k8s.io
+```
+
+Remove `/spec/finalizers` from the namespace
+
+```bash
+kubectl edit ns argocd-e2e-ns-*
+```
