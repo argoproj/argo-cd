@@ -240,7 +240,7 @@ func TestAppWithSecrets(t *testing.T) {
 			assert.Contains(t, diffOutput, "username: '*********'")
 
 			// local diff should ignore secrets
-			diffOutput, err = fixture.RunCli("app", "diff", app.Name, "--local", "testdata/secrets")
+			diffOutput, err = fixture.RunCli("app", "diff", app.Name, "--local", "../testdata/secrets")
 			assert.NoError(t, err)
 			assert.Empty(t, diffOutput)
 
