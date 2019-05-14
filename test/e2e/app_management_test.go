@@ -261,22 +261,16 @@ func TestResourceDiffing(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-
 			// Patch deployment
 			_, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(
 				"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "test" }]`))
 			assert.NoError(t, err)
-
-			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
-			assert.NoError(t, err)
-			defer util.Close(closer)
-
-			refresh := string(RefreshTypeNormal)
-			app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
-			assert.NoError(t, err)
-
-			// Make sure application is out of sync due to deployment image difference
-			assert.Equal(t, string(SyncStatusCodeOutOfSync), string(app.Status.Sync.Status))
+		}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		And(func(app *Application) {
 			diffOutput, _ := fixture.RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
 			assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", fixture.DeploymentNamespace()))
 
@@ -288,16 +282,15 @@ func TestResourceDiffing(t *testing.T) {
 			}
 			err = fixture.SettingsManager.SaveSettings(settings)
 			assert.NoError(t, err)
-
-			app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
+		}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
 			assert.NoError(t, err)
-
-			// Make sure application is in synced state and CLI show no difference
-			assert.Equal(t, string(SyncStatusCodeSynced), string(app.Status.Sync.Status))
-
-			diffOutput, err = fixture.RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
 			assert.Empty(t, diffOutput)
-			assert.NoError(t, err)
 		})
 }
 
@@ -324,17 +317,8 @@ func testEdgeCasesApplicationResources(t *testing.T, appPath string) {
 		Create().
 		Sync().
 		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-
-			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
-			assert.NoError(t, err)
-			defer util.Close(closer)
-
-			refresh := string(RefreshTypeNormal)
-			app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
-			assert.NoError(t, err)
-
-			assert.Equal(t, SyncStatusCodeSynced, app.Status.Sync.Status)
 			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", path.Join("testdata", appPath))
 			assert.Empty(t, diffOutput)
 			assert.NoError(t, err)
@@ -351,7 +335,6 @@ func TestKsonnetApp(t *testing.T) {
 		Sync().
 		Then().
 		And(func(app *Application) {
-
 			closer, client, err := fixture.ArgoCDClientset.NewRepoClient()
 			assert.NoError(t, err)
 			defer util.Close(closer)
