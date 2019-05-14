@@ -8,8 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/test/e2e/fixture"
-
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -19,6 +17,7 @@ import (
 	argorepo "github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/repository"
+	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 	"github.com/argoproj/argo-cd/util"
 	. "github.com/argoproj/argo-cd/util/argo"
@@ -159,6 +158,7 @@ func TestManipulateApplicationResources(t *testing.T) {
 		Create().
 		Sync().
 		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			manifests, err := fixture.RunCli("app", "manifests", app.Name, "--source", "live")
 			assert.NoError(t, err)
@@ -207,6 +207,7 @@ func TestAppWithSecrets(t *testing.T) {
 		Create().
 		Sync().
 		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 
 			diffOutput, err := fixture.RunCli("app", "diff", app.Name)

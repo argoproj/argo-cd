@@ -34,9 +34,7 @@ func testHookSuccessful(t *testing.T, hookType HookType) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(ResourceSyncStatusIs("pod", SyncStatusCodeSynced)).
 		Expect(ResourceHealthIs("pod", HealthStatusHealthy)).
-		Expect(Pod(func(p v1.Pod) bool {
-			return p.Name == "hook"
-		}))
+		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" }))
 }
 
 func TestPreSyncHookFailure(t *testing.T) {
@@ -99,9 +97,7 @@ func TestPostSyncHookPodFailure(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(ResourceSyncStatusIs("pod", SyncStatusCodeSynced)).
 		Expect(ResourceHealthIs("pod", HealthStatusDegraded)).
-		Expect(NotPod(func(p v1.Pod) bool {
-			return p.Name == "hook"
-		}))
+		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "hook" }))
 }
 
 func TestHookDeletePolicyHookSucceededHookExit0(t *testing.T) {
