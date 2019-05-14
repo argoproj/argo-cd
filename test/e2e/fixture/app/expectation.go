@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/argoproj/argo-cd/test/e2e/fixture"
-
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/test/e2e/fixture"
 )
 
 type state = string

@@ -60,6 +60,8 @@ func getKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest
 // NewFixture creates e2e tests fixture: ensures that Application CRD is installed, creates temporal namespace, starts repo and api server,
 // configure currently available cluster.
 func init() {
+	CheckError2(execCommand("", "kubectl", "api-resources"))
+
 	config := getKubeConfig("", clientcmd.ConfigOverrides{})
 	AppClientset = appclientset.NewForConfigOrDie(config)
 	KubeClientset = kubernetes.NewForConfigOrDie(config)

@@ -307,40 +307,44 @@ func TestResourceDiffing(t *testing.T) {
 		})
 }
 
-func TestEdgeCasesApplicationResources(t *testing.T) {
+func TestDeprecatedExtensions(t *testing.T) {
+	testEdgeCasesApplicationResources(t, "deprecated-extensions")
+}
 
-	apps := map[string]string{
-		"DeprecatedExtensions": "deprecated-extensions",
-		"CRDs":                 "crd-creation",
-		"DuplicatedResources":  "duplicated-resources",
-		"FailedConversion":     "failed-conversion",
-	}
+func TestCRDs(t *testing.T) {
+	testEdgeCasesApplicationResources(t, "crd-creation")
+}
 
-	for name, appPath := range apps {
-		t.Run(fmt.Sprintf("Test%s", name), func(t *testing.T) {
-			Given(t).
-				Path(appPath).
-				When().
-				Create().
-				Sync().
-				Then().
-				And(func(app *Application) {
+func TestDuplicatedResources(t *testing.T) {
+	testEdgeCasesApplicationResources(t, "duplicated-resources")
+}
 
-					closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
-					assert.NoError(t, err)
-					defer util.Close(closer)
+func TestFailedConversion(t *testing.T) {
+	testEdgeCasesApplicationResources(t, "failed-conversion")
+}
 
-					refresh := string(RefreshTypeNormal)
-					app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
-					assert.NoError(t, err)
+func testEdgeCasesApplicationResources(t *testing.T, appPath string) {
+	Given(t).
+		Path(appPath).
+		When().
+		Create().
+		Sync().
+		Then().
+		And(func(app *Application) {
 
-					assert.Equal(t, string(SyncStatusCodeSynced), string(app.Status.Sync.Status))
-					diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", path.Join("testdata", appPath))
-					assert.Empty(t, diffOutput)
-					assert.NoError(t, err)
-				})
+			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+			assert.NoError(t, err)
+			defer util.Close(closer)
+
+			refresh := string(RefreshTypeNormal)
+			app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
+			assert.NoError(t, err)
+
+			assert.Equal(t, string(SyncStatusCodeSynced), string(app.Status.Sync.Status))
+			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", path.Join("testdata", appPath))
+			assert.Empty(t, diffOutput)
+			assert.NoError(t, err)
 		})
-	}
 }
 
 func TestKsonnetApp(t *testing.T) {
