@@ -199,7 +199,6 @@ func TestAppWithSecrets(t *testing.T) {
 	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 	assert.NoError(t, err)
 	defer util.Close(closer)
-	refresh := string(RefreshTypeNormal)
 
 	Given(t).
 		Path("secrets").
@@ -218,10 +217,10 @@ func TestAppWithSecrets(t *testing.T) {
 			_, err = fixture.KubeClientset.CoreV1().Secrets(fixture.DeploymentNamespace()).Patch(
 				"test-secret", types.JSONPatchType, []byte(`[{"op": "remove", "path": "/data/username"}]`))
 			assert.NoError(t, err)
-
-			_, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
-			assert.NoError(t, err)
 		}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
 
@@ -241,12 +240,13 @@ func TestAppWithSecrets(t *testing.T) {
 			_, err = client.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: app.Spec})
 
 			assert.NoError(t, err)
-
-			app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
-			assert.NoError(t, err)
-			assert.Equal(t, string(SyncStatusCodeSynced), string(app.Status.Sync.Status))
-
-			diffOutput, err = fixture.RunCli("app", "diff", app.Name)
+		}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			diffOutput, err := fixture.RunCli("app", "diff", app.Name)
 			assert.NoError(t, err)
 			assert.Empty(t, diffOutput)
 		})

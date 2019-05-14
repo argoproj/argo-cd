@@ -1,6 +1,13 @@
 package app
 
-import "github.com/argoproj/argo-cd/test/e2e/fixture"
+import (
+	"context"
+
+	. "github.com/argoproj/argo-cd/errors"
+	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/server/application"
+	"github.com/argoproj/argo-cd/test/e2e/fixture"
+)
 
 // this implements the "when" part of given/when/then
 //
@@ -45,6 +52,17 @@ func (a *Actions) TerminateOp() *Actions {
 
 func (a *Actions) Patch(file string, jsonPath string) *Actions {
 	fixture.Patch(a.context.path+"/"+file, jsonPath)
+	return a
+}
+
+func (a *Actions) Refresh(refreshType RefreshType) *Actions {
+
+	closer, client := fixture.ArgoCDClientset.NewApplicationClientOrDie()
+	defer func() { _ = closer.Close() }()
+
+	refresh := string(refreshType)
+	FailOnErr(client.Get(context.Background(), &application.ApplicationQuery{Name: &a.context.name, Refresh: &refresh}))
+
 	return a
 }
 
