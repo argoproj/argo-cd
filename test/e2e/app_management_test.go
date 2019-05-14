@@ -31,7 +31,6 @@ const (
 )
 
 func TestAppCreation(t *testing.T) {
-
 	Given(t).
 		Path(guestbookPath).
 		When().
@@ -49,7 +48,6 @@ func TestAppCreation(t *testing.T) {
 }
 
 func TestAppDeletion(t *testing.T) {
-
 	Given(t).
 		Path(guestbookPath).
 		When().
@@ -64,7 +62,6 @@ func TestAppDeletion(t *testing.T) {
 }
 
 func TestTrackAppStateAndSyncApp(t *testing.T) {
-
 	Given(t).
 		Path(guestbookPath).
 		When().
@@ -80,7 +77,6 @@ func TestTrackAppStateAndSyncApp(t *testing.T) {
 }
 
 func TestAppRollbackSuccessful(t *testing.T) {
-
 	Given(t).
 		Path(guestbookPath).
 		When().
@@ -127,7 +123,6 @@ func TestAppRollbackSuccessful(t *testing.T) {
 }
 
 func TestComparisonFailsIfClusterNotAdded(t *testing.T) {
-
 	Given(t).
 		Path(guestbookPath).
 		DestServer("https://not-registered-cluster/api").
@@ -138,7 +133,6 @@ func TestComparisonFailsIfClusterNotAdded(t *testing.T) {
 }
 
 func TestArgoCDWaitEnsureAppIsNotCrashing(t *testing.T) {
-
 	Given(t).
 		Path(guestbookPath).
 		When().
@@ -258,7 +252,6 @@ func TestAppWithSecrets(t *testing.T) {
 }
 
 func TestResourceDiffing(t *testing.T) {
-
 	Given(t).
 		Path(guestbookPath).
 		When().
@@ -348,7 +341,6 @@ func testEdgeCasesApplicationResources(t *testing.T, appPath string) {
 }
 
 func TestKsonnetApp(t *testing.T) {
-
 	Given(t).
 		Path("ksonnet").
 		Env("prod").
@@ -389,7 +381,6 @@ definitions:
     return obj`
 
 func TestResourceAction(t *testing.T) {
-
 	Given(t).
 		Path(guestbookPath).
 		Name("test-app").

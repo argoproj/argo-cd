@@ -40,7 +40,6 @@ func testHookSuccessful(t *testing.T, hookType HookType) {
 }
 
 func TestPreSyncHookFailure(t *testing.T) {
-
 	Given(t).
 		Path("hook").
 		When().
@@ -57,7 +56,6 @@ func TestPreSyncHookFailure(t *testing.T) {
 }
 
 func TestSyncHookFailure(t *testing.T) {
-
 	Given(t).
 		Path("hook").
 		When().
@@ -73,7 +71,6 @@ func TestSyncHookFailure(t *testing.T) {
 }
 
 func TestPostSyncHookFailure(t *testing.T) {
-
 	Given(t).
 		Path("hook").
 		When().
@@ -89,7 +86,6 @@ func TestPostSyncHookFailure(t *testing.T) {
 }
 
 func TestPostSyncHookPodFailure(t *testing.T) {
-
 	Given(t).
 		Path("hook").
 		When().
@@ -109,7 +105,6 @@ func TestPostSyncHookPodFailure(t *testing.T) {
 }
 
 func TestHookDeletePolicyHookSucceeded(t *testing.T) {
-
 	Given(t).
 		Path("hook").
 		When().
