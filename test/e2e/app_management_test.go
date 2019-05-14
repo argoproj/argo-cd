@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/errors"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	argorepo "github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server/application"
@@ -308,7 +309,7 @@ func TestDuplicatedResources(t *testing.T) {
 
 func TestFailedConversion(t *testing.T) {
 
-	defer func() { _, _ = fixture.RunCli("", "kubectl", "-n", "kube-system", "delete", "metrics-server") }()
+	defer func() { errors.FailOnErr(fixture.Run("", "kubectl", "delete", "apiservice", "v1beta1.metrics.k8s.io")) }()
 
 	testEdgeCasesApplicationResources(t, "failed-conversion")
 }
