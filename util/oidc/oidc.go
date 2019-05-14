@@ -62,6 +62,13 @@ type ClientApp struct {
 	cache *cache.Cache
 }
 
+func GetScopesOrDefault(scopes []string) []string {
+	if len(scopes) == 0 {
+		return []string{"openid", "profile", "email", "groups"}
+	}
+	return scopes
+}
+
 // NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an
 // object which has HTTP handlers for handling the HTTP responses for login and callback
 func NewClientApp(settings *settings.ArgoCDSettings, cache *cache.Cache, dexServerAddr string) (*ClientApp, error) {
@@ -93,7 +100,7 @@ func NewClientApp(settings *settings.ArgoCDSettings, cache *cache.Cache, dexServ
 			ExpectContinueTimeout: 1 * time.Second,
 		},
 	}
-	if settings.DexConfig != "" {
+	if settings.DexConfig != "" && settings.OIDCConfigRAW == "" {
 		a.client.Transport = dex.NewDexRewriteURLRoundTripper(dexServerAddr, a.client.Transport)
 	}
 	if os.Getenv(common.EnvVarSSODebug) == "1" {
@@ -157,7 +164,11 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	oauth2Config, err := a.oauth2Config(a.settings.OIDCScopes())
+	scopes := make([]string, 0)
+	if config := a.settings.OIDCConfig(); config != nil {
+		scopes = config.RequestedScopes
+	}
+	oauth2Config, err := a.oauth2Config(GetScopesOrDefault(scopes))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

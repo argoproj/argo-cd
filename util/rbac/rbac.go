@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v2"
-
 	"github.com/argoproj/argo-cd/util/assets"
 
 	"github.com/casbin/casbin"
@@ -35,10 +33,6 @@ const (
 	defaultRBACSyncPeriod = 10 * time.Minute
 )
 
-var (
-	defaultScopes = []string{"groups"}
-)
-
 // Enforcer is a wrapper around an Casbin enforcer that:
 // * is backed by a kubernetes config map
 // * has a predefined RBAC model
@@ -54,11 +48,10 @@ type Enforcer struct {
 	claimsEnforcerFunc ClaimsEnforcerFunc
 	model              model.Model
 	defaultRole        string
-	scopes             []string
 }
 
 // ClaimsEnforcerFunc is func template to enforce a JWT claims. The subject is replaced
-type ClaimsEnforcerFunc func(claims jwt.Claims, scopes []string, rvals ...interface{}) bool
+type ClaimsEnforcerFunc func(claims jwt.Claims, rvals ...interface{}) bool
 
 func NewEnforcer(clientset kubernetes.Interface, namespace, configmap string, claimsEnforcer ClaimsEnforcerFunc) *Enforcer {
 	adapter := newAdapter("", "", "")
@@ -73,7 +66,6 @@ func NewEnforcer(clientset kubernetes.Interface, namespace, configmap string, cl
 		configmap:          configmap,
 		model:              builtInModel,
 		claimsEnforcerFunc: claimsEnforcer,
-		scopes:             defaultScopes,
 	}
 }
 
@@ -81,16 +73,6 @@ func NewEnforcer(clientset kubernetes.Interface, namespace, configmap string, cl
 // normal enforcement fails
 func (e *Enforcer) SetDefaultRole(roleName string) {
 	e.defaultRole = roleName
-}
-
-// SetDefaultRole sets a default role to use during enforcement. Will fall back to this role if
-// normal enforcement fails
-func (e *Enforcer) SetScopes(scopes []string) {
-	if len(scopes) == 0 {
-		e.scopes = defaultScopes
-	} else {
-		e.scopes = scopes
-	}
 }
 
 // SetClaimsEnforcerFunc sets a claims enforce function during enforcement. The claims enforce function
@@ -103,7 +85,7 @@ func (e *Enforcer) SetClaimsEnforcerFunc(claimsEnforcer ClaimsEnforcerFunc) {
 // Enforce is a wrapper around casbin.Enforce to additionally enforce a default role and a custom
 // claims function
 func (e *Enforcer) Enforce(rvals ...interface{}) bool {
-	return enforce(e.Enforcer, e.defaultRole, e.scopes, e.claimsEnforcerFunc, rvals...)
+	return enforce(e.Enforcer, e.defaultRole, e.claimsEnforcerFunc, rvals...)
 }
 
 // EnforceErr is a convenience helper to wrap a failed enforcement with a detailed error about the request
@@ -137,11 +119,11 @@ func (e *Enforcer) EnforceRuntimePolicy(policy string, rvals ...interface{}) boo
 			enf = e.Enforcer
 		}
 	}
-	return enforce(enf, e.defaultRole, e.scopes, e.claimsEnforcerFunc, rvals...)
+	return enforce(enf, e.defaultRole, e.claimsEnforcerFunc, rvals...)
 }
 
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
-func enforce(enf *casbin.Enforcer, defaultRole string, scopes []string, claimsEnforcerFunc ClaimsEnforcerFunc, rvals ...interface{}) bool {
+func enforce(enf *casbin.Enforcer, defaultRole string, claimsEnforcerFunc ClaimsEnforcerFunc, rvals ...interface{}) bool {
 	// check the default role
 	if defaultRole != "" && len(rvals) >= 2 {
 		if enf.Enforce(append([]interface{}{defaultRole}, rvals[1:]...)...) {
@@ -158,7 +140,7 @@ func enforce(enf *casbin.Enforcer, defaultRole string, scopes []string, claimsEn
 	case string:
 		// noop
 	case jwt.Claims:
-		if claimsEnforcerFunc != nil && claimsEnforcerFunc(s, scopes, rvals...) {
+		if claimsEnforcerFunc != nil && claimsEnforcerFunc(s, rvals...) {
 			return true
 		}
 		rvals = append([]interface{}{""}, rvals[1:]...)
@@ -190,29 +172,29 @@ func (e *Enforcer) newInformer() cache.SharedIndexInformer {
 }
 
 // RunPolicyLoader runs the policy loader which watches policy updates from the configmap and reloads them
-func (e *Enforcer) RunPolicyLoader(ctx context.Context) error {
+func (e *Enforcer) RunPolicyLoader(ctx context.Context, onUpdated func(cm *apiv1.ConfigMap) error) error {
 	cm, err := e.clientset.CoreV1().ConfigMaps(e.namespace).Get(e.configmap, metav1.GetOptions{})
 	if err != nil {
 		if !apierr.IsNotFound(err) {
 			return err
 		}
 	} else {
-		err = e.syncUpdate(cm)
+		err = e.syncUpdate(cm, onUpdated)
 		if err != nil {
 			return err
 		}
 	}
-	e.runInformer(ctx)
+	e.runInformer(ctx, onUpdated)
 	return nil
 }
 
-func (e *Enforcer) runInformer(ctx context.Context) {
+func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.ConfigMap) error) {
 	cmInformer := e.newInformer()
 	cmInformer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				if cm, ok := obj.(*apiv1.ConfigMap); ok {
-					err := e.syncUpdate(cm)
+					err := e.syncUpdate(cm, onUpdated)
 					if err != nil {
 						log.Error(err)
 					} else {
@@ -226,7 +208,7 @@ func (e *Enforcer) runInformer(ctx context.Context) {
 				if oldCM.ResourceVersion == newCM.ResourceVersion {
 					return
 				}
-				err := e.syncUpdate(newCM)
+				err := e.syncUpdate(newCM, onUpdated)
 				if err != nil {
 					log.Error(err)
 				} else {
@@ -241,20 +223,14 @@ func (e *Enforcer) runInformer(ctx context.Context) {
 }
 
 // syncUpdate updates the enforcer
-func (e *Enforcer) syncUpdate(cm *apiv1.ConfigMap) error {
+func (e *Enforcer) syncUpdate(cm *apiv1.ConfigMap, onUpdated func(cm *apiv1.ConfigMap) error) error {
 	e.SetDefaultRole(cm.Data[ConfigMapPolicyDefaultKey])
-	scopes := make([]string, 0)
-	if scopesStr, ok := cm.Data[ConfigMapScopesKey]; len(scopesStr) > 0 && ok {
-		err := yaml.Unmarshal([]byte(scopesStr), &scopes)
-		if err != nil {
-			return err
-		}
-	}
-
-	e.SetScopes(scopes)
 	policyCSV, ok := cm.Data[ConfigMapPolicyCSVKey]
 	if !ok {
 		policyCSV = ""
+	}
+	if err := onUpdated(cm); err != nil {
+		return err
 	}
 	return e.SetUserPolicy(policyCSV)
 }

@@ -26,12 +26,17 @@ const (
 	ActionSync   = "sync"
 )
 
+var (
+	defaultScopes = []string{"groups"}
+)
+
 // RBACPolicyEnforcer provides an RBAC Claims Enforcer which additionally consults AppProject
 // roles, jwt tokens, and groups. It is backed by a AppProject informer/lister cache and does not
 // make any API calls during enforcement.
 type RBACPolicyEnforcer struct {
 	enf        *rbac.Enforcer
 	projLister applister.AppProjectNamespaceLister
+	scopes     []string
 }
 
 // NewRBACPolicyEnforcer returns a new RBAC Enforcer for the Argo CD API Server
@@ -39,11 +44,16 @@ func NewRBACPolicyEnforcer(enf *rbac.Enforcer, projLister applister.AppProjectNa
 	return &RBACPolicyEnforcer{
 		enf:        enf,
 		projLister: projLister,
+		scopes:     nil,
 	}
 }
 
+func (p *RBACPolicyEnforcer) SetScopes(scopes []string) {
+	p.scopes = scopes
+}
+
 // EnforceClaims is an RBAC claims enforcer specific to the Argo CD API server
-func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, scopes []string, rvals ...interface{}) bool {
+func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...interface{}) bool {
 	mapClaims, err := jwtutil.MapClaims(claims)
 	if err != nil {
 		return false
@@ -68,8 +78,12 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, scopes []string, r
 		return true
 	}
 
+	scopes := p.scopes
+	if scopes == nil {
+		scopes = defaultScopes
+	}
 	// Finally check if any of the user's groups grant them permissions
-	groups := jwtutil.GetGroups(mapClaims, scopes)
+	groups := jwtutil.GetScopeValues(mapClaims, scopes)
 	for _, group := range groups {
 		vals := append([]interface{}{group}, rvals[1:]...)
 		if p.enf.EnforceRuntimePolicy(runtimePolicy, vals...) {

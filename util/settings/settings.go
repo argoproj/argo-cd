@@ -705,18 +705,6 @@ func (a *ArgoCDSettings) TLSConfig() *tls.Config {
 	}
 }
 
-func (a *ArgoCDSettings) OIDCScopes() []string {
-	scopes := make([]string, 0)
-	oidcConfig := a.OIDCConfig()
-	if oidcConfig != nil {
-		scopes = oidcConfig.RequestedScopes
-	}
-	if len(scopes) == 0 {
-		scopes = []string{"openid", "profile", "email", "groups"}
-	}
-	return scopes
-}
-
 func (a *ArgoCDSettings) IssuerURL() string {
 	if oidcConfig := a.OIDCConfig(); oidcConfig != nil {
 		return oidcConfig.Issuer

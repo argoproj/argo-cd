@@ -31,8 +31,8 @@ func GetField(claims jwtgo.MapClaims, fieldName string) string {
 	return ""
 }
 
-// GetGroups extracts the groups from a claims
-func GetGroups(claims jwtgo.MapClaims, scopes []string) []string {
+// GetScopeValues extracts the values of specified scopes from the claims
+func GetScopeValues(claims jwtgo.MapClaims, scopes []string) []string {
 	groups := make([]string, 0)
 	for i := range scopes {
 		scopeIf, ok := claims[scopes[i]]

@@ -15,6 +15,9 @@ import (
 	"strings"
 	"time"
 
+	yaml "gopkg.in/yaml.v2"
+	v1 "k8s.io/api/core/v1"
+
 	golang_proto "github.com/golang/protobuf/proto"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
@@ -103,13 +106,14 @@ var (
 type ArgoCDServer struct {
 	ArgoCDServerOpts
 
-	ssoClientApp *oidc.ClientApp
-	settings     *settings_util.ArgoCDSettings
-	log          *log.Entry
-	sessionMgr   *util_session.SessionManager
-	settingsMgr  *settings_util.SettingsManager
-	enf          *rbac.Enforcer
-	projInformer cache.SharedIndexInformer
+	ssoClientApp   *oidc.ClientApp
+	settings       *settings_util.ArgoCDSettings
+	log            *log.Entry
+	sessionMgr     *util_session.SessionManager
+	settingsMgr    *settings_util.SettingsManager
+	enf            *rbac.Enforcer
+	projInformer   cache.SharedIndexInformer
+	policyEnforcer *rbacpolicy.RBACPolicyEnforcer
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
 	stopCh chan struct{}
@@ -177,6 +181,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 		settingsMgr:      settingsMgr,
 		enf:              enf,
 		projInformer:     projInformer,
+		policyEnforcer:   policyEnf,
 	}
 }
 
@@ -350,7 +355,19 @@ func (a *ArgoCDServer) watchSettings(ctx context.Context) {
 }
 
 func (a *ArgoCDServer) rbacPolicyLoader(ctx context.Context) {
-	err := a.enf.RunPolicyLoader(ctx)
+	err := a.enf.RunPolicyLoader(ctx, func(cm *v1.ConfigMap) error {
+		var scopes []string
+		if scopesStr, ok := cm.Data[rbac.ConfigMapScopesKey]; len(scopesStr) > 0 && ok {
+			scopes = make([]string, 0)
+			err := yaml.Unmarshal([]byte(scopesStr), &scopes)
+			if err != nil {
+				return err
+			}
+		}
+
+		a.policyEnforcer.SetScopes(scopes)
+		return nil
+	})
 	errors.CheckError(err)
 }
 

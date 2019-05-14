@@ -20,6 +20,12 @@ const (
 	fakeNamespace    = "fake-ns"
 )
 
+var (
+	noOpUpdate = func(cm *apiv1.ConfigMap) error {
+		return nil
+	}
+)
+
 func fakeConfigMap(policy ...string) *apiv1.ConfigMap {
 	cm := apiv1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
@@ -42,7 +48,7 @@ func fakeConfigMap(policy ...string) *apiv1.ConfigMap {
 func TestBuiltinPolicyEnforcer(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
-	err := enf.syncUpdate(fakeConfigMap())
+	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 
 	// Without setting builtin policy, this should fail
@@ -85,7 +91,9 @@ func TestPolicyInformer(t *testing.T) {
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	go enf.runInformer(ctx)
+	go enf.runInformer(ctx, func(cm *apiv1.ConfigMap) error {
+		return nil
+	})
 
 	loaded := false
 	for i := 1; i <= 20; i++ {
@@ -99,7 +107,7 @@ func TestPolicyInformer(t *testing.T) {
 
 	// update the configmap and update policy
 	delete(cm.Data, ConfigMapPolicyCSVKey)
-	err := enf.syncUpdate(cm)
+	err := enf.syncUpdate(cm, noOpUpdate)
 	assert.Nil(t, err)
 	assert.False(t, enf.Enforce("admin", "applications", "delete", "foo/bar"))
 }
@@ -207,7 +215,7 @@ g, alice, role:foo-readonly
 func TestDefaultRole(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
-	err := enf.syncUpdate(fakeConfigMap())
+	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 	_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 
@@ -221,7 +229,7 @@ func TestDefaultRole(t *testing.T) {
 func TestURLAsObjectName(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
-	err := enf.syncUpdate(fakeConfigMap())
+	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 	policy := `
 p, alice, repositories, *, foo/*, allow
@@ -246,7 +254,7 @@ p, alice, *, get, foo/obj, allow
 p, mike, *, get, foo/obj, deny
 `
 	_ = enf.SetUserPolicy(policy)
-	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, scopes []string, rvals ...interface{}) bool {
+	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
 		return false
 	})
 
@@ -310,7 +318,7 @@ func TestClaimsEnforcerFunc(t *testing.T) {
 		Subject: "foo",
 	}
 	assert.False(t, enf.Enforce(&claims, "applications", "get", "foo/bar"))
-	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, scopes []string, rvals ...interface{}) bool {
+	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
 		return true
 	})
 	assert.True(t, enf.Enforce(&claims, "applications", "get", "foo/bar"))
@@ -321,7 +329,7 @@ func TestClaimsEnforcerFunc(t *testing.T) {
 func TestDefaultRoleWithRuntimePolicy(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
-	err := enf.syncUpdate(fakeConfigMap())
+	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 	runtimePolicy := assets.BuiltinPolicyCSV
 	assert.False(t, enf.EnforceRuntimePolicy(runtimePolicy, "bob", "applications", "get", "foo/bar"))
@@ -334,14 +342,14 @@ func TestDefaultRoleWithRuntimePolicy(t *testing.T) {
 func TestClaimsEnforcerFuncWithRuntimePolicy(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
-	err := enf.syncUpdate(fakeConfigMap())
+	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 	runtimePolicy := assets.BuiltinPolicyCSV
 	claims := jwt.StandardClaims{
 		Subject: "foo",
 	}
 	assert.False(t, enf.EnforceRuntimePolicy(runtimePolicy, claims, "applications", "get", "foo/bar"))
-	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, scopes []string, rvals ...interface{}) bool {
+	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
 		return true
 	})
 	assert.True(t, enf.EnforceRuntimePolicy(runtimePolicy, claims, "applications", "get", "foo/bar"))
@@ -352,7 +360,7 @@ func TestInvalidRuntimePolicy(t *testing.T) {
 	cm := fakeConfigMap()
 	kubeclientset := fake.NewSimpleClientset(cm)
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
-	err := enf.syncUpdate(fakeConfigMap())
+	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 	_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	assert.True(t, enf.EnforceRuntimePolicy("", "admin", "applications", "update", "foo/bar"))
@@ -383,7 +391,7 @@ func TestValidatePolicy(t *testing.T) {
 func TestEnforceErrorMessage(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
-	err := enf.syncUpdate(fakeConfigMap())
+	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 
 	err = enf.EnforceErr("admin", "applications", "get", "foo/bar")
