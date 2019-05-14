@@ -25,9 +25,7 @@ type Expectation func(c *Consequences) (state state, message string)
 
 func OperationPhaseIs(expected OperationPhase) Expectation {
 	return func(c *Consequences) (state, string) {
-		app := c.app()
-		status := app.Status
-		operationState := status.OperationState
+		operationState := c.app().Status.OperationState
 		actual := operationState.Phase
 		return simple(actual == expected, fmt.Sprintf("operation phase to be %s, is %s", expected, actual))
 	}

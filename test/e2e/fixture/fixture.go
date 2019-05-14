@@ -62,6 +62,10 @@ func getKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest
 // creates e2e tests fixture: ensures that Application CRD is installed, creates temporal namespace, starts repo and api server,
 // configure currently available cluster.
 func init() {
+
+	// trouble-shooting check to see if this busted add-on is going to cause problems
+	FailOnErr(Run("", "kubectl", "api-resources", "-o", "name", "--api-group", "v1beta1.metrics.k8s.io"))
+
 	// set-up variables
 	config := getKubeConfig("", clientcmd.ConfigOverrides{})
 	AppClientset = appclientset.NewForConfigOrDie(config)
@@ -122,7 +126,7 @@ func EnsureCleanState() {
 	FailOnErr(Run("", "kubectl", "-n", ArgoCDNamespace, "delete", "app", "--all"))
 	FailOnErr(Run("", "kubectl", "-n", ArgoCDNamespace, "delete", "appprojects", "--field-selector", "metadata.name!=default"))
 	// takes around 5s, so we don't wait
-	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", testingLabel+"=true", "--field-selector", "status.phase=Active", "--wait=false"))
+	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", testingLabel+"=true"))
 
 	// reset settings
 	argoSettings, err := SettingsManager.GetSettings()
