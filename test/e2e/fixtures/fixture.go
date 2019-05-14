@@ -118,7 +118,7 @@ func NewFixture() *Fixture {
 
 func (f *Fixture) setUpTestRepo() {
 
-	f.repoDirectory = fmt.Sprintf("/tmp/argocd-e2e-%d", rand.Uint32())
+	f.repoDirectory = fmt.Sprintf("/tmp/argocd-e2e-%d", rand.Uint64())
 
 	errors.CheckError2(execCommand("", "cp", "-R", "../testdata", f.repoDirectory))
 	errors.CheckError2(execCommand(f.repoDirectory, "chmod", "777", "."))
