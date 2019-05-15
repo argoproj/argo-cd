@@ -6,7 +6,10 @@ jobs:
       - image: circleci/golang:1.12.3
     steps:
       - restore_cache:
-          key: dl
+          keys:
+          - dl-{{ checksum "Gopkg.lock" }}
+          - go-src-{{ checksum "Gopkg.lock" }}
+          - vendor-{{ checksum "Gopkg.lock" }}
       - run:
           name: Create downloads dir
           command: mkdir -p /tmp/dl
@@ -48,11 +51,9 @@ jobs:
             chmod +x /go/bin/kustomize
             kustomize version
       - save_cache:
-          key: dl
+          key: dl-{{ checksum "Gopkg.lock" }}
           paths:
             - /tmp/dl
-      #- restore_cache:
-      #    key: go-src
       - run:
           name: Install Go deps
           command: |
@@ -62,24 +63,19 @@ jobs:
             go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
             go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
       - save_cache:
-          key: go-src
+          key: go-src-{{ checksum "Gopkg.lock" }}
           paths:
-          - /go/src/github.com/gobuffalo/packr
-          - /go/src/github.com/golang/protobuf
-          - /go/src/github.com/gogo/protobuf
-          - /go/src/github.com/grpc-ecosystem/grpc-gateway
+          - /go/src/
       - run:
           name: Install apt deps
           command: sudo apt-get -y install protobuf-compiler
           # jq golang-go
       - checkout
-      - restore_cache:
-          key: vendor
       - run:
           name: Install vendor deps
-          command: dep ensure
+          command: dep ensure -v
       - save_cache:
-          key: vendor
+          key: vendor-{{ checksum "Gopkg.lock" }}
           paths:
             - vendor
 
