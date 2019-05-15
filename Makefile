@@ -9,7 +9,6 @@ GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
 PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run vendor/github.com/gobuffalo/packr/packr/main.go"; fi)
-TEST_CMD=$(shell [ "`which gotestsum`" != "" ] && echo gotestsum --format short-verbose -- || echo go test)
 
 # docker image publishing options
 DOCKER_PUSH=false
@@ -140,11 +139,11 @@ build:
 
 .PHONY: test
 test:
-	$(TEST_CMD) -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "github.com/argoproj/argo-cd/test/e2e"`
+	go test -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "test/e2e"`
 
 .PHONY: test-e2e
 test-e2e: cli
-	$(TEST_CMD) -v -timeout 20m -run TestManipulateApplicationResources ./test/e2e
+	go test -timeout 20m -run TestManipulateApplicationResources ./test/e2e
 
 .PHONY: start-e2e
 start-e2e: cli
