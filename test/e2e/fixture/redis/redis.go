@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -23,7 +24,7 @@ func FlushAll() error {
 	if err != nil {
 		return err
 	}
-	if text != "+OK" {
+	if !strings.Contains(text, "OK") {
 		return errors.New(text)
 	}
 	return nil
