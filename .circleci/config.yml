@@ -1,16 +1,11 @@
 version: 2
 jobs:
   build:
-    working_directory: ~/go/src/github.com/argoproj/argo-cd
+    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine: true
     #docker:
     #  - image: circleci/golang:1.12.3
     steps:
-      - run:
-          name: Setup env vars
-          command: |
-            echo 'export GOPATH=~/go"' >> $BASH_ENV
-            echo 'export PATH="$GOPATH/bin:$PATH"' >> $BASH_ENV
       - run:
           name: Print env
           command: env
@@ -18,7 +13,7 @@ jobs:
           name: Install apt deps
           command: sudo apt-get -y install protobuf-compiler jq golang-go
       - restore_cache:
-          key: go-src-v3
+          key: go-src-v4
       - checkout
       - restore_cache:
           key: dl-{{ checksum "Gopkg.lock" }}
@@ -84,15 +79,15 @@ jobs:
             go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
             go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
       - save_cache:
-          key: go-src-v3
+          key: go-src-v4
           paths:
-            - ~/go/src/github.com
-            - ~/go/src/gopkg.in
-            - ~/go/src/sigs.k8s.io
-            - ~/go/src/golang.org
-            - ~/go/src/gotest.tools
-            - ~/go/src/google.golang.org
-            - ~/go/src/pkg
+            - /home/circleci/.go_workspace/src/github.com
+            - /home/circleci/.go_workspace/src/gopkg.in
+            - /home/circleci/.go_workspace/src/sigs.k8s.io
+            - /home/circleci/.go_workspace/src/golang.org
+            - /home/circleci/.go_workspace/src/gotest.tools
+            - /home/circleci/.go_workspace/src/google.golang.org
+            - /home/circleci/.go_workspace/src/pkg
       - checkout
       - run:
           name: Install vendor deps
