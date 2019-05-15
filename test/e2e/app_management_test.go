@@ -435,7 +435,7 @@ func TestSyncResourceByLabel(t *testing.T) {
 		Sync().
 		Then().
 		And(func(app *Application) {
-			res, _ := fixture.RunCli("app", "sync", app.Name, "--label", fmt.Sprintf("app.kubernetes.io/instance=test-%s", strings.Split(app.Name, "-")[1]))
+			res, _ := fixture.RunCli("app", "sync", app.Name, "--label", fmt.Sprintf("app.kubernetes.io/instance=%s", app.Name))
 			assert.Contains(t, res, "guestbook-ui  Synced  Healthy")
 
 			res, _ = fixture.RunCli("app", "sync", app.Name, "--label", "this-label=does-not-exist")
