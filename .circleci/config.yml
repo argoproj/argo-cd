@@ -11,9 +11,7 @@ jobs:
           command: echo $PATH
       - run:
           name: Install apt deps
-          command: |
-            apt-cache search dep
-            sudo apt-get -y install protobuf-compiler jq golang-go go-dep
+          command: sudo apt-get -y install protobuf-compiler jq golang-go
       - restore_cache:
           key: go-src-v3
       - checkout
@@ -24,6 +22,13 @@ jobs:
       - run:
           name: Create downloads dir
           command: mkdir -p /tmp/dl
+      - run:
+          name: Install Dep
+          command: |
+            [ -e /tmp/dl/dep ] || curl -sLf -C - -o /tmp/dl/dep https://github.com/golang/dep/releases/download/v0.5.3/dep-linux-amd64
+            sudo cp /tmp/dl/dep /usr/local/go/bin/dep
+            sudo chmod +x /usr/local/go/bin/dep
+            dep version
       - run:
           name: Install Swagger CLI
           command: |
