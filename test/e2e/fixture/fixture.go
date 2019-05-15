@@ -4,14 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/argoproj/argo-cd/test/e2e/fixture/redis"
 
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ghodss/yaml"
@@ -47,7 +44,6 @@ var (
 	ArgoCDClientset  argocdclient.Client
 	SettingsManager  *settings.SettingsManager
 	apiServerAddress string
-	redisServer      string
 	token            string
 	plainText        bool
 )
@@ -78,11 +74,6 @@ func init() {
 	if apiServerAddress == "" {
 		apiServerAddress = defaultAriServer
 	}
-	// assume redis on same host
-	host, _, err := net.SplitHostPort(apiServerAddress)
-	CheckError(err)
-	redisServer = fmt.Sprintf("%s:%d", host, 6379)
-
 	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress)
 	CheckError(err)
 
@@ -107,10 +98,7 @@ func init() {
 	token = sessionResponse.Token
 	plainText = !tlsTestResult.TLS
 
-	// flush redis
-	CheckError(redis.FlushAll(redisServer))
-
-	log.WithFields(log.Fields{"apiServerAddress": apiServerAddress, "redisServer": redisServer}).Info("initialized")
+	log.WithFields(log.Fields{"apiServerAddress": apiServerAddress}).Info("initialized")
 }
 
 func Name() string {
