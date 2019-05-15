@@ -11,6 +11,7 @@ jobs:
           name: Install apt deps
           command: |
             sudo apt-get update
+            sudo apt-cache search golang-go
             sudo apt-get -y install protobuf-compiler=3.7.1 jq golang-go=1.12.4
             protoc --version
             jq --version
