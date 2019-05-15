@@ -58,7 +58,7 @@ func (a *Actions) Refresh(refreshType RefreshType) *Actions {
 		RefreshTypeHard:   "--hard-refresh",
 	}[refreshType]
 
-	_, _ = a.runCli("app", "get", flag)
+	_, _ = a.runCli("app", "get", a.context.name, flag)
 
 	return a
 }
