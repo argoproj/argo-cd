@@ -126,7 +126,7 @@ func EnsureCleanState() {
 	FailOnErr(Run("", "kubectl", "-n", ArgoCDNamespace, "delete", "app", "--all"))
 	FailOnErr(Run("", "kubectl", "-n", ArgoCDNamespace, "delete", "appprojects", "--field-selector", "metadata.name!=default"))
 	// takes around 5s, so we don't wait
-	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", testingLabel+"=true"))
+	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", testingLabel+"=true", "--field-selector", "status.phase=Active", "--wait=false"))
 
 	// reset settings
 	argoSettings, err := SettingsManager.GetSettings()
