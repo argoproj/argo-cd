@@ -2,8 +2,9 @@ version: 2
 jobs:
   build:
     working_directory: /go/src/github.com/argoproj/argo-cd
-    docker:
-      - image: circleci/golang:1.12.3
+    machine: true
+    #docker:
+    #  - image: circleci/golang:1.12.3
     steps:
       - restore_cache:
           key: go-src-v2
@@ -77,8 +78,7 @@ jobs:
       - checkout
       - run:
           name: Install apt deps
-          command: sudo apt-get -y install protobuf-compiler
-          # jq golang-go
+          command: sudo apt-get -y install protobuf-compiler jq golang-go
       - run:
           name: Install vendor deps
           command: dep ensure -v
