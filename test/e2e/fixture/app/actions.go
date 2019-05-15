@@ -1,11 +1,7 @@
 package app
 
 import (
-	"context"
-
-	. "github.com/argoproj/argo-cd/errors"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 )
 
@@ -57,11 +53,12 @@ func (a *Actions) Patch(file string, jsonPath string) *Actions {
 
 func (a *Actions) Refresh(refreshType RefreshType) *Actions {
 
-	closer, client := fixture.ArgoCDClientset.NewApplicationClientOrDie()
-	defer func() { _ = closer.Close() }()
+	flag := map[RefreshType]string{
+		RefreshTypeNormal: "--refresh",
+		RefreshTypeHard:   "--hard-refresh",
+	}[refreshType]
 
-	refresh := string(refreshType)
-	FailOnErr(client.Get(context.Background(), &application.ApplicationQuery{Name: &a.context.name, Refresh: &refresh}))
+	_, _ = a.runCli("app", "get", flag)
 
 	return a
 }
