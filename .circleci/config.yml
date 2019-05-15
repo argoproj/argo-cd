@@ -1,7 +1,7 @@
 version: 2
 jobs:
   build:
-    working_directory: /go/src/github.com/alexec/argo-cd
+    working_directory: /go/src/github.com/argoproj/argo-cd
     docker:
       - image: circleci/golang:1.12.3
     steps:
