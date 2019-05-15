@@ -10,10 +10,7 @@ jobs:
       - run:
           name: Install apt deps
           command: |
-            sudo add-apt-repository ppa:gophers/archive
-            sudo apt-get update --help
-            sudo apt-cache policy golang-go
-            sudo apt-get -y install protobuf-compiler=3.7.1 jq golang-go=1.12.4
+            sudo apt-get -y install protobuf-compiler jq golang-go
             protoc --version
             jq --version
             go version
@@ -21,7 +18,7 @@ jobs:
           name: Print env
           command: env
       - restore_cache:
-          key: go-v1
+          key: go-v2
       - checkout
       - restore_cache:
           key: dl-{{ checksum "Gopkg.lock" }}
@@ -81,13 +78,14 @@ jobs:
       - run:
           name: Install Go deps
           command: |
+            golang.org/dl/go1.11.4
             go get github.com/gobuffalo/packr/packr
             go get github.com/golang/protobuf/protoc-gen-go
             go get github.com/gogo/protobuf/gogoproto
             go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
             go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
       - save_cache:
-          key: go-v1
+          key: go-v2
           paths:
             - /home/circleci/.go_workspace
       - checkout
