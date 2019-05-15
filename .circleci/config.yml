@@ -11,7 +11,9 @@ jobs:
           command: echo $PATH
       - run:
           name: Install apt deps
-          command: sudo apt-get -y install protobuf-compiler jq golang-go go-dep
+          command: |
+            apt-cache search dep
+            sudo apt-get -y install protobuf-compiler jq golang-go go-dep
       - restore_cache:
           key: go-src-v3
       - checkout
