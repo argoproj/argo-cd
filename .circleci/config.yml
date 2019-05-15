@@ -26,8 +26,8 @@ jobs:
           name: Install Swagger CLI
           command: |
             [ -e /tmp/dl/swagger ] || curl -sLf -C - -o /tmp/dl/swagger https://github.com/go-swagger/go-swagger/releases/download/v0.19.0/swagger_linux_amd64
-            cp /tmp/dl/swagger /usr/local/go/bin/swagger
-            chmod +x /usr/local/go/bin/swagger
+            sudo cp /tmp/dl/swagger /usr/local/go/bin/swagger
+            sudo chmod +x /usr/local/go/bin/swagger
             swagger version
       - run:
           name: Install Ksonnet
