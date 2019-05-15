@@ -64,7 +64,7 @@ func getKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest
 func init() {
 
 	// trouble-shooting check to see if this busted add-on is going to cause problems
-	FailOnErr(Run("", "kubectl", "api-resources", "-o", "name", "--api-group", "v1beta1.metrics.k8s.io"))
+	FailOnErr(Run("", "kubectl", "api-resources", "-o", "name"))
 
 	// set-up variables
 	config := getKubeConfig("", clientcmd.ConfigOverrides{})
