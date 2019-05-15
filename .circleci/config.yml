@@ -20,7 +20,7 @@ jobs:
       - run:
           name: Install Ksonnet
           command: |
-            [ ! -e /tmp/dl/ks.tar.gz ] || curl -sLf -C - -o /tmp/dl/ks.tar.gz https://github.com/ksonnet/ksonnet/releases/download/v0.13.1/ks_0.13.1_linux_amd64.tar.gz
+            [ -e /tmp/dl/ks.tar.gz ] || curl -sLf -C - -o /tmp/dl/ks.tar.gz https://github.com/ksonnet/ksonnet/releases/download/v0.13.1/ks_0.13.1_linux_amd64.tar.gz
             tar -C /tmp -xf /tmp/dl/ks.tar.gz
             mv /tmp/ks_0.13.1_linux_amd64/ks /go/bin/ks
             chmod +x /go/bin/ks
@@ -36,14 +36,14 @@ jobs:
       - run:
           name: Install Kustomize 1
           command: |
-            [ ! -e /tmp/dl/kustomize1 ] || curl -sLf -C - -o /tmp/dl/kustomize1 https://github.com/kubernetes-sigs/kustomize/releases/download/v1.0.11/kustomize_1.0.11_linux_amd64
+            [ -e /tmp/dl/kustomize1 ] || curl -sLf -C - -o /tmp/dl/kustomize1 https://github.com/kubernetes-sigs/kustomize/releases/download/v1.0.11/kustomize_1.0.11_linux_amd64
             cp /tmp/dl/kustomize1 /go/bin/
             chmod +x /go/bin/kustomize1
             kustomize1 version
       - run:
           name: Install Kustomize 2
           command: |
-            [ ! -e /tmp/dl/kustomize ] || curl -sLf -C - -o /go/bin/kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v2.0.3/kustomize_2.0.3_linux_amd64
+            [ -e /tmp/dl/kustomize ] || curl -sLf -C - -o /go/bin/kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v2.0.3/kustomize_2.0.3_linux_amd64
             cp /tmp/dl/kustomize /go/bin/
             chmod +x /go/bin/kustomize
             kustomize version
