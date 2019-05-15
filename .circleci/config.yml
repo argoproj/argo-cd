@@ -9,8 +9,8 @@ jobs:
       GOPATH: $HOME/go
     steps:
       - run:
-          name: Print path
-          command: echo $PATH
+          name: Print env
+          command: env
       - run:
           name: Install apt deps
           command: sudo apt-get -y install protobuf-compiler jq golang-go
