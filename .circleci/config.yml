@@ -14,7 +14,7 @@ jobs:
           name: Install Swagger CLI
           command: |
             [ -e /tmp/dl/swagger ] || curl -sLf -C - -o /tmp/dl/swagger https://github.com/go-swagger/go-swagger/releases/download/v0.19.0/swagger_linux_amd64
-            mv /tmp/dl/swagger /go/bin/swagger
+            cp /tmp/dl/swagger /go/bin/swagger
             chmod +x /go/bin/swagger
             swagger version
       - run:
@@ -43,7 +43,7 @@ jobs:
       - run:
           name: Install Kustomize 2
           command: |
-            [ -e /tmp/dl/kustomize ] || curl -sLf -C - -o /go/bin/kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v2.0.3/kustomize_2.0.3_linux_amd64
+            [ -e /tmp/dl/kustomize ] || curl -sLf -C - -o /tmp/dl/kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v2.0.3/kustomize_2.0.3_linux_amd64
             cp /tmp/dl/kustomize /go/bin/
             chmod +x /go/bin/kustomize
             kustomize version
