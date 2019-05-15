@@ -52,7 +52,7 @@ jobs:
           paths:
             - /tmp/dl
       - restore_cache:
-          key: go
+          key: go-src
       - run:
           name: Install Go Deps
           command: |
@@ -62,7 +62,7 @@ jobs:
             go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
             go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
       - save_cache:
-          key: go
+          key: go-src
           paths:
           - /go/src/github.com/gobuffalo/packr/packr
           - /go/src/github.com/golang/protobuf/protoc-gen-go
