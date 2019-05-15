@@ -75,10 +75,9 @@ jobs:
       - checkout
       - restore_cache:
           key: vendor
-      # Works
-      #- run:
-      #    name: Install vendor deps
-      #    command: dep ensure
+      - run:
+          name: Install vendor deps
+          command: dep ensure
       - save_cache:
           key: vendor
           paths:
