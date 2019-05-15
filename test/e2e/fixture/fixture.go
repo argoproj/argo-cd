@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/test/e2e/fixture/redis"
+
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
@@ -99,6 +101,9 @@ func init() {
 	token = sessionResponse.Token
 	plainText = !tlsTestResult.TLS
 
+	// flush redis
+	CheckError(redis.FlushAll())
+
 	log.WithFields(log.Fields{"apiServerAddress": apiServerAddress}).Info("initialized")
 }
 
@@ -157,7 +162,7 @@ func EnsureCleanState() {
 	FailOnErr(Run(repoDirectory(), "kubectl", "label", "ns", DeploymentNamespace(), testingLabel+"=true"))
 
 	// flush redis
-	// FailOnErr(Run("", "sh", "-c", "echo 'FLUSHALL' | nc localhost 6379"))
+	CheckError(redis.FlushAll())
 
 	log.WithFields(log.Fields{"duration": time.Since(start), "id": id}).Info("clean state")
 }
