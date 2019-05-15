@@ -13,7 +13,7 @@ jobs:
           name: Install apt deps
           command: sudo apt-get -y install protobuf-compiler jq golang-go
       - restore_cache:
-          key: go-src-v4
+          key: go-v1
       - checkout
       - restore_cache:
           key: dl-{{ checksum "Gopkg.lock" }}
@@ -79,15 +79,9 @@ jobs:
             go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
             go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
       - save_cache:
-          key: go-src-v4
+          key: go-v1
           paths:
-            - /home/circleci/.go_workspace/src/github.com
-            - /home/circleci/.go_workspace/src/gopkg.in
-            - /home/circleci/.go_workspace/src/sigs.k8s.io
-            - /home/circleci/.go_workspace/src/golang.org
-            - /home/circleci/.go_workspace/src/gotest.tools
-            - /home/circleci/.go_workspace/src/google.golang.org
-            - /home/circleci/.go_workspace/src/pkg
+            - /home/circleci/.go_workspace
       - checkout
       - run:
           name: Install vendor deps
