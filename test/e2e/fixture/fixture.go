@@ -156,6 +156,9 @@ func EnsureCleanState() {
 	FailOnErr(Run(repoDirectory(), "kubectl", "create", "ns", DeploymentNamespace()))
 	FailOnErr(Run(repoDirectory(), "kubectl", "label", "ns", DeploymentNamespace(), testingLabel+"=true"))
 
+	// flush redis
+	FailOnErr(Run("", "sh", "-c", "echo 'FLUSHALL' | nc localhost 6379"))
+
 	log.WithFields(log.Fields{"duration": time.Since(start), "id": id}).Info("clean state")
 }
 
