@@ -442,7 +442,7 @@ func TestSyncResourceByLabel(t *testing.T) {
 
 func TestPermissions(t *testing.T) {
 	fixture.EnsureCleanState()
-	appName := "test-app"
+	appName := fixture.Name()
 	_, err := fixture.RunCli("proj", "create", "test")
 	assert.NoError(t, err)
 
@@ -465,7 +465,7 @@ func TestPermissions(t *testing.T) {
 	assert.NoError(t, err)
 
 	// make sure controller report permissions issues in conditions
-	_, err = fixture.RunCli("app", "create", "test-app", "--repo", fixture.RepoURL(),
+	_, err = fixture.RunCli("app", "create", appName, "--repo", fixture.RepoURL(),
 		"--path", guestbookPath, "--project", "test", "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
 	assert.NoError(t, err)
 	defer func() {
