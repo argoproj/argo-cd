@@ -1,44 +1,106 @@
 version: 2
 jobs:
   build:
-    working_directory: /go/src/github.com/argoproj/argo-cd
+    working_directory: /go/src/github.com/alexec/argo-cd
     docker:
-      - image: argoproj/argo-cd-ci-builder:v1.0.0
+      - image: circleci/golang:1.12.3
     steps:
+      - restore_cache:
+          key: dl
+
+      - run: mkdir -p /tmp/dl
+      - run:
+          name: Install Swagger CLI
+          command: |
+            curl -sLf -C - -o /tmp/dl/swagger https://github.com/go-swagger/go-swagger/releases/download/v0.19.0/swagger_linux_amd64
+            mv /tmp/dl/swagger /go/bin/swagger
+            chmod +x /go/bin/swagger
+            swagger version
+
+      - run:
+          name: Install Ksonnet
+          command: |
+            curl -sLf -C - -o /tmp/dl/ks.tar.gz https://github.com/ksonnet/ksonnet/releases/download/v0.13.1/ks_0.13.1_linux_amd64.tar.gz
+            tar -C /tmp -xf /tmp/dl/ks.tar.gz
+            mv /tmp/ks_0.13.1_linux_amd64/ks /go/bin/ks
+            chmod +x /go/bin/ks
+            ks version
+
+      - run:
+          name: Install Helm
+          command: |
+            curl -sLf -C - -o /tmp/dl/helm.tar.gz https://storage.googleapis.com/kubernetes-helm/helm-v2.13.1-linux-amd64.tar.gz
+            tar -C /tmp/ -xf /tmp/dl/helm.tar.gz
+            mv /tmp/linux-amd64/helm /go/bin/helm
+            helm version --client
+            helm init --client-only
+
+      - run:
+          name: Install Kustomize 1
+          command: |
+            curl -sLf -C - -o /go/bin/kustomize1 https://github.com/kubernetes-sigs/kustomize/releases/download/v1.0.11/kustomize_1.0.11_linux_amd64 && \
+            chmod +x /go/bin/kustomize1 && \
+            kustomize1 version
+
+      - run:
+          name: Install Kustomize 2
+          command: |
+            curl -sLf -C - -o /go/bin/kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v2.0.3/kustomize_2.0.3_linux_amd64 && \
+            chmod +x /go/bin/kustomize && \
+            kustomize version
+
+      - save_cache:
+          key: dl
+          paths:
+            - /tmp/dl
+
+      - run:
+          name: Install Deps
+          command: |
+            go get -u github.com/gobuffalo/packr/packr
+            go get -u github.com/golang/protobuf/protoc-gen-go
+            go get -u github.com/gogo/protobuf/gogoproto
+            go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+            go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
+
+      - run: sudo apt-get -y install protobuf-compiler jq
+
       - checkout
       - restore_cache:
           key: vendor
       - run:
           name: Dependencies
           command: dep ensure
-      - run:
-          name: Generate code
-          command: make codegen
-      - run:
-          name: Compile production code
-          command: make build
-      - run:
-          name: Lint code
-          command: make lint
-      # This uses too much memory
-      #- run:
-      #    name: Run unit tests
-      #    command: make test
-      # This produces different output. See https://circleci.com/gh/argoproj/argo-cd/65
-      #- run:
-      #    name: Check nothing has changed
-      #    command: git diff --exit-code
-      - run:
-          name: Uploading code coverage
-          command: bash <(curl -s https://codecov.io/bash) -f coverage.out
-          when: always
-      - store_test_results:
-          path: test-results.xml
       - save_cache:
           key: vendor
           paths:
             - vendor
-          when: always
+
+      # Works
+      #- run:
+      #    name: Generate code
+      #    command: make codegen
+      # Works
+      #- run:
+      #    name: Compile production code
+      #    command: make build
+      # Works
+      #- run:
+      #    name: Lint code
+      #    command: make lint
+      - run:
+          name: Run unit tests
+          command: make test
+      # This produces different output. See https://circleci.com/gh/argoproj/argo-cd/65
+      #- run:
+      #    name: Check nothing has changed
+      #    command: git diff --exit-code
+      #- run:
+      #    name: Uploading code coverage
+      #    command: bash <(curl -s https://codecov.io/bash) -f coverage.out
+      #    when: always
+      #- store_test_results:
+      #    path: test-results.xml
       #- run:
       #    name: Start K3S
       #    command: k3s kubectl get node
