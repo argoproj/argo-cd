@@ -112,6 +112,9 @@ jobs:
       #    name: Lint code
       #    command: make lint
       - run:
+          name: Create test results dir
+          command: mkdir -p $TEST_RESULTS
+      - run:
           name: Run unit tests
           command: |
             trap "go-junit-report <${TEST_RESULTS}/go-test.out > ${TEST_RESULTS}/go-test-report.xml" EXIT
