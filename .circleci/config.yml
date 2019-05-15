@@ -9,7 +9,7 @@ jobs:
       - restore_cache:
           key: dl-{{ checksum "Gopkg.lock" }}
       - restore_cache:
-          key: go-src-{{ checksum "Gopkg.lock" }}
+          key: go-src-2-{{ checksum "Gopkg.lock" }}
       - restore_cache:
           key: vendor-{{ checksum "Gopkg.lock" }}
       - run:
@@ -65,9 +65,15 @@ jobs:
             go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
             go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
       - save_cache:
-          key: go-src-{{ checksum "Gopkg.lock" }}
+          key: go-src-2-{{ checksum "Gopkg.lock" }}
           paths:
-          - /go/src/
+            - /go/src/github.com
+            - /go/src/gopkg.in
+            - /go/src/sigs.k8s.io
+            - /go/src/golang.org
+            - /go/src/gotest.tools
+            - /go/src/google.golang.org
+            - /go/src/pkg
       - run:
           name: Install apt deps
           command: sudo apt-get -y install protobuf-compiler
