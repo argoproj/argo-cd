@@ -68,6 +68,11 @@
             },
             "name": "project",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "resourceVersion",
+            "in": "query"
           }
         ],
         "responses": {
@@ -211,6 +216,11 @@
               "type": "string"
             },
             "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "resourceVersion",
             "in": "query"
           }
         ],
@@ -1386,6 +1396,11 @@
               "type": "string"
             },
             "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "resourceVersion",
             "in": "query"
           }
         ],
@@ -3206,6 +3221,9 @@
           "type": "string"
         },
         "namespace": {
+          "type": "string"
+        },
+        "uid": {
           "type": "string"
         },
         "version": {

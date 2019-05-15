@@ -65,9 +65,6 @@ func newCommand() *cobra.Command {
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 
-			conf, err := clientConfig.ClientConfig()
-			errors.CheckError(err)
-
 			resyncDuration := time.Duration(appResyncPeriod) * time.Second
 			repoClientset := reposerver.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds)
 			ctx, cancel := context.WithCancel(context.Background())
@@ -78,7 +75,6 @@ func newCommand() *cobra.Command {
 
 			settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
 			appController, err := controller.NewApplicationController(
-				conf.Host,
 				namespace,
 				settingsMgr,
 				kubeClient,

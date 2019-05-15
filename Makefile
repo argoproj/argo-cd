@@ -139,7 +139,7 @@ build:
 
 .PHONY: test
 test:
-	go test `go list ./... | grep -v "test/e2e"`
+	go test -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "test/e2e"`
 
 .PHONY: test-e2e
 test-e2e: cli
