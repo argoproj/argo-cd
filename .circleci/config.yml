@@ -7,12 +7,16 @@ jobs:
     #  - image: circleci/golang:1.12.3
     steps:
       - run:
-          name: Print env
-          command: env
-      - run:
           name: Install apt deps
           command: sudo apt-get -y install protobuf-compiler jq golang-go
-      - restore_cache:
+      - run:
+          name: Print diagnostics
+          command: |
+            env
+            protoc --version
+            jq --version
+            go version
+       - restore_cache:
           key: go-v1
       - checkout
       - restore_cache:
