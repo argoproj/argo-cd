@@ -5,11 +5,11 @@ jobs:
     docker:
       - image: circleci/golang:1.12.3
     steps:
+      - restore_cache:
+          key: go-src-v2
       - checkout
       - restore_cache:
           key: dl-{{ checksum "Gopkg.lock" }}
-      - restore_cache:
-          key: go-src-2-{{ checksum "Gopkg.lock" }}
       - restore_cache:
           key: vendor-{{ checksum "Gopkg.lock" }}
       - run:
@@ -65,7 +65,7 @@ jobs:
             go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
             go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
       - save_cache:
-          key: go-src-2-{{ checksum "Gopkg.lock" }}
+          key: go-src-v2
           paths:
             - /go/src/github.com
             - /go/src/gopkg.in
@@ -74,6 +74,7 @@ jobs:
             - /go/src/gotest.tools
             - /go/src/google.golang.org
             - /go/src/pkg
+      - checkout
       - run:
           name: Install apt deps
           command: sudo apt-get -y install protobuf-compiler
