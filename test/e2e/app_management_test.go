@@ -68,12 +68,12 @@ func TestTrackAppStateAndSyncApp(t *testing.T) {
 		Create().
 		Sync().
 		Then().
-		Expect(Event(EventReasonResourceUpdated, "sync")).
+		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(Event(EventReasonResourceUpdated, "sync")).
 		And(func(app *Application) {
 			assert.NotNil(t, app.Status.OperationState.SyncResult)
-		}).
-		Expect(OperationPhaseIs(OperationSucceeded))
+		})
 }
 
 func TestAppRollbackSuccessful(t *testing.T) {
