@@ -200,6 +200,8 @@ func TestManipulateApplicationResources(t *testing.T) {
 
 func TestAppWithSecrets(t *testing.T) {
 
+	t.SkipNow()
+
 	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 	assert.NoError(t, err)
 	defer util.Close(closer)
