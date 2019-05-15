@@ -2,7 +2,8 @@ version: 2
 jobs:
   build:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
-    machine: true
+    machine:
+      image: circleci/classic:201808-01
     #docker:
     #  - image: circleci/golang:1.12.3
     steps:
