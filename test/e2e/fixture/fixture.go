@@ -134,7 +134,11 @@ func EnsureCleanState() {
 	start := time.Now()
 
 	// delete resources
-	FailOnErr(Run("", "kubectl", "-n", ArgoCDNamespace, "delete", "app", "--all"))
+	text, err := Run("", "kubectl", "get", "app", "-o", "name")
+	CheckError(err)
+	for _, name := range strings.Split(strings.Trim(text, "\n"), "\n") {
+		FailOnErr(RunCli("app", "delete", strings.TrimPrefix(name, "application.argoproj.io/")))
+	}
 	FailOnErr(Run("", "kubectl", "-n", ArgoCDNamespace, "delete", "appprojects", "--field-selector", "metadata.name!=default"))
 	// takes around 5s, so we don't wait
 	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", testingLabel+"=true", "--field-selector", "status.phase=Active", "--wait=false"))
