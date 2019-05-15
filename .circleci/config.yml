@@ -8,15 +8,15 @@ jobs:
     steps:
       - run:
           name: Install apt deps
-          command: sudo apt-get -y install protobuf-compiler jq golang-go
-      - run:
-          name: Print diagnostics
           command: |
-            env
+            sudo apt-get -y install protobuf-compiler jq golang-go
             protoc --version
             jq --version
             go version
-       - restore_cache:
+      - run:
+          name: Print env
+          command: env
+      - restore_cache:
           key: go-v1
       - checkout
       - restore_cache:
