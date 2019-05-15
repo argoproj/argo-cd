@@ -10,7 +10,8 @@ jobs:
       - run:
           name: Install apt deps
           command: |
-            sudo apt-get update
+            sudo add-apt-repository ppa:gophers/archive
+            sudo apt-get update --help
             sudo apt-cache policy golang-go
             sudo apt-get -y install protobuf-compiler=3.7.1 jq golang-go=1.12.4
             protoc --version
