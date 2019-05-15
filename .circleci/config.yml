@@ -5,6 +5,7 @@ jobs:
     docker:
       - image: circleci/golang:1.12.3
     steps:
+      - checkout
       - restore_cache:
           keys:
           - dl-{{ checksum "Gopkg.lock" }}
@@ -70,7 +71,6 @@ jobs:
           name: Install apt deps
           command: sudo apt-get -y install protobuf-compiler
           # jq golang-go
-      - checkout
       - run:
           name: Install vendor deps
           command: dep ensure -v
