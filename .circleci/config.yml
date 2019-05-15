@@ -8,7 +8,7 @@ jobs:
       - restore_cache:
           key: dl
       - run:
-          name: Create Dowload Dir
+          name: Create downloads dir
           command: mkdir -p /tmp/dl
       - run:
           name: Install Swagger CLI
@@ -54,7 +54,7 @@ jobs:
       #- restore_cache:
       #    key: go-src
       - run:
-          name: Install Go Deps
+          name: Install Go deps
           command: |
             go get -u github.com/gobuffalo/packr/packr
             go get -u github.com/golang/protobuf/protoc-gen-go
@@ -69,7 +69,7 @@ jobs:
           - /go/src/github.com/gogo/protobuf
           - /go/src/github.com/grpc-ecosystem/grpc-gateway
       - run:
-          name: Install Deps
+          name: Install apt deps
           command: sudo apt-get -y install protobuf-compiler
           # jq golang-go
       - checkout
@@ -77,7 +77,7 @@ jobs:
           key: vendor
       # Works
       #- run:
-      #    name: Dependencies
+      #    name: Install vendor deps
       #    command: dep ensure
       - save_cache:
           key: vendor
@@ -88,10 +88,9 @@ jobs:
       #- run:
       #    name: Generate code
       #    command: make codegen
-      # Works
-      #- run:
-      #    name: Compile production code
-      #    command: make build
+      - run:
+          name: Compile production code
+          command: make build
       # Works
       #- run:
       #    name: Lint code
