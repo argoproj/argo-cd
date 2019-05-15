@@ -75,9 +75,10 @@ jobs:
       - checkout
       - restore_cache:
           key: vendor
-      - run:
-          name: Dependencies
-          command: dep ensure
+      # Works
+      #- run:
+      #    name: Dependencies
+      #    command: dep ensure
       - save_cache:
           key: vendor
           paths:
