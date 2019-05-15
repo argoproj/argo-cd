@@ -381,7 +381,6 @@ definitions:
 func TestResourceAction(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
-		Name("test-app").
 		And(func() {
 			settings, err := fixture.SettingsManager.GetSettings()
 			assert.NoError(t, err)
@@ -431,7 +430,6 @@ func TestResourceAction(t *testing.T) {
 func TestSyncResourceByLabel(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
-		Name("test-app").
 		When().
 		Create().
 		Sync().
