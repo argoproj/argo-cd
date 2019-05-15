@@ -5,9 +5,12 @@ jobs:
     machine: true
     #docker:
     #  - image: circleci/golang:1.12.3
-    environment:
-      GOPATH: $HOME/go
     steps:
+      - run:
+          name: Setup env vars
+          command: |
+            echo 'export GOPATH=~/go"' >> $BASH_ENV
+            echo 'export PATH="$GOPATH/bin:$PATH"' >> $BASH_ENV
       - run:
           name: Print env
           command: env
