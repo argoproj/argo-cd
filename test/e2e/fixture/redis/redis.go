@@ -10,9 +10,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func FlushAll() error {
+func FlushAll(server string) error {
 	log.Info("flushing redis")
-	conn, err := net.Dial("tcp", "localhost:6379")
+	conn, err := net.Dial("tcp", server)
 	if err != nil {
 		return err
 	}

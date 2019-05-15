@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path"
 	"path/filepath"
@@ -46,6 +47,7 @@ var (
 	ArgoCDClientset  argocdclient.Client
 	SettingsManager  *settings.SettingsManager
 	apiServerAddress string
+	redisServer      string
 	token            string
 	plainText        bool
 )
@@ -76,6 +78,10 @@ func init() {
 	if apiServerAddress == "" {
 		apiServerAddress = defaultAriServer
 	}
+	// assume redis on same host
+	host, _, err := net.SplitHostPort(apiServerAddress)
+	CheckError(err)
+	redisServer = fmt.Sprintf("%s:%d", host, 6379)
 
 	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress)
 	CheckError(err)
@@ -102,9 +108,9 @@ func init() {
 	plainText = !tlsTestResult.TLS
 
 	// flush redis
-	CheckError(redis.FlushAll())
+	CheckError(redis.FlushAll(redisServer))
 
-	log.WithFields(log.Fields{"apiServerAddress": apiServerAddress}).Info("initialized")
+	log.WithFields(log.Fields{"apiServerAddress": apiServerAddress, "redisServer": redisServer}).Info("initialized")
 }
 
 func Name() string {
@@ -162,7 +168,7 @@ func EnsureCleanState() {
 	FailOnErr(Run(repoDirectory(), "kubectl", "label", "ns", DeploymentNamespace(), testingLabel+"=true"))
 
 	// flush redis
-	CheckError(redis.FlushAll())
+	CheckError(redis.FlushAll(redisServer))
 
 	log.WithFields(log.Fields{"duration": time.Since(start), "id": id}).Info("clean state")
 }
