@@ -143,7 +143,7 @@ test:
 
 .PHONY: test-e2e
 test-e2e: cli
-	go test -timeout 20m -run TestManipulateApplicationResources ./test/e2e
+	go test -timeout 20m ./test/e2e
 
 .PHONY: start-e2e
 start-e2e: cli
