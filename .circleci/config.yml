@@ -6,6 +6,9 @@ jobs:
     #docker:
     #  - image: circleci/golang:1.12.3
     steps:
+      - run:
+          name: Install apt deps
+          command: sudo apt-get -y install protobuf-compiler jq golang-go
       - restore_cache:
           key: go-src-v2
       - checkout
@@ -76,9 +79,6 @@ jobs:
             - /go/src/google.golang.org
             - /go/src/pkg
       - checkout
-      - run:
-          name: Install apt deps
-          command: sudo apt-get -y install protobuf-compiler jq golang-go
       - run:
           name: Install vendor deps
           command: dep ensure -v
