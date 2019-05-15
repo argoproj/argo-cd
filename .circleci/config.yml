@@ -7,10 +7,11 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          keys:
-          - dl-{{ checksum "Gopkg.lock" }}
-          - go-src-{{ checksum "Gopkg.lock" }}
-          - vendor-{{ checksum "Gopkg.lock" }}
+          key: dl-{{ checksum "Gopkg.lock" }}
+      - restore_cache:
+          key: go-src-{{ checksum "Gopkg.lock" }}
+      - restore_cache:
+          key: vendor-{{ checksum "Gopkg.lock" }}
       - run:
           name: Create downloads dir
           command: mkdir -p /tmp/dl
