@@ -6,7 +6,7 @@ jobs:
     #docker:
     #  - image: circleci/golang:1.12.3
     environment:
-      GOPATH: ~/go
+      GOPATH: $HOME/go
     steps:
       - run:
           name: Print path
