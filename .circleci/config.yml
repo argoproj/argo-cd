@@ -51,8 +51,8 @@ jobs:
           key: dl
           paths:
             - /tmp/dl
-      - restore_cache:
-          key: go-src
+      #- restore_cache:
+      #    key: go-src
       - run:
           name: Install Go Deps
           command: |
@@ -70,7 +70,8 @@ jobs:
           - /go/src/github.com/grpc-ecosystem/grpc-gateway
       - run:
           name: Install Deps
-          command: sudo apt-get -y install protobuf-compiler jq golang-go
+          command: sudo apt-get -y install protobuf-compiler
+          # jq golang-go
       - checkout
       - restore_cache:
           key: vendor
