@@ -74,7 +74,7 @@ jobs:
           command: sudo apt-get -y install protobuf-compiler jq
       - run:
           name: Install Golang
-          command: sudo apt-get -y golang-go
+          command: sudo apt-get -y installgolang-go
       - checkout
       - restore_cache:
           key: vendor
