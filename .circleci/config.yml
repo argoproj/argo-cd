@@ -1,14 +1,14 @@
 version: 2
 jobs:
   build:
-    working_directory: /go/src/github.com/argoproj/argo-cd
+    working_directory: ~/go/src/github.com/argoproj/argo-cd
     machine: true
     #docker:
     #  - image: circleci/golang:1.12.3
     steps:
       - run:
           name: Install apt deps
-          command: sudo apt-get -y install protobuf-compiler jq
+          command: sudo apt-get -y install protobuf-compiler jq golang-go
       - run:
           name: Check Go
           command: go version
