@@ -56,11 +56,11 @@ jobs:
       - run:
           name: Install Go deps
           command: |
-            go get -u github.com/gobuffalo/packr/packr
-            go get -u github.com/golang/protobuf/protoc-gen-go
-            go get -u github.com/gogo/protobuf/gogoproto
-            go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
-            go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
+            go get github.com/gobuffalo/packr/packr
+            go get github.com/golang/protobuf/protoc-gen-go
+            go get github.com/gogo/protobuf/gogoproto
+            go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+            go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
       - save_cache:
           key: go-src
           paths:
