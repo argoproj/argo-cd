@@ -9,7 +9,7 @@ jobs:
       - run:
           name: Install apt deps
           command: |
-            sudo apt-get -y install protobuf-compiler jq golang-go
+            sudo apt-get -y install protobuf-compiler jq golang-go=1.12.4
             protoc --version
             jq --version
             go version
