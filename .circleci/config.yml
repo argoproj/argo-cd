@@ -8,7 +8,10 @@ jobs:
     steps:
       - run:
           name: Install apt deps
-          command: sudo apt-get -y install protobuf-compiler jq golang-go
+          command: sudo apt-get -y install protobuf-compiler jq
+      - run:
+          name: Check Go
+          command: go version
       - restore_cache:
           key: go-src-v2
       - checkout
