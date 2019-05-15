@@ -18,7 +18,7 @@ jobs:
       - restore_cache:
           key: dl-{{ checksum "Gopkg.lock" }}
       - restore_cache:
-          key: vendor-{{ checksum "Gopkg.lock" }}
+          key: vendor-{{ checksum "Gopkg.lock" }}-v2
       - run:
           name: Create downloads dir
           command: mkdir -p /tmp/dl
@@ -86,7 +86,7 @@ jobs:
           name: Install vendor deps
           command: dep ensure -v
       - save_cache:
-          key: vendor-{{ checksum "Gopkg.lock" }}
+          key: vendor-{{ checksum "Gopkg.lock" }}-v2
           paths:
             - vendor
 
