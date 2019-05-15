@@ -4,8 +4,8 @@ jobs:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
       image: circleci/classic:201808-01
-    #docker:
-    #  - image: circleci/golang:1.12.3
+    environment:
+      TEST_RESULTS: /tmp/test-results
     steps:
       - run:
           name: Install apt deps
@@ -113,7 +113,9 @@ jobs:
       #    command: make lint
       - run:
           name: Run unit tests
-          command: make test
+          command: |
+            trap "go-junit-report <${TEST_RESULTS}/go-test.out > ${TEST_RESULTS}/go-test-report.xml" EXIT
+            make test | tee ${TEST_RESULTS}/go-test.out
       # This produces different output. See https://circleci.com/gh/argoproj/argo-cd/65
       #- run:
       #    name: Check nothing has changed
@@ -121,8 +123,8 @@ jobs:
       - run:
           name: Uploading code coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
-      #- store_test_results:
-      #    path: test-results.xml
+      - store_test_results:
+          path: /tmp/test-results
       #- run:
       #    name: Start K3S
       #    command: k3s kubectl get node
