@@ -153,6 +153,9 @@ func TestArgoCDWaitEnsureAppIsNotCrashing(t *testing.T) {
 }
 
 func TestManipulateApplicationResources(t *testing.T) {
+
+	t.SkipNow()
+
 	Given(t).
 		Path(guestbookPath).
 		When().
