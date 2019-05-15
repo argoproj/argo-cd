@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/server/repository"
+	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/util"
 )
 
