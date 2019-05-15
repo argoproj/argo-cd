@@ -115,10 +115,9 @@ jobs:
       #- run:
       #    name: Check nothing has changed
       #    command: git diff --exit-code
-      #- run:
-      #    name: Uploading code coverage
-      #    command: bash <(curl -s https://codecov.io/bash) -f coverage.out
-      #    when: always
+      - run:
+          name: Uploading code coverage
+          command: bash <(curl -s https://codecov.io/bash) -f coverage.out
       #- store_test_results:
       #    path: test-results.xml
       #- run:
