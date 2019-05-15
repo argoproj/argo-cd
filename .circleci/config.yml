@@ -13,7 +13,7 @@ jobs:
           name: Check Go
           command: go version
       - restore_cache:
-          key: go-src-v2
+          key: go-src-v3
       - checkout
       - restore_cache:
           key: dl-{{ checksum "Gopkg.lock" }}
@@ -72,15 +72,15 @@ jobs:
             go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
             go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
       - save_cache:
-          key: go-src-v2
+          key: go-src-v3
           paths:
-            - /go/src/github.com
-            - /go/src/gopkg.in
-            - /go/src/sigs.k8s.io
-            - /go/src/golang.org
-            - /go/src/gotest.tools
-            - /go/src/google.golang.org
-            - /go/src/pkg
+            - ~/go/src/github.com
+            - ~/go/src/gopkg.in
+            - ~/go/src/sigs.k8s.io
+            - ~/go/src/golang.org
+            - ~/go/src/gotest.tools
+            - ~/go/src/google.golang.org
+            - ~/go/src/pkg
       - checkout
       - run:
           name: Install vendor deps
