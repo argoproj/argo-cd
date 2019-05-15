@@ -3,8 +3,7 @@ jobs:
   build:
     working_directory: /go/src/github.com/alexec/argo-cd
     docker:
-      # - image: circleci/golang:1.12.3
-      - image: circleci/classic:latest
+      - image: circleci/golang:1.12.3
     steps:
       - restore_cache:
           key: dl
