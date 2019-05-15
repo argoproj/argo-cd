@@ -78,7 +78,7 @@ jobs:
       - run:
           name: Install Go deps
           command: |
-            golang.org/dl/go1.11.4
+            go get golang.org/dl/go1.11.4
             go get github.com/gobuffalo/packr/packr
             go get github.com/golang/protobuf/protoc-gen-go
             go get github.com/gogo/protobuf/gogoproto
