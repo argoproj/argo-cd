@@ -20,7 +20,7 @@ jobs:
       - run:
           name: Install Ksonnet
           command: |
-            curl -sLf -C - -o /tmp/dl/ks.tar.gz https://github.com/ksonnet/ksonnet/releases/download/v0.13.1/ks_0.13.1_linux_amd64.tar.gz
+            [ ! -e /tmp/dl/ks.tar.gz ] && curl -sLf -C - -o /tmp/dl/ks.tar.gz https://github.com/ksonnet/ksonnet/releases/download/v0.13.1/ks_0.13.1_linux_amd64.tar.gz
             tar -C /tmp -xf /tmp/dl/ks.tar.gz
             mv /tmp/ks_0.13.1_linux_amd64/ks /go/bin/ks
             chmod +x /go/bin/ks
