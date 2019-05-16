@@ -158,8 +158,8 @@ jobs:
           command: |
             set -x
             sudo mkdir -p /var/lib/rancher/k3s/agent/images
-            sudo stat /var/lib/rancher/k3s/agent/images
-            sudo docker save argocd:latest > /var/lib/rancher/k3s/agent/images/argocd.tar
+            docker save argocd:latest > argocd.tar
+            sudo mv argocd.tar /var/lib/rancher/k3s/agent/images/
       - run:
           name: Install images
           command: |
