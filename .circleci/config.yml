@@ -114,7 +114,8 @@ jobs:
           name: Install Go 1.11.4
           command: |
             go1.11.4 download
-            export PATH=`go1.11.4 env GOROOT`/bin:\$PATH >> $BASH_ENV
+            export PATH="`go1.11.4 env GOROOT`/bin:\$PATH" >> $BASH_ENV
+            cat $BASH_ENV
       # busted
       #- run:
       #    name: Generate code
