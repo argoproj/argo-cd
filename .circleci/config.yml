@@ -23,13 +23,12 @@ jobs:
           command: env
       - restore_cache:
           keys:
+            - go-v7-{{ .Branch }}
             - go-v6-{{ .Branch }}
-            - go-v5-{{ .Branch }}
       - checkout
       - restore_cache:
           keys:
             - dl-v2
-            - dl-v1
       - restore_cache:
           key: vendor-{{ checksum "Gopkg.lock" }}-v2
       - run:
@@ -102,6 +101,7 @@ jobs:
             go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
             go get github.com/golangci/golangci-lint/cmd/golangci-lint
             go get github.com/jstemmer/go-junit-report
+            go get golang.org/x/tools/cmd/goimports
       - checkout
       - run:
           name: Install vendor deps
@@ -128,7 +128,7 @@ jobs:
             trap "go-junit-report <${TEST_RESULTS}/go-test.out > ${TEST_RESULTS}/go-test-report.xml" EXIT
             make test | tee ${TEST_RESULTS}/go-test.out
       - save_cache:
-          key: go-v6-{{ .Branch }}
+          key: go-v7-{{ .Branch }}
           paths:
             - /home/circleci/.go_workspace
             - /home/circleci/.cache/go-build
