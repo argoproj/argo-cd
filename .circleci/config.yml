@@ -17,12 +17,12 @@ jobs:
       - run:
           name: Print env
           command: env
-    - checkout
       - restore_cache:
           keys:
             - go-v5-{{ .Branch }}
             - go-v4
             - go-v3
+      - checkout
       - restore_cache:
           key: dl-v1
       - restore_cache:
