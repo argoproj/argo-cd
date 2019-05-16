@@ -1,6 +1,7 @@
 package app
 
 import (
+	"strings"
 	"time"
 
 	"github.com/ghodss/yaml"
@@ -53,6 +54,9 @@ func (c *Consequences) app() *Application {
 func (c *Consequences) get() (*Application, error) {
 	output, err := fixture.RunCli("app", "get", c.context.name, "-o", "yaml")
 	if err != nil {
+		if strings.Contains(output, "NotFound") {
+			return nil, nil
+		}
 		return nil, err
 	}
 	app := &Application{}
