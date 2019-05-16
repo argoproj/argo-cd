@@ -86,6 +86,13 @@ jobs:
             sudo chmod +x /usr/local/bin/protoc && \
             sudo unzip /tmp/dl/protoc.zip include/* -d /usr/local/
             protoc --version
+      - run:
+          name: Install K3S
+          command: curl -sfL https://get.k3s.io | sh -
+      - run:
+          name: Start K3S
+          command: k3s server
+          background: true
       - save_cache:
           key: dl-v2-{{ checksum "Gopkg.lock" }}
           paths:
@@ -151,13 +158,6 @@ jobs:
       - run:
           name: Uploading code coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
-      - run:
-          name: Install K3S
-          command: curl -sfL https://get.k3s.io | sh -
-      - run:
-          name: Start K3S
-          command: k3s server
-          background: true
       - store_test_results:
           path: /tmp/test-results
 workflows:
