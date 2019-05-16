@@ -96,11 +96,9 @@ jobs:
           key: vendor-{{ checksum "Gopkg.lock" }}-v2
           paths:
             - vendor
-
-      # Works
-      #- run:
-      #    name: Generate code
-      #    command: make codegen
+      - run:
+          name: Generate code
+          command: make codegen
       - run:
           name: Compile production code
           command: make build
