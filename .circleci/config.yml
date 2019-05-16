@@ -115,7 +115,7 @@ jobs:
           command: |
             set -x
             [ -e /home/circleci/sdk/go1.11.4 ] || go1.11.4 download
-            echo export PATH="`go1.11.4 env GOROOT`/bin:$PATH" | tee -a $BASH_ENV
+            echo export PATH="`go1.11.4 env GOROOT`/bin:\$PATH" | tee -a $BASH_ENV
       # busted
       #- run:
       #    name: Generate code
