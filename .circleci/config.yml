@@ -9,8 +9,10 @@ jobs:
     steps:
       - run:
           name: Install apt deps
+          command: sudo apt-get -y install protobuf-compiler jq golang-go
+      - run:
+          name: Print tool versions
           command: |
-            sudo apt-get -y install protobuf-compiler jq golang-go
             protoc --version
             jq --version
             go version
@@ -127,11 +129,15 @@ jobs:
       - run:
           name: Uploading code coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
+      - run:
+          name: Install K3S
+          command: curl -sfL https://get.k3s.io | sh -
+      - run:
+          name: Start K3S
+          command: k3s server
+          background: true
       - store_test_results:
           path: /tmp/test-results
-      #- run:
-      #    name: Start K3S
-      #    command: k3s kubectl get node
 workflows:
   version: 2
   workflow:
