@@ -77,5 +77,6 @@ func (a *Actions) Then() *Consequences {
 }
 
 func (a *Actions) runCli(args ...string) (output string, err error) {
+	// TODO inline
 	return fixture.RunCli(args...)
 }

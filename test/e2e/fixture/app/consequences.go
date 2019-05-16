@@ -3,8 +3,8 @@ package app
 import (
 	"time"
 
+	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/errors"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -51,10 +51,12 @@ func (c *Consequences) app() *Application {
 }
 
 func (c *Consequences) get() (*Application, error) {
-	_, _ = fixture.RunCli("app", "get", c.context.name, "-o", "yaml")
-	app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(c.context.name, v1.GetOptions{})
-	log.WithFields(log.Fields{"app": app}).Info("app")
-	return app, err
+	output, err := fixture.RunCli("app", "get", c.context.name, "-o", "yaml")
+	if err != nil {
+		return nil, err
+	}
+	app := &Application{}
+	return app, yaml.Unmarshal([]byte(output), app)
 }
 
 func (c *Consequences) resource(name string) ResourceStatus {
