@@ -81,7 +81,7 @@ jobs:
       - run:
           name: Install Protobuf compiler
           command: |
-            [ -e /tmp/dl/protoc.zip ] || curl -sLf -C - -o /tmp/dl/protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip && \
+            [ -e /tmp/dl/protoc.zip ] || curl -sLf -C - -o /tmp/dl/protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v3.7.1/protoc-3.7.1-linux-x86_64.zip && \
             sudo unzip /tmp/dl/protoc.zip bin/protoc -d /usr/local/
             sudo chmod +x /usr/local/bin/protoc && \
             sudo unzip /tmp/dl/protoc.zip include/* -d /usr/local/
