@@ -92,7 +92,6 @@ jobs:
       - run:
           name: Start K3S
           command: |
-            cat /etc/hosts
             sudo k3s server
           background: true
       - save_cache:
