@@ -91,7 +91,10 @@ jobs:
           command: curl -sfL https://get.k3s.io | sh -
       - run:
           name: Start K3S
-          command: sudo k3s server
+          command: |
+            cat /etc/hosts
+            k3s kubectl get node
+            sudo k3s server
           background: true
       - save_cache:
           key: dl-v2-{{ checksum "Gopkg.lock" }}
