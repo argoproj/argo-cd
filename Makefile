@@ -135,11 +135,11 @@ lint:
 
 .PHONY: build
 build:
-	go build -v `go list ./... | grep -v 'vendor\|resource_customizations\|test/e2e'`
+	go build -v `go list ./... | grep -v 'resource_customizations\|test/e2e'`
 
 .PHONY: test
 test:
-	go test -v -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "vendor\|test/e2e"`
+	go test -v -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "test/e2e"`
 
 .PHONY: test-e2e
 test-e2e: cli
