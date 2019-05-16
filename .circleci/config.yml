@@ -19,11 +19,12 @@ jobs:
           command: env
       - restore_cache:
           keys:
+            - go-{{ .Environment.CIRCLE_PREVIOUS_BUILD_NUM }}
             - go-v4
             - go-v3
       - checkout
       - restore_cache:
-          key: dl-{{ checksum "Gopkg.lock" }}
+          key: dl-v1
       - restore_cache:
           key: vendor-{{ checksum "Gopkg.lock" }}-v2
       - run:
@@ -87,11 +88,6 @@ jobs:
             go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
             go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
             go get github.com/jstemmer/go-junit-report
-      - save_cache:
-          key: go-v4
-          paths:
-            - /home/circleci/.go_workspace
-            - /home/circleci/.cache/go-build
       - checkout
       - run:
           name: Install vendor deps
@@ -120,6 +116,12 @@ jobs:
           command: |
             trap "go-junit-report <${TEST_RESULTS}/go-test.out > ${TEST_RESULTS}/go-test-report.xml" EXIT
             make test | tee ${TEST_RESULTS}/go-test.out
+      - save_cache:
+          key: go-{{ .Branch }}-{{ .Environment.CIRCLE_BUILD_NUM }}
+          paths:
+            - /home/circleci/.go_workspace
+            - /home/circleci/.cache/go-build
+          when: always
       # This produces different output. See https://circleci.com/gh/argoproj/argo-cd/65
       #- run:
       #    name: Check nothing has changed
