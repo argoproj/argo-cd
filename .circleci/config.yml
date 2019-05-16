@@ -14,14 +14,13 @@ jobs:
             protoc --version
             jq --version
             go version
-            go env GOCACHE
       - run:
           name: Print env
           command: env
       - restore_cache:
           keys:
+            - go-v4
             - go-v3
-            - go-v2
       - checkout
       - restore_cache:
           key: dl-{{ checksum "Gopkg.lock" }}
@@ -89,9 +88,10 @@ jobs:
             go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
             go get github.com/jstemmer/go-junit-report
       - save_cache:
-          key: go-v3
+          key: go-v4
           paths:
             - /home/circleci/.go_workspace
+            - /home/circleci/.cache/go-build
       - checkout
       - run:
           name: Install vendor deps
