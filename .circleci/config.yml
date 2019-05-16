@@ -23,8 +23,8 @@ jobs:
           command: env
       - restore_cache:
           keys:
+            - go-v9-{{ .Branch }}
             - go-v8-{{ .Branch }}
-            - go-v7-{{ .Branch }}
       - checkout
       - restore_cache:
           keys:
@@ -153,7 +153,9 @@ jobs:
       - run:
           name: Save images
           command: |
+            set -x
             sudo mkdir -p /var/lib/rancher/k3s/agent/images
+            sudo stat /var/lib/rancher/k3s/agent/images
             sudo docker save argocd:latest > /var/lib/rancher/k3s/agent/images/argocd.tar
       - run:
           name: Install images
@@ -169,7 +171,7 @@ jobs:
             trap "go-junit-report </tmp/test-results/go-test-e2e.out > /tmp/test-results/go-test-report.xml" EXIT
             make test-e2e | tee /tmp/test-results/go-test-e2e.out
       - save_cache:
-          key: go-v8-{{ .Branch }}
+          key: go-v9-{{ .Branch }}
           paths:
             - /home/circleci/.go_workspace
             - /home/circleci/.cache/go-build
