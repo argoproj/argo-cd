@@ -23,8 +23,8 @@ jobs:
           command: env
       - restore_cache:
           keys:
+            - go-v8-{{ .Branch }}
             - go-v7-{{ .Branch }}
-            - go-v6-{{ .Branch }}
       - checkout
       - restore_cache:
           keys:
@@ -134,10 +134,11 @@ jobs:
             trap "go-junit-report <${TEST_RESULTS}/go-test.out > ${TEST_RESULTS}/go-test-report.xml" EXIT
             make test | tee ${TEST_RESULTS}/go-test.out
       - save_cache:
-          key: go-v7-{{ .Branch }}
+          key: go-v8-{{ .Branch }}
           paths:
             - /home/circleci/.go_workspace
             - /home/circleci/.cache/go-build
+            - /home/circleci/sdk/go1.11.4
           when: always
       # This produces different output. See https://circleci.com/gh/argoproj/argo-cd/65
       - run:
