@@ -308,9 +308,6 @@ func TestDuplicatedResources(t *testing.T) {
 
 func TestFailedConversion(t *testing.T) {
 
-	// this causes too many problems
-	t.SkipNow()
-
 	defer func() {
 		errors.FailOnErr(fixture.Run("", "kubectl", "delete", "apiservice", "v1beta1.metrics.k8s.iko"))
 	}()
