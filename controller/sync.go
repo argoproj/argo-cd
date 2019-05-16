@@ -207,6 +207,8 @@ func (sc *syncContext) sync() {
 		}
 	}
 
+	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("tasks")
+
 	// update status of any tasks that have already run, then clean-up
 	for _, task := range tasks.Filter(func(t syncTask) bool {
 		return t.running()
@@ -214,31 +216,31 @@ func (sc *syncContext) sync() {
 		if task.isHook() {
 			// update the hook's result
 			operationState, message := getOperationPhase(task.obj())
-			sc.setResourceResult(&task, "", operationState, message)
+			sc.setResourceResult(task, "", operationState, message)
 
 			// maybe delete the hook
 			if enforceHookDeletePolicy(task.obj(), task.operationState) {
 				err := sc.deleteResource(task)
 				if err != nil {
-					sc.setResourceResult(&task, "", OperationError, fmt.Sprintf("failed to delete resource: %v", err))
+					sc.setResourceResult(task, "", OperationError, fmt.Sprintf("failed to delete resource: %v", err))
 				}
 			}
 		} else if task.isPrune() {
-			sc.setResourceResult(&task, task.syncStatus, OperationSucceeded, "pruned")
+			if task.pruned() {
+				sc.setResourceResult(task, task.syncStatus, OperationSucceeded, "pruned")
+			}
 		} else {
 			healthStatus, message := sc.getHealthStatus(task.obj())
 			switch healthStatus {
 			case HealthStatusHealthy:
-				sc.log.WithFields(log.Fields{"task": task.String(), "healthStatus": healthStatus}).Info("updating health status")
-				sc.setResourceResult(&task, task.syncStatus, OperationSucceeded, message)
+				sc.setResourceResult(task, task.syncStatus, OperationSucceeded, message)
 			case HealthStatusDegraded:
-				sc.log.WithFields(log.Fields{"task": task.String(), "healthStatus": healthStatus}).Info("updating health status")
-				sc.setResourceResult(&task, task.syncStatus, OperationFailed, message)
+				sc.setResourceResult(task, task.syncStatus, OperationFailed, message)
 			}
 		}
 	}
 
-	sc.log.WithFields(log.Fields{"numTasks": tasks.Len()}).Info("tasks pre-filtering")
+	sc.log.WithFields(log.Fields{"numTasks": len(tasks)}).Info("tasks pre-filtering")
 
 	// remove tasks that are completed
 	tasks = tasks.Filter(func(task syncTask) bool {
@@ -246,19 +248,15 @@ func (sc *syncContext) sync() {
 	})
 
 	// remove any tasks not in this wave
-	if len(tasks) > 0 {
-		phase := tasks[0].phase
-		wave := tasks[0].wave()
-		sc.log.WithFields(log.Fields{"phase": phase, "wave": wave, "numTasks": len(tasks)}).Info("filtering tasks in correct phase and wave")
-		tasks = tasks.Filter(func(task syncTask) bool {
-			return task.phase == phase && task.wave() == wave
-		})
-		if len(tasks) == 0 {
-			panic("this can never happen")
-		}
-	}
+	phase := tasks.phase()
+	wave := tasks.wave()
 
-	sc.log.WithFields(log.Fields{"numTasks": tasks.Len()}).Info("tasks post-filtering")
+	sc.log.WithFields(log.Fields{"phase": phase, "wave": wave, "numTasks": len(tasks)}).Info("filtering tasks in correct phase and wave")
+	tasks = tasks.Filter(func(task syncTask) bool {
+		return task.phase == phase && task.wave() == wave
+	})
+
+	sc.log.WithFields(log.Fields{"numTasks": len(tasks)}).Info("tasks post-filtering")
 
 	// If no sync tasks were generated (e.g., in case all application manifests have been removed),
 	// set the sync operation as successful.
@@ -269,10 +267,10 @@ func (sc *syncContext) sync() {
 
 	sc.log.WithFields(log.Fields{"numTasks": len(tasks)}).Info("wet run")
 
+	sc.setOperationPhase(OperationRunning, fmt.Sprintf("running phase='%s' wave=%d", phase, wave))
+
 	if !sc.runTasks(tasks, false) {
 		sc.setOperationPhase(OperationFailed, "one or more objects failed to apply")
-	} else {
-		sc.setOperationPhase(OperationRunning, "running")
 	}
 }
 
@@ -300,7 +298,7 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 		if !sc.isSelectiveSyncResourceOrAll(resource) {
 			continue
 		}
-		tasks = append(tasks, syncTask{
+		tasks = append(tasks, &syncTask{
 			phase:     SyncPhaseSync,
 			liveObj:   resource.Live,
 			targetObj: resource.Target,
@@ -325,7 +323,7 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 				obj.SetName(fmt.Sprintf("%s%s", generateName, postfix))
 			}
 
-			tasks = append(tasks, syncTask{
+			tasks = append(tasks, &syncTask{
 				phase:     phase,
 				liveObj:   nil,
 				targetObj: obj,
@@ -349,12 +347,13 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 	}
 
 	for _, task := range tasks {
-		_, res := sc.syncRes.Resources.Find(task.group(), task.kind(), task.namespace(), task.name(), task.phase)
-		if res != nil {
-			task.syncStatus = res.SyncStatus
-			task.operationState = res.OperationState
-			task.message = res.Message
+		_, result := sc.syncRes.Resources.Find(task.group(), task.kind(), task.namespace(), task.name(), task.phase)
+		if result != nil {
+			task.syncStatus = result.SyncStatus
+			task.operationState = result.OperationState
+			task.message = result.Message
 		}
+		sc.log.WithFields(log.Fields{"task": task, "result": result}).Debug("task/result")
 	}
 
 	for _, task := range tasks {
@@ -368,16 +367,16 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 				sc.log.WithFields(log.Fields{"task": task.String()}).Info("skip dry-run for customq resource")
 				task.skipDryRun = true
 			} else {
-				sc.setResourceResult(&task, ResultCodeSyncFailed, "", err.Error())
+				sc.setResourceResult(task, ResultCodeSyncFailed, "", err.Error())
 				successful = false
 			}
 		} else {
 			if !sc.proj.IsResourcePermitted(metav1.GroupKind{Group: task.group(), Kind: task.kind()}, serverRes.Namespaced) {
-				sc.setResourceResult(&task, ResultCodeSyncFailed, "", fmt.Sprintf("Resource %s:%s is not permitted in project %s.", task.group(), task.kind(), sc.proj.Name))
+				sc.setResourceResult(task, ResultCodeSyncFailed, "", fmt.Sprintf("Resource %s:%s is not permitted in project %s.", task.group(), task.kind(), sc.proj.Name))
 				successful = false
 			}
 			if serverRes.Namespaced && !sc.proj.IsDestinationPermitted(ApplicationDestination{Namespace: task.namespace(), Server: sc.server}) {
-				sc.setResourceResult(&task, ResultCodeSyncFailed, "", fmt.Sprintf("namespace %v is not permitted in project '%s'", task.namespace(), sc.proj.Name))
+				sc.setResourceResult(task, ResultCodeSyncFailed, "", fmt.Sprintf("namespace %v is not permitted in project '%s'", task.namespace(), sc.proj.Name))
 				successful = false
 			}
 		}
@@ -457,10 +456,10 @@ func (sc *syncContext) terminate() {
 		if isRunnable(task.groupVersionKind()) {
 			err := sc.deleteResource(task)
 			if err != nil {
-				sc.setResourceResult(&task, "", OperationFailed, fmt.Sprintf("Failed to delete: %v", err))
+				sc.setResourceResult(task, "", OperationFailed, fmt.Sprintf("Failed to delete: %v", err))
 				terminateSuccessful = false
 			} else {
-				sc.setResourceResult(&task, "", OperationSucceeded, fmt.Sprintf("Deleted"))
+				sc.setResourceResult(task, "", OperationSucceeded, fmt.Sprintf("Deleted"))
 			}
 		}
 	}
@@ -471,7 +470,7 @@ func (sc *syncContext) terminate() {
 	}
 }
 
-func (sc *syncContext) deleteResource(task syncTask) error {
+func (sc *syncContext) deleteResource(task *syncTask) error {
 	sc.log.WithFields(log.Fields{"task": task.String()}).Info("deleting task")
 	apiResource, err := kube.ServerResourceForGroupVersionKind(sc.disco, task.groupVersionKind())
 	if err != nil {
@@ -503,48 +502,48 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) (successful bool) 
 	var wg sync.WaitGroup
 	for _, task := range pruneTasks {
 		wg.Add(1)
-		go func(t syncTask) {
+		go func(t *syncTask) {
 			defer wg.Done()
-			sc.log.WithFields(log.Fields{"task": t.String()}).Info("pruning")
+			sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t.String()}).Info("pruning")
 			syncStatus, message := sc.pruneObject(t.liveObj, sc.syncOp.Prune, dryRun)
 			if syncStatus == ResultCodeSyncFailed {
 				successful = false
 			}
 			if !dryRun || syncStatus == ResultCodeSyncFailed {
-				sc.setResourceResult(&t, syncStatus, "", message)
+				sc.setResourceResult(t, syncStatus, OperationRunning, message)
 			}
 		}(task)
 	}
 	wg.Wait()
 
-	processCreateTasks := func(tasks []syncTask) {
+	processCreateTasks := func(tasks syncTasks) {
 		var createWg sync.WaitGroup
 		for _, task := range tasks {
 			if dryRun && task.skipDryRun {
 				continue
 			}
 			createWg.Add(1)
-			go func(t syncTask) {
+			go func(t *syncTask) {
 				defer createWg.Done()
-				sc.log.WithFields(log.Fields{"task": t.String()}).Info("applying")
-				syncStatus, message := sc.applyObject(t.targetObj, dryRun, sc.syncOp.SyncStrategy.Force())
+				sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": task.String()}).Info("applying")
+				syncStatus, message := sc.applyObject(task.targetObj, dryRun, sc.syncOp.SyncStrategy.Force())
 				if syncStatus == ResultCodeSyncFailed {
 					successful = false
 				}
 				if !dryRun || syncStatus == ResultCodeSyncFailed {
-					sc.setResourceResult(&t, syncStatus, "", message)
+					sc.setResourceResult(t, syncStatus, OperationRunning, message)
 				}
 			}(task)
 		}
 		createWg.Wait()
 	}
 
-	var tasksGroup []syncTask
+	var tasksGroup syncTasks
 	for _, task := range createTasks {
 		//Only wait if the type of the next task is different than the previous type
 		if len(tasksGroup) > 0 && tasksGroup[0].targetObj.GetKind() != task.kind() {
 			processCreateTasks(tasksGroup)
-			tasksGroup = []syncTask{task}
+			tasksGroup = syncTasks{task}
 		} else {
 			tasksGroup = append(tasksGroup, task)
 		}
@@ -582,18 +581,15 @@ func (sc *syncContext) setResourceResult(task *syncTask, syncStatus ResultCode, 
 
 	if existing != nil {
 		// update existing value
-		if res.SyncStatus != existing.SyncStatus {
-			logCtx.Infof("updated resource syncStatus: %s -> %s", existing.SyncStatus, res.SyncStatus)
-		}
-		if res.OperationState != existing.OperationState {
-			logCtx.Infof("updated resource operationState: %s -> %s", existing.OperationState, res.OperationState)
-		}
-		if res.Message != existing.Message {
-			logCtx.Infof("updated resource message: %s -> %s", existing.Message, res.Message)
+		if res.SyncStatus != existing.SyncStatus || res.OperationState != existing.OperationState || res.Message != existing.Message {
+			logCtx.Infof("updating resource result, syncStatus: '%s' -> '%s', operationState '%s' -> '%s', message '%s' -> '%s'",
+				existing.SyncStatus, res.SyncStatus,
+				existing.OperationState, res.OperationState,
+				existing.Message, res.Message)
 		}
 		sc.syncRes.Resources[i] = res
 	} else {
-		logCtx.Infof("added resource resultCode: %s, operationState: %s, message: %s", res.SyncStatus, res.OperationState, res.Message)
+		logCtx.Infof("adding resource result, resultCode: '%s', operationState: '%s', message: '%s'", res.SyncStatus, res.OperationState, res.Message)
 		sc.syncRes.Resources = append(sc.syncRes.Resources, res)
 	}
 }

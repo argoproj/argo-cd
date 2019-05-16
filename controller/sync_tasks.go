@@ -43,7 +43,7 @@ var kindOrder = map[string]int{
 	"APIService":               -1,
 }
 
-type syncTasks []syncTask
+type syncTasks []*syncTask
 
 func (s syncTasks) Len() int {
 	return len(s)
@@ -89,7 +89,7 @@ func (s syncTasks) Less(i, j int) bool {
 
 func (s syncTasks) Filter(predicate func(t syncTask) bool) (tasks syncTasks) {
 	for _, task := range s {
-		if predicate(task) {
+		if predicate(*task) {
 			tasks = append(tasks, task)
 		}
 	}
@@ -98,8 +98,8 @@ func (s syncTasks) Filter(predicate func(t syncTask) bool) (tasks syncTasks) {
 
 func (s syncTasks) Find(predicate func(t syncTask) bool) *syncTask {
 	for _, task := range s {
-		if predicate(task) {
-			return &task
+		if predicate(*task) {
+			return task
 		}
 	}
 	return nil
@@ -111,4 +111,18 @@ func (s syncTasks) String() string {
 		values = append(values, task.String())
 	}
 	return "[" + strings.Join(values, ", ") + "]"
+}
+
+func (s syncTasks) phase() SyncPhase {
+	if len(s) > 0 {
+		return s[0].phase
+	}
+	return ""
+}
+
+func (s syncTasks) wave() int {
+	if len(s) > 0 {
+		return s[0].wave()
+	}
+	return 0
 }
