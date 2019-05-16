@@ -93,7 +93,6 @@ jobs:
           name: Start K3S
           command: |
             cat /etc/hosts
-            k3s kubectl get node
             sudo k3s server
           background: true
       - save_cache:
@@ -167,7 +166,7 @@ jobs:
             kustomize build ./test/manifests/ci | kubectl apply -n argocd-e2e -f -
             kubectl rollout status deployment -n argocd-e2e argocd-application-controller
             kubectl rollout status deployment -n argocd-e2e argocd-server
-            export ARGOCD_SERVER=$(kubectl get service argocd-server -o=jsonpath={.spec.clusterIP} -n argocd-e2e):443
+            export ARGOCD_SERVER=$(kubectl get service argocd-server -o=jsonpath={.spec.clusterIP} -n argocd-e2e):443 >> $BASH_ENV
       - run:
           name: Run e2e tests
           command: |
