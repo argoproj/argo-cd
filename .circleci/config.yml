@@ -20,9 +20,8 @@ jobs:
           command: env
       - restore_cache:
           keys:
+            - go-v6-{{ .Branch }}
             - go-v5-{{ .Branch }}
-            - go-v4
-            - go-v3
       - checkout
       - restore_cache:
           key: dl-v1
@@ -88,6 +87,7 @@ jobs:
             go get github.com/gogo/protobuf/gogoproto
             go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
             go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
+            go get github.com/golangci/golangci-lint/cmd/golangci-lint
             go get github.com/jstemmer/go-junit-report
       - checkout
       - run:
@@ -115,7 +115,7 @@ jobs:
             trap "go-junit-report <${TEST_RESULTS}/go-test.out > ${TEST_RESULTS}/go-test-report.xml" EXIT
             make test | tee ${TEST_RESULTS}/go-test.out
       - save_cache:
-          key: go-v5-{{ .Branch }}
+          key: go-v6-{{ .Branch }}
           paths:
             - /home/circleci/.go_workspace
             - /home/circleci/.cache/go-build
