@@ -360,6 +360,8 @@ func TestKsonnetApp(t *testing.T) {
 				Ksonnet:  &argorepo.KsonnetAppDetailsQuery{Environment: "prod"},
 			})
 			assert.NoError(t, err)
+			assert.NotNil(t, details.Ksonnet)
+			assert.NotNil(t, details.Ksonnet.Parameters)
 
 			serviceType := ""
 			for _, param := range details.Ksonnet.Parameters {
