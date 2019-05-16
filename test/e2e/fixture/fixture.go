@@ -123,10 +123,12 @@ func EnsureCleanState() {
 	start := time.Now()
 
 	// delete resources
+
 	text, err := Run("", "kubectl", "get", "app", "-o", "name")
 	CheckError(err)
 	for _, name := range strings.Split(text, "\n") {
 		if name != "" {
+			// is it much more reliable to get argocd to delete an app than kubectl
 			FailOnErr(RunCli("app", "delete", strings.TrimPrefix(name, "application.argoproj.io/")))
 		}
 	}
@@ -161,10 +163,6 @@ func EnsureCleanState() {
 	// create namespace
 	FailOnErr(Run(repoDirectory(), "kubectl", "create", "ns", DeploymentNamespace()))
 	FailOnErr(Run(repoDirectory(), "kubectl", "label", "ns", DeploymentNamespace(), testingLabel+"=true"))
-
-	closer, _, err := ArgoCDClientset.NewApplicationClient()
-	CheckError(err)
-	defer util.Close(closer)
 
 	log.WithFields(log.Fields{"duration": time.Since(start), "id": id}).Info("clean state")
 }

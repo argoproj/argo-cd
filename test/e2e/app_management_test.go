@@ -153,9 +153,6 @@ func TestArgoCDWaitEnsureAppIsNotCrashing(t *testing.T) {
 }
 
 func TestManipulateApplicationResources(t *testing.T) {
-
-	t.SkipNow()
-
 	Given(t).
 		Path(guestbookPath).
 		When().
@@ -199,9 +196,6 @@ func TestManipulateApplicationResources(t *testing.T) {
 }
 
 func TestAppWithSecrets(t *testing.T) {
-
-	t.SkipNow()
-
 	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 	assert.NoError(t, err)
 	defer util.Close(closer)
@@ -360,8 +354,6 @@ func TestKsonnetApp(t *testing.T) {
 				Ksonnet:  &argorepo.KsonnetAppDetailsQuery{Environment: "prod"},
 			})
 			assert.NoError(t, err)
-			assert.NotNil(t, details.Ksonnet)
-			assert.NotNil(t, details.Ksonnet.Parameters)
 
 			serviceType := ""
 			for _, param := range details.Ksonnet.Parameters {
