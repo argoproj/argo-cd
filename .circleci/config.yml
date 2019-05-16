@@ -19,7 +19,7 @@ jobs:
           command: env
       - restore_cache:
           keys:
-            - go-{{ .Environment.CIRCLE_PREVIOUS_BUILD_NUM }}
+            - go-{{ .Branch }}-{{ .Environment.CIRCLE_PREVIOUS_BUILD_NUM }}
             - go-v4
             - go-v3
       - checkout
