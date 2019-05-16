@@ -129,7 +129,10 @@ jobs:
       #    command: make codegen
       - run:
           name: Compile production code
-          command: make build
+          # builds should be around 30s, if not - maybe the cache has moved?
+          command: |
+            go env GOCACHE
+            make build
       # TODO
       #- run:
       #    name: Lint code
