@@ -102,6 +102,12 @@ jobs:
             go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
             go get github.com/golangci/golangci-lint/cmd/golangci-lint
             go get github.com/jstemmer/go-junit-report
+      - run:
+          name: Install Go 1.11.4
+          command: |
+            set -x
+            [ -e /home/circleci/sdk/go1.11.4 ] || go1.11.4 download
+            echo export PATH="`go1.11.4 env GOROOT`/bin:\$PATH" | tee -a $BASH_ENV
       - checkout
       - run:
           name: Install vendor deps
@@ -110,12 +116,6 @@ jobs:
           key: vendor-{{ checksum "Gopkg.lock" }}-v2
           paths:
             - vendor
-      - run:
-          name: Install Go 1.11.4
-          command: |
-            set -x
-            [ -e /home/circleci/sdk/go1.11.4 ] || go1.11.4 download
-            echo export PATH="`go1.11.4 env GOROOT`/bin:\$PATH" | tee -a $BASH_ENV
       # busted
       #- run:
       #    name: Generate code
