@@ -110,6 +110,10 @@ jobs:
           key: vendor-{{ checksum "Gopkg.lock" }}-v2
           paths:
             - vendor
+      - run:
+          name: Add Go 1.11.4 to path
+          command: |
+            export PATH=`go1.11.4 env GOROOT`/bin:\$PATH >> $BASH_ENV
       # busted
       #- run:
       #    name: Generate code
