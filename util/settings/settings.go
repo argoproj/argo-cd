@@ -78,11 +78,12 @@ type ArgoCDSettings struct {
 }
 
 type OIDCConfig struct {
-	Name         string `json:"name,omitempty"`
-	Issuer       string `json:"issuer,omitempty"`
-	ClientID     string `json:"clientID,omitempty"`
-	ClientSecret string `json:"clientSecret,omitempty"`
-	CLIClientID  string `json:"cliClientID,omitempty"`
+	Name            string   `json:"name,omitempty"`
+	Issuer          string   `json:"issuer,omitempty"`
+	ClientID        string   `json:"clientID,omitempty"`
+	ClientSecret    string   `json:"clientSecret,omitempty"`
+	CLIClientID     string   `json:"cliClientID,omitempty"`
+	RequestedScopes []string `json:"requestedScopes,omitempty"`
 }
 
 type RepoCredentials struct {
