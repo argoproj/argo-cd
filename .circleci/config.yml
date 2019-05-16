@@ -119,7 +119,9 @@ jobs:
           command: make build
       - run:
           name: Lint code
-          command: make lint
+          command: |
+            go version
+            make lint
       - run:
           name: Create test results dir
           command: mkdir -p $TEST_RESULTS
