@@ -130,19 +130,21 @@ jobs:
       - run:
           name: Compile production code
           command: make build
-      - run:
-          name: Lint code
-          command: |
-            make lint
-            git diff
+      # TODO
+      #- run:
+      #    name: Lint code
+      #    command: |
+      #      make lint
+      #      git diff
       - run:
           name: Create test results dir
           command: mkdir -p $TEST_RESULTS
-      - run:
-          name: Run unit tests
-          command: |
-            trap "go-junit-report <${TEST_RESULTS}/go-test.out > ${TEST_RESULTS}/go-test-report.xml" EXIT
-            make test | tee ${TEST_RESULTS}/go-test.out
+      # TODO
+      #- run:
+      #    name: Run unit tests
+      #    command: |
+      #      trap "go-junit-report <${TEST_RESULTS}/go-test.out > ${TEST_RESULTS}/go-test-report.xml" EXIT
+      #      make test | tee ${TEST_RESULTS}/go-test.out
       - run:
           name: Make images
           command: |
