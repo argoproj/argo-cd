@@ -111,9 +111,8 @@ jobs:
           paths:
             - vendor
       - run:
-          name: Add Go 1.11.4 to path
-          command: |
-            export PATH=`go1.11.4 env GOROOT`/bin:\$PATH >> $BASH_ENV
+          name: Install Go 1.11.4
+          command: go1.11.4 download
       # busted
       #- run:
       #    name: Generate code
