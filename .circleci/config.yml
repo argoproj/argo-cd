@@ -14,6 +14,7 @@ jobs:
             protoc --version
             jq --version
             go version
+            docker version
       - run:
           name: Print env
           command: env
