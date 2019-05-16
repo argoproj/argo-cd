@@ -125,6 +125,7 @@ jobs:
       - run:
           name: Lint code
           command: |
+            echo $PATH
             go version
             make lint
       - run:
