@@ -29,6 +29,8 @@ data:
     issuer: https://dev-123456.oktapreview.com
     clientID: aaaabbbbccccddddeee
     clientSecret: $oidc.okta.clientSecret
+    # Optional set of OIDC scopes to request. If omitted, defaults to: ["openid", "profile", "email", "groups"]
+    requestedScopes: ["openid", "profile", "email"]
 
   # Git repositories configure Argo CD with (optional).
   # This list is updated when configuring/removing repos from the UI/CLI

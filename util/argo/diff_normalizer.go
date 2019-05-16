@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"strings"
 
-	"gopkg.in/yaml.v2"
-
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/diff"
 
 	jsonpatch "github.com/evanphx/json-patch"
+	log "github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -99,11 +99,8 @@ func (n *normalizer) Normalize(un *unstructured.Unstructured) error {
 	for _, patch := range matched {
 		patchedData, err := patch.patch.Apply(docData)
 		if err != nil {
-			// bug?
-			if strings.HasPrefix(err.Error(), "Unable to remove nonexistent key") {
-				continue
-			}
-			return err
+			log.Debugf("Failed to apply normalization: %v", err)
+			continue
 		}
 		docData = patchedData
 	}

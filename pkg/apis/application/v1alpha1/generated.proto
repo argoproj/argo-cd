@@ -583,6 +583,8 @@ message ResourceRef {
   optional string namespace = 4;
 
   optional string name = 5;
+
+  optional string uid = 6;
 }
 
 // ResourceResult holds the operation result details of a specific resource

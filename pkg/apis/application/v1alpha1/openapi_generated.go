@@ -2080,6 +2080,12 @@ func schema_pkg_apis_application_v1alpha1_ResourceNode(ref common.ReferenceCallb
 							Format: "",
 						},
 					},
+					"uid": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 					"parentRefs": {
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"array"},
@@ -2205,6 +2211,12 @@ func schema_pkg_apis_application_v1alpha1_ResourceRef(ref common.ReferenceCallba
 						},
 					},
 					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"uid": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
 							Format: "",

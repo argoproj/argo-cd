@@ -69,7 +69,6 @@ func newFakeController(data *fakeData) *ApplicationController {
 	kubeClient := fake.NewSimpleClientset(&clust, &cm, &secret)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
 	ctrl, err := NewApplicationController(
-		common.KubernetesInternalAPIServerAddr,
 		test.FakeArgoCDNamespace,
 		settingsMgr,
 		kubeClient,
@@ -122,6 +121,7 @@ var fakeApp = `
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
+  uid: "123"
   name: my-app
   namespace: ` + test.FakeArgoCDNamespace + `
 spec:
@@ -458,11 +458,11 @@ func TestHandleAppUpdated(t *testing.T) {
 	app.Spec.Destination.Server = common.KubernetesInternalAPIServerAddr
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 
-	ctrl.handleAppUpdated(app.Name, true, kube.GetResourceKey(kube.MustToUnstructured(app)), common.KubernetesInternalAPIServerAddr)
+	ctrl.handleAppUpdated(app.Name, true, kube.GetObjectRef(kube.MustToUnstructured(app)))
 	isRequested, _ := ctrl.isRefreshRequested(app.Name)
 	assert.False(t, isRequested)
 
-	ctrl.handleAppUpdated(app.Name, true, kube.NewResourceKey("", kube.DeploymentKind, "default", "test"), common.KubernetesInternalAPIServerAddr)
+	ctrl.handleAppUpdated(app.Name, true, corev1.ObjectReference{UID: "test", Kind: kube.DeploymentKind, Name: "test", Namespace: "default"})
 	isRequested, _ = ctrl.isRefreshRequested(app.Name)
 	assert.True(t, isRequested)
 }
