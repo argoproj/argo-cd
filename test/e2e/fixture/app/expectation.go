@@ -84,9 +84,9 @@ func ResourceHealthIs(resource string, expected HealthStatusCode) Expectation {
 
 func DoesNotExist() Expectation {
 	return func(c *Consequences) (state, string) {
-		_, err := c.get()
+		output, err := c.get()
 		if err != nil {
-			if strings.Contains(err.Error(), "NotFound") {
+			if strings.Contains(output, "NotFound") {
 				return succeeded, "app does not exist"
 			}
 			return failed, err.Error()
