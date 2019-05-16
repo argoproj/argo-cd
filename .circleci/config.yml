@@ -6,8 +6,8 @@ jobs:
       image: circleci/classic:201808-01
     environment:
       TEST_RESULTS: /tmp/test-results
-      PROTOC_VERSION: 3.7.1
     steps:
+      # STAGE 1 - add all the tools to the machine that we need before we every checkout code.
       - run:
           name: Install apt deps
           command: sudo apt-get -y install jq golang-go
@@ -115,6 +115,7 @@ jobs:
             set -x
             [ -e /home/circleci/sdk/go1.11.4 ] || go1.11.4 download
             echo export PATH="`go1.11.4 env GOROOT`/bin:\$PATH" | tee -a $BASH_ENV
+      # STAGE 2 - actually checkout and build the code.
       - checkout
       - run:
           name: Install vendor deps
@@ -139,15 +140,13 @@ jobs:
       #    command: |
       #      make lint
       #      git diff
-      - run:
-          name: Create test results dir
-          command: mkdir -p $TEST_RESULTS
       # TODO
       #- run:
       #    name: Run unit tests
       #    command: |
-      #      trap "go-junit-report <${TEST_RESULTS}/go-test.out > ${TEST_RESULTS}/go-test-report.xml" EXIT
-      #      make test | tee ${TEST_RESULTS}/go-test.out
+      #      mkdir -p /tmp/test-results
+      #      trap "go-junit-report </tmp/test-results/go-test.out > /tmp/test-results/go-test-report.xml" EXIT
+      #      make test | tee /tmp/test-results/go-test.out
       - run:
           name: Make images
           command: make image DEV_IMAGE=true
@@ -167,8 +166,8 @@ jobs:
       - run:
           name: Run e2e tests
           command: |
-            trap "go-junit-report <${TEST_RESULTS}/go-test-e2e.out > ${TEST_RESULTS}/go-test-report.xml" EXIT
-            make test-e2e | tee ${TEST_RESULTS}/go-test-e2e.out
+            trap "go-junit-report </tmp/test-results/go-test-e2e.out > /tmp/test-results/go-test-report.xml" EXIT
+            make test-e2e | tee /tmp/test-results/go-test-e2e.out
       - save_cache:
           key: go-v8-{{ .Branch }}
           paths:
@@ -180,6 +179,7 @@ jobs:
       #- run:
       #    name: Check nothing has changed
       #    command: git diff --exit-code
+      # FINAL STAGE - upload results
       - run:
           name: Uploading code coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
