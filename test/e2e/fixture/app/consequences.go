@@ -51,6 +51,7 @@ func (c *Consequences) app() *Application {
 }
 
 func (c *Consequences) get() (*Application, error) {
+	_, _ := fixture.RunCli("app", "get", c.context.name, "-o", "yaml")
 	app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(c.context.name, v1.GetOptions{})
 	log.WithFields(log.Fields{"app": app}).Info("app")
 	return app, err
