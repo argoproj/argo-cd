@@ -1,11 +1,7 @@
 package app
 
 import (
-	"context"
-
-	. "github.com/argoproj/argo-cd/errors"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 )
 
@@ -35,18 +31,18 @@ func (a *Actions) Create() *Actions {
 		args = append(args, "--parameter", parameter)
 	}
 
-	_, _ = a.runCli(args...)
+	_, _ = fixture.RunCli(args...)
 
 	return a
 }
 
 func (a *Actions) Sync() *Actions {
-	_, _ = a.runCli("app", "sync", a.context.name, "--timeout", "5", "--prune")
+	_, _ = fixture.RunCli("app", "sync", a.context.name, "--timeout", "5", "--prune")
 	return a
 }
 
 func (a *Actions) TerminateOp() *Actions {
-	_, _ = a.runCli("app", "terminate-op", a.context.name)
+	_, _ = fixture.RunCli("app", "terminate-op", a.context.name)
 	return a
 }
 
@@ -57,11 +53,12 @@ func (a *Actions) Patch(file string, jsonPath string) *Actions {
 
 func (a *Actions) Refresh(refreshType RefreshType) *Actions {
 
-	closer, client := fixture.ArgoCDClientset.NewApplicationClientOrDie()
-	defer func() { _ = closer.Close() }()
+	flag := map[RefreshType]string{
+		RefreshTypeNormal: "--refresh",
+		RefreshTypeHard:   "--hard-refresh",
+	}[refreshType]
 
-	refresh := string(refreshType)
-	FailOnErr(client.Get(context.Background(), &application.ApplicationQuery{Name: &a.context.name, Refresh: &refresh}))
+	_, _ = fixture.RunCli("app", "get", a.context.name, flag)
 
 	return a
 }
@@ -71,14 +68,10 @@ func (a *Actions) Delete(cascade bool) *Actions {
 	if cascade {
 		args = append(args, "--cascade")
 	}
-	_, _ = a.runCli(args...)
+	_, _ = fixture.RunCli(args...)
 	return a
 }
 
 func (a *Actions) Then() *Consequences {
 	return &Consequences{a.context, a}
-}
-
-func (a *Actions) runCli(args ...string) (output string, err error) {
-	return fixture.RunCli(args...)
 }

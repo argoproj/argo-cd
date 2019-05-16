@@ -64,7 +64,7 @@ func getKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest
 func init() {
 
 	// trouble-shooting check to see if this busted add-on is going to cause problems
-	FailOnErr(Run("", "kubectl", "api-resources", "-o", "name", "--api-group", "v1beta1.metrics.k8s.io"))
+	FailOnErr(Run("", "kubectl", "api-resources", "-o", "name"))
 
 	// set-up variables
 	config := getKubeConfig("", clientcmd.ConfigOverrides{})
@@ -74,7 +74,6 @@ func init() {
 	if apiServerAddress == "" {
 		apiServerAddress = defaultAriServer
 	}
-
 	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress)
 	CheckError(err)
 
@@ -88,12 +87,13 @@ func init() {
 	sessionResponse, err := client.Create(context.Background(), &session.SessionCreateRequest{Username: "admin", Password: adminPassword})
 	CheckError(err)
 
-	FailOnErr(argocdclient.NewClient(&argocdclient.ClientOptions{
+	ArgoCDClientset, err = argocdclient.NewClient(&argocdclient.ClientOptions{
 		Insecure:   true,
 		ServerAddr: apiServerAddress,
 		AuthToken:  sessionResponse.Token,
 		PlainText:  !tlsTestResult.TLS,
-	}))
+	})
+	CheckError(err)
 
 	SettingsManager = settings.NewSettingsManager(context.Background(), KubeClientset, "argocd-e2e")
 	token = sessionResponse.Token
@@ -123,10 +123,18 @@ func EnsureCleanState() {
 	start := time.Now()
 
 	// delete resources
-	FailOnErr(Run("", "kubectl", "-n", ArgoCDNamespace, "delete", "app", "--all"))
+
+	text, err := Run("", "kubectl", "get", "app", "-o", "name")
+	CheckError(err)
+	for _, name := range strings.Split(text, "\n") {
+		if name != "" {
+			// is it much more reliable to get argocd to delete an app than kubectl
+			FailOnErr(RunCli("app", "delete", strings.TrimPrefix(name, "application.argoproj.io/")))
+		}
+	}
 	FailOnErr(Run("", "kubectl", "-n", ArgoCDNamespace, "delete", "appprojects", "--field-selector", "metadata.name!=default"))
 	// takes around 5s, so we don't wait
-	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", testingLabel+"=true"))
+	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", testingLabel+"=true", "--field-selector", "status.phase=Active", "--wait=false"))
 
 	// reset settings
 	argoSettings, err := SettingsManager.GetSettings()

@@ -86,7 +86,7 @@ manifests:
 .PHONY: server
 server: clean-debug
 	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-server ./cmd/argocd-server
-	
+
 .PHONY: repo-server
 repo-server:
 	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-repo-server ./cmd/argocd-repo-server
@@ -135,7 +135,7 @@ lint:
 
 .PHONY: build
 build:
-	go build `go list ./... | grep -v resource_customizations`
+	go build `go list ./... | grep -v 'resource_customizations\|test/e2e'`
 
 .PHONY: test
 test:
@@ -143,7 +143,7 @@ test:
 
 .PHONY: test-e2e
 test-e2e: cli
-	go test -timeout 20m -run TestManipulateApplicationResources ./test/e2e
+	go test -v -timeout 20m -failfast ./test/e2e
 
 .PHONY: start-e2e
 start-e2e: cli

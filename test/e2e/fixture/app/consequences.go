@@ -1,10 +1,11 @@
 package app
 
 import (
+	"strings"
 	"time"
 
+	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/errors"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -51,7 +52,15 @@ func (c *Consequences) app() *Application {
 }
 
 func (c *Consequences) get() (*Application, error) {
-	return fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(c.context.name, v1.GetOptions{})
+	output, err := fixture.RunCli("app", "get", c.context.name, "-o", "yaml")
+	if err != nil {
+		if strings.Contains(output, "NotFound") {
+			return nil, nil
+		}
+		return nil, err
+	}
+	app := &Application{}
+	return app, yaml.Unmarshal([]byte(output), app)
 }
 
 func (c *Consequences) resource(name string) ResourceStatus {
