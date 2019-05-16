@@ -223,7 +223,9 @@ func (sc *syncContext) sync() {
 					sc.setResourceResult(&task, "", OperationError, fmt.Sprintf("failed to delete resource: %v", err))
 				}
 			}
-		} else if !task.isPrune() {
+		} else if task.isPrune() {
+			sc.setResourceResult(&task, task.syncStatus, OperationSucceeded, "pruned")
+		} else {
 			healthStatus, message := sc.getHealthStatus(task.obj())
 			switch healthStatus {
 			case HealthStatusHealthy:
