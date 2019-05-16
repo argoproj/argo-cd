@@ -104,10 +104,9 @@ jobs:
       - run:
           name: Compile production code
           command: make build
-      # Works
-      #- run:
-      #    name: Lint code
-      #    command: make lint
+      - run:
+          name: Lint code
+          command: make lint
       - run:
           name: Create test results dir
           command: mkdir -p $TEST_RESULTS
