@@ -20,6 +20,7 @@ jobs:
       - restore_cache:
           keys:
             - go-{{ .Branch }}-{{ .Environment.CIRCLE_PREVIOUS_BUILD_NUM }}
+            - go-{{ .Branch }}-{{ checksum "Gopkg.lock" }}
             - go-v4
             - go-v3
       - checkout
@@ -117,7 +118,7 @@ jobs:
             trap "go-junit-report <${TEST_RESULTS}/go-test.out > ${TEST_RESULTS}/go-test-report.xml" EXIT
             make test | tee ${TEST_RESULTS}/go-test.out
       - save_cache:
-          key: go-{{ .Branch }}-{{ .Environment.CIRCLE_BUILD_NUM }}
+          key: go-{{ .Branch }}-{{ checksum "Gopkg.lock" }}
           paths:
             - /home/circleci/.go_workspace
             - /home/circleci/.cache/go-build
