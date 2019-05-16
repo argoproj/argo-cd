@@ -87,12 +87,13 @@ func init() {
 	sessionResponse, err := client.Create(context.Background(), &session.SessionCreateRequest{Username: "admin", Password: adminPassword})
 	CheckError(err)
 
-	FailOnErr(argocdclient.NewClient(&argocdclient.ClientOptions{
+	ArgoCDClientset, err = argocdclient.NewClient(&argocdclient.ClientOptions{
 		Insecure:   true,
 		ServerAddr: apiServerAddress,
 		AuthToken:  sessionResponse.Token,
 		PlainText:  !tlsTestResult.TLS,
-	}))
+	})
+	CheckError(err)
 
 	SettingsManager = settings.NewSettingsManager(context.Background(), KubeClientset, "argocd-e2e")
 	token = sessionResponse.Token
