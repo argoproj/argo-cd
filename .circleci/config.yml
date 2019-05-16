@@ -27,8 +27,9 @@ jobs:
             - go-v5-{{ .Branch }}
       - checkout
       - restore_cache:
-          key: dl-v2
-          key: dl-v1
+          keys:
+            - dl-v2
+            - dl-v1
       - restore_cache:
           key: vendor-{{ checksum "Gopkg.lock" }}-v2
       - run:
