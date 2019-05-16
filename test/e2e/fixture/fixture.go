@@ -161,6 +161,10 @@ func EnsureCleanState() {
 	FailOnErr(Run(repoDirectory(), "kubectl", "create", "ns", DeploymentNamespace()))
 	FailOnErr(Run(repoDirectory(), "kubectl", "label", "ns", DeploymentNamespace(), testingLabel+"=true"))
 
+	closer, _, err := ArgoCDClientset.NewApplicationClient()
+	FailOrErr(err)
+	defer util.Close(closer)
+
 	log.WithFields(log.Fields{"duration": time.Since(start), "id": id}).Info("clean state")
 }
 
