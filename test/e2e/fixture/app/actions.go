@@ -31,18 +31,18 @@ func (a *Actions) Create() *Actions {
 		args = append(args, "--parameter", parameter)
 	}
 
-	_, _ = a.runCli(args...)
+	_, _ = fixture.RunCli(args...)
 
 	return a
 }
 
 func (a *Actions) Sync() *Actions {
-	_, _ = a.runCli("app", "sync", a.context.name, "--timeout", "5", "--prune")
+	_, _ = fixture.RunCli("app", "sync", a.context.name, "--timeout", "5", "--prune")
 	return a
 }
 
 func (a *Actions) TerminateOp() *Actions {
-	_, _ = a.runCli("app", "terminate-op", a.context.name)
+	_, _ = fixture.RunCli("app", "terminate-op", a.context.name)
 	return a
 }
 
@@ -58,7 +58,7 @@ func (a *Actions) Refresh(refreshType RefreshType) *Actions {
 		RefreshTypeHard:   "--hard-refresh",
 	}[refreshType]
 
-	_, _ = a.runCli("app", "get", a.context.name, flag)
+	_, _ = fixture.RunCli("app", "get", a.context.name, flag)
 
 	return a
 }
@@ -68,15 +68,10 @@ func (a *Actions) Delete(cascade bool) *Actions {
 	if cascade {
 		args = append(args, "--cascade")
 	}
-	_, _ = a.runCli(args...)
+	_, _ = fixture.RunCli(args...)
 	return a
 }
 
 func (a *Actions) Then() *Consequences {
 	return &Consequences{a.context, a}
-}
-
-func (a *Actions) runCli(args ...string) (output string, err error) {
-	// TODO inline
-	return fixture.RunCli(args...)
 }
