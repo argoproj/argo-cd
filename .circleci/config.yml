@@ -91,7 +91,7 @@ jobs:
           command: curl -sfL https://get.k3s.io | sh -
       - run:
           name: Start K3S
-          command: k3s server --disable-agent
+          command: sudo k3s serve
           background: true
       - save_cache:
           key: dl-v2-{{ checksum "Gopkg.lock" }}
