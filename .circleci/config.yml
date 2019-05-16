@@ -147,8 +147,10 @@ jobs:
       #      make test | tee ${TEST_RESULTS}/go-test.out
       - run:
           name: Make images
+          command: make image DEV_IMAGE=true
+      - run:
+          name: Save images
           command: |
-            make image DEV_IMAGE=true
             sudo mkdir -p /var/lib/rancher/k3s/agent/images
             sudo docker save argocd:latest > /var/lib/rancher/k3s/agent/images/argocd.tar
       - run:
