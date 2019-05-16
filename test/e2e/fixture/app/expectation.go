@@ -30,7 +30,7 @@ func OperationPhaseIs(expected OperationPhase) Expectation {
 		if operationState != nil {
 			actual = operationState.Phase
 		}
-		return simple(actual == expected, fmt.Sprintf("operation phase to be %s, is %s", expected, actual))
+		return simple(actual == expected, fmt.Sprintf("operation phase should be %s, is %s", expected, actual))
 	}
 }
 
@@ -64,21 +64,21 @@ func Condition(conditionType ApplicationConditionType) Expectation {
 func HealthIs(expected HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.app().Status.Health.Status
-		return simple(actual == expected, fmt.Sprintf("health to be %s, is %s", expected, actual))
+		return simple(actual == expected, fmt.Sprintf("health to should %s, is %s", expected, actual))
 	}
 }
 
 func ResourceSyncStatusIs(resource string, expected SyncStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.resource(resource).Status
-		return simple(actual == expected, fmt.Sprintf("resource '%s' sync status to be %s, is %s", resource, expected, actual))
+		return simple(actual == expected, fmt.Sprintf("resource '%s' sync status should be %s, is %s", resource, expected, actual))
 	}
 }
 
 func ResourceHealthIs(resource string, expected HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.resource(resource).Health.Status
-		return simple(actual == expected, fmt.Sprintf("resource '%s' health to be %s, is %s", resource, expected, actual))
+		return simple(actual == expected, fmt.Sprintf("resource '%s' health should be %s, is %s", resource, expected, actual))
 	}
 }
 
@@ -86,12 +86,12 @@ func DoesNotExist() Expectation {
 	return func(c *Consequences) (state, string) {
 		_, err := c.get()
 		if err != nil {
-			if apierrors.IsNotFound(err) {
+			if strings.Contains(err.Error(), "NotFound") {
 				return succeeded, "app does not exist"
 			}
 			return failed, err.Error()
 		}
-		return pending, "app does not exist"
+		return pending, "app should not exist"
 	}
 }
 
@@ -106,7 +106,7 @@ func Pod(predicate func(p v1.Pod) bool) Expectation {
 				return succeeded, fmt.Sprintf("pod predicate matched pod named '%s'", pod.GetName())
 			}
 		}
-		return pending, fmt.Sprintf("pod predicate did not match pods: %v", pods.Items)
+		return pending, fmt.Sprintf("pod predicate should not match pods: %v", pods.Items)
 	}
 }
 
@@ -118,7 +118,7 @@ func NotPod(predicate func(p v1.Pod) bool) Expectation {
 		}
 		for _, pod := range pods.Items {
 			if predicate(pod) {
-				return pending, fmt.Sprintf("pod predicate matched pod named '%s'", pod.GetName())
+				return pending, fmt.Sprintf("pod predicate should match pod named '%s'", pod.GetName())
 			}
 		}
 		return succeeded, fmt.Sprintf("pod predicate did not match pods: %v", pods.Items)
