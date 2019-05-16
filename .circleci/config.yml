@@ -6,10 +6,11 @@ jobs:
       image: circleci/classic:201808-01
     environment:
       TEST_RESULTS: /tmp/test-results
+      PROTOC_VERSION: 3.7.1
     steps:
       - run:
           name: Install apt deps
-          command: sudo apt-get -y install protobuf-compiler jq golang-go
+          command: sudo apt-get -y install jq golang-go
       - run:
           name: Print tool versions
           command: |
@@ -26,6 +27,7 @@ jobs:
             - go-v5-{{ .Branch }}
       - checkout
       - restore_cache:
+          key: dl-v2
           key: dl-v1
       - restore_cache:
           key: vendor-{{ checksum "Gopkg.lock" }}-v2
@@ -76,8 +78,16 @@ jobs:
             sudo cp /tmp/dl/kustomize /usr/local/go/bin/
             sudo chmod +x /usr/local/go/bin/kustomize
             kustomize version
+      - run:
+          name: Install Protobuf compiler
+          command: |
+            [ -e /tmp/dl/protoc.zip ] || curl -sLf -C - -o /tmp/dl/protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip && \
+            sudo unzip /tmp/dl/protoc.zip bin/protoc -d /usr/local/
+            sudo chmod +x /usr/local/bin/protoc && \
+            sudo unzip /tmp/dl/protoc.zip include/* -d /usr/local/
+            protoc --version
       - save_cache:
-          key: dl-{{ checksum "Gopkg.lock" }}
+          key: dl-v2-{{ checksum "Gopkg.lock" }}
           paths:
             - /tmp/dl
       - run:
