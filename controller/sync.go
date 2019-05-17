@@ -178,7 +178,7 @@ func (sc *syncContext) getHealthStatus(obj *unstructured.Unstructured) (healthSt
 		return HealthStatusUnknown, err.Error()
 	}
 	if resourceHealth == nil {
-		return HealthStatusMissing, ""
+		return HealthStatusMissing, "missing"
 	}
 	return resourceHealth.Status, resourceHealth.Message
 }
@@ -231,8 +231,10 @@ func (sc *syncContext) sync() {
 			}
 		} else {
 			healthStatus, message := sc.getHealthStatus(task.obj())
+			sc.log.WithFields(log.Fields{"task": task.String(), "healthStatus": healthStatus, "message": message}).Debug("health check")
 			switch healthStatus {
-			case HealthStatusHealthy:
+			// TODO are we correct here?
+			case HealthStatusHealthy, HealthStatusMissing:
 				sc.setResourceResult(task, task.syncStatus, OperationSucceeded, message)
 			case HealthStatusDegraded:
 				sc.setResourceResult(task, task.syncStatus, OperationFailed, message)
@@ -353,12 +355,10 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 			task.operationState = result.OperationState
 			task.message = result.Message
 		}
-		sc.log.WithFields(log.Fields{"task": task, "result": result}).Debug("task/result")
 	}
 
 	for _, task := range tasks {
 		serverRes, err := kube.ServerResourceForGroupVersionKind(sc.disco, task.groupVersionKind())
-
 		if err != nil {
 			// Special case for custom resources: if CRD is not yet known by the K8s API server,
 			// skip verification during `kubectl apply --dry-run` since we expect the CRD
@@ -499,18 +499,19 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) (successful bool) 
 			createTasks = append(createTasks, task)
 		}
 	}
+
 	var wg sync.WaitGroup
 	for _, task := range pruneTasks {
 		wg.Add(1)
-		go func(t *syncTask) {
+		go func(task *syncTask) {
 			defer wg.Done()
-			sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t.String()}).Info("pruning")
-			syncStatus, message := sc.pruneObject(t.liveObj, sc.syncOp.Prune, dryRun)
+			sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": task.String()}).Info("pruning")
+			syncStatus, message := sc.pruneObject(task.liveObj, sc.syncOp.Prune, dryRun)
 			if syncStatus == ResultCodeSyncFailed {
 				successful = false
 			}
 			if !dryRun || syncStatus == ResultCodeSyncFailed {
-				sc.setResourceResult(t, syncStatus, OperationRunning, message)
+				sc.setResourceResult(task, syncStatus, OperationRunning, message)
 			}
 		}(task)
 	}
@@ -523,7 +524,7 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) (successful bool) 
 				continue
 			}
 			createWg.Add(1)
-			go func(t *syncTask) {
+			go func(task *syncTask) {
 				defer createWg.Done()
 				sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": task.String()}).Info("applying")
 				syncStatus, message := sc.applyObject(task.targetObj, dryRun, sc.syncOp.SyncStrategy.Force())
@@ -531,7 +532,7 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) (successful bool) 
 					successful = false
 				}
 				if !dryRun || syncStatus == ResultCodeSyncFailed {
-					sc.setResourceResult(t, syncStatus, OperationRunning, message)
+					sc.setResourceResult(task, syncStatus, OperationRunning, message)
 				}
 			}(task)
 		}

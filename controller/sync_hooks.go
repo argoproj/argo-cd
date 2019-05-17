@@ -58,6 +58,7 @@ func isBatchJob(gvk schema.GroupVersionKind) bool {
 	return gvk.Group == "batch" && gvk.Kind == "Job"
 }
 
+// TODO this is a copy-and-paste of health.getJobHealth(), refactor out?
 func getStatusFromBatchJob(hook *unstructured.Unstructured) (operation OperationPhase, message string) {
 	var job batch.Job
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(hook.Object, &job)
@@ -91,6 +92,7 @@ func isArgoWorkflow(gvk schema.GroupVersionKind) bool {
 	return gvk.Group == "argoproj.io" && gvk.Kind == "Workflow"
 }
 
+// TODO - should we move this to health.go?
 func getStatusFromArgoWorkflow(hook *unstructured.Unstructured) (operation OperationPhase, message string) {
 	var wf wfv1.Workflow
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(hook.Object, &wf)
@@ -114,6 +116,7 @@ func isPod(gvk schema.GroupVersionKind) bool {
 	return gvk.Group == "" && gvk.Kind == "Pod"
 }
 
+// TODO - this is very similar to health.getPodHealth() should we use that instead?
 func getStatusFromPod(hook *unstructured.Unstructured) (operation OperationPhase, message string) {
 	var pod apiv1.Pod
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(hook.Object, &pod)
