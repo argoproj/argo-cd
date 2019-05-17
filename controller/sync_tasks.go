@@ -87,18 +87,18 @@ func (s syncTasks) Less(i, j int) bool {
 	return a.GetName() < b.GetName()
 }
 
-func (s syncTasks) Filter(predicate func(t syncTask) bool) (tasks syncTasks) {
+func (s syncTasks) Filter(predicate func(task *syncTask) bool) (tasks syncTasks) {
 	for _, task := range s {
-		if predicate(*task) {
+		if predicate(task) {
 			tasks = append(tasks, task)
 		}
 	}
 	return tasks
 }
 
-func (s syncTasks) Find(predicate func(t syncTask) bool) *syncTask {
+func (s syncTasks) Find(predicate func(task *syncTask) bool) *syncTask {
 	for _, task := range s {
-		if predicate(*task) {
+		if predicate(task) {
 			return task
 		}
 	}

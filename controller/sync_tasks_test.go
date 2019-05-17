@@ -158,3 +158,11 @@ var sortedTasks = syncTasks{
 		targetObj: &unstructured.Unstructured{},
 	},
 }
+
+func Test_syncTasks_Filter(t *testing.T) {
+	tasks := syncTasks{{phase: SyncPhaseSync}, {phase: SyncPhasePostSync}}
+
+	assert.Equal(t, syncTasks{{phase: SyncPhaseSync}}, tasks.Filter(func(t *syncTask) bool {
+		return t.phase == SyncPhaseSync
+	}))
+}

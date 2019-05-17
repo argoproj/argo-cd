@@ -266,8 +266,8 @@ type SyncOperation struct {
 	Source *ApplicationSource `json:"source,omitempty" protobuf:"bytes,7,opt,name=source"`
 }
 
-func (o *SyncOperation) IsSelectiveSync() bool {
-	return len(o.Resources) > 0
+func (o *SyncOperation) IsApplyStratgegy() bool {
+	return o.SyncStrategy != nil && o.SyncStrategy.Apply != nil
 }
 
 type OperationPhase string

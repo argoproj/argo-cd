@@ -96,7 +96,7 @@ func DoesNotExist() Expectation {
 
 func Pod(predicate func(p v1.Pod) bool) Expectation {
 	return func(c *Consequences) (state, string) {
-		pods, err := pods(c)
+		pods, err := pods()
 		if err != nil {
 			return failed, err.Error()
 		}
@@ -105,26 +105,26 @@ func Pod(predicate func(p v1.Pod) bool) Expectation {
 				return succeeded, fmt.Sprintf("pod predicate matched pod named '%s'", pod.GetName())
 			}
 		}
-		return pending, fmt.Sprintf("pod predicate should not match pods: %v", pods.Items)
+		return pending, fmt.Sprintf("pod predicate does not match pods")
 	}
 }
 
 func NotPod(predicate func(p v1.Pod) bool) Expectation {
 	return func(c *Consequences) (state, string) {
-		pods, err := pods(c)
+		pods, err := pods()
 		if err != nil {
 			return failed, err.Error()
 		}
 		for _, pod := range pods.Items {
 			if predicate(pod) {
-				return pending, fmt.Sprintf("pod predicate should match pod named '%s'", pod.GetName())
+				return pending, fmt.Sprintf("pod predicate matched pod named '%s'", pod.GetName())
 			}
 		}
-		return succeeded, fmt.Sprintf("pod predicate did not match pods: %v", pods.Items)
+		return succeeded, fmt.Sprintf("pod predicate did not match any pod")
 	}
 }
 
-func pods(c *Consequences) (*v1.PodList, error) {
+func pods() (*v1.PodList, error) {
 	fixture.KubeClientset.CoreV1()
 	pods, err := fixture.KubeClientset.CoreV1().Pods(fixture.DeploymentNamespace()).List(metav1.ListOptions{})
 	return pods, err
