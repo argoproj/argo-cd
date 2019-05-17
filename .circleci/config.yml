@@ -156,6 +156,8 @@ jobs:
       - run:
           name: Install images
           command: |
+            set -x
+            k3s kubectl get node
             kubectl create ns argocd-e2e
             kustomize build ./test/manifests/ci | kubectl apply -n argocd-e2e -f -
             kubectl rollout status deployment -n argocd-e2e argocd-application-controller
