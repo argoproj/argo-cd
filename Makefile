@@ -12,12 +12,12 @@ PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run v
 TEST_CMD=$(shell [ "`which gotestsum`" != "" ] && echo gotestsum -- || echo go test)
 
 # docker image publishing options
-DOCKER_PUSH=false
-IMAGE_TAG=latest
+DOCKER_PUSH?=false
+IMAGE_TAG?=latest
 # perform static compilation
-STATIC_BUILD=true
+STATIC_BUILD?=true
 # build development images
-DEV_IMAGE=false
+DEV_IMAGE?=false
 
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
