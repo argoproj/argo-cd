@@ -46,6 +46,7 @@ var (
 	apiServerAddress string
 	token            string
 	plainText        bool
+	repoUrl          string
 )
 
 // getKubeConfig creates new kubernetes client config using specified config path and config overrides variables
@@ -137,12 +138,7 @@ func EnsureCleanState() {
 	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", testingLabel+"=true", "--field-selector", "status.phase=Active", "--wait=false"))
 
 	// reset settings
-	argoSettings, err := SettingsManager.GetSettings()
-	CheckError(err)
-	if len(argoSettings.ResourceOverrides) > 0 {
-		argoSettings.ResourceOverrides = nil
-		CheckError(SettingsManager.SaveSettings(argoSettings))
-	}
+	CheckError(SettingsManager.SaveSettings(&settings.ArgoCDSettings{}))
 
 	// remove tmp dir
 	CheckError(os.RemoveAll(tmpDir))
@@ -161,8 +157,8 @@ func EnsureCleanState() {
 	FailOnErr(Run(repoDirectory(), "git", "commit", "-q", "-m", "initial commit"))
 
 	// create namespace
-	FailOnErr(Run(repoDirectory(), "kubectl", "create", "ns", DeploymentNamespace()))
-	FailOnErr(Run(repoDirectory(), "kubectl", "label", "ns", DeploymentNamespace(), testingLabel+"=true"))
+	FailOnErr(Run("", "kubectl", "create", "ns", DeploymentNamespace()))
+	FailOnErr(Run("", "kubectl", "label", "ns", DeploymentNamespace(), testingLabel+"=true"))
 
 	log.WithFields(log.Fields{"duration": time.Since(start), "id": id}).Info("clean state")
 }
