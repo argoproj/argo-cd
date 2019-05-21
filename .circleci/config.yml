@@ -186,6 +186,9 @@ jobs:
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
       - store_test_results:
           path: /tmp/test-results
+      - store_artifacts:
+          path: /var/lib/rancher/k3s/agent/containerd/containerd.log
+          when: always
 workflows:
   version: 2
   workflow:
