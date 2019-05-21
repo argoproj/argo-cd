@@ -46,6 +46,7 @@ var (
 	apiServerAddress string
 	token            string
 	plainText        bool
+	repoUrl          string
 )
 
 // getKubeConfig creates new kubernetes client config using specified config path and config overrides variables
@@ -109,13 +110,26 @@ func Name() string {
 func repoDirectory() string {
 	return path.Join(tmpDir, id)
 }
+func SetRepoURL(url string) {
+	repoUrl = url
+}
 
 func RepoURL() string {
-	return fmt.Sprintf("file:///%s", repoDirectory())
+	return repoUrl
 }
 
 func DeploymentNamespace() string {
 	return fmt.Sprintf("argocd-e2e-ns-%s", id)
+}
+
+// creates a secret for the current test, this currently can only create a single secret
+func CreateSecret(username, password string) string {
+	secretName := fmt.Sprintf("argocd-e2e-secret-%s", id)
+	FailOnErr(Run("", "kubectl", "create", "secret", "generic", secretName,
+		"--from-literal=username="+username,
+		"--from-literal=password="+password))
+	FailOnErr(Run("", "kubectl", "label", "secret", secretName, testingLabel+"=true"))
+	return secretName
 }
 
 func EnsureCleanState() {
@@ -123,7 +137,6 @@ func EnsureCleanState() {
 	start := time.Now()
 
 	// delete resources
-
 	text, err := Run("", "kubectl", "get", "app", "-o", "name")
 	CheckError(err)
 	for _, name := range strings.Split(text, "\n") {
@@ -135,15 +148,23 @@ func EnsureCleanState() {
 	FailOnErr(Run("", "kubectl", "-n", ArgoCDNamespace, "delete", "appprojects", "--field-selector", "metadata.name!=default"))
 	// takes around 5s, so we don't wait
 	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", testingLabel+"=true", "--field-selector", "status.phase=Active", "--wait=false"))
+	FailOnErr(Run("", "kubectl", "delete", "secrets", "-l", testingLabel+"=true"))
 
 	// reset settings
-	CheckError(SettingsManager.SaveSettings(&settings.ArgoCDSettings{}))
+	argoSettings, err := SettingsManager.GetSettings()
+	CheckError(err)
+	CheckError(SettingsManager.SaveSettings(&settings.ArgoCDSettings{
+		AdminPasswordHash:  argoSettings.AdminPasswordHash,
+		AdminPasswordMtime: argoSettings.AdminPasswordMtime,
+		Secrets:            argoSettings.Secrets,
+	}))
 
 	// remove tmp dir
 	CheckError(os.RemoveAll(tmpDir))
 
 	// new random ID
 	id = strings.ToLower(rand.RandString(5))
+	repoUrl = fmt.Sprintf("file:///%s", repoDirectory())
 
 	// create tmp dir
 	FailOnErr(Run("", "mkdir", "-p", tmpDir))
@@ -173,6 +194,10 @@ func RunCli(args ...string) (string, error) {
 }
 
 func Patch(path string, jsonPatch string) {
+
+	if !strings.HasPrefix(repoUrl, "file://") {
+		log.WithFields(log.Fields{"repoUrl": repoUrl}).Fatal("cannot patch repo unless it is a local file")
+	}
 
 	log.WithFields(log.Fields{"path": path, "jsonPatch": jsonPatch}).Info("patching")
 
