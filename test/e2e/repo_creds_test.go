@@ -53,5 +53,5 @@ func TestCanAddAppFromPrivateRepoWithCredConfig(t *testing.T) {
 		When().
 		Create().
 		Then().
-		Expect(Error("No credentials available for source repository and repository is not publicly accessible"))
+		Expect(Success(""))
 }

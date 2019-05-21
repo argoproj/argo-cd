@@ -23,8 +23,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	v1alpha1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/reposerver/repository"
@@ -164,8 +164,10 @@ func (s *Server) GetManifests(ctx context.Context, q *ApplicationManifestQuery) 
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
 		return nil, err
 	}
-	repo := s.getRepo(ctx, a.Spec.Source.RepoURL)
-
+	repo, err := s.db.GetRepository(ctx, a.Spec.Source.RepoURL)
+	if err != nil {
+		return nil, err
+	}
 	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return nil, err
@@ -809,15 +811,6 @@ func (s *Server) getApplicationDestination(ctx context.Context, name string) (st
 	return server, namespace, nil
 }
 
-func (s *Server) getRepo(ctx context.Context, repoURL string) *appv1.Repository {
-	repo, err := s.db.GetRepository(ctx, repoURL)
-	if err != nil {
-		// If we couldn't retrieve from the repo service, assume public repositories
-		repo = &appv1.Repository{Repo: repoURL}
-	}
-	return repo
-}
-
 // Sync syncs an application to its target state
 func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*appv1.Application, error) {
 	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
@@ -924,8 +917,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	}
 	repo, err := s.db.GetRepository(ctx, app.Spec.Source.RepoURL)
 	if err != nil {
-		// If we couldn't retrieve from the repo service, assume public repositories
-		repo = &appv1.Repository{Repo: app.Spec.Source.RepoURL}
+		return "", "", err
 	}
 	gitClient, err := s.gitFactory.NewClient(repo.Repo, "", repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
 	if err != nil {

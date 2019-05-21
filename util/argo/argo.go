@@ -27,7 +27,6 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"
@@ -145,22 +144,10 @@ func ValidateRepo(ctx context.Context, spec *argoappv1.ApplicationSpec, repoClie
 	repoRes, err := db.GetRepository(ctx, spec.Source.RepoURL)
 
 	if err != nil {
-		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
-			// The repo has not been added to Argo CD so we do not have credentials to access it.
-			// We support the mode where apps can be created from public repositories. Test the
-			// repo to make sure it is publicly accessible
-			err = git.TestRepo(spec.Source.RepoURL, "", "", "", false)
-			if err != nil {
-				conditions = append(conditions, argoappv1.ApplicationCondition{
-					Type:    argoappv1.ApplicationConditionInvalidSpecError,
-					Message: fmt.Sprintf("No credentials available for source repository and repository is not publicly accessible: %v", err),
-				})
-			} else {
-				repoAccessable = true
-			}
-		} else {
-			return nil, "", err
-		}
+		conditions = append(conditions, argoappv1.ApplicationCondition{
+			Type:    argoappv1.ApplicationConditionInvalidSpecError,
+			Message: fmt.Sprintf("repository not accessible: %v", err),
+		})
 	} else {
 		repoAccessable = true
 	}
