@@ -168,7 +168,8 @@ jobs:
             echo export ARGOCD_SERVER=$(kubectl get service argocd-server -o=jsonpath={.spec.clusterIP} -n argocd-e2e):443 >> $BASH_ENV
       - run:
           name: Run e2e tests
-          command: |
+          command: |         
+            mkdir -p /tmp/test-results
             trap "go-junit-report </tmp/test-results/go-e2e.out > /tmp/test-results/go-e2e-report.xml" EXIT
             make test-e2e | tee /tmp/test-results/go-e2e.out
       - save_cache:
