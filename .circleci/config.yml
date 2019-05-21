@@ -89,10 +89,6 @@ jobs:
       - run:
           name: Install K3S
           command: curl -sfL https://get.k3s.io | sh -
-      - run: 
-          name: Start K3s
-          command: sudo k3s server --docker
-          background: true
       - save_cache:
           key: dl-v2-{{ checksum "Gopkg.lock" }}
           paths:
@@ -150,6 +146,10 @@ jobs:
       - run:
           name: Make images
           command: make image DEV_IMAGE=true
+      - run: 
+          name: Start K3s
+          command: sudo k3s server --docker
+          background: true
       - run:
           name: Save images
           command: |
