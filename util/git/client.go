@@ -264,12 +264,12 @@ func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) (st
 }
 
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
+	log.Debug(strings.Join(cmd.Args, " "))
 	cmd.Dir = m.root
 	cmd.Env = append(cmd.Env, os.Environ()...)
 	cmd.Env = append(cmd.Env, "HOME=/dev/null")
 	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOSYSTEM=true")
 	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOGLOBAL=true")
-	log.WithFields(log.Fields{"nativeGitClient": m, "cmd": cmd}).Debug(strings.Join(cmd.Args, " "))
 	out, err := cmd.Output()
 	if len(out) > 0 {
 		log.Debug(string(out))
