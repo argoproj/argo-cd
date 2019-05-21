@@ -157,8 +157,7 @@ jobs:
           name: Install images
           command: |
             set -x
-            sudo lsof -i
-            k3s --help
+            k3s server
             k3s kubectl get node
             kubectl create ns argocd-e2e
             kustomize build ./test/manifests/ci | kubectl apply -n argocd-e2e -f -
