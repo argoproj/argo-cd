@@ -46,7 +46,6 @@ var (
 	apiServerAddress string
 	token            string
 	plainText        bool
-	repoUrl          string
 )
 
 // getKubeConfig creates new kubernetes client config using specified config path and config overrides variables
