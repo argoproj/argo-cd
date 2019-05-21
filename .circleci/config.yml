@@ -157,6 +157,7 @@ jobs:
           name: Install images
           command: |
             set -x
+            sudo containerd -c /var/lib/rancher/k3s/agent/etc/containerd/config.toml -a /run/k3s/containerd/containerd.sock --state /run/k3s/containerd --root /var/lib/rancher/k3s/agent/containerd
             sudo k3s server
             k3s kubectl get node
             kubectl create ns argocd-e2e
