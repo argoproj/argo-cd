@@ -130,6 +130,11 @@ jobs:
           command: |
             go env GOCACHE
             make build
+      - run:
+          name: Make CLI
+          command: |
+            make cli
+            echo export PATH="\$PATH:dist" | tee -a $BASH_ENV
       # TODO
       #- run:
       #    name: Lint code
