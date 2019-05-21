@@ -68,6 +68,11 @@
             },
             "name": "project",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "resourceVersion",
+            "in": "query"
           }
         ],
         "responses": {
@@ -211,6 +216,11 @@
               "type": "string"
             },
             "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "resourceVersion",
             "in": "query"
           }
         ],
@@ -1387,6 +1397,11 @@
             },
             "name": "project",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "resourceVersion",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1598,6 +1613,12 @@
         },
         "name": {
           "type": "string"
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -3206,6 +3227,9 @@
           "type": "string"
         },
         "namespace": {
+          "type": "string"
+        },
+        "uid": {
           "type": "string"
         },
         "version": {

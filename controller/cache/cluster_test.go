@@ -43,24 +43,28 @@ var (
   apiVersion: v1
   kind: Pod
   metadata:
+    uid: "1"
     name: helm-guestbook-pod
     namespace: default
     ownerReferences:
-    - apiVersion: extensions/v1beta1
+    - apiVersion: apps/v1
       kind: ReplicaSet
       name: helm-guestbook-rs
+      uid: "2"
     resourceVersion: "123"`)
 
 	testRS = strToUnstructured(`
   apiVersion: apps/v1
   kind: ReplicaSet
   metadata:
+    uid: "2"
     name: helm-guestbook-rs
     namespace: default
     ownerReferences:
-    - apiVersion: extensions/v1beta1
+    - apiVersion: apps/v1beta1
       kind: Deployment
       name: helm-guestbook
+      uid: "3"
     resourceVersion: "123"`)
 
 	testDeploy = strToUnstructured(`
@@ -69,6 +73,7 @@ var (
   metadata:
     labels:
       app.kubernetes.io/instance: helm-guestbook
+    uid: "3"
     name: helm-guestbook
     namespace: default
     resourceVersion: "123"`)
@@ -146,7 +151,7 @@ func newClusterExt(kubectl kube.Kubectl) *clusterInfo {
 	return &clusterInfo{
 		lock:         &sync.Mutex{},
 		nodes:        make(map[kube.ResourceKey]*node),
-		onAppUpdated: func(appName string, fullRefresh bool, key kube.ResourceKey, serverURL string) {},
+		onAppUpdated: func(appName string, fullRefresh bool, reference corev1.ObjectReference) {},
 		kubectl:      kubectl,
 		nsIndex:      make(map[string]map[kube.ResourceKey]*node),
 		cluster:      &appv1.Cluster{},
@@ -160,7 +165,7 @@ func newClusterExt(kubectl kube.Kubectl) *clusterInfo {
 
 func getChildren(cluster *clusterInfo, un *unstructured.Unstructured) []appv1.ResourceNode {
 	hierarchy := make([]appv1.ResourceNode, 0)
-	cluster.iterateHierarchy(kube.GetResourceKey(un), func(child appv1.ResourceNode) {
+	cluster.iterateHierarchy(un, func(child appv1.ResourceNode) {
 		hierarchy = append(hierarchy, child)
 	})
 	return hierarchy[1:]
@@ -179,6 +184,7 @@ func TestGetChildren(t *testing.T) {
 			Name:      "helm-guestbook-pod",
 			Group:     "",
 			Version:   "v1",
+			UID:       "1",
 		},
 		ParentRefs: []appv1.ResourceRef{{
 			Group:     "apps",
@@ -186,6 +192,7 @@ func TestGetChildren(t *testing.T) {
 			Kind:      "ReplicaSet",
 			Namespace: "default",
 			Name:      "helm-guestbook-rs",
+			UID:       "2",
 		}},
 		Health:          &appv1.HealthStatus{Status: appv1.HealthStatusUnknown},
 		NetworkingInfo:  &appv1.ResourceNetworkingInfo{Labels: testPod.GetLabels()},
@@ -201,11 +208,12 @@ func TestGetChildren(t *testing.T) {
 			Name:      "helm-guestbook-rs",
 			Group:     "apps",
 			Version:   "v1",
+			UID:       "2",
 		},
 		ResourceVersion: "123",
 		Health:          &appv1.HealthStatus{Status: appv1.HealthStatusHealthy},
 		Info:            []appv1.InfoItem{},
-		ParentRefs:      []appv1.ResourceRef{{Group: "apps", Version: "", Kind: "Deployment", Namespace: "default", Name: "helm-guestbook"}},
+		ParentRefs:      []appv1.ResourceRef{{Group: "apps", Version: "", Kind: "Deployment", Namespace: "default", Name: "helm-guestbook", UID: "3"}},
 	}}, rsChildren...), deployChildren)
 }
 
@@ -257,12 +265,14 @@ func TestProcessNewChildEvent(t *testing.T) {
   apiVersion: v1
   kind: Pod
   metadata:
+    uid: "4"
     name: helm-guestbook-pod2
     namespace: default
     ownerReferences:
-    - apiVersion: extensions/v1beta1
+    - apiVersion: apps/v1
       kind: ReplicaSet
       name: helm-guestbook-rs
+      uid: "2"
     resourceVersion: "123"`)
 
 	err = cluster.processEvent(watch.Added, newPod)
@@ -279,6 +289,7 @@ func TestProcessNewChildEvent(t *testing.T) {
 			Name:      "helm-guestbook-pod",
 			Group:     "",
 			Version:   "v1",
+			UID:       "1",
 		},
 		Info:           []appv1.InfoItem{{Name: "Containers", Value: "0/0"}},
 		Health:         &appv1.HealthStatus{Status: appv1.HealthStatusUnknown},
@@ -289,6 +300,7 @@ func TestProcessNewChildEvent(t *testing.T) {
 			Kind:      "ReplicaSet",
 			Namespace: "default",
 			Name:      "helm-guestbook-rs",
+			UID:       "2",
 		}},
 		ResourceVersion: "123",
 	}, {
@@ -298,6 +310,7 @@ func TestProcessNewChildEvent(t *testing.T) {
 			Name:      "helm-guestbook-pod2",
 			Group:     "",
 			Version:   "v1",
+			UID:       "4",
 		},
 		NetworkingInfo: &appv1.ResourceNetworkingInfo{Labels: testPod.GetLabels()},
 		Info:           []appv1.InfoItem{{Name: "Containers", Value: "0/0"}},
@@ -308,6 +321,7 @@ func TestProcessNewChildEvent(t *testing.T) {
 			Kind:      "ReplicaSet",
 			Namespace: "default",
 			Name:      "helm-guestbook-rs",
+			UID:       "2",
 		}},
 		ResourceVersion: "123",
 	}}, rsChildren)
@@ -355,7 +369,7 @@ func TestUpdateResourceTags(t *testing.T) {
 func TestUpdateAppResource(t *testing.T) {
 	updatesReceived := make([]string, 0)
 	cluster := newCluster(testPod, testRS, testDeploy)
-	cluster.onAppUpdated = func(appName string, fullRefresh bool, _ kube.ResourceKey, _ string) {
+	cluster.onAppUpdated = func(appName string, fullRefresh bool, _ corev1.ObjectReference) {
 		updatesReceived = append(updatesReceived, fmt.Sprintf("%s: %v", appName, fullRefresh))
 	}
 

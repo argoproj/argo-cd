@@ -19,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
@@ -406,9 +407,9 @@ func (s *Server) Delete(ctx context.Context, q *ApplicationDeleteRequest) (*Appl
 	}
 
 	if patchFinalizer {
-		// Prior to v0.6, the cascaded deletion finalizer was set during app creation.
-		// For backward compatibility, we always calculate the patch to see if we need to
-		// set/unset the finalizer (in case we are dealing with an app created prior to v0.6)
+		// Although the cascaded deletion finalizer is not set when apps are created via API,
+		// they will often be set by the user as part of declarative config. As part of a delete
+		// request, we always calculate the patch to see if we need to set/unset the finalizer.
 		patch, err := json.Marshal(map[string]interface{}{
 			"metadata": map[string]interface{}{
 				"finalizers": a.Finalizers,
@@ -433,33 +434,62 @@ func (s *Server) Delete(ctx context.Context, q *ApplicationDeleteRequest) (*Appl
 }
 
 func (s *Server) Watch(q *ApplicationQuery, ws ApplicationService_WatchServer) error {
-	w, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Watch(metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-	defer w.Stop()
 	logCtx := log.NewEntry(log.New())
 	if q.Name != nil {
 		logCtx = logCtx.WithField("application", *q.Name)
 	}
 	claims := ws.Context().Value("claims")
+	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
+	// caller has RBAC privileges permissions to view it
+	sendIfPermitted := func(a appv1.Application, eventType watch.EventType) error {
+		if !s.enf.Enforce(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(a)) {
+			// do not emit apps user does not have accessing
+			return nil
+		}
+		err := ws.Send(&appv1.ApplicationWatchEvent{
+			Type:        eventType,
+			Application: a,
+		})
+		if err != nil {
+			logCtx.Warnf("Unable to send stream message: %v", err)
+			return err
+		}
+		return nil
+	}
+
+	var listOpts metav1.ListOptions
+	if q.Name != nil && *q.Name != "" {
+		listOpts.FieldSelector = fmt.Sprintf("metadata.name=%s", *q.Name)
+	}
+	listOpts.ResourceVersion = q.ResourceVersion
+	if listOpts.ResourceVersion == "" {
+		// If resourceVersion is not supplied, we need to get latest version of the apps by first
+		// making a list request, which we then supply to the watch request. We always need to
+		// supply a resourceVersion to watch requests since without it, the return values may return
+		// stale data. See: https://github.com/argoproj/argo-cd/issues/1605
+		appsList, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(listOpts)
+		if err != nil {
+			return err
+		}
+		for _, a := range appsList.Items {
+			err = sendIfPermitted(a, watch.Modified)
+			if err != nil {
+				return err
+			}
+		}
+		listOpts.ResourceVersion = appsList.ResourceVersion
+	}
+
+	w, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Watch(listOpts)
+	if err != nil {
+		return err
+	}
+	defer w.Stop()
 	done := make(chan bool)
 	go func() {
 		for next := range w.ResultChan() {
 			a := *next.Object.(*appv1.Application)
-			if q.Name == nil || *q.Name == "" || *q.Name == a.Name {
-				if !s.enf.Enforce(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(a)) {
-					// do not emit apps user does not have accessing
-					continue
-				}
-				err = ws.Send(&appv1.ApplicationWatchEvent{
-					Type:        next.Type,
-					Application: a,
-				})
-				if err != nil {
-					logCtx.Warnf("Unable to send stream message: %v", err)
-				}
-			}
+			_ = sendIfPermitted(a, next.Type)
 		}
 		logCtx.Info("k8s application watch event channel closed")
 		close(done)

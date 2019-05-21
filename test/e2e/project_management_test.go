@@ -13,6 +13,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/util/argo"
 )
 
@@ -38,7 +39,7 @@ func assertProjHasEvent(t *testing.T, a *v1alpha1.AppProject, message string, re
 func TestProjectCreation(t *testing.T) {
 	fixture.EnsureCleanState()
 
-	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
+	projectName := "proj-" + fixture.Name()
 	_, err := fixture.RunCli("proj", "create", projectName,
 		"--description", "Test description",
 		"-d", "https://192.168.99.100:8443,default",
@@ -122,12 +123,12 @@ func TestAddProjectDestination(t *testing.T) {
 		t.Fatalf("Unable to add project destination %v", err)
 	}
 
-	_, err = fixture.RunCli("proj", "add-destination", projectName,
+	output, err := fixture.RunCli("proj", "add-destination", projectName,
 		"https://192.168.99.100:8443",
 		"test1",
 	)
-	assert.NotNil(t, err)
-	assert.True(t, strings.Contains(err.Error(), "already defined"))
+	assert.Error(t, err)
+	assert.True(t, strings.Contains(output, "already defined"))
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
@@ -166,12 +167,12 @@ func TestRemoveProjectDestination(t *testing.T) {
 		t.Fatalf("Unable to remove project destination %v", err)
 	}
 
-	_, err = fixture.RunCli("proj", "remove-destination", projectName,
+	output, err := fixture.RunCli("proj", "remove-destination", projectName,
 		"https://192.168.99.100:8443",
 		"test1",
 	)
 	assert.NotNil(t, err)
-	assert.True(t, strings.Contains(err.Error(), "does not exist"))
+	assert.True(t, strings.Contains(output, "does not exist"))
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(projectName, metav1.GetOptions{})
 	if err != nil {
@@ -226,7 +227,7 @@ func TestRemoveProjectSource(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = fixture.RunCli("proj", "remove-source", projectName, "https://github.com/argoproj/argo-cd.git")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
@@ -270,15 +271,15 @@ func TestUseJWTToken(t *testing.T) {
 	assert.Nil(t, err)
 
 	_, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Create(testApp)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	_, err = fixture.RunCli("proj", "role", "create", projectName, roleName)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	_, err = fixture.RunCli("proj", "role", "create-token", projectName, roleName)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	_, err = fixture.RunCli("proj", "role", "add-policy", projectName, roleName, "-a", "get", "-o", "*", "-p", "allow")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 }
