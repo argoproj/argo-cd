@@ -165,12 +165,12 @@ jobs:
             kustomize build ./test/manifests/ci | kubectl apply -n argocd-e2e -f -
             kubectl rollout status deployment -n argocd-e2e argocd-application-controller
             kubectl rollout status deployment -n argocd-e2e argocd-server
-            export ARGOCD_SERVER=$(kubectl get service argocd-server -o=jsonpath={.spec.clusterIP} -n argocd-e2e):443 >> $BASH_ENV
+            echo export ARGOCD_SERVER=$(kubectl get service argocd-server -o=jsonpath={.spec.clusterIP} -n argocd-e2e):443 >> $BASH_ENV
       - run:
           name: Run e2e tests
           command: |
-            trap "go-junit-report </tmp/test-results/go-test-e2e.out > /tmp/test-results/go-test-report.xml" EXIT
-            make test-e2e | tee /tmp/test-results/go-test-e2e.out
+            trap "go-junit-report </tmp/test-results/go-e2e.out > /tmp/test-results/go-e2e-report.xml" EXIT
+            make test-e2e | tee /tmp/test-results/go-e2e.out
       - save_cache:
           key: go-v9-{{ .Branch }}
           paths:
