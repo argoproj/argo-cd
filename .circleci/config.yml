@@ -171,7 +171,7 @@ jobs:
             kubectl rollout status deployment -n argocd-e2e argocd-application-controller
             kubectl rollout status deployment -n argocd-e2e argocd-server
             echo export ARGOCD_SERVER=$(kubectl get service argocd-server -o=jsonpath={.spec.clusterIP} -n argocd-e2e):443 >> $BASH_ENV
-            echo export export ARGOCD_OPTS='--plaintext' >> $BASH_ENV
+            echo export export ARGOCD_OPTS='--plaintext --insecure' >> $BASH_ENV
       - run:
           name: Run e2e tests
           command: |
