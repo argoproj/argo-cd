@@ -8,12 +8,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/errors"
+
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	argorepo "github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server/application"
@@ -68,12 +69,12 @@ func TestTrackAppStateAndSyncApp(t *testing.T) {
 		Create().
 		Sync().
 		Then().
-		Expect(Event(EventReasonResourceUpdated, "sync")).
+		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(Event(EventReasonResourceUpdated, "sync")).
 		And(func(app *Application) {
 			assert.NotNil(t, app.Status.OperationState.SyncResult)
-		}).
-		Expect(OperationPhaseIs(OperationSucceeded))
+		})
 }
 
 func TestAppRollbackSuccessful(t *testing.T) {
@@ -153,9 +154,6 @@ func TestArgoCDWaitEnsureAppIsNotCrashing(t *testing.T) {
 }
 
 func TestManipulateApplicationResources(t *testing.T) {
-
-	t.SkipNow()
-
 	Given(t).
 		Path(guestbookPath).
 		When().
@@ -199,7 +197,6 @@ func TestManipulateApplicationResources(t *testing.T) {
 }
 
 func TestAppWithSecrets(t *testing.T) {
-
 	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 	assert.NoError(t, err)
 	defer util.Close(closer)
@@ -312,11 +309,8 @@ func TestDuplicatedResources(t *testing.T) {
 
 func TestFailedConversion(t *testing.T) {
 
-	// this causes too many problems
-	t.SkipNow()
-
 	defer func() {
-		errors.FailOnErr(fixture.Run("", "kubectl", "delete", "apiservice", "v1beta1.metrics.k8s.iko"))
+		errors.FailOnErr(fixture.Run("", "kubectl", "delete", "apiservice", "v1beta1.metrics.k8s.io"))
 	}()
 
 	testEdgeCasesApplicationResources(t, "failed-conversion")
@@ -379,7 +373,6 @@ definitions:
 func TestResourceAction(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
-		Name("test-app").
 		And(func() {
 			settings, err := fixture.SettingsManager.GetSettings()
 			assert.NoError(t, err)
@@ -429,13 +422,12 @@ func TestResourceAction(t *testing.T) {
 func TestSyncResourceByLabel(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
-		Name("test-app").
 		When().
 		Create().
 		Sync().
 		Then().
 		And(func(app *Application) {
-			res, _ := fixture.RunCli("app", "sync", app.Name, "--label", fmt.Sprintf("app.kubernetes.io/instance=test-%s", strings.Split(app.Name, "-")[1]))
+			res, _ := fixture.RunCli("app", "sync", app.Name, "--label", fmt.Sprintf("app.kubernetes.io/instance=%s", app.Name))
 			assert.Contains(t, res, "guestbook-ui  Synced  Healthy")
 
 			res, _ = fixture.RunCli("app", "sync", app.Name, "--label", "this-label=does-not-exist")

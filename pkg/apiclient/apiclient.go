@@ -15,8 +15,8 @@ import (
 	"sync"
 	"time"
 
-	oidc "github.com/coreos/go-oidc"
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/coreos/go-oidc"
+	"github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
@@ -38,6 +38,7 @@ import (
 	"github.com/argoproj/argo-cd/server/version"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/localconfig"
+	oidcutil "github.com/argoproj/argo-cd/util/oidc"
 	tls_util "github.com/argoproj/argo-cd/util/tls"
 )
 
@@ -49,10 +50,6 @@ const (
 	EnvArgoCDAuthToken = "ARGOCD_AUTH_TOKEN"
 	// MaxGRPCMessageSize contains max grpc message size
 	MaxGRPCMessageSize = 100 * 1024 * 1024
-)
-
-var (
-	clientScopes = []string{"openid", "profile", "email", "groups", "offline_access"}
 )
 
 // Client defines an interface for interaction with an Argo CD server.
@@ -197,16 +194,18 @@ func NewClient(opts *ClientOptions) (Client, error) {
 func (c *client) OIDCConfig(ctx context.Context, set *settings.Settings) (*oauth2.Config, *oidc.Provider, error) {
 	var clientID string
 	var issuerURL string
-	if set.DexConfig != nil && len(set.DexConfig.Connectors) > 0 {
-		clientID = common.ArgoCDCLIClientAppID
-		issuerURL = fmt.Sprintf("%s%s", set.URL, common.DexAPIEndpoint)
-	} else if set.OIDCConfig != nil && set.OIDCConfig.Issuer != "" {
+	var scopes []string
+	if set.OIDCConfig != nil && set.OIDCConfig.Issuer != "" {
 		if set.OIDCConfig.CLIClientID != "" {
 			clientID = set.OIDCConfig.CLIClientID
 		} else {
 			clientID = set.OIDCConfig.ClientID
 		}
 		issuerURL = set.OIDCConfig.Issuer
+		scopes = set.OIDCConfig.Scopes
+	} else if set.DexConfig != nil && len(set.DexConfig.Connectors) > 0 {
+		clientID = common.ArgoCDCLIClientAppID
+		issuerURL = fmt.Sprintf("%s%s", set.URL, common.DexAPIEndpoint)
 	} else {
 		return nil, nil, fmt.Errorf("%s is not configured with SSO", c.ServerAddr)
 	}
@@ -214,9 +213,17 @@ func (c *client) OIDCConfig(ctx context.Context, set *settings.Settings) (*oauth
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to query provider %q: %v", issuerURL, err)
 	}
+	oidcConf, err := oidcutil.ParseConfig(provider)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to parse provider config: %v", err)
+	}
+	scopes = oidcutil.GetScopesOrDefault(scopes)
+	if oidcutil.OfflineAccess(oidcConf.ScopesSupported) {
+		scopes = append(scopes, oidc.ScopeOfflineAccess)
+	}
 	oauth2conf := oauth2.Config{
 		ClientID: clientID,
-		Scopes:   clientScopes,
+		Scopes:   scopes,
 		Endpoint: provider.Endpoint(),
 	}
 	return &oauth2conf, provider, nil

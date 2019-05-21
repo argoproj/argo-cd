@@ -50,6 +50,7 @@ func (s *Server) Get(ctx context.Context, q *SettingsQuery) (*Settings, error) {
 			Issuer:      oidcConfig.Issuer,
 			ClientID:    oidcConfig.ClientID,
 			CLIClientID: oidcConfig.CLIClientID,
+			Scopes:      oidcConfig.RequestedScopes,
 		}
 	}
 	return &set, nil

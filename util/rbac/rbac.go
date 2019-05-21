@@ -28,6 +28,7 @@ import (
 const (
 	ConfigMapPolicyCSVKey     = "policy.csv"
 	ConfigMapPolicyDefaultKey = "policy.default"
+	ConfigMapScopesKey        = "scopes"
 
 	defaultRBACSyncPeriod = 10 * time.Minute
 )
@@ -171,29 +172,29 @@ func (e *Enforcer) newInformer() cache.SharedIndexInformer {
 }
 
 // RunPolicyLoader runs the policy loader which watches policy updates from the configmap and reloads them
-func (e *Enforcer) RunPolicyLoader(ctx context.Context) error {
+func (e *Enforcer) RunPolicyLoader(ctx context.Context, onUpdated func(cm *apiv1.ConfigMap) error) error {
 	cm, err := e.clientset.CoreV1().ConfigMaps(e.namespace).Get(e.configmap, metav1.GetOptions{})
 	if err != nil {
 		if !apierr.IsNotFound(err) {
 			return err
 		}
 	} else {
-		err = e.syncUpdate(cm)
+		err = e.syncUpdate(cm, onUpdated)
 		if err != nil {
 			return err
 		}
 	}
-	e.runInformer(ctx)
+	e.runInformer(ctx, onUpdated)
 	return nil
 }
 
-func (e *Enforcer) runInformer(ctx context.Context) {
+func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.ConfigMap) error) {
 	cmInformer := e.newInformer()
 	cmInformer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				if cm, ok := obj.(*apiv1.ConfigMap); ok {
-					err := e.syncUpdate(cm)
+					err := e.syncUpdate(cm, onUpdated)
 					if err != nil {
 						log.Error(err)
 					} else {
@@ -207,7 +208,7 @@ func (e *Enforcer) runInformer(ctx context.Context) {
 				if oldCM.ResourceVersion == newCM.ResourceVersion {
 					return
 				}
-				err := e.syncUpdate(newCM)
+				err := e.syncUpdate(newCM, onUpdated)
 				if err != nil {
 					log.Error(err)
 				} else {
@@ -222,11 +223,14 @@ func (e *Enforcer) runInformer(ctx context.Context) {
 }
 
 // syncUpdate updates the enforcer
-func (e *Enforcer) syncUpdate(cm *apiv1.ConfigMap) error {
+func (e *Enforcer) syncUpdate(cm *apiv1.ConfigMap, onUpdated func(cm *apiv1.ConfigMap) error) error {
 	e.SetDefaultRole(cm.Data[ConfigMapPolicyDefaultKey])
 	policyCSV, ok := cm.Data[ConfigMapPolicyCSVKey]
 	if !ok {
 		policyCSV = ""
+	}
+	if err := onUpdated(cm); err != nil {
+		return err
 	}
 	return e.SetUserPolicy(policyCSV)
 }
