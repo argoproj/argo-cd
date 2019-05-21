@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
-
 	. "github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 )
 
 const repoUrl = "https://gitlab.com/argo-cd-test/test-apps.git"

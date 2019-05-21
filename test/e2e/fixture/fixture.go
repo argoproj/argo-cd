@@ -196,7 +196,7 @@ func RunCli(args ...string) (string, error) {
 func Patch(path string, jsonPatch string) {
 
 	if !strings.HasPrefix(repoUrl, "file://") {
-		log.WithFields(log.Fields{"repoUrl": repoUrl}).Fatal("cannot patch repo unless it is a local file")
+		log.WithFields(log.Fields{"repoUrl": repoUrl}).Fatal("cannot patch repo unless it is local")
 	}
 
 	log.WithFields(log.Fields{"path": path, "jsonPatch": jsonPatch}).Info("patching")
