@@ -2,6 +2,18 @@ version: 2.1
 # Slack https://hooks.slack.com/services/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
 # TODO - split into multiple jobs using command
 commands:
+  install_golang:
+    description: Install GoLang
+    steps:
+      - run:
+          name: Install Golang
+          command: sudo apt-get -y install golang-go
+      - run:
+          name: Install Golang v1.11.4
+          command: |
+            go get golang.org/dl/go1.11.4
+            [ -e /home/circleci/sdk/go1.11.4 ] || go1.11.4 download
+            echo export PATH="`go1.11.4 env GOROOT`/bin:\$PATH" | tee -a $BASH_ENV
   install_tools:
     description: Install tools
     steps:
@@ -11,6 +23,9 @@ commands:
       - run:
           name: Create downloads dir
           command: mkdir -p /tmp/dl
+      - restore_cache:
+          keys:
+            - dl-v2
       - run:
           name: Install Kubectx v0.6.3
           command: |
@@ -85,15 +100,7 @@ jobs:
       image: circleci/classic:201808-01
     steps:
       # STAGE 1 - add all the tools to the machine that we need before we every checkout code.
-      - run:
-          name: Install Golang
-          command: sudo apt-get -y install golang-go
-      - run:
-          name: Install Golang v1.11.4
-          command: |
-            go get golang.org/dl/go1.11.4
-            [ -e /home/circleci/sdk/go1.11.4 ] || go1.11.4 download
-            echo export PATH="`go1.11.4 env GOROOT`/bin:\$PATH" | tee -a $BASH_ENV
+      - install_golang
       - run:
           name: Install and start K3S v0.5.0
           command: |
@@ -106,9 +113,6 @@ jobs:
           keys:
             - go-v10-{{ .Branch }}
             - go-v9-{{ .Branch }}
-      - restore_cache:
-          keys:
-            - dl-v2
       - restore_cache:
           key: vendor-{{ checksum "Gopkg.lock" }}-v2
       - install_tools
