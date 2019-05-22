@@ -7,15 +7,15 @@ commands:
           name: Install Go deps
           command: |
             set -x
-            go get -v golang.org/x/tools/cmd/goimports
-            go get -v github.com/gobuffalo/packr/packr
-            go get -v github.com/golang/protobuf/protoc-gen-go
-            go get -v github.com/gogo/protobuf/gogoproto
-            go get -v github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
-            go get -v github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
-            go get -v github.com/golangci/golangci-lint/cmd/golangci-lint
-            go get -v github.com/mattn/goreman
-            go get -v github.com/jstemmer/go-junit-report
+            go get golang.org/x/tools/cmd/goimports
+            go get github.com/gobuffalo/packr/packr
+            go get github.com/golang/protobuf/protoc-gen-go
+            go get github.com/gogo/protobuf/gogoproto
+            go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+            go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
+            go get github.com/golangci/golangci-lint/cmd/golangci-lint
+            go get github.com/mattn/goreman
+            go get github.com/jstemmer/go-junit-report
   dep_ensure:
     steps:
       - restore_cache:
