@@ -219,7 +219,7 @@ jobs:
           command: |
             set -x
             k3s kubectl version
-            make start-e2e
+            sudo make start-e2e
           background: true
       - run:
           name: Wait for Argo CD
