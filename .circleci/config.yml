@@ -137,6 +137,8 @@ jobs:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
       image: circleci/classic:201808-01
+    environment:
+      GOPATH: /home/circleci/.go_workspace
     steps:
       - restore_go_cache
       - install_golang
