@@ -165,11 +165,6 @@ jobs:
           name: Compile production code
           # builds should be around 30s, if not - maybe the cache has moved?
           command: make build
-      #- run:
-      #    name: Make CLI
-      #    command: |
-      #      make cli
-      #      echo export PATH="\$PATH:dist" | tee -a $BASH_ENV
       # TODO - maybe re-enable?
       #- run:
       #    name: Lint code
@@ -189,7 +184,6 @@ jobs:
       #- run:
       #    name: Check nothing has changed
       #    command: git diff --exit-code
-      # FINAL STAGE - upload results
       - run:
           name: Uploading code coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
@@ -217,7 +211,9 @@ jobs:
       - dep_ensure
       - run:
           name: Make CLI
-          command: make cli
+          command: |
+            make cli
+            echo export PATH="\$PATH:dist" | tee -a $BASH_ENV
       - run:
           name: Start Argo CD
           command: |
