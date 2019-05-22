@@ -1,4 +1,4 @@
-version: 2
+version: 2.1
 # Slack https://hooks.slack.com/services/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
 # TODO - split into multiple jobs using command
 commands:
