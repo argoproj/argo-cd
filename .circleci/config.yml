@@ -6,15 +6,16 @@ commands:
       - run:
           name: Install Go deps
           command: |
-            go get golang.org/x/tools/cmd/goimports
-            go get github.com/gobuffalo/packr/packr
-            go get github.com/golang/protobuf/protoc-gen-go
-            go get github.com/gogo/protobuf/gogoproto
-            go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
-            go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
-            go get github.com/golangci/golangci-lint/cmd/golangci-lint
-            go get github.com/jstemmer/go-junit-report
-            go get github.com/mattn/goreman
+            set -x
+            go get -v golang.org/x/tools/cmd/goimports
+            go get -v github.com/gobuffalo/packr/packr
+            go get -v github.com/golang/protobuf/protoc-gen-go
+            go get -v github.com/gogo/protobuf/gogoproto
+            go get -v github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+            go get -v github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
+            go get -v github.com/golangci/golangci-lint/cmd/golangci-lint
+            go get -v github.com/jstemmer/go-junit-report
+            go get -v github.com/mattn/goreman
   dep_ensure:
     steps:
       - restore_cache:
@@ -133,7 +134,7 @@ commands:
   save_go_cache:
     steps:
       - save_cache:
-          key: go-v10-{{ .Branch }}
+          key: go-v11-{{ .Branch }}
           paths:
             - /home/circleci/.go_workspace
             - /home/circleci/.cache/go-build
@@ -142,6 +143,7 @@ commands:
     steps:
       - restore_cache:
           keys:
+            - go-v11-{{ .Branch }}
             - go-v10-{{ .Branch }}
 jobs:
   build:
