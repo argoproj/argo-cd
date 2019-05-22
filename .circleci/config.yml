@@ -2,6 +2,31 @@ version: 2.1
 # Slack https://hooks.slack.com/services/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
 # TODO - split into multiple jobs using command
 commands:
+  install_go_deps:
+    steps:
+      - run:
+          name: Install Go deps
+          command: |
+            go get golang.org/x/tools/cmd/goimports
+            go get github.com/gobuffalo/packr/packr
+            go get github.com/golang/protobuf/protoc-gen-go
+            go get github.com/gogo/protobuf/gogoproto
+            go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+            go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
+            go get github.com/golangci/golangci-lint/cmd/golangci-lint
+            go get github.com/jstemmer/go-junit-report
+            go get github.com/mattn/goreman
+  dep_ensure:
+    steps:
+      - restore_cache:
+          key: vendor-{{ checksum "Gopkg.lock" }}-v2
+      - run:
+          name: Run dep ensure
+          command: dep ensure -v
+      - save_cache:
+          key: vendor-{{ checksum "Gopkg.lock" }}-v2
+          paths:
+            - vendor
   install_golang:
     steps:
       - run:
@@ -91,43 +116,8 @@ commands:
           key: dl-v2-{{ checksum "Gopkg.lock" }}
           paths:
             - /tmp/dl
-jobs:
-  build:
-    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
-    machine:
-      image: circleci/classic:201808-01
+  print_system_info:
     steps:
-      # STAGE 1 - add all the tools to the machine that we need before we every checkout code.
-      - install_golang
-      - run:
-          name: Install and start K3S v0.5.0
-          command: |
-            curl -sfL https://get.k3s.io | sh -
-          background: true
-          environment:
-            INSTALL_K3S_EXEC: --docker
-            INSTALL_K3S_VERSION: v0.5.0
-      - restore_cache:
-          keys:
-            - go-v10-{{ .Branch }}
-            - go-v9-{{ .Branch }}
-      - restore_cache:
-          key: vendor-{{ checksum "Gopkg.lock" }}-v2
-      - install_tools
-      - run:
-          name: Install Go deps
-          command: |
-            go get golang.org/x/tools/cmd/goimports
-            go get github.com/gobuffalo/packr/packr
-            go get github.com/golang/protobuf/protoc-gen-go
-            go get github.com/gogo/protobuf/gogoproto
-            go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
-            go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
-            go get github.com/golangci/golangci-lint/cmd/golangci-lint
-            go get github.com/jstemmer/go-junit-report
-            go get github.com/mattn/goreman
-      # STAGE 2 - actually checkout and build the code.
-      - checkout
       - run:
           name: Print system info
           command: |
@@ -139,13 +129,39 @@ jobs:
             go env GOCACHE
             docker version
             k3s --version
-      - run:
-          name: Run dep ensure
-          command: dep ensure -v
+  save_go_cache:
+    steps:
       - save_cache:
-          key: vendor-{{ checksum "Gopkg.lock" }}-v2
+          key: go-v10-{{ .Branch }}
           paths:
-            - vendor
+            - /home/circleci/.go_workspace
+            - /home/circleci/.cache/go-build
+            - /home/circleci/sdk/go1.11.4
+  restore_go_cache:
+    steps:
+      - restore_cache:
+          keys:
+            - go-v10-{{ .Branch }}
+jobs:
+  build:
+    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
+    machine:
+      image: circleci/classic:201808-01
+    steps:
+      - run:
+          name: Install and start K3S v0.5.0
+          command: |
+            curl -sfL https://get.k3s.io | sh -
+          background: true
+          environment:
+            INSTALL_K3S_EXEC: --docker
+            INSTALL_K3S_VERSION: v0.5.0
+      - install_golang
+      - install_tools
+      - checkout
+      - install_go_deps
+      - print_system_info
+      - dep_ensure
       #- run:
       #    name: Generate code
       #    command: make codegen
@@ -188,13 +204,7 @@ jobs:
             mkdir -p /tmp/test-results
             trap "go-junit-report </tmp/test-results/go-e2e.out > /tmp/test-results/go-e2e-report.xml" EXIT
             make test-e2e | tee /tmp/test-results/go-e2e.out
-      - save_cache:
-          key: go-v10-{{ .Branch }}
-          paths:
-            - /home/circleci/.go_workspace
-            - /home/circleci/.cache/go-build
-            - /home/circleci/sdk/go1.11.4
-          when: always
+      - save_go_cache
       # TODO - maybe re-add this step?
       # This produces different output. See https://circleci.com/gh/argoproj/argo-cd/65
       #- run:
