@@ -144,9 +144,9 @@ jobs:
       - checkout
       - install_go_deps
       - dep_ensure
-      #- run:
-      #    name: Generate code
-      #    command: make codegen
+      - run:
+          name: Generate code
+          command: make codegen
       - run:
           name: Compile production code
           command: make build
