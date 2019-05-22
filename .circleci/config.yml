@@ -124,7 +124,7 @@ jobs:
             go version
             go env GOCACHE
             docker version
-            k3s version
+            k3s --version
       - run:
           name: Run dep ensure
           command: dep ensure -v
