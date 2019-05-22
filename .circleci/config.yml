@@ -11,24 +11,12 @@ jobs:
     steps:
       # STAGE 1 - add all the tools to the machine that we need before we every checkout code.
       - run:
-          name: Install JQ and Golang
-          command: sudo apt-get -y install jq golang-go
+          name: Install JQ, Golang, and Kubectx
+          command: sudo apt-get -y install jq golang-go kubectx
       - run:
           name: Install K3S
           command: curl -sfL https://get.k3s.io | sh -
           background: true
-      - run:
-          name: Print tool versions
-          command: |
-            set -x
-            protoc --version
-            jq --version
-            go version
-            docker version
-      # TODO - remove?
-      - run:
-          name: Print env
-          command: env
       - restore_cache:
           keys:
             - go-v10-{{ .Branch }}
@@ -43,21 +31,21 @@ jobs:
           name: Create downloads dir
           command: mkdir -p /tmp/dl
       - run:
-          name: Install Dep
+          name: Install Dep 0.5.3
           command: |
             [ -e /tmp/dl/dep ] || curl -sLf -C - -o /tmp/dl/dep https://github.com/golang/dep/releases/download/v0.5.3/dep-linux-amd64
             sudo cp /tmp/dl/dep /usr/local/go/bin/dep
             sudo chmod +x /usr/local/go/bin/dep
             dep version
       - run:
-          name: Install Swagger CLI
+          name: Install Go Swagger 0.19.0
           command: |
             [ -e /tmp/dl/swagger ] || curl -sLf -C - -o /tmp/dl/swagger https://github.com/go-swagger/go-swagger/releases/download/v0.19.0/swagger_linux_amd64
             sudo cp /tmp/dl/swagger /usr/local/go/bin/swagger
             sudo chmod +x /usr/local/go/bin/swagger
             swagger version
       - run:
-          name: Install Ksonnet
+          name: Install Ksonnet 0.13.1
           command: |
             [ -e /tmp/dl/ks.tar.gz ] || curl -sLf -C - -o /tmp/dl/ks.tar.gz https://github.com/ksonnet/ksonnet/releases/download/v0.13.1/ks_0.13.1_linux_amd64.tar.gz
             tar -C /tmp -xf /tmp/dl/ks.tar.gz
@@ -65,7 +53,7 @@ jobs:
             sudo chmod +x /usr/local/go/bin/ks
             ks version
       - run:
-          name: Install Helm
+          name: Install Helm 2.13.1
           command: |
             [ -e /tmp/dl/helm.tar.gz ] || curl -sLf -C - -o /tmp/dl/helm.tar.gz https://storage.googleapis.com/kubernetes-helm/helm-v2.13.1-linux-amd64.tar.gz
             tar -C /tmp/ -xf /tmp/dl/helm.tar.gz
@@ -73,21 +61,21 @@ jobs:
             helm version --client
             helm init --client-only
       - run:
-          name: Install Kustomize 1
+          name: Install Kustomize 1.0.11
           command: |
             [ -e /tmp/dl/kustomize1 ] || curl -sLf -C - -o /tmp/dl/kustomize1 https://github.com/kubernetes-sigs/kustomize/releases/download/v1.0.11/kustomize_1.0.11_linux_amd64
             sudo cp /tmp/dl/kustomize1 /usr/local/go/bin/
             sudo chmod +x /usr/local/go/bin/kustomize1
             kustomize1 version
       - run:
-          name: Install Kustomize 2
+          name: Install Kustomize 2.0.3
           command: |
             [ -e /tmp/dl/kustomize ] || curl -sLf -C - -o /tmp/dl/kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v2.0.3/kustomize_2.0.3_linux_amd64
             sudo cp /tmp/dl/kustomize /usr/local/go/bin/
             sudo chmod +x /usr/local/go/bin/kustomize
             kustomize version
       - run:
-          name: Install Protobuf compiler
+          name: Install Protobuf compiler 3.7.1
           command: |
             [ -e /tmp/dl/protoc.zip ] || curl -sLf -C - -o /tmp/dl/protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v3.7.1/protoc-3.7.1-linux-x86_64.zip && \
             sudo unzip /tmp/dl/protoc.zip bin/protoc -d /usr/local/
@@ -101,7 +89,6 @@ jobs:
       - run:
           name: Install Go deps
           command: |
-            go get golang.org/dl/go1.11.4
             go get golang.org/x/tools/cmd/goimports
             go get github.com/gobuffalo/packr/packr
             go get github.com/golang/protobuf/protoc-gen-go
@@ -112,35 +99,43 @@ jobs:
             go get github.com/jstemmer/go-junit-report
             go get github.com/mattn/goreman
       - run:
-          name: Install Go 1.11.4
+          name: Install Golang 1.11.4
           command: |
-            set -x
+            go get golang.org/dl/go1.11.4
             [ -e /home/circleci/sdk/go1.11.4 ] || go1.11.4 download
             echo export PATH="`go1.11.4 env GOROOT`/bin:\$PATH" | tee -a $BASH_ENV
       # STAGE 2 - actually checkout and build the code.
       - checkout
       - run:
-          name: Install vendor deps
+          name: Print system info
+          command: |
+            set -x
+            env | sort
+            protoc --version
+            jq --version
+            go version
+            go env GOCACHE
+            docker version
+            k3s version
+      - run:
+          name: Run dep ensure
           command: dep ensure -v
       - save_cache:
           key: vendor-{{ checksum "Gopkg.lock" }}-v2
           paths:
             - vendor
-      # busted
       #- run:
       #    name: Generate code
       #    command: make codegen
       - run:
           name: Compile production code
           # builds should be around 30s, if not - maybe the cache has moved?
-          command: |
-            go env GOCACHE
-            make build
-      - run:
-          name: Make CLI
-          command: |
-            make cli
-            echo export PATH="\$PATH:dist" | tee -a $BASH_ENV
+          command: make build
+      #- run:
+      #    name: Make CLI
+      #    command: |
+      #      make cli
+      #      echo export PATH="\$PATH:dist" | tee -a $BASH_ENV
       # TODO - maybe re-enable?
       #- run:
       #    name: Lint code
@@ -160,7 +155,7 @@ jobs:
           command: sudo k3s server --docker
           background: true
       - run:
-          name: Install images
+          name: Start Argo CD
           command: make start-e2e
           background: true
       - run:
