@@ -50,6 +50,7 @@ commands:
           command: mkdir -p /tmp/dl
       - restore_cache:
           keys:
+            - dl-v3
             - dl-v2
       - run:
           name: Install Kubectx v0.6.3
@@ -115,7 +116,7 @@ commands:
             sudo unzip /tmp/dl/protoc.zip include/* -d /usr/local/
             protoc --version
       - save_cache:
-          key: dl-v2-{{ checksum "Gopkg.lock" }}
+          key: dl-v3
           paths:
             - /tmp/dl
   print_system_info:
