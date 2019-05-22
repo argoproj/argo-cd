@@ -110,6 +110,7 @@ jobs:
             go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
             go get github.com/golangci/golangci-lint/cmd/golangci-lint
             go get github.com/jstemmer/go-junit-report
+            go get github.com/mattn/goreman
       - run:
           name: Install Go 1.11.4
           command: |
@@ -140,7 +141,7 @@ jobs:
           command: |
             make cli
             echo export PATH="\$PATH:dist" | tee -a $BASH_ENV
-      # TODO - maybe reenable?
+      # TODO - maybe re-enable?
       #- run:
       #    name: Lint code
       #    command: |
@@ -153,39 +154,18 @@ jobs:
       #      mkdir -p /tmp/test-results
       #      trap "go-junit-report </tmp/test-results/go-test.out > /tmp/test-results/go-test-report.xml" EXIT
       #      make test | tee /tmp/test-results/go-test.out
-      - run:
-          name: Make images
-          command: make image DEV_IMAGE=true
+
       - run: 
           name: Start K3s
           command: sudo k3s server --docker
           background: true
-      # TODO - can we skip this step?
-      - run:
-          name: Save images
-          command: |
-            set -x
-            sudo mkdir -p /var/lib/rancher/k3s/agent/images
-            docker save argocd:latest > argocd.tar
-            sudo mv argocd.tar /var/lib/rancher/k3s/agent/images/
       - run:
           name: Install images
-          command: |
-            set -x
-            kubectl create ns argocd-e2e
-            kustomize build ./test/manifests/ci | kubectl apply -n argocd-e2e -f -
-            kubectl rollout status deployment -n argocd-e2e argocd-application-controller
-            kubectl rollout status deployment -n argocd-e2e argocd-server
-            echo "export ARGOCD_SERVER=$(kubectl get service argocd-server -o=jsonpath={.spec.clusterIP} -n argocd-e2e):443" >> $BASH_ENV
-            echo "export ARGOCD_OPTS='--insecure'" >> $BASH_ENV
-            echo "export ARGOCD_PASSWORD=`kubectl get pods -n argocd -l app.kubernetes.io/name=argocd-server -o name | cut -d'/' -f 2`)" >> $BASH_ENV
+          command: make start-e2e
+          background: true
       - run:
           name: Run e2e tests
           command: |
-            set -x
-            env
-            argocd account update-password --new-password $ARGOCD_PASSWORD
-            argocd app list
             mkdir -p /tmp/test-results
             trap "go-junit-report </tmp/test-results/go-e2e.out > /tmp/test-results/go-e2e-report.xml" EXIT
             make test-e2e | tee /tmp/test-results/go-e2e.out
