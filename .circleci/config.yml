@@ -207,8 +207,9 @@ jobs:
       - run:
           name: Make CLI
           command: |
+            set -x
             make cli
-            echo export PATH="\$PATH:dist" | tee -a $BASH_ENV
+            echo export PATH="`pwd`/dist:\$PATH" | tee -a $BASH_ENV
       - run:
           name: Start Argo CD
           command: |
