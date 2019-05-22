@@ -175,7 +175,7 @@ jobs:
             stat /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd/vendor/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis
             stat /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd/vendor/github.com/gogo/protobuf
             stat /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd/vendor/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis
-            echo $GOPATH
+            env
             make codegen
       - run:
           name: Lint code
