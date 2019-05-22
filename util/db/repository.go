@@ -86,15 +86,13 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 		return nil, err
 	}
 
-	var repo = &appsv1.Repository{Repo: repoURL}
+	repo := &appsv1.Repository{Repo: repoURL}
 	index := getRepositoryIndex(s, repoURL)
 	if index >= 0 {
 		repo, err = db.credentialsToRepository(s.Repositories[index])
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		log.Warn("repo not found, using dummy")
 	}
 
 	if !repo.HasCredentials() {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-cd/util/git"
 	"path"
 	"path/filepath"
 	"strings"
@@ -142,7 +143,11 @@ func ValidateRepo(ctx context.Context, spec *argoappv1.ApplicationSpec, repoClie
 	defer util.Close(conn)
 	repoAccessable := false
 	repoRes, err := db.GetRepository(ctx, spec.Source.RepoURL)
+	if err != nil {
+		return nil, "", err
+	}
 
+	err = git.TestRepo(repoRes.Repo, repoRes.Username, repoRes.Password, repoRes.SSHPrivateKey, repoRes.InsecureIgnoreHostKey)
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
