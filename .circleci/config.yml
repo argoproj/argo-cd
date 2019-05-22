@@ -39,7 +39,7 @@ commands:
           command: |
             go get golang.org/dl/go1.11.4
             [ -e /home/circleci/sdk/go1.11.4 ] || go1.11.4 download
-            echo export PATH="`go1.11.4 env GOROOT`/bin:\$PATH" | tee -a $BASH_ENV
+            go1.11.4 env | tee -a $BASH_ENV
   install_tools:
     steps:
       - run:
@@ -137,8 +137,6 @@ jobs:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
       image: circleci/classic:201808-01
-    environment:
-      GOPATH: /home/circleci/.go_workspace
     steps:
       - restore_go_cache
       - install_golang
