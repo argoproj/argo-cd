@@ -118,19 +118,6 @@ commands:
           key: dl-v3
           paths:
             - /tmp/dl
-  print_system_info:
-    steps:
-      - run:
-          name: Print system info
-          command: |
-            set -x
-            env | sort
-            protoc --version
-            jq --version
-            go version
-            go env GOCACHE
-            docker version
-            k3s --version
   save_go_cache:
     steps:
       - save_cache:
@@ -156,7 +143,6 @@ jobs:
       - install_tools
       - checkout
       - install_go_deps
-      - print_system_info
       - dep_ensure
       #- run:
       #    name: Generate code
@@ -202,7 +188,6 @@ jobs:
       - install_tools
       - checkout
       - install_go_deps
-      - print_system_info
       - dep_ensure
       - run:
           name: Make CLI
