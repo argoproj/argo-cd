@@ -36,7 +36,7 @@ commands:
           name: Install Golang v1.11.10
           command: |
             [ -e /tmp/dl/go.tar.gz ] || curl -sLf -C - -o go.tar.gz https://dl.google.com/go/go1.11.10.linux-amd64.tar.gz
-            tar -C /usr/local -xzf go.tar.gz
+            sudo tar -k -C /usr/local -xzf go.tar.gz
             echo "export PATH=\$PATH:/usr/local/go/bin" | tee -a $BASH_ENV
   install_tools:
     steps:
@@ -119,17 +119,18 @@ commands:
   save_go_cache:
     steps:
       - save_cache:
-          key: go-v11-{{ .Branch }}
+          key: go-v12-{{ .Branch }}
           paths:
             - /home/circleci/.go_workspace
             - /home/circleci/.cache/go-build
             - /home/circleci/sdk/go1.11.4
+            - /usr/local/go
   restore_go_cache:
     steps:
       - restore_cache:
           keys:
+            - go-v12-{{ .Branch }}
             - go-v11-{{ .Branch }}
-            - go-v10-{{ .Branch }}
 jobs:
   test:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
