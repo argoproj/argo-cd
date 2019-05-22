@@ -35,9 +35,13 @@ jobs:
           command: |
             [ -e /tmp/dl/kubectx.zip ] || curl -sLf -C - -o /tmp/dl/kubectx.zip https://github.com/ahmetb/kubectx/archive/v0.6.3.zip
             sudo unzip /tmp/dl/kubectx.zip kubectx-0.6.3/kubectx
+            sudo unzip /tmp/dl/kubectx.zip kubectx-0.6.3/kubens
             sudo mv kubectx-0.6.3/kubectx /usr/local/bin/
+            sudo mv kubectx-0.6.3/kubens /usr/local/bin/
             sudo chmod +x /usr/local/bin/kubectx
+            sudo chmod +x /usr/local/bin/kubens
             kubectx
+            kubens
       - run:
           name: Install Dep 0.5.3
           command: |
