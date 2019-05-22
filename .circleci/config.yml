@@ -111,7 +111,7 @@ jobs:
             - dl-v2
       - restore_cache:
           key: vendor-{{ checksum "Gopkg.lock" }}-v2
-      - install_tools
+      - install_tools:
       - run:
           name: Install Go deps
           command: |
