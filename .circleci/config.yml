@@ -1,30 +1,38 @@
 version: 2
+# TODO - split into multiple jobs using command
 jobs:
   build:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
       image: circleci/classic:201808-01
     environment:
+      # TODO - remove thiss
       TEST_RESULTS: /tmp/test-results
     steps:
       # STAGE 1 - add all the tools to the machine that we need before we every checkout code.
       - run:
-          name: Install apt deps
+          name: Install JQ and Golang
           command: sudo apt-get -y install jq golang-go
+      - run:
+          name: Install K3S
+          command: curl -sfL https://get.k3s.io | sh -
+          background: true
       - run:
           name: Print tool versions
           command: |
+            set -x
             protoc --version
             jq --version
             go version
             docker version
+      # TODO - remove?
       - run:
           name: Print env
           command: env
       - restore_cache:
           keys:
+            - go-v10-{{ .Branch }}
             - go-v9-{{ .Branch }}
-            - go-v8-{{ .Branch }}
       - checkout
       - restore_cache:
           keys:
@@ -86,9 +94,6 @@ jobs:
             sudo chmod +x /usr/local/bin/protoc && \
             sudo unzip /tmp/dl/protoc.zip include/* -d /usr/local/
             protoc --version
-      - run:
-          name: Install K3S
-          command: curl -sfL https://get.k3s.io | sh -
       - save_cache:
           key: dl-v2-{{ checksum "Gopkg.lock" }}
           paths:
@@ -135,7 +140,7 @@ jobs:
           command: |
             make cli
             echo export PATH="\$PATH:dist" | tee -a $BASH_ENV
-      # TODO
+      # TODO - maybe reenable?
       #- run:
       #    name: Lint code
       #    command: |
@@ -155,6 +160,7 @@ jobs:
           name: Start K3s
           command: sudo k3s server --docker
           background: true
+      # TODO - can we skip this step?
       - run:
           name: Save images
           command: |
@@ -184,12 +190,13 @@ jobs:
             trap "go-junit-report </tmp/test-results/go-e2e.out > /tmp/test-results/go-e2e-report.xml" EXIT
             make test-e2e | tee /tmp/test-results/go-e2e.out
       - save_cache:
-          key: go-v9-{{ .Branch }}
+          key: go-v10-{{ .Branch }}
           paths:
             - /home/circleci/.go_workspace
             - /home/circleci/.cache/go-build
             - /home/circleci/sdk/go1.11.4
           when: always
+      # TODO - maybe re-add this step?
       # This produces different output. See https://circleci.com/gh/argoproj/argo-cd/65
       #- run:
       #    name: Check nothing has changed
