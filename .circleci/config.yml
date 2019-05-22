@@ -170,13 +170,15 @@ jobs:
             kustomize build ./test/manifests/ci | kubectl apply -n argocd-e2e -f -
             kubectl rollout status deployment -n argocd-e2e argocd-application-controller
             kubectl rollout status deployment -n argocd-e2e argocd-server
-            echo export ARGOCD_SERVER=$(kubectl get service argocd-server -o=jsonpath={.spec.clusterIP} -n argocd-e2e):443 >> $BASH_ENV
+            echo "export ARGOCD_SERVER=$(kubectl get service argocd-server -o=jsonpath={.spec.clusterIP} -n argocd-e2e):443" >> $BASH_ENV
             echo "export ARGOCD_OPTS='--insecure'" >> $BASH_ENV
+            echo "export ARGOCD_PASSWORD=`kubectl get pods -n argocd -l app.kubernetes.io/name=argocd-server -o name | cut -d'/' -f 2`)" >> $BASH_ENV
       - run:
           name: Run e2e tests
           command: |
             set -x
             env
+            argocd account update-password --new-password $ARGOCD_PASSWORD
             argocd app list
             mkdir -p /tmp/test-results
             trap "go-junit-report </tmp/test-results/go-e2e.out > /tmp/test-results/go-e2e-report.xml" EXIT
