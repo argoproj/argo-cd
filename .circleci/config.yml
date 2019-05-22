@@ -210,6 +210,7 @@ jobs:
             mkdir -p /tmp/test-results
             trap "go-junit-report </tmp/test-results/go-e2e.out > /tmp/test-results/go-e2e-report.xml" EXIT
             make test-e2e | tee /tmp/test-results/go-e2e.out
+      - store_test_results:
           path: /tmp/test-results
 workflows:
   version: 2
