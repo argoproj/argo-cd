@@ -168,6 +168,26 @@ jobs:
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
       - store_test_results:
           path: /tmp/test-results
+  codegen:
+    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
+    machine:
+      image: circleci/classic:201808-01
+    steps:
+      - restore_go_cache
+      - install_golang
+      - install_tools
+      - checkout
+      - install_go_deps
+      - dep_ensure
+      - run:
+          name: Generate code
+          command: make codegen
+      - run:
+          name: Lint code
+          command: make lint
+      - run:
+          name: Check nothing has changed
+          command: git diff --exit-code
   e2e:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
