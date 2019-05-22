@@ -161,27 +161,22 @@ jobs:
       #    command: make codegen
       - run:
           name: Compile production code
-          # builds should be around 30s, if not - maybe the cache has moved?
           command: make build
-      # TODO - maybe re-enable?
-      #- run:
-      #    name: Lint code
-      #    command: |
-      #      make lint
-      #      git diff
-      # TODO
-      #- run:
-      #    name: Run unit tests
-      #    command: |
-      #      mkdir -p /tmp/test-results
-      #      trap "go-junit-report </tmp/test-results/go-test.out > /tmp/test-results/go-test-report.xml" EXIT
-      #      make test | tee /tmp/test-results/go-test.out
+      - run:
+          name: Lint code
+          command: |
+            make lint
+            git diff
+      - run:
+          name: Run unit tests
+          command: |
+            mkdir -p /tmp/test-results
+            trap "go-junit-report </tmp/test-results/go-test.out > /tmp/test-results/go-test-report.xml" EXIT
+            make test | tee /tmp/test-results/go-test.out
       - save_go_cache
-      # TODO - maybe re-add this step?
-      # This produces different output. See https://circleci.com/gh/argoproj/argo-cd/65
-      #- run:
-      #    name: Check nothing has changed
-      #    command: git diff --exit-code
+      - run:
+          name: Check nothing has changed
+          command: git diff --exit-code
       - run:
           name: Uploading code coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
