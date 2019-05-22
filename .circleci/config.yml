@@ -240,4 +240,5 @@ workflows:
   workflow:
     jobs:
       - build
+      - codegen
       - e2e
