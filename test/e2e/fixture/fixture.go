@@ -151,12 +151,20 @@ func EnsureCleanState() {
 	FailOnErr(Run("", "kubectl", "delete", "secrets", "-l", testingLabel+"=true"))
 
 	// reset settings
-	argoSettings, err := SettingsManager.GetSettings()
+	s, err := SettingsManager.GetSettings()
 	CheckError(err)
 	CheckError(SettingsManager.SaveSettings(&settings.ArgoCDSettings{
-		AdminPasswordHash:  argoSettings.AdminPasswordHash,
-		AdminPasswordMtime: argoSettings.AdminPasswordMtime,
-		Secrets:            argoSettings.Secrets,
+		// changing theses causes a restart
+		AdminPasswordHash:    s.AdminPasswordHash,
+		AdminPasswordMtime:   s.AdminPasswordMtime,
+		Certificate:          s.Certificate,
+		DexConfig:            s.DexConfig,
+		OIDCConfigRAW:        s.OIDCConfigRAW,
+		URL:                  s.URL,
+		WebhookGitHubSecret:  s.WebhookGitHubSecret,
+		WebhookGitLabSecret:  s.WebhookGitLabSecret,
+		WebhookBitbucketUUID: s.WebhookBitbucketUUID,
+		Secrets:              s.Secrets,
 	}))
 
 	// remove tmp dir
