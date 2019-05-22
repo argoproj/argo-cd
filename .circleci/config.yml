@@ -17,10 +17,9 @@ jobs:
           name: Install and start K3S 0.5.0
           command: |
             curl -sfL https://get.k3s.io | sh -
-            sudo k3s server --docker
           background: true
           environment:
-            INSTALL_K3S_SKIP_START: true
+            INSTALL_K3S_EXEC: --docker
             INSTALL_K3S_VERSION: 0.5.0
       - restore_cache:
           keys:
