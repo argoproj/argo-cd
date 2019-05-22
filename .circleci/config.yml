@@ -151,14 +151,6 @@ jobs:
     machine:
       image: circleci/classic:201808-01
     steps:
-      - run:
-          name: Install and start K3S v0.5.0
-          command: |
-            curl -sfL https://get.k3s.io | sh -
-          background: true
-          environment:
-            INSTALL_K3S_EXEC: --docker
-            INSTALL_K3S_VERSION: v0.5.0
       - restore_go_cache
       - install_golang
       - install_tools
@@ -191,7 +183,38 @@ jobs:
       #      mkdir -p /tmp/test-results
       #      trap "go-junit-report </tmp/test-results/go-test.out > /tmp/test-results/go-test-report.xml" EXIT
       #      make test | tee /tmp/test-results/go-test.out
-
+      - save_go_cache
+      # TODO - maybe re-add this step?
+      # This produces different output. See https://circleci.com/gh/argoproj/argo-cd/65
+      #- run:
+      #    name: Check nothing has changed
+      #    command: git diff --exit-code
+      # FINAL STAGE - upload results
+      - run:
+          name: Uploading code coverage
+          command: bash <(curl -s https://codecov.io/bash) -f coverage.out
+      - store_test_results:
+          path: /tmp/test-results
+  e2e:
+    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
+    machine:
+      image: circleci/classic:201808-01
+    steps:
+      - run:
+          name: Install and start K3S v0.5.0
+          command: |
+            curl -sfL https://get.k3s.io | sh -
+          background: true
+          environment:
+            INSTALL_K3S_EXEC: --docker
+            INSTALL_K3S_VERSION: v0.5.0
+      - restore_go_cache
+      - install_golang
+      - install_tools
+      - checkout
+      - install_go_deps
+      - print_system_info
+      - dep_ensure
       - run:
           name: Start Argo CD
           command: |
@@ -208,20 +231,10 @@ jobs:
             mkdir -p /tmp/test-results
             trap "go-junit-report </tmp/test-results/go-e2e.out > /tmp/test-results/go-e2e-report.xml" EXIT
             make test-e2e | tee /tmp/test-results/go-e2e.out
-      - save_go_cache
-      # TODO - maybe re-add this step?
-      # This produces different output. See https://circleci.com/gh/argoproj/argo-cd/65
-      #- run:
-      #    name: Check nothing has changed
-      #    command: git diff --exit-code
-      # FINAL STAGE - upload results
-      - run:
-          name: Uploading code coverage
-          command: bash <(curl -s https://codecov.io/bash) -f coverage.out
-      - store_test_results:
           path: /tmp/test-results
 workflows:
   version: 2
   workflow:
     jobs:
       - build
+      - e2e
