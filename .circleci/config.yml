@@ -166,7 +166,10 @@ jobs:
           background: true
       - run:
           name: Start Argo CD
-          command: make start-e2e
+          command: |
+            set -x
+            k3s kubectl version
+            make start-e2e
           background: true
       - run:
           name: Run e2e tests
