@@ -33,11 +33,11 @@ commands:
   install_golang:
     steps:
       - run:
-          name: Install Golang v1.11.10
+          name: Install Golang v1.11.4
           command: |
-            [ -e /tmp/dl/go.tar.gz ] || curl -sLf -C - -o go.tar.gz https://dl.google.com/go/go1.11.10.linux-amd64.tar.gz
-            sudo tar -k -C /usr/local -xzf go.tar.gz
-            echo "export PATH=\$PATH:/usr/local/go/bin" | tee -a $BASH_ENV
+            go get golang.org/dl/go1.11.4
+            [ -e /home/circleci/sdk/go1.11.4 ] || go1.11.4 download
+            go1.11.4 env | tee -a $BASH_ENV
   install_tools:
     steps:
       - run:
