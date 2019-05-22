@@ -38,6 +38,7 @@ commands:
             go get golang.org/dl/go1.11.4
             [ -e /home/circleci/sdk/go1.11.4 ] || go1.11.4 download
             go1.11.4 env | tee -a $BASH_ENV
+            echo "export GOPATH=/home/circleci/.go_workspace" | tee -a $BASH_ENV
   install_tools:
     steps:
       - run:
@@ -49,7 +50,6 @@ commands:
       - restore_cache:
           keys:
             - dl-v3
-            - dl-v2
       - run:
           name: Install Kubectx v0.6.3
           command: |
@@ -119,18 +119,17 @@ commands:
   save_go_cache:
     steps:
       - save_cache:
-          key: go-v12-{{ .Branch }}
+          key: go-v13-{{ .Branch }}
           paths:
             - /home/circleci/.go_workspace
             - /home/circleci/.cache/go-build
             - /home/circleci/sdk/go1.11.4
-            - /usr/local/go
   restore_go_cache:
     steps:
       - restore_cache:
           keys:
+            - go-v13-{{ .Branch }}
             - go-v12-{{ .Branch }}
-            - go-v11-{{ .Branch }}
 jobs:
   test:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
