@@ -1,6 +1,12 @@
 version: 2.1
 # Slack https://hooks.slack.com/services/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
 commands:
+  clean_checkout:
+    steps:
+      - run:
+          name: Remove checked out code
+          run: rm -Rf /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
+      - checkou
   install_go_deps:
     steps:
       - run:
@@ -129,7 +135,6 @@ commands:
       - restore_cache:
           keys:
             - go-v13-{{ .Branch }}
-            - go-v12-{{ .Branch }}
 jobs:
   test:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
@@ -139,7 +144,7 @@ jobs:
       - restore_go_cache
       - install_golang
       - install_tools
-      - checkout
+      - clean_checkout
       - install_go_deps
       - dep_ensure
       - run:
@@ -162,7 +167,7 @@ jobs:
       - restore_go_cache
       - install_golang
       - install_tools
-      - checkout
+      - clean_checkout
       - install_go_deps
       - dep_ensure
       - run:
@@ -197,7 +202,7 @@ jobs:
       - restore_go_cache
       - install_golang
       - install_tools
-      - checkout
+      - clean_checkout
       - install_go_deps
       - dep_ensure
       - run:
