@@ -133,7 +133,7 @@ commands:
             - go-v11-{{ .Branch }}
             - go-v10-{{ .Branch }}
 jobs:
-  build:
+  test:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
       image: circleci/classic:201808-01
@@ -145,18 +145,12 @@ jobs:
       - install_go_deps
       - dep_ensure
       - run:
-          name: Compile production code
-          command: make build
-      - run:
           name: Run unit tests
           command: |
             mkdir -p /tmp/test-results
             trap "go-junit-report </tmp/test-results/go-test.out > /tmp/test-results/go-test-report.xml" EXIT
             make test | tee /tmp/test-results/go-test.out
       - save_go_cache
-      - run:
-          name: Check nothing has changed
-          command: git diff --exit-code
       - run:
           name: Uploading code coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
@@ -243,6 +237,6 @@ workflows:
   version: 2
   workflow:
     jobs:
-      - build
       - codegen
+      - test
       - e2e
