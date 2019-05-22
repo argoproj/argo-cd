@@ -145,14 +145,8 @@ jobs:
       - install_go_deps
       - dep_ensure
       - run:
-          name: Generate code
-          command: make codegen
-      - run:
           name: Compile production code
           command: make build
-      #- run:
-      #    name: Lint code
-      #    command: make lint
       - run:
           name: Run unit tests
           command: |
@@ -189,6 +183,7 @@ jobs:
             stat /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd/vendor/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis
             stat /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd/vendor/github.com/gogo/protobuf
             stat /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd/vendor/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis
+            echo $GOPATH
             make lint
       - run:
           name: Check nothing has changed
@@ -227,7 +222,10 @@ jobs:
           background: true
       - run:
           name: Wait for Argo CD
-          command: curl -v --retry 5 localhost:8080
+          command: |
+            set -x
+            sleep 30
+            curl -v --retry 5 localhost:8080
       - run:
           name: Run e2e tests
           command: |
