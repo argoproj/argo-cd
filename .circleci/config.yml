@@ -203,6 +203,9 @@ jobs:
             make start-e2e
           background: true
       - run:
+          name: Wait for Argo CD
+          command: curl -v --retry 5 --retry-connrefused localhost:8080
+      - run:
           name: Run e2e tests
           command: |
             set -x
