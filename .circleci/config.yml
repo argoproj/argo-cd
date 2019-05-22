@@ -1,6 +1,5 @@
 version: 2.1
 # Slack https://hooks.slack.com/services/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
-# TODO - split into multiple jobs using command
 commands:
   install_go_deps:
     steps:
@@ -62,7 +61,6 @@ commands:
             sudo mv kubectx-0.6.3/kubens /usr/local/bin/
             sudo chmod +x /usr/local/bin/kubectx
             sudo chmod +x /usr/local/bin/kubens
-            kubectx
       - run:
           name: Install Dep v0.5.3
           command: |
