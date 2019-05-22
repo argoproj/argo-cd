@@ -14,8 +14,8 @@ commands:
             go get -v github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
             go get -v github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
             go get -v github.com/golangci/golangci-lint/cmd/golangci-lint
-            go get -v github.com/jstemmer/go-junit-report
             go get -v github.com/mattn/goreman
+            go get -v github.com/jstemmer/go-junit-report
   dep_ensure:
     steps:
       - restore_cache:
@@ -150,11 +150,9 @@ jobs:
       - run:
           name: Compile production code
           command: make build
-      - run:
-          name: Lint code
-          command: |
-            make lint
-            git diff
+      #- run:
+      #    name: Lint code
+      #    command: make lint
       - run:
           name: Run unit tests
           command: |
