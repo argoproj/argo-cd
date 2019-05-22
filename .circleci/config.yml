@@ -3,7 +3,6 @@ version: 2.1
 # TODO - split into multiple jobs using command
 commands:
   install_golang:
-    description: Install GoLang
     steps:
       - run:
           name: Install Golang
@@ -15,7 +14,6 @@ commands:
             [ -e /home/circleci/sdk/go1.11.4 ] || go1.11.4 download
             echo export PATH="`go1.11.4 env GOROOT`/bin:\$PATH" | tee -a $BASH_ENV
   install_tools:
-    description: Install tools
     steps:
       - run:
           name: Install JQ
