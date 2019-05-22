@@ -41,7 +41,6 @@ jobs:
             sudo chmod +x /usr/local/bin/kubectx
             sudo chmod +x /usr/local/bin/kubens
             kubectx
-            kubens
       - run:
           name: Install Dep 0.5.3
           command: |
