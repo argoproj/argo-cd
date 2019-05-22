@@ -1,36 +1,13 @@
 version: 2
 # Slack https://hooks.slack.com/services/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
 # TODO - split into multiple jobs using command
-jobs:
-  build:
-    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
-    machine:
-      image: circleci/classic:201808-01
-    environment:
-      # TODO - remove thiss
-      TEST_RESULTS: /tmp/test-results
+commands:
+  install_tools:
+    description: Install tools
     steps:
-      # STAGE 1 - add all the tools to the machine that we need before we every checkout code.
       - run:
-          name: Install JQ, and Golang
-          command: sudo apt-get -y install jq golang-go
-      - run:
-          name: Install and start K3S v0.5.0
-          command: |
-            curl -sfL https://get.k3s.io | sh -
-          background: true
-          environment:
-            INSTALL_K3S_EXEC: --docker
-            INSTALL_K3S_VERSION: v0.5.0
-      - restore_cache:
-          keys:
-            - go-v10-{{ .Branch }}
-            - go-v9-{{ .Branch }}
-      - restore_cache:
-          keys:
-            - dl-v2
-      - restore_cache:
-          key: vendor-{{ checksum "Gopkg.lock" }}-v2
+          name: Install JQ
+          command: sudo apt-get -y install jq
       - run:
           name: Create downloads dir
           command: mkdir -p /tmp/dl
@@ -101,6 +78,40 @@ jobs:
           key: dl-v2-{{ checksum "Gopkg.lock" }}
           paths:
             - /tmp/dl
+jobs:
+  build:
+    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
+    machine:
+      image: circleci/classic:201808-01
+    steps:
+      # STAGE 1 - add all the tools to the machine that we need before we every checkout code.
+      - run:
+          name: Install Golang
+          command: sudo apt-get -y install golang-go
+      - run:
+          name: Install Golang v1.11.4
+          command: |
+            go get golang.org/dl/go1.11.4
+            [ -e /home/circleci/sdk/go1.11.4 ] || go1.11.4 download
+            echo export PATH="`go1.11.4 env GOROOT`/bin:\$PATH" | tee -a $BASH_ENV
+      - run:
+          name: Install and start K3S v0.5.0
+          command: |
+            curl -sfL https://get.k3s.io | sh -
+          background: true
+          environment:
+            INSTALL_K3S_EXEC: --docker
+            INSTALL_K3S_VERSION: v0.5.0
+      - restore_cache:
+          keys:
+            - go-v10-{{ .Branch }}
+            - go-v9-{{ .Branch }}
+      - restore_cache:
+          keys:
+            - dl-v2
+      - restore_cache:
+          key: vendor-{{ checksum "Gopkg.lock" }}-v2
+      - install_tools
       - run:
           name: Install Go deps
           command: |
@@ -113,12 +124,6 @@ jobs:
             go get github.com/golangci/golangci-lint/cmd/golangci-lint
             go get github.com/jstemmer/go-junit-report
             go get github.com/mattn/goreman
-      - run:
-          name: Install Golang v1.11.4
-          command: |
-            go get golang.org/dl/go1.11.4
-            [ -e /home/circleci/sdk/go1.11.4 ] || go1.11.4 download
-            echo export PATH="`go1.11.4 env GOROOT`/bin:\$PATH" | tee -a $BASH_ENV
       # STAGE 2 - actually checkout and build the code.
       - checkout
       - run:
@@ -176,6 +181,7 @@ jobs:
           name: Run e2e tests
           command: |
             set -x
+            make cli
             argocd app list
             mkdir -p /tmp/test-results
             trap "go-junit-report </tmp/test-results/go-e2e.out > /tmp/test-results/go-e2e-report.xml" EXIT
@@ -198,9 +204,6 @@ jobs:
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
       - store_test_results:
           path: /tmp/test-results
-      - store_artifacts:
-          path: /var/lib/rancher/k3s/agent/containerd/containerd.log
-          when: always
 workflows:
   version: 2
   workflow:
