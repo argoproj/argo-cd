@@ -216,6 +216,9 @@ jobs:
       - print_system_info
       - dep_ensure
       - run:
+          name: Make CLI
+          command: make cli
+      - run:
           name: Start Argo CD
           command: |
             set -x
@@ -226,7 +229,6 @@ jobs:
           name: Run e2e tests
           command: |
             set -x
-            make cli
             argocd app list
             mkdir -p /tmp/test-results
             trap "go-junit-report </tmp/test-results/go-e2e.out > /tmp/test-results/go-e2e-report.xml" EXIT
