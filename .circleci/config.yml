@@ -14,11 +14,14 @@ jobs:
           name: Install JQ, and Golang
           command: sudo apt-get -y install jq golang-go
       - run:
-          name: Install and start K3S
+          name: Install and start K3S 0.5.0
           command: |
             curl -sfL https://get.k3s.io | sh -
             sudo k3s server --docker
           background: true
+          environment:
+            INSTALL_K3S_SKIP_START: true
+            INSTALL_K3S_VERSION: 0.5.0
       - restore_cache:
           keys:
             - go-v10-{{ .Branch }}
