@@ -11,12 +11,12 @@ GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ;
 PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run vendor/github.com/gobuffalo/packr/packr/main.go"; fi)
 
 # docker image publishing options
-DOCKER_PUSH=false
-IMAGE_TAG=latest
+DOCKER_PUSH?=false
+IMAGE_TAG?=latest
 # perform static compilation
-STATIC_BUILD=true
+STATIC_BUILD?=true
 # build development images
-DEV_IMAGE=false
+DEV_IMAGE?=false
 
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
