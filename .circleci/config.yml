@@ -11,8 +11,8 @@ jobs:
     steps:
       # STAGE 1 - add all the tools to the machine that we need before we every checkout code.
       - run:
-          name: Install JQ, Golang, and Kubectx
-          command: sudo apt-get -y install jq golang-go kubectx
+          name: Install JQ, and Golang
+          command: sudo apt-get -y install jq golang-go
       - run:
           name: Install K3S
           command: curl -sfL https://get.k3s.io | sh -
@@ -30,6 +30,13 @@ jobs:
       - run:
           name: Create downloads dir
           command: mkdir -p /tmp/dl
+      - run:
+          name: Install Kubectx 0.6.3
+          command: |
+            [ -e /tmp/dl/kubectx.zip ] || curl -sLf -C - -o /tmp/dl/kubectx.zip https://github.com/ahmetb/kubectx/archive/v0.6.3.zip
+            sudo unzip /tmp/dl/kubectx.zip kubectx-0.6.3/kubectx -d /usr/local/
+            sudo chmod +x /usr/local/bin/kubectx
+            kubectx
       - run:
           name: Install Dep 0.5.3
           command: |
@@ -77,9 +84,9 @@ jobs:
       - run:
           name: Install Protobuf compiler 3.7.1
           command: |
-            [ -e /tmp/dl/protoc.zip ] || curl -sLf -C - -o /tmp/dl/protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v3.7.1/protoc-3.7.1-linux-x86_64.zip && \
+            [ -e /tmp/dl/protoc.zip ] || curl -sLf -C - -o /tmp/dl/protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v3.7.1/protoc-3.7.1-linux-x86_64.zip
             sudo unzip /tmp/dl/protoc.zip bin/protoc -d /usr/local/
-            sudo chmod +x /usr/local/bin/protoc && \
+            sudo chmod +x /usr/local/bin/protoc
             sudo unzip /tmp/dl/protoc.zip include/* -d /usr/local/
             protoc --version
       - save_cache:
