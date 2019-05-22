@@ -21,7 +21,6 @@ jobs:
           keys:
             - go-v10-{{ .Branch }}
             - go-v9-{{ .Branch }}
-      - checkout
       - restore_cache:
           keys:
             - dl-v2
