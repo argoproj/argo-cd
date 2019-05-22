@@ -34,7 +34,8 @@ jobs:
           name: Install Kubectx 0.6.3
           command: |
             [ -e /tmp/dl/kubectx.zip ] || curl -sLf -C - -o /tmp/dl/kubectx.zip https://github.com/ahmetb/kubectx/archive/v0.6.3.zip
-            sudo unzip /tmp/dl/kubectx.zip kubectx-0.6.3/kubectx -d /usr/local/
+            sudo unzip /tmp/dl/kubectx.zip kubectx-0.6.3/kubectx
+            sudo mv kubectx-0.6.3/kubectx /usr/local/bin/
             sudo chmod +x /usr/local/bin/kubectx
             kubectx
       - run:
