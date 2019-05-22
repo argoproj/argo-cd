@@ -14,8 +14,10 @@ jobs:
           name: Install JQ, and Golang
           command: sudo apt-get -y install jq golang-go
       - run:
-          name: Install K3S
-          command: curl -sfL https://get.k3s.io | sh -
+          name: Install and start K3S
+          command: |
+            curl -sfL https://get.k3s.io | sh -
+            sudo k3s server --docker
           background: true
       - restore_cache:
           keys:
@@ -160,10 +162,6 @@ jobs:
       #      trap "go-junit-report </tmp/test-results/go-test.out > /tmp/test-results/go-test-report.xml" EXIT
       #      make test | tee /tmp/test-results/go-test.out
 
-      - run: 
-          name: Start K3s
-          command: sudo k3s server --docker
-          background: true
       - run:
           name: Start Argo CD
           command: |
