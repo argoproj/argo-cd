@@ -213,7 +213,8 @@ func (sc *syncContext) sync() {
 	for _, task := range tasks.Filter(func(t *syncTask) bool {
 		return t.running()
 	}) {
-		log.WithFields(log.Fields{"task": task.String()}).Debug("attempting to update health of running task")
+		healthStatus, message := sc.getHealthStatus(task.obj())
+		log.WithFields(log.Fields{"task": task.String(), "healthStatus": healthStatus, "message": message}).Debug("attempting to update health of running task")
 		if task.isHook() {
 			// update the hook's result
 			operationState, message := getOperationPhase(task.obj())
@@ -228,8 +229,6 @@ func (sc *syncContext) sync() {
 			}
 		} else {
 			// TODO - what about resources without health? e.g. secret
-			healthStatus, message := sc.getHealthStatus(task.obj())
-			sc.log.WithFields(log.Fields{"task": task.String(), "healthStatus": healthStatus, "message": message}).Debug("health check")
 			switch healthStatus {
 			// TODO are we correct here?
 			case HealthStatusHealthy:
@@ -247,7 +246,7 @@ func (sc *syncContext) sync() {
 	}
 
 	// any completed by unsuccessful tasks is a total failure.
-	if tasks.Find(func(t *syncTask) bool { return t.operationState.Completed() && !t.operationState.Successful() }) != nil {
+	if tasks.Find(func(t *syncTask) bool { return t.completed() && !t.successful() }) != nil {
 		sc.setOperationPhase(OperationFailed, "one or more synchronization tasks completed unsuccessfully")
 		return
 	}

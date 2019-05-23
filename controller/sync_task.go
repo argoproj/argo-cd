@@ -89,3 +89,7 @@ func (t *syncTask) running() bool {
 func (t *syncTask) completed() bool {
 	return t.operationState.Completed()
 }
+
+func (t *syncTask) successful() bool {
+	return t.operationState.Successful()
+}
