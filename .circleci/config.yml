@@ -269,6 +269,8 @@ jobs:
           name: Run e2e tests
           command: |
             set -x
+            git config --global user.email you@example.com
+            git config --global user.name "Your Name"
             mkdir -p /tmp/test-results
             trap "go-junit-report </tmp/test-results/go-e2e.out > /tmp/test-results/go-e2e-report.xml" EXIT
             make test-e2e | tee /tmp/test-results/go-e2e.out
