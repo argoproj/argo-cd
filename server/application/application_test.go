@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -166,7 +166,7 @@ metadata:
 spec:
   source:
     path: some/path
-    repoURL: https://git.com/repo.git
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
     targetRevision: HEAD
     ksonnet:
       environment: default
