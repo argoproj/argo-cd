@@ -311,7 +311,16 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 		if obj == nil {
 			obj = resource.Live
 		}
+
 		for _, phase := range syncPhases(obj) {
+			// Hook resources names are deterministic, whether they are defined by the user (metadata.name),
+			// or formulated at the time of the operation (metadata.generateName). If user specifies
+			// metadata.generateName, then we will generate a formulated metadata.name before submission.
+			if resource.Target.GetName() == "" {
+				postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", sc.syncRes.Revision[0:7], phase, sc.opState.StartedAt.UTC().Unix()))
+				generateName := obj.GetGenerateName()
+				resource.Target.SetName(fmt.Sprintf("%s%s", generateName, postfix))
+			}
 			tasks = append(tasks, &syncTask{
 				phase:     phase,
 				liveObj:   resource.Live,
@@ -320,42 +329,7 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 		}
 	}
 
-	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("managed tasks")
-
-	for _, obj := range sc.compareResult.hooks {
-		if sc.skipHooks() {
-			sc.log.WithFields(log.Fields{"name": obj.GetName()}).Info("skipping hook")
-			continue
-		}
-
-		for _, phase := range syncPhases(obj) {
-
-			// Hook resources names are deterministic, whether they are defined by the user (metadata.name),
-			// or formulated at the time of the operation (metadata.generateName). If user specifies
-			// metadata.generateName, then we will generate a formulated metadata.name before submission.
-			obj = obj.DeepCopy()
-			if obj.GetName() == "" {
-				postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", sc.syncRes.Revision[0:7], phase, sc.opState.StartedAt.UTC().Unix()))
-				generateName := obj.GetGenerateName()
-				obj.SetName(fmt.Sprintf("%s%s", generateName, postfix))
-			}
-
-			if tasks.Find(func(t *syncTask) bool {
-				return t.liveObj != nil && obj.GetUID() == t.liveObj.GetUID()
-			}) != nil {
-				log.Debug("ignoring tasks")
-				continue
-			}
-
-			tasks = append(tasks, &syncTask{
-				phase:     phase,
-				liveObj:   nil,
-				targetObj: obj,
-			})
-		}
-	}
-
-	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("managed tasks + hook tasks")
+	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("tasks")
 
 	for _, task := range tasks {
 

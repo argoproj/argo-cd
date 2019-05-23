@@ -25,8 +25,8 @@ type syncTask struct {
 }
 
 func (t *syncTask) String() string {
-	return fmt.Sprintf("{phase=%s,wave=%d,kind=%s,name=%s,syncState=%s,operationState=%s,message=%s,liveObj=%v,targetObj=%v}", t.phase, t.wave(), t.kind(), t.name(), t.syncStatus, t.operationState, t.message,
-		t.liveObj != nil, t.targetObj != nil)
+	return fmt.Sprintf("{phase=%s,wave=%d,kind=%s,name=%s,syncState=%s,operationState=%s,message=%s,liveObj=%v,targetObj=%v,isHook=%v}",
+		t.phase, t.wave(), t.kind(), t.name(), t.syncStatus, t.operationState, t.message, t.liveObj != nil, t.targetObj != nil, t.isHook())
 }
 
 func (t *syncTask) isPrune() bool {
