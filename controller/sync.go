@@ -213,6 +213,7 @@ func (sc *syncContext) sync() {
 	for _, task := range tasks.Filter(func(t *syncTask) bool {
 		return t.running()
 	}) {
+		log.WithFields(log.Fields{"task": task.String()}).Debug("attempting to update health of running task")
 		if task.isHook() {
 			// update the hook's result
 			operationState, message := getOperationPhase(task.obj())
