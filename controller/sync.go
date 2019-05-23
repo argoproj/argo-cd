@@ -195,12 +195,11 @@ func (sc *syncContext) sync() {
 	// Perform a `kubectl apply --dry-run` against all the manifests. This will detect most (but
 	// not all) validation issues with the user's manifests (e.g. will detect syntax issues, but
 	// will not not detect if they are mutating immutable fields). If anything fails, we will refuse
-	// to perform the sync.
+	// to perform the sync. we only wish to do this once per operation, performing additional dry-runs
+	// is harmless, but redundant. The indicator we use to detect if we have already performed
+	// the dry-run for this operation, is if the resource or hook list is empty.
 	if sc.notStarted() {
 		sc.log.Info("dry-run")
-		// Optimization: we only wish to do this once per operation, performing additional dry-runs
-		// is harmless, but redundant. The indicator we use to detect if we have already performed
-		// the dry-run for this operation, is if the resource or hook list is empty.
 		if !sc.runTasks(tasks, true) {
 			sc.setOperationPhase(OperationFailed, "one or more objects failed to apply (dry run)")
 			return
@@ -209,7 +208,7 @@ func (sc *syncContext) sync() {
 
 	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("tasks")
 
-	// update status of any tasks that have already run, then clean-up
+	// update status of any tasks that are running
 	for _, task := range tasks.Filter(func(t *syncTask) bool {
 		return t.running()
 	}) {
@@ -241,7 +240,7 @@ func (sc *syncContext) sync() {
 
 	// any running tasks, lets wait...
 	if tasks.Find(func(t *syncTask) bool { return t.running() }) != nil {
-		log.Debug("some tasks still running")
+		sc.setOperationPhase(OperationRunning, "one or more tasks are running")
 		return
 	}
 
