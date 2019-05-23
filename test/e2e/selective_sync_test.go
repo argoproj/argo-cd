@@ -25,3 +25,26 @@ func TestSelectiveSync(t *testing.T) {
 			assert.Equal(t, HealthStatusMissing, app.Status.Resources[1].Health.Status)
 		})
 }
+
+func TestSelectiveSyncDoesNotRunHooks(t *testing.T) {
+	Given(t).
+		Path("hook").
+		SelectedResource(":Pod:pod").
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(Success("")).
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		// you might not expect this, but yes - it is is sync
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			// overall status is missing
+			assert.Equal(t, HealthStatusMissing, app.Status.Health.Status)
+			// hook is missing because we skip them
+			assert.Equal(t, HealthStatusMissing, app.Status.Resources[0].Health.Status)
+			assert.True(t, app.Status.Resources[0].Hook)
+			// pod
+			assert.Equal(t, HealthStatusHealthy, app.Status.Resources[1].Health.Status)
+		})
+}
