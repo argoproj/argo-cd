@@ -295,7 +295,8 @@ func (sc *syncContext) skipHooks() bool {
 }
 
 func (sc *syncContext) containsResource(resourceState managedResource) bool {
-	return !sc.isSelectiveSync() || (resourceState.Live != nil && argo.ContainsSyncResource(resourceState.Live.GetName(), resourceState.Live.GroupVersionKind(), sc.syncResources)) ||
+	return !sc.isSelectiveSync() ||
+		(resourceState.Live != nil && argo.ContainsSyncResource(resourceState.Live.GetName(), resourceState.Live.GroupVersionKind(), sc.syncResources)) ||
 		(resourceState.Target != nil && argo.ContainsSyncResource(resourceState.Target.GetName(), resourceState.Target.GroupVersionKind(), sc.syncResources))
 }
 
@@ -305,8 +306,8 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 	successful = true
 
 	for _, resource := range sc.compareResult.managedResources {
-		// TODO tests
 		if !sc.containsResource(resource) {
+			log.WithFields(log.Fields{"resourceGroup": resource.Group, "resourceKind": resource.Kind, "resourceName": resource.Name}).Debug("skipping")
 			continue
 		}
 		obj := resource.Target

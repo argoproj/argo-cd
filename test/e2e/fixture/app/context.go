@@ -15,6 +15,7 @@ type Context struct {
 	destServer string
 	env        string
 	parameters []string
+	resource   string
 }
 
 func Given(t *testing.T) *Context {
@@ -44,6 +45,12 @@ func (c *Context) Env(env string) *Context {
 
 func (c *Context) Parameter(parameter string) *Context {
 	c.parameters = append(c.parameters, parameter)
+	return c
+}
+
+// group:kind:name
+func (c *Context) SelectedResource(resource string) *Context {
+	c.resource = resource
 	return c
 }
 
