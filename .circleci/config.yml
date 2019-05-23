@@ -224,6 +224,7 @@ jobs:
             set -x
             kubectl create ns argocd-e2e
             kubens argocd-e2e
+            kubectl config view
       - run:
           name: Apply manifests
           command: kustomize build test/manifests/base | kubectl apply -f -
