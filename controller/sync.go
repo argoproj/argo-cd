@@ -239,25 +239,21 @@ func (sc *syncContext) sync() {
 		}
 	}
 
-	// TODO - why don't we stop here if any tasks fail? I feel like this is broken
+	// any running tasks, lets wait...
+	if tasks.Find(func(t *syncTask) bool { return t.running() }) != nil {
+		log.Debug("some tasks still running")
+		return
+	}
 
-	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("filtering tasks by running/completed")
+	// any completed by unsuccessful tasks is a total failure.
+	if tasks.Find(func(t *syncTask) bool { return t.operationState.Completed() && !t.operationState.Successful() }) != nil {
+		sc.setOperationPhase(OperationFailed, "one or more synchronization tasks completed unsuccessfully")
+		return
+	}
 
-	// remove tasks that are running or completed
-	tasks = tasks.Filter(func(t *syncTask) bool {
-		return !t.running() && !t.completed()
-	})
-
-	// remove any tasks not in this wave
-	phase := tasks.phase()
-	wave := tasks.wave()
-
-	sc.log.WithFields(log.Fields{"phase": phase, "wave": wave, "tasks": tasks}).Debug("filtering tasks in correct phase and wave")
-	tasks = tasks.Filter(func(t *syncTask) bool {
-		return t.phase == phase && t.wave() == wave
-	})
-
-	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("tasks after filtering")
+	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("filtering out completed tasks")
+	// remove tasks that are completed, note  we assume that there are no running tasks
+	tasks = tasks.Filter(func(t *syncTask) bool { return !t.completed() })
 
 	// If no sync tasks were generated (e.g., in case all application manifests have been removed),
 	// set the sync operation as successful.
@@ -266,10 +262,16 @@ func (sc *syncContext) sync() {
 		return
 	}
 
-	sc.log.WithFields(log.Fields{"numTasks": len(tasks)}).Info("wet run")
+	// remove any tasks not in this wave
+	phase := tasks.phase()
+	wave := tasks.wave()
+
+	sc.log.WithFields(log.Fields{"phase": phase, "wave": wave, "tasks": tasks}).Debug("filtering tasks in correct phase and wave")
+	tasks = tasks.Filter(func(t *syncTask) bool { return t.phase == phase && t.wave() == wave })
 
 	sc.setOperationPhase(OperationRunning, fmt.Sprintf("running phase='%s' wave=%d", phase, wave))
 
+	sc.log.WithFields(log.Fields{"tasks": tasks}).Info("wet run")
 	if !sc.runTasks(tasks, false) {
 		sc.setOperationPhase(OperationFailed, "one or more objects failed to apply")
 	}
@@ -287,7 +289,7 @@ func (sc *syncContext) isSelectiveSync() bool {
 func (sc *syncContext) skipHooks() bool {
 	// All objects passed a `kubectl apply --dry-run`, so we are now ready to actually perform the sync.
 	// default sync strategy to hook if no strategy
-	return sc.syncOp.IsApplyStratgegy() || sc.isSelectiveSync()
+	return sc.syncOp.IsApplyStrategy() || sc.isSelectiveSync()
 }
 
 func (sc *syncContext) isSelectiveSyncResourceOrAll(resourceState managedResource) bool {

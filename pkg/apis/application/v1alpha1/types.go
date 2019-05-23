@@ -266,7 +266,7 @@ type SyncOperation struct {
 	Source *ApplicationSource `json:"source,omitempty" protobuf:"bytes,7,opt,name=source"`
 }
 
-func (o *SyncOperation) IsApplyStratgegy() bool {
+func (o *SyncOperation) IsApplyStrategy() bool {
 	return o.SyncStrategy != nil && o.SyncStrategy.Apply != nil
 }
 
