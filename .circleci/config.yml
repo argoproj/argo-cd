@@ -41,6 +41,7 @@ commands:
           command: |
             go get golang.org/dl/go1.11.4
             [ -e /home/circleci/sdk/go1.11.4 ] || go1.11.4 download
+            echo "export GOPATH=/home/circleci/.go_workspace" | tee -a $BASH_ENV
             echo "export PATH=/home/circleci/sdk/go1.11.4/bin:\$PATH" | tee -a $BASH_ENV
       - run:
           name: Golang diagnostics
