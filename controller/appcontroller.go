@@ -335,7 +335,9 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		log.Warnf("Key '%s' in index is not an application", appKey)
 		return
 	}
-	if app.DeletionTimestamp != nil && app.CascadedDeletion() {
+	if app.Operation != nil {
+		ctrl.processRequestedAppOperation(app)
+	} else if app.DeletionTimestamp != nil && app.CascadedDeletion() {
 		err = ctrl.finalizeApplicationDeletion(app)
 		if err != nil {
 			ctrl.setAppCondition(app, appv1.ApplicationCondition{
@@ -345,8 +347,6 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 			message := fmt.Sprintf("Unable to delete application resources: %v", err.Error())
 			ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonStatusRefreshed, Type: v1.EventTypeWarning}, message)
 		}
-	} else if app.Operation != nil {
-		ctrl.processRequestedAppOperation(app)
 	}
 	return
 }
