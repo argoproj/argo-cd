@@ -214,6 +214,7 @@ jobs:
           command: |
             set -x
             k3s kubectl version
+            sudo chmod a+rw /etc/rancher/k3s/k3s.yaml.lock
             make start-e2e
           background: true
       - run:
