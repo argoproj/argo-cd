@@ -255,6 +255,7 @@ jobs:
           name: Wait for Argo CD
           command: |
             set -x
+            curl -v https://localhost:6443
             sleep 60
             curl -v --retry 5 localhost:8080
       - run:
