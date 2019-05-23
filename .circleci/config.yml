@@ -204,6 +204,9 @@ jobs:
       - install_go_deps
       - dep_ensure
       - run:
+          name: Build
+          command: make build
+      - run:
           name: Make CLI
           command: |
             set -x
