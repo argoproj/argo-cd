@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	v1 "k8s.io/api/core/v1"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -148,4 +150,48 @@ func TestHookDeletePolicyHookFailedHookExit1(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "hook" }))
+}
+
+func TestHookSkip(t *testing.T) {
+	Given(t).
+		Path("hook").
+		When().
+		// should not create this pod
+		PatchFile("pod.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "Skip"}}]`).
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "pod" }))
+}
+
+func TestNamingNonHookResource(t *testing.T) {
+	Given(t).
+		Path("hook").
+		When().
+		PatchFile("pod.yaml", `[{"op": "remove", "path": "/metadata/name"}]`).
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationFailed)).
+		And(func(app *Application) {
+			assert.Equal(t, ResultCodeSyncFailed, app.Status.OperationState.SyncResult.Resources[0].Status)
+		})
+}
+
+func TestAutomaticallyNamingUnnamedHook(t *testing.T) {
+	Given(t).
+		Path("hook").
+		When().
+		PatchFile("hook.yaml", `[{"op": "remove", "path": "/metadata/name"}]`).
+		// make this part of two syncs
+		PatchFile("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "PreSync,PostSync"}}]`).
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		And(func(app *Application) {
+			assert.Contains(t, "presync", app.Status.Resources[0].Name)
+			assert.Contains(t, "postsync", app.Status.Resources[2].Name)
+		})
 }

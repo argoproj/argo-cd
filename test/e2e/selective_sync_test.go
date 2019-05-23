@@ -19,6 +19,7 @@ func TestSelectiveSync(t *testing.T) {
 		Expect(Success("")).
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		// TODO - create expect
 		And(func(app *Application) {
 			// service
 			assert.Equal(t, HealthStatusHealthy, app.Status.Resources[0].Health.Status)

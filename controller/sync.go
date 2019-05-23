@@ -248,18 +248,18 @@ func (sc *syncContext) sync() {
 		return
 	}
 
-	// any completed by unsuccessful tasks is a total failure.
+	// if there are any completed but unsuccessful tasks, sync is a failure.
 	if tasks.Find(func(t *syncTask) bool { return t.completed() && !t.successful() }) != nil {
 		sc.setOperationPhase(OperationFailed, "one or more synchronization tasks completed unsuccessfully")
 		return
 	}
 
 	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("filtering out completed tasks")
-	// remove tasks that are completed, note  we assume that there are no running tasks
+	// remove tasks that are completed, we can assume that there are no running tasks
 	tasks = tasks.Filter(func(t *syncTask) bool { return !t.completed() })
 
 	// If no sync tasks were generated (e.g., in case all application manifests have been removed),
-	// set the sync operation as successful.
+	// the sync operation is successful.
 	if len(tasks) == 0 {
 		sc.setOperationPhase(OperationSucceeded, "successfully synced")
 		return
@@ -302,7 +302,7 @@ func (sc *syncContext) containsResource(resourceState managedResource) bool {
 		(resourceState.Target != nil && argo.ContainsSyncResource(resourceState.Target.GetName(), resourceState.Target.GroupVersionKind(), sc.syncResources))
 }
 
-// generateSyncTasks() generates the list of sync tasks we will be performing during this sync.
+// generates the list of sync tasks we will be performing during this sync.
 func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 	tasks = syncTasks{}
 	successful = true
@@ -340,9 +340,7 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 		// Hook resources names are deterministic, whether they are defined by the user (metadata.name),
 		// or formulated at the time of the operation (metadata.generateName). If user specifies
 		// metadata.generateName, then we will generate a formulated metadata.name before submission.
-
-		// TODO - test (probably a bug here)
-		if task.targetObj.GetName() == "" {
+		if task.isHook() && task.targetObj.GetName() == "" {
 			postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", sc.syncRes.Revision[0:7], task.phase, sc.opState.StartedAt.UTC().Unix()))
 			generateName := task.targetObj.GetGenerateName()
 			task.targetObj.SetName(fmt.Sprintf("%s%s", generateName, postfix))
