@@ -5,11 +5,6 @@ import (
 	"hash/fnv"
 	"strings"
 
-	"github.com/argoproj/argo-cd/common"
-	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/settings"
-
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -17,6 +12,11 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/argo-cd/common"
+	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 const (
@@ -86,15 +86,13 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 		return nil, err
 	}
 
+	repo := &appsv1.Repository{Repo: repoURL}
 	index := getRepositoryIndex(s, repoURL)
-	if index < 0 {
-		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", repoURL)
-	}
-
-	repo, err := db.credentialsToRepository(s.Repositories[index])
-
-	if err != nil {
-		return nil, err
+	if index >= 0 {
+		repo, err = db.credentialsToRepository(s.Repositories[index])
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if !repo.HasCredentials() {

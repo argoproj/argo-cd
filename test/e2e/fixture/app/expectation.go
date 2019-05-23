@@ -151,3 +151,23 @@ func Event(reason string, message string) Expectation {
 		return failed, fmt.Sprintf("unable to find event with reason=%s; message=%s", reason, message)
 	}
 }
+
+// asserts that the last command was successful
+func Success(message string) Expectation {
+	return func(c *Consequences) (state, string) {
+		if c.actions.lastError == nil && strings.Contains(c.actions.lastOutput, message) {
+			return succeeded, fmt.Sprintf("found success with message '%s'", c.actions.lastOutput)
+		}
+		return failed, fmt.Sprintf("expected success with message '%s', got error '%v' message '%s'", message, c.actions.lastError, c.actions.lastOutput)
+	}
+}
+
+// asserts that the last command was an error with substring match
+func Error(message string) Expectation {
+	return func(c *Consequences) (state, string) {
+		if c.actions.lastError != nil && strings.Contains(c.actions.lastOutput, message) {
+			return succeeded, fmt.Sprintf("found error with message '%s'", c.actions.lastOutput)
+		}
+		return failed, fmt.Sprintf("expected error with message '%s', got error '%v' message '%s'", message, c.actions.lastError, c.actions.lastOutput)
+	}
+}
