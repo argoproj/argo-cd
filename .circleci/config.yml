@@ -183,7 +183,7 @@ jobs:
           command: make lint
       - run:
           name: Check nothing has changed
-          command: git diff --exit-code
+          command: git diff --exit-code -- . ':!assets/swagger.json' ':!pkg/apis/api-rules/violation_exceptions.list' ':!pkg/apis/application/v1alpha1/openapi_generated.go'
   e2e:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
