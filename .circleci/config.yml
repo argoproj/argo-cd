@@ -225,8 +225,8 @@ jobs:
             set -x
             kubectl create ns argocd-e2e
             kubens argocd-e2e
-            cp /etc/rancher/k3s/k3s.yaml  ~/.kube/config
-            hostname
+            cat /etc/rancher/k3s/k3s.yaml | sed "s/localhost/`hostname`/" > ~/.kube/config
+            curl -v https://`hostname`
       - run:
           name: Apply manifests
           command: kustomize build test/manifests/base | kubectl apply -f -
