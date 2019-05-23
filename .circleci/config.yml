@@ -256,7 +256,7 @@ jobs:
             set -x
             curl -v --retry 5 localhost:8080
       - run:
-          name: Smoke test CLI
+          name: Smoke test
           command: |
             set -x
             argocd app create guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook
