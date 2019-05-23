@@ -5,7 +5,7 @@ commands:
     steps:
       - run:
           name: Remove checked out code
-          run: rm -Rf /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
+          command: rm -Rf /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
       - checkout
   install_go_deps:
     steps:
