@@ -225,7 +225,7 @@ jobs:
             set -x
             kubectl create ns argocd-e2e
             kubens argocd-e2e
-            sudo cp /etc/rancher/k3s/k3s.yaml /usr/local/share/ca-certificates/k3s.crt
+            sudo cp /var/lib/rancher/k3s/server/tls/token-ca.crt /usr/local/share/ca-certificates/k3s.crt
             sudo update-ca-certificates
             cat /etc/rancher/k3s/k3s.yaml | sed "s/localhost/`hostname`/" > ~/.kube/config
             curl -v https://`hostname`
