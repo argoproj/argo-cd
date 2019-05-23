@@ -219,6 +219,15 @@ jobs:
             make cli
             echo export PATH="`pwd`/dist:\$PATH" | tee -a $BASH_ENV
       - run:
+          name: Create namespace
+          command: |
+            set -x
+            kubectl create ns argocd-e2e
+            kubens argocd-e2e
+      - run:
+          name: Apply manifests
+          command: kustomize build test/manifests/base | kubectl apply -f -
+      - run:
           name: Start Redis
           command: docker run --rm --name argocd-redis -i -p 6379:6379 redis:5.0.3-alpine --save ""--appendonly no
           background: true
