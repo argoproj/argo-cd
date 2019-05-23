@@ -300,20 +300,24 @@ func (sc *syncContext) isSelectiveSyncResourceOrAll(resourceState managedResourc
 
 // generateSyncTasks() generates the list of sync tasks we will be performing during this syncStatus.
 func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
+	tasks = syncTasks{}
 	successful = true
 
 	for _, resource := range sc.compareResult.managedResources {
 		if !sc.isSelectiveSyncResourceOrAll(resource) {
 			continue
 		}
-		if resource.Hook {
-			continue
+		obj := resource.Target
+		if obj == nil {
+			obj = resource.Live
 		}
-		tasks = append(tasks, &syncTask{
-			phase:     SyncPhaseSync,
-			liveObj:   resource.Live,
-			targetObj: resource.Target,
-		})
+		for _, phase := range syncPhases(obj) {
+			tasks = append(tasks, &syncTask{
+				phase:     phase,
+				liveObj:   resource.Live,
+				targetObj: resource.Target,
+			})
+		}
 	}
 
 	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("managed tasks")
@@ -323,15 +327,24 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 			sc.log.WithFields(log.Fields{"name": obj.GetName()}).Info("skipping hook")
 			continue
 		}
+
 		for _, phase := range syncPhases(obj) {
 
 			// Hook resources names are deterministic, whether they are defined by the user (metadata.name),
 			// or formulated at the time of the operation (metadata.generateName). If user specifies
 			// metadata.generateName, then we will generate a formulated metadata.name before submission.
+			obj = obj.DeepCopy()
 			if obj.GetName() == "" {
 				postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", sc.syncRes.Revision[0:7], phase, sc.opState.StartedAt.UTC().Unix()))
 				generateName := obj.GetGenerateName()
 				obj.SetName(fmt.Sprintf("%s%s", generateName, postfix))
+			}
+
+			if tasks.Find(func(t *syncTask) bool {
+				return t.liveObj != nil && obj.GetUID() == t.liveObj.GetUID()
+			}) != nil {
+				log.Debug("ignoring tasks")
+				continue
 			}
 
 			tasks = append(tasks, &syncTask{
