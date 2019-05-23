@@ -194,7 +194,7 @@ jobs:
           command: |
             curl -sfL https://get.k3s.io | sh -
             sudo chmod -R a+rw /etc/rancher/k3s
-            k3s kubectl version
+            kubectl version
           background: true
           environment:
             INSTALL_K3S_EXEC: --docker
