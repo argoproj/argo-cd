@@ -257,6 +257,7 @@ func TestAppWithSecrets(t *testing.T) {
 		When().
 		Refresh(RefreshTypeNormal).
 		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			diffOutput, err := fixture.RunCli("app", "diff", app.Name)

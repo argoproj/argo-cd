@@ -212,7 +212,8 @@ func (sc *syncContext) sync() {
 
 	// update status of any tasks that are running, note that this must exclude pruning tasks
 	for _, task := range tasks.Filter(func(t *syncTask) bool {
-		return t.running()
+		// just occasionally, you can be running yet not have a live resource
+		return t.running() && t.liveObj != nil
 	}) {
 		healthStatus, message := sc.getHealthStatus(task.liveObj)
 		log.WithFields(log.Fields{"task": task, "healthStatus": healthStatus, "message": message}).Debug("attempting to update health of running task")
