@@ -46,11 +46,12 @@ commands:
             go1.11.4 env | tee -a $BASH_ENV
             echo "export GOPATH=/home/circleci/.go_workspace" | tee -a $BASH_ENV
             echo "export PATH=\$GOPATH/bin:\$PATH" | tee -a $BASH_ENV
-     - run:
-         command: |
-           which go
-           go version
-           go env
+      - run:
+          name: Golang diagnostics
+          command: |
+            which go
+            go version
+            go env
   install_tools:
     steps:
       - run:
