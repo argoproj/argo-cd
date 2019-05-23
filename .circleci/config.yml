@@ -172,12 +172,12 @@ jobs:
       - dep_ensure
       - run:
           name: Generate code
-          command: make codegen
+          command: |
+            env
+            make codegen
       - run:
           name: Lint code
-          command: |
-            go version
-            make lint
+          command: make lint
       - run:
           name: Check nothing has changed
           command: git diff --exit-code
@@ -204,6 +204,7 @@ jobs:
           name: Make CLI
           command: |
             set -x
+            env
             make cli
             echo export PATH="`pwd`/dist:\$PATH" | tee -a $BASH_ENV
       - run:
