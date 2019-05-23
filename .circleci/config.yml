@@ -213,15 +213,15 @@ jobs:
           name: Build
           command: make build
       - run:
-          name: Start Argo CD
-          command: make start-e2e
-          background: true
-      - run:
           name: Make CLI
           command: |
             set -x
             make cli
             echo export PATH="`pwd`/dist:\$PATH" | tee -a $BASH_ENV
+      - run:
+          name: Start Argo CD
+          command: make start-e2e
+          background: true
       - run:
           name: Wait for Argo CD
           command: |
