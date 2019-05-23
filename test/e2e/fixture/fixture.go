@@ -203,9 +203,7 @@ func RunCli(args ...string) (string, error) {
 
 func Patch(path string, jsonPatch string) {
 
-	if !strings.HasPrefix(repoUrl, "file://") {
-		log.WithFields(log.Fields{"repoUrl": repoUrl}).Fatal("cannot patch repo unless it is local")
-	}
+	checkLocalRepo()
 
 	log.WithFields(log.Fields{"path": path, "jsonPatch": jsonPatch}).Info("patching")
 
@@ -237,4 +235,22 @@ func Patch(path string, jsonPatch string) {
 	CheckError(ioutil.WriteFile(filename, bytes, 0644))
 	FailOnErr(Run(repoDirectory(), "git", "diff"))
 	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "patch"))
+}
+
+func Delete(path string) {
+
+	checkLocalRepo()
+
+	log.WithFields(log.Fields{"path": path}).Info("deleting")
+
+	CheckError(os.Remove(filepath.Join(repoDirectory(), path)))
+
+	FailOnErr(Run(repoDirectory(), "git", "diff"))
+	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "delete"))
+}
+
+func checkLocalRepo() {
+	if !strings.HasPrefix(repoUrl, "file://") {
+		log.WithFields(log.Fields{"repoUrl": repoUrl}).Fatal("cannot patch repo unless it is local")
+	}
 }

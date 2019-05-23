@@ -1,10 +1,11 @@
 package e2e
 
 import (
+	"testing"
+
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestSelectiveSync(t *testing.T) {

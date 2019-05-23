@@ -25,7 +25,7 @@ func TestFixingDegradedApp(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
 		When().
-		Patch("pod-1.yaml", `[{"op": "replace", "path": "/spec/containers/0/image", "value": "nginx"}]`).
+		PatchFile("pod-1.yaml", `[{"op": "replace", "path": "/spec/containers/0/image", "value": "nginx"}]`).
 		Sync().
 		Then().
 		Expect(ResourceSyncStatusIs("pod-1", SyncStatusCodeSynced)).
