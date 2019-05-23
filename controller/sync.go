@@ -271,7 +271,7 @@ func (sc *syncContext) sync() {
 
 	sc.setOperationPhase(OperationRunning, fmt.Sprintf("running phase='%s' wave=%d", phase, wave))
 
-	sc.log.WithFields(log.Fields{"tasks": tasks}).Info("wet run")
+	sc.log.WithFields(log.Fields{"tasks": tasks}).Info("wet-run")
 	if !sc.runTasks(tasks, false) {
 		sc.setOperationPhase(OperationFailed, "one or more objects failed to apply")
 	}
@@ -293,7 +293,7 @@ func (sc *syncContext) skipHooks() bool {
 }
 
 func (sc *syncContext) containsResource(resourceState managedResource) bool {
-	return (resourceState.Live != nil && argo.ContainsSyncResource(resourceState.Live.GetName(), resourceState.Live.GroupVersionKind(), sc.syncResources)) ||
+	return !sc.isSelectiveSync() || (resourceState.Live != nil && argo.ContainsSyncResource(resourceState.Live.GetName(), resourceState.Live.GroupVersionKind(), sc.syncResources)) ||
 		(resourceState.Target != nil && argo.ContainsSyncResource(resourceState.Target.GetName(), resourceState.Target.GroupVersionKind(), sc.syncResources))
 }
 
@@ -304,7 +304,7 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 
 	for _, resource := range sc.compareResult.managedResources {
 		// TODO tests
-		if sc.isSelectiveSync() && !sc.containsResource(resource) {
+		if !sc.containsResource(resource) {
 			continue
 		}
 		obj := resource.Target
@@ -332,7 +332,7 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 		// or formulated at the time of the operation (metadata.generateName). If user specifies
 		// metadata.generateName, then we will generate a formulated metadata.name before submission.
 
-		// TODO - test
+		// TODO - test (probably a bug here)
 		if task.targetObj.GetName() == "" {
 			postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", sc.syncRes.Revision[0:7], task.phase, sc.opState.StartedAt.UTC().Unix()))
 			generateName := task.targetObj.GetGenerateName()
@@ -350,6 +350,7 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 	}
 
 	for _, task := range tasks {
+		// TODO - no version?
 		_, result := sc.syncRes.Resources.Find(task.group(), task.kind(), task.namespace(), task.name(), task.phase)
 		if result != nil {
 			task.syncStatus = result.SyncStatus
@@ -365,7 +366,7 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 			// skip verification during `kubectl apply --dry-run` since we expect the CRD
 			// to be created during app synchronization.
 			if apierr.IsNotFound(err) && sc.hasCRDOfGroupKind(task.group(), task.kind()) {
-				sc.log.WithFields(log.Fields{"task": task.String()}).Info("skip dry-run for customq resource")
+				sc.log.WithFields(log.Fields{"task": task.String()}).Info("skip dry-run for custom resource")
 				task.skipDryRun = true
 			} else {
 				sc.setResourceResult(task, ResultCodeSyncFailed, "", err.Error())

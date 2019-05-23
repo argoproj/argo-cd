@@ -8,7 +8,7 @@ import (
 )
 
 func syncPhases(obj *unstructured.Unstructured) (phases []SyncPhase) {
-	if hook.IsHook(obj) {
+	if isHook(obj) {
 		for _, hookType := range hook.Hooks(obj) {
 			switch hookType {
 			case HookTypePreSync, HookTypeSync, HookTypePostSync:

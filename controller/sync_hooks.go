@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"github.com/argoproj/argo-cd/util/hook"
 	"strings"
 
 	wfv1 "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
@@ -14,6 +15,10 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
+
+func isHook(obj *unstructured.Unstructured) bool {
+	return hook.IsArgoHook(obj)
+}
 
 // enforceHookDeletePolicy examines the hook deletion policy of a object and deletes it based on the status
 func enforceHookDeletePolicy(hook *unstructured.Unstructured, operation OperationPhase) bool {
