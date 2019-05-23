@@ -226,6 +226,9 @@ jobs:
             kubectl create ns argocd-e2e
             kubens argocd-e2e
             kubectl config view >  ~/.kube/config
+            sudo cp /var/lib/rancher/k3s/server/tls/localhost.crt /usr/local/share/ca-certificates/k3s.crt
+            sudo update-ca-certificates
+            curl -v https://localhost:6443
       - run:
           name: Apply manifests
           command: kustomize build test/manifests/base | kubectl apply -f -
@@ -255,7 +258,6 @@ jobs:
           name: Wait for Argo CD
           command: |
             set -x
-            curl -v https://localhost:6443
             sleep 60
             curl -v --retry 5 localhost:8080
       - run:
