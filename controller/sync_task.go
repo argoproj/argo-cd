@@ -23,8 +23,8 @@ type syncTask struct {
 	message        string
 }
 
-func str(expr bool, a, b string) string {
-	if expr {
+func ternary(val bool, a, b string) string {
+	if val {
 		return a
 	} else {
 		return b
@@ -32,10 +32,11 @@ func str(expr bool, a, b string) string {
 }
 
 func (t *syncTask) String() string {
-	return fmt.Sprintf("@%s/%d %s %s/%s %s->%s (%s,%s,%s)",
+	modified := t.liveObj != t.targetObj
+	return fmt.Sprintf("%s/%d %s %s/%s %s->%s (%s,%s,%s)",
 		t.phase, t.wave(),
-		str(t.isHook(), "hook", "resource"), t.kind(), t.name(),
-		str(t.liveObj != nil, "...", "nil"), str(t.targetObj != nil, "...", "nil"),
+		ternary(t.isHook(), "hook", "resource"), t.kind(), t.name(),
+		ternary(t.liveObj != nil, ternary(modified, "a", "b"), "nil"), ternary(t.targetObj != nil, "b", "nil"),
 		t.syncStatus, t.operationState, t.message,
 	)
 }

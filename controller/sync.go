@@ -174,17 +174,6 @@ func (m *appStateManager) SyncAppState(app *Application, state *OperationState) 
 	}
 }
 
-func (sc *syncContext) getHealthStatus(obj *unstructured.Unstructured) (healthStatus HealthStatusCode, message string) {
-	resourceHealth, err := health.GetResourceHealth(obj, sc.resourceOverrides)
-	if err != nil {
-		return HealthStatusUnknown, err.Error()
-	}
-	if resourceHealth == nil {
-		return HealthStatusMissing, "missing"
-	}
-	return resourceHealth.Status, resourceHealth.Message
-}
-
 // sync has performs the actual apply or hook based sync
 func (sc *syncContext) sync() {
 	sc.log.Debug("syncing")
@@ -215,8 +204,6 @@ func (sc *syncContext) sync() {
 		// just occasionally, you can be running yet not have a live resource
 		return t.running() && t.liveObj != nil
 	}) {
-		healthStatus, message := sc.getHealthStatus(task.liveObj)
-		log.WithFields(log.Fields{"task": task, "healthStatus": healthStatus, "message": message}).Debug("attempting to update health of running task")
 		if task.isHook() {
 			// update the hook's result
 			operationState, message := getOperationPhase(task.liveObj)
@@ -231,13 +218,21 @@ func (sc *syncContext) sync() {
 			}
 		} else {
 			// this must be calculated on the live object
-			// TODO - what about resources without health? e.g. secret
-			switch healthStatus {
-			// TODO are we correct here?
-			case HealthStatusHealthy:
-				sc.setResourceResult(task, task.syncStatus, OperationSucceeded, message)
-			case HealthStatusDegraded:
-				sc.setResourceResult(task, task.syncStatus, OperationFailed, message)
+			healthStatus, err := health.GetResourceHealth(task.liveObj, sc.resourceOverrides)
+			if err == nil {
+				log.WithFields(log.Fields{"task": task, "healthStatus": healthStatus}).Debug("attempting to update health of running task")
+				if healthStatus == nil {
+					// some objects (e.g. secret) do not have health, and they automatically success
+					sc.setResourceResult(task, task.syncStatus, OperationSucceeded, task.message)
+				} else {
+					switch healthStatus.Status {
+					// TODO are we correct here?
+					case HealthStatusHealthy:
+						sc.setResourceResult(task, task.syncStatus, OperationSucceeded, healthStatus.Message)
+					case HealthStatusDegraded:
+						sc.setResourceResult(task, task.syncStatus, OperationFailed, healthStatus.Message)
+					}
+				}
 			}
 		}
 	}
@@ -348,7 +343,6 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 			task.targetObj.SetName(fmt.Sprintf("%s%s", generateName, postfix))
 		}
 
-		// TODO - test
 		if task.targetObj.GetNamespace() == "" {
 			// If target object's namespace is empty, we set namespace in the object. We do
 			// this even though it might be a cluster-scoped resource. This prevents any
