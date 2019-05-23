@@ -328,7 +328,6 @@ type SyncStrategy struct {
 	Hook *SyncStrategyHook `json:"hook,omitempty" protobuf:"bytes,2,opt,name=hook"`
 }
 
-// TODO unused?
 func (m *SyncStrategy) Force() bool {
 	if m == nil {
 		return false

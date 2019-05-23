@@ -56,12 +56,3 @@ func Hooks(obj *unstructured.Unstructured) (hookTypes []HookType) {
 	}
 	return hookTypes
 }
-
-func HasHook(obj *unstructured.Unstructured, hookType HookType) bool {
-	for _, candidate := range Hooks(obj) {
-		if hookType == candidate {
-			return true
-		}
-	}
-	return false
-}
