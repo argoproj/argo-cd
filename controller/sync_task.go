@@ -25,13 +25,16 @@ type syncTask struct {
 }
 
 func (t *syncTask) String() string {
-	return fmt.Sprintf("{phase=%s,wave=%d,kind=%s,name=%s,syncState=%s,operationState=%s,message=%s}", t.phase, t.wave(), t.kind(), t.name(), t.syncStatus, t.operationState, t.message)
+	return fmt.Sprintf("{phase=%s,wave=%d,kind=%s,name=%s,syncState=%s,operationState=%s,message=%s,liveObj=%v,targetObj=%v}", t.phase, t.wave(), t.kind(), t.name(), t.syncStatus, t.operationState, t.message,
+		t.liveObj != nil, t.targetObj != nil)
 }
 
 func (t *syncTask) isPrune() bool {
 	return t.targetObj == nil
 }
 
+// return the target object (if this exists) otherwise the live object
+// some caution - often you explicitly want the live object not the target object
 func (t *syncTask) obj() *unstructured.Unstructured {
 	if t.targetObj != nil {
 		return t.targetObj

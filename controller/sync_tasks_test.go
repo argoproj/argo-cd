@@ -159,6 +159,8 @@ var sortedTasks = syncTasks{
 	},
 }
 
+// TODO test case for pruning
+
 func Test_syncTasks_Filter(t *testing.T) {
 	tasks := syncTasks{{phase: SyncPhaseSync}, {phase: SyncPhasePostSync}}
 

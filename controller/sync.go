@@ -7,8 +7,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
-
 	log "github.com/sirupsen/logrus"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,6 +17,7 @@ import (
 
 	"github.com/argoproj/argo-cd/controller/metrics"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/health"
 	"github.com/argoproj/argo-cd/util/kube"
@@ -58,7 +57,7 @@ func (m *appStateManager) SyncAppState(app *Application, state *OperationState) 
 
 	if state.Operation.Sync == nil {
 		state.Phase = OperationFailed
-		state.Message = "Invalid operation request: no operationState specified"
+		state.Message = "Invalid operation request: no operation specified"
 		return
 	}
 	syncOp = *state.Operation.Sync
@@ -75,7 +74,7 @@ func (m *appStateManager) SyncAppState(app *Application, state *OperationState) 
 		revision = state.SyncResult.Revision
 	} else {
 		syncRes = &SyncOperationResult{}
-		// status.operation.result.source. must be set properly since auto-sync relies
+		// status.operationState.syncResult.source. must be set properly since auto-sync relies
 		// on this information to decide if it should sync (if source is different than the last
 		// sync attempt)
 		syncRes.Source = source
@@ -172,6 +171,7 @@ func (m *appStateManager) SyncAppState(app *Application, state *OperationState) 
 		}
 	}
 }
+
 func (sc *syncContext) getHealthStatus(obj *unstructured.Unstructured) (healthStatus HealthStatusCode, message string) {
 	resourceHealth, err := health.GetResourceHealth(obj, sc.resourceOverrides)
 	if err != nil {
@@ -208,25 +208,26 @@ func (sc *syncContext) sync() {
 
 	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("tasks")
 
-	// update status of any tasks that are running
+	// update status of any tasks that are running, note that this must exclude pruning tasks
 	for _, task := range tasks.Filter(func(t *syncTask) bool {
 		return t.running()
 	}) {
-		healthStatus, message := sc.getHealthStatus(task.obj())
-		log.WithFields(log.Fields{"task": task.String(), "healthStatus": healthStatus, "message": message}).Debug("attempting to update health of running task")
 		if task.isHook() {
 			// update the hook's result
-			operationState, message := getOperationPhase(task.obj())
+			operationState, message := getOperationPhase(task.liveObj)
 			sc.setResourceResult(task, "", operationState, message)
 
 			// maybe delete the hook
-			if enforceHookDeletePolicy(task.obj(), task.operationState) {
+			if enforceHookDeletePolicy(task.liveObj, task.operationState) {
 				err := sc.deleteResource(task)
 				if err != nil {
 					sc.setResourceResult(task, "", OperationError, fmt.Sprintf("failed to delete resource: %v", err))
 				}
 			}
 		} else {
+			// this must be calculated on the live object
+			healthStatus, message := sc.getHealthStatus(task.liveObj)
+			log.WithFields(log.Fields{"task": task.String(), "healthStatus": healthStatus, "message": message}).Debug("attempting to update health of running task")
 			// TODO - what about resources without health? e.g. secret
 			switch healthStatus {
 			// TODO are we correct here?
