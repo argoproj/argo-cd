@@ -172,16 +172,11 @@ jobs:
       - dep_ensure
       - run:
           name: Generate code
-          command: |
-            set -x
-            stat /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd/vendor/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis
-            stat /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd/vendor/github.com/gogo/protobuf
-            stat /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd/vendor/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis
-            env
-            make codegen
+          command: make codegen
       - run:
           name: Lint code
-          command:
+          command: |
+            go version
             make lint
       - run:
           name: Check nothing has changed
