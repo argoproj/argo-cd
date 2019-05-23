@@ -1562,7 +1562,7 @@
   version = "v0.3.1"
 
 [[projects]]
-  digest = "1:6fb17dac788a9f25fc454d8324180779687c46b60686c6e64136183c8134111e"
+  digest = "1:970b561bbc525ee84641edf295de3d30b5746c1b7f6ca333de37655cad160789"
   name = "k8s.io/kube-openapi"
   packages = [
     "cmd/openapi-gen",
