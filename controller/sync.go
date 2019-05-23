@@ -185,7 +185,7 @@ func (sc *syncContext) getHealthStatus(obj *unstructured.Unstructured) (healthSt
 	return resourceHealth.Status, resourceHealth.Message
 }
 
-// sync has performs the actual apply or hook based syncStatus
+// sync has performs the actual apply or hook based sync
 func (sc *syncContext) sync() {
 	sc.log.Info("syncing")
 	tasks, successful := sc.getSyncTasks()
@@ -301,7 +301,7 @@ func (sc *syncContext) containsResource(resourceState managedResource) bool {
 		(resourceState.Target != nil && argo.ContainsSyncResource(resourceState.Target.GetName(), resourceState.Target.GroupVersionKind(), sc.syncResources))
 }
 
-// generateSyncTasks() generates the list of sync tasks we will be performing during this syncStatus.
+// generateSyncTasks() generates the list of sync tasks we will be performing during this sync.
 func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 	tasks = syncTasks{}
 	successful = true
