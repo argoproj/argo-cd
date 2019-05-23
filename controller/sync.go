@@ -164,6 +164,8 @@ func (m *appStateManager) SyncAppState(app *Application, state *OperationState) 
 		syncCtx.sync()
 	}
 
+	syncCtx.log.Info("sync/terminate complete")
+
 	if !syncOp.DryRun && !syncCtx.isSelectiveSync() && syncCtx.opState.Phase.Successful() {
 		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source)
 		if err != nil {
@@ -192,6 +194,8 @@ func (sc *syncContext) sync() {
 		return
 	}
 
+	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("tasks")
+
 	// Perform a `kubectl apply --dry-run` against all the manifests. This will detect most (but
 	// not all) validation issues with the user's manifests (e.g. will detect syntax issues, but
 	// will not not detect if they are mutating immutable fields). If anything fails, we will refuse
@@ -206,14 +210,12 @@ func (sc *syncContext) sync() {
 		}
 	}
 
-	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("tasks")
-
 	// update status of any tasks that are running, note that this must exclude pruning tasks
 	for _, task := range tasks.Filter(func(t *syncTask) bool {
 		return t.running()
 	}) {
 		healthStatus, message := sc.getHealthStatus(task.liveObj)
-		log.WithFields(log.Fields{"task": task.String(), "healthStatus": healthStatus, "message": message}).Debug("attempting to update health of running task")
+		log.WithFields(log.Fields{"task": task, "healthStatus": healthStatus, "message": message}).Debug("attempting to update health of running task")
 		if task.isHook() {
 			// update the hook's result
 			operationState, message := getOperationPhase(task.liveObj)
@@ -366,7 +368,7 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 			// skip verification during `kubectl apply --dry-run` since we expect the CRD
 			// to be created during app synchronization.
 			if apierr.IsNotFound(err) && sc.hasCRDOfGroupKind(task.group(), task.kind()) {
-				sc.log.WithFields(log.Fields{"task": task.String()}).Info("skip dry-run for custom resource")
+				sc.log.WithFields(log.Fields{"task": task}).Info("skip dry-run for custom resource")
 				task.skipDryRun = true
 			} else {
 				sc.setResourceResult(task, ResultCodeSyncFailed, "", err.Error())
@@ -385,8 +387,6 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 	}
 
 	sort.Sort(tasks)
-
-	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("sorted tasks")
 
 	return tasks, successful
 }
@@ -454,7 +454,7 @@ func (sc *syncContext) terminate() {
 	sc.log.Info("terminating")
 	tasks, _ := sc.getSyncTasks()
 	for _, task := range tasks {
-		if !task.isHook() || !task.operationState.Completed() {
+		if !task.isHook() || !task.completed() {
 			continue
 		}
 		if isRunnable(task.groupVersionKind()) {
@@ -475,7 +475,7 @@ func (sc *syncContext) terminate() {
 }
 
 func (sc *syncContext) deleteResource(task *syncTask) error {
-	sc.log.WithFields(log.Fields{"task": task.String()}).Info("deleting task")
+	sc.log.WithFields(log.Fields{"task": task}).Info("deleting task")
 	apiResource, err := kube.ServerResourceForGroupVersionKind(sc.disco, task.groupVersionKind())
 	if err != nil {
 		return err
@@ -516,7 +516,7 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) (successful bool) 
 		wg.Add(1)
 		go func(t *syncTask) {
 			defer wg.Done()
-			sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t.String()}).Info("pruning")
+			sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t}).Info("pruning")
 			result, message := sc.pruneObject(t.liveObj, sc.syncOp.Prune, dryRun)
 			if result == ResultCodeSyncFailed {
 				successful = false
@@ -537,7 +537,7 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) (successful bool) 
 			createWg.Add(1)
 			go func(t *syncTask) {
 				defer createWg.Done()
-				sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t.String()}).Info("applying")
+				sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t}).Info("applying")
 				result, message := sc.applyObject(t.targetObj, dryRun, sc.syncOp.SyncStrategy.Force())
 				if result == ResultCodeSyncFailed {
 					successful = false

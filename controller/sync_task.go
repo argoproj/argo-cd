@@ -23,9 +23,21 @@ type syncTask struct {
 	message        string
 }
 
+func str(expr bool, a, b string) string {
+	if expr {
+		return a
+	} else {
+		return b
+	}
+}
+
 func (t *syncTask) String() string {
-	return fmt.Sprintf("{phase=%s,wave=%d,kind=%s,name=%s,syncState=%s,operationState=%s,message=%s,liveObj=%v,targetObj=%v,isHook=%v}",
-		t.phase, t.wave(), t.kind(), t.name(), t.syncStatus, t.operationState, t.message, t.liveObj != nil, t.targetObj != nil, t.isHook())
+	return fmt.Sprintf("%sx%d: %s/%s/%s: %s->%s, %s,%s,%s",
+		t.phase, t.wave(),
+		str(t.isHook(), "hook", "resource"), t.kind(), t.name(),
+		str(t.liveObj != nil, "...", "nil"), str(t.targetObj != nil, "...", "nil"),
+		t.syncStatus, t.operationState, t.message,
+	)
 }
 
 func (t *syncTask) isPrune() bool {
