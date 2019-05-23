@@ -28,7 +28,6 @@ commands:
       - restore_cache:
           keys:
             - vendor-v3-{{ checksum "Gopkg.lock" }}
-            - vendor-{{ checksum "Gopkg.lock" }}-v2
       - run:
           name: Run dep ensure
           command: dep ensure -v
@@ -44,11 +43,11 @@ commands:
             go get golang.org/dl/go1.11.4
             [ -e /home/circleci/sdk/go1.11.4 ] || go1.11.4 download
             go1.11.4 env | tee -a $BASH_ENV
-            echo "export GOPATH=/home/circleci/.go_workspace" | tee -a $BASH_ENV
-            echo "export PATH=\$GOPATH/bin:\$PATH" | tee -a $BASH_ENV
+            echo "export PATH=\$GOROOT/bin:\$PATH" | tee -a $BASH_ENV
       - run:
           name: Golang diagnostics
           command: |
+            env
             which go
             go version
             go env
