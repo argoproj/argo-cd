@@ -193,10 +193,16 @@ jobs:
           name: Install and start K3S v0.5.0
           command: |
             curl -sfL https://get.k3s.io | sh -
+            sudo chmod -R a+rw /etc/rancher/k3s
+            k3s kubectl version
           background: true
           environment:
             INSTALL_K3S_EXEC: --docker
             INSTALL_K3S_VERSION: v0.5.0
+      - run:
+          name: Pull Redis
+          command: docker pull redis:5.0.3-alpine
+          background: true
       - restore_go_cache
       - install_golang
       - install_tools
@@ -207,19 +213,15 @@ jobs:
           name: Build
           command: make build
       - run:
+          name: Start Argo CD
+          command: make start-e2e
+          background: true
+      - run:
           name: Make CLI
           command: |
             set -x
             make cli
             echo export PATH="`pwd`/dist:\$PATH" | tee -a $BASH_ENV
-      - run:
-          name: Start Argo CD
-          command: |
-            set -x
-            k3s kubectl version
-            sudo chmod -R a+rw /etc/rancher/k3s
-            make start-e2e
-          background: true
       - run:
           name: Wait for Argo CD
           command: |
@@ -227,10 +229,12 @@ jobs:
             sleep 60
             curl -v --retry 5 localhost:8080
       - run:
+          name: Smoke test CLI
+          command: argocd app list
+      - run:
           name: Run e2e tests
           command: |
             set -x
-            argocd app list
             mkdir -p /tmp/test-results
             trap "go-junit-report </tmp/test-results/go-e2e.out > /tmp/test-results/go-e2e-report.xml" EXIT
             make test-e2e | tee /tmp/test-results/go-e2e.out
