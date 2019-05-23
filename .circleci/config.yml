@@ -223,7 +223,7 @@ jobs:
             set -x
             make cli
             echo export PATH="`pwd`/dist:\$PATH" | tee -a $BASH_ENV
-        - run:
+      - run:
           name: Wait for Argo CD
           command: |
             set -x
