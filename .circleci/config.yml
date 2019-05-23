@@ -224,7 +224,7 @@ jobs:
             set -x
             kubectl create ns argocd-e2e
             kubens argocd-e2e
-            kubectl config view > kubeconfig.yml
+            cat ~/.kube/config
       - run:
           name: Apply manifests
           command: kustomize build test/manifests/base | kubectl apply -f -
@@ -239,7 +239,6 @@ jobs:
           environment:
             FORCE_LOG_COLORS: 1
             ARGOCD_FAKE_IN_CLUSTER: true
-            KUBECONFIG: kubeconfig.yml
       - run:
           name: Start controller
           command: go run ./cmd/argocd-application-controller/main.go --loglevel debug --redis localhost:6379 --repo-server localhost:8081
