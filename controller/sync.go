@@ -337,6 +337,8 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 			continue
 		}
 
+		task.targetObj = task.targetObj.DeepCopy()
+
 		// Hook resources names are deterministic, whether they are defined by the user (metadata.name),
 		// or formulated at the time of the operation (metadata.generateName). If user specifies
 		// metadata.generateName, then we will generate a formulated metadata.name before submission.

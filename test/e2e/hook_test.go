@@ -190,6 +190,7 @@ func TestAutomaticallyNamingUnnamedHook(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			assert.Contains(t, "presync", app.Status.Resources[0].Name)
 			assert.Contains(t, "postsync", app.Status.Resources[2].Name)
