@@ -263,6 +263,8 @@ jobs:
       - run:
           name: Smoke test CLI
           command: argocd app list
+          environment:
+            ARGOCD_OPTS: "--server localhost:8080 --plaintext"
       - run:
           name: Run e2e tests
           command: |
