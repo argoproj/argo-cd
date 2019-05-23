@@ -257,7 +257,11 @@ jobs:
             curl -v --retry 5 localhost:8080
       - run:
           name: Smoke test CLI
-          command: argocd app list
+          command: |
+            set -x
+            argocd app create guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook
+            argocd app sync guestbook
+            argocd app delete guestbook
           environment:
             ARGOCD_OPTS: "--server localhost:8080 --plaintext"
       - run:
