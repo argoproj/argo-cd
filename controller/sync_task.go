@@ -32,7 +32,7 @@ func str(expr bool, a, b string) string {
 }
 
 func (t *syncTask) String() string {
-	return fmt.Sprintf("%sx%d: %s/%s/%s: %s->%s, %s,%s,%s",
+	return fmt.Sprintf("@%s/%d %s %s/%s %s->%s (%s,%s,%s)",
 		t.phase, t.wave(),
 		str(t.isHook(), "hook", "resource"), t.kind(), t.name(),
 		str(t.liveObj != nil, "...", "nil"), str(t.targetObj != nil, "...", "nil"),

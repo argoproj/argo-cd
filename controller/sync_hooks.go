@@ -122,7 +122,7 @@ func isPod(gvk schema.GroupVersionKind) bool {
 }
 
 // TODO - this is very similar to health.getPodHealth() should we use that instead?
-func getStatusFromPod(hook *unstructured.Unstructured) (operation OperationPhase, message string) {
+func getStatusFromPod(hook *unstructured.Unstructured) (OperationPhase, string) {
 	var pod apiv1.Pod
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(hook.Object, &pod)
 	if err != nil {
@@ -151,16 +151,14 @@ func getStatusFromPod(hook *unstructured.Unstructured) (operation OperationPhase
 	case apiv1.PodFailed:
 		if pod.Status.Message != "" {
 			// Pod has a nice error message. Use that.
-			message = pod.Status.Message
-			return
+			return OperationFailed, pod.Status.Message
 		}
 		for _, ctr := range append(pod.Status.InitContainerStatuses, pod.Status.ContainerStatuses...) {
 			if msg := getFailMessage(&ctr); msg != "" {
-				message = msg
-				return
+				return OperationFailed, msg
 			}
 		}
-		return OperationFailed, message
+		return OperationFailed, ""
 	case apiv1.PodUnknown:
 		return OperationError, ""
 	}
