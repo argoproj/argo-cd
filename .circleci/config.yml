@@ -228,7 +228,7 @@ jobs:
             sudo cp /var/lib/rancher/k3s/server/tls/token-ca.crt /usr/local/share/ca-certificates/k3s.crt
             sudo update-ca-certificates
             cat /etc/rancher/k3s/k3s.yaml | sed "s/localhost/`hostname`/" | tee ~/.kube/config
-            curl -v https://`hostname:6443`
+            curl -v https://`hostname`:6443
       - run:
           name: Apply manifests
           command: kustomize build test/manifests/base | kubectl apply -f -
