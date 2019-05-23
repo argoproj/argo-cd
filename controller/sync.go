@@ -355,8 +355,8 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 		// TODO - no version?
 		_, result := sc.syncRes.Resources.Find(task.group(), task.kind(), task.namespace(), task.name(), task.phase)
 		if result != nil {
-			task.syncStatus = result.SyncStatus
-			task.operationState = result.OperationState
+			task.syncStatus = result.Status
+			task.operationState = result.HookPhase
 			task.message = result.Message
 		}
 	}
@@ -578,30 +578,30 @@ func (sc *syncContext) setResourceResult(task *syncTask, syncStatus ResultCode, 
 	i, existing := sc.syncRes.Resources.Find(task.group(), task.kind(), task.namespace(), task.name(), task.phase)
 
 	res := ResourceResult{
-		Group:          task.group(),
-		Version:        task.version(),
-		Kind:           task.kind(),
-		Namespace:      task.namespace(),
-		Name:           task.name(),
-		SyncStatus:     task.syncStatus,
-		Message:        task.message,
-		OperationState: task.operationState,
-		SyncPhase:      task.phase,
+		Group:     task.group(),
+		Version:   task.version(),
+		Kind:      task.kind(),
+		Namespace: task.namespace(),
+		Name:      task.name(),
+		Status:    task.syncStatus,
+		Message:   task.message,
+		HookPhase: task.operationState,
+		SyncPhase: task.phase,
 	}
 
 	logCtx := sc.log.WithFields(log.Fields{"namespace": task.namespace(), "kind": task.kind(), "name": task.name(), "phase": task.phase})
 
 	if existing != nil {
 		// update existing value
-		if res.SyncStatus != existing.SyncStatus || res.OperationState != existing.OperationState || res.Message != existing.Message {
-			logCtx.Infof("updating resource result, syncStatus: '%s' -> '%s', operationState '%s' -> '%s', message '%s' -> '%s'",
-				existing.SyncStatus, res.SyncStatus,
-				existing.OperationState, res.OperationState,
+		if res.Status != existing.Status || res.HookPhase != existing.HookPhase || res.Message != existing.Message {
+			logCtx.Infof("updating resource result, status: '%s' -> '%s', phase '%s' -> '%s', message '%s' -> '%s'",
+				existing.Status, res.Status,
+				existing.HookPhase, res.HookPhase,
 				existing.Message, res.Message)
 		}
 		sc.syncRes.Resources[i] = res
 	} else {
-		logCtx.Infof("adding resource result, resultCode: '%s', operationState: '%s', message: '%s'", res.SyncStatus, res.OperationState, res.Message)
+		logCtx.Infof("adding resource result, status: '%s', phase: '%s', message: '%s'", res.Status, res.HookPhase, res.Message)
 		sc.syncRes.Resources = append(sc.syncRes.Resources, res)
 	}
 }

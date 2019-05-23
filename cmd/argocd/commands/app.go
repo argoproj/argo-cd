@@ -1199,7 +1199,7 @@ func newResourceStateFromResult(res *argoappv1.ResourceResult) *resourceState {
 		Kind:      res.Kind,
 		Namespace: res.Namespace,
 		Name:      res.Name,
-		Status:    string(res.SyncStatus),
+		Status:    string(res.Status),
 		Message:   res.Message,
 	}
 }

@@ -2266,14 +2266,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceResult(ref common.ReferenceCal
 							Format: "",
 						},
 					},
-					"syncPhase": {
-						SchemaProps: spec.SchemaProps{
-							Description: "indicates the particular phase of the sync that this is for",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"syncStatus": {
+					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "the final result of the sync, this is be empty if the resources is yet to be applied/pruned and is always nil for hooks",
 							Type:        []string{"string"},
@@ -2287,16 +2280,23 @@ func schema_pkg_apis_application_v1alpha1_ResourceResult(ref common.ReferenceCal
 							Format:      "",
 						},
 					},
-					"hook": {
+					"hookType": {
 						SchemaProps: spec.SchemaProps{
-							Description: "whether or not this resource is a hook",
-							Type:        []string{"boolean"},
+							Description: "DEPRECATED unused",
+							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
-					"operationState": {
+					"hookPhase": {
 						SchemaProps: spec.SchemaProps{
 							Description: "the state of any operation associated with this resource",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"syncPhase": {
+						SchemaProps: spec.SchemaProps{
+							Description: "indicates the particular phase of the sync that this is for",
 							Type:        []string{"string"},
 							Format:      "",
 						},

@@ -106,9 +106,9 @@ func TestSyncCreateInSortedOrder(t *testing.T) {
 	assert.Len(t, syncCtx.syncRes.Resources, 2)
 	for i := range syncCtx.syncRes.Resources {
 		if syncCtx.syncRes.Resources[i].Kind == "Pod" {
-			assert.Equal(t, v1alpha1.ResultCodeSynced, syncCtx.syncRes.Resources[i].SyncStatus)
+			assert.Equal(t, v1alpha1.ResultCodeSynced, syncCtx.syncRes.Resources[i].Status)
 		} else if syncCtx.syncRes.Resources[i].Kind == "Service" {
-			assert.Equal(t, v1alpha1.ResultCodeSynced, syncCtx.syncRes.Resources[i].SyncStatus)
+			assert.Equal(t, v1alpha1.ResultCodeSynced, syncCtx.syncRes.Resources[i].Status)
 		} else {
 			t.Error("Resource isn't a pod or a service")
 		}
@@ -144,7 +144,7 @@ func TestSyncCreateNotWhitelistedClusterResources(t *testing.T) {
 	}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
-	assert.Equal(t, v1alpha1.ResultCodeSyncFailed, syncCtx.syncRes.Resources[0].SyncStatus)
+	assert.Equal(t, v1alpha1.ResultCodeSyncFailed, syncCtx.syncRes.Resources[0].Status)
 	assert.Contains(t, syncCtx.syncRes.Resources[0].Message, "not permitted in project")
 }
 
@@ -163,7 +163,7 @@ func TestSyncBlacklistedNamespacedResources(t *testing.T) {
 	}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
-	assert.Equal(t, v1alpha1.ResultCodeSyncFailed, syncCtx.syncRes.Resources[0].SyncStatus)
+	assert.Equal(t, v1alpha1.ResultCodeSyncFailed, syncCtx.syncRes.Resources[0].Status)
 	assert.Contains(t, syncCtx.syncRes.Resources[0].Message, "not permitted in project")
 }
 
@@ -185,9 +185,9 @@ func TestSyncSuccessfully(t *testing.T) {
 	assert.Len(t, syncCtx.syncRes.Resources, 2)
 	for i := range syncCtx.syncRes.Resources {
 		if syncCtx.syncRes.Resources[i].Kind == "Pod" {
-			assert.Equal(t, v1alpha1.ResultCodePruned, syncCtx.syncRes.Resources[i].SyncStatus)
+			assert.Equal(t, v1alpha1.ResultCodePruned, syncCtx.syncRes.Resources[i].Status)
 		} else if syncCtx.syncRes.Resources[i].Kind == "Service" {
-			assert.Equal(t, v1alpha1.ResultCodeSynced, syncCtx.syncRes.Resources[i].SyncStatus)
+			assert.Equal(t, v1alpha1.ResultCodeSynced, syncCtx.syncRes.Resources[i].Status)
 		} else {
 			t.Error("Resource isn't a pod or a service")
 		}
@@ -213,9 +213,9 @@ func TestSyncDeleteSuccessfully(t *testing.T) {
 	assert.Equal(t, v1alpha1.OperationRunning, syncCtx.opState.Phase)
 	for i := range syncCtx.syncRes.Resources {
 		if syncCtx.syncRes.Resources[i].Kind == "Pod" {
-			assert.Equal(t, v1alpha1.ResultCodePruned, syncCtx.syncRes.Resources[i].SyncStatus)
+			assert.Equal(t, v1alpha1.ResultCodePruned, syncCtx.syncRes.Resources[i].Status)
 		} else if syncCtx.syncRes.Resources[i].Kind == "Service" {
-			assert.Equal(t, v1alpha1.ResultCodePruned, syncCtx.syncRes.Resources[i].SyncStatus)
+			assert.Equal(t, v1alpha1.ResultCodePruned, syncCtx.syncRes.Resources[i].Status)
 		} else {
 			t.Error("Resource isn't a pod or a service")
 		}
@@ -242,7 +242,7 @@ func TestSyncCreateFailure(t *testing.T) {
 	}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
-	assert.Equal(t, v1alpha1.ResultCodeSyncFailed, syncCtx.syncRes.Resources[0].SyncStatus)
+	assert.Equal(t, v1alpha1.ResultCodeSyncFailed, syncCtx.syncRes.Resources[0].Status)
 }
 
 func TestSyncPruneFailure(t *testing.T) {
@@ -266,7 +266,7 @@ func TestSyncPruneFailure(t *testing.T) {
 	syncCtx.sync()
 	assert.Equal(t, v1alpha1.OperationFailed, syncCtx.opState.Phase)
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
-	assert.Equal(t, v1alpha1.ResultCodeSyncFailed, syncCtx.syncRes.Resources[0].SyncStatus)
+	assert.Equal(t, v1alpha1.ResultCodeSyncFailed, syncCtx.syncRes.Resources[0].Status)
 }
 
 func TestDontSyncOrPruneHooks(t *testing.T) {

@@ -916,9 +916,13 @@ spec:
                         properties:
                           group:
                             type: string
-                          hook:
-                            description: whether or not this resource is a hook
-                            type: boolean
+                          hookPhase:
+                            description: the state of any operation associated with
+                              this resource
+                            type: string
+                          hookType:
+                            description: DEPRECATED unused
+                            type: string
                           kind:
                             type: string
                           message:
@@ -928,18 +932,14 @@ spec:
                             type: string
                           namespace:
                             type: string
-                          operationState:
-                            description: the state of any operation associated with
-                              this resource
+                          status:
+                            description: the final result of the sync, this is be
+                              empty if the resources is yet to be applied/pruned and
+                              is always nil for hooks
                             type: string
                           syncPhase:
                             description: indicates the particular phase of the sync
                               that this is for
-                            type: string
-                          syncStatus:
-                            description: the final result of the sync, this is be
-                              empty if the resources is yet to be applied/pruned and
-                              is always nil for hooks
                             type: string
                           version:
                             type: string

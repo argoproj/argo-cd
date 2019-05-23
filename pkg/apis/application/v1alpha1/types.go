@@ -406,23 +406,23 @@ const (
 )
 
 // ResourceResult holds the operation result details of a specific resource
-// TODO this is a breaking change - revert
 type ResourceResult struct {
 	Group     string `json:"group" protobuf:"bytes,1,opt,name=group"`
 	Version   string `json:"version" protobuf:"bytes,2,opt,name=version"`
 	Kind      string `json:"kind" protobuf:"bytes,3,opt,name=kind"`
 	Namespace string `json:"namespace" protobuf:"bytes,4,opt,name=namespace"`
 	Name      string `json:"name" protobuf:"bytes,5,opt,name=name"`
-	// indicates the particular phase of the sync that this is for
-	SyncPhase SyncPhase `json:"syncPhase,omitempty" protobuf:"bytes,6,opt,name=syncPhase"`
-	// the final result of the sync, this is be empty if the resources is yet to be applied/pruned and is always nil for hooks
-	SyncStatus ResultCode `json:"syncStatus,omitempty" protobuf:"bytes,7,opt,name=syncStatus"`
+	// the final result of the sync, this is be empty if the resources is yet to be applied/pruned and is always zero-value for hooks
+	Status ResultCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
 	// message for the last sync OR operation
-	Message string `json:"message,omitempty" protobuf:"bytes,8,opt,name=message"`
-	// whether or not this resource is a hook
-	Hook bool `json:"hook,omitempty" protobuf:"bytes,9,opt,name=hook"`
-	// the state of any operation associated with this resource
-	OperationState OperationPhase `json:"operationState,omitempty" protobuf:"bytes,10,opt,name=operationState"`
+	Message string `json:"message,omitempty" protobuf:"bytes,7,opt,name=message"`
+	// DEPRECATED unused
+	HookType HookType `json:"hookType,omitempty" protobuf:"bytes,8,opt,name=hookType"`
+	// the state of any operation associated with this resource OR hook
+	// note: can contain values for non-hook resources
+	HookPhase OperationPhase `json:"hookPhase,omitempty" protobuf:"bytes,9,opt,name=hookPhase"`
+	// indicates the particular phase of the sync that this is for
+	SyncPhase SyncPhase `json:"syncPhase,omitempty" protobuf:"bytes,10,opt,name=syncPhase"`
 }
 
 func (r *ResourceResult) GroupVersionKind() schema.GroupVersionKind {
@@ -446,7 +446,7 @@ func (r ResourceResults) Find(group string, kind string, namespace string, name 
 
 func (r ResourceResults) PruningRequired() (num int) {
 	for _, res := range r {
-		if res.SyncStatus == ResultCodePruneSkipped {
+		if res.Status == ResultCodePruneSkipped {
 			num++
 		}
 	}

@@ -131,7 +131,7 @@ spec:
   project: default
   source:
     path: some/path
-    repoURL: https://github.com/argoproj/argocd-exampleHook-apps.git
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
   syncPolicy:
     automated: {}
 status:
@@ -155,7 +155,7 @@ status:
       revision: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
       source:
         path: some/path
-        repoURL: https://github.com/argoproj/argocd-exampleHook-apps.git
+        repoURL: https://github.com/argoproj/argocd-example-apps.git
 `
 
 func newFakeApp() *argoappv1.Application {
