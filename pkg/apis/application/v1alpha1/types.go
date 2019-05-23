@@ -328,6 +328,7 @@ type SyncStrategy struct {
 	Hook *SyncStrategyHook `json:"hook,omitempty" protobuf:"bytes,2,opt,name=hook"`
 }
 
+// TODO unused?
 func (m *SyncStrategy) Force() bool {
 	if m == nil {
 		return false
@@ -405,6 +406,7 @@ const (
 )
 
 // ResourceResult holds the operation result details of a specific resource
+// TODO this is a breaking change - revert
 type ResourceResult struct {
 	Group     string `json:"group" protobuf:"bytes,1,opt,name=group"`
 	Version   string `json:"version" protobuf:"bytes,2,opt,name=version"`

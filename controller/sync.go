@@ -226,6 +226,7 @@ func (sc *syncContext) sync() {
 				}
 			}
 		} else {
+			// TODO - what about resources without health? e.g. secret
 			healthStatus, message := sc.getHealthStatus(task.obj())
 			sc.log.WithFields(log.Fields{"task": task.String(), "healthStatus": healthStatus, "message": message}).Debug("health check")
 			switch healthStatus {
@@ -237,6 +238,8 @@ func (sc *syncContext) sync() {
 			}
 		}
 	}
+
+	// TODO - why don't we stop here if any tasks fail? I feel like this is broken
 
 	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("filtering tasks by running/completed")
 
