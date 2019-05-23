@@ -212,6 +212,8 @@ func (sc *syncContext) sync() {
 	for _, task := range tasks.Filter(func(t *syncTask) bool {
 		return t.running()
 	}) {
+		healthStatus, message := sc.getHealthStatus(task.liveObj)
+		log.WithFields(log.Fields{"task": task.String(), "healthStatus": healthStatus, "message": message}).Debug("attempting to update health of running task")
 		if task.isHook() {
 			// update the hook's result
 			operationState, message := getOperationPhase(task.liveObj)
@@ -226,8 +228,6 @@ func (sc *syncContext) sync() {
 			}
 		} else {
 			// this must be calculated on the live object
-			healthStatus, message := sc.getHealthStatus(task.liveObj)
-			log.WithFields(log.Fields{"task": task.String(), "healthStatus": healthStatus, "message": message}).Debug("attempting to update health of running task")
 			// TODO - what about resources without health? e.g. secret
 			switch healthStatus {
 			// TODO are we correct here?
@@ -292,9 +292,8 @@ func (sc *syncContext) skipHooks() bool {
 	return sc.syncOp.IsApplyStrategy() || sc.isSelectiveSync()
 }
 
-func (sc *syncContext) isSelectiveSyncResourceOrAll(resourceState managedResource) bool {
-	return !sc.isSelectiveSync() ||
-		(resourceState.Live != nil && argo.ContainsSyncResource(resourceState.Live.GetName(), resourceState.Live.GroupVersionKind(), sc.syncResources)) ||
+func (sc *syncContext) containsResource(resourceState managedResource) bool {
+	return (resourceState.Live != nil && argo.ContainsSyncResource(resourceState.Live.GetName(), resourceState.Live.GroupVersionKind(), sc.syncResources)) ||
 		(resourceState.Target != nil && argo.ContainsSyncResource(resourceState.Target.GetName(), resourceState.Target.GroupVersionKind(), sc.syncResources))
 }
 
@@ -304,7 +303,8 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 	successful = true
 
 	for _, resource := range sc.compareResult.managedResources {
-		if !sc.isSelectiveSyncResourceOrAll(resource) {
+		// TODO tests
+		if sc.isSelectiveSync() && !sc.containsResource(resource) {
 			continue
 		}
 		obj := resource.Target
@@ -313,14 +313,6 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 		}
 
 		for _, phase := range syncPhases(obj) {
-			// Hook resources names are deterministic, whether they are defined by the user (metadata.name),
-			// or formulated at the time of the operation (metadata.generateName). If user specifies
-			// metadata.generateName, then we will generate a formulated metadata.name before submission.
-			if resource.Target.GetName() == "" {
-				postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", sc.syncRes.Revision[0:7], phase, sc.opState.StartedAt.UTC().Unix()))
-				generateName := obj.GetGenerateName()
-				resource.Target.SetName(fmt.Sprintf("%s%s", generateName, postfix))
-			}
 			tasks = append(tasks, &syncTask{
 				phase:     phase,
 				liveObj:   resource.Live,
@@ -332,11 +324,22 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("tasks")
 
 	for _, task := range tasks {
-
 		if task.targetObj == nil {
 			continue
 		}
 
+		// Hook resources names are deterministic, whether they are defined by the user (metadata.name),
+		// or formulated at the time of the operation (metadata.generateName). If user specifies
+		// metadata.generateName, then we will generate a formulated metadata.name before submission.
+
+		// TODO - test
+		if task.targetObj.GetName() == "" {
+			postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", sc.syncRes.Revision[0:7], task.phase, sc.opState.StartedAt.UTC().Unix()))
+			generateName := task.targetObj.GetGenerateName()
+			task.targetObj.SetName(fmt.Sprintf("%s%s", generateName, postfix))
+		}
+
+		// TODO - test
 		if task.targetObj.GetNamespace() == "" {
 			// If target object's namespace is empty, we set namespace in the object. We do
 			// this even though it might be a cluster-scoped resource. This prevents any
