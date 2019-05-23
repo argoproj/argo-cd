@@ -140,6 +140,7 @@ commands:
       - restore_cache:
           keys:
             - go-v14-{{ .Branch }}
+            - go-v14-master
 jobs:
   test:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
