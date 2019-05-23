@@ -210,12 +210,6 @@ jobs:
           name: Build
           command: make build
       - run:
-          name: Make CLI
-          command: |
-            set -x
-            make cli
-            echo export PATH="`pwd`/dist:\$PATH" | tee -a $BASH_ENV
-      - run:
           name: Create namespace
           command: |
             set -x
@@ -250,6 +244,12 @@ jobs:
           background: true
           environment:
             ARGOCD_FAKE_IN_CLUSTER: true
+      - run:
+          name: Make CLI
+          command: |
+            set -x
+            make cli
+            echo export PATH="`pwd`/dist:\$PATH" | tee -a $BASH_ENV
       - run:
           name: Wait for Argo CD
           command: |
