@@ -21,7 +21,7 @@ func TestCannotAddAppFromPrivateRepoWithOutConfig(t *testing.T) {
 		When().
 		Create().
 		Then().
-		Expect(Error("No credentials available for source repository and repository is not publicly accessible"))
+		Expect(Error("repository not accessible: authentication required"))
 }
 
 // make sure you can create an app from a private repo, if the repo is set-up in the CM
