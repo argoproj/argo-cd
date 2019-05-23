@@ -46,6 +46,11 @@ commands:
             go1.11.4 env | tee -a $BASH_ENV
             echo "export GOPATH=/home/circleci/.go_workspace" | tee -a $BASH_ENV
             echo "export PATH=\$GOPATH/bin:\$PATH" | tee -a $BASH_ENV
+     - run:
+         command: |
+           which go
+           go version
+           go env
   install_tools:
     steps:
       - run:
@@ -176,9 +181,7 @@ jobs:
           command: make codegen
       - run:
           name: Lint code
-          command: |
-            go version
-            make lint
+          command: make lint
       - run:
           name: Check nothing has changed
           command: git diff --exit-code
@@ -205,7 +208,6 @@ jobs:
           name: Make CLI
           command: |
             set -x
-            env
             make cli
             echo export PATH="`pwd`/dist:\$PATH" | tee -a $BASH_ENV
       - run:
