@@ -1039,13 +1039,16 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 // Optionally prints the message from the operation state
 func printAppResources(w io.Writer, app *argoappv1.Application) {
 
-	_, _ = fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tSTATUS\tHEALTH\nOPERATION\tMESSAGE\n")
+	_, _ = fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tSTATUS\tHEALTH\n")
 	for _, res := range app.Status.Resources {
 		healthStatus := ""
 		if res.Health != nil {
 			healthStatus = res.Health.Status
 		}
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", res.Group, res.Kind, res.Namespace, res.Name, res.Status, healthStatus, app.Status.OperationState.Operation, app.Status.OperationState.Message)
+
+		// TODO - I've deleted the hook status as the code was broken (cannot deal with a hook in two phases)
+
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", res.Group, res.Kind, res.Namespace, res.Name, res.Status, healthStatus)
 	}
 }
 
@@ -1168,14 +1171,14 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 // ResourceDiff tracks the state of a resource when waiting on an application status.
 type resourceState struct {
-	Group          string
-	Kind           string
-	Namespace      string
-	Name           string
-	Status         string
-	Health         string
-	OperationState string
-	Message        string
+	Group     string
+	Kind      string
+	Namespace string
+	Name      string
+	Status    string
+	Health    string
+	HookPhase string
+	Message   string
 }
 
 func newResourceStateFromStatus(res *argoappv1.ResourceStatus) *resourceState {
@@ -1200,6 +1203,7 @@ func newResourceStateFromResult(res *argoappv1.ResourceResult) *resourceState {
 		Namespace: res.Namespace,
 		Name:      res.Name,
 		Status:    string(res.Status),
+		HookPhase: string(res.HookPhase),
 		Message:   res.Message,
 	}
 }
@@ -1211,7 +1215,7 @@ func (rs *resourceState) Key() string {
 
 func (rs *resourceState) FormatItems() []interface{} {
 	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
-	return []interface{}{timeStr, rs.Group, rs.Kind, rs.Namespace, rs.Name, rs.Status, rs.Health, rs.OperationState, rs.Message}
+	return []interface{}{timeStr, rs.Group, rs.Kind, rs.Namespace, rs.Name, rs.Status, rs.Health, rs.HookPhase, rs.Message}
 }
 
 // Merge merges the new state with any different contents from another resourceState.

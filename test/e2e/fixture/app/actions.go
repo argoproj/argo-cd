@@ -74,6 +74,11 @@ func (a *Actions) Delete(cascade bool) *Actions {
 	return a
 }
 
+func (a *Actions) And(block func()) *Actions {
+	block()
+	return a
+}
+
 func (a *Actions) Then() *Consequences {
 	return &Consequences{a.context, a}
 }

@@ -314,6 +314,11 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 			obj = resource.Live
 		}
 
+		if sc.skipHooks() && isHook(obj) {
+			// TODO test
+			continue
+		}
+
 		for _, phase := range syncPhases(obj) {
 			tasks = append(tasks, &syncTask{
 				phase:     phase,
