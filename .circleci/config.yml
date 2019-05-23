@@ -45,6 +45,7 @@ commands:
             [ -e /home/circleci/sdk/go1.11.4 ] || go1.11.4 download
             go1.11.4 env | tee -a $BASH_ENV
             echo "export GOPATH=/home/circleci/.go_workspace" | tee -a $BASH_ENV
+            echo "export PATH=\$GOPATH/bin:\$PATH" | tee -a $BASH_ENV
   install_tools:
     steps:
       - run:
