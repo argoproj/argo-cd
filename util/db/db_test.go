@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -103,12 +102,11 @@ func TestGetRepository(t *testing.T) {
 		name    string
 		repoURL string
 		want    *v1alpha1.Repository
-		wantErr bool
 	}{
 		{
 			name:    "TestUnknownRepo",
-			repoURL: "http://unknown/repo",
-			wantErr: true,
+			repoURL: "https://unknown/repo",
+			want:    &v1alpha1.Repository{Repo: "https://unknown/repo"},
 		},
 		{
 			name:    "TestKnownRepo",
@@ -124,13 +122,8 @@ func TestGetRepository(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := db.GetRepository(context.TODO(), tt.repoURL)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("db.GetHydratedRepository() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("db.GetHydratedRepository() = %v, want %v", got, tt.want)
-			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

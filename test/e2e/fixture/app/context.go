@@ -22,6 +22,11 @@ func Given(t *testing.T) *Context {
 	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, name: fixture.Name()}
 }
 
+func (c *Context) Repo(url string) *Context {
+	fixture.SetRepoURL(url)
+	return c
+}
+
 func (c *Context) Path(path string) *Context {
 	c.path = path
 	return c
@@ -48,5 +53,5 @@ func (c *Context) And(block func()) *Context {
 }
 
 func (c *Context) When() *Actions {
-	return &Actions{c}
+	return &Actions{context: c}
 }
