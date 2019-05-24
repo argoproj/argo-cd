@@ -15,7 +15,7 @@ func TestDeletingAppStuckInSync(t *testing.T) {
 	Given(t).
 		Path("hook").
 		When().
-		Patch("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command", "value": ["sleep", "999"]}]`).
+		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command", "value": ["sleep", "999"]}]`).
 		Create().
 		Sync().
 		Then().
