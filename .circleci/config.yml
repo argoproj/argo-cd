@@ -2,11 +2,11 @@ version: 2.1
 commands:
   before:
     steps:
-      - configure_git
       - restore_go_cache
       - install_golang
       - install_tools
       - clean_checkout
+      - configure_git
       - install_go_deps
       - dep_ensure
   configure_git:
