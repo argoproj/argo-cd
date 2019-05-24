@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"github.com/argoproj/argo-cd/util/hook"
 	"strconv"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -71,7 +72,7 @@ func (t *syncTask) wave() int {
 }
 
 func (t *syncTask) isHook() bool {
-	return isHook(t.obj())
+	return hook.IsHook(t.obj())
 }
 
 func (t *syncTask) group() string {

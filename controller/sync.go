@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/util/hook"
 	"sort"
 	"strings"
 	"sync"
@@ -312,7 +313,7 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 			obj = resource.Live
 		}
 
-		if sc.skipHooks() && isHook(obj) {
+		if sc.skipHooks() && hook.IsHook(obj) {
 			continue
 		}
 

@@ -1,6 +1,7 @@
 package hook
 
 import (
+	"github.com/argoproj/argo-cd/test"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,35 +10,38 @@ import (
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
-func TestHooks(t *testing.T) {
-	tests := []struct {
-		name           string
-		obj            *unstructured.Unstructured
-		wantIsArgoHook bool
-		wantHookTypes  []HookType
-	}{
-		{"TestNoHooks", &unstructured.Unstructured{}, false, nil},
-		{"TestOneHook", example("Sync"), true, []HookType{HookTypeSync}},
-		// peculiar test, it IS a hook (because we don't  want to treat it as a resource), but does not have any valid types
-		{"TestGarbageHook", example("Garbage"), true, nil},
-		{"TestTwoHooks", example("PreSync,PostSync"), true, []HookType{HookTypePreSync, HookTypePostSync}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.wantIsArgoHook, IsArgoHook(tt.obj))
-			assert.Equal(t, tt.wantHookTypes, Hooks(tt.obj))
-		})
-	}
+func TestNoHooks(t *testing.T) {
+	obj := &unstructured.Unstructured{}
+	assert.False(t, IsHook(obj))
+	assert.Nil(t, Hooks(obj))
+}
+
+func TestOneHook(t *testing.T) {
+	obj := example("Sync")
+	assert.True(t, IsHook(obj))
+	assert.Equal(t, []HookType{HookTypeSync}, Hooks(obj))
+}
+
+func TestTwoHooks(t *testing.T) {
+	obj := example("PreSync,PostSync")
+	assert.True(t, IsHook(obj))
+	assert.Equal(t, []HookType{HookTypePreSync, HookTypePostSync}, Hooks(obj))
+}
+
+func TestSkipKook(t *testing.T) {
+	obj := example("Skip")
+	assert.False(t, IsHook(obj))
+	assert.Nil(t, Hooks(obj))
+}
+
+func TestGarbageHook(t *testing.T) {
+	obj := example("Garbage")
+	assert.False(t, IsHook(obj))
+	assert.Nil(t, Hooks(obj))
 }
 
 func example(hook string) *unstructured.Unstructured {
-	return &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"metadata": map[string]interface{}{
-				"annotations": map[string]interface{}{
-					"argocd.argoproj.io/hook": hook,
-				},
-			},
-		},
-	}
+	pod := test.NewPod()
+	pod.SetAnnotations(map[string]string{"argocd.argoproj.io/hook": hook})
+	return pod
 }

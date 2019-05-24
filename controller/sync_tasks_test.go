@@ -56,6 +56,24 @@ var unsortedTasks = syncTasks{
 		targetObj: &unstructured.Unstructured{
 			Object: map[string]interface{}{
 				"metadata": map[string]interface{}{
+					"name": "b",
+				},
+			},
+		},
+	},
+	{
+		targetObj: &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"name": "a",
+				},
+			},
+		},
+	},
+	{
+		targetObj: &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"metadata": map[string]interface{}{
 					"annotations": map[string]interface{}{
 						"argocd.argoproj.io/sync-wave": "-1",
 					},
@@ -139,6 +157,24 @@ var sortedTasks = syncTasks{
 		targetObj: &unstructured.Unstructured{
 			Object: map[string]interface{}{
 				"GroupVersion": apiv1.SchemeGroupVersion.String(),
+			},
+		},
+	},
+	{
+		targetObj: &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"name": "a",
+				},
+			},
+		},
+	},
+	{
+		targetObj: &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"name": "b",
+				},
 			},
 		},
 	},
