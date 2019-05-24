@@ -196,12 +196,16 @@ func TestSyncSuccessfully(t *testing.T) {
 
 func TestSyncDeleteSuccessfully(t *testing.T) {
 	syncCtx := newTestSyncCtx()
+	svc := test.NewService()
+	svc.SetNamespace(test.FakeArgoCDNamespace)
+	pod := test.NewPod()
+	pod.SetNamespace(test.FakeArgoCDNamespace)
 	syncCtx.compareResult = &comparisonResult{
 		managedResources: []managedResource{{
-			Live:   test.NewService(),
+			Live:   svc,
 			Target: nil,
 		}, {
-			Live:   test.NewPod(),
+			Live:   pod,
 			Target: nil,
 		}},
 	}
@@ -272,16 +276,11 @@ func TestDontSyncOrPruneHooks(t *testing.T) {
 	targetPod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
 	liveSvc := test.NewService()
 	liveSvc.SetName("dont-prune-me")
+	liveSvc.SetNamespace(test.FakeArgoCDNamespace)
 	liveSvc.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
 
 	syncCtx.compareResult = &comparisonResult{
-		managedResources: []managedResource{{
-			Live:   nil,
-			Target: targetPod,
-		}, {
-			Live:   liveSvc,
-			Target: nil,
-		}},
+		hooks: []*unstructured.Unstructured{targetPod, liveSvc},
 	}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 0)
