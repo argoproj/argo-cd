@@ -24,6 +24,7 @@ func TestPostSyncHookSuccessful(t *testing.T) {
 	testHookSuccessful(t, HookTypePostSync)
 }
 
+// make sure we can run a standard sync hook
 func testHookSuccessful(t *testing.T, hookType HookType) {
 	Given(t).
 		Path("hook").
@@ -39,6 +40,7 @@ func testHookSuccessful(t *testing.T, hookType HookType) {
 		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" }))
 }
 
+// make sure that if pre-sync fails, we fail the app and we do not create the pod
 func TestPreSyncHookFailure(t *testing.T) {
 	Given(t).
 		Path("hook").
@@ -55,6 +57,7 @@ func TestPreSyncHookFailure(t *testing.T) {
 		Expect(ResourceSyncStatusIs("pod", SyncStatusCodeOutOfSync))
 }
 
+// make sure that if pre-sync fails, we fail the app and we did create the pod
 func TestSyncHookFailure(t *testing.T) {
 	Given(t).
 		Path("hook").
@@ -70,6 +73,7 @@ func TestSyncHookFailure(t *testing.T) {
 		Expect(ResourceSyncStatusIs("pod", SyncStatusCodeSynced))
 }
 
+// make sure that if post-sync fails, we fail the app and we did not create the pod
 func TestPostSyncHookFailure(t *testing.T) {
 	Given(t).
 		Path("hook").
@@ -85,6 +89,7 @@ func TestPostSyncHookFailure(t *testing.T) {
 		Expect(ResourceSyncStatusIs("pod", SyncStatusCodeSynced))
 }
 
+// make sure that if the pod fails, we do not run the post-sync hook
 func TestPostSyncHookPodFailure(t *testing.T) {
 	Given(t).
 		Path("hook").
@@ -102,6 +107,7 @@ func TestPostSyncHookPodFailure(t *testing.T) {
 		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "hook" }))
 }
 
+// make sure that we delete the hook on success
 func TestHookDeletePolicyHookSucceededHookExit0(t *testing.T) {
 	Given(t).
 		Path("hook").
@@ -114,6 +120,7 @@ func TestHookDeletePolicyHookSucceededHookExit0(t *testing.T) {
 		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "hook" }))
 }
 
+// make sure that we delete the hook on failure, if policy is set
 func TestHookDeletePolicyHookSucceededHookExit1(t *testing.T) {
 	Given(t).
 		Path("hook").
@@ -127,6 +134,7 @@ func TestHookDeletePolicyHookSucceededHookExit1(t *testing.T) {
 		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" }))
 }
 
+// make sure that we do NOT delete the hook on success if failure policy is set
 func TestHookDeletePolicyHookFailedHookExit0(t *testing.T) {
 	Given(t).
 		Path("hook").
@@ -139,6 +147,7 @@ func TestHookDeletePolicyHookFailedHookExit0(t *testing.T) {
 		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" }))
 }
 
+// make sure that we do delete the hook on failure if failure policy is set
 func TestHookDeletePolicyHookFailedHookExit1(t *testing.T) {
 	Given(t).
 		Path("hook").
@@ -152,6 +161,7 @@ func TestHookDeletePolicyHookFailedHookExit1(t *testing.T) {
 		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "hook" }))
 }
 
+// make sure that we never create something annotated with Skip
 func TestHookSkip(t *testing.T) {
 	Given(t).
 		Path("hook").
@@ -165,6 +175,7 @@ func TestHookSkip(t *testing.T) {
 		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "pod" }))
 }
 
+// make sure that we do NOT name non-hook resources in they are unnamed
 func TestNamingNonHookResource(t *testing.T) {
 	Given(t).
 		Path("hook").
@@ -179,6 +190,7 @@ func TestNamingNonHookResource(t *testing.T) {
 		})
 }
 
+// make sure that we name hook resources in they are unnamed
 func TestAutomaticallyNamingUnnamedHook(t *testing.T) {
 	Given(t).
 		Path("hook").

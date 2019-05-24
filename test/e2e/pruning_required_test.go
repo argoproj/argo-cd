@@ -7,6 +7,7 @@ import (
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 )
 
+// check we fail with message if we delete a non-prunable resource
 func TestPruningRequired(t *testing.T) {
 	Given(t).
 		Path("two-nice-pods").
