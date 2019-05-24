@@ -252,7 +252,7 @@ jobs:
       - run:
           name: Start controller
           command: |
-            sleep 10
+            sleep 30
             go run ./cmd/argocd-application-controller/main.go --loglevel debug --redis localhost:6379 --repo-server localhost:8081
           background: true
           environment:
