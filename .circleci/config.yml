@@ -257,7 +257,7 @@ jobs:
             curl -v --retry 5 localhost:8080
       - run:
           name: Start controller
-          command: go run ./cmd/argocd-application-controller/main.go --loglevel debug --redis localhost:6379 --repo-server localhost:8081
+          command: go run ./cmd/argocd-application-controller/main.go --loglevel debug --redis localhost:6379 --repo-server localhost:8081 --kubeconfig ~/.kube/config
           background: true
           environment:
             ARGOCD_FAKE_IN_CLUSTER: true
