@@ -67,17 +67,17 @@ func HealthIs(expected HealthStatusCode) Expectation {
 	}
 }
 
-func ResourceSyncStatusIs(resource string, expected SyncStatusCode) Expectation {
+func ResourceSyncStatusIs(kind, resource string, expected SyncStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
-		actual := c.resource(resource).Status
-		return simple(actual == expected, fmt.Sprintf("resource '%s' sync status should be %s, is %s", resource, expected, actual))
+		actual := c.resource(kind, resource).Status
+		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' sync status should be %s, is %s", kind, resource, expected, actual))
 	}
 }
 
-func ResourceHealthIs(resource string, expected HealthStatusCode) Expectation {
+func ResourceHealthIs(kind, resource string, expected HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
-		actual := c.resource(resource).Health.Status
-		return simple(actual == expected, fmt.Sprintf("resource '%s' health should be %s, is %s", resource, expected, actual))
+		actual := c.resource(kind, resource).Health.Status
+		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' health should be %s, is %s", kind, resource, expected, actual))
 	}
 }
 

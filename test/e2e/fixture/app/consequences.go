@@ -63,9 +63,9 @@ func (c *Consequences) get() (*Application, error) {
 	return app, yaml.Unmarshal([]byte(output), app)
 }
 
-func (c *Consequences) resource(name string) ResourceStatus {
+func (c *Consequences) resource(kind, name string) ResourceStatus {
 	for _, r := range c.app().Status.Resources {
-		if r.Name == name {
+		if r.Kind == kind && r.Name == name {
 			return r
 		}
 	}

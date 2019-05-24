@@ -31,9 +31,8 @@ apps Deployment {{.Namespace}} guestbook-ui Synced Healthy`,
 			output, err := RunCli("app", "list")
 			assert.NoError(t, err)
 			expected := Tmpl(
-				`NAME CLUSTER NAMESPACE PROJECT STATUS HEALTH SYNCPOLICY CONDITIONS
-{{.Name}} https://kubernetes.default.svc {{.Namespace}} default Synced Healthy <none> <none>`,
+				`{{.Name}} https://kubernetes.default.svc {{.Namespace}} default Synced Healthy <none> <none>`,
 				map[string]interface{}{"Name": Name(), "Namespace": DeploymentNamespace()})
-			assert.Equal(t, expected, NormalizeOutput(output))
+			assert.Contains(t, NormalizeOutput(output), expected)
 		})
 }

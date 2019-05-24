@@ -66,6 +66,7 @@ type comparisonResult struct {
 	resources        []v1alpha1.ResourceStatus
 	managedResources []managedResource
 	conditions       []v1alpha1.ApplicationCondition
+	hooks            []*unstructured.Unstructured
 	diffNormalizer   diff.Normalizer
 	appSourceType    v1alpha1.ApplicationSourceType
 }
@@ -83,18 +84,18 @@ type appStateManager struct {
 	namespace      string
 }
 
-func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache bool) ([]*unstructured.Unstructured, *repository.ManifestResponse, error) {
+func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *repository.ManifestResponse, error) {
 	helmRepos, err := m.db.ListHelmRepos(context.Background())
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	repo, err := m.db.GetRepository(context.Background(), source.RepoURL)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	defer util.Close(conn)
 
@@ -119,18 +120,23 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		Plugins:           tools,
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	targetObjs := make([]*unstructured.Unstructured, 0)
+	hooks := make([]*unstructured.Unstructured, 0)
 	for _, manifest := range manifestInfo.Manifests {
 		obj, err := v1alpha1.UnmarshalToUnstructured(manifest)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
-		targetObjs = append(targetObjs, obj)
+		if hookutil.IsHook(obj) {
+			hooks = append(hooks, obj)
+		} else {
+			targetObjs = append(targetObjs, obj)
+		}
 	}
-	return targetObjs, manifestInfo, nil
+	return targetObjs, hooks, manifestInfo, nil
 }
 
 func DeduplicateTargetObjects(
@@ -220,7 +226,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	failedToLoadObjs := false
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
 	appLabelKey := m.settings.GetAppInstanceLabelKey()
-	targetObjs, manifestInfo, err := m.getRepoObjs(app, source, appLabelKey, revision, noCache)
+	targetObjs, hooks, manifestInfo, err := m.getRepoObjs(app, source, appLabelKey, revision, noCache)
 	if err != nil {
 		targetObjs = make([]*unstructured.Unstructured, 0)
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
@@ -360,6 +366,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		resources:        resourceSummaries,
 		managedResources: managedResources,
 		conditions:       conditions,
+		hooks:            hooks,
 		diffNormalizer:   diffNormalizer,
 	}
 	if manifestInfo != nil {

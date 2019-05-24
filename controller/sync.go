@@ -7,8 +7,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/argoproj/argo-cd/util/hook"
-
 	log "github.com/sirupsen/logrus"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -290,9 +288,7 @@ func (sc *syncContext) skipHooks() bool {
 	// All objects passed a `kubectl apply --dry-run`, so we are now ready to actually perform the sync.
 	// default sync strategy to hook if no strategy
 	// TODO - can we get rid of apply based strategy?
-	strategy := sc.syncOp.IsApplyStrategy()
-	selectiveSync := sc.isSelectiveSync()
-	return strategy || selectiveSync
+	return sc.syncOp.IsApplyStrategy() || sc.isSelectiveSync()
 }
 
 func (sc *syncContext) containsResource(resourceState managedResource) bool {
@@ -302,8 +298,8 @@ func (sc *syncContext) containsResource(resourceState managedResource) bool {
 }
 
 // generates the list of sync tasks we will be performing during this sync.
-func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
-	tasks = syncTasks{}
+func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
+	resourceTasks := syncTasks{}
 	successful = true
 
 	for _, resource := range sc.compareResult.managedResources {
@@ -315,13 +311,8 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 		if obj == nil {
 			obj = resource.Live
 		}
-
-		if sc.skipHooks() && hook.IsHook(obj) {
-			continue
-		}
-
 		for _, phase := range syncPhases(obj) {
-			tasks = append(tasks, &syncTask{
+			resourceTasks = append(resourceTasks, &syncTask{
 				phase:     phase,
 				liveObj:   resource.Live,
 				targetObj: resource.Target,
@@ -329,7 +320,25 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 		}
 	}
 
-	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("tasks")
+	sc.log.WithFields(log.Fields{"resourceTasks": resourceTasks}).Debug("tasks")
+
+	hookTasks := syncTasks{}
+	if !sc.skipHooks() {
+		for _, obj := range sc.compareResult.hooks {
+			for _, phase := range syncPhases(obj) {
+				hookTasks = append(hookTasks, &syncTask{
+					phase:     phase,
+					targetObj: obj,
+				})
+			}
+		}
+	}
+
+	sc.log.WithFields(log.Fields{"hookTasks": hookTasks}).Debug("hook tasks")
+
+	tasks := syncTasks{}
+	tasks = append(tasks, resourceTasks...)
+	tasks = append(tasks, hookTasks...)
 
 	for _, task := range tasks {
 		if task.targetObj == nil {

@@ -6,5 +6,8 @@ metadata:
     argocd.argoproj.io/sync-wave: "1"
 spec:
   containers:
-    - name: web
-      image: rubbish
+    - name: main
+      image: alpine:latest
+      imagePullPolicy: IfNotPresent
+      command:
+        - "nginx"

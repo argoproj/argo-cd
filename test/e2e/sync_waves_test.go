@@ -12,26 +12,23 @@ func TestFixingDegradedApp(t *testing.T) {
 		Path("sync-waves").
 		When().
 		Create().
+		PatchFile("pod-1.yaml", `[{"op": "replace", "path": "/spec/containers/0/image", "value": "rubbish"}]`).
 		Sync().
 		Then().
-		Expect(ResourceSyncStatusIs("pod-1", SyncStatusCodeSynced)).
-		Expect(ResourceHealthIs("pod-1", HealthStatusHealthy)).
-		Expect(ResourceSyncStatusIs("pod-2", SyncStatusCodeOutOfSync)).
-		Expect(ResourceHealthIs("pod-2", HealthStatusMissing)).
+		Expect(ResourceSyncStatusIs("Pod", "pod-1", SyncStatusCodeSynced)).
+		Expect(ResourceHealthIs("Pod", "pod-1", HealthStatusDegraded)).
+		Expect(ResourceSyncStatusIs("Pod", "pod-2", SyncStatusCodeOutOfSync)).
+		Expect(ResourceHealthIs("Pod", "pod-2", HealthStatusMissing)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(HealthIs(HealthStatusMissing)).
 		When().
-		TerminateOp().
-		Then().
-		Expect(OperationPhaseIs(OperationFailed)).
-		When().
-		PatchFile("pod-1.yaml", `[{"op": "replace", "path": "/spec/containers/0/image", "value": "nginx"}]`).
+		PatchFile("pod-1.yaml", `[{"op": "replace", "path": "/spec/containers/0/image", "value": "true"}]`).
 		Sync().
 		Then().
-		Expect(ResourceSyncStatusIs("pod-1", SyncStatusCodeSynced)).
-		Expect(ResourceHealthIs("pod-1", HealthStatusHealthy)).
-		Expect(ResourceSyncStatusIs("pod-2", SyncStatusCodeSynced)).
-		Expect(ResourceHealthIs("pod-2", HealthStatusHealthy)).
+		Expect(ResourceSyncStatusIs("Pod", "pod-1", SyncStatusCodeSynced)).
+		Expect(ResourceHealthIs("Pod", "pod-1", HealthStatusHealthy)).
+		Expect(ResourceSyncStatusIs("Pod", "pod-2", SyncStatusCodeSynced)).
+		Expect(ResourceHealthIs("Pod", "pod-2", HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(HealthStatusHealthy)).
 		Expect(OperationPhaseIs(OperationSucceeded))

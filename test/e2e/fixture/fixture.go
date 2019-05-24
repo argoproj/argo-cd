@@ -141,8 +141,11 @@ func EnsureCleanState() {
 	CheckError(err)
 	for _, name := range strings.Split(text, "\n") {
 		if name != "" {
+			appName := strings.TrimPrefix(name, "application.argoproj.io/")
+			// we cannot delete any app, if an op is in progress
+			_, _ = RunCli("app", "terminate-op", appName)
 			// is it much more reliable to get argocd to delete an app than kubectl
-			FailOnErr(RunCli("app", "delete", strings.TrimPrefix(name, "application.argoproj.io/")))
+			FailOnErr(RunCli("app", "delete", appName))
 		}
 	}
 	FailOnErr(Run("", "kubectl", "-n", ArgoCDNamespace, "delete", "appprojects", "--field-selector", "metadata.name!=default"))

@@ -5,7 +5,6 @@ import (
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestSelectiveSync(t *testing.T) {
@@ -19,13 +18,8 @@ func TestSelectiveSync(t *testing.T) {
 		Expect(Success("")).
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		// TODO - create expect
-		And(func(app *Application) {
-			// service
-			assert.Equal(t, HealthStatusHealthy, app.Status.Resources[0].Health.Status)
-			// deployment
-			assert.Equal(t, HealthStatusMissing, app.Status.Resources[1].Health.Status)
-		})
+		Expect(ResourceHealthIs("Service", "guestbook-ui", HealthStatusHealthy)).
+		Expect(ResourceHealthIs("Deployment", "guestbook-ui", HealthStatusMissing))
 }
 
 func TestSelectiveSyncDoesNotRunHooks(t *testing.T) {
@@ -40,12 +34,7 @@ func TestSelectiveSyncDoesNotRunHooks(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		// you might not expect this, but yes - it is is sync
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			// overall status is missing
-			assert.Equal(t, HealthStatusMissing, app.Status.Health.Status)
-			// hook is missing because we skip them
-			assert.Equal(t, HealthStatusMissing, app.Status.Resources[0].Health.Status)
-			// pod
-			assert.Equal(t, HealthStatusHealthy, app.Status.Resources[1].Health.Status)
-		})
+		Expect(HealthIs(HealthStatusMissing)).
+		Expect(ResourceHealthIs("Pod", "pod", HealthStatusHealthy)).
+		Expect(ResourceHealthIs("Pod", "hook", HealthStatusMissing))
 }
