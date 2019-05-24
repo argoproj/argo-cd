@@ -20,15 +20,15 @@ commands:
             git config --global user.name "Your Name"
             echo "export PATH=./hack:\$PATH" | tee -a $BASH_ENV
             echo "export GIT_ASKPASS=git-ask-pass.sh" | tee -a $BASH_ENV
-          - run:
-              name: Make sure we can clone out the test private repo
-              command: |
-                set -x
-                  export GIT_USERNAME=blah
-                  export GIT_PASSWORD=B5sBDeoqAVUouoHkrovy
-                  git-ask-pass.sh Username
-                  git-ask-pass.sh Password
-                  git clone https://gitlab.com/argo-cd-test/test-apps.git /tmp/test-apps
+            - run:
+                name: Make sure we can clone out the test private repo
+                command: |
+                  set -x
+                    export GIT_USERNAME=blah
+                    export GIT_PASSWORD=B5sBDeoqAVUouoHkrovy
+                    git-ask-pass.sh Username
+                    git-ask-pass.sh Password
+                    git clone https://gitlab.com/argo-cd-test/test-apps.git /tmp/test-apps
   clean_checkout:
     steps:
       - run:
@@ -81,17 +81,24 @@ commands:
   install_tools:
     steps:
       - run:
-          name: Install JQ
-          command: sudo apt-get -y install jq
-      - run:
           name: Create downloads dir
           command: mkdir -p /tmp/dl
       - restore_cache:
           keys:
+            - dl-v4
             - dl-v3
+      - run:
+          name: Install JQ v1.6
+          command: |
+            set -x
+            [ -e /tmp/dl/jq ] || curl -sLf -C - -o /tmp/dl/jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
+            sudo cp /tmp/dl/jq /usr/local/bin/jq
+            sudo chmod +x /usr/local/bin/jq
+            jq --version
       - run:
           name: Install Kubectx v0.6.3
           command: |
+            set -x
             [ -e /tmp/dl/kubectx.zip ] || curl -sLf -C - -o /tmp/dl/kubectx.zip https://github.com/ahmetb/kubectx/archive/v0.6.3.zip
             sudo unzip /tmp/dl/kubectx.zip kubectx-0.6.3/kubectx
             sudo unzip /tmp/dl/kubectx.zip kubectx-0.6.3/kubens
@@ -102,6 +109,7 @@ commands:
       - run:
           name: Install Dep v0.5.3
           command: |
+            set -x
             [ -e /tmp/dl/dep ] || curl -sLf -C - -o /tmp/dl/dep https://github.com/golang/dep/releases/download/v0.5.3/dep-linux-amd64
             sudo cp /tmp/dl/dep /usr/local/go/bin/dep
             sudo chmod +x /usr/local/go/bin/dep
@@ -109,6 +117,7 @@ commands:
       - run:
           name: Install Go Swagger v0.19.0
           command: |
+            set -x
             [ -e /tmp/dl/swagger ] || curl -sLf -C - -o /tmp/dl/swagger https://github.com/go-swagger/go-swagger/releases/download/v0.19.0/swagger_linux_amd64
             sudo cp /tmp/dl/swagger /usr/local/bin/swagger
             sudo chmod +x /usr/local/bin/swagger
@@ -116,6 +125,7 @@ commands:
       - run:
           name: Install Ksonnet v0.13.1
           command: |
+            set -x
             [ -e /tmp/dl/ks.tar.gz ] || curl -sLf -C - -o /tmp/dl/ks.tar.gz https://github.com/ksonnet/ksonnet/releases/download/v0.13.1/ks_0.13.1_linux_amd64.tar.gz
             tar -C /tmp -xf /tmp/dl/ks.tar.gz
             sudo cp /tmp/ks_0.13.1_linux_amd64/ks /usr/local/go/bin/ks
@@ -124,6 +134,7 @@ commands:
       - run:
           name: Install Helm v2.13.1
           command: |
+            set -x
             [ -e /tmp/dl/helm.tar.gz ] || curl -sLf -C - -o /tmp/dl/helm.tar.gz https://storage.googleapis.com/kubernetes-helm/helm-v2.13.1-linux-amd64.tar.gz
             tar -C /tmp/ -xf /tmp/dl/helm.tar.gz
             sudo cp /tmp/linux-amd64/helm /usr/local/go/bin/helm
@@ -132,6 +143,7 @@ commands:
       - run:
           name: Install Kustomize v1.0.11
           command: |
+            set -x
             [ -e /tmp/dl/kustomize1 ] || curl -sLf -C - -o /tmp/dl/kustomize1 https://github.com/kubernetes-sigs/kustomize/releases/download/v1.0.11/kustomize_1.0.11_linux_amd64
             sudo cp /tmp/dl/kustomize1 /usr/local/go/bin/
             sudo chmod +x /usr/local/go/bin/kustomize1
@@ -139,6 +151,7 @@ commands:
       - run:
           name: Install Kustomize v2.0.3
           command: |
+            set -x
             [ -e /tmp/dl/kustomize ] || curl -sLf -C - -o /tmp/dl/kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v2.0.3/kustomize_2.0.3_linux_amd64
             sudo cp /tmp/dl/kustomize /usr/local/go/bin/
             sudo chmod +x /usr/local/go/bin/kustomize
@@ -146,13 +159,14 @@ commands:
       - run:
           name: Install Protobuf compiler v3.7.1
           command: |
+            set -x
             [ -e /tmp/dl/protoc.zip ] || curl -sLf -C - -o /tmp/dl/protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v3.7.1/protoc-3.7.1-linux-x86_64.zip
             sudo unzip /tmp/dl/protoc.zip bin/protoc -d /usr/local/
             sudo chmod +x /usr/local/bin/protoc
             sudo unzip /tmp/dl/protoc.zip include/* -d /usr/local/
             protoc --version
       - save_cache:
-          key: dl-v3
+          key: dl-v4
           paths:
             - /tmp/dl
   save_go_cache:
