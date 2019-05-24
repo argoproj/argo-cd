@@ -250,19 +250,17 @@ jobs:
           environment:
             ARGOCD_FAKE_IN_CLUSTER: true
       - run:
-          name: Start controller
-          command: |
-            sleep 30
-            go run ./cmd/argocd-application-controller/main.go --loglevel debug --redis localhost:6379 --repo-server localhost:8081
-          background: true
-          environment:
-            ARGOCD_FAKE_IN_CLUSTER: true
-      - run:
           name: Wait for Argo CD
           command: |
             set -x
             sleep 60
             curl -v --retry 5 localhost:8080
+      - run:
+          name: Start controller
+          command: go run ./cmd/argocd-application-controller/main.go --loglevel debug --redis localhost:6379 --repo-server localhost:8081
+          background: true
+          environment:
+            ARGOCD_FAKE_IN_CLUSTER: true
       - run:
           name: Smoke test
           command: |
