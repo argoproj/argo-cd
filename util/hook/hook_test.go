@@ -1,8 +1,9 @@
 package hook
 
 import (
-	"github.com/argoproj/argo-cd/test"
 	"testing"
+
+	"github.com/argoproj/argo-cd/test"
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"

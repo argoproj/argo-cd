@@ -2,8 +2,9 @@ package controller
 
 import (
 	"fmt"
-	"github.com/argoproj/argo-cd/util/hook"
 	"strconv"
+
+	"github.com/argoproj/argo-cd/util/hook"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"

@@ -3,10 +3,11 @@ package controller
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/util/hook"
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/argoproj/argo-cd/util/hook"
 
 	log "github.com/sirupsen/logrus"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
