@@ -90,7 +90,10 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	repo := m.getRepo(source.RepoURL)
+	repo, err := m.db.GetRepository(context.Background(), source.RepoURL)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return nil, nil, nil, err
@@ -372,15 +375,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		compRes.appSourceType = v1alpha1.ApplicationSourceType(manifestInfo.SourceType)
 	}
 	return &compRes, nil
-}
-
-func (m *appStateManager) getRepo(repoURL string) *v1alpha1.Repository {
-	repo, err := m.db.GetRepository(context.Background(), repoURL)
-	if err != nil {
-		// If we couldn't retrieve from the repo service, assume public repositories
-		repo = &v1alpha1.Repository{Repo: repoURL}
-	}
-	return repo
 }
 
 func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource) error {

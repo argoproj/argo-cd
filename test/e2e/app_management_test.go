@@ -45,7 +45,13 @@ func TestAppCreation(t *testing.T) {
 			assert.Equal(t, fixture.DeploymentNamespace(), app.Spec.Destination.Namespace)
 			assert.Equal(t, common.KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
 		}).
-		Expect(Event(EventReasonResourceCreated, "create"))
+		Expect(Event(EventReasonResourceCreated, "create")).
+		And(func(_ *Application) {
+			// app should be listed
+			output, err := fixture.RunCli("app", "list")
+			assert.NoError(t, err)
+			assert.Contains(t, output, fixture.Name())
+		})
 }
 
 func TestAppDeletion(t *testing.T) {
@@ -59,7 +65,13 @@ func TestAppDeletion(t *testing.T) {
 		Delete(true).
 		Then().
 		Expect(DoesNotExist()).
-		Expect(Event(EventReasonResourceDeleted, "delete"))
+		Expect(Event(EventReasonResourceDeleted, "delete")).
+		And(func(_ *Application) {
+			// app should NOT be listed
+			output, err := fixture.RunCli("app", "list")
+			assert.NoError(t, err)
+			assert.NotContains(t, output, fixture.Name())
+		})
 }
 
 func TestTrackAppStateAndSyncApp(t *testing.T) {
