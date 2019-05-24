@@ -261,8 +261,6 @@ jobs:
           background: true
           environment:
             ARGOCD_FAKE_IN_CLUSTER: true
-            KUBERNETES_SERVICE_HOST: localhost
-            KUBERNETES_SERVICE_PORT: 6443
       - run:
           name: Smoke test
           command: |
