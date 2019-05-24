@@ -1038,16 +1038,12 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 // printAppResources prints the resources of an application in a tabwriter table
 // Optionally prints the message from the operation state
 func printAppResources(w io.Writer, app *argoappv1.Application) {
-
 	_, _ = fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tSTATUS\tHEALTH\n")
 	for _, res := range app.Status.Resources {
 		healthStatus := ""
 		if res.Health != nil {
 			healthStatus = res.Health.Status
 		}
-
-		// TODO - I've deleted the hook status as the code was broken (cannot deal with a hook in two phases)
-
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", res.Group, res.Kind, res.Namespace, res.Name, res.Status, healthStatus)
 	}
 }
