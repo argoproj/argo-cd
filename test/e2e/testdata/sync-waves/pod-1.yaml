@@ -7,7 +7,5 @@ metadata:
 spec:
   containers:
     - name: main
-      image: alpine:latest
+      image: nginx:latest
       imagePullPolicy: IfNotPresent
-      command:
-        - "nginx"
