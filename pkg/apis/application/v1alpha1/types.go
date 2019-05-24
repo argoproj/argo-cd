@@ -3,14 +3,13 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/prometheus/common/log"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
-
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
