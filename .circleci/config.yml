@@ -166,6 +166,17 @@ jobs:
     steps:
       - before
       - run:
+          name: Check out private repo
+          command: |
+            set -x
+              export PATH=./hack:$PATH
+              export GIT_ASKPASS=git-ask-pass.sh
+              export GIT_USERNAME=blah
+              export GIT_PASSWORD=B5sBDeoqAVUouoHkrovy
+              git-ask-pass.sh Username
+              git-ask-pass.sh Password
+              git clone https://gitlab.com/argo-cd-test/test-apps.git /tmp/test-apps
+      - run:
           name: Run unit tests
           command: |
             set -x
