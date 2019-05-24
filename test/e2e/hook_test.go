@@ -196,7 +196,7 @@ func TestAutomaticallyNamingUnnamedHook(t *testing.T) {
 		Path("hook").
 		When().
 		PatchFile("hook.yaml", `[{"op": "remove", "path": "/metadata/name"}]`).
-		// make this part of two syncs
+		// make this part of two sync tasks
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "PreSync,PostSync"}}]`).
 		Create().
 		Sync().
