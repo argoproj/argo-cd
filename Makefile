@@ -143,6 +143,10 @@ build:
 test:
 	go test -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "test/e2e"`
 
+.PHONY: cover
+cover:
+	go tool cover -html=coverage.out
+
 .PHONY: test-e2e
 test-e2e: cli
 	go test -v -timeout 20m -failfast ./test/e2e
