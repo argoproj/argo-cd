@@ -8,8 +8,8 @@ import (
 	"reflect"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
-
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -1099,10 +1099,13 @@ func (c *Cluster) RESTConfig() *rest.Config {
 	var config *rest.Config
 	var err error
 	if c.Server == common.KubernetesInternalAPIServerAddr && os.Getenv(common.EnvVarFakeInClusterConfig) == "true" {
+		log.Info("build config from flags")
 		config, err = clientcmd.BuildConfigFromFlags("", filepath.Join(os.Getenv("HOME"), ".kube", "config"))
 	} else if c.Server == common.KubernetesInternalAPIServerAddr && c.Config.Username == "" && c.Config.Password == "" && c.Config.BearerToken == "" {
+		log.Info("in-cluster config")
 		config, err = rest.InClusterConfig()
 	} else {
+		log.Info("default config")
 		tlsClientConfig := rest.TLSClientConfig{
 			Insecure:   c.Config.TLSClientConfig.Insecure,
 			ServerName: c.Config.TLSClientConfig.ServerName,
@@ -1135,7 +1138,7 @@ func (c *Cluster) RESTConfig() *rest.Config {
 		}
 	}
 	if err != nil {
-		panic("Unable to create K8s REST config")
+		panic(fmt.Sprintf("Unable to create K8s REST config: %v", err))
 	}
 	config.QPS = common.K8sClientConfigQPS
 	config.Burst = common.K8sClientConfigBurst

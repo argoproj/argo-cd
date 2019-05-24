@@ -165,6 +165,7 @@ func TestGitClient(t *testing.T) {
 
 // TestPrivateGitRepo tests the ability to operate on a private git repo.
 func TestPrivateGitRepo(t *testing.T) {
+
 	// add the hack path which has the git-ask-pass.sh shell script
 	osPath := os.Getenv("PATH")
 	hackPath, err := filepath.Abs("../../hack")
@@ -184,6 +185,7 @@ func TestPrivateGitRepo(t *testing.T) {
 }
 
 func testGitClient(t *testing.T, clnt Client) {
+
 	commitSHA, err := clnt.LsRemote("HEAD")
 	assert.NoError(t, err)
 
