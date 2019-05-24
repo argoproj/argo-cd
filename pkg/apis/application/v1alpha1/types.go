@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/prometheus/common/log"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -1055,10 +1056,13 @@ func (c *Cluster) RESTConfig() *rest.Config {
 	var config *rest.Config
 	var err error
 	if c.Server == common.KubernetesInternalAPIServerAddr && os.Getenv(common.EnvVarFakeInClusterConfig) == "true" {
+		log.Info("build config from flags")
 		config, err = clientcmd.BuildConfigFromFlags("", filepath.Join(os.Getenv("HOME"), ".kube", "config"))
 	} else if c.Server == common.KubernetesInternalAPIServerAddr && c.Config.Username == "" && c.Config.Password == "" && c.Config.BearerToken == "" {
+		log.Info("in-cluster config")
 		config, err = rest.InClusterConfig()
 	} else {
+		log.Info("default config")
 		tlsClientConfig := rest.TLSClientConfig{
 			Insecure:   c.Config.TLSClientConfig.Insecure,
 			ServerName: c.Config.TLSClientConfig.ServerName,
