@@ -10,15 +10,44 @@ import (
 )
 
 func IsHook(obj *unstructured.Unstructured) bool {
-	return len(Hooks(obj)) > 0
+	for _, hookType := range hookTypes(obj) {
+		switch HookType(hookType) {
+		case HookTypeSkip:
+			return false
+		default:
+			return true
+		}
+	}
+	return false
 }
 
-func Hooks(obj *unstructured.Unstructured) (hookTypes []HookType) {
-	for _, hookType := range strings.Split(obj.GetAnnotations()[common.AnnotationKeyHook], ",") {
-		hookType = strings.TrimSpace(hookType)
+func Skip(obj *unstructured.Unstructured) bool {
+	for _, hookType := range hookTypes(obj) {
+		if HookType(hookType) == HookTypeSkip {
+			return true
+		}
+	}
+	return false
+}
+
+func HookTypes(obj *unstructured.Unstructured) []HookType {
+	var types []HookType
+	for _, hookType := range hookTypes(obj) {
 		switch HookType(hookType) {
 		case HookTypePreSync, HookTypeSync, HookTypePostSync:
-			hookTypes = append(hookTypes, HookType(hookType))
+			types = append(types, HookType(hookType))
+		}
+	}
+	return types
+}
+
+// returns a normalize list of strings
+func hookTypes(obj *unstructured.Unstructured) []string {
+	var hookTypes []string
+	for _, hookType := range strings.Split(obj.GetAnnotations()[common.AnnotationKeyHook], ",") {
+		trimmed := strings.TrimSpace(hookType)
+		if len(trimmed) > 0 {
+			hookTypes = append(hookTypes, trimmed)
 		}
 	}
 	return hookTypes

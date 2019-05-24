@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"github.com/argoproj/argo-cd/test"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,33 +10,37 @@ import (
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
-func Test_getSyncPhases(t *testing.T) {
-	tests := []struct {
-		name           string
-		obj            *unstructured.Unstructured
-		wantSyncPhases []SyncPhase
-	}{
-		{"TestDefault", &unstructured.Unstructured{}, []SyncPhase{SyncPhaseSync}},
-		{"TestPreSyncHook", exampleHook("PreSync"), []SyncPhase{SyncPhasePreSync}},
-		{"TestSyncHook", exampleHook("Sync"), []SyncPhase{SyncPhaseSync}},
-		{"TestSkipHook", exampleHook("Skip"), nil},
-		{"TestPostSyncHook", exampleHook("PostSync"), []SyncPhase{SyncPhasePostSync}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.wantSyncPhases, syncPhases(tt.obj))
-		})
-	}
+func TestSyncPhaseNone(t *testing.T) {
+	assert.Equal(t, []SyncPhase{SyncPhaseSync}, syncPhases(&unstructured.Unstructured{}))
 }
 
-func exampleHook(hookType string) *unstructured.Unstructured {
-	return &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"metadata": map[string]interface{}{
-				"annotations": map[string]interface{}{
-					"argocd.argoproj.io/hook": hookType,
-				},
-			},
-		},
-	}
+func TestSyncPhasePreSync(t *testing.T) {
+	assert.Equal(t, []SyncPhase{SyncPhasePreSync}, syncPhases(pod("PreSync")))
+}
+
+func TestSyncPhaseSync(t *testing.T) {
+	assert.Equal(t, []SyncPhase{SyncPhaseSync}, syncPhases(pod("Sync")))
+}
+
+func TestSyncPhaseSkip(t *testing.T) {
+	assert.Nil(t, syncPhases(pod("Skip")))
+}
+
+// garbage hooks are still hooks, but have no phases, because some user spelled something wrong
+func TestSyncPhaseGarbage(t *testing.T) {
+	assert.Nil(t, syncPhases(pod("Garbage")))
+}
+
+func TestSyncPhasePost(t *testing.T) {
+	assert.Equal(t, []SyncPhase{SyncPhasePostSync}, syncPhases(pod("PostSync")))
+}
+
+func TestSyncPhaseTwoPhases(t *testing.T) {
+	assert.Equal(t, []SyncPhase{SyncPhasePreSync, SyncPhasePostSync}, syncPhases(pod("PreSync,PostSync")))
+}
+
+func pod(hookType string) *unstructured.Unstructured {
+	pod := test.NewPod()
+	pod.SetAnnotations(map[string]string{"argocd.argoproj.io/hook": hookType})
+	return pod
 }

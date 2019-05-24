@@ -7,9 +7,12 @@ import (
 	"github.com/argoproj/argo-cd/util/hook"
 )
 
-func syncPhases(obj *unstructured.Unstructured) (phases []SyncPhase) {
-	if hook.IsHook(obj) {
-		for _, hookType := range hook.Hooks(obj) {
+func syncPhases(obj *unstructured.Unstructured) []SyncPhase {
+	if hook.Skip(obj) {
+		return nil
+	} else if hook.IsHook(obj) {
+		var phases []SyncPhase
+		for _, hookType := range hook.HookTypes(obj) {
 			switch hookType {
 			case HookTypePreSync, HookTypeSync, HookTypePostSync:
 				phases = append(phases, SyncPhase(hookType))
