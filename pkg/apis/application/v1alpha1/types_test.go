@@ -294,7 +294,7 @@ func TestSyncStrategy_Force(t *testing.T) {
 		fields fields
 		want   bool
 	}{
-		{"TestNil", fields{}, false},
+		{"TestZero", fields{}, false},
 		{"TestApply", fields{Apply: &SyncStrategyApply{}}, false},
 		{"TestForceApply", fields{Apply: &SyncStrategyApply{Force: true}}, true},
 		{"TestHook", fields{Hook: &SyncStrategyHook{}}, false},
@@ -322,7 +322,7 @@ func TestSyncOperation_IsApplyStrategy(t *testing.T) {
 		fields fields
 		want   bool
 	}{
-		{"TestNil", fields{}, false},
+		{"TestZero", fields{}, false},
 		{"TestSyncStrategy", fields{SyncStrategy: &SyncStrategy{}}, false},
 		{"TestApplySyncStrategy", fields{SyncStrategy: &SyncStrategy{Apply: &SyncStrategyApply{}}}, true},
 	}
