@@ -1,5 +1,23 @@
 version: 2.1
 commands:
+  before:
+    steps:
+      - configure_git
+      - restore_go_cache
+      - install_golang
+      - install_tools
+      - clean_checkout
+      - install_go_deps
+      - dep_ensure
+  configure_git:
+    steps:
+      - run:
+          name: Configure Git
+          command: |
+            set -x
+            # must be configured for tests to run
+            git config --global user.email you@example.com
+            git config --global user.name "Your Name"
   clean_checkout:
     steps:
       - run:
@@ -146,12 +164,7 @@ jobs:
     machine:
       image: circleci/classic:201808-01
     steps:
-      - restore_go_cache
-      - install_golang
-      - install_tools
-      - clean_checkout
-      - install_go_deps
-      - dep_ensure
+      - before
       - run:
           name: Run unit tests
           command: |
@@ -170,12 +183,7 @@ jobs:
     machine:
       image: circleci/classic:201808-01
     steps:
-      - restore_go_cache
-      - install_golang
-      - install_tools
-      - clean_checkout
-      - install_go_deps
-      - dep_ensure
+      - before
       - run:
           name: Generate code
           command: make codegen
@@ -205,17 +213,7 @@ jobs:
           environment:
             INSTALL_K3S_EXEC: --docker
             INSTALL_K3S_VERSION: v0.5.0
-      # TODO  - delete
-      - run:
-          name: Pull Redis
-          command: docker pull redis:5.0.3-alpine
-          background: true
-      - restore_go_cache
-      - install_golang
-      - install_tools
-      - clean_checkout
-      - install_go_deps
-      - dep_ensure
+      - before
       - run:
           name: Build
           command: make build
@@ -225,6 +223,7 @@ jobs:
           command: |
             set -x
             make cli
+            # must be added to path for tests
             echo export PATH="`pwd`/dist:\$PATH" | tee -a $BASH_ENV
       - run:
           name: Create namespace
@@ -284,11 +283,6 @@ jobs:
           name: Run e2e tests
           command: |
             set -x
-
-            # must be configured for tests to run
-            git config --global user.email you@example.com
-            git config --global user.name "Your Name"
-
             mkdir -p /tmp/test-results
             trap "go-junit-report </tmp/test-results/go-e2e.out > /tmp/test-results/go-e2e-report.xml" EXIT
             make test-e2e | tee /tmp/test-results/go-e2e.out
