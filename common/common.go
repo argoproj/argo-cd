@@ -18,12 +18,18 @@ const (
 )
 
 const (
-	PortAPIServer              = 8080
-	PortRepoServer             = 8081
-	PortArgoCDMetrics          = 8082
-	PortArgoCDAPIServerMetrics = 8083
-	PortRepoServerMetrics      = 8084
+	DefaultPortAPIServer              = 8080
+	DefaultPortRepoServer             = 8081
+	DefaultPortArgoCDMetrics          = 8082
+	DefaultPortArgoCDAPIServerMetrics = 8083
+	DefaultPortRepoServerMetrics      = 8084
 )
+
+var PortAPIServer = DefaultPortAPIServer
+var PortRepoServer = DefaultPortRepoServer
+var PortArgoCDMetrics = DefaultPortArgoCDMetrics
+var PortArgoCDAPIServerMetrics = DefaultPortArgoCDAPIServerMetrics
+var PortRepoServerMetrics = DefaultPortRepoServerMetrics
 
 // Argo CD application related constants
 const (

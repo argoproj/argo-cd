@@ -122,6 +122,7 @@ type ArgoCDServer struct {
 type ArgoCDServerOpts struct {
 	DisableAuth         bool
 	Insecure            bool
+	ListenPort          int
 	Namespace           string
 	DexServerAddr       string
 	StaticAssetsDir     string
