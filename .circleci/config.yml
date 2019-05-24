@@ -200,6 +200,10 @@ jobs:
           environment:
             INSTALL_K3S_EXEC: --docker
             INSTALL_K3S_VERSION: v0.5.0
+      - run:
+          name: Pull Redis
+          command: docker pull redis:5.0.3-alpine
+          background: true
       - restore_go_cache
       - install_golang
       - install_tools
@@ -257,7 +261,7 @@ jobs:
           name: Wait for Argo CD
           command: |
             set -x
-            sleep 20
+            sleep 60
             curl -v --retry 5 localhost:8080
       - run:
           name: Smoke test
