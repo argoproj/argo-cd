@@ -184,5 +184,5 @@ Now you can set-up the port-forwarding and open the UI or CLI.
 Before you commit, make sure you've formatted and linted your code, or your PR will fail CI:
 
 ```bash
-make precommit
+make pre-commit
 ```
