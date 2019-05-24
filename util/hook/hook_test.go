@@ -14,12 +14,14 @@ import (
 func TestNoHooks(t *testing.T) {
 	obj := &unstructured.Unstructured{}
 	assert.False(t, IsHook(obj))
+	assert.False(t, Skip(obj))
 	assert.Nil(t, HookTypes(obj))
 }
 
 func TestOneHook(t *testing.T) {
 	obj := example("Sync")
 	assert.True(t, IsHook(obj))
+	assert.False(t, Skip(obj))
 	assert.Equal(t, []HookType{HookTypeSync}, HookTypes(obj))
 }
 
@@ -29,6 +31,7 @@ func TestOneHook(t *testing.T) {
 func TestSkipHook(t *testing.T) {
 	obj := example("Skip")
 	assert.False(t, IsHook(obj))
+	assert.True(t, Skip(obj))
 	assert.Nil(t, HookTypes(obj))
 }
 
@@ -37,25 +40,29 @@ func TestSkipHook(t *testing.T) {
 func TestGarbageHook(t *testing.T) {
 	obj := example("Garbage")
 	assert.True(t, IsHook(obj))
+	assert.False(t, Skip(obj))
 	assert.Nil(t, HookTypes(obj))
 }
 
 func TestTwoHooks(t *testing.T) {
 	obj := example("PreSync,PostSync")
 	assert.True(t, IsHook(obj))
+	assert.False(t, Skip(obj))
 	assert.Equal(t, []HookType{HookTypePreSync, HookTypePostSync}, HookTypes(obj))
 }
 
 // horrible edge case
 func TestSkipAndHook(t *testing.T) {
-	obj := example("PreSync,Skip,PostSync")
+	obj := example("Skip,PreSync,PostSync")
 	assert.True(t, IsHook(obj))
+	assert.False(t, Skip(obj))
 	assert.Equal(t, []HookType{HookTypePreSync, HookTypePostSync}, HookTypes(obj))
 }
 
 func TestGarbageAndHook(t *testing.T) {
 	obj := example("Sync,Garbage")
 	assert.True(t, IsHook(obj))
+	assert.False(t, Skip(obj))
 	assert.Equal(t, []HookType{HookTypeSync}, HookTypes(obj))
 }
 

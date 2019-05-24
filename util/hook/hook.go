@@ -13,7 +13,7 @@ func IsHook(obj *unstructured.Unstructured) bool {
 	for _, hookType := range hookTypes(obj) {
 		switch HookType(hookType) {
 		case HookTypeSkip:
-			return false
+			return !Skip(obj)
 		default:
 			return true
 		}
@@ -22,9 +22,10 @@ func IsHook(obj *unstructured.Unstructured) bool {
 }
 
 func Skip(obj *unstructured.Unstructured) bool {
-	for _, hookType := range hookTypes(obj) {
+	types := hookTypes(obj)
+	for _, hookType := range types {
 		if HookType(hookType) == HookTypeSkip {
-			return true
+			return len(types) == 1
 		}
 	}
 	return false
