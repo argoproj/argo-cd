@@ -169,12 +169,14 @@ func TestSyncBlacklistedNamespacedResources(t *testing.T) {
 
 func TestSyncSuccessfully(t *testing.T) {
 	syncCtx := newTestSyncCtx()
+	pod := test.NewPod()
+	pod.SetNamespace(test.FakeArgoCDNamespace)
 	syncCtx.compareResult = &comparisonResult{
 		managedResources: []managedResource{{
 			Live:   nil,
 			Target: test.NewService(),
 		}, {
-			Live:   test.NewPod(),
+			Live:   pod,
 			Target: nil,
 		}},
 	}
