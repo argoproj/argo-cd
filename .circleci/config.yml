@@ -250,7 +250,7 @@ jobs:
           environment:
             ARGOCD_FAKE_IN_CLUSTER: true
       - run:
-          name: Wait for Argo CD
+          name: Wait for API server
           command: |
             set -x
             sleep 60
