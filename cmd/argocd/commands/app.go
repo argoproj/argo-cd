@@ -1246,7 +1246,7 @@ func calculateResourceStates(app *argoappv1.Application, selectedResources []arg
 	}
 
 	for _, result := range opResult.Resources {
-		newState := newResourceStateFromResult(&result)
+		newState := newResourceStateFromResult(result)
 		key := newState.Key()
 		if prev, ok := resStates[key]; ok {
 			prev.Merge(newState)

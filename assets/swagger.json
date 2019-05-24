@@ -3246,7 +3246,7 @@
         },
         "hookPhase": {
           "type": "string",
-          "title": "the state of any operation associated with this resource"
+          "title": "the state of any operation associated with this resource OR hook\nnote: can contain values for non-hook resources"
         },
         "hookType": {
           "type": "string",
@@ -3267,7 +3267,7 @@
         },
         "status": {
           "type": "string",
-          "title": "the final result of the sync, this is be empty if the resources is yet to be applied/pruned and is always nil for hooks"
+          "title": "the final result of the sync, this is be empty if the resources is yet to be applied/pruned and is always zero-value for hooks"
         },
         "syncPhase": {
           "type": "string",

@@ -602,9 +602,9 @@ func (sc *syncContext) setResourceResult(task *syncTask, syncStatus ResultCode, 
 				existing.HookPhase, res.HookPhase,
 				existing.Message, res.Message)
 		}
-		sc.syncRes.Resources[i] = res
+		sc.syncRes.Resources[i] = &res
 	} else {
 		logCtx.Infof("adding resource result, status: '%s', phase: '%s', message: '%s'", res.Status, res.HookPhase, res.Message)
-		sc.syncRes.Resources = append(sc.syncRes.Resources, res)
+		sc.syncRes.Resources = append(sc.syncRes.Resources, &res)
 	}
 }

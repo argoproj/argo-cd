@@ -918,8 +918,9 @@ spec:
                           group:
                             type: string
                           hookPhase:
-                            description: the state of any operation associated with
-                              this resource
+                            description: 'the state of any operation associated with
+                              this resource OR hook note: can contain values for non-hook
+                              resources'
                             type: string
                           hookType:
                             description: DEPRECATED unused
@@ -936,7 +937,7 @@ spec:
                           status:
                             description: the final result of the sync, this is be
                               empty if the resources is yet to be applied/pruned and
-                              is always nil for hooks
+                              is always zero-value for hooks
                             type: string
                           syncPhase:
                             description: indicates the particular phase of the sync

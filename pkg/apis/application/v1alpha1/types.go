@@ -432,12 +432,12 @@ func (r *ResourceResult) GroupVersionKind() schema.GroupVersionKind {
 	}
 }
 
-type ResourceResults []ResourceResult
+type ResourceResults []*ResourceResult
 
 func (r ResourceResults) Find(group string, kind string, namespace string, name string, phase SyncPhase) (int, *ResourceResult) {
 	for i, res := range r {
 		if res.Group == group && res.Kind == kind && res.Namespace == namespace && res.Name == name && res.SyncPhase == phase {
-			return i, &res
+			return i, res
 		}
 	}
 	return 0, nil

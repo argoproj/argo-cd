@@ -1221,7 +1221,13 @@ func (in ResourceResults) DeepCopyInto(out *ResourceResults) {
 	{
 		in := &in
 		*out = make(ResourceResults, len(*in))
-		copy(*out, *in)
+		for i := range *in {
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = new(ResourceResult)
+				**out = **in
+			}
+		}
 		return
 	}
 }
@@ -1328,7 +1334,13 @@ func (in *SyncOperationResult) DeepCopyInto(out *SyncOperationResult) {
 	if in.Resources != nil {
 		in, out := &in.Resources, &out.Resources
 		*out = make(ResourceResults, len(*in))
-		copy(*out, *in)
+		for i := range *in {
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = new(ResourceResult)
+				**out = **in
+			}
+		}
 	}
 	in.Source.DeepCopyInto(&out.Source)
 	return
