@@ -1,5 +1,5 @@
 run:
-  deadline: 1m
+  deadline: 8m
   skip-files:
     - ".*\\.pb\\.go"
   skip-dirs:
@@ -11,6 +11,7 @@ linter-settings:
 linters:
   enable:
     - vet
+    - gofmt
     - goimports
     - deadcode
     - varcheck

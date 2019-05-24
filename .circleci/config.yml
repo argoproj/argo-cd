@@ -1,5 +1,4 @@
 version: 2.1
-# Slack https://hooks.slack.com/services/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
 commands:
   clean_checkout:
     steps:
@@ -14,14 +13,14 @@ commands:
           command: |
             set -x
             go get github.com/gobuffalo/packr/packr
-            go get github.com/golang/protobuf/protoc-gen-go
             go get github.com/gogo/protobuf/gogoproto
+            go get github.com/golang/protobuf/protoc-gen-go
+            go get github.com/golangci/golangci-lint/cmd/golangci-lint
             go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
             go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
-            go get github.com/golangci/golangci-lint/cmd/golangci-lint
+            go get github.com/jstemmer/go-junit-report
             go get github.com/mattn/goreman
             go get golang.org/x/tools/cmd/goimports
-            go get github.com/jstemmer/go-junit-report
   dep_ensure:
     steps:
       - restore_cache:
@@ -156,6 +155,7 @@ jobs:
       - run:
           name: Run unit tests
           command: |
+            set -x
             mkdir -p /tmp/test-results
             trap "go-junit-report </tmp/test-results/go-test.out > /tmp/test-results/go-test-report.xml" EXIT
             make test | tee /tmp/test-results/go-test.out
@@ -183,7 +183,12 @@ jobs:
           name: Lint code
           command: make lint
       - run:
+          name: Print changes
+          command: git diff
+      - run:
           name: Check nothing has changed
+          # the goal of this is to make sure you ran `make pre-commit` before you pushed
+          # note that we exclude the swagger resources,
           command: git diff --exit-code -- . ':!Gopkg.lock' ':!assets/swagger.json' ':!pkg/apis/api-rules/violation_exceptions.list' ':!pkg/apis/application/v1alpha1/openapi_generated.go'
   e2e:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
@@ -200,6 +205,7 @@ jobs:
           environment:
             INSTALL_K3S_EXEC: --docker
             INSTALL_K3S_VERSION: v0.5.0
+      # TODO  - delete
       - run:
           name: Pull Redis
           command: docker pull redis:5.0.3-alpine
@@ -226,8 +232,10 @@ jobs:
             set -x
             kubectl create ns argocd-e2e
             kubens argocd-e2e
+            # install the certifications (not 100% user we need this)
             sudo cp /var/lib/rancher/k3s/server/tls/token-ca.crt /usr/local/share/ca-certificates/k3s.crt
             sudo update-ca-certificates
+            # create the kubecfg, again - not sure we need this
             cat /etc/rancher/k3s/k3s.yaml | sed "s/localhost/`hostname`/" | tee ~/.kube/config
             echo "127.0.0.1 `hostname`" | sudo tee -a /etc/hosts
       - run:
@@ -242,13 +250,11 @@ jobs:
           command: go run ./cmd/argocd-repo-server/main.go --loglevel debug --redis localhost:6379
           background: true
           environment:
+            # pft. if you do not quote "true", CircleCI turns it into "1", stoopid
             ARGOCD_FAKE_IN_CLUSTER: "true"
       - run:
           name: Start API server
-          command: |
-            set -x
-            env
-            go run ./cmd/argocd-server/main.go --loglevel debug --redis localhost:6379 --disable-auth --insecure --dex-server http://localhost:5556 --repo-server localhost:8081 --staticassets ../argo-cd-ui/dist/app
+          command: go run ./cmd/argocd-server/main.go --loglevel debug --redis localhost:6379 --disable-auth --insecure --dex-server http://localhost:5556 --repo-server localhost:8081 --staticassets ../argo-cd-ui/dist/app
           background: true
           environment:
             ARGOCD_FAKE_IN_CLUSTER: "true"
@@ -256,14 +262,12 @@ jobs:
           name: Wait for API server
           command: |
             set -x
+            # TODO - try to reduce to 20
             sleep 60
             curl -v --retry 5 localhost:8080
       - run:
           name: Start controller
-          command: |
-            set -x
-            env
-            go run ./cmd/argocd-application-controller/main.go --loglevel debug --redis localhost:6379 --repo-server localhost:8081 --kubeconfig ~/.kube/config
+          command: go run ./cmd/argocd-application-controller/main.go --loglevel debug --redis localhost:6379 --repo-server localhost:8081 --kubeconfig ~/.kube/config
           background: true
           environment:
             ARGOCD_FAKE_IN_CLUSTER: "true"
@@ -280,8 +284,11 @@ jobs:
           name: Run e2e tests
           command: |
             set -x
+
+            # must be configured for tests to run
             git config --global user.email you@example.com
             git config --global user.name "Your Name"
+
             mkdir -p /tmp/test-results
             trap "go-junit-report </tmp/test-results/go-e2e.out > /tmp/test-results/go-e2e-report.xml" EXIT
             make test-e2e | tee /tmp/test-results/go-e2e.out
