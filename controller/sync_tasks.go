@@ -56,9 +56,8 @@ func (s syncTasks) Swap(i, j int) {
 // order is
 // 1. phase
 // 2. wave
-// 3. prune
-// 4. kind
-// 5. name
+// 3. kind
+// 4. name
 func (s syncTasks) Less(i, j int) bool {
 
 	tA := s[i]
