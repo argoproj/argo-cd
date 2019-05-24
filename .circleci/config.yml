@@ -216,9 +216,6 @@ jobs:
           name: Lint code
           command: make lint
       - run:
-          name: Print changes
-          command: git diff
-      - run:
           name: Check nothing has changed
           # the goal of this is to make sure you ran `make pre-commit` before you pushed
           # note that we exclude the swagger resources,
