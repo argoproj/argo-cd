@@ -3290,7 +3290,8 @@
         },
         "hook": {
           "type": "boolean",
-          "format": "boolean"
+          "format": "boolean",
+          "title": "DEPRECATED unused"
         },
         "kind": {
           "type": "string"

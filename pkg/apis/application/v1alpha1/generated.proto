@@ -632,6 +632,7 @@ message ResourceStatus {
 
   optional HealthStatus health = 7;
 
+  // DEPRECATED unused
   optional bool hook = 8;
 }
 

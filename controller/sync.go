@@ -290,7 +290,9 @@ func (sc *syncContext) skipHooks() bool {
 	// All objects passed a `kubectl apply --dry-run`, so we are now ready to actually perform the sync.
 	// default sync strategy to hook if no strategy
 	// TODO - can we get rid of apply based strategy?
-	return sc.syncOp.IsApplyStrategy() || sc.isSelectiveSync()
+	strategy := sc.syncOp.IsApplyStrategy()
+	selectiveSync := sc.isSelectiveSync()
+	return strategy || selectiveSync
 }
 
 func (sc *syncContext) containsResource(resourceState managedResource) bool {
@@ -345,6 +347,7 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 			task.targetObj.SetName(fmt.Sprintf("%s%s", generateName, postfix))
 		}
 
+		// I assume we do not need to do this for live tasks
 		if task.targetObj.GetNamespace() == "" {
 			// If target object's namespace is empty, we set namespace in the object. We do
 			// this even though it might be a cluster-scoped resource. This prevents any

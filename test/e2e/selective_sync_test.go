@@ -45,7 +45,6 @@ func TestSelectiveSyncDoesNotRunHooks(t *testing.T) {
 			assert.Equal(t, HealthStatusMissing, app.Status.Health.Status)
 			// hook is missing because we skip them
 			assert.Equal(t, HealthStatusMissing, app.Status.Resources[0].Health.Status)
-			assert.True(t, app.Status.Resources[0].Hook)
 			// pod
 			assert.Equal(t, HealthStatusHealthy, app.Status.Resources[1].Health.Status)
 		})

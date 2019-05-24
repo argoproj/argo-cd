@@ -39,7 +39,6 @@ type managedResource struct {
 	Kind      string
 	Namespace string
 	Name      string
-	Hook      bool
 }
 
 func GetLiveObjs(res []managedResource) []*unstructured.Unstructured {
@@ -297,17 +296,17 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		}
 		gvk := obj.GroupVersionKind()
 
+		isHook := hookutil.IsHook(obj)
 		resState := v1alpha1.ResourceStatus{
 			Namespace: obj.GetNamespace(),
 			Name:      obj.GetName(),
 			Kind:      gvk.Kind,
 			Version:   gvk.Version,
 			Group:     gvk.Group,
-			Hook:      hookutil.IsHook(obj),
 		}
 
 		diffResult := diffResults.Diffs[i]
-		if resState.Hook {
+		if isHook {
 			// For resource hooks, don't store sync status, and do not affect overall sync status
 		} else if diffResult.Modified || targetObjs[i] == nil || managedLiveObj[i] == nil {
 			// Set resource state to OutOfSync since one of the following is true:
@@ -328,7 +327,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 			Live:      managedLiveObj[i],
 			Target:    targetObjs[i],
 			Diff:      diffResult,
-			Hook:      resState.Hook,
 		}
 		resourceSummaries[i] = resState
 	}

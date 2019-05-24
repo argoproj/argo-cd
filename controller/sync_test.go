@@ -169,14 +169,12 @@ func TestSyncBlacklistedNamespacedResources(t *testing.T) {
 
 func TestSyncSuccessfully(t *testing.T) {
 	syncCtx := newTestSyncCtx()
-	pod := test.NewPod()
-	pod.SetNamespace(test.FakeArgoCDNamespace)
 	syncCtx.compareResult = &comparisonResult{
 		managedResources: []managedResource{{
 			Live:   nil,
 			Target: test.NewService(),
 		}, {
-			Live:   pod,
+			Live:   test.NewPod(),
 			Target: nil,
 		}},
 	}
@@ -196,16 +194,12 @@ func TestSyncSuccessfully(t *testing.T) {
 
 func TestSyncDeleteSuccessfully(t *testing.T) {
 	syncCtx := newTestSyncCtx()
-	svc := test.NewService()
-	svc.SetNamespace(test.FakeArgoCDNamespace)
-	pod := test.NewPod()
-	pod.SetNamespace(test.FakeArgoCDNamespace)
 	syncCtx.compareResult = &comparisonResult{
 		managedResources: []managedResource{{
-			Live:   svc,
+			Live:   test.NewService(),
 			Target: nil,
 		}, {
-			Live:   pod,
+			Live:   test.NewPod(),
 			Target: nil,
 		}},
 	}
@@ -270,33 +264,25 @@ func TestSyncPruneFailure(t *testing.T) {
 }
 
 func TestDontSyncOrPruneHooks(t *testing.T) {
-
-	// TODO I think this test is invalid
-	t.SkipNow()
-
 	syncCtx := newTestSyncCtx()
 	targetPod := test.NewPod()
 	targetPod.SetName("dont-create-me")
-	targetPod.SetNamespace(test.FakeArgoCDNamespace)
 	targetPod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
 	liveSvc := test.NewService()
 	liveSvc.SetName("dont-prune-me")
-	liveSvc.SetNamespace(test.FakeArgoCDNamespace)
 	liveSvc.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
 
 	syncCtx.compareResult = &comparisonResult{
 		managedResources: []managedResource{{
 			Live:   nil,
 			Target: targetPod,
-			Hook:   true,
 		}, {
 			Live:   liveSvc,
 			Target: nil,
-			Hook:   true,
 		}},
 	}
 	syncCtx.sync()
-	assert.Len(t, syncCtx.syncRes.Resources, 2)
+	assert.Len(t, syncCtx.syncRes.Resources, 0)
 	syncCtx.sync()
 	assert.Equal(t, v1alpha1.OperationSucceeded, syncCtx.opState.Phase)
 }

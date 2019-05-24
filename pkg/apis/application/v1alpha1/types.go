@@ -658,7 +658,8 @@ type ResourceStatus struct {
 	Name      string         `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
 	Status    SyncStatusCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
 	Health    *HealthStatus  `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
-	Hook      bool           `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
+	// DEPRECATED unused
+	Hook bool `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
 }
 
 func (r *ResourceStatus) GroupVersionKind() schema.GroupVersionKind {

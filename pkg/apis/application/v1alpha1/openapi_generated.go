@@ -2359,8 +2359,9 @@ func schema_pkg_apis_application_v1alpha1_ResourceStatus(ref common.ReferenceCal
 					},
 					"hook": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
+							Description: "DEPRECATED unused",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
 				},

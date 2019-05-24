@@ -19,7 +19,7 @@ func TestDeletingAppStuckInSync(t *testing.T) {
 		Create().
 		Sync().
 		Then().
-		// stuck in running stat
+		// stuck in running state
 		Expect(OperationPhaseIs(OperationRunning)).
 		When().
 		Delete(true).

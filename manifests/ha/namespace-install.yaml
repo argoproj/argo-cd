@@ -1136,6 +1136,7 @@ spec:
                         type: string
                     type: object
                   hook:
+                    description: DEPRECATED unused
                     type: boolean
                   kind:
                     type: string
