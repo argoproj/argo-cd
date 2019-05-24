@@ -326,6 +326,15 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 	if !sc.skipHooks() {
 		for _, obj := range sc.compareResult.hooks {
 			for _, phase := range syncPhases(obj) {
+				// Hook resources names are deterministic, whether they are defined by the user (metadata.name),
+				// or formulated at the time of the operation (metadata.generateName). If user specifies
+				// metadata.generateName, then we will generate a formulated metadata.name before submission.
+				if obj.GetName() == "" {
+					postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", sc.syncRes.Revision[0:7], phase, sc.opState.StartedAt.UTC().Unix()))
+					generateName := obj.GetGenerateName()
+					obj = obj.DeepCopy()
+					obj.SetName(fmt.Sprintf("%s%s", generateName, postfix))
+				}
 				hookTasks = append(hookTasks, &syncTask{
 					phase:     phase,
 					targetObj: obj,
@@ -336,24 +345,21 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 
 	sc.log.WithFields(log.Fields{"hookTasks": hookTasks}).Debug("hook tasks")
 
-	tasks := syncTasks{}
-	tasks = append(tasks, resourceTasks...)
-	tasks = append(tasks, hookTasks...)
+	tasks := resourceTasks
+	// do not any add any hooks  we have already gotten
+	for _, hook := range hookTasks {
+		if resourceTasks.Find(func(t *syncTask) bool {
+			return t.group() == hook.group() && t.kind() == hook.kind() && t.namespace() == hook.namespace() && t.name() == hook.name() && t.phase == hook.phase
+		}) == nil {
+			tasks = append(tasks, hook)
+		}
+	}
+
+	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("tasks")
 
 	for _, task := range tasks {
 		if task.targetObj == nil {
 			continue
-		}
-
-		task.targetObj = task.targetObj.DeepCopy()
-
-		// Hook resources names are deterministic, whether they are defined by the user (metadata.name),
-		// or formulated at the time of the operation (metadata.generateName). If user specifies
-		// metadata.generateName, then we will generate a formulated metadata.name before submission.
-		if task.isHook() && task.targetObj.GetName() == "" {
-			postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", sc.syncRes.Revision[0:7], task.phase, sc.opState.StartedAt.UTC().Unix()))
-			generateName := task.targetObj.GetGenerateName()
-			task.targetObj.SetName(fmt.Sprintf("%s%s", generateName, postfix))
 		}
 
 		// I assume we do not need to do this for live tasks
@@ -362,6 +368,7 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 			// this even though it might be a cluster-scoped resource. This prevents any
 			// possibility of the resource from unintentionally becoming created in the
 			// namespace during the `kubectl apply`
+			task.targetObj = task.targetObj.DeepCopy()
 			task.targetObj.SetNamespace(sc.namespace)
 		}
 	}
