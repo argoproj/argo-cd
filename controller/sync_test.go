@@ -290,6 +290,24 @@ func TestDontSyncOrPruneHooks(t *testing.T) {
 	assert.Equal(t, v1alpha1.OperationSucceeded, syncCtx.opState.Phase)
 }
 
+func TestSelectiveSyncOnlyR(t *testing.T) {
+	syncCtx := newTestSyncCtx()
+	pod1 := test.NewPod()
+	pod1.SetName("pod-1")
+	pod2 := test.NewPod()
+	pod2.SetName("pod-2")
+	syncCtx.compareResult = &comparisonResult{
+		managedResources: []managedResource{{Target: pod1}},
+	}
+	syncCtx.syncResources = []v1alpha1.SyncOperationResource{{Kind: "Pod", Name: "pod-1"}}
+
+	tasks, successful := syncCtx.getSyncTasks()
+
+	assert.True(t, successful)
+	assert.Len(t, tasks, 1)
+	assert.Equal(t, "pod-'", tasks[0].name())
+}
+
 func TestUnnamedHooksGetUniqueNames(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	syncCtx.syncOp.SyncStrategy.Apply = nil

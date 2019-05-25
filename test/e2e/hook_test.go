@@ -184,10 +184,7 @@ func TestNamingNonHookResource(t *testing.T) {
 		Create().
 		Sync().
 		Then().
-		Expect(OperationPhaseIs(OperationFailed)).
-		And(func(app *Application) {
-			assert.Equal(t, ResultCodeSyncFailed, app.Status.OperationState.SyncResult.Resources[0].Status)
-		})
+		Expect(OperationPhaseIs(OperationFailed))
 }
 
 // make sure that we name hook resources in they are unnamed
