@@ -1,11 +1,11 @@
 package e2e
 
 import (
-	. "github.com/argoproj/argo-cd/errors"
-	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 	"testing"
 
+	. "github.com/argoproj/argo-cd/errors"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 )
 
