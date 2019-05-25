@@ -320,7 +320,7 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 		}
 	}
 
-	sc.log.WithFields(log.Fields{"resourceTasks": resourceTasks, "managedResources": sc.compareResult.managedResources}).Debug("tasks from managed resources")
+	sc.log.WithFields(log.Fields{"resourceTasks": resourceTasks}).Debug("tasks from managed resources")
 
 	hookTasks := syncTasks{}
 	if !sc.skipHooks() {
@@ -329,21 +329,21 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 				// Hook resources names are deterministic, whether they are defined by the user (metadata.name),
 				// or formulated at the time of the operation (metadata.generateName). If user specifies
 				// metadata.generateName, then we will generate a formulated metadata.name before submission.
-				obj = obj.DeepCopy()
-				if obj.GetName() == "" {
+				targetObj := obj.DeepCopy()
+				if targetObj.GetName() == "" {
 					postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", sc.syncRes.Revision[0:7], phase, sc.opState.StartedAt.UTC().Unix()))
 					generateName := obj.GetGenerateName()
-					obj.SetName(fmt.Sprintf("%s%s", generateName, postfix))
+					targetObj.SetName(fmt.Sprintf("%s%s", generateName, postfix))
 				}
 				hookTasks = append(hookTasks, &syncTask{
 					phase:     phase,
-					targetObj: obj,
+					targetObj: targetObj,
 				})
 			}
 		}
 	}
 
-	sc.log.WithFields(log.Fields{"hookTasks": hookTasks, "hooks": sc.compareResult.hooks}).Debug("tasks from hooks")
+	sc.log.WithFields(log.Fields{"hookTasks": hookTasks}).Debug("tasks from hooks")
 
 	tasks := resourceTasks
 	// do not any add any hooks  we have already gotten
@@ -351,6 +351,7 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 		if resourceTasks.Find(func(t *syncTask) bool {
 			return t.group() == hook.group() && t.kind() == hook.kind() && t.namespace() == hook.namespace() && t.name() == hook.name() && t.phase == hook.phase
 		}) == nil {
+			log.WithFields(log.Fields{"hook": hook}).Debug("appending hook to tasks")
 			tasks = append(tasks, hook)
 		}
 	}
@@ -362,7 +363,6 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 			continue
 		}
 
-		task.targetObj = task.targetObj.DeepCopy()
 		// I assume we do not need to do this for live tasks
 		if task.targetObj.GetNamespace() == "" {
 			// If target object's namespace is empty, we set namespace in the object. We do

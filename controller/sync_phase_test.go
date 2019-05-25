@@ -1,13 +1,13 @@
 package controller
 
 import (
-	"github.com/argoproj/argo-cd/test"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/test"
 )
 
 func TestSyncPhaseNone(t *testing.T) {

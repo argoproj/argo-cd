@@ -43,7 +43,9 @@ func newTestSyncCtx(resources ...*v1.APIResourceList) *syncContext {
 		config:    &rest.Config{},
 		namespace: test.FakeArgoCDNamespace,
 		server:    test.FakeClusterURL,
-		syncRes:   &v1alpha1.SyncOperationResult{},
+		syncRes: &v1alpha1.SyncOperationResult{
+			Revision: "FooBarBaz",
+		},
 		syncOp: &v1alpha1.SyncOperation{
 			Prune: true,
 			SyncStrategy: &v1alpha1.SyncStrategy{
@@ -286,6 +288,54 @@ func TestDontSyncOrPruneHooks(t *testing.T) {
 	assert.Len(t, syncCtx.syncRes.Resources, 0)
 	syncCtx.sync()
 	assert.Equal(t, v1alpha1.OperationSucceeded, syncCtx.opState.Phase)
+}
+
+func TestUnnamedHooksGetUniqueNames(t *testing.T) {
+	syncCtx := newTestSyncCtx()
+	syncCtx.syncOp.SyncStrategy.Apply = nil
+	pod := test.NewPod()
+	pod.SetName("")
+	pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync,PostSync"})
+	syncCtx.compareResult = &comparisonResult{hooks: []*unstructured.Unstructured{pod}}
+
+	tasks, successful := syncCtx.getSyncTasks()
+
+	assert.True(t, successful)
+	assert.Len(t, tasks, 2)
+	assert.Contains(t, tasks[0].name(), "foobarb-presync-")
+	assert.Contains(t, tasks[1].name(), "foobarb-postsync-")
+	assert.Equal(t, "", pod.GetName())
+}
+
+func TestManagedResourceAreNotNamed(t *testing.T) {
+	syncCtx := newTestSyncCtx()
+	pod := test.NewPod()
+	pod.SetName("")
+	syncCtx.compareResult = &comparisonResult{managedResources: []managedResource{{Target: pod}}}
+
+	tasks, successful := syncCtx.getSyncTasks()
+
+	assert.True(t, successful)
+	assert.Len(t, tasks, 1)
+	assert.Equal(t, "", tasks[0].name())
+	assert.Equal(t, "", pod.GetNamespace())
+}
+
+func init() {
+	log.SetLevel(log.DebugLevel)
+}
+
+func TestObjectsGetANamespace(t *testing.T) {
+	syncCtx := newTestSyncCtx()
+	pod := test.NewPod()
+	syncCtx.compareResult = &comparisonResult{managedResources: []managedResource{{Target: pod}}}
+
+	tasks, successful := syncCtx.getSyncTasks()
+
+	assert.True(t, successful)
+	assert.Len(t, tasks, 1)
+	assert.Equal(t, test.FakeArgoCDNamespace, tasks[0].namespace())
+	assert.Equal(t, "", pod.GetNamespace())
 }
 
 func TestPersistRevisionHistory(t *testing.T) {
