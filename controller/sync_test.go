@@ -318,7 +318,7 @@ func TestManagedResourceAreNotNamed(t *testing.T) {
 	assert.True(t, successful)
 	assert.Len(t, tasks, 1)
 	assert.Equal(t, "", tasks[0].name())
-	assert.Equal(t, "", pod.GetNamespace())
+	assert.Equal(t, "", pod.GetName())
 }
 
 func init() {

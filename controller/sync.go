@@ -369,6 +369,7 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 			// this even though it might be a cluster-scoped resource. This prevents any
 			// possibility of the resource from unintentionally becoming created in the
 			// namespace during the `kubectl apply`
+			task.targetObj = task.targetObj.DeepCopy()
 			task.targetObj.SetNamespace(sc.namespace)
 		}
 	}
