@@ -137,11 +137,13 @@ func EnsureCleanState() {
 	start := time.Now()
 
 	// delete resources
-	text, err := Run("", "kubectl", "get", "app", "-o", "name")
+	text, err := Run("", "kubectl", "get", "app", "-o", "name", "-l", "deleteRequested=")
 	CheckError(err)
 	for _, name := range strings.Split(text, "\n") {
 		if name != "" {
 			appName := strings.TrimPrefix(name, "application.argoproj.io/")
+			// label, so we don't try and delete twice and have a race
+			FailOnErr(Run("", "kubectl", "app", "label", "-l", "deleteRequested=true"))
 			// we cannot delete any app, if an op is in progress
 			_, _ = RunCli("app", "terminate-op", appName)
 			// is it much more reliable to get argocd to delete an app than kubectl
@@ -150,7 +152,7 @@ func EnsureCleanState() {
 	}
 	FailOnErr(Run("", "kubectl", "-n", ArgoCDNamespace, "delete", "appprojects", "--field-selector", "metadata.name!=default"))
 	// takes around 5s, so we don't wait
-	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", testingLabel+"=true", "--field-selector", "status.phase=Active", "--wait=false"))
+	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", testingLabel+"=true", "--field-selector", "status.phase==Active", "--wait=false"))
 	FailOnErr(Run("", "kubectl", "delete", "secrets", "-l", testingLabel+"=true"))
 
 	// reset settings

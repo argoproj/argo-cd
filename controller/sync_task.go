@@ -35,9 +35,9 @@ func ternary(val bool, a, b string) string {
 
 func (t *syncTask) String() string {
 	modified := t.liveObj != t.targetObj
-	return fmt.Sprintf("%s/%d %s %s/%s %s->%s (%s,%s,%s)",
+	return fmt.Sprintf("%s/%d %s %s/%s:%s/%s %s->%s (%s,%s,%s)",
 		t.phase, t.wave(),
-		ternary(t.isHook(), "hook", "resource"), t.kind(), t.name(),
+		ternary(t.isHook(), "hook", "resource"), t.group(), t.kind(), t.namespace(), t.name(),
 		ternary(t.liveObj != nil, ternary(modified, "a", "b"), "nil"), ternary(t.targetObj != nil, "b", "nil"),
 		t.syncStatus, t.operationState, t.message,
 	)

@@ -321,6 +321,21 @@ func TestManagedResourceAreNotNamed(t *testing.T) {
 	assert.Equal(t, "", pod.GetName())
 }
 
+func TestDeDupingTasks(t *testing.T) {
+	syncCtx := newTestSyncCtx()
+	syncCtx.syncOp.SyncStrategy.Apply = nil
+	pod := test.NewPod()
+	syncCtx.compareResult = &comparisonResult{
+		managedResources: []managedResource{{Target: pod}},
+		hooks:            []*unstructured.Unstructured{pod},
+	}
+
+	tasks, successful := syncCtx.getSyncTasks()
+
+	assert.True(t, successful)
+	assert.Len(t, tasks, 1)
+}
+
 func init() {
 	log.SetLevel(log.DebugLevel)
 }
