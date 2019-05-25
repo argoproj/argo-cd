@@ -325,6 +325,7 @@ func TestDeDupingTasks(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	syncCtx.syncOp.SyncStrategy.Apply = nil
 	pod := test.NewPod()
+	pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "Sync"})
 	syncCtx.compareResult = &comparisonResult{
 		managedResources: []managedResource{{Target: pod}},
 		hooks:            []*unstructured.Unstructured{pod},

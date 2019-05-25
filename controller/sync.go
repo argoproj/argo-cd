@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/util/hook"
 	"sort"
 	"strings"
 	"sync"
@@ -311,6 +312,9 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 		if obj == nil {
 			obj = resource.Live
 		}
+		if hook.IsHook(obj) {
+			continue
+		}
 		for _, phase := range syncPhases(obj) {
 			resourceTasks = append(resourceTasks, &syncTask{
 				phase:     phase,
@@ -346,15 +350,7 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 	sc.log.WithFields(log.Fields{"hookTasks": hookTasks}).Debug("tasks from hooks")
 
 	tasks := resourceTasks
-	// do not any add any hooks  we have already gotten
-	for _, hook := range hookTasks {
-		if resourceTasks.Find(func(t *syncTask) bool {
-			return t.group() == hook.group() && t.kind() == hook.kind() && t.namespace() == hook.namespace() && t.name() == hook.name() && t.phase == hook.phase
-		}) == nil {
-			log.WithFields(log.Fields{"hook": hook}).Debug("appending hook to tasks")
-			tasks = append(tasks, hook)
-		}
-	}
+	tasks = append(tasks, hookTasks...)
 
 	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("tasks")
 
