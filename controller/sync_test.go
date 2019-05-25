@@ -290,7 +290,7 @@ func TestDontSyncOrPruneHooks(t *testing.T) {
 	assert.Equal(t, v1alpha1.OperationSucceeded, syncCtx.opState.Phase)
 }
 
-func TestSelectiveSyncOnlyR(t *testing.T) {
+func TestSelectiveSyncOnly(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	pod1 := test.NewPod()
 	pod1.SetName("pod-1")
@@ -305,7 +305,7 @@ func TestSelectiveSyncOnlyR(t *testing.T) {
 
 	assert.True(t, successful)
 	assert.Len(t, tasks, 1)
-	assert.Equal(t, "pod-'", tasks[0].name())
+	assert.Equal(t, "pod-1", tasks[0].name())
 }
 
 func TestUnnamedHooksGetUniqueNames(t *testing.T) {
