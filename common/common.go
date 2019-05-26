@@ -17,6 +17,7 @@ const (
 	ArgoCDRBACConfigMapName = "argocd-rbac-cm"
 )
 
+// Default listener ports for ArgoCD components
 const (
 	DefaultPortAPIServer              = 8080
 	DefaultPortRepoServer             = 8081
@@ -24,12 +25,6 @@ const (
 	DefaultPortArgoCDAPIServerMetrics = 8083
 	DefaultPortRepoServerMetrics      = 8084
 )
-
-var PortAPIServer = DefaultPortAPIServer
-var PortRepoServer = DefaultPortRepoServer
-var PortArgoCDMetrics = DefaultPortArgoCDMetrics
-var PortArgoCDAPIServerMetrics = DefaultPortArgoCDAPIServerMetrics
-var PortRepoServerMetrics = DefaultPortRepoServerMetrics
 
 // Argo CD application related constants
 const (
