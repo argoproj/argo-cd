@@ -76,6 +76,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		&mockRepoClientset,
 		utilcache.NewCache(utilcache.NewInMemoryCache(1*time.Hour)),
 		time.Minute,
+		8082,
 	)
 	if err != nil {
 		panic(err)
