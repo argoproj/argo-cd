@@ -123,6 +123,7 @@ type ArgoCDServerOpts struct {
 	DisableAuth         bool
 	Insecure            bool
 	ListenPort          int
+	MetricsPort         int
 	Namespace           string
 	DexServerAddr       string
 	StaticAssetsDir     string
@@ -190,7 +191,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 // We use k8s.io/code-generator/cmd/go-to-protobuf to generate the .proto files from the API types.
 // k8s.io/ go-to-protobuf uses protoc-gen-gogo, which comes from gogo/protobuf (a fork of
 // golang/protobuf).
-func (a *ArgoCDServer) Run(ctx context.Context, port int) {
+func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	grpcS := a.newGRPCServer()
 	grpcWebS := grpcweb.WrapServer(grpcS)
 	var httpS *http.Server
@@ -201,7 +202,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int) {
 	} else {
 		httpS = a.newHTTPServer(ctx, port, grpcWebS)
 	}
-	metricsServ := newAPIServerMetricsServer()
+	metricsServ := newAPIServerMetricsServer(metricsPort)
 
 	// Start listener
 	var conn net.Listener
@@ -619,11 +620,11 @@ func indexFilePath(srcPath string, baseHRef string) (string, error) {
 }
 
 // newAPIServerMetricsServer returns HTTP server which serves prometheus metrics on gRPC requests
-func newAPIServerMetricsServer() *http.Server {
+func newAPIServerMetricsServer(port int) *http.Server {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 	return &http.Server{
-		Addr:    fmt.Sprintf("0.0.0.0:%d", common.PortArgoCDAPIServerMetrics),
+		Addr:    fmt.Sprintf("0.0.0.0:%d", port),
 		Handler: mux,
 	}
 }

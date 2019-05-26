@@ -334,9 +334,11 @@ func TestUserAgent(t *testing.T) {
 	defer cancelInformer()
 	port, err := test.GetFreePort()
 	assert.NoError(t, err)
+	metricsport, err := test.GetFreePort()
+	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go s.Run(ctx, port)
+	go s.Run(ctx, port, metricsport)
 
 	err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
 	assert.NoError(t, err)
