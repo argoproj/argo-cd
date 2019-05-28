@@ -62,9 +62,16 @@ Update [Github releases](https://github.com/argoproj/argo-cd/releases) with:
 * Getting started (copy from previous release)
 * Changelog
 
-## Stable Release
+Verify:
 
-Update Brew formula:
+* Sync Argo CD in [https://cd.apps.argoproj.io/applications/argo-cd](https://cd.apps.argoproj.io/applications/argo-cd).
+
+Update `stable` tag:
+
+```
+git tag stable --force && git push origin stable --force
+```
+If GA, update Brew formula:
 
 ```bash
 git clone https://github.com/argoproj/homebrew-tap
@@ -74,12 +81,8 @@ git commit -a -m "Update argocd to $VERSION"
 git push
 ```
 
-Deploy the [site](site.md).
-
-Update `stable` tag:
-
-```
-git tag stable --force && git push origin stable --force
-```
 
 Create GitHub release from new tag and upload binaries (e.g. dist/argocd-darwin-amd64).
+
+
+Deploy the [site](site.md).
