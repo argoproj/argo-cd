@@ -7,6 +7,7 @@ import (
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 )
 
+// when you selectively sync, only seleceted resources should be synced, but the app will be out of sync
 func TestSelectiveSync(t *testing.T) {
 	Given(t).
 		Path("guestbook").
@@ -22,6 +23,7 @@ func TestSelectiveSync(t *testing.T) {
 		Expect(ResourceHealthIs("Deployment", "guestbook-ui", HealthStatusMissing))
 }
 
+// when running selective sync, hooks do not run
 func TestSelectiveSyncDoesNotRunHooks(t *testing.T) {
 	Given(t).
 		Path("hook").
@@ -32,9 +34,8 @@ func TestSelectiveSyncDoesNotRunHooks(t *testing.T) {
 		Then().
 		Expect(Success("")).
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		// you might not expect this, but yes - it is is sync
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(HealthStatusMissing)).
+		Expect(HealthIs(HealthStatusHealthy)).
 		Expect(ResourceHealthIs("Pod", "pod", HealthStatusHealthy)).
 		Expect(ResourceHealthIs("Pod", "hook", HealthStatusMissing))
 }

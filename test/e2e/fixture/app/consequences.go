@@ -70,6 +70,9 @@ func (c *Consequences) resource(kind, name string) ResourceStatus {
 		}
 	}
 	return ResourceStatus{
-		Health: &HealthStatus{Status: HealthStatusUnknown},
+		Health: &HealthStatus{
+			Status:  HealthStatusMissing,
+			Message: "not found",
+		},
 	}
 }
