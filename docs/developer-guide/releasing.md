@@ -67,6 +67,8 @@ Update [Github releases](https://github.com/argoproj/argo-cd/releases) with:
 
 * Getting started (copy from previous release)
 * Changelog
+* Binaries (e.g. dist/argocd-darwin-amd64).
+
 
 If GA, update `stable` tag:
 
@@ -98,13 +100,9 @@ If GA:
 
 ```bash
 brew upgrade argocd
+/usr/local/bin/argocd version
 ```
 
-
-
-
 Sync Argo CD in [https://cd.apps.argoproj.io/applications/argo-cd](https://cd.apps.argoproj.io/applications/argo-cd).
-
-Create GitHub release from new tag and upload binaries (e.g. dist/argocd-darwin-amd64).
 
 Deploy the [site](site.md).
