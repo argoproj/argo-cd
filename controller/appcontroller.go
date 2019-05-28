@@ -86,6 +86,7 @@ func NewApplicationController(
 	repoClientset reposerver.Clientset,
 	argoCache *argocache.Cache,
 	appResyncPeriod time.Duration,
+	metricsPort int,
 ) (*ApplicationController, error) {
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
 	settings, err := settingsMgr.GetSettings()
@@ -112,7 +113,7 @@ func NewApplicationController(
 	}
 	appInformer, appLister := ctrl.newApplicationInformerAndLister()
 	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, cache.Indexers{})
-	metricsAddr := fmt.Sprintf("0.0.0.0:%d", common.PortArgoCDMetrics)
+	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
 	ctrl.metricsServer = metrics.NewMetricsServer(metricsAddr, appLister)
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settings, kubectlCmd, ctrl.metricsServer, ctrl.handleAppUpdated)
 	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectlCmd, ctrl.settings, stateCache, projInformer, ctrl.metricsServer)

@@ -45,6 +45,7 @@ func newCommand() *cobra.Command {
 		operationProcessors      int
 		logLevel                 string
 		glogLevel                int
+		metricsPort              int
 		cacheSrc                 func() (*cache.Cache, error)
 	)
 	var command = cobra.Command{
@@ -81,7 +82,8 @@ func newCommand() *cobra.Command {
 				appClient,
 				repoClientset,
 				cache,
-				resyncDuration)
+				resyncDuration,
+				metricsPort)
 			errors.CheckError(err)
 
 			log.Infof("Application Controller (version: %s) starting (namespace: %s)", argocd.GetVersion(), namespace)
@@ -104,6 +106,7 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&operationProcessors, "operation-processors", 1, "Number of application operation processors")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
+	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDMetrics, "Start metrics server on given port")
 	cacheSrc = cache.AddCacheFlagsToCmd(&command)
 	return &command
 }
