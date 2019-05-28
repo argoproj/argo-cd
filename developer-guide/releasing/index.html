@@ -413,18 +413,6 @@
 
 
   <li class="md-nav__item">
-    <a href="../../operator-manual/cluster-bootstrapping/" title="Cluster Bootstrapping" class="md-nav__link">
-      Cluster Bootstrapping
-    </a>
-  </li>
-
-        
-          
-          
-          
-
-
-  <li class="md-nav__item">
     <a href="../../operator-manual/webhook/" title="Git Webhook Configuration" class="md-nav__link">
       Git Webhook Configuration
     </a>
@@ -509,68 +497,8 @@
 
 
   <li class="md-nav__item">
-    <a href="../../user-guide/application_sources/" title="Tools" class="md-nav__link">
-      Tools
-    </a>
-  </li>
-
-        
-          
-          
-          
-
-
-  <li class="md-nav__item">
-    <a href="../../user-guide/kustomize/" title="Kustomize" class="md-nav__link">
-      Kustomize
-    </a>
-  </li>
-
-        
-          
-          
-          
-
-
-  <li class="md-nav__item">
-    <a href="../../user-guide/helm/" title="Helm" class="md-nav__link">
-      Helm
-    </a>
-  </li>
-
-        
-          
-          
-          
-
-
-  <li class="md-nav__item">
-    <a href="../../user-guide/ksonnet/" title="Ksonnet" class="md-nav__link">
-      Ksonnet
-    </a>
-  </li>
-
-        
-          
-          
-          
-
-
-  <li class="md-nav__item">
-    <a href="../../user-guide/config-management-plugins/" title="Plugins" class="md-nav__link">
-      Plugins
-    </a>
-  </li>
-
-        
-          
-          
-          
-
-
-  <li class="md-nav__item">
-    <a href="../../user-guide/tool_detection/" title="Tool Detection" class="md-nav__link">
-      Tool Detection
+    <a href="../../user-guide/application_sources/" title="Application Source Types" class="md-nav__link">
+      Application Source Types
     </a>
   </li>
 
@@ -595,6 +523,18 @@
   <li class="md-nav__item">
     <a href="../../user-guide/private-repositories/" title="Private Repositories" class="md-nav__link">
       Private Repositories
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/tool_detection/" title="Tool Detection" class="md-nav__link">
+      Tool Detection
     </a>
   </li>
 
@@ -771,38 +711,9 @@
       
     
     
-      <label class="md-nav__link md-nav__link--active" for="__toc">
-        Releasing
-      </label>
-    
     <a href="./" title="Releasing" class="md-nav__link md-nav__link--active">
       Releasing
     </a>
-    
-      
-<nav class="md-nav md-nav--secondary">
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">Table of contents</label>
-    <ul class="md-nav__list" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#stable-release" title="Stable Release" class="md-nav__link">
-    Stable Release
-  </a>
-  
-</li>
-      
-      
-      
-      
-      
-    </ul>
-  
-</nav>
     
   </li>
 
@@ -901,22 +812,6 @@
     
   
   
-    <label class="md-nav__title" for="__toc">Table of contents</label>
-    <ul class="md-nav__list" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#stable-release" title="Stable Release" class="md-nav__link">
-    Stable Release
-  </a>
-  
-</li>
-      
-      
-      
-      
-      
-    </ul>
-  
 </nav>
                   </div>
                 </div>
@@ -931,77 +826,67 @@
                 
                 
                 <h1 id="releasing">Releasing<a class="headerlink" href="#releasing" title="Permanent link">&para;</a></h1>
-<p>Ensure the changelog is up to date. </p>
-<p>Export the branch name, e.g.:</p>
-<div class="codehilite"><pre><span></span><span class="nv">BRANCH</span><span class="o">=</span>release-1.0
-</pre></div>
-
-
-<p>Set the <code>VERSION</code> environment variable:</p>
-<div class="codehilite"><pre><span></span><span class="c1"># release candidate</span>
-<span class="nv">VERSION</span><span class="o">=</span>v1.0.0-rc1
-<span class="c1"># GA release</span>
-<span class="nv">VERSION</span><span class="o">=</span>v1.0.0
-</pre></div>
-
-
-<p>If not already created, create UI release branch:</p>
+<ol>
+<li>Tag, build, and push argo-cd-ui</li>
+</ol>
 <div class="codehilite"><pre><span></span><span class="nb">cd</span> argo-cd-ui
-git checkout -b <span class="nv">$BRANCH</span>
+git checkout -b release-X.Y
+git tag vX.Y.Z
+git push upstream release-X.Y --tags
+<span class="nv">IMAGE_NAMESPACE</span><span class="o">=</span>argoproj <span class="nv">IMAGE_TAG</span><span class="o">=</span>vX.Y.Z <span class="nv">DOCKER_PUSH</span><span class="o">=</span><span class="nb">true</span> yarn docker
 </pre></div>
 
 
-<p>Tag UI:</p>
-<div class="codehilite"><pre><span></span>git tag <span class="nv">$VERSION</span>
-git push upstream <span class="nv">$BRANCH</span> --tags
-<span class="nv">IMAGE_NAMESPACE</span><span class="o">=</span>argoproj <span class="nv">IMAGE_TAG</span><span class="o">=</span><span class="nv">$VERSION</span> <span class="nv">DOCKER_PUSH</span><span class="o">=</span><span class="nb">true</span> yarn docker
+<ol>
+<li>Create release-X.Y branch (if creating initial X.Y release)</li>
+</ol>
+<div class="codehilite"><pre><span></span>git checkout -b release-X.Y
+git push upstream release-X.Y
 </pre></div>
 
 
-<p>If not already created, create release branch:</p>
-<div class="codehilite"><pre><span></span><span class="nb">cd</span> argo-cd
-git checkout -b <span class="nv">$BRANCH</span>
-git push origin <span class="nv">$BRANCH</span>
+<ol>
+<li>Update VERSION and manifests with new version</li>
+</ol>
+<div class="codehilite"><pre><span></span>vi VERSION <span class="c1"># ensure value is desired X.Y.Z semantic version</span>
+make manifests <span class="nv">IMAGE_TAG</span><span class="o">=</span>vX.Y.Z
+git commit -a -m <span class="s2">&quot;Update manifests to vX.Y.Z&quot;</span>
+git push upstream release-X.Y
 </pre></div>
 
 
-<p>Update <code>VERSION</code> and manifests with new version:</p>
-<div class="codehilite"><pre><span></span><span class="nb">echo</span> <span class="nv">$VERSION</span> &gt; VERSION
-make manifests <span class="nv">IMAGE_TAG</span><span class="o">=</span><span class="nv">$VERSION</span>
-git commit -am <span class="s2">&quot;Update manifests to </span><span class="nv">$VERSION</span><span class="s2">&quot;</span>
-git push origin <span class="nv">$BRANCH</span>
+<ol>
+<li>Tag, build, and push release to docker hub</li>
+</ol>
+<div class="codehilite"><pre><span></span>git tag vX.Y.Z
+make release <span class="nv">IMAGE_NAMESPACE</span><span class="o">=</span>argoproj <span class="nv">IMAGE_TAG</span><span class="o">=</span>vX.Y.Z <span class="nv">DOCKER_PUSH</span><span class="o">=</span><span class="nb">true</span>
+git push upstream vX.Y.Z
 </pre></div>
 
 
-<p>Tag, build, and push release to Docker Hub</p>
-<div class="codehilite"><pre><span></span>git tag <span class="nv">$VERSION</span>
-make release <span class="nv">IMAGE_NAMESPACE</span><span class="o">=</span>argoproj <span class="nv">IMAGE_TAG</span><span class="o">=</span><span class="nv">$VERSION</span> <span class="nv">DOCKER_PUSH</span><span class="o">=</span><span class="nb">true</span>
-git push origin <span class="nv">$VERSION</span>
-</pre></div>
-
-
-<p>Update Github releases with:</p>
-<ul>
-<li>Getting started (copy from previous release)</li>
-<li>Changelog</li>
-</ul>
-<h2 id="stable-release">Stable Release<a class="headerlink" href="#stable-release" title="Permanent link">&para;</a></h2>
-<p>Update Brew formula:</p>
+<ol>
+<li>Update argocd brew formula</li>
+</ol>
 <div class="codehilite"><pre><span></span>git clone https://github.com/argoproj/homebrew-tap
 <span class="nb">cd</span> homebrew-tap
 ./update.sh ~/go/src/github.com/argoproj/argo-cd/dist/argocd-darwin-amd64
-git commit -a -m <span class="s2">&quot;Update argocd to </span><span class="nv">$VERSION</span><span class="s2">&quot;</span>
+git commit -a -m <span class="s2">&quot;Update argocd to vX.Y.Z&quot;</span>
 git push
 </pre></div>
 
 
-<p>Deploy the <a href="../site/">site</a>.</p>
-<p>Update <code>stable</code> tag:</p>
-<div class="codehilite"><pre><span></span>git tag stable --force &amp;&amp; git push origin stable --force
+<ol>
+<li>Update documentation:</li>
+<li>Edit CHANGELOG.md with release notes</li>
+<li>Update <code>stable</code> tag</li>
+</ol>
+<div class="codehilite"><pre><span></span>git tag stable --force &amp;&amp; git push upstream stable --force
 </pre></div>
 
 
-<p>Create GitHub release from new tag and upload binaries (e.g. dist/argocd-darwin-amd64).</p>
+<ul>
+<li>Create GitHub release from new tag and upload binaries (e.g. dist/argocd-darwin-amd64)</li>
+</ul>
                 
                   
                 
