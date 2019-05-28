@@ -43,7 +43,7 @@ git push origin $BRANCH
 Update `VERSION` and manifests with new version:
 
 ```bash
-echo ${VERSION:} > VERSION
+echo ${VERSION:1} > VERSION
 make manifests IMAGE_TAG=$VERSION
 git commit -am "Update manifests to $VERSION"
 git push origin $BRANCH
