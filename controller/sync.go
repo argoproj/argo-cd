@@ -20,6 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/health"
+	"github.com/argoproj/argo-cd/util/hook"
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
@@ -183,7 +184,7 @@ func (sc *syncContext) sync() {
 		return
 	}
 
-	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("tasks")
+	sc.log.WithFields(log.Fields{"tasks": tasks}).Info("tasks")
 
 	// Perform a `kubectl apply --dry-run` against all the manifests. This will detect most (but
 	// not all) validation issues with the user's manifests (e.g. will detect syntax issues, but
@@ -311,6 +312,13 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 		if obj == nil {
 			obj = resource.Live
 		}
+
+		// this does appear to create garbage tasks
+		if hook.IsHook(obj) {
+			log.WithFields(log.Fields{"name": obj.GetName()}).Debug("skipping managed resource")
+			continue
+		}
+
 		for _, phase := range syncPhases(obj) {
 			resourceTasks = append(resourceTasks, &syncTask{
 				phase:     phase,
@@ -346,17 +354,7 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 	sc.log.WithFields(log.Fields{"hookTasks": hookTasks}).Debug("tasks from hooks")
 
 	tasks := resourceTasks
-	// do not any add any hooks  we have already gotten
-	for _, hook := range hookTasks {
-		if resourceTasks.Find(func(t *syncTask) bool {
-			return t.group() == hook.group() && t.kind() == hook.kind() && t.namespace() == hook.namespace() && t.name() == hook.name() && t.phase == hook.phase
-		}) == nil {
-			log.WithFields(log.Fields{"hook": hook}).Debug("appending hook to tasks")
-			tasks = append(tasks, hook)
-		}
-	}
-
-	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("tasks")
+	tasks = append(tasks, hookTasks...)
 
 	for _, task := range tasks {
 		if task.targetObj == nil {
