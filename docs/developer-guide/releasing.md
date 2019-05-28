@@ -1,6 +1,10 @@
 # Releasing
 
-Ensure the changelog is up to date. 
+Make sure you are logged into Docker Hub:
+
+```bash
+docker login
+```
 
 Export the branch name, e.g.:
 
@@ -15,12 +19,6 @@ Set the `VERSION` environment variable:
 VERSION=v1.0.0-rc1
 # GA release
 VERSION=v1.0.0
-```
-
-Login to Docker Hub:
-
-```
-docker login
 ```
 
 If not already created, create UI release branch:
