@@ -334,7 +334,7 @@ func TestUserAgent(t *testing.T) {
 	defer cancelInformer()
 	port, err := test.GetFreePort()
 	assert.NoError(t, err)
-	metricsport, err := test.GetFreePort()
+	metricsPort, err := test.GetFreePort()
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
