@@ -17,6 +17,12 @@ VERSION=v1.0.0-rc1
 VERSION=v1.0.0
 ```
 
+Login to Docker Hub:
+
+```
+docker login
+```
+
 If not already created, create UI release branch:
 
 ```bash
