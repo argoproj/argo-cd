@@ -39,23 +39,30 @@ export GOPATH=~/go
 export PATH=$PATH:$GOPATH/bin
 ```
 
+Checkout the code:
+
+```bash
+go get -u github.com/argoproj/argo-cd
+cd ~/go/src/github.com/argoproj/argo-cd
+```
+
 Install go dependencies:
 
 ```bash
-go get -u github.com/golang/protobuf/protoc-gen-go
-go get -u github.com/go-swagger/go-swagger/cmd/swagger
-go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
-go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
-go get -u github.com/golangci/golangci-lint/cmd/golangci-lint 
-go get -u github.com/mattn/goreman 
+go get github.com/gobuffalo/packr/packr
+go get github.com/gogo/protobuf/gogoproto
+go get github.com/golang/protobuf/protoc-gen-go
+go get github.com/golangci/golangci-lint/cmd/golangci-lint
+go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
+go get github.com/jstemmer/go-junit-report
+go get github.com/mattn/goreman
+go get golang.org/x/tools/cmd/goimports
 ```
 
 ## Building
 
 ```bash
-go get -u github.com/argoproj/argo-cd
-cd ~/go/src/github.com/argoproj/argo-cd
-dep ensure
 make
 ```
 
@@ -177,10 +184,5 @@ Now you can set-up the port-forwarding and open the UI or CLI.
 Before you commit, make sure you've formatted and linted your code, or your PR will fail CI:
 
 ```bash
-STAGED_GO_FILES=$(git diff --cached --name-only | grep ".go$")
-
-gofmt -w $STAGED_GO_FILES
-
-make codgen
-make precommit ;# lint and test
+make pre-commit
 ```
