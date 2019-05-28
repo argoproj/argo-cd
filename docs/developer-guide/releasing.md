@@ -28,7 +28,7 @@ Tag UI:
 
 ```bash
 git tag $VERSION
-git push upstream $BRANCH --tags
+git push origin $BRANCH --tags
 IMAGE_NAMESPACE=argoproj IMAGE_TAG=$VERSION DOCKER_PUSH=true yarn docker
 ```
 
@@ -43,7 +43,7 @@ git push origin $BRANCH
 Update `VERSION` and manifests with new version:
 
 ```bash
-echo $VERSION > VERSION
+echo ${VERSION:} > VERSION
 make manifests IMAGE_TAG=$VERSION
 git commit -am "Update manifests to $VERSION"
 git push origin $BRANCH
@@ -57,7 +57,7 @@ make release IMAGE_NAMESPACE=argoproj IMAGE_TAG=$VERSION DOCKER_PUSH=true
 git push origin $VERSION
 ```
 
-Update Github releases with:
+Update [Github releases](https://github.com/argoproj/argo-cd/releases) with:
 
 * Getting started (copy from previous release)
 * Changelog
