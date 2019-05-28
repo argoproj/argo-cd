@@ -1,21 +1,17 @@
-import { FormField, FormSelect } from 'argo-ui';
+import { FormField, FormSelect, getNestedField } from 'argo-ui';
 import * as React from 'react';
 import { FieldApi, FormApi, FormField as ReactFormField, Text } from 'react-form';
 
 import { CheckboxField, EditablePanel, EditablePanelItem, TagsInputField } from '../../../shared/components';
 import * as models from '../../../shared/models';
+import { ImageTagFieldEditor } from './kustomize';
+import * as kustomize from './kustomize-image';
 
 const TextWithMetadataField = ReactFormField((props: {metadata: { value: string }, fieldApi: FieldApi, className: string }) => {
     const { fieldApi: {getValue, setValue}} = props;
     const metadata = (getValue() || props.metadata);
 
     return <input className={props.className} value={metadata.value} onChange={(el) => setValue({...metadata, value: el.target.value})}/>;
-});
-
-const TextForArray = ReactFormField((props: {fieldApi: FieldApi, className: string }) => {
-    const { fieldApi: {getValue, setValue}} = props;
-
-    return <input className={props.className} value={(getValue() || []).join(' ')} onChange={(el) => setValue(el.target.value.split(' ').filter((v) => v !== ''))}/>;
 });
 
 function distinct<T>(first: IterableIterator<T>, second: IterableIterator<T>) {
@@ -32,6 +28,7 @@ function overridesFirst(first: { overrideIndex: number}, second: { overrideIndex
 }
 
 function getParamsEditableItems<T extends { name: string, value: string }>(
+    app: models.Application,
     title: string,
     fieldsPath: string,
     removedOverrides: boolean[],
@@ -42,13 +39,14 @@ function getParamsEditableItems<T extends { name: string, value: string }>(
         original: string,
         metadata: { name: string; value: string; }
     }[],
+    component: React.ComponentType = TextWithMetadataField,
 ) {
     return params.sort(overridesFirst).map((param, i) => ({
         key: param.key,
         title: param.metadata.name,
         view: (
             <span title={param.metadata.value}>
-                {param.metadata.value !== param.original && <span className='fa fa-heart-broken' title={`Original value: ${param.original}`}/>} {param.metadata.value}
+                {param.overrideIndex > -1 && <span className='fa fa-exclamation-triangle' title={`Original value: ${param.original}`}/>} {param.metadata.value}
             </span>
         ),
         edit: (formApi: FormApi) => {
@@ -60,7 +58,7 @@ function getParamsEditableItems<T extends { name: string, value: string }>(
                     {overrideRemoved && (
                         <span>{param.original}</span>
                     ) || (
-                        <FormField formApi={formApi} field={fieldItemPath} component={TextWithMetadataField} componentProps={{
+                        <FormField formApi={formApi} field={fieldItemPath} component={component} componentProps={{
                             metadata: param.metadata,
                         }}/>
                     )}
@@ -71,7 +69,7 @@ function getParamsEditableItems<T extends { name: string, value: string }>(
                     }} style={labelStyle}>
                         Remove override</a>}
                     {overrideRemoved && <a onClick={() => {
-                        formApi.setValue(fieldItemPath, param.metadata);
+                        formApi.setValue(fieldItemPath, getNestedField(app, fieldsPath)[i]);
                         removedOverrides[i] = false;
                         setRemovedOverrides(removedOverrides);
                     }} style={labelStyle}>
@@ -109,7 +107,7 @@ export const ApplicationParameters = (props: { application: models.Application, 
         (props.details.ksonnet && props.details.ksonnet.parameters || []).forEach((param) => paramsByComponentName.set(`${param.component}-${param.name}` , param));
         const overridesByComponentName = new Map<string, number>();
         (source.ksonnet && source.ksonnet.parameters || []).forEach((override, i) => overridesByComponentName.set(`${override.component}-${override.name}`, i));
-        attributes = attributes.concat(getParamsEditableItems('PARAMETERS', 'spec.source.ksonnet.parameters', removedOverrides, setRemovedOverrides,
+        attributes = attributes.concat(getParamsEditableItems(app, 'PARAMETERS', 'spec.source.ksonnet.parameters', removedOverrides, setRemovedOverrides,
                 distinct(paramsByComponentName.keys(), overridesByComponentName.keys()).map((componentName) => {
             let param = paramsByComponentName.get(componentName);
             const original = param && param.value || '';
@@ -130,27 +128,27 @@ export const ApplicationParameters = (props: { application: models.Application, 
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.kustomize.namePrefix' component={Text}/>,
         });
 
-        const images = props.details && props.details.kustomize && props.details.kustomize.images || [];
+        const srcImages = (props.details && props.details.kustomize && props.details.kustomize.images || []).map((val) => kustomize.parse(val));
+        const images = (source.kustomize && source.kustomize.images || []).map((val) => kustomize.parse(val));
 
-        if (images.length > 0) {
-            attributes.push({
-                title: 'IMAGES',
-                view: source.kustomize && source.kustomize.images || [],
-                edit: (formApi: FormApi) => (
-                    <div>
-                        <FormField formApi={formApi} field='spec.source.kustomize.images' component={TextForArray}/>
-                        <p>Use this to change the images used in your app.</p>
-                        <ul>
-                            <li>For a different tag, use <code>REPO:NEW_TAG</code>, e.g <code>busybox:3.6</code>.</li>
-                            <li>For a different image, use <code>REPO=NEW_REPO:NEW_TAG</code>, e.g  <code>busybox=alpine:3.6</code>.</li>
-                        </ul>
-                        <p>
-                            Images available to override are:<br/>
-                            <code>{images}</code>
-                        </p>
-                    </div>
-                ),
-            });
+        if (srcImages.length > 0) {
+            const imagesByName = new Map<string, kustomize.Image>();
+            srcImages.forEach((img) => imagesByName.set(img.name, img));
+
+            const overridesByName = new Map<string, number>();
+            images.forEach((override, i) => overridesByName.set(override.name, i));
+
+            attributes = attributes.concat(getParamsEditableItems(app, 'IMAGES', 'spec.source.kustomize.images', removedOverrides, setRemovedOverrides,
+                    distinct(imagesByName.keys(), overridesByName.keys()).map((name) => {
+                const param = imagesByName.get(name);
+                const original = param && kustomize.format(param);
+                let overrideIndex = overridesByName.get(name);
+                if (overrideIndex === undefined) {
+                    overrideIndex = -1;
+                }
+                const value = overrideIndex > -1 && kustomize.format(images[overrideIndex]) || original;
+                return { overrideIndex, original, metadata: { name, value } };
+            }), ImageTagFieldEditor));
         }
 
         const imageTags = props.details && props.details.kustomize && props.details.kustomize.imageTags || [];
@@ -162,7 +160,7 @@ export const ApplicationParameters = (props: { application: models.Application, 
             const overridesByName = new Map<string, number>();
             (source.kustomize && source.kustomize.imageTags || []).forEach((override, i) => overridesByName.set(override.name, i));
 
-            attributes = attributes.concat(getParamsEditableItems('IMAGE TAGS', 'spec.source.kustomize.imageTags', removedOverrides, setRemovedOverrides,
+            attributes = attributes.concat(getParamsEditableItems(app, 'IMAGE TAGS', 'spec.source.kustomize.imageTags', removedOverrides, setRemovedOverrides,
                     distinct(imagesByName.keys(), overridesByName.keys()).map((name) => {
                 const param = imagesByName.get(name);
                 const original = param && param.value || '';
@@ -191,6 +189,7 @@ export const ApplicationParameters = (props: { application: models.Application, 
         const overridesByName = new Map<string, number>();
         (source.helm && source.helm.parameters || []).forEach((override, i) => overridesByName.set(override.name, i));
         attributes = attributes.concat(getParamsEditableItems(
+            app,
             'PARAMETERS',
             'spec.source.helm.parameters', removedOverrides, setRemovedOverrides, distinct(paramsByName.keys(), overridesByName.keys()).map((name) => {
             const param = paramsByName.get(name);
@@ -228,8 +227,12 @@ export const ApplicationParameters = (props: { application: models.Application, 
                 if (input.spec.source.kustomize && input.spec.source.kustomize.imageTags) {
                     input.spec.source.kustomize.imageTags = input.spec.source.kustomize.imageTags.filter(isDefined);
                 }
-                props.save(input);
+                if (input.spec.source.kustomize && input.spec.source.kustomize.images) {
+                    input.spec.source.kustomize.images = input.spec.source.kustomize.images.filter(isDefined);
+                }
+                await props.save(input);
+                setRemovedOverrides(new Array<boolean>());
             })}
-            values={app} title={app.metadata.name.toLocaleUpperCase()} items={attributes} />
+            values={app} title={props.details.type.toLocaleUpperCase()} items={attributes} />
     );
 };

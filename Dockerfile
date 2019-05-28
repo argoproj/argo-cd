@@ -1,4 +1,4 @@
-FROM node:9.4.0 as build
+FROM node:11.15.0 as build
 
 WORKDIR /src
 ADD ["package.json", "yarn.lock", "./"]
