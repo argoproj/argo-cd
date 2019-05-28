@@ -1,0 +1,321 @@
+version: 2.1
+commands:
+  before:
+    steps:
+      - restore_go_cache
+      - install_golang
+      - install_tools
+      - clean_checkout
+      - configure_git
+      - install_go_deps
+      - dep_ensure
+  configure_git:
+    steps:
+      - run:
+          name: Configure Git
+          command: |
+            set -x
+            # must be configured for tests to run
+            git config --global user.email you@example.com
+            git config --global user.name "Your Name"
+            echo "export PATH=/home/circleci/.go_workspace/src/github.com/argoproj/argo-cd/hack:\$PATH" | tee -a $BASH_ENV
+            echo "export GIT_ASKPASS=git-ask-pass.sh" | tee -a $BASH_ENV
+      - run:
+          name: Make sure we can clone out the test private repo
+          command: |
+            set -x
+              export GIT_USERNAME=blah
+              export GIT_PASSWORD=B5sBDeoqAVUouoHkrovy
+              git-ask-pass.sh Username
+              git-ask-pass.sh Password
+              git clone https://gitlab.com/argo-cd-test/test-apps.git /tmp/test-apps
+  clean_checkout:
+    steps:
+      - run:
+          name: Remove checked out code
+          command: rm -Rf /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
+      - checkout
+  install_go_deps:
+    steps:
+      - run:
+          name: Install Go deps
+          command: |
+            set -x
+            go get github.com/gobuffalo/packr/packr
+            go get github.com/gogo/protobuf/gogoproto
+            go get github.com/golang/protobuf/protoc-gen-go
+            go get github.com/golangci/golangci-lint/cmd/golangci-lint
+            go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+            go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
+            go get github.com/jstemmer/go-junit-report
+            go get github.com/mattn/goreman
+            go get golang.org/x/tools/cmd/goimports
+  dep_ensure:
+    steps:
+      - restore_cache:
+          keys:
+            - vendor-v4-{{ checksum "Gopkg.lock" }}
+      - run:
+          name: Run dep ensure
+          command: dep ensure -v
+      - save_cache:
+          key: vendor-v4-{{ checksum "Gopkg.lock" }}
+          paths:
+            - vendor
+  install_golang:
+    steps:
+      - run:
+          name: Install Golang v1.11.4
+          command: |
+            go get golang.org/dl/go1.11.4
+            [ -e /home/circleci/sdk/go1.11.4 ] || go1.11.4 download
+            echo "export GOPATH=/home/circleci/.go_workspace" | tee -a $BASH_ENV
+            echo "export PATH=/home/circleci/sdk/go1.11.4/bin:\$PATH" | tee -a $BASH_ENV
+      - run:
+          name: Golang diagnostics
+          command: |
+            env
+            which go
+            go version
+            go env
+  install_tools:
+    steps:
+      - run:
+          name: Create downloads dir
+          command: mkdir -p /tmp/dl
+      - restore_cache:
+          keys:
+            - dl-v4
+            - dl-v3
+      - run:
+          name: Install JQ v1.6
+          command: |
+            set -x
+            [ -e /tmp/dl/jq ] || curl -sLf -C - -o /tmp/dl/jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
+            sudo cp /tmp/dl/jq /usr/local/bin/jq
+            sudo chmod +x /usr/local/bin/jq
+            jq --version
+      - run:
+          name: Install Kubectx v0.6.3
+          command: |
+            set -x
+            [ -e /tmp/dl/kubectx.zip ] || curl -sLf -C - -o /tmp/dl/kubectx.zip https://github.com/ahmetb/kubectx/archive/v0.6.3.zip
+            sudo unzip /tmp/dl/kubectx.zip kubectx-0.6.3/kubectx
+            sudo unzip /tmp/dl/kubectx.zip kubectx-0.6.3/kubens
+            sudo mv kubectx-0.6.3/kubectx /usr/local/bin/
+            sudo mv kubectx-0.6.3/kubens /usr/local/bin/
+            sudo chmod +x /usr/local/bin/kubectx
+            sudo chmod +x /usr/local/bin/kubens
+      - run:
+          name: Install Dep v0.5.3
+          command: |
+            set -x
+            [ -e /tmp/dl/dep ] || curl -sLf -C - -o /tmp/dl/dep https://github.com/golang/dep/releases/download/v0.5.3/dep-linux-amd64
+            sudo cp /tmp/dl/dep /usr/local/go/bin/dep
+            sudo chmod +x /usr/local/go/bin/dep
+            dep version
+      - run:
+          name: Install Go Swagger v0.19.0
+          command: |
+            set -x
+            [ -e /tmp/dl/swagger ] || curl -sLf -C - -o /tmp/dl/swagger https://github.com/go-swagger/go-swagger/releases/download/v0.19.0/swagger_linux_amd64
+            sudo cp /tmp/dl/swagger /usr/local/bin/swagger
+            sudo chmod +x /usr/local/bin/swagger
+            swagger version
+      - run:
+          name: Install Ksonnet v0.13.1
+          command: |
+            set -x
+            [ -e /tmp/dl/ks.tar.gz ] || curl -sLf -C - -o /tmp/dl/ks.tar.gz https://github.com/ksonnet/ksonnet/releases/download/v0.13.1/ks_0.13.1_linux_amd64.tar.gz
+            tar -C /tmp -xf /tmp/dl/ks.tar.gz
+            sudo cp /tmp/ks_0.13.1_linux_amd64/ks /usr/local/go/bin/ks
+            sudo chmod +x /usr/local/go/bin/ks
+            ks version
+      - run:
+          name: Install Helm v2.13.1
+          command: |
+            set -x
+            [ -e /tmp/dl/helm.tar.gz ] || curl -sLf -C - -o /tmp/dl/helm.tar.gz https://storage.googleapis.com/kubernetes-helm/helm-v2.13.1-linux-amd64.tar.gz
+            tar -C /tmp/ -xf /tmp/dl/helm.tar.gz
+            sudo cp /tmp/linux-amd64/helm /usr/local/go/bin/helm
+            helm version --client
+            helm init --client-only
+      - run:
+          name: Install Kustomize v1.0.11
+          command: |
+            set -x
+            [ -e /tmp/dl/kustomize1 ] || curl -sLf -C - -o /tmp/dl/kustomize1 https://github.com/kubernetes-sigs/kustomize/releases/download/v1.0.11/kustomize_1.0.11_linux_amd64
+            sudo cp /tmp/dl/kustomize1 /usr/local/go/bin/
+            sudo chmod +x /usr/local/go/bin/kustomize1
+            kustomize1 version
+      - run:
+          name: Install Kustomize v2.0.3
+          command: |
+            set -x
+            [ -e /tmp/dl/kustomize ] || curl -sLf -C - -o /tmp/dl/kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v2.0.3/kustomize_2.0.3_linux_amd64
+            sudo cp /tmp/dl/kustomize /usr/local/go/bin/
+            sudo chmod +x /usr/local/go/bin/kustomize
+            kustomize version
+      - run:
+          name: Install Protobuf compiler v3.7.1
+          command: |
+            set -x
+            [ -e /tmp/dl/protoc.zip ] || curl -sLf -C - -o /tmp/dl/protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v3.7.1/protoc-3.7.1-linux-x86_64.zip
+            sudo unzip /tmp/dl/protoc.zip bin/protoc -d /usr/local/
+            sudo chmod +x /usr/local/bin/protoc
+            sudo unzip /tmp/dl/protoc.zip include/* -d /usr/local/
+            protoc --version
+      - save_cache:
+          key: dl-v4
+          paths:
+            - /tmp/dl
+  save_go_cache:
+    steps:
+      - save_cache:
+          key: go-v14-{{ .Branch }}
+          paths:
+            - /home/circleci/.go_workspace
+            - /home/circleci/.cache/go-build
+            - /home/circleci/sdk/go1.11.4
+  restore_go_cache:
+    steps:
+      - restore_cache:
+          keys:
+            - go-v14-{{ .Branch }}
+            - go-v14-master
+jobs:
+  test:
+    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
+    machine:
+      image: circleci/classic:201808-01
+    steps:
+      - before
+      - run:
+          name: Run unit tests
+          command: |
+            set -x
+            mkdir -p /tmp/test-results
+            trap "go-junit-report </tmp/test-results/go-test.out > /tmp/test-results/go-test-report.xml" EXIT
+            make test | tee /tmp/test-results/go-test.out
+      - save_go_cache
+      - run:
+          name: Uploading code coverage
+          command: bash <(curl -s https://codecov.io/bash) -f coverage.out
+      - store_test_results:
+          path: /tmp/test-results
+  codegen:
+    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
+    machine:
+      image: circleci/classic:201808-01
+    steps:
+      - before
+      - run:
+          name: Generate code
+          command: make codegen
+      - run:
+          name: Lint code
+          command: make lint
+      - run:
+          name: Check nothing has changed
+          # the goal of this is to make sure you ran `make pre-commit` before you pushed
+          # note that we exclude the swagger resources,
+          command: git diff --exit-code -- . ':!Gopkg.lock' ':!assets/swagger.json' ':!pkg/apis/api-rules/violation_exceptions.list' ':!pkg/apis/application/v1alpha1/openapi_generated.go'
+  e2e:
+    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
+    machine:
+      image: circleci/classic:201808-01
+    steps:
+      - run:
+          name: Install and start K3S v0.5.0
+          command: |
+            curl -sfL https://get.k3s.io | sh -
+            sudo chmod -R a+rw /etc/rancher/k3s
+            kubectl version
+          background: true
+          environment:
+            INSTALL_K3S_EXEC: --docker
+            INSTALL_K3S_VERSION: v0.5.0
+      - before
+      - run:
+          name: Build
+          command: make build
+      - run:
+          # do this before we build everything else in the background, as they tend to explode
+          name: Make CLI
+          command: |
+            set -x
+            make cli
+            # must be added to path for tests
+            echo export PATH="`pwd`/dist:\$PATH" | tee -a $BASH_ENV
+      - run:
+          name: Create namespace
+          command: |
+            set -x
+            kubectl create ns argocd-e2e
+            kubens argocd-e2e
+            # install the certificates (not 100% sure we need this)
+            sudo cp /var/lib/rancher/k3s/server/tls/token-ca.crt /usr/local/share/ca-certificates/k3s.crt
+            sudo update-ca-certificates
+            # create the kubecfg, again - not sure we need this
+            cat /etc/rancher/k3s/k3s.yaml | sed "s/localhost/`hostname`/" | tee ~/.kube/config
+            echo "127.0.0.1 `hostname`" | sudo tee -a /etc/hosts
+      - run:
+          name: Apply manifests
+          command: kustomize build test/manifests/base | kubectl apply -f -
+      - run:
+          name: Start Redis
+          command: docker run --rm --name argocd-redis -i -p 6379:6379 redis:5.0.3-alpine --save "" --appendonly no
+          background: true
+      - run:
+          name: Start repo server
+          command: go run ./cmd/argocd-repo-server/main.go --loglevel debug --redis localhost:6379
+          background: true
+          environment:
+            # pft. if you do not quote "true", CircleCI turns it into "1", stoopid
+            ARGOCD_FAKE_IN_CLUSTER: "true"
+      - run:
+          name: Start API server
+          command: go run ./cmd/argocd-server/main.go --loglevel debug --redis localhost:6379 --disable-auth --insecure --dex-server http://localhost:5556 --repo-server localhost:8081 --staticassets ../argo-cd-ui/dist/app
+          background: true
+          environment:
+            ARGOCD_FAKE_IN_CLUSTER: "true"
+      - run:
+          name: Wait for API server
+          command: |
+            set -x
+            # TODO - try to reduce to 20
+            sleep 60
+            curl -v --retry 5 localhost:8080
+      - run:
+          name: Start controller
+          command: go run ./cmd/argocd-application-controller/main.go --loglevel debug --redis localhost:6379 --repo-server localhost:8081 --kubeconfig ~/.kube/config
+          background: true
+          environment:
+            ARGOCD_FAKE_IN_CLUSTER: "true"
+      - run:
+          name: Smoke test
+          command: |
+            set -x
+            argocd app create guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook
+            argocd app sync guestbook
+            argocd app delete guestbook
+          environment:
+            ARGOCD_OPTS: "--server localhost:8080 --plaintext"
+      - run:
+          name: Run e2e tests
+          command: |
+            set -x
+            mkdir -p /tmp/test-results
+            trap "go-junit-report </tmp/test-results/go-e2e.out > /tmp/test-results/go-e2e-report.xml" EXIT
+            make test-e2e | tee /tmp/test-results/go-e2e.out
+          environment:
+            ARGOCD_OPTS: "--server localhost:8080 --plaintext"
+      - store_test_results:
+          path: /tmp/test-results
+workflows:
+  version: 2
+  workflow:
+    jobs:
+      - codegen
+      - test
+      - e2e

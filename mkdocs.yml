@@ -56,6 +56,7 @@ nav:
     - CONTRIBUTING.md
     - developer-guide/api-docs.md
     - developer-guide/test-e2e.md
+    - developer-guide/ci.md
     - developer-guide/releasing.md
     - developer-guide/site.md
   - faq.md

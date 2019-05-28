@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v2"
-
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -1091,7 +1090,7 @@ func (c *Cluster) RESTConfig() *rest.Config {
 		}
 	}
 	if err != nil {
-		panic("Unable to create K8s REST config")
+		panic(fmt.Sprintf("Unable to create K8s REST config: %v", err))
 	}
 	config.QPS = common.K8sClientConfigQPS
 	config.Burst = common.K8sClientConfigBurst
