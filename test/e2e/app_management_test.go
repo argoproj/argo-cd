@@ -31,6 +31,10 @@ const (
 	guestbookPath = "guestbook"
 )
 
+func init() {
+
+}
+
 func TestAppCreation(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).

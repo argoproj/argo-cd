@@ -305,26 +305,22 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 
 	for _, resource := range sc.compareResult.managedResources {
 		if !sc.containsResource(resource) {
-			log.WithFields(log.Fields{"resourceGroup": resource.Group, "resourceKind": resource.Kind, "resourceName": resource.Name}).Debug("skipping")
+			log.WithFields(log.Fields{"group": resource.Group, "kind": resource.Kind, "name": resource.Name}).
+				Debug("skipping")
 			continue
 		}
-		obj := resource.Target
-		if obj == nil {
-			obj = resource.Live
-		}
+
+		obj := obj(resource.Target, resource.Live)
 
 		// this does appear to create garbage tasks
 		if hook.IsHook(obj) {
-			log.WithFields(log.Fields{"name": obj.GetName()}).Debug("skipping managed resource")
+			log.WithFields(log.Fields{"group": obj.GroupVersionKind().Group, "kind": obj.GetKind(), "namespace": obj.GetNamespace(), "name": obj.GetName()}).
+				Debug("skipping hook")
 			continue
 		}
 
 		for _, phase := range syncPhases(obj) {
-			resourceTasks = append(resourceTasks, &syncTask{
-				phase:     phase,
-				liveObj:   resource.Live,
-				targetObj: resource.Target,
-			})
+			resourceTasks = append(resourceTasks, &syncTask{phase: phase, targetObj: resource.Target, liveObj: resource.Live})
 		}
 	}
 
@@ -343,10 +339,8 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 					generateName := obj.GetGenerateName()
 					targetObj.SetName(fmt.Sprintf("%s%s", generateName, postfix))
 				}
-				hookTasks = append(hookTasks, &syncTask{
-					phase:     phase,
-					targetObj: targetObj,
-				})
+
+				hookTasks = append(hookTasks, &syncTask{phase: phase, targetObj: targetObj})
 			}
 		}
 	}
@@ -356,12 +350,12 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 	tasks := resourceTasks
 	tasks = append(tasks, hookTasks...)
 
+	// enrich target objects with the namespace
 	for _, task := range tasks {
 		if task.targetObj == nil {
 			continue
 		}
 
-		// I assume we do not need to do this for live tasks
 		if task.targetObj.GetNamespace() == "" {
 			// If target object's namespace is empty, we set namespace in the object. We do
 			// this even though it might be a cluster-scoped resource. This prevents any
@@ -371,9 +365,18 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 			task.targetObj.SetNamespace(sc.namespace)
 		}
 	}
-
+	// enrich task with live obj
 	for _, task := range tasks {
-		// TODO - no version?
+		if task.targetObj == nil || task.liveObj != nil {
+			continue
+		}
+		for _, task := range tasks {
+			task.liveObj = sc.liveObj(task.targetObj)
+		}
+	}
+
+	// enrich tasks with the result
+	for _, task := range tasks {
 		_, result := sc.syncRes.Resources.Find(task.group(), task.kind(), task.namespace(), task.name(), task.phase)
 		if result != nil {
 			task.syncStatus = result.Status
@@ -382,6 +385,7 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 		}
 	}
 
+	// check permissions
 	for _, task := range tasks {
 		serverRes, err := kube.ServerResourceForGroupVersionKind(sc.disco, task.groupVersionKind())
 		if err != nil {
@@ -410,6 +414,27 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 	sort.Sort(tasks)
 
 	return tasks, successful
+}
+
+func obj(a, b *unstructured.Unstructured) *unstructured.Unstructured {
+	if a != nil {
+		return a
+	} else {
+		return b
+	}
+}
+
+func (sc *syncContext) liveObj(obj *unstructured.Unstructured) *unstructured.Unstructured {
+	var liveObj *unstructured.Unstructured
+	for _, resource := range sc.compareResult.managedResources {
+		if resource.Group == obj.GroupVersionKind().Group &&
+			resource.Kind == obj.GetKind() &&
+			resource.Namespace == obj.GetNamespace() &&
+			resource.Name == obj.GetName() {
+			liveObj = resource.Live
+		}
+	}
+	return liveObj
 }
 
 func (sc *syncContext) setOperationPhase(phase OperationPhase, message string) {

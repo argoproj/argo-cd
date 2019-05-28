@@ -49,11 +49,7 @@ func (t *syncTask) isPrune() bool {
 // return the target object (if this exists) otherwise the live object
 // some caution - often you explicitly want the live object not the target object
 func (t *syncTask) obj() *unstructured.Unstructured {
-	if t.targetObj != nil {
-		return t.targetObj
-	} else {
-		return t.liveObj
-	}
+	return obj(t.targetObj, t.liveObj)
 }
 
 func (t *syncTask) wave() int {
