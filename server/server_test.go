@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -334,9 +334,11 @@ func TestUserAgent(t *testing.T) {
 	defer cancelInformer()
 	port, err := test.GetFreePort()
 	assert.NoError(t, err)
+	metricsPort, err := test.GetFreePort()
+	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go s.Run(ctx, port)
+	go s.Run(ctx, port, metricsPort)
 
 	err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
 	assert.NoError(t, err)

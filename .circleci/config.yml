@@ -253,7 +253,7 @@ jobs:
             set -x
             kubectl create ns argocd-e2e
             kubens argocd-e2e
-            # install the certifications (not 100% user we need this)
+            # install the certificates (not 100% sure we need this)
             sudo cp /var/lib/rancher/k3s/server/tls/token-ca.crt /usr/local/share/ca-certificates/k3s.crt
             sudo update-ca-certificates
             # create the kubecfg, again - not sure we need this
