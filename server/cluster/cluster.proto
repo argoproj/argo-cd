@@ -29,7 +29,8 @@ message ClusterCreateFromKubeConfigRequest {
 	string context = 2;
 	bool upsert = 3;
 	bool inCluster = 4;
-	string systemNamespace = 5;
+	// Optional alternative system namespace to use (defaults to "kube-system")
+	string systemNamespace = 5; 
 }
 
 message ClusterUpdateRequest {
