@@ -6,9 +6,10 @@ Make sure you are logged into Docker Hub:
 docker login
 ```
 
-Export the branch name, e.g.:
+Export the upstream repository and branch name, e.g.:
 
 ```bash
+REPO=upstream ;# or origin 
 BRANCH=release-1.0
 ```
 
@@ -32,7 +33,7 @@ Tag UI:
 
 ```bash
 git tag $VERSION
-git push origin $BRANCH --tags
+git push $REPO $BRANCH --tags
 IMAGE_NAMESPACE=argoproj IMAGE_TAG=$VERSION DOCKER_PUSH=true yarn docker
 ```
 
@@ -41,7 +42,7 @@ If not already created, create release branch:
 ```bash
 cd argo-cd
 git checkout -b $BRANCH
-git push origin $BRANCH
+git push $REPO $BRANCH
 ```
 
 Update `VERSION` and manifests with new version:
@@ -50,7 +51,7 @@ Update `VERSION` and manifests with new version:
 echo ${VERSION:1} > VERSION
 make manifests IMAGE_TAG=$VERSION
 git commit -am "Update manifests to $VERSION"
-git push origin $BRANCH
+git push $REPO $BRANCH
 ```
 
 Tag, build, and push release to Docker Hub
@@ -58,7 +59,7 @@ Tag, build, and push release to Docker Hub
 ```bash
 git tag $VERSION
 make release IMAGE_NAMESPACE=argoproj IMAGE_TAG=$VERSION DOCKER_PUSH=true
-git push origin $VERSION
+git push $REPO $VERSION
 ```
 
 Update [Github releases](https://github.com/argoproj/argo-cd/releases) with:
@@ -71,7 +72,7 @@ Update [Github releases](https://github.com/argoproj/argo-cd/releases) with:
 If GA, update `stable` tag:
 
 ```bash
-git tag stable --force && git push origin stable --force
+git tag stable --force && git push $REPO stable --force
 ```
 
 If GA, update Brew formula:
