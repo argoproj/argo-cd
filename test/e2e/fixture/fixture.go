@@ -64,6 +64,7 @@ func getKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest
 // configure currently available cluster.
 func init() {
 
+	Launch()
 	// trouble-shooting check to see if this busted add-on is going to cause problems
 	FailOnErr(Run("", "kubectl", "api-resources", "-o", "name"))
 

@@ -41,7 +41,6 @@ func TestCanAddAppFromPrivateRepoWithRepoConfig(t *testing.T) {
 
 // make sure you can create an app from a private repo, if the creds are set-up in the CM
 func TestCanAddAppFromPrivateRepoWithCredConfig(t *testing.T) {
-
 	Given(t).
 		Repo(repoUrl).
 		Path(appPath).

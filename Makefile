@@ -145,15 +145,16 @@ test:
 
 .PHONY: test-e2e
 test-e2e: cli
-	go test -v -timeout 10m ./test/e2e
-
-.PHONY: start-e2e
-start-e2e: cli
-	killall goreman || true
+	# Start Redis
+	docker run -d --rm --name argocd-redis -p 6379:6379 redis:5.0.3-alpine --save "" --appendonly no || true
+	# Check we can get the Git username/password (needed for some tests)
+	git-ask-pass.sh
+	# Create namespace and install basic manifests
 	kubectl create ns argocd-e2e || true
 	kubens argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
-	goreman start
+	# Run e2e tests
+	go test -v -covermode=count -coverprofile=coverage.out -coverpkg=github.com/argoproj/argo-cd -timeout 10m ./test/e2e
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes
 .PHONY: clean-debug
