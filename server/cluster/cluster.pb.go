@@ -45,7 +45,7 @@ func (m *ClusterQuery) Reset()         { *m = ClusterQuery{} }
 func (m *ClusterQuery) String() string { return proto.CompactTextString(m) }
 func (*ClusterQuery) ProtoMessage()    {}
 func (*ClusterQuery) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_0d7bee23283db804, []int{0}
+	return fileDescriptor_cluster_6ee48698ede88737, []int{0}
 }
 func (m *ClusterQuery) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -91,7 +91,7 @@ func (m *ClusterResponse) Reset()         { *m = ClusterResponse{} }
 func (m *ClusterResponse) String() string { return proto.CompactTextString(m) }
 func (*ClusterResponse) ProtoMessage()    {}
 func (*ClusterResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_0d7bee23283db804, []int{1}
+	return fileDescriptor_cluster_6ee48698ede88737, []int{1}
 }
 func (m *ClusterResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -132,7 +132,7 @@ func (m *ClusterCreateRequest) Reset()         { *m = ClusterCreateRequest{} }
 func (m *ClusterCreateRequest) String() string { return proto.CompactTextString(m) }
 func (*ClusterCreateRequest) ProtoMessage()    {}
 func (*ClusterCreateRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_0d7bee23283db804, []int{2}
+	return fileDescriptor_cluster_6ee48698ede88737, []int{2}
 }
 func (m *ClusterCreateRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -176,10 +176,11 @@ func (m *ClusterCreateRequest) GetUpsert() bool {
 }
 
 type ClusterCreateFromKubeConfigRequest struct {
-	Kubeconfig           string   `protobuf:"bytes,1,opt,name=kubeconfig,proto3" json:"kubeconfig,omitempty"`
-	Context              string   `protobuf:"bytes,2,opt,name=context,proto3" json:"context,omitempty"`
-	Upsert               bool     `protobuf:"varint,3,opt,name=upsert,proto3" json:"upsert,omitempty"`
-	InCluster            bool     `protobuf:"varint,4,opt,name=inCluster,proto3" json:"inCluster,omitempty"`
+	Kubeconfig string `protobuf:"bytes,1,opt,name=kubeconfig,proto3" json:"kubeconfig,omitempty"`
+	Context    string `protobuf:"bytes,2,opt,name=context,proto3" json:"context,omitempty"`
+	Upsert     bool   `protobuf:"varint,3,opt,name=upsert,proto3" json:"upsert,omitempty"`
+	InCluster  bool   `protobuf:"varint,4,opt,name=inCluster,proto3" json:"inCluster,omitempty"`
+	// Optional alternative system namespace to use (defaults to "kube-system")
 	SystemNamespace      string   `protobuf:"bytes,5,opt,name=systemNamespace,proto3" json:"systemNamespace,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -190,7 +191,7 @@ func (m *ClusterCreateFromKubeConfigRequest) Reset()         { *m = ClusterCreat
 func (m *ClusterCreateFromKubeConfigRequest) String() string { return proto.CompactTextString(m) }
 func (*ClusterCreateFromKubeConfigRequest) ProtoMessage()    {}
 func (*ClusterCreateFromKubeConfigRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_0d7bee23283db804, []int{3}
+	return fileDescriptor_cluster_6ee48698ede88737, []int{3}
 }
 func (m *ClusterCreateFromKubeConfigRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -265,7 +266,7 @@ func (m *ClusterUpdateRequest) Reset()         { *m = ClusterUpdateRequest{} }
 func (m *ClusterUpdateRequest) String() string { return proto.CompactTextString(m) }
 func (*ClusterUpdateRequest) ProtoMessage()    {}
 func (*ClusterUpdateRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_0d7bee23283db804, []int{4}
+	return fileDescriptor_cluster_6ee48698ede88737, []int{4}
 }
 func (m *ClusterUpdateRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1440,10 +1441,10 @@ var (
 )
 
 func init() {
-	proto.RegisterFile("server/cluster/cluster.proto", fileDescriptor_cluster_0d7bee23283db804)
+	proto.RegisterFile("server/cluster/cluster.proto", fileDescriptor_cluster_6ee48698ede88737)
 }
 
-var fileDescriptor_cluster_0d7bee23283db804 = []byte{
+var fileDescriptor_cluster_6ee48698ede88737 = []byte{
 	// 586 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x95, 0xcf, 0x6b, 0x13, 0x41,
 	0x14, 0xc7, 0x99, 0xb6, 0x6e, 0xcd, 0x28, 0x56, 0x87, 0x2a, 0x6b, 0x1a, 0x43, 0xba, 0x87, 0x12,
