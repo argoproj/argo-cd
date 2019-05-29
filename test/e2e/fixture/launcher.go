@@ -1,12 +1,13 @@
 package fixture
 
 import (
+	"os"
+
 	controller "github.com/argoproj/argo-cd/cmd/argocd-application-controller/commands"
 	reposerver "github.com/argoproj/argo-cd/cmd/argocd-repo-server/commands"
 	server "github.com/argoproj/argo-cd/cmd/argocd-server/commands"
 	. "github.com/argoproj/argo-cd/errors"
 	log "github.com/sirupsen/logrus"
-	"os"
 )
 
 const logLevel = "info"
