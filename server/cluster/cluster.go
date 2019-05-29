@@ -153,6 +153,8 @@ func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateFromK
 
 	var clusterServer string
 	var clusterInsecure bool
+	var systemNamespace string
+
 	if q.InCluster {
 		clusterServer = common.KubernetesInternalAPIServerAddr
 	} else if cluster, ok := kubeconfig.Clusters[q.Context]; ok {
@@ -160,6 +162,12 @@ func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateFromK
 		clusterInsecure = cluster.InsecureSkipTLSVerify
 	} else {
 		return nil, status.Errorf(codes.Internal, "Context %s does not exist in kubeconfig", q.Context)
+	}
+
+	if q.SystemNamespace != "" {
+		systemNamespace = q.SystemNamespace
+	} else {
+		systemNamespace = common.DefaultSystemNamespace
 	}
 
 	c := &appv1.Cluster{
@@ -178,7 +186,7 @@ func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateFromK
 		return nil, status.Errorf(codes.Internal, "Could not create Kubernetes clientset: %v", err)
 	}
 
-	bearerToken, err := common.InstallClusterManagerRBAC(clientset)
+	bearerToken, err := common.InstallClusterManagerRBAC(clientset, systemNamespace)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not install cluster manager RBAC: %v", err)
 	}

@@ -17,6 +17,11 @@ const (
 	ArgoCDRBACConfigMapName = "argocd-rbac-cm"
 )
 
+// Default system namespace
+const (
+	DefaultSystemNamespace = "kube-system"
+)
+
 // Default listener ports for ArgoCD components
 const (
 	DefaultPortAPIServer              = 8080
