@@ -43,7 +43,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
 	sentinelMaster := ""
 	redisDB := 0
 
-	cmd.Flags().StringVar(&redisAddress, "redis", "", "Redis server hostname and port (e.g. argocd-redis:6379). ")
+	cmd.Flags().StringVar(&redisAddress, "redis", "argocd-redis:6379", "Redis server hostname and port (e.g. argocd-redis:6379). ")
 	cmd.Flags().IntVar(&redisDB, "redisdb", 0, "Redis database.")
 	cmd.Flags().StringArrayVar(&sentinelAddresses, "sentinel", []string{}, "Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). ")
 	cmd.Flags().StringVar(&sentinelMaster, "sentinelmaster", "master", "Redis sentinel master group name.")

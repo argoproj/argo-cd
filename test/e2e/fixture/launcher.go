@@ -13,21 +13,15 @@ import (
 
 const logLevel = "info"
 
-var launched = false
-
 func Launch() {
 
 	log.Info("launching...")
 
-	// TODO - not needed?
-	if launched {
-		return
-	}
+	FailOnErr(Run("", "git-ask-pass.sh"))
 
+	CheckError(os.Setenv("FORCE_LOG_COLORS", "1"))
 	CheckError(os.Setenv("ARGOCD_FAKE_IN_CLUSTER", "true"))
 	CheckError(os.Setenv("ARGOCD_OPTS", "--server localhost:8080 --plaintext"))
-
-	launched = true
 
 	go startApiServer()
 	time.Sleep(3 * time.Second)
@@ -38,7 +32,7 @@ func Launch() {
 }
 
 func startController() {
-	log.Info("starting controller...")
+	log.Info("starting app controller...")
 	command := controller.NewCommand()
 	command.SetArgs([]string{"--loglevel", logLevel, "--redis", "localhost:6379", "--repo-server", "localhost:8081"})
 	CheckError(command.Execute())
