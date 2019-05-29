@@ -2,6 +2,7 @@ package fixture
 
 import (
 	"os"
+	"time"
 
 	controller "github.com/argoproj/argo-cd/cmd/argocd-application-controller/commands"
 	reposerver "github.com/argoproj/argo-cd/cmd/argocd-repo-server/commands"
@@ -29,6 +30,7 @@ func Launch() {
 	launched = true
 
 	go startApiServer()
+	time.Sleep(3 * time.Second)
 	go startRepoServer()
 	go startController()
 
@@ -38,31 +40,19 @@ func Launch() {
 func startController() {
 	log.Info("starting controller...")
 	command := controller.NewCommand()
-	command.SetArgs([]string{
-		"--loglevel", logLevel,
-		"--redis", "localhost:6379",
-		"--repo-server", "localhost:8081",
-	})
+	command.SetArgs([]string{"--loglevel", logLevel, "--redis", "localhost:6379", "--repo-server", "localhost:8081"})
 	CheckError(command.Execute())
 }
 
 func startApiServer() {
 	log.Info("starting API server...")
 	command := server.NewCommand()
-	command.SetArgs([]string{
-		"--loglevel", logLevel,
-		"--redis", "localhost:6379",
-		"--disable-auth", "--insecure",
-		"--repo-server", "localhost:8081",
-	})
+	command.SetArgs([]string{"--loglevel", logLevel, "--redis", "localhost:6379", "--disable-auth", "--insecure", "--repo-server", "localhost:8081"})
 	CheckError(command.Execute())
 }
 func startRepoServer() {
 	log.Info("starting repo server...")
 	command := reposerver.NewCommand()
-	command.SetArgs([]string{
-		"--loglevel", logLevel,
-		"--redis", "localhost:6379",
-	})
+	command.SetArgs([]string{"--loglevel", logLevel, "--redis", "localhost:6379"})
 	CheckError(command.Execute())
 }
