@@ -34,12 +34,11 @@ export const ProjectRoleEditPanel = (props: ProjectRoleEditPanelProps) => {
                 getApi={props.getApi}
                 defaultValues={{
                     projName: props.defaultParams.projName,
-                    roleName: (props.defaultParams.role !== undefined ? props.defaultParams.role.name : ''),
-                    description: (props.defaultParams.role !== undefined ? props.defaultParams.role.description : ''),
-                    policies: (props.defaultParams.role !== undefined && props.defaultParams.role.policies !== null
-                        ? props.defaultParams.role.policies : []),
-                    jwtTokens: (props.defaultParams.role !== undefined ? props.defaultParams.role.jwtTokens : []),
-                    groups: (props.defaultParams.role !== undefined ? props.defaultParams.role.groups : []),
+                    roleName: (props.defaultParams.role && props.defaultParams.role.name || ''),
+                    description: (props.defaultParams.role && props.defaultParams.role.description || ''),
+                    policies: (props.defaultParams.role && props.defaultParams.role.policies || []),
+                    jwtTokens: (props.defaultParams.role && props.defaultParams.role.jwtTokens || []),
+                    groups: (props.defaultParams.role && props.defaultParams.role.groups || []),
                 }}
                 validateError={(params: ProjectRoleParams) => ({
                     projName: !params.projName && 'Project name is required',

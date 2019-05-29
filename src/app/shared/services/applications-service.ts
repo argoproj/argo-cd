@@ -168,11 +168,15 @@ export class ApplicationsService {
 
     private parseAppFields(data: any): models.Application {
         const app = data as models.Application;
-        app.spec.project = app.spec.project || 'default';
-        delete app.spec.source.componentParameterOverrides;
         app.kind = app.kind || 'Application';
-        app.status.resources = app.status.resources || [];
-        app.status.summary = app.status.summary || {};
+        if (app.spec) {
+            app.spec.project = app.spec.project || 'default';
+            delete app.spec.source.componentParameterOverrides;
+        }
+        if (app.status) {
+            app.status.resources = app.status.resources || [];
+            app.status.summary = app.status.summary || {};
+        }
         return app;
     }
 }
