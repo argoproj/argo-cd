@@ -413,6 +413,18 @@
 
 
   <li class="md-nav__item">
+    <a href="../../operator-manual/cluster-bootstrapping/" title="Cluster Bootstrapping" class="md-nav__link">
+      Cluster Bootstrapping
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../../operator-manual/webhook/" title="Git Webhook Configuration" class="md-nav__link">
       Git Webhook Configuration
     </a>
@@ -497,8 +509,68 @@
 
 
   <li class="md-nav__item">
-    <a href="../../user-guide/application_sources/" title="Application Source Types" class="md-nav__link">
-      Application Source Types
+    <a href="../../user-guide/application_sources/" title="Tools" class="md-nav__link">
+      Tools
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/kustomize/" title="Kustomize" class="md-nav__link">
+      Kustomize
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/helm/" title="Helm" class="md-nav__link">
+      Helm
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/ksonnet/" title="Ksonnet" class="md-nav__link">
+      Ksonnet
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/config-management-plugins/" title="Plugins" class="md-nav__link">
+      Plugins
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/tool_detection/" title="Tool Detection" class="md-nav__link">
+      Tool Detection
     </a>
   </li>
 
@@ -523,18 +595,6 @@
   <li class="md-nav__item">
     <a href="../../user-guide/private-repositories/" title="Private Repositories" class="md-nav__link">
       Private Repositories
-    </a>
-  </li>
-
-        
-          
-          
-          
-
-
-  <li class="md-nav__item">
-    <a href="../../user-guide/tool_detection/" title="Tool Detection" class="md-nav__link">
-      Tool Detection
     </a>
   </li>
 
@@ -731,6 +791,20 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#test-isolation" title="Test Isolation" class="md-nav__link">
+    Test Isolation
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" title="Troubleshooting" class="md-nav__link">
+    Troubleshooting
+  </a>
+  
+</li>
+      
       
       
       
@@ -739,6 +813,18 @@
   
 </nav>
     
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../ci/" title="CI" class="md-nav__link">
+      CI
+    </a>
   </li>
 
         
@@ -865,6 +951,20 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#test-isolation" title="Test Isolation" class="md-nav__link">
+    Test Isolation
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" title="Troubleshooting" class="md-nav__link">
+    Troubleshooting
+  </a>
+  
+</li>
+      
       
       
       
@@ -898,6 +998,29 @@ Git repository via file url: <code>file:///tmp/argocd-e2e***</code>.</p>
 <h2 id="ci-set-up">CI Set-up<a class="headerlink" href="#ci-set-up" title="Permanent link">&para;</a></h2>
 <p>The tests are executed by Argo Workflow defined at <code>.argo-ci/ci.yaml</code>. CI job The builds an Argo CD image, deploy argo cd components into throw-away kubernetes cluster provisioned
 using k3s and run e2e tests against it.</p>
+<h2 id="test-isolation">Test Isolation<a class="headerlink" href="#test-isolation" title="Permanent link">&para;</a></h2>
+<p>Some effort has been made to balance test isolation with speed. Tests are isolated as follows as each test gets:</p>
+<ul>
+<li>A random 5 character ID.</li>
+<li>A unique Git repository containing the <code>testdata</code> in <code>/tmp/argocd-e2e/${id}</code>.</li>
+<li>A namespace <code>argocd-e2e-ns-${id}</code>.</li>
+<li>An primary name for the app <code>argocd-e2e-${id}</code>.</li>
+</ul>
+<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
+<p><strong>Tests fails to delete <code>argocd-e2e-ns-*</code> namespaces.</strong></p>
+<p>This maybe due to the metrics server, run this:</p>
+<div class="codehilite"><pre><span></span>kubectl api-resources 
+</pre></div>
+
+
+<p>If it exits with status code 1, run:</p>
+<div class="codehilite"><pre><span></span>kubectl delete apiservice v1beta1.metrics.k8s.io
+</pre></div>
+
+
+<p>Remove <code>/spec/finalizers</code> from the namespace</p>
+<div class="codehilite"><pre><span></span>kubectl edit ns argocd-e2e-ns-*
+</pre></div>
                 
                   
                 
@@ -933,13 +1056,13 @@ using k3s and run e2e tests against it.</p>
           </a>
         
         
-          <a href="../releasing/" title="Releasing" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+          <a href="../ci/" title="CI" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
               <span class="md-flex__ellipsis">
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                Releasing
+                CI
               </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink">

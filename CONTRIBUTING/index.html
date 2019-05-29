@@ -413,6 +413,18 @@
 
 
   <li class="md-nav__item">
+    <a href="../operator-manual/cluster-bootstrapping/" title="Cluster Bootstrapping" class="md-nav__link">
+      Cluster Bootstrapping
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../operator-manual/webhook/" title="Git Webhook Configuration" class="md-nav__link">
       Git Webhook Configuration
     </a>
@@ -497,8 +509,68 @@
 
 
   <li class="md-nav__item">
-    <a href="../user-guide/application_sources/" title="Application Source Types" class="md-nav__link">
-      Application Source Types
+    <a href="../user-guide/application_sources/" title="Tools" class="md-nav__link">
+      Tools
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../user-guide/kustomize/" title="Kustomize" class="md-nav__link">
+      Kustomize
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../user-guide/helm/" title="Helm" class="md-nav__link">
+      Helm
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../user-guide/ksonnet/" title="Ksonnet" class="md-nav__link">
+      Ksonnet
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../user-guide/config-management-plugins/" title="Plugins" class="md-nav__link">
+      Plugins
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../user-guide/tool_detection/" title="Tool Detection" class="md-nav__link">
+      Tool Detection
     </a>
   </li>
 
@@ -523,18 +595,6 @@
   <li class="md-nav__item">
     <a href="../user-guide/private-repositories/" title="Private Repositories" class="md-nav__link">
       Private Repositories
-    </a>
-  </li>
-
-        
-          
-          
-          
-
-
-  <li class="md-nav__item">
-    <a href="../user-guide/tool_detection/" title="Tool Detection" class="md-nav__link">
-      Tool Detection
     </a>
   </li>
 
@@ -783,6 +843,18 @@
 
 
   <li class="md-nav__item">
+    <a href="../developer-guide/ci/" title="CI" class="md-nav__link">
+      CI
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../developer-guide/releasing/" title="Releasing" class="md-nav__link">
       Releasing
     </a>
@@ -976,7 +1048,7 @@
 </ul>
 <p>Brew users can quickly install the lot:</p>
 <div class="codehilite"><pre><span></span>brew tap go-swagger/go-swagger
-brew install go dep protobuf kubectl kubectx ksonnet/tap/ks kubernetes-helm jq go-swagger 
+brew install go dep protobuf kubectl kubectx ksonnet/tap/ks kubernetes-helm jq go-swagger kustomize 
 </pre></div>
 
 
@@ -990,21 +1062,27 @@ brew install go dep protobuf kubectl kubectx ksonnet/tap/ks kubernetes-helm jq g
 </pre></div>
 
 
+<p>Checkout the code:</p>
+<div class="codehilite"><pre><span></span>go get -u github.com/argoproj/argo-cd
+<span class="nb">cd</span> ~/go/src/github.com/argoproj/argo-cd
+</pre></div>
+
+
 <p>Install go dependencies:</p>
-<div class="codehilite"><pre><span></span>go get -u github.com/golang/protobuf/protoc-gen-go
-go get -u github.com/go-swagger/go-swagger/cmd/swagger
-go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
-go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
-go get -u github.com/golangci/golangci-lint/cmd/golangci-lint 
-go get -u github.com/mattn/goreman 
-go get -u gotest.tools/gotestsum
+<div class="codehilite"><pre><span></span>go get github.com/gobuffalo/packr/packr
+go get github.com/gogo/protobuf/gogoproto
+go get github.com/golang/protobuf/protoc-gen-go
+go get github.com/golangci/golangci-lint/cmd/golangci-lint
+go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
+go get github.com/jstemmer/go-junit-report
+go get github.com/mattn/goreman
+go get golang.org/x/tools/cmd/goimports
 </pre></div>
 
 
 <h2 id="building">Building<a class="headerlink" href="#building" title="Permanent link">&para;</a></h2>
-<div class="codehilite"><pre><span></span>go get -u github.com/argoproj/argo-cd
-dep ensure
-make
+<div class="codehilite"><pre><span></span>make
 </pre></div>
 
 
@@ -1100,12 +1178,7 @@ kubectl -n argocd scale deployment.extensions/argocd-redis --replicas <span clas
 <p>Now you can set-up the port-forwarding and open the UI or CLI.</p>
 <h2 id="pre-commit-checks">Pre-commit Checks<a class="headerlink" href="#pre-commit-checks" title="Permanent link">&para;</a></h2>
 <p>Before you commit, make sure you've formatted and linted your code, or your PR will fail CI:</p>
-<div class="codehilite"><pre><span></span><span class="nv">STAGED_GO_FILES</span><span class="o">=</span><span class="k">$(</span>git diff --cached --name-only <span class="p">|</span> grep <span class="s2">&quot;.go</span>$<span class="s2">&quot;</span><span class="k">)</span>
-
-gofmt -w <span class="nv">$STAGED_GO_FILES</span>
-
-make codgen
-make precommit <span class="p">;</span><span class="c1"># lint and test</span>
+<div class="codehilite"><pre><span></span>make pre-commit
 </pre></div>
                 
                   
