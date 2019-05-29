@@ -10,8 +10,6 @@ GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
 PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run vendor/github.com/gobuffalo/packr/packr/main.go"; fi)
 
-PATH:=$(PATH):$(PWD)/hack
-
 # docker image publishing options
 DOCKER_PUSH?=false
 IMAGE_TAG?=latest
@@ -144,15 +142,15 @@ test:
 	go test -v -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "test/e2e"`
 
 .PHONY: test-e2e
-test-e2e: cli
+test-e2e:
 	# Start Redis
 	docker run -d --rm --name argocd-redis -p 6379:6379 redis:5.0.3-alpine --save "" --appendonly no || true
-	# Check we can get the Git username/password (needed for some tests)
-	git-ask-pass.sh
 	# Create namespace and install basic manifests
 	kubectl create ns argocd-e2e || true
 	kubens argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
+	# Check we can get the Git username/password (needed for some tests)
+	git-ask-pass.sh
 	# Run e2e tests
 	go test -v -covermode=count -coverprofile=coverage.out -coverpkg=github.com/argoproj/argo-cd -timeout 10m ./test/e2e
 
