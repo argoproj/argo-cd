@@ -365,14 +365,13 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 			task.targetObj.SetNamespace(sc.namespace)
 		}
 	}
+
 	// enrich task with live obj
 	for _, task := range tasks {
 		if task.targetObj == nil || task.liveObj != nil {
 			continue
 		}
-		for _, task := range tasks {
-			task.liveObj = sc.liveObj(task.targetObj)
-		}
+		task.liveObj = sc.liveObj(task.targetObj)
 	}
 
 	// enrich tasks with the result
@@ -425,16 +424,15 @@ func obj(a, b *unstructured.Unstructured) *unstructured.Unstructured {
 }
 
 func (sc *syncContext) liveObj(obj *unstructured.Unstructured) *unstructured.Unstructured {
-	var liveObj *unstructured.Unstructured
 	for _, resource := range sc.compareResult.managedResources {
 		if resource.Group == obj.GroupVersionKind().Group &&
 			resource.Kind == obj.GetKind() &&
 			resource.Namespace == obj.GetNamespace() &&
 			resource.Name == obj.GetName() {
-			liveObj = resource.Live
+			return resource.Live
 		}
 	}
-	return liveObj
+	return nil
 }
 
 func (sc *syncContext) setOperationPhase(phase OperationPhase, message string) {
