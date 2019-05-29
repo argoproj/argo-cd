@@ -6,6 +6,7 @@ import (
 
 	"github.com/argoproj/argo-cd/cmd/argocd-repo-server/commands"
 )
+
 func main() {
 	if err := commands.NewCommand().Execute(); err != nil {
 		fmt.Println(err)
