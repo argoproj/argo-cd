@@ -288,7 +288,6 @@ func (sc *syncContext) isSelectiveSync() bool {
 func (sc *syncContext) skipHooks() bool {
 	// All objects passed a `kubectl apply --dry-run`, so we are now ready to actually perform the sync.
 	// default sync strategy to hook if no strategy
-	// TODO - can we get rid of apply based strategy?
 	return sc.syncOp.IsApplyStrategy() || sc.isSelectiveSync()
 }
 
@@ -537,7 +536,7 @@ var operationPhases = map[ResultCode]OperationPhase{
 	ResultCodePruneSkipped: OperationSucceeded,
 }
 
-func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) (successful bool) {
+func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) bool {
 
 	dryRun = dryRun || sc.syncOp.DryRun
 
