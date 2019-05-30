@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/argoproj/argo-cd/test"
-
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 

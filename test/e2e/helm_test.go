@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 	v1 "k8s.io/api/core/v1"
 )

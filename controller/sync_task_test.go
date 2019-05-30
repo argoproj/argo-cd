@@ -3,11 +3,11 @@ package controller
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/test"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"github.com/argoproj/argo-cd/test"
 )
 
 func Test_syncTask_hookType(t *testing.T) {

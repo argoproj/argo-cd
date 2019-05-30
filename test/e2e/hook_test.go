@@ -4,14 +4,11 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/argo-cd/test/e2e/fixture"
-
-	"github.com/stretchr/testify/assert"
-
-	v1 "k8s.io/api/core/v1"
-
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
+	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/api/core/v1"
 )
 
 func TestPreSyncHookSuccessful(t *testing.T) {

@@ -11,6 +11,7 @@ linter-settings:
 linters:
   enable:
     - vet
+    - gofmt
     - goimports
     - deadcode
     - varcheck
