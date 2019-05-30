@@ -31,13 +31,13 @@ const (
 	defaultAriServer = "localhost:8080"
 	adminPassword    = "password"
 	testingLabel     = "e2e.argoproj.io"
-	ArgoCDNamespace  = "argocd-e2e"
 
 	// ensure all repos are in one directory tree, so we can easily clean them up
 	tmpDir = "/tmp/argo-e2e"
 )
 
 var (
+	ArgoCDNamespace  string
 	id               string
 	KubeClientset    kubernetes.Interface
 	AppClientset     appclientset.Interface
@@ -64,9 +64,12 @@ func getKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest
 // configure currently available cluster.
 func init() {
 
+	// set the namespace to current
+	output, err := Run("", "kubectl", "get", "sa", "default", "-o", "jsonpath={.metadata.namespace}")
+	CheckError(err)
+	ArgoCDNamespace = output
+
 	Launch()
-	// trouble-shooting check to see if this busted add-on is going to cause problems
-	FailOnErr(Run("", "kubectl", "api-resources", "-o", "name"))
 
 	// set-up variables
 	config := getKubeConfig("", clientcmd.ConfigOverrides{})
