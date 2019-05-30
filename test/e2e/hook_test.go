@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"fmt"
+	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -37,7 +38,14 @@ func testHookSuccessful(t *testing.T, hookType HookType) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced)).
 		Expect(ResourceHealthIs("Pod", "pod", HealthStatusHealthy)).
-		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" }))
+		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" })).
+		And(func(app *Application) {
+			resources := app.Status.OperationState.SyncResult.Resources
+			assert.Equal(t, 2, len(resources))
+			_, result := resources.Find("", "Pod", fixture.DeploymentNamespace(), "hook", SyncPhase(hookType))
+			assert.NotNil(t, result)
+			assert.Equal(t, hookType, result.HookType)
+		})
 }
 
 // make sure that if pre-sync fails, we fail the app and we do not create the pod
