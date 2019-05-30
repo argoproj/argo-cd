@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1053,7 +1054,9 @@ func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
 func (c *Cluster) RESTConfig() *rest.Config {
 	var config *rest.Config
 	var err error
-	if c.Server == common.KubernetesInternalAPIServerAddr && os.Getenv(common.EnvVarFakeInClusterConfig) == "true" {
+	fakeInClusterConfig := os.Getenv(common.EnvVarFakeInClusterConfig)
+	log.WithFields(log.Fields{"server": c.Server, "fakeInClusterConfig": fakeInClusterConfig}).Debug("creating REST config")
+	if c.Server == common.KubernetesInternalAPIServerAddr && fakeInClusterConfig == "true" {
 		config, err = clientcmd.BuildConfigFromFlags("", filepath.Join(os.Getenv("HOME"), ".kube", "config"))
 	} else if c.Server == common.KubernetesInternalAPIServerAddr && c.Config.Username == "" && c.Config.Password == "" && c.Config.BearerToken == "" {
 		config, err = rest.InClusterConfig()
