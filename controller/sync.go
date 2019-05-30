@@ -542,7 +542,7 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) bool {
 
 	sc.log.WithFields(log.Fields{"numTasks": len(tasks), "dryRun": dryRun}).Debug("running tasks")
 
-	successful = true
+	successful := true
 	var createTasks syncTasks
 	var pruneTasks syncTasks
 

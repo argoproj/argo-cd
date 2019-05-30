@@ -1,9 +1,10 @@
 package controller
 
 import (
+	"testing"
+
 	"github.com/argoproj/argo-cd/test"
 	"github.com/stretchr/testify/assert"
-	"testing"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"

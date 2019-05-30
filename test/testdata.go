@@ -2,6 +2,7 @@ package test
 
 import (
 	"encoding/json"
+
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -53,7 +54,6 @@ func NewPod() *unstructured.Unstructured {
 	}
 	return &un
 }
-
 
 func NewPodHook(hookType v1alpha1.HookType) *unstructured.Unstructured {
 	pod := NewPod()

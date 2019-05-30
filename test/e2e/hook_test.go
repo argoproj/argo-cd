@@ -2,8 +2,9 @@ package e2e
 
 import (
 	"fmt"
-	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	"testing"
+
+	"github.com/argoproj/argo-cd/test/e2e/fixture"
 
 	"github.com/stretchr/testify/assert"
 
