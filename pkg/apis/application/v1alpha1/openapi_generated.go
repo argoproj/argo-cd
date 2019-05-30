@@ -2282,7 +2282,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceResult(ref common.ReferenceCal
 					},
 					"hookType": {
 						SchemaProps: spec.SchemaProps{
-							Description: "DEPRECATED unused",
+							Description: "the type of the hook, empty for not-hook resources",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2359,9 +2359,8 @@ func schema_pkg_apis_application_v1alpha1_ResourceStatus(ref common.ReferenceCal
 					},
 					"hook": {
 						SchemaProps: spec.SchemaProps{
-							Description: "DEPRECATED unused",
-							Type:        []string{"boolean"},
-							Format:      "",
+							Type:   []string{"boolean"},
+							Format: "",
 						},
 					},
 				},

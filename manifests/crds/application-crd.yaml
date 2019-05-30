@@ -922,7 +922,8 @@ spec:
                               resources'
                             type: string
                           hookType:
-                            description: DEPRECATED unused
+                            description: the type of the hook, empty for not-hook
+                              resources
                             type: string
                           kind:
                             type: string
@@ -1135,7 +1136,6 @@ spec:
                         type: string
                     type: object
                   hook:
-                    description: DEPRECATED unused
                     type: boolean
                   kind:
                     type: string

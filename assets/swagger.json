@@ -3250,7 +3250,7 @@
         },
         "hookType": {
           "type": "string",
-          "title": "DEPRECATED unused"
+          "title": "the type of the hook, empty for not-hook resources"
         },
         "kind": {
           "type": "string"
@@ -3290,8 +3290,7 @@
         },
         "hook": {
           "type": "boolean",
-          "format": "boolean",
-          "title": "DEPRECATED unused"
+          "format": "boolean"
         },
         "kind": {
           "type": "string"
