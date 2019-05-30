@@ -313,7 +313,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		}
 
 		diffResult := diffResults.Diffs[i]
-		if resState.Hook {
+		if resState.Hook || ignore(obj) {
 			// For resource hooks, don't store sync status, and do not affect overall sync status
 		} else if diffResult.Modified || targetObjs[i] == nil || managedLiveObj[i] == nil {
 			// Set resource state to OutOfSync since one of the following is true:

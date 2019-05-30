@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"testing"
 
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
@@ -15,6 +16,9 @@ func TestHelmHooksAreNotCreated(t *testing.T) {
 		Create().
 		Sync().
 		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		// important check, Helm hooks should be ignored for sync status
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(NotPod(func(p v1.Pod) bool {
 			return p.Name == "hook"
 		}))
@@ -28,6 +32,8 @@ func TestHelmCrdInstallIsCreated(t *testing.T) {
 		Create().
 		Sync().
 		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(Pod(func(p v1.Pod) bool {
 			return p.Name == "hook"
 		}))
