@@ -1055,7 +1055,7 @@ func (c *Cluster) RESTConfig() *rest.Config {
 	var config *rest.Config
 	var err error
 	fakeInClusterConfig := os.Getenv(common.EnvVarFakeInClusterConfig)
-	log.WithFields(log.Fields{"server": c.Server, "fakeInClusterConfig": fakeInClusterConfig}).Debug("creating REST config")
+	log.WithFields(log.Fields{"server": c.Server, "fakeInClusterConfig": fakeInClusterConfig}).Info("creating REST config")
 	if c.Server == common.KubernetesInternalAPIServerAddr && fakeInClusterConfig == "true" {
 		config, err = clientcmd.BuildConfigFromFlags("", filepath.Join(os.Getenv("HOME"), ".kube", "config"))
 	} else if c.Server == common.KubernetesInternalAPIServerAddr && c.Config.Username == "" && c.Config.Password == "" && c.Config.BearerToken == "" {
