@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/argoproj/argo-cd/util/resource"
+
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -40,8 +42,8 @@ func SetApplicationHealth(resStatuses []appv1.ResourceStatus, liveObjs []*unstru
 		if resHealth != nil {
 			resStatuses[i].Health = resHealth
 			// Don't allow resource hooks to affect health status
-			isHook := liveObj != nil && hookutil.IsHook(liveObj)
-			if !isHook && IsWorse(appHealth.Status, resHealth.Status) {
+			ignore := liveObj != nil && hookutil.IsHook(liveObj) || resource.Ignore(liveObj)
+			if !ignore && IsWorse(appHealth.Status, resHealth.Status) {
 				appHealth.Status = resHealth.Status
 			}
 		}

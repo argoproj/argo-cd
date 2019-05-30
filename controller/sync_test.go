@@ -230,7 +230,7 @@ func TestSyncCreateFailure(t *testing.T) {
 		Commands: map[string]kubetest.KubectlOutput{
 			"test-service": {
 				Output: "",
-				Err:    fmt.Errorf("error: error validating \"test.yaml\": error validating data: apiVersion not set; if you choose to ignore these errors, turn validation off with --validate=false"),
+				Err:    fmt.Errorf("error: error validating \"test.yaml\": error validating data: apiVersion not set; if you choose to Ignore these errors, turn validation off with --validate=false"),
 			},
 		},
 	}

@@ -21,9 +21,9 @@ func Test_syncTask_hookType(t *testing.T) {
 		want   HookType
 	}{
 		{"Empty", fields{SyncPhaseSync, test.NewPod()}, ""},
-		{"PreSyncHook", fields{SyncPhasePreSync, test.NewPodHook(HookTypePreSync)}, HookTypePreSync},
-		{"SyncHook", fields{SyncPhaseSync, test.NewPodHook(HookTypeSync)}, HookTypeSync},
-		{"PostSyncHook", fields{SyncPhasePostSync, test.NewPodHook(HookTypePostSync)}, HookTypePostSync},
+		{"PreSyncHook", fields{SyncPhasePreSync, test.NewHook(HookTypePreSync)}, HookTypePreSync},
+		{"SyncHook", fields{SyncPhaseSync, test.NewHook(HookTypeSync)}, HookTypeSync},
+		{"PostSyncHook", fields{SyncPhasePostSync, test.NewHook(HookTypePostSync)}, HookTypePostSync},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

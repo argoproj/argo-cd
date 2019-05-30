@@ -318,12 +318,6 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 			continue
 		}
 
-		if ignore(obj) {
-			log.WithFields(log.Fields{"group": obj.GroupVersionKind().Group, "kind": obj.GetKind(), "namespace": obj.GetNamespace(), "name": obj.GetName()}).
-				Debug("ignoring obj")
-			continue
-		}
-
 		for _, phase := range syncPhases(obj) {
 			resourceTasks = append(resourceTasks, &syncTask{phase: phase, targetObj: resource.Target, liveObj: resource.Live})
 		}
@@ -334,9 +328,6 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 	hookTasks := syncTasks{}
 	if !sc.skipHooks() {
 		for _, obj := range sc.compareResult.hooks {
-			if ignore(obj) {
-				continue
-			}
 			for _, phase := range syncPhases(obj) {
 				// Hook resources names are deterministic, whether they are defined by the user (metadata.name),
 				// or formulated at the time of the operation (metadata.generateName). If user specifies

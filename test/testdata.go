@@ -55,10 +55,18 @@ func NewPod() *unstructured.Unstructured {
 	return &un
 }
 
-func NewPodHook(hookType v1alpha1.HookType) *unstructured.Unstructured {
+func NewHook(hookType v1alpha1.HookType) *unstructured.Unstructured {
 	pod := NewPod()
 	pod.SetAnnotations(map[string]string{
 		"argocd.argoproj.io/hook": string(hookType),
+	})
+	return pod
+}
+
+func NewHelmHook(hookType v1alpha1.HookType) *unstructured.Unstructured {
+	pod := NewPod()
+	pod.SetAnnotations(map[string]string{
+		"helm.sh/hook": string(hookType),
 	})
 	return pod
 }
