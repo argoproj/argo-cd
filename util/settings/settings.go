@@ -286,7 +286,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	if !cache.WaitForCacheSync(ctx.Done(), cmInformer.HasSynced, secretsInformer.HasSynced) {
 		return fmt.Errorf("Timed out waiting for settings cache to sync")
 	}
-	log.WithFields(log.Fields{"namespace": mgr.namespace})..Info("Configmap/secret informer synced")
+	log.WithFields(log.Fields{"namespace": mgr.namespace}).Info("Configmap/secret informer synced")
 
 	tryNotify := func() {
 		newSettings, err := mgr.GetSettings()
