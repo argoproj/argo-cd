@@ -10,4 +10,5 @@ stringData:
   # admin.password is "password"
   admin.password: $2a$10$RncPyHW/B5ll2Z3J8s.IBOnbZ9uoJ4JhHLKzj5lzG/kU1KN1Oj3/K
   admin.passwordMtime: 2019-03-20T17:54:53Z
+  server.secretkey: CVGRmUXDh46JG/OA1u7TTNkcFqs2ATmvR83Yl6qWCWw=
 type: Opaque
