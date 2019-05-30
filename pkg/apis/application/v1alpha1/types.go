@@ -414,8 +414,8 @@ type ResourceResult struct {
 	// the final result of the sync, this is be empty if the resources is yet to be applied/pruned and is always zero-value for hooks
 	Status ResultCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
 	// message for the last sync OR operation
-	Message string `json:"message,omitempty" protobuf:"bytes,7,opt,name=message"`
-	// DEPRECATED unused
+	Message  string   `json:"message,omitempty" protobuf:"bytes,7,opt,name=message"`
+	// the type of the hook, empty for not-hook resources
 	HookType HookType `json:"hookType,omitempty" protobuf:"bytes,8,opt,name=hookType"`
 	// the state of any operation associated with this resource OR hook
 	// note: can contain values for non-hook resources
@@ -658,8 +658,7 @@ type ResourceStatus struct {
 	Name      string         `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
 	Status    SyncStatusCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
 	Health    *HealthStatus  `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
-	// DEPRECATED unused
-	Hook bool `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
+	Hook      bool           `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
 }
 
 func (r *ResourceStatus) GroupVersionKind() schema.GroupVersionKind {

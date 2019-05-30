@@ -629,6 +629,7 @@ func (sc *syncContext) setResourceResult(task *syncTask, syncStatus ResultCode, 
 		Name:      task.name(),
 		Status:    task.syncStatus,
 		Message:   task.message,
+		HookType:  task.hookType(),
 		HookPhase: task.operationState,
 		SyncPhase: task.phase,
 	}

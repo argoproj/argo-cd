@@ -105,3 +105,11 @@ func (t *syncTask) completed() bool {
 func (t *syncTask) successful() bool {
 	return t.operationState.Successful()
 }
+
+func (t *syncTask) hookType() HookType {
+	if t.isHook() {
+		return HookType(t.phase)
+	} else {
+		return ""
+	}
+}
