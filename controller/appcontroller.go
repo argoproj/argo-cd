@@ -549,6 +549,10 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace)
 		_, err = appClient.Patch(app.Name, types.MergePatchType, patchJSON)
 		if err != nil {
+			// Stop retrying updating deleted application
+			if apierr.IsNotFound(err) {
+				return nil
+			}
 			return err
 		}
 		log.Infof("updated '%s' operation (phase: %s)", app.Name, state.Phase)

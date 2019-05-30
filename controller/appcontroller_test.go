@@ -4,7 +4,18 @@ import (
 	"context"
 	"testing"
 	"time"
-
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"github.com/ghodss/yaml"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	corev1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes/fake"
+	kubetesting "k8s.io/client-go/testing"
+	"k8s.io/client-go/tools/cache"
 	"github.com/argoproj/argo-cd/common"
 	mockstatecache "github.com/argoproj/argo-cd/controller/cache/mocks"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -464,4 +475,17 @@ func TestHandleAppUpdated(t *testing.T) {
 	ctrl.handleAppUpdated(app.Name, true, corev1.ObjectReference{UID: "test", Kind: kube.DeploymentKind, Name: "test", Namespace: "default"})
 	isRequested, _ = ctrl.isRefreshRequested(app.Name)
 	assert.True(t, isRequested)
+}
+
+func TestSetOperationStateOnDeletedApp(t *testing.T) {
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.ReactionChain = nil
+	patched := false
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patched = true
+		return true, nil, apierr.NewNotFound(schema.GroupResource{}, "my-app")
+	})
+	ctrl.setOperationState(newFakeApp(), &argoappv1.OperationState{Phase: argoappv1.OperationSucceeded})
+	assert.True(t, patched)
 }
