@@ -273,7 +273,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	cmInformer := v1.NewFilteredConfigMapInformer(mgr.clientset, mgr.namespace, 3*time.Minute, cache.Indexers{}, tweakConfigMap)
 	secretsInformer := v1.NewSecretInformer(mgr.clientset, mgr.namespace, 3*time.Minute, cache.Indexers{})
 
-	log.Info("Starting configmap/secret informers")
+	log.WithFields(log.Fields{"namespace": mgr.namespace}).Info("Starting configmap/secret informers")
 	go func() {
 		cmInformer.Run(ctx.Done())
 		log.Info("configmap informer cancelled")
@@ -286,7 +286,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	if !cache.WaitForCacheSync(ctx.Done(), cmInformer.HasSynced, secretsInformer.HasSynced) {
 		return fmt.Errorf("Timed out waiting for settings cache to sync")
 	}
-	log.Info("Configmap/secret informer synced")
+	log.WithFields(log.Fields{"namespace": mgr.namespace})..Info("Configmap/secret informer synced")
 
 	tryNotify := func() {
 		newSettings, err := mgr.GetSettings()
