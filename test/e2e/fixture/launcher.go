@@ -15,14 +15,22 @@ const logLevel = "info"
 
 func Launch() {
 
+	_, err := Run("", "git-ask-pass.sh")
+	if err != nil {
+		log.WithFields(log.Fields{"err": err}).Fatal("git-ask-pass.sh must be in path")
+	}
+
+	if os.Getenv("FORCE_LOG_COLORS") != "1" {
+		log.Fatal("envvar FORCE_LOG_COLORS must be '1'")
+	}
+	if os.Getenv("ARGOCD_FAKE_IN_CLUSTER") != "true" {
+		log.Fatal("envvar ARGOCD_FAKE_IN_CLUSTER must be 'true'")
+	}
+	if os.Getenv("ARGOCD_OPTS") != "--server localhost:8080 --plaintext" {
+		log.Fatal("ARGOCD_OPTS must be '--server localhost:8080 --plaintext'")
+	}
+
 	log.Info("launching...")
-
-	FailOnErr(Run("", "git-ask-pass.sh"))
-
-	CheckError(os.Setenv("FORCE_LOG_COLORS", "1"))
-	CheckError(os.Setenv("ARGOCD_FAKE_IN_CLUSTER", "true"))
-	CheckError(os.Setenv("ARGOCD_OPTS", "--server localhost:8080 --plaintext"))
-
 	go startApiServer()
 	time.Sleep(3 * time.Second)
 	go startRepoServer()
