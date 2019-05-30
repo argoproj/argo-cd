@@ -12,16 +12,16 @@ import (
 
 func TestCliAppCommand(t *testing.T) {
 	Given(t).
-		Path("guestbook").
+		Path("hook").
 		When().
 		Create().
 		And(func() {
 			output, err := RunCli("app", "sync", Name())
 			assert.NoError(t, err)
 			expected := Tmpl(
-				`GROUP KIND NAMESPACE NAME STATUS HEALTH
- Service {{.Namespace}} guestbook-ui Synced Healthy
-apps Deployment {{.Namespace}} guestbook-ui Synced Healthy`,
+				`GROUP KIND NAMESPACE NAME STATUS HEALTH HOOK
+ Pod {{.Namespace}} pod Synced Healthy false
+ Pod {{.Namespace}} hook Healthy true`,
 				map[string]interface{}{"Name": Name(), "Namespace": DeploymentNamespace()})
 			assert.Contains(t, NormalizeOutput(output), expected)
 		}).
