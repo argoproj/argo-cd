@@ -148,8 +148,6 @@ test-e2e:
 	# Start Redis
 	docker run -d --rm --name argocd-redis -p 6379:6379 redis:5.0.3-alpine --save "" --appendonly no || true
 	# Create namespace and install basic manifests
-	kubectl create ns argocd-e2e || true
-	kubectl config set-context `kubectl config current-context` --namespace=argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
 	# Run e2e tests
 	env FORCE_LOG_COLORS=1 ARGOCD_FAKE_IN_CLUSTER=true ARGOCD_OPTS='--server localhost:8080 --plaintext' go test -v -covermode=count -coverprofile=coverage.out -coverpkg=github.com/argoproj/argo-cd -timeout 10m ./test/e2e
