@@ -19,7 +19,6 @@ Install:
 * [go-swagger](https://github.com/go-swagger/go-swagger/blob/master/docs/install.md)
 * [jq](https://stedolan.github.io/jq/)
 * [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
-* [kubectx](https://kubectx.dev)
 * [minikube](https://kubernetes.io/docs/setup/minikube/) or Docker for Desktop
 
 Brew users can quickly install the lot:
