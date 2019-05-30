@@ -23,6 +23,7 @@ func init() {
 		"ResourceQuota",
 		"LimitRange",
 		"PodSecurityPolicy",
+		"PodDisruptionBudget",
 		"Secret",
 		"ConfigMap",
 		"StorageClass",
