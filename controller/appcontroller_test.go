@@ -2,20 +2,6 @@ package controller
 
 import (
 	"context"
-	"testing"
-	"time"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"github.com/ghodss/yaml"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	corev1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes/fake"
-	kubetesting "k8s.io/client-go/testing"
-	"k8s.io/client-go/tools/cache"
 	"github.com/argoproj/argo-cd/common"
 	mockstatecache "github.com/argoproj/argo-cd/controller/cache/mocks"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -31,12 +17,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
+	"testing"
+	"time"
 )
 
 type fakeData struct {
