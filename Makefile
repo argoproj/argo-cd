@@ -152,6 +152,7 @@ test-e2e:
 	kubens argocd-e2e
 	kustomize build test/manifests/base | kubectl -n argocd-e2e apply -f -
 	# Run e2e tests
+	cat ~/.kube/config
 	kubectx
 	kubens
 	env FORCE_LOG_COLORS=1 ARGOCD_FAKE_IN_CLUSTER=true ARGOCD_OPTS='--server localhost:8080 --plaintext' go test -v -covermode=count -coverprofile=coverage.out -coverpkg=github.com/argoproj/argo-cd -timeout 10m ./test/e2e
