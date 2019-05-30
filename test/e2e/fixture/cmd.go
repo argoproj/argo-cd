@@ -1,6 +1,7 @@
 package fixture
 
 import (
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -15,6 +16,7 @@ func Run(workDir, name string, args ...string) (string, error) {
 	log.WithFields(log.Fields{"name": name, "args": args, "workDir": workDir}).Info("running command")
 
 	cmd := exec.Command(name, args...)
+	cmd.Env = os.Environ()
 	cmd.Dir = workDir
 
 	outBytes, err := cmd.Output()

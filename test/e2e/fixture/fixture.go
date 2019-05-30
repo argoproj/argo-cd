@@ -13,6 +13,7 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -63,10 +64,6 @@ func getKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest
 // creates e2e tests fixture: ensures that Application CRD is installed, creates temporal namespace, starts repo and api server,
 // configure currently available cluster.
 func init() {
-
-	// trouble-shooting check to see if this busted add-on is going to cause problems
-	FailOnErr(Run("", "kubectl", "api-resources", "-o", "name"))
-
 	// set-up variables
 	config := getKubeConfig("", clientcmd.ConfigOverrides{})
 	AppClientset = appclientset.NewForConfigOrDie(config)
@@ -127,8 +124,9 @@ func CreateSecret(username, password string) string {
 	secretName := fmt.Sprintf("argocd-e2e-secret-%s", id)
 	FailOnErr(Run("", "kubectl", "create", "secret", "generic", secretName,
 		"--from-literal=username="+username,
-		"--from-literal=password="+password))
-	FailOnErr(Run("", "kubectl", "label", "secret", secretName, testingLabel+"=true"))
+		"--from-literal=password="+password,
+		"-n", ArgoCDNamespace))
+	FailOnErr(Run("", "kubectl", "label", "secret", secretName, testingLabel+"=true", "-n", ArgoCDNamespace))
 	return secretName
 }
 
@@ -136,22 +134,18 @@ func EnsureCleanState() {
 
 	start := time.Now()
 
+	policy := v1.DeletePropagationBackground
 	// delete resources
-	text, err := Run("", "kubectl", "get", "app", "-o", "name")
-	CheckError(err)
-	for _, name := range strings.Split(text, "\n") {
-		if name != "" {
-			appName := strings.TrimPrefix(name, "application.argoproj.io/")
-			// we cannot delete any app, if an op is in progress
-			_, _ = RunCli("app", "terminate-op", appName)
-			// is it much more reliable to get argocd to delete an app than kubectl, deleting directly can make ArgoCD stuck
-			_, _ = RunCli("app", "delete", appName)
-		}
-	}
-	FailOnErr(Run("", "kubectl", "delete", "appprojects", "--field-selector", "metadata.name!=default"))
-	// takes around 5s, so we don't wait
+	// kubectl delete apps --all
+	CheckError(AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).DeleteCollection(&v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{}))
+	// kubectl delete appprojects --field-selector metadata.name!=default
+	CheckError(AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).DeleteCollection(
+		&v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{FieldSelector: "metadata.name!=default"}))
+	// kubectl delete secrets -l e2e.argoproj.io=true
+	CheckError(KubeClientset.CoreV1().Secrets(ArgoCDNamespace).DeleteCollection(
+		&v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: testingLabel + "=true"}))
+
 	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", testingLabel+"=true", "--field-selector", "status.phase=Active", "--wait=false"))
-	FailOnErr(Run("", "kubectl", "delete", "secrets", "-l", testingLabel+"=true"))
 
 	// reset settings
 	s, err := SettingsManager.GetSettings()
@@ -160,6 +154,7 @@ func EnsureCleanState() {
 		// changing theses causes a restart
 		AdminPasswordHash:    s.AdminPasswordHash,
 		AdminPasswordMtime:   s.AdminPasswordMtime,
+		ServerSignature:      s.ServerSignature,
 		Certificate:          s.Certificate,
 		DexConfig:            s.DexConfig,
 		OIDCConfigRAW:        s.OIDCConfigRAW,

@@ -275,7 +275,7 @@ jobs:
             ARGOCD_FAKE_IN_CLUSTER: "true"
       - run:
           name: Start API server
-          command: go run ./cmd/argocd-server/main.go --loglevel debug --redis localhost:6379 --disable-auth --insecure --dex-server http://localhost:5556 --repo-server localhost:8081 --staticassets ../argo-cd-ui/dist/app
+          command: go run ./cmd/argocd-server/main.go --loglevel debug --redis localhost:6379 --insecure --dex-server http://localhost:5556 --repo-server localhost:8081 --staticassets ../argo-cd-ui/dist/app
           background: true
           environment:
             ARGOCD_FAKE_IN_CLUSTER: "true"
@@ -283,9 +283,7 @@ jobs:
           name: Wait for API server
           command: |
             set -x
-            # TODO - try to reduce to 20
-            sleep 60
-            curl -v --retry 5 localhost:8080
+            until curl -v http://localhost:8080/healthz; do sleep 3; done
       - run:
           name: Start controller
           command: go run ./cmd/argocd-application-controller/main.go --loglevel debug --redis localhost:6379 --repo-server localhost:8081 --kubeconfig ~/.kube/config
@@ -296,11 +294,10 @@ jobs:
           name: Smoke test
           command: |
             set -x
+            argocd login localhost:8080 --plaintext  --username admin --password password
             argocd app create guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook
             argocd app sync guestbook
             argocd app delete guestbook
-          environment:
-            ARGOCD_OPTS: "--server localhost:8080 --plaintext"
       - run:
           name: Run e2e tests
           command: |
