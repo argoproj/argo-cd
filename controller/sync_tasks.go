@@ -14,33 +14,41 @@ var syncPhaseOrder = map[SyncPhase]int{
 }
 
 // kindOrder represents the correct order of Kubernetes resources within a manifest
-var kindOrder = map[string]int{
-	"Namespace":                -26,
-	"ResourceQuota":            -24,
-	"LimitRange":               -24,
-	"PodSecurityPolicy":        -23,
-	"Secret":                   -22,
-	"ConfigMap":                -21,
-	"StorageClass":             -20,
-	"PersistentVolume":         -19,
-	"PersistentVolumeClaim":    -18,
-	"ServiceAccount":           -17,
-	"CustomResourceDefinition": -16,
-	"ClusterRole":              -15,
-	"ClusterRoleBinding":       -14,
-	"Role":                     -13,
-	"RoleBinding":              -12,
-	"Service":                  -11,
-	"DaemonSet":                -10,
-	"Pod":                      -9,
-	"ReplicationController":    -8,
-	"ReplicaSet":               -7,
-	"Deployment":               -6,
-	"StatefulSet":              -5,
-	"Job":                      -4,
-	"CronJob":                  -3,
-	"Ingress":                  -2,
-	"APIService":               -1,
+// https://github.com/helm/helm/blob/master/pkg/tiller/kind_sorter.go
+var kindOrder = map[string]int{}
+
+func init() {
+	kinds := []string{
+		"Namespace",
+		"ResourceQuota",
+		"LimitRange",
+		"PodSecurityPolicy",
+		"Secret",
+		"ConfigMap",
+		"StorageClass",
+		"PersistentVolume",
+		"PersistentVolumeClaim",
+		"ServiceAccount",
+		"CustomResourceDefinition",
+		"ClusterRole",
+		"ClusterRoleBinding",
+		"Role",
+		"RoleBinding",
+		"Service",
+		"DaemonSet",
+		"Pod",
+		"ReplicationController",
+		"ReplicaSet",
+		"Deployment",
+		"StatefulSet",
+		"Job",
+		"CronJob",
+		"Ingress",
+		"APIService",
+	}
+	for i, kind := range kinds {
+		kindOrder[kind] = i - len(kinds) - 1
+	}
 }
 
 type syncTasks []*syncTask
