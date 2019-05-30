@@ -50,6 +50,7 @@ nav:
     - user-guide/tracking_strategies.md
     - user-guide/resource_hooks.md
     - user-guide/ci_automation.md
+    - user-guide/app_deletion.md
     - user-guide/best_practices.md
   - Developer Guide:
     - developer-guide/index.md
