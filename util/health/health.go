@@ -42,7 +42,7 @@ func SetApplicationHealth(resStatuses []appv1.ResourceStatus, liveObjs []*unstru
 		if resHealth != nil {
 			resStatuses[i].Health = resHealth
 			// Don't allow resource hooks to affect health status
-			ignore := liveObj != nil && hookutil.IsHook(liveObj) || resource.Ignore(liveObj)
+			ignore := liveObj != nil && (hookutil.IsHook(liveObj) || resource.Ignore(liveObj))
 			if !ignore && IsWorse(appHealth.Status, resHealth.Status) {
 				appHealth.Status = resHealth.Status
 			}
