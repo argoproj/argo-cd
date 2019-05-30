@@ -2,6 +2,9 @@ package controller
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/argoproj/argo-cd/common"
 	mockstatecache "github.com/argoproj/argo-cd/controller/cache/mocks"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -23,8 +26,6 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
-	"testing"
-	"time"
 )
 
 type fakeData struct {
