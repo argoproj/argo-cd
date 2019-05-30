@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/argoproj/argo-cd/common"
+
 	log "github.com/sirupsen/logrus"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -311,10 +313,16 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 
 		obj := obj(resource.Target, resource.Live)
 
-		// this does appear to create garbage tasks
+		// this creates garbage tasks
 		if hook.IsHook(obj) {
 			log.WithFields(log.Fields{"group": obj.GroupVersionKind().Group, "kind": obj.GetKind(), "namespace": obj.GetNamespace(), "name": obj.GetName()}).
 				Debug("skipping hook")
+			continue
+		}
+
+		if ignore(obj) {
+			log.WithFields(log.Fields{"group": obj.GroupVersionKind().Group, "kind": obj.GetKind(), "namespace": obj.GetNamespace(), "name": obj.GetName()}).
+				Debug("ignoring obj")
 			continue
 		}
 
@@ -328,6 +336,9 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 	hookTasks := syncTasks{}
 	if !sc.skipHooks() {
 		for _, obj := range sc.compareResult.hooks {
+			if ignore(obj) {
+				continue
+			}
 			for _, phase := range syncPhases(obj) {
 				// Hook resources names are deterministic, whether they are defined by the user (metadata.name),
 				// or formulated at the time of the operation (metadata.generateName). If user specifies
@@ -412,6 +423,13 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 	sort.Sort(tasks)
 
 	return tasks, successful
+}
+
+// should we ignore this resource?
+func ignore(obj *unstructured.Unstructured) bool {
+	// ignore helm hooks, except crd-install
+	hooks, ok := obj.GetAnnotations()[common.AnnotationKeyHelmHook]
+	return ok && !strings.Contains(hooks, common.AnnotationValueHelmHookCRDInstall)
 }
 
 func obj(a, b *unstructured.Unstructured) *unstructured.Unstructured {
