@@ -11,7 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const logLevel = "info"
+const logLevel = "debug"
 
 func Launch() {
 
