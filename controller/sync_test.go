@@ -17,6 +17,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util/kube"
@@ -457,4 +458,39 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 	assert.Equal(t, 1, len(updatedApp.Status.History))
 	assert.Equal(t, source, updatedApp.Status.History[0].Source)
 	assert.Equal(t, "abc123", updatedApp.Status.History[0].Revision)
+}
+
+func Test_syncContext_isSelectiveSync(t *testing.T) {
+	type fields struct {
+		compareResult *comparisonResult
+		syncResources []SyncOperationResource
+	}
+	oneSyncResource := []SyncOperationResource{{}}
+	oneResource := func(group, kind, name string) *comparisonResult {
+		return &comparisonResult{resources: []v1alpha1.ResourceStatus{{Group: group, Kind: kind, Name: name}}}
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   bool
+	}{
+		{"Empty", fields{}, false},
+		{"OneCompareResult", fields{oneResource("", "", ""), []SyncOperationResource{}}, true},
+		{"OneSyncResource", fields{&comparisonResult{}, oneSyncResource}, true},
+		{"Equal", fields{oneResource("", "", ""), oneSyncResource}, false},
+		{"KindDifferent", fields{oneResource("foo", "", ""), oneSyncResource}, true},
+		{"GroupDifferent", fields{oneResource("", "foo", ""), oneSyncResource}, true},
+		{"NameDifferent", fields{oneResource("", "", "foo"), oneSyncResource}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sc := &syncContext{
+				compareResult: tt.fields.compareResult,
+				syncResources: tt.fields.syncResources,
+			}
+			if got := sc.isSelectiveSync(); got != tt.want {
+				t.Errorf("syncContext.isSelectiveSync() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

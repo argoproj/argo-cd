@@ -12,7 +12,7 @@ func syncPhases(obj *unstructured.Unstructured) []SyncPhase {
 		return nil
 	} else if hook.IsHook(obj) {
 		var phases []SyncPhase
-		for _, hookType := range hook.HookTypes(obj) {
+		for _, hookType := range hook.Types(obj) {
 			switch hookType {
 			case HookTypePreSync, HookTypeSync, HookTypePostSync:
 				phases = append(phases, SyncPhase(hookType))

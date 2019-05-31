@@ -177,14 +177,14 @@ func (m *appStateManager) SyncAppState(app *Application, state *OperationState) 
 
 // sync has performs the actual apply or hook based sync
 func (sc *syncContext) sync() {
-	sc.log.Debug("syncing")
+	sc.log.WithFields(log.Fields{"isSelectiveSync": sc.isSelectiveSync(), "skipHooks": sc.skipHooks(), "notStarted": sc.notStarted()}).Info("syncing")
 	tasks, successful := sc.getSyncTasks()
 	if !successful {
 		sc.setOperationPhase(OperationFailed, "one or more synchronization tasks are not valid")
 		return
 	}
 
-	sc.log.WithFields(log.Fields{"tasks": tasks}).Info("tasks")
+	sc.log.WithFields(log.Fields{"tasks": tasks, "isSelectiveSync": sc.isSelectiveSync()}).Info("tasks")
 
 	// Perform a `kubectl apply --dry-run` against all the manifests. This will detect most (but
 	// not all) validation issues with the user's manifests (e.g. will detect syntax issues, but
@@ -281,7 +281,22 @@ func (sc *syncContext) notStarted() bool {
 }
 
 func (sc *syncContext) isSelectiveSync() bool {
-	return sc.syncResources != nil
+	// we've selected no resources
+	if sc.syncResources == nil {
+		return false
+	}
+	// we've selected different resources, the UI does this, so we must check all
+	if len(sc.syncResources) != len(sc.compareResult.resources) {
+		return true
+	}
+	for i, r := range sc.compareResult.resources {
+		if sc.syncResources[i].Group != r.Group ||
+			sc.syncResources[i].Kind != r.Kind ||
+			sc.syncResources[i].Name != r.Name {
+			return true
+		}
+	}
+	return false
 }
 
 // this essentially enforces the old "apply" behaviour

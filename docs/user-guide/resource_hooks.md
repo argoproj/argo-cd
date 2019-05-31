@@ -1,5 +1,8 @@
 # Resource Hooks
 
+!!! warning
+    Helm hooks are currently ignored. [Read more](helm.md).
+
 ## Overview
 
 Synchronization can be configured using resource hooks. Hooks are ways to interject custom logic before, during,
