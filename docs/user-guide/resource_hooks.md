@@ -43,6 +43,10 @@ The following hooks are defined:
 | `PostSync` | Executes after all `Sync` hooks completed and were successful, a succcessful apply, and all resources in a `Healthy` state. |
 
 
+## Selective Sync
+
+Hooks are not run during [selective sync](selective_sync.md).
+
 ## Hook Deletion Policies
 
 Hooks can be deleted in an automatic fashion using the annotation: `argocd.argoproj.io/hook-delete-policy`.

@@ -295,13 +295,12 @@ func (sc *syncContext) isSelectiveSync() bool {
 		}
 	}
 	sort.Strings(a)
+
 	var b []string
 	for _, r := range sc.syncResources {
 		b = append(b, fmt.Sprintf("%s:%s:%s", r.Group, r.Kind, r.Name))
 	}
 	sort.Strings(b)
-
-	log.WithFields(log.Fields{"a": a, "b": b}).Debug("comparing")
 
 	return !reflect.DeepEqual(a, b)
 }
