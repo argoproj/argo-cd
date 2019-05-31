@@ -7,4 +7,3 @@ A *selective sync* is one where only some resources are sync'd. You can choose w
 When doing so, bear in mind:
 
 * Your sync is not recorded in the history, and so rollback is not possible.
-* Hooks are not executed.

@@ -45,7 +45,7 @@ The following hooks are defined:
 
 ## Selective Sync
 
-Hooks are not run during [selective sync](selective_sync.md).
+Hooks are run during [selective sync](selective_sync.md).
 
 ## Hook Deletion Policies
 
