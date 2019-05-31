@@ -24,7 +24,7 @@ func TestSelectiveSync(t *testing.T) {
 }
 
 // when running selective sync, hooks do not run
-func TestSelectiveSyncDoesNotRunHooks(t *testing.T) {
+func TestSelectiveSyncDoesRunHooks(t *testing.T) {
 	Given(t).
 		Path("hook").
 		SelectedResource(":Pod:pod").
@@ -37,5 +37,5 @@ func TestSelectiveSyncDoesNotRunHooks(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(HealthStatusHealthy)).
 		Expect(ResourceHealthIs("Pod", "pod", HealthStatusHealthy)).
-		Expect(ResourceHealthIs("Pod", "hook", HealthStatusMissing))
+		Expect(ResourceHealthIs("Pod", "hook", HealthStatusHealthy))
 }
