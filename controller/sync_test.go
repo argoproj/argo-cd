@@ -466,8 +466,8 @@ func Test_syncContext_isSelectiveSync(t *testing.T) {
 		syncResources []SyncOperationResource
 	}
 	oneSyncResource := []SyncOperationResource{{}}
-	oneResource := func(group, kind, name string) *comparisonResult {
-		return &comparisonResult{resources: []v1alpha1.ResourceStatus{{Group: group, Kind: kind, Name: name}}}
+	oneResource := func(group, kind, name string, hook bool) *comparisonResult {
+		return &comparisonResult{resources: []v1alpha1.ResourceStatus{{Group: group, Kind: kind, Name: name, Hook: hook}}}
 	}
 	tests := []struct {
 		name   string
@@ -475,13 +475,14 @@ func Test_syncContext_isSelectiveSync(t *testing.T) {
 		want   bool
 	}{
 		{"Empty", fields{}, false},
-		{"OneCompareResult", fields{oneResource("", "", ""), []SyncOperationResource{}}, true},
+		{"OneCompareResult", fields{oneResource("", "", "", false), []SyncOperationResource{}}, true},
 		{"OneSyncResource", fields{&comparisonResult{}, oneSyncResource}, true},
-		{"Equal", fields{oneResource("", "", ""), oneSyncResource}, false},
+		{"Equal", fields{oneResource("", "", "", false), oneSyncResource}, false},
 		{"EqualOutOfOrder", fields{&comparisonResult{resources: []v1alpha1.ResourceStatus{{Group: "a"}, {Group: "b"}}}, []SyncOperationResource{{Group: "b"}, {Group: "a"}}}, false},
-		{"KindDifferent", fields{oneResource("foo", "", ""), oneSyncResource}, true},
-		{"GroupDifferent", fields{oneResource("", "foo", ""), oneSyncResource}, true},
-		{"NameDifferent", fields{oneResource("", "", "foo"), oneSyncResource}, true},
+		{"KindDifferent", fields{oneResource("foo", "", "", false), oneSyncResource}, true},
+		{"GroupDifferent", fields{oneResource("", "foo", "", false), oneSyncResource}, true},
+		{"NameDifferent", fields{oneResource("", "", "foo", false), oneSyncResource}, true},
+		{"HookIgnored", fields{oneResource("", "", "", true), []SyncOperationResource{}}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

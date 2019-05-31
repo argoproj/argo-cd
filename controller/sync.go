@@ -178,7 +178,7 @@ func (m *appStateManager) SyncAppState(app *Application, state *OperationState) 
 
 // sync has performs the actual apply or hook based sync
 func (sc *syncContext) sync() {
-	sc.log.WithFields(log.Fields{"isSelectiveSync": sc.isSelectiveSync(), "skipHooks": sc.skipHooks(), "notStarted": sc.notStarted()}).Info("syncing")
+	sc.log.WithFields(log.Fields{"isSelectiveSync": sc.isSelectiveSync(), "skipHooks": sc.skipHooks(), "started": sc.started()}).Info("syncing")
 	tasks, successful := sc.getSyncTasks()
 	if !successful {
 		sc.setOperationPhase(OperationFailed, "one or more synchronization tasks are not valid")
@@ -193,7 +193,7 @@ func (sc *syncContext) sync() {
 	// to perform the sync. we only wish to do this once per operation, performing additional dry-runs
 	// is harmless, but redundant. The indicator we use to detect if we have already performed
 	// the dry-run for this operation, is if the resource or hook list is empty.
-	if sc.notStarted() {
+	if !sc.started() {
 		sc.log.Debug("dry-run")
 		if !sc.runTasks(tasks, true) {
 			sc.setOperationPhase(OperationFailed, "one or more objects failed to apply (dry run)")
@@ -277,8 +277,8 @@ func (sc *syncContext) sync() {
 	}
 }
 
-func (sc *syncContext) notStarted() bool {
-	return len(sc.syncRes.Resources) == 0
+func (sc *syncContext) started() bool {
+	return len(sc.syncRes.Resources) > 0
 }
 
 func (sc *syncContext) isSelectiveSync() bool {
@@ -286,20 +286,23 @@ func (sc *syncContext) isSelectiveSync() bool {
 	if sc.syncResources == nil {
 		return false
 	}
-	// we've selected different resources, the UI does this, so we must check all
-	if len(sc.syncResources) != len(sc.compareResult.resources) {
-		return true
-	}
-	// map both lists into
-	var a, b []string
-	for i, r := range sc.compareResult.resources {
-		a = append(a, fmt.Sprintf("%s:%s:%s", r.Group, r.Kind, r.Name))
-		s := sc.syncResources[i]
-		b = append(b, fmt.Sprintf("%s:%s:%s", s.Group, s.Kind, s.Name))
-	}
 
+	// map both lists into string
+	var a []string
+	for _, r := range sc.compareResult.resources {
+		if !r.Hook {
+			a = append(a, fmt.Sprintf("%s:%s:%s", r.Group, r.Kind, r.Name))
+		}
+	}
 	sort.Strings(a)
+	var b []string
+	for _, r := range sc.syncResources {
+		b = append(b, fmt.Sprintf("%s:%s:%s", r.Group, r.Kind, r.Name))
+	}
 	sort.Strings(b)
+
+	log.WithFields(log.Fields{"a": a, "b": b}).Debug("comparing")
+
 	return !reflect.DeepEqual(a, b)
 }
 
