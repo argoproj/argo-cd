@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -289,14 +290,17 @@ func (sc *syncContext) isSelectiveSync() bool {
 	if len(sc.syncResources) != len(sc.compareResult.resources) {
 		return true
 	}
+	// map both lists into
+	var a, b []string
 	for i, r := range sc.compareResult.resources {
-		if sc.syncResources[i].Group != r.Group ||
-			sc.syncResources[i].Kind != r.Kind ||
-			sc.syncResources[i].Name != r.Name {
-			return true
-		}
+		a = append(a, fmt.Sprintf("%s:%s:%s", r.Group, r.Kind, r.Name))
+		s := sc.syncResources[i]
+		b = append(b, fmt.Sprintf("%s:%s:%s", s.Group, s.Kind, s.Name))
 	}
-	return false
+
+	sort.Strings(a)
+	sort.Strings(b)
+	return !reflect.DeepEqual(a, b)
 }
 
 // this essentially enforces the old "apply" behaviour

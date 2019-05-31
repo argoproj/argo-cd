@@ -478,6 +478,7 @@ func Test_syncContext_isSelectiveSync(t *testing.T) {
 		{"OneCompareResult", fields{oneResource("", "", ""), []SyncOperationResource{}}, true},
 		{"OneSyncResource", fields{&comparisonResult{}, oneSyncResource}, true},
 		{"Equal", fields{oneResource("", "", ""), oneSyncResource}, false},
+		{"EqualOutOfOrder", fields{&comparisonResult{resources: []v1alpha1.ResourceStatus{{Group: "a"}, {Group: "b"}}}, []SyncOperationResource{{Group: "b"}, {Group: "a"}}}, false},
 		{"KindDifferent", fields{oneResource("foo", "", ""), oneSyncResource}, true},
 		{"GroupDifferent", fields{oneResource("", "foo", ""), oneSyncResource}, true},
 		{"NameDifferent", fields{oneResource("", "", "foo"), oneSyncResource}, true},
