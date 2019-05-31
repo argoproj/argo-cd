@@ -43,7 +43,7 @@ func (m *SettingsQuery) Reset()         { *m = SettingsQuery{} }
 func (m *SettingsQuery) String() string { return proto.CompactTextString(m) }
 func (*SettingsQuery) ProtoMessage()    {}
 func (*SettingsQuery) Descriptor() ([]byte, []int) {
-	return fileDescriptor_settings_e1e5490ce99485a2, []int{0}
+	return fileDescriptor_settings_4373c06dcc35da1b, []int{0}
 }
 func (m *SettingsQuery) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -87,7 +87,7 @@ func (m *Settings) Reset()         { *m = Settings{} }
 func (m *Settings) String() string { return proto.CompactTextString(m) }
 func (*Settings) ProtoMessage()    {}
 func (*Settings) Descriptor() ([]byte, []int) {
-	return fileDescriptor_settings_e1e5490ce99485a2, []int{1}
+	return fileDescriptor_settings_4373c06dcc35da1b, []int{1}
 }
 func (m *Settings) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -162,7 +162,7 @@ func (m *DexConfig) Reset()         { *m = DexConfig{} }
 func (m *DexConfig) String() string { return proto.CompactTextString(m) }
 func (*DexConfig) ProtoMessage()    {}
 func (*DexConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_settings_e1e5490ce99485a2, []int{2}
+	return fileDescriptor_settings_4373c06dcc35da1b, []int{2}
 }
 func (m *DexConfig) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -210,7 +210,7 @@ func (m *Connector) Reset()         { *m = Connector{} }
 func (m *Connector) String() string { return proto.CompactTextString(m) }
 func (*Connector) ProtoMessage()    {}
 func (*Connector) Descriptor() ([]byte, []int) {
-	return fileDescriptor_settings_e1e5490ce99485a2, []int{3}
+	return fileDescriptor_settings_4373c06dcc35da1b, []int{3}
 }
 func (m *Connector) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -268,7 +268,7 @@ func (m *OIDCConfig) Reset()         { *m = OIDCConfig{} }
 func (m *OIDCConfig) String() string { return proto.CompactTextString(m) }
 func (*OIDCConfig) ProtoMessage()    {}
 func (*OIDCConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_settings_e1e5490ce99485a2, []int{4}
+	return fileDescriptor_settings_4373c06dcc35da1b, []int{4}
 }
 func (m *OIDCConfig) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1617,10 +1617,10 @@ var (
 )
 
 func init() {
-	proto.RegisterFile("server/settings/settings.proto", fileDescriptor_settings_e1e5490ce99485a2)
+	proto.RegisterFile("server/settings/settings.proto", fileDescriptor_settings_4373c06dcc35da1b)
 }
 
-var fileDescriptor_settings_e1e5490ce99485a2 = []byte{
+var fileDescriptor_settings_4373c06dcc35da1b = []byte{
 	// 577 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x54, 0x5d, 0x6b, 0x13, 0x41,
 	0x14, 0x65, 0xbb, 0xfd, 0xda, 0x1b, 0xb5, 0xed, 0x28, 0x25, 0x06, 0x49, 0x42, 0x9e, 0x02, 0xe2,
