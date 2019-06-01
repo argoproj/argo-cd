@@ -6,13 +6,13 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/common"
-	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
 func IsHook(obj *unstructured.Unstructured) bool {
 	for _, hookType := range types(obj) {
-		switch HookType(hookType) {
-		case HookTypeSkip:
+		switch v1alpha1.HookType(hookType) {
+		case v1alpha1.HookTypeSkip:
 			return !Skip(obj)
 		default:
 			return true
@@ -23,19 +23,19 @@ func IsHook(obj *unstructured.Unstructured) bool {
 
 func Skip(obj *unstructured.Unstructured) bool {
 	for _, hookType := range types(obj) {
-		if HookType(hookType) == HookTypeSkip {
+		if v1alpha1.HookType(hookType) == v1alpha1.HookTypeSkip {
 			return len(types(obj)) == 1
 		}
 	}
 	return false
 }
 
-func Types(obj *unstructured.Unstructured) []HookType {
-	var hookTypes []HookType
+func Types(obj *unstructured.Unstructured) []v1alpha1.HookType {
+	var hookTypes []v1alpha1.HookType
 	for _, hookType := range types(obj) {
-		switch HookType(hookType) {
-		case HookTypePreSync, HookTypeSync, HookTypePostSync:
-			hookTypes = append(hookTypes, HookType(hookType))
+		switch v1alpha1.HookType(hookType) {
+		case v1alpha1.HookTypePreSync, v1alpha1.HookTypeSync, v1alpha1.HookTypePostSync:
+			hookTypes = append(hookTypes, v1alpha1.HookType(hookType))
 		}
 	}
 	return hookTypes

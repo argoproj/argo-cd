@@ -7,7 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/hook"
 )
 
@@ -15,12 +15,12 @@ import (
 // indicates the live object needs to be pruned. A liveObj of nil indicates the object has yet to
 // be deployed
 type syncTask struct {
-	phase          SyncPhase
+	phase          v1alpha1.SyncPhase
 	liveObj        *unstructured.Unstructured
 	targetObj      *unstructured.Unstructured
 	skipDryRun     bool
-	syncStatus     ResultCode
-	operationState OperationPhase
+	syncStatus     v1alpha1.ResultCode
+	operationState v1alpha1.OperationPhase
 	message        string
 }
 
@@ -94,7 +94,7 @@ func (t *syncTask) namespace() string {
 }
 
 func (t *syncTask) running() bool {
-	return t.operationState == OperationRunning
+	return t.operationState == v1alpha1.OperationRunning
 }
 
 func (t *syncTask) completed() bool {
@@ -105,9 +105,9 @@ func (t *syncTask) successful() bool {
 	return t.operationState.Successful()
 }
 
-func (t *syncTask) hookType() HookType {
+func (t *syncTask) hookType() v1alpha1.HookType {
 	if t.isHook() {
-		return HookType(t.phase)
+		return v1alpha1.HookType(t.phase)
 	} else {
 		return ""
 	}

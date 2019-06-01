@@ -17,8 +17,8 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/argoproj/argo-cd/controller/metrics"
-	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	listersv1alpha1 "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/health"
 	"github.com/argoproj/argo-cd/util/hook"
@@ -26,9 +26,9 @@ import (
 )
 
 type syncContext struct {
-	resourceOverrides map[string]ResourceOverride
+	resourceOverrides map[string]v1alpha1.ResourceOverride
 	appName           string
-	proj              *AppProject
+	proj              *v1alpha1.AppProject
 	compareResult     *comparisonResult
 	config            *rest.Config
 	dynamicIf         dynamic.Interface
@@ -36,29 +36,29 @@ type syncContext struct {
 	kubectl           kube.Kubectl
 	namespace         string
 	server            string
-	syncOp            *SyncOperation
-	syncRes           *SyncOperationResult
-	syncResources     []SyncOperationResource
-	opState           *OperationState
+	syncOp            *v1alpha1.SyncOperation
+	syncRes           *v1alpha1.SyncOperationResult
+	syncResources     []v1alpha1.SyncOperationResource
+	opState           *v1alpha1.OperationState
 	log               *log.Entry
 	// lock to protect concurrent updates of the result list
 	lock sync.Mutex
 }
 
-func (m *appStateManager) SyncAppState(app *Application, state *OperationState) {
+func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState) {
 	// Sync requests might be requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
 	// This can change meaning when resuming operations (e.g a hook sync). After calculating a
 	// concrete git commit SHA, the SHA is remembered in the status.operationState.syncResult field.
 	// This ensures that when resuming an operation, we sync to the same revision that we initially
 	// started with.
 	var revision string
-	var syncOp SyncOperation
-	var syncRes *SyncOperationResult
-	var syncResources []SyncOperationResource
-	var source ApplicationSource
+	var syncOp v1alpha1.SyncOperation
+	var syncRes *v1alpha1.SyncOperationResult
+	var syncResources []v1alpha1.SyncOperationResource
+	var source v1alpha1.ApplicationSource
 
 	if state.Operation.Sync == nil {
-		state.Phase = OperationFailed
+		state.Phase = v1alpha1.OperationFailed
 		state.Message = "Invalid operation request: no operation specified"
 		return
 	}
@@ -75,7 +75,7 @@ func (m *appStateManager) SyncAppState(app *Application, state *OperationState) 
 		syncRes = state.SyncResult
 		revision = state.SyncResult.Revision
 	} else {
-		syncRes = &SyncOperationResult{}
+		syncRes = &v1alpha1.SyncOperationResult{}
 		// status.operationState.syncResult.source. must be set properly since auto-sync relies
 		// on this information to decide if it should sync (if source is different than the last
 		// sync attempt)
@@ -92,20 +92,20 @@ func (m *appStateManager) SyncAppState(app *Application, state *OperationState) 
 
 	compareResult, err := m.CompareAppState(app, revision, source, false)
 	if err != nil {
-		state.Phase = OperationError
+		state.Phase = v1alpha1.OperationError
 		state.Message = err.Error()
 		return
 	}
 
 	// If there are any error conditions, do not perform the operation
-	errConditions := make([]ApplicationCondition, 0)
+	errConditions := make([]v1alpha1.ApplicationCondition, 0)
 	for i := range compareResult.conditions {
 		if compareResult.conditions[i].IsError() {
 			errConditions = append(errConditions, compareResult.conditions[i])
 		}
 	}
 	if len(errConditions) > 0 {
-		state.Phase = OperationError
+		state.Phase = v1alpha1.OperationError
 		state.Message = argo.FormatAppConditions(errConditions)
 		return
 	}
@@ -116,7 +116,7 @@ func (m *appStateManager) SyncAppState(app *Application, state *OperationState) 
 
 	clst, err := m.db.GetCluster(context.Background(), app.Spec.Destination.Server)
 	if err != nil {
-		state.Phase = OperationError
+		state.Phase = v1alpha1.OperationError
 		state.Message = err.Error()
 		return
 	}
@@ -124,20 +124,20 @@ func (m *appStateManager) SyncAppState(app *Application, state *OperationState) 
 	restConfig := metrics.AddMetricsTransportWrapper(m.metricsServer, app, clst.RESTConfig())
 	dynamicIf, err := dynamic.NewForConfig(restConfig)
 	if err != nil {
-		state.Phase = OperationError
+		state.Phase = v1alpha1.OperationError
 		state.Message = fmt.Sprintf("Failed to initialize dynamic client: %v", err)
 		return
 	}
 	disco, err := discovery.NewDiscoveryClientForConfig(restConfig)
 	if err != nil {
-		state.Phase = OperationError
+		state.Phase = v1alpha1.OperationError
 		state.Message = fmt.Sprintf("Failed to initialize discovery client: %v", err)
 		return
 	}
 
-	proj, err := argo.GetAppProject(&app.Spec, v1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace)
+	proj, err := argo.GetAppProject(&app.Spec, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace)
 	if err != nil {
-		state.Phase = OperationError
+		state.Phase = v1alpha1.OperationError
 		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
 		return
 	}
@@ -160,7 +160,7 @@ func (m *appStateManager) SyncAppState(app *Application, state *OperationState) 
 		log:               log.WithFields(log.Fields{"application": app.Name}),
 	}
 
-	if state.Phase == OperationTerminating {
+	if state.Phase == v1alpha1.OperationTerminating {
 		syncCtx.terminate()
 	} else {
 		syncCtx.sync()
@@ -171,7 +171,7 @@ func (m *appStateManager) SyncAppState(app *Application, state *OperationState) 
 	if !syncOp.DryRun && !syncCtx.isSelectiveSync() && syncCtx.opState.Phase.Successful() {
 		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source)
 		if err != nil {
-			syncCtx.setOperationPhase(OperationError, fmt.Sprintf("failed to record sync to history: %v", err))
+			syncCtx.setOperationPhase(v1alpha1.OperationError, fmt.Sprintf("failed to record sync to history: %v", err))
 		}
 	}
 }
@@ -181,7 +181,7 @@ func (sc *syncContext) sync() {
 	sc.log.WithFields(log.Fields{"isSelectiveSync": sc.isSelectiveSync(), "skipHooks": sc.skipHooks(), "started": sc.started()}).Info("syncing")
 	tasks, successful := sc.getSyncTasks()
 	if !successful {
-		sc.setOperationPhase(OperationFailed, "one or more synchronization tasks are not valid")
+		sc.setOperationPhase(v1alpha1.OperationFailed, "one or more synchronization tasks are not valid")
 		return
 	}
 
@@ -196,7 +196,7 @@ func (sc *syncContext) sync() {
 	if !sc.started() {
 		sc.log.Debug("dry-run")
 		if !sc.runTasks(tasks, true) {
-			sc.setOperationPhase(OperationFailed, "one or more objects failed to apply (dry run)")
+			sc.setOperationPhase(v1alpha1.OperationFailed, "one or more objects failed to apply (dry run)")
 			return
 		}
 	}
@@ -215,7 +215,7 @@ func (sc *syncContext) sync() {
 			if enforceHookDeletePolicy(task.liveObj, task.operationState) {
 				err := sc.deleteResource(task)
 				if err != nil {
-					sc.setResourceResult(task, "", OperationError, fmt.Sprintf("failed to delete resource: %v", err))
+					sc.setResourceResult(task, "", v1alpha1.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
 				}
 			}
 		} else {
@@ -225,13 +225,13 @@ func (sc *syncContext) sync() {
 				log.WithFields(log.Fields{"task": task, "healthStatus": healthStatus}).Debug("attempting to update health of running task")
 				if healthStatus == nil {
 					// some objects (e.g. secret) do not have health, and they automatically success
-					sc.setResourceResult(task, task.syncStatus, OperationSucceeded, task.message)
+					sc.setResourceResult(task, task.syncStatus, v1alpha1.OperationSucceeded, task.message)
 				} else {
 					switch healthStatus.Status {
-					case HealthStatusHealthy:
-						sc.setResourceResult(task, task.syncStatus, OperationSucceeded, healthStatus.Message)
-					case HealthStatusDegraded:
-						sc.setResourceResult(task, task.syncStatus, OperationFailed, healthStatus.Message)
+					case v1alpha1.HealthStatusHealthy:
+						sc.setResourceResult(task, task.syncStatus, v1alpha1.OperationSucceeded, healthStatus.Message)
+					case v1alpha1.HealthStatusDegraded:
+						sc.setResourceResult(task, task.syncStatus, v1alpha1.OperationFailed, healthStatus.Message)
 					}
 				}
 			}
@@ -240,13 +240,13 @@ func (sc *syncContext) sync() {
 
 	// any running tasks, lets wait...
 	if tasks.Find(func(t *syncTask) bool { return t.running() }) != nil {
-		sc.setOperationPhase(OperationRunning, "one or more tasks are running")
+		sc.setOperationPhase(v1alpha1.OperationRunning, "one or more tasks are running")
 		return
 	}
 
 	// if there are any completed but unsuccessful tasks, sync is a failure.
 	if tasks.Find(func(t *syncTask) bool { return t.completed() && !t.successful() }) != nil {
-		sc.setOperationPhase(OperationFailed, "one or more synchronization tasks completed unsuccessfully")
+		sc.setOperationPhase(v1alpha1.OperationFailed, "one or more synchronization tasks completed unsuccessfully")
 		return
 	}
 
@@ -257,7 +257,7 @@ func (sc *syncContext) sync() {
 	// If no sync tasks were generated (e.g., in case all application manifests have been removed),
 	// the sync operation is successful.
 	if len(tasks) == 0 {
-		sc.setOperationPhase(OperationSucceeded, "successfully synced")
+		sc.setOperationPhase(v1alpha1.OperationSucceeded, "successfully synced")
 		return
 	}
 
@@ -268,11 +268,11 @@ func (sc *syncContext) sync() {
 	sc.log.WithFields(log.Fields{"phase": phase, "wave": wave, "tasks": tasks}).Debug("filtering tasks in correct phase and wave")
 	tasks = tasks.Filter(func(t *syncTask) bool { return t.phase == phase && t.wave() == wave })
 
-	sc.setOperationPhase(OperationRunning, "one or more tasks are running")
+	sc.setOperationPhase(v1alpha1.OperationRunning, "one or more tasks are running")
 
 	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("wet-run")
 	if !sc.runTasks(tasks, false) {
-		sc.setOperationPhase(OperationFailed, "one or more objects failed to apply")
+		sc.setOperationPhase(v1alpha1.OperationFailed, "one or more objects failed to apply")
 	}
 }
 
@@ -414,16 +414,16 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 				sc.log.WithFields(log.Fields{"task": task}).Debug("skip dry-run for custom resource")
 				task.skipDryRun = true
 			} else {
-				sc.setResourceResult(task, ResultCodeSyncFailed, "", err.Error())
+				sc.setResourceResult(task, v1alpha1.ResultCodeSyncFailed, "", err.Error())
 				successful = false
 			}
 		} else {
 			if !sc.proj.IsResourcePermitted(metav1.GroupKind{Group: task.group(), Kind: task.kind()}, serverRes.Namespaced) {
-				sc.setResourceResult(task, ResultCodeSyncFailed, "", fmt.Sprintf("Resource %s:%s is not permitted in project %s.", task.group(), task.kind(), sc.proj.Name))
+				sc.setResourceResult(task, v1alpha1.ResultCodeSyncFailed, "", fmt.Sprintf("Resource %s:%s is not permitted in project %s.", task.group(), task.kind(), sc.proj.Name))
 				successful = false
 			}
-			if serverRes.Namespaced && !sc.proj.IsDestinationPermitted(ApplicationDestination{Namespace: task.namespace(), Server: sc.server}) {
-				sc.setResourceResult(task, ResultCodeSyncFailed, "", fmt.Sprintf("namespace %v is not permitted in project '%s'", task.namespace(), sc.proj.Name))
+			if serverRes.Namespaced && !sc.proj.IsDestinationPermitted(v1alpha1.ApplicationDestination{Namespace: task.namespace(), Server: sc.server}) {
+				sc.setResourceResult(task, v1alpha1.ResultCodeSyncFailed, "", fmt.Sprintf("namespace %v is not permitted in project '%s'", task.namespace(), sc.proj.Name))
 				successful = false
 			}
 		}
@@ -454,7 +454,7 @@ func (sc *syncContext) liveObj(obj *unstructured.Unstructured) *unstructured.Uns
 	return nil
 }
 
-func (sc *syncContext) setOperationPhase(phase OperationPhase, message string) {
+func (sc *syncContext) setOperationPhase(phase v1alpha1.OperationPhase, message string) {
 	if sc.opState.Phase != phase || sc.opState.Message != message {
 		sc.log.Infof("Updating operation state. phase: %s -> %s, message: '%s' -> '%s'", sc.opState.Phase, phase, sc.opState.Message, message)
 	}
@@ -463,32 +463,32 @@ func (sc *syncContext) setOperationPhase(phase OperationPhase, message string) {
 }
 
 // applyObject performs a `kubectl apply` of a single resource
-func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun bool, force bool) (ResultCode, string) {
+func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun bool, force bool) (v1alpha1.ResultCode, string) {
 	message, err := sc.kubectl.ApplyResource(sc.config, targetObj, targetObj.GetNamespace(), dryRun, force)
 	if err != nil {
-		return ResultCodeSyncFailed, err.Error()
+		return v1alpha1.ResultCodeSyncFailed, err.Error()
 	}
-	return ResultCodeSynced, message
+	return v1alpha1.ResultCodeSynced, message
 }
 
 // pruneObject deletes the object if both prune is true and dryRun is false. Otherwise appropriate message
-func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dryRun bool) (ResultCode, string) {
+func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dryRun bool) (v1alpha1.ResultCode, string) {
 	if prune {
 		if dryRun {
-			return ResultCodePruned, "pruned (dry run)"
+			return v1alpha1.ResultCodePruned, "pruned (dry run)"
 		} else {
 			// Skip deletion if object is already marked for deletion, so we don't cause a resource update hotloop
 			deletionTimestamp := liveObj.GetDeletionTimestamp()
 			if deletionTimestamp == nil || deletionTimestamp.IsZero() {
 				err := sc.kubectl.DeleteResource(sc.config, liveObj.GroupVersionKind(), liveObj.GetName(), liveObj.GetNamespace(), false)
 				if err != nil {
-					return ResultCodeSyncFailed, err.Error()
+					return v1alpha1.ResultCodeSyncFailed, err.Error()
 				}
 			}
-			return ResultCodePruned, "pruned"
+			return v1alpha1.ResultCodePruned, "pruned"
 		}
 	} else {
-		return ResultCodePruneSkipped, "ignored (requires pruning)"
+		return v1alpha1.ResultCodePruneSkipped, "ignored (requires pruning)"
 	}
 }
 
@@ -523,17 +523,17 @@ func (sc *syncContext) terminate() {
 		if isRunnable(task.groupVersionKind()) {
 			err := sc.deleteResource(task)
 			if err != nil {
-				sc.setResourceResult(task, "", OperationFailed, fmt.Sprintf("Failed to delete: %v", err))
+				sc.setResourceResult(task, "", v1alpha1.OperationFailed, fmt.Sprintf("Failed to delete: %v", err))
 				terminateSuccessful = false
 			} else {
-				sc.setResourceResult(task, "", OperationSucceeded, fmt.Sprintf("Deleted"))
+				sc.setResourceResult(task, "", v1alpha1.OperationSucceeded, fmt.Sprintf("Deleted"))
 			}
 		}
 	}
 	if terminateSuccessful {
-		sc.setOperationPhase(OperationFailed, "Operation terminated")
+		sc.setOperationPhase(v1alpha1.OperationFailed, "Operation terminated")
 	} else {
-		sc.setOperationPhase(OperationError, "Operation termination had errors")
+		sc.setOperationPhase(v1alpha1.OperationError, "Operation termination had errors")
 	}
 }
 
@@ -549,11 +549,11 @@ func (sc *syncContext) deleteResource(task *syncTask) error {
 	return resIf.Delete(task.name(), &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 }
 
-var operationPhases = map[ResultCode]OperationPhase{
-	ResultCodeSynced:       OperationRunning,
-	ResultCodeSyncFailed:   OperationFailed,
-	ResultCodePruned:       OperationSucceeded,
-	ResultCodePruneSkipped: OperationSucceeded,
+var operationPhases = map[v1alpha1.ResultCode]v1alpha1.OperationPhase{
+	v1alpha1.ResultCodeSynced:       v1alpha1.OperationRunning,
+	v1alpha1.ResultCodeSyncFailed:   v1alpha1.OperationFailed,
+	v1alpha1.ResultCodePruned:       v1alpha1.OperationSucceeded,
+	v1alpha1.ResultCodePruneSkipped: v1alpha1.OperationSucceeded,
 }
 
 func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) bool {
@@ -581,10 +581,10 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) bool {
 			defer wg.Done()
 			sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t}).Debug("pruning")
 			result, message := sc.pruneObject(t.liveObj, sc.syncOp.Prune, dryRun)
-			if result == ResultCodeSyncFailed {
+			if result == v1alpha1.ResultCodeSyncFailed {
 				successful = false
 			}
-			if !dryRun || result == ResultCodeSyncFailed {
+			if !dryRun || result == v1alpha1.ResultCodeSyncFailed {
 				sc.setResourceResult(t, result, operationPhases[result], message)
 			}
 		}(task)
@@ -602,10 +602,10 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) bool {
 				defer createWg.Done()
 				sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t}).Debug("applying")
 				result, message := sc.applyObject(t.targetObj, dryRun, sc.syncOp.SyncStrategy.Force())
-				if result == ResultCodeSyncFailed {
+				if result == v1alpha1.ResultCodeSyncFailed {
 					successful = false
 				}
-				if !dryRun || result == ResultCodeSyncFailed {
+				if !dryRun || result == v1alpha1.ResultCodeSyncFailed {
 					sc.setResourceResult(t, result, operationPhases[result], message)
 				}
 			}(task)
@@ -630,7 +630,7 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) bool {
 }
 
 // setResourceResult sets a resource details in the SyncResult.Resources list
-func (sc *syncContext) setResourceResult(task *syncTask, syncStatus ResultCode, operationState OperationPhase, message string) {
+func (sc *syncContext) setResourceResult(task *syncTask, syncStatus v1alpha1.ResultCode, operationState v1alpha1.OperationPhase, message string) {
 
 	task.syncStatus = syncStatus
 	task.operationState = operationState
@@ -643,7 +643,7 @@ func (sc *syncContext) setResourceResult(task *syncTask, syncStatus ResultCode, 
 	defer sc.lock.Unlock()
 	i, existing := sc.syncRes.Resources.Find(task.group(), task.kind(), task.namespace(), task.name(), task.phase)
 
-	res := ResourceResult{
+	res := v1alpha1.ResourceResult{
 		Group:     task.group(),
 		Version:   task.version(),
 		Kind:      task.kind(),

@@ -3,14 +3,14 @@ package controller
 import (
 	"strings"
 
-	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
 // kindOrder represents the correct order of Kubernetes resources within a manifest
-var syncPhaseOrder = map[SyncPhase]int{
-	SyncPhasePreSync:  -1,
-	SyncPhaseSync:     0,
-	SyncPhasePostSync: 1,
+var syncPhaseOrder = map[v1alpha1.SyncPhase]int{
+	v1alpha1.SyncPhasePreSync:  -1,
+	v1alpha1.SyncPhaseSync:     0,
+	v1alpha1.SyncPhasePostSync: 1,
 }
 
 // kindOrder represents the correct order of Kubernetes resources within a manifest
@@ -121,7 +121,7 @@ func (s syncTasks) String() string {
 	return "[" + strings.Join(values, ", ") + "]"
 }
 
-func (s syncTasks) phase() SyncPhase {
+func (s syncTasks) phase() v1alpha1.SyncPhase {
 	if len(s) > 0 {
 		return s[0].phase
 	}
