@@ -433,3 +433,21 @@ func TestWatchCacheUpdated(t *testing.T) {
 	_, ok = cluster.nodes[kube.GetResourceKey(added)]
 	assert.True(t, ok)
 }
+
+func TestGetDuplicatedChildren(t *testing.T) {
+	extensionsRS := testRS.DeepCopy()
+	extensionsRS.SetGroupVersionKind(schema.GroupVersionKind{Group: "extensions", Kind: kube.ReplicaSetKind, Version: "v1beta1"})
+	cluster := newCluster(testDeploy, testRS, extensionsRS)
+	err := cluster.ensureSynced()
+
+	assert.Nil(t, err)
+
+	// Get children multiple times to make sure the right child is picked up every time.
+	for i := 0; i < 5; i++ {
+		children := getChildren(cluster, testDeploy)
+		assert.Len(t, children, 1)
+		assert.Equal(t, "apps", children[0].Group)
+		assert.Equal(t, kube.ReplicaSetKind, children[0].Kind)
+		assert.Equal(t, testRS.GetName(), children[0].Name)
+	}
+}

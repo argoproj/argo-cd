@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 
@@ -83,12 +84,12 @@ func ResourceHealthIs(kind, resource string, expected HealthStatusCode) Expectat
 
 func DoesNotExist() Expectation {
 	return func(c *Consequences) (state, string) {
-		app, err := c.get()
+		_, err := c.get()
 		if err != nil {
+			if apierr.IsNotFound(err) {
+				return succeeded, "app does not exist"
+			}
 			return failed, err.Error()
-		}
-		if app == nil {
-			return succeeded, "app does not exist"
 		}
 		return pending, "app should not exist"
 	}

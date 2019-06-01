@@ -63,13 +63,11 @@ func TestAppDeletion(t *testing.T) {
 		Delete(true).
 		Then().
 		Expect(DoesNotExist()).
-		Expect(Event(EventReasonResourceDeleted, "delete")).
-		And(func(_ *Application) {
-			// app should NOT be listed
-			output, err := fixture.RunCli("app", "list")
-			assert.NoError(t, err)
-			assert.NotContains(t, output, fixture.Name())
-		})
+		Expect(Event(EventReasonResourceDeleted, "delete"))
+
+	output, err := fixture.RunCli("app", "list")
+	assert.NoError(t, err)
+	assert.NotContains(t, output, fixture.Name())
 }
 
 func TestTrackAppStateAndSyncApp(t *testing.T) {
@@ -483,6 +481,7 @@ func TestPermissions(t *testing.T) {
 	proj.Spec.SourceRepos = []string{}
 	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Update(proj)
 	assert.NoError(t, err)
+	time.Sleep(1 * time.Second)
 	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 	assert.NoError(t, err)
 	defer util.Close(closer)

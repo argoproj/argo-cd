@@ -47,7 +47,9 @@ func TestCanAddAppFromPrivateRepoWithCredConfig(t *testing.T) {
 		Path(appPath).
 		And(func() {
 			secretName := fixture.CreateSecret("blah", accessToken)
-			FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm", "-p", fmt.Sprintf(`{"data": {"repository.credentials": "- passwordSecret:\n    key: password\n    name: %s\n  url: %s\n  usernameSecret:\n    key: username\n    name: %s\n"}}`, secretName, repoUrl, secretName)))
+			FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
+				"-n", fixture.ArgoCDNamespace,
+				"-p", fmt.Sprintf(`{"data": {"repository.credentials": "- passwordSecret:\n    key: password\n    name: %s\n  url: %s\n  usernameSecret:\n    key: username\n    name: %s\n"}}`, secretName, repoUrl, secretName)))
 		}).
 		When().
 		Create().

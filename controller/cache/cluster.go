@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"runtime/debug"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -334,16 +336,26 @@ func (c *clusterInfo) iterateHierarchy(obj *unstructured.Unstructured, action fu
 	if objInfo, ok := c.nodes[key]; ok {
 		action(objInfo.asResourceNode())
 		nsNodes := c.nsIndex[key.Namespace]
-		children := make(map[types.UID]*node)
+		childrenByUID := make(map[types.UID][]*node)
 		for _, child := range nsNodes {
 			if objInfo.isParentOf(child) {
-				children[child.ref.UID] = child
+				childrenByUID[child.ref.UID] = append(childrenByUID[child.ref.UID], child)
 			}
 		}
 		// make sure children has no duplicates
-		for _, child := range children {
-			action(child.asResourceNode())
-			child.iterateChildren(nsNodes, map[kube.ResourceKey]bool{objInfo.resourceKey(): true}, action)
+		for _, children := range childrenByUID {
+			if len(children) > 0 {
+				// The object might have multiple children with the same UID (e.g. replicaset from apps and extensions group). It is ok to pick any object but we need to make sure
+				// we pick the same child after every refresh.
+				sort.Slice(children, func(i, j int) bool {
+					key1 := children[i].resourceKey()
+					key2 := children[j].resourceKey()
+					return strings.Compare(key1.String(), key2.String()) < 0
+				})
+				child := children[0]
+				action(child.asResourceNode())
+				child.iterateChildren(nsNodes, map[kube.ResourceKey]bool{objInfo.resourceKey(): true}, action)
+			}
 		}
 	} else {
 		action(c.createObjInfo(obj, c.settings.GetAppInstanceLabelKey()).asResourceNode())
