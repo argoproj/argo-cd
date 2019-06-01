@@ -108,10 +108,12 @@ func TestSyncCreateInSortedOrder(t *testing.T) {
 	assert.Equal(t, v1alpha1.OperationRunning, syncCtx.opState.Phase)
 	assert.Len(t, syncCtx.syncRes.Resources, 2)
 	for i := range syncCtx.syncRes.Resources {
-		if syncCtx.syncRes.Resources[i].Kind == "Pod" {
-			assert.Equal(t, v1alpha1.ResultCodeSynced, syncCtx.syncRes.Resources[i].Status)
-		} else if syncCtx.syncRes.Resources[i].Kind == "Service" {
-			assert.Equal(t, v1alpha1.ResultCodeSynced, syncCtx.syncRes.Resources[i].Status)
+		result := syncCtx.syncRes.Resources[i]
+		if result.Kind == "Pod" {
+			assert.Equal(t, v1alpha1.ResultCodeSynced, result.Status)
+			assert.Equal(t, "", result.Message)
+		} else if result.Kind == "Service" {
+			assert.Equal(t, "", result.Message)
 		} else {
 			t.Error("Resource isn't a pod or a service")
 		}
@@ -147,8 +149,9 @@ func TestSyncCreateNotWhitelistedClusterResources(t *testing.T) {
 	}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
-	assert.Equal(t, v1alpha1.ResultCodeSyncFailed, syncCtx.syncRes.Resources[0].Status)
-	assert.Contains(t, syncCtx.syncRes.Resources[0].Message, "not permitted in project")
+	result := syncCtx.syncRes.Resources[0]
+	assert.Equal(t, v1alpha1.ResultCodeSyncFailed, result.Status)
+	assert.Contains(t, result.Message, "not permitted in project")
 }
 
 func TestSyncBlacklistedNamespacedResources(t *testing.T) {
@@ -166,8 +169,9 @@ func TestSyncBlacklistedNamespacedResources(t *testing.T) {
 	}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
-	assert.Equal(t, v1alpha1.ResultCodeSyncFailed, syncCtx.syncRes.Resources[0].Status)
-	assert.Contains(t, syncCtx.syncRes.Resources[0].Message, "not permitted in project")
+	result := syncCtx.syncRes.Resources[0]
+	assert.Equal(t, v1alpha1.ResultCodeSyncFailed, result.Status)
+	assert.Contains(t, result.Message, "not permitted in project")
 }
 
 func TestSyncSuccessfully(t *testing.T) {
@@ -187,10 +191,13 @@ func TestSyncSuccessfully(t *testing.T) {
 	assert.Equal(t, v1alpha1.OperationRunning, syncCtx.opState.Phase)
 	assert.Len(t, syncCtx.syncRes.Resources, 2)
 	for i := range syncCtx.syncRes.Resources {
-		if syncCtx.syncRes.Resources[i].Kind == "Pod" {
-			assert.Equal(t, v1alpha1.ResultCodePruned, syncCtx.syncRes.Resources[i].Status)
-		} else if syncCtx.syncRes.Resources[i].Kind == "Service" {
-			assert.Equal(t, v1alpha1.ResultCodeSynced, syncCtx.syncRes.Resources[i].Status)
+		result := syncCtx.syncRes.Resources[i]
+		if result.Kind == "Pod" {
+			assert.Equal(t, v1alpha1.ResultCodePruned, result.Status)
+			assert.Equal(t, "pruned", result.Message)
+		} else if result.Kind == "Service" {
+			assert.Equal(t, v1alpha1.ResultCodeSynced, result.Status)
+			assert.Equal(t, "", result.Message)
 		} else {
 			t.Error("Resource isn't a pod or a service")
 		}
@@ -215,10 +222,13 @@ func TestSyncDeleteSuccessfully(t *testing.T) {
 	syncCtx.sync()
 	assert.Equal(t, v1alpha1.OperationRunning, syncCtx.opState.Phase)
 	for i := range syncCtx.syncRes.Resources {
-		if syncCtx.syncRes.Resources[i].Kind == "Pod" {
-			assert.Equal(t, v1alpha1.ResultCodePruned, syncCtx.syncRes.Resources[i].Status)
-		} else if syncCtx.syncRes.Resources[i].Kind == "Service" {
-			assert.Equal(t, v1alpha1.ResultCodePruned, syncCtx.syncRes.Resources[i].Status)
+		result := syncCtx.syncRes.Resources[i]
+		if result.Kind == "Pod" {
+			assert.Equal(t, v1alpha1.ResultCodePruned, result.Status)
+			assert.Equal(t, "pruned", result.Message)
+		} else if result.Kind == "Service" {
+			assert.Equal(t, v1alpha1.ResultCodePruned, result.Status)
+			assert.Equal(t, "pruned", result.Message)
 		} else {
 			t.Error("Resource isn't a pod or a service")
 		}
@@ -227,16 +237,15 @@ func TestSyncDeleteSuccessfully(t *testing.T) {
 
 func TestSyncCreateFailure(t *testing.T) {
 	syncCtx := newTestSyncCtx()
+	testSvc := test.NewService()
 	syncCtx.kubectl = kubetest.MockKubectlCmd{
 		Commands: map[string]kubetest.KubectlOutput{
-			"test-service": {
+			testSvc.GetName(): {
 				Output: "",
-				Err:    fmt.Errorf("error: error validating \"test.yaml\": error validating data: apiVersion not set; if you choose to Ignore these errors, turn validation off with --validate=false"),
+				Err:    fmt.Errorf("foo"),
 			},
 		},
 	}
-	testSvc := test.NewService()
-	testSvc.SetAPIVersion("")
 	syncCtx.compareResult = &comparisonResult{
 		managedResources: []managedResource{{
 			Live:   nil,
@@ -245,7 +254,9 @@ func TestSyncCreateFailure(t *testing.T) {
 	}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
-	assert.Equal(t, v1alpha1.ResultCodeSyncFailed, syncCtx.syncRes.Resources[0].Status)
+	result := syncCtx.syncRes.Resources[0]
+	assert.Equal(t, v1alpha1.ResultCodeSyncFailed, result.Status)
+	assert.Equal(t, "foo", result.Message)
 }
 
 func TestSyncPruneFailure(t *testing.T) {
@@ -254,12 +265,13 @@ func TestSyncPruneFailure(t *testing.T) {
 		Commands: map[string]kubetest.KubectlOutput{
 			"test-service": {
 				Output: "",
-				Err:    fmt.Errorf(" error: timed out waiting for \"test-service\" to be synced"),
+				Err:    fmt.Errorf("foo"),
 			},
 		},
 	}
 	testSvc := test.NewService()
 	testSvc.SetName("test-service")
+	testSvc.SetNamespace(test.FakeArgoCDNamespace)
 	syncCtx.compareResult = &comparisonResult{
 		managedResources: []managedResource{{
 			Live:   testSvc,
@@ -269,7 +281,9 @@ func TestSyncPruneFailure(t *testing.T) {
 	syncCtx.sync()
 	assert.Equal(t, v1alpha1.OperationFailed, syncCtx.opState.Phase)
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
-	assert.Equal(t, v1alpha1.ResultCodeSyncFailed, syncCtx.syncRes.Resources[0].Status)
+	result := syncCtx.syncRes.Resources[0]
+	assert.Equal(t, v1alpha1.ResultCodeSyncFailed, result.Status)
+	assert.Equal(t, "foo", result.Message)
 }
 
 func TestDontSyncOrPruneHooks(t *testing.T) {

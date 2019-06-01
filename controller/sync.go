@@ -228,7 +228,6 @@ func (sc *syncContext) sync() {
 					sc.setResourceResult(task, task.syncStatus, OperationSucceeded, task.message)
 				} else {
 					switch healthStatus.Status {
-					// TODO are we correct here?
 					case HealthStatusHealthy:
 						sc.setResourceResult(task, task.syncStatus, OperationSucceeded, healthStatus.Message)
 					case HealthStatusDegraded:
@@ -269,7 +268,7 @@ func (sc *syncContext) sync() {
 	sc.log.WithFields(log.Fields{"phase": phase, "wave": wave, "tasks": tasks}).Debug("filtering tasks in correct phase and wave")
 	tasks = tasks.Filter(func(t *syncTask) bool { return t.phase == phase && t.wave() == wave })
 
-	sc.setOperationPhase(OperationRunning, fmt.Sprintf("running phase='%s' wave=%d", phase, wave))
+	sc.setOperationPhase(OperationRunning, "one or more tasks are running")
 
 	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("wet-run")
 	if !sc.runTasks(tasks, false) {
@@ -635,7 +634,10 @@ func (sc *syncContext) setResourceResult(task *syncTask, syncStatus ResultCode, 
 
 	task.syncStatus = syncStatus
 	task.operationState = operationState
-	task.message = message
+	// we always want to keep the latest message
+	if message != "" {
+		task.message = message
+	}
 
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
