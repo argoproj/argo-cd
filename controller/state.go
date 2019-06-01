@@ -6,6 +6,12 @@ import (
 	"fmt"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/cache"
+
 	"github.com/argoproj/argo-cd/common"
 	statecache "github.com/argoproj/argo-cd/controller/cache"
 	"github.com/argoproj/argo-cd/controller/metrics"
@@ -23,11 +29,6 @@ import (
 	kubeutil "github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/resource"
 	"github.com/argoproj/argo-cd/util/settings"
-	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/cache"
 )
 
 type managedResource struct {

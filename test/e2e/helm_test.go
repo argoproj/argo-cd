@@ -3,9 +3,10 @@ package e2e
 import (
 	"testing"
 
+	v1 "k8s.io/api/core/v1"
+
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
-	v1 "k8s.io/api/core/v1"
 )
 
 func TestHelmHooksAreNotCreated(t *testing.T) {

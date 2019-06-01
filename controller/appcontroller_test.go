@@ -5,17 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/common"
-	mockstatecache "github.com/argoproj/argo-cd/controller/cache/mocks"
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
-	mockreposerver "github.com/argoproj/argo-cd/reposerver/mocks"
-	"github.com/argoproj/argo-cd/reposerver/repository"
-	mockrepoclient "github.com/argoproj/argo-cd/reposerver/repository/mocks"
-	"github.com/argoproj/argo-cd/test"
-	utilcache "github.com/argoproj/argo-cd/util/cache"
-	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -28,6 +17,18 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
+
+	"github.com/argoproj/argo-cd/common"
+	mockstatecache "github.com/argoproj/argo-cd/controller/cache/mocks"
+	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
+	mockreposerver "github.com/argoproj/argo-cd/reposerver/mocks"
+	"github.com/argoproj/argo-cd/reposerver/repository"
+	mockrepoclient "github.com/argoproj/argo-cd/reposerver/repository/mocks"
+	"github.com/argoproj/argo-cd/test"
+	utilcache "github.com/argoproj/argo-cd/util/cache"
+	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 type fakeData struct {

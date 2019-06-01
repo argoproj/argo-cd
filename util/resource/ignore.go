@@ -3,8 +3,9 @@ package resource
 import (
 	"strings"
 
-	"github.com/argoproj/argo-cd/common"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/argoproj/argo-cd/common"
 )
 
 // should we Ignore this resource?
