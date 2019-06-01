@@ -61,4 +61,4 @@ Now you can manually verify that cluster is accessible from the Argo CD pod.
 
 To terminate the sync, click on the "synchronisation" then "terminate":
 
-![Synchronization](../assets/synchronization-button.png) ![Terminate](../assets/terminate-button.png)
+![Synchronization](assets/synchronization-button.png) ![Terminate](assets/terminate-button.png)
