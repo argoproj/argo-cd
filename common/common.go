@@ -98,6 +98,8 @@ const (
 	AnnotationValueHelmHookCRDInstall = "crd-install"
 	// ResourcesFinalizerName the finalizer value which we inject to finalize deletion of an application
 	ResourcesFinalizerName = "resources-finalizer.argocd.argoproj.io"
+	// AnnotationSyncWave indicates which wave of the sync the resource or hook should be in
+	AnnotationSyncWave = "argocd.argoproj.io/sync-wave"
 )
 
 // Environment variables for tuning and debugging Argo CD

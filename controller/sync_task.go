@@ -7,6 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/hook"
 )
@@ -53,7 +54,7 @@ func (t *syncTask) obj() *unstructured.Unstructured {
 
 func (t *syncTask) wave() int {
 
-	text := t.obj().GetAnnotations()["argocd.argoproj.io/sync-wave"]
+	text := t.obj().GetAnnotations()[common.AnnotationSyncWave]
 	if text == "" {
 		return 0
 	}

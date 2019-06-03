@@ -370,10 +370,6 @@ func TestDeDupingTasks(t *testing.T) {
 	assert.Len(t, tasks, 1)
 }
 
-func init() {
-	log.SetLevel(log.DebugLevel)
-}
-
 func TestObjectsGetANamespace(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	pod := test.NewPod()

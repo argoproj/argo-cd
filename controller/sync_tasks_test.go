@@ -195,12 +195,31 @@ var sortedTasks = syncTasks{
 	},
 }
 
-// TODO test case for pruning
-
 func Test_syncTasks_Filter(t *testing.T) {
 	tasks := syncTasks{{phase: SyncPhaseSync}, {phase: SyncPhasePostSync}}
 
 	assert.Equal(t, syncTasks{{phase: SyncPhaseSync}}, tasks.Filter(func(t *syncTask) bool {
 		return t.phase == SyncPhaseSync
 	}))
+}
+
+func TestSyncNamespaceAgainstCRD(t *testing.T) {
+	crd := &syncTask{
+		targetObj: &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"kind": "Workflow",
+			},
+		}}
+	namespace := &syncTask{
+		targetObj: &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"kind": "Namespace",
+			},
+		},
+	}
+
+	unsorted := syncTasks{crd, namespace}
+	sort.Sort(unsorted)
+
+	assert.Equal(t, syncTasks{namespace, crd}, unsorted)
 }

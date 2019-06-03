@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/argoproj/argo-cd/util/resource"
-
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -20,6 +18,7 @@ import (
 	hookutil "github.com/argoproj/argo-cd/util/hook"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/lua"
+	"github.com/argoproj/argo-cd/util/resource"
 )
 
 // SetApplicationHealth updates the health statuses of all resources performed in the comparison
