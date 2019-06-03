@@ -14,4 +14,3 @@ func HasAnnotationOption(obj *unstructured.Unstructured, key, val string) bool {
 	}
 	return false
 }
-
