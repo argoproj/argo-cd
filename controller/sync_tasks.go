@@ -48,6 +48,7 @@ func init() {
 		"APIService",
 	}
 	for i, kind := range kinds {
+		// the magic one make sure none of the above entries are zero, we need that for custom resources
 		kindOrder[kind] = i - len(kinds) - 1
 	}
 }
