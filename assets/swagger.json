@@ -1568,6 +1568,10 @@
         "kubeconfig": {
           "type": "string"
         },
+        "systemNamespace": {
+          "type": "string",
+          "title": "Optional alternative system namespace to use (defaults to \"kube-system\")"
+        },
         "upsert": {
           "type": "boolean",
           "format": "boolean"
