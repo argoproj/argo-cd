@@ -27,6 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/util/health"
 	hookutil "github.com/argoproj/argo-cd/util/hook"
 	kubeutil "github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/resources"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -313,7 +314,9 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		}
 
 		diffResult := diffResults.Diffs[i]
-		if resState.Hook {
+		if resources.HasAnnotationOption(obj,"argocd.argoproj.io/sync-status-options","Ignore") {
+			// ignore annotated resources
+		} else if resState.Hook {
 			// For resource hooks, don't store sync status, and do not affect overall sync status
 		} else if diffResult.Modified || targetObjs[i] == nil || managedLiveObj[i] == nil {
 			// Set resource state to OutOfSync since one of the following is true:
