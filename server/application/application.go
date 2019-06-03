@@ -93,8 +93,8 @@ func appRBACName(app appv1.Application) string {
 	return fmt.Sprintf("%s/%s", app.Spec.GetProject(), app.Name)
 }
 
-// List returns list of applications
-func (s *Server) List(ctx context.Context, q *ApplicationQuery) (*appv1.ApplicationList, error) {
+// ListApps returns list of applications
+func (s *Server) ListApps(ctx context.Context, q *ApplicationQuery) (*appv1.ApplicationList, error) {
 	appList, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(metav1.ListOptions{})
 	if err != nil {
 		return nil, err

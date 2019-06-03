@@ -883,7 +883,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		Run: func(c *cobra.Command, args []string) {
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			apps, err := appIf.List(context.Background(), &application.ApplicationQuery{})
+			apps, err := appIf.ListApps(context.Background(), &application.ApplicationQuery{})
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			var fmtStr string

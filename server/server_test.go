@@ -385,7 +385,7 @@ func TestUserAgent(t *testing.T) {
 		clnt, err := apiclient.NewClient(&opts)
 		assert.NoError(t, err)
 		conn, appClnt := clnt.NewApplicationClientOrDie()
-		_, err = appClnt.List(ctx, &application.ApplicationQuery{})
+		_, err = appClnt.ListApps(ctx, &application.ApplicationQuery{})
 		if test.errorMsg != "" {
 			assert.Error(t, err)
 			assert.Regexp(t, test.errorMsg, err.Error())

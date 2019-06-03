@@ -164,8 +164,8 @@ message ManagedResourcesResponse {
 // ApplicationService
 service ApplicationService {
 
-	// List returns list of applications
-	rpc List(ApplicationQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationList) {
+	// ListApps returns list of applications
+	rpc ListApps(ApplicationQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationList) {
 		option (google.api.http).get = "/api/v1/applications";
 	}
 
