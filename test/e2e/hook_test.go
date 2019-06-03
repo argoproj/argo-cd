@@ -39,12 +39,11 @@ func testHookSuccessful(t *testing.T, hookType HookType) {
 		Expect(ResourceHealthIs("Pod", "pod", HealthStatusHealthy)).
 		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" })).
 		And(func(app *Application) {
+			// a retentive check on the resource results
 			assert.Equal(t, ResourceResults{
-				{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "pod", Status: ResultCodeSynced, Message: "TODO", HookPhase: OperationSucceeded, SyncPhase: SyncPhaseSync},
-				{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook", Message: "TODO", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)},
-				{},
+				{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "pod", Status: ResultCodeSynced, Message: "pod/pod created", HookPhase: OperationSucceeded, SyncPhase: SyncPhaseSync},
+				{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook", Message: "pod/hook created", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)},
 			}, app.Status.OperationState.SyncResult.Resources)
-
 		})
 }
 
