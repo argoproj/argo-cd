@@ -13,7 +13,7 @@ metadata:
 !!! note
     This only affect the sync status. If the resource's health is degraded, then the app will also be degraded.
 
-Kustomize has a feature that allows you to generate config maps. You can set `generatorOptions` to add this annotation so that your app remains in sync:
+Kustomize has a feature that allows you to generate config maps ([read more  ⧉](https://github.com/kubernetes-sigs/kustomize/blob/master/examples/configGeneration.md)). You can set `generatorOptions` to add this annotation so that your app remains in sync:
 
 ```yaml
 configMapGenerator:
@@ -25,3 +25,6 @@ generatorOptions:
     argocd.argoproj.io/sync-status-options: Ignore
 kind: Kustomization
 ``` 
+ 
+!!! note
+    `generatorOptions` adds annotations to both config maps and secrets ([read more ⧉](https://github.com/kubernetes-sigs/kustomize/blob/master/examples/generatorOptions.md)).

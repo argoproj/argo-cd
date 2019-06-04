@@ -14,6 +14,8 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 	var mapName string
 	Given(t).
 		Path("kustomize-cm-gen").
+		// note we don't want to prune resources, check the config maps exist
+		Prune(false).
 		When().
 		Create().
 		Sync().
@@ -38,10 +40,20 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(HealthStatusHealthy)).
 		And(func(app *Application) {
-			resourceStatus := app.Status.Resources[0]
-			assert.Contains(t, resourceStatus.Name, "my-map-")
-			// make sure we've a new map with changed name
-			assert.NotEqual(t, mapName, resourceStatus.Name)
-			assert.Equal(t, SyncStatusCodeSynced, resourceStatus.Status)
+			assert.Equal(t, 2, len(app.Status.Resources))
+			// new map in-sync
+			{
+				resourceStatus := app.Status.Resources[0]
+				assert.Contains(t, resourceStatus.Name, "my-map-")
+				// make sure we've a new map with changed name
+				assert.NotEqual(t, mapName, resourceStatus.Name)
+				assert.Equal(t, SyncStatusCodeSynced, resourceStatus.Status)
+			}
+			// old map is out of sync
+			{
+				resourceStatus := app.Status.Resources[1]
+				assert.Equal(t, mapName, resourceStatus.Name)
+				assert.Equal(t, SyncStatusCodeOutOfSync, resourceStatus.Status)
+			}
 		})
 }

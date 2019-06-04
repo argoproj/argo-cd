@@ -15,11 +15,12 @@ type Context struct {
 	destServer string
 	env        string
 	parameters []string
+	prune      bool
 }
 
 func Given(t *testing.T) *Context {
 	fixture.EnsureCleanState()
-	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, name: fixture.Name()}
+	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, name: fixture.Name(), prune:true}
 }
 
 func (c *Context) Repo(url string) *Context {
@@ -44,6 +45,11 @@ func (c *Context) Env(env string) *Context {
 
 func (c *Context) Parameter(parameter string) *Context {
 	c.parameters = append(c.parameters, parameter)
+	return c
+}
+
+func (c *Context) Prune(prune bool) *Context{
+	c.prune= prune
 	return c
 }
 

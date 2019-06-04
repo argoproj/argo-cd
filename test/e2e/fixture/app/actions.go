@@ -39,7 +39,11 @@ func (a *Actions) Create() *Actions {
 }
 
 func (a *Actions) Sync() *Actions {
-	a.runCli("app", "sync", a.context.name, "--timeout", "5", "--prune")
+	args := []string{"app", "sync", a.context.name, "--timeout", "5"}
+	if a.context.prune {
+		args = append(args, "--prune")
+	}
+	a.runCli(args...)
 	return a
 }
 
