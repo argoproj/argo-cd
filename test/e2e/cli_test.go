@@ -19,9 +19,9 @@ func TestCliAppCommand(t *testing.T) {
 			output, err := RunCli("app", "sync", Name())
 			assert.NoError(t, err)
 			expected := Tmpl(
-				`GROUP KIND NAMESPACE NAME STATUS HEALTH HOOK
- Pod {{.Namespace}} pod Synced Healthy false
- Pod {{.Namespace}} hook Healthy true`,
+				`GROUP KIND NAMESPACE NAME STATUS HEALTH HOOK MESSAGE
+ Pod {{.Namespace}} pod Synced Healthy pod/pod created
+ Pod {{.Namespace}} hook Succeeded Sync pod/hook created`,
 				map[string]interface{}{"Name": Name(), "Namespace": DeploymentNamespace()})
 			assert.Contains(t, NormalizeOutput(output), expected)
 		}).

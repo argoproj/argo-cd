@@ -338,6 +338,30 @@ func TestSyncOperation_IsApplyStrategy(t *testing.T) {
 	}
 }
 
+func TestResourceResults_Filter(t *testing.T) {
+	type args struct {
+		predicate func(r *ResourceResult) bool
+	}
+	tests := []struct {
+		name string
+		r    ResourceResults
+		args args
+		want ResourceResults
+	}{
+		{"Nil", nil, args{predicate: func(r *ResourceResult) bool { return true }}, ResourceResults{}},
+		{"Empty", ResourceResults{}, args{predicate: func(r *ResourceResult) bool { return true }}, ResourceResults{}},
+		{"All", ResourceResults{{}}, args{predicate: func(r *ResourceResult) bool { return true }}, ResourceResults{{}}},
+		{"None", ResourceResults{{}}, args{predicate: func(r *ResourceResult) bool { return false }}, ResourceResults{}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.r.Filter(tt.args.predicate); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ResourceResults.Filter() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestResourceResults_Find(t *testing.T) {
 	type args struct {
 		group     string

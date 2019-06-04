@@ -1037,15 +1037,31 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 }
 
 // printAppResources prints the resources of an application in a tabwriter table
-// Optionally prints the message from the operation state
 func printAppResources(w io.Writer, app *argoappv1.Application) {
-	_, _ = fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tSTATUS\tHEALTH\tHOOK\n")
+	_, _ = fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tSTATUS\tHEALTH\tHOOK\tMESSAGE\n")
 	for _, res := range app.Status.Resources {
-		healthStatus := ""
+		status := ""
 		if res.Health != nil {
-			healthStatus = res.Health.Status
+			status = res.Health.Status
 		}
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%v\n", res.Group, res.Kind, res.Namespace, res.Name, res.Status, healthStatus, res.Hook)
+
+		// if an operation has occurred, we search for the result and print that out
+		operationState := app.Status.OperationState
+		if operationState != nil {
+			// in most cases you'll only get one instance (if it is a non-hook resource, or a hook for a single phase),
+			// but in edge-cases you may get more than one
+			for _, result := range operationState.SyncResult.Resources.Filter(func(r *argoappv1.ResourceResult) bool {
+				return r.Group == res.Group && r.Kind == res.Kind && r.Namespace == res.Namespace && r.Name == res.Name
+			}) {
+				// for hooks, we print the result of the operation, not the sync status
+				if res.Hook {
+					status = string(result.HookPhase)
+				}
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", res.Group, res.Kind, res.Namespace, res.Name, res.Status, status, result.HookType, result.Message)
+			}
+		} else {
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", res.Group, res.Kind, res.Namespace, res.Name, res.Status, status, "", "")
+		}
 	}
 }
 
