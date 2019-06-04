@@ -195,6 +195,18 @@ func (l *LocalConfig) RemoveUser(serverName string) bool {
 	return false
 }
 
+// Returns true if user was removed successfully
+func (l *LocalConfig) RemoveToken(serverName string) bool {
+	for i, u := range l.Users {
+		if u.Name == serverName {
+			l.Users[i].RefreshToken = ""
+			l.Users[i].AuthToken = ""
+			return true
+		}
+	}
+	return false
+}
+
 func (l *LocalConfig) UpsertContext(context ContextRef) {
 	for i, c := range l.Contexts {
 		if c.Name == context.Name {

@@ -30,28 +30,19 @@ func NewLogoutCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comma
 				log.Fatalf("Nothing to logout from")
 			}
 
-			serverName, ok := localCfg.RemoveContext(context)
+			ok := localCfg.RemoveToken(context)
 			if !ok {
 				log.Fatalf("Context %s does not exist", context)
 			}
-			_ = localCfg.RemoveUser(context)
-			_ = localCfg.RemoveServer(serverName)
 
-			if localCfg.IsEmpty() {
-				err = localconfig.DeleteLocalConfig(globalClientOpts.ConfigPath)
-				errors.CheckError(err)
-			} else {
-				if localCfg.CurrentContext == context {
-					localCfg.CurrentContext = localCfg.Contexts[0].Name
-				}
-				err = localconfig.ValidateLocalConfig(*localCfg)
-				if err != nil {
-					log.Fatalf("Error in logging out")
-				}
-				err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
-				errors.CheckError(err)
+			err = localconfig.ValidateLocalConfig(*localCfg)
+			if err != nil {
+				log.Fatalf("Error in logging out: %s", err)
 			}
-			fmt.Printf("Context '%s' deleted\n", context)
+			err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
+			errors.CheckError(err)
+
+			fmt.Printf("Logged out from '%s'\n", context)
 		},
 	}
 	return command

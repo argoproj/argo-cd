@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"github.com/spf13/pflag"
 	"io/ioutil"
 	"os"
 	"path"
@@ -24,28 +25,40 @@ func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Aliases: []string{"ctx"},
 		Short:   "Switch between contexts",
 		Run: func(c *cobra.Command, args []string) {
+
+			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
+			errors.CheckError(err)
+
+			deletePresentContext := false
+			c.Flags().Visit(func(f *pflag.Flag) {
+				if f.Name == "delete" {
+					deletePresentContext = true
+				}
+			})
+
 			if len(args) == 0 {
-				printArgoCDContexts(clientOpts.ConfigPath)
-				return
+				if deletePresentContext {
+					err := deleteContext(localCfg.CurrentContext, clientOpts.ConfigPath)
+					errors.CheckError(err)
+					return
+				} else {
+					printArgoCDContexts(clientOpts.ConfigPath)
+					return
+				}
 			}
+
 			ctxName := args[0]
+
+
 			argoCDDir, err := localconfig.DefaultConfigDir()
 			errors.CheckError(err)
 			prevCtxFile := path.Join(argoCDDir, ".prev-ctx")
-
-			if delete {
-				err := deleteContext(ctxName, clientOpts.ConfigPath)
-				errors.CheckError(err)
-				return
-			}
 
 			if ctxName == "-" {
 				prevCtxBytes, err := ioutil.ReadFile(prevCtxFile)
 				errors.CheckError(err)
 				ctxName = string(prevCtxBytes)
 			}
-			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
-			errors.CheckError(err)
 			if localCfg.CurrentContext == ctxName {
 				fmt.Printf("Already at context '%s'\n", localCfg.CurrentContext)
 				return
@@ -63,7 +76,7 @@ func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			fmt.Printf("Switched to context '%s'\n", localCfg.CurrentContext)
 		},
 	}
-	command.Flags().BoolVar(&delete, "delete", false, "Delete the context instead of switching to it")
+	command.Flags().BoolVar(&delete, "delete",false, "Delete the context instead of switching to it")
 	return command
 }
 
