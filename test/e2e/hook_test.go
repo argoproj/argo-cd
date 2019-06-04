@@ -43,7 +43,7 @@ func testHookSuccessful(t *testing.T, hookType HookType) {
 			_, pod := app.Status.OperationState.SyncResult.Resources.Find("", "Pod", DeploymentNamespace(), "pod", SyncPhaseSync)
 			assert.Equal(t, ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "pod", Status: ResultCodeSynced, Message: "pod/pod created", HookPhase: OperationSucceeded, SyncPhase: SyncPhaseSync}, *pod)
 			_, hook := app.Status.OperationState.SyncResult.Resources.Find("", "Pod", DeploymentNamespace(), "hook", SyncPhase(hookType))
- 			assert.Equal(t, ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook", Message: "pod/hook created", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}, *hook)
+			assert.Equal(t, ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook", Message: "pod/hook created", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}, *hook)
 		})
 }
 
