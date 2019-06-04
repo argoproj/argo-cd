@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	log "github.com/sirupsen/logrus"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
@@ -21,7 +22,7 @@ import (
 type LiveStateCache interface {
 	IsNamespaced(server string, obj *unstructured.Unstructured) (bool, error)
 	// Executes give callback against resource specified by the key and all its children
-	IterateHierarchy(server string, key kube.ResourceKey, action func(child appv1.ResourceNode)) error
+	IterateHierarchy(server string, obj *unstructured.Unstructured, action func(child appv1.ResourceNode)) error
 	// Returns state of live nodes which correspond for target nodes of specified application.
 	GetManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)
 	// Starts watching resources of each controlled cluster.
@@ -30,7 +31,7 @@ type LiveStateCache interface {
 	Invalidate()
 }
 
-type AppUpdatedHandler = func(appName string, fullRefresh bool, key kube.ResourceKey, serverURL string)
+type AppUpdatedHandler = func(appName string, fullRefresh bool, ref v1.ObjectReference)
 
 func GetTargetObjKey(a *appv1.Application, un *unstructured.Unstructured, isNamespaced bool) kube.ResourceKey {
 	key := kube.GetResourceKey(un)
@@ -134,12 +135,12 @@ func (c *liveStateCache) IsNamespaced(server string, obj *unstructured.Unstructu
 	return clusterInfo.isNamespaced(obj), nil
 }
 
-func (c *liveStateCache) IterateHierarchy(server string, key kube.ResourceKey, action func(child appv1.ResourceNode)) error {
+func (c *liveStateCache) IterateHierarchy(server string, obj *unstructured.Unstructured, action func(child appv1.ResourceNode)) error {
 	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
 		return err
 	}
-	clusterInfo.iterateHierarchy(key, action)
+	clusterInfo.iterateHierarchy(obj, action)
 	return nil
 }
 

@@ -51,7 +51,6 @@ const (
 type ApplicationController struct {
 	cache                     *argocache.Cache
 	namespace                 string
-	server                    string
 	kubeClientset             kubernetes.Interface
 	kubectl                   kube.Kubectl
 	applicationClientset      appclientset.Interface
@@ -80,7 +79,6 @@ type ApplicationControllerConfig struct {
 
 // NewApplicationController creates new instance of ApplicationController.
 func NewApplicationController(
-	server string,
 	namespace string,
 	settingsMgr *settings_util.SettingsManager,
 	kubeClientset kubernetes.Interface,
@@ -88,6 +86,7 @@ func NewApplicationController(
 	repoClientset reposerver.Clientset,
 	argoCache *argocache.Cache,
 	appResyncPeriod time.Duration,
+	metricsPort int,
 ) (*ApplicationController, error) {
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
 	settings, err := settingsMgr.GetSettings()
@@ -98,7 +97,6 @@ func NewApplicationController(
 	ctrl := ApplicationController{
 		cache:                     argoCache,
 		namespace:                 namespace,
-		server:                    server,
 		kubeClientset:             kubeClientset,
 		kubectl:                   kubectlCmd,
 		applicationClientset:      applicationClientset,
@@ -115,7 +113,7 @@ func NewApplicationController(
 	}
 	appInformer, appLister := ctrl.newApplicationInformerAndLister()
 	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, cache.Indexers{})
-	metricsAddr := fmt.Sprintf("0.0.0.0:%d", common.PortArgoCDMetrics)
+	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
 	ctrl.metricsServer = metrics.NewMetricsServer(metricsAddr, appLister)
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settings, kubectlCmd, ctrl.metricsServer, ctrl.handleAppUpdated)
 	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectlCmd, ctrl.settings, stateCache, projInformer, ctrl.metricsServer)
@@ -128,17 +126,25 @@ func NewApplicationController(
 	return &ctrl, nil
 }
 
-func isSelfReferencedApp(appName string, dest appv1.ApplicationDestination, objKey kube.ResourceKey, objServer string) bool {
-	return objKey.Name == appName &&
-		objKey.Namespace == dest.Namespace &&
-		dest.Server == objServer &&
-		objKey.Group == application.Group &&
-		objKey.Kind == application.ApplicationKind
+func isSelfReferencedApp(app *appv1.Application, ref v1.ObjectReference) bool {
+	gvk := ref.GroupVersionKind()
+	return ref.UID == app.UID &&
+		ref.Name == app.Name &&
+		ref.Namespace == app.Namespace &&
+		gvk.Group == application.Group &&
+		gvk.Kind == application.ApplicationKind
 }
 
-func (ctrl *ApplicationController) handleAppUpdated(appName string, fullRefresh bool, key kube.ResourceKey, serverURL string) {
-	// Don't force refresh app if related resource is application itself. This prevents infinite reconciliation loop.
-	if !isSelfReferencedApp(appName, appv1.ApplicationDestination{Server: ctrl.server, Namespace: ctrl.namespace}, key, serverURL) {
+func (ctrl *ApplicationController) handleAppUpdated(appName string, fullRefresh bool, ref v1.ObjectReference) {
+	skipForceRefresh := false
+
+	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(ctrl.namespace + "/" + appName)
+	if app, ok := obj.(*appv1.Application); exists && err == nil && ok && isSelfReferencedApp(app, ref) {
+		// Don't force refresh app if related resource is application itself. This prevents infinite reconciliation loop.
+		skipForceRefresh = true
+	}
+
+	if !skipForceRefresh {
 		ctrl.requestAppRefresh(appName, fullRefresh)
 	}
 	ctrl.appRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, appName))
@@ -187,7 +193,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 				},
 			})
 		} else {
-			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, kube.GetResourceKey(live), func(child appv1.ResourceNode) {
+			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, live, func(child appv1.ResourceNode) {
 				nodes = append(nodes, child)
 			})
 			if err != nil {
@@ -347,7 +353,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 }
 
 func shouldBeDeleted(app *appv1.Application, obj *unstructured.Unstructured) bool {
-	return !kube.IsCRD(obj) && !isSelfReferencedApp(app.Name, app.Spec.Destination, kube.GetResourceKey(obj), app.Spec.Destination.Server)
+	return !kube.IsCRD(obj) && !isSelfReferencedApp(app, kube.GetObjectRef(obj))
 }
 
 func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Application) error {
@@ -545,6 +551,10 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace)
 		_, err = appClient.Patch(app.Name, types.MergePatchType, patchJSON)
 		if err != nil {
+			// Stop retrying updating deleted application
+			if apierr.IsNotFound(err) {
+				return nil
+			}
 			return err
 		}
 		log.Infof("updated '%s' operation (phase: %s)", app.Name, state.Phase)
@@ -624,7 +634,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 			if tree, err := ctrl.getResourceTree(app, managedResources); err != nil {
 				app.Status.Conditions = []appv1.ApplicationCondition{{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()}}
 			} else {
-				app.Status.ExternalURLs = tree.GetBrowableURLs()
+				app.Status.Summary = tree.GetSummary()
 				if err = ctrl.cache.SetAppResourcesTree(app.Name, tree); err != nil {
 					logCtx.Errorf("Failed to cache resources tree: %v", err)
 					return
@@ -656,7 +666,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if err != nil {
 		logCtx.Errorf("Failed to cache app resources: %v", err)
 	} else {
-		app.Status.ExternalURLs = tree.GetBrowableURLs()
+		app.Status.Summary = tree.GetSummary()
 	}
 
 	syncErrCond := ctrl.autoSync(app, compareResult.syncStatus)

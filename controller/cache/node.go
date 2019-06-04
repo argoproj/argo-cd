@@ -36,8 +36,7 @@ func (n *node) resourceKey() kube.ResourceKey {
 
 func (n *node) isParentOf(child *node) bool {
 	for _, ownerRef := range child.ownerRefs {
-		ownerGvk := schema.FromAPIVersionAndKind(ownerRef.APIVersion, ownerRef.Kind)
-		if kube.NewResourceKey(ownerGvk.Group, ownerRef.Kind, n.ref.Namespace, ownerRef.Name) == n.resourceKey() {
+		if n.ref.UID == ownerRef.UID {
 			return true
 		}
 	}
@@ -100,10 +99,11 @@ func (n *node) asResourceNode() appv1.ResourceNode {
 	for _, ownerRef := range n.ownerRefs {
 		ownerGvk := schema.FromAPIVersionAndKind(ownerRef.APIVersion, ownerRef.Kind)
 		ownerKey := kube.NewResourceKey(ownerGvk.Group, ownerRef.Kind, n.ref.Namespace, ownerRef.Name)
-		parentRefs[0] = appv1.ResourceRef{Name: ownerRef.Name, Kind: ownerKey.Kind, Namespace: n.ref.Namespace, Group: ownerKey.Group}
+		parentRefs[0] = appv1.ResourceRef{Name: ownerRef.Name, Kind: ownerKey.Kind, Namespace: n.ref.Namespace, Group: ownerKey.Group, UID: string(ownerRef.UID)}
 	}
 	return appv1.ResourceNode{
 		ResourceRef: appv1.ResourceRef{
+			UID:       string(n.ref.UID),
 			Name:      n.ref.Name,
 			Group:     gv.Group,
 			Version:   gv.Version,

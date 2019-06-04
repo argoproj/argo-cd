@@ -5,12 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/common"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -18,6 +19,7 @@ import (
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 
+	"github.com/argoproj/argo-cd/common"
 	mockstatecache "github.com/argoproj/argo-cd/controller/cache/mocks"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
@@ -69,7 +71,6 @@ func newFakeController(data *fakeData) *ApplicationController {
 	kubeClient := fake.NewSimpleClientset(&clust, &cm, &secret)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
 	ctrl, err := NewApplicationController(
-		common.KubernetesInternalAPIServerAddr,
 		test.FakeArgoCDNamespace,
 		settingsMgr,
 		kubeClient,
@@ -77,6 +78,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		&mockRepoClientset,
 		utilcache.NewCache(utilcache.NewInMemoryCache(1*time.Hour)),
 		time.Minute,
+		common.DefaultPortArgoCDMetrics,
 	)
 	if err != nil {
 		panic(err)
@@ -122,6 +124,7 @@ var fakeApp = `
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
+  uid: "123"
   name: my-app
   namespace: ` + test.FakeArgoCDNamespace + `
 spec:
@@ -458,11 +461,24 @@ func TestHandleAppUpdated(t *testing.T) {
 	app.Spec.Destination.Server = common.KubernetesInternalAPIServerAddr
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 
-	ctrl.handleAppUpdated(app.Name, true, kube.GetResourceKey(kube.MustToUnstructured(app)), common.KubernetesInternalAPIServerAddr)
+	ctrl.handleAppUpdated(app.Name, true, kube.GetObjectRef(kube.MustToUnstructured(app)))
 	isRequested, _ := ctrl.isRefreshRequested(app.Name)
 	assert.False(t, isRequested)
 
-	ctrl.handleAppUpdated(app.Name, true, kube.NewResourceKey("", kube.DeploymentKind, "default", "test"), common.KubernetesInternalAPIServerAddr)
+	ctrl.handleAppUpdated(app.Name, true, corev1.ObjectReference{UID: "test", Kind: kube.DeploymentKind, Name: "test", Namespace: "default"})
 	isRequested, _ = ctrl.isRefreshRequested(app.Name)
 	assert.True(t, isRequested)
+}
+
+func TestSetOperationStateOnDeletedApp(t *testing.T) {
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.ReactionChain = nil
+	patched := false
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patched = true
+		return true, nil, apierr.NewNotFound(schema.GroupResource{}, "my-app")
+	})
+	ctrl.setOperationState(newFakeApp(), &argoappv1.OperationState{Phase: argoappv1.OperationSucceeded})
+	assert.True(t, patched)
 }

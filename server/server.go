@@ -15,6 +15,9 @@ import (
 	"strings"
 	"time"
 
+	yaml "gopkg.in/yaml.v2"
+	v1 "k8s.io/api/core/v1"
+
 	golang_proto "github.com/golang/protobuf/proto"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
@@ -103,13 +106,14 @@ var (
 type ArgoCDServer struct {
 	ArgoCDServerOpts
 
-	ssoClientApp *oidc.ClientApp
-	settings     *settings_util.ArgoCDSettings
-	log          *log.Entry
-	sessionMgr   *util_session.SessionManager
-	settingsMgr  *settings_util.SettingsManager
-	enf          *rbac.Enforcer
-	projInformer cache.SharedIndexInformer
+	ssoClientApp   *oidc.ClientApp
+	settings       *settings_util.ArgoCDSettings
+	log            *log.Entry
+	sessionMgr     *util_session.SessionManager
+	settingsMgr    *settings_util.SettingsManager
+	enf            *rbac.Enforcer
+	projInformer   cache.SharedIndexInformer
+	policyEnforcer *rbacpolicy.RBACPolicyEnforcer
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
 	stopCh chan struct{}
@@ -118,6 +122,8 @@ type ArgoCDServer struct {
 type ArgoCDServerOpts struct {
 	DisableAuth         bool
 	Insecure            bool
+	ListenPort          int
+	MetricsPort         int
 	Namespace           string
 	DexServerAddr       string
 	StaticAssetsDir     string
@@ -177,6 +183,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 		settingsMgr:      settingsMgr,
 		enf:              enf,
 		projInformer:     projInformer,
+		policyEnforcer:   policyEnf,
 	}
 }
 
@@ -184,7 +191,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 // We use k8s.io/code-generator/cmd/go-to-protobuf to generate the .proto files from the API types.
 // k8s.io/ go-to-protobuf uses protoc-gen-gogo, which comes from gogo/protobuf (a fork of
 // golang/protobuf).
-func (a *ArgoCDServer) Run(ctx context.Context, port int) {
+func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	grpcS := a.newGRPCServer()
 	grpcWebS := grpcweb.WrapServer(grpcS)
 	var httpS *http.Server
@@ -195,7 +202,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int) {
 	} else {
 		httpS = a.newHTTPServer(ctx, port, grpcWebS)
 	}
-	metricsServ := newAPIServerMetricsServer()
+	metricsServ := newAPIServerMetricsServer(metricsPort)
 
 	// Start listener
 	var conn net.Listener
@@ -350,7 +357,19 @@ func (a *ArgoCDServer) watchSettings(ctx context.Context) {
 }
 
 func (a *ArgoCDServer) rbacPolicyLoader(ctx context.Context) {
-	err := a.enf.RunPolicyLoader(ctx)
+	err := a.enf.RunPolicyLoader(ctx, func(cm *v1.ConfigMap) error {
+		var scopes []string
+		if scopesStr, ok := cm.Data[rbac.ConfigMapScopesKey]; len(scopesStr) > 0 && ok {
+			scopes = make([]string, 0)
+			err := yaml.Unmarshal([]byte(scopesStr), &scopes)
+			if err != nil {
+				return err
+			}
+		}
+
+		a.policyEnforcer.SetScopes(scopes)
+		return nil
+	})
 	errors.CheckError(err)
 }
 
@@ -601,11 +620,11 @@ func indexFilePath(srcPath string, baseHRef string) (string, error) {
 }
 
 // newAPIServerMetricsServer returns HTTP server which serves prometheus metrics on gRPC requests
-func newAPIServerMetricsServer() *http.Server {
+func newAPIServerMetricsServer(port int) *http.Server {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 	return &http.Server{
-		Addr:    fmt.Sprintf("0.0.0.0:%d", common.PortArgoCDAPIServerMetrics),
+		Addr:    fmt.Sprintf("0.0.0.0:%d", port),
 		Handler: mux,
 	}
 }

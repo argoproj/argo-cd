@@ -28,6 +28,10 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 7. [Riskified](https://www.riskified.com/)
 8. [GMETRI](https://gmetri.com/)
 9. [Commonbond](https://commonbond.co/)
+10. [END.](https://www.endclothing.com/)
+11. [KintoHub](https://www.kintohub.com/)
+12. [Codility](https://www.codility.com/)
+13. [tZERO](https://www.tzero.com/)
 
 ## Documentation
 

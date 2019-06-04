@@ -4,13 +4,16 @@ import (
 	"context"
 	"fmt"
 	"runtime/debug"
+	"sort"
+	"strings"
 	"sync"
 	"time"
+
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-cd/controller/metrics"
 
 	log "github.com/sirupsen/logrus"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -95,13 +98,8 @@ func (c *clusterInfo) createObjInfo(un *unstructured.Unstructured, appInstanceLa
 	}
 	nodeInfo := &node{
 		resourceVersion: un.GetResourceVersion(),
-		ref: v1.ObjectReference{
-			APIVersion: un.GetAPIVersion(),
-			Kind:       un.GetKind(),
-			Name:       un.GetName(),
-			Namespace:  un.GetNamespace(),
-		},
-		ownerRefs: ownerRefs,
+		ref:             kube.GetObjectRef(un),
+		ownerRefs:       ownerRefs,
 	}
 	populateNodeInfo(un, nodeInfo)
 	appName := kube.GetAppInstanceLabel(un, appInstanceLabel)
@@ -331,18 +329,36 @@ func (c *clusterInfo) ensureSynced() error {
 	return c.syncError
 }
 
-func (c *clusterInfo) iterateHierarchy(key kube.ResourceKey, action func(child appv1.ResourceNode)) {
+func (c *clusterInfo) iterateHierarchy(obj *unstructured.Unstructured, action func(child appv1.ResourceNode)) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	key := kube.GetResourceKey(obj)
 	if objInfo, ok := c.nodes[key]; ok {
 		action(objInfo.asResourceNode())
 		nsNodes := c.nsIndex[key.Namespace]
+		childrenByUID := make(map[types.UID][]*node)
 		for _, child := range nsNodes {
 			if objInfo.isParentOf(child) {
+				childrenByUID[child.ref.UID] = append(childrenByUID[child.ref.UID], child)
+			}
+		}
+		// make sure children has no duplicates
+		for _, children := range childrenByUID {
+			if len(children) > 0 {
+				// The object might have multiple children with the same UID (e.g. replicaset from apps and extensions group). It is ok to pick any object but we need to make sure
+				// we pick the same child after every refresh.
+				sort.Slice(children, func(i, j int) bool {
+					key1 := children[i].resourceKey()
+					key2 := children[j].resourceKey()
+					return strings.Compare(key1.String(), key2.String()) < 0
+				})
+				child := children[0]
 				action(child.asResourceNode())
 				child.iterateChildren(nsNodes, map[kube.ResourceKey]bool{objInfo.resourceKey(): true}, action)
 			}
 		}
+	} else {
+		action(c.createObjInfo(obj, c.settings.GetAppInstanceLabelKey()).asResourceNode())
 	}
 }
 
@@ -388,6 +404,15 @@ func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*uns
 						}
 						return err
 					}
+				}
+			} else if _, watched := c.apisMeta[key.GroupKind()]; !watched {
+				var err error
+				managedObj, err = c.kubectl.GetResource(config, targetObj.GroupVersionKind(), targetObj.GetName(), targetObj.GetNamespace())
+				if err != nil {
+					if errors.IsNotFound(err) {
+						return nil
+					}
+					return err
 				}
 			}
 		}
@@ -456,7 +481,7 @@ func (c *clusterInfo) onNodeUpdated(exists bool, existingNode *node, un *unstruc
 		}
 	}
 	for name, full := range toNotify {
-		c.onAppUpdated(name, full, key, c.cluster.Server)
+		c.onAppUpdated(name, full, newObj.ref)
 	}
 }
 
@@ -468,7 +493,7 @@ func (c *clusterInfo) onNodeRemoved(key kube.ResourceKey, n *node) {
 
 	c.removeNode(key)
 	if appName != "" {
-		c.onAppUpdated(appName, n.isRootAppNode(), key, c.cluster.Server)
+		c.onAppUpdated(appName, n.isRootAppNode(), n.ref)
 	}
 }
 

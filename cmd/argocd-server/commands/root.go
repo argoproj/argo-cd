@@ -23,6 +23,8 @@ import (
 func NewCommand() *cobra.Command {
 	var (
 		insecure               bool
+		listenPort             int
+		metricsPort            int
 		logLevel               string
 		glogLevel              int
 		clientConfig           clientcmd.ClientConfig
@@ -61,6 +63,8 @@ func NewCommand() *cobra.Command {
 
 			argoCDOpts := server.ArgoCDServerOpts{
 				Insecure:            insecure,
+				ListenPort:          listenPort,
+				MetricsPort:         metricsPort,
 				Namespace:           namespace,
 				StaticAssetsDir:     staticAssetsDir,
 				BaseHRef:            baseHRef,
@@ -81,7 +85,7 @@ func NewCommand() *cobra.Command {
 				ctx := context.Background()
 				ctx, cancel := context.WithCancel(ctx)
 				argocd := server.NewServer(ctx, argoCDOpts)
-				argocd.Run(ctx, common.PortAPIServer)
+				argocd.Run(ctx, listenPort, metricsPort)
 				cancel()
 			}
 		},
@@ -97,6 +101,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&dexServerAddress, "dex-server", common.DefaultDexServerAddr, "Dex server address")
 	command.Flags().BoolVar(&disableAuth, "disable-auth", false, "Disable client authentication")
 	command.AddCommand(cli.NewVersionCmd(cliName))
+	command.Flags().IntVar(&listenPort, "port", common.DefaultPortAPIServer, "Listen on given port")
+	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDAPIServerMetrics, "Start metrics on given port")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
 	cacheSrc = cache.AddCacheFlagsToCmd(command)
 	return command

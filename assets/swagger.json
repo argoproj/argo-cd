@@ -68,6 +68,11 @@
             },
             "name": "project",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "resourceVersion",
+            "in": "query"
           }
         ],
         "responses": {
@@ -211,6 +216,11 @@
               "type": "string"
             },
             "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "resourceVersion",
             "in": "query"
           }
         ],
@@ -1387,6 +1397,11 @@
             },
             "name": "project",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "resourceVersion",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1553,6 +1568,10 @@
         "kubeconfig": {
           "type": "string"
         },
+        "systemNamespace": {
+          "type": "string",
+          "title": "Optional alternative system namespace to use (defaults to \"kube-system\")"
+        },
         "upsert": {
           "type": "boolean",
           "format": "boolean"
@@ -1598,6 +1617,12 @@
         },
         "name": {
           "type": "string"
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -2651,13 +2676,6 @@
             "$ref": "#/definitions/v1alpha1ApplicationCondition"
           }
         },
-        "externalURLs": {
-          "description": "ExternalURLs holds all external URLs of application child resources.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
         "health": {
           "$ref": "#/definitions/v1alpha1HealthStatus"
         },
@@ -2685,8 +2703,30 @@
         "sourceType": {
           "type": "string"
         },
+        "summary": {
+          "$ref": "#/definitions/v1alpha1ApplicationSummary"
+        },
         "sync": {
           "$ref": "#/definitions/v1alpha1SyncStatus"
+        }
+      }
+    },
+    "v1alpha1ApplicationSummary": {
+      "type": "object",
+      "properties": {
+        "externalURLs": {
+          "description": "ExternalURLs holds all external URLs of application child resources.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "images": {
+          "description": "Images holds all images of application child resources.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -3191,6 +3231,9 @@
           "type": "string"
         },
         "namespace": {
+          "type": "string"
+        },
+        "uid": {
           "type": "string"
         },
         "version": {

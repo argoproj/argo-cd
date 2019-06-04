@@ -45,10 +45,11 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 // NewClusterAddCommand returns a new instance of an `argocd cluster add` command
 func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var (
-		inCluster      bool
-		upsert         bool
-		awsRoleArn     string
-		awsClusterName string
+		inCluster       bool
+		upsert          bool
+		awsRoleArn      string
+		awsClusterName  string
+		systemNamespace string
 	)
 	var command = &cobra.Command{
 		Use:   "add",
@@ -85,7 +86,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				// Install RBAC resources for managing the cluster
 				clientset, err := kubernetes.NewForConfig(conf)
 				errors.CheckError(err)
-				managerBearerToken, err = common.InstallClusterManagerRBAC(clientset)
+				managerBearerToken, err = common.InstallClusterManagerRBAC(clientset, systemNamespace)
 				errors.CheckError(err)
 			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
@@ -108,6 +109,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	command.Flags().BoolVar(&upsert, "upsert", false, "Override an existing cluster with the same name even if the spec differs")
 	command.Flags().StringVar(&awsClusterName, "aws-cluster-name", "", "AWS Cluster name if set then aws-iam-authenticator will be used to access cluster")
 	command.Flags().StringVar(&awsRoleArn, "aws-role-arn", "", "Optional AWS role arn. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.")
+	command.Flags().StringVar(&systemNamespace, "system-namespace", common.DefaultSystemNamespace, "Use different system namespace")
 	return command
 }
 

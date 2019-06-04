@@ -223,8 +223,15 @@ message ApplicationStatus {
 
   optional string sourceType = 9;
 
+  optional ApplicationSummary summary = 10;
+}
+
+message ApplicationSummary {
   // ExternalURLs holds all external URLs of application child resources.
-  repeated string externalURLs = 10;
+  repeated string externalURLs = 1;
+
+  // Images holds all images of application child resources.
+  repeated string images = 2;
 }
 
 // ApplicationTree holds nodes which belongs to the application
@@ -576,6 +583,8 @@ message ResourceRef {
   optional string namespace = 4;
 
   optional string name = 5;
+
+  optional string uid = 6;
 }
 
 // ResourceResult holds the operation result details of a specific resource

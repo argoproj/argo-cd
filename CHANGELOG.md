@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.0.0
+## v1.0.0 (2019-05-16)
 
 ### New Features
 
@@ -13,11 +13,14 @@ based on ingress reference service, service's label selectors and labels. The ne
 
 Argo CD introduces Custom Resource Actions to allow users to provide their own Lua scripts to modify existing Kubernetes resources in their applications. These actions are exposed in the UI to allow easy, safe, and reliable changes to their resources.  This functionality can be used to introduce functionality such as suspending and enabling a Kubernetes cronjob, continue a BlueGreen deployment with Argo Rollouts, or scaling a deployment. 
 
-#### UI Enhancements
+#### UI Enhancements & Usability Enhancements
 
 * New color palette intended to highlight unhealthily and out-of-sync resources more clearly.
 * The health of more resources is displayed, so it easier to quickly zoom to unhealthy pods, replica-sets, etc.
 * Resources that do not have health no longer appear to be healthy. 
+* Support for configuring Git repo credentials at a domain/org level
+* Support for configuring requested OIDC provider scopes and enforced RBAC scopes
+* Support for configuring monitored resources whitelist in addition to excluded resources
 
 ### Breaking Changes
 
@@ -49,6 +52,12 @@ Argo CD introduces Custom Resource Actions to allow users to provide their own L
 * UI Enhancement Proposals Quick Wins #1274
 * Update argocd-util import/export to support proper backup and restore (#1328)
 * Whitelisting repos/clusters in projects should consider repo/cluster permissions #1432
+* Adds support for configuring repo creds at a domain/org level. (#1332)
+* Implement whitelist option analogous to `resource.exclusions` (#1490)
+* Added ability to sync specific labels from the command line (#1241)
+* Improve rendering app image information (#1552)
+* Add liveness probe to repo server/api servers (#1546)
+* Support configuring requested OIDC provider scopes and enforced RBAC scopes (#1471)
 
 #### Bug Fixes
 
@@ -62,7 +71,17 @@ Argo CD introduces Custom Resource Actions to allow users to provide their own L
 - Rollback UI is not showing correct ksonnet parameters in preview #1326
 - See details of applications fails with "r.nodes is undefined" #1371
 - UI fails to load custom actions is resource is not deployed #1502
-- Unable to create app from private repo: x509: certificate signed by unknown authority #1171
+- Unable to create app from private repo: x509: certificate signed by unknown authority (#1171)
+- Fix hardcoded 'git' user in `util/git.NewClient` (#1555)
+- Application controller becomes unresponsive (#1476)
+- Load target resource using K8S if conversion fails (#1414)
+- Can't ignore a non-existent pointer anymore (#1586)
+- Impossible to sync to HEAD from UI if auto-sync is enabled (#1579)
+- Application controller is unable to delete self-referenced app (#1570)
+- Prevent reconciliation loop for self-managed apps (#1533)
+- Controller incorrectly report health state of self managed application (#1557)
+- Fix kustomize manifest generation crash is manifest has image without version (#1540)
+- Supply resourceVersion to watch request to prevent reading of stale cache (#1605)
 
 ## v0.12.2 (2019-04-22)
 

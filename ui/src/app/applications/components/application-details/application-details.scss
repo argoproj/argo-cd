@@ -1,0 +1,96 @@
+@import 'node_modules/argo-ui/src/app/shared/styles/config';
+
+.application-details {
+    &__status-panel {
+        position: fixed;
+        left: 60px;
+        right: 0;
+        z-index: 2;
+    }
+
+    .argo-dropdown__content.is-menu {
+        max-height: 500px;
+    }
+  
+    &__tree {
+        position: relative;
+        padding: 1em;
+        overflow-x: auto;
+        overflow-y: auto;
+        margin-top: 100px;
+        min-height: calc(100vh - 2 * 50px - 115px);
+    }
+
+    &__warning {
+        font-size: 0.8em;
+        color: darken($argo-status-warning-color, 20%);
+    }
+    &__refreshing-label {
+        position: fixed;
+        top: 100px + 100px;
+        left: 60px;
+        background-color: $argo-color-gray-4;
+        border: 1px solid $argo-color-gray-5;
+        border-radius: 5px;
+        padding: 0 5px;
+        font-size: 0.6em;
+    }
+
+    &__tab-content-full-height {
+        height: calc(100vh - 2 * 50px);
+        div.row, div.columns {
+            height: 100%;
+        }
+    }
+    
+    &__container {
+        position: relative;
+        text-transform: uppercase;
+        margin-top: 0.5em;
+        cursor: pointer;
+        font-size: 0.8em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding-left: 10px;
+
+        i {
+            position: absolute;
+            left: 0px;
+            top: 2px;
+        }
+
+        span {
+            color: $argo-color-teal-5;
+        }
+    }
+
+    .application-resource-tree {
+        margin: 0 auto;
+    }
+
+    &__view-type {
+        margin-bottom: -6px;
+        display: inline-block;
+        vertical-align: middle;
+        white-space: nowrap;
+        i {
+            cursor: pointer;
+            color:  $argo-color-gray-4;
+            margin: 0 0.5em;
+            &::before {
+                font-size: 1.5em;
+            }
+        }
+        i.selected {
+            cursor: default;
+            color: $argo-color-gray-5;
+        }
+    }
+
+    &__node-menu {
+        position: absolute;
+        right: 0;
+        top: 0;
+    }
+}

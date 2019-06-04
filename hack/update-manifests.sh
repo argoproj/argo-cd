@@ -1,4 +1,8 @@
-#!/bin/sh -x -e
+#! /usr/bin/env bash
+set -x
+set -o errexit
+set -o nounset
+set -o pipefail
 
 SRCROOT="$( CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P )"
 AUTOGENMSG="# This is an auto-generated file. DO NOT EDIT"

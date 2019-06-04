@@ -9,15 +9,16 @@ GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
 PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run vendor/github.com/gobuffalo/packr/packr/main.go"; fi)
-TEST_CMD=$(shell [ "`which gotestsum`" != "" ] && echo gotestsum -- || echo go test)
+
+PATH:=$(PATH):$(PWD)/hack
 
 # docker image publishing options
-DOCKER_PUSH=false
-IMAGE_TAG=latest
+DOCKER_PUSH?=false
+IMAGE_TAG?=latest
 # perform static compilation
-STATIC_BUILD=true
+STATIC_BUILD?=true
 # build development images
-DEV_IMAGE=false
+DEV_IMAGE?=false
 
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
@@ -60,7 +61,7 @@ clientgen:
 	./hack/update-codegen.sh
 
 .PHONY: codegen
-codegen: protogen clientgen openapigen
+codegen: protogen clientgen openapigen manifests
 
 .PHONY: cli
 cli: clean-debug
@@ -87,7 +88,7 @@ manifests:
 .PHONY: server
 server: clean-debug
 	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-server ./cmd/argocd-server
-	
+
 .PHONY: repo-server
 repo-server:
 	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-repo-server ./cmd/argocd-repo-server
@@ -132,19 +133,19 @@ dep-ensure:
 
 .PHONY: lint
 lint:
-	golangci-lint run --fix
+	golangci-lint run --fix --verbose
 
 .PHONY: build
 build:
-	go build `go list ./... | grep -v resource_customizations`
+	go build -v `go list ./... | grep -v 'resource_customizations\|test/e2e'`
 
 .PHONY: test
 test:
-	$(TEST_CMD) -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "github.com/argoproj/argo-cd/test/e2e"`
+	go test -v -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "test/e2e"`
 
 .PHONY: test-e2e
 test-e2e: cli
-	$(TEST_CMD) -v -failfast -timeout 20m ./test/e2e
+	go test -v -timeout 10m ./test/e2e
 
 .PHONY: start-e2e
 start-e2e: cli

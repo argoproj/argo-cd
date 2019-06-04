@@ -1,0 +1,83 @@
+@import 'node_modules/argo-ui/src/app/shared/styles/config';
+
+.help-tip {
+    color: $argo-color-gray-3;
+}
+
+.application-status-panel {
+    font-size: .875em;
+    color: $argo-color-gray-6;
+    background-color: white;
+    box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.1);
+
+    &__item {
+        margin: 20px 0;
+        padding: 10px 30px;
+        font-size: .8em;
+        line-height: 1.2;
+        color: $argo-color-gray-5;
+
+        &:not(:first-child) {
+            border-left: 1px solid $argo-color-gray-3;
+        }
+
+        & {
+            a.error {
+                color: $argo-failed-color-dark;
+            }
+        }
+        & {
+            a.warning {
+                color: $argo-failed-color-light;
+            }
+        }
+        & {
+            a.info {
+                color: $argo-success-color;
+            }
+        }
+    }
+
+    &__item-value {
+        .fa {
+            font-size: 1em;
+        }
+
+        font-size: 2em;
+        color: $argo-color-gray-6;
+
+        &--highlight {
+            color: $argo-color-teal-6;
+        }
+
+        &--Running a, &--Terminating a {
+            color: $argo-running-color;
+        }
+
+        &--Error a, &--Failed a {
+            color: $argo-failed-color;
+        }
+
+        &--Succeeded a {
+            color: $argo-success-color;
+        }
+
+        i {
+            font-size: .6em;
+        }
+    }
+
+    &__item-name {
+        text-transform: uppercase;
+
+        i {
+            position: relative;
+            top: -2px;
+        }
+    }
+    &__item-name, &__item-value {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
