@@ -93,8 +93,17 @@ func TestCompareAppStateExtra(t *testing.T) {
 // TestCompareAppStateHook checks that hooks are detected during manifest generation, and not
 // considered as part of resources when assessing Synced status
 func TestCompareAppStateHook(t *testing.T) {
+	testCompareAppStateIgnoreAnnotation(t, common.AnnotationKeyHook, "PreSync")
+}
+
+// checks that ignore resources are detected, but excluded from status
+func TestCompareAppStateIgnore(t *testing.T) {
+	testCompareAppStateIgnoreAnnotation(t, common.AnnotationSyncStatusOptions, "Ignore")
+}
+
+func testCompareAppStateIgnoreAnnotation(t *testing.T, key, val string) {
 	pod := test.NewPod()
-	pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
+	pod.SetAnnotations(map[string]string{key: val})
 	podBytes, _ := json.Marshal(pod)
 	app := newFakeApp()
 	data := fakeData{
