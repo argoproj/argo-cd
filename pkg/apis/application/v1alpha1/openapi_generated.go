@@ -86,7 +86,6 @@ func schema_pkg_apis_application_v1alpha1_AWSAuthConfig(ref common.ReferenceCall
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "AWSAuthConfig is an AWS IAM authentication configuration",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"clusterName": {
 						SchemaProps: spec.SchemaProps{
@@ -105,6 +104,7 @@ func schema_pkg_apis_application_v1alpha1_AWSAuthConfig(ref common.ReferenceCall
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -113,7 +113,6 @@ func schema_pkg_apis_application_v1alpha1_AppProject(ref common.ReferenceCallbac
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "AppProject provides a logical grouping of applications, providing controls for: * where the apps may deploy to (cluster whitelist) * what may be deployed (repository whitelist, resource whitelist/blacklist) * who can access these applications (roles, OIDC group claims bindings) * and what they can do (RBAC policies) * automation access to these roles (JWT tokens)",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -153,7 +152,6 @@ func schema_pkg_apis_application_v1alpha1_AppProjectList(ref common.ReferenceCal
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "AppProjectList is list of AppProject resources",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -200,7 +198,6 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "AppProjectSpec is the specification of an AppProject",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"sourceRepos": {
 						SchemaProps: spec.SchemaProps{
@@ -288,7 +285,6 @@ func schema_pkg_apis_application_v1alpha1_Application(ref common.ReferenceCallba
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "Application is a definition of Application resource.",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -338,7 +334,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationCondition(ref common.Refere
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ApplicationCondition contains details about current application condition",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"type": {
 						SchemaProps: spec.SchemaProps{
@@ -358,6 +353,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationCondition(ref common.Refere
 				Required: []string{"type", "message"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -366,7 +362,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationDestination(ref common.Refe
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ApplicationDestination contains deployment destination information",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"server": {
 						SchemaProps: spec.SchemaProps{
@@ -385,6 +380,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationDestination(ref common.Refe
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -393,7 +389,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationList(ref common.ReferenceCa
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ApplicationList is list of Application resources",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -440,7 +435,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSource(ref common.Reference
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ApplicationSource contains information about github repository, path within repository and target application environment.",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"repoURL": {
 						SchemaProps: spec.SchemaProps{
@@ -506,7 +500,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceDirectory(ref common.
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
 					"recurse": {
 						SchemaProps: spec.SchemaProps{
@@ -532,7 +525,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ApplicationSourceHelm holds helm specific options",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"valueFiles": {
 						SchemaProps: spec.SchemaProps{
@@ -561,6 +553,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 							},
 						},
 					},
+					"releaseName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The Helm release name. If omitted it will use the application name",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
@@ -574,7 +573,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceJsonnet(ref common.Re
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ApplicationSourceJsonnet holds jsonnet specific options",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"extVars": {
 						SchemaProps: spec.SchemaProps{
@@ -615,7 +613,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKsonnet(ref common.Re
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ApplicationSourceKsonnet holds ksonnet specific options",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"environment": {
 						SchemaProps: spec.SchemaProps{
@@ -650,7 +647,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ApplicationSourceKustomize holds kustomize specific options",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"namePrefix": {
 						SchemaProps: spec.SchemaProps{
@@ -691,7 +687,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							Description: "CommonLabels adds additional kustomize commonLabels",
 							Type:        []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Type:   []string{"string"},
@@ -714,7 +709,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourcePlugin(ref common.Ref
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ApplicationSourcePlugin holds config management plugin specific options",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -725,6 +719,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourcePlugin(ref common.Ref
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -733,7 +728,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref common.ReferenceCa
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"source": {
 						SchemaProps: spec.SchemaProps{
@@ -787,7 +781,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ApplicationStatus contains information about application sync, health status",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"resources": {
 						SchemaProps: spec.SchemaProps{
@@ -873,7 +866,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSummary(ref common.Referenc
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
 					"externalURLs": {
 						SchemaProps: spec.SchemaProps{
@@ -906,6 +898,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSummary(ref common.Referenc
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -914,7 +907,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationTree(ref common.ReferenceCa
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ApplicationTree holds nodes which belongs to the application",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"nodes": {
 						SchemaProps: spec.SchemaProps{
@@ -941,7 +933,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationWatchEvent(ref common.Refer
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ApplicationWatchEvent contains information about application change.",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"type": {
 						SchemaProps: spec.SchemaProps{
@@ -969,7 +960,6 @@ func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) 
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "Cluster is the definition of a cluster resource",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"server": {
 						SchemaProps: spec.SchemaProps{
@@ -1011,7 +1001,6 @@ func schema_pkg_apis_application_v1alpha1_ClusterConfig(ref common.ReferenceCall
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ClusterConfig is the configuration attributes. This structure is subset of the go-client rest.Config with annotations added for marshalling.",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"username": {
 						SchemaProps: spec.SchemaProps{
@@ -1059,7 +1048,6 @@ func schema_pkg_apis_application_v1alpha1_ClusterList(ref common.ReferenceCallba
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ClusterList is a collection of Clusters.",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
@@ -1092,7 +1080,6 @@ func schema_pkg_apis_application_v1alpha1_Command(ref common.ReferenceCallback) 
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "Command holds binary path and arguments list",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"command": {
 						SchemaProps: spec.SchemaProps{
@@ -1123,6 +1110,7 @@ func schema_pkg_apis_application_v1alpha1_Command(ref common.ReferenceCallback) 
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1131,7 +1119,6 @@ func schema_pkg_apis_application_v1alpha1_ComparedTo(ref common.ReferenceCallbac
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ComparedTo contains application source and target which was used for resources comparison",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"source": {
 						SchemaProps: spec.SchemaProps{
@@ -1157,7 +1144,6 @@ func schema_pkg_apis_application_v1alpha1_ComponentParameter(ref common.Referenc
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ComponentParameter contains information about component parameter value",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"component": {
 						SchemaProps: spec.SchemaProps{
@@ -1181,6 +1167,7 @@ func schema_pkg_apis_application_v1alpha1_ComponentParameter(ref common.Referenc
 				Required: []string{"name", "value"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1189,7 +1176,6 @@ func schema_pkg_apis_application_v1alpha1_ConfigManagementPlugin(ref common.Refe
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ConfigManagementPlugin contains config management plugin configuration",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -1221,7 +1207,6 @@ func schema_pkg_apis_application_v1alpha1_ConnectionState(ref common.ReferenceCa
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ConnectionState contains information about remote resource connection state",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"status": {
 						SchemaProps: spec.SchemaProps{
@@ -1253,7 +1238,6 @@ func schema_pkg_apis_application_v1alpha1_HealthStatus(ref common.ReferenceCallb
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
 					"status": {
 						SchemaProps: spec.SchemaProps{
@@ -1270,6 +1254,7 @@ func schema_pkg_apis_application_v1alpha1_HealthStatus(ref common.ReferenceCallb
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1278,7 +1263,6 @@ func schema_pkg_apis_application_v1alpha1_HelmParameter(ref common.ReferenceCall
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "HelmParameter is a parameter to a helm template",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -1297,6 +1281,7 @@ func schema_pkg_apis_application_v1alpha1_HelmParameter(ref common.ReferenceCall
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1304,7 +1289,6 @@ func schema_pkg_apis_application_v1alpha1_HelmRepository(ref common.ReferenceCal
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
 					"url": {
 						SchemaProps: spec.SchemaProps{
@@ -1352,6 +1336,7 @@ func schema_pkg_apis_application_v1alpha1_HelmRepository(ref common.ReferenceCal
 				Required: []string{"url", "name"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1360,7 +1345,6 @@ func schema_pkg_apis_application_v1alpha1_InfoItem(ref common.ReferenceCallback)
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "InfoItem contains human readable information about object",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -1379,6 +1363,7 @@ func schema_pkg_apis_application_v1alpha1_InfoItem(ref common.ReferenceCallback)
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1387,7 +1372,6 @@ func schema_pkg_apis_application_v1alpha1_JWTToken(ref common.ReferenceCallback)
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "JWTToken holds the issuedAt and expiresAt values of a token",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"iat": {
 						SchemaProps: spec.SchemaProps{
@@ -1405,6 +1389,7 @@ func schema_pkg_apis_application_v1alpha1_JWTToken(ref common.ReferenceCallback)
 				Required: []string{"iat"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1413,7 +1398,6 @@ func schema_pkg_apis_application_v1alpha1_JsonnetVar(ref common.ReferenceCallbac
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "JsonnetVar is a jsonnet variable",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -1437,6 +1421,7 @@ func schema_pkg_apis_application_v1alpha1_JsonnetVar(ref common.ReferenceCallbac
 				Required: []string{"name", "value"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1445,7 +1430,6 @@ func schema_pkg_apis_application_v1alpha1_KsonnetParameter(ref common.ReferenceC
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "KsonnetParameter is a ksonnet component parameter",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"component": {
 						SchemaProps: spec.SchemaProps{
@@ -1469,6 +1453,7 @@ func schema_pkg_apis_application_v1alpha1_KsonnetParameter(ref common.ReferenceC
 				Required: []string{"name", "value"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1477,7 +1462,6 @@ func schema_pkg_apis_application_v1alpha1_KustomizeImageTag(ref common.Reference
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "KustomizeImageTag is a kustomize image tag",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -1496,6 +1480,7 @@ func schema_pkg_apis_application_v1alpha1_KustomizeImageTag(ref common.Reference
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1504,7 +1489,6 @@ func schema_pkg_apis_application_v1alpha1_Operation(ref common.ReferenceCallback
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "Operation contains requested operation parameters.",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"sync": {
 						SchemaProps: spec.SchemaProps{
@@ -1524,7 +1508,6 @@ func schema_pkg_apis_application_v1alpha1_OperationState(ref common.ReferenceCal
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "OperationState contains information about state of currently performing operation on application.",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"operation": {
 						SchemaProps: spec.SchemaProps{
@@ -1578,7 +1561,6 @@ func schema_pkg_apis_application_v1alpha1_ProjectRole(ref common.ReferenceCallba
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ProjectRole represents a role that has access to a project",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -1649,7 +1631,6 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "Repository is a Git repository holding application configurations",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"repo": {
 						SchemaProps: spec.SchemaProps{
@@ -1700,7 +1681,6 @@ func schema_pkg_apis_application_v1alpha1_RepositoryList(ref common.ReferenceCal
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "RepositoryList is a collection of Repositories.",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
@@ -1732,7 +1712,6 @@ func schema_pkg_apis_application_v1alpha1_ResourceAction(ref common.ReferenceCal
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -1764,7 +1743,6 @@ func schema_pkg_apis_application_v1alpha1_ResourceActionDefinition(ref common.Re
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -1782,6 +1760,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceActionDefinition(ref common.Re
 				Required: []string{"name", "action.lua"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1789,7 +1768,6 @@ func schema_pkg_apis_application_v1alpha1_ResourceActionParam(ref common.Referen
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
@@ -1818,6 +1796,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceActionParam(ref common.Referen
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1825,7 +1804,6 @@ func schema_pkg_apis_application_v1alpha1_ResourceActions(ref common.ReferenceCa
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
 					"discovery.lua": {
 						SchemaProps: spec.SchemaProps{
@@ -1859,7 +1837,6 @@ func schema_pkg_apis_application_v1alpha1_ResourceDiff(ref common.ReferenceCallb
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ResourceDiff holds the diff of a live and target resource object",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"group": {
 						SchemaProps: spec.SchemaProps{
@@ -1906,6 +1883,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceDiff(ref common.ReferenceCallb
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1914,7 +1892,6 @@ func schema_pkg_apis_application_v1alpha1_ResourceIgnoreDifferences(ref common.R
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"group": {
 						SchemaProps: spec.SchemaProps{
@@ -1957,6 +1934,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceIgnoreDifferences(ref common.R
 				Required: []string{"group", "kind", "jsonPointers"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1965,13 +1943,11 @@ func schema_pkg_apis_application_v1alpha1_ResourceNetworkingInfo(ref common.Refe
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ResourceNetworkingInfo holds networking resource related information",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"targetLabels": {
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Type:   []string{"string"},
@@ -1997,7 +1973,6 @@ func schema_pkg_apis_application_v1alpha1_ResourceNetworkingInfo(ref common.Refe
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Type:   []string{"string"},
@@ -2046,7 +2021,6 @@ func schema_pkg_apis_application_v1alpha1_ResourceNode(ref common.ReferenceCallb
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ResourceNode contains information about live resource and its children",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"group": {
 						SchemaProps: spec.SchemaProps{
@@ -2150,7 +2124,6 @@ func schema_pkg_apis_application_v1alpha1_ResourceOverride(ref common.ReferenceC
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ResourceOverride holds configuration to customize resource diffing and health assessment",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"health.lua": {
 						SchemaProps: spec.SchemaProps{
@@ -2173,6 +2146,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceOverride(ref common.ReferenceC
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -2181,7 +2155,6 @@ func schema_pkg_apis_application_v1alpha1_ResourceRef(ref common.ReferenceCallba
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ResourceRef includes fields which unique identify resource",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"group": {
 						SchemaProps: spec.SchemaProps{
@@ -2222,6 +2195,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceRef(ref common.ReferenceCallba
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -2230,7 +2204,6 @@ func schema_pkg_apis_application_v1alpha1_ResourceResult(ref common.ReferenceCal
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ResourceResult holds the operation result details of a specific resource",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"group": {
 						SchemaProps: spec.SchemaProps{
@@ -2301,6 +2274,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceResult(ref common.ReferenceCal
 				Required: []string{"group", "version", "kind", "namespace", "name"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -2309,7 +2283,6 @@ func schema_pkg_apis_application_v1alpha1_ResourceStatus(ref common.ReferenceCal
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ResourceStatus holds the current sync and health status of a resource",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"group": {
 						SchemaProps: spec.SchemaProps{
@@ -2371,7 +2344,6 @@ func schema_pkg_apis_application_v1alpha1_RevisionHistory(ref common.ReferenceCa
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "RevisionHistory contains information relevant to an application deployment",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"revision": {
 						SchemaProps: spec.SchemaProps{
@@ -2409,7 +2381,6 @@ func schema_pkg_apis_application_v1alpha1_SyncOperation(ref common.ReferenceCall
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "SyncOperation contains sync operation details.",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"revision": {
 						SchemaProps: spec.SchemaProps{
@@ -2470,7 +2441,6 @@ func schema_pkg_apis_application_v1alpha1_SyncOperationResource(ref common.Refer
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "SyncOperationResource contains resources to sync.",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"group": {
 						SchemaProps: spec.SchemaProps{
@@ -2494,6 +2464,7 @@ func schema_pkg_apis_application_v1alpha1_SyncOperationResource(ref common.Refer
 				Required: []string{"kind", "name"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -2502,7 +2473,6 @@ func schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref common.Referen
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "SyncOperationResult represent result of sync operation",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"resources": {
 						SchemaProps: spec.SchemaProps{
@@ -2544,7 +2514,6 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicy(ref common.ReferenceCallbac
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "SyncPolicy controls when a sync will be performed in response to updates in git",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"automated": {
 						SchemaProps: spec.SchemaProps{
@@ -2565,7 +2534,6 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicyAutomated(ref common.Referen
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "SyncPolicyAutomated controls the behavior of an automated sync",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"prune": {
 						SchemaProps: spec.SchemaProps{
@@ -2577,6 +2545,7 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicyAutomated(ref common.Referen
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -2585,7 +2554,6 @@ func schema_pkg_apis_application_v1alpha1_SyncStatus(ref common.ReferenceCallbac
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "SyncStatus is a comparison result of application spec and deployed application.",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"status": {
 						SchemaProps: spec.SchemaProps{
@@ -2618,7 +2586,6 @@ func schema_pkg_apis_application_v1alpha1_SyncStrategy(ref common.ReferenceCallb
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "SyncStrategy controls the manner in which a sync is performed",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"apply": {
 						SchemaProps: spec.SchemaProps{
@@ -2645,7 +2612,6 @@ func schema_pkg_apis_application_v1alpha1_SyncStrategyApply(ref common.Reference
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "SyncStrategyApply uses `kubectl apply` to perform the apply",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"force": {
 						SchemaProps: spec.SchemaProps{
@@ -2657,6 +2623,7 @@ func schema_pkg_apis_application_v1alpha1_SyncStrategyApply(ref common.Reference
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -2665,7 +2632,6 @@ func schema_pkg_apis_application_v1alpha1_SyncStrategyHook(ref common.ReferenceC
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "SyncStrategyHook will perform a sync using hooks annotations. If no hook annotation is specified falls back to `kubectl apply`.",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"SyncStrategyApply": {
 						SchemaProps: spec.SchemaProps{
@@ -2686,7 +2652,6 @@ func schema_pkg_apis_application_v1alpha1_TLSClientConfig(ref common.ReferenceCa
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "TLSClientConfig contains settings to enable transport layer security",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"insecure": {
 						SchemaProps: spec.SchemaProps{
@@ -2727,6 +2692,7 @@ func schema_pkg_apis_application_v1alpha1_TLSClientConfig(ref common.ReferenceCa
 				Required: []string{"insecure"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -2735,7 +2701,6 @@ func schema_pkg_apis_application_v1alpha1_objectMeta(ref common.ReferenceCallbac
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "objectMeta and corresponding GetMetadata() methods is a hack to allow us to use grpc-gateway side-by-side with k8s protobuf codegen. The grpc-gateway generated .gw.pb.go files expect a GetMetadata() method to be generated because it assumes the .proto files were generated from protoc --go_out=plugins=grpc. Instead, kubernetes uses go-to-protobuf to generate .proto files from go types, and this method is not auto-generated (presumably since ObjectMeta is embedded but is nested in the 'metadata' field in JSON form).",
-				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"Name": {
 						SchemaProps: spec.SchemaProps{
@@ -2747,5 +2712,6 @@ func schema_pkg_apis_application_v1alpha1_objectMeta(ref common.ReferenceCallbac
 				Required: []string{"Name"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }

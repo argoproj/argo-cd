@@ -26,6 +26,33 @@ in the form of `-p PARAM=VALUE`. For example:
 argocd app set helm-guestbook -p service.type=LoadBalancer
 ```
 
+## Helm Release Name
+
+By default the Helm release name is equal to the Application name to which it belongs. Sometimes, especially on a centralised ArgoCD, 
+you may want to override that  name, and it is possible with the `release-name` flag on the cli:
+
+```bash
+argocd app set helm-guestbook --release-name myRelease
+```
+
+ or using the releaseName for yaml:
+
+```yaml
+source:
+    helm:
+      releaseName: myRelease
+```
+
+```diff
+- Important notice on overriding the release name
+```
+Please not that overriding the Helm release name might cause problems when the chart you are deploying is using the `app.kubernetes.io/instance` label. 
+ArgoCD injects this label with the value of the Application name for tracking purposes. So when overriding the release name, the Application name will 
+stop being equal to the release name. Because ArgoCD will overwrite the label with the Application name it might cause some selectors on the resources 
+to stop working. In order to avoid this we can configure ArgoCD to use another label for tracking in the [ArgoCD configmap argocd-cm.yaml](./../operator-manual/argocd-cm.yaml) - 
+check the lines describing `application.instanceLabelKey`
+
+
 ## Helm Hooks
 
 Helm hooks are equivalent in concept to [Argo CD resource hooks](resource_hooks.md). In helm, a hook

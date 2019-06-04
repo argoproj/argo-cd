@@ -123,3 +123,39 @@ func TestHelmDependencyBuild(t *testing.T) {
 	_, err = h.Template("wordpress", "", nil)
 	assert.NoError(t, err)
 }
+
+func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
+	h := NewHelmApp("./testdata/redis", []*argoappv1.HelmRepository{})
+	opts := argoappv1.ApplicationSourceHelm{
+		ReleaseName: "my-release",
+	}
+	objs, err := h.Template("test", "", &opts)
+	assert.Nil(t, err)
+	assert.Equal(t, 5, len(objs))
+
+	for _, obj := range objs {
+		if obj.GetKind() == "StatefulSet" {
+			var stateful appsv1.StatefulSet
+			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &stateful)
+			assert.Nil(t, err)
+			assert.Equal(t, "my-release-redis-master", stateful.ObjectMeta.Name)
+		}
+	}
+}
+
+func TestHelmTemplateReleaseName(t *testing.T) {
+	h := NewHelmApp("./testdata/redis", []*argoappv1.HelmRepository{})
+	opts := argoappv1.ApplicationSourceHelm{}
+	objs, err := h.Template("test", "", &opts)
+	assert.Nil(t, err)
+	assert.Equal(t, 5, len(objs))
+
+	for _, obj := range objs {
+		if obj.GetKind() == "StatefulSet" {
+			var stateful appsv1.StatefulSet
+			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &stateful)
+			assert.Nil(t, err)
+			assert.Equal(t, "test-redis-master", stateful.ObjectMeta.Name)
+		}
+	}
+}
