@@ -11,6 +11,12 @@ import (
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
+func Test_syncTasks_kindOrder(t *testing.T) {
+	assert.Equal(t, -27, kindOrder["Namespace"])
+	assert.Equal(t, -1, kindOrder["APIService"])
+	assert.Equal(t, 0, kindOrder["MyCRD"])
+}
+
 func TestSortSyncTask(t *testing.T) {
 	sort.Sort(unsortedTasks)
 	assert.Equal(t, sortedTasks, unsortedTasks)
