@@ -1047,7 +1047,7 @@ func printAppResources(w io.Writer, app *argoappv1.Application) {
 
 		// if an operation has occurred, we search for the result and print that out
 		operationState := app.Status.OperationState
-		if operationState != nil {
+		if operationState != nil && operationState.SyncResult != nil{
 			// in most cases you'll only get one instance (if it is a non-hook resource, or a hook for a single phase),
 			// but in edge-cases you may get more than one
 			for _, result := range operationState.SyncResult.Resources.Filter(func(r *argoappv1.ResourceResult) bool {

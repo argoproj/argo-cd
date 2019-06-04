@@ -41,8 +41,8 @@ func testHookSuccessful(t *testing.T, hookType HookType) {
 		And(func(app *Application) {
 			// a retentive check on the resource results
 			assert.Equal(t, ResourceResults{
-				{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "pod", Status: ResultCodeSynced, Message: "pod/pod created", HookPhase: OperationSucceeded, SyncPhase: SyncPhaseSync},
 				{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook", Message: "pod/hook created", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)},
+				{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "pod", Status: ResultCodeSynced, Message: "pod/pod created", HookPhase: OperationSucceeded, SyncPhase: SyncPhaseSync},
 			}, app.Status.OperationState.SyncResult.Resources)
 		})
 }
