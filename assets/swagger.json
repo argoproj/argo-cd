@@ -2611,6 +2611,13 @@
       "type": "object",
       "title": "ApplicationSourceKustomize holds kustomize specific options",
       "properties": {
+        "commonLabels": {
+          "type": "object",
+          "title": "CommonLabels adds additional kustomize commonLabels",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
         "imageTags": {
           "type": "array",
           "title": "ImageTags are kustomize 1.0 image tag overrides",
