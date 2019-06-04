@@ -96,6 +96,8 @@ const (
 	AnnotationKeyHelmHook = "helm.sh/hook"
 	// AnnotationValueHelmHookCRDInstall is a value of crd helm hook
 	AnnotationValueHelmHookCRDInstall = "crd-install"
+	// AnnotationSyncStatusOptions is a comma-separated list of options
+	AnnotationSyncStatusOptions = "argocd.argoproj.io/sync-status-options"
 	// ResourcesFinalizerName the finalizer value which we inject to finalize deletion of an application
 	ResourcesFinalizerName = "resources-finalizer.argocd.argoproj.io"
 )

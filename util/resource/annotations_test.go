@@ -19,8 +19,8 @@ func TestHasAnnotationOption(t *testing.T) {
 		args args
 		want bool
 	}{
-		{"Nil", args{test.NewPod(), "foo", "bar"},false},
-		{"Empty", args{example(""), "foo", "bar"},false},
+		{"Nil", args{test.NewPod(), "foo", "bar"}, false},
+		{"Empty", args{example(""), "foo", "bar"}, false},
 		{"Single", args{example("bar"), "foo", "bar"}, true},
 		{"Double", args{example("bar,baz"), "foo", "baz"}, true},
 		{"Spaces", args{example("bar "), "foo", "bar"}, true},
@@ -36,6 +36,6 @@ func TestHasAnnotationOption(t *testing.T) {
 
 func example(val string) *unstructured.Unstructured {
 	obj := test.NewPod()
-	obj.SetAnnotations(map[string]string {"foo": val})
+	obj.SetAnnotations(map[string]string{"foo": val})
 	return obj
 }

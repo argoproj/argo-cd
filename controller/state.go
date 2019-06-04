@@ -314,7 +314,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		}
 
 		diffResult := diffResults.Diffs[i]
-		if resource.HasAnnotationOption(obj, "argocd.argoproj.io/sync-status-options", "Ignore") {
+		if resource.HasAnnotationOption(obj, common.AnnotationSyncStatusOptions, "Ignore") {
 			// ignore annotated resources
 		} else if resState.Hook {
 			// For resource hooks, don't store sync status, and do not affect overall sync status
