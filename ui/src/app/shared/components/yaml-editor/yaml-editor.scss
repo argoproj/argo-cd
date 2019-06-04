@@ -1,0 +1,10 @@
+.yaml-editor {
+    position: relative;
+
+    &__buttons {
+        position: absolute;
+        right: 1em;
+        top: 1em;
+        z-index: 1;
+    }
+}
