@@ -414,7 +414,7 @@ type ResourceResult struct {
 	Status ResultCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
 	// message for the last sync OR operation
 	Message string `json:"message,omitempty" protobuf:"bytes,7,opt,name=message"`
-	// the type of the hook, empty for not-hook resources
+	// the type of the hook, empty for non-hook resources
 	HookType HookType `json:"hookType,omitempty" protobuf:"bytes,8,opt,name=hookType"`
 	// the state of any operation associated with this resource OR hook
 	// note: can contain values for non-hook resources

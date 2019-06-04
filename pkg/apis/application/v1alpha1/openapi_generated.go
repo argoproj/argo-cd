@@ -2282,7 +2282,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceResult(ref common.ReferenceCal
 					},
 					"hookType": {
 						SchemaProps: spec.SchemaProps{
-							Description: "the type of the hook, empty for not-hook resources",
+							Description: "the type of the hook, empty for non-hook resources",
 							Type:        []string{"string"},
 							Format:      "",
 						},
