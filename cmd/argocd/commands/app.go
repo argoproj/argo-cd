@@ -1039,7 +1039,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 // printAppResources prints the resources of an application in a tabwriter table
 // Optionally prints the message from the operation state
 func printAppResources(w io.Writer, app *argoappv1.Application) {
-	_, _ = fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tSTATUS\tHEALTH\tHOOK\tMESSAGE\n")
+	_, _ = fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tSTATUS\tHEALTH\tHOOK\n")
 	for _, res := range app.Status.Resources {
 		healthStatus := ""
 		if res.Health != nil {
