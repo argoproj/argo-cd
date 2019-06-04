@@ -371,6 +371,13 @@ func (in *ApplicationSourceKustomize) DeepCopyInto(out *ApplicationSourceKustomi
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.CommonLabels != nil {
+		in, out := &in.CommonLabels, &out.CommonLabels
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	return
 }
 

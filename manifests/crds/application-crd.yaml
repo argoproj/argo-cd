@@ -161,6 +161,9 @@ spec:
                       description: ApplicationSourceKustomize holds kustomize specific
                         options
                       properties:
+                        commonLabels:
+                          description: CommonLabels adds additional kustomize commonLabels
+                          type: object
                         imageTags:
                           description: ImageTags are kustomize 1.0 image tag overrides
                           items:
@@ -391,6 +394,9 @@ spec:
                   description: ApplicationSourceKustomize holds kustomize specific
                     options
                   properties:
+                    commonLabels:
+                      description: CommonLabels adds additional kustomize commonLabels
+                      type: object
                     imageTags:
                       description: ImageTags are kustomize 1.0 image tag overrides
                       items:
@@ -599,6 +605,9 @@ spec:
                         description: ApplicationSourceKustomize holds kustomize specific
                           options
                         properties:
+                          commonLabels:
+                            description: CommonLabels adds additional kustomize commonLabels
+                            type: object
                           imageTags:
                             description: ImageTags are kustomize 1.0 image tag overrides
                             items:
@@ -811,6 +820,10 @@ spec:
                               description: ApplicationSourceKustomize holds kustomize
                                 specific options
                               properties:
+                                commonLabels:
+                                  description: CommonLabels adds additional kustomize
+                                    commonLabels
+                                  type: object
                                 imageTags:
                                   description: ImageTags are kustomize 1.0 image tag
                                     overrides
@@ -1047,6 +1060,10 @@ spec:
                           description: ApplicationSourceKustomize holds kustomize
                             specific options
                           properties:
+                            commonLabels:
+                              description: CommonLabels adds additional kustomize
+                                commonLabels
+                              type: object
                             imageTags:
                               description: ImageTags are kustomize 1.0 image tag overrides
                               items:
@@ -1277,6 +1294,10 @@ spec:
                           description: ApplicationSourceKustomize holds kustomize
                             specific options
                           properties:
+                            commonLabels:
+                              description: CommonLabels adds additional kustomize
+                                commonLabels
+                              type: object
                             imageTags:
                               description: ImageTags are kustomize 1.0 image tag overrides
                               items:
