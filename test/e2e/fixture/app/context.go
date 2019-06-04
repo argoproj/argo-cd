@@ -20,7 +20,7 @@ type Context struct {
 
 func Given(t *testing.T) *Context {
 	fixture.EnsureCleanState()
-	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, name: fixture.Name(), prune:true}
+	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, name: fixture.Name(), prune: true}
 }
 
 func (c *Context) Repo(url string) *Context {
@@ -48,8 +48,8 @@ func (c *Context) Parameter(parameter string) *Context {
 	return c
 }
 
-func (c *Context) Prune(prune bool) *Context{
-	c.prune= prune
+func (c *Context) Prune(prune bool) *Context {
+	c.prune = prune
 	return c
 }
 
