@@ -1,8 +1,8 @@
-kind: Kustomization
-generatorOptions:
-  annotations:
-    argocd.argoproj.io/sync-status-options: Ignore
 configMapGenerator:
   - name: my-map
     literals:
       - foo=bar
+generatorOptions:
+  annotations:
+    argocd.argoproj.io/sync-status-options: Ignore
+kind: Kustomization

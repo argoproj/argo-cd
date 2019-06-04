@@ -3,12 +3,15 @@ package e2e
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 )
 
 // when we have a config map generator, AND the ignore annotation, it is ignored in the app's sync status
 func TestSyncStatusOptionIgnore(t *testing.T) {
+	var mapName string
 	Given(t).
 		Path("kustomize-cm-gen").
 		When().
@@ -18,6 +21,13 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(HealthStatusHealthy)).
+		And(func(app *Application) {
+			resourceStatus := app.Status.Resources[0]
+			assert.Contains(t, resourceStatus.Name, "my-map-")
+			assert.Equal(t, SyncStatusCodeSynced, resourceStatus.Status)
+
+			mapName = resourceStatus.Name
+		}).
 		When().
 		// we now force generation of a second CM
 		Patch("kustomization.yaml", `[{"op": "replace", "path": "/configMapGenerator/0/literals/0", "value": "foo=baz"}]`).
@@ -26,5 +36,12 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(HealthStatusHealthy))
+		Expect(HealthIs(HealthStatusHealthy)).
+		And(func(app *Application) {
+			resourceStatus := app.Status.Resources[0]
+			assert.Contains(t, resourceStatus.Name, "my-map-")
+			// make sure we've a new map with changed name
+			assert.NotEqual(t, mapName, resourceStatus.Name)
+			assert.Equal(t, SyncStatusCodeSynced, resourceStatus.Status)
+		})
 }

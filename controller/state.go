@@ -314,9 +314,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		}
 
 		diffResult := diffResults.Diffs[i]
-		if resource.HasAnnotationOption(obj, common.AnnotationSyncStatusOptions, "Ignore") {
-			// ignore annotated resources
-		} else if resState.Hook {
+
+		if resState.Hook {
 			// For resource hooks, don't store sync status, and do not affect overall sync status
 		} else if diffResult.Modified || targetObjs[i] == nil || managedLiveObj[i] == nil {
 			// Set resource state to OutOfSync since one of the following is true:
@@ -324,7 +323,10 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 			// * target resource not defined and live resource is extra
 			// * target resource present but live resource is missing
 			resState.Status = v1alpha1.SyncStatusCodeOutOfSync
-			syncCode = v1alpha1.SyncStatusCodeOutOfSync
+			// we don't apply to the application
+			if !resource.HasAnnotationOption(obj, common.AnnotationSyncStatusOptions, "Ignore") {
+				syncCode = v1alpha1.SyncStatusCodeOutOfSync
+			}
 		} else {
 			resState.Status = v1alpha1.SyncStatusCodeSynced
 		}

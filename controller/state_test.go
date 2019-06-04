@@ -93,17 +93,8 @@ func TestCompareAppStateExtra(t *testing.T) {
 // TestCompareAppStateHook checks that hooks are detected during manifest generation, and not
 // considered as part of resources when assessing Synced status
 func TestCompareAppStateHook(t *testing.T) {
-	testCompareAppStateIgnoreAnnotation(t, common.AnnotationKeyHook, "PreSync")
-}
-
-// checks that ignore resources are detected, but excluded from status
-func TestCompareAppStateIgnore(t *testing.T) {
-	testCompareAppStateIgnoreAnnotation(t, common.AnnotationSyncStatusOptions, "Ignore")
-}
-
-func testCompareAppStateIgnoreAnnotation(t *testing.T, key, val string) {
 	pod := test.NewPod()
-	pod.SetAnnotations(map[string]string{key: val})
+	pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
 	podBytes, _ := json.Marshal(pod)
 	app := newFakeApp()
 	data := fakeData{
@@ -123,6 +114,34 @@ func testCompareAppStateIgnoreAnnotation(t *testing.T, key, val string) {
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, 0, len(compRes.resources))
 	assert.Equal(t, 0, len(compRes.managedResources))
+	assert.Equal(t, 0, len(compRes.conditions))
+}
+
+// checks that ignore resources are detected, but excluded from status
+func TestCompareAppStateSyncOptionIgnore(t *testing.T) {
+	pod := test.NewPod()
+	pod.SetAnnotations(map[string]string{common.AnnotationSyncStatusOptions: "Ignore"})
+	podBytes, _ := json.Marshal(pod)
+	app := newFakeApp()
+	data := fakeData{
+		apps: []runtime.Object{app},
+		manifestResponse: &repository.ManifestResponse{
+			Manifests: []string{string(podBytes)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+	ctrl := newFakeController(&data)
+
+	compRes, err := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, compRes)
+	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+	assert.Equal(t, []argoappv1.ResourceStatus{{Version: "v1", Kind: "Pod", Name: "my-pod", Namespace: test.FakeDestNamespace, Status: argoappv1.SyncStatusCodeOutOfSync, Health: &argoappv1.HealthStatus{Status: argoappv1.HealthStatusMissing}}}, compRes.resources)
+	assert.Equal(t, 1, len(compRes.managedResources))
 	assert.Equal(t, 0, len(compRes.conditions))
 }
 
