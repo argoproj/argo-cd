@@ -2,12 +2,13 @@ package commands
 
 import (
 	"fmt"
-	"github.com/spf13/pflag"
 	"io/ioutil"
 	"os"
 	"path"
 	"strings"
 	"text/tabwriter"
+
+	"github.com/spf13/pflag"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -49,7 +50,6 @@ func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 			ctxName := args[0]
 
-
 			argoCDDir, err := localconfig.DefaultConfigDir()
 			errors.CheckError(err)
 			prevCtxFile := path.Join(argoCDDir, ".prev-ctx")
@@ -76,7 +76,7 @@ func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			fmt.Printf("Switched to context '%s'\n", localCfg.CurrentContext)
 		},
 	}
-	command.Flags().BoolVar(&delete, "delete",false, "Delete the context instead of switching to it")
+	command.Flags().BoolVar(&delete, "delete", false, "Delete the context instead of switching to it")
 	return command
 }
 
