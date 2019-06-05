@@ -1,3 +1,4 @@
 node_modules
 dist
 .vscode
+junit.xml
