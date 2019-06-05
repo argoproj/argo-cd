@@ -76,7 +76,7 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 		}).
 		When().
 		// we now force generation of a second CM
-		Patch("kustomization.yaml", `[{"op": "replace", "path": "/configMapGenerator/0/literals/0", "value": "foo=baz"}]`).
+		PatchFile("kustomization.yaml", `[{"op": "replace", "path": "/configMapGenerator/0/literals/0", "value": "foo=baz"}]`).
 		Refresh(RefreshTypeHard).
 		Sync().
 		Then().
