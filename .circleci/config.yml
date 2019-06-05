@@ -237,9 +237,6 @@ jobs:
             INSTALL_K3S_VERSION: v0.5.0
       - before
       - run:
-          name: Build
-          command: make build
-      - run:
           # do this before we build everything else in the background, as they tend to explode
           name: Make CLI
           command: |
