@@ -13,4 +13,4 @@ You have three configuration options for Kustomize:
 To use Kustomize with an overlay, point your path to the overlay.
 
 !!! tip
-    If you're generating resources, you should read up how to ignore those generated resources using the [`IgnoreNeedsPruning` compare option](compare-options.md).
+    If you're generating resources, you should read up how to ignore those generated resources using the [`IgnoreExtraneous` compare option](compare-options.md).

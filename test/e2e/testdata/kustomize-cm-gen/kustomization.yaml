@@ -4,6 +4,6 @@ configMapGenerator:
       - foo=bar
 generatorOptions:
   annotations:
-    argocd.argoproj.io/compare-options: IgnoreNeedsPruning
-    argocd.argoproj.io/sync-options: NoPrune
+    argocd.argoproj.io/compare-options: IgnoreExtraneous
+    argocd.argoproj.io/sync-options: Prune=false
 kind: Kustomization

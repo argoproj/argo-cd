@@ -328,7 +328,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 			resState.Status = v1alpha1.SyncStatusCodeOutOfSync
 			// we don't apply to the application
 			needsPruning := targetObj == nil && liveObj != nil
-			if !(needsPruning && resource.HasAnnotationOption(obj, common.AnnotationCompareOptions, "IgnoreNeedsPruning")) {
+			if !(needsPruning && resource.HasAnnotationOption(obj, common.AnnotationCompareOptions, "IgnoreExtraneous")) {
 				syncCode = v1alpha1.SyncStatusCodeOutOfSync
 			}
 		} else {

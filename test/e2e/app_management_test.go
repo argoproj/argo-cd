@@ -511,12 +511,12 @@ func TestPermissions(t *testing.T) {
 	assert.True(t, sourceErrorExist)
 }
 
-// make sure that if we deleted a resource from the app, it is not pruned if annotated with NoPrune
-func TestSyncOptionNoPrune(t *testing.T) {
+// make sure that if we deleted a resource from the app, it is not pruned if annotated with Prune=false
+func TestSyncOptionPruneFalse(t *testing.T) {
 	Given(t).
 		Path("two-nice-pods").
 		When().
-		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "NoPrune"}}]`).
+		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Prune=false"}}]`).
 		Create().
 		Sync().
 		Then().
@@ -533,11 +533,11 @@ func TestSyncOptionNoPrune(t *testing.T) {
 }
 
 // make sure that, if we have a resource that needs pruning, but we're ignoring it, the app is in-sync
-func TestCompareOptionIgnoreNeedsPruning(t *testing.T) {
+func TestCompareOptionIgnoreExtraneous(t *testing.T) {
 	Given(t).
 		Path("two-nice-pods").
 		When().
-		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/compare-options": "IgnoreNeedsPruning"}}]`).
+		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/compare-options": "IgnoreExtraneous"}}]`).
 		Create().
 		Sync().
 		Then().

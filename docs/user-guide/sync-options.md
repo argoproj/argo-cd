@@ -7,7 +7,7 @@ You may wish to prevent an object from being pruned:
 ```yaml
 metadata:
   annotations:
-    argocd.argoproj.io/sync-options: NoPrune
+    argocd.argoproj.io/sync-options: Prune=false
 ```
 
 In the UI, the pod will simply appear as out-of-sync:

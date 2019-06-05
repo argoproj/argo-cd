@@ -305,11 +305,11 @@ func TestDontSyncOrPruneHooks(t *testing.T) {
 	assert.Equal(t, v1alpha1.OperationSucceeded, syncCtx.opState.Phase)
 }
 
-// make sure that we do not prune resources with NoPrune
-func TestDontPruneNoPrune(t *testing.T) {
+// make sure that we do not prune resources with Prune=false
+func TestDontPrunePruneFalse(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	pod := test.NewPod()
-	pod.SetAnnotations(map[string]string{common.AnnotationSyncOptions: "NoPrune"})
+	pod.SetAnnotations(map[string]string{common.AnnotationSyncOptions: "Prune=false"})
 	pod.SetNamespace(test.FakeArgoCDNamespace)
 	syncCtx.compareResult = &comparisonResult{managedResources: []managedResource{{Live: pod}}}
 
