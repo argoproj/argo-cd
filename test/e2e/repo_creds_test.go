@@ -14,7 +14,7 @@ const accessToken = "B5sBDeoqAVUouoHkrovy"
 const appPath = "child-base"
 
 // make sure you cannot create an app from a private repo without set-up
-func TestCannotAddAppFromPrivateRepoWithOutConfig(t *testing.T) {
+func TestCannotAddAppFromPrivateRepoWithoutCfg(t *testing.T) {
 	Given(t).
 		Repo(repoUrl).
 		Path(appPath).
