@@ -308,8 +308,8 @@ jobs:
       - restore_cache:
           name: Restore Yarn Package Cache
           keys:
+            - yarn-packages-v2-{{ checksum "ui/yarn.lock" }}
             - yarn-packages-v1-{{ checksum "ui/yarn.lock" }}
-            - yarn-packages-{{ checksum "ui/yarn.lock" }}
       - run:
           name: Install
           command: |
@@ -318,9 +318,10 @@ jobs:
             yarn install --frozen-lockfile --ignore-optional --non-interactive
       - save_cache:
           name: Save Yarn Package Cache
-          key: yarn-packages-v1-{{ checksum "ui/yarn.lock" }}
+          key: yarn-packages-v2-{{ checksum "ui/yarn.lock" }}
           paths:
             - ~/.cache/yarn
+            - ~/ui/node_modules
       - run:
           name: Test
           command: |
