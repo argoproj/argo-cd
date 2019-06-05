@@ -547,6 +547,30 @@
 
 
   <li class="md-nav__item">
+    <a href="../high_availability/" title="High Availability" class="md-nav__link">
+      High Availability
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../disaster_recovery/" title="Disaster Recovery" class="md-nav__link">
+      Disaster Recovery
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../webhook/" title="Git Webhook Configuration" class="md-nav__link">
       Git Webhook Configuration
     </a>
@@ -1530,7 +1554,7 @@ may need to configure access credentials and HTTPS settings using <code>username
 based application which uses base Argo CD manifests from [https://github.com/argoproj/argo-cd] and apply required changes on top.</p>
 <p>Example of <code>kustomization.yaml</code>:</p>
 <div class="codehilite"><pre><span></span><span class="nt">bases</span><span class="p">:</span>
-<span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">github.com/argoproj/argo-cd//manifests/cluster-install?ref=v0.10.6</span>
+<span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">github.com/argoproj/argo-cd//manifests/cluster-install?ref=v1.0.1</span>
 
 <span class="c1"># additional resources like ingress rules, cluster and repository secrets.</span>
 <span class="nt">resources</span><span class="p">:</span>
