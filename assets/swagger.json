@@ -3256,16 +3256,19 @@
           "type": "string"
         },
         "hookPhase": {
-          "type": "string"
+          "type": "string",
+          "title": "the state of any operation associated with this resource OR hook\nnote: can contain values for non-hook resources"
         },
         "hookType": {
-          "type": "string"
+          "type": "string",
+          "title": "the type of the hook, empty for non-hook resources"
         },
         "kind": {
           "type": "string"
         },
         "message": {
-          "type": "string"
+          "type": "string",
+          "title": "message for the last sync OR operation"
         },
         "name": {
           "type": "string"
@@ -3274,7 +3277,12 @@
           "type": "string"
         },
         "status": {
-          "type": "string"
+          "type": "string",
+          "title": "the final result of the sync, this is be empty if the resources is yet to be applied/pruned and is always zero-value for hooks"
+        },
+        "syncPhase": {
+          "type": "string",
+          "title": "indicates the particular phase of the sync that this is for"
         },
         "version": {
           "type": "string"

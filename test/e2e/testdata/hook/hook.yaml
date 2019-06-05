@@ -9,5 +9,6 @@ spec:
     - command:
         - "true"
       image: "alpine:latest"
+      imagePullPolicy: IfNotPresent
       name: main
   restartPolicy: Never

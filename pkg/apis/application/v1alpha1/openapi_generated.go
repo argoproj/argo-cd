@@ -2282,26 +2282,37 @@ func schema_pkg_apis_application_v1alpha1_ResourceResult(ref common.ReferenceCal
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "the final result of the sync, this is be empty if the resources is yet to be applied/pruned and is always zero-value for hooks",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"message": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "message for the last sync OR operation",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"hookType": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "the type of the hook, empty for non-hook resources",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"hookPhase": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "the state of any operation associated with this resource OR hook note: can contain values for non-hook resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"syncPhase": {
+						SchemaProps: spec.SchemaProps{
+							Description: "indicates the particular phase of the sync that this is for",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},

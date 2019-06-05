@@ -10,8 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application"
-
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -28,6 +26,7 @@ import (
 	statecache "github.com/argoproj/argo-cd/controller/cache"
 	"github.com/argoproj/argo-cd/controller/metrics"
 	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"

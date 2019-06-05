@@ -283,3 +283,138 @@ func TestRepository_CopyCredentialsFrom(t *testing.T) {
 		})
 	}
 }
+
+func TestSyncStrategy_Force(t *testing.T) {
+	type fields struct {
+		Apply *SyncStrategyApply
+		Hook  *SyncStrategyHook
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   bool
+	}{
+		{"TestZero", fields{}, false},
+		{"TestApply", fields{Apply: &SyncStrategyApply{}}, false},
+		{"TestForceApply", fields{Apply: &SyncStrategyApply{Force: true}}, true},
+		{"TestHook", fields{Hook: &SyncStrategyHook{}}, false},
+		{"TestForceHook", fields{Hook: &SyncStrategyHook{SyncStrategyApply{Force: true}}}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := &SyncStrategy{
+				Apply: tt.fields.Apply,
+				Hook:  tt.fields.Hook,
+			}
+			if got := m.Force(); got != tt.want {
+				t.Errorf("SyncStrategy.Force() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSyncOperation_IsApplyStrategy(t *testing.T) {
+	type fields struct {
+		SyncStrategy *SyncStrategy
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   bool
+	}{
+		{"TestZero", fields{}, false},
+		{"TestSyncStrategy", fields{SyncStrategy: &SyncStrategy{}}, false},
+		{"TestApplySyncStrategy", fields{SyncStrategy: &SyncStrategy{Apply: &SyncStrategyApply{}}}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			o := &SyncOperation{
+				SyncStrategy: tt.fields.SyncStrategy,
+			}
+			if got := o.IsApplyStrategy(); got != tt.want {
+				t.Errorf("SyncOperation.IsApplyStrategy() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestResourceResults_Filter(t *testing.T) {
+	type args struct {
+		predicate func(r *ResourceResult) bool
+	}
+	tests := []struct {
+		name string
+		r    ResourceResults
+		args args
+		want ResourceResults
+	}{
+		{"Nil", nil, args{predicate: func(r *ResourceResult) bool { return true }}, ResourceResults{}},
+		{"Empty", ResourceResults{}, args{predicate: func(r *ResourceResult) bool { return true }}, ResourceResults{}},
+		{"All", ResourceResults{{}}, args{predicate: func(r *ResourceResult) bool { return true }}, ResourceResults{{}}},
+		{"None", ResourceResults{{}}, args{predicate: func(r *ResourceResult) bool { return false }}, ResourceResults{}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.r.Filter(tt.args.predicate); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ResourceResults.Filter() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestResourceResults_Find(t *testing.T) {
+	type args struct {
+		group     string
+		kind      string
+		namespace string
+		name      string
+		phase     SyncPhase
+	}
+	foo := &ResourceResult{Group: "foo"}
+	results := ResourceResults{
+		&ResourceResult{Group: "bar"},
+		foo,
+	}
+	tests := []struct {
+		name  string
+		r     ResourceResults
+		args  args
+		want  int
+		want1 *ResourceResult
+	}{
+		{"TestNil", nil, args{}, 0, nil},
+		{"TestNotFound", results, args{}, 0, nil},
+		{"TestFound", results, args{group: "foo"}, 1, foo},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1 := tt.r.Find(tt.args.group, tt.args.kind, tt.args.namespace, tt.args.name, tt.args.phase)
+			if got != tt.want {
+				t.Errorf("ResourceResults.Find() got = %v, want %v", got, tt.want)
+			}
+			if !reflect.DeepEqual(got1, tt.want1) {
+				t.Errorf("ResourceResults.Find() got1 = %v, want %v", got1, tt.want1)
+			}
+		})
+	}
+}
+
+func TestResourceResults_PruningRequired(t *testing.T) {
+	needsPruning := &ResourceResult{Status: ResultCodePruneSkipped}
+	tests := []struct {
+		name    string
+		r       ResourceResults
+		wantNum int
+	}{
+		{"TestNil", ResourceResults{}, 0},
+		{"TestOne", ResourceResults{needsPruning}, 1},
+		{"TestTwo", ResourceResults{needsPruning, needsPruning}, 2},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if gotNum := tt.r.PruningRequired(); gotNum != tt.wantNum {
+				t.Errorf("ResourceResults.PruningRequired() = %v, want %v", gotNum, tt.wantNum)
+			}
+		})
+	}
+}

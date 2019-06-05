@@ -16,11 +16,13 @@ type Context struct {
 	env        string
 	parameters []string
 	namePrefix string
+	resource   string
+	prune      bool
 }
 
 func Given(t *testing.T) *Context {
 	fixture.EnsureCleanState()
-	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, name: fixture.Name()}
+	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, name: fixture.Name(), prune: true}
 }
 
 func (c *Context) Repo(url string) *Context {
@@ -48,6 +50,12 @@ func (c *Context) Parameter(parameter string) *Context {
 	return c
 }
 
+// group:kind:name
+func (c *Context) SelectedResource(resource string) *Context {
+	c.resource = resource
+	return c
+}
+
 func (c *Context) NamePrefix(namePrefix string) *Context {
 	c.namePrefix = namePrefix
 	return c
@@ -60,4 +68,9 @@ func (c *Context) And(block func()) *Context {
 
 func (c *Context) When() *Actions {
 	return &Actions{context: c}
+}
+
+func (c *Context) Prune(prune bool) *Context {
+	c.prune = prune
+	return c
 }

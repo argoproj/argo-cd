@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
 	applister "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
@@ -51,6 +52,22 @@ func NewPod() *unstructured.Unstructured {
 		panic(err)
 	}
 	return &un
+}
+
+func NewHook(hookType v1alpha1.HookType) *unstructured.Unstructured {
+	pod := NewPod()
+	pod.SetAnnotations(map[string]string{
+		"argocd.argoproj.io/hook": string(hookType),
+	})
+	return pod
+}
+
+func NewHelmHook(hookType v1alpha1.HookType) *unstructured.Unstructured {
+	pod := NewPod()
+	pod.SetAnnotations(map[string]string{
+		"helm.sh/hook": string(hookType),
+	})
+	return pod
 }
 
 var ServiceManifest = []byte(`
