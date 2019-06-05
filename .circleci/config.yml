@@ -324,21 +324,23 @@ jobs:
           command: |
             cd ui
             yarn install --frozen-lockfile
+      - save_cache:
+          name: Save Yarn Package Cache
+          key: yarn-packages-{{ checksum "ui/yarn.lock" }}
+          paths:
+            - ~/.cache/yarn
       - run:
           name: Test
           command: |
             cd ui
             yarn test
+      - store_test_results:
+          path: junit.xml
       - run:
-        name: Lint
-        command: |
-          cd ui
-          yarn lint
-    - save_cache:
-        name: Save Yarn Package Cache
-        key: yarn-packages-{{ checksum "ui/yarn.lock" }}
-        paths:
-          - ~/.cache/yarn
+          name: Lint
+          command: |
+            cd ui
+            yarn lint
 workflows:
   version: 2
   workflow:
