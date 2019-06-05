@@ -314,6 +314,7 @@ jobs:
       - restore_cache:
           name: Restore Yarn Package Cache
           keys:
+            - yarn-packages-v1-{{ checksum "ui/yarn.lock" }}
             - yarn-packages-{{ checksum "ui/yarn.lock" }}
       - run:
           name: Install
@@ -323,7 +324,7 @@ jobs:
             yarn install --frozen-lockfile --ignore-optional --non-interactive
       - save_cache:
           name: Save Yarn Package Cache
-          key: yarn-packages-{{ checksum "ui/yarn.lock" }}
+          key: yarn-packages-v1-{{ checksum "ui/yarn.lock" }}
           paths:
             - ~/.cache/yarn
       - run:
@@ -331,6 +332,7 @@ jobs:
           command: |
             cd ui
             yarn test
+            cat junit.xml
       - store_test_results:
           path: ui/junit.xml
       - run:
