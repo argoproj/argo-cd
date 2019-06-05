@@ -1,6 +1,6 @@
 # High Availability
 
-A set HA of manifests are provided for users who wish to run Argo CD in a highly available manner.
+A set HA of manifests are provided for users who wish to run Argo CD in a highly available manner. This runs more containers and Redis in HA mode.
 
 [Manifests ⧉](https://github.com/argoproj/argo-cd/tree/master/manifests) 
 
