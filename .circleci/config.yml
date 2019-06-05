@@ -318,9 +318,10 @@ jobs:
       - run:
           name: Install
           command: |
+            set -x
             cd ui
             sudo npm install --unsafe-perm node-sass
-            rm package-lock.json
+            sudo jrm package-lock.json
             yarn install --frozen-lockfile
       - save_cache:
           name: Save Yarn Package Cache
