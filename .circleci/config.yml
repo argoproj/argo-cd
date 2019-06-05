@@ -320,6 +320,7 @@ jobs:
           command: |
             cd ui
             sudo npm install --unsafe-perm node-sass
+            rm package-lock.json
             yarn install --frozen-lockfile
       - save_cache:
           name: Save Yarn Package Cache
