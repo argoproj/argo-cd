@@ -703,6 +703,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#selective-sync" title="Selective Sync" class="md-nav__link">
+    Selective Sync
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#hook-deletion-policies" title="Hook Deletion Policies" class="md-nav__link">
     Hook Deletion Policies
   </a>
@@ -717,6 +724,30 @@
   
 </nav>
     
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../selective_sync/" title="Selective Sync" class="md-nav__link">
+      Selective Sync
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../sync-waves/" title="Sync Phases and Waves" class="md-nav__link">
+      Sync Phases and Waves
+    </a>
   </li>
 
         
@@ -971,6 +1002,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#selective-sync" title="Selective Sync" class="md-nav__link">
+    Selective Sync
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#hook-deletion-policies" title="Hook Deletion Policies" class="md-nav__link">
     Hook Deletion Policies
   </a>
@@ -997,6 +1035,10 @@
                 
                 
                 <h1 id="resource-hooks">Resource Hooks<a class="headerlink" href="#resource-hooks" title="Permanent link">&para;</a></h1>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Helm hooks are currently ignored. <a href="../helm/">Read more</a>.</p>
+</div>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
 <p>Synchronization can be configured using resource hooks. Hooks are ways to interject custom logic before, during,
 and after a Sync operation. Some use cases for hooks are:</p>
@@ -1051,6 +1093,8 @@ separated list.</p>
 </tr>
 </tbody>
 </table>
+<h2 id="selective-sync">Selective Sync<a class="headerlink" href="#selective-sync" title="Permanent link">&para;</a></h2>
+<p>Hooks are run during <a href="../selective_sync/">selective sync</a>.</p>
 <h2 id="hook-deletion-policies">Hook Deletion Policies<a class="headerlink" href="#hook-deletion-policies" title="Permanent link">&para;</a></h2>
 <p>Hooks can be deleted in an automatic fashion using the annotation: <code>argocd.argoproj.io/hook-delete-policy</code>.</p>
 <div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">batch/v1</span>
@@ -1123,13 +1167,13 @@ field in the spec, which let their respective controllers delete the Job/Workflo
           </a>
         
         
-          <a href="../ci_automation/" title="Automation from CI Pipelines" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+          <a href="../selective_sync/" title="Selective Sync" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
               <span class="md-flex__ellipsis">
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                Automation from CI Pipelines
+                Selective Sync
               </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink">
