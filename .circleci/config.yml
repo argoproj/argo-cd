@@ -308,7 +308,7 @@ jobs:
           path: /tmp/test-results
   ui:
     docker:
-      - image: circleci/node
+      - image: node:11.15.0
     steps:
       - checkout
       - restore_cache:
@@ -320,7 +320,7 @@ jobs:
           command: |
             set -x
             cd ui
-            sudo yarn install --frozen-lockfile --ignore-optional --non-interactive
+            yarn install --frozen-lockfile --ignore-optional --non-interactive
       - save_cache:
           name: Save Yarn Package Cache
           key: yarn-packages-{{ checksum "ui/yarn.lock" }}
