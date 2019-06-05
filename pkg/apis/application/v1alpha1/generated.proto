@@ -608,7 +608,7 @@ message ResourceResult {
   // message for the last sync OR operation
   optional string message = 7;
 
-  // the type of the hook, empty for not-hook resources
+  // the type of the hook, empty for non-hook resources
   optional string hookType = 8;
 
   // the state of any operation associated with this resource OR hook

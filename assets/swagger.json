@@ -3261,7 +3261,7 @@
         },
         "hookType": {
           "type": "string",
-          "title": "the type of the hook, empty for not-hook resources"
+          "title": "the type of the hook, empty for non-hook resources"
         },
         "kind": {
           "type": "string"

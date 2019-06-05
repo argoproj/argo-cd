@@ -936,7 +936,7 @@ spec:
                               resources'
                             type: string
                           hookType:
-                            description: the type of the hook, empty for not-hook
+                            description: the type of the hook, empty for non-hook
                               resources
                             type: string
                           kind:
