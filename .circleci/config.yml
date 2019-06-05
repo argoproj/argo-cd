@@ -18,7 +18,7 @@ commands:
             # must be configured for tests to run
             git config --global user.email you@example.com
             git config --global user.name "Your Name"
-            echo "export PATH=/home/circleci/.go_workspace/src/github.com/argoproj/argo-cd/hack:\$PATH" | tee -a $BASH_ENV
+            echo "export PATH=/go/src/github.com/argoproj/argo-cd/hack:\$PATH" | tee -a $BASH_ENV
             echo "export GIT_ASKPASS=git-ask-pass.sh" | tee -a $BASH_ENV
       - run:
           name: Make sure we can clone out the test private repo
@@ -33,7 +33,7 @@ commands:
     steps:
       - run:
           name: Remove checked out code
-          command: rm -Rf /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
+          command: rm -Rf /go/src/github.com/argoproj/argo-cd
       - checkout
   install_go_deps:
     steps:
@@ -54,30 +54,14 @@ commands:
     steps:
       - restore_cache:
           keys:
-            - vendor-v4-{{ checksum "Gopkg.lock" }}
+            - vendor-v5-{{ checksum "Gopkg.lock" }}
       - run:
           name: Run dep ensure
           command: dep ensure -v
       - save_cache:
-          key: vendor-v4-{{ checksum "Gopkg.lock" }}
+          key: vendor-v5-{{ checksum "Gopkg.lock" }}
           paths:
             - vendor
-  install_golang:
-    steps:
-      - run:
-          name: Install Golang v1.11.4
-          command: |
-            go get golang.org/dl/go1.11.4
-            [ -e /home/circleci/sdk/go1.11.4 ] || go1.11.4 download
-            echo "export GOPATH=/home/circleci/.go_workspace" | tee -a $BASH_ENV
-            echo "export PATH=/home/circleci/sdk/go1.11.4/bin:\$PATH" | tee -a $BASH_ENV
-      - run:
-          name: Golang diagnostics
-          command: |
-            env
-            which go
-            go version
-            go env
   install_tools:
     steps:
       - run:
@@ -172,22 +156,21 @@ commands:
   save_go_cache:
     steps:
       - save_cache:
-          key: go-v14-{{ .Branch }}
+          key: go-v15-{{ .Branch }}
           paths:
-            - /home/circleci/.go_workspace
-            - /home/circleci/.cache/go-build
-            - /home/circleci/sdk/go1.11.4
+            - /go/src
+            - /go/pkg
   restore_go_cache:
     steps:
       - restore_cache:
           keys:
-            - go-v14-{{ .Branch }}
-            - go-v14-master
+            - go-v15-{{ .Branch }}
+            - go-v15-master
 jobs:
   test:
-    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
-    machine:
-      image: circleci/classic:201808-01
+    working_directory: /go/src/github.com/argoproj/argo-cd
+    docker:
+      - image: circleci/golang:1.12
     steps:
       - before
       - run:
@@ -204,9 +187,9 @@ jobs:
       - store_test_results:
           path: /tmp/test-results
   codegen:
-    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
-    machine:
-      image: circleci/classic:201808-01
+    working_directory: /go/src/github.com/argoproj/argo-cd
+    docker:
+      - image: circleci/golang:1.12
     steps:
       - before
       - run:
@@ -221,20 +204,13 @@ jobs:
           # note that we exclude the swagger resources,
           command: git diff --exit-code -- . ':!Gopkg.lock' ':!assets/swagger.json' ':!pkg/apis/api-rules/violation_exceptions.list' ':!pkg/apis/application/v1alpha1/openapi_generated.go'
   e2e:
-    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
-    machine:
-      image: circleci/classic:201808-01
+    working_directory: /go/src/github.com/argoproj/argo-cd
+    docker:
+      - image: circleci/golang:1.12
+      - image: redis:5.0.3-alpine
+      # command: --save "" --appendonly no
+      - image: rancher/k3s:v0.5.0
     steps:
-      - run:
-          name: Install and start K3S v0.5.0
-          command: |
-            curl -sfL https://get.k3s.io | sh -
-            sudo chmod -R a+rw /etc/rancher/k3s
-            kubectl version
-          background: true
-          environment:
-            INSTALL_K3S_EXEC: --docker
-            INSTALL_K3S_VERSION: v0.5.0
       - before
       - run:
           name: Build
@@ -253,19 +229,9 @@ jobs:
             set -x
             kubectl create ns argocd-e2e
             kubens argocd-e2e
-            # install the certificates (not 100% sure we need this)
-            sudo cp /var/lib/rancher/k3s/server/tls/token-ca.crt /usr/local/share/ca-certificates/k3s.crt
-            sudo update-ca-certificates
-            # create the kubecfg, again - not sure we need this
-            cat /etc/rancher/k3s/k3s.yaml | sed "s/localhost/`hostname`/" | tee ~/.kube/config
-            echo "127.0.0.1 `hostname`" | sudo tee -a /etc/hosts
       - run:
           name: Apply manifests
           command: kustomize build test/manifests/base | kubectl apply -f -
-      - run:
-          name: Start Redis
-          command: docker run --rm --name argocd-redis -i -p 6379:6379 redis:5.0.3-alpine --save "" --appendonly no
-          background: true
       - run:
           name: Start repo server
           command: go run ./cmd/argocd-repo-server/main.go --loglevel debug --redis localhost:6379
