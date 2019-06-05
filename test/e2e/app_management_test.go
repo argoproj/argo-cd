@@ -504,3 +504,24 @@ func TestPermissions(t *testing.T) {
 	assert.True(t, destinationErrorExist)
 	assert.True(t, sourceErrorExist)
 }
+
+// make sure that if we deleted a resource from the app, it is not pruned if annotated with NoPrune
+func TestSyncOptionNoPrune(t *testing.T) {
+	Given(t).
+		Path("two-nice-pods").
+		When().
+		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "NoPrune"}}]`).
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		DeleteFile("pod-1.yaml").
+		Refresh(RefreshTypeHard).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(ResourceSyncStatusIs("Pod", "pod-1", SyncStatusCodeOutOfSync))
+}

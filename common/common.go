@@ -81,6 +81,10 @@ const (
 	// LabelValueSecretTypeCluster indicates a secret type of cluster
 	LabelValueSecretTypeCluster = "cluster"
 
+	// AnnotationSyncStatusOptions is a comma-separated list of options
+	AnnotationSyncStatusOptions = "argocd.argoproj.io/sync-status-options"
+	// AnnotationSyncOptions contains sync options
+	AnnotationSyncOptions = "argocd.argoproj.io/sync-options"
 	// AnnotationSyncWave indicates which wave of the sync the resource or hook should be in
 	AnnotationSyncWave = "argocd.argoproj.io/sync-wave"
 	// AnnotationKeyHook contains the hook type of a resource
@@ -98,8 +102,6 @@ const (
 	AnnotationKeyHelmHook = "helm.sh/hook"
 	// AnnotationValueHelmHookCRDInstall is a value of crd helm hook
 	AnnotationValueHelmHookCRDInstall = "crd-install"
-	// AnnotationSyncStatusOptions is a comma-separated list of options
-	AnnotationSyncStatusOptions = "argocd.argoproj.io/sync-status-options"
 	// ResourcesFinalizerName the finalizer value which we inject to finalize deletion of an application
 	ResourcesFinalizerName = "resources-finalizer.argocd.argoproj.io"
 )

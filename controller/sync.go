@@ -16,6 +16,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller/metrics"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	listersv1alpha1 "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
@@ -23,6 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/util/health"
 	"github.com/argoproj/argo-cd/util/hook"
 	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/resource"
 )
 
 type syncContext struct {
@@ -473,7 +475,11 @@ func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun 
 
 // pruneObject deletes the object if both prune is true and dryRun is false. Otherwise appropriate message
 func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dryRun bool) (v1alpha1.ResultCode, string) {
-	if prune {
+	if !prune {
+		return v1alpha1.ResultCodePruneSkipped, "ignored (requires pruning)"
+	} else if resource.HasAnnotationOption(liveObj, common.AnnotationSyncOptions, "NoPrune") {
+		return v1alpha1.ResultCodePruneSkipped, "ignored (no prune)"
+	} else {
 		if dryRun {
 			return v1alpha1.ResultCodePruned, "pruned (dry run)"
 		} else {
@@ -487,8 +493,6 @@ func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dr
 			}
 			return v1alpha1.ResultCodePruned, "pruned"
 		}
-	} else {
-		return v1alpha1.ResultCodePruneSkipped, "ignored (requires pruning)"
 	}
 }
 

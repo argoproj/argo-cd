@@ -305,6 +305,26 @@ func TestDontSyncOrPruneHooks(t *testing.T) {
 	assert.Equal(t, v1alpha1.OperationSucceeded, syncCtx.opState.Phase)
 }
 
+// make sure that we do not prune resources with NoPrune
+func TestDontPruneNoPrune(t *testing.T) {
+	syncCtx := newTestSyncCtx()
+	pod := test.NewPod()
+	pod.SetAnnotations(map[string]string{common.AnnotationSyncOptions: "NoPrune"})
+	pod.SetNamespace(test.FakeArgoCDNamespace)
+	syncCtx.compareResult = &comparisonResult{managedResources: []managedResource{{Live: pod}}}
+
+	syncCtx.sync()
+
+	assert.Equal(t, v1alpha1.OperationRunning, syncCtx.opState.Phase)
+	assert.Len(t, syncCtx.syncRes.Resources, 1)
+	assert.Equal(t, v1alpha1.ResultCodePruneSkipped, syncCtx.syncRes.Resources[0].Status)
+	assert.Equal(t, "ignored (no prune)", syncCtx.syncRes.Resources[0].Message)
+
+	syncCtx.sync()
+
+	assert.Equal(t, v1alpha1.OperationSucceeded, syncCtx.opState.Phase)
+}
+
 func TestSelectiveSyncOnly(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	pod1 := test.NewPod()
