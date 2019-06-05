@@ -309,6 +309,36 @@ jobs:
             ARGOCD_OPTS: "--server localhost:8080 --plaintext"
       - store_test_results:
           path: /tmp/test-results
+  ui:
+    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
+    docker:
+      - image: circleci/node
+    steps:
+      - checkout
+      - restore_cache:
+          name: Restore Yarn Package Cache
+          keys:
+            - yarn-packages-{{ checksum "ui/yarn.lock" }}
+      - run:
+          name: Install
+          command: |
+            cd ui
+            yarn install --frozen-lockfile
+      - run:
+          name: Test
+          command: |
+            cd ui
+            yarn test
+      - run:
+        name: Lint
+        command: |
+          cd ui
+          yarn lint
+    - save_cache:
+        name: Save Yarn Package Cache
+        key: yarn-packages-{{ checksum "ui/yarn.lock" }}
+        paths:
+          - ~/.cache/yarn
 workflows:
   version: 2
   workflow:
@@ -316,3 +346,4 @@ workflows:
       - codegen
       - test
       - e2e
+      - ui
