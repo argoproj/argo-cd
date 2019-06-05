@@ -30,6 +30,8 @@ nav:
     - operator-manual/rbac.md
     - operator-manual/security.md
     - operator-manual/cluster-bootstrapping.md
+    - operator-manual/high_availability.md
+    - operator-manual/disaster_recovery.md
     - operator-manual/webhook.md
     - operator-manual/health.md
     - operator-manual/custom_tools.md
