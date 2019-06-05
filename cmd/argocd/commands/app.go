@@ -1767,6 +1767,9 @@ func filterResources(command *cobra.Command, resources []*argoappv1.ResourceDiff
 	filteredObjects := make([]*unstructured.Unstructured, 0)
 	for i := range liveObjs {
 		obj := liveObjs[i]
+		if obj == nil {
+			continue
+		}
 		gvk := obj.GroupVersionKind()
 		if command.Flags().Changed("group") && group != gvk.Group {
 			continue
