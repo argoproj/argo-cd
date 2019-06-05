@@ -178,6 +178,9 @@ message ApplicationSourceKustomize {
 
   // Images are kustomize 2.0 image overrides
   repeated string images = 3;
+
+  // CommonLabels adds additional kustomize commonLabels
+  map<string, string> commonLabels = 4;
 }
 
 // ApplicationSourcePlugin holds config management plugin specific options

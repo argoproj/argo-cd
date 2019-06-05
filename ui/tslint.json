@@ -1,0 +1,19 @@
+{
+    "extends": [
+        "tslint:recommended", "tslint-react"
+    ],
+    "jsRules": {},
+    "rules": {
+        "quotemark": [true, "single"],
+        "no-var-requires": false,
+        "interface-name": false,
+        "jsx-no-multiline-js": false,
+        "object-literal-sort-keys": false,
+        "jsx-alignment": false,
+        "max-line-length": [true, 180],
+        "jsx-no-lambda": false,
+        "array-type": false,
+        "max-classes-per-file": false
+    },
+    "rulesDirectory": []
+}

@@ -15,6 +15,7 @@ type Context struct {
 	destServer string
 	env        string
 	parameters []string
+	namePrefix string
 	resource   string
 	prune      bool
 }
@@ -52,6 +53,11 @@ func (c *Context) Parameter(parameter string) *Context {
 // group:kind:name
 func (c *Context) SelectedResource(resource string) *Context {
 	c.resource = resource
+	return c
+}
+
+func (c *Context) NamePrefix(namePrefix string) *Context {
+	c.namePrefix = namePrefix
 	return c
 }
 

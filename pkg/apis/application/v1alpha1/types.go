@@ -135,6 +135,8 @@ type ApplicationSourceKustomize struct {
 	ImageTags []KustomizeImageTag `json:"imageTags,omitempty" protobuf:"bytes,2,opt,name=imageTags"`
 	// Images are kustomize 2.0 image overrides
 	Images []string `json:"images,omitempty" protobuf:"bytes,3,opt,name=images"`
+	// CommonLabels adds additional kustomize commonLabels
+	CommonLabels map[string]string `json:"commonLabels,omitempty" protobuf:"bytes,4,opt,name=commonLabels"`
 }
 
 // KustomizeImageTag is a kustomize image tag
