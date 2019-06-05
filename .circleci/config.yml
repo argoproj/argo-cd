@@ -332,7 +332,7 @@ jobs:
             cd ui
             yarn test
       - store_test_results:
-          path: junit.xml
+          path: ui/junit.xml
       - run:
           name: Lint
           command: |
