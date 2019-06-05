@@ -8,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"testing"
 	"time"
 
 	jsonpatch "github.com/evanphx/json-patch"
@@ -24,7 +25,6 @@ import (
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/util"
 	grpcutil "github.com/argoproj/argo-cd/util/grpc"
-	"github.com/argoproj/argo-cd/util/rand"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -101,7 +101,7 @@ func init() {
 }
 
 func Name() string {
-	return fmt.Sprintf("argocd-e2e-%s", id)
+	return id
 }
 
 func repoDirectory() string {
@@ -130,7 +130,7 @@ func CreateSecret(username, password string) string {
 	return secretName
 }
 
-func EnsureCleanState() {
+func EnsureCleanState(t *testing.T) {
 
 	start := time.Now()
 
@@ -169,7 +169,7 @@ func EnsureCleanState() {
 	CheckError(os.RemoveAll(tmpDir))
 
 	// new random ID
-	id = strings.ToLower(rand.RandString(5))
+	id = dnsFriendly(t.Name())
 	repoUrl = fmt.Sprintf("file:///%s", repoDirectory())
 
 	// create tmp dir
