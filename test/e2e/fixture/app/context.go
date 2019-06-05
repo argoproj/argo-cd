@@ -61,11 +61,6 @@ func (c *Context) NamePrefix(namePrefix string) *Context {
 	return c
 }
 
-func (c *Context) Prune(prune bool) *Context {
-	c.prune = prune
-	return c
-}
-
 func (c *Context) And(block func()) *Context {
 	block()
 	return c
@@ -73,4 +68,9 @@ func (c *Context) And(block func()) *Context {
 
 func (c *Context) When() *Actions {
 	return &Actions{context: c}
+}
+
+func (c *Context) Prune(prune bool) *Context {
+	c.prune = prune
+	return c
 }
