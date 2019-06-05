@@ -82,7 +82,7 @@ const (
 	LabelValueSecretTypeCluster = "cluster"
 
 	// AnnotationSyncStatusOptions is a comma-separated list of options
-	AnnotationSyncStatusOptions = "argocd.argoproj.io/sync-status-options"
+	AnnotationSyncStatusOptions = "argocd.argoproj.io/compare-options"
 	// AnnotationSyncOptions contains sync options
 	AnnotationSyncOptions = "argocd.argoproj.io/sync-options"
 	// AnnotationSyncWave indicates which wave of the sync the resource or hook should be in

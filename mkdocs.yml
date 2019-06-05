@@ -46,7 +46,8 @@ nav:
     - user-guide/private-repositories.md
     - user-guide/auto_sync.md
     - user-guide/diffing.md
-    - user-guide/sync_status_options.md
+    - user-guide/compare-options.md
+    - user-guide/sync-options.md
     - user-guide/parameters.md
     - user-guide/tracking_strategies.md
     - user-guide/resource_hooks.md

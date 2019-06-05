@@ -1,4 +1,4 @@
-# Sync Status Options
+# Compare Options
 
 ## Ignoring Resources
 
@@ -7,7 +7,7 @@ You may wish to exclude resources for the app's overall sync status under certai
 ```yaml
 metadata:
   annotations:
-    argocd.argoproj.io/sync-status-options: Ignore
+    argocd.argoproj.io/compare-options: Ignore
 ```
 
 !!! note
@@ -22,7 +22,7 @@ configMapGenerator:
       - foo=bar
 generatorOptions:
   annotations:
-    argocd.argoproj.io/sync-status-options: Ignore
+    argocd.argoproj.io/compare-options: Ignore
 kind: Kustomization
 ``` 
  
