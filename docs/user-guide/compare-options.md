@@ -31,4 +31,4 @@ kind: Kustomization
 !!! note
     `generatorOptions` adds annotations to both config maps and secrets ([read more ⧉](https://github.com/kubernetes-sigs/kustomize/blob/master/examples/generatorOptions.md)).
     
-You may wish to combine this with the [`NoPrune` compare option](compare-options.md).
+You may wish to combine this with the [`NoPrune` sync option](sync-options.md).
