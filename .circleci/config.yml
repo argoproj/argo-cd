@@ -184,7 +184,7 @@ commands:
             - go-v14-{{ .Branch }}
             - go-v14-master
 jobs:
-  test:
+  build:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
       image: circleci/classic:201808-01
@@ -202,13 +202,7 @@ jobs:
           name: Uploading code coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
       - store_test_results:
-          path: /tmp/test-results
-  codegen:
-    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
-    machine:
-      image: circleci/classic:201808-01
-    steps:
-      - before
+          path: /tmp/test-results kb 
       - run:
           name: Generate code
           command: make codegen
@@ -332,9 +326,8 @@ jobs:
           command: |
             cd ui
             yarn test
-            cat junit.xml
       - store_test_results:
-          path: ui/junit.xml
+          path: ui
       - run:
           name: Lint
           command: |
@@ -344,7 +337,6 @@ workflows:
   version: 2
   workflow:
     jobs:
-      - codegen
-      - test
+      - build
       - e2e
       - ui
