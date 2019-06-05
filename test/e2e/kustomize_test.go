@@ -78,6 +78,10 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 		// we now force generation of a second CM
 		PatchFile("kustomization.yaml", `[{"op": "replace", "path": "/configMapGenerator/0/literals/0", "value": "foo=baz"}]`).
 		Refresh(RefreshTypeHard).
+		Then().
+		// this is standard logging from the command - tough one - true statement
+		Expect(Error("1 resources require pruning")).
+		When().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).

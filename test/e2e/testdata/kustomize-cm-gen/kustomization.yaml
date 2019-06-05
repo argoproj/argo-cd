@@ -4,5 +4,5 @@ configMapGenerator:
       - foo=bar
 generatorOptions:
   annotations:
-    argocd.argoproj.io/compare-options: IgnoreNeedsPrune
+    argocd.argoproj.io/compare-options: IgnoreNeedsPruning
 kind: Kustomization
