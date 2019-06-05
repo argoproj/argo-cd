@@ -10,6 +10,8 @@ metadata:
     argocd.argoproj.io/compare-options: IgnoreNeedsPruning
 ```
 
+![compare option needs pruning](../assets/compare-option-ignore-needs-pruning.png)
+
 !!! note
     This only affect the sync status. If the resource's health is degraded, then the app will also be degraded.
 

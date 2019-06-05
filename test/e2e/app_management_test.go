@@ -531,3 +531,25 @@ func TestSyncOptionNoPrune(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(ResourceSyncStatusIs("Pod", "pod-1", SyncStatusCodeOutOfSync))
 }
+
+// make sure that, if we have a resource that needs pruning, but we're ignoring it, the app is in-sync
+func TestCompareOptionIgnoreNeedsPruning(t *testing.T) {
+	Given(t).
+		Path("two-nice-pods").
+		When().
+		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/compare-options": "IgnoreNeedsPruning"}}]`).
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		DeleteFile("pod-1.yaml").
+		Refresh(RefreshTypeHard).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Len(t, app.Status.Resources, 2)
+			assert.Equal(t, SyncStatusCodeOutOfSync, app.Status.Resources[1].Status)
+	})
+}
