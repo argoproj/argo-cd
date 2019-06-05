@@ -327,8 +327,9 @@ jobs:
           command: |
             cd ui
             yarn test
+      # This does not appear to work, and I don't want to spend time on it.
       - store_test_results:
-          path: ~/ui/
+          path: ~/ui
       - run:
           name: Lint
           command: |
