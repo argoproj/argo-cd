@@ -5,4 +5,5 @@ configMapGenerator:
 generatorOptions:
   annotations:
     argocd.argoproj.io/compare-options: IgnoreNeedsPruning
+    argocd.argoproj.io/sync-options: NoPrune
 kind: Kustomization

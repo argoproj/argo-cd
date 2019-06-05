@@ -551,5 +551,10 @@ func TestCompareOptionIgnoreNeedsPruning(t *testing.T) {
 		And(func(app *Application) {
 			assert.Len(t, app.Status.Resources, 2)
 			assert.Equal(t, SyncStatusCodeOutOfSync, app.Status.Resources[1].Status)
-		})
+		}).
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }

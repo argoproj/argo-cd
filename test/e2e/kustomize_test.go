@@ -58,8 +58,6 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 	var mapName string
 	Given(t).
 		Path("kustomize-cm-gen").
-		// note we don't want to prune resources, check the config maps exist
-		Prune(false).
 		When().
 		Create().
 		Sync().
@@ -80,12 +78,12 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 		Refresh(RefreshTypeHard).
 		Then().
 		// this is standard logging from the command - tough one - true statement
-		Expect(Error("1 resources require pruning")).
 		When().
 		Sync().
 		Then().
+		Expect(Error("1 resources require pruning")).
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		// this is the key check - we expect the app to be healthy because, even though we have a resources that needs
+		// this is a key check - we expect the app to be healthy because, even though we have a resources that needs
 		// pruning, because it is annotated with IgnoreNeedsPruning it should not contribute to the sync status
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(HealthStatusHealthy)).
