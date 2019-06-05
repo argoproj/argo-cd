@@ -36,3 +36,17 @@ func TestCliAppCommand(t *testing.T) {
 			assert.Contains(t, NormalizeOutput(output), expected)
 		})
 }
+
+
+func TestCliSyncWaitRace(t *testing.T) {
+	Given(t).
+		Path("two-nice-pods").
+		When().
+		PatchFile("pod-1.yaml", `[{"op": "replace", "path": "/spec/containers/0/command", "value": ["sleep", "999"]}]`).
+		Create().
+		Sync().
+		PatchFile("pod-2.yaml", `[{"op": "replace", "path": "/spec/containers/0/command", "value": ["true"]}]`).
+		Wait().
+		Then().
+		Expect(Success("xxx"))
+}

@@ -202,7 +202,7 @@ jobs:
           name: Uploading code coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
       - store_test_results:
-          path: /tmp/test-results kb 
+          path: /tmp/test-results kb
       - run:
           name: Generate code
           command: make codegen
@@ -309,12 +309,12 @@ jobs:
           name: Restore Yarn Package Cache
           keys:
             - yarn-packages-v2-{{ checksum "ui/yarn.lock" }}
-            - yarn-packages-v1-{{ checksum "ui/yarn.lock" }}
       - run:
           name: Install
           command: |
             set -x
             cd ui
+            pwd
             yarn install --frozen-lockfile --ignore-optional --non-interactive
       - save_cache:
           name: Save Yarn Package Cache
@@ -325,6 +325,7 @@ jobs:
       - run:
           name: Test
           command: |
+            set -x
             cd ui
             yarn test
       # This does not appear to work, and I don't want to spend time on it.
@@ -333,6 +334,7 @@ jobs:
       - run:
           name: Lint
           command: |
+            set -x
             cd ui
             yarn lint
 workflows:
