@@ -11,7 +11,7 @@ import (
 
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
-	"github.com/argoproj/argo-cd/server/account"
+	accountpkg "github.com/argoproj/argo-cd/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/localconfig"
@@ -57,7 +57,7 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 				errors.CheckError(err)
 			}
 
-			updatePasswordRequest := account.UpdatePasswordRequest{
+			updatePasswordRequest := accountpkg.UpdatePasswordRequest{
 				NewPassword:     newPassword,
 				CurrentPassword: currentPassword,
 			}

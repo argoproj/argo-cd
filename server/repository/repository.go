@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/reposerver/repository"
@@ -73,7 +74,7 @@ func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.Conn
 }
 
 // List returns list of repositories
-func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList, error) {
+func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.RepositoryList, error) {
 	urls, err := s.db.ListRepoURLs(ctx)
 	if err != nil {
 		return nil, err
@@ -158,7 +159,7 @@ func getKustomizationRes(ctx context.Context, repoClient repository.RepoServerSe
 }
 
 // ListApps returns list of apps in the repo
-func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsResponse, error) {
+func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (*repositorypkg.RepoAppsResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo); err != nil {
 		return nil, err
 	}
@@ -183,14 +184,14 @@ func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsRespo
 	if err != nil {
 		return nil, err
 	}
-	items := make([]*AppInfo, 0)
+	items := make([]*repositorypkg.AppInfo, 0)
 	for appFilePath, appType := range paths {
-		items = append(items, &AppInfo{Path: path.Dir(appFilePath), Type: string(appType)})
+		items = append(items, &repositorypkg.AppInfo{Path: path.Dir(appFilePath), Type: string(appType)})
 	}
-	return &RepoAppsResponse{Items: items}, nil
+	return &repositorypkg.RepoAppsResponse{Items: items}, nil
 }
 
-func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*repository.RepoAppDetailsResponse, error) {
+func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDetailsQuery) (*repository.RepoAppDetailsResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo); err != nil {
 		return nil, err
 	}
@@ -218,7 +219,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*re
 }
 
 // Create creates a repository
-func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repository, error) {
+func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest) (*appsv1.Repository, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, q.Repo.Repo); err != nil {
 		return nil, err
 	}
@@ -242,7 +243,7 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 		if reflect.DeepEqual(existing, r) {
 			repo, err = existing, nil
 		} else if q.Upsert {
-			return s.Update(ctx, &RepoUpdateRequest{Repo: r})
+			return s.Update(ctx, &repositorypkg.RepoUpdateRequest{Repo: r})
 		} else {
 			return nil, status.Errorf(codes.InvalidArgument, "existing repository spec is different; use upsert flag to force update")
 		}
@@ -251,7 +252,7 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 }
 
 // Update updates a repository
-func (s *Server) Update(ctx context.Context, q *RepoUpdateRequest) (*appsv1.Repository, error) {
+func (s *Server) Update(ctx context.Context, q *repositorypkg.RepoUpdateRequest) (*appsv1.Repository, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, q.Repo.Repo); err != nil {
 		return nil, err
 	}
@@ -260,7 +261,7 @@ func (s *Server) Update(ctx context.Context, q *RepoUpdateRequest) (*appsv1.Repo
 }
 
 // Delete updates a repository
-func (s *Server) Delete(ctx context.Context, q *RepoQuery) (*RepoResponse, error) {
+func (s *Server) Delete(ctx context.Context, q *repositorypkg.RepoQuery) (*repositorypkg.RepoResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionDelete, q.Repo); err != nil {
 		return nil, err
 	}
@@ -271,5 +272,5 @@ func (s *Server) Delete(ctx context.Context, q *RepoQuery) (*RepoResponse, error
 	}
 
 	err := s.db.DeleteRepository(ctx, q.Repo)
-	return &RepoResponse{}, err
+	return &repositorypkg.RepoResponse{}, err
 }
