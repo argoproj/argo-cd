@@ -1,6 +1,6 @@
 # High Availability
 
-Argo CD is largely stateless, all data is stored in Kubernetes objects. We use Redis as a throw away cache (you can lose it without loss of service). The HA version allows you to perform zero-downtime node upgrades.
+Argo CD is largely stateless, all data is persisted as Kubernetes objects, which in turn is stored in Kubernetes' etcd. Redis is only used as a throw-away cache and can be lost. When lost, it will be rebuilt without loss of service.
 
 A set HA of manifests are provided for users who wish to run Argo CD in a highly available manner. This runs more containers, and run Redis in HA mode.
 
@@ -11,8 +11,9 @@ A set HA of manifests are provided for users who wish to run Argo CD in a highly
  
 ## Scaling Up
 
-To scale up, typcially you need to increase the number of replicas of the `argocd-repo-server` (many apps in few repos. You can increase the number of replicas of the `argocd-server` (e.g. support more UI load). 
+You might scale up some Argo CD services in the following circumstances:
 
-The `argocd-application-controller` must not be increased because two servers will fight. The `argocd-dex-server` runs uses an in-memory database, two or more instances would have different databases and fail.
+* The `argocd-repo-server` can scale up when there is too much contention on a single git repo (e.g. many apps defined in a single git repo).
+* The `argocd-server` can scale up to support more front-end load.
 
-change me
+All other services should run with their pre-determined number of replicas. The `argocd-application-controller` must not be increased because multiple controllers will fight. The `argocd-dex-server` uses an in-memory database, and two or more instances would have inconsistent data. `argocd-redis` is pre-configured with the understanding of only three total redis servers/sentinels.
