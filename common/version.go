@@ -1,4 +1,4 @@
-package argocd
+package common
 
 import (
 	"fmt"

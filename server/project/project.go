@@ -15,6 +15,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
@@ -48,15 +49,15 @@ func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appcl
 }
 
 // CreateToken creates a new token to access a project
-func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) (*ProjectTokenResponse, error) {
+func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateRequest) (*project.ProjectTokenResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionUpdate, q.Project); err != nil {
 		return nil, err
 	}
-	project, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project, metav1.GetOptions{})
+	prj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
-	err = projectutil.ValidateProject(project)
+	err = projectutil.ValidateProject(prj)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +65,7 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 	s.projectLock.Lock(q.Project)
 	defer s.projectLock.Unlock(q.Project)
 
-	_, index, err := projectutil.GetRoleByName(project, q.Role)
+	_, index, err := projectutil.GetRoleByName(prj, q.Role)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "project '%s' does not have role '%s'", q.Project, q.Role)
 	}
@@ -85,26 +86,26 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 	issuedAt := claims.IssuedAt
 	expiresAt := claims.ExpiresAt
 
-	project.Spec.Roles[index].JWTTokens = append(project.Spec.Roles[index].JWTTokens, v1alpha1.JWTToken{IssuedAt: issuedAt, ExpiresAt: expiresAt})
-	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(project)
+	prj.Spec.Roles[index].JWTTokens = append(prj.Spec.Roles[index].JWTTokens, v1alpha1.JWTToken{IssuedAt: issuedAt, ExpiresAt: expiresAt})
+	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(prj)
 	if err != nil {
 		return nil, err
 	}
-	s.logEvent(project, ctx, argo.EventReasonResourceCreated, "created token")
-	return &ProjectTokenResponse{Token: jwtToken}, nil
+	s.logEvent(prj, ctx, argo.EventReasonResourceCreated, "created token")
+	return &project.ProjectTokenResponse{Token: jwtToken}, nil
 
 }
 
 // DeleteToken deletes a token in a project
-func (s *Server) DeleteToken(ctx context.Context, q *ProjectTokenDeleteRequest) (*EmptyResponse, error) {
+func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteRequest) (*project.EmptyResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionDelete, q.Project); err != nil {
 		return nil, err
 	}
-	project, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project, metav1.GetOptions{})
+	prj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
-	err = projectutil.ValidateProject(project)
+	err = projectutil.ValidateProject(prj)
 	if err != nil {
 		return nil, err
 	}
@@ -112,26 +113,26 @@ func (s *Server) DeleteToken(ctx context.Context, q *ProjectTokenDeleteRequest) 
 	s.projectLock.Lock(q.Project)
 	defer s.projectLock.Unlock(q.Project)
 
-	_, roleIndex, err := projectutil.GetRoleByName(project, q.Role)
+	_, roleIndex, err := projectutil.GetRoleByName(prj, q.Role)
 	if err != nil {
-		return &EmptyResponse{}, nil
+		return &project.EmptyResponse{}, nil
 	}
-	_, jwtTokenIndex, err := projectutil.GetJWTToken(project, q.Role, q.Iat)
+	_, jwtTokenIndex, err := projectutil.GetJWTToken(prj, q.Role, q.Iat)
 	if err != nil {
-		return &EmptyResponse{}, nil
+		return &project.EmptyResponse{}, nil
 	}
-	project.Spec.Roles[roleIndex].JWTTokens[jwtTokenIndex] = project.Spec.Roles[roleIndex].JWTTokens[len(project.Spec.Roles[roleIndex].JWTTokens)-1]
-	project.Spec.Roles[roleIndex].JWTTokens = project.Spec.Roles[roleIndex].JWTTokens[:len(project.Spec.Roles[roleIndex].JWTTokens)-1]
-	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(project)
+	prj.Spec.Roles[roleIndex].JWTTokens[jwtTokenIndex] = prj.Spec.Roles[roleIndex].JWTTokens[len(prj.Spec.Roles[roleIndex].JWTTokens)-1]
+	prj.Spec.Roles[roleIndex].JWTTokens = prj.Spec.Roles[roleIndex].JWTTokens[:len(prj.Spec.Roles[roleIndex].JWTTokens)-1]
+	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(prj)
 	if err != nil {
 		return nil, err
 	}
-	s.logEvent(project, ctx, argo.EventReasonResourceDeleted, "deleted token")
-	return &EmptyResponse{}, nil
+	s.logEvent(prj, ctx, argo.EventReasonResourceDeleted, "deleted token")
+	return &project.EmptyResponse{}, nil
 }
 
 // Create a new project.
-func (s *Server) Create(ctx context.Context, q *ProjectCreateRequest) (*v1alpha1.AppProject, error) {
+func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*v1alpha1.AppProject, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionCreate, q.Project.Name); err != nil {
 		return nil, err
 	}
@@ -148,7 +149,7 @@ func (s *Server) Create(ctx context.Context, q *ProjectCreateRequest) (*v1alpha1
 }
 
 // List returns list of projects
-func (s *Server) List(ctx context.Context, q *ProjectQuery) (*v1alpha1.AppProjectList, error) {
+func (s *Server) List(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.AppProjectList, error) {
 	list, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).List(metav1.ListOptions{})
 	if list != nil {
 		newItems := make([]v1alpha1.AppProject, 0)
@@ -164,7 +165,7 @@ func (s *Server) List(ctx context.Context, q *ProjectQuery) (*v1alpha1.AppProjec
 }
 
 // Get returns a project by name
-func (s *Server) Get(ctx context.Context, q *ProjectQuery) (*v1alpha1.AppProject, error) {
+func (s *Server) Get(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.AppProject, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name); err != nil {
 		return nil, err
 	}
@@ -212,7 +213,7 @@ func getRemovedSources(oldProj, newProj *v1alpha1.AppProject) map[string]bool {
 }
 
 // Update updates a project
-func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1.AppProject, error) {
+func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*v1alpha1.AppProject, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionUpdate, q.Project.Name); err != nil {
 		return nil, err
 	}
@@ -291,7 +292,7 @@ func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1
 }
 
 // Delete deletes a project
-func (s *Server) Delete(ctx context.Context, q *ProjectQuery) (*EmptyResponse, error) {
+func (s *Server) Delete(ctx context.Context, q *project.ProjectQuery) (*project.EmptyResponse, error) {
 	if q.Name == common.DefaultAppProjectName {
 		return nil, status.Errorf(codes.InvalidArgument, "name '%s' is reserved and cannot be deleted", q.Name)
 	}
@@ -319,10 +320,10 @@ func (s *Server) Delete(ctx context.Context, q *ProjectQuery) (*EmptyResponse, e
 	if err == nil {
 		s.logEvent(p, ctx, argo.EventReasonResourceDeleted, "deleted project")
 	}
-	return &EmptyResponse{}, err
+	return &project.EmptyResponse{}, err
 }
 
-func (s *Server) ListEvents(ctx context.Context, q *ProjectQuery) (*v1.EventList, error) {
+func (s *Server) ListEvents(ctx context.Context, q *project.ProjectQuery) (*v1.EventList, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name); err != nil {
 		return nil, err
 	}

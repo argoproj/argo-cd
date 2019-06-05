@@ -21,7 +21,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/kubernetes/pkg/kubectl/util/term"
 
-	argocd "github.com/argoproj/argo-cd"
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 )
 
@@ -32,7 +32,7 @@ func NewVersionCmd(cliName string) *cobra.Command {
 		Use:   "version",
 		Short: fmt.Sprintf("Print version information"),
 		Run: func(cmd *cobra.Command, args []string) {
-			version := argocd.GetVersion()
+			version := common.GetVersion()
 			fmt.Printf("%s: %s\n", cliName, version)
 			if short {
 				return

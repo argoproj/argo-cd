@@ -4,6 +4,7 @@ import (
 	"github.com/ghodss/yaml"
 	"golang.org/x/net/context"
 
+	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -21,7 +22,7 @@ func NewServer(mgr *settings.SettingsManager) *Server {
 }
 
 // Get returns Argo CD settings
-func (s *Server) Get(ctx context.Context, q *SettingsQuery) (*Settings, error) {
+func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settingspkg.Settings, error) {
 	argoCDSettings, err := s.mgr.GetSettings()
 	if err != nil {
 		return nil, err
@@ -32,20 +33,20 @@ func (s *Server) Get(ctx context.Context, q *SettingsQuery) (*Settings, error) {
 		val := argoCDSettings.ResourceOverrides[k]
 		overrides[k] = &val
 	}
-	set := Settings{
+	set := settingspkg.Settings{
 		URL:               argoCDSettings.URL,
 		AppLabelKey:       argoCDSettings.GetAppInstanceLabelKey(),
 		ResourceOverrides: overrides,
 	}
 	if argoCDSettings.DexConfig != "" {
-		var cfg DexConfig
+		var cfg settingspkg.DexConfig
 		err = yaml.Unmarshal([]byte(argoCDSettings.DexConfig), &cfg)
 		if err == nil {
 			set.DexConfig = &cfg
 		}
 	}
 	if oidcConfig := argoCDSettings.OIDCConfig(); oidcConfig != nil {
-		set.OIDCConfig = &OIDCConfig{
+		set.OIDCConfig = &settingspkg.OIDCConfig{
 			Name:        oidcConfig.Name,
 			Issuer:      oidcConfig.Issuer,
 			ClientID:    oidcConfig.ClientID,
