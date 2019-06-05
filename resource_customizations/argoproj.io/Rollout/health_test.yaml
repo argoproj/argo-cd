@@ -1,5 +1,9 @@
 tests:
 - healthStatus:
+    status: Progressing
+    message: "Waiting for roll out to finish: More replicas need to be updated"
+  inputPath: testdata/newRolloutWithoutStatus.yaml
+- healthStatus:
     status: Degraded
     message: Rollout has missing field '.Spec.Strategy.Type'
   inputPath: testdata/degraded_invalidSpec.yaml
