@@ -7,7 +7,7 @@ Make sure you have `~/.kube/config` pointing to your Argo CD cluster.
 Figure out what version of Argo CD you're running:
 
 ```bash
-argocd version  | grep server
+argocd version | grep server
 # ...
 export VERSION=v1.0.1
 ```
