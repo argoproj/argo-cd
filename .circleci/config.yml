@@ -3,7 +3,6 @@ commands:
   before:
     steps:
       - restore_go_cache
-      - install_golang
       - install_tools
       - clean_checkout
       - configure_git
