@@ -18,6 +18,7 @@ import (
 	hookutil "github.com/argoproj/argo-cd/util/hook"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/lua"
+	"github.com/argoproj/argo-cd/util/resource"
 )
 
 // SetApplicationHealth updates the health statuses of all resources performed in the comparison
@@ -40,8 +41,8 @@ func SetApplicationHealth(resStatuses []appv1.ResourceStatus, liveObjs []*unstru
 		if resHealth != nil {
 			resStatuses[i].Health = resHealth
 			// Don't allow resource hooks to affect health status
-			isHook := liveObj != nil && hookutil.IsHook(liveObj)
-			if !isHook && IsWorse(appHealth.Status, resHealth.Status) {
+			ignore := liveObj != nil && (hookutil.IsHook(liveObj) || resource.Ignore(liveObj))
+			if !ignore && IsWorse(appHealth.Status, resHealth.Status) {
 				appHealth.Status = resHealth.Status
 			}
 		}

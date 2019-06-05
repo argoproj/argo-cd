@@ -43,6 +43,7 @@ import (
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/hook"
 	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/resource"
 	"github.com/argoproj/argo-cd/util/templates"
 )
 
@@ -221,7 +222,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				if len(app.Status.Resources) > 0 {
 					fmt.Println()
 					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-					printAppResources(w, app, showOperation)
+					printAppResources(w, app)
 					_ = w.Flush()
 				}
 			default:
@@ -644,7 +645,7 @@ func groupLocalObjs(localObs []*unstructured.Unstructured, liveObjs []*unstructu
 	objByKey := make(map[kube.ResourceKey]*unstructured.Unstructured)
 	for i := range localObs {
 		obj := localObs[i]
-		if !hook.IsHook(obj) {
+		if !(hook.IsHook(obj) || resource.Ignore(obj)) {
 			objByKey[kube.GetResourceKey(obj)] = obj
 		}
 	}
@@ -1036,51 +1037,31 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 }
 
 // printAppResources prints the resources of an application in a tabwriter table
-// Optionally prints the message from the operation state
-func printAppResources(w io.Writer, app *argoappv1.Application, showOperation bool) {
-	messages := make(map[string]string)
-	opState := app.Status.OperationState
-	var syncRes *argoappv1.SyncOperationResult
-
-	if showOperation {
-		fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tSTATUS\tHEALTH\tHOOK\tMESSAGE\n")
-		if opState != nil {
-			if opState.SyncResult != nil {
-				syncRes = opState.SyncResult
-			}
-		}
-		if syncRes != nil {
-			for _, res := range syncRes.Resources {
-				if !res.IsHook() {
-					messages[fmt.Sprintf("%s/%s/%s/%s", res.Group, res.Kind, res.Namespace, res.Name)] = res.Message
-				} else if res.HookType == argoappv1.HookTypePreSync {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", res.Group, res.Kind, res.Namespace, res.Name, res.HookPhase, "", res.HookType, res.Message)
-				}
-			}
-		}
-	} else {
-		fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tSTATUS\tHEALTH\n")
-	}
+func printAppResources(w io.Writer, app *argoappv1.Application) {
+	_, _ = fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tSTATUS\tHEALTH\tHOOK\tMESSAGE\n")
 	for _, res := range app.Status.Resources {
-		healthStatus := ""
+		status := ""
 		if res.Health != nil {
-			healthStatus = res.Health.Status
-		}
-		if showOperation {
-			message := messages[fmt.Sprintf("%s/%s/%s/%s", res.Group, res.Kind, res.Namespace, res.Name)]
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s", res.Group, res.Kind, res.Namespace, res.Name, res.Status, healthStatus, "", message)
-		} else {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s", res.Group, res.Kind, res.Namespace, res.Name, res.Status, healthStatus)
-		}
-		fmt.Fprint(w, "\n")
-	}
-	if showOperation && syncRes != nil {
-		for _, res := range syncRes.Resources {
-			if res.HookType == argoappv1.HookTypeSync || res.HookType == argoappv1.HookTypePostSync {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", res.Group, res.Kind, res.Namespace, res.Name, res.HookPhase, "", res.HookType, res.Message)
-			}
+			status = res.Health.Status
 		}
 
+		// if an operation has occurred, we search for the result and print that out
+		operationState := app.Status.OperationState
+		if operationState != nil && operationState.SyncResult != nil {
+			// in most cases you'll only get one instance (if it is a non-hook resource, or a hook for a single phase),
+			// but in edge-cases you may get more than one
+			for _, result := range operationState.SyncResult.Resources.Filter(func(r *argoappv1.ResourceResult) bool {
+				return r.Group == res.Group && r.Kind == res.Kind && r.Namespace == res.Namespace && r.Name == res.Name
+			}) {
+				// for hooks, we print the result of the operation, not the sync status
+				if res.Hook {
+					status = string(result.HookPhase)
+				}
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", res.Group, res.Kind, res.Namespace, res.Name, res.Status, status, result.HookType, result.Message)
+			}
+		} else {
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", res.Group, res.Kind, res.Namespace, res.Name, res.Status, status, "", "")
+		}
 	}
 }
 
@@ -1179,12 +1160,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			// Only get resources to be pruned if sync was application-wide
 			if len(selectedResources) == 0 {
-				pruningRequired := 0
-				for _, resDetails := range app.Status.OperationState.SyncResult.Resources {
-					if resDetails.Status == argoappv1.ResultCodePruneSkipped {
-						pruningRequired++
-					}
-				}
+				pruningRequired := app.Status.OperationState.SyncResult.Resources.PruningRequired()
 				if pruningRequired > 0 {
 					log.Fatalf("%d resources require pruning", pruningRequired)
 				}
@@ -1363,7 +1339,7 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 		if len(app.Status.Resources) > 0 {
 			fmt.Println()
 			w := tabwriter.NewWriter(os.Stdout, 5, 0, 2, ' ', 0)
-			printAppResources(w, app, watchOperation)
+			printAppResources(w, app)
 			_ = w.Flush()
 		}
 	}
@@ -1375,7 +1351,7 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 5, 0, 2, ' ', 0)
-	fmt.Fprintf(w, waitFormatString, "TIMESTAMP", "GROUP", "KIND", "NAMESPACE", "NAME", "STATUS", "HEALTH", "HOOK", "MESSAGE")
+	_, _ = fmt.Fprintf(w, waitFormatString, "TIMESTAMP", "GROUP", "KIND", "NAMESPACE", "NAME", "STATUS", "HEALTH", "HOOK", "MESSAGE")
 
 	prevStates := make(map[string]*resourceState)
 	appEventCh := acdClient.WatchApplicationWithRetry(ctx, appName)

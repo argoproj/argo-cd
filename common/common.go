@@ -81,6 +81,8 @@ const (
 	// LabelValueSecretTypeCluster indicates a secret type of cluster
 	LabelValueSecretTypeCluster = "cluster"
 
+	// AnnotationSyncWave indicates which wave of the sync the resource or hook should be in
+	AnnotationSyncWave = "argocd.argoproj.io/sync-wave"
 	// AnnotationKeyHook contains the hook type of a resource
 	AnnotationKeyHook = "argocd.argoproj.io/hook"
 	// AnnotationKeyHookDeletePolicy is the policy of deleting a hook

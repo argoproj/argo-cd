@@ -4,10 +4,9 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -114,6 +113,7 @@ func TestCompareAppStateHook(t *testing.T) {
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, 0, len(compRes.resources))
 	assert.Equal(t, 0, len(compRes.managedResources))
+	assert.Equal(t, 1, len(compRes.hooks))
 	assert.Equal(t, 0, len(compRes.conditions))
 }
 
@@ -170,6 +170,7 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, 1, len(compRes.resources))
 	assert.Equal(t, 1, len(compRes.managedResources))
+	assert.Equal(t, 0, len(compRes.hooks))
 	assert.Equal(t, 0, len(compRes.conditions))
 }
 

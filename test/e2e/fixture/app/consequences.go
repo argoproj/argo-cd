@@ -20,7 +20,7 @@ type Consequences struct {
 func (c *Consequences) Expect(e Expectation) *Consequences {
 	var message string
 	var state state
-	for start := time.Now(); time.Since(start) < 15*time.Second; time.Sleep(2 * time.Second) {
+	for start := time.Now(); time.Since(start) < 15*time.Second; time.Sleep(3 * time.Second) {
 		state, message = e(c)
 		log.WithFields(log.Fields{"message": message, "state": state}).Info("polling for expectation")
 		switch state {
@@ -54,13 +54,16 @@ func (c *Consequences) get() (*Application, error) {
 	return fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(c.context.name, v1.GetOptions{})
 }
 
-func (c *Consequences) resource(name string) ResourceStatus {
+func (c *Consequences) resource(kind, name string) ResourceStatus {
 	for _, r := range c.app().Status.Resources {
-		if r.Name == name {
+		if r.Kind == kind && r.Name == name {
 			return r
 		}
 	}
 	return ResourceStatus{
-		Health: &HealthStatus{Status: HealthStatusUnknown},
+		Health: &HealthStatus{
+			Status:  HealthStatusMissing,
+			Message: "not found",
+		},
 	}
 }

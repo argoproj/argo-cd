@@ -6,50 +6,49 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/common"
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
-// IsHook indicates if the object is either a Argo CD or Helm hook
 func IsHook(obj *unstructured.Unstructured) bool {
-	return IsArgoHook(obj) || IsHelmHook(obj)
-}
-
-// IsHelmHook indicates if the supplied object is a helm hook
-func IsHelmHook(obj *unstructured.Unstructured) bool {
-	annotations := obj.GetAnnotations()
-	if annotations == nil {
-		return false
-	}
-	hooks, ok := annotations[common.AnnotationKeyHelmHook]
-	if ok && hasHook(hooks, common.AnnotationValueHelmHookCRDInstall) {
-		return false
-	}
-	return ok
-}
-
-func hasHook(hooks string, hook string) bool {
-	for _, item := range strings.Split(hooks, ",") {
-		if strings.TrimSpace(item) == hook {
+	for _, hookType := range types(obj) {
+		switch v1alpha1.HookType(hookType) {
+		case v1alpha1.HookTypeSkip:
+			return !Skip(obj)
+		default:
 			return true
 		}
 	}
 	return false
 }
 
-// IsArgoHook indicates if the supplied object is an Argo CD application lifecycle hook
-// (vs. a normal, synced application resource)
-func IsArgoHook(obj *unstructured.Unstructured) bool {
-	annotations := obj.GetAnnotations()
-	if annotations == nil {
-		return false
-	}
-	resHookTypes := strings.Split(annotations[common.AnnotationKeyHook], ",")
-	for _, hookType := range resHookTypes {
-		hookType = strings.TrimSpace(hookType)
-		switch argoappv1.HookType(hookType) {
-		case argoappv1.HookTypePreSync, argoappv1.HookTypeSync, argoappv1.HookTypePostSync:
-			return true
+func Skip(obj *unstructured.Unstructured) bool {
+	for _, hookType := range types(obj) {
+		if v1alpha1.HookType(hookType) == v1alpha1.HookTypeSkip {
+			return len(types(obj)) == 1
 		}
 	}
 	return false
+}
+
+func Types(obj *unstructured.Unstructured) []v1alpha1.HookType {
+	var hookTypes []v1alpha1.HookType
+	for _, hookType := range types(obj) {
+		switch v1alpha1.HookType(hookType) {
+		case v1alpha1.HookTypePreSync, v1alpha1.HookTypeSync, v1alpha1.HookTypePostSync:
+			hookTypes = append(hookTypes, v1alpha1.HookType(hookType))
+		}
+	}
+	return hookTypes
+}
+
+// returns a normalize list of strings
+func types(obj *unstructured.Unstructured) []string {
+	var hookTypes []string
+	for _, hookType := range strings.Split(obj.GetAnnotations()[common.AnnotationKeyHook], ",") {
+		trimmed := strings.TrimSpace(hookType)
+		if len(trimmed) > 0 {
+			hookTypes = append(hookTypes, trimmed)
+		}
+	}
+	return hookTypes
 }

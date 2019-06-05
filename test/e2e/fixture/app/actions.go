@@ -15,6 +15,16 @@ type Actions struct {
 	lastError  error
 }
 
+func (a *Actions) PatchFile(file string, jsonPath string) *Actions {
+	fixture.Patch(a.context.path+"/"+file, jsonPath)
+	return a
+}
+
+func (a *Actions) DeleteFile(file string) *Actions {
+	fixture.Delete(a.context.path + "/" + file)
+	return a
+}
+
 func (a *Actions) Create() *Actions {
 
 	args := []string{
@@ -48,20 +58,21 @@ func (a *Actions) PatchApp(patch string) *Actions {
 
 func (a *Actions) Sync() *Actions {
 	args := []string{"app", "sync", a.context.name, "--timeout", "5"}
+
 	if a.context.prune {
 		args = append(args, "--prune")
 	}
+
+	if a.context.resource != "" {
+		args = append(args, "--resource", a.context.resource)
+	}
+
 	a.runCli(args...)
 	return a
 }
 
 func (a *Actions) TerminateOp() *Actions {
 	a.runCli("app", "terminate-op", a.context.name)
-	return a
-}
-
-func (a *Actions) Patch(file string, jsonPath string) *Actions {
-	fixture.Patch(a.context.path+"/"+file, jsonPath)
 	return a
 }
 
@@ -83,6 +94,11 @@ func (a *Actions) Delete(cascade bool) *Actions {
 		args = append(args, "--cascade")
 	}
 	a.runCli(args...)
+	return a
+}
+
+func (a *Actions) And(block func()) *Actions {
+	block()
 	return a
 }
 

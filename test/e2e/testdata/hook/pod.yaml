@@ -6,6 +6,7 @@ spec:
   containers:
     - name: main
       image: alpine:latest
+      imagePullPolicy: IfNotPresent
       command:
         - "true"
   restartPolicy: Never

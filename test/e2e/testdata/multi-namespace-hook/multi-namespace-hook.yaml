@@ -39,6 +39,7 @@ spec:
   containers:
   - name: main
     image: alpine:latest
+    imagePullPolicy: IfNotPresent
     command: [sh, -c, "sleep 10"]
 
 ---
@@ -55,4 +56,5 @@ spec:
   containers:
   - name: main
     image: alpine:latest
+    imagePullPolicy: IfNotPresent
     command: [sh, -c, "sleep 10"]
