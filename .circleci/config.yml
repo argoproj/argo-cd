@@ -307,7 +307,6 @@ jobs:
       - store_test_results:
           path: /tmp/test-results
   ui:
-    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     docker:
       - image: circleci/node
     steps:
