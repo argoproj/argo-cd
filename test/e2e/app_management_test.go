@@ -317,6 +317,10 @@ func TestDuplicatedResources(t *testing.T) {
 	testEdgeCasesApplicationResources(t, "duplicated-resources")
 }
 
+func TestConfigMap(t *testing.T) {
+	testEdgeCasesApplicationResources(t, "config-map")
+}
+
 func TestFailedConversion(t *testing.T) {
 
 	defer func() {
@@ -333,7 +337,9 @@ func testEdgeCasesApplicationResources(t *testing.T, appPath string) {
 		Create().
 		Sync().
 		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusHealthy)).
 		And(func(app *Application) {
 			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", path.Join("testdata", appPath))
 			assert.Empty(t, diffOutput)
