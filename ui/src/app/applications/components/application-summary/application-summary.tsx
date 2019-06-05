@@ -72,6 +72,7 @@ export const ApplicationSummary = (props: {
             <span><HealthStatusIcon state={app.status.health}/> {app.status.health.status}</span>
         )},
     ];
+
     const urls = app.status.summary.externalURLs || [];
     if (urls.length > 0) {
         attributes.push({title: 'URLs', view: (
@@ -157,6 +158,61 @@ export const ApplicationSummary = (props: {
                 </div>
             </div>
             )}</Consumer>
+
+            <div className='white-box'>
+                <div className='white-box__details'>
+                    <p>Links</p>
+                    <div className='argo-table-list'>
+                        <div className='argo-table-list__row'>
+                            {app.spec.links && app.spec.links.map((link, i) => <div key={link.name + link.url + i} className='row' style={{fontSize: '0.8125rem'}}>
+                                <div className='columns small-3'>
+                                    {link.name}
+                                </div>
+                                <div className='columns small-8'>
+                                    {link.type === 'other' ? link.url : <a target='_blank' href={(link.type === 'email' ? 'mailto:' : '') + link.url}>{link.url}</a>}
+                                </div>
+                                <div className='columns small-1'>
+                                    <i className='fa fa-times' onClick={() => {
+                                        app.spec.links.splice(i, 1);
+                                        props.updateApp(app);
+                                    }} style={{cursor: 'pointer'}}/>
+                                </div>
+                            </div>)}
+                            <div className='row'>
+                                <div className='columns small-3'>
+                                    <input className='argo-field' type='text' placeholder='Name' id='newLinkName'/>
+                                </div>
+                                <div className='columns small-6'>
+                                    <input className='argo-field' type='text' placeholder='URL' id='newLinkURL'/>
+                                </div>
+                                <div className='columns small-2'>
+                                    <select className='argo-field' defaultValue='url' id='newLinkType'>
+                                        <option value='url'>URL</option>
+                                        <option value='email'>Email</option>
+                                        <option value='other'>Other</option>
+                                    </select>
+                                </div>
+                                <div className='columns small-1'>
+                                    <i className='fa fa-plus' onClick={() => {
+                                        const newLink = {
+                                            name: (document.getElementById('newLinkName') as HTMLInputElement).value,
+                                            url: (document.getElementById('newLinkURL') as HTMLInputElement).value,
+                                            type: (document.getElementById('newLinkType') as HTMLSelectElement).value
+                                        };
+
+                                        if (newLink.url === '') {
+                                            return;
+                                        }
+
+                                        app.spec.links = (app.spec.links || []).concat(newLink);
+                                        props.updateApp(app);
+                                    }} style={{cursor: 'pointer'}}/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </React.Fragment>
     );
 };

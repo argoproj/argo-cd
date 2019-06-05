@@ -66,6 +66,63 @@ const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi, className:
     }} />);
 });
 
+const LinksFormField = ReactFormField((props: {fieldApi: FieldApi, className: string}) => {
+    const {fieldApi: {getValue, setValue}} = props;
+    const links = getValue() as models.Link[];
+
+    return (
+        <div className='argo-table-list'>
+            <div className='argo-table-list__head'>
+                <div className='row'>
+                    <div className='columns small-3'>Name</div>
+                    <div className='columns small-6'>URL</div>
+                    <div className='columns small-3'>Type</div>
+                </div>
+            </div>
+            <div className='argo-table-list__row'>
+                {links && links.map((link, i) => <div key={link.name + link.url + i} className='row'>
+                        <div className='columns small-3'>
+                            <input className='argo-field' type='text' defaultValue={link.name} onChange={(event) => {
+                                links[i].name = event.target.value;
+                                setValue(links);
+                            }}/>
+                        </div>
+                        <div className='columns small-6'>
+                            <input className='argo-field' type='text' defaultValue={link.url} onChange={(event) => {
+                                links[i].url = event.target.value;
+                                setValue(links);
+                            }}/>
+                        </div>
+                        <div className='columns small-2'>
+                            <select className='argo-field' defaultValue={link.type} onChange={(event) => {
+                                links[i].type = event.target.value;
+                                setValue(links);
+                            }}>
+                                <option value='url'>URL</option>
+                                <option value='email'>Email</option>
+                                <option value='other'>Other</option>
+                            </select>
+                        </div>
+                        <div className='columns small-1'>
+                            <i className='fa fa-times' onClick={() => {
+                                links.splice(i, 1);
+                                setValue([...links]);
+                            }} style={{cursor: 'pointer'}}/>
+                        </div>
+                    </div>)}
+                <div className='row'>
+                    <div className='columns small-4'>
+                        <a onClick={() => {
+                            const newLink = {name: '', url: '', type: 'url'};
+                            setValue((links || []).concat(newLink));
+                        }}>Add link</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+});
+
 export const ApplicationCreatePanel = (props: {
     app: models.Application,
     onAppChanged: (app: models.Application) => any;
@@ -239,6 +296,13 @@ export const ApplicationCreatePanel = (props: {
                                     </div>
                                 );
 
+                                const linksPanel = () => (
+                                    <div className='white-box'>
+                                        <p>LINKS</p>
+                                        <FormField formApi={api} field='spec.links' component={LinksFormField}/>
+                                    </div>
+                                );
+
                                 return (
                                     <form onSubmit={api.submitForm} role='form' className='width-control'>
                                         {generalPanel()}
@@ -248,6 +312,8 @@ export const ApplicationCreatePanel = (props: {
                                         {destinationPanel()}
 
                                         {typePanel()}
+
+                                        {linksPanel()}
                                     </form>
                                 );
                             }}

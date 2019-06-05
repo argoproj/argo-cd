@@ -296,6 +296,19 @@ spec:
                 - jsonPointers
                 type: object
               type: array
+            links:
+              description: Links contains a list of useful links that relate to the
+                application
+              items:
+                properties:
+                  name:
+                    type: string
+                  type:
+                    type: string
+                  url:
+                    type: string
+                type: object
+              type: array
             project:
               description: Project is a application project name. Empty name means
                 that application belongs to 'default' project.

@@ -207,6 +207,9 @@ message ApplicationSpec {
 
   // IgnoreDifferences controls resources fields which should be ignored during comparison
   repeated ResourceIgnoreDifferences ignoreDifferences = 5;
+
+  // Links contains a list of useful links that relate to the application
+  repeated Link links = 6;
 }
 
 // ApplicationStatus contains information about application sync, health status
@@ -412,6 +415,14 @@ message KustomizeImageTag {
 
   // Value is the value for the new tag (e.g. 1.8.0)
   optional string value = 2;
+}
+
+message Link {
+  optional string name = 1;
+
+  optional string url = 2;
+
+  optional string type = 3;
 }
 
 // Operation contains requested operation parameters.

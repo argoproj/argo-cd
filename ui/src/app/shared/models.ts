@@ -172,11 +172,18 @@ export interface SyncPolicy {
     automated?: { prune: boolean };
 }
 
+export interface Link {
+    name: string;
+    url: string;
+    type: string;
+}
+
 export interface ApplicationSpec {
     project: string;
     source: ApplicationSource;
     destination: ApplicationDestination;
     syncPolicy?: SyncPolicy;
+    links?: Link[];
 }
 
 /**
