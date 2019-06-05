@@ -118,15 +118,14 @@ func TestCompareAppStateHook(t *testing.T) {
 }
 
 // checks that ignore resources are detected, but excluded from status
-func TestCompareAppStateSyncOptionIgnoreNeedsPruning(t *testing.T) {
+func TestCompareAppStateCompareOptionIgnoreNeedsPruning(t *testing.T) {
 	pod := test.NewPod()
 	pod.SetAnnotations(map[string]string{common.AnnotationCompareOptions: "IgnoreNeedsPruning"})
-	podBytes, _ := json.Marshal(pod)
 	app := newFakeApp()
 	data := fakeData{
 		apps: []runtime.Object{app},
 		manifestResponse: &repository.ManifestResponse{
-			Manifests: []string{string(podBytes)},
+			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -140,9 +139,9 @@ func TestCompareAppStateSyncOptionIgnoreNeedsPruning(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-	assert.Equal(t, []argoappv1.ResourceStatus{{Version: "v1", Kind: "Pod", Name: "my-pod", Namespace: test.FakeDestNamespace, Status: argoappv1.SyncStatusCodeOutOfSync, Health: &argoappv1.HealthStatus{Status: argoappv1.HealthStatusMissing}}}, compRes.resources)
-	assert.Equal(t, 1, len(compRes.managedResources))
-	assert.Equal(t, 0, len(compRes.conditions))
+	assert.Len(t, compRes.resources, 0)
+	assert.Len(t, compRes.managedResources,0)
+	assert.Len(t, compRes.conditions, 0)
 }
 
 // TestCompareAppStateExtraHook tests when there is an extra _hook_ object in live but not defined in git
