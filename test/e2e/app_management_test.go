@@ -8,13 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/errors"
-
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/errors"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	argorepo "github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server/application"

@@ -1,0 +1,18 @@
+@import 'node_modules/argo-ui/src/app/shared/styles/config';
+
+.application-summary {
+
+    &__labels {
+        line-height: 28px;
+    }
+
+    &__label {
+        background-color: $argo-color-gray-5;
+        color: white;
+        border-radius: 5px;
+        padding: 4px;
+        display: inline-block;
+        margin-right: 2px;
+        line-height: 14px;
+    }
+}

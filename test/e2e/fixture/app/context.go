@@ -15,6 +15,7 @@ type Context struct {
 	destServer string
 	env        string
 	parameters []string
+	namePrefix string
 	prune      bool
 }
 
@@ -45,6 +46,11 @@ func (c *Context) Env(env string) *Context {
 
 func (c *Context) Parameter(parameter string) *Context {
 	c.parameters = append(c.parameters, parameter)
+	return c
+}
+
+func (c *Context) NamePrefix(namePrefix string) *Context {
+	c.namePrefix = namePrefix
 	return c
 }
 

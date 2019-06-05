@@ -52,6 +52,10 @@ func TestKustomizeBuild(t *testing.T) {
 			},
 		},
 		Images: []string{"nginx:1.15.5"},
+		CommonLabels: map[string]string{
+			"app.kubernetes.io/managed-by": "argo-cd",
+			"app.kubernetes.io/part-of":    "argo-cd-tests",
+		},
 	}
 	objs, imageTags, images, err := kustomize.Build(&kustomizeSource)
 	assert.Nil(t, err)
@@ -64,8 +68,17 @@ func TestKustomizeBuild(t *testing.T) {
 		switch obj.GetKind() {
 		case "StatefulSet":
 			assert.Equal(t, namePrefix+"web", obj.GetName())
+			assert.Equal(t, map[string]string{
+				"app.kubernetes.io/managed-by": "argo-cd",
+				"app.kubernetes.io/part-of":    "argo-cd-tests",
+			}, obj.GetLabels())
 		case "Deployment":
 			assert.Equal(t, namePrefix+"nginx-deployment", obj.GetName())
+			assert.Equal(t, map[string]string{
+				"app":                          "nginx",
+				"app.kubernetes.io/managed-by": "argo-cd",
+				"app.kubernetes.io/part-of":    "argo-cd-tests",
+			}, obj.GetLabels())
 		}
 	}
 

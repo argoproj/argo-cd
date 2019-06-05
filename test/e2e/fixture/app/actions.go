@@ -33,8 +33,16 @@ func (a *Actions) Create() *Actions {
 		args = append(args, "--parameter", parameter)
 	}
 
+	if a.context.namePrefix != "" {
+		args = append(args, "--nameprefix", a.context.namePrefix)
+	}
+
 	a.runCli(args...)
 
+	return a
+}
+func (a *Actions) PatchApp(patch string) *Actions {
+	a.runCli("app", "patch", a.context.name, "--patch", patch)
 	return a
 }
 

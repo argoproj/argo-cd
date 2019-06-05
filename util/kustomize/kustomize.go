@@ -110,6 +110,25 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstruc
 				}
 			}
 		}
+
+		if len(opts.CommonLabels) > 0 {
+			//  edit add label foo:bar
+			args := []string{"edit", "add", "label"}
+			arg := ""
+			for labelName, labelValue := range opts.CommonLabels {
+				if arg != "" {
+					arg += ","
+				}
+				arg += fmt.Sprintf("%s:%s", labelName, labelValue)
+			}
+			args = append(args, arg)
+			cmd := exec.Command(commandName, args...)
+			cmd.Dir = k.path
+			_, err := argoexec.RunCommandExt(cmd)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+		}
 	}
 
 	cmd := exec.Command(commandName, "build", k.path)

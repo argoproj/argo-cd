@@ -689,6 +689,20 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							},
 						},
 					},
+					"commonLabels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CommonLabels adds additional kustomize commonLabels",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
