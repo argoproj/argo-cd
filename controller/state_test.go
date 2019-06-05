@@ -118,9 +118,9 @@ func TestCompareAppStateHook(t *testing.T) {
 }
 
 // checks that ignore resources are detected, but excluded from status
-func TestCompareAppStateSyncOptionIgnore(t *testing.T) {
+func TestCompareAppStateSyncOptionIgnoreNeedsPruning(t *testing.T) {
 	pod := test.NewPod()
-	pod.SetAnnotations(map[string]string{common.AnnotationSyncStatusOptions: "Ignore"})
+	pod.SetAnnotations(map[string]string{common.AnnotationCompareOptions: "IgnoreNeedsPruning"})
 	podBytes, _ := json.Marshal(pod)
 	app := newFakeApp()
 	data := fakeData{
