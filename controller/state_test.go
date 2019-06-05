@@ -140,7 +140,7 @@ func TestCompareAppStateCompareOptionIgnoreNeedsPruning(t *testing.T) {
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Len(t, compRes.resources, 0)
-	assert.Len(t, compRes.managedResources,0)
+	assert.Len(t, compRes.managedResources, 0)
 	assert.Len(t, compRes.conditions, 0)
 }
 
