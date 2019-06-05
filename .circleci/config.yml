@@ -320,9 +320,9 @@ jobs:
           command: |
             set -x
             cd ui
-            sudo npm install --unsafe-perm node-sass
+            sudo npm install --unsafe-perm node-sass@^4.7.2
             sudo rm package-lock.json
-            yarn install --ignore-optional
+            yarn install --frozen-lockfile --ignore-optional --non-interactive
       - save_cache:
           name: Save Yarn Package Cache
           key: yarn-packages-{{ checksum "ui/yarn.lock" }}
