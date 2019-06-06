@@ -600,6 +600,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#helm-release-name" title="Helm Release Name" class="md-nav__link">
+    Helm Release Name
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#helm-hooks" title="Helm Hooks" class="md-nav__link">
     Helm Hooks
   </a>
@@ -1012,6 +1019,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#helm-release-name" title="Helm Release Name" class="md-nav__link">
+    Helm Release Name
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#helm-hooks" title="Helm Hooks" class="md-nav__link">
     Helm Hooks
   </a>
@@ -1066,6 +1080,29 @@ in the form of <code>-p PARAM=VALUE</code>. For example:</p>
 </pre></div>
 
 
+<h2 id="helm-release-name">Helm Release Name<a class="headerlink" href="#helm-release-name" title="Permanent link">&para;</a></h2>
+<p>By default the Helm release name is equal to the Application name to which it belongs. Sometimes, especially on a centralised ArgoCD, 
+you may want to override that  name, and it is possible with the <code>release-name</code> flag on the cli:</p>
+<div class="codehilite"><pre><span></span>argocd app <span class="nb">set</span> helm-guestbook --release-name myRelease
+</pre></div>
+
+
+<p>or using the releaseName for yaml:</p>
+<div class="codehilite"><pre><span></span><span class="nt">source</span><span class="p">:</span>
+    <span class="nt">helm</span><span class="p">:</span>
+      <span class="nt">releaseName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">myRelease</span>
+</pre></div>
+
+
+<div class="codehilite"><pre><span></span><span class="gd">- Important notice on overriding the release name</span>
+</pre></div>
+
+
+<p>Please not that overriding the Helm release name might cause problems when the chart you are deploying is using the <code>app.kubernetes.io/instance</code> label. 
+ArgoCD injects this label with the value of the Application name for tracking purposes. So when overriding the release name, the Application name will 
+stop being equal to the release name. Because ArgoCD will overwrite the label with the Application name it might cause some selectors on the resources 
+to stop working. In order to avoid this we can configure ArgoCD to use another label for tracking in the <a href="../../operator-manual/argocd-cm.yaml">ArgoCD configmap argocd-cm.yaml</a> - 
+check the lines describing <code>application.instanceLabelKey</code></p>
 <h2 id="helm-hooks">Helm Hooks<a class="headerlink" href="#helm-hooks" title="Permanent link">&para;</a></h2>
 <p>Helm hooks are equivalent in concept to <a href="../resource_hooks/">Argo CD resource hooks</a>. In helm, a hook
 is any normal kubernetes resource annotated with the <code>helm.sh/hook</code> annotation. When Argo CD deploys

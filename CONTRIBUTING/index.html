@@ -855,13 +855,6 @@
   
 </li>
       
-        <li class="md-nav__item">
-  <a href="#pre-commit-checks" title="Pre-commit Checks" class="md-nav__link">
-    Pre-commit Checks
-  </a>
-  
-</li>
-      
       
       
       
@@ -1060,13 +1053,6 @@
   
 </li>
       
-        <li class="md-nav__item">
-  <a href="#pre-commit-checks" title="Pre-commit Checks" class="md-nav__link">
-    Pre-commit Checks
-  </a>
-  
-</li>
-      
       
       
       
@@ -1106,6 +1092,18 @@
 <li><a href="https://kubectx.dev">kubectx</a></li>
 <li><a href="https://kubernetes.io/docs/setup/minikube/">minikube</a> or Docker for Desktop</li>
 </ul>
+<div class="admonition warning">
+<p class="admonition-title">Versions</p>
+<p>You will find problems generating code if you do not have the correct versions of <code>protoc</code> and <code>swagger</code></p>
+</div>
+<div class="codehilite"><pre><span></span>$ protoc --version
+libprotoc <span class="m">3</span>.7.1
+~/go/src/github.com/argoproj/argo-cd <span class="o">(</span>ui<span class="o">)</span>
+$ swagger version
+version: v0.19.0
+</pre></div>
+
+
 <p>Brew users can quickly install the lot:</p>
 <div class="codehilite"><pre><span></span>brew tap go-swagger/go-swagger
 brew install go dep protobuf kubectl kubectx ksonnet/tap/ks kubernetes-helm jq go-swagger kustomize 
@@ -1171,13 +1169,6 @@ kubectl -n argocd scale deployment.extensions/argocd-redis --replicas <span clas
 </pre></div>
 
 
-<p>Then checkout and build the UI next to your code</p>
-<div class="codehilite"><pre><span></span>cd ~/go/src/github.com/argoproj
-git clone git@github.com:argoproj/argo-cd-ui.git
-</pre></div>
-
-
-<p>Follow the UI's <a href="https://github.com/argoproj/argo-cd-ui/blob/master/README.md">README</a> to build it.</p>
 <p>Note: you'll need to use the https://localhost:6443 cluster now.</p>
 <p>Then start the services:</p>
 <div class="codehilite"><pre><span></span><span class="nb">cd</span> ~/go/src/github.com/argoproj/argo-cd
@@ -1204,7 +1195,7 @@ make start
 </pre></div>
 
 
-<p>If you have not built the UI image (see <a href="https://github.com/argoproj/argo-cd-ui/blob/master/README.md">the UI README</a>), then do the following:</p>
+<p>If you have not built the UI image (see <a href="https://github.com/argoproj/argo-cd/blob/master/ui/README.md">the UI README</a>), then do the following:</p>
 <div class="codehilite"><pre><span></span>docker pull argoproj/argocd-ui:latest
 docker tag argoproj/argocd-ui:latest <span class="nv">$IMAGE_NAMESPACE</span>/argocd-ui:latest
 docker push <span class="nv">$IMAGE_NAMESPACE</span>/argocd-ui:latest
@@ -1236,10 +1227,6 @@ kubectl -n argocd scale deployment.extensions/argocd-redis --replicas <span clas
 
 
 <p>Now you can set-up the port-forwarding and open the UI or CLI.</p>
-<h2 id="pre-commit-checks">Pre-commit Checks<a class="headerlink" href="#pre-commit-checks" title="Permanent link">&para;</a></h2>
-<p>Before you commit, make sure you've formatted and linted your code, or your PR will fail CI:</p>
-<div class="codehilite"><pre><span></span>make pre-commit
-</pre></div>
                 
                   
                 

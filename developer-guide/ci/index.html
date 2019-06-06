@@ -850,6 +850,26 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#troubleshooting-builds" title="Troubleshooting Builds" class="md-nav__link">
+    Troubleshooting Builds
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#check-nothing-has-changed-step-fails" title=""Check nothing has changed" step fails" class="md-nav__link">
+    "Check nothing has changed" step fails
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#updating-the-builder-image" title="Updating The Builder Image" class="md-nav__link">
     Updating The Builder Image
   </a>
@@ -984,6 +1004,26 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#troubleshooting-builds" title="Troubleshooting Builds" class="md-nav__link">
+    Troubleshooting Builds
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#check-nothing-has-changed-step-fails" title=""Check nothing has changed" step fails" class="md-nav__link">
+    "Check nothing has changed" step fails
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#updating-the-builder-image" title="Updating The Builder Image" class="md-nav__link">
     Updating The Builder Image
   </a>
@@ -1017,6 +1057,22 @@
                 
                 
                 <h1 id="ci">CI<a class="headerlink" href="#ci" title="Permanent link">&para;</a></h1>
+<h2 id="troubleshooting-builds">Troubleshooting Builds<a class="headerlink" href="#troubleshooting-builds" title="Permanent link">&para;</a></h2>
+<h3 id="check-nothing-has-changed-step-fails">"Check nothing has changed" step fails<a class="headerlink" href="#check-nothing-has-changed-step-fails" title="Permanent link">&para;</a></h3>
+<p>If your PR fails the <code>codegen</code> CI step, you can either:</p>
+<p>(1) Simple - download the <code>codgen.patch</code> file from CircleCI and apply it:</p>
+<p><img alt="download codegen patch file" src="../../assets/download-codegen-patch-file.png" /></p>
+<div class="codehilite"><pre><span></span>git apply codegen.patch 
+git commit -am <span class="s2">&quot;Applies codegen patch&quot;</span>
+</pre></div>
+
+
+<p>(2) Advanced - if you have the tools installed (see the contributing guide), run the following:</p>
+<div class="codehilite"><pre><span></span>make pre-commit
+git commit -am <span class="s1">&#39;Ran pre-commit checks&#39;</span>
+</pre></div>
+
+
 <h2 id="updating-the-builder-image">Updating The Builder Image<a class="headerlink" href="#updating-the-builder-image" title="Permanent link">&para;</a></h2>
 <p>Login to Docker Hub:</p>
 <div class="codehilite"><pre><span></span>docker login
