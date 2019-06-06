@@ -45,7 +45,7 @@ func (m *ClusterQuery) Reset()         { *m = ClusterQuery{} }
 func (m *ClusterQuery) String() string { return proto.CompactTextString(m) }
 func (*ClusterQuery) ProtoMessage()    {}
 func (*ClusterQuery) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_f3202a482bdfbbd2, []int{0}
+	return fileDescriptor_cluster_f1fe593bfbefdde6, []int{0}
 }
 func (m *ClusterQuery) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -91,7 +91,7 @@ func (m *ClusterResponse) Reset()         { *m = ClusterResponse{} }
 func (m *ClusterResponse) String() string { return proto.CompactTextString(m) }
 func (*ClusterResponse) ProtoMessage()    {}
 func (*ClusterResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_f3202a482bdfbbd2, []int{1}
+	return fileDescriptor_cluster_f1fe593bfbefdde6, []int{1}
 }
 func (m *ClusterResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -132,7 +132,7 @@ func (m *ClusterCreateRequest) Reset()         { *m = ClusterCreateRequest{} }
 func (m *ClusterCreateRequest) String() string { return proto.CompactTextString(m) }
 func (*ClusterCreateRequest) ProtoMessage()    {}
 func (*ClusterCreateRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_f3202a482bdfbbd2, []int{2}
+	return fileDescriptor_cluster_f1fe593bfbefdde6, []int{2}
 }
 func (m *ClusterCreateRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -191,7 +191,7 @@ func (m *ClusterCreateFromKubeConfigRequest) Reset()         { *m = ClusterCreat
 func (m *ClusterCreateFromKubeConfigRequest) String() string { return proto.CompactTextString(m) }
 func (*ClusterCreateFromKubeConfigRequest) ProtoMessage()    {}
 func (*ClusterCreateFromKubeConfigRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_f3202a482bdfbbd2, []int{3}
+	return fileDescriptor_cluster_f1fe593bfbefdde6, []int{3}
 }
 func (m *ClusterCreateFromKubeConfigRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -266,7 +266,7 @@ func (m *ClusterUpdateRequest) Reset()         { *m = ClusterUpdateRequest{} }
 func (m *ClusterUpdateRequest) String() string { return proto.CompactTextString(m) }
 func (*ClusterUpdateRequest) ProtoMessage()    {}
 func (*ClusterUpdateRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_f3202a482bdfbbd2, []int{4}
+	return fileDescriptor_cluster_f1fe593bfbefdde6, []int{4}
 }
 func (m *ClusterUpdateRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1441,10 +1441,10 @@ var (
 )
 
 func init() {
-	proto.RegisterFile("server/cluster/cluster.proto", fileDescriptor_cluster_f3202a482bdfbbd2)
+	proto.RegisterFile("server/cluster/cluster.proto", fileDescriptor_cluster_f1fe593bfbefdde6)
 }
 
-var fileDescriptor_cluster_f3202a482bdfbbd2 = []byte{
+var fileDescriptor_cluster_f1fe593bfbefdde6 = []byte{
 	// 589 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x94, 0x4f, 0x8b, 0x13, 0x31,
 	0x18, 0xc6, 0xc9, 0xee, 0x3a, 0xeb, 0x46, 0x71, 0x35, 0xac, 0x32, 0x76, 0x6b, 0xe9, 0xce, 0x61,

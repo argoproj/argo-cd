@@ -57,6 +57,7 @@ spec:
                     required:
                     - kind
                     - name
+                    type: object
                   type: array
                 revision:
                   description: Revision is the git revision in which to sync the application
@@ -86,6 +87,7 @@ spec:
                                 required:
                                 - name
                                 - value
+                                type: object
                               type: array
                             tlas:
                               description: TLAS is a list of Jsonnet Top-level Arguments
@@ -101,9 +103,12 @@ spec:
                                 required:
                                 - name
                                 - value
+                                type: object
                               type: array
+                          type: object
                         recurse:
                           type: boolean
+                      type: object
                     helm:
                       description: ApplicationSourceHelm holds helm specific options
                       properties:
@@ -118,6 +123,7 @@ spec:
                               value:
                                 description: Value is the value for the helm parameter
                                 type: string
+                            type: object
                           type: array
                         releaseName:
                           description: The Helm release name. If omitted it will use
@@ -129,6 +135,7 @@ spec:
                           items:
                             type: string
                           type: array
+                      type: object
                     ksonnet:
                       description: ApplicationSourceKsonnet holds ksonnet specific
                         options
@@ -152,7 +159,9 @@ spec:
                             required:
                             - name
                             - value
+                            type: object
                           type: array
+                      type: object
                     kustomize:
                       description: ApplicationSourceKustomize holds kustomize specific
                         options
@@ -172,6 +181,7 @@ spec:
                                 description: Value is the value for the new tag (e.g.
                                   1.8.0)
                                 type: string
+                            type: object
                           type: array
                         images:
                           description: Images are kustomize 2.0 image overrides
@@ -182,6 +192,7 @@ spec:
                           description: NamePrefix is a prefix appended to resources
                             for kustomize apps
                           type: string
+                      type: object
                     path:
                       description: Path is a directory path within the repository
                         containing a
@@ -192,6 +203,7 @@ spec:
                       properties:
                         name:
                           type: string
+                      type: object
                     repoURL:
                       description: RepoURL is the git repository URL of the application
                         manifests
@@ -205,6 +217,7 @@ spec:
                   required:
                   - repoURL
                   - path
+                  type: object
                 syncStrategy:
                   description: SyncStrategy controls the manner in which a sync is
                     performed
@@ -219,6 +232,7 @@ spec:
                             and re-create the resource, when PATCH encounters conflict
                             and has retried for 5 times.
                           type: boolean
+                      type: object
                     hook:
                       description: SyncStrategyHook will perform a sync using hooks
                         annotations. If no hook annotation is specified falls back
@@ -234,6 +248,11 @@ spec:
                                 deletes and re-create the resource, when PATCH encounters
                                 conflict and has retried for 5 times.
                               type: boolean
+                          type: object
+                      type: object
+                  type: object
+              type: object
+          type: object
         spec:
           description: ApplicationSpec represents desired application state. Contains
             link to repository with application definition and additional parameters
@@ -251,6 +270,7 @@ spec:
                   description: Server overrides the environment server value in the
                     ksonnet app.yaml
                   type: string
+              type: object
             ignoreDifferences:
               description: IgnoreDifferences controls resources fields which should
                 be ignored during comparison
@@ -275,6 +295,7 @@ spec:
                 - group
                 - kind
                 - jsonPointers
+                type: object
               type: array
             project:
               description: Project is a application project name. Empty name means
@@ -304,6 +325,7 @@ spec:
                             required:
                             - name
                             - value
+                            type: object
                           type: array
                         tlas:
                           description: TLAS is a list of Jsonnet Top-level Arguments
@@ -319,9 +341,12 @@ spec:
                             required:
                             - name
                             - value
+                            type: object
                           type: array
+                      type: object
                     recurse:
                       type: boolean
+                  type: object
                 helm:
                   description: ApplicationSourceHelm holds helm specific options
                   properties:
@@ -336,6 +361,7 @@ spec:
                           value:
                             description: Value is the value for the helm parameter
                             type: string
+                        type: object
                       type: array
                     releaseName:
                       description: The Helm release name. If omitted it will use the
@@ -347,6 +373,7 @@ spec:
                       items:
                         type: string
                       type: array
+                  type: object
                 ksonnet:
                   description: ApplicationSourceKsonnet holds ksonnet specific options
                   properties:
@@ -369,7 +396,9 @@ spec:
                         required:
                         - name
                         - value
+                        type: object
                       type: array
+                  type: object
                 kustomize:
                   description: ApplicationSourceKustomize holds kustomize specific
                     options
@@ -389,6 +418,7 @@ spec:
                             description: Value is the value for the new tag (e.g.
                               1.8.0)
                             type: string
+                        type: object
                       type: array
                     images:
                       description: Images are kustomize 2.0 image overrides
@@ -399,6 +429,7 @@ spec:
                       description: NamePrefix is a prefix appended to resources for
                         kustomize apps
                       type: string
+                  type: object
                 path:
                   description: Path is a directory path within the repository containing
                     a
@@ -409,6 +440,7 @@ spec:
                   properties:
                     name:
                       type: string
+                  type: object
                 repoURL:
                   description: RepoURL is the git repository URL of the application
                     manifests
@@ -421,6 +453,7 @@ spec:
               required:
               - repoURL
               - path
+              type: object
             syncPolicy:
               description: SyncPolicy controls when a sync will be performed in response
                 to updates in git
@@ -433,10 +466,13 @@ spec:
                       description: 'Prune will prune resources automatically as part
                         of automated sync (default: false)'
                       type: boolean
+                  type: object
+              type: object
           required:
           - source
           - destination
           - project
+          type: object
         status:
           description: ApplicationStatus contains information about application sync,
             health status
@@ -456,6 +492,7 @@ spec:
                 required:
                 - type
                 - message
+                type: object
               type: array
             health:
               properties:
@@ -463,6 +500,7 @@ spec:
                   type: string
                 status:
                   type: string
+              type: object
             history:
               items:
                 description: RevisionHistory contains information relevant to an application
@@ -499,6 +537,7 @@ spec:
                                   required:
                                   - name
                                   - value
+                                  type: object
                                 type: array
                               tlas:
                                 description: TLAS is a list of Jsonnet Top-level Arguments
@@ -514,9 +553,12 @@ spec:
                                   required:
                                   - name
                                   - value
+                                  type: object
                                 type: array
+                            type: object
                           recurse:
                             type: boolean
+                        type: object
                       helm:
                         description: ApplicationSourceHelm holds helm specific options
                         properties:
@@ -532,6 +574,7 @@ spec:
                                 value:
                                   description: Value is the value for the helm parameter
                                   type: string
+                              type: object
                             type: array
                           releaseName:
                             description: The Helm release name. If omitted it will
@@ -543,6 +586,7 @@ spec:
                             items:
                               type: string
                             type: array
+                        type: object
                       ksonnet:
                         description: ApplicationSourceKsonnet holds ksonnet specific
                           options
@@ -567,7 +611,9 @@ spec:
                               required:
                               - name
                               - value
+                              type: object
                             type: array
+                        type: object
                       kustomize:
                         description: ApplicationSourceKustomize holds kustomize specific
                           options
@@ -589,6 +635,7 @@ spec:
                                   description: Value is the value for the new tag
                                     (e.g. 1.8.0)
                                   type: string
+                              type: object
                             type: array
                           images:
                             description: Images are kustomize 2.0 image overrides
@@ -599,6 +646,7 @@ spec:
                             description: NamePrefix is a prefix appended to resources
                               for kustomize apps
                             type: string
+                        type: object
                       path:
                         description: Path is a directory path within the repository
                           containing a
@@ -609,6 +657,7 @@ spec:
                         properties:
                           name:
                             type: string
+                        type: object
                       repoURL:
                         description: RepoURL is the git repository URL of the application
                           manifests
@@ -622,11 +671,13 @@ spec:
                     required:
                     - repoURL
                     - path
+                    type: object
                 required:
                 - revision
                 - deployedAt
                 - id
                 - source
+                type: object
               type: array
             observedAt: {}
             operationState:
@@ -667,6 +718,7 @@ spec:
                             required:
                             - kind
                             - name
+                            type: object
                           type: array
                         revision:
                           description: Revision is the git revision in which to sync
@@ -699,6 +751,7 @@ spec:
                                         required:
                                         - name
                                         - value
+                                        type: object
                                       type: array
                                     tlas:
                                       description: TLAS is a list of Jsonnet Top-level
@@ -715,9 +768,12 @@ spec:
                                         required:
                                         - name
                                         - value
+                                        type: object
                                       type: array
+                                  type: object
                                 recurse:
                                   type: boolean
+                              type: object
                             helm:
                               description: ApplicationSourceHelm holds helm specific
                                 options
@@ -737,6 +793,7 @@ spec:
                                         description: Value is the value for the helm
                                           parameter
                                         type: string
+                                    type: object
                                   type: array
                                 releaseName:
                                   description: The Helm release name. If omitted it
@@ -748,6 +805,7 @@ spec:
                                   items:
                                     type: string
                                   type: array
+                              type: object
                             ksonnet:
                               description: ApplicationSourceKsonnet holds ksonnet
                                 specific options
@@ -772,7 +830,9 @@ spec:
                                     required:
                                     - name
                                     - value
+                                    type: object
                                   type: array
+                              type: object
                             kustomize:
                               description: ApplicationSourceKustomize holds kustomize
                                 specific options
@@ -796,6 +856,7 @@ spec:
                                         description: Value is the value for the new
                                           tag (e.g. 1.8.0)
                                         type: string
+                                    type: object
                                   type: array
                                 images:
                                   description: Images are kustomize 2.0 image overrides
@@ -806,6 +867,7 @@ spec:
                                   description: NamePrefix is a prefix appended to
                                     resources for kustomize apps
                                   type: string
+                              type: object
                             path:
                               description: Path is a directory path within the repository
                                 containing a
@@ -816,6 +878,7 @@ spec:
                               properties:
                                 name:
                                   type: string
+                              type: object
                             repoURL:
                               description: RepoURL is the git repository URL of the
                                 application manifests
@@ -829,6 +892,7 @@ spec:
                           required:
                           - repoURL
                           - path
+                          type: object
                         syncStrategy:
                           description: SyncStrategy controls the manner in which a
                             sync is performed
@@ -844,6 +908,7 @@ spec:
                                     PATCH encounters conflict and has retried for
                                     5 times.
                                   type: boolean
+                              type: object
                             hook:
                               description: SyncStrategyHook will perform a sync using
                                 hooks annotations. If no hook annotation is specified
@@ -860,6 +925,11 @@ spec:
                                         resource, when PATCH encounters conflict and
                                         has retried for 5 times.
                                       type: boolean
+                                  type: object
+                              type: object
+                          type: object
+                      type: object
+                  type: object
                 phase:
                   description: Phase is the current phase of the operation
                   type: string
@@ -911,6 +981,7 @@ spec:
                         - kind
                         - namespace
                         - name
+                        type: object
                       type: array
                     revision:
                       description: Revision holds the git commit SHA of the sync
@@ -941,6 +1012,7 @@ spec:
                                     required:
                                     - name
                                     - value
+                                    type: object
                                   type: array
                                 tlas:
                                   description: TLAS is a list of Jsonnet Top-level
@@ -957,9 +1029,12 @@ spec:
                                     required:
                                     - name
                                     - value
+                                    type: object
                                   type: array
+                              type: object
                             recurse:
                               type: boolean
+                          type: object
                         helm:
                           description: ApplicationSourceHelm holds helm specific options
                           properties:
@@ -975,6 +1050,7 @@ spec:
                                   value:
                                     description: Value is the value for the helm parameter
                                     type: string
+                                type: object
                               type: array
                             releaseName:
                               description: The Helm release name. If omitted it will
@@ -986,6 +1062,7 @@ spec:
                               items:
                                 type: string
                               type: array
+                          type: object
                         ksonnet:
                           description: ApplicationSourceKsonnet holds ksonnet specific
                             options
@@ -1010,7 +1087,9 @@ spec:
                                 required:
                                 - name
                                 - value
+                                type: object
                               type: array
+                          type: object
                         kustomize:
                           description: ApplicationSourceKustomize holds kustomize
                             specific options
@@ -1033,6 +1112,7 @@ spec:
                                     description: Value is the value for the new tag
                                       (e.g. 1.8.0)
                                     type: string
+                                type: object
                               type: array
                             images:
                               description: Images are kustomize 2.0 image overrides
@@ -1043,6 +1123,7 @@ spec:
                               description: NamePrefix is a prefix appended to resources
                                 for kustomize apps
                               type: string
+                          type: object
                         path:
                           description: Path is a directory path within the repository
                             containing a
@@ -1053,6 +1134,7 @@ spec:
                           properties:
                             name:
                               type: string
+                          type: object
                         repoURL:
                           description: RepoURL is the git repository URL of the application
                             manifests
@@ -1066,13 +1148,16 @@ spec:
                       required:
                       - repoURL
                       - path
+                      type: object
                   required:
                   - revision
                   - source
+                  type: object
               required:
               - operation
               - phase
               - startedAt
+              type: object
             reconciledAt: {}
             resources:
               items:
@@ -1087,6 +1172,7 @@ spec:
                         type: string
                       status:
                         type: string
+                    type: object
                   hook:
                     type: boolean
                   kind:
@@ -1099,6 +1185,7 @@ spec:
                     type: string
                   version:
                     type: string
+                type: object
               type: array
             sourceType:
               type: string
@@ -1115,6 +1202,7 @@ spec:
                   items:
                     type: string
                   type: array
+              type: object
             sync:
               description: SyncStatus is a comparison result of application spec and
                 deployed application.
@@ -1135,6 +1223,7 @@ spec:
                           description: Server overrides the environment server value
                             in the ksonnet app.yaml
                           type: string
+                      type: object
                     source:
                       description: ApplicationSource contains information about github
                         repository, path within repository and target application
@@ -1161,6 +1250,7 @@ spec:
                                     required:
                                     - name
                                     - value
+                                    type: object
                                   type: array
                                 tlas:
                                   description: TLAS is a list of Jsonnet Top-level
@@ -1177,9 +1267,12 @@ spec:
                                     required:
                                     - name
                                     - value
+                                    type: object
                                   type: array
+                              type: object
                             recurse:
                               type: boolean
+                          type: object
                         helm:
                           description: ApplicationSourceHelm holds helm specific options
                           properties:
@@ -1195,6 +1288,7 @@ spec:
                                   value:
                                     description: Value is the value for the helm parameter
                                     type: string
+                                type: object
                               type: array
                             releaseName:
                               description: The Helm release name. If omitted it will
@@ -1206,6 +1300,7 @@ spec:
                               items:
                                 type: string
                               type: array
+                          type: object
                         ksonnet:
                           description: ApplicationSourceKsonnet holds ksonnet specific
                             options
@@ -1230,7 +1325,9 @@ spec:
                                 required:
                                 - name
                                 - value
+                                type: object
                               type: array
+                          type: object
                         kustomize:
                           description: ApplicationSourceKustomize holds kustomize
                             specific options
@@ -1253,6 +1350,7 @@ spec:
                                     description: Value is the value for the new tag
                                       (e.g. 1.8.0)
                                     type: string
+                                type: object
                               type: array
                             images:
                               description: Images are kustomize 2.0 image overrides
@@ -1263,6 +1361,7 @@ spec:
                               description: NamePrefix is a prefix appended to resources
                                 for kustomize apps
                               type: string
+                          type: object
                         path:
                           description: Path is a directory path within the repository
                             containing a
@@ -1273,6 +1372,7 @@ spec:
                           properties:
                             name:
                               type: string
+                          type: object
                         repoURL:
                           description: RepoURL is the git repository URL of the application
                             manifests
@@ -1286,9 +1386,11 @@ spec:
                       required:
                       - repoURL
                       - path
+                      type: object
                   required:
                   - source
                   - destination
+                  type: object
                 revision:
                   type: string
                 status:
@@ -1297,6 +1399,9 @@ spec:
               - status
               - comparedTo
               - revision
+              type: object
+          type: object
+      type: object
   version: v1alpha1
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
@@ -1355,6 +1460,7 @@ spec:
                     description: Server overrides the environment server value in
                       the ksonnet app.yaml
                     type: string
+                type: object
               type: array
             namespaceResourceBlacklist:
               description: NamespaceResourceBlacklist contains list of blacklisted
@@ -1391,6 +1497,7 @@ spec:
                           type: integer
                       required:
                       - iat
+                      type: object
                     type: array
                   name:
                     description: Name is a name for this role
@@ -1403,6 +1510,7 @@ spec:
                     type: array
                 required:
                 - name
+                type: object
               type: array
             sourceRepos:
               description: SourceRepos contains list of git repository URLs which
@@ -1410,6 +1518,8 @@ spec:
               items:
                 type: string
               type: array
+          type: object
+      type: object
   version: v1alpha1
 ---
 apiVersion: v1
