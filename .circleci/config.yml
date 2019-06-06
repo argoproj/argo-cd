@@ -204,7 +204,7 @@ jobs:
           # This takes 2m, lets background it.
           background: true
       - store_test_results:
-          path: /tmp/test-results kb
+          path: /tmp/test-results
       - run:
           name: Generate code
           command: make codegen
