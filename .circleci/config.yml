@@ -321,7 +321,6 @@ jobs:
           name: Restore Yarn Package Cache
           keys:
             - yarn-packages-v3-{{ checksum "yarn.lock" }}
-            - yarn-packages-v2-{{ checksum "yarn.lock" }}
       - run:
           name: Install
           command:
