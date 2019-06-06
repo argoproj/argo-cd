@@ -508,7 +508,7 @@ func (sc *syncContext) hasCRDOfGroupKind(group string, kind string) bool {
 			}
 		}
 	}
-	   return false
+	return false
 }
 
 // terminate looks for any running jobs/workflow hooks and deletes the resource
