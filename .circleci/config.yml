@@ -212,8 +212,13 @@ jobs:
       - run:
           name: Check nothing has changed
           # the goal of this is to make sure you ran `make pre-commit` before you pushed
-          # note that we exclude the swagger resources,
-          command: git diff --exit-code -- . ':!Gopkg.lock' ':!assets/swagger.json' ':!pkg/apis/api-rules/violation_exceptions.list' ':!pkg/apis/application/v1alpha1/openapi_generated.go'
+          # note that we exclude the swagger resources. This will fail, but also create a patch file.
+          command: |
+            set -o pipefail
+            git diff --exit-code -- . ':!Gopkg.lock' ':!assets/swagger.json' ':!pkg/apis/api-rules/violation_exceptions.list' ':!pkg/apis/application/v1alpha1/openapi_generated.go' | tee codegen.patch
+      - store_artifacts:
+          path: codegen.patch
+          when: always
   e2e:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
@@ -301,42 +306,37 @@ jobs:
       - store_test_results:
           path: /tmp/test-results
   ui:
+    # note that we checkeout the code in ~/, but then work in ~/ui
+    working_directory: ~/ui
     docker:
       - image: node:11.15.0
     steps:
-      - checkout
+      - checkout:
+          path: ~/
       - restore_cache:
           name: Restore Yarn Package Cache
           keys:
-            - yarn-packages-v2-{{ checksum "ui/yarn.lock" }}
+            - yarn-packages-v3-{{ checksum "yarn.lock" }}
+            - yarn-packages-v2-{{ checksum "yarn.lock" }}
       - run:
           name: Install
-          command: |
-            set -x
-            cd ui
-            pwd
+          command:
             yarn install --frozen-lockfile --ignore-optional --non-interactive
       - save_cache:
           name: Save Yarn Package Cache
-          key: yarn-packages-v2-{{ checksum "ui/yarn.lock" }}
+          key: yarn-packages-v3-{{ checksum "yarn.lock" }}
           paths:
             - ~/.cache/yarn
-            - ~/ui/node_modules
+            - node_modules
       - run:
           name: Test
-          command: |
-            set -x
-            cd ui
-            yarn test
+          command: yarn test
       # This does not appear to work, and I don't want to spend time on it.
       - store_test_results:
-          path: ~/ui
+          path: junit.xml
       - run:
           name: Lint
-          command: |
-            set -x
-            cd ui
-            yarn lint
+          command: yarn lint
 workflows:
   version: 2
   workflow:

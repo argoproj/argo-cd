@@ -22,6 +22,17 @@ Install:
 * [kubectx](https://kubectx.dev)
 * [minikube](https://kubernetes.io/docs/setup/minikube/) or Docker for Desktop
 
+!!! warning "Versions"
+    You will find problems generating code if you do not have the correct versions of `protoc` and `swagger`
+    
+```bash
+$ protoc --version
+libprotoc 3.7.1
+~/go/src/github.com/argoproj/argo-cd (ui)
+$ swagger version
+version: v0.19.0
+```
+
 Brew users can quickly install the lot:
     
 ```bash
@@ -169,11 +180,3 @@ kubectl -n argocd scale deployment.extensions/argocd-redis --replicas 1
 ```
 
 Now you can set-up the port-forwarding and open the UI or CLI.
-
-## Pre-commit Checks
-
-Before you commit, make sure you've formatted and linted your code, or your PR will fail CI:
-
-```bash
-make pre-commit
-```
