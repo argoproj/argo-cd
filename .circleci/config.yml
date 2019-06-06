@@ -201,6 +201,8 @@ jobs:
       - run:
           name: Uploading code coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
+          # This takes 2m, lets background it.
+          background: true
       - store_test_results:
           path: /tmp/test-results kb
       - run:
