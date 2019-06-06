@@ -172,7 +172,7 @@ commands:
   save_go_cache:
     steps:
       - save_cache:
-          key: go-v14-{{ .Branch }}
+          key: go-v15-{{ .Branch }}
           paths:
             - /home/circleci/.go_workspace
             - /home/circleci/.cache/go-build
@@ -181,8 +181,8 @@ commands:
     steps:
       - restore_cache:
           keys:
-            - go-v14-{{ .Branch }}
-            - go-v14-master
+            - go-v15-{{ .Branch }}
+            - go-v15-master
 jobs:
   build:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
