@@ -47,7 +47,7 @@ func (m *SessionCreateRequest) Reset()         { *m = SessionCreateRequest{} }
 func (m *SessionCreateRequest) String() string { return proto.CompactTextString(m) }
 func (*SessionCreateRequest) ProtoMessage()    {}
 func (*SessionCreateRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_session_71d6ec1b898a280a, []int{0}
+	return fileDescriptor_session_8fc70660de77cae0, []int{0}
 }
 func (m *SessionCreateRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -108,7 +108,7 @@ func (m *SessionDeleteRequest) Reset()         { *m = SessionDeleteRequest{} }
 func (m *SessionDeleteRequest) String() string { return proto.CompactTextString(m) }
 func (*SessionDeleteRequest) ProtoMessage()    {}
 func (*SessionDeleteRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_session_71d6ec1b898a280a, []int{1}
+	return fileDescriptor_session_8fc70660de77cae0, []int{1}
 }
 func (m *SessionDeleteRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -149,7 +149,7 @@ func (m *SessionResponse) Reset()         { *m = SessionResponse{} }
 func (m *SessionResponse) String() string { return proto.CompactTextString(m) }
 func (*SessionResponse) ProtoMessage()    {}
 func (*SessionResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_session_71d6ec1b898a280a, []int{2}
+	return fileDescriptor_session_8fc70660de77cae0, []int{2}
 }
 func (m *SessionResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -827,10 +827,10 @@ var (
 )
 
 func init() {
-	proto.RegisterFile("server/session/session.proto", fileDescriptor_session_71d6ec1b898a280a)
+	proto.RegisterFile("server/session/session.proto", fileDescriptor_session_8fc70660de77cae0)
 }
 
-var fileDescriptor_session_71d6ec1b898a280a = []byte{
+var fileDescriptor_session_8fc70660de77cae0 = []byte{
 	// 360 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x91, 0x4f, 0x4b, 0xe3, 0x40,
 	0x18, 0xc6, 0x99, 0x2e, 0xdb, 0xdd, 0x9d, 0xc3, 0x96, 0x0d, 0x61, 0x0d, 0xa1, 0x16, 0xc9, 0x45,
