@@ -347,4 +347,7 @@ workflows:
     jobs:
       - build
       - e2e
-      - ui
+      - ui:
+          # this isn't strictly true, we just put in here so that we 2/4 executors rather than 3/4
+          requires:
+            - build
