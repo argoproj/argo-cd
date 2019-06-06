@@ -126,6 +126,10 @@ Neither ALBs and Classic ELB in HTTP mode, do not have full support for HTTP2/gR
 protocol used by the `argocd` CLI. Thus, when using an AWS load balancer, either Classic ELB in
 passthrough mode is needed, or NLBs.
 
+```shell
+$ argocd login <host>:<port> --grpc-web
+```
+
 
 ## UI Base Path
 
