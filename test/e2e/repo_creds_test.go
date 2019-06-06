@@ -14,7 +14,7 @@ const accessToken = "B5sBDeoqAVUouoHkrovy"
 const appPath = "child-base"
 
 // make sure you cannot create an app from a private repo without set-up
-func TestCannotAddAppFromPrivateRepoWithOutConfig(t *testing.T) {
+func TestCannotAddAppFromPrivateRepoWithoutCfg(t *testing.T) {
 	Given(t).
 		Repo(repoUrl).
 		Path(appPath).
@@ -25,7 +25,7 @@ func TestCannotAddAppFromPrivateRepoWithOutConfig(t *testing.T) {
 }
 
 // make sure you can create an app from a private repo, if the repo is set-up in the CM
-func TestCanAddAppFromPrivateRepoWithRepoConfig(t *testing.T) {
+func TestCanAddAppFromPrivateRepoWithRepoCfg(t *testing.T) {
 	Given(t).
 		Repo(repoUrl).
 		Path(appPath).
@@ -40,7 +40,7 @@ func TestCanAddAppFromPrivateRepoWithRepoConfig(t *testing.T) {
 }
 
 // make sure you can create an app from a private repo, if the creds are set-up in the CM
-func TestCanAddAppFromPrivateRepoWithCredConfig(t *testing.T) {
+func TestCanAddAppFromPrivateRepoWithCredCfg(t *testing.T) {
 
 	Given(t).
 		Repo(repoUrl).
