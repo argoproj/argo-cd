@@ -306,13 +306,13 @@ jobs:
       - store_test_results:
           path: /tmp/test-results
   ui:
-    # note that we checkeout the code in ~/, but then work in ~/ui
-    working_directory: ~/ui
+    # note that we checkeout the code in ~/argo-cd/, but then work in ~/argo-cd/ui
+    working_directory: ~/argo-cd/ui
     docker:
       - image: node:11.15.0
     steps:
       - checkout:
-          path: ~/
+          path: ~/argo-cd/
       - restore_cache:
           name: Restore Yarn Package Cache
           keys:
