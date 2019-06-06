@@ -18,6 +18,8 @@ type Consequences struct {
 }
 
 func (c *Consequences) Expect(e Expectation) *Consequences {
+	// this invocation makes sure this func is not reported as the cause of the failure - we are a "test helper"
+	c.context.t.Helper()
 	var message string
 	var state state
 	for start := time.Now(); time.Since(start) < 15*time.Second; time.Sleep(3 * time.Second) {
