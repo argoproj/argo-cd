@@ -71,11 +71,6 @@ func (a *Actions) Sync() *Actions {
 	return a
 }
 
-func (a *Actions) Wait() *Actions {
-	a.runCli("app", "wait")
-	return a
-}
-
 func (a *Actions) TerminateOp() *Actions {
 	a.runCli("app", "terminate-op", a.context.name)
 	return a
