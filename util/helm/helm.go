@@ -56,12 +56,19 @@ func IsMissingDependencyErr(err error) bool {
 
 func (h *helm) Template(appName string, namespace string, opts *argoappv1.ApplicationSourceHelm) ([]*unstructured.Unstructured, error) {
 	args := []string{
-		"template", ".", "--name", appName,
+		"template", ".",
 	}
+
+	setReleaseName := true
+
 	if namespace != "" {
 		args = append(args, "--namespace", namespace)
 	}
 	if opts != nil {
+		if opts.ReleaseName != "" {
+			args = append(args, "--name", opts.ReleaseName)
+			setReleaseName = false
+		}
 		for _, valuesFile := range opts.ValueFiles {
 			args = append(args, "-f", valuesFile)
 		}
@@ -69,6 +76,11 @@ func (h *helm) Template(appName string, namespace string, opts *argoappv1.Applic
 			args = append(args, "--set", fmt.Sprintf("%s=%s", p.Name, p.Value))
 		}
 	}
+
+	if setReleaseName {
+		args = append(args, "--name", appName)
+	}
+
 	out, err := h.helmCmd(args...)
 	if err != nil {
 		return nil, err

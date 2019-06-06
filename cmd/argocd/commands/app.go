@@ -395,7 +395,9 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 		case "revision":
 			app.Spec.Source.TargetRevision = appOpts.revision
 		case "values":
-			setHelmOpt(&app.Spec.Source, appOpts.valuesFiles)
+			setHelmOpt(&app.Spec.Source, appOpts.valuesFiles, nil)
+		case "release-name":
+			setHelmOpt(&app.Spec.Source, nil, &appOpts.releaseName)
 		case "directory-recurse":
 			app.Spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: appOpts.directoryRecurse}
 		case "config-management-plugin":
@@ -455,12 +457,15 @@ func setKustomizeOpt(src *argoappv1.ApplicationSource, namePrefix *string) {
 	}
 }
 
-func setHelmOpt(src *argoappv1.ApplicationSource, valueFiles []string) {
+func setHelmOpt(src *argoappv1.ApplicationSource, valueFiles []string, releaseName *string) {
 	if src.Helm == nil {
 		src.Helm = &argoappv1.ApplicationSourceHelm{}
 	}
 	if valueFiles != nil {
 		src.Helm.ValueFiles = valueFiles
+	}
+	if releaseName != nil {
+		src.Helm.ReleaseName = *releaseName
 	}
 	if src.Helm.IsZero() {
 		src.Helm = nil
@@ -476,6 +481,7 @@ type appOptions struct {
 	destNamespace          string
 	parameters             []string
 	valuesFiles            []string
+	releaseName            string
 	project                string
 	syncPolicy             string
 	autoPrune              bool
@@ -493,6 +499,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringVar(&opts.destNamespace, "dest-namespace", "", "K8s target namespace (overrides the namespace specified in the ksonnet app.yaml)")
 	command.Flags().StringArrayVarP(&opts.parameters, "parameter", "p", []string{}, "set a parameter override (e.g. -p guestbook=image=example/guestbook:latest)")
 	command.Flags().StringArrayVar(&opts.valuesFiles, "values", []string{}, "Helm values file(s) to use")
+	command.Flags().StringVar(&opts.releaseName, "release-name", "", "Helm release-name")
 	command.Flags().StringVar(&opts.project, "project", "", "Application project name")
 	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: automated, none)")
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
@@ -559,7 +566,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 						}
 					}
 				}
-				setHelmOpt(&app.Spec.Source, specValueFiles)
+				setHelmOpt(&app.Spec.Source, specValueFiles, nil)
 				if !updated {
 					return
 				}
@@ -1767,6 +1774,9 @@ func filterResources(command *cobra.Command, resources []*argoappv1.ResourceDiff
 	filteredObjects := make([]*unstructured.Unstructured, 0)
 	for i := range liveObjs {
 		obj := liveObjs[i]
+		if obj == nil {
+			continue
+		}
 		gvk := obj.GroupVersionKind()
 		if command.Flags().Changed("group") && group != gvk.Group {
 			continue

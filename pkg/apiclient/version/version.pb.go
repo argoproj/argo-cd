@@ -51,7 +51,7 @@ func (m *VersionMessage) Reset()         { *m = VersionMessage{} }
 func (m *VersionMessage) String() string { return proto.CompactTextString(m) }
 func (*VersionMessage) ProtoMessage()    {}
 func (*VersionMessage) Descriptor() ([]byte, []int) {
-	return fileDescriptor_version_1975a99ee4067d4c, []int{0}
+	return fileDescriptor_version_5f47d71fc9bfc879, []int{0}
 }
 func (m *VersionMessage) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -781,10 +781,10 @@ var (
 )
 
 func init() {
-	proto.RegisterFile("server/version/version.proto", fileDescriptor_version_1975a99ee4067d4c)
+	proto.RegisterFile("server/version/version.proto", fileDescriptor_version_5f47d71fc9bfc879)
 }
 
-var fileDescriptor_version_1975a99ee4067d4c = []byte{
+var fileDescriptor_version_5f47d71fc9bfc879 = []byte{
 	// 351 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x5c, 0x91, 0xcf, 0x4a, 0xf3, 0x40,
 	0x14, 0xc5, 0x49, 0xbf, 0xcf, 0xfe, 0x19, 0x4a, 0x17, 0x83, 0xd4, 0x21, 0x96, 0x22, 0x5d, 0x88,
