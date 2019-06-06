@@ -148,6 +148,9 @@ message ApplicationSourceHelm {
 
   // Parameters are parameters to the helm template
   repeated HelmParameter parameters = 2;
+
+  // The Helm release name. If omitted it will use the application name
+  optional string releaseName = 3;
 }
 
 // ApplicationSourceJsonnet holds jsonnet specific options

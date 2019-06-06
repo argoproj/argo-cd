@@ -46,7 +46,7 @@ func (m *ProjectCreateRequest) Reset()         { *m = ProjectCreateRequest{} }
 func (m *ProjectCreateRequest) String() string { return proto.CompactTextString(m) }
 func (*ProjectCreateRequest) ProtoMessage()    {}
 func (*ProjectCreateRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_project_1736171b8521aecc, []int{0}
+	return fileDescriptor_project_aa8ed766493e252f, []int{0}
 }
 func (m *ProjectCreateRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -96,7 +96,7 @@ func (m *ProjectTokenDeleteRequest) Reset()         { *m = ProjectTokenDeleteReq
 func (m *ProjectTokenDeleteRequest) String() string { return proto.CompactTextString(m) }
 func (*ProjectTokenDeleteRequest) ProtoMessage()    {}
 func (*ProjectTokenDeleteRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_project_1736171b8521aecc, []int{1}
+	return fileDescriptor_project_aa8ed766493e252f, []int{1}
 }
 func (m *ProjectTokenDeleteRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -162,7 +162,7 @@ func (m *ProjectTokenCreateRequest) Reset()         { *m = ProjectTokenCreateReq
 func (m *ProjectTokenCreateRequest) String() string { return proto.CompactTextString(m) }
 func (*ProjectTokenCreateRequest) ProtoMessage()    {}
 func (*ProjectTokenCreateRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_project_1736171b8521aecc, []int{2}
+	return fileDescriptor_project_aa8ed766493e252f, []int{2}
 }
 func (m *ProjectTokenCreateRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -231,7 +231,7 @@ func (m *ProjectTokenResponse) Reset()         { *m = ProjectTokenResponse{} }
 func (m *ProjectTokenResponse) String() string { return proto.CompactTextString(m) }
 func (*ProjectTokenResponse) ProtoMessage()    {}
 func (*ProjectTokenResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_project_1736171b8521aecc, []int{3}
+	return fileDescriptor_project_aa8ed766493e252f, []int{3}
 }
 func (m *ProjectTokenResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -279,7 +279,7 @@ func (m *ProjectQuery) Reset()         { *m = ProjectQuery{} }
 func (m *ProjectQuery) String() string { return proto.CompactTextString(m) }
 func (*ProjectQuery) ProtoMessage()    {}
 func (*ProjectQuery) Descriptor() ([]byte, []int) {
-	return fileDescriptor_project_1736171b8521aecc, []int{4}
+	return fileDescriptor_project_aa8ed766493e252f, []int{4}
 }
 func (m *ProjectQuery) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -326,7 +326,7 @@ func (m *ProjectUpdateRequest) Reset()         { *m = ProjectUpdateRequest{} }
 func (m *ProjectUpdateRequest) String() string { return proto.CompactTextString(m) }
 func (*ProjectUpdateRequest) ProtoMessage()    {}
 func (*ProjectUpdateRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_project_1736171b8521aecc, []int{5}
+	return fileDescriptor_project_aa8ed766493e252f, []int{5}
 }
 func (m *ProjectUpdateRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -372,7 +372,7 @@ func (m *EmptyResponse) Reset()         { *m = EmptyResponse{} }
 func (m *EmptyResponse) String() string { return proto.CompactTextString(m) }
 func (*EmptyResponse) ProtoMessage()    {}
 func (*EmptyResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_project_1736171b8521aecc, []int{6}
+	return fileDescriptor_project_aa8ed766493e252f, []int{6}
 }
 func (m *EmptyResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1846,10 +1846,10 @@ var (
 )
 
 func init() {
-	proto.RegisterFile("server/project/project.proto", fileDescriptor_project_1736171b8521aecc)
+	proto.RegisterFile("server/project/project.proto", fileDescriptor_project_aa8ed766493e252f)
 }
 
-var fileDescriptor_project_1736171b8521aecc = []byte{
+var fileDescriptor_project_aa8ed766493e252f = []byte{
 	// 701 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x55, 0x5d, 0x6b, 0x13, 0x4d,
 	0x14, 0x66, 0x9a, 0xbe, 0x79, 0xed, 0xc4, 0x8f, 0x32, 0xb4, 0x9a, 0xc6, 0x36, 0x86, 0xb9, 0x90,
