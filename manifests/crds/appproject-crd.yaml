@@ -54,7 +54,6 @@ spec:
                     description: Server overrides the environment server value in
                       the ksonnet app.yaml
                     type: string
-                type: object
               type: array
             namespaceResourceBlacklist:
               description: NamespaceResourceBlacklist contains list of blacklisted
@@ -91,7 +90,6 @@ spec:
                           type: integer
                       required:
                       - iat
-                      type: object
                     type: array
                   name:
                     description: Name is a name for this role
@@ -104,7 +102,6 @@ spec:
                     type: array
                 required:
                 - name
-                type: object
               type: array
             sourceRepos:
               description: SourceRepos contains list of git repository URLs which
@@ -112,6 +109,4 @@ spec:
               items:
                 type: string
               type: array
-          type: object
-      type: object
   version: v1alpha1

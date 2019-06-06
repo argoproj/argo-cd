@@ -11,8 +11,8 @@ import (
 
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
+	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/util"
 )
 
@@ -51,14 +51,14 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 		conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 		defer util.Close(conn)
 		ctx := context.Background()
-		resources, err := appIf.ManagedResources(ctx, &application.ResourcesQuery{ApplicationName: &appName})
+		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
 		filteredObjects := filterResources(command, resources.Items, group, kind, namespace, resourceName, all)
 		availableActions := make(map[string][]argoappv1.ResourceAction)
 		for i := range filteredObjects {
 			obj := filteredObjects[i]
 			gvk := obj.GroupVersionKind()
-			availActionsForResource, err := appIf.ListResourceActions(ctx, &application.ApplicationResourceRequest{
+			availActionsForResource, err := appIf.ListResourceActions(ctx, &applicationpkg.ApplicationResourceRequest{
 				Name:         &appName,
 				Namespace:    obj.GetNamespace(),
 				ResourceName: obj.GetName(),
@@ -128,14 +128,14 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 		conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 		defer util.Close(conn)
 		ctx := context.Background()
-		resources, err := appIf.ManagedResources(ctx, &application.ResourcesQuery{ApplicationName: &appName})
+		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
 		filteredObjects := filterResources(command, resources.Items, group, kind, namespace, resourceName, all)
 		for i := range filteredObjects {
 			obj := filteredObjects[i]
 			gvk := obj.GroupVersionKind()
 			objResourceName := obj.GetName()
-			_, err := appIf.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{
+			_, err := appIf.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{
 				Name:         &appName,
 				Namespace:    obj.GetNamespace(),
 				ResourceName: objResourceName,

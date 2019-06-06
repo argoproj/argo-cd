@@ -20,8 +20,8 @@ import (
 
 	. "github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
+	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/server/session"
 	"github.com/argoproj/argo-cd/util"
 	grpcutil "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/rand"
@@ -82,7 +82,7 @@ func init() {
 	CheckError(err)
 	defer util.Close(closer)
 
-	sessionResponse, err := client.Create(context.Background(), &session.SessionCreateRequest{Username: "admin", Password: adminPassword})
+	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: "admin", Password: adminPassword})
 	CheckError(err)
 
 	ArgoCDClientset, err = argocdclient.NewClient(&argocdclient.ClientOptions{

@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/pkg/apiclient/cluster"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util"
@@ -73,7 +74,7 @@ func (s *Server) getConnectionState(ctx context.Context, cluster appv1.Cluster, 
 }
 
 // List returns list of clusters
-func (s *Server) List(ctx context.Context, q *ClusterQuery) (*appv1.ClusterList, error) {
+func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.ClusterList, error) {
 	clusterList, err := s.db.ListClusters(ctx)
 	if err != nil {
 		return nil, err
@@ -112,7 +113,7 @@ func (s *Server) List(ctx context.Context, q *ClusterQuery) (*appv1.ClusterList,
 }
 
 // Create creates a cluster
-func (s *Server) Create(ctx context.Context, q *ClusterCreateRequest) (*appv1.Cluster, error) {
+func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*appv1.Cluster, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionCreate, q.Cluster.Server); err != nil {
 		return nil, err
 	}
@@ -136,7 +137,7 @@ func (s *Server) Create(ctx context.Context, q *ClusterCreateRequest) (*appv1.Cl
 		if reflect.DeepEqual(existing, c) {
 			clust, err = existing, nil
 		} else if q.Upsert {
-			return s.Update(ctx, &ClusterUpdateRequest{Cluster: c})
+			return s.Update(ctx, &cluster.ClusterUpdateRequest{Cluster: c})
 		} else {
 			return nil, status.Errorf(codes.InvalidArgument, "existing cluster spec is different; use upsert flag to force update")
 		}
@@ -145,7 +146,7 @@ func (s *Server) Create(ctx context.Context, q *ClusterCreateRequest) (*appv1.Cl
 }
 
 // Create creates a cluster
-func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateFromKubeConfigRequest) (*appv1.Cluster, error) {
+func (s *Server) CreateFromKubeConfig(ctx context.Context, q *cluster.ClusterCreateFromKubeConfigRequest) (*appv1.Cluster, error) {
 	kubeconfig, err := clientcmd.Load([]byte(q.Kubeconfig))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not unmarshal kubeconfig: %v", err)
@@ -193,14 +194,14 @@ func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateFromK
 
 	c.Config.BearerToken = bearerToken
 
-	return s.Create(ctx, &ClusterCreateRequest{
+	return s.Create(ctx, &cluster.ClusterCreateRequest{
 		Cluster: c,
 		Upsert:  q.Upsert,
 	})
 }
 
 // Get returns a cluster from a query
-func (s *Server) Get(ctx context.Context, q *ClusterQuery) (*appv1.Cluster, error) {
+func (s *Server) Get(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Cluster, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionGet, q.Server); err != nil {
 		return nil, err
 	}
@@ -209,7 +210,7 @@ func (s *Server) Get(ctx context.Context, q *ClusterQuery) (*appv1.Cluster, erro
 }
 
 // Update updates a cluster
-func (s *Server) Update(ctx context.Context, q *ClusterUpdateRequest) (*appv1.Cluster, error) {
+func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*appv1.Cluster, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, q.Cluster.Server); err != nil {
 		return nil, err
 	}
@@ -222,12 +223,12 @@ func (s *Server) Update(ctx context.Context, q *ClusterUpdateRequest) (*appv1.Cl
 }
 
 // Delete deletes a cluster by name
-func (s *Server) Delete(ctx context.Context, q *ClusterQuery) (*ClusterResponse, error) {
+func (s *Server) Delete(ctx context.Context, q *cluster.ClusterQuery) (*cluster.ClusterResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionDelete, q.Server); err != nil {
 		return nil, err
 	}
 	err := s.db.DeleteCluster(ctx, q.Server)
-	return &ClusterResponse{}, err
+	return &cluster.ClusterResponse{}, err
 }
 
 func redact(clust *appv1.Cluster) *appv1.Cluster {

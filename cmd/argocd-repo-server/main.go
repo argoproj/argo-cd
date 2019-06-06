@@ -11,7 +11,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	argocd "github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/reposerver"
@@ -57,7 +56,7 @@ func newCommand() *cobra.Command {
 			http.Handle("/metrics", promhttp.Handler())
 			go func() { errors.CheckError(http.ListenAndServe(fmt.Sprintf(":%d", metricsPort), nil)) }()
 
-			log.Infof("argocd-repo-server %s serving on %s", argocd.GetVersion(), listener.Addr())
+			log.Infof("argocd-repo-server %s serving on %s", common.GetVersion(), listener.Addr())
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")

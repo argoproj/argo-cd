@@ -14,10 +14,10 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
+	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
+	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	argorepo "github.com/argoproj/argo-cd/reposerver/repository"
-	"github.com/argoproj/argo-cd/server/application"
-	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 	"github.com/argoproj/argo-cd/util"
@@ -192,7 +192,7 @@ func TestManipulateApplicationResources(t *testing.T) {
 			assert.NoError(t, err)
 			defer util.Close(closer)
 
-			_, err = client.DeleteResource(context.Background(), &application.ApplicationResourceDeleteRequest{
+			_, err = client.DeleteResource(context.Background(), &applicationpkg.ApplicationResourceDeleteRequest{
 				Name:         &app.Name,
 				Group:        deployment.GroupVersionKind().Group,
 				Kind:         deployment.GroupVersionKind().Kind,
@@ -247,7 +247,7 @@ func TestAppWithSecrets(t *testing.T) {
 			app.Spec.IgnoreDifferences = []ResourceIgnoreDifferences{{
 				Kind: kube.SecretKind, JSONPointers: []string{"/data/username"},
 			}}
-			_, err = client.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: app.Spec})
+			_, err = client.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: app.Spec})
 
 			assert.NoError(t, err)
 		}).
@@ -361,7 +361,7 @@ func TestKsonnetApp(t *testing.T) {
 			assert.NoError(t, err)
 			defer util.Close(closer)
 
-			details, err := client.GetAppDetails(context.Background(), &repository.RepoAppDetailsQuery{
+			details, err := client.GetAppDetails(context.Background(), &repositorypkg.RepoAppDetailsQuery{
 				Path:     app.Spec.Source.Path,
 				Repo:     app.Spec.Source.RepoURL,
 				Revision: app.Spec.Source.TargetRevision,
@@ -407,7 +407,7 @@ func TestResourceAction(t *testing.T) {
 			assert.NoError(t, err)
 			defer util.Close(closer)
 
-			actions, err := client.ListResourceActions(context.Background(), &application.ApplicationResourceRequest{
+			actions, err := client.ListResourceActions(context.Background(), &applicationpkg.ApplicationResourceRequest{
 				Name:         &app.Name,
 				Group:        "apps",
 				Kind:         "Deployment",
@@ -418,7 +418,7 @@ func TestResourceAction(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, []ResourceAction{{Name: "sample"}}, actions.Actions)
 
-			_, err = client.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{Name: &app.Name,
+			_, err = client.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{Name: &app.Name,
 				Group:        "apps",
 				Kind:         "Deployment",
 				Version:      "v1",
@@ -494,7 +494,7 @@ func TestPermissions(t *testing.T) {
 	defer util.Close(closer)
 
 	refresh := string(RefreshTypeNormal)
-	app, err := client.Get(context.Background(), &application.ApplicationQuery{Name: &appName, Refresh: &refresh})
+	app, err := client.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName, Refresh: &refresh})
 	assert.NoError(t, err)
 
 	destinationErrorExist := false

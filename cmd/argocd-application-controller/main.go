@@ -16,7 +16,6 @@ import (
 	// load the oidc plugin (required to authenticate with OpenID Connect).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 
-	argocd "github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/errors"
@@ -86,7 +85,7 @@ func newCommand() *cobra.Command {
 				metricsPort)
 			errors.CheckError(err)
 
-			log.Infof("Application Controller (version: %s) starting (namespace: %s)", argocd.GetVersion(), namespace)
+			log.Infof("Application Controller (version: %s) starting (namespace: %s)", common.GetVersion(), namespace)
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")

@@ -3,13 +3,14 @@ package account
 import (
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/pkg/apiclient/account"
 	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 	"github.com/argoproj/argo-cd/util/password"
 	"github.com/argoproj/argo-cd/util/session"
@@ -32,7 +33,7 @@ func NewServer(sessionMgr *session.SessionManager, settingsMgr *settings.Setting
 }
 
 // UpdatePassword updates the password of the local admin superuser.
-func (s *Server) UpdatePassword(ctx context.Context, q *UpdatePasswordRequest) (*UpdatePasswordResponse, error) {
+func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRequest) (*account.UpdatePasswordResponse, error) {
 	username := getAuthenticatedUser(ctx)
 	if username != common.ArgoCDAdminUsername {
 		return nil, status.Errorf(codes.InvalidArgument, "password can only be changed for local users, not user %q", username)
@@ -61,7 +62,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *UpdatePasswordRequest) (
 		return nil, err
 	}
 	log.Infof("user '%s' updated password", username)
-	return &UpdatePasswordResponse{}, nil
+	return &account.UpdatePasswordResponse{}, nil
 
 }
 

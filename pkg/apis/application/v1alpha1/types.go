@@ -113,6 +113,8 @@ type ApplicationSourceHelm struct {
 	ValueFiles []string `json:"valueFiles,omitempty" protobuf:"bytes,1,opt,name=valueFiles"`
 	// Parameters are parameters to the helm template
 	Parameters []HelmParameter `json:"parameters,omitempty" protobuf:"bytes,2,opt,name=parameters"`
+	// The Helm release name. If omitted it will use the application name
+	ReleaseName string `json:"releaseName,omitempty" protobuf:"bytes,3,opt,name=releaseName"`
 }
 
 // HelmParameter is a parameter to a helm template
@@ -124,7 +126,7 @@ type HelmParameter struct {
 }
 
 func (h *ApplicationSourceHelm) IsZero() bool {
-	return len(h.ValueFiles) == 0 && len(h.Parameters) == 0
+	return (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0
 }
 
 // ApplicationSourceKustomize holds kustomize specific options
