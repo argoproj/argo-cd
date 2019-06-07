@@ -56,3 +56,9 @@ KUBECONFIG=/tmp/config kubectl get pods # test connection manually
 ```
 
 Now you can manually verify that cluster is accessible from the Argo CD pod.
+
+## How Can I Terminate A Sync?
+
+To terminate the sync, click on the "synchronisation" then "terminate":
+
+![Synchronization](assets/synchronization-button.png) ![Terminate](assets/terminate-button.png)

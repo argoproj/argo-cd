@@ -27,6 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/util/health"
 	hookutil "github.com/argoproj/argo-cd/util/hook"
 	kubeutil "github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/resource"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -130,6 +131,9 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		obj, err := v1alpha1.UnmarshalToUnstructured(manifest)
 		if err != nil {
 			return nil, nil, nil, err
+		}
+		if resource.Ignore(obj) {
+			continue
 		}
 		if hookutil.IsHook(obj) {
 			hooks = append(hooks, obj)
@@ -293,10 +297,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	syncCode := v1alpha1.SyncStatusCodeSynced
 	managedResources := make([]managedResource, len(targetObjs))
 	resourceSummaries := make([]v1alpha1.ResourceStatus, len(targetObjs))
-	for i := 0; i < len(targetObjs); i++ {
-		obj := managedLiveObj[i]
+	for i, targetObj := range targetObjs {
+		liveObj := managedLiveObj[i]
+		obj := liveObj
 		if obj == nil {
-			obj = targetObjs[i]
+			obj = targetObj
 		}
 		if obj == nil {
 			continue
@@ -313,15 +318,19 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		}
 
 		diffResult := diffResults.Diffs[i]
-		if resState.Hook {
+		if resState.Hook || resource.Ignore(obj) {
 			// For resource hooks, don't store sync status, and do not affect overall sync status
-		} else if diffResult.Modified || targetObjs[i] == nil || managedLiveObj[i] == nil {
+		} else if diffResult.Modified || targetObj == nil || liveObj == nil {
 			// Set resource state to OutOfSync since one of the following is true:
 			// * target and live resource are different
 			// * target resource not defined and live resource is extra
 			// * target resource present but live resource is missing
 			resState.Status = v1alpha1.SyncStatusCodeOutOfSync
-			syncCode = v1alpha1.SyncStatusCodeOutOfSync
+			// we ignore the status if the obj needs pruning AND we have the annotation
+			needsPruning := targetObj == nil && liveObj != nil
+			if !(needsPruning && resource.HasAnnotationOption(obj, common.AnnotationCompareOptions, "IgnoreExtraneous")) {
+				syncCode = v1alpha1.SyncStatusCodeOutOfSync
+			}
 		} else {
 			resState.Status = v1alpha1.SyncStatusCodeSynced
 		}
@@ -331,8 +340,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 			Group:     resState.Group,
 			Kind:      resState.Kind,
 			Version:   resState.Version,
-			Live:      managedLiveObj[i],
-			Target:    targetObjs[i],
+			Live:      liveObj,
+			Target:    targetObj,
 			Diff:      diffResult,
 			Hook:      resState.Hook,
 		}

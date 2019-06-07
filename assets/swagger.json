@@ -2561,6 +2561,10 @@
             "$ref": "#/definitions/v1alpha1HelmParameter"
           }
         },
+        "releaseName": {
+          "type": "string",
+          "title": "The Helm release name. If omitted it will use the application name"
+        },
         "valueFiles": {
           "type": "array",
           "title": "ValuesFiles is a list of Helm value files to use when generating a template",
@@ -2611,6 +2615,13 @@
       "type": "object",
       "title": "ApplicationSourceKustomize holds kustomize specific options",
       "properties": {
+        "commonLabels": {
+          "type": "object",
+          "title": "CommonLabels adds additional kustomize commonLabels",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
         "imageTags": {
           "type": "array",
           "title": "ImageTags are kustomize 1.0 image tag overrides",
@@ -3249,16 +3260,19 @@
           "type": "string"
         },
         "hookPhase": {
-          "type": "string"
+          "type": "string",
+          "title": "the state of any operation associated with this resource OR hook\nnote: can contain values for non-hook resources"
         },
         "hookType": {
-          "type": "string"
+          "type": "string",
+          "title": "the type of the hook, empty for non-hook resources"
         },
         "kind": {
           "type": "string"
         },
         "message": {
-          "type": "string"
+          "type": "string",
+          "title": "message for the last sync OR operation"
         },
         "name": {
           "type": "string"
@@ -3267,7 +3281,12 @@
           "type": "string"
         },
         "status": {
-          "type": "string"
+          "type": "string",
+          "title": "the final result of the sync, this is be empty if the resources is yet to be applied/pruned and is always zero-value for hooks"
+        },
+        "syncPhase": {
+          "type": "string",
+          "title": "indicates the particular phase of the sync that this is for"
         },
         "version": {
           "type": "string"

@@ -5,3 +5,12 @@ ignore:
 - "pkg/apis/.*"
 - "pkg/client/.*"
 - "test/.*"
+coverage:
+  status:
+    # allow test coverage to drop by 0.1%, assume that it's typically due to CI problems
+    patch:
+      default:
+        threshold: 0.1
+    project:
+      default:
+        threshold: 0.1

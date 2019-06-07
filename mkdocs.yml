@@ -30,6 +30,8 @@ nav:
     - operator-manual/rbac.md
     - operator-manual/security.md
     - operator-manual/cluster-bootstrapping.md
+    - operator-manual/high_availability.md
+    - operator-manual/disaster_recovery.md
     - operator-manual/webhook.md
     - operator-manual/health.md
     - operator-manual/custom_tools.md
@@ -46,9 +48,13 @@ nav:
     - user-guide/private-repositories.md
     - user-guide/auto_sync.md
     - user-guide/diffing.md
+    - user-guide/compare-options.md
+    - user-guide/sync-options.md
     - user-guide/parameters.md
     - user-guide/tracking_strategies.md
     - user-guide/resource_hooks.md
+    - user-guide/selective_sync.md
+    - user-guide/sync-waves.md
     - user-guide/ci_automation.md
     - user-guide/app_deletion.md
     - user-guide/best_practices.md

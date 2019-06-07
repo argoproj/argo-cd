@@ -1,4 +1,4 @@
-PACKAGE=github.com/argoproj/argo-cd
+PACKAGE=github.com/argoproj/argo-cd/common
 CURRENT_DIR=$(shell pwd)
 DIST_DIR=${CURRENT_DIR}/dist
 CLI_NAME=argocd
@@ -133,6 +133,8 @@ dep-ensure:
 
 .PHONY: lint
 lint:
+	# golangci-lint does not do a good job of formatting imports
+	goimports -local github.com/argoproj/argo-cd -w `find . ! -path './vendor/*' ! -path './pkg/client/*' -type f -name '*.go'`
 	golangci-lint run --fix --verbose
 
 .PHONY: build
@@ -142,6 +144,10 @@ build:
 .PHONY: test
 test:
 	go test -v -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "test/e2e"`
+
+.PHONY: cover
+cover:
+	go tool cover -html=coverage.out
 
 .PHONY: test-e2e
 test-e2e: cli

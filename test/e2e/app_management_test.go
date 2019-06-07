@@ -8,17 +8,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/errors"
-
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/errors"
+	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
+	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	argorepo "github.com/argoproj/argo-cd/reposerver/repository"
-	"github.com/argoproj/argo-cd/server/application"
-	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 	"github.com/argoproj/argo-cd/util"
@@ -193,7 +192,7 @@ func TestManipulateApplicationResources(t *testing.T) {
 			assert.NoError(t, err)
 			defer util.Close(closer)
 
-			_, err = client.DeleteResource(context.Background(), &application.ApplicationResourceDeleteRequest{
+			_, err = client.DeleteResource(context.Background(), &applicationpkg.ApplicationResourceDeleteRequest{
 				Name:         &app.Name,
 				Group:        deployment.GroupVersionKind().Group,
 				Kind:         deployment.GroupVersionKind().Kind,
@@ -248,13 +247,14 @@ func TestAppWithSecrets(t *testing.T) {
 			app.Spec.IgnoreDifferences = []ResourceIgnoreDifferences{{
 				Kind: kube.SecretKind, JSONPointers: []string{"/data/username"},
 			}}
-			_, err = client.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: app.Spec})
+			_, err = client.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: app.Spec})
 
 			assert.NoError(t, err)
 		}).
 		When().
 		Refresh(RefreshTypeNormal).
 		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			diffOutput, err := fixture.RunCli("app", "diff", app.Name)
@@ -306,15 +306,19 @@ func TestResourceDiffing(t *testing.T) {
 }
 
 func TestDeprecatedExtensions(t *testing.T) {
-	testEdgeCasesApplicationResources(t, "deprecated-extensions")
+	testEdgeCasesApplicationResources(t, "deprecated-extensions", OperationRunning, HealthStatusProgressing)
 }
 
 func TestCRDs(t *testing.T) {
-	testEdgeCasesApplicationResources(t, "crd-creation")
+	testEdgeCasesApplicationResources(t, "crd-creation", OperationSucceeded, HealthStatusHealthy)
 }
 
 func TestDuplicatedResources(t *testing.T) {
-	testEdgeCasesApplicationResources(t, "duplicated-resources")
+	testEdgeCasesApplicationResources(t, "duplicated-resources", OperationSucceeded, HealthStatusHealthy)
+}
+
+func TestConfigMap(t *testing.T) {
+	testEdgeCasesApplicationResources(t, "config-map", OperationSucceeded, HealthStatusHealthy)
 }
 
 func TestFailedConversion(t *testing.T) {
@@ -323,17 +327,19 @@ func TestFailedConversion(t *testing.T) {
 		errors.FailOnErr(fixture.Run("", "kubectl", "delete", "apiservice", "v1beta1.metrics.k8s.io"))
 	}()
 
-	testEdgeCasesApplicationResources(t, "failed-conversion")
+	testEdgeCasesApplicationResources(t, "failed-conversion", OperationSucceeded, HealthStatusHealthy)
 }
 
-func testEdgeCasesApplicationResources(t *testing.T, appPath string) {
+func testEdgeCasesApplicationResources(t *testing.T, appPath string, phase OperationPhase, statusCode HealthStatusCode) {
 	Given(t).
 		Path(appPath).
 		When().
 		Create().
 		Sync().
 		Then().
+		Expect(OperationPhaseIs(phase)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(statusCode)).
 		And(func(app *Application) {
 			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", path.Join("testdata", appPath))
 			assert.Empty(t, diffOutput)
@@ -355,7 +361,7 @@ func TestKsonnetApp(t *testing.T) {
 			assert.NoError(t, err)
 			defer util.Close(closer)
 
-			details, err := client.GetAppDetails(context.Background(), &repository.RepoAppDetailsQuery{
+			details, err := client.GetAppDetails(context.Background(), &repositorypkg.RepoAppDetailsQuery{
 				Path:     app.Spec.Source.Path,
 				Repo:     app.Spec.Source.RepoURL,
 				Revision: app.Spec.Source.TargetRevision,
@@ -401,7 +407,7 @@ func TestResourceAction(t *testing.T) {
 			assert.NoError(t, err)
 			defer util.Close(closer)
 
-			actions, err := client.ListResourceActions(context.Background(), &application.ApplicationResourceRequest{
+			actions, err := client.ListResourceActions(context.Background(), &applicationpkg.ApplicationResourceRequest{
 				Name:         &app.Name,
 				Group:        "apps",
 				Kind:         "Deployment",
@@ -412,7 +418,7 @@ func TestResourceAction(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, []ResourceAction{{Name: "sample"}}, actions.Actions)
 
-			_, err = client.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{Name: &app.Name,
+			_, err = client.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{Name: &app.Name,
 				Group:        "apps",
 				Kind:         "Deployment",
 				Version:      "v1",
@@ -446,7 +452,7 @@ func TestSyncResourceByLabel(t *testing.T) {
 }
 
 func TestPermissions(t *testing.T) {
-	fixture.EnsureCleanState()
+	fixture.EnsureCleanState(t)
 	appName := fixture.Name()
 	_, err := fixture.RunCli("proj", "create", "test")
 	assert.NoError(t, err)
@@ -488,7 +494,7 @@ func TestPermissions(t *testing.T) {
 	defer util.Close(closer)
 
 	refresh := string(RefreshTypeNormal)
-	app, err := client.Get(context.Background(), &application.ApplicationQuery{Name: &appName, Refresh: &refresh})
+	app, err := client.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName, Refresh: &refresh})
 	assert.NoError(t, err)
 
 	destinationErrorExist := false
@@ -503,4 +509,52 @@ func TestPermissions(t *testing.T) {
 	}
 	assert.True(t, destinationErrorExist)
 	assert.True(t, sourceErrorExist)
+}
+
+// make sure that if we deleted a resource from the app, it is not pruned if annotated with Prune=false
+func TestSyncOptionPruneFalse(t *testing.T) {
+	Given(t).
+		Path("two-nice-pods").
+		When().
+		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Prune=false"}}]`).
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		DeleteFile("pod-1.yaml").
+		Refresh(RefreshTypeHard).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(ResourceSyncStatusIs("Pod", "pod-1", SyncStatusCodeOutOfSync))
+}
+
+// make sure that, if we have a resource that needs pruning, but we're ignoring it, the app is in-sync
+func TestCompareOptionIgnoreExtraneous(t *testing.T) {
+	Given(t).
+		Path("two-nice-pods").
+		When().
+		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/compare-options": "IgnoreExtraneous"}}]`).
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		DeleteFile("pod-1.yaml").
+		Refresh(RefreshTypeHard).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Len(t, app.Status.Resources, 2)
+			assert.Equal(t, SyncStatusCodeOutOfSync, app.Status.Resources[1].Status)
+		}).
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }

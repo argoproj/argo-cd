@@ -148,6 +148,9 @@ message ApplicationSourceHelm {
 
   // Parameters are parameters to the helm template
   repeated HelmParameter parameters = 2;
+
+  // The Helm release name. If omitted it will use the application name
+  optional string releaseName = 3;
 }
 
 // ApplicationSourceJsonnet holds jsonnet specific options
@@ -178,6 +181,9 @@ message ApplicationSourceKustomize {
 
   // Images are kustomize 2.0 image overrides
   repeated string images = 3;
+
+  // CommonLabels adds additional kustomize commonLabels
+  map<string, string> commonLabels = 4;
 }
 
 // ApplicationSourcePlugin holds config management plugin specific options
@@ -599,13 +605,21 @@ message ResourceResult {
 
   optional string name = 5;
 
+  // the final result of the sync, this is be empty if the resources is yet to be applied/pruned and is always zero-value for hooks
   optional string status = 6;
 
+  // message for the last sync OR operation
   optional string message = 7;
 
+  // the type of the hook, empty for non-hook resources
   optional string hookType = 8;
 
+  // the state of any operation associated with this resource OR hook
+  // note: can contain values for non-hook resources
   optional string hookPhase = 9;
+
+  // indicates the particular phase of the sync that this is for
+  optional string syncPhase = 10;
 }
 
 // ResourceStatus holds the current sync and health status of a resource

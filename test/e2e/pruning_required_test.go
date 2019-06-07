@@ -1,0 +1,25 @@
+package e2e
+
+import (
+	"testing"
+
+	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
+)
+
+// check we fail with message if we delete a non-prunable resource
+func TestPruningRequired(t *testing.T) {
+	Given(t).
+		Path("two-nice-pods").
+		Prune(false).
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		When().
+		DeleteFile("pod-2.yaml").
+		Sync().
+		Then().
+		Expect(Error("1 resources require pruning"))
+}

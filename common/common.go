@@ -81,6 +81,12 @@ const (
 	// LabelValueSecretTypeCluster indicates a secret type of cluster
 	LabelValueSecretTypeCluster = "cluster"
 
+	// AnnotationCompareOptions is a comma-separated list of options for comparison
+	AnnotationCompareOptions = "argocd.argoproj.io/compare-options"
+	// AnnotationSyncOptions is a comma-separated list of options for syncing
+	AnnotationSyncOptions = "argocd.argoproj.io/sync-options"
+	// AnnotationSyncWave indicates which wave of the sync the resource or hook should be in
+	AnnotationSyncWave = "argocd.argoproj.io/sync-wave"
 	// AnnotationKeyHook contains the hook type of a resource
 	AnnotationKeyHook = "argocd.argoproj.io/hook"
 	// AnnotationKeyHookDeletePolicy is the policy of deleting a hook
