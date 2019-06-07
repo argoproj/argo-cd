@@ -41,7 +41,7 @@ The Argo CD UI don't support configuring SSH credentials. The SSH credentials ca
 argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-key-path ~/.ssh/id_rsa
 ```
 
-## HTTPS Self-signed Certificate
+## Self-signed & Untrusted TLS Certificates
 
 We do not currently have first-class support for this. See [#1513](https://github.com/argoproj/argo-cd/issues/1513).
 
@@ -49,9 +49,7 @@ As a work-around, you can customize your Argo CD image. See [#1344](https://gith
 
 ## Unknown SSH Hosts
 
-If you are using a self-hosted Git service over SSH then you need to disable host verification for that Git host.
-
-Following options are available:
+If you are using a privately hosted Git service over SSH, then you have the following  options:
 
 (1) Add repository using Argo CD CLI and `--insecure-ignore-host-key` flag:
 
@@ -59,13 +57,12 @@ Following options are available:
 argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-key-path ~/.ssh/id_rsa --insecure-ignore-host-key 
 ```
 
+!!! warning "Don't use in production"
+    The `--insecure-ignore-host-key` should not be used in production as this is subject to man-in-the-middle attacks. 
+
 !!! warning "This does not work for Kustomize remote bases or custom plugins"
-    This does not yet work for them. For Kustomize support, see [#827](https://github.com/argoproj/argo-cd/issues/827).
+    For Kustomize support, see [#827](https://github.com/argoproj/argo-cd/issues/827).
  
- You can add Git service hostname to the `/etc/ssh/ssh_known_hosts` in each Argo CD deployment and disables cert validation for Git SSL URLs. For more information see 
-
-The flag disables certificate validation only for specified repository.
-
 (2) You can add the Git service's hostname to the `/etc/ssh/ssh_known_hosts` in each Argo CD deployment and disables cert validation for Git SSL URLs. For more information see 
 [example](https://github.com/argoproj/argo-cd/tree/master/examples/known-hosts) which demonstrates how `/etc/ssh/ssh_known_hosts` can be customized.
 
