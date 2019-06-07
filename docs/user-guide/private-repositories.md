@@ -50,6 +50,12 @@ As a work-around, you can customize your Argo CD image. See [#1344](https://gith
 ## Unknown SSH Hosts
 
 If you are using a privately hosted Git service over SSH, then you have the following  options:
+ 
+(1) You can customize the Argo CD Docker image by adding the host's SSH public key to `/etc/ssh/ssh_known_hosts`. Additional entries to this file can be generated using the `ssh-keyscan` utility (e.g. `ssh-keyscan your-private-git-server.com`. For more information see [example](https://github.com/argoproj/argo-cd/tree/master/examples/known-hosts) which demonstrates how `/etc/ssh/ssh_known_hosts` can be customized.
+
+!!! note
+    The `/etc/ssh/ssh_known_hosts` should include Git host on each Argo CD deployment as well as on a computer where `argocd repo add` is executed. After resolving issue
+    [#1514](https://github.com/argoproj/argo-cd/issues/1514) only `argocd-repo-server` deployment has to be customized.
 
 (1) Add repository using Argo CD CLI and `--insecure-ignore-host-key` flag:
 
@@ -62,13 +68,6 @@ argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-ke
 
 !!! warning "This does not work for Kustomize remote bases or custom plugins"
     For Kustomize support, see [#827](https://github.com/argoproj/argo-cd/issues/827).
- 
-(2) You can add the Git service's hostname to the `/etc/ssh/ssh_known_hosts` in each Argo CD deployment and disables cert validation for Git SSL URLs. For more information see 
-[example](https://github.com/argoproj/argo-cd/tree/master/examples/known-hosts) which demonstrates how `/etc/ssh/ssh_known_hosts` can be customized.
-
-!!! note
-    The `/etc/ssh/ssh_known_hosts` should include Git host on each Argo CD deployment as well as on a computer where `argocd repo add` is executed. After resolving issue
-    [#1514](https://github.com/argoproj/argo-cd/issues/1514) only `argocd-repo-server` deployment has to be customized.
 
 ## Declarative Configuration
 
