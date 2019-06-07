@@ -306,7 +306,7 @@ spec:
                     type: string
                   type:
                     type: string
-                  url:
+                  value:
                     type: string
                 type: object
               type: array

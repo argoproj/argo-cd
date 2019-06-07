@@ -2964,7 +2964,7 @@
         "type": {
           "type": "string"
         },
-        "url": {
+        "value": {
           "type": "string"
         }
       }

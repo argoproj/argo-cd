@@ -75,12 +75,12 @@ const LinksFormField = ReactFormField((props: {fieldApi: FieldApi, className: st
             <div className='argo-table-list__head'>
                 <div className='row'>
                     <div className='columns small-3'>Name</div>
-                    <div className='columns small-6'>URL</div>
+                    <div className='columns small-6'>Value</div>
                     <div className='columns small-3'>Type</div>
                 </div>
             </div>
             <div className='argo-table-list__row'>
-                {links && links.map((link, i) => <div key={link.name + link.url + i} className='row'>
+                {links && links.map((link, i) => <div key={i} className='row'>
                         <div className='columns small-3'>
                             <input className='argo-field' type='text' defaultValue={link.name} onChange={(event) => {
                                 links[i].name = event.target.value;
@@ -88,8 +88,8 @@ const LinksFormField = ReactFormField((props: {fieldApi: FieldApi, className: st
                             }}/>
                         </div>
                         <div className='columns small-6'>
-                            <input className='argo-field' type='text' defaultValue={link.url} onChange={(event) => {
-                                links[i].url = event.target.value;
+                            <input className='argo-field' type='text' defaultValue={link.value} onChange={(event) => {
+                                links[i].value = event.target.value;
                                 setValue(links);
                             }}/>
                         </div>
@@ -113,7 +113,7 @@ const LinksFormField = ReactFormField((props: {fieldApi: FieldApi, className: st
                 <div className='row'>
                     <div className='columns small-4'>
                         <a onClick={() => {
-                            const newLink = {name: '', url: '', type: 'url'};
+                            const newLink = {name: '', value: '', type: 'url'};
                             setValue((links || []).concat(newLink));
                         }}>Add link</a>
                     </div>

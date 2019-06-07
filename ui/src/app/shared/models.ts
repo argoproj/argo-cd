@@ -174,7 +174,7 @@ export interface SyncPolicy {
 
 export interface Link {
     name: string;
-    url: string;
+    value: string;
     type: string;
 }
 

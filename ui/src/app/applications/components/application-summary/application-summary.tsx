@@ -1,4 +1,4 @@
-import { FormField, FormSelect, PopupApi } from 'argo-ui';
+import { ErrorNotification, FormField, FormSelect, NotificationType, PopupApi } from 'argo-ui';
 import * as React from 'react';
 import { FormApi, Text } from 'react-form';
 
@@ -108,6 +108,117 @@ export const ApplicationSummary = (props: {
         }
     }
 
+    class EditableLinksList extends React.Component<{}, { editing: boolean, saving: boolean }> {
+        private mounted = false;
+
+        get isMounted() {
+            return this.mounted;
+        }
+
+        set isMounted(mounted: boolean) {
+            this.mounted = mounted;
+        }
+
+        constructor() {
+            super(props);
+            this.state = { editing: false, saving: false };
+        }
+
+        public componentDidMount() {
+            this.isMounted = true;
+        }
+
+        public render() {
+            return (
+                <Consumer>{(ctx) => (
+                    <div className='white-box'>
+                        <div className='white-box__details'>
+                            <div className='editable-panel__buttons'>
+                                <button onClick={async () => {
+                                    const editing = !this.state.editing;
+                                    this.setState({ editing });
+
+                                    if (editing) {
+                                        return;
+                                    }
+
+                                    try {
+                                        this.setState({ saving: true });
+                                        await props.updateApp(app);
+                                        if (this.isMounted) {
+                                            this.setState({ saving: false });
+                                        }
+                                    } catch (e) {
+                                        ctx.notifications.show({
+                                            content: <ErrorNotification title='Unable to save changes' e={e}/>,
+                                            type: NotificationType.Error,
+                                        });
+                                    } finally {
+                                        this.setState({ saving: false });
+                                    }
+                                }} className='argo-button argo-button--base' disabled={this.state.saving}>{(this.state.editing || this.state.saving) ? 'Save' : 'Edit'}</button>
+                            </div>
+                            <p>Links</p>
+                            <div className='argo-table-list'>
+                                <div className='argo-table-list__row'>
+                                    {app.spec.links && app.spec.links.map((link, i) => <div key={i} className='row' style={{fontSize: '0.8125rem'}}>
+                                        <div className='columns small-3'>
+                                            {link.name}
+                                        </div>
+                                        <div className={'columns small-' + (this.state.editing ? 8 : 9)}>
+                                            {link.type === 'other' ? link.value : <a target='_blank' href={(link.type === 'email' ? 'mailto:' : '') + link.value}>{link.value}</a>}
+                                        </div>
+                                        {this.state.editing && <div className='columns small-1'>
+                                            <i className='fa fa-times' onClick={() => {
+                                                app.spec.links.splice(i, 1);
+                                                this.setState(this.state);
+                                            }} style={{cursor: 'pointer'}}/>
+                                        </div>}
+                                    </div>)}
+                                    {this.state.editing && <div className='row'>
+                                        <div className='columns small-3'>
+                                            <input className='argo-field' type='text' placeholder='Name' id='newLinkName'/>
+                                        </div>
+                                        <div className='columns small-6'>
+                                            <input className='argo-field' type='text' placeholder='Value' id='newLinkValue'/>
+                                        </div>
+                                        <div className='columns small-2'>
+                                            <select className='argo-field' defaultValue='url' id='newLinkType'>
+                                                <option value='url'>URL</option>
+                                                <option value='email'>Email</option>
+                                                <option value='other'>Other</option>
+                                            </select>
+                                        </div>
+                                        <div className='columns small-1'>
+                                            <i className='fa fa-plus' onClick={() => {
+                                                const newLink = {
+                                                    name: (document.getElementById('newLinkName') as HTMLInputElement).value,
+                                                    value: (document.getElementById('newLinkValue') as HTMLInputElement).value,
+                                                    type: (document.getElementById('newLinkType') as HTMLSelectElement).value,
+                                                };
+
+                                                if (newLink.value === '') {
+                                                    return;
+                                                }
+
+                                                app.spec.links = (app.spec.links || []).concat(newLink);
+                                                this.setState(this.state);
+                                            }} style={{cursor: 'pointer'}}/>
+                                        </div>
+                                    </div>}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}</Consumer>
+            );
+        }
+
+        public componentWillUnmount() {
+            this.isMounted = false;
+        }
+    }
+
     return (
         <React.Fragment>
             <EditablePanel
@@ -159,60 +270,7 @@ export const ApplicationSummary = (props: {
             </div>
             )}</Consumer>
 
-            <div className='white-box'>
-                <div className='white-box__details'>
-                    <p>Links</p>
-                    <div className='argo-table-list'>
-                        <div className='argo-table-list__row'>
-                            {app.spec.links && app.spec.links.map((link, i) => <div key={link.name + link.url + i} className='row' style={{fontSize: '0.8125rem'}}>
-                                <div className='columns small-3'>
-                                    {link.name}
-                                </div>
-                                <div className='columns small-8'>
-                                    {link.type === 'other' ? link.url : <a target='_blank' href={(link.type === 'email' ? 'mailto:' : '') + link.url}>{link.url}</a>}
-                                </div>
-                                <div className='columns small-1'>
-                                    <i className='fa fa-times' onClick={() => {
-                                        app.spec.links.splice(i, 1);
-                                        props.updateApp(app);
-                                    }} style={{cursor: 'pointer'}}/>
-                                </div>
-                            </div>)}
-                            <div className='row'>
-                                <div className='columns small-3'>
-                                    <input className='argo-field' type='text' placeholder='Name' id='newLinkName'/>
-                                </div>
-                                <div className='columns small-6'>
-                                    <input className='argo-field' type='text' placeholder='URL' id='newLinkURL'/>
-                                </div>
-                                <div className='columns small-2'>
-                                    <select className='argo-field' defaultValue='url' id='newLinkType'>
-                                        <option value='url'>URL</option>
-                                        <option value='email'>Email</option>
-                                        <option value='other'>Other</option>
-                                    </select>
-                                </div>
-                                <div className='columns small-1'>
-                                    <i className='fa fa-plus' onClick={() => {
-                                        const newLink = {
-                                            name: (document.getElementById('newLinkName') as HTMLInputElement).value,
-                                            url: (document.getElementById('newLinkURL') as HTMLInputElement).value,
-                                            type: (document.getElementById('newLinkType') as HTMLSelectElement).value
-                                        };
-
-                                        if (newLink.url === '') {
-                                            return;
-                                        }
-
-                                        app.spec.links = (app.spec.links || []).concat(newLink);
-                                        props.updateApp(app);
-                                    }} style={{cursor: 'pointer'}}/>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <EditableLinksList />
         </React.Fragment>
     );
 };

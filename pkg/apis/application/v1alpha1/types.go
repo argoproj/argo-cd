@@ -314,9 +314,9 @@ type OperationState struct {
 }
 
 type Link struct {
-	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-	URL  string `json:"url,omitempty" protobuf:"bytes,2,opt,name=url"`
-	Type string `json:"type,omitempty" protobuf:"bytes,3,opt,name=type"`
+	Name  string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
+	Type  string `json:"type,omitempty" protobuf:"bytes,3,opt,name=type"`
 }
 
 // SyncPolicy controls when a sync will be performed in response to updates in git
