@@ -2665,11 +2665,11 @@
             "$ref": "#/definitions/v1alpha1ResourceIgnoreDifferences"
           }
         },
-        "links": {
+        "infos": {
           "type": "array",
-          "title": "Links contains a list of useful links that relate to the application",
+          "title": "Infos contains a list of useful information (URLs, email addresses, and plain text) that relates to the application",
           "items": {
-            "$ref": "#/definitions/v1alpha1Link"
+            "$ref": "#/definitions/v1alpha1Info"
           }
         },
         "project": {
@@ -2882,6 +2882,20 @@
         }
       }
     },
+    "v1alpha1Info": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1InfoItem": {
       "type": "object",
       "title": "InfoItem contains human readable information about object",
@@ -2952,20 +2966,6 @@
         "value": {
           "type": "string",
           "title": "Value is the value for the new tag (e.g. 1.8.0)"
-        }
-      }
-    },
-    "v1alpha1Link": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "type": {
-          "type": "string"
-        },
-        "value": {
-          "type": "string"
         }
       }
     },

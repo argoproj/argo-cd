@@ -296,9 +296,9 @@ spec:
                 - jsonPointers
                 type: object
               type: array
-            links:
-              description: Links contains a list of useful links that relate to the
-                application
+            infos:
+              description: Infos contains a list of useful information (URLs, email
+                addresses, and plain text) that relates to the application
               items:
                 properties:
                   name:

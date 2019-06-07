@@ -66,9 +66,9 @@ const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi, className:
     }} />);
 });
 
-const LinksFormField = ReactFormField((props: {fieldApi: FieldApi, className: string}) => {
+const InfoFormField = ReactFormField((props: {fieldApi: FieldApi, className: string}) => {
     const {fieldApi: {getValue, setValue}} = props;
-    const links = getValue() as models.Link[];
+    const infos = getValue() as models.Info[];
 
     return (
         <div className='argo-table-list'>
@@ -80,42 +80,42 @@ const LinksFormField = ReactFormField((props: {fieldApi: FieldApi, className: st
                 </div>
             </div>
             <div className='argo-table-list__row'>
-                {links && links.map((link, i) => <div key={i} className='row'>
+                {infos && infos.map((info, i) => <div key={i} className='row'>
                         <div className='columns small-3'>
-                            <input className='argo-field' type='text' defaultValue={link.name} onChange={(event) => {
-                                links[i].name = event.target.value;
-                                setValue(links);
+                            <input className='argo-field' type='text' defaultValue={info.name} onChange={(event) => {
+                                infos[i].name = event.target.value;
+                                setValue(infos);
                             }}/>
                         </div>
                         <div className='columns small-6'>
-                            <input className='argo-field' type='text' defaultValue={link.value} onChange={(event) => {
-                                links[i].value = event.target.value;
-                                setValue(links);
+                            <input className='argo-field' type='text' defaultValue={info.value} onChange={(event) => {
+                                infos[i].value = event.target.value;
+                                setValue(infos);
                             }}/>
                         </div>
                         <div className='columns small-2'>
-                            <select className='argo-field' defaultValue={link.type} onChange={(event) => {
-                                links[i].type = event.target.value;
-                                setValue(links);
+                            <select className='argo-field' defaultValue={info.type} onChange={(event) => {
+                                infos[i].type = event.target.value;
+                                setValue(infos);
                             }}>
                                 <option value='url'>URL</option>
                                 <option value='email'>Email</option>
-                                <option value='other'>Other</option>
+                                <option value='text'>Text</option>
                             </select>
                         </div>
                         <div className='columns small-1'>
                             <i className='fa fa-times' onClick={() => {
-                                links.splice(i, 1);
-                                setValue([...links]);
+                                infos.splice(i, 1);
+                                setValue([...infos]);
                             }} style={{cursor: 'pointer'}}/>
                         </div>
                     </div>)}
                 <div className='row'>
                     <div className='columns small-4'>
                         <a onClick={() => {
-                            const newLink = {name: '', value: '', type: 'url'};
-                            setValue((links || []).concat(newLink));
-                        }}>Add link</a>
+                            const newInfo = {name: '', value: '', type: 'url'};
+                            setValue((infos || []).concat(newInfo));
+                        }}>Add info</a>
                     </div>
                 </div>
             </div>
@@ -296,10 +296,10 @@ export const ApplicationCreatePanel = (props: {
                                     </div>
                                 );
 
-                                const linksPanel = () => (
+                                const infoPanel = () => (
                                     <div className='white-box'>
-                                        <p>LINKS</p>
-                                        <FormField formApi={api} field='spec.links' component={LinksFormField}/>
+                                        <p>INFO</p>
+                                        <FormField formApi={api} field='spec.infos' component={InfoFormField}/>
                                     </div>
                                 );
 
@@ -313,7 +313,7 @@ export const ApplicationCreatePanel = (props: {
 
                                         {typePanel()}
 
-                                        {linksPanel()}
+                                        {infoPanel()}
                                     </form>
                                 );
                             }}

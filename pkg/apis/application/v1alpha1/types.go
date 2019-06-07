@@ -46,8 +46,8 @@ type ApplicationSpec struct {
 	SyncPolicy *SyncPolicy `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
 	// IgnoreDifferences controls resources fields which should be ignored during comparison
 	IgnoreDifferences []ResourceIgnoreDifferences `json:"ignoreDifferences,omitempty" protobuf:"bytes,5,name=ignoreDifferences"`
-	// Links contains a list of useful links that relate to the application
-	Links []Link `json:"links,omitempty" protobuf:"bytes,6,name=links"`
+	// Infos contains a list of useful information (URLs, email addresses, and plain text) that relates to the application
+	Infos []Info `json:"infos,omitempty" protobuf:"bytes,6,name=infos"`
 }
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
@@ -313,7 +313,7 @@ type OperationState struct {
 	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,7,opt,name=finishedAt"`
 }
 
-type Link struct {
+type Info struct {
 	Name  string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
 	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
 	Type  string `json:"type,omitempty" protobuf:"bytes,3,opt,name=type"`

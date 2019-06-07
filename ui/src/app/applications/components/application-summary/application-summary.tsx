@@ -108,7 +108,7 @@ export const ApplicationSummary = (props: {
         }
     }
 
-    class EditableLinksList extends React.Component<{}, { editing: boolean, saving: boolean }> {
+    class EditableInfoList extends React.Component<{}, { editing: boolean, saving: boolean }> {
         private mounted = false;
 
         get isMounted() {
@@ -175,53 +175,53 @@ export const ApplicationSummary = (props: {
                                     this.setState({ editing: false });
                                 }} className='argo-button argo-button--base-o' disabled={this.state.saving}>Cancel</button>}
                             </div>
-                            <p>Links</p>
+                            <p>Info</p>
                             <div className='argo-table-list'>
                                 <div className='argo-table-list__row'>
-                                    {((this.state.editing || this.state.saving) ? this.updatedApp : app).spec.links &&
-                                        ((this.state.editing || this.state.saving) ? this.updatedApp : app).spec.links.map((link, i) =>
+                                    {((this.state.editing || this.state.saving) ? this.updatedApp : app).spec.infos &&
+                                        ((this.state.editing || this.state.saving) ? this.updatedApp : app).spec.infos.map((info, i) =>
                                         <div key={i} className='row' style={{fontSize: '0.8125rem'}}>
                                             <div className='columns small-3'>
-                                                {link.name}
+                                                {info.name}
                                             </div>
                                             <div className={'columns small-' + (this.state.editing ? 8 : 9)}>
-                                                {link.type === 'other' ? link.value : <a target='_blank'
-                                                    href={(link.type === 'email' ? 'mailto:' : '') + link.value}>{link.value}</a>}
+                                                {info.type === 'text' ? info.value : <a target='_blank'
+                                                    href={(info.type === 'email' ? 'mailto:' : '') + info.value}>{info.value}</a>}
                                             </div>
                                             {this.state.editing && <div className='columns small-1'>
                                                 <i className='fa fa-times' onClick={() => {
-                                                    this.updatedApp.spec.links.splice(i, 1);
+                                                    this.updatedApp.spec.infos.splice(i, 1);
                                                     this.setState({});
                                                 }} style={{cursor: 'pointer'}}/>
                                             </div>}
                                         </div>)}
                                     {this.state.editing && <div className='row'>
                                         <div className='columns small-3'>
-                                            <input className='argo-field' type='text' placeholder='Name' id='newLinkName'/>
+                                            <input className='argo-field' type='text' placeholder='Name' id='newInfoName'/>
                                         </div>
                                         <div className='columns small-6'>
-                                            <input className='argo-field' type='text' placeholder='Value' id='newLinkValue'/>
+                                            <input className='argo-field' type='text' placeholder='Value' id='newInfoValue'/>
                                         </div>
                                         <div className='columns small-2'>
-                                            <select className='argo-field' defaultValue='url' id='newLinkType'>
+                                            <select className='argo-field' defaultValue='url' id='newInfoType'>
                                                 <option value='url'>URL</option>
                                                 <option value='email'>Email</option>
-                                                <option value='other'>Other</option>
+                                                <option value='text'>Text</option>
                                             </select>
                                         </div>
                                         <div className='columns small-1'>
                                             <i className='fa fa-plus' onClick={() => {
-                                                const newLink = {
-                                                    name: (document.getElementById('newLinkName') as HTMLInputElement).value,
-                                                    value: (document.getElementById('newLinkValue') as HTMLInputElement).value,
-                                                    type: (document.getElementById('newLinkType') as HTMLSelectElement).value,
+                                                const newInfo = {
+                                                    name: (document.getElementById('newInfoName') as HTMLInputElement).value,
+                                                    value: (document.getElementById('newInfoValue') as HTMLInputElement).value,
+                                                    type: (document.getElementById('newInfoType') as HTMLSelectElement).value,
                                                 };
 
-                                                if (newLink.value === '') {
+                                                if (newInfo.value === '') {
                                                     return;
                                                 }
 
-                                                this.updatedApp.spec.links = (this.updatedApp.spec.links || []).concat(newLink);
+                                                this.updatedApp.spec.infos = (this.updatedApp.spec.infos || []).concat(newInfo);
                                                 this.setState({});
                                             }} style={{cursor: 'pointer'}}/>
                                         </div>
@@ -290,7 +290,7 @@ export const ApplicationSummary = (props: {
             </div>
             )}</Consumer>
 
-            <EditableLinksList />
+            <EditableInfoList />
         </React.Fragment>
     );
 };
