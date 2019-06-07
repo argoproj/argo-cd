@@ -4,7 +4,7 @@
 
 If application manifests are located in private repository then repository credentials have to be configured. Argo CD supports both HTTP and SSH Git credentials.
 
-### HTTP Username And Password Credential
+### HTTPS Username And Password Credential
 
 Private repositories that require a username and password typically have a URL that start with "https://" rather than "git@" or "ssh://". 
 
@@ -41,24 +41,32 @@ The Argo CD UI don't support configuring SSH credentials. The SSH credentials ca
 argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-key-path ~/.ssh/id_rsa
 ```
 
-## Self-Signed Certificates
+## HTTPS Self-signed Certificate
 
-If you are using self-hosted Git hosting service with the self-signed certificate then you need to disable certificate validation for that Git host.
+We do not currently have first-class support for this. See [#1513](https://github.com/argoproj/argo-cd/issues/1513).
+
+As a work-around, you can customize your Argo CD image.
+
+## Unknown SSH Hosts
+
+If you are using a self-hosted Git service over SSH then you need to disable host verification for that Git host.
+
 Following options are available:
 
-Add repository using Argo CD CLI and `--insecure-ignore-host-key` flag:
-
+(1) Add repository using Argo CD CLI and `--insecure-ignore-host-key` flag:
 
 ```bash
-argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-key-path ~/.ssh/id_rsa
+argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-key-path ~/.ssh/id_rsa --insecure-ignore-host-key 
 ```
+
+!!! warning "This does not work for Kustomize remote bases or custom plugins"
+    This does not yet work for them. For Kustomize support, see [#827](https://github.com/argoproj/argo-cd/issues/827).
  
- The flag disables certificate validation only for specified repository.
+ You can add Git service hostname to the `/etc/ssh/ssh_known_hosts` in each Argo CD deployment and disables cert validation for Git SSL URLs. For more information see 
 
-!!! warning
-    The `--insecure-ignore-host-key` flag does not work for HTTPS Git URLs. See [#1513](https://github.com/argoproj/argo-cd/issues/1513).
+The flag disables certificate validation only for specified repository.
 
-You can add Git service hostname to the `/etc/ssh/ssh_known_hosts` in each Argo CD deployment and disables cert validation for Git SSL URLs. For more information see 
+(2) You can add the Git service's hostname to the `/etc/ssh/ssh_known_hosts` in each Argo CD deployment and disables cert validation for Git SSL URLs. For more information see 
 [example](https://github.com/argoproj/argo-cd/tree/master/examples/known-hosts) which demonstrates how `/etc/ssh/ssh_known_hosts` can be customized.
 
 !!! note
