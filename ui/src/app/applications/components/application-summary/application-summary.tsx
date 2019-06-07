@@ -119,8 +119,18 @@ export const ApplicationSummary = (props: {
             this.mounted = mounted;
         }
 
-        constructor() {
-            super(props);
+        private newApp: models.Application;
+
+        get updatedApp() {
+            return this.newApp;
+        }
+
+        set updatedApp(newApp: models.Application) {
+            this.newApp = newApp;
+        }
+
+        constructor(listProps: {}) {
+            super(listProps);
             this.state = { editing: false, saving: false };
         }
 
@@ -139,12 +149,13 @@ export const ApplicationSummary = (props: {
                                     this.setState({ editing });
 
                                     if (editing) {
+                                        this.updatedApp = JSON.parse(JSON.stringify(app)) as models.Application;
                                         return;
                                     }
 
                                     try {
                                         this.setState({ saving: true });
-                                        await props.updateApp(app);
+                                        await props.updateApp(this.updatedApp);
                                         if (this.isMounted) {
                                             this.setState({ saving: false });
                                         }
@@ -154,27 +165,36 @@ export const ApplicationSummary = (props: {
                                             type: NotificationType.Error,
                                         });
                                     } finally {
-                                        this.setState({ saving: false });
+                                        if (this.isMounted) {
+                                            this.setState({ saving: false });
+                                        }
                                     }
-                                }} className='argo-button argo-button--base' disabled={this.state.saving}>{(this.state.editing || this.state.saving) ? 'Save' : 'Edit'}</button>
+                                }} className='argo-button argo-button--base' disabled={this.state.saving}>
+                                    {(this.state.editing || this.state.saving) ? 'Save' : 'Edit'}</button>&nbsp;
+                                {(this.state.editing || this.state.saving) && <button onClick={() => {
+                                    this.setState({ editing: false });
+                                }} className='argo-button argo-button--base-o' disabled={this.state.saving}>Cancel</button>}
                             </div>
                             <p>Links</p>
                             <div className='argo-table-list'>
                                 <div className='argo-table-list__row'>
-                                    {app.spec.links && app.spec.links.map((link, i) => <div key={i} className='row' style={{fontSize: '0.8125rem'}}>
-                                        <div className='columns small-3'>
-                                            {link.name}
-                                        </div>
-                                        <div className={'columns small-' + (this.state.editing ? 8 : 9)}>
-                                            {link.type === 'other' ? link.value : <a target='_blank' href={(link.type === 'email' ? 'mailto:' : '') + link.value}>{link.value}</a>}
-                                        </div>
-                                        {this.state.editing && <div className='columns small-1'>
-                                            <i className='fa fa-times' onClick={() => {
-                                                app.spec.links.splice(i, 1);
-                                                this.setState(this.state);
-                                            }} style={{cursor: 'pointer'}}/>
-                                        </div>}
-                                    </div>)}
+                                    {((this.state.editing || this.state.saving) ? this.updatedApp : app).spec.links &&
+                                        ((this.state.editing || this.state.saving) ? this.updatedApp : app).spec.links.map((link, i) =>
+                                        <div key={i} className='row' style={{fontSize: '0.8125rem'}}>
+                                            <div className='columns small-3'>
+                                                {link.name}
+                                            </div>
+                                            <div className={'columns small-' + (this.state.editing ? 8 : 9)}>
+                                                {link.type === 'other' ? link.value : <a target='_blank'
+                                                    href={(link.type === 'email' ? 'mailto:' : '') + link.value}>{link.value}</a>}
+                                            </div>
+                                            {this.state.editing && <div className='columns small-1'>
+                                                <i className='fa fa-times' onClick={() => {
+                                                    this.updatedApp.spec.links.splice(i, 1);
+                                                    this.setState({});
+                                                }} style={{cursor: 'pointer'}}/>
+                                            </div>}
+                                        </div>)}
                                     {this.state.editing && <div className='row'>
                                         <div className='columns small-3'>
                                             <input className='argo-field' type='text' placeholder='Name' id='newLinkName'/>
@@ -201,8 +221,8 @@ export const ApplicationSummary = (props: {
                                                     return;
                                                 }
 
-                                                app.spec.links = (app.spec.links || []).concat(newLink);
-                                                this.setState(this.state);
+                                                this.updatedApp.spec.links = (this.updatedApp.spec.links || []).concat(newLink);
+                                                this.setState({});
                                             }} style={{cursor: 'pointer'}}/>
                                         </div>
                                     </div>}
