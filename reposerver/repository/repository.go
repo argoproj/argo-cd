@@ -14,7 +14,7 @@ import (
 	"github.com/TomOnTime/utfutil"
 	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/ghodss/yaml"
-	jsonnet "github.com/google/go-jsonnet"
+	"github.com/google/go-jsonnet"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
@@ -191,6 +191,7 @@ func GenerateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 	var dest *v1alpha1.ApplicationDestination
 
 	appSourceType, err := GetAppSourceType(q.ApplicationSource, appPath)
+	creds := newCreds(q.Repo)
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeKsonnet:
 		targetObjs, dest, err = ksShow(q.AppLabelKey, appPath, q.ApplicationSource.Ksonnet)
@@ -216,10 +217,10 @@ func GenerateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 			}
 		}
 	case v1alpha1.ApplicationSourceTypeKustomize:
-		k := kustomize.NewKustomizeApp(appPath, kustomizeCredentials(q.Repo))
+		k := kustomize.NewKustomizeApp(appPath, creds)
 		targetObjs, _, _, err = k.Build(q.ApplicationSource.Kustomize)
 	case v1alpha1.ApplicationSourceTypePlugin:
-		targetObjs, err = runConfigManagementPlugin(appPath, q, q.Plugins)
+		targetObjs, err = runConfigManagementPlugin(appPath, q, creds, q.Plugins)
 	case v1alpha1.ApplicationSourceTypeDirectory:
 		var directory *v1alpha1.ApplicationSourceDirectory
 		if directory = q.ApplicationSource.Directory; directory == nil {
@@ -511,7 +512,7 @@ func runCommand(command v1alpha1.Command, path string, env []string) (string, er
 	return argoexec.RunCommandExt(cmd)
 }
 
-func runConfigManagementPlugin(appPath string, q *ManifestRequest, plugins []*v1alpha1.ConfigManagementPlugin) ([]*unstructured.Unstructured, error) {
+func runConfigManagementPlugin(appPath string, q *ManifestRequest, creds *git.Creds, plugins []*v1alpha1.ConfigManagementPlugin) ([]*unstructured.Unstructured, error) {
 	var plugin *v1alpha1.ConfigManagementPlugin
 	for i := range plugins {
 		if plugins[i].Name == q.ApplicationSource.Plugin.Name {
@@ -523,6 +524,12 @@ func runConfigManagementPlugin(appPath string, q *ManifestRequest, plugins []*v1
 		return nil, fmt.Errorf("Config management plugin with name '%s' is not supported.", q.ApplicationSource.Plugin.Name)
 	}
 	env := append(os.Environ(), fmt.Sprintf("%s=%s", PluginEnvAppName, q.AppLabelValue), fmt.Sprintf("%s=%s", PluginEnvAppNamespace, q.Namespace))
+	if creds != nil {
+		env = append(env,
+			"GIT_ASKPASS=git-ask-pass.sh",
+			fmt.Sprintf("GIT_USERNAME=%s", creds.Username),
+			fmt.Sprintf("GIT_PASSWORD=%s", creds.Password))
+	}
 	if plugin.Init != nil {
 		_, err := runCommand(*plugin.Init, appPath, env)
 		if err != nil {
@@ -641,7 +648,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		res.Kustomize = &KustomizeAppSpec{}
 		res.Kustomize.Path = q.Path
-		k := kustomize.NewKustomizeApp(appPath, kustomizeCredentials(q.Repo))
+		k := kustomize.NewKustomizeApp(appPath, newCreds(q.Repo))
 		_, imageTags, images, err := k.Build(nil)
 		if err != nil {
 			return nil, err
@@ -667,11 +674,11 @@ func (q *RepoServerAppDetailsQuery) valueFiles() []string {
 	return q.Helm.ValueFiles
 }
 
-func kustomizeCredentials(repo *v1alpha1.Repository) *kustomize.GitCredentials {
+func newCreds(repo *v1alpha1.Repository) *git.Creds {
 	if repo == nil || repo.Password == "" {
 		return nil
 	}
-	return &kustomize.GitCredentials{
+	return &git.Creds{
 		Username: repo.Username,
 		Password: repo.Password,
 	}

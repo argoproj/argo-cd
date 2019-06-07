@@ -47,6 +47,10 @@ func (a *Actions) Create() *Actions {
 		args = append(args, "--nameprefix", a.context.namePrefix)
 	}
 
+	if a.context.configManagementPlugin != "" {
+		args = append(args, "--config-management-plugin", a.context.configManagementPlugin)
+	}
+
 	a.runCli(args...)
 
 	return a

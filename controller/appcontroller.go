@@ -972,6 +972,7 @@ func (ctrl *ApplicationController) watchSettings(ctx context.Context) {
 	prevAppLabelKey := ctrl.settings.GetAppInstanceLabelKey()
 	prevResourceExclusions := ctrl.settings.ResourceExclusions
 	prevResourceInclusions := ctrl.settings.ResourceInclusions
+	prevConfigManagementPlugins := ctrl.settings.ConfigManagementPlugins
 	done := false
 	for !done {
 		select {
@@ -992,6 +993,11 @@ func (ctrl *ApplicationController) watchSettings(ctx context.Context) {
 				log.WithFields(log.Fields{"prevResourceInclusions": prevResourceInclusions, "newResourceInclusions": newSettings.ResourceInclusions}).Info("resource inclusions modified")
 				ctrl.stateCache.Invalidate()
 				prevResourceInclusions = newSettings.ResourceInclusions
+			}
+			if !reflect.DeepEqual(prevConfigManagementPlugins, newSettings.ConfigManagementPlugins) {
+				log.WithFields(log.Fields{"prevConfigManagementPlugins": prevConfigManagementPlugins, "newConfigManagementPlugins": newSettings.ConfigManagementPlugins}).Info("config management plugins modified")
+				ctrl.stateCache.Invalidate()
+				prevConfigManagementPlugins = newSettings.ConfigManagementPlugins
 			}
 		case <-ctx.Done():
 			done = true

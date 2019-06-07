@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/git"
 )
 
 // TODO: move this into shared test package after resolving import cycle
@@ -141,7 +142,7 @@ func TestPrivateRemoteBase(t *testing.T) {
 	assert.NoError(t, err)
 	defer func() { _ = os.Setenv("PATH", osPath) }()
 
-	kust := NewKustomizeApp("./testdata/private-remote-base", &GitCredentials{Username: PrivateGitUsername, Password: PrivateGitPassword})
+	kust := NewKustomizeApp("./testdata/private-remote-base", &git.Creds{Username: PrivateGitUsername, Password: PrivateGitPassword})
 
 	objs, _, _, err := kust.Build(nil)
 	assert.NoError(t, err)

@@ -575,6 +575,16 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		delete(argoCDCM.Data, resourceExclusionsKey)
 	}
 
+	if len(settings.ConfigManagementPlugins) > 0 {
+		yamlBytes, err := yaml.Marshal(settings.ConfigManagementPlugins)
+		if err != nil {
+			return err
+		}
+		argoCDCM.Data[configManagementPluginsKey] = string(yamlBytes)
+	} else {
+		delete(argoCDCM.Data, configManagementPluginsKey)
+	}
+
 	if createCM {
 		_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Create(argoCDCM)
 	} else {
