@@ -5,8 +5,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/argoproj/argo-cd/util/localconfig"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-cd/util/localconfig"
 )
 
 const testConfig = `contexts:

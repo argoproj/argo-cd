@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"os"
 
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/util/localconfig"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 )
 
 // NewLogoutCommand returns a new instance of `argocd logout` command
