@@ -242,6 +242,8 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 				return nil, err
 			}
 		}
+	} else {
+		conditions = append(conditions, argoappv1.ApplicationCondition{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: errDestinationMissing})
 	}
 	return conditions, nil
 }

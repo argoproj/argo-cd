@@ -133,3 +133,16 @@ func TestNilOutZerValueAppSources(t *testing.T) {
 		assert.Nil(t, spec.Source.Directory)
 	}
 }
+
+func TestValidatePermissionsEmptyDestination(t *testing.T) {
+	conditions, err := ValidatePermissions(context.Background(), &argoappv1.ApplicationSpec{
+		Source: argoappv1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd", Path: "."},
+	}, &argoappv1.AppProject{
+		Spec: argoappv1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []argoappv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+		},
+	}, nil)
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, conditions, []argoappv1.ApplicationCondition{{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: "Destination server and/or namespace missing from app spec"}})
+}
