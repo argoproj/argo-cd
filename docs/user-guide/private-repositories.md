@@ -45,7 +45,7 @@ argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-ke
 
 We do not currently have first-class support for this. See [#1513](https://github.com/argoproj/argo-cd/issues/1513).
 
-As a work-around, you can customize your Argo CD image.
+As a work-around, you can customize your Argo CD image. See [#1344](https://github.com/argoproj/argo-cd/issues/1344#issuecomment-479811810)
 
 ## Unknown SSH Hosts
 
