@@ -33,6 +33,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 12. [Codility](https://www.codility.com/)
 13. [tZERO](https://www.tzero.com/)
 14. [Mirantis](https://mirantis.com/)
+15. [Tesla](https://tesla.com/)
 
 ## Documentation
 
