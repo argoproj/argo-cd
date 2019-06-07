@@ -11,3 +11,6 @@ You have three configuration options for Kustomize:
 * `images` is a list of Kustomize 2.0 image overrides
     
 To use Kustomize with an overlay, point your path to the overlay.
+
+!!! tip
+    If you're generating resources, you should read up how to ignore those generated resources using the [`IgnoreExtraneous` compare option](compare-options.md).

@@ -170,7 +170,7 @@ func EnsureCleanState(t *testing.T) {
 
 	// new random ID
 	id = dnsFriendly(t.Name())
-	repoUrl = fmt.Sprintf("file:///%s", repoDirectory())
+	repoUrl = fmt.Sprintf("file://%s", repoDirectory())
 
 	// create tmp dir
 	FailOnErr(Run("", "mkdir", "-p", tmpDir))
