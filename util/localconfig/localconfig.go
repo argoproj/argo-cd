@@ -6,7 +6,7 @@ import (
 	"os/user"
 	"path"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
 
 	configUtil "github.com/argoproj/argo-cd/util/config"
 )
@@ -102,6 +102,14 @@ func WriteLocalConfig(config LocalConfig, configPath string) error {
 	return configUtil.MarshalLocalYAMLFile(configPath, config)
 }
 
+func DeleteLocalConfig(configPath string) error {
+	_, err := os.Stat(configPath)
+	if os.IsNotExist(err) {
+		return err
+	}
+	return os.Remove(configPath)
+}
+
 // ResolveContext resolves the specified context. If unspecified, resolves the current context
 func (l *LocalConfig) ResolveContext(name string) (*Context, error) {
 	if name == "" {
@@ -146,6 +154,17 @@ func (l *LocalConfig) UpsertServer(server Server) {
 	l.Servers = append(l.Servers, server)
 }
 
+// Returns true if server was removed successfully
+func (l *LocalConfig) RemoveServer(serverName string) bool {
+	for i, s := range l.Servers {
+		if s.Server == serverName {
+			l.Servers = append(l.Servers[:i], l.Servers[i+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
 func (l *LocalConfig) GetUser(name string) (*User, error) {
 	for _, u := range l.Users {
 		if u.Name == name {
@@ -165,6 +184,29 @@ func (l *LocalConfig) UpsertUser(user User) {
 	l.Users = append(l.Users, user)
 }
 
+// Returns true if user was removed successfully
+func (l *LocalConfig) RemoveUser(serverName string) bool {
+	for i, u := range l.Users {
+		if u.Name == serverName {
+			l.Users = append(l.Users[:i], l.Users[i+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
+// Returns true if user was removed successfully
+func (l *LocalConfig) RemoveToken(serverName string) bool {
+	for i, u := range l.Users {
+		if u.Name == serverName {
+			l.Users[i].RefreshToken = ""
+			l.Users[i].AuthToken = ""
+			return true
+		}
+	}
+	return false
+}
+
 func (l *LocalConfig) UpsertContext(context ContextRef) {
 	for i, c := range l.Contexts {
 		if c.Name == context.Name {
@@ -173,6 +215,21 @@ func (l *LocalConfig) UpsertContext(context ContextRef) {
 		}
 	}
 	l.Contexts = append(l.Contexts, context)
+}
+
+// Returns true if context was removed successfully
+func (l *LocalConfig) RemoveContext(serverName string) (string, bool) {
+	for i, c := range l.Contexts {
+		if c.Name == serverName {
+			l.Contexts = append(l.Contexts[:i], l.Contexts[i+1:]...)
+			return c.Server, true
+		}
+	}
+	return "", false
+}
+
+func (l *LocalConfig) IsEmpty() bool {
+	return len(l.Servers) == 0
 }
 
 // DefaultConfigDir returns the local configuration path for settings such as cached authentication tokens.
