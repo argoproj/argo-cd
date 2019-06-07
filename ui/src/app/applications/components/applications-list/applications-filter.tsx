@@ -117,7 +117,7 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
                             <ul>
                                 <li>
                                     <TagsInput placeholder='https://kubernetes.default.svc'
-                                        autocomplete={Array.from(new Set(applications.map((app) => app.spec.destination.server)))
+                                        autocomplete={Array.from(new Set(applications.map((app) => app.spec.destination.server).filter((item) => !!item)))
                                             .filter((ns) => pref.clustersFilter.indexOf(ns) === -1)}
                                         tags={pref.clustersFilter}
                                         onChange={(selected) => onChange({...pref, clustersFilter: selected})}/>
@@ -127,7 +127,7 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
                             <ul>
                                 <li>
                                     <TagsInput placeholder='*-us-west-*'
-                                        autocomplete={Array.from(new Set(applications.map((app) => app.spec.destination.namespace)))
+                                        autocomplete={Array.from(new Set(applications.map((app) => app.spec.destination.namespace).filter((item) => !!item)))
                                             .filter((ns) => pref.namespacesFilter.indexOf(ns) === -1)}
                                         tags={pref.namespacesFilter}
                                         onChange={(selected) => onChange({...pref, namespacesFilter: selected})}/>
