@@ -654,8 +654,8 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#http-username-and-password-credential" title="HTTP Username And Password Credential" class="md-nav__link">
-    HTTP Username And Password Credential
+  <a href="#https-username-and-password-credential" title="HTTPS Username And Password Credential" class="md-nav__link">
+    HTTPS Username And Password Credential
   </a>
   
     <nav class="md-nav">
@@ -686,8 +686,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#self-signed-certificates" title="Self-Signed Certificates" class="md-nav__link">
-    Self-Signed Certificates
+  <a href="#self-signed-untrusted-tls-certificates" title="Self-signed &amp; Untrusted TLS Certificates" class="md-nav__link">
+    Self-signed &amp; Untrusted TLS Certificates
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#unknown-ssh-hosts" title="Unknown SSH Hosts" class="md-nav__link">
+    Unknown SSH Hosts
   </a>
   
 </li>
@@ -730,6 +737,30 @@
   <li class="md-nav__item">
     <a href="../diffing/" title="Diffing Customization" class="md-nav__link">
       Diffing Customization
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../compare-options/" title="Compare Options" class="md-nav__link">
+      Compare Options
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../sync-options/" title="Sync Options" class="md-nav__link">
+      Sync Options
     </a>
   </li>
 
@@ -1032,8 +1063,8 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#http-username-and-password-credential" title="HTTP Username And Password Credential" class="md-nav__link">
-    HTTP Username And Password Credential
+  <a href="#https-username-and-password-credential" title="HTTPS Username And Password Credential" class="md-nav__link">
+    HTTPS Username And Password Credential
   </a>
   
     <nav class="md-nav">
@@ -1064,8 +1095,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#self-signed-certificates" title="Self-Signed Certificates" class="md-nav__link">
-    Self-Signed Certificates
+  <a href="#self-signed-untrusted-tls-certificates" title="Self-signed &amp; Untrusted TLS Certificates" class="md-nav__link">
+    Self-signed &amp; Untrusted TLS Certificates
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#unknown-ssh-hosts" title="Unknown SSH Hosts" class="md-nav__link">
+    Unknown SSH Hosts
   </a>
   
 </li>
@@ -1099,7 +1137,7 @@
                 <h1 id="private-repositories">Private Repositories<a class="headerlink" href="#private-repositories" title="Permanent link">&para;</a></h1>
 <h2 id="credentials">Credentials<a class="headerlink" href="#credentials" title="Permanent link">&para;</a></h2>
 <p>If application manifests are located in private repository then repository credentials have to be configured. Argo CD supports both HTTP and SSH Git credentials.</p>
-<h3 id="http-username-and-password-credential">HTTP Username And Password Credential<a class="headerlink" href="#http-username-and-password-credential" title="Permanent link">&para;</a></h3>
+<h3 id="https-username-and-password-credential">HTTPS Username And Password Credential<a class="headerlink" href="#https-username-and-password-credential" title="Permanent link">&para;</a></h3>
 <p>Private repositories that require a username and password typically have a URL that start with "https://" rather than "git@" or "ssh://". </p>
 <p>Credentials can be configured using Argo CD CLI:</p>
 <div class="codehilite"><pre><span></span>argocd repo add https://github.com/argoproj/argocd-example-apps --username &lt;username&gt; --password &lt;password&gt;
@@ -1127,25 +1165,29 @@
 </pre></div>
 
 
-<h2 id="self-signed-certificates">Self-Signed Certificates<a class="headerlink" href="#self-signed-certificates" title="Permanent link">&para;</a></h2>
-<p>If you are using self-hosted Git hosting service with the self-signed certificate then you need to disable certificate validation for that Git host.
-Following options are available:</p>
-<p>Add repository using Argo CD CLI and <code>--insecure-ignore-host-key</code> flag:</p>
-<div class="codehilite"><pre><span></span>argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-key-path ~/.ssh/id_rsa
-</pre></div>
-
-
-<p>The flag disables certificate validation only for specified repository.</p>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>The <code>--insecure-ignore-host-key</code> flag does not work for HTTPS Git URLs. See <a href="https://github.com/argoproj/argo-cd/issues/1513">#1513</a>.</p>
-</div>
-<p>You can add Git service hostname to the <code>/etc/ssh/ssh_known_hosts</code> in each Argo CD deployment and disables cert validation for Git SSL URLs. For more information see 
-<a href="https://github.com/argoproj/argo-cd/tree/master/examples/known-hosts">example</a> which demonstrates how <code>/etc/ssh/ssh_known_hosts</code> can be customized.</p>
+<h2 id="self-signed-untrusted-tls-certificates">Self-signed &amp; Untrusted TLS Certificates<a class="headerlink" href="#self-signed-untrusted-tls-certificates" title="Permanent link">&para;</a></h2>
+<p>We do not currently have first-class support for this. See <a href="https://github.com/argoproj/argo-cd/issues/1513">#1513</a>.</p>
+<p>As a work-around, you can customize your Argo CD image. See <a href="https://github.com/argoproj/argo-cd/issues/1344#issuecomment-479811810">#1344</a></p>
+<h2 id="unknown-ssh-hosts">Unknown SSH Hosts<a class="headerlink" href="#unknown-ssh-hosts" title="Permanent link">&para;</a></h2>
+<p>If you are using a privately hosted Git service over SSH, then you have the following  options:</p>
+<p>(1) You can customize the Argo CD Docker image by adding the host's SSH public key to <code>/etc/ssh/ssh_known_hosts</code>. Additional entries to this file can be generated using the <code>ssh-keyscan</code> utility (e.g. <code>ssh-keyscan your-private-git-server.com</code>. For more information see <a href="https://github.com/argoproj/argo-cd/tree/master/examples/known-hosts">example</a> which demonstrates how <code>/etc/ssh/ssh_known_hosts</code> can be customized.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>The <code>/etc/ssh/ssh_known_hosts</code> should include Git host on each Argo CD deployment as well as on a computer where <code>argocd repo add</code> is executed. After resolving issue
 <a href="https://github.com/argoproj/argo-cd/issues/1514">#1514</a> only <code>argocd-repo-server</code> deployment has to be customized.</p>
+</div>
+<p>(1) Add repository using Argo CD CLI and <code>--insecure-ignore-host-key</code> flag:</p>
+<div class="codehilite"><pre><span></span>argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-key-path ~/.ssh/id_rsa --insecure-ignore-host-key 
+</pre></div>
+
+
+<div class="admonition warning">
+<p class="admonition-title">Don't use in production</p>
+<p>The <code>--insecure-ignore-host-key</code> should not be used in production as this is subject to man-in-the-middle attacks. </p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">This does not work for Kustomize remote bases or custom plugins</p>
+<p>For Kustomize support, see <a href="https://github.com/argoproj/argo-cd/issues/827">#827</a>.</p>
 </div>
 <h2 id="declarative-configuration">Declarative Configuration<a class="headerlink" href="#declarative-configuration" title="Permanent link">&para;</a></h2>
 <p>See <a href="../operator-manual/declarative-setup#Repositories">declarative setup</a></p>
