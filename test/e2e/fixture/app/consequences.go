@@ -42,6 +42,10 @@ func (c *Consequences) And(block func(app *Application)) *Consequences {
 	return c
 }
 
+func (c *Consequences) Given() *Context {
+	return c.context
+}
+
 func (c *Consequences) When() *Actions {
 	return c.actions
 }

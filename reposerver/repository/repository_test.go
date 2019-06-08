@@ -160,9 +160,12 @@ func TestRunCustomTool(t *testing.T) {
 			Name: "test",
 			Generate: argoappv1.Command{
 				Command: []string{"sh", "-c"},
-				Args:    []string{`echo "{\"kind\": \"FakeObject\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\"}}"`},
+				Args:    []string{`echo "{\"kind\": \"FakeObject\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"GIT_ASKPASS\": \"$GIT_ASKPASS\", \"GIT_USERNAME\": \"$GIT_USERNAME\", \"GIT_PASSWORD\": \"$GIT_PASSWORD\"}}}"`},
 			},
 		}},
+		Repo: &argoappv1.Repository{
+			Username: "foo", Password: "bar",
+		},
 	})
 
 	assert.Nil(t, err)
@@ -173,6 +176,9 @@ func TestRunCustomTool(t *testing.T) {
 
 	assert.Equal(t, obj.GetName(), "test-app")
 	assert.Equal(t, obj.GetNamespace(), "test-namespace")
+	assert.Equal(t, "git-ask-pass.sh", obj.GetAnnotations()["GIT_ASKPASS"])
+	assert.Equal(t, "foo", obj.GetAnnotations()["GIT_USERNAME"])
+	assert.Equal(t, "bar", obj.GetAnnotations()["GIT_PASSWORD"])
 }
 
 func TestGenerateFromUTF16(t *testing.T) {

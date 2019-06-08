@@ -284,16 +284,9 @@ func TestResourceDiffing(t *testing.T) {
 		And(func(app *Application) {
 			diffOutput, _ := fixture.RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
 			assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", fixture.DeploymentNamespace()))
-
-			// Update settings to ignore image difference
-			settings, err := fixture.SettingsManager.GetSettings()
-			assert.NoError(t, err)
-			settings.ResourceOverrides = map[string]ResourceOverride{
-				"apps/Deployment": {IgnoreDifferences: ` jsonPointers: ["/spec/template/spec/containers/0/image"]`},
-			}
-			err = fixture.SettingsManager.SaveSettings(settings)
-			assert.NoError(t, err)
 		}).
+		Given().
+		ResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {IgnoreDifferences: ` jsonPointers: ["/spec/template/spec/containers/0/image"]`}}).
 		When().
 		Refresh(RefreshTypeNormal).
 		Then().
@@ -389,14 +382,7 @@ definitions:
 func TestResourceAction(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
-		And(func() {
-			settings, err := fixture.SettingsManager.GetSettings()
-			assert.NoError(t, err)
-
-			settings.ResourceOverrides = map[string]ResourceOverride{"apps/Deployment": {Actions: actionsConfig}}
-			err = fixture.SettingsManager.SaveSettings(settings)
-			assert.NoError(t, err)
-		}).
+		ResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {Actions: actionsConfig}}).
 		When().
 		Create().
 		Sync().
