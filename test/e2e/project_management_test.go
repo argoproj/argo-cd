@@ -42,6 +42,7 @@ func TestProjectCreation(t *testing.T) {
 	projectName := "proj-" + fixture.Name()
 	_, err := fixture.RunCli("proj", "create", projectName,
 		"--description", "Test description",
+		"-e", "MY_PARAM=MY_PARAM_VALUE",
 		"-d", "https://192.168.99.100:8443,default",
 		"-d", "https://192.168.99.100:8443,service",
 		"-s", "https://github.com/argoproj/argo-cd.git")
