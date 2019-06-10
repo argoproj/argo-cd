@@ -544,3 +544,34 @@ func TestCompareOptionIgnoreExtraneous(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
+
+func TestSelfManagedApps(t *testing.T) {
+
+	Given(t).
+		Path("self-managed-app").
+		When().
+		PatchFile("resources.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/spec/source/repoURL", "value": "%s"}]`, fixture.RepoURL())).
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(a *Application) {
+			maxReconcileCount := 1
+			waitDuration := time.Second * 3
+
+			ctx, cancel := context.WithTimeout(context.Background(), waitDuration)
+			defer cancel()
+
+			reconciledCount := 0
+			var lastReconciledAt *metav1.Time
+			for event := range fixture.ArgoCDClientset.WatchApplicationWithRetry(ctx, a.Name) {
+				if lastReconciledAt != nil && !lastReconciledAt.Equal(&event.Application.Status.ReconciledAt) {
+					reconciledCount = reconciledCount + 1
+				}
+				lastReconciledAt = &event.Application.Status.ReconciledAt
+			}
+
+			assert.True(t, reconciledCount < maxReconcileCount, "Application was reconciled too many times")
+		})
+}

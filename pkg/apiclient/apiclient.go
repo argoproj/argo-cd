@@ -602,7 +602,7 @@ func isCanceledContextErr(err error) bool {
 		return true
 	}
 	if stat, ok := status.FromError(err); ok {
-		if stat.Code() == codes.Canceled {
+		if stat.Code() == codes.Canceled || stat.Code() == codes.DeadlineExceeded {
 			return true
 		}
 	}
