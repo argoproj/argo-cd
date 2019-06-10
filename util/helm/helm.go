@@ -210,6 +210,7 @@ func (h *helm) GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, 
 }
 
 func (h *helm) helmCmd(args ...string) (string, error) {
+	cleanHelmParameters(args)
 	return h.helmCmdExt(args, func(s string) string {
 		return s
 	})
@@ -246,5 +247,11 @@ func flatVals(input map[string]interface{}, output map[string]string, prefixes .
 		} else {
 			output[strings.Join(append(prefixes, fmt.Sprintf("%v", key)), ".")] = fmt.Sprintf("%v", val)
 		}
+	}
+}
+
+func cleanHelmParameters(params []string) {
+	for i, param := range params {
+		params[i] = strings.Replace(param, ",", `\,`, -1)
 	}
 }
