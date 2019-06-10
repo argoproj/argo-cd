@@ -110,7 +110,7 @@ export class App extends React.Component<{}, { popupProps: PopupProps, error: Er
                     <p>Something went wrong!</p>
                     <p>Consider submitting an issue <a href={url}>here</a>.</p><br />
                     <p>Stacktrace:</p>
-                    <p style={{ fontFamily: "monospace" }}>{stack}</p>
+                    <pre>{stack}</pre>
                 </React.Fragment>
             );
         }
