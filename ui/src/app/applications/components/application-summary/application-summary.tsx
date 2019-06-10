@@ -109,8 +109,6 @@ export const ApplicationSummary = (props: {
     }
 
     class EditableInfoList extends React.Component<{}, { editing: boolean, saving: boolean }> {
-        private mounted = false;
-
         get isMounted() {
             return this.mounted;
         }
@@ -119,8 +117,6 @@ export const ApplicationSummary = (props: {
             this.mounted = mounted;
         }
 
-        private newApp: models.Application;
-
         get updatedApp() {
             return this.newApp;
         }
@@ -128,6 +124,10 @@ export const ApplicationSummary = (props: {
         set updatedApp(newApp: models.Application) {
             this.newApp = newApp;
         }
+
+        private mounted = false;
+
+        private newApp: models.Application;
 
         constructor(listProps: {}) {
             super(listProps);
@@ -138,40 +138,13 @@ export const ApplicationSummary = (props: {
             this.isMounted = true;
         }
 
-        private async save(ctx: ContextApis) {
-            const editing = !this.state.editing;
-            this.setState({ editing });
-
-            if (editing) {
-                this.updatedApp = JSON.parse(JSON.stringify(app)) as models.Application;
-                return;
-            }
-
-            try {
-                this.setState({ saving: true });
-                await props.updateApp(this.updatedApp);
-                if (this.isMounted) {
-                    this.setState({ saving: false });
-                }
-            } catch (e) {
-                ctx.notifications.show({
-                    content: <ErrorNotification title='Unable to save changes' e={e}/>,
-                    type: NotificationType.Error,
-                });
-            } finally {
-                if (this.isMounted) {
-                    this.setState({ saving: false });
-                }
-            }
-        }
-
         public render() {
             return (
                 <Consumer>{(ctx) => (
                     <div className='white-box'>
                         <div className='white-box__details'>
                             <div className='editable-panel__buttons'>
-                                <button onClick={() => {this.save(ctx)}} className='argo-button argo-button--base' disabled={this.state.saving}>
+                                <button onClick={() => { this.save(ctx); }} className='argo-button argo-button--base' disabled={this.state.saving}>
                                     {(this.state.editing || this.state.saving) ? 'Save' : 'Edit'}</button>&nbsp;
                                 {(this.state.editing || this.state.saving) && <button onClick={() => {
                                     this.setState({ editing: false });
@@ -238,6 +211,33 @@ export const ApplicationSummary = (props: {
 
         public componentWillUnmount() {
             this.isMounted = false;
+        }
+
+        private async save(ctx: ContextApis) {
+            const editing = !this.state.editing;
+            this.setState({ editing });
+
+            if (editing) {
+                this.updatedApp = JSON.parse(JSON.stringify(app)) as models.Application;
+                return;
+            }
+
+            try {
+                this.setState({ saving: true });
+                await props.updateApp(this.updatedApp);
+                if (this.isMounted) {
+                    this.setState({ saving: false });
+                }
+            } catch (e) {
+                ctx.notifications.show({
+                    content: <ErrorNotification title='Unable to save changes' e={e}/>,
+                    type: NotificationType.Error,
+                });
+            } finally {
+                if (this.isMounted) {
+                    this.setState({ saving: false });
+                }
+            }
         }
     }
 
