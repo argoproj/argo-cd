@@ -424,8 +424,8 @@ func (in *ApplicationSpec) DeepCopyInto(out *ApplicationSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.Infos != nil {
-		in, out := &in.Infos, &out.Infos
+	if in.Info != nil {
+		in, out := &in.Info, &out.Info
 		*out = make([]Info, len(*in))
 		copy(*out, *in)
 	}

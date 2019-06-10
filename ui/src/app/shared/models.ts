@@ -183,7 +183,7 @@ export interface ApplicationSpec {
     source: ApplicationSource;
     destination: ApplicationDestination;
     syncPolicy?: SyncPolicy;
-    infos?: Info[];
+    info?: Info[];
 }
 
 /**

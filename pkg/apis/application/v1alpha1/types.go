@@ -47,7 +47,7 @@ type ApplicationSpec struct {
 	// IgnoreDifferences controls resources fields which should be ignored during comparison
 	IgnoreDifferences []ResourceIgnoreDifferences `json:"ignoreDifferences,omitempty" protobuf:"bytes,5,name=ignoreDifferences"`
 	// Infos contains a list of useful information (URLs, email addresses, and plain text) that relates to the application
-	Infos []Info `json:"infos,omitempty" protobuf:"bytes,6,name=infos"`
+	Info []Info `json:"info,omitempty" protobuf:"bytes,6,name=info"`
 }
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.

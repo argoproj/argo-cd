@@ -296,7 +296,7 @@ spec:
                 - jsonPointers
                 type: object
               type: array
-            infos:
+            info:
               description: Infos contains a list of useful information (URLs, email
                 addresses, and plain text) that relates to the application
               items:

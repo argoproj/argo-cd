@@ -2665,7 +2665,7 @@
             "$ref": "#/definitions/v1alpha1ResourceIgnoreDifferences"
           }
         },
-        "infos": {
+        "info": {
           "type": "array",
           "title": "Infos contains a list of useful information (URLs, email addresses, and plain text) that relates to the application",
           "items": {

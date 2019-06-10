@@ -68,7 +68,7 @@ const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi, className:
 
 const InfoFormField = ReactFormField((props: {fieldApi: FieldApi, className: string}) => {
     const {fieldApi: {getValue, setValue}} = props;
-    const infos = getValue() as models.Info[];
+    const infoList = getValue() as models.Info[];
 
     return (
         <div className='argo-table-list'>
@@ -80,23 +80,23 @@ const InfoFormField = ReactFormField((props: {fieldApi: FieldApi, className: str
                 </div>
             </div>
             <div className='argo-table-list__row'>
-                {infos && infos.map((info, i) => <div key={i} className='row'>
+                {infoList && infoList.map((info, i) => <div key={i} className='row'>
                         <div className='columns small-3'>
                             <input className='argo-field' type='text' defaultValue={info.name} onChange={(event) => {
-                                infos[i].name = event.target.value;
-                                setValue(infos);
+                                infoList[i].name = event.target.value;
+                                setValue(infoList);
                             }}/>
                         </div>
                         <div className='columns small-6'>
                             <input className='argo-field' type='text' defaultValue={info.value} onChange={(event) => {
-                                infos[i].value = event.target.value;
-                                setValue(infos);
+                                infoList[i].value = event.target.value;
+                                setValue(infoList);
                             }}/>
                         </div>
                         <div className='columns small-2'>
                             <select className='argo-field' defaultValue={info.type} onChange={(event) => {
-                                infos[i].type = event.target.value;
-                                setValue(infos);
+                                infoList[i].type = event.target.value;
+                                setValue(infoList);
                             }}>
                                 <option value='url'>URL</option>
                                 <option value='email'>Email</option>
@@ -105,8 +105,8 @@ const InfoFormField = ReactFormField((props: {fieldApi: FieldApi, className: str
                         </div>
                         <div className='columns small-1'>
                             <i className='fa fa-times' onClick={() => {
-                                infos.splice(i, 1);
-                                setValue([...infos]);
+                                infoList.splice(i, 1);
+                                setValue([...infoList]);
                             }} style={{cursor: 'pointer'}}/>
                         </div>
                     </div>)}
@@ -114,7 +114,7 @@ const InfoFormField = ReactFormField((props: {fieldApi: FieldApi, className: str
                     <div className='columns small-4'>
                         <a onClick={() => {
                             const newInfo = {name: '', value: '', type: 'url'};
-                            setValue((infos || []).concat(newInfo));
+                            setValue((infoList || []).concat(newInfo));
                         }}>Add info</a>
                     </div>
                 </div>
@@ -299,7 +299,7 @@ export const ApplicationCreatePanel = (props: {
                                 const infoPanel = () => (
                                     <div className='white-box'>
                                         <p>INFO</p>
-                                        <FormField formApi={api} field='spec.infos' component={InfoFormField}/>
+                                        <FormField formApi={api} field='spec.info' component={InfoFormField}/>
                                     </div>
                                 );
 

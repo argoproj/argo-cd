@@ -781,7 +781,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref common.ReferenceCa
 							},
 						},
 					},
-					"infos": {
+					"info": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Infos contains a list of useful information (URLs, email addresses, and plain text) that relates to the application",
 							Type:        []string{"array"},

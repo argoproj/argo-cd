@@ -5,7 +5,7 @@ import { FormApi, Text } from 'react-form';
 require('./application-summary.scss');
 
 import { DataLoader, EditablePanel } from '../../../shared/components';
-import { Consumer } from '../../../shared/context';
+import { Consumer, ContextApis } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 
@@ -138,38 +138,40 @@ export const ApplicationSummary = (props: {
             this.isMounted = true;
         }
 
+        private async save(ctx: ContextApis) {
+            const editing = !this.state.editing;
+            this.setState({ editing });
+
+            if (editing) {
+                this.updatedApp = JSON.parse(JSON.stringify(app)) as models.Application;
+                return;
+            }
+
+            try {
+                this.setState({ saving: true });
+                await props.updateApp(this.updatedApp);
+                if (this.isMounted) {
+                    this.setState({ saving: false });
+                }
+            } catch (e) {
+                ctx.notifications.show({
+                    content: <ErrorNotification title='Unable to save changes' e={e}/>,
+                    type: NotificationType.Error,
+                });
+            } finally {
+                if (this.isMounted) {
+                    this.setState({ saving: false });
+                }
+            }
+        }
+
         public render() {
             return (
                 <Consumer>{(ctx) => (
                     <div className='white-box'>
                         <div className='white-box__details'>
                             <div className='editable-panel__buttons'>
-                                <button onClick={async () => {
-                                    const editing = !this.state.editing;
-                                    this.setState({ editing });
-
-                                    if (editing) {
-                                        this.updatedApp = JSON.parse(JSON.stringify(app)) as models.Application;
-                                        return;
-                                    }
-
-                                    try {
-                                        this.setState({ saving: true });
-                                        await props.updateApp(this.updatedApp);
-                                        if (this.isMounted) {
-                                            this.setState({ saving: false });
-                                        }
-                                    } catch (e) {
-                                        ctx.notifications.show({
-                                            content: <ErrorNotification title='Unable to save changes' e={e}/>,
-                                            type: NotificationType.Error,
-                                        });
-                                    } finally {
-                                        if (this.isMounted) {
-                                            this.setState({ saving: false });
-                                        }
-                                    }
-                                }} className='argo-button argo-button--base' disabled={this.state.saving}>
+                                <button onClick={() => {this.save(ctx)}} className='argo-button argo-button--base' disabled={this.state.saving}>
                                     {(this.state.editing || this.state.saving) ? 'Save' : 'Edit'}</button>&nbsp;
                                 {(this.state.editing || this.state.saving) && <button onClick={() => {
                                     this.setState({ editing: false });
@@ -178,8 +180,8 @@ export const ApplicationSummary = (props: {
                             <p>Info</p>
                             <div className='argo-table-list'>
                                 <div className='argo-table-list__row'>
-                                    {((this.state.editing || this.state.saving) ? this.updatedApp : app).spec.infos &&
-                                        ((this.state.editing || this.state.saving) ? this.updatedApp : app).spec.infos.map((info, i) =>
+                                    {((this.state.editing || this.state.saving) ? this.updatedApp : app).spec.info &&
+                                        ((this.state.editing || this.state.saving) ? this.updatedApp : app).spec.info.map((info, i) =>
                                         <div key={i} className='row' style={{fontSize: '0.8125rem'}}>
                                             <div className='columns small-3'>
                                                 {info.name}
@@ -190,7 +192,7 @@ export const ApplicationSummary = (props: {
                                             </div>
                                             {this.state.editing && <div className='columns small-1'>
                                                 <i className='fa fa-times' onClick={() => {
-                                                    this.updatedApp.spec.infos.splice(i, 1);
+                                                    this.updatedApp.spec.info.splice(i, 1);
                                                     this.setState({});
                                                 }} style={{cursor: 'pointer'}}/>
                                             </div>}
@@ -221,7 +223,7 @@ export const ApplicationSummary = (props: {
                                                     return;
                                                 }
 
-                                                this.updatedApp.spec.infos = (this.updatedApp.spec.infos || []).concat(newInfo);
+                                                this.updatedApp.spec.info = (this.updatedApp.spec.info || []).concat(newInfo);
                                                 this.setState({});
                                             }} style={{cursor: 'pointer'}}/>
                                         </div>
