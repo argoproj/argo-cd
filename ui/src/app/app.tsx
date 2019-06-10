@@ -74,7 +74,7 @@ requests.onError.subscribe(async (err) => {
     }
 });
 
-export class App extends React.Component<{}, { popupProps: PopupProps }> {
+export class App extends React.Component<{}, { popupProps: PopupProps, error: Error }> {
     public static childContextTypes = {
         history: PropTypes.object,
         apis: PropTypes.object,
@@ -86,7 +86,7 @@ export class App extends React.Component<{}, { popupProps: PopupProps }> {
 
     constructor(props: {}) {
         super(props);
-        this.state = { popupProps: null };
+        this.state = { popupProps: null, error: null };
         this.popupManager = new PopupManager();
         this.notificationsManager = new NotificationsManager();
         this.navigationManager = new NavigationManager(history);
@@ -96,7 +96,25 @@ export class App extends React.Component<{}, { popupProps: PopupProps }> {
         this.popupManager.popupProps.subscribe((popupProps) => this.setState({ popupProps }));
     }
 
+    static getDerivedStateFromError(error: Error) {
+        return { error: error };
+    }
+
     public render() {
+        if (this.state.error != null) {
+            let stack = this.state.error.stack;
+            let url = "https://github.com/argoproj/argo-cd/issues/new?labels=bug&template=bug_report.md";
+
+            return (
+                <React.Fragment>
+                    <p>Something went wrong!</p>
+                    <p>Consider submitting an issue <a href={url}>here</a>.</p><br />
+                    <p>Stacktrace:</p>
+                    <p style={{ fontFamily: "monospace" }}>{stack}</p>
+                </React.Fragment>
+            );
+        }
+
         return (
             <React.Fragment>
                 <Helmet>
