@@ -26,7 +26,14 @@ export const ProjectEditPanel = (props: {
         defaultValues={{sourceRepos: [], destinations: [], roles: [], clusterResourceWhitelist: [], namespaceResourceBlacklist: [], ...props.defaultParams}}
         validateError={(params: ProjectParams) => ({
             name: !params.name && 'Project name is required',
-        })}>
+        })}
+        preSubmit={(params: ProjectParams) => {
+            params.clusterResourceWhitelist.forEach((obj: models.GroupKind) => {
+                obj.group = obj.group.trim();
+                obj.kind = obj.kind.trim();
+            });
+            return params;
+        }}>
 
         {(api) => (
             <form onSubmit={api.submitForm} role='form' className='width-control'>
