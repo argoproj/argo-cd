@@ -315,7 +315,7 @@ func (a *ArgoCDServer) watchSettings(ctx context.Context) {
 	prevGitLabSecret := a.settings.WebhookGitLabSecret
 	prevBitBucketUUID := a.settings.WebhookBitbucketUUID
 	var prevCert, prevCertKey string
-	if a.settings.Certificate != nil {
+	if a.settings.Certificate != nil && !a.ArgoCDServerOpts.Insecure {
 		prevCert, prevCertKey = tlsutil.EncodeX509KeyPairString(*a.settings.Certificate)
 	}
 
@@ -348,13 +348,15 @@ func (a *ArgoCDServer) watchSettings(ctx context.Context) {
 			log.Infof("bitbucket uuid modified. restarting")
 			break
 		}
-		var newCert, newCertKey string
-		if a.settings.Certificate != nil {
-			newCert, newCertKey = tlsutil.EncodeX509KeyPairString(*a.settings.Certificate)
-		}
-		if newCert != prevCert || newCertKey != prevCertKey {
-			log.Infof("tls certificate modified. restarting")
-			break
+		if !a.ArgoCDServerOpts.Insecure {
+			var newCert, newCertKey string
+			if a.settings.Certificate != nil {
+				newCert, newCertKey = tlsutil.EncodeX509KeyPairString(*a.settings.Certificate)
+			}
+			if newCert != prevCert || newCertKey != prevCertKey {
+				log.Infof("tls certificate modified. restarting")
+				break
+			}
 		}
 	}
 	log.Info("shutting down settings watch")
