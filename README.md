@@ -19,21 +19,21 @@ Application deployment and lifecycle management should be automated, auditable, 
 
 Organizations below are **officially** using Argo CD. Please send a PR with your organization name if you are using Argo CD.
 
+1. [Codility](https://www.codility.com/)
+1. [Commonbond](https://commonbond.co/)
+1. [CyberAgent](https://www.cyberagent.co.jp/en/)
+1. [END.](https://www.endclothing.com/)
+1. [GMETRI](https://gmetri.com/)
 1. [Intuit](https://www.intuit.com/)
-2. [KompiTech GmbH](https://www.kompitech.com/)
-3. [Yieldlab](https://www.yieldlab.de/)
-4. [Ticketmaster](https://ticketmaster.com)
-5. [CyberAgent](https://www.cyberagent.co.jp/en/)
-6. [OpenSaaS Studio](https://opensaas.studio)
-7. [Riskified](https://www.riskified.com/)
-8. [GMETRI](https://gmetri.com/)
-9. [Commonbond](https://commonbond.co/)
-10. [END.](https://www.endclothing.com/)
-11. [KintoHub](https://www.kintohub.com/)
-12. [Codility](https://www.codility.com/)
-13. [tZERO](https://www.tzero.com/)
-14. [Mirantis](https://mirantis.com/)
-15. [Tesla](https://tesla.com/)
+1. [KintoHub](https://www.kintohub.com/)
+1. [KompiTech GmbH](https://www.kompitech.com/)
+1. [Mirantis](https://mirantis.com/)
+1. [OpenSaaS Studio](https://opensaas.studio)
+1. [Riskified](https://www.riskified.com/)
+1. [Tesla](https://tesla.com/)
+1. [tZERO](https://www.tzero.com/)
+1. [Ticketmaster](https://ticketmaster.com)
+1. [Yieldlab](https://www.yieldlab.de/)
 
 ## Documentation
 
