@@ -80,6 +80,10 @@ export class App extends React.Component<{}, { popupProps: PopupProps, error: Er
         apis: PropTypes.object,
     };
 
+    public static getDerivedStateFromError(error: Error) {
+        return { error };
+    }
+
     private popupManager: PopupManager;
     private notificationsManager: NotificationsManager;
     private navigationManager: NavigationManager;
@@ -96,14 +100,10 @@ export class App extends React.Component<{}, { popupProps: PopupProps, error: Er
         this.popupManager.popupProps.subscribe((popupProps) => this.setState({ popupProps }));
     }
 
-    static getDerivedStateFromError(error: Error) {
-        return { error: error };
-    }
-
     public render() {
         if (this.state.error != null) {
-            let stack = this.state.error.stack;
-            let url = "https://github.com/argoproj/argo-cd/issues/new?labels=bug&template=bug_report.md";
+            const stack = this.state.error.stack;
+            const url = 'https://github.com/argoproj/argo-cd/issues/new?labels=bug&template=bug_report.md';
 
             return (
                 <React.Fragment>
