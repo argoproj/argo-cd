@@ -161,14 +161,14 @@ func TestHelmTemplateReleaseName(t *testing.T) {
 }
 
 func TestHelmArgCleaner(t *testing.T) {
-	cleanArgs := []string{"--these-args", "are-clean", "--foo", "bar"}
+	cleanArgs := []string{`--these-args`, `are-clean`, `--foo`, `bar`}
 	argsToBeCleaned := make([]string, len(cleanArgs))
 	copy(argsToBeCleaned, cleanArgs)
 
 	cleanHelmParameters(argsToBeCleaned)
 	assert.Equal(t, cleanArgs, argsToBeCleaned)
 
-	dirtyArgs := []string{"--these-args", "are-not, clean", "--foo", "b,a,r"}
+	dirtyArgs := []string{`--these-args`, `are-not, clean`, `--foo`, `b\,a,r`}
 	argsToBeCleaned = make([]string, len(dirtyArgs))
 	copy(argsToBeCleaned, dirtyArgs)
 

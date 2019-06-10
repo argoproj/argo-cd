@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -251,7 +252,8 @@ func flatVals(input map[string]interface{}, output map[string]string, prefixes .
 }
 
 func cleanHelmParameters(params []string) {
+	re := regexp.MustCompile(`([^\\]),`)
 	for i, param := range params {
-		params[i] = strings.Replace(param, ",", `\,`, -1)
+		params[i] = re.ReplaceAllString(param, `$1\,`)
 	}
 }
