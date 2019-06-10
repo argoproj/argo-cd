@@ -13,19 +13,21 @@ import (
 )
 
 func TestPreSyncHookSuccessful(t *testing.T) {
-	testHookSuccessful(t, HookTypePreSync)
+	// special-case that the pod remains in the running state, but we don't really care, because this is only used for
+	// determining overall operation status is a sync with >1 wave/phase
+	testHookSuccessful(t, HookTypePreSync, OperationRunning)
 }
 
 func TestSyncHookSuccessful(t *testing.T) {
-	testHookSuccessful(t, HookTypeSync)
+	testHookSuccessful(t, HookTypeSync, OperationSucceeded)
 }
 
 func TestPostSyncHookSuccessful(t *testing.T) {
-	testHookSuccessful(t, HookTypePostSync)
+	testHookSuccessful(t, HookTypePostSync, OperationSucceeded)
 }
 
 // make sure we can run a standard sync hook
-func testHookSuccessful(t *testing.T, hookType HookType) {
+func testHookSuccessful(t *testing.T, hookType HookType, podHookPhase OperationPhase) {
 	Given(t).
 		Path("hook").
 		When().
@@ -38,13 +40,9 @@ func testHookSuccessful(t *testing.T, hookType HookType) {
 		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced)).
 		Expect(ResourceHealthIs("Pod", "pod", HealthStatusHealthy)).
 		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" })).
-		And(func(app *Application) {
-			// a retentive check on the resource results
-			_, pod := app.Status.OperationState.SyncResult.Resources.Find("", "Pod", DeploymentNamespace(), "pod", SyncPhaseSync)
-			assert.Equal(t, ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "pod", Status: ResultCodeSynced, Message: "pod/pod created", HookPhase: OperationSucceeded, SyncPhase: SyncPhaseSync}, *pod)
-			_, hook := app.Status.OperationState.SyncResult.Resources.Find("", "Pod", DeploymentNamespace(), "hook", SyncPhase(hookType))
-			assert.Equal(t, ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook", Message: "pod/hook created", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}, *hook)
-		})
+		Expect(ResourceResultNumbering(2)).
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "pod", Status: ResultCodeSynced, Message: "pod/pod created", HookPhase: podHookPhase, SyncPhase: SyncPhaseSync})).
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook", Message: "pod/hook created", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
 }
 
 // make sure that if pre-sync fails, we fail the app and we do not create the pod
@@ -61,6 +59,7 @@ func TestPreSyncHookFailure(t *testing.T) {
 		Expect(OperationPhaseIs(OperationFailed)).
 		// if a pre-sync hook fails, we should not start the main sync
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(ResourceResultNumbering(1)).
 		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeOutOfSync))
 }
 
@@ -77,6 +76,7 @@ func TestSyncHookFailure(t *testing.T) {
 		Expect(OperationPhaseIs(OperationFailed)).
 		// even thought the hook failed, we expect the pod to be in sync
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(ResourceResultNumbering(2)).
 		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced))
 }
 
@@ -93,6 +93,7 @@ func TestPostSyncHookFailure(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(ResourceResultNumbering(2)).
 		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced))
 }
 
@@ -111,6 +112,7 @@ func TestPostSyncHookPodFailure(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced)).
 		Expect(ResourceHealthIs("Pod", "pod", HealthStatusDegraded)).
+		Expect(ResourceResultNumbering(1)).
 		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "hook" }))
 }
 
@@ -138,6 +140,7 @@ func TestHookDeletePolicyHookSucceededHookExit1(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
+		Expect(ResourceResultNumbering(2)).
 		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" }))
 }
 
@@ -151,6 +154,7 @@ func TestHookDeletePolicyHookFailedHookExit0(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(ResourceResultNumbering(2)).
 		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" }))
 }
 
@@ -165,6 +169,7 @@ func TestHookDeletePolicyHookFailedHookExit1(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
+		Expect(ResourceResultNumbering(2)).
 		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "hook" }))
 }
 
@@ -179,6 +184,7 @@ func TestHookSkip(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(ResourceResultNumbering(1)).
 		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "pod" }))
 }
 

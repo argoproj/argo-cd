@@ -81,6 +81,29 @@ func ResourceHealthIs(kind, resource string, expected HealthStatusCode) Expectat
 		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' health should be %s, is %s", kind, resource, expected, actual))
 	}
 }
+func ResourceResultNumbering(num int) Expectation {
+	return func(c *Consequences) (state, string) {
+		actualNum := len(c.app().Status.OperationState.SyncResult.Resources)
+		if actualNum < num {
+			return pending, fmt.Sprintf("not enough results yet, want %d, got %d", num, actualNum)
+		} else if actualNum == num {
+			return succeeded, fmt.Sprintf("right number of results, want %d, got %d", num, actualNum)
+		} else {
+			return failed, fmt.Sprintf("too many results, want %d, got %d", num, actualNum)
+		}
+	}
+}
+
+func ResourceResultIs(result ResourceResult) Expectation {
+	return func(c *Consequences) (state, string) {
+		for _, res := range c.app().Status.OperationState.SyncResult.Resources {
+			if *res == result {
+				return succeeded, fmt.Sprintf("found resource result %v", result)
+			}
+		}
+		return pending, fmt.Sprintf("waiting for resource result %v", result)
+	}
+}
 
 func DoesNotExist() Expectation {
 	return func(c *Consequences) (state, string) {

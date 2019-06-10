@@ -299,7 +299,7 @@ func TestResourceDiffing(t *testing.T) {
 }
 
 func TestDeprecatedExtensions(t *testing.T) {
-	testEdgeCasesApplicationResources(t, "deprecated-extensions", OperationRunning, HealthStatusProgressing)
+	testEdgeCasesApplicationResources(t, "deprecated-extensions", OperationSucceeded, HealthStatusProgressing)
 }
 
 func TestCRDs(t *testing.T) {
