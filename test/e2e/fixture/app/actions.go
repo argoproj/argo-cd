@@ -30,6 +30,8 @@ func (a *Actions) Create() *Actions {
 	args := []string{
 		"app", "create", a.context.name,
 		"--repo", fixture.RepoURL(),
+		"--envvars", "MY_ENV_PARAM=MY_ENV_PARAM_VALUE",
+		"--envvars", "MY_ENV_PARAM2=MY_ENV_PARAM_VALUE2",
 		"--path", a.context.path,
 		"--dest-server", a.context.destServer,
 		"--dest-namespace", fixture.DeploymentNamespace(),
