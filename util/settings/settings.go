@@ -801,7 +801,7 @@ func isIncompleteSettingsError(err error) bool {
 }
 
 // InitializeSettings is used to initialize empty admin password, signature, certificate etc if missing
-func (mgr *SettingsManager) InitializeSettings() (*ArgoCDSettings, error) {
+func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoCDSettings, error) {
 	cdSettings, err := mgr.GetSettings()
 	if err != nil && !isIncompleteSettingsError(err) {
 		return nil, err
@@ -836,7 +836,7 @@ func (mgr *SettingsManager) InitializeSettings() (*ArgoCDSettings, error) {
 		log.Info("Initialized admin mtime")
 	}
 
-	if cdSettings.Certificate == nil {
+	if cdSettings.Certificate == nil && !insecureModeEnabled {
 		// generate TLS cert
 		hosts := []string{
 			"localhost",

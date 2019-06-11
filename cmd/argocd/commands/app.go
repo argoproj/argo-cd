@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -1476,6 +1477,7 @@ func setParameterOverrides(app *argoappv1.Application, parameters []string) {
 		if app.Spec.Source.Helm == nil {
 			app.Spec.Source.Helm = &argoappv1.ApplicationSourceHelm{}
 		}
+		re := regexp.MustCompile(`([^\\]),`)
 		for _, paramStr := range parameters {
 			parts := strings.SplitN(paramStr, "=", 2)
 			if len(parts) != 2 {
@@ -1483,7 +1485,7 @@ func setParameterOverrides(app *argoappv1.Application, parameters []string) {
 			}
 			newParam := argoappv1.HelmParameter{
 				Name:  parts[0],
-				Value: parts[1],
+				Value: re.ReplaceAllString(parts[1], `$1\,`),
 			}
 			found := false
 			for i, cp := range app.Spec.Source.Helm.Parameters {

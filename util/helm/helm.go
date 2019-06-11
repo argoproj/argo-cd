@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -216,6 +217,7 @@ func (h *helm) helmCmd(args ...string) (string, error) {
 }
 
 func (h *helm) helmCmdExt(args []string, logFormat func(string) string) (string, error) {
+	cleanHelmParameters(args)
 	cmd := exec.Command("helm", args...)
 	cmd.Env = os.Environ()
 	cmd.Dir = h.path
@@ -246,5 +248,12 @@ func flatVals(input map[string]interface{}, output map[string]string, prefixes .
 		} else {
 			output[strings.Join(append(prefixes, fmt.Sprintf("%v", key)), ".")] = fmt.Sprintf("%v", val)
 		}
+	}
+}
+
+func cleanHelmParameters(params []string) {
+	re := regexp.MustCompile(`([^\\]),`)
+	for i, param := range params {
+		params[i] = re.ReplaceAllString(param, `$1\,`)
 	}
 }
