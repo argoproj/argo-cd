@@ -12,15 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/test/fixture/test_repos"
 	"github.com/argoproj/argo-cd/util/git"
-)
-
-// TODO: move this into shared test package after resolving import cycle
-const (
-	// This is a throwaway gitlab test account/repo with a read-only personal access token for the
-	// purposes of testing private git repos
-	PrivateGitUsername = "blah"
-	PrivateGitPassword = "B5sBDeoqAVUouoHkrovy"
 )
 
 const kustomization1 = "kustomization_yaml"
@@ -43,7 +36,7 @@ func TestKustomizeBuild(t *testing.T) {
 	appPath, err := testDataDir()
 	assert.Nil(t, err)
 	namePrefix := "namePrefix-"
-	kustomize := NewKustomizeApp(appPath, nil)
+	kustomize := NewKustomizeApp(appPath, git.NopCreds{})
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		NamePrefix: namePrefix,
 		ImageTags: []v1alpha1.KustomizeImageTag{
@@ -129,10 +122,9 @@ func TestIsKustomization(t *testing.T) {
 	assert.False(t, IsKustomization("rubbish.yml"))
 }
 
-// TestPrivateRemoteBase verifies we can supply git credentials to a private remote base
-func TestPrivateRemoteBase(t *testing.T) {
-	os.Setenv("GIT_CONFIG_NOSYSTEM", "true")
-	defer os.Unsetenv("GIT_CONFIG_NOSYSTEM")
+func TestNewKustomizeApp(t *testing.T) {
+	_ = os.Setenv("GIT_CONFIG_NOSYSTEM", "true")
+	defer func() { _ = os.Unsetenv("GIT_CONFIG_NOSYSTEM") }()
 
 	// add the hack path which has the git-ask-pass.sh shell script
 	osPath := os.Getenv("PATH")
@@ -142,11 +134,24 @@ func TestPrivateRemoteBase(t *testing.T) {
 	assert.NoError(t, err)
 	defer func() { _ = os.Setenv("PATH", osPath) }()
 
-	kust := NewKustomizeApp("./testdata/private-remote-base", &git.Creds{Username: PrivateGitUsername, Password: PrivateGitPassword})
-
-	objs, _, _, err := kust.Build(nil)
-	assert.NoError(t, err)
-	assert.Len(t, objs, 2)
+	type args struct {
+		path  string
+		creds git.Creds
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantLen int
+	}{
+		{"PrivateRemoteBase", args{"./testdata/private-remote-base", git.NewHTTPSCreds(test_repos.HTTPSTestRepo.Username, test_repos.HTTPSTestRepo.Password)}, 2},
+		{"PrivateSSHRemoteBase", args{"./testdata/private-ssh-remote-base", git.NewSSHCreds(test_repos.SSHTestRepo.SSHPrivateKey, false)}, 1},
+	}
+	for _, tt := range tests {
+		kust := NewKustomizeApp(tt.args.path, tt.args.creds)
+		objs, _, _, err := kust.Build(nil)
+		assert.NoError(t, err)
+		assert.Len(t, objs, tt.wantLen)
+	}
 }
 
 func TestNewImageTag(t *testing.T) {

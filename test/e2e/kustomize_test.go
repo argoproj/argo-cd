@@ -8,6 +8,7 @@ import (
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/test/e2e/fixture/repos"
 )
 
 func TestKustomize2AppSource(t *testing.T) {
@@ -104,4 +105,17 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 				assert.Equal(t, SyncStatusCodeOutOfSync, resourceStatus.Status)
 			}
 		})
+}
+
+// make sure we can create an app which has a SSH remote base
+func TestKustomizeSSHRemoteBase(t *testing.T) {
+	Given(t).
+		And(repos.AddSSHRepo).
+		Path("kustomize-ssh-remote-base").
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(ResourceSyncStatusIs("ConfigMap", "config-map", SyncStatusCodeSynced))
 }

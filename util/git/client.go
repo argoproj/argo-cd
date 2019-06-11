@@ -38,7 +38,7 @@ type ClientFactory interface {
 type nativeGitClient struct {
 	repoURL string
 	root    string
-	auth    transport.AuthMethod
+	creds   Creds
 }
 
 type factory struct{}
@@ -48,30 +48,43 @@ func NewFactory() ClientFactory {
 }
 
 func (f *factory) NewClient(rawRepoURL, path, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (Client, error) {
-	var sshUser string
-	if isSSH, user := IsSSHURL(rawRepoURL); isSSH {
-		sshUser = user
+	var creds Creds
+	if sshPrivateKey != "" {
+		creds = SSHCreds{sshPrivateKey, insecureIgnoreHostKey}
+	} else if username != "" || password != "" {
+		creds = HTTPSCreds{username, password}
+	} else {
+		creds = NopCreds{}
 	}
-
-	clnt := nativeGitClient{
+	client := nativeGitClient{
 		repoURL: rawRepoURL,
 		root:    path,
+		creds:   creds,
 	}
-	if sshPrivateKey != "" {
-		signer, err := ssh.ParsePrivateKey([]byte(sshPrivateKey))
+	return &client, nil
+}
+
+func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
+	switch creds := creds.(type) {
+	case SSHCreds:
+		var sshUser string
+		if isSSH, user := IsSSHURL(repoURL); isSSH {
+			sshUser = user
+		}
+		signer, err := ssh.ParsePrivateKey([]byte(creds.sshPrivateKey))
 		if err != nil {
 			return nil, err
 		}
-		auth := &ssh2.PublicKeys{User: sshUser, Signer: signer}
-		if insecureIgnoreHostKey {
-			auth.HostKeyCallback = ssh.InsecureIgnoreHostKey()
+		publicKeys := &ssh2.PublicKeys{User: sshUser, Signer: signer}
+		if creds.insecureIgnoreHostKey {
+			publicKeys.HostKeyCallback = ssh.InsecureIgnoreHostKey()
 		}
-		clnt.auth = auth
-	} else if username != "" || password != "" {
-		auth := &http.BasicAuth{Username: username, Password: password}
-		clnt.auth = auth
+		return publicKeys, nil
+	case HTTPSCreds:
+		basicAuth := http.BasicAuth{Username: creds.username, Password: creds.password}
+		return &basicAuth, nil
 	}
-	return &clnt, nil
+	return nil, nil
 }
 
 func (m *nativeGitClient) Root() string {
@@ -110,33 +123,7 @@ func (m *nativeGitClient) Init() error {
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch() error {
 	log.Debugf("Fetching repo %s at %s", m.repoURL, m.root)
-	// Two techniques are used for fetching the remote depending if the remote is SSH vs. HTTPS
-	// If http, we fork/exec the git CLI since the go-git client does not properly support git
-	// providers such as AWS CodeCommit and Azure DevOps.
-	if _, ok := m.auth.(*ssh2.PublicKeys); ok {
-		return m.goGitFetch()
-	}
 	_, err := m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
-	return err
-}
-
-// goGitFetch fetches the remote using go-git
-func (m *nativeGitClient) goGitFetch() error {
-	repo, err := git.PlainOpen(m.root)
-	if err != nil {
-		return err
-	}
-
-	log.Debug("git fetch origin --tags --force")
-	err = repo.Fetch(&git.FetchOptions{
-		RemoteName: git.DefaultRemoteName,
-		Auth:       m.auth,
-		Tags:       git.AllTags,
-		Force:      true,
-	})
-	if err == git.NoErrAlreadyUpToDate {
-		return nil
-	}
 	return err
 }
 
@@ -185,7 +172,11 @@ func (m *nativeGitClient) LsRemote(revision string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	refs, err := remote.List(&git.ListOptions{Auth: m.auth})
+	auth, err := newAuth(m.repoURL, m.creds)
+	if err != nil {
+		return "", err
+	}
+	refs, err := remote.List(&git.ListOptions{Auth: auth})
 	if err != nil {
 		return "", err
 	}
@@ -255,11 +246,12 @@ func (m *nativeGitClient) runCmd(command string, args ...string) (string, error)
 // runCredentialedCmd is a convenience function to run a git command with username/password credentials
 func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) (string, error) {
 	cmd := exec.Command(command, args...)
-	if auth, ok := m.auth.(*http.BasicAuth); ok {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_ASKPASS=git-ask-pass.sh"))
-		cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_USERNAME=%s", auth.Username))
-		cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_PASSWORD=%s", auth.Password))
+	closer, environ, err := m.creds.Environ()
+	if err != nil {
+		return "", err
 	}
+	defer func() { _ = closer.Close() }()
+	cmd.Env = append(cmd.Env, environ...)
 	return m.runCmdOutput(cmd)
 }
 

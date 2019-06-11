@@ -1,0 +1,23 @@
+package repos
+
+import (
+	"io/ioutil"
+
+	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/test/fixture/test_repos"
+)
+
+func AddSSHRepo() {
+	tmpFile, err := ioutil.TempFile("", "")
+	errors.CheckError(err)
+	r := test_repos.SSHTestRepo
+	errors.FailOnErr(tmpFile.WriteString(r.SSHPrivateKey))
+	errors.CheckError(tmpFile.Close())
+	errors.FailOnErr(fixture.RunCli("repo", "add", r.URL, "--ssh-private-key-path", tmpFile.Name()))
+}
+
+func AddHTTPSRepo() {
+	r := test_repos.HTTPSTestRepo
+	errors.FailOnErr(fixture.RunCli("repo", "add", r.URL, "--username", r.Username, "--password", r.Password))
+}
