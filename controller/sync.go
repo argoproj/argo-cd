@@ -269,7 +269,7 @@ func (sc *syncContext) sync() {
 
 	// if it is the last phase/wave and the only remaining tasks are non-hooks, the we are successful
 	// EVEN if those objects subsequently degraded
-	// this does create a special-case logic that we need to deal with
+	// This handles the common case where neither hooks or waves are used and a sync equates to simply an (asynchronous) kubectl apply of manifests, which succeeds immediately.
 	complete := tasks.Find(func(t *syncTask) bool { return t.phase != phase || wave != t.wave() || t.isHook() }) == nil
 
 	sc.log.WithFields(log.Fields{"phase": phase, "wave": wave, "tasks": tasks}).Debug("filtering tasks in correct phase and wave")
