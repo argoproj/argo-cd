@@ -314,9 +314,8 @@ type OperationState struct {
 }
 
 type Info struct {
-	Name  string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
-	Type  string `json:"type,omitempty" protobuf:"bytes,3,opt,name=type"`
+	Name  string `json:"name" protobuf:"bytes,1,name=name"`
+	Value string `json:"value" protobuf:"bytes,2,name=value"`
 }
 
 // SyncPolicy controls when a sync will be performed in response to updates in git

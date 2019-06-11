@@ -304,10 +304,11 @@ spec:
                 properties:
                   name:
                     type: string
-                  type:
-                    type: string
                   value:
                     type: string
+                required:
+                - name
+                - value
                 type: object
               type: array
             project:

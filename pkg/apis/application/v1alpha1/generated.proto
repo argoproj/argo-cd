@@ -378,8 +378,6 @@ message Info {
   optional string name = 1;
 
   optional string value = 2;
-
-  optional string type = 3;
 }
 
 // InfoItem contains human readable information about object

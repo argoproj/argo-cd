@@ -75,8 +75,7 @@ const InfoFormField = ReactFormField((props: {fieldApi: FieldApi, className: str
             <div className='argo-table-list__head'>
                 <div className='row'>
                     <div className='columns small-3'>Name</div>
-                    <div className='columns small-6'>Value</div>
-                    <div className='columns small-3'>Type</div>
+                    <div className='columns small-9'>Value</div>
                 </div>
             </div>
             <div className='argo-table-list__row'>
@@ -87,21 +86,11 @@ const InfoFormField = ReactFormField((props: {fieldApi: FieldApi, className: str
                                 setValue(infoList);
                             }}/>
                         </div>
-                        <div className='columns small-6'>
+                        <div className='columns small-8'>
                             <input className='argo-field' type='text' defaultValue={info.value} onChange={(event) => {
                                 infoList[i].value = event.target.value;
                                 setValue(infoList);
                             }}/>
-                        </div>
-                        <div className='columns small-2'>
-                            <select className='argo-field' defaultValue={info.type} onChange={(event) => {
-                                infoList[i].type = event.target.value;
-                                setValue(infoList);
-                            }}>
-                                <option value='url'>URL</option>
-                                <option value='email'>Email</option>
-                                <option value='text'>Text</option>
-                            </select>
                         </div>
                         <div className='columns small-1'>
                             <i className='fa fa-times' onClick={() => {
@@ -113,7 +102,7 @@ const InfoFormField = ReactFormField((props: {fieldApi: FieldApi, className: str
                 <div className='row'>
                     <div className='columns small-4'>
                         <a onClick={() => {
-                            const newInfo = {name: '', value: '', type: 'url'};
+                            const newInfo = {name: '', value: ''};
                             setValue((infoList || []).concat(newInfo));
                         }}>Add info</a>
                     </div>

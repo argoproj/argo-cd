@@ -175,7 +175,6 @@ export interface SyncPolicy {
 export interface Info {
     name: string;
     value: string;
-    type: string;
 }
 
 export interface ApplicationSpec {
