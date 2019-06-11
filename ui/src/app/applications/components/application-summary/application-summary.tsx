@@ -131,8 +131,6 @@ export const ApplicationSummary = (props: {
 
         private urlPattern = new RegExp('^(https?:\\/\\/)?((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|((\\d{1,3}\\.){3}\\d{1,3}))'
             + '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*(\\?[;&a-z\\d%_.~+=-]*)?(\\#[-a-z\\d_]*)?$', 'i');
-        private emailPattern = new RegExp('^(([^<>()\\[\\]\\\\.,;:\\s@\"]+(\\.[^<>()\\[\\]\\\\.,;:\\s@\"]+)*)|(\".+\"))'
-            + '@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}])|(([a-zA-Z\\-0-9]+\\.)+[a-zA-Z]{2,}))$', 'i');
 
         constructor(listProps: {}) {
             super(listProps);
@@ -157,34 +155,51 @@ export const ApplicationSummary = (props: {
                             </div>
                             <p>Info</p>
                             <div className='argo-table-list'>
+                                {this.state.editing && <div className='argo-table-list__head'>
+                                    <div className='row'>
+                                        <div className='columns small-3'>Name</div>
+                                        <div className='columns small-9'>Value</div>
+                                    </div>
+                                </div>}
                                 <div className='argo-table-list__row'>
                                     {((this.state.editing || this.state.saving) ? this.updatedApp : app).spec.info &&
                                         ((this.state.editing || this.state.saving) ? this.updatedApp : app).spec.info.map((info, i) =>
                                         <div key={i} className='row' style={{fontSize: '0.8125rem'}}>
-                                            <div className='columns small-3'>
-                                                {info.name}
-                                            </div>
-                                            <div className={'columns small-' + (this.state.editing ? 8 : 9)}>
-                                                {!!info.value.match(this.urlPattern) && <a target='_blank' href={info.value}>{info.value}</a>}
-                                                {!!info.value.match(this.emailPattern) && <a target='_blank' href={'mailto:' + info.value}>{info.value}</a>}
-                                                {!info.value.match(this.urlPattern) && !info.value.match(this.emailPattern) && info.value}
-                                            </div>
-                                            {this.state.editing && <div className='columns small-1'>
-                                                <i className='fa fa-times' onClick={() => {
-                                                    this.updatedApp.spec.info.splice(i, 1);
-                                                    this.setState({});
-                                                }} style={{cursor: 'pointer'}}/>
-                                            </div>}
+                                            {!this.state.editing ? <React.Fragment>
+                                                <div className='columns small-3'>
+                                                    {info.name}
+                                                </div>
+                                                <div className='columns small-9'>
+                                                    {!!info.value.match(this.urlPattern) ? <a target='_blank' href={info.value}>{info.value}</a> : info.value}
+                                                </div>
+                                            </React.Fragment> : <React.Fragment>
+                                                <div className='columns small-3'>
+                                                    <input className='argo-field' type='text' value={this.updatedApp.spec.info[i].name} onChange={(event) => {
+                                                        this.updatedApp.spec.info[i].name = event.target.value;
+                                                        this.setState({});
+                                                    }}/>
+                                                </div>
+                                                <div className='columns small-8'>
+                                                    <input className='argo-field' type='text' value={this.updatedApp.spec.info[i].value} onChange={(event) => {
+                                                        this.updatedApp.spec.info[i].value = event.target.value;
+                                                        this.setState({});
+                                                    }}/>
+                                                </div>
+                                                <div className='columns small-1'>
+                                                    <i className='fa fa-times' onClick={() => {
+                                                        this.updatedApp.spec.info.splice(i, 1);
+                                                        this.setState({});
+                                                    }} style={{cursor: 'pointer'}}/>
+                                                </div>
+                                            </React.Fragment>}
                                         </div>)}
                                     {this.state.editing && <div className='row'>
-                                        <div className='columns small-3'>
-                                            <input className='argo-field' type='text' placeholder='Name' id='newInfoName'/>
-                                        </div>
-                                        <div className='columns small-8'>
-                                            <input className='argo-field' type='text' placeholder='Value' id='newInfoValue'/>
-                                        </div>
-                                        <div className='columns small-1'>
-                                            <i className='fa fa-plus' onClick={() => { this.addInfo(true); }} style={{cursor: 'pointer'}}/>
+                                        <div className='columns small-4'>
+                                            <a onClick={() => {
+                                                const newInfo = {name: '', value: ''};
+                                                this.updatedApp.spec.info = ((this.updatedApp.spec.info || []).concat(newInfo));
+                                                this.setState({});
+                                            }}>Add info</a>
                                         </div>
                                     </div>}
                                 </div>
@@ -199,27 +214,6 @@ export const ApplicationSummary = (props: {
             this.isMounted = false;
         }
 
-        private addInfo(setState: boolean) {
-            const nameInput = document.getElementById('newInfoName') as HTMLInputElement;
-            const valueInput = document.getElementById('newInfoValue') as HTMLInputElement;
-
-            const newInfo = {
-                name: nameInput.value,
-                value: valueInput.value,
-            };
-
-            if (newInfo.name === '' || newInfo.value === '') {
-                return;
-            }
-
-            this.updatedApp.spec.info = (this.updatedApp.spec.info || []).concat(newInfo);
-            nameInput.value = valueInput.value = '';
-
-            if (setState) {
-                this.setState({});
-            }
-        }
-
         private async save(ctx: ContextApis) {
             const editing = !this.state.editing;
             this.setState({ editing });
@@ -229,7 +223,9 @@ export const ApplicationSummary = (props: {
                 return;
             }
 
-            this.addInfo(false);
+            this.updatedApp.spec.info = this.updatedApp.spec.info.filter((info: models.Info) => {
+                return info.name != '' && info.value != '';
+            });
 
             try {
                 this.setState({ saving: true });
