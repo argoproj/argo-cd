@@ -72,9 +72,9 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	strictHostKeyChecking := "no"
+	strictHostKeyChecking := "yes"
 	if c.insecureIgnoreHostKey {
-		strictHostKeyChecking = "yes"
+		strictHostKeyChecking = "no"
 	}
 	return sshPrivateKeyFile(file.Name()),
 		[]string{fmt.Sprintf("GIT_SSH_COMMAND=ssh -o StrictHostKeyChecking=%s -i %s", strictHostKeyChecking, file.Name())},
