@@ -5,6 +5,9 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type Creds interface {
@@ -72,11 +75,13 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	strictHostKeyChecking := "yes"
+	args := []string{"ssh", "-i", file.Name()}
 	if c.insecureIgnoreHostKey {
-		strictHostKeyChecking = "no"
+		log.Warn("temporarily disabling strict host key checking (i.e. 'UserKnownHostsFile=/dev/null,StrictHostKeyChecking=no'), please don't use in production")
+		// sometimes use with to make sure we do not save this to the known_hosts file
+		args = append(args, "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no")
 	}
 	return sshPrivateKeyFile(file.Name()),
-		[]string{fmt.Sprintf("GIT_SSH_COMMAND=ssh -o StrictHostKeyChecking=%s -i %s", strictHostKeyChecking, file.Name())},
+		[]string{fmt.Sprintf("GIT_SSH_COMMAND=%s", strings.Join(args, " "))},
 		nil
 }

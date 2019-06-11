@@ -14,9 +14,9 @@ func AddSSHRepo() string {
 	r := test_repos.SSHTestRepo
 	errors.FailOnErr(tmpFile.WriteString(r.SSHPrivateKey))
 	errors.CheckError(tmpFile.Close())
-	args :=[]string{"repo", "add", r.URL, "--ssh-private-key-path", tmpFile.Name()}
+	args := []string{"repo", "add", r.URL, "--ssh-private-key-path", tmpFile.Name()}
 	if r.InsecureIgnoreHostKey {
-		args = append(args , "--insecure-ignore-host-key")
+		args = append(args, "--insecure-ignore-host-key")
 	}
 	errors.FailOnErr(fixture.RunCli(args...))
 	return r.URL
