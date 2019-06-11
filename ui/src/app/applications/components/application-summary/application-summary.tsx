@@ -157,13 +157,13 @@ export const ApplicationSummary = (props: {
                             <div className='argo-table-list'>
                                 {this.state.editing && <div className='argo-table-list__head'>
                                     <div className='row'>
+                                        <div className='columns small-1' />
                                         <div className='columns small-3'>Name</div>
-                                        <div className='columns small-9'>Value</div>
+                                        <div className='columns small-8'>Value</div>
                                     </div>
                                 </div>}
                                 <div className='argo-table-list__row'>
-                                    {((this.state.editing || this.state.saving) ? this.updatedApp : app).spec.info &&
-                                        ((this.state.editing || this.state.saving) ? this.updatedApp : app).spec.info.map((info, i) =>
+                                    {this.getAppToUse().spec.info && this.getAppToUse().spec.info.map((info, i) =>
                                         <div key={i} className='row' style={{fontSize: '0.8125rem'}}>
                                             {!this.state.editing ? <React.Fragment>
                                                 <div className='columns small-3'>
@@ -171,19 +171,29 @@ export const ApplicationSummary = (props: {
                                                 </div>
                                                 <div className='columns small-9'>
                                                     {!!info.value.match(this.urlPattern) ? <a target='_blank' href={info.value}>{info.value}</a> : info.value}
-                                                    &nbsp;
+                                                    &nbsp;&nbsp;
                                                     <Tooltip content='Copy to clipboard'>
                                                         <i className='fa fa-copy icon-button' onClick={(event) => { this.copyText(info.value); }} />
                                                     </Tooltip>
                                                 </div>
                                             </React.Fragment> : <React.Fragment>
+                                                <div className='columns small-1'>
+                                                    <ul style={{ listStyleType: 'none', paddingTop: '18px', marginLeft: '1rem' }}>
+                                                        <li style={{ lineHeight: '0' }}><i className='fa fa-sort-up icon-button'
+                                                            style={i === 0 ? { visibility: 'hidden' } : {}}
+                                                            onClick={() => { this.swap(this.updatedApp.spec.info, i, i - 1); this.setState({}); }}/></li>
+                                                        <li style={{ lineHeight: '0' }}> <i className='fa fa-sort-down icon-button'
+                                                            style={i === this.updatedApp.spec.info.length - 1 ? { visibility: 'hidden' } : {}}
+                                                            onClick={() => { this.swap(this.updatedApp.spec.info, i, i + 1); this.setState({}); }} /></li>
+                                                    </ul>
+                                                </div>
                                                 <div className='columns small-3'>
                                                     <input className='argo-field' type='text' value={this.updatedApp.spec.info[i].name} onChange={(event) => {
                                                         this.updatedApp.spec.info[i].name = event.target.value;
                                                         this.setState({});
                                                     }}/>
                                                 </div>
-                                                <div className='columns small-8'>
+                                                <div className='columns small-7'>
                                                     <input className='argo-field' type='text' value={this.updatedApp.spec.info[i].value} onChange={(event) => {
                                                         this.updatedApp.spec.info[i].value = event.target.value;
                                                         this.setState({});
@@ -216,6 +226,14 @@ export const ApplicationSummary = (props: {
 
         public componentWillUnmount() {
             this.isMounted = false;
+        }
+
+        private getAppToUse() {
+            return (this.state.editing || this.state.saving) ? this.updatedApp : app;
+        }
+
+        private swap(array: any[], a: number, b: number) {
+            [array[a], array[b]] = [array[b], array[a]];
         }
 
         private copyText(text: string) {
