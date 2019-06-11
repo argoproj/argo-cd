@@ -1,7 +1,8 @@
 package test_repos
 
 type SSHRepo struct {
-	URL, SSHPrivateKey string
+	URL, SSHPrivateKey    string
+	InsecureIgnoreHostKey bool
 }
 
 var SSHTestRepo = SSHRepo{
@@ -56,4 +57,5 @@ suMY6yssPLTjcLnjrAjZ+Glf67k9QmrNAc6+iEbr2O/AMI1AqjODL7yBM/wzdCmNDqKH3r
 gv8i03bqWHsAAAAXYWxleF9jb2xsaW5zQGludHVpdC5jb20BAgME
 -----END OPENSSH PRIVATE KEY-----
 `,
+	InsecureIgnoreHostKey: true,
 }

@@ -2,6 +2,7 @@ package repos
 
 import (
 	"io/ioutil"
+	"strconv"
 
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
@@ -14,7 +15,7 @@ func AddSSHRepo() string {
 	r := test_repos.SSHTestRepo
 	errors.FailOnErr(tmpFile.WriteString(r.SSHPrivateKey))
 	errors.CheckError(tmpFile.Close())
-	errors.FailOnErr(fixture.RunCli("repo", "add", r.URL, "--ssh-private-key-path", tmpFile.Name()))
+	errors.FailOnErr(fixture.RunCli("repo", "add", r.URL, "--ssh-private-key-path", tmpFile.Name(), "--insecure-ignore-host-key", strconv.FormatBool(r.InsecureIgnoreHostKey)))
 	return r.URL
 }
 

@@ -152,7 +152,7 @@ func TestNewFactory(t *testing.T) {
 		{"Github", args{url: "https://github.com/argoproj/argocd-example-apps"}},
 		{"Azure", args{url: "https://jsuen0437@dev.azure.com/jsuen0437/jsuen/_git/jsuen"}},
 		{"PrivateRepo", args{test_repos.HTTPSTestRepo.URL, test_repos.HTTPSTestRepo.Username, test_repos.HTTPSTestRepo.Password, "", false}},
-		{"PrivateSSHRepo", args{test_repos.SSHTestRepo.URL, "", "", test_repos.SSHTestRepo.SSHPrivateKey, false}},
+		{"PrivateSSHRepo", args{test_repos.SSHTestRepo.URL, "", "", test_repos.SSHTestRepo.SSHPrivateKey, test_repos.SSHTestRepo.InsecureIgnoreHostKey}},
 	}
 	for _, tt := range tests {
 		dirName, err := ioutil.TempDir("", "git-client-test-")

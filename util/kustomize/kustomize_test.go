@@ -144,7 +144,7 @@ func TestNewKustomizeApp(t *testing.T) {
 		wantLen int
 	}{
 		{"PrivateRemoteBase", args{"./testdata/private-remote-base", git.NewHTTPSCreds(test_repos.HTTPSTestRepo.Username, test_repos.HTTPSTestRepo.Password)}, 2},
-		{"PrivateSSHRemoteBase", args{"./testdata/private-ssh-remote-base", git.NewSSHCreds(test_repos.SSHTestRepo.SSHPrivateKey, false)}, 1},
+		{"PrivateSSHRemoteBase", args{"./testdata/private-ssh-remote-base", git.NewSSHCreds(test_repos.SSHTestRepo.SSHPrivateKey, test_repos.SSHTestRepo.InsecureIgnoreHostKey)}, 1},
 	}
 	for _, tt := range tests {
 		kust := NewKustomizeApp(tt.args.path, tt.args.creds)
