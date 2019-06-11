@@ -1,7 +1,6 @@
 @import 'node_modules/argo-ui/src/app/shared/styles/config';
 
 .application-summary {
-
     &__labels {
         line-height: 28px;
     }
@@ -15,4 +14,9 @@
         margin-right: 2px;
         line-height: 14px;
     }
+}
+
+
+.icon-button {
+    cursor: pointer;
 }

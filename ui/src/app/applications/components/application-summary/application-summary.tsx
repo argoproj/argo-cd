@@ -1,4 +1,4 @@
-import { ErrorNotification, FormField, FormSelect, NotificationType, PopupApi } from 'argo-ui';
+import { ErrorNotification, FormField, FormSelect, NotificationType, PopupApi, Tooltip } from 'argo-ui';
 import * as React from 'react';
 import { FormApi, Text } from 'react-form';
 
@@ -171,6 +171,10 @@ export const ApplicationSummary = (props: {
                                                 </div>
                                                 <div className='columns small-9'>
                                                     {!!info.value.match(this.urlPattern) ? <a target='_blank' href={info.value}>{info.value}</a> : info.value}
+                                                    &nbsp;
+                                                    <Tooltip content='Copy to clipboard'>
+                                                        <i className='fa fa-copy icon-button' onClick={(event) => { this.copyText(info.value); }} />
+                                                    </Tooltip>
                                                 </div>
                                             </React.Fragment> : <React.Fragment>
                                                 <div className='columns small-3'>
@@ -186,10 +190,10 @@ export const ApplicationSummary = (props: {
                                                     }}/>
                                                 </div>
                                                 <div className='columns small-1'>
-                                                    <i className='fa fa-times' onClick={() => {
+                                                    <i className='fa fa-times icon-button' onClick={() => {
                                                         this.updatedApp.spec.info.splice(i, 1);
                                                         this.setState({});
-                                                    }} style={{cursor: 'pointer'}}/>
+                                                    }}/>
                                                 </div>
                                             </React.Fragment>}
                                         </div>)}
@@ -214,6 +218,15 @@ export const ApplicationSummary = (props: {
             this.isMounted = false;
         }
 
+        private copyText(text: string) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+        }
+
         private async save(ctx: ContextApis) {
             const editing = !this.state.editing;
             this.setState({ editing });
@@ -224,7 +237,7 @@ export const ApplicationSummary = (props: {
             }
 
             this.updatedApp.spec.info = this.updatedApp.spec.info.filter((info: models.Info) => {
-                return info.name != '' && info.value != '';
+                return info.name !== '' && info.value !== '';
             });
 
             try {
