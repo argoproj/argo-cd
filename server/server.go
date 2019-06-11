@@ -163,7 +163,7 @@ func initializeDefaultProject(opts ArgoCDServerOpts) error {
 // NewServer returns a new instance of the Argo CD API server
 func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	settingsMgr := settings_util.NewSettingsManager(ctx, opts.KubeClientset, opts.Namespace)
-	settings, err := settingsMgr.InitializeSettings()
+	settings, err := settingsMgr.InitializeSettings(opts.Insecure)
 	errors.CheckError(err)
 	err = initializeDefaultProject(opts)
 	errors.CheckError(err)
@@ -315,7 +315,7 @@ func (a *ArgoCDServer) watchSettings(ctx context.Context) {
 	prevGitLabSecret := a.settings.WebhookGitLabSecret
 	prevBitBucketUUID := a.settings.WebhookBitbucketUUID
 	var prevCert, prevCertKey string
-	if a.settings.Certificate != nil {
+	if a.settings.Certificate != nil && !a.ArgoCDServerOpts.Insecure {
 		prevCert, prevCertKey = tlsutil.EncodeX509KeyPairString(*a.settings.Certificate)
 	}
 
@@ -348,13 +348,15 @@ func (a *ArgoCDServer) watchSettings(ctx context.Context) {
 			log.Infof("bitbucket uuid modified. restarting")
 			break
 		}
-		var newCert, newCertKey string
-		if a.settings.Certificate != nil {
-			newCert, newCertKey = tlsutil.EncodeX509KeyPairString(*a.settings.Certificate)
-		}
-		if newCert != prevCert || newCertKey != prevCertKey {
-			log.Infof("tls certificate modified. restarting")
-			break
+		if !a.ArgoCDServerOpts.Insecure {
+			var newCert, newCertKey string
+			if a.settings.Certificate != nil {
+				newCert, newCertKey = tlsutil.EncodeX509KeyPairString(*a.settings.Certificate)
+			}
+			if newCert != prevCert || newCertKey != prevCertKey {
+				log.Infof("tls certificate modified. restarting")
+				break
+			}
 		}
 	}
 	log.Info("shutting down settings watch")

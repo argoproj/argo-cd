@@ -395,3 +395,9 @@ func TestUserAgent(t *testing.T) {
 		_ = conn.Close()
 	}
 }
+
+func TestCertsAreNotGeneratedInInsecureMode(t *testing.T) {
+	s := fakeServer()
+	assert.True(t, s.Insecure)
+	assert.Nil(t, s.settings.Certificate)
+}
