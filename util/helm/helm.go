@@ -211,13 +211,13 @@ func (h *helm) GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, 
 }
 
 func (h *helm) helmCmd(args ...string) (string, error) {
-	cleanHelmParameters(args)
 	return h.helmCmdExt(args, func(s string) string {
 		return s
 	})
 }
 
 func (h *helm) helmCmdExt(args []string, logFormat func(string) string) (string, error) {
+	cleanHelmParameters(args)
 	cmd := exec.Command("helm", args...)
 	cmd.Env = os.Environ()
 	cmd.Dir = h.path
