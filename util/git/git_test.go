@@ -143,6 +143,7 @@ func TestNewFactory(t *testing.T) {
 
 	type args struct {
 		url, username, password, sshPrivateKey string
+		insecureIgnoreHostKey                  bool
 	}
 	tests := []struct {
 		name string
@@ -150,15 +151,15 @@ func TestNewFactory(t *testing.T) {
 	}{
 		{"Github", args{url: "https://github.com/argoproj/argocd-example-apps"}},
 		{"Azure", args{url: "https://jsuen0437@dev.azure.com/jsuen0437/jsuen/_git/jsuen"}},
-		{"PrivateRepo", args{test_repos.HTTPSTestRepo.URL, test_repos.HTTPSTestRepo.Username, test_repos.HTTPSTestRepo.Password, ""}},
-		{"PrivateSSHRepo", args{test_repos.SSHTestRepo.URL, "", "", test_repos.SSHTestRepo.SSHPrivateKey}},
+		{"PrivateRepo", args{test_repos.HTTPSTestRepo.URL, test_repos.HTTPSTestRepo.Username, test_repos.HTTPSTestRepo.Password, "", false}},
+		{"PrivateSSHRepo", args{test_repos.SSHTestRepo.URL, "", "", test_repos.SSHTestRepo.SSHPrivateKey, false}},
 	}
 	for _, tt := range tests {
 		dirName, err := ioutil.TempDir("", "git-client-test-")
 		assert.NoError(t, err)
 		defer func() { _ = os.RemoveAll(dirName) }()
 
-		client, err := NewFactory().NewClient(tt.args.url, dirName, tt.args.username, tt.args.password, tt.args.sshPrivateKey, false)
+		client, err := NewFactory().NewClient(tt.args.url, dirName, tt.args.username, tt.args.password, tt.args.sshPrivateKey, tt.args.insecureIgnoreHostKey)
 		assert.NoError(t, err)
 		commitSHA, err := client.LsRemote("HEAD")
 		assert.NoError(t, err)

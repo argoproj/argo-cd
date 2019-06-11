@@ -6,6 +6,7 @@ import (
 	. "github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/test/e2e/fixture/repos"
 )
 
 // this implements the "given" part of given/when/then
@@ -25,6 +26,14 @@ type Context struct {
 func Given(t *testing.T) *Context {
 	fixture.EnsureCleanState(t)
 	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, name: fixture.Name(), prune: true}
+}
+
+func (c *Context) SSHRepo() *Context {
+	return c.Repo(repos.AddSSHRepo())
+}
+
+func (c *Context) HTTPSRepo() *Context {
+	return c.Repo(repos.AddHTTPSRepo())
 }
 
 func (c *Context) Repo(url string) *Context {

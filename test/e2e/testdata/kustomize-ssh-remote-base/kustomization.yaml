@@ -1,2 +1,0 @@
-bases:
-  - git::ssh://git@gitlab.com/alex_collins/private-repo.git/config-map
