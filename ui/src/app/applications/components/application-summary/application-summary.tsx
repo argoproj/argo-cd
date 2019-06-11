@@ -109,25 +109,9 @@ export const ApplicationSummary = (props: {
     }
 
     class EditableInfoList extends React.Component<{}, { editing: boolean, saving: boolean }> {
-        get isMounted() {
-            return this.mounted;
-        }
-
-        set isMounted(mounted: boolean) {
-            this.mounted = mounted;
-        }
-
-        get updatedApp() {
-            return this.newApp;
-        }
-
-        set updatedApp(newApp: models.Application) {
-            this.newApp = newApp;
-        }
-
         private mounted = false;
 
-        private newApp: models.Application;
+        private updatedApp: models.Application;
 
         private urlPattern = new RegExp('^(https?:\\/\\/)?((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|((\\d{1,3}\\.){3}\\d{1,3}))'
             + '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*(\\?[;&a-z\\d%_.~+=-]*)?(\\#[-a-z\\d_]*)?$', 'i');
@@ -138,7 +122,7 @@ export const ApplicationSummary = (props: {
         }
 
         public componentDidMount() {
-            this.isMounted = true;
+            this.mounted = true;
         }
 
         public render() {
@@ -225,7 +209,7 @@ export const ApplicationSummary = (props: {
         }
 
         public componentWillUnmount() {
-            this.isMounted = false;
+            this.mounted = false;
         }
 
         private getAppToUse() {
@@ -261,7 +245,7 @@ export const ApplicationSummary = (props: {
             try {
                 this.setState({ saving: true });
                 await props.updateApp(this.updatedApp);
-                if (this.isMounted) {
+                if (this.mounted) {
                     this.setState({ saving: false });
                 }
             } catch (e) {
@@ -270,7 +254,7 @@ export const ApplicationSummary = (props: {
                     type: NotificationType.Error,
                 });
             } finally {
-                if (this.isMounted) {
+                if (this.mounted) {
                     this.setState({ saving: false });
                 }
             }
