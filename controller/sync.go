@@ -267,7 +267,11 @@ func (sc *syncContext) sync() {
 	phase := tasks.phase()
 	wave := tasks.wave()
 
-	preFilterTasks := tasks
+	// if it is the last phase/wave and the only remaining tasks are non-hooks, the we are successful
+	// EVEN if those objects subsequently degraded
+	// this does create a special-case logic that we need to deal with
+	complete := tasks.Find(func(t *syncTask) bool { return t.phase != phase || wave != t.wave() || t.isHook() }) == nil
+
 	sc.log.WithFields(log.Fields{"phase": phase, "wave": wave, "tasks": tasks}).Debug("filtering tasks in correct phase and wave")
 	tasks = tasks.Filter(func(t *syncTask) bool { return t.phase == phase && t.wave() == wave })
 
@@ -277,10 +281,7 @@ func (sc *syncContext) sync() {
 	if !sc.runTasks(tasks, false) {
 		sc.setOperationPhase(v1alpha1.OperationFailed, "one or more objects failed to apply")
 	} else {
-		// if it is the last phase/wave and the only remaining tasks are non-hooks, the we are successful
-		// EVEN if those objects subsequently degraded
-		// this does create a special-case logic that we need to deal with
-		if len(preFilterTasks.Filter(func(t *syncTask) bool { return t.phase != phase || wave != t.wave() || t.isHook() })) == 0 {
+		if complete {
 			sc.setOperationPhase(v1alpha1.OperationSucceeded, "successfully synced (all tasks run)")
 		}
 	}
