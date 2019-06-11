@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: main
+spec:
+  replicas: 1
+  progressDeadlineSeconds: 30
+  selector:
+    matchLabels:
+      my-label: whatever
+  template:
+    metadata:
+      labels:
+        my-label: whatever
+    spec:
+      containers:
+        - name: main
+          command: ["sleep", "999"]
+          image: alpine:latest
+          imagePullPolicy: IfNotPresent
+
