@@ -105,7 +105,7 @@ func TestSyncCreateInSortedOrder(t *testing.T) {
 		}},
 	}
 	syncCtx.sync()
-	assert.Equal(t, v1alpha1.OperationRunning, syncCtx.opState.Phase)
+	assert.Equal(t, v1alpha1.OperationSucceeded, syncCtx.opState.Phase)
 	assert.Len(t, syncCtx.syncRes.Resources, 2)
 	for i := range syncCtx.syncRes.Resources {
 		result := syncCtx.syncRes.Resources[i]
@@ -188,7 +188,7 @@ func TestSyncSuccessfully(t *testing.T) {
 		}},
 	}
 	syncCtx.sync()
-	assert.Equal(t, v1alpha1.OperationRunning, syncCtx.opState.Phase)
+	assert.Equal(t, v1alpha1.OperationSucceeded, syncCtx.opState.Phase)
 	assert.Len(t, syncCtx.syncRes.Resources, 2)
 	for i := range syncCtx.syncRes.Resources {
 		result := syncCtx.syncRes.Resources[i]
@@ -220,7 +220,7 @@ func TestSyncDeleteSuccessfully(t *testing.T) {
 		}},
 	}
 	syncCtx.sync()
-	assert.Equal(t, v1alpha1.OperationRunning, syncCtx.opState.Phase)
+	assert.Equal(t, v1alpha1.OperationSucceeded, syncCtx.opState.Phase)
 	for i := range syncCtx.syncRes.Resources {
 		result := syncCtx.syncRes.Resources[i]
 		if result.Kind == "Pod" {
@@ -315,7 +315,7 @@ func TestDontPrunePruneFalse(t *testing.T) {
 
 	syncCtx.sync()
 
-	assert.Equal(t, v1alpha1.OperationRunning, syncCtx.opState.Phase)
+	assert.Equal(t, v1alpha1.OperationSucceeded, syncCtx.opState.Phase)
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
 	assert.Equal(t, v1alpha1.ResultCodePruneSkipped, syncCtx.syncRes.Resources[0].Status)
 	assert.Equal(t, "ignored (no prune)", syncCtx.syncRes.Resources[0].Message)

@@ -259,13 +259,18 @@ func (sc *syncContext) sync() {
 	// If no sync tasks were generated (e.g., in case all application manifests have been removed),
 	// the sync operation is successful.
 	if len(tasks) == 0 {
-		sc.setOperationPhase(v1alpha1.OperationSucceeded, "successfully synced")
+		sc.setOperationPhase(v1alpha1.OperationSucceeded, "successfully synced (no more tasks)")
 		return
 	}
 
 	// remove any tasks not in this wave
 	phase := tasks.phase()
 	wave := tasks.wave()
+
+	// if it is the last phase/wave and the only remaining tasks are non-hooks, the we are successful
+	// EVEN if those objects subsequently degraded
+	// This handles the common case where neither hooks or waves are used and a sync equates to simply an (asynchronous) kubectl apply of manifests, which succeeds immediately.
+	complete := tasks.Find(func(t *syncTask) bool { return t.phase != phase || wave != t.wave() || t.isHook() }) == nil
 
 	sc.log.WithFields(log.Fields{"phase": phase, "wave": wave, "tasks": tasks}).Debug("filtering tasks in correct phase and wave")
 	tasks = tasks.Filter(func(t *syncTask) bool { return t.phase == phase && t.wave() == wave })
@@ -275,6 +280,10 @@ func (sc *syncContext) sync() {
 	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("wet-run")
 	if !sc.runTasks(tasks, false) {
 		sc.setOperationPhase(v1alpha1.OperationFailed, "one or more objects failed to apply")
+	} else {
+		if complete {
+			sc.setOperationPhase(v1alpha1.OperationSucceeded, "successfully synced (all tasks run)")
+		}
 	}
 }
 
