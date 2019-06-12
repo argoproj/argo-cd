@@ -14,9 +14,12 @@
         margin-right: 2px;
         line-height: 14px;
     }
-}
 
-
-.icon-button {
-    cursor: pointer;
+    &__remove-icon {
+        cursor: pointer;
+        position: absolute;
+        top: 1em;
+        right: 1em;
+    }
+   
 }

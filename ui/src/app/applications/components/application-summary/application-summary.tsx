@@ -1,15 +1,18 @@
-import { ErrorNotification, FormField, FormSelect, NotificationType, PopupApi, Tooltip } from 'argo-ui';
+import { FormField, FormSelect, PopupApi } from 'argo-ui';
 import * as React from 'react';
 import { FormApi, Text } from 'react-form';
 
 require('./application-summary.scss');
 
-import { DataLoader, EditablePanel } from '../../../shared/components';
-import { Consumer, ContextApis } from '../../../shared/context';
+import { DataLoader, EditablePanel, EditablePanelItem } from '../../../shared/components';
+import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 
 import { ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage } from '../utils';
+
+const urlPattern = new RegExp('^(https?:\\/\\/)?((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|((\\d{1,3}\\.){3}\\d{1,3}))'
+    + '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*(\\?[;&a-z\\d%_.~+=-]*)?(\\#[-a-z\\d_]*)?$', 'i');
 
 export const ApplicationSummary = (props: {
     app: models.Application,
@@ -108,158 +111,42 @@ export const ApplicationSummary = (props: {
         }
     }
 
-    class EditableInfoList extends React.Component<{}, { editing: boolean, saving: boolean }> {
-        private mounted = false;
+    const items = (app.spec.info || []);
+    const [adjustedCount, setAdjustedCount] = React.useState(0);
 
-        private updatedApp: models.Application;
-
-        private urlPattern = new RegExp('^(https?:\\/\\/)?((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|((\\d{1,3}\\.){3}\\d{1,3}))'
-            + '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*(\\?[;&a-z\\d%_.~+=-]*)?(\\#[-a-z\\d_]*)?$', 'i');
-
-        constructor(listProps: {}) {
-            super(listProps);
-            this.state = { editing: false, saving: false };
-        }
-
-        public componentDidMount() {
-            this.mounted = true;
-        }
-
-        public render() {
-            return (
-                <Consumer>{(ctx) => (
-                    <div className='white-box'>
-                        <div className='white-box__details'>
-                            <div className='editable-panel__buttons'>
-                                <button onClick={() => { this.save(ctx); }} className='argo-button argo-button--base' disabled={this.state.saving}>
-                                    {(this.state.editing || this.state.saving) ? 'Save' : 'Edit'}</button>&nbsp;
-                                {(this.state.editing || this.state.saving) && <button onClick={() => {
-                                    this.setState({ editing: false });
-                                }} className='argo-button argo-button--base-o' disabled={this.state.saving}>Cancel</button>}
-                            </div>
-                            <p>Info</p>
-                            <div className='argo-table-list'>
-                                {this.state.editing && <div className='argo-table-list__head'>
-                                    <div className='row'>
-                                        <div className='columns small-1' />
-                                        <div className='columns small-3'>Name</div>
-                                        <div className='columns small-8'>Value</div>
-                                    </div>
-                                </div>}
-                                <div className='argo-table-list__row'>
-                                    {this.getAppToUse().spec.info && this.getAppToUse().spec.info.map((info, i) =>
-                                        <div key={i} className='row' style={{fontSize: '0.8125rem'}}>
-                                            {!this.state.editing ? <React.Fragment>
-                                                <div className='columns small-3'>
-                                                    {info.name}
-                                                </div>
-                                                <div className='columns small-9'>
-                                                    {!!info.value.match(this.urlPattern) ? <a target='_blank' href={info.value}>{info.value}</a> : info.value}
-                                                    &nbsp;&nbsp;
-                                                    <Tooltip content='Copy to clipboard'>
-                                                        <i className='fa fa-copy icon-button' onClick={(event) => { this.copyText(info.value); }} />
-                                                    </Tooltip>
-                                                </div>
-                                            </React.Fragment> : <React.Fragment>
-                                                <div className='columns small-1'>
-                                                    <ul style={{ listStyleType: 'none', paddingTop: '18px', marginLeft: '1rem' }}>
-                                                        <li style={{ lineHeight: '0' }}><i className='fa fa-sort-up icon-button'
-                                                            style={i === 0 ? { visibility: 'hidden' } : {}}
-                                                            onClick={() => { this.swap(this.updatedApp.spec.info, i, i - 1); this.setState({}); }}/></li>
-                                                        <li style={{ lineHeight: '0' }}> <i className='fa fa-sort-down icon-button'
-                                                            style={i === this.updatedApp.spec.info.length - 1 ? { visibility: 'hidden' } : {}}
-                                                            onClick={() => { this.swap(this.updatedApp.spec.info, i, i + 1); this.setState({}); }} /></li>
-                                                    </ul>
-                                                </div>
-                                                <div className='columns small-3'>
-                                                    <input className='argo-field' type='text' value={this.updatedApp.spec.info[i].name} onChange={(event) => {
-                                                        this.updatedApp.spec.info[i].name = event.target.value;
-                                                        this.setState({});
-                                                    }}/>
-                                                </div>
-                                                <div className='columns small-7'>
-                                                    <input className='argo-field' type='text' value={this.updatedApp.spec.info[i].value} onChange={(event) => {
-                                                        this.updatedApp.spec.info[i].value = event.target.value;
-                                                        this.setState({});
-                                                    }}/>
-                                                </div>
-                                                <div className='columns small-1'>
-                                                    <i className='fa fa-times icon-button' onClick={() => {
-                                                        this.updatedApp.spec.info.splice(i, 1);
-                                                        this.setState({});
-                                                    }}/>
-                                                </div>
-                                            </React.Fragment>}
-                                        </div>)}
-                                    {this.state.editing && <div className='row'>
-                                        <div className='columns small-4'>
-                                            <a onClick={() => {
-                                                const newInfo = {name: '', value: ''};
-                                                this.updatedApp.spec.info = ((this.updatedApp.spec.info || []).concat(newInfo));
-                                                this.setState({});
-                                            }}>Add info</a>
-                                        </div>
-                                    </div>}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}</Consumer>
-            );
-        }
-
-        public componentWillUnmount() {
-            this.mounted = false;
-        }
-
-        private getAppToUse() {
-            return (this.state.editing || this.state.saving) ? this.updatedApp : app;
-        }
-
-        private swap(array: any[], a: number, b: number) {
-            [array[a], array[b]] = [array[b], array[a]];
-        }
-
-        private copyText(text: string) {
-            const textArea = document.createElement('textarea');
-            textArea.value = text;
-            document.body.appendChild(textArea);
-            textArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textArea);
-        }
-
-        private async save(ctx: ContextApis) {
-            const editing = !this.state.editing;
-            this.setState({ editing });
-
-            if (editing) {
-                this.updatedApp = JSON.parse(JSON.stringify(app)) as models.Application;
-                return;
-            }
-
-            this.updatedApp.spec.info = this.updatedApp.spec.info.filter((info: models.Info) => {
-                return info.name !== '' && info.value !== '';
-            });
-
-            try {
-                this.setState({ saving: true });
-                await props.updateApp(this.updatedApp);
-                if (this.mounted) {
-                    this.setState({ saving: false });
-                }
-            } catch (e) {
-                ctx.notifications.show({
-                    content: <ErrorNotification title='Unable to save changes' e={e}/>,
-                    type: NotificationType.Error,
-                });
-            } finally {
-                if (this.mounted) {
-                    this.setState({ saving: false });
-                }
-            }
-        }
+    const added = new Array<{name: string, value: string, key: string}>();
+    for (let i = 0; i < adjustedCount; i++) {
+        added.push({ name: '', value: '', key: (items.length + i).toString()});
     }
+    for (let i = 0; i > adjustedCount; i--) {
+        items.pop();
+    }
+    const infoItems: EditablePanelItem[] = items.concat(added).map((info, i) => ({
+        key: i.toString(),
+        title: info.name,
+        view: info.value.match(urlPattern) ? <a href={info.value} target='__blank'>{info.value}</a> : info.value,
+        titleEdit: (formApi: FormApi) => <FormField formApi={formApi} field={`spec.info[${[i]}].name`} component={Text} componentProps={{style: { width: '99%' }}} />,
+        edit: (formApi: FormApi) => (
+            <React.Fragment>
+                <FormField formApi={formApi} field={`spec.info[${[i]}].value`} component={Text}/>
+                <i className='fa fa-times application-summary__remove-icon' onClick={() => {
+                    const values = (formApi.getFormState().values.spec.info || []) as Array<any>;
+                    formApi.setValue('spec.info', [...values.slice(0, i), ...values.slice(i + 1, values.length)]);
+                    setAdjustedCount(adjustedCount - 1);
+                }} style={{cursor: 'pointer'}}/>
+            </React.Fragment>
+        ),
+    })).concat({
+        key: '-1',
+        title: '',
+        titleEdit: () => (
+            <button className='argo-button argo-button--base' onClick={() => {
+                setAdjustedCount(adjustedCount + 1);
+            }}>ADD NEW ITEM</button>
+        ),
+        view: null as any,
+        edit: null,
+    });
 
     return (
         <React.Fragment>
@@ -311,8 +198,7 @@ export const ApplicationSummary = (props: {
                 </div>
             </div>
             )}</Consumer>
-
-            <EditableInfoList />
+            <EditablePanel save={(props.updateApp)} values={app} title='Info' items={infoItems} onModeSwitch={() => setAdjustedCount(0)}/>
         </React.Fragment>
     );
 };
