@@ -15,6 +15,7 @@ p, role:admin, applications, create, */*, allow
 p, role:admin, applications, update, */*, allow
 p, role:admin, applications, delete, */*, allow
 p, role:admin, applications, sync, */*, allow
+p, role:admin, applications, override, */*, allow
 p, role:admin, clusters, create, *, allow
 p, role:admin, clusters, update, *, allow
 p, role:admin, clusters, delete, *, allow

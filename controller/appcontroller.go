@@ -495,11 +495,6 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		logCtx.Infof("Initialized new operation: %v", *app.Operation)
 	}
 
-	if state.Operation.Sync.LocalManifests != nil && app.Spec.SyncPolicy != nil {
-		logCtx.Errorf("Cannot use local sync when Automatic Sync Policy is enabled")
-		return
-	}
-
 	ctrl.appStateManager.SyncAppState(app, state)
 
 	if state.Phase == appv1.OperationRunning {
@@ -662,7 +657,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	var localManifests []string
 	if opState := app.Status.OperationState; opState != nil {
-		localManifests = opState.Operation.Sync.LocalManifests
+		localManifests = opState.Operation.Sync.Manifests
 	}
 
 	compareResult, err := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, refreshType == appv1.RefreshTypeHard, localManifests)

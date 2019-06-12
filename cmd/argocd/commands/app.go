@@ -1151,7 +1151,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			var localObjsStrings []string
 			if local != "" {
-				app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName})
+				app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
 
 				if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
 					log.Fatal("Cannot use local sync when Automatic Sync Policy is enabled")
@@ -1159,7 +1159,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 				errors.CheckError(err)
 				conn, settingsIf := acdClient.NewSettingsClientOrDie()
-				argoSettings, err := settingsIf.Get(context.Background(), &settings.SettingsQuery{})
+				argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
 				errors.CheckError(err)
 				util.Close(conn)
 
@@ -1167,13 +1167,13 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			}
 
-			syncReq := application.ApplicationSyncRequest{
+			syncReq := applicationpkg.ApplicationSyncRequest{
 				Name:           &appName,
 				DryRun:         dryRun,
 				Revision:       revision,
 				Resources:      selectedResources,
 				Prune:          prune,
-				LocalManifests: localObjsStrings,
+				Manifests:      localObjsStrings,
 			}
 			switch strategy {
 			case "apply":

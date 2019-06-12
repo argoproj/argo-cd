@@ -38,8 +38,9 @@ spec:
                   description: DryRun will perform a `kubectl apply --dry-run` without
                     actually performing the sync
                   type: boolean
-                localManifests:
-                  description: Overrides sync source with a local directory for development
+                manifests:
+                  description: Manifests is an optional field that overrides sync
+                    source with a local directory for development
                   items:
                     type: string
                   type: array
@@ -703,9 +704,9 @@ spec:
                           description: DryRun will perform a `kubectl apply --dry-run`
                             without actually performing the sync
                           type: boolean
-                        localManifests:
-                          description: Overrides sync source with a local directory
-                            for development
+                        manifests:
+                          description: Manifests is an optional field that overrides
+                            sync source with a local directory for development
                           items:
                             type: string
                           type: array
