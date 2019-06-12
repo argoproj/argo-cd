@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/git"
 )
 
 // TODO: move this into shared test package after resolving import cycle
@@ -52,6 +53,10 @@ func TestKustomizeBuild(t *testing.T) {
 			},
 		},
 		Images: []string{"nginx:1.15.5"},
+		CommonLabels: map[string]string{
+			"app.kubernetes.io/managed-by": "argo-cd",
+			"app.kubernetes.io/part-of":    "argo-cd-tests",
+		},
 	}
 	objs, imageTags, images, err := kustomize.Build(&kustomizeSource)
 	assert.Nil(t, err)
@@ -64,8 +69,17 @@ func TestKustomizeBuild(t *testing.T) {
 		switch obj.GetKind() {
 		case "StatefulSet":
 			assert.Equal(t, namePrefix+"web", obj.GetName())
+			assert.Equal(t, map[string]string{
+				"app.kubernetes.io/managed-by": "argo-cd",
+				"app.kubernetes.io/part-of":    "argo-cd-tests",
+			}, obj.GetLabels())
 		case "Deployment":
 			assert.Equal(t, namePrefix+"nginx-deployment", obj.GetName())
+			assert.Equal(t, map[string]string{
+				"app":                          "nginx",
+				"app.kubernetes.io/managed-by": "argo-cd",
+				"app.kubernetes.io/part-of":    "argo-cd-tests",
+			}, obj.GetLabels())
 		}
 	}
 
@@ -128,7 +142,7 @@ func TestPrivateRemoteBase(t *testing.T) {
 	assert.NoError(t, err)
 	defer func() { _ = os.Setenv("PATH", osPath) }()
 
-	kust := NewKustomizeApp("./testdata/private-remote-base", &GitCredentials{Username: PrivateGitUsername, Password: PrivateGitPassword})
+	kust := NewKustomizeApp("./testdata/private-remote-base", &git.Creds{Username: PrivateGitUsername, Password: PrivateGitPassword})
 
 	objs, _, _, err := kust.Build(nil)
 	assert.NoError(t, err)

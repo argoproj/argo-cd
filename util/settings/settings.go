@@ -78,11 +78,12 @@ type ArgoCDSettings struct {
 }
 
 type OIDCConfig struct {
-	Name         string `json:"name,omitempty"`
-	Issuer       string `json:"issuer,omitempty"`
-	ClientID     string `json:"clientID,omitempty"`
-	ClientSecret string `json:"clientSecret,omitempty"`
-	CLIClientID  string `json:"cliClientID,omitempty"`
+	Name            string   `json:"name,omitempty"`
+	Issuer          string   `json:"issuer,omitempty"`
+	ClientID        string   `json:"clientID,omitempty"`
+	ClientSecret    string   `json:"clientSecret,omitempty"`
+	CLIClientID     string   `json:"cliClientID,omitempty"`
+	RequestedScopes []string `json:"requestedScopes,omitempty"`
 }
 
 type RepoCredentials struct {
@@ -574,6 +575,16 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		delete(argoCDCM.Data, resourceExclusionsKey)
 	}
 
+	if len(settings.ConfigManagementPlugins) > 0 {
+		yamlBytes, err := yaml.Marshal(settings.ConfigManagementPlugins)
+		if err != nil {
+			return err
+		}
+		argoCDCM.Data[configManagementPluginsKey] = string(yamlBytes)
+	} else {
+		delete(argoCDCM.Data, configManagementPluginsKey)
+	}
+
 	if createCM {
 		_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Create(argoCDCM)
 	} else {
@@ -790,7 +801,7 @@ func isIncompleteSettingsError(err error) bool {
 }
 
 // InitializeSettings is used to initialize empty admin password, signature, certificate etc if missing
-func (mgr *SettingsManager) InitializeSettings() (*ArgoCDSettings, error) {
+func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoCDSettings, error) {
 	cdSettings, err := mgr.GetSettings()
 	if err != nil && !isIncompleteSettingsError(err) {
 		return nil, err
@@ -825,7 +836,7 @@ func (mgr *SettingsManager) InitializeSettings() (*ArgoCDSettings, error) {
 		log.Info("Initialized admin mtime")
 	}
 
-	if cdSettings.Certificate == nil {
+	if cdSettings.Certificate == nil && !insecureModeEnabled {
 		// generate TLS cert
 		hosts := []string{
 			"localhost",

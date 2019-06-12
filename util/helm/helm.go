@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -56,12 +57,19 @@ func IsMissingDependencyErr(err error) bool {
 
 func (h *helm) Template(appName string, namespace string, opts *argoappv1.ApplicationSourceHelm) ([]*unstructured.Unstructured, error) {
 	args := []string{
-		"template", ".", "--name", appName,
+		"template", ".",
 	}
+
+	setReleaseName := true
+
 	if namespace != "" {
 		args = append(args, "--namespace", namespace)
 	}
 	if opts != nil {
+		if opts.ReleaseName != "" {
+			args = append(args, "--name", opts.ReleaseName)
+			setReleaseName = false
+		}
 		for _, valuesFile := range opts.ValueFiles {
 			args = append(args, "-f", valuesFile)
 		}
@@ -69,6 +77,11 @@ func (h *helm) Template(appName string, namespace string, opts *argoappv1.Applic
 			args = append(args, "--set", fmt.Sprintf("%s=%s", p.Name, p.Value))
 		}
 	}
+
+	if setReleaseName {
+		args = append(args, "--name", appName)
+	}
+
 	out, err := h.helmCmd(args...)
 	if err != nil {
 		return nil, err
@@ -204,6 +217,7 @@ func (h *helm) helmCmd(args ...string) (string, error) {
 }
 
 func (h *helm) helmCmdExt(args []string, logFormat func(string) string) (string, error) {
+	cleanHelmParameters(args)
 	cmd := exec.Command("helm", args...)
 	cmd.Env = os.Environ()
 	cmd.Dir = h.path
@@ -234,5 +248,12 @@ func flatVals(input map[string]interface{}, output map[string]string, prefixes .
 		} else {
 			output[strings.Join(append(prefixes, fmt.Sprintf("%v", key)), ".")] = fmt.Sprintf("%v", val)
 		}
+	}
+}
+
+func cleanHelmParameters(params []string) {
+	re := regexp.MustCompile(`([^\\]),`)
+	for i, param := range params {
+		params[i] = re.ReplaceAllString(param, `$1\,`)
 	}
 }

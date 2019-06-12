@@ -11,7 +11,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	argocd "github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/reposerver"
@@ -31,6 +30,8 @@ func newCommand() *cobra.Command {
 	var (
 		logLevel               string
 		parallelismLimit       int64
+		listenPort             int
+		metricsPort            int
 		cacheSrc               func() (*cache.Cache, error)
 		tlsConfigCustomizerSrc func() (tls.ConfigCustomizer, error)
 	)
@@ -49,13 +50,13 @@ func newCommand() *cobra.Command {
 			server, err := reposerver.NewServer(git.NewFactory(), cache, tlsConfigCustomizer, parallelismLimit)
 			errors.CheckError(err)
 			grpc := server.CreateGRPC()
-			listener, err := net.Listen("tcp", fmt.Sprintf(":%d", common.PortRepoServer))
+			listener, err := net.Listen("tcp", fmt.Sprintf(":%d", listenPort))
 			errors.CheckError(err)
 
 			http.Handle("/metrics", promhttp.Handler())
-			go func() { errors.CheckError(http.ListenAndServe(fmt.Sprintf(":%d", common.PortRepoServerMetrics), nil)) }()
+			go func() { errors.CheckError(http.ListenAndServe(fmt.Sprintf(":%d", metricsPort), nil)) }()
 
-			log.Infof("argocd-repo-server %s serving on %s", argocd.GetVersion(), listener.Addr())
+			log.Infof("argocd-repo-server %s serving on %s", common.GetVersion(), listener.Addr())
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
@@ -67,6 +68,8 @@ func newCommand() *cobra.Command {
 
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().Int64Var(&parallelismLimit, "parallelismlimit", 0, "Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.")
+	command.Flags().IntVar(&listenPort, "port", common.DefaultPortRepoServer, "Listen on given port for incoming connections")
+	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortRepoServerMetrics, "Start metrics server on given port")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = cache.AddCacheFlagsToCmd(&command)
 	return &command

@@ -16,7 +16,6 @@ import (
 	// load the oidc plugin (required to authenticate with OpenID Connect).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 
-	argocd "github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/errors"
@@ -45,6 +44,7 @@ func newCommand() *cobra.Command {
 		operationProcessors      int
 		logLevel                 string
 		glogLevel                int
+		metricsPort              int
 		cacheSrc                 func() (*cache.Cache, error)
 	)
 	var command = cobra.Command{
@@ -65,9 +65,6 @@ func newCommand() *cobra.Command {
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 
-			conf, err := clientConfig.ClientConfig()
-			errors.CheckError(err)
-
 			resyncDuration := time.Duration(appResyncPeriod) * time.Second
 			repoClientset := reposerver.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds)
 			ctx, cancel := context.WithCancel(context.Background())
@@ -78,17 +75,17 @@ func newCommand() *cobra.Command {
 
 			settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
 			appController, err := controller.NewApplicationController(
-				conf.Host,
 				namespace,
 				settingsMgr,
 				kubeClient,
 				appClient,
 				repoClientset,
 				cache,
-				resyncDuration)
+				resyncDuration,
+				metricsPort)
 			errors.CheckError(err)
 
-			log.Infof("Application Controller (version: %s) starting (namespace: %s)", argocd.GetVersion(), namespace)
+			log.Infof("Application Controller (version: %s) starting (namespace: %s)", common.GetVersion(), namespace)
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
@@ -108,6 +105,7 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&operationProcessors, "operation-processors", 1, "Number of application operation processors")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
+	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDMetrics, "Start metrics server on given port")
 	cacheSrc = cache.AddCacheFlagsToCmd(&command)
 	return &command
 }

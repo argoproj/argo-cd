@@ -7,7 +7,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/spf13/cobra"
 
-	argocd "github.com/argoproj/argo-cd"
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/util"
@@ -22,7 +22,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Use:   "version",
 		Short: fmt.Sprintf("Print version information"),
 		Run: func(cmd *cobra.Command, args []string) {
-			version := argocd.GetVersion()
+			version := common.GetVersion()
 			fmt.Printf("%s: %s\n", cliName, version)
 			if !short {
 				fmt.Printf("  BuildDate: %s\n", version.BuildDate)

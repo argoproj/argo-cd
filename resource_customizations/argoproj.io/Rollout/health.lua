@@ -1,36 +1,48 @@
 function checkReplicasStatus(obj)
   hs = {}
-  if obj.spec.replicas ~= nil and obj.status.updatedReplicas < obj.spec.replicas then
+  replicasCount = getNumberValueOrDefault(obj.spec.replicas)
+  replicasStatus = getNumberValueOrDefault(obj.status.replicas)
+  updatedReplicas = getNumberValueOrDefault(obj.status.updatedReplicas)
+  availableReplicas = getNumberValueOrDefault(obj.status.availableReplicas)
+
+  if updatedReplicas < replicasCount then
     hs.status = "Progressing"
     hs.message = "Waiting for roll out to finish: More replicas need to be updated"
     return hs
   end
-  if obj.status.replicas > obj.status.updatedReplicas then
+  if replicasStatus > updatedReplicas then
     hs.status = "Progressing"
     hs.message = "Waiting for roll out to finish: old replicas are pending termination"
     return hs
   end
-  if obj.status.availableReplicas < obj.status.updatedReplicas then
+  if availableReplicas < updatedReplicas then
     hs.status = "Progressing"
     hs.message = "Waiting for roll out to finish: updated replicas are still becoming available"
     return hs
   end
-  if obj.spec.replicas ~= nil and obj.status.updatedReplicas < obj.spec.replicas then
+  if updatedReplicas < replicasCount then
     hs.status = "Progressing"
     hs.message = "Waiting for roll out to finish: More replicas need to be updated"
     return hs
   end
-  if obj.status.replicas > obj.status.updatedReplicas then
+  if replicasStatus > updatedReplicas then
     hs.status = "Progressing"
     hs.message = "Waiting for roll out to finish: old replicas are pending termination"
     return hs
   end
-  if obj.status.availableReplicas < obj.status.updatedReplicas then
+  if availableReplicas < updatedReplicas then
     hs.status = "Progressing"
     hs.message = "Waiting for roll out to finish: updated replicas are still becoming available"
     return hs
   end
   return nil
+end
+
+function getNumberValueOrDefault(field)
+  if field ~= nil then
+    return field
+  end
+  return 0
 end
 
 function checkPaused(obj)
@@ -76,7 +88,7 @@ if obj.status ~= nil then
       if replicasHS ~= nil then
         return replicasHS
       end
-      if obj.status.blueGreen.activeSelector ~= nil and obj.status.blueGreen.activeSelector == obj.status.currentPodHash then
+      if obj.status.blueGreen ~= nil and obj.status.blueGreen.activeSelector ~= nil and obj.status.currentPodHash ~= nil and obj.status.blueGreen.activeSelector == obj.status.currentPodHash then
         hs.status = "Healthy"
         hs.message = "The active Service is serving traffic to the current pod spec"
         return hs

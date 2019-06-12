@@ -27,6 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/util/health"
 	hookutil "github.com/argoproj/argo-cd/util/hook"
 	kubeutil "github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/resource"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -90,7 +91,10 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	repo := m.getRepo(source.RepoURL)
+	repo, err := m.db.GetRepository(context.Background(), source.RepoURL)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return nil, nil, nil, err
@@ -133,6 +137,9 @@ func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, []*un
 		obj, err := v1alpha1.UnmarshalToUnstructured(manifest)
 		if err != nil {
 			return nil, nil, err
+		}
+		if resource.Ignore(obj) {
+			continue
 		}
 		if hookutil.IsHook(obj) {
 			hooks = append(hooks, obj)
@@ -180,6 +187,42 @@ func DeduplicateTargetObjects(
 	return result, conditions, nil
 }
 
+// dedupLiveResources handles removes live resource duplicates with the same UID. Duplicates are created in a separate resource groups.
+// E.g. apps/Deployment produces duplicate in extensions/Deployment, authorization.openshift.io/ClusterRole produces duplicate in rbac.authorization.k8s.io/ClusterRole etc.
+// The method removes such duplicates unless it was defined in git ( exists in target resources list ). At least one duplicate stays.
+// If non of duplicates are in git at random one stays
+func dedupLiveResources(targetObjs []*unstructured.Unstructured, liveObjsByKey map[kubeutil.ResourceKey]*unstructured.Unstructured) {
+	targetObjByKey := make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
+	for i := range targetObjs {
+		targetObjByKey[kubeutil.GetResourceKey(targetObjs[i])] = targetObjs[i]
+	}
+	liveObjsById := make(map[types.UID][]*unstructured.Unstructured)
+	for k := range liveObjsByKey {
+		obj := liveObjsByKey[k]
+		if obj != nil {
+			liveObjsById[obj.GetUID()] = append(liveObjsById[obj.GetUID()], obj)
+		}
+	}
+	for id := range liveObjsById {
+		objs := liveObjsById[id]
+
+		if len(objs) > 1 {
+			duplicatesLeft := len(objs)
+			for i := range objs {
+				obj := objs[i]
+				resourceKey := kubeutil.GetResourceKey(obj)
+				if _, ok := targetObjByKey[resourceKey]; !ok {
+					delete(liveObjsByKey, resourceKey)
+					duplicatesLeft--
+					if duplicatesLeft == 1 {
+						break
+					}
+				}
+			}
+		}
+	}
+}
+
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
@@ -224,6 +267,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 
 	logCtx.Debugf("Generated config manifests")
 	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(app, targetObjs)
+	dedupLiveResources(targetObjs, liveObjByKey)
 	if err != nil {
 		liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
@@ -275,10 +319,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	syncCode := v1alpha1.SyncStatusCodeSynced
 	managedResources := make([]managedResource, len(targetObjs))
 	resourceSummaries := make([]v1alpha1.ResourceStatus, len(targetObjs))
-	for i := 0; i < len(targetObjs); i++ {
-		obj := managedLiveObj[i]
+	for i, targetObj := range targetObjs {
+		liveObj := managedLiveObj[i]
+		obj := liveObj
 		if obj == nil {
-			obj = targetObjs[i]
+			obj = targetObj
 		}
 		if obj == nil {
 			continue
@@ -295,15 +340,19 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		}
 
 		diffResult := diffResults.Diffs[i]
-		if resState.Hook {
+		if resState.Hook || resource.Ignore(obj) {
 			// For resource hooks, don't store sync status, and do not affect overall sync status
-		} else if diffResult.Modified || targetObjs[i] == nil || managedLiveObj[i] == nil {
+		} else if diffResult.Modified || targetObj == nil || liveObj == nil {
 			// Set resource state to OutOfSync since one of the following is true:
 			// * target and live resource are different
 			// * target resource not defined and live resource is extra
 			// * target resource present but live resource is missing
 			resState.Status = v1alpha1.SyncStatusCodeOutOfSync
-			syncCode = v1alpha1.SyncStatusCodeOutOfSync
+			// we ignore the status if the obj needs pruning AND we have the annotation
+			needsPruning := targetObj == nil && liveObj != nil
+			if !(needsPruning && resource.HasAnnotationOption(obj, common.AnnotationCompareOptions, "IgnoreExtraneous")) {
+				syncCode = v1alpha1.SyncStatusCodeOutOfSync
+			}
 		} else {
 			resState.Status = v1alpha1.SyncStatusCodeSynced
 		}
@@ -313,8 +362,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 			Group:     resState.Group,
 			Kind:      resState.Kind,
 			Version:   resState.Version,
-			Live:      managedLiveObj[i],
-			Target:    targetObjs[i],
+			Live:      liveObj,
+			Target:    targetObj,
 			Diff:      diffResult,
 			Hook:      resState.Hook,
 		}
@@ -336,7 +385,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	}
 
 	healthStatus, err := health.SetApplicationHealth(resourceSummaries, GetLiveObjs(managedResources), m.settings.ResourceOverrides, func(obj *unstructured.Unstructured) bool {
-		return !isSelfReferencedApp(app.Name, app.Spec.Destination, kubeutil.GetResourceKey(obj), app.Spec.Destination.Server)
+		return !isSelfReferencedApp(app, kubeutil.GetObjectRef(obj))
 	})
 
 	if err != nil {
@@ -357,15 +406,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		compRes.appSourceType = v1alpha1.ApplicationSourceType(manifestInfo.SourceType)
 	}
 	return &compRes, nil
-}
-
-func (m *appStateManager) getRepo(repoURL string) *v1alpha1.Repository {
-	repo, err := m.db.GetRepository(context.Background(), repoURL)
-	if err != nil {
-		// If we couldn't retrieve from the repo service, assume public repositories
-		repo = &v1alpha1.Repository{Repo: repoURL}
-	}
-	return repo
 }
 
 func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource) error {

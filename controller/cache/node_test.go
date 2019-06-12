@@ -19,9 +19,10 @@ func TestIsParentOf(t *testing.T) {
 	assert.False(t, grandParent.isParentOf(child))
 }
 
-func TestIsParentOfSameKindDifferentGroup(t *testing.T) {
+func TestIsParentOfSameKindDifferentGroupAndUID(t *testing.T) {
 	rs := testRS.DeepCopy()
 	rs.SetAPIVersion("somecrd.io/v1")
+	rs.SetUID("123")
 	child := c.createObjInfo(testPod, "")
 	invalidParent := c.createObjInfo(rs, "")
 

@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
+
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -49,20 +51,6 @@ const (
 	PersistentVolumeClaimKind    = "PersistentVolumeClaim"
 	CustomResourceDefinitionKind = "CustomResourceDefinition"
 	PodKind                      = "Pod"
-	NetworkPolicyKind            = "NetworkPolicy"
-	PodSecurityPolicyKind        = "PodSecurityPolicy"
-)
-
-var (
-	// obsoleteExtensionsKinds contains list of obsolete kinds from extensions group and corresponding name of new group
-	obsoleteExtensionsKinds = map[string]string{
-		DaemonSetKind:         "apps",
-		ReplicaSetKind:        "apps",
-		DeploymentKind:        "apps",
-		IngressKind:           "networking.k8s.io",
-		NetworkPolicyKind:     "networking.k8s.io",
-		PodSecurityPolicyKind: "policy",
-	}
 )
 
 type ResourceKey struct {
@@ -80,25 +68,23 @@ func (k ResourceKey) GroupKind() schema.GroupKind {
 	return schema.GroupKind{Group: k.Group, Kind: k.Kind}
 }
 
-func isObsoleteExtensionsGroupKind(group string, kind string) (string, bool) {
-	if group == "extensions" {
-		newGroup, ok := obsoleteExtensionsKinds[kind]
-		return newGroup, ok
-	}
-	return "", false
-}
-
 func NewResourceKey(group string, kind string, namespace string, name string) ResourceKey {
-	if newGroup, ok := isObsoleteExtensionsGroupKind(group, kind); ok {
-		group = newGroup
-	}
-
 	return ResourceKey{Group: group, Kind: kind, Namespace: namespace, Name: name}
 }
 
 func GetResourceKey(obj *unstructured.Unstructured) ResourceKey {
 	gvk := obj.GroupVersionKind()
 	return NewResourceKey(gvk.Group, gvk.Kind, obj.GetNamespace(), obj.GetName())
+}
+
+func GetObjectRef(obj *unstructured.Unstructured) v1.ObjectReference {
+	return v1.ObjectReference{
+		UID:        obj.GetUID(),
+		APIVersion: obj.GetAPIVersion(),
+		Kind:       obj.GetKind(),
+		Name:       obj.GetName(),
+		Namespace:  obj.GetNamespace(),
+	}
 }
 
 // TestConfig tests to make sure the REST config is usable

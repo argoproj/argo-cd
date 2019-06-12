@@ -1,5 +1,8 @@
 # Resource Hooks
 
+!!! warning
+    Helm hooks are currently ignored. [Read more](helm.md).
+
 ## Overview
 
 Synchronization can be configured using resource hooks. Hooks are ways to interject custom logic before, during,
@@ -39,6 +42,10 @@ The following hooks are defined:
 | `Skip` | Indicates to Argo CD to skip the apply of the manifest. This is typically used in conjunction with a `Sync` hook which is presumably handling the deployment in an alternate way (e.g. blue-green deployment) |
 | `PostSync` | Executes after all `Sync` hooks completed and were successful, a succcessful apply, and all resources in a `Healthy` state. |
 
+
+## Selective Sync
+
+Hooks are run during [selective sync](selective_sync.md).
 
 ## Hook Deletion Policies
 

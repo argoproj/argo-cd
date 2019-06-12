@@ -1,5 +1,5 @@
 syntax = "proto2";
-option go_package = "github.com/argoproj/argo-cd/server/application";
+option go_package = "github.com/argoproj/argo-cd/pkg/apiclient/application";
 
 // Application Service
 //
@@ -19,6 +19,7 @@ message ApplicationQuery {
 	optional string name = 1;
 	optional string refresh = 2;
 	repeated string project = 3 [(gogoproto.customname) = "Projects"];
+	optional string resourceVersion = 4 [(gogoproto.nullable) = false];
 }
 
 // ApplicationEventsQuery is a query for application resource events

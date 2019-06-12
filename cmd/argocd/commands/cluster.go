@@ -19,8 +19,8 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
+	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/util"
 )
 
@@ -45,10 +45,11 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 // NewClusterAddCommand returns a new instance of an `argocd cluster add` command
 func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var (
-		inCluster      bool
-		upsert         bool
-		awsRoleArn     string
-		awsClusterName string
+		inCluster       bool
+		upsert          bool
+		awsRoleArn      string
+		awsClusterName  string
+		systemNamespace string
 	)
 	var command = &cobra.Command{
 		Use:   "add",
@@ -85,7 +86,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				// Install RBAC resources for managing the cluster
 				clientset, err := kubernetes.NewForConfig(conf)
 				errors.CheckError(err)
-				managerBearerToken, err = common.InstallClusterManagerRBAC(clientset)
+				managerBearerToken, err = common.InstallClusterManagerRBAC(clientset, systemNamespace)
 				errors.CheckError(err)
 			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
@@ -94,7 +95,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			if inCluster {
 				clst.Server = common.KubernetesInternalAPIServerAddr
 			}
-			clstCreateReq := cluster.ClusterCreateRequest{
+			clstCreateReq := clusterpkg.ClusterCreateRequest{
 				Cluster: clst,
 				Upsert:  upsert,
 			}
@@ -108,6 +109,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	command.Flags().BoolVar(&upsert, "upsert", false, "Override an existing cluster with the same name even if the spec differs")
 	command.Flags().StringVar(&awsClusterName, "aws-cluster-name", "", "AWS Cluster name if set then aws-iam-authenticator will be used to access cluster")
 	command.Flags().StringVar(&awsRoleArn, "aws-role-arn", "", "Optional AWS role arn. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.")
+	command.Flags().StringVar(&systemNamespace, "system-namespace", common.DefaultSystemNamespace, "Use different system namespace")
 	return command
 }
 
@@ -198,7 +200,7 @@ func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
 			for _, clusterName := range args {
-				clst, err := clusterIf.Get(context.Background(), &cluster.ClusterQuery{Server: clusterName})
+				clst, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: clusterName})
 				errors.CheckError(err)
 				yamlBytes, err := yaml.Marshal(clst)
 				errors.CheckError(err)
@@ -229,7 +231,7 @@ func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 				// TODO(jessesuen): find the right context and remove manager RBAC artifacts
 				// err := common.UninstallClusterManagerRBAC(clientset)
 				// errors.CheckError(err)
-				_, err := clusterIf.Delete(context.Background(), &cluster.ClusterQuery{Server: clusterName})
+				_, err := clusterIf.Delete(context.Background(), &clusterpkg.ClusterQuery{Server: clusterName})
 				errors.CheckError(err)
 			}
 		},
@@ -245,7 +247,7 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Run: func(c *cobra.Command, args []string) {
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
-			clusters, err := clusterIf.List(context.Background(), &cluster.ClusterQuery{})
+			clusters, err := clusterIf.List(context.Background(), &clusterpkg.ClusterQuery{})
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			fmt.Fprintf(w, "SERVER\tNAME\tSTATUS\tMESSAGE\n")

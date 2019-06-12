@@ -17,12 +17,18 @@ const (
 	ArgoCDRBACConfigMapName = "argocd-rbac-cm"
 )
 
+// Default system namespace
 const (
-	PortAPIServer              = 8080
-	PortRepoServer             = 8081
-	PortArgoCDMetrics          = 8082
-	PortArgoCDAPIServerMetrics = 8083
-	PortRepoServerMetrics      = 8084
+	DefaultSystemNamespace = "kube-system"
+)
+
+// Default listener ports for ArgoCD components
+const (
+	DefaultPortAPIServer              = 8080
+	DefaultPortRepoServer             = 8081
+	DefaultPortArgoCDMetrics          = 8082
+	DefaultPortArgoCDAPIServerMetrics = 8083
+	DefaultPortRepoServerMetrics      = 8084
 )
 
 // Argo CD application related constants
@@ -75,6 +81,12 @@ const (
 	// LabelValueSecretTypeCluster indicates a secret type of cluster
 	LabelValueSecretTypeCluster = "cluster"
 
+	// AnnotationCompareOptions is a comma-separated list of options for comparison
+	AnnotationCompareOptions = "argocd.argoproj.io/compare-options"
+	// AnnotationSyncOptions is a comma-separated list of options for syncing
+	AnnotationSyncOptions = "argocd.argoproj.io/sync-options"
+	// AnnotationSyncWave indicates which wave of the sync the resource or hook should be in
+	AnnotationSyncWave = "argocd.argoproj.io/sync-wave"
 	// AnnotationKeyHook contains the hook type of a resource
 	AnnotationKeyHook = "argocd.argoproj.io/hook"
 	// AnnotationKeyHookDeletePolicy is the policy of deleting a hook

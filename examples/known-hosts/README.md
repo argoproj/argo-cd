@@ -10,3 +10,10 @@ for Git repositories connected using SSL urls:
 !!! note
     The `/etc/ssh/ssh_known_hosts` should include Git host on each Argo CD deployment as well as on a computer where `argocd repo add` is executed. After resolving issue
     [#1514](https://github.com/argoproj/argo-cd/issues/1514) only `argocd-repo-server` deployment has to be customized.
+
+For the known_hosts file to work with custom repository port you have to obtain the public key using `ssh-keyscan` and hash the file before adding it to configmap, i.e.:
+```
+    ssh-keyscan -p 1234 git.repo.com > known_hosts
+    ssh-keygen -Hf known_hosts
+    cat known_hosts
+```

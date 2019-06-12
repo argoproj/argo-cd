@@ -22,6 +22,17 @@ Install:
 * [kubectx](https://kubectx.dev)
 * [minikube](https://kubernetes.io/docs/setup/minikube/) or Docker for Desktop
 
+!!! warning "Versions"
+    You will find problems generating code if you do not have the correct versions of `protoc` and `swagger`
+    
+```bash
+$ protoc --version
+libprotoc 3.7.1
+~/go/src/github.com/argoproj/argo-cd (ui)
+$ swagger version
+version: v0.19.0
+```
+
 Brew users can quickly install the lot:
     
 ```bash
@@ -39,24 +50,30 @@ export GOPATH=~/go
 export PATH=$PATH:$GOPATH/bin
 ```
 
+Checkout the code:
+
+```bash
+go get -u github.com/argoproj/argo-cd
+cd ~/go/src/github.com/argoproj/argo-cd
+```
+
 Install go dependencies:
 
 ```bash
-go get -u github.com/golang/protobuf/protoc-gen-go
-go get -u github.com/go-swagger/go-swagger/cmd/swagger
-go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
-go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
-go get -u github.com/golangci/golangci-lint/cmd/golangci-lint 
-go get -u github.com/mattn/goreman 
-go get -u gotest.tools/gotestsum
+go get github.com/gobuffalo/packr/packr
+go get github.com/gogo/protobuf/gogoproto
+go get github.com/golang/protobuf/protoc-gen-go
+go get github.com/golangci/golangci-lint/cmd/golangci-lint
+go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
+go get github.com/jstemmer/go-junit-report
+go get github.com/mattn/goreman
+go get golang.org/x/tools/cmd/goimports
 ```
 
 ## Building
 
 ```bash
-go get -u github.com/argoproj/argo-cd
-cd ~/go/src/github.com/argoproj/argo-cd
-dep ensure
 make
 ```
 
@@ -90,15 +107,6 @@ kubectl -n argocd scale deployment.extensions/argocd-repo-server --replicas 0
 kubectl -n argocd scale deployment.extensions/argocd-server --replicas 0
 kubectl -n argocd scale deployment.extensions/argocd-redis --replicas 0
 ```
-
-Then checkout and build the UI next to your code
-
-```
-cd ~/go/src/github.com/argoproj
-git clone git@github.com:argoproj/argo-cd-ui.git
-```
-
-Follow the UI's [README](https://github.com/argoproj/argo-cd-ui/blob/master/README.md) to build it.
 
 Note: you'll need to use the https://localhost:6443 cluster now.
 
@@ -135,7 +143,7 @@ Add your username as the environment variable, e.g. to your `~/.bash_profile`:
 export IMAGE_NAMESPACE=alexcollinsintuit
 ```
 
-If you have not built the UI image (see [the UI README](https://github.com/argoproj/argo-cd-ui/blob/master/README.md)), then do the following:
+If you have not built the UI image (see [the UI README](https://github.com/argoproj/argo-cd/blob/master/ui/README.md)), then do the following:
 
 ```bash
 docker pull argoproj/argocd-ui:latest
@@ -172,16 +180,3 @@ kubectl -n argocd scale deployment.extensions/argocd-redis --replicas 1
 ```
 
 Now you can set-up the port-forwarding and open the UI or CLI.
-
-## Pre-commit Checks
-
-Before you commit, make sure you've formatted and linted your code, or your PR will fail CI:
-
-```bash
-STAGED_GO_FILES=$(git diff --cached --name-only | grep ".go$")
-
-gofmt -w $STAGED_GO_FILES
-
-make codgen
-make precommit ;# lint and test
-```

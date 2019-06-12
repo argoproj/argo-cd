@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,9 +16,9 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
+	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util/assets"
@@ -334,9 +334,11 @@ func TestUserAgent(t *testing.T) {
 	defer cancelInformer()
 	port, err := test.GetFreePort()
 	assert.NoError(t, err)
+	metricsPort, err := test.GetFreePort()
+	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go s.Run(ctx, port)
+	go s.Run(ctx, port, metricsPort)
 
 	err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
 	assert.NoError(t, err)
@@ -383,7 +385,7 @@ func TestUserAgent(t *testing.T) {
 		clnt, err := apiclient.NewClient(&opts)
 		assert.NoError(t, err)
 		conn, appClnt := clnt.NewApplicationClientOrDie()
-		_, err = appClnt.List(ctx, &application.ApplicationQuery{})
+		_, err = appClnt.List(ctx, &applicationpkg.ApplicationQuery{})
 		if test.errorMsg != "" {
 			assert.Error(t, err)
 			assert.Regexp(t, test.errorMsg, err.Error())
@@ -392,4 +394,10 @@ func TestUserAgent(t *testing.T) {
 		}
 		_ = conn.Close()
 	}
+}
+
+func TestCertsAreNotGeneratedInInsecureMode(t *testing.T) {
+	s := fakeServer()
+	assert.True(t, s.Insecure)
+	assert.Nil(t, s.settings.Certificate)
 }

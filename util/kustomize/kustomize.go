@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
@@ -42,13 +43,8 @@ type Kustomize interface {
 	Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstructured.Unstructured, []ImageTag, []Image, error)
 }
 
-type GitCredentials struct {
-	Username string
-	Password string
-}
-
 // NewKustomizeApp create a new wrapper to run commands on the `kustomize` command-line tool.
-func NewKustomizeApp(path string, creds *GitCredentials) Kustomize {
+func NewKustomizeApp(path string, creds *git.Creds) Kustomize {
 	return &kustomize{
 		path:  path,
 		creds: creds,
@@ -57,7 +53,7 @@ func NewKustomizeApp(path string, creds *GitCredentials) Kustomize {
 
 type kustomize struct {
 	path  string
-	creds *GitCredentials
+	creds *git.Creds
 }
 
 func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstructured.Unstructured, []ImageTag, []Image, error) {
@@ -108,6 +104,25 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstruc
 				if err != nil {
 					return nil, nil, nil, err
 				}
+			}
+		}
+
+		if len(opts.CommonLabels) > 0 {
+			//  edit add label foo:bar
+			args := []string{"edit", "add", "label"}
+			arg := ""
+			for labelName, labelValue := range opts.CommonLabels {
+				if arg != "" {
+					arg += ","
+				}
+				arg += fmt.Sprintf("%s:%s", labelName, labelValue)
+			}
+			args = append(args, arg)
+			cmd := exec.Command(commandName, args...)
+			cmd.Dir = k.path
+			_, err := argoexec.RunCommandExt(cmd)
+			if err != nil {
+				return nil, nil, nil, err
 			}
 		}
 	}

@@ -15,8 +15,8 @@ import (
 	"sync"
 	"time"
 
-	oidc "github.com/coreos/go-oidc"
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/coreos/go-oidc"
+	"github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
@@ -24,20 +24,20 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 
-	argocd "github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/common"
+	accountpkg "github.com/argoproj/argo-cd/pkg/apiclient/account"
+	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
+	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
+	projectpkg "github.com/argoproj/argo-cd/pkg/apiclient/project"
+	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
+	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
+	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
+	versionpkg "github.com/argoproj/argo-cd/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/server/account"
-	"github.com/argoproj/argo-cd/server/application"
-	"github.com/argoproj/argo-cd/server/cluster"
-	"github.com/argoproj/argo-cd/server/project"
-	"github.com/argoproj/argo-cd/server/repository"
-	"github.com/argoproj/argo-cd/server/session"
-	"github.com/argoproj/argo-cd/server/settings"
-	"github.com/argoproj/argo-cd/server/version"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/localconfig"
+	oidcutil "github.com/argoproj/argo-cd/util/oidc"
 	tls_util "github.com/argoproj/argo-cd/util/tls"
 )
 
@@ -51,31 +51,27 @@ const (
 	MaxGRPCMessageSize = 100 * 1024 * 1024
 )
 
-var (
-	clientScopes = []string{"openid", "profile", "email", "groups", "offline_access"}
-)
-
 // Client defines an interface for interaction with an Argo CD server.
 type Client interface {
 	ClientOptions() ClientOptions
 	HTTPClient() (*http.Client, error)
-	OIDCConfig(context.Context, *settings.Settings) (*oauth2.Config, *oidc.Provider, error)
-	NewRepoClient() (io.Closer, repository.RepositoryServiceClient, error)
-	NewRepoClientOrDie() (io.Closer, repository.RepositoryServiceClient)
-	NewClusterClient() (io.Closer, cluster.ClusterServiceClient, error)
-	NewClusterClientOrDie() (io.Closer, cluster.ClusterServiceClient)
-	NewApplicationClient() (io.Closer, application.ApplicationServiceClient, error)
-	NewApplicationClientOrDie() (io.Closer, application.ApplicationServiceClient)
-	NewSessionClient() (io.Closer, session.SessionServiceClient, error)
-	NewSessionClientOrDie() (io.Closer, session.SessionServiceClient)
-	NewSettingsClient() (io.Closer, settings.SettingsServiceClient, error)
-	NewSettingsClientOrDie() (io.Closer, settings.SettingsServiceClient)
-	NewVersionClient() (io.Closer, version.VersionServiceClient, error)
-	NewVersionClientOrDie() (io.Closer, version.VersionServiceClient)
-	NewProjectClient() (io.Closer, project.ProjectServiceClient, error)
-	NewProjectClientOrDie() (io.Closer, project.ProjectServiceClient)
-	NewAccountClient() (io.Closer, account.AccountServiceClient, error)
-	NewAccountClientOrDie() (io.Closer, account.AccountServiceClient)
+	OIDCConfig(context.Context, *settingspkg.Settings) (*oauth2.Config, *oidc.Provider, error)
+	NewRepoClient() (io.Closer, repositorypkg.RepositoryServiceClient, error)
+	NewRepoClientOrDie() (io.Closer, repositorypkg.RepositoryServiceClient)
+	NewClusterClient() (io.Closer, clusterpkg.ClusterServiceClient, error)
+	NewClusterClientOrDie() (io.Closer, clusterpkg.ClusterServiceClient)
+	NewApplicationClient() (io.Closer, applicationpkg.ApplicationServiceClient, error)
+	NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient)
+	NewSessionClient() (io.Closer, sessionpkg.SessionServiceClient, error)
+	NewSessionClientOrDie() (io.Closer, sessionpkg.SessionServiceClient)
+	NewSettingsClient() (io.Closer, settingspkg.SettingsServiceClient, error)
+	NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient)
+	NewVersionClient() (io.Closer, versionpkg.VersionServiceClient, error)
+	NewVersionClientOrDie() (io.Closer, versionpkg.VersionServiceClient)
+	NewProjectClient() (io.Closer, projectpkg.ProjectServiceClient, error)
+	NewProjectClientOrDie() (io.Closer, projectpkg.ProjectServiceClient)
+	NewAccountClient() (io.Closer, accountpkg.AccountServiceClient, error)
+	NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceClient)
 	WatchApplicationWithRetry(ctx context.Context, appName string) chan *argoappv1.ApplicationWatchEvent
 }
 
@@ -141,7 +137,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	if opts.UserAgent != "" {
 		c.UserAgent = opts.UserAgent
 	} else {
-		c.UserAgent = fmt.Sprintf("%s/%s", common.ArgoCDUserAgentName, argocd.GetVersion().Version)
+		c.UserAgent = fmt.Sprintf("%s/%s", common.ArgoCDUserAgentName, common.GetVersion().Version)
 	}
 	// Override server address if specified in env or CLI flag
 	if serverFromEnv := os.Getenv(EnvArgoCDServer); serverFromEnv != "" {
@@ -194,19 +190,21 @@ func NewClient(opts *ClientOptions) (Client, error) {
 
 // OIDCConfig returns OAuth2 client config and a OpenID Provider based on Argo CD settings
 // ctx can hold an appropriate http.Client to use for the exchange
-func (c *client) OIDCConfig(ctx context.Context, set *settings.Settings) (*oauth2.Config, *oidc.Provider, error) {
+func (c *client) OIDCConfig(ctx context.Context, set *settingspkg.Settings) (*oauth2.Config, *oidc.Provider, error) {
 	var clientID string
 	var issuerURL string
-	if set.DexConfig != nil && len(set.DexConfig.Connectors) > 0 {
-		clientID = common.ArgoCDCLIClientAppID
-		issuerURL = fmt.Sprintf("%s%s", set.URL, common.DexAPIEndpoint)
-	} else if set.OIDCConfig != nil && set.OIDCConfig.Issuer != "" {
+	var scopes []string
+	if set.OIDCConfig != nil && set.OIDCConfig.Issuer != "" {
 		if set.OIDCConfig.CLIClientID != "" {
 			clientID = set.OIDCConfig.CLIClientID
 		} else {
 			clientID = set.OIDCConfig.ClientID
 		}
 		issuerURL = set.OIDCConfig.Issuer
+		scopes = set.OIDCConfig.Scopes
+	} else if set.DexConfig != nil && len(set.DexConfig.Connectors) > 0 {
+		clientID = common.ArgoCDCLIClientAppID
+		issuerURL = fmt.Sprintf("%s%s", set.URL, common.DexAPIEndpoint)
 	} else {
 		return nil, nil, fmt.Errorf("%s is not configured with SSO", c.ServerAddr)
 	}
@@ -214,9 +212,17 @@ func (c *client) OIDCConfig(ctx context.Context, set *settings.Settings) (*oauth
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to query provider %q: %v", issuerURL, err)
 	}
+	oidcConf, err := oidcutil.ParseConfig(provider)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to parse provider config: %v", err)
+	}
+	scopes = oidcutil.GetScopesOrDefault(scopes)
+	if oidcutil.OfflineAccess(oidcConf.ScopesSupported) {
+		scopes = append(scopes, oidc.ScopeOfflineAccess)
+	}
 	oauth2conf := oauth2.Config{
 		ClientID: clientID,
-		Scopes:   clientScopes,
+		Scopes:   scopes,
 		Endpoint: provider.Endpoint(),
 	}
 	return &oauth2conf, provider, nil
@@ -296,7 +302,7 @@ func (c *client) redeemRefreshToken() (string, string, error) {
 		return "", "", err
 	}
 	ctx := oidc.ClientContext(context.Background(), httpClient)
-	acdSet, err := setIf.Get(ctx, &settings.SettingsQuery{})
+	acdSet, err := setIf.Get(ctx, &settingspkg.SettingsQuery{})
 	if err != nil {
 		return "", "", err
 	}
@@ -414,16 +420,16 @@ func (c *client) ClientOptions() ClientOptions {
 	}
 }
 
-func (c *client) NewRepoClient() (io.Closer, repository.RepositoryServiceClient, error) {
+func (c *client) NewRepoClient() (io.Closer, repositorypkg.RepositoryServiceClient, error) {
 	conn, closer, err := c.newConn()
 	if err != nil {
 		return nil, nil, err
 	}
-	repoIf := repository.NewRepositoryServiceClient(conn)
+	repoIf := repositorypkg.NewRepositoryServiceClient(conn)
 	return closer, repoIf, nil
 }
 
-func (c *client) NewRepoClientOrDie() (io.Closer, repository.RepositoryServiceClient) {
+func (c *client) NewRepoClientOrDie() (io.Closer, repositorypkg.RepositoryServiceClient) {
 	conn, repoIf, err := c.NewRepoClient()
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
@@ -431,16 +437,16 @@ func (c *client) NewRepoClientOrDie() (io.Closer, repository.RepositoryServiceCl
 	return conn, repoIf
 }
 
-func (c *client) NewClusterClient() (io.Closer, cluster.ClusterServiceClient, error) {
+func (c *client) NewClusterClient() (io.Closer, clusterpkg.ClusterServiceClient, error) {
 	conn, closer, err := c.newConn()
 	if err != nil {
 		return nil, nil, err
 	}
-	clusterIf := cluster.NewClusterServiceClient(conn)
+	clusterIf := clusterpkg.NewClusterServiceClient(conn)
 	return closer, clusterIf, nil
 }
 
-func (c *client) NewClusterClientOrDie() (io.Closer, cluster.ClusterServiceClient) {
+func (c *client) NewClusterClientOrDie() (io.Closer, clusterpkg.ClusterServiceClient) {
 	conn, clusterIf, err := c.NewClusterClient()
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
@@ -448,16 +454,16 @@ func (c *client) NewClusterClientOrDie() (io.Closer, cluster.ClusterServiceClien
 	return conn, clusterIf
 }
 
-func (c *client) NewApplicationClient() (io.Closer, application.ApplicationServiceClient, error) {
+func (c *client) NewApplicationClient() (io.Closer, applicationpkg.ApplicationServiceClient, error) {
 	conn, closer, err := c.newConn()
 	if err != nil {
 		return nil, nil, err
 	}
-	appIf := application.NewApplicationServiceClient(conn)
+	appIf := applicationpkg.NewApplicationServiceClient(conn)
 	return closer, appIf, nil
 }
 
-func (c *client) NewApplicationClientOrDie() (io.Closer, application.ApplicationServiceClient) {
+func (c *client) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
 	conn, repoIf, err := c.NewApplicationClient()
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
@@ -465,16 +471,16 @@ func (c *client) NewApplicationClientOrDie() (io.Closer, application.Application
 	return conn, repoIf
 }
 
-func (c *client) NewSessionClient() (io.Closer, session.SessionServiceClient, error) {
+func (c *client) NewSessionClient() (io.Closer, sessionpkg.SessionServiceClient, error) {
 	conn, closer, err := c.newConn()
 	if err != nil {
 		return nil, nil, err
 	}
-	sessionIf := session.NewSessionServiceClient(conn)
+	sessionIf := sessionpkg.NewSessionServiceClient(conn)
 	return closer, sessionIf, nil
 }
 
-func (c *client) NewSessionClientOrDie() (io.Closer, session.SessionServiceClient) {
+func (c *client) NewSessionClientOrDie() (io.Closer, sessionpkg.SessionServiceClient) {
 	conn, sessionIf, err := c.NewSessionClient()
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
@@ -482,16 +488,16 @@ func (c *client) NewSessionClientOrDie() (io.Closer, session.SessionServiceClien
 	return conn, sessionIf
 }
 
-func (c *client) NewSettingsClient() (io.Closer, settings.SettingsServiceClient, error) {
+func (c *client) NewSettingsClient() (io.Closer, settingspkg.SettingsServiceClient, error) {
 	conn, closer, err := c.newConn()
 	if err != nil {
 		return nil, nil, err
 	}
-	setIf := settings.NewSettingsServiceClient(conn)
+	setIf := settingspkg.NewSettingsServiceClient(conn)
 	return closer, setIf, nil
 }
 
-func (c *client) NewSettingsClientOrDie() (io.Closer, settings.SettingsServiceClient) {
+func (c *client) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
 	conn, setIf, err := c.NewSettingsClient()
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
@@ -499,16 +505,16 @@ func (c *client) NewSettingsClientOrDie() (io.Closer, settings.SettingsServiceCl
 	return conn, setIf
 }
 
-func (c *client) NewVersionClient() (io.Closer, version.VersionServiceClient, error) {
+func (c *client) NewVersionClient() (io.Closer, versionpkg.VersionServiceClient, error) {
 	conn, closer, err := c.newConn()
 	if err != nil {
 		return nil, nil, err
 	}
-	versionIf := version.NewVersionServiceClient(conn)
+	versionIf := versionpkg.NewVersionServiceClient(conn)
 	return closer, versionIf, nil
 }
 
-func (c *client) NewVersionClientOrDie() (io.Closer, version.VersionServiceClient) {
+func (c *client) NewVersionClientOrDie() (io.Closer, versionpkg.VersionServiceClient) {
 	conn, versionIf, err := c.NewVersionClient()
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
@@ -516,16 +522,16 @@ func (c *client) NewVersionClientOrDie() (io.Closer, version.VersionServiceClien
 	return conn, versionIf
 }
 
-func (c *client) NewProjectClient() (io.Closer, project.ProjectServiceClient, error) {
+func (c *client) NewProjectClient() (io.Closer, projectpkg.ProjectServiceClient, error) {
 	conn, closer, err := c.newConn()
 	if err != nil {
 		return nil, nil, err
 	}
-	projIf := project.NewProjectServiceClient(conn)
+	projIf := projectpkg.NewProjectServiceClient(conn)
 	return closer, projIf, nil
 }
 
-func (c *client) NewProjectClientOrDie() (io.Closer, project.ProjectServiceClient) {
+func (c *client) NewProjectClientOrDie() (io.Closer, projectpkg.ProjectServiceClient) {
 	conn, projIf, err := c.NewProjectClient()
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
@@ -533,16 +539,16 @@ func (c *client) NewProjectClientOrDie() (io.Closer, project.ProjectServiceClien
 	return conn, projIf
 }
 
-func (c *client) NewAccountClient() (io.Closer, account.AccountServiceClient, error) {
+func (c *client) NewAccountClient() (io.Closer, accountpkg.AccountServiceClient, error) {
 	conn, closer, err := c.newConn()
 	if err != nil {
 		return nil, nil, err
 	}
-	usrIf := account.NewAccountServiceClient(conn)
+	usrIf := accountpkg.NewAccountServiceClient(conn)
 	return closer, usrIf, nil
 }
 
-func (c *client) NewAccountClientOrDie() (io.Closer, account.AccountServiceClient) {
+func (c *client) NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceClient) {
 	conn, usrIf, err := c.NewAccountClient()
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
@@ -560,8 +566,8 @@ func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string) 
 		for !cancelled {
 			conn, appIf, err := c.NewApplicationClient()
 			if err == nil {
-				var wc application.ApplicationService_WatchClient
-				wc, err = appIf.Watch(ctx, &application.ApplicationQuery{Name: &appName})
+				var wc applicationpkg.ApplicationService_WatchClient
+				wc, err = appIf.Watch(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
 				if err == nil {
 					for {
 						var appEvent *v1alpha1.ApplicationWatchEvent
@@ -596,7 +602,7 @@ func isCanceledContextErr(err error) bool {
 		return true
 	}
 	if stat, ok := status.FromError(err); ok {
-		if stat.Code() == codes.Canceled {
+		if stat.Code() == codes.Canceled || stat.Code() == codes.DeadlineExceeded {
 			return true
 		}
 	}

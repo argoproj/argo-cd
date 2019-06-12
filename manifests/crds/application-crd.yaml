@@ -129,6 +129,10 @@ spec:
                                 type: string
                             type: object
                           type: array
+                        releaseName:
+                          description: The Helm release name. If omitted it will use
+                            the application name
+                          type: string
                         valueFiles:
                           description: ValuesFiles is a list of Helm value files to
                             use when generating a template
@@ -166,6 +170,9 @@ spec:
                       description: ApplicationSourceKustomize holds kustomize specific
                         options
                       properties:
+                        commonLabels:
+                          description: CommonLabels adds additional kustomize commonLabels
+                          type: object
                         imageTags:
                           description: ImageTags are kustomize 1.0 image tag overrides
                           items:
@@ -360,6 +367,10 @@ spec:
                             type: string
                         type: object
                       type: array
+                    releaseName:
+                      description: The Helm release name. If omitted it will use the
+                        application name
+                      type: string
                     valueFiles:
                       description: ValuesFiles is a list of Helm value files to use
                         when generating a template
@@ -396,6 +407,9 @@ spec:
                   description: ApplicationSourceKustomize holds kustomize specific
                     options
                   properties:
+                    commonLabels:
+                      description: CommonLabels adds additional kustomize commonLabels
+                      type: object
                     imageTags:
                       description: ImageTags are kustomize 1.0 image tag overrides
                       items:
@@ -566,6 +580,10 @@ spec:
                                   type: string
                               type: object
                             type: array
+                          releaseName:
+                            description: The Helm release name. If omitted it will
+                              use the application name
+                            type: string
                           valueFiles:
                             description: ValuesFiles is a list of Helm value files
                               to use when generating a template
@@ -604,6 +622,9 @@ spec:
                         description: ApplicationSourceKustomize holds kustomize specific
                           options
                         properties:
+                          commonLabels:
+                            description: CommonLabels adds additional kustomize commonLabels
+                            type: object
                           imageTags:
                             description: ImageTags are kustomize 1.0 image tag overrides
                             items:
@@ -784,6 +805,10 @@ spec:
                                         type: string
                                     type: object
                                   type: array
+                                releaseName:
+                                  description: The Helm release name. If omitted it
+                                    will use the application name
+                                  type: string
                                 valueFiles:
                                   description: ValuesFiles is a list of Helm value
                                     files to use when generating a template
@@ -822,6 +847,10 @@ spec:
                               description: ApplicationSourceKustomize holds kustomize
                                 specific options
                               properties:
+                                commonLabels:
+                                  description: CommonLabels adds additional kustomize
+                                    commonLabels
+                                  type: object
                                 imageTags:
                                   description: ImageTags are kustomize 1.0 image tag
                                     overrides
@@ -928,18 +957,31 @@ spec:
                           group:
                             type: string
                           hookPhase:
+                            description: 'the state of any operation associated with
+                              this resource OR hook note: can contain values for non-hook
+                              resources'
                             type: string
                           hookType:
+                            description: the type of the hook, empty for non-hook
+                              resources
                             type: string
                           kind:
                             type: string
                           message:
+                            description: message for the last sync OR operation
                             type: string
                           name:
                             type: string
                           namespace:
                             type: string
                           status:
+                            description: the final result of the sync, this is be
+                              empty if the resources is yet to be applied/pruned and
+                              is always zero-value for hooks
+                            type: string
+                          syncPhase:
+                            description: indicates the particular phase of the sync
+                              that this is for
                             type: string
                           version:
                             type: string
@@ -1020,6 +1062,10 @@ spec:
                                     type: string
                                 type: object
                               type: array
+                            releaseName:
+                              description: The Helm release name. If omitted it will
+                                use the application name
+                              type: string
                             valueFiles:
                               description: ValuesFiles is a list of Helm value files
                                 to use when generating a template
@@ -1058,6 +1104,10 @@ spec:
                           description: ApplicationSourceKustomize holds kustomize
                             specific options
                           properties:
+                            commonLabels:
+                              description: CommonLabels adds additional kustomize
+                                commonLabels
+                              type: object
                             imageTags:
                               description: ImageTags are kustomize 1.0 image tag overrides
                               items:
@@ -1250,6 +1300,10 @@ spec:
                                     type: string
                                 type: object
                               type: array
+                            releaseName:
+                              description: The Helm release name. If omitted it will
+                                use the application name
+                              type: string
                             valueFiles:
                               description: ValuesFiles is a list of Helm value files
                                 to use when generating a template
@@ -1288,6 +1342,10 @@ spec:
                           description: ApplicationSourceKustomize holds kustomize
                             specific options
                           properties:
+                            commonLabels:
+                              description: CommonLabels adds additional kustomize
+                                commonLabels
+                              type: object
                             imageTags:
                               description: ImageTags are kustomize 1.0 image tag overrides
                               items:

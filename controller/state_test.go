@@ -4,10 +4,9 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -114,7 +113,35 @@ func TestCompareAppStateHook(t *testing.T) {
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, 0, len(compRes.resources))
 	assert.Equal(t, 0, len(compRes.managedResources))
+	assert.Equal(t, 1, len(compRes.hooks))
 	assert.Equal(t, 0, len(compRes.conditions))
+}
+
+// checks that ignore resources are detected, but excluded from status
+func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
+	pod := test.NewPod()
+	pod.SetAnnotations(map[string]string{common.AnnotationCompareOptions: "IgnoreExtraneous"})
+	app := newFakeApp()
+	data := fakeData{
+		apps: []runtime.Object{app},
+		manifestResponse: &repository.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+	ctrl := newFakeController(&data)
+
+	compRes, err := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, compRes)
+	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+	assert.Len(t, compRes.resources, 0)
+	assert.Len(t, compRes.managedResources, 0)
+	assert.Len(t, compRes.conditions, 0)
 }
 
 // TestCompareAppStateExtraHook tests when there is an extra _hook_ object in live but not defined in git
@@ -142,6 +169,7 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, 1, len(compRes.resources))
 	assert.Equal(t, 1, len(compRes.managedResources))
+	assert.Equal(t, 0, len(compRes.hooks))
 	assert.Equal(t, 0, len(compRes.conditions))
 }
 
