@@ -357,6 +357,10 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 		return nil, err
 	}
 
+	if err = s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionOverride, appRBACName(*app)); err != nil {
+		return nil, err
+	}
+
 	jsonApp, err := json.Marshal(app)
 	if err != nil {
 		return nil, err
