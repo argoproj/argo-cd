@@ -827,7 +827,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 			return nil, err
 		}
 		if a.Spec.SyncPolicy != nil {
-			return nil, status.Error(codes.FailedPrecondition,"Cannot use local sync when Automatic Sync Policy is enabled")
+			return nil, status.Error(codes.FailedPrecondition, "Cannot use local sync when Automatic Sync Policy is enabled")
 		}
 	}
 	if a.DeletionTimestamp != nil {
@@ -846,12 +846,12 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
-			Revision:       commitSHA,
-			Prune:          syncReq.Prune,
-			DryRun:         syncReq.DryRun,
-			SyncStrategy:   syncReq.Strategy,
-			Resources:      syncReq.Resources,
-			Manifests: 		syncReq.Manifests,
+			Revision:     commitSHA,
+			Prune:        syncReq.Prune,
+			DryRun:       syncReq.DryRun,
+			SyncStrategy: syncReq.Strategy,
+			Resources:    syncReq.Resources,
+			Manifests:    syncReq.Manifests,
 		},
 	}
 	a, err = argo.SetAppOperation(appIf, *syncReq.Name, &op)

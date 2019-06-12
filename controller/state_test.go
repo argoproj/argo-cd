@@ -134,7 +134,7 @@ func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
 	}
 	ctrl := newFakeController(&data)
 
-	compRes, err := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, compRes)

@@ -481,7 +481,7 @@ func TestNoLocalSyncWithAutosyncEnabled(t *testing.T) {
 
 			_, err = fixture.RunCli("app", "sync", app.Name, "--local", guestbookPathLocal)
 			assert.Error(t, err)
-	})
+		})
 }
 
 func TestPermissions(t *testing.T) {

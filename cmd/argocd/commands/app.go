@@ -1168,12 +1168,12 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 
 			syncReq := applicationpkg.ApplicationSyncRequest{
-				Name:           &appName,
-				DryRun:         dryRun,
-				Revision:       revision,
-				Resources:      selectedResources,
-				Prune:          prune,
-				Manifests:      localObjsStrings,
+				Name:      &appName,
+				DryRun:    dryRun,
+				Revision:  revision,
+				Resources: selectedResources,
+				Prune:     prune,
+				Manifests: localObjsStrings,
 			}
 			switch strategy {
 			case "apply":
