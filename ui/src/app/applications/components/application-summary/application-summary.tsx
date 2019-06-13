@@ -14,6 +14,12 @@ import { ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage } from '../ut
 const urlPattern = new RegExp('^(https?:\\/\\/)?((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|((\\d{1,3}\\.){3}\\d{1,3}))'
     + '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*(\\?[;&a-z\\d%_.~+=-]*)?(\\#[-a-z\\d_]*)?$', 'i');
 
+function swap(array: any[], a: number, b: number) {
+    array = array.slice();
+    [array[a], array[b]] = [array[b], array[a]];
+    return array;
+}
+
 export const ApplicationSummary = (props: {
     app: models.Application,
     updateApp: (app: models.Application) => Promise<any>,
@@ -25,7 +31,7 @@ export const ApplicationSummary = (props: {
             title: 'PROJECT',
             view: app.spec.project,
             edit: (formApi: FormApi) => (
-                <DataLoader load={() => services.projects.list().then((items) => items.map((item) => item.metadata.name))}>
+                <DataLoader load={() => services.projects.list().then((projs) => projs.map((item) => item.metadata.name))}>
                     {(projects) => <FormField formApi={formApi} field='spec.project' component={FormSelect} componentProps={{options: projects}} />}
                 </DataLoader>
             ),
@@ -121,11 +127,22 @@ export const ApplicationSummary = (props: {
     for (let i = 0; i > adjustedCount; i--) {
         items.pop();
     }
-    const infoItems: EditablePanelItem[] = items.concat(added).map((info, i) => ({
+    const allItems = items.concat(added);
+    const infoItems: EditablePanelItem[] = allItems.map((info, i) => ({
         key: i.toString(),
         title: info.name,
         view: info.value.match(urlPattern) ? <a href={info.value} target='__blank'>{info.value}</a> : info.value,
-        titleEdit: (formApi: FormApi) => <FormField formApi={formApi} field={`spec.info[${[i]}].name`} component={Text} componentProps={{style: { width: '99%' }}} />,
+        titleEdit: (formApi: FormApi) => (
+            <React.Fragment>
+                {i > 0 && <i className='fa fa-sort-up application-summary__sort-icon' onClick={() => {
+                    formApi.setValue('spec.info', swap((formApi.getFormState().values.spec.info || []), i, i - 1));
+                }}/>}
+                <FormField formApi={formApi} field={`spec.info[${[i]}].name`} component={Text} componentProps={{style: { width: '99%' }}} />
+                {i < allItems.length - 1 && <i className='fa fa-sort-down application-summary__sort-icon' onClick={() => {
+                    formApi.setValue('spec.info', swap((formApi.getFormState().values.spec.info || []), i, i + 1));
+                }}/> }
+            </React.Fragment>
+        ),
         edit: (formApi: FormApi) => (
             <React.Fragment>
                 <FormField formApi={formApi} field={`spec.info[${[i]}].value`} component={Text}/>
@@ -133,7 +150,7 @@ export const ApplicationSummary = (props: {
                     const values = (formApi.getFormState().values.spec.info || []) as Array<any>;
                     formApi.setValue('spec.info', [...values.slice(0, i), ...values.slice(i + 1, values.length)]);
                     setAdjustedCount(adjustedCount - 1);
-                }} style={{cursor: 'pointer'}}/>
+                }}/>
             </React.Fragment>
         ),
     })).concat({

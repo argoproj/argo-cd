@@ -119,6 +119,8 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
     }
 
     private onModeSwitch() {
-        this.props.onModeSwitch();
+        if (this.props.onModeSwitch) {
+            this.props.onModeSwitch();
+        }
     }
 }
