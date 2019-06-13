@@ -29,6 +29,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [KompiTech GmbH](https://www.kompitech.com/)
 1. [Mirantis](https://mirantis.com/)
 1. [OpenSaaS Studio](https://opensaas.studio)
+1. [Optoro](https://www.optoro.com/)
 1. [Riskified](https://www.riskified.com/)
 1. [Tesla](https://tesla.com/)
 1. [tZERO](https://www.tzero.com/)
