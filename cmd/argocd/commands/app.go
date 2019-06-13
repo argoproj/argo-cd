@@ -1190,7 +1190,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().StringVar(&strategy, "strategy", "", "Sync strategy (one of: apply|hook)")
 	command.Flags().BoolVar(&force, "force", false, "Use a force apply")
-	command.Flags().BoolVar(&async, "async", false, "Do not wait for application to sync")
+	command.Flags().BoolVar(&async, "async", false, "Do not wait for application to sync before continuing")
 	return command
 }
 
