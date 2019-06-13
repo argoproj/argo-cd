@@ -135,7 +135,8 @@ dep-ensure:
 lint:
 	# golangci-lint does not do a good job of formatting imports
 	goimports -local github.com/argoproj/argo-cd -w `find . ! -path './vendor/*' ! -path './pkg/client/*' -type f -name '*.go'`
-	golangci-lint run --fix --verbose --concurrency 2
+	# https://github.com/golangci/golangci-lint#memory-usage-of-golangci-lint
+	GOGC=50 golangci-lint run --fix --verbose --concurrency 2
 
 .PHONY: build
 build:

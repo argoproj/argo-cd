@@ -78,7 +78,8 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 	args := []string{"ssh", "-i", file.Name()}
 	if c.insecureIgnoreHostKey {
 		log.Warn("temporarily disabling strict host key checking (i.e. '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'), please don't use in production")
-		// make sure we do not save this to the known_hosts file
+		// StrictHostKeyChecking will add the host to the knownhosts file,  we don't want that - a security issue really,
+		// UserKnownHostsFile=/dev/null is therefore used so we write the new insecure host to /dev/null
 		args = append(args, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null")
 	}
 	return sshPrivateKeyFile(file.Name()),
