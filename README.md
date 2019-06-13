@@ -34,6 +34,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [tZERO](https://www.tzero.com/)
 1. [Ticketmaster](https://ticketmaster.com)
 1. [Yieldlab](https://www.yieldlab.de/)
+1. [Volvo Cars](https://www.volvocars.com/)
 
 ## Documentation
 
