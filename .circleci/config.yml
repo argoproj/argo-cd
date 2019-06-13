@@ -210,7 +210,9 @@ jobs:
           command: make codegen
       - run:
           name: Lint code
-          command: make lint
+          # use GOGC to limited memory usage in exchange for CPU, https://github.com/golangci/golangci-lint#memory-usage-of-golangci-lint
+          # we have 8GB RAM, 2CPUs https://circleci.com/docs/2.0/executor-types/#using-machine
+          command: LINT_GOGC=50 LINT_CONCURRENCY=2 make lint
       - run:
           name: Check nothing has changed
           command: |
