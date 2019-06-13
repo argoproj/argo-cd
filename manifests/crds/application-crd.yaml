@@ -296,6 +296,20 @@ spec:
                 - jsonPointers
                 type: object
               type: array
+            info:
+              description: Infos contains a list of useful information (URLs, email
+                addresses, and plain text) that relates to the application
+              items:
+                properties:
+                  name:
+                    type: string
+                  value:
+                    type: string
+                required:
+                - name
+                - value
+                type: object
+              type: array
             project:
               description: Project is a application project name. Empty name means
                 that application belongs to 'default' project.

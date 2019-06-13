@@ -1,7 +1,6 @@
 @import 'node_modules/argo-ui/src/app/shared/styles/config';
 
 .application-summary {
-
     &__labels {
         line-height: 28px;
     }
@@ -15,4 +14,26 @@
         margin-right: 2px;
         line-height: 14px;
     }
+
+    &__sort-icon {
+        cursor: pointer;
+        position: absolute;
+        font-size: 1.3em;
+        left: -1em;
+
+        &.fa-sort-up {
+            top: 10px;
+        }
+
+        &.fa-sort-down {
+            bottom: 10px;
+        }
+    }
+    &__remove-icon {
+        cursor: pointer;
+        position: absolute;
+        top: 1em;
+        right: 1em;
+    }
+   
 }
