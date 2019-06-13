@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/test/fixture/test_repos"
+	"github.com/argoproj/argo-cd/test/fixture/testrepos"
 	"github.com/argoproj/argo-cd/util/git"
 )
 
@@ -143,8 +143,8 @@ func TestNewKustomizeApp(t *testing.T) {
 		args    args
 		wantLen int
 	}{
-		{"PrivateRemoteBase", args{"./testdata/private-remote-base", git.NewHTTPSCreds(test_repos.HTTPSTestRepo.Username, test_repos.HTTPSTestRepo.Password)}, 2},
-		{"PrivateSSHRemoteBase", args{"./testdata/private-ssh-remote-base", git.NewSSHCreds(test_repos.SSHTestRepo.SSHPrivateKey, test_repos.SSHTestRepo.InsecureIgnoreHostKey)}, 1},
+		{"PrivateRemoteBase", args{"./testdata/private-remote-base", git.NewHTTPSCreds(testrepos.HTTPSTestRepo.Username, testrepos.HTTPSTestRepo.Password)}, 2},
+		{"PrivateSSHRemoteBase", args{"./testdata/private-ssh-remote-base", git.NewSSHCreds(testrepos.SSHTestRepo.SSHPrivateKey, testrepos.SSHTestRepo.InsecureIgnoreHostKey)}, 1},
 	}
 	for _, tt := range tests {
 		kust := NewKustomizeApp(tt.args.path, tt.args.creds)

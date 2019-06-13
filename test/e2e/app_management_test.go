@@ -533,6 +533,7 @@ func TestCompareOptionIgnoreExtraneous(t *testing.T) {
 		DeleteFile("pod-1.yaml").
 		Refresh(RefreshTypeHard).
 		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			assert.Len(t, app.Status.Resources, 2)

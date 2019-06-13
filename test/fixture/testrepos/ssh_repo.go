@@ -1,4 +1,4 @@
-package test_repos
+package testrepos
 
 type SSHRepo struct {
 	URL, SSHPrivateKey    string

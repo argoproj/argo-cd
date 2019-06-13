@@ -75,16 +75,14 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		if err != nil {
 			return nil, err
 		}
-		publicKeys := &ssh2.PublicKeys{User: sshUser, Signer: signer}
+		auth := &ssh2.PublicKeys{User: sshUser, Signer: signer}
 		if creds.insecureIgnoreHostKey {
-			publicKeys.HostKeyCallback = ssh.InsecureIgnoreHostKey()
+			auth.HostKeyCallback = ssh.InsecureIgnoreHostKey()
 		}
-		log.WithFields(log.Fields{"func": "newAuth", "repoURL": repoURL, "creds": creds, "publicKeys": publicKeys}).Debug()
-		return publicKeys, nil
+		return auth, nil
 	case HTTPSCreds:
-		basicAuth := http.BasicAuth{Username: creds.username, Password: creds.password}
-		log.WithFields(log.Fields{"func": "newAuth", "repoURL": repoURL, "creds": creds, "basicAuth": basicAuth}).Debug()
-		return &basicAuth, nil
+		auth := http.BasicAuth{Username: creds.username, Password: creds.password}
+		return &auth, nil
 	}
 	return nil, nil
 }

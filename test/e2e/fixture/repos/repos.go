@@ -5,13 +5,14 @@ import (
 
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/test/fixture/test_repos"
+	"github.com/argoproj/argo-cd/test/fixture/testrepos"
 )
 
+// sets the current repo as the default SSH test repo
 func AddSSHRepo() string {
 	tmpFile, err := ioutil.TempFile("", "")
 	errors.CheckError(err)
-	r := test_repos.SSHTestRepo
+	r := testrepos.SSHTestRepo
 	errors.FailOnErr(tmpFile.WriteString(r.SSHPrivateKey))
 	errors.CheckError(tmpFile.Close())
 	args := []string{"repo", "add", r.URL, "--ssh-private-key-path", tmpFile.Name()}
@@ -22,8 +23,9 @@ func AddSSHRepo() string {
 	return r.URL
 }
 
+// sets the current repo as the default HTTPS test repo
 func AddHTTPSRepo() string {
-	r := test_repos.HTTPSTestRepo
+	r := testrepos.HTTPSTestRepo
 	errors.FailOnErr(fixture.RunCli("repo", "add", r.URL, "--username", r.Username, "--password", r.Password))
 	return r.URL
 }

@@ -58,8 +58,6 @@ type kustomize struct {
 
 func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstructured.Unstructured, []ImageTag, []Image, error) {
 
-	log.WithFields(log.Fields{"func": "kustomize#Build"}).Debug("new creds")
-
 	version, err := k.getKustomizationVersion()
 	if err != nil {
 		return nil, nil, nil, err

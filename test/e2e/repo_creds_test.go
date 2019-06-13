@@ -7,7 +7,7 @@ import (
 	. "github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
-	. "github.com/argoproj/argo-cd/test/fixture/test_repos"
+	. "github.com/argoproj/argo-cd/test/fixture/testrepos"
 )
 
 // make sure you cannot create an app from a private repo without set-up

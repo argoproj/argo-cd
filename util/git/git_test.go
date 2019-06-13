@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/argoproj/argo-cd/test/fixture/test_repos"
+	"github.com/argoproj/argo-cd/test/fixture/testrepos"
 )
 
 func TestIsCommitSHA(t *testing.T) {
@@ -138,7 +138,7 @@ func TestLsRemote(t *testing.T) {
 }
 
 func TestNewFactory(t *testing.T) {
-	hackPath := test_repos.NewHackPath()
+	hackPath := testrepos.NewHackPath()
 	defer func() { _ = hackPath.Close() }()
 
 	type args struct {
@@ -151,8 +151,8 @@ func TestNewFactory(t *testing.T) {
 	}{
 		{"Github", args{url: "https://github.com/argoproj/argocd-example-apps"}},
 		{"Azure", args{url: "https://jsuen0437@dev.azure.com/jsuen0437/jsuen/_git/jsuen"}},
-		{"PrivateRepo", args{test_repos.HTTPSTestRepo.URL, test_repos.HTTPSTestRepo.Username, test_repos.HTTPSTestRepo.Password, "", false}},
-		{"PrivateSSHRepo", args{test_repos.SSHTestRepo.URL, "", "", test_repos.SSHTestRepo.SSHPrivateKey, test_repos.SSHTestRepo.InsecureIgnoreHostKey}},
+		{"PrivateRepo", args{testrepos.HTTPSTestRepo.URL, testrepos.HTTPSTestRepo.Username, testrepos.HTTPSTestRepo.Password, "", false}},
+		{"PrivateSSHRepo", args{testrepos.SSHTestRepo.URL, "", "", testrepos.SSHTestRepo.SSHPrivateKey, testrepos.SSHTestRepo.InsecureIgnoreHostKey}},
 	}
 	for _, tt := range tests {
 		dirName, err := ioutil.TempDir("", "git-client-test-")
