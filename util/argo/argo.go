@@ -163,7 +163,7 @@ func ValidateRepo(ctx context.Context, spec *argoappv1.ApplicationSpec, repoClie
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: fmt.Sprintf("Unable to determine app source type: %v", err),
+			Message: fmt.Sprintf("Unable to determine app source type explictly: %v", err),
 		})
 	}
 
@@ -265,6 +265,7 @@ func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, re
 		req.Repo.Username = repoRes.Username
 		req.Repo.Password = repoRes.Password
 		req.Repo.SSHPrivateKey = repoRes.SSHPrivateKey
+		req.Repo.InsecureIgnoreHostKey = repoRes.InsecureIgnoreHostKey
 	}
 	getRes, err := repoClient.ListDir(ctx, &req)
 	if err != nil {

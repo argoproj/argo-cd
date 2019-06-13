@@ -77,9 +77,9 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 	}
 	args := []string{"ssh", "-i", file.Name()}
 	if c.insecureIgnoreHostKey {
-		log.Warn("temporarily disabling strict host key checking (i.e. 'UserKnownHostsFile=/dev/null,StrictHostKeyChecking=no'), please don't use in production")
-		// sometimes use with to make sure we do not save this to the known_hosts file
-		args = append(args, "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no")
+		log.Warn("temporarily disabling strict host key checking (i.e. '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'), please don't use in production")
+		// make sure we do not save this to the known_hosts file
+		args = append(args, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null")
 	}
 	return sshPrivateKeyFile(file.Name()),
 		[]string{fmt.Sprintf("GIT_SSH_COMMAND=%s", strings.Join(args, " "))},
