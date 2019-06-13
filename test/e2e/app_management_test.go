@@ -433,10 +433,11 @@ func TestSyncResourceByLabel(t *testing.T) {
 		Sync().
 		Then().
 		And(func(app *Application) {
-			res, _ := fixture.RunCli("app", "sync", app.Name, "--label", fmt.Sprintf("app.kubernetes.io/instance=%s", app.Name))
-			assert.Contains(t, res, "guestbook-ui  Synced  Healthy")
-
-			res, _ = fixture.RunCli("app", "sync", app.Name, "--label", "this-label=does-not-exist")
+			_, _ = fixture.RunCli("app", "sync", app.Name, "--label", fmt.Sprintf("app.kubernetes.io/instance=%s", app.Name))
+		}).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			res, _ := fixture.RunCli("app", "sync", app.Name, "--label", "this-label=does-not-exist")
 			assert.Contains(t, res, "level=fatal")
 		})
 }
@@ -456,10 +457,8 @@ func TestSyncAsync(t *testing.T) {
 			assert.Empty(t, res)
 
 			time.Sleep(2 * time.Second)
-
-			res, _ = fixture.RunCli("app", "get", app.Name)
-			assert.Contains(t, res, "guestbook-ui  Synced  Healthy")
-		})
+		}).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
 func TestPermissions(t *testing.T) {
