@@ -125,7 +125,37 @@ func (m *nativeGitClient) Init() error {
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch() error {
 	log.Debugf("Fetching repo %s at %s", m.repoURL, m.root)
+	// Two techniques are used for fetching the remote depending if the remote is SSH vs. HTTPS
+	// If http, we fork/exec the git CLI since the go-git client does not properly support git
+	// providers such as AWS CodeCommit and Azure DevOps.
+	if _, ok := m.creds.(*SSHCreds); ok {
+		return m.goGitFetch()
+	}
 	_, err := m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
+	return err
+}
+
+// goGitFetch fetches the remote using go-git
+func (m *nativeGitClient) goGitFetch() error {
+	repo, err := git.PlainOpen(m.root)
+	if err != nil {
+		return err
+	}
+
+	log.Debug("git fetch origin --tags --force")
+	auth, err := newAuth(m.repoURL, m.creds)
+	if err != nil {
+		return err
+	}
+	err = repo.Fetch(&git.FetchOptions{
+		RemoteName: git.DefaultRemoteName,
+		Auth:       auth,
+		Tags:       git.AllTags,
+		Force:      true,
+	})
+	if err == git.NoErrAlreadyUpToDate {
+		return nil
+	}
 	return err
 }
 
