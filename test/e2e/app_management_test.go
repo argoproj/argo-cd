@@ -449,7 +449,7 @@ func TestSyncAsync(t *testing.T) {
 		Sync().
 		Then().
 		And(func(app *Application) {
-			
+
 			manipulateApplicationResources(t, app)
 
 			res, _ := fixture.RunCli("app", "sync", app.Name, "--async")

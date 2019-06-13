@@ -1084,7 +1084,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		timeout   uint
 		strategy  string
 		force     bool
-		async	  bool
+		async     bool
 	)
 	var command = &cobra.Command{
 		Use:   "sync APPNAME",
