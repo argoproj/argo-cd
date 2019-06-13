@@ -66,52 +66,6 @@ const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi, className:
     }} />);
 });
 
-const InfoFormField = ReactFormField((props: {fieldApi: FieldApi, className: string}) => {
-    const {fieldApi: {getValue, setValue}} = props;
-    const infoList = getValue() as models.Info[];
-
-    return (
-        <div className='argo-table-list'>
-            <div className='argo-table-list__head'>
-                <div className='row'>
-                    <div className='columns small-3'>Name</div>
-                    <div className='columns small-9'>Value</div>
-                </div>
-            </div>
-            <div className='argo-table-list__row'>
-                {infoList && infoList.map((info, i) => <div key={i} className='row'>
-                        <div className='columns small-3'>
-                            <input className='argo-field' type='text' defaultValue={info.name} onChange={(event) => {
-                                infoList[i].name = event.target.value;
-                                setValue(infoList);
-                            }}/>
-                        </div>
-                        <div className='columns small-8'>
-                            <input className='argo-field' type='text' defaultValue={info.value} onChange={(event) => {
-                                infoList[i].value = event.target.value;
-                                setValue(infoList);
-                            }}/>
-                        </div>
-                        <div className='columns small-1'>
-                            <i className='fa fa-times' onClick={() => {
-                                infoList.splice(i, 1);
-                                setValue([...infoList]);
-                            }} style={{cursor: 'pointer'}}/>
-                        </div>
-                    </div>)}
-                <div className='row'>
-                    <div className='columns small-4'>
-                        <a onClick={() => {
-                            const newInfo = {name: '', value: ''};
-                            setValue((infoList || []).concat(newInfo));
-                        }}>Add info</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-});
-
 export const ApplicationCreatePanel = (props: {
     app: models.Application,
     onAppChanged: (app: models.Application) => any;
@@ -285,13 +239,6 @@ export const ApplicationCreatePanel = (props: {
                                     </div>
                                 );
 
-                                const infoPanel = () => (
-                                    <div className='white-box'>
-                                        <p>INFO</p>
-                                        <FormField formApi={api} field='spec.info' component={InfoFormField}/>
-                                    </div>
-                                );
-
                                 return (
                                     <form onSubmit={api.submitForm} role='form' className='width-control'>
                                         {generalPanel()}
@@ -301,8 +248,6 @@ export const ApplicationCreatePanel = (props: {
                                         {destinationPanel()}
 
                                         {typePanel()}
-
-                                        {infoPanel()}
                                     </form>
                                 );
                             }}
