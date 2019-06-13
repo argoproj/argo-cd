@@ -79,9 +79,11 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		if creds.insecureIgnoreHostKey {
 			publicKeys.HostKeyCallback = ssh.InsecureIgnoreHostKey()
 		}
+		log.WithFields(log.Fields{"func": "newAuth", "repoURL": repoURL, "creds": creds, "publicKeys": publicKeys}).Debug()
 		return publicKeys, nil
 	case HTTPSCreds:
 		basicAuth := http.BasicAuth{Username: creds.username, Password: creds.password}
+		log.WithFields(log.Fields{"func": "newAuth", "repoURL": repoURL, "creds": creds, "basicAuth": basicAuth}).Debug()
 		return &basicAuth, nil
 	}
 	return nil, nil

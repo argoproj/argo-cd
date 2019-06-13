@@ -40,7 +40,7 @@ func NewHTTPSCreds(username, password string) HTTPSCreds {
 
 func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
 	return NopCloser{}, []string{
-		"GIT_ASKPASS=git-ask-pass.sh",
+		fmt.Sprintf("GIT_ASKPASS=%s", "git-ask-pass.sh"),
 		fmt.Sprintf("GIT_USERNAME=%s", c.username),
 		fmt.Sprintf("GIT_PASSWORD=%s", c.password),
 	}, nil

@@ -124,6 +124,8 @@ func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileRespo
 }
 
 func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*ManifestResponse, error) {
+	log.WithFields(log.Fields{"func": "Service#GenerateManifests", "q": q}).Debug()
+
 	gitClient, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Revision)
 	if err != nil {
 		return nil, err
@@ -192,6 +194,7 @@ func GenerateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 
 	appSourceType, err := GetAppSourceType(q.ApplicationSource, appPath)
 	creds := newCreds(q.Repo)
+	log.WithFields(log.Fields{"func": "GenerateManifests", "creds": creds}).Debug()
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeKsonnet:
 		targetObjs, dest, err = ksShow(q.AppLabelKey, appPath, q.ApplicationSource.Ksonnet)
