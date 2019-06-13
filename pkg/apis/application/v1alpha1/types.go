@@ -830,11 +830,13 @@ func (m *Repository) HasCredentials() bool {
 	return m.Username != "" || m.Password != "" || m.SSHPrivateKey != "" || m.InsecureIgnoreHostKey
 }
 
-func (m *Repository) CopyCredentialsFrom(source Repository) {
-	m.Username = source.Username
-	m.Password = source.Password
-	m.SSHPrivateKey = source.SSHPrivateKey
-	m.InsecureIgnoreHostKey = source.InsecureIgnoreHostKey
+func (m *Repository) CopyCredentialsFrom(source *Repository) {
+	if source != nil {
+		m.Username = source.Username
+		m.Password = source.Password
+		m.SSHPrivateKey = source.SSHPrivateKey
+		m.InsecureIgnoreHostKey = source.InsecureIgnoreHostKey
+	}
 }
 
 // RepositoryList is a collection of Repositories.

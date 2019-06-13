@@ -105,7 +105,7 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 				return nil, err
 			} else {
 				log.WithFields(log.Fields{"repoURL": repo.Repo, "credUrl": credential.Repo}).Info("copying credentials")
-				repo.CopyCredentialsFrom(*credential)
+				repo.CopyCredentialsFrom(credential)
 			}
 		}
 	}
