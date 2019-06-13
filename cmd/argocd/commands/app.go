@@ -1084,6 +1084,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		timeout   uint
 		strategy  string
 		force     bool
+		async	  bool
 	)
 	var command = &cobra.Command{
 		Use:   "sync APPNAME",
@@ -1163,18 +1164,20 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			_, err := appIf.Sync(ctx, &syncReq)
 			errors.CheckError(err)
 
-			app, err := waitOnApplicationStatus(acdClient, appName, timeout, false, false, true, false, selectedResources)
-			errors.CheckError(err)
+			if !async {
+				app, err := waitOnApplicationStatus(acdClient, appName, timeout, false, false, true, false, selectedResources)
+				errors.CheckError(err)
 
-			// Only get resources to be pruned if sync was application-wide
-			if len(selectedResources) == 0 {
-				pruningRequired := app.Status.OperationState.SyncResult.Resources.PruningRequired()
-				if pruningRequired > 0 {
-					log.Fatalf("%d resources require pruning", pruningRequired)
-				}
+				// Only get resources to be pruned if sync was application-wide
+				if len(selectedResources) == 0 {
+					pruningRequired := app.Status.OperationState.SyncResult.Resources.PruningRequired()
+					if pruningRequired > 0 {
+						log.Fatalf("%d resources require pruning", pruningRequired)
+					}
 
-				if !app.Status.OperationState.Phase.Successful() && !dryRun {
-					os.Exit(1)
+					if !app.Status.OperationState.Phase.Successful() && !dryRun {
+						os.Exit(1)
+					}
 				}
 			}
 		},
@@ -1187,6 +1190,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().StringVar(&strategy, "strategy", "", "Sync strategy (one of: apply|hook)")
 	command.Flags().BoolVar(&force, "force", false, "Use a force apply")
+	command.Flags().BoolVar(&async, "async", false, "Do not wait for application to sync")
 	return command
 }
 

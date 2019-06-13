@@ -171,38 +171,42 @@ func TestManipulateApplicationResources(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			manifests, err := fixture.RunCli("app", "manifests", app.Name, "--source", "live")
-			assert.NoError(t, err)
-			resources, err := kube.SplitYAML(manifests)
-			assert.NoError(t, err)
-
-			index := -1
-			for i := range resources {
-				if resources[i].GetKind() == kube.DeploymentKind {
-					index = i
-					break
-				}
-			}
-
-			assert.True(t, index > -1)
-
-			deployment := resources[index]
-
-			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
-			assert.NoError(t, err)
-			defer util.Close(closer)
-
-			_, err = client.DeleteResource(context.Background(), &applicationpkg.ApplicationResourceDeleteRequest{
-				Name:         &app.Name,
-				Group:        deployment.GroupVersionKind().Group,
-				Kind:         deployment.GroupVersionKind().Kind,
-				Version:      deployment.GroupVersionKind().Version,
-				Namespace:    deployment.GetNamespace(),
-				ResourceName: deployment.GetName(),
-			})
-			assert.NoError(t, err)
+			manipulateApplicationResources(t, app)
 		}).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
+}
+
+func manipulateApplicationResources(t *testing.T, app *Application) {
+	manifests, err := fixture.RunCli("app", "manifests", app.Name, "--source", "live")
+	assert.NoError(t, err)
+	resources, err := kube.SplitYAML(manifests)
+	assert.NoError(t, err)
+
+	index := -1
+	for i := range resources {
+		if resources[i].GetKind() == kube.DeploymentKind {
+			index = i
+			break
+		}
+	}
+
+	assert.True(t, index > -1)
+
+	deployment := resources[index]
+
+	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+	assert.NoError(t, err)
+	defer util.Close(closer)
+
+	_, err = client.DeleteResource(context.Background(), &applicationpkg.ApplicationResourceDeleteRequest{
+		Name:         &app.Name,
+		Group:        deployment.GroupVersionKind().Group,
+		Kind:         deployment.GroupVersionKind().Kind,
+		Version:      deployment.GroupVersionKind().Version,
+		Namespace:    deployment.GetNamespace(),
+		ResourceName: deployment.GetName(),
+	})
+	assert.NoError(t, err)
 }
 
 func TestAppWithSecrets(t *testing.T) {
@@ -434,6 +438,27 @@ func TestSyncResourceByLabel(t *testing.T) {
 
 			res, _ = fixture.RunCli("app", "sync", app.Name, "--label", "this-label=does-not-exist")
 			assert.Contains(t, res, "level=fatal")
+		})
+}
+
+func TestSyncAsync(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		Create().
+		Sync().
+		Then().
+		And(func(app *Application) {
+			
+			manipulateApplicationResources(t, app)
+
+			res, _ := fixture.RunCli("app", "sync", app.Name, "--async")
+			assert.Empty(t, res)
+
+			time.Sleep(2 * time.Second)
+
+			res, _ = fixture.RunCli("app", "get", app.Name)
+			assert.Contains(t, res, "guestbook-ui  Synced  Healthy")
 		})
 }
 
