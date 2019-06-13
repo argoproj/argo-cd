@@ -248,12 +248,12 @@ func TestRepository_CopyCredentialsFrom(t *testing.T) {
 		source *Repository
 		want   Repository
 	}{
-		{"TestNil", nil, Repository{},},
-		{"TestHasRepo", &Repository{Repo: "foo"}, Repository{},},
-		{"TestHasUsername", &Repository{Username: "foo"}, Repository{Username: "foo"},},
-		{"TestHasPassword", &Repository{Password: "foo"}, Repository{Password: "foo"},},
-		{"TestHasSSHPrivateKey", &Repository{SSHPrivateKey: "foo"}, Repository{SSHPrivateKey: "foo"},},
-		{"TestHasInsecureHostKey", &Repository{InsecureIgnoreHostKey: true}, Repository{InsecureIgnoreHostKey: true},},
+		{"TestNil", nil, Repository{}},
+		{"TestHasRepo", &Repository{Repo: "foo"}, Repository{}},
+		{"TestHasUsername", &Repository{Username: "foo"}, Repository{Username: "foo"}},
+		{"TestHasPassword", &Repository{Password: "foo"}, Repository{Password: "foo"}},
+		{"TestHasSSHPrivateKey", &Repository{SSHPrivateKey: "foo"}, Repository{SSHPrivateKey: "foo"}},
+		{"TestHasInsecureHostKey", &Repository{InsecureIgnoreHostKey: true}, Repository{InsecureIgnoreHostKey: true}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
