@@ -5,6 +5,8 @@ type SSHRepo struct {
 	InsecureIgnoreHostKey bool
 }
 
+// why isn't this the same repo as the HTTPS one? because you could accidentally use the username/password to access it
+// and that would invalidate all test for SSH
 var SSHTestRepo = SSHRepo{
 	URL: "git@gitlab.com:alex_collins/private-repo.git",
 	SSHPrivateKey: `-----BEGIN OPENSSH PRIVATE KEY-----
