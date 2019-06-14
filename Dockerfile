@@ -93,6 +93,7 @@ RUN cd ${GOPATH}/src/dummy && \
 ####################################################################################################
 # Argo CD Base - used as the base for both the release and dev argocd images
 ####################################################################################################
+ARG BASE_IMAGE=debian:9.5-slim
 FROM debian:9.5-slim as argocd-base
 
 RUN groupadd -g 999 argocd && \
