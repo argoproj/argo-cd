@@ -55,8 +55,7 @@ Update `VERSION` and manifests with new version:
 git checkout $BRANCH
 echo ${VERSION:1} > VERSION
 make manifests IMAGE_TAG=$VERSION
-git diff
-git commit -am "Update manifests to $VERSION" 
+git commit -am "Update manifests to $VERSION"
 git push $REPO $BRANCH
 ```
 
