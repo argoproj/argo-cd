@@ -15,6 +15,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/server/badge"
+
 	"gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
 
@@ -482,6 +484,9 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		Addr: endpoint,
 		Handler: &handlerSwitcher{
 			handler: &bug21955Workaround{handler: mux},
+			urlToHandler: map[string]http.Handler{
+				"/api/badge": badge.NewHandler(a.AppClientset, a.Namespace),
+			},
 			contentTypeToHandler: map[string]http.Handler{
 				"application/grpc-web+proto": grpcWebHandler,
 			},
@@ -721,11 +726,14 @@ func getToken(md metadata.MD) string {
 
 type handlerSwitcher struct {
 	handler              http.Handler
+	urlToHandler         map[string]http.Handler
 	contentTypeToHandler map[string]http.Handler
 }
 
 func (s *handlerSwitcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if contentHandler, ok := s.contentTypeToHandler[r.Header.Get("content-type")]; ok {
+	if urlHandler, ok := s.urlToHandler[r.URL.Path]; ok {
+		urlHandler.ServeHTTP(w, r)
+	} else if contentHandler, ok := s.contentTypeToHandler[r.Header.Get("content-type")]; ok {
 		contentHandler.ServeHTTP(w, r)
 	} else {
 		s.handler.ServeHTTP(w, r)
