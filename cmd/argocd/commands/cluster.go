@@ -22,6 +22,7 @@ import (
 	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/clusterauth"
 )
 
 // NewClusterCommand returns a new instance of an `argocd cluster` command
@@ -39,6 +40,7 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 	command.AddCommand(NewClusterGetCommand(clientOpts))
 	command.AddCommand(NewClusterListCommand(clientOpts))
 	command.AddCommand(NewClusterRemoveCommand(clientOpts))
+	command.AddCommand(NewClusterRotateAuthCommand(clientOpts))
 	return command
 }
 
@@ -86,7 +88,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				// Install RBAC resources for managing the cluster
 				clientset, err := kubernetes.NewForConfig(conf)
 				errors.CheckError(err)
-				managerBearerToken, err = common.InstallClusterManagerRBAC(clientset, systemNamespace)
+				managerBearerToken, err = clusterauth.InstallClusterManagerRBAC(clientset, systemNamespace)
 				errors.CheckError(err)
 			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
@@ -178,7 +180,7 @@ func NewCluster(name string, conf *rest.Config, managerBearerToken string, awsAu
 // NewClusterGetCommand returns a new instance of an `argocd cluster get` command
 func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "get",
+		Use:   "get CLUSTER",
 		Short: "Get cluster information",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
@@ -202,7 +204,7 @@ func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 // NewClusterRemoveCommand returns a new instance of an `argocd cluster list` command
 func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "rm",
+		Use:   "rm CLUSTER",
 		Short: "Remove cluster credentials",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
@@ -217,7 +219,7 @@ func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 
 			for _, clusterName := range args {
 				// TODO(jessesuen): find the right context and remove manager RBAC artifacts
-				// err := common.UninstallClusterManagerRBAC(clientset)
+				// err := clusterauth.UninstallClusterManagerRBAC(clientset)
 				// errors.CheckError(err)
 				_, err := clusterIf.Delete(context.Background(), &clusterpkg.ClusterQuery{Server: clusterName})
 				errors.CheckError(err)
@@ -243,6 +245,29 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 				fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", c.Server, c.Name, c.ConnectionState.Status, c.ConnectionState.Message)
 			}
 			_ = w.Flush()
+		},
+	}
+	return command
+}
+
+// NewClusterRotateAuthCommand returns a new instance of an `argocd cluster rotate-auth` command
+func NewClusterRotateAuthCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "rotate-auth CLUSTER",
+		Short: fmt.Sprintf("%s cluster rotate-auth CLUSTER", cliName),
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
+			defer util.Close(conn)
+			clusterQuery := clusterpkg.ClusterQuery{
+				Server: args[0],
+			}
+			_, err := clusterIf.RotateAuth(context.Background(), &clusterQuery)
+			errors.CheckError(err)
+			fmt.Printf("Cluster '%s' rotated auth\n", clusterQuery.Server)
 		},
 	}
 	return command

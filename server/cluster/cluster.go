@@ -17,6 +17,7 @@ import (
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
+	"github.com/argoproj/argo-cd/util/clusterauth"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
@@ -172,6 +173,49 @@ func (s *Server) Delete(ctx context.Context, q *cluster.ClusterQuery) (*cluster.
 	}
 	err := s.db.DeleteCluster(ctx, q.Server)
 	return &cluster.ClusterResponse{}, err
+}
+
+// RotateAuth rotates the bearer token used for a cluster
+func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*cluster.ClusterResponse, error) {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, q.Server); err != nil {
+		return nil, err
+	}
+	logCtx := log.WithField("cluster", q.Server)
+	logCtx.Info("Rotating auth")
+	clust, err := s.db.GetCluster(ctx, q.Server)
+	if err != nil {
+		return nil, err
+	}
+	restCfg := clust.RESTConfig()
+	if restCfg.BearerToken == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "Cluster '%s' does not use bearer token authentication", q.Server)
+	}
+	claims, err := clusterauth.ParseServiceAccountToken(restCfg.BearerToken)
+	if err != nil {
+		return nil, err
+	}
+	kubeclientset, err := kubernetes.NewForConfig(restCfg)
+	if err != nil {
+		return nil, err
+	}
+	newSecret, err := clusterauth.GenerateNewClusterManagerSecret(kubeclientset, claims)
+	if err != nil {
+		return nil, err
+	}
+	// we are using token auth, make sure we don't store client-cert information
+	clust.Config.KeyData = nil
+	clust.Config.CertData = nil
+	clust.Config.BearerToken = string(newSecret.Data["token"])
+	clust, err = s.db.UpdateCluster(ctx, clust)
+	if err != nil {
+		return nil, err
+	}
+	err = clusterauth.RotateServiceAccountSecrets(kubeclientset, claims, newSecret)
+	if err != nil {
+		return nil, err
+	}
+	logCtx.Infof("Rotated auth (old: %s, new: %s)", claims.SecretName, newSecret.Name)
+	return &cluster.ClusterResponse{}, nil
 }
 
 func redact(clust *appv1.Cluster) *appv1.Cluster {
