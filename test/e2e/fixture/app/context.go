@@ -20,6 +20,7 @@ type Context struct {
 	resource               string
 	prune                  bool
 	configManagementPlugin string
+	async                  bool
 }
 
 func Given(t *testing.T) *Context {
@@ -86,5 +87,10 @@ func (c *Context) When() *Actions {
 
 func (c *Context) Prune(prune bool) *Context {
 	c.prune = prune
+	return c
+}
+
+func (c *Context) Async(async bool) *Context {
+	c.async = async
 	return c
 }
