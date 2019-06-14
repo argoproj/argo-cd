@@ -787,33 +787,6 @@
         }
       }
     },
-    "/api/v1/clusters-kubeconfig": {
-      "post": {
-        "tags": [
-          "ClusterService"
-        ],
-        "summary": "CreateFromKubeConfig installs the argocd-manager service account into the cluster specified in the given kubeconfig and context",
-        "operationId": "CreateFromKubeConfig",
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/clusterClusterCreateFromKubeConfigRequest"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "(empty)",
-            "schema": {
-              "$ref": "#/definitions/v1alpha1Cluster"
-            }
-          }
-        }
-      }
-    },
     "/api/v1/clusters/{cluster.server}": {
       "put": {
         "tags": [
@@ -1552,29 +1525,6 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceAction"
           }
-        }
-      }
-    },
-    "clusterClusterCreateFromKubeConfigRequest": {
-      "type": "object",
-      "properties": {
-        "context": {
-          "type": "string"
-        },
-        "inCluster": {
-          "type": "boolean",
-          "format": "boolean"
-        },
-        "kubeconfig": {
-          "type": "string"
-        },
-        "systemNamespace": {
-          "type": "string",
-          "title": "Optional alternative system namespace to use (defaults to \"kube-system\")"
-        },
-        "upsert": {
-          "type": "boolean",
-          "format": "boolean"
         }
       }
     },
