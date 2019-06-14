@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
+
+	"github.com/argoproj/argo-cd/util"
 )
 
 type Creds interface {
@@ -63,7 +65,8 @@ func (f sshPrivateKeyFile) Close() error {
 }
 
 func (c SSHCreds) Environ() (io.Closer, []string, error) {
-	file, err := ioutil.TempFile("", "")
+	// use the SHM temp dir from util, more secure
+	file, err := ioutil.TempFile(util.TempDir, "")
 	if err != nil {
 		return nil, nil, err
 	}
