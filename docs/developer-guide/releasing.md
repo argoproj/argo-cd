@@ -37,7 +37,7 @@ Tag and release UI:
 git checkout $BRANCH
 git tag $VERSION
 git push $REPO $BRANCH --tags
-git clean -fxd
+git clean -fd
 IMAGE_NAMESPACE=argoproj IMAGE_TAG=$VERSION DOCKER_PUSH=true yarn docker
 ```
 
@@ -64,10 +64,7 @@ Tag, build, and push release to Docker Hub
 
 ```bash
 git tag $VERSION
-git clean -fxd
-dep ensure
-make codegen
-git diff --exit-code
+git clean -fd
 make release IMAGE_NAMESPACE=argoproj IMAGE_TAG=$VERSION DOCKER_PUSH=true
 git push $REPO $VERSION
 ```
