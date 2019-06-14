@@ -11,9 +11,7 @@ import (
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util"
@@ -142,53 +140,6 @@ func (s *Server) Create(ctx context.Context, q *ClusterCreateRequest) (*appv1.Cl
 		}
 	}
 	return redact(clust), err
-}
-
-// Create creates a cluster
-func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateFromKubeConfigRequest) (*appv1.Cluster, error) {
-	kubeconfig, err := clientcmd.Load([]byte(q.Kubeconfig))
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not unmarshal kubeconfig: %v", err)
-	}
-
-	var clusterServer string
-	var clusterInsecure bool
-	if q.InCluster {
-		clusterServer = common.KubernetesInternalAPIServerAddr
-	} else if cluster, ok := kubeconfig.Clusters[q.Context]; ok {
-		clusterServer = cluster.Server
-		clusterInsecure = cluster.InsecureSkipTLSVerify
-	} else {
-		return nil, status.Errorf(codes.Internal, "Context %s does not exist in kubeconfig", q.Context)
-	}
-
-	c := &appv1.Cluster{
-		Server: clusterServer,
-		Name:   q.Context,
-		Config: appv1.ClusterConfig{
-			TLSClientConfig: appv1.TLSClientConfig{
-				Insecure: clusterInsecure,
-			},
-		},
-	}
-
-	// Temporarily install RBAC resources for managing the cluster
-	clientset, err := kubernetes.NewForConfig(c.RESTConfig())
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not create Kubernetes clientset: %v", err)
-	}
-
-	bearerToken, err := common.InstallClusterManagerRBAC(clientset)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not install cluster manager RBAC: %v", err)
-	}
-
-	c.Config.BearerToken = bearerToken
-
-	return s.Create(ctx, &ClusterCreateRequest{
-		Cluster: c,
-		Upsert:  q.Upsert,
-	})
 }
 
 // Get returns a cluster from a query
