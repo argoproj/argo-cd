@@ -144,7 +144,7 @@ func newCluster(objs ...*unstructured.Unstructured) *clusterInfo {
 		Meta:      metav1.APIResource{Namespaced: true},
 	}}
 
-	return newClusterExt(kubetest.MockKubectlCmd{APIResources: apiResources})
+	return newClusterExt(&kubetest.MockKubectlCmd{APIResources: apiResources})
 }
 
 func newClusterExt(kubectl kube.Kubectl) *clusterInfo {

@@ -152,6 +152,12 @@ func SetConfigManagementPlugin(plugin v1alpha1.ConfigManagementPlugin) {
 	})
 }
 
+func SetHelmRepoCredential(creds settings.HelmRepoCredentials) {
+	Settings(func(s *settings.ArgoCDSettings) {
+		s.HelmRepositories = []settings.HelmRepoCredentials{creds}
+	})
+}
+
 func EnsureCleanState(t *testing.T) {
 
 	start := time.Now()

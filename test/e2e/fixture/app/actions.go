@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 )
@@ -61,7 +63,7 @@ func (a *Actions) PatchApp(patch string) *Actions {
 }
 
 func (a *Actions) Sync() *Actions {
-	args := []string{"app", "sync", a.context.name, "--timeout", "5"}
+	args := []string{"app", "sync", a.context.name, "--timeout", fmt.Sprintf("%v", a.context.timeout)}
 
 	if a.context.async {
 		args = append(args, "--async")
