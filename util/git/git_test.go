@@ -1,22 +1,14 @@
 package git
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-)
 
-// TODO: move this into shared test package after resolving import cycle
-const (
-	// This is a throwaway gitlab test account/repo with a read-only personal access token for the
-	// purposes of testing private git repos
-	PrivateGitRepo     = "https://gitlab.com/argo-cd-test/test-apps.git"
-	PrivateGitUsername = "blah"
-	PrivateGitPassword = "B5sBDeoqAVUouoHkrovy"
+	"github.com/argoproj/argo-cd/test/fixture/path"
+	"github.com/argoproj/argo-cd/test/fixture/testrepos"
 )
 
 func TestIsCommitSHA(t *testing.T) {
@@ -146,62 +138,49 @@ func TestLsRemote(t *testing.T) {
 	}
 }
 
-func TestGitClient(t *testing.T) {
-	testRepos := []string{
-		"https://github.com/argoproj/argocd-example-apps",
-		"https://jsuen0437@dev.azure.com/jsuen0437/jsuen/_git/jsuen",
+func TestNewFactory(t *testing.T) {
+	addBinDirToPath := path.NewBinDirToPath()
+	defer addBinDirToPath.Close()
+
+	type args struct {
+		url, username, password, sshPrivateKey string
+		insecureIgnoreHostKey                  bool
 	}
-	for _, repo := range testRepos {
+	tests := []struct {
+		name string
+		args args
+	}{
+		{"Github", args{url: "https://github.com/argoproj/argocd-example-apps"}},
+		{"Azure", args{url: "https://jsuen0437@dev.azure.com/jsuen0437/jsuen/_git/jsuen"}},
+		{"PrivateRepo", args{testrepos.HTTPSTestRepo.URL, testrepos.HTTPSTestRepo.Username, testrepos.HTTPSTestRepo.Password, "", false}},
+		{"PrivateSSHRepo", args{testrepos.SSHTestRepo.URL, "", "", testrepos.SSHTestRepo.SSHPrivateKey, testrepos.SSHTestRepo.InsecureIgnoreHostKey}},
+	}
+	for _, tt := range tests {
 		dirName, err := ioutil.TempDir("", "git-client-test-")
 		assert.NoError(t, err)
 		defer func() { _ = os.RemoveAll(dirName) }()
 
-		clnt, err := NewFactory().NewClient(repo, dirName, "", "", "", false)
+		client, err := NewFactory().NewClient(tt.args.url, dirName, tt.args.username, tt.args.password, tt.args.sshPrivateKey, tt.args.insecureIgnoreHostKey)
+		assert.NoError(t, err)
+		commitSHA, err := client.LsRemote("HEAD")
 		assert.NoError(t, err)
 
-		testGitClient(t, clnt)
+		err = client.Init()
+		assert.NoError(t, err)
+
+		err = client.Fetch()
+		assert.NoError(t, err)
+
+		// Do a second fetch to make sure we can treat `already up-to-date` error as not an error
+		err = client.Fetch()
+		assert.NoError(t, err)
+
+		err = client.Checkout(commitSHA)
+		assert.NoError(t, err)
+
+		commitSHA2, err := client.CommitSHA()
+		assert.NoError(t, err)
+
+		assert.Equal(t, commitSHA, commitSHA2)
 	}
-}
-
-// TestPrivateGitRepo tests the ability to operate on a private git repo.
-func TestPrivateGitRepo(t *testing.T) {
-	// add the hack path which has the git-ask-pass.sh shell script
-	osPath := os.Getenv("PATH")
-	hackPath, err := filepath.Abs("../../hack")
-	assert.NoError(t, err)
-	err = os.Setenv("PATH", fmt.Sprintf("%s:%s", osPath, hackPath))
-	assert.NoError(t, err)
-	defer func() { _ = os.Setenv("PATH", osPath) }()
-
-	dirName, err := ioutil.TempDir("", "git-client-test-")
-	assert.NoError(t, err)
-	defer func() { _ = os.RemoveAll(dirName) }()
-
-	clnt, err := NewFactory().NewClient(PrivateGitRepo, dirName, PrivateGitUsername, PrivateGitPassword, "", false)
-	assert.NoError(t, err)
-
-	testGitClient(t, clnt)
-}
-
-func testGitClient(t *testing.T, clnt Client) {
-	commitSHA, err := clnt.LsRemote("HEAD")
-	assert.NoError(t, err)
-
-	err = clnt.Init()
-	assert.NoError(t, err)
-
-	err = clnt.Fetch()
-	assert.NoError(t, err)
-
-	// Do a second fetch to make sure we can treat `already up-to-date` error as not an error
-	err = clnt.Fetch()
-	assert.NoError(t, err)
-
-	err = clnt.Checkout(commitSHA)
-	assert.NoError(t, err)
-
-	commitSHA2, err := clnt.CommitSHA()
-	assert.NoError(t, err)
-
-	assert.Equal(t, commitSHA, commitSHA2)
 }

@@ -105,3 +105,17 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 			}
 		})
 }
+
+// make sure we can create an app which has a SSH remote base
+func TestKustomizeSSHRemoteBase(t *testing.T) {
+	Given(t).
+		// not the best test, as we should have two remote repos both with the same SSH private key
+		SSHRepo().
+		Path("remote-base").
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(ResourceSyncStatusIs("ConfigMap", "my-map", SyncStatusCodeSynced))
+}

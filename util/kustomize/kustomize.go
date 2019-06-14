@@ -44,7 +44,7 @@ type Kustomize interface {
 }
 
 // NewKustomizeApp create a new wrapper to run commands on the `kustomize` command-line tool.
-func NewKustomizeApp(path string, creds *git.Creds) Kustomize {
+func NewKustomizeApp(path string, creds git.Creds) Kustomize {
 	return &kustomize{
 		path:  path,
 		creds: creds,
@@ -53,7 +53,7 @@ func NewKustomizeApp(path string, creds *git.Creds) Kustomize {
 
 type kustomize struct {
 	path  string
-	creds *git.Creds
+	creds git.Creds
 }
 
 func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstructured.Unstructured, []ImageTag, []Image, error) {
@@ -129,12 +129,12 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstruc
 
 	cmd := exec.Command(commandName, "build", k.path)
 	cmd.Env = os.Environ()
-	if k.creds != nil {
-		cmd.Env = append(cmd.Env, "GIT_ASKPASS=git-ask-pass.sh")
-		cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_USERNAME=%s", k.creds.Username))
-		cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_PASSWORD=%s", k.creds.Password))
+	closer, environ, err := k.creds.Environ()
+	if err != nil {
+		return nil, nil, nil, err
 	}
-
+	defer func() { _ = closer.Close() }()
+	cmd.Env = append(cmd.Env, environ...)
 	out, err := argoexec.RunCommandExt(cmd)
 	if err != nil {
 		return nil, nil, nil, err

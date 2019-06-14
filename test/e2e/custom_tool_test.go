@@ -5,10 +5,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	. "github.com/argoproj/argo-cd/errors"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/test/fixture/testrepos"
 )
 
 // make sure we can echo back the Git creds
@@ -25,11 +25,8 @@ func TestCustomToolWithGitCreds(t *testing.T) {
 			},
 		).
 		// add the private repo
-		And(func() {
-			FailOnErr(RunCli("repo", "add", repoUrl, "--username", "blah", "--password", accessToken))
-		}).
-		Repo(repoUrl).
-		Path(appPath).
+		HTTPSRepo().
+		Path("child-base").
 		When().
 		Create().
 		Sync().
@@ -43,11 +40,11 @@ func TestCustomToolWithGitCreds(t *testing.T) {
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitUsername}")
 			assert.NoError(t, err)
-			assert.Equal(t, "blah", output)
+			assert.Equal(t, testrepos.HTTPSTestRepo.Username, output)
 		}).
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitPassword}")
 			assert.NoError(t, err)
-			assert.Equal(t, accessToken, output)
+			assert.Equal(t, testrepos.HTTPSTestRepo.Password, output)
 		})
 }
