@@ -24,15 +24,6 @@ message ClusterCreateRequest {
 	bool upsert = 2;
 }
 
-message ClusterCreateFromKubeConfigRequest {
-	string kubeconfig = 1;
-	string context = 2;
-	bool upsert = 3;
-	bool inCluster = 4;
-	// Optional alternative system namespace to use (defaults to "kube-system")
-	string systemNamespace = 5; 
-}
-
 message ClusterUpdateRequest {
 	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster cluster = 1;
 }
@@ -53,14 +44,6 @@ service ClusterService {
 		};
 	}
 
-	// CreateFromKubeConfig installs the argocd-manager service account into the cluster specified in the given kubeconfig and context
-	rpc CreateFromKubeConfig(ClusterCreateFromKubeConfigRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
-		option (google.api.http) = {
-			post: "/api/v1/clusters-kubeconfig"
-			body: "*"
-		};
-	}
-	
 	// Get returns a cluster by server address
 	rpc Get(ClusterQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
 		option (google.api.http).get = "/api/v1/clusters/{server}";
