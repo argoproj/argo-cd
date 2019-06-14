@@ -96,6 +96,8 @@ RUN cd ${GOPATH}/src/dummy && \
 ####################################################################################################
 FROM $BASE_IMAGE as argocd-base
 
+USER root
+
 RUN groupadd -g 999 argocd && \
     useradd -r -u 999 -g argocd argocd && \
     mkdir -p /home/argocd && \
