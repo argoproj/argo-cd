@@ -116,6 +116,25 @@ func TestPostSyncHookPodFailure(t *testing.T) {
 		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "hook" }))
 }
 
+func TestSyncFailHookPodFailure(t *testing.T) {
+	Given(t).
+		Path("hook").
+		When().
+		PatchFile("hook.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "SyncFail"}}]`).
+		// make pod fail
+		PatchFile("pod.yaml", `[{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}]`).
+		Create().
+		Sync().
+		Then().
+		// TODO - I feel like this should be a failure, not success
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced)).
+		Expect(ResourceHealthIs("Pod", "pod", HealthStatusDegraded)).
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook", Message: "pod/hook created", HookType: HookTypeSyncFail, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(HookTypeSyncFail)}))
+		//Expect(ResourceResultNumbering(1)).
+		//Expect(NotPod(func(p v1.Pod) bool { return p.Name == "hook" }))
+}
+
 // make sure that we delete the hook on success
 func TestHookDeletePolicyHookSucceededHookExit0(t *testing.T) {
 	Given(t).

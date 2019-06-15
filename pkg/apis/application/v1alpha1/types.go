@@ -375,6 +375,7 @@ const (
 	HookTypeSync     HookType = "Sync"
 	HookTypePostSync HookType = "PostSync"
 	HookTypeSkip     HookType = "Skip"
+	HookTypeSyncFail HookType = "SyncFail"
 
 	// NOTE: we may consider adding SyncFail hook. With a SyncFail hook, finalizer-like logic could
 	// be implemented by specifying both PostSync,SyncFail in the hook annotation:
@@ -431,6 +432,7 @@ const (
 	SyncPhasePreSync  = "PreSync"
 	SyncPhaseSync     = "Sync"
 	SyncPhasePostSync = "PostSync"
+	SyncPhaseSyncFail = "SyncFail"
 )
 
 // ResourceResult holds the operation result details of a specific resource

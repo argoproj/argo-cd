@@ -217,11 +217,14 @@ func (sc *syncContext) sync() {
 	}) {
 		if task.isHook() {
 			// update the hook's result
+			sc.log.WithFields(log.Fields{"task": task}).Debug("this task is a hook")
 			operationState, message := getOperationPhase(task.liveObj)
 			sc.setResourceResult(task, "", operationState, message)
+			sc.log.WithFields(log.Fields{"task": task}).Debug("this task is a hook-post")
 
 			// maybe delete the hook
 			if enforceHookDeletePolicy(task.liveObj, task.operationState) {
+				sc.log.WithFields(log.Fields{"task": task}).Debug("this task is a hook and was deleted")
 				err := sc.deleteResource(task)
 				if err != nil {
 					sc.setResourceResult(task, "", v1alpha1.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
@@ -274,12 +277,14 @@ func (sc *syncContext) sync() {
 	phase := tasks.phase()
 	wave := tasks.wave()
 
+	syncFailTasks := tasks.Filter(func(t *syncTask) bool { return t.phase == v1alpha1.SyncPhaseSyncFail })
+
 	// if it is the last phase/wave and the only remaining tasks are non-hooks, the we are successful
 	// EVEN if those objects subsequently degraded
 	// This handles the common case where neither hooks or waves are used and a sync equates to simply an (asynchronous) kubectl apply of manifests, which succeeds immediately.
 	complete := tasks.Find(func(t *syncTask) bool { return t.phase != phase || wave != t.wave() || t.isHook() }) == nil
 
-	sc.log.WithFields(log.Fields{"phase": phase, "wave": wave, "tasks": tasks}).Debug("filtering tasks in correct phase and wave")
+	sc.log.WithFields(log.Fields{"phase": phase, "wave": wave, "tasks": tasks, "syncFailTasks": syncFailTasks}).Debug("filtering tasks in correct phase and wave")
 	tasks = tasks.Filter(func(t *syncTask) bool { return t.phase == phase && t.wave() == wave })
 
 	sc.setOperationPhase(v1alpha1.OperationRunning, "one or more tasks are running")
@@ -287,6 +292,9 @@ func (sc *syncContext) sync() {
 	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("wet-run")
 	if !sc.runTasks(tasks, false) {
 		sc.setOperationPhase(v1alpha1.OperationFailed, "one or more objects failed to apply")
+		if !sc.runTasks(syncFailTasks, false) {
+			sc.setOperationPhase(v1alpha1.OperationFailed, "one or more objects failed to apply; SyncFail hooks failed to apply")
+		}
 	} else {
 		if complete {
 			sc.setOperationPhase(v1alpha1.OperationSucceeded, "successfully synced (all tasks run)")
