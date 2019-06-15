@@ -22,6 +22,7 @@ DEV_IMAGE?=false
 # lint is memory and CPU intensive, so we can limit on CI to mitigate OOM
 LINT_GOGC?=off
 LINT_CONCURRENCY?=8
+LINT_DEADLINE?=1m0s
 
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
@@ -138,7 +139,7 @@ dep-ensure:
 lint:
 	# golangci-lint does not do a good job of formatting imports
 	goimports -local github.com/argoproj/argo-cd -w `find . ! -path './vendor/*' ! -path './pkg/client/*' -type f -name '*.go'`
-	GOGC=$(LINT_GOGC) golangci-lint run --fix --verbose --concurrency $(LINT_CONCURRENCY)
+	GOGC=$(LINT_GOGC) golangci-lint run --fix --verbose --concurrency $(LINT_CONCURRENCY) --deadline $(LINT_DEADLINE)
 
 .PHONY: build
 build:
