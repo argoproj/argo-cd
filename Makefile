@@ -22,7 +22,7 @@ DEV_IMAGE?=false
 # lint is memory and CPU intensive, so we can limit on CI to mitigate OOM
 LINT_GOGC?=off
 LINT_CONCURRENCY?=8
-LINT_DEADLINE?=1m0s
+LINT_DEADLINE?=2m0s
 
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
