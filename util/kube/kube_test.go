@@ -269,3 +269,51 @@ func TestInClusterKubeConfig(t *testing.T) {
 	kubeConfig = NewKubeConfig(restConfig, "")
 	assert.Empty(t, kubeConfig.AuthInfos[kubeConfig.CurrentContext].TokenFile)
 }
+
+func TestGetDeploymentReplicas(t *testing.T) {
+	manifest := []byte(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.7.9
+        ports:
+        - containerPort: 80	
+`)
+	deployment := unstructured.Unstructured{}
+	err := yaml.Unmarshal(manifest, &deployment)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(2), *GetDeploymentReplicas(&deployment))
+}
+
+func TestGetNilDeploymentReplicas(t *testing.T) {
+	manifest := []byte(`
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod
+spec:
+  containers:
+  - image: nginx:1.7.9
+    name: nginx
+    resources:
+      requests:
+        cpu: 0.2
+`)
+	noDeployment := unstructured.Unstructured{}
+	err := yaml.Unmarshal(manifest, &noDeployment)
+	assert.NoError(t, err)
+	assert.Nil(t, GetDeploymentReplicas(&noDeployment))
+}

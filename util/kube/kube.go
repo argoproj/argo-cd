@@ -457,3 +457,11 @@ func WatchWithRetry(ctx context.Context, getWatch func() (watch.Interface, error
 	}()
 	return ch
 }
+
+func GetDeploymentReplicas(u *unstructured.Unstructured) *int64 {
+	val, found, err := unstructured.NestedInt64(u.Object, "spec", "replicas")
+	if !found || err != nil {
+		return nil
+	}
+	return &val
+}

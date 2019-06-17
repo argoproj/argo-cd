@@ -47,6 +47,10 @@ func (a *Actions) Create() *Actions {
 
 	args = append(args, "--project", a.context.project)
 
+	for _, jsonnetTLAParameter := range a.context.jsonnetTLAS {
+		args = append(args, "--jsonnet-tlas", jsonnetTLAParameter)
+	}
+
 	if a.context.namePrefix != "" {
 		args = append(args, "--nameprefix", a.context.namePrefix)
 	}
