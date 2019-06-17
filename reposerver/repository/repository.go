@@ -186,8 +186,8 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	}
 	res.RevisionMetadata = &v1alpha1.RevisionMetadata{
 		// we truncate long messages
-		Author:  trunc.Trunc(revisionMetadata.Author, 32),
-		Message: trunc.Trunc(revisionMetadata.Message, 64),
+		Author:  trunc.Trunc(revisionMetadata.Author, 50),
+		Message: trunc.Trunc(revisionMetadata.Message, 50),
 	}
 	err = s.cache.SetManifests(commitSHA, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
 	if err != nil {
