@@ -62,6 +62,7 @@ export const ApplicationSummary = (props: {
                     <i className='fa fa-external-link'/> {app.spec.source.repoURL}
                 </a>
             ),
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.repoURL' component={Text}/>,
         },
         {
             title: 'TARGET REVISION',
