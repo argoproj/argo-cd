@@ -3,7 +3,6 @@ package git
 import (
 	"io/ioutil"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -191,4 +190,3 @@ func TestNewFactory(t *testing.T) {
 		assert.Equal(t, commitSHA, commitSHA2)
 	}
 }
-
