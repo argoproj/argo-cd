@@ -194,7 +194,10 @@ func (sc *syncContext) sync() {
 		return
 	}
 
-	sc.log.WithFields(log.Fields{"tasks": tasks, "isSelectiveSync": sc.isSelectiveSync()}).Info("tasks")
+	// Split normal tasks from SyncFail tasks
+	syncFailTasks, tasks := tasks.Split(func(t *syncTask) bool { return t.phase == v1alpha1.SyncPhaseSyncFail })
+
+	sc.log.WithFields(log.Fields{"tasks": tasks, "syncFailTasks": syncFailTasks, "isSelectiveSync": sc.isSelectiveSync()}).Info("tasks")
 
 	// Perform a `kubectl apply --dry-run` against all the manifests. This will detect most (but
 	// not all) validation issues with the user's manifests (e.g. will detect syntax issues, but
@@ -202,22 +205,30 @@ func (sc *syncContext) sync() {
 	// to perform the sync. we only wish to do this once per operation, performing additional dry-runs
 	// is harmless, but redundant. The indicator we use to detect if we have already performed
 	// the dry-run for this operation, is if the resource or hook list is empty.
+	dryRunFailed := false
 	if !sc.started() {
 		sc.log.Debug("dry-run")
 		if !sc.runTasks(tasks, true) {
 			sc.setOperationPhase(v1alpha1.OperationFailed, "one or more objects failed to apply (dry run)")
-			return
+			sc.log.WithFields(log.Fields{"syncFailTasks": syncFailTasks}).Debug("running sync fail tasks")
+			if !sc.runTasks(syncFailTasks, false) {
+				sc.setOperationPhase(v1alpha1.OperationFailed, "one or more objects failed to apply; SyncFail hooks failed to apply")
+			}
+			dryRunFailed = true
 		}
 	}
 
-	// update status of any tasks that are running, note that this must exclude pruning tasks
-	for _, task := range tasks.Filter(func(t *syncTask) bool {
+	runningFilterFunc := func(t *syncTask) bool {
 		// just occasionally, you can be running yet not have a live resource
 		return t.running() && t.liveObj != nil
-	}) {
+	}
+	// update status of any tasks that are running, note that this must exclude pruning tasks
+
+	sc.log.WithFields(log.Fields{"appendeed": append(tasks.Filter(runningFilterFunc), syncFailTasks.Filter(runningFilterFunc)...)}).Debug("for loop")
+	for _, task := range append(tasks.Filter(runningFilterFunc), syncFailTasks.Filter(runningFilterFunc)...) {
 		if task.isHook() {
 			// update the hook's result
-			sc.log.WithFields(log.Fields{"task": task}).Debug("this task is a hook")
+			sc.log.WithFields(log.Fields{"task": task, "op": task.phase}).Debug("this task is a hook")
 			operationState, message := getOperationPhase(task.liveObj)
 			sc.setResourceResult(task, "", operationState, message)
 			sc.log.WithFields(log.Fields{"task": task}).Debug("this task is a hook-post")
@@ -250,6 +261,10 @@ func (sc *syncContext) sync() {
 		}
 	}
 
+	if dryRunFailed {
+		return
+	}
+
 	// any running tasks, lets wait...
 	if tasks.Find(func(t *syncTask) bool { return t.running() }) != nil {
 		sc.setOperationPhase(v1alpha1.OperationRunning, "one or more tasks are running")
@@ -266,6 +281,7 @@ func (sc *syncContext) sync() {
 	// remove tasks that are completed, we can assume that there are no running tasks
 	tasks = tasks.Filter(func(t *syncTask) bool { return !t.completed() })
 
+
 	// If no sync tasks were generated (e.g., in case all application manifests have been removed),
 	// the sync operation is successful.
 	if len(tasks) == 0 {
@@ -277,7 +293,6 @@ func (sc *syncContext) sync() {
 	phase := tasks.phase()
 	wave := tasks.wave()
 
-	syncFailTasks := tasks.Filter(func(t *syncTask) bool { return t.phase == v1alpha1.SyncPhaseSyncFail })
 
 	// if it is the last phase/wave and the only remaining tasks are non-hooks, the we are successful
 	// EVEN if those objects subsequently degraded
@@ -292,6 +307,7 @@ func (sc *syncContext) sync() {
 	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("wet-run")
 	if !sc.runTasks(tasks, false) {
 		sc.setOperationPhase(v1alpha1.OperationFailed, "one or more objects failed to apply")
+		sc.log.WithFields(log.Fields{"syncFailTasks": syncFailTasks}).Debug("running sync fail tasks")
 		if !sc.runTasks(syncFailTasks, false) {
 			sc.setOperationPhase(v1alpha1.OperationFailed, "one or more objects failed to apply; SyncFail hooks failed to apply")
 		}
@@ -379,6 +395,8 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 				// or formulated at the time of the operation (metadata.generateName). If user specifies
 				// metadata.generateName, then we will generate a formulated metadata.name before submission.
 				targetObj := obj.DeepCopy()
+
+				sc.log.WithFields(log.Fields{"task": targetObj.Object}).Debug("Sync Tast")
 				if targetObj.GetName() == "" {
 					postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", sc.syncRes.Revision[0:7], phase, sc.opState.StartedAt.UTC().Unix()))
 					generateName := obj.GetGenerateName()
@@ -423,6 +441,7 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 	for _, task := range tasks {
 		_, result := sc.syncRes.Resources.Find(task.group(), task.kind(), task.namespace(), task.name(), task.phase)
 		if result != nil {
+			sc.log.WithFields(log.Fields{"task": task, "result": result}).Debug("Sync result")
 			task.syncStatus = result.Status
 			task.operationState = result.HookPhase
 			task.message = result.Message

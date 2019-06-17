@@ -122,15 +122,13 @@ func TestSyncFailHookPodFailure(t *testing.T) {
 		When().
 		PatchFile("hook.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "SyncFail"}}]`).
 		// make pod fail
-		PatchFile("pod.yaml", `[{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}]`).
+
+		PatchFile("pod.yaml", `[{"op": "remove", "path": "/metadata/name"}]`).
 		Create().
 		Sync().
 		Then().
-		// TODO - I feel like this should be a failure, not success
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced)).
-		Expect(ResourceHealthIs("Pod", "pod", HealthStatusDegraded)).
-		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook", Message: "pod/hook created", HookType: HookTypeSyncFail, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(HookTypeSyncFail)}))
+		Expect(OperationPhaseIs(OperationFailed)).
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Status: ResultCodeSynced, Name: "hook", Message: "pod/hook created", HookType: HookTypeSyncFail, HookPhase: OperationSucceeded, SyncPhase: SyncPhaseSyncFail}))
 		//Expect(ResourceResultNumbering(1)).
 		//Expect(NotPod(func(p v1.Pod) bool { return p.Name == "hook" }))
 }
