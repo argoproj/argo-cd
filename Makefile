@@ -191,4 +191,4 @@ release-precheck: manifests
 	@if [ "$(GIT_TAG)" != "v`cat VERSION`" ]; then echo 'VERSION does not match git tag'; exit 1; fi
 
 .PHONY: release
-release: release-precheck pre-commit image release-cli
+release: pre-commit release-precheck image release-cli
