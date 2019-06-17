@@ -261,11 +261,7 @@ func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, re
 		Revision: spec.Source.TargetRevision,
 		Path:     fmt.Sprintf("%s/*.yaml", spec.Source.Path),
 	}
-	if repoRes != nil {
-		req.Repo.Username = repoRes.Username
-		req.Repo.Password = repoRes.Password
-		req.Repo.SSHPrivateKey = repoRes.SSHPrivateKey
-	}
+	req.Repo.CopyCredentialsFrom(repoRes)
 	getRes, err := repoClient.ListDir(ctx, &req)
 	if err != nil {
 		return "", err
@@ -301,11 +297,7 @@ func verifyAppYAML(ctx context.Context, repoRes *argoappv1.Repository, spec *arg
 		Revision: spec.Source.TargetRevision,
 		Path:     path.Join(spec.Source.Path, "app.yaml"),
 	}
-	if repoRes != nil {
-		req.Repo.Username = repoRes.Username
-		req.Repo.Password = repoRes.Password
-		req.Repo.SSHPrivateKey = repoRes.SSHPrivateKey
-	}
+	req.Repo.CopyCredentialsFrom(repoRes)
 	getRes, err := repoClient.GetFile(ctx, &req)
 	if err != nil {
 		return fmt.Errorf("Unable to load app.yaml: %v", err)
@@ -349,11 +341,7 @@ func verifyHelmChart(ctx context.Context, repoRes *argoappv1.Repository, spec *a
 		Revision: spec.Source.TargetRevision,
 		Path:     path.Join(spec.Source.Path, "Chart.yaml"),
 	}
-	if repoRes != nil {
-		req.Repo.Username = repoRes.Username
-		req.Repo.Password = repoRes.Password
-		req.Repo.SSHPrivateKey = repoRes.SSHPrivateKey
-	}
+	req.Repo.CopyCredentialsFrom(repoRes)
 	_, err := repoClient.GetFile(ctx, &req)
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
@@ -384,11 +372,7 @@ func verifyGenerateManifests(
 		Namespace:         spec.Destination.Namespace,
 		ApplicationSource: &spec.Source,
 	}
-	if repoRes != nil {
-		req.Repo.Username = repoRes.Username
-		req.Repo.Password = repoRes.Password
-		req.Repo.SSHPrivateKey = repoRes.SSHPrivateKey
-	}
+	req.Repo.CopyCredentialsFrom(repoRes)
 
 	// Only check whether we can access the application's path,
 	// and not whether it actually contains any manifests.

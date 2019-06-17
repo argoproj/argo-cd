@@ -19,6 +19,11 @@ IMAGE_TAG?=latest
 STATIC_BUILD?=true
 # build development images
 DEV_IMAGE?=false
+# lint is memory and CPU intensive, so we can limit on CI to mitigate OOM
+LINT_GOGC?=off
+LINT_CONCURRENCY?=8
+# Set timeout for linter
+LINT_DEADLINE?=1m0s
 
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
@@ -135,7 +140,7 @@ dep-ensure:
 lint:
 	# golangci-lint does not do a good job of formatting imports
 	goimports -local github.com/argoproj/argo-cd -w `find . ! -path './vendor/*' ! -path './pkg/client/*' -type f -name '*.go'`
-	golangci-lint run --fix --verbose --concurrency 4
+	GOGC=$(LINT_GOGC) golangci-lint run --fix --verbose --concurrency $(LINT_CONCURRENCY) --deadline $(LINT_DEADLINE)
 
 .PHONY: build
 build:
@@ -186,4 +191,4 @@ release-precheck: manifests
 	@if [ "$(GIT_TAG)" != "v`cat VERSION`" ]; then echo 'VERSION does not match git tag'; exit 1; fi
 
 .PHONY: release
-release: release-precheck pre-commit image release-cli
+release: pre-commit release-precheck image release-cli

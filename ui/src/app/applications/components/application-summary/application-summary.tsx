@@ -4,12 +4,21 @@ import { FormApi, Text } from 'react-form';
 
 require('./application-summary.scss');
 
-import { DataLoader, EditablePanel } from '../../../shared/components';
+import { DataLoader, EditablePanel, EditablePanelItem } from '../../../shared/components';
 import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 
 import { ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage } from '../utils';
+
+const urlPattern = new RegExp('^(https?:\\/\\/)?((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|((\\d{1,3}\\.){3}\\d{1,3}))'
+    + '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*(\\?[;&a-z\\d%_.~+=-]*)?(\\#[-a-z\\d_]*)?$', 'i');
+
+function swap(array: any[], a: number, b: number) {
+    array = array.slice();
+    [array[a], array[b]] = [array[b], array[a]];
+    return array;
+}
 
 export const ApplicationSummary = (props: {
     app: models.Application,
@@ -22,7 +31,7 @@ export const ApplicationSummary = (props: {
             title: 'PROJECT',
             view: app.spec.project,
             edit: (formApi: FormApi) => (
-                <DataLoader load={() => services.projects.list().then((items) => items.map((item) => item.metadata.name))}>
+                <DataLoader load={() => services.projects.list().then((projs) => projs.map((item) => item.metadata.name))}>
                     {(projects) => <FormField formApi={formApi} field='spec.project' component={FormSelect} componentProps={{options: projects}} />}
                 </DataLoader>
             ),
@@ -72,6 +81,7 @@ export const ApplicationSummary = (props: {
             <span><HealthStatusIcon state={app.status.health}/> {app.status.health.status}</span>
         )},
     ];
+
     const urls = app.status.summary.externalURLs || [];
     if (urls.length > 0) {
         attributes.push({title: 'URLs', view: (
@@ -106,6 +116,54 @@ export const ApplicationSummary = (props: {
             props.updateApp(updatedApp);
         }
     }
+
+    const items = (app.spec.info || []);
+    const [adjustedCount, setAdjustedCount] = React.useState(0);
+
+    const added = new Array<{name: string, value: string, key: string}>();
+    for (let i = 0; i < adjustedCount; i++) {
+        added.push({ name: '', value: '', key: (items.length + i).toString()});
+    }
+    for (let i = 0; i > adjustedCount; i--) {
+        items.pop();
+    }
+    const allItems = items.concat(added);
+    const infoItems: EditablePanelItem[] = allItems.map((info, i) => ({
+        key: i.toString(),
+        title: info.name,
+        view: info.value.match(urlPattern) ? <a href={info.value} target='__blank'>{info.value}</a> : info.value,
+        titleEdit: (formApi: FormApi) => (
+            <React.Fragment>
+                {i > 0 && <i className='fa fa-sort-up application-summary__sort-icon' onClick={() => {
+                    formApi.setValue('spec.info', swap((formApi.getFormState().values.spec.info || []), i, i - 1));
+                }}/>}
+                <FormField formApi={formApi} field={`spec.info[${[i]}].name`} component={Text} componentProps={{style: { width: '99%' }}} />
+                {i < allItems.length - 1 && <i className='fa fa-sort-down application-summary__sort-icon' onClick={() => {
+                    formApi.setValue('spec.info', swap((formApi.getFormState().values.spec.info || []), i, i + 1));
+                }}/> }
+            </React.Fragment>
+        ),
+        edit: (formApi: FormApi) => (
+            <React.Fragment>
+                <FormField formApi={formApi} field={`spec.info[${[i]}].value`} component={Text}/>
+                <i className='fa fa-times application-summary__remove-icon' onClick={() => {
+                    const values = (formApi.getFormState().values.spec.info || []) as Array<any>;
+                    formApi.setValue('spec.info', [...values.slice(0, i), ...values.slice(i + 1, values.length)]);
+                    setAdjustedCount(adjustedCount - 1);
+                }}/>
+            </React.Fragment>
+        ),
+    })).concat({
+        key: '-1',
+        title: '',
+        titleEdit: () => (
+            <button className='argo-button argo-button--base' onClick={() => {
+                setAdjustedCount(adjustedCount + 1);
+            }}>ADD NEW ITEM</button>
+        ),
+        view: null as any,
+        edit: null,
+    });
 
     return (
         <React.Fragment>
@@ -157,6 +215,7 @@ export const ApplicationSummary = (props: {
                 </div>
             </div>
             )}</Consumer>
+            <EditablePanel save={(props.updateApp)} values={app} title='Info' items={infoItems} onModeSwitch={() => setAdjustedCount(0)}/>
         </React.Fragment>
     );
 };

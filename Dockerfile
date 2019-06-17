@@ -1,3 +1,4 @@
+ARG BASE_IMAGE=debian:9.5-slim
 ####################################################################################################
 # Builder image
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
@@ -93,7 +94,9 @@ RUN cd ${GOPATH}/src/dummy && \
 ####################################################################################################
 # Argo CD Base - used as the base for both the release and dev argocd images
 ####################################################################################################
-FROM debian:9.5-slim as argocd-base
+FROM $BASE_IMAGE as argocd-base
+
+USER root
 
 RUN groupadd -g 999 argocd && \
     useradd -r -u 999 -g argocd argocd && \

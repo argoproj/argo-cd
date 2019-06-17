@@ -172,11 +172,17 @@ export interface SyncPolicy {
     automated?: { prune: boolean };
 }
 
+export interface Info {
+    name: string;
+    value: string;
+}
+
 export interface ApplicationSpec {
     project: string;
     source: ApplicationSource;
     destination: ApplicationDestination;
     syncPolicy?: SyncPolicy;
+    info?: Info[];
 }
 
 /**

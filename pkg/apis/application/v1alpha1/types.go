@@ -46,6 +46,8 @@ type ApplicationSpec struct {
 	SyncPolicy *SyncPolicy `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
 	// IgnoreDifferences controls resources fields which should be ignored during comparison
 	IgnoreDifferences []ResourceIgnoreDifferences `json:"ignoreDifferences,omitempty" protobuf:"bytes,5,name=ignoreDifferences"`
+	// Infos contains a list of useful information (URLs, email addresses, and plain text) that relates to the application
+	Info []Info `json:"info,omitempty" protobuf:"bytes,6,name=info"`
 }
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
@@ -311,6 +313,11 @@ type OperationState struct {
 	StartedAt metav1.Time `json:"startedAt" protobuf:"bytes,6,opt,name=startedAt"`
 	// FinishedAt contains time of operation completion
 	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,7,opt,name=finishedAt"`
+}
+
+type Info struct {
+	Name  string `json:"name" protobuf:"bytes,1,name=name"`
+	Value string `json:"value" protobuf:"bytes,2,name=value"`
 }
 
 // SyncPolicy controls when a sync will be performed in response to updates in git
@@ -832,11 +839,13 @@ func (m *Repository) HasCredentials() bool {
 	return m.Username != "" || m.Password != "" || m.SSHPrivateKey != "" || m.InsecureIgnoreHostKey
 }
 
-func (m *Repository) CopyCredentialsFrom(source Repository) {
-	m.Username = source.Username
-	m.Password = source.Password
-	m.SSHPrivateKey = source.SSHPrivateKey
-	m.InsecureIgnoreHostKey = source.InsecureIgnoreHostKey
+func (m *Repository) CopyCredentialsFrom(source *Repository) {
+	if source != nil {
+		m.Username = source.Username
+		m.Password = source.Password
+		m.SSHPrivateKey = source.SSHPrivateKey
+		m.InsecureIgnoreHostKey = source.InsecureIgnoreHostKey
+	}
 }
 
 // RepositoryList is a collection of Repositories.

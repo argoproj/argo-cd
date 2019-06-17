@@ -430,58 +430,26 @@ func TestSyncResourceByLabel(t *testing.T) {
 		Sync().
 		Then().
 		And(func(app *Application) {
-			res, _ := fixture.RunCli("app", "sync", app.Name, "--label", fmt.Sprintf("app.kubernetes.io/instance=%s", app.Name))
-			assert.Contains(t, res, "guestbook-ui  Synced  Healthy")
-
-			res, _ = fixture.RunCli("app", "sync", app.Name, "--label", "this-label=does-not-exist")
+			_, _ = fixture.RunCli("app", "sync", app.Name, "--label", fmt.Sprintf("app.kubernetes.io/instance=%s", app.Name))
+		}).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			res, _ := fixture.RunCli("app", "sync", app.Name, "--label", "this-label=does-not-exist")
 			assert.Contains(t, res, "level=fatal")
 		})
 }
 
-func TestLocalManifestSync(t *testing.T) {
+func TestSyncAsync(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
+		Async(true).
 		When().
 		Create().
 		Sync().
 		Then().
-		And(func(app *Application) {
-			res, _ := fixture.RunCli("app", "manifests", app.Name)
-			assert.Contains(t, res, "containerPort: 80")
-			assert.Contains(t, res, "image: gcr.io/heptio-images/ks-guestbook-demo:0.2")
-
-			res, _ = fixture.RunCli("app", "sync", app.Name, "--local", guestbookPathLocal)
-			assert.Contains(t, res, "guestbook-ui  Synced  Healthy")
-
-			res, _ = fixture.RunCli("app", "manifests", app.Name)
-			assert.Contains(t, res, "containerPort: 81")
-			assert.Contains(t, res, "image: gcr.io/heptio-images/ks-guestbook-demo:0.3")
-
-			// Test we return to original state after a non-local sync
-			res, _ = fixture.RunCli("app", "sync", app.Name)
-			assert.Contains(t, res, "guestbook-ui  Synced  Healthy")
-
-			res, _ = fixture.RunCli("app", "manifests", app.Name)
-			assert.Contains(t, res, "containerPort: 80")
-			assert.Contains(t, res, "image: gcr.io/heptio-images/ks-guestbook-demo:0.2")
-		})
-
-}
-
-func TestNoLocalSyncWithAutosyncEnabled(t *testing.T) {
-	Given(t).
-		Path(guestbookPath).
-		When().
-		Create().
-		Sync().
-		Then().
-		And(func(app *Application) {
-			_, err := fixture.RunCli("app", "set", app.Name, "--sync-policy", "automated")
-			assert.NoError(t, err)
-
-			_, err = fixture.RunCli("app", "sync", app.Name, "--local", guestbookPathLocal)
-			assert.Error(t, err)
-		})
+		Expect(Success("")).
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
 func TestPermissions(t *testing.T) {

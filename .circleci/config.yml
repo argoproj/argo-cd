@@ -210,7 +210,9 @@ jobs:
           command: make codegen
       - run:
           name: Lint code
-          command: make lint
+          # use GOGC to limit memory usage in exchange for CPU usage, https://github.com/golangci/golangci-lint#memory-usage-of-golangci-lint
+          # we have 8GB RAM, 2CPUs https://circleci.com/docs/2.0/executor-types/#using-machine
+          command: LINT_GOGC=50 LINT_CONCURRENCY=2 LINT_DEADLINE=2m0s make lint
       - run:
           name: Check nothing has changed
           command: |
@@ -307,6 +309,7 @@ jobs:
             make test-e2e | tee /tmp/test-results/go-e2e.out
           environment:
             ARGOCD_OPTS: "--server localhost:8080 --plaintext"
+            ARGOCD_E2E_EXPECT_TIMEOUT: "30"
       - store_test_results:
           path: /tmp/test-results
   ui:

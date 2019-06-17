@@ -512,7 +512,7 @@ func runCommand(command v1alpha1.Command, path string, env []string) (string, er
 	return argoexec.RunCommandExt(cmd)
 }
 
-func runConfigManagementPlugin(appPath string, q *ManifestRequest, creds *git.Creds, plugins []*v1alpha1.ConfigManagementPlugin) ([]*unstructured.Unstructured, error) {
+func runConfigManagementPlugin(appPath string, q *ManifestRequest, creds git.Creds, plugins []*v1alpha1.ConfigManagementPlugin) ([]*unstructured.Unstructured, error) {
 	var plugin *v1alpha1.ConfigManagementPlugin
 	for i := range plugins {
 		if plugins[i].Name == q.ApplicationSource.Plugin.Name {
@@ -525,10 +525,12 @@ func runConfigManagementPlugin(appPath string, q *ManifestRequest, creds *git.Cr
 	}
 	env := append(os.Environ(), fmt.Sprintf("%s=%s", PluginEnvAppName, q.AppLabelValue), fmt.Sprintf("%s=%s", PluginEnvAppNamespace, q.Namespace))
 	if creds != nil {
-		env = append(env,
-			"GIT_ASKPASS=git-ask-pass.sh",
-			fmt.Sprintf("GIT_USERNAME=%s", creds.Username),
-			fmt.Sprintf("GIT_PASSWORD=%s", creds.Password))
+		closer, environ, err := creds.Environ()
+		if err != nil {
+			return nil, err
+		}
+		defer func() { _ = closer.Close() }()
+		env = append(env, environ...)
 	}
 	if plugin.Init != nil {
 		_, err := runCommand(*plugin.Init, appPath, env)
@@ -674,12 +676,15 @@ func (q *RepoServerAppDetailsQuery) valueFiles() []string {
 	return q.Helm.ValueFiles
 }
 
-func newCreds(repo *v1alpha1.Repository) *git.Creds {
-	if repo == nil || repo.Password == "" {
-		return nil
+func newCreds(repo *v1alpha1.Repository) git.Creds {
+	if repo == nil {
+		return git.NopCreds{}
 	}
-	return &git.Creds{
-		Username: repo.Username,
-		Password: repo.Password,
+	if repo.Username != "" && repo.Password != "" {
+		return git.NewHTTPSCreds(repo.Username, repo.Password)
 	}
+	if repo.SSHPrivateKey != "" {
+		return git.NewSSHCreds(repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
+	}
+	return git.NopCreds{}
 }
