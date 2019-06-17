@@ -179,15 +179,15 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	}
 	res := *genRes
 	res.Revision = commitSHA
-	revisionMetaData, err := gitClient.RevisionMetaData(commitSHA)
+	rrevisionMetadata, err := gitClient.RevisionMetadata(commitSHA)
 	commitSHA, err = gitClient.CommitSHA()
 	if err != nil {
 		return nil, err
 	}
-	res.RevisionMetaData = &v1alpha1.RevisionMetaData{
+	res.RevisionMetadata = &v1alpha1.RevisionMetadata{
 		// we truncate long messages
-		Author:  trunc.Trunc(revisionMetaData.Author, 32),
-		Message: trunc.Trunc(revisionMetaData.Message, 64),
+		Author:  trunc.Trunc(rrevisionMetadata.Author, 32),
+		Message: trunc.Trunc(rrevisionMetadata.Message, 64),
 	}
 	err = s.cache.SetManifests(commitSHA, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
 	if err != nil {

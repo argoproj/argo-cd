@@ -178,11 +178,11 @@ func TestNewFactory(t *testing.T) {
 		err = client.Checkout(commitSHA)
 		assert.NoError(t, err)
 
-		revisionMetaData, err := client.RevisionMetaData(commitSHA)
+		rrevisionMetadata, err := client.RevisionMetadata(commitSHA)
 		assert.NoError(t, err)
-		assert.NotNil(t, revisionMetaData)
-		assert.Regexp(t, "^.*<.*>$", revisionMetaData.Author)
-		assert.NotEmpty(t, revisionMetaData.Message)
+		assert.NotNil(t, rrevisionMetadata)
+		assert.Regexp(t, "^.*<.*>$", rrevisionMetadata.Author)
+		assert.NotEmpty(t, rrevisionMetadata.Message)
 
 		commitSHA2, err := client.CommitSHA()
 		assert.NoError(t, err)

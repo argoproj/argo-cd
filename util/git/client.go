@@ -17,7 +17,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 )
 
-type RevisionMetaData struct {
+type RevisionMetadata struct {
 	Author  string
 	Message string
 }
@@ -31,7 +31,7 @@ type Client interface {
 	LsRemote(revision string) (string, error)
 	LsFiles(path string) ([]string, error)
 	CommitSHA() (string, error)
-	RevisionMetaData(revision string) (*RevisionMetaData, error)
+	RevisionMetadata(revision string) (*RevisionMetadata, error)
 }
 
 // ClientFactory is a factory of Git Clients
@@ -243,7 +243,7 @@ func (m *nativeGitClient) CommitSHA() (string, error) {
 }
 
 // returns the meta-data for the commit
-func (m *nativeGitClient) RevisionMetaData(revision string) (*RevisionMetaData, error) {
+func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, error) {
 	out, err := m.runCmd("git", "show", "-s", "--format=%an <%ae>|%B", revision)
 	if err != nil {
 		return nil, err
@@ -252,7 +252,7 @@ func (m *nativeGitClient) RevisionMetaData(revision string) (*RevisionMetaData, 
 	if len(segments) != 2 {
 		return nil, fmt.Errorf("expected 3 segments, got %v", segments)
 	}
-	return &RevisionMetaData{segments[0], strings.TrimSpace(segments[1])}, nil
+	return &RevisionMetadata{segments[0], strings.TrimSpace(segments[1])}, nil
 }
 
 // runCmd is a convenience function to run a command in a given directory and return its output

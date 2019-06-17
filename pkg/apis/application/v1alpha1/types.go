@@ -387,12 +387,12 @@ const (
 	HookDeletePolicyHookFailed    HookDeletePolicy = "HookFailed"
 )
 
-type RevisionMetaData struct {
+type RevisionMetadata struct {
 	Author  string `json:"author" protobuf:"bytes,1,opt,name=author"`
 	Message string `json:"message" protobuf:"bytes,2,opt,name=message"`
 }
 
-func (m *RevisionMetaData) IsZero() bool {
+func (m *RevisionMetadata) IsZero() bool {
 	return m.Author == "" && m.Message == ""
 }
 
@@ -404,8 +404,8 @@ type SyncOperationResult struct {
 	Revision string `json:"revision" protobuf:"bytes,2,opt,name=revision"`
 	// Source records the application source information of the sync, used for comparing auto-sync
 	Source ApplicationSource `json:"source" protobuf:"bytes,3,opt,name=source"`
-	// RevisionMetaData shows meta-data about the revision
-	RevisionMetaData *RevisionMetaData `json:"revisionMetaData,omitempty" protobuf:"bytes,4,opt,name=revisionMetaData"`
+	// RevisionMetadata shows meta-data about the revision
+	RevisionMetadata *RevisionMetadata `json:"rrevisionMetadata,omitempty" protobuf:"bytes,4,opt,name=rrevisionMetadata"`
 }
 
 type ResultCode string
@@ -488,7 +488,7 @@ type RevisionHistory struct {
 	DeployedAt       metav1.Time       `json:"deployedAt" protobuf:"bytes,4,opt,name=deployedAt"`
 	ID               int64             `json:"id" protobuf:"bytes,5,opt,name=id"`
 	Source           ApplicationSource `json:"source" protobuf:"bytes,6,opt,name=source"`
-	RevisionMetaData *RevisionMetaData `json:"revisionMetaData,omitempty" protobuf:"bytes,7,opt,name=revisionMetaData"`
+	RevisionMetadata *RevisionMetadata `json:"rrevisionMetadata,omitempty" protobuf:"bytes,7,opt,name=rrevisionMetadata"`
 }
 
 // ApplicationWatchEvent contains information about application change.
@@ -570,7 +570,7 @@ type SyncStatus struct {
 	Status           SyncStatusCode    `json:"status" protobuf:"bytes,1,opt,name=status,casttype=SyncStatusCode"`
 	ComparedTo       ComparedTo        `json:"comparedTo" protobuf:"bytes,2,opt,name=comparedTo"`
 	Revision         string            `json:"revision" protobuf:"bytes,3,opt,name=revision"`
-	RevisionMetaData *RevisionMetaData `json:"revisionMetaData,omitempty" protobuf:"bytes,4,opt,name=revisionMetaData"`
+	RevisionMetadata *RevisionMetadata `json:"rrevisionMetadata,omitempty" protobuf:"bytes,4,opt,name=rrevisionMetadata"`
 }
 
 type HealthStatus struct {

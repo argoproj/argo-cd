@@ -61,7 +61,7 @@ export interface OperationState {
 
 export type HookType = 'PreSync' | 'Sync' | 'PostSync' | 'Skip';
 
-export interface RevisionMetaData {
+export interface RevisionMetadata {
     author: string;
     message: string;
 }
@@ -69,7 +69,7 @@ export interface RevisionMetaData {
 export interface SyncOperationResult {
     resources: ResourceResult[];
     revision: string;
-    revisionMetaData: RevisionMetaData;
+    rrevisionMetadata: RevisionMetadata;
 }
 
 export type ResultCode = 'Synced' | 'SyncFailed' | 'Pruned' | 'PruneSkipped';
@@ -200,7 +200,7 @@ export interface RevisionHistory {
     revision: string;
     source: ApplicationSource;
     deployedAt: models.Time;
-    revisionMetaData: RevisionMetaData;
+    rrevisionMetadata: RevisionMetadata;
 }
 
 export type SyncStatusCode = 'Unknown' | 'Synced' | 'OutOfSync';
@@ -288,7 +288,7 @@ export interface SyncStatus {
     comparedTo: ApplicationSource;
     status: SyncStatusCode;
     revision: string;
-    revisionMetaData: RevisionMetaData;
+    rrevisionMetadata: RevisionMetadata;
 }
 
 export interface ApplicationCondition {

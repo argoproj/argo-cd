@@ -1802,8 +1802,8 @@
         "revision": {
           "type": "string"
         },
-        "revisionMetaData": {
-          "$ref": "#/definitions/v1alpha1RevisionMetaData"
+        "rrevisionMetadata": {
+          "$ref": "#/definitions/v1alpha1RevisionMetadata"
         },
         "server": {
           "type": "string"
@@ -3309,15 +3309,15 @@
         "revision": {
           "type": "string"
         },
-        "revisionMetaData": {
-          "$ref": "#/definitions/v1alpha1RevisionMetaData"
+        "rrevisionMetadata": {
+          "$ref": "#/definitions/v1alpha1RevisionMetadata"
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
         }
       }
     },
-    "v1alpha1RevisionMetaData": {
+    "v1alpha1RevisionMetadata": {
       "type": "object",
       "properties": {
         "author": {
@@ -3391,8 +3391,8 @@
           "type": "string",
           "title": "Revision holds the git commit SHA of the sync"
         },
-        "revisionMetaData": {
-          "$ref": "#/definitions/v1alpha1RevisionMetaData"
+        "rrevisionMetadata": {
+          "$ref": "#/definitions/v1alpha1RevisionMetadata"
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
@@ -3429,8 +3429,8 @@
         "revision": {
           "type": "string"
         },
-        "revisionMetaData": {
-          "$ref": "#/definitions/v1alpha1RevisionMetaData"
+        "rrevisionMetadata": {
+          "$ref": "#/definitions/v1alpha1RevisionMetadata"
         },
         "status": {
           "type": "string"

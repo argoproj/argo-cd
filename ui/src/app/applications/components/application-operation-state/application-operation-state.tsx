@@ -53,10 +53,10 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
         operationAttributes.push(
             {title: 'REVISION', value: operationState.syncResult.revision},
         );
-        if (operationState.syncResult.revisionMetaData) {
+        if (operationState.syncResult.rrevisionMetadata) {
             operationAttributes.push(
-                {title: 'REVISION AUTHOR', value: operationState.syncResult.revisionMetaData.author},
-                {title: 'REVISION MESSAGE', value: operationState.syncResult.revisionMetaData.message},
+                {title: 'REVISION AUTHOR', value: operationState.syncResult.rrevisionMetadata.author},
+                {title: 'REVISION MESSAGE', value: operationState.syncResult.rrevisionMetadata.message},
             );
         }
     }

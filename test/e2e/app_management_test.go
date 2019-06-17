@@ -86,7 +86,7 @@ func TestTrackAppStateAndSyncApp(t *testing.T) {
 			assert.NotNil(t, app.Status.OperationState.SyncResult)
 		})
 }
-func TestRevisionMetaData(t *testing.T) {
+func TestRevisionMetadata(t *testing.T) {
 	Given(t).
 		Path("two-nice-pods").
 		When().
@@ -97,9 +97,9 @@ func TestRevisionMetaData(t *testing.T) {
 			// operation has not occurred, should be empty
 			assert.Nil(t, app.Status.OperationState)
 			// what we are out of sync from
-			assert.NotNil(t, app.Status.Sync.RevisionMetaData)
-			assert.Equal(t, revision_metadata.Author, app.Status.Sync.RevisionMetaData.Author)
-			assert.Equal(t, "initial commit", app.Status.Sync.RevisionMetaData.Message)
+			assert.NotNil(t, app.Status.Sync.RevisionMetadata)
+			assert.Equal(t, revision_metadata.Author, app.Status.Sync.RevisionMetadata.Author)
+			assert.Equal(t, "initial commit", app.Status.Sync.RevisionMetadata.Message)
 		}).
 		When().
 		Sync().
@@ -109,15 +109,15 @@ func TestRevisionMetaData(t *testing.T) {
 			// now we have synced, we expect the revision and meta-data to appear on both the state of the operation and in the history
 			result := app.Status.OperationState.SyncResult
 			assert.NotEmpty(t, result.Revision)
-			assert.NotNil(t, result.RevisionMetaData)
-			assert.Equal(t, revision_metadata.Author, result.RevisionMetaData.Author)
-			assert.Equal(t, "initial commit", result.RevisionMetaData.Message)
+			assert.NotNil(t, result.RevisionMetadata)
+			assert.Equal(t, revision_metadata.Author, result.RevisionMetadata.Author)
+			assert.Equal(t, "initial commit", result.RevisionMetadata.Message)
 			assert.Len(t, app.Status.History, 1)
 			history := app.Status.History[0]
 			assert.NotEmpty(t, history.Revision)
-			assert.NotNil(t, history.RevisionMetaData)
-			assert.Equal(t, revision_metadata.Author, history.RevisionMetaData.Author)
-			assert.Equal(t, "initial commit", history.RevisionMetaData.Message)
+			assert.NotNil(t, history.RevisionMetadata)
+			assert.Equal(t, revision_metadata.Author, history.RevisionMetadata.Author)
+			assert.Equal(t, "initial commit", history.RevisionMetadata.Message)
 		}).
 		// make any change so we can check the history
 		When().
@@ -127,7 +127,7 @@ func TestRevisionMetaData(t *testing.T) {
 		And(func(app *Application) {
 			// expect that these will have changed
 			assert.NotEqual(t, app.Status.Sync.Revision, app.Status.OperationState.SyncResult.Revision)
-			assert.NotEqual(t, app.Status.Sync.RevisionMetaData, app.Status.OperationState.SyncResult.RevisionMetaData)
+			assert.NotEqual(t, app.Status.Sync.RevisionMetadata, app.Status.OperationState.SyncResult.RevisionMetadata)
 		}).
 		When().
 		Sync().
@@ -136,23 +136,23 @@ func TestRevisionMetaData(t *testing.T) {
 		And(func(app *Application) {
 			result := app.Status.OperationState.SyncResult
 			assert.NotEmpty(t, result.Revision)
-			assert.NotNil(t, result.RevisionMetaData)
-			assert.Regexp(t, revision_metadata.Author, result.RevisionMetaData.Author)
-			assert.Equal(t, "patch", result.RevisionMetaData.Message)
+			assert.NotNil(t, result.RevisionMetadata)
+			assert.Regexp(t, revision_metadata.Author, result.RevisionMetadata.Author)
+			assert.Equal(t, "patch", result.RevisionMetadata.Message)
 			assert.Len(t, app.Status.History, 2)
 			{
 				history := app.Status.History[0]
 				assert.NotEmpty(t, history.Revision)
-				assert.NotNil(t, history.RevisionMetaData)
-				assert.Equal(t, revision_metadata.Author, history.RevisionMetaData.Author)
-				assert.Equal(t, "initial commit", history.RevisionMetaData.Message)
+				assert.NotNil(t, history.RevisionMetadata)
+				assert.Equal(t, revision_metadata.Author, history.RevisionMetadata.Author)
+				assert.Equal(t, "initial commit", history.RevisionMetadata.Message)
 			}
 			{
 				history := app.Status.History[1]
 				assert.NotEmpty(t, history.Revision)
-				assert.NotNil(t, history.RevisionMetaData)
-				assert.Equal(t, revision_metadata.Author, history.RevisionMetaData.Author)
-				assert.Equal(t, "patch", history.RevisionMetaData.Message)
+				assert.NotNil(t, history.RevisionMetadata)
+				assert.Equal(t, revision_metadata.Author, history.RevisionMetadata.Author)
+				assert.Equal(t, "patch", history.RevisionMetadata.Message)
 			}
 		})
 }
