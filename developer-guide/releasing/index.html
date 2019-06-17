@@ -1042,19 +1042,22 @@
 <div class="codehilite"><pre><span></span><span class="c1"># release candidate</span>
 <span class="nv">VERSION</span><span class="o">=</span>v1.0.0-rc1
 <span class="c1"># GA release</span>
-<span class="nv">VERSION</span><span class="o">=</span>v1.0.0
+<span class="nv">VERSION</span><span class="o">=</span>v1.0.2
 </pre></div>
 
 
+<p>Prior to v1.1, the UI is in a separate repo.</p>
 <p>If not already created, create UI release branch:</p>
 <div class="codehilite"><pre><span></span><span class="nb">cd</span> argo-cd-ui
 git checkout -b <span class="nv">$BRANCH</span>
 </pre></div>
 
 
-<p>Tag UI:</p>
-<div class="codehilite"><pre><span></span>git tag <span class="nv">$VERSION</span>
+<p>Tag and release UI:</p>
+<div class="codehilite"><pre><span></span>git checkout <span class="nv">$BRANCH</span>
+git tag <span class="nv">$VERSION</span>
 git push <span class="nv">$REPO</span> <span class="nv">$BRANCH</span> --tags
+git clean -fd
 <span class="nv">IMAGE_NAMESPACE</span><span class="o">=</span>argoproj <span class="nv">IMAGE_TAG</span><span class="o">=</span><span class="nv">$VERSION</span> <span class="nv">DOCKER_PUSH</span><span class="o">=</span><span class="nb">true</span> yarn docker
 </pre></div>
 
@@ -1067,7 +1070,8 @@ git push <span class="nv">$REPO</span> <span class="nv">$BRANCH</span>
 
 
 <p>Update <code>VERSION</code> and manifests with new version:</p>
-<div class="codehilite"><pre><span></span><span class="nb">echo</span> <span class="si">${</span><span class="nv">VERSION</span><span class="p">:</span><span class="nv">1</span><span class="si">}</span> &gt; VERSION
+<div class="codehilite"><pre><span></span>git checkout <span class="nv">$BRANCH</span>
+<span class="nb">echo</span> <span class="si">${</span><span class="nv">VERSION</span><span class="p">:</span><span class="nv">1</span><span class="si">}</span> &gt; VERSION
 make manifests <span class="nv">IMAGE_TAG</span><span class="o">=</span><span class="nv">$VERSION</span>
 git commit -am <span class="s2">&quot;Update manifests to </span><span class="nv">$VERSION</span><span class="s2">&quot;</span>
 git push <span class="nv">$REPO</span> <span class="nv">$BRANCH</span>
@@ -1076,6 +1080,7 @@ git push <span class="nv">$REPO</span> <span class="nv">$BRANCH</span>
 
 <p>Tag, build, and push release to Docker Hub</p>
 <div class="codehilite"><pre><span></span>git tag <span class="nv">$VERSION</span>
+git clean -fd
 make release <span class="nv">IMAGE_NAMESPACE</span><span class="o">=</span>argoproj <span class="nv">IMAGE_TAG</span><span class="o">=</span><span class="nv">$VERSION</span> <span class="nv">DOCKER_PUSH</span><span class="o">=</span><span class="nb">true</span>
 git push <span class="nv">$REPO</span> <span class="nv">$VERSION</span>
 </pre></div>
@@ -1085,7 +1090,7 @@ git push <span class="nv">$REPO</span> <span class="nv">$VERSION</span>
 <ul>
 <li>Getting started (copy from previous release)</li>
 <li>Changelog</li>
-<li>Binaries (e.g. dist/argocd-darwin-amd64).</li>
+<li>Binaries (e.g. <code>dist/argocd-darwin-amd64</code>).</li>
 </ul>
 <p>If GA, update <code>stable</code> tag:</p>
 <div class="codehilite"><pre><span></span>git tag stable --force <span class="o">&amp;&amp;</span> git push <span class="nv">$REPO</span> stable --force
@@ -1095,8 +1100,10 @@ git push <span class="nv">$REPO</span> <span class="nv">$VERSION</span>
 <p>If GA, update Brew formula:</p>
 <div class="codehilite"><pre><span></span>git clone https://github.com/argoproj/homebrew-tap
 <span class="nb">cd</span> homebrew-tap
+git checkout master
+git pull
 ./update.sh ~/go/src/github.com/argoproj/argo-cd/dist/argocd-darwin-amd64
-git commit -a -m <span class="s2">&quot;Update argocd to </span><span class="nv">$VERSION</span><span class="s2">&quot;</span>
+git commit -am <span class="s2">&quot;Update argocd to </span><span class="nv">$VERSION</span><span class="s2">&quot;</span>
 git push
 </pre></div>
 

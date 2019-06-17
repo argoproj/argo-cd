@@ -1241,6 +1241,7 @@ in an environment. It is defined by two key pieces of information:</p>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Application</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
 <span class="nt">spec</span><span class="p">:</span>
   <span class="nt">project</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">default</span>
   <span class="nt">source</span><span class="p">:</span>
@@ -1281,6 +1282,7 @@ It is defined by the following key pieces of information:</p>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AppProject</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">my-project</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
 <span class="nt">spec</span><span class="p">:</span>
   <span class="nt">description</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Example Project</span>
   <span class="c1"># Allow manifests to deploy from any Git repos</span>
@@ -1335,6 +1337,7 @@ definition as a Kubernetes manifest.</li>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
 <span class="nt">data</span><span class="p">:</span>
   <span class="nt">repositories</span><span class="p">:</span> <span class="p p-Indicator">|</span>
     <span class="no">- url: https://github.com/argoproj/my-private-repository</span>
@@ -1352,6 +1355,7 @@ definition as a Kubernetes manifest.</li>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
 <span class="nt">data</span><span class="p">:</span>
   <span class="nt">repositories</span><span class="p">:</span> <span class="p p-Indicator">|</span>
     <span class="no">- url: git@github.com:argoproj/my-private-repository</span>
@@ -1371,6 +1375,7 @@ definition as a Kubernetes manifest.</li>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
 <span class="nt">data</span><span class="p">:</span>
   <span class="nt">repositories</span><span class="p">:</span> <span class="p p-Indicator">|</span>
     <span class="no">- url: https://github.com/argoproj/private-repo</span>
@@ -1397,6 +1402,7 @@ definition as a Kubernetes manifest.</li>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
 <span class="nt">data</span><span class="p">:</span>
   <span class="nt">repositories</span><span class="p">:</span> <span class="p p-Indicator">|</span>
     <span class="no"># this has it&#39;s own credentials</span>
@@ -1505,6 +1511,7 @@ may need to configure access credentials and HTTPS settings using <code>username
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
 <span class="nt">data</span><span class="p">:</span>
   <span class="nt">helm.repositories</span><span class="p">:</span> <span class="p p-Indicator">|</span>
     <span class="no">- url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts</span>
