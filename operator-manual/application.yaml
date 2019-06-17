@@ -19,6 +19,14 @@ spec:
 
     # helm specific config
     helm:
+      # Extra parameters to set (same as setting through values.yaml, but these take precedence)
+      parameters:
+      - name: "nginx-ingress.controller.service.annotations.external-dns\\.alpha\\.kubernetes\\.io/hostname"
+        value: mydomain.example.com
+
+      # Release name override (defaults to application name)
+      releaseName: guestbook
+
       valueFiles:
       - values-prod.yaml
 
