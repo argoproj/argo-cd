@@ -450,23 +450,29 @@ func TestLocalManifestSync(t *testing.T) {
 			res, _ := fixture.RunCli("app", "manifests", app.Name)
 			assert.Contains(t, res, "containerPort: 80")
 			assert.Contains(t, res, "image: gcr.io/heptio-images/ks-guestbook-demo:0.2")
-
-			res, _ = fixture.RunCli("app", "sync", app.Name, "--local", guestbookPathLocal)
-			assert.Contains(t, res, "guestbook-ui  Synced  Healthy")
-
-			res, _ = fixture.RunCli("app", "manifests", app.Name)
+		}).
+		Given().
+		LocalPath(guestbookPathLocal).
+		When().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			res, _ := fixture.RunCli("app", "manifests", app.Name)
 			assert.Contains(t, res, "containerPort: 81")
 			assert.Contains(t, res, "image: gcr.io/heptio-images/ks-guestbook-demo:0.3")
-
-			// Test we return to original state after a non-local sync
-			res, _ = fixture.RunCli("app", "sync", app.Name)
-			assert.Contains(t, res, "guestbook-ui  Synced  Healthy")
-
-			res, _ = fixture.RunCli("app", "manifests", app.Name)
+		}).
+		Given().
+		LocalPath("").
+		When().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			res, _ := fixture.RunCli("app", "manifests", app.Name)
 			assert.Contains(t, res, "containerPort: 80")
 			assert.Contains(t, res, "image: gcr.io/heptio-images/ks-guestbook-demo:0.2")
 		})
-
 }
 
 func TestNoLocalSyncWithAutosyncEnabled(t *testing.T) {
