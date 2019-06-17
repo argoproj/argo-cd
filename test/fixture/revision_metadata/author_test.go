@@ -9,4 +9,3 @@ import (
 func TestAuthor(t *testing.T) {
 	assert.Regexp(t, ".*<.*>", Author)
 }
-

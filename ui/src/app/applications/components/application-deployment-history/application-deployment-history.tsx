@@ -52,6 +52,22 @@ export const ApplicationDeploymentHistory = ({
                                 </div>
                             </div>
                         </div>
+                            <div className='row'>
+                                <div className='columns small-2'>
+                                    AUTHOR:
+                                </div>
+                                <div className='columns small-10'>
+                                    {info.revisionMetaData.author}
+                                </div>
+                            </div>
+                        <div className='row'>
+                            <div className='columns small-2'>
+                                MESSAGE:
+                            </div>
+                            <div className='columns small-10'>
+                                {info.revisionMetaData.message}
+                            </div>
+                        </div>
                         {selectedRollbackDeploymentIndex === index ? (
                             <DataLoader input={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision}}
                                 load={(src) => services.repos.appDetails(src.repoURL, src.path, src.targetRevision, { helm: src.helm, ksonnet: src.ksonnet })}>

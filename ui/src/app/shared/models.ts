@@ -1,4 +1,4 @@
-import { models } from 'argo-ui';
+import {models} from 'argo-ui';
 
 interface ItemsList<T> {
     /**
@@ -15,9 +15,14 @@ interface ItemsList<T> {
     metadata: models.ListMeta;
 }
 
-export interface ApplicationList extends ItemsList<Application> { }
+export interface ApplicationList extends ItemsList<Application> {
+}
 
-export interface SyncOperationResource { group: string; kind: string; name: string; }
+export interface SyncOperationResource {
+    group: string;
+    kind: string;
+    name: string;
+}
 
 export interface SyncOperation {
     revision: string;
@@ -63,6 +68,8 @@ export type HookType = 'PreSync' | 'Sync' | 'PostSync' | 'Skip';
 
 export interface SyncOperationResult {
     resources: ResourceResult[];
+    revision: string;
+    revisionMetaData: RevisionMetaData;
 }
 
 export type ResultCode = 'Synced' | 'SyncFailed' | 'Pruned' | 'PruneSkipped';
@@ -193,6 +200,7 @@ export interface RevisionHistory {
     revision: string;
     source: ApplicationSource;
     deployedAt: models.Time;
+    revisionMetaData: RevisionMetaData;
 }
 
 export type SyncStatusCode = 'Unknown' | 'Synced' | 'OutOfSync';
@@ -242,9 +250,9 @@ export interface ResourceRef {
 }
 
 export interface ResourceNetworkingInfo {
-    targetLabels: {[name: string]: string};
+    targetLabels: { [name: string]: string };
     targetRefs: ResourceRef[];
-    labels: {[name: string]: string};
+    labels: { [name: string]: string };
     ingress: LoadBalancerIngress[];
     externalURLs: string[];
 }
@@ -276,10 +284,16 @@ export interface ResourceDiff {
     diff: string;
 }
 
+export interface RevisionMetaData {
+    author: string;
+    message: string;
+}
+
 export interface SyncStatus {
     comparedTo: ApplicationSource;
     status: SyncStatusCode;
     revision: string;
+    revisionMetaData: RevisionMetaData;
 }
 
 export interface ApplicationCondition {
@@ -340,7 +354,8 @@ export interface Repository {
     connectionState: ConnectionState;
 }
 
-export interface RepositoryList extends ItemsList<Repository> { }
+export interface RepositoryList extends ItemsList<Repository> {
+}
 
 export interface Cluster {
     name: string;
@@ -348,7 +363,8 @@ export interface Cluster {
     connectionState: ConnectionState;
 }
 
-export interface ClusterList extends ItemsList<Cluster> { }
+export interface ClusterList extends ItemsList<Cluster> {
+}
 
 export interface KsonnetEnvironment {
     k8sVersion: string;
@@ -449,7 +465,8 @@ export interface Event {
     reportingInstance: string;
 }
 
-export interface EventList extends ItemsList<Event> { }
+export interface EventList extends ItemsList<Event> {
+}
 
 export interface ProjectRole {
     description: string;

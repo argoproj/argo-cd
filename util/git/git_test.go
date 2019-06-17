@@ -3,6 +3,7 @@ package git
 import (
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -188,5 +189,30 @@ func TestNewFactory(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, commitSHA, commitSHA2)
+	}
+}
+
+func TestTruncateMessage(t *testing.T) {
+	type args struct {
+		message string
+	}
+	s37 := strings.Repeat("x", 37)
+	s40 := strings.Repeat("x", 40)
+	s41 := strings.Repeat("x", 41)
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{"Empty", args{}, ""},
+		{"40", args{message: s40}, s40},
+		{"41", args{message: s41}, s37 + "..."},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := TruncateMessage(tt.args.message); got != tt.want {
+				t.Errorf("TruncateMessage() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

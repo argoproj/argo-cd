@@ -6,7 +6,7 @@ import * as React from 'react';
 import { ErrorNotification } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
-import { services } from '../../../shared/services';
+import {services} from '../../../shared/services';
 import * as utils from '../utils';
 
 require('./application-operation-state.scss');
@@ -48,6 +48,17 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                 }}>Terminate</button>
             ),
         });
+    }
+    if (operationState.syncResult) {
+        operationAttributes.push(
+            {title: 'REVISION', value: operationState.syncResult.revision},
+        );
+        if (operationState.syncResult.revisionMetaData) {
+            operationAttributes.push(
+                {title: 'REVISION AUTHOR', value: operationState.syncResult.revisionMetaData.author},
+                {title: 'REVISION MESSAGE', value: operationState.syncResult.revisionMetaData.message},
+            );
+        }
     }
 
     const resultAttributes: {title: string, value: string}[] = [];
