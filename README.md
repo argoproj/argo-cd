@@ -19,6 +19,7 @@ Application deployment and lifecycle management should be automated, auditable, 
 
 Organizations below are **officially** using Argo CD. Please send a PR with your organization name if you are using Argo CD.
 
+1. [ANSTO - Australian Synchrotron](https://www.synchrotron.org.au/)
 1. [Codility](https://www.codility.com/)
 1. [Commonbond](https://commonbond.co/)
 1. [CyberAgent](https://www.cyberagent.co.jp/en/)
@@ -31,6 +32,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [OpenSaaS Studio](https://opensaas.studio)
 1. [Optoro](https://www.optoro.com/)
 1. [Riskified](https://www.riskified.com/)
+1. [Saildrone](https://www.saildrone.com/)
 1. [Tesla](https://tesla.com/)
 1. [tZERO](https://www.tzero.com/)
 1. [Ticketmaster](https://ticketmaster.com)

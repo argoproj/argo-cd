@@ -63,6 +63,8 @@ required = [
   branch = "master"
   name = "github.com/yudai/gojsondiff"
 
+# TODO: move off of k8s.io/kube-openapi and use controller-tools for CRD spec generation
+# (override argoproj/argo contraint on master)
 [[override]]
-  revision = "master"
+  revision = "411b2483e5034420675ebcdd4a55fc76fe5e55cf"
   name = "k8s.io/kube-openapi"

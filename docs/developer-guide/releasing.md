@@ -19,8 +19,10 @@ Set the `VERSION` environment variable:
 # release candidate
 VERSION=v1.0.0-rc1
 # GA release
-VERSION=v1.0.0
+VERSION=v1.0.2
 ```
+
+Prior to v1.1, the UI is in a separate repo.
 
 If not already created, create UI release branch:
 
@@ -29,11 +31,13 @@ cd argo-cd-ui
 git checkout -b $BRANCH
 ```
 
-Tag UI:
+Tag and release UI:
 
 ```bash
+git checkout $BRANCH
 git tag $VERSION
 git push $REPO $BRANCH --tags
+git clean -fd
 IMAGE_NAMESPACE=argoproj IMAGE_TAG=$VERSION DOCKER_PUSH=true yarn docker
 ```
 
@@ -48,6 +52,7 @@ git push $REPO $BRANCH
 Update `VERSION` and manifests with new version:
 
 ```bash
+git checkout $BRANCH
 echo ${VERSION:1} > VERSION
 make manifests IMAGE_TAG=$VERSION
 git commit -am "Update manifests to $VERSION"
@@ -58,6 +63,7 @@ Tag, build, and push release to Docker Hub
 
 ```bash
 git tag $VERSION
+git clean -fd
 make release IMAGE_NAMESPACE=argoproj IMAGE_TAG=$VERSION DOCKER_PUSH=true
 git push $REPO $VERSION
 ```
@@ -66,7 +72,7 @@ Update [Github releases](https://github.com/argoproj/argo-cd/releases) with:
 
 * Getting started (copy from previous release)
 * Changelog
-* Binaries (e.g. dist/argocd-darwin-amd64).
+* Binaries (e.g. `dist/argocd-darwin-amd64`).
 
 
 If GA, update `stable` tag:
@@ -80,8 +86,10 @@ If GA, update Brew formula:
 ```bash
 git clone https://github.com/argoproj/homebrew-tap
 cd homebrew-tap
+git checkout master
+git pull
 ./update.sh ~/go/src/github.com/argoproj/argo-cd/dist/argocd-darwin-amd64
-git commit -a -m "Update argocd to $VERSION"
+git commit -am "Update argocd to $VERSION"
 git push
 ```
 
