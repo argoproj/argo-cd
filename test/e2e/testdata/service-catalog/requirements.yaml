@@ -1,4 +1,0 @@
-dependencies:
-  - name: catalog
-    version: 0.2.1
-    repository: svc-cat

@@ -325,7 +325,7 @@ func TestDontPrunePruneFalse(t *testing.T) {
 	assert.Equal(t, v1alpha1.OperationSucceeded, syncCtx.opState.Phase)
 }
 
-// make sure LastValidate=false means we don't validate
+// make sure Validate=false means we don't validate
 func TestSyncOptionValidate(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -333,8 +333,8 @@ func TestSyncOptionValidate(t *testing.T) {
 		want          bool
 	}{
 		{"Empty", "", true},
-		{"True", "LastValidate=true", true},
-		{"False", "LastValidate=false", false},
+		{"True", "Validate=true", true},
+		{"False", "Validate=false", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

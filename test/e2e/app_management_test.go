@@ -532,6 +532,27 @@ func TestSyncOptionPruneFalse(t *testing.T) {
 		Expect(ResourceSyncStatusIs("Pod", "pod-1", SyncStatusCodeOutOfSync))
 }
 
+// make sure that if we have an invalid manifest for CRD, we can add it if we disable validation
+func TestSyncOptionValidateFalse(t *testing.T) {
+	Given(t).
+		Path("crd-validation").
+		When().
+		Create().
+		Then().
+		Expect(Success("")).
+		When().
+		Sync().
+		Then().
+		Expect(Error(`spec.replicas in body should be less than or equal to 10`)).
+		When().
+		PatchFile("foo.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Validate=false"}}]`).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusHealthy))
+}
+
 // make sure that, if we have a resource that needs pruning, but we're ignoring it, the app is in-sync
 func TestCompareOptionIgnoreExtraneous(t *testing.T) {
 	Given(t).
