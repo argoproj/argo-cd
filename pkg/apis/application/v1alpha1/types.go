@@ -405,7 +405,7 @@ type SyncOperationResult struct {
 	// Source records the application source information of the sync, used for comparing auto-sync
 	Source ApplicationSource `json:"source" protobuf:"bytes,3,opt,name=source"`
 	// RevisionMetadata shows meta-data about the revision
-	RevisionMetadata *RevisionMetadata `json:"rrevisionMetadata,omitempty" protobuf:"bytes,4,opt,name=rrevisionMetadata"`
+	RevisionMetadata *RevisionMetadata `json:"revisionMetadata,omitempty" protobuf:"bytes,4,opt,name=revisionMetadata"`
 }
 
 type ResultCode string
@@ -488,7 +488,7 @@ type RevisionHistory struct {
 	DeployedAt       metav1.Time       `json:"deployedAt" protobuf:"bytes,4,opt,name=deployedAt"`
 	ID               int64             `json:"id" protobuf:"bytes,5,opt,name=id"`
 	Source           ApplicationSource `json:"source" protobuf:"bytes,6,opt,name=source"`
-	RevisionMetadata *RevisionMetadata `json:"rrevisionMetadata,omitempty" protobuf:"bytes,7,opt,name=rrevisionMetadata"`
+	RevisionMetadata *RevisionMetadata `json:"revisionMetadata,omitempty" protobuf:"bytes,7,opt,name=revisionMetadata"`
 }
 
 // ApplicationWatchEvent contains information about application change.
@@ -570,7 +570,7 @@ type SyncStatus struct {
 	Status           SyncStatusCode    `json:"status" protobuf:"bytes,1,opt,name=status,casttype=SyncStatusCode"`
 	ComparedTo       ComparedTo        `json:"comparedTo" protobuf:"bytes,2,opt,name=comparedTo"`
 	Revision         string            `json:"revision" protobuf:"bytes,3,opt,name=revision"`
-	RevisionMetadata *RevisionMetadata `json:"rrevisionMetadata,omitempty" protobuf:"bytes,4,opt,name=rrevisionMetadata"`
+	RevisionMetadata *RevisionMetadata `json:"revisionMetadata,omitempty" protobuf:"bytes,4,opt,name=revisionMetadata"`
 }
 
 type HealthStatus struct {

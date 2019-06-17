@@ -1802,7 +1802,7 @@
         "revision": {
           "type": "string"
         },
-        "rrevisionMetadata": {
+        "revisionMetadata": {
           "$ref": "#/definitions/v1alpha1RevisionMetadata"
         },
         "server": {
@@ -3309,7 +3309,7 @@
         "revision": {
           "type": "string"
         },
-        "rrevisionMetadata": {
+        "revisionMetadata": {
           "$ref": "#/definitions/v1alpha1RevisionMetadata"
         },
         "source": {
@@ -3391,7 +3391,7 @@
           "type": "string",
           "title": "Revision holds the git commit SHA of the sync"
         },
-        "rrevisionMetadata": {
+        "revisionMetadata": {
           "$ref": "#/definitions/v1alpha1RevisionMetadata"
         },
         "source": {
@@ -3429,7 +3429,7 @@
         "revision": {
           "type": "string"
         },
-        "rrevisionMetadata": {
+        "revisionMetadata": {
           "$ref": "#/definitions/v1alpha1RevisionMetadata"
         },
         "status": {

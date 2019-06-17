@@ -65,8 +65,8 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                     {tooltip('Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.')}
                 </div>
                 <div className='application-status-panel__item-name'>{syncStatusMessage(application)}</div>
-                {application.status.sync.rrevisionMetadata && (<div className='application-status-panel__item-name'>{application.status.sync.rrevisionMetadata.author}</div>)}
-                {application.status.sync.rrevisionMetadata && (<div className='application-status-panel__item-name'>{application.status.sync.rrevisionMetadata.message}</div>)}
+                {application.status.sync.revisionMetadata && (<div className='application-status-panel__item-name'>{application.status.sync.revisionMetadata.author}</div>)}
+                {application.status.sync.revisionMetadata && (<div className='application-status-panel__item-name'>{application.status.sync.revisionMetadata.message}</div>)}
             </div>
             {appOperationState && (
             <div className='application-status-panel__item columns small-4'>
@@ -80,10 +80,10 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 <div className='application-status-panel__item-name'>
                     {appOperationState.phase} at {appOperationState.finishedAt || appOperationState.startedAt}.<br/>
                 </div>
-                {appOperationState.syncResult && appOperationState.syncResult.rrevisionMetadata &&
-                    (<div className='application-status-panel__item-name'>{appOperationState.syncResult.rrevisionMetadata.author}</div>)}
-                {appOperationState.syncResult && appOperationState.syncResult.rrevisionMetadata &&
-                    (<div className='application-status-panel__item-name'>{appOperationState.syncResult.rrevisionMetadata.message}</div>)}
+                {appOperationState.syncResult && appOperationState.syncResult.revisionMetadata &&
+                    (<div className='application-status-panel__item-name'>{appOperationState.syncResult.revisionMetadata.author}</div>)}
+                {appOperationState.syncResult && appOperationState.syncResult.revisionMetadata &&
+                    (<div className='application-status-panel__item-name'>{appOperationState.syncResult.revisionMetadata.message}</div>)}
             </div>
             )}
             {application.status.conditions && (

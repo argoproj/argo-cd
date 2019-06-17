@@ -5,9 +5,6 @@ API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ResourceActionDefinition,ActionLua
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ResourceActions,ActionDiscoveryLua
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ResourceOverride,HealthLua
-API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,RevisionHistory,RevisionMetadata
-API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,SyncOperationResult,RevisionMetadata
-API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,SyncStatus,RevisionMetadata
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,SyncStrategyHook,SyncStrategyApply
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,objectMeta,Name
 API rule violation: omitempty_match_case,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ResourceActions,Definitions

@@ -57,7 +57,7 @@ export const ApplicationDeploymentHistory = ({
                                     AUTHOR:
                                 </div>
                                 <div className='columns small-10'>
-                                    {info.rrevisionMetadata.author}
+                                    {info.revisionMetadata.author}
                                 </div>
                             </div>
                         <div className='row'>
@@ -65,7 +65,7 @@ export const ApplicationDeploymentHistory = ({
                                 MESSAGE:
                             </div>
                             <div className='columns small-10'>
-                                {info.rrevisionMetadata.message}
+                                {info.revisionMetadata.message}
                             </div>
                         </div>
                         {selectedRollbackDeploymentIndex === index ? (

@@ -387,7 +387,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	return &compRes, nil
 }
 
-func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, rrevisionMetadata *appv1.RevisionMetadata, source v1alpha1.ApplicationSource) error {
+func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, revisionMetadata *appv1.RevisionMetadata, source v1alpha1.ApplicationSource) error {
 	var nextID int64
 	if len(app.Status.History) > 0 {
 		nextID = app.Status.History[len(app.Status.History)-1].ID + 1
@@ -397,7 +397,7 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 		DeployedAt:       metav1.NewTime(time.Now().UTC()),
 		ID:               nextID,
 		Source:           source,
-		RevisionMetadata: rrevisionMetadata,
+		RevisionMetadata: revisionMetadata,
 	})
 
 	if len(history) > common.RevisionHistoryLimit {
