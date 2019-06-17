@@ -1,6 +1,8 @@
 package app
 
 import (
+	"os"
+	"strconv"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -22,7 +24,8 @@ func (c *Consequences) Expect(e Expectation) *Consequences {
 	c.context.t.Helper()
 	var message string
 	var state state
-	for start := time.Now(); time.Since(start) < 15*time.Second; time.Sleep(3 * time.Second) {
+	timeout := c.timeout()
+	for start := time.Now(); time.Since(start) < timeout; time.Sleep(3 * time.Second) {
 		state, message = e(c)
 		log.WithFields(log.Fields{"message": message, "state": state}).Info("polling for expectation")
 		switch state {
@@ -72,4 +75,13 @@ func (c *Consequences) resource(kind, name string) ResourceStatus {
 			Message: "not found",
 		},
 	}
+}
+
+func (c *Consequences) timeout() time.Duration {
+	value := os.Getenv("ARGOCD_E2E_EXPECT_TIMEOUT")
+	timeout, err := strconv.Atoi(value)
+	if err != nil {
+		timeout = 15
+	}
+	return time.Duration(timeout) * time.Second
 }
