@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"os"
 	"path"
 	"strings"
 	"testing"
@@ -534,6 +535,12 @@ func TestSyncOptionPruneFalse(t *testing.T) {
 
 // make sure that if we have an invalid manifest for CRD, we can add it if we disable validation
 func TestSyncOptionValidateFalse(t *testing.T) {
+
+	// https://github.com/rancher/k3s/issues/438
+	if _, ok := os.LookupEnv("ARGOCD_E2E_K3S"); ok {
+		t.SkipNow()
+	}
+
 	Given(t).
 		Path("crd-validation").
 		When().
