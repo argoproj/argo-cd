@@ -538,7 +538,7 @@ func TestSyncOptionValidateFalse(t *testing.T) {
 
 	// https://github.com/rancher/k3s/issues/438
 	if _, ok := os.LookupEnv("ARGOCD_E2E_K3S"); ok {
-		// t.SkipNow()
+		t.SkipNow()
 	}
 
 	Given(t).
@@ -550,7 +550,11 @@ func TestSyncOptionValidateFalse(t *testing.T) {
 		When().
 		Sync().
 		Then().
-		Expect(Success("")).
+		Expect(Error(`spec.replicas in body should be less than or equal to 10`)).
+		When().
+		PatchFile("foo.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Validate=false"}}]`).
+		Sync().
+		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(HealthStatusHealthy))
