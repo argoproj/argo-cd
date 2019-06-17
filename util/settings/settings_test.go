@@ -51,6 +51,15 @@ func Test_updateSettingsFromConfigMap(t *testing.T) {
 			want: []RepoCredentials{{URL: "http://foo"}},
 		},
 		{
+			name:  "TestHelmRepositories",
+			key:   "helm.repositories",
+			value: "\n  - url: http://foo\n",
+			get: func(settings ArgoCDSettings) interface{} {
+				return settings.HelmRepositories
+			},
+			want: []HelmRepoCredentials{{URL: "http://foo"}},
+		},
+		{
 			name:  "TestRepositoryCredentials",
 			key:   "repository.credentials",
 			value: "\n  - url: http://foo\n",
