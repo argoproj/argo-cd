@@ -387,6 +387,15 @@ const (
 	HookDeletePolicyHookFailed    HookDeletePolicy = "HookFailed"
 )
 
+type RevisionMetaData struct {
+	Author  string `json:"author" protobuf:"bytes,1,opt,name=author"`
+	Message string `json:"message" protobuf:"bytes,2,opt,name=message"`
+}
+
+func (m *RevisionMetaData) IsZero() bool {
+	return m.Author == "" && m.Message == ""
+}
+
 // SyncOperationResult represent result of sync operation
 type SyncOperationResult struct {
 	// Resources holds the sync result of each individual resource
@@ -395,6 +404,8 @@ type SyncOperationResult struct {
 	Revision string `json:"revision" protobuf:"bytes,2,opt,name=revision"`
 	// Source records the application source information of the sync, used for comparing auto-sync
 	Source ApplicationSource `json:"source" protobuf:"bytes,3,opt,name=source"`
+	// RevisionMetaData shows meta-data about the revision
+	RevisionMetaData *RevisionMetaData `json:"revisionMetaData,omitempty" protobuf:"bytes,4,opt,name=revisionMetaData"`
 }
 
 type ResultCode string
@@ -473,10 +484,11 @@ func (r ResourceResults) PruningRequired() (num int) {
 
 // RevisionHistory contains information relevant to an application deployment
 type RevisionHistory struct {
-	Revision   string            `json:"revision" protobuf:"bytes,2,opt,name=revision"`
-	DeployedAt metav1.Time       `json:"deployedAt" protobuf:"bytes,4,opt,name=deployedAt"`
-	ID         int64             `json:"id" protobuf:"bytes,5,opt,name=id"`
-	Source     ApplicationSource `json:"source" protobuf:"bytes,6,opt,name=source"`
+	Revision         string            `json:"revision" protobuf:"bytes,2,opt,name=revision"`
+	DeployedAt       metav1.Time       `json:"deployedAt" protobuf:"bytes,4,opt,name=deployedAt"`
+	ID               int64             `json:"id" protobuf:"bytes,5,opt,name=id"`
+	Source           ApplicationSource `json:"source" protobuf:"bytes,6,opt,name=source"`
+	RevisionMetaData *RevisionMetaData `json:"revisionMetaData,omitempty" protobuf:"bytes,7,opt,name=revisionMetaData"`
 }
 
 // ApplicationWatchEvent contains information about application change.
@@ -555,9 +567,10 @@ type ComparedTo struct {
 
 // SyncStatus is a comparison result of application spec and deployed application.
 type SyncStatus struct {
-	Status     SyncStatusCode `json:"status" protobuf:"bytes,1,opt,name=status,casttype=SyncStatusCode"`
-	ComparedTo ComparedTo     `json:"comparedTo" protobuf:"bytes,2,opt,name=comparedTo"`
-	Revision   string         `json:"revision" protobuf:"bytes,3,opt,name=revision"`
+	Status           SyncStatusCode    `json:"status" protobuf:"bytes,1,opt,name=status,casttype=SyncStatusCode"`
+	ComparedTo       ComparedTo        `json:"comparedTo" protobuf:"bytes,2,opt,name=comparedTo"`
+	Revision         string            `json:"revision" protobuf:"bytes,3,opt,name=revision"`
+	RevisionMetaData *RevisionMetaData `json:"revisionMetaData,omitempty" protobuf:"bytes,4,opt,name=revisionMetaData"`
 }
 
 type HealthStatus struct {

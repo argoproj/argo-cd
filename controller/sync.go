@@ -115,6 +115,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	// We now have a concrete commit SHA. Save this in the sync result revision so that we remember
 	// what we should be syncing to when resuming operations.
 	syncRes.Revision = compareResult.syncStatus.Revision
+	syncRes.RevisionMetaData = compareResult.syncStatus.RevisionMetaData
 
 	clst, err := m.db.GetCluster(context.Background(), app.Spec.Destination.Server)
 	if err != nil {
@@ -171,7 +172,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	syncCtx.log.Info("sync/terminate complete")
 
 	if !syncOp.DryRun && !syncCtx.isSelectiveSync() && syncCtx.opState.Phase.Successful() {
-		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source)
+		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, compareResult.syncStatus.RevisionMetaData, source)
 		if err != nil {
 			syncCtx.setOperationPhase(v1alpha1.OperationError, fmt.Sprintf("failed to record sync to history: %v", err))
 		}

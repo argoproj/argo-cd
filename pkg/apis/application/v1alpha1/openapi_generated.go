@@ -68,6 +68,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceResult":             schema_pkg_apis_application_v1alpha1_ResourceResult(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceStatus":             schema_pkg_apis_application_v1alpha1_ResourceStatus(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionHistory":            schema_pkg_apis_application_v1alpha1_RevisionHistory(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionMetaData":           schema_pkg_apis_application_v1alpha1_RevisionMetaData(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperation":              schema_pkg_apis_application_v1alpha1_SyncOperation(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperationResource":      schema_pkg_apis_application_v1alpha1_SyncOperationResource(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperationResult":        schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref),
@@ -2461,12 +2462,43 @@ func schema_pkg_apis_application_v1alpha1_RevisionHistory(ref common.ReferenceCa
 							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSource"),
 						},
 					},
+					"revisionMetaData": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionMetaData"),
+						},
+					},
 				},
 				Required: []string{"revision", "deployedAt", "id", "source"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSource", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionMetaData", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_RevisionMetaData(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"author": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"author", "message"},
+			},
+		},
+		Dependencies: []string{},
 	}
 }
 
@@ -2597,12 +2629,18 @@ func schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref common.Referen
 							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSource"),
 						},
 					},
+					"revisionMetaData": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RevisionMetaData shows meta-data about the revision",
+							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionMetaData"),
+						},
+					},
 				},
 				Required: []string{"revision", "source"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceResult"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceResult", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionMetaData"},
 	}
 }
 
@@ -2672,12 +2710,17 @@ func schema_pkg_apis_application_v1alpha1_SyncStatus(ref common.ReferenceCallbac
 							Format: "",
 						},
 					},
+					"revisionMetaData": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionMetaData"),
+						},
+					},
 				},
 				Required: []string{"status", "comparedTo", "revision"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ComparedTo"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ComparedTo", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionMetaData"},
 	}
 }
 

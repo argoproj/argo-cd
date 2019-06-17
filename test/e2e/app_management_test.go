@@ -20,6 +20,7 @@ import (
 	argorepo "github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/test/fixture/revision_metadata"
 	"github.com/argoproj/argo-cd/util"
 	. "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/diff"
@@ -83,6 +84,76 @@ func TestTrackAppStateAndSyncApp(t *testing.T) {
 		Expect(Event(EventReasonResourceUpdated, "sync")).
 		And(func(app *Application) {
 			assert.NotNil(t, app.Status.OperationState.SyncResult)
+		})
+}
+func TestRevisionMetaData(t *testing.T) {
+	Given(t).
+		Path("two-nice-pods").
+		When().
+		Create().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		And(func(app *Application) {
+			// operation has not occurred, should be empty
+			assert.Nil(t, app.Status.OperationState)
+			// what we are out of sync from
+			assert.NotNil(t, app.Status.Sync.RevisionMetaData)
+			assert.Equal(t, revision_metadata.Author, app.Status.Sync.RevisionMetaData.Author)
+			assert.Equal(t, "initial commit", app.Status.Sync.RevisionMetaData.Message)
+		}).
+		When().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			// now we have synced, we expect the revision and meta-data to appear on both the state of the operation and in the history
+			result := app.Status.OperationState.SyncResult
+			assert.NotEmpty(t, result.Revision)
+			assert.NotNil(t, result.RevisionMetaData)
+			assert.Equal(t, revision_metadata.Author, result.RevisionMetaData.Author)
+			assert.Equal(t, "initial commit", result.RevisionMetaData.Message)
+			assert.Len(t, app.Status.History, 1)
+			history := app.Status.History[0]
+			assert.NotEmpty(t, history.Revision)
+			assert.NotNil(t, history.RevisionMetaData)
+			assert.Equal(t, revision_metadata.Author, history.RevisionMetaData.Author)
+			assert.Equal(t, "initial commit", history.RevisionMetaData.Message)
+		}).
+		// make any change so we can check the history
+		When().
+		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"foo": "bar"}}]`).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		And(func(app *Application) {
+			// expect that these will have changed
+			assert.NotEqual(t, app.Status.Sync.Revision, app.Status.OperationState.SyncResult.Revision)
+			assert.NotEqual(t, app.Status.Sync.RevisionMetaData, app.Status.OperationState.SyncResult.RevisionMetaData)
+		}).
+		When().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			result := app.Status.OperationState.SyncResult
+			assert.NotEmpty(t, result.Revision)
+			assert.NotNil(t, result.RevisionMetaData)
+			assert.Regexp(t, revision_metadata.Author, result.RevisionMetaData.Author)
+			assert.Equal(t, "patch", result.RevisionMetaData.Message)
+			assert.Len(t, app.Status.History, 2)
+			{
+				history := app.Status.History[0]
+				assert.NotEmpty(t, history.Revision)
+				assert.NotNil(t, history.RevisionMetaData)
+				assert.Equal(t, revision_metadata.Author, history.RevisionMetaData.Author)
+				assert.Equal(t, "initial commit", history.RevisionMetaData.Message)
+			}
+			{
+				history := app.Status.History[1]
+				assert.NotEmpty(t, history.Revision)
+				assert.NotNil(t, history.RevisionMetaData)
+				assert.Equal(t, revision_metadata.Author, history.RevisionMetaData.Author)
+				assert.Equal(t, "patch", history.RevisionMetaData.Message)
+			}
 		})
 }
 

@@ -659,6 +659,14 @@ message RevisionHistory {
   optional int64 id = 5;
 
   optional ApplicationSource source = 6;
+
+  optional RevisionMetaData revisionMetaData = 7;
+}
+
+message RevisionMetaData {
+  optional string author = 1;
+
+  optional string message = 2;
 }
 
 // SyncOperation contains sync operation details.
@@ -703,6 +711,9 @@ message SyncOperationResult {
 
   // Source records the application source information of the sync, used for comparing auto-sync
   optional ApplicationSource source = 3;
+
+  // RevisionMetaData shows meta-data about the revision
+  optional RevisionMetaData revisionMetaData = 4;
 }
 
 // SyncPolicy controls when a sync will be performed in response to updates in git
@@ -724,6 +735,8 @@ message SyncStatus {
   optional ComparedTo comparedTo = 2;
 
   optional string revision = 3;
+
+  optional RevisionMetaData revisionMetaData = 4;
 }
 
 // SyncStrategy controls the manner in which a sync is performed

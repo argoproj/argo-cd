@@ -27,6 +27,7 @@ message ManifestResponse {
     string server = 3;
     string revision = 4;
     string sourceType = 6;
+    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RevisionMetaData revisionMetaData = 7;
 }
 
 // ListDirRequest requests a repository directory structure

@@ -178,6 +178,12 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	}
 	res := *genRes
 	res.Revision = commitSHA
+	revisionMetaData, err := gitClient.RevisionMetaData(commitSHA)
+	commitSHA, err = gitClient.CommitSHA()
+	if err != nil {
+		return nil, err
+	}
+	res.RevisionMetaData = &v1alpha1.RevisionMetaData{Author: revisionMetaData.Author, Message: revisionMetaData.Message}
 	err = s.cache.SetManifests(commitSHA, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
 	if err != nil {
 		log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), commitSHA, err)
