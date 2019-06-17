@@ -80,11 +80,3 @@ func TestRepo(repo, username, password string, sshPrivateKey string, insecureIgn
 	_, err = clnt.LsRemote("HEAD")
 	return err
 }
-
-// truncates messages to 40 characters
-func TruncateMessage(message string) string {
-	if len(message) > 40 {
-		return message[0:37] + "..."
-	}
-	return message
-}

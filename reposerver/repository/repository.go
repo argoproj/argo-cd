@@ -31,6 +31,7 @@ import (
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"
+	"github.com/argoproj/argo-cd/util/trunc"
 )
 
 const (
@@ -184,9 +185,9 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 		return nil, err
 	}
 	res.RevisionMetaData = &v1alpha1.RevisionMetaData{
-		Author: revisionMetaData.Author,
 		// we truncate long messages
-		Message: git.TruncateMessage(revisionMetaData.Message),
+		Author: trunc.Trunc(revisionMetaData.Author, 32),
+		Message: trunc.Trunc(revisionMetaData.Message, 64),
 	}
 	err = s.cache.SetManifests(commitSHA, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
 	if err != nil {
