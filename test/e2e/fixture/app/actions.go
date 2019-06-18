@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 )
@@ -43,6 +45,8 @@ func (a *Actions) Create() *Actions {
 		args = append(args, "--parameter", parameter)
 	}
 
+	args = append(args, "--project", a.context.project)
+
 	if a.context.namePrefix != "" {
 		args = append(args, "--nameprefix", a.context.namePrefix)
 	}
@@ -55,6 +59,20 @@ func (a *Actions) Create() *Actions {
 
 	return a
 }
+
+func (a *Actions) Declarative(filename string) *Actions {
+	values := map[string]interface{}{
+		"ArgoCDNamespace":     fixture.ArgoCDNamespace,
+		"DeploymentNamespace": fixture.DeploymentNamespace(),
+		"Name":                a.context.name,
+		"Path":                a.context.path,
+		"Project":             a.context.project,
+		"RepoURL":             fixture.RepoURL(),
+	}
+	a.lastOutput, a.lastError = fixture.Declarative(filename, values)
+	return a
+}
+
 func (a *Actions) PatchApp(patch string) *Actions {
 	a.runCli("app", "patch", a.context.name, "--patch", patch)
 	return a
@@ -101,11 +119,7 @@ func (a *Actions) Refresh(refreshType RefreshType) *Actions {
 }
 
 func (a *Actions) Delete(cascade bool) *Actions {
-	args := []string{"app", "delete", a.context.name}
-	if cascade {
-		args = append(args, "--cascade")
-	}
-	a.runCli(args...)
+	a.runCli("app", "delete", a.context.name, fmt.Sprintf("--cascade=%v", cascade))
 	return a
 }
 

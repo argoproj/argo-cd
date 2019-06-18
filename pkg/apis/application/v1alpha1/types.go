@@ -558,8 +558,8 @@ type ComparedTo struct {
 // SyncStatus is a comparison result of application spec and deployed application.
 type SyncStatus struct {
 	Status     SyncStatusCode `json:"status" protobuf:"bytes,1,opt,name=status,casttype=SyncStatusCode"`
-	ComparedTo ComparedTo     `json:"comparedTo" protobuf:"bytes,2,opt,name=comparedTo"`
-	Revision   string         `json:"revision" protobuf:"bytes,3,opt,name=revision"`
+	ComparedTo ComparedTo     `json:"comparedTo,omitempty" protobuf:"bytes,2,opt,name=comparedTo"`
+	Revision   string         `json:"revision,omitempty" protobuf:"bytes,3,opt,name=revision"`
 }
 
 type HealthStatus struct {
