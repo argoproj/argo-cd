@@ -119,3 +119,16 @@ func TestKustomizeSSHRemoteBase(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(ResourceSyncStatusIs("ConfigMap", "my-map", SyncStatusCodeSynced))
 }
+
+// make sure we can create an app which has a SSH remote base
+func TestKustomizeDeclarativeInvalidApp(t *testing.T) {
+	Given(t).
+		Path("invalid-kustomize").
+		When().
+		Declarative("declarative-apps/app.yaml").
+		Then().
+		Expect(Success("")).
+		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
+		Expect(Condition(ApplicationConditionComparisonError, "invalid-kustomize/does-not-exist.yaml: no such file or directory"))
+}

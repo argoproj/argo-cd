@@ -475,7 +475,8 @@ func (sc *syncContext) setOperationPhase(phase v1alpha1.OperationPhase, message 
 
 // applyObject performs a `kubectl apply` of a single resource
 func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun bool, force bool) (v1alpha1.ResultCode, string) {
-	message, err := sc.kubectl.ApplyResource(sc.config, targetObj, targetObj.GetNamespace(), dryRun, force)
+	validate := !resource.HasAnnotationOption(targetObj, common.AnnotationSyncOptions, "Validate=false")
+	message, err := sc.kubectl.ApplyResource(sc.config, targetObj, targetObj.GetNamespace(), dryRun, force, validate)
 	if err != nil {
 		return v1alpha1.ResultCodeSyncFailed, err.Error()
 	}

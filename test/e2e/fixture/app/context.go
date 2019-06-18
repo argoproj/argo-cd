@@ -7,12 +7,15 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/test/e2e/fixture/repos"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 // this implements the "given" part of given/when/then
 type Context struct {
-	t                      *testing.T
-	path                   string
+	t    *testing.T
+	path string
+	// seconds
+	timeout                int
 	name                   string
 	destServer             string
 	env                    string
@@ -28,7 +31,7 @@ type Context struct {
 
 func Given(t *testing.T) *Context {
 	fixture.EnsureCleanState(t)
-	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, name: fixture.Name(), project: "default", prune: true}
+	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, name: fixture.Name(), timeout: 5, project: "default", prune: true}
 }
 
 func (c *Context) SSHRepo() *Context {
@@ -46,6 +49,11 @@ func (c *Context) Repo(url string) *Context {
 
 func (c *Context) Path(path string) *Context {
 	c.path = path
+	return c
+}
+
+func (c *Context) Timeout(timeout int) *Context {
+	c.timeout = timeout
 	return c
 }
 
@@ -84,6 +92,11 @@ func (c *Context) ResourceOverrides(overrides map[string]v1alpha1.ResourceOverri
 func (c *Context) ConfigManagementPlugin(plugin v1alpha1.ConfigManagementPlugin) *Context {
 	fixture.SetConfigManagementPlugin(plugin)
 	c.configManagementPlugin = plugin.Name
+	return c
+}
+
+func (c *Context) HelmRepoCredential(name, url string) *Context {
+	fixture.SetHelmRepoCredential(settings.HelmRepoCredentials{Name: name, URL: url})
 	return c
 }
 

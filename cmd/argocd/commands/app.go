@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -624,7 +625,7 @@ func getLocalObjects(app *argoappv1.Application, local string, appLabelKey strin
 }
 
 func getLocalObjectsString(app *argoappv1.Application, local string, appLabelKey string) []string {
-	res, err := repository.GenerateManifests(local, &repository.ManifestRequest{
+	res, err := repository.GenerateManifests(filepath.Dir(local), filepath.Base(local), &repository.ManifestRequest{
 		ApplicationSource: &app.Spec.Source,
 		AppLabelKey:       appLabelKey,
 		AppLabelValue:     app.Name,

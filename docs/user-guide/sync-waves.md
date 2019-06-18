@@ -1,5 +1,7 @@
 # Sync Phases and Waves
 
+>v1.1
+
 <iframe width="560" height="315" src="https://www.youtube.com/embed/zIHe3EVp528" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 Argo CD executes a sync operation in a number of steps. At a high-level, there are three phases *pre-sync*, *sync* and *post-sync*.  

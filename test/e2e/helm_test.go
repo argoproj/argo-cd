@@ -61,5 +61,6 @@ func TestDeclarativeHelmInvalidValuesFile(t *testing.T) {
 		Declarative("declarative-apps/invalid-helm.yaml").
 		Then().
 		Expect(HealthIs(HealthStatusHealthy)).
-		Expect(SyncStatusIs(SyncStatusCodeUnknown))
+		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
+		Expect(Condition(ApplicationConditionComparisonError, "open does-not-exist-values.yaml: no such file or directory"))
 }
