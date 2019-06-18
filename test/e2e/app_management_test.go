@@ -55,6 +55,16 @@ func TestAppCreation(t *testing.T) {
 		})
 }
 
+func TestInvalidAppProject(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		Project("does-not-exist").
+		When().
+		Create().
+		Then().
+		Expect(Error("application references project does-not-exist which does not exist"))
+}
+
 func TestAppDeletion(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).

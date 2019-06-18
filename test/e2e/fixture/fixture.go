@@ -282,3 +282,17 @@ func checkLocalRepo() {
 		log.WithFields(log.Fields{"repoUrl": repoUrl}).Fatal("cannot patch repo unless it is local")
 	}
 }
+
+// create the resource by creating using "kubctl apply", with bonus templating
+func Declarative(filename string, values interface{}) (string, error) {
+
+	bytes, err := ioutil.ReadFile("testdata/" + filename)
+	CheckError(err)
+
+	tmpFile, err := ioutil.TempFile("", "")
+	CheckError(err)
+	_, err = tmpFile.WriteString(Tmpl(string(bytes), values))
+	CheckError(err)
+
+	return Run("", "kubectl", "-n", ArgoCDNamespace, "apply", "-f", tmpFile.Name())
+}
