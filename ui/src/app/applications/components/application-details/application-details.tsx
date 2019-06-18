@@ -246,7 +246,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                                 services.repos.appDetails(src.repoURL, src.path, src.targetRevision, src.details)
                                                 .catch(() => ({ type: 'Directory' as appModels.AppSourceType, path: application.spec.source.path }))}>
                                             {(details: appModels.RepoAppDetails) => <ApplicationParameters
-                                                    save={(app) => services.applications.updateSpec(app.metadata.name, app.spec)} application={application} details={details} />}
+                                                    save={(app) => this.updateApp(app)} application={application} details={details} />}
                                             </DataLoader>
                                         ),
                                     }, {
@@ -301,12 +301,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             iconClassName: 'fa fa-sync',
             title: <span className='show-for-medium'>Sync</span>,
             action: () => this.showDeploy('all'),
-        }, {
+        }, ...(application.status.operationState && [{
             iconClassName: 'fa fa-info-circle',
             title: <span className='show-for-medium'>Sync Status</span>,
-            action: () => this.setOperationStatusVisible(true),
+            action:  () => this.setOperationStatusVisible(true),
             disabled: !application.status.operationState,
-        }, {
+        }] || []), {
             iconClassName: 'fa fa-history',
             title: <span className='show-for-medium'>History and rollback</span>,
             action: () => this.setRollbackPanelVisible(0),
@@ -372,15 +372,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     }
 
     private async updateApp(app: appModels.Application) {
-        try {
-            await services.applications.updateSpec(app.metadata.name, app.spec);
-            this.refreshRequested.next({});
-        } catch (e) {
-            this.appContext.apis.notifications.show({
-                content: <ErrorNotification title='Unable to update application' e={e}/>,
-                type: NotificationType.Error,
-            });
-        }
+        await services.applications.updateSpec(app.metadata.name, app.spec);
+        this.refreshRequested.next({});
     }
 
     private groupAppNodesByKey(application: appModels.Application, tree: appModels.ApplicationTree) {

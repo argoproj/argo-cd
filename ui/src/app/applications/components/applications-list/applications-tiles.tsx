@@ -54,6 +54,10 @@ export const ApplicationTiles = ({applications, syncApplication, deleteApplicati
                                 </div>
                             </div>
                             <div className='row'>
+                                <div className='columns small-3'>Target Revision:</div>
+                                <div className='columns small-9'>{app.spec.source.targetRevision || 'HEAD'}</div>
+                            </div>
+                            <div className='row'>
                                 <div className='columns small-3'>Path:</div>
                                 <div className='columns small-9'>{app.spec.source.path}</div>
                             </div>

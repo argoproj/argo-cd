@@ -269,6 +269,8 @@ type SyncOperation struct {
 	// Source overrides the source definition set in the application.
 	// This is typically set in a Rollback operation and nil during a Sync operation
 	Source *ApplicationSource `json:"source,omitempty" protobuf:"bytes,7,opt,name=source"`
+	// Manifests is an optional field that overrides sync source with a local directory for development
+	Manifests []string `json:"manifests,omitempty" protobuf:"bytes,8,opt,name=manifests"`
 }
 
 func (o *SyncOperation) IsApplyStrategy() bool {
@@ -556,8 +558,8 @@ type ComparedTo struct {
 // SyncStatus is a comparison result of application spec and deployed application.
 type SyncStatus struct {
 	Status     SyncStatusCode `json:"status" protobuf:"bytes,1,opt,name=status,casttype=SyncStatusCode"`
-	ComparedTo ComparedTo     `json:"comparedTo" protobuf:"bytes,2,opt,name=comparedTo"`
-	Revision   string         `json:"revision" protobuf:"bytes,3,opt,name=revision"`
+	ComparedTo ComparedTo     `json:"comparedTo,omitempty" protobuf:"bytes,2,opt,name=comparedTo"`
+	Revision   string         `json:"revision,omitempty" protobuf:"bytes,3,opt,name=revision"`
 }
 
 type HealthStatus struct {

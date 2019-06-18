@@ -612,6 +612,18 @@ func liveObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstructu
 }
 
 func getLocalObjects(app *argoappv1.Application, local string, appLabelKey string) []*unstructured.Unstructured {
+	manifestStrings := getLocalObjectsString(app, local, appLabelKey)
+	objs := make([]*unstructured.Unstructured, len(manifestStrings))
+	for i := range manifestStrings {
+		obj := unstructured.Unstructured{}
+		err := json.Unmarshal([]byte(manifestStrings[i]), &obj)
+		errors.CheckError(err)
+		objs[i] = &obj
+	}
+	return objs
+}
+
+func getLocalObjectsString(app *argoappv1.Application, local string, appLabelKey string) []string {
 	res, err := repository.GenerateManifests(local, &repository.ManifestRequest{
 		ApplicationSource: &app.Spec.Source,
 		AppLabelKey:       appLabelKey,
@@ -619,14 +631,8 @@ func getLocalObjects(app *argoappv1.Application, local string, appLabelKey strin
 		Namespace:         app.Spec.Destination.Namespace,
 	})
 	errors.CheckError(err)
-	objs := make([]*unstructured.Unstructured, len(res.Manifests))
-	for i := range res.Manifests {
-		obj := unstructured.Unstructured{}
-		err = json.Unmarshal([]byte(res.Manifests[i]), &obj)
-		errors.CheckError(err)
-		objs[i] = &obj
-	}
-	return objs
+
+	return res.Manifests
 }
 
 type resourceInfoProvider struct {
@@ -1085,6 +1091,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		strategy  string
 		force     bool
 		async     bool
+		local     string
 	)
 	var command = &cobra.Command{
 		Use:   "sync APPNAME",
@@ -1143,12 +1150,31 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			selectedResources := parseSelectedResources(resources)
 
+			var localObjsStrings []string
+			if local != "" {
+				app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
+
+				if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
+					log.Fatal("Cannot use local sync when Automatic Sync Policy is enabled")
+				}
+
+				errors.CheckError(err)
+				conn, settingsIf := acdClient.NewSettingsClientOrDie()
+				argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
+				errors.CheckError(err)
+				util.Close(conn)
+
+				localObjsStrings = getLocalObjectsString(app, local, argoSettings.AppLabelKey)
+
+			}
+
 			syncReq := applicationpkg.ApplicationSyncRequest{
 				Name:      &appName,
 				DryRun:    dryRun,
 				Revision:  revision,
 				Resources: selectedResources,
 				Prune:     prune,
+				Manifests: localObjsStrings,
 			}
 			switch strategy {
 			case "apply":
@@ -1191,6 +1217,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&strategy, "strategy", "", "Sync strategy (one of: apply|hook)")
 	command.Flags().BoolVar(&force, "force", false, "Use a force apply")
 	command.Flags().BoolVar(&async, "async", false, "Do not wait for application to sync before continuing")
+	command.Flags().StringVar(&local, "local", "", "Path to a local directory. When this flag is present no git queries will be made")
 	return command
 }
 
