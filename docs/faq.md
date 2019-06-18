@@ -23,9 +23,22 @@ As workaround Argo CD allows providing [health check](operator-manual/health.md)
 
 ## I forgot the admin password, how do I reset it?
 
-Edit the `argocd-secret` secret and update the `admin.password` field with a new bcrypt hash. You
-can use a site like https://www.browserling.com/tools/bcrypt to generate a new hash. Another option
-is to delete both the `admin.password` and `admin.passwordMtime` keys and restart argocd-server.
+By default the password is set to the name of the server pod, as per [the getting started guide](getting_started.md).
+
+To change the password, edit the `argocd-secret` secret and update the `admin.password` field with a new bcrypt hash. You
+can use a site like https://www.browserling.com/tools/bcrypt to generate a new hash. For example: 
+
+```bash
+# bcrypt(Password1!)=$2a$10$hDj12Tw9xVmvybSahN1Y0.f9DZixxN8oybyA32Uy/eqWklFU4Mo8O
+kubectl -n argocd patch secret argocd-secret \
+  -p "{\"data\": \
+    {\
+      \"admin.password\": \"$(echo -n '$2a$10$hDj12Tw9xVmvybSahN1Y0.f9DZixxN8oybyA32Uy/eqWklFU4Mo8O' | base64)\", \
+      \"admin.passwordMtime\": \"$(date +%FT%T%Z | base64)\" \
+  }}"
+```
+
+Another option is to delete both the `admin.password` and `admin.passwordMtime` keys and restart argocd-server. This will set the password back to the pod name as per [the getting started guide](getting_started.md).
 
 ## Argo CD cannot deploy Helm Chart based applications without internet access, how can I solve it?
 
