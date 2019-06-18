@@ -24,7 +24,7 @@ import (
 )
 
 type Kubectl interface {
-	ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force bool) (string, error)
+	ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) (string, error)
 	ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
 	DeleteResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error
 	GetResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
@@ -177,7 +177,7 @@ func (k KubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVersionK
 }
 
 // ApplyResource performs an apply of a unstructured resource
-func (k KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force bool) (string, error) {
+func (k KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) (string, error) {
 	log.Infof("Applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), config.Host, namespace)
 	f, err := ioutil.TempFile(util.TempDir, "")
 	if err != nil {
@@ -226,6 +226,9 @@ func (k KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstruc
 	applyArgs := []string{"apply"}
 	if force {
 		applyArgs = append(applyArgs, "--force")
+	}
+	if !validate {
+		applyArgs = append(applyArgs, "--validate=false")
 	}
 	outApply, err := runKubectl(f.Name(), namespace, applyArgs, manifestBytes, dryRun)
 	if err != nil {

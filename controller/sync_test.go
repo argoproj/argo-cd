@@ -71,7 +71,7 @@ func newTestSyncCtx(resources ...*v1.APIResourceList) *syncContext {
 		disco:   fakeDisco,
 		log:     log.WithFields(log.Fields{"application": "fake-app"}),
 	}
-	sc.kubectl = kubetest.MockKubectlCmd{}
+	sc.kubectl = &kubetest.MockKubectlCmd{}
 	return &sc
 }
 
@@ -138,7 +138,7 @@ func TestSyncCreateNotWhitelistedClusterResources(t *testing.T) {
 		{Group: "argoproj.io", Kind: "*"},
 	}
 
-	syncCtx.kubectl = kubetest.MockKubectlCmd{}
+	syncCtx.kubectl = &kubetest.MockKubectlCmd{}
 	syncCtx.compareResult = &comparisonResult{
 		managedResources: []managedResource{{
 			Live: nil,
@@ -238,7 +238,7 @@ func TestSyncDeleteSuccessfully(t *testing.T) {
 func TestSyncCreateFailure(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	testSvc := test.NewService()
-	syncCtx.kubectl = kubetest.MockKubectlCmd{
+	syncCtx.kubectl = &kubetest.MockKubectlCmd{
 		Commands: map[string]kubetest.KubectlOutput{
 			testSvc.GetName(): {
 				Output: "",
@@ -261,7 +261,7 @@ func TestSyncCreateFailure(t *testing.T) {
 
 func TestSyncPruneFailure(t *testing.T) {
 	syncCtx := newTestSyncCtx()
-	syncCtx.kubectl = kubetest.MockKubectlCmd{
+	syncCtx.kubectl = &kubetest.MockKubectlCmd{
 		Commands: map[string]kubetest.KubectlOutput{
 			"test-service": {
 				Output: "",
@@ -323,6 +323,33 @@ func TestDontPrunePruneFalse(t *testing.T) {
 	syncCtx.sync()
 
 	assert.Equal(t, v1alpha1.OperationSucceeded, syncCtx.opState.Phase)
+}
+
+// make sure Validate=false means we don't validate
+func TestSyncOptionValidate(t *testing.T) {
+	tests := []struct {
+		name          string
+		annotationVal string
+		want          bool
+	}{
+		{"Empty", "", true},
+		{"True", "Validate=true", true},
+		{"False", "Validate=false", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			syncCtx := newTestSyncCtx()
+			pod := test.NewPod()
+			pod.SetAnnotations(map[string]string{common.AnnotationSyncOptions: tt.annotationVal})
+			pod.SetNamespace(test.FakeArgoCDNamespace)
+			syncCtx.compareResult = &comparisonResult{managedResources: []managedResource{{Target: pod, Live: pod}}}
+
+			syncCtx.sync()
+
+			kubectl, _ := syncCtx.kubectl.(*kubetest.MockKubectlCmd)
+			assert.Equal(t, tt.want, kubectl.LastValidate)
+		})
+	}
 }
 
 func TestSelectiveSyncOnly(t *testing.T) {

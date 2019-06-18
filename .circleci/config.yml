@@ -310,6 +310,7 @@ jobs:
           environment:
             ARGOCD_OPTS: "--server localhost:8080 --plaintext"
             ARGOCD_E2E_EXPECT_TIMEOUT: "30"
+            ARGOCD_E2E_K3S: "true"
       - store_test_results:
           path: /tmp/test-results
   ui:

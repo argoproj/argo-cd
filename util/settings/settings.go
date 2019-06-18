@@ -539,6 +539,15 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 	} else {
 		delete(argoCDCM.Data, repositoryCredentialsKey)
 	}
+	if len(settings.HelmRepositories) > 0 {
+		yamlStr, err := yaml.Marshal(settings.HelmRepositories)
+		if err != nil {
+			return err
+		}
+		argoCDCM.Data[helmRepositoriesKey] = string(yamlStr)
+	} else {
+		delete(argoCDCM.Data, helmRepositoriesKey)
+	}
 	if settings.AppInstanceLabelKey != "" {
 		argoCDCM.Data[settingsApplicationInstanceLabelKey] = settings.AppInstanceLabelKey
 	} else {
