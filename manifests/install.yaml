@@ -690,7 +690,6 @@ spec:
                 - revision
                 - deployedAt
                 - id
-                - source
                 type: object
               type: array
             observedAt: {}
@@ -1165,7 +1164,6 @@ spec:
                       type: object
                   required:
                   - revision
-                  - source
                   type: object
               required:
               - operation
