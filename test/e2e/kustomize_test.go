@@ -130,5 +130,5 @@ func TestKustomizeDeclarativeInvalidApp(t *testing.T) {
 		Expect(Success("")).
 		Expect(HealthIs(HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
-		Expect(Condition(ApplicationConditionComparisonError, "invalid-kustomize/transformer-config.yaml: no such file or directory"))
+		Expect(Condition(ApplicationConditionComparisonError, "invalid-kustomize/does-not-exist.yaml: no such file or directory"))
 }

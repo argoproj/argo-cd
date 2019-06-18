@@ -1,2 +1,2 @@
 configurations:
-  - transformer-config.yaml
+  - does-not-exist.yaml
