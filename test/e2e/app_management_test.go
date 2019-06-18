@@ -64,8 +64,7 @@ func TestInvalidAppResource(t *testing.T) {
 		When().
 		Sync().
 		Then().
-		Expect(Error("one or more objects failed to apply")).
-		Expect(Error("error validating data")).
+		Expect(Error("")).
 		And(func(app *Application) {
 			assert.Len(t, app.Status.OperationState.SyncResult.Resources, 1)
 			assert.Contains(t, app.Status.OperationState.SyncResult.Resources[0].Message, "error validating data")

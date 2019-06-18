@@ -17,6 +17,21 @@ func TestDeclarativeHappyApp(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
 }
 
+func TestDeclarativeInvalidPath(t *testing.T) {
+	Given(t).
+		Path("garbage").
+		When().
+		Declarative("declarative-apps/app.yaml").
+		Then().
+		Expect(Success("")).
+		When().
+		// TODO - should cascade work here or not?
+		Delete(false).
+		Then().
+		Expect(Success("")).
+		Expect(DoesNotExist())
+}
+
 func TestDeclarativeInvalidProject(t *testing.T) {
 	Given(t).
 		Path("guestbook").
@@ -26,7 +41,22 @@ func TestDeclarativeInvalidProject(t *testing.T) {
 		Then().
 		Expect(Success("")).
 		When().
-		// we should be able to delete the app
+		// TODO - should cascade work here or not?
+		Delete(false).
+		Then().
+		Expect(Success("")).
+		Expect(DoesNotExist())
+}
+
+func TestDeclarativeInvalidRepoURL(t *testing.T) {
+	Given(t).
+		Repo("http://foo").
+		Path("guestbook").
+		When().
+		Declarative("declarative-apps/app.yaml").
+		Then().
+		Expect(Success("")).
+		When().
 		// TODO - should cascade work here or not?
 		Delete(false).
 		Then().
