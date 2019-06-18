@@ -99,7 +99,7 @@ if obj.status ~= nil then
     end
     if obj.spec.strategy.canary ~= nil then
       currentRSIsStable = obj.status.canary.stableRS == obj.status.currentPodHash
-      if obj.spec.strategy.canary.steps ~= nil then
+      if obj.spec.strategy.canary.steps ~= nil and table.getn(obj.spec.strategy.canary.steps) > 0 then
         stepCount = table.getn(obj.spec.strategy.canary.steps)
         if obj.status.currentStepIndex ~= nil then
           currentStepIndex = obj.status.currentStepIndex
