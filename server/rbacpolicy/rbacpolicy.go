@@ -19,11 +19,12 @@ const (
 	ResourceApplications = "applications"
 	ResourceRepositories = "repositories"
 
-	ActionGet    = "get"
-	ActionCreate = "create"
-	ActionUpdate = "update"
-	ActionDelete = "delete"
-	ActionSync   = "sync"
+	ActionGet      = "get"
+	ActionCreate   = "create"
+	ActionUpdate   = "update"
+	ActionDelete   = "delete"
+	ActionSync     = "sync"
+	ActionOverride = "override"
 )
 
 var (

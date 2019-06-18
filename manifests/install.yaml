@@ -39,6 +39,12 @@ spec:
                   description: DryRun will perform a `kubectl apply --dry-run` without
                     actually performing the sync
                   type: boolean
+                manifests:
+                  description: Manifests is an optional field that overrides sync
+                    source with a local directory for development
+                  items:
+                    type: string
+                  type: array
                 prune:
                   description: Prune deletes resources that are no longer tracked
                     in git
@@ -713,6 +719,12 @@ spec:
                           description: DryRun will perform a `kubectl apply --dry-run`
                             without actually performing the sync
                           type: boolean
+                        manifests:
+                          description: Manifests is an optional field that overrides
+                            sync source with a local directory for development
+                          items:
+                            type: string
+                          type: array
                         prune:
                           description: Prune deletes resources that are no longer
                             tracked in git

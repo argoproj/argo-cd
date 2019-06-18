@@ -1471,6 +1471,12 @@
           "type": "boolean",
           "format": "boolean"
         },
+        "manifests": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "name": {
           "type": "string"
         },
@@ -3319,6 +3325,13 @@
           "type": "boolean",
           "format": "boolean",
           "title": "DryRun will perform a `kubectl apply --dry-run` without actually performing the sync"
+        },
+        "manifests": {
+          "type": "array",
+          "title": "Manifests is an optional field that overrides sync source with a local directory for development",
+          "items": {
+            "type": "string"
+          }
         },
         "prune": {
           "type": "boolean",
