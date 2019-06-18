@@ -49,11 +49,12 @@ func SyncStatusIs(expected SyncStatusCode) Expectation {
 	}
 }
 
-func Condition(conditionType ApplicationConditionType) Expectation {
+func Condition(conditionType ApplicationConditionType, conditionMessage string) Expectation {
 	return func(c *Consequences) (state, string) {
-		message := fmt.Sprintf("condition of type %s", conditionType)
-		for _, condition := range c.app().Status.Conditions {
-			if conditionType == condition.Type {
+		got := c.app().Status.Conditions
+		message := fmt.Sprintf("condition {%s %s} in %v", conditionType, conditionMessage, got)
+		for _, condition := range got {
+			if conditionType == condition.Type && strings.Contains(condition.Message, conditionMessage){
 				return succeeded, message
 			}
 		}

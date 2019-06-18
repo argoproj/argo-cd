@@ -1,5 +1,12 @@
 # FAQ
 
+## Why has my `ComparisonError` and I can't delete it
+
+Comparison errors occur when Argo CD tries to create manifest by getting your app from the repo and running a tool. You can either:
+
+* Reinstate of fix the repo.
+* Delete with `--cascade=false` and manually deleting the resources.
+
 ## Why is my application still `OutOfSync` immediately after a successful Sync?
 
 See [Diffing](user-guide/diffing.md) documentation for reasons resources can be OutOfSync, and ways to configure

@@ -33,8 +33,8 @@ func TestDeclarativeInvalidPath(t *testing.T) {
 		Expect(Success("")).
 		Expect(HealthIs(HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
+		Expect(Condition(ApplicationConditionComparisonError, "garbage: no such file or directory")).
 		When().
-		// TODO - should cascade work here or not?
 		Delete(false).
 		Then().
 		Expect(Success("")).
@@ -51,8 +51,8 @@ func TestDeclarativeInvalidProject(t *testing.T) {
 		Expect(Success("")).
 		Expect(HealthIs(HealthStatusUnknown)).
 		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
+		Expect(Condition(ApplicationConditionInvalidSpecError, "Application referencing project garbage which does not exist")).
 		When().
-		// TODO - should cascade work here or not?
 		Delete(false).
 		Then().
 		Expect(Success("")).
@@ -61,16 +61,16 @@ func TestDeclarativeInvalidProject(t *testing.T) {
 
 func TestDeclarativeInvalidRepoURL(t *testing.T) {
 	Given(t).
-		Repo("http://foo").
-		Path("guestbook").
+		Repo("http://github.com").
+		Path("whatever").
 		When().
 		Declarative("declarative-apps/app.yaml").
 		Then().
 		Expect(Success("")).
 		Expect(HealthIs(HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
+		Expect(Condition(ApplicationConditionComparisonError, "repository not found")).
 		When().
-		// TODO - should cascade work here or not?
 		Delete(false).
 		Then().
 		Expect(Success("")).
