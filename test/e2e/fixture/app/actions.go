@@ -77,6 +77,10 @@ func (a *Actions) Sync() *Actions {
 		args = append(args, "--resource", a.context.resource)
 	}
 
+	if a.context.localPath != "" {
+		args = append(args, "--local", a.context.localPath)
+	}
+
 	a.runCli(args...)
 	return a
 }

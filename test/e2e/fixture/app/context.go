@@ -25,6 +25,7 @@ type Context struct {
 	prune                  bool
 	configManagementPlugin string
 	async                  bool
+	localPath              string
 }
 
 func Given(t *testing.T) *Context {
@@ -114,5 +115,10 @@ func (c *Context) Prune(prune bool) *Context {
 
 func (c *Context) Async(async bool) *Context {
 	c.async = async
+	return c
+}
+
+func (c *Context) LocalPath(localPath string) *Context {
+	c.localPath = localPath
 	return c
 }
