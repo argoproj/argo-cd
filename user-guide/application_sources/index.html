@@ -543,9 +543,45 @@
       
     
     
+      <label class="md-nav__link md-nav__link--active" for="__toc">
+        Tools
+      </label>
+    
     <a href="./" title="Tools" class="md-nav__link md-nav__link--active">
       Tools
     </a>
+    
+      
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#production" title="Production" class="md-nav__link">
+    Production
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#development" title="Development" class="md-nav__link">
+    Development
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
     
   </li>
 
@@ -968,6 +1004,29 @@
     
   
   
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#production" title="Production" class="md-nav__link">
+    Production
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#development" title="Development" class="md-nav__link">
+    Development
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -982,6 +1041,7 @@
                 
                 
                 <h1 id="tools">Tools<a class="headerlink" href="#tools" title="Permanent link">&para;</a></h1>
+<h2 id="production">Production<a class="headerlink" href="#production" title="Permanent link">&para;</a></h2>
 <p>Argo CD supports several different ways in which Kubernetes manifests can be defined:</p>
 <ul>
 <li><a href="../kustomize/">Kustomize</a> applications</li>
@@ -990,6 +1050,13 @@
 <li>A directory of YAML/JSO/Jsonnet manifests</li>
 <li>Any <a href="../config-management-plugins/">custom config management tool</a> configured as a config management plugin</li>
 </ul>
+<h2 id="development">Development<a class="headerlink" href="#development" title="Permanent link">&para;</a></h2>
+<p>Argo CD also supports uploading local manifests directly. Since this is an anti-pattern of the
+GitOps paradigm, this should only be done for development purposes. A user with an <code>override</code> permission is required
+to upload manifests locally (typically an admin). All of the different Kubernetes deployment tools above are supported.
+To upload a local application:</p>
+<div class="codehilite"><pre><span></span>$ argocd app sync APPNAME --local /path/to/dir/
+</pre></div>
                 
                   
                 
