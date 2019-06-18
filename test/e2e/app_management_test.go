@@ -54,23 +54,6 @@ func TestAppCreation(t *testing.T) {
 		})
 }
 
-func TestInvalidAppResource(t *testing.T) {
-	Given(t).
-		Path("invalid").
-		When().
-		Create().
-		Then().
-		Expect(Success("")).
-		When().
-		Sync().
-		Then().
-		Expect(Error("")).
-		And(func(app *Application) {
-			assert.Len(t, app.Status.OperationState.SyncResult.Resources, 1)
-			assert.Contains(t, app.Status.OperationState.SyncResult.Resources[0].Message, "error validating data")
-		})
-}
-
 func TestInvalidAppProject(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).

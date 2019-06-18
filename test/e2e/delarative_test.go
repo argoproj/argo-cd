@@ -14,7 +14,14 @@ func TestDeclarativeHappyApp(t *testing.T) {
 		Declarative("declarative-apps/app.yaml").
 		Then().
 		Expect(Success("")).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
+		Expect(HealthIs(HealthStatusMissing)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
 func TestDeclarativeInvalidPath(t *testing.T) {
@@ -24,6 +31,8 @@ func TestDeclarativeInvalidPath(t *testing.T) {
 		Declarative("declarative-apps/app.yaml").
 		Then().
 		Expect(Success("")).
+		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
 		When().
 		// TODO - should cascade work here or not?
 		Delete(false).
@@ -40,6 +49,8 @@ func TestDeclarativeInvalidProject(t *testing.T) {
 		Declarative("declarative-apps/app.yaml").
 		Then().
 		Expect(Success("")).
+		Expect(HealthIs(HealthStatusUnknown)).
+		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
 		When().
 		// TODO - should cascade work here or not?
 		Delete(false).
@@ -56,6 +67,8 @@ func TestDeclarativeInvalidRepoURL(t *testing.T) {
 		Declarative("declarative-apps/app.yaml").
 		Then().
 		Expect(Success("")).
+		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
 		When().
 		// TODO - should cascade work here or not?
 		Delete(false).

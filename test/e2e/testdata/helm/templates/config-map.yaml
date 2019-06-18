@@ -3,4 +3,4 @@ kind: ConfigMap
 metadata:
   name: my-map
 data:
-  !: bar
+  foo: bar
