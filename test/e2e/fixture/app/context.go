@@ -28,7 +28,7 @@ type Context struct {
 
 func Given(t *testing.T) *Context {
 	fixture.EnsureCleanState(t)
-	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, name: fixture.Name(), prune: true}
+	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, name: fixture.Name(), project: "default", prune: true}
 }
 
 func (c *Context) SSHRepo() *Context {
