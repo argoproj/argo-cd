@@ -41,7 +41,7 @@ export const ApplicationsTable = (props: {
                     <div className='columns large-3 show-for-large'>
                         {app.spec.destination.server}/{app.spec.destination.namespace}
                     </div>
-                    <div className='columns large-3 small-45'>
+                    <div className='columns large-3 small-4'>
                         <div className='applications-list__table-icon'>
                             <AppUtils.HealthStatusIcon state={app.status.health}/> <span>{app.status.health.status}</span>
                         </div>
