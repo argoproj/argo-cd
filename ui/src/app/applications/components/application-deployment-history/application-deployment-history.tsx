@@ -72,7 +72,7 @@ export const ApplicationDeploymentHistory = ({
                                     {details.revisionMetadata && details.revisionMetadata.tags && (
                                     <div className='row'>
                                         <div className='columns small-2'>TAGS:</div>
-                                        <div className='columns small-10'>{details.revisionMetadata.tags.join(", ")}</div>
+                                        <div className='columns small-10'>{details.revisionMetadata.tags.join(', ')}</div>
                                     </div>
                                     )}
                                     <ApplicationParameters application={{...app, spec: {...app.spec, source: recentDeployments[index].source} }} details={details} />
