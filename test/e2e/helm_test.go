@@ -41,3 +41,4 @@ func TestHelmCrdInstallIsCreated(t *testing.T) {
 			return p.Name == "hook"
 		}))
 }
+
