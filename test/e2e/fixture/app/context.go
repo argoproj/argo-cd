@@ -23,11 +23,12 @@ type Context struct {
 	configManagementPlugin string
 	async                  bool
 	localPath              string
+	project                string
 }
 
 func Given(t *testing.T) *Context {
 	fixture.EnsureCleanState(t)
-	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, name: fixture.Name(), prune: true}
+	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, name: fixture.Name(), project: "default", prune: true}
 }
 
 func (c *Context) SSHRepo() *Context {
@@ -107,5 +108,10 @@ func (c *Context) Async(async bool) *Context {
 
 func (c *Context) LocalPath(localPath string) *Context {
 	c.localPath = localPath
+	return c
+}
+
+func (c *Context) Project(project string) *Context {
+	c.project = project
 	return c
 }

@@ -1,4 +1,4 @@
-import { Duration, NotificationType, Ticker } from 'argo-ui';
+import { Duration, NotificationType, Ticker, Tooltip } from 'argo-ui';
 import * as moment from 'moment';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -83,25 +83,25 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                     <div className='argo-table-list'>
                         <div className='argo-table-list__head'>
                             <div className='row'>
-                                <div className='columns small-1 application-operation-state__icons_container_padding'>
+                                <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>
                                     API VERSION
                                 </div>
-                                <div className='columns small-1'>
+                                <div className='columns large-1 show-for-large'>
                                     KIND
                                 </div>
-                                <div className='columns small-1'>
+                                <div className='columns large-1 show-for-large'>
                                     NAMESPACE
                                 </div>
-                                <div className='columns small-2'>
+                                <div className='columns large-2 small-2'>
                                     NAME
                                 </div>
-                                <div className='columns small-1'>
+                                <div className='columns large-1 small-2'>
                                     STATUS
                                 </div>
-                                <div className='columns small-1'>
+                                <div className='columns large-1 show-for-large'>
                                     HOOK
                                 </div>
-                                <div className='columns small-4'>
+                                <div className='columns large-4 small-8'>
                                     MESSAGE
                                 </div>
                             </div>
@@ -109,30 +109,30 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                     {syncResult.resources.map((resource, i) => (
                         <div className='argo-table-list__row' key={i}>
                             <div className='row'>
-                                <div className='columns small-1 application-operation-state__icons_container_padding'>
+                                <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>
                                     <div className='application-operation-state__icons_container'>
                                         {resource.hookType && (<i title='Resource lifecycle hook' className='fa fa-anchor' />)}
                                    </div>
                                    {resource.group ? resource.group + '/' + resource.version : resource.version}
                                 </div>
-                                <div className='columns small-1'>
+                                <div className='columns large-1 show-for-large'>
                                     {resource.kind}
                                 </div>
-                                <div className='columns small-1'>
+                                <div className='columns large-1 show-for-large'>
                                     {resource.namespace}
                                 </div>
-                                <div className='columns small-2'>
+                                <div className='columns large-2 small-2'>
                                     {resource.name}
                                 </div>
-                                <div className='columns small-1'>
+                                <div className='columns large-1 small-2'>
                                     <utils.ResourceResultIcon
                                         resource={resource}/> {resource.status || resource.hookPhase}
                                 </div>
-                                <div className='columns small-1'>
+                                <div className='columns large-1 show-for-large'>
                                     {resource.hookType}
                                 </div>
-                                <div className='columns small-4'>
-                                    {resource.message}
+                                <div className='columns large-4 small-8'>
+                                    <Tooltip content={resource.message}><span>{resource.message}</span></Tooltip>
                                 </div>
                             </div>
                         </div>

@@ -1422,8 +1422,6 @@ spec:
                   type: string
               required:
               - status
-              - comparedTo
-              - revision
               type: object
           type: object
       type: object
