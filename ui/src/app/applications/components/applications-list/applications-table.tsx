@@ -17,9 +17,10 @@ export const ApplicationsTable = (props: {
         <div className='argo-table-list__head'>
             <div className='row'>
                 <div className='columns large-2 small-6'>PROJECT/NAME</div>
-                <div className='columns large-4 show-for-large'>SOURCE</div>
+                <div className='columns large-3 show-for-large'>SOURCE</div>
+                <div className='columns large-1 small-2'>TARGET REVISION</div>
                 <div className='columns large-3 show-for-large'>DESTINATION</div>
-                <div className='columns large-3 small-6'>STATUS</div>
+                <div className='columns large-2 small-4'>STATUS</div>
             </div>
         </div>
         {props.applications.map((app) => (
@@ -31,13 +32,16 @@ export const ApplicationsTable = (props: {
                     <div className='columns large-2 small-6'>
                         <i className='icon argo-icon-application'/> {app.spec.project}/{app.metadata.name} <ApplicationURLs urls={app.status.summary.externalURLs}/>
                     </div>
-                    <div className='columns large-4 show-for-large'>
+                    <div className='columns large-3 show-for-large'>
                         {app.spec.source.repoURL}/{app.spec.source.path}
+                    </div>
+                    <div className='columns large-1 small-2'>
+                        {app.spec.source.targetRevision || 'HEAD'}
                     </div>
                     <div className='columns large-3 show-for-large'>
                         {app.spec.destination.server}/{app.spec.destination.namespace}
                     </div>
-                    <div className='columns large-3 small-6'>
+                    <div className='columns large-3 small-4'>
                         <div className='applications-list__table-icon'>
                             <AppUtils.HealthStatusIcon state={app.status.health}/> <span>{app.status.health.status}</span>
                         </div>
