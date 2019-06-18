@@ -59,25 +59,23 @@ export const ApplicationDeploymentHistory = ({
                                 <div>
                                     {details.revisionMetadata && (
                                     <div className='row'>
-                                        <div className='columns small-2'>
-                                            AUTHOR:
-                                        </div>
-                                        <div className='columns small-10'>
-                                            {details.revisionMetadata.author}
-                                        </div>
+                                        <div className='columns small-2'>AUTHOR:</div>
+                                        <div className='columns small-10'>{details.revisionMetadata.author}</div>
                                     </div>
                                     )}
                                     {details.revisionMetadata && (
                                     <div className='row'>
-                                        <div className='columns small-2'>
-                                            MESSAGE:
-                                        </div>
-                                        <div className='columns small-10'>
-                                            {details.revisionMetadata.message}
-                                        </div>
+                                        <div className='columns small-2'>MESSAGE:</div>
+                                        <div className='columns small-10'>{details.revisionMetadata.message}</div>
                                     </div>
                                     )}
-                                <ApplicationParameters application={{...app, spec: {...app.spec, source: recentDeployments[index].source} }} details={details} />
+                                    {details.revisionMetadata && details.revisionMetadata.tags && (
+                                    <div className='row'>
+                                        <div className='columns small-2'>TAGS:</div>
+                                        <div className='columns small-10'>{details.revisionMetadata.tags.join(", ")}</div>
+                                    </div>
+                                    )}
+                                    <ApplicationParameters application={{...app, spec: {...app.spec, source: recentDeployments[index].source} }} details={details} />
                                 </div>
                             )
                             }

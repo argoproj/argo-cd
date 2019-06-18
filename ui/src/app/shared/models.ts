@@ -64,6 +64,7 @@ export type HookType = 'PreSync' | 'Sync' | 'PostSync' | 'Skip';
 export interface RevisionMetadata {
     author: string;
     message: string;
+    tags: string[];
 }
 
 export interface SyncOperationResult {

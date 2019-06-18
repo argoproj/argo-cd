@@ -20,6 +20,7 @@ import (
 type RevisionMetadata struct {
 	Author  string
 	Message string
+	Tags    []string
 }
 
 // Client is a generic git client interface
@@ -252,7 +253,16 @@ func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, 
 	if len(segments) != 2 {
 		return nil, fmt.Errorf("expected 3 segments, got %v", segments)
 	}
-	return &RevisionMetadata{segments[0], strings.TrimSpace(segments[1])}, nil
+	author := segments[0]
+	message := strings.TrimSpace(segments[1])
+
+	out, err = m.runCmd("git", "tag", "--points-at", revision)
+	if err != nil {
+		return nil, err
+	}
+	tags := strings.Fields(out)
+
+	return &RevisionMetadata{author, message, tags}, nil
 }
 
 // runCmd is a convenience function to run a command in a given directory and return its output

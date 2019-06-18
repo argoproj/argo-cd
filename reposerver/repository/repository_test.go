@@ -49,6 +49,7 @@ func (f *fakeGitClientFactory) NewClient(repoURL, path, username, password, sshP
 	mockClient.On("LsRemote", mock.Anything, mock.Anything).Return("aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd", nil)
 	mockClient.On("LsFiles", mock.Anything, mock.Anything).Return([]string{}, nil)
 	mockClient.On("CommitSHA", mock.Anything, mock.Anything).Return("aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd", nil)
+	mockClient.On("RevisionMetadata", mock.Anything, mock.Anything).Return(&git.RevisionMetadata{}, nil)
 	return &mockClient, nil
 }
 

@@ -75,6 +75,7 @@ message KsonnetAppDetailsQuery {
 message RevisionMetadata {
     string author = 1;
     string message = 2;
+    repeated string tags = 3;
 }
 
 // RepoAppDetailsResponse application details
