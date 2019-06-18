@@ -59,12 +59,12 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	q := ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
-	res1, err := GenerateManifests("../../manifests/base", &q)
+	res1, err := GenerateManifests("../../manifests", "base", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, countOfManifests, len(res1.Manifests))
 
 	// this will test concatenated manifests to verify we split YAMLs correctly
-	res2, err := GenerateManifests("./testdata/concatenated", &q)
+	res2, err := GenerateManifests("./testdata", "concatenated", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(res2.Manifests))
 }
@@ -74,9 +74,19 @@ func TestRecurseManifestsInDir(t *testing.T) {
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
 	q.ApplicationSource.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: true}
-	res1, err := GenerateManifests("./testdata/recurse", &q)
+	res1, err := GenerateManifests("./testdata", "recurse", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res1.Manifests))
+}
+
+func TestNonExistentPath(t *testing.T) {
+	_, err := GenerateManifests("./testdata", "does-not-exist", nil)
+	assert.EqualError(t, err, "does-not-exist: app path does not exist")
+}
+
+func TestPathNotDir(t *testing.T) {
+	_, err := GenerateManifests("./testdata", "file.txt", nil)
+	assert.EqualError(t, err, "file.txt: app path is not a directory")
 }
 
 func TestGenerateJsonnetManifestInDir(t *testing.T) {
@@ -90,7 +100,7 @@ func TestGenerateJsonnetManifestInDir(t *testing.T) {
 			},
 		},
 	}
-	res1, err := GenerateManifests("./testdata/jsonnet", &q)
+	res1, err := GenerateManifests("./testdata", "jsonnet", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res1.Manifests))
 }
@@ -109,7 +119,7 @@ func TestGenerateHelmChartWithDependencies(t *testing.T) {
 	q := ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
-	res1, err := GenerateManifests("../../util/helm/testdata/wordpress", &q)
+	res1, err := GenerateManifests("../../util/helm/testdata", "wordpress", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, 12, len(res1.Manifests))
 }
@@ -118,17 +128,17 @@ func TestGenerateNullList(t *testing.T) {
 	q := ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
-	res1, err := GenerateManifests("./testdata/null-list", &q)
+	res1, err := GenerateManifests("./testdata", "null-list", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, len(res1.Manifests), 1)
 	assert.Contains(t, res1.Manifests[0], "prometheus-operator-operator")
 
-	res1, err = GenerateManifests("./testdata/empty-list", &q)
+	res1, err = GenerateManifests("./testdata", "empty-list", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, len(res1.Manifests), 1)
 	assert.Contains(t, res1.Manifests[0], "prometheus-operator-operator")
 
-	res2, err := GenerateManifests("./testdata/weird-list", &q)
+	res2, err := GenerateManifests("./testdata", "weird-list", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res2.Manifests))
 }
@@ -148,7 +158,7 @@ func TestIdentifyAppSourceTypeByAppDirWithKustomizations(t *testing.T) {
 }
 
 func TestRunCustomTool(t *testing.T) {
-	res, err := GenerateManifests(".", &ManifestRequest{
+	res, err := GenerateManifests(".", ".", &ManifestRequest{
 		AppLabelValue: "test-app",
 		Namespace:     "test-namespace",
 		ApplicationSource: &argoappv1.ApplicationSource{
@@ -185,7 +195,7 @@ func TestGenerateFromUTF16(t *testing.T) {
 	q := ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
-	res1, err := GenerateManifests("./testdata/utf-16", &q)
+	res1, err := GenerateManifests("./testdata", "utf-16", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res1.Manifests))
 }

@@ -1,5 +1,12 @@
 # FAQ
 
+## I've deleted/corrupted my repo and can't delete my app.
+
+Argo CD can't delete an app if it cannot generate manifests. You need to either: 
+
+1. Reinstate/fix your repo.
+1. Delete the app using `--cascade=false` and then manually deleting the resources.
+
 ## Why is my application still `OutOfSync` immediately after a successful Sync?
 
 See [Diffing](user-guide/diffing.md) documentation for reasons resources can be OutOfSync, and ways to configure
