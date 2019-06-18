@@ -3,7 +3,6 @@ package e2e
 import (
 	"context"
 	"fmt"
-	"os"
 	"path"
 	"strings"
 	"testing"
@@ -531,33 +530,6 @@ func TestSyncOptionPruneFalse(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(ResourceSyncStatusIs("Pod", "pod-1", SyncStatusCodeOutOfSync))
-}
-
-// make sure that if we have an invalid manifest for CRD, we can add it if we disable validation
-func TestSyncOptionValidateFalse(t *testing.T) {
-
-	// https://github.com/rancher/k3s/issues/438
-	if _, ok := os.LookupEnv("ARGOCD_E2E_K3S"); ok {
-		t.SkipNow()
-	}
-
-	Given(t).
-		Path("crd-validation").
-		When().
-		Create().
-		Then().
-		Expect(Success("")).
-		When().
-		Sync().
-		Then().
-		Expect(Error(`spec.replicas in body should be less than or equal to 10`)).
-		When().
-		PatchFile("foo.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Validate=false"}}]`).
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(HealthStatusHealthy))
 }
 
 // make sure that, if we have a resource that needs pruning, but we're ignoring it, the app is in-sync
