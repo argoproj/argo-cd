@@ -497,6 +497,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		ctrl.setOperationState(app, state)
 		logCtx.Infof("Initialized new operation: %v", *app.Operation)
 	}
+
 	ctrl.appStateManager.SyncAppState(app, state)
 
 	if state.Phase == appv1.OperationRunning {
@@ -657,7 +658,12 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		return
 	}
 
-	compareResult, err := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, refreshType == appv1.RefreshTypeHard)
+	var localManifests []string
+	if opState := app.Status.OperationState; opState != nil {
+		localManifests = opState.Operation.Sync.Manifests
+	}
+
+	compareResult, err := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, refreshType == appv1.RefreshTypeHard, localManifests)
 	if err != nil {
 		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
 	} else {

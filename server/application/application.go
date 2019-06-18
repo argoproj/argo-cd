@@ -353,7 +353,7 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 		return nil, err
 	}
 
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(*app)); err != nil {
+	if err = s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionOverride, appRBACName(*app)); err != nil {
 		return nil, err
 	}
 
@@ -822,6 +822,14 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionSync, appRBACName(*a)); err != nil {
 		return nil, err
 	}
+	if syncReq.Manifests != nil {
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionOverride, appRBACName(*a)); err != nil {
+			return nil, err
+		}
+		if a.Spec.SyncPolicy != nil {
+			return nil, status.Error(codes.FailedPrecondition, "Cannot use local sync when Automatic Sync Policy is enabled")
+		}
+	}
 	if a.DeletionTimestamp != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "application is deleting")
 	}
@@ -843,6 +851,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 			DryRun:       syncReq.DryRun,
 			SyncStrategy: syncReq.Strategy,
 			Resources:    syncReq.Resources,
+			Manifests:    syncReq.Manifests,
 		},
 	}
 	a, err = argo.SetAppOperation(appIf, *syncReq.Name, &op)

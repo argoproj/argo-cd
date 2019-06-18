@@ -269,6 +269,8 @@ type SyncOperation struct {
 	// Source overrides the source definition set in the application.
 	// This is typically set in a Rollback operation and nil during a Sync operation
 	Source *ApplicationSource `json:"source,omitempty" protobuf:"bytes,7,opt,name=source"`
+	// Manifests is an optional field that overrides sync source with a local directory for development
+	Manifests []string `json:"manifests,omitempty" protobuf:"bytes,8,opt,name=manifests"`
 }
 
 func (o *SyncOperation) IsApplyStrategy() bool {
