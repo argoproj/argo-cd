@@ -1802,9 +1802,6 @@
         "revision": {
           "type": "string"
         },
-        "revisionMetadata": {
-          "$ref": "#/definitions/v1alpha1RevisionMetadata"
-        },
         "server": {
           "type": "string"
         },
@@ -1829,6 +1826,9 @@
         "kustomize": {
           "$ref": "#/definitions/repositoryKustomizeAppSpec"
         },
+        "revisionMetadata": {
+          "$ref": "#/definitions/repositoryRevisionMetadata"
+        },
         "type": {
           "type": "string"
         }
@@ -1848,6 +1848,17 @@
     },
     "repositoryRepoResponse": {
       "type": "object"
+    },
+    "repositoryRevisionMetadata": {
+      "type": "object",
+      "properties": {
+        "author": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
     },
     "sessionSessionCreateRequest": {
       "description": "SessionCreateRequest is for logging in.",
@@ -3309,22 +3320,8 @@
         "revision": {
           "type": "string"
         },
-        "revisionMetadata": {
-          "$ref": "#/definitions/v1alpha1RevisionMetadata"
-        },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
-        }
-      }
-    },
-    "v1alpha1RevisionMetadata": {
-      "type": "object",
-      "properties": {
-        "author": {
-          "type": "string"
-        },
-        "message": {
-          "type": "string"
         }
       }
     },
@@ -3391,9 +3388,6 @@
           "type": "string",
           "title": "Revision holds the git commit SHA of the sync"
         },
-        "revisionMetadata": {
-          "$ref": "#/definitions/v1alpha1RevisionMetadata"
-        },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
         }
@@ -3428,9 +3422,6 @@
         },
         "revision": {
           "type": "string"
-        },
-        "revisionMetadata": {
-          "$ref": "#/definitions/v1alpha1RevisionMetadata"
         },
         "status": {
           "type": "string"

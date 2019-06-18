@@ -31,7 +31,6 @@ import (
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"
-	"github.com/argoproj/argo-cd/util/trunc"
 )
 
 const (
@@ -179,15 +178,9 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	}
 	res := *genRes
 	res.Revision = commitSHA
-	revisionMetadata, err := gitClient.RevisionMetadata(commitSHA)
 	commitSHA, err = gitClient.CommitSHA()
 	if err != nil {
 		return nil, err
-	}
-	res.RevisionMetadata = &v1alpha1.RevisionMetadata{
-		// we truncate long messages
-		Author:  trunc.Trunc(revisionMetadata.Author, 50),
-		Message: trunc.Trunc(revisionMetadata.Message, 50),
 	}
 	err = s.cache.SetManifests(commitSHA, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
 	if err != nil {
@@ -602,8 +595,14 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 		return nil, err
 	}
 
+	metadata, err := gitClient.RevisionMetadata(commitSHA)
+	if err != nil {
+		return nil, err
+	}
+
 	res := RepoAppDetailsResponse{
-		Type: string(appSourceType),
+		Type:             string(appSourceType),
+		RevisionMetadata: &RevisionMetadata{Author:metadata.Author, Message: metadata.Message},
 	}
 
 	switch appSourceType {

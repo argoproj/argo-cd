@@ -360,7 +360,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	}
 	if manifestInfo != nil {
 		syncStatus.Revision = manifestInfo.Revision
-		syncStatus.RevisionMetadata = manifestInfo.RevisionMetadata
 	}
 
 	healthStatus, err := health.SetApplicationHealth(resourceSummaries, GetLiveObjs(managedResources), m.settings.ResourceOverrides, func(obj *unstructured.Unstructured) bool {
@@ -387,7 +386,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	return &compRes, nil
 }
 
-func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, revisionMetadata *appv1.RevisionMetadata, source v1alpha1.ApplicationSource) error {
+func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource) error {
 	var nextID int64
 	if len(app.Status.History) > 0 {
 		nextID = app.Status.History[len(app.Status.History)-1].ID + 1
@@ -397,7 +396,6 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 		DeployedAt:       metav1.NewTime(time.Now().UTC()),
 		ID:               nextID,
 		Source:           source,
-		RevisionMetadata: revisionMetadata,
 	})
 
 	if len(history) > common.RevisionHistoryLimit {

@@ -27,7 +27,6 @@ message ManifestResponse {
     string server = 3;
     string revision = 4;
     string sourceType = 6;
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RevisionMetadata revisionMetadata = 7;
 }
 
 // ListDirRequest requests a repository directory structure
@@ -73,6 +72,10 @@ message HelmAppDetailsQuery {
 message KsonnetAppDetailsQuery {
     string environment = 1;
 }
+message RevisionMetadata {
+    string author = 1;
+    string message = 2;
+}
 
 // RepoAppDetailsResponse application details
 message RepoAppDetailsResponse {
@@ -81,6 +84,7 @@ message RepoAppDetailsResponse {
 	HelmAppSpec helm = 3;
 	KustomizeAppSpec kustomize = 4;
 	DirectoryAppSpec directory = 5;
+    RevisionMetadata revisionMetadata = 6;
 }
 
 // KsonnetAppSpec contains Ksonnet app response

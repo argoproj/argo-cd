@@ -526,16 +526,6 @@ spec:
                     type: integer
                   revision:
                     type: string
-                  revisionMetadata:
-                    properties:
-                      author:
-                        type: string
-                      message:
-                        type: string
-                    required:
-                    - author
-                    - message
-                    type: object
                   source:
                     description: ApplicationSource contains information about github
                       repository, path within repository and target application environment.
@@ -1010,16 +1000,6 @@ spec:
                     revision:
                       description: Revision holds the git commit SHA of the sync
                       type: string
-                    revisionMetadata:
-                      properties:
-                        author:
-                          type: string
-                        message:
-                          type: string
-                      required:
-                      - author
-                      - message
-                      type: object
                     source:
                       description: ApplicationSource contains information about github
                         repository, path within repository and target application
@@ -1427,16 +1407,6 @@ spec:
                   type: object
                 revision:
                   type: string
-                revisionMetadata:
-                  properties:
-                    author:
-                      type: string
-                    message:
-                      type: string
-                  required:
-                  - author
-                  - message
-                  type: object
                 status:
                   type: string
               required:

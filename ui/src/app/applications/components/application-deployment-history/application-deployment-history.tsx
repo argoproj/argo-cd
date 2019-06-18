@@ -52,27 +52,34 @@ export const ApplicationDeploymentHistory = ({
                                 </div>
                             </div>
                         </div>
-                            <div className='row'>
-                                <div className='columns small-2'>
-                                    AUTHOR:
-                                </div>
-                                <div className='columns small-10'>
-                                    {info.revisionMetadata.author}
-                                </div>
-                            </div>
-                        <div className='row'>
-                            <div className='columns small-2'>
-                                MESSAGE:
-                            </div>
-                            <div className='columns small-10'>
-                                {info.revisionMetadata.message}
-                            </div>
-                        </div>
                         {selectedRollbackDeploymentIndex === index ? (
                             <DataLoader input={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision}}
                                 load={(src) => services.repos.appDetails(src.repoURL, src.path, src.targetRevision, { helm: src.helm, ksonnet: src.ksonnet })}>
-                            {(details: models.RepoAppDetails) =>
+                            {(details: models.RepoAppDetails) => (
+                                <div>
+                                    {details.revisionMetadata && (
+                                    <div className='row'>
+                                        <div className='columns small-2'>
+                                            AUTHOR:
+                                        </div>
+                                        <div className='columns small-10'>
+                                            {details.revisionMetadata.author}
+                                        </div>
+                                    </div>
+                                    )}
+                                    {details.revisionMetadata && (
+                                    <div className='row'>
+                                        <div className='columns small-2'>
+                                            MESSAGE:
+                                        </div>
+                                        <div className='columns small-10'>
+                                            {details.revisionMetadata.message}
+                                        </div>
+                                    </div>
+                                    )}
                                 <ApplicationParameters application={{...app, spec: {...app.spec, source: recentDeployments[index].source} }} details={details} />
+                                </div>
+                            )
                             }
                             </DataLoader>
                         )
