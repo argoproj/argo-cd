@@ -392,10 +392,10 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 		nextID = app.Status.History[len(app.Status.History)-1].ID + 1
 	}
 	history := append(app.Status.History, v1alpha1.RevisionHistory{
-		Revision:         revision,
-		DeployedAt:       metav1.NewTime(time.Now().UTC()),
-		ID:               nextID,
-		Source:           source,
+		Revision:   revision,
+		DeployedAt: metav1.NewTime(time.Now().UTC()),
+		ID:         nextID,
+		Source:     source,
 	})
 
 	if len(history) > common.RevisionHistoryLimit {

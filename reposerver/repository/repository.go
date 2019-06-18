@@ -602,7 +602,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 
 	res := RepoAppDetailsResponse{
 		Type:             string(appSourceType),
-		RevisionMetadata: &RevisionMetadata{Author:metadata.Author, Message: metadata.Message},
+		RevisionMetadata: &RevisionMetadata{Author: metadata.Author, Message: metadata.Message},
 	}
 
 	switch appSourceType {
