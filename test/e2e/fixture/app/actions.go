@@ -43,6 +43,10 @@ func (a *Actions) Create() *Actions {
 		args = append(args, "--parameter", parameter)
 	}
 
+	if a.context.project != "" {
+		args = append(args, "--project", a.context.project)
+	}
+
 	if a.context.namePrefix != "" {
 		args = append(args, "--nameprefix", a.context.namePrefix)
 	}

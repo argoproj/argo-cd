@@ -54,7 +54,7 @@ func TestAppCreation(t *testing.T) {
 		})
 }
 
-func TestInvalidApp(t *testing.T) {
+func TestInvalidAppResource(t *testing.T) {
 	Given(t).
 		Path("invalid").
 		When().
@@ -69,7 +69,17 @@ func TestInvalidApp(t *testing.T) {
 		And(func(app *Application) {
 			assert.Len(t, app.Status.OperationState.SyncResult.Resources, 1)
 			assert.Contains(t, app.Status.OperationState.SyncResult.Resources[0].Message, "error validating data")
-	})
+		})
+}
+
+func TestInvalidAppProject(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		Project("does-not-exist").
+		When().
+		Create().
+		Then().
+		Expect(Error("application references project does-not-exist which does not exist"))
 }
 
 func TestAppDeletion(t *testing.T) {
