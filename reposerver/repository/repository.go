@@ -170,9 +170,8 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	if err != nil {
 		return nil, err
 	}
-	appPath := filepath.Join(gitClient.Root(), q.ApplicationSource.Path)
 
-	genRes, err := GenerateManifests(appPath, q)
+	genRes, err := GenerateManifests(gitClient.Root(), q.ApplicationSource.Path, q)
 	if err != nil {
 		return nil, err
 	}
@@ -185,8 +184,28 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	return &res, nil
 }
 
+func checkPath(root, path string) error {
+	info, err := os.Stat(filepath.Join(root, path))
+	if os.IsNotExist(err) {
+		return fmt.Errorf("%s: app path does not exist", path)
+	}
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("%s: app path is not a directory", path)
+	}
+	return nil
+}
+
 // GenerateManifests generates manifests from a path
-func GenerateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, error) {
+func GenerateManifests(root, path string, q *ManifestRequest) (*ManifestResponse, error) {
+	err := checkPath(root, path)
+	if err != nil {
+		return nil, err
+	}
+
+	appPath := filepath.Join(root, path)
 	var targetObjs []*unstructured.Unstructured
 	var dest *v1alpha1.ApplicationDestination
 

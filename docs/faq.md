@@ -1,11 +1,11 @@
 # FAQ
 
-## Why has my `ComparisonError` and I can't delete it
+## I've deleted/corrupted my repo and can't delete my app.
 
-Comparison errors occur when Argo CD tries to create manifest by getting your app from the repo and running a tool. You can either:
+Argo CD can't delete an app if it cannot generate manifests. You need to either: 
 
-* Reinstate of fix the repo.
-* Delete with `--cascade=false` and manually deleting the resources.
+1. Reinstate/fix your repo.
+1. Delete the app using `--cascade=false` and then manually deleting the resources.
 
 ## Why is my application still `OutOfSync` immediately after a successful Sync?
 

@@ -33,7 +33,7 @@ func TestDeclarativeInvalidPath(t *testing.T) {
 		Expect(Success("")).
 		Expect(HealthIs(HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
-		Expect(Condition(ApplicationConditionComparisonError, "garbage: no such file or directory")).
+		Expect(Condition(ApplicationConditionComparisonError, "garbage: app path does not exist")).
 		When().
 		Delete(false).
 		Then().

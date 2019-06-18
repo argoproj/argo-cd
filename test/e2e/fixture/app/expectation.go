@@ -54,7 +54,7 @@ func Condition(conditionType ApplicationConditionType, conditionMessage string) 
 		got := c.app().Status.Conditions
 		message := fmt.Sprintf("condition {%s %s} in %v", conditionType, conditionMessage, got)
 		for _, condition := range got {
-			if conditionType == condition.Type && strings.Contains(condition.Message, conditionMessage){
+			if conditionType == condition.Type && strings.Contains(condition.Message, conditionMessage) {
 				return succeeded, message
 			}
 		}

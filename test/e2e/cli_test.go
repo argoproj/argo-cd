@@ -16,7 +16,7 @@ func TestCliAppCommand(t *testing.T) {
 		When().
 		Create().
 		And(func() {
-			output, err := RunCli("app", "sync", Name())
+			output, err := RunCli("app", "sync", Name(), "--timout", "5")
 			assert.NoError(t, err)
 			expected := Tmpl(
 				`GROUP KIND NAMESPACE NAME STATUS HEALTH HOOK MESSAGE
