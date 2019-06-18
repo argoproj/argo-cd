@@ -57,3 +57,7 @@ tests:
     status: Healthy
     message: The rollout has completed canary deployment
   inputPath: testdata/canary/healthy_noSteps.yaml
+- healthStatus:
+    status: Healthy
+    message: The rollout has completed canary deployment
+  inputPath: testdata/canary/healthy_emptyStepsList.yaml
