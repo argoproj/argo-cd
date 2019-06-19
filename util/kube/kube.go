@@ -3,9 +3,7 @@ package kube
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -27,10 +25,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	"k8s.io/kubernetes/pkg/kubectl/scheme"
 
 	"github.com/argoproj/argo-cd/common"
-	jsonutil "github.com/argoproj/argo-cd/util/json"
 )
 
 const (
@@ -369,42 +365,9 @@ func SplitYAML(out string) ([]*unstructured.Unstructured, error) {
 			}
 			continue
 		}
-		remObj, err := Remarshal(&obj)
-		if err != nil {
-			log.Debugf("Failed to remarshal oject: %v", err)
-		} else {
-			obj = *remObj
-		}
 		objs = append(objs, &obj)
 	}
 	return objs, firstErr
-}
-
-// Remarshal checks resource kind and version and re-marshal using corresponding struct custom marshaller.
-// This ensures that expected resource state is formatter same as actual resource state in kubernetes
-// and allows to find differences between actual and target states more accurately.
-func Remarshal(obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
-	data, err := json.Marshal(obj)
-	if err != nil {
-		return nil, err
-	}
-	item, err := scheme.Scheme.New(obj.GroupVersionKind())
-	if err != nil {
-		return nil, err
-	}
-	// This will drop any omitempty fields, perform resource conversion etc...
-	unmarshalledObj := reflect.New(reflect.TypeOf(item).Elem()).Interface()
-	err = json.Unmarshal(data, &unmarshalledObj)
-	if err != nil {
-		return nil, err
-	}
-	unstrBody, err := runtime.DefaultUnstructuredConverter.ToUnstructured(unmarshalledObj)
-	if err != nil {
-		return nil, err
-	}
-	// remove all default values specified by custom formatter (e.g. creationTimestamp)
-	unstrBody = jsonutil.RemoveMapFields(obj.Object, unstrBody)
-	return &unstructured.Unstructured{Object: unstrBody}, nil
 }
 
 // WatchWithRetry returns channel of watch events or errors of failed to call watch API.
