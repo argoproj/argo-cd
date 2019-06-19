@@ -12,7 +12,7 @@ interface State {
     error?: Error;
 }
 
-export class RevisionMetadataList extends React.Component<Props, State> {
+export class RevisionMetadataRows extends React.Component<Props, State> {
     constructor(props: Props) {
         super(props);
         this.state = {};

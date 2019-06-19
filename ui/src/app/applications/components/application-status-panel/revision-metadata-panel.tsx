@@ -30,7 +30,7 @@ export class RevisionMetadataPanel extends React.Component<Props, State> {
             const author = this.state.revisionMetadata.author;
             const tags = this.state.revisionMetadata.tags ? this.state.revisionMetadata.tags.join(", ") : "∅";
             const message = this.state.revisionMetadata.message;
-            const tip = `Author: ${author}<br/>Tags: ${tags}<br/>${message}`;
+            const tip = `${author}, Tags: ${tags}, ${message}`;
 
             return <Tooltip content={tip} placement="bottom" allowHTML={true}>
                 <div>

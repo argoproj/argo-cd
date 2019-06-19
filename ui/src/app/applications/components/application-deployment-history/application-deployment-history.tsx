@@ -5,7 +5,7 @@ import * as React from 'react';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 import { ApplicationParameters } from '../application-parameters/application-parameters';
-import {RevisionMetadataList} from "./revision-metadata-list";
+import {RevisionMetadataRows} from "./revision-metadata-rows";
 
 require('./application-deployment-history.scss');
 
@@ -53,7 +53,7 @@ export const ApplicationDeploymentHistory = ({
                                 </div>
                             </div>
                         </div>
-                        <RevisionMetadataList applicationName={app.metadata.name} revision={recentDeployments[index].revision}/>
+                        <RevisionMetadataRows applicationName={app.metadata.name} revision={recentDeployments[index].revision}/>
                         {selectedRollbackDeploymentIndex === index ? (
                             <DataLoader input={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision}}
                                 load={(src) => services.repos.appDetails(src.repoURL, src.path, src.targetRevision, { helm: src.helm, ksonnet: src.ksonnet })}>
