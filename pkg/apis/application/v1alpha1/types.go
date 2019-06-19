@@ -389,6 +389,12 @@ const (
 	HookDeletePolicyHookFailed    HookDeletePolicy = "HookFailed"
 )
 
+type RevisionMetadata struct {
+	Author  string   `json:"author" protobuf:"bytes,1,opt,name=author"`
+	Message string   `json:"message" protobuf:"bytes,2,opt,name=message"`
+	Tags    []string `json:"tags" protobuf:"bytes,3,opt,name=tags"`
+}
+
 // SyncOperationResult represent result of sync operation
 type SyncOperationResult struct {
 	// Resources holds the sync result of each individual resource

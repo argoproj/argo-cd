@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,6 +15,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
@@ -28,12 +31,18 @@ func newMockRepoServerService(root string) *Service {
 	}
 }
 
-func newFakeGitClientFactory(root string) git.ClientFactory {
-	return &fakeGitClientFactory{root: root}
+func newFakeGitClientFactory(root string) *fakeGitClientFactory {
+	return &fakeGitClientFactory{
+		root:             root,
+		revision:         "aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd",
+		revisionMetadata: &git.RevisionMetadata{Author: "foo", Message: strings.Repeat("x", 99), Tags: []string{"bar"}},
+	}
 }
 
 type fakeGitClientFactory struct {
-	root string
+	root             string
+	revision         string
+	revisionMetadata *git.RevisionMetadata
 }
 
 func (f *fakeGitClientFactory) NewClient(repoURL, path, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (git.Client, error) {
@@ -42,14 +51,14 @@ func (f *fakeGitClientFactory) NewClient(repoURL, path, username, password, sshP
 	if f.root != "" {
 		root = f.root
 	}
-	mockClient.On("Root", mock.Anything, mock.Anything).Return(root)
-	mockClient.On("Init", mock.Anything, mock.Anything).Return(nil)
-	mockClient.On("Fetch", mock.Anything, mock.Anything).Return(nil)
-	mockClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
-	mockClient.On("LsRemote", mock.Anything, mock.Anything).Return("aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd", nil)
-	mockClient.On("LsFiles", mock.Anything, mock.Anything).Return([]string{}, nil)
-	mockClient.On("CommitSHA", mock.Anything, mock.Anything).Return("aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd", nil)
-	mockClient.On("RevisionMetadata", mock.Anything, mock.Anything).Return(&git.RevisionMetadata{}, nil)
+	mockClient.On("Root").Return(root)
+	mockClient.On("Init").Return(nil)
+	mockClient.On("Fetch", mock.Anything).Return(nil)
+	mockClient.On("Checkout", mock.Anything).Return(nil)
+	mockClient.On("LsRemote", mock.Anything).Return(f.revision, nil)
+	mockClient.On("LsFiles", mock.Anything).Return([]string{}, nil)
+	mockClient.On("CommitSHA", mock.Anything).Return(f.revision, nil)
+	mockClient.On("RevisionMetadata", f.revision).Return(f.revisionMetadata, nil)
 	return &mockClient, nil
 }
 
@@ -270,4 +279,43 @@ func TestGetAppDetailsKustomize(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Nil(t, res.Kustomize.Images)
 	assert.Equal(t, []*argoappv1.KustomizeImageTag{{Name: "nginx", Value: "1.15.4"}, {Name: "k8s.gcr.io/nginx-slim", Value: "0.8"}}, res.Kustomize.ImageTags)
+}
+
+func TestService_GetRevisionMetadata(t *testing.T) {
+	factory := newFakeGitClientFactory(".")
+	service := &Service{
+		repoLock:   util.NewKeyLock(),
+		gitFactory: factory,
+		cache:      cache.NewCache(cache.NewInMemoryCache(1 * time.Hour)),
+	}
+	type args struct {
+		q *RepoServerRevisionMetadataRequest
+	}
+	q := &RepoServerRevisionMetadataRequest{Repo: &argoappv1.Repository{}, Revision: factory.revision}
+	metadata := &v1alpha1.RevisionMetadata{
+		Author:  factory.revisionMetadata.Author,
+		Message: strings.Repeat("x", 61) + "...",
+		Tags:    factory.revisionMetadata.Tags,
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *v1alpha1.RevisionMetadata
+		wantErr bool
+	}{
+		{"CacheMiss", args{q: q}, metadata, false},
+		{"CacheHit", args{q: q}, metadata, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := service.GetRevisionMetadata(context.Background(), tt.args.q)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Service.GetRevisionMetadata() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Service.GetRevisionMetadata() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

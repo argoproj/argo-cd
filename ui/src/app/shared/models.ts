@@ -385,7 +385,6 @@ export interface RepoAppDetails {
     helm?: HelmAppSpec;
     kustomize?: KustomizeAppSpec;
     directory?: {};
-    revisionMetadata?: RevisionMetadata;
 }
 
 export interface AppInfo {

@@ -661,6 +661,14 @@ message RevisionHistory {
   optional ApplicationSource source = 6;
 }
 
+message RevisionMetadata {
+  optional string author = 1;
+
+  optional string message = 2;
+
+  repeated string tags = 3;
+}
+
 // SyncOperation contains sync operation details.
 message SyncOperation {
   // Revision is the git revision in which to sync the application to.

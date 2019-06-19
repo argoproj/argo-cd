@@ -72,11 +72,6 @@ message HelmAppDetailsQuery {
 message KsonnetAppDetailsQuery {
     string environment = 1;
 }
-message RevisionMetadata {
-    string author = 1;
-    string message = 2;
-    repeated string tags = 3;
-}
 
 // RepoAppDetailsResponse application details
 message RepoAppDetailsResponse {
@@ -85,7 +80,11 @@ message RepoAppDetailsResponse {
 	HelmAppSpec helm = 3;
 	KustomizeAppSpec kustomize = 4;
 	DirectoryAppSpec directory = 5;
-    RevisionMetadata revisionMetadata = 6;
+}
+
+message RepoServerRevisionMetadataRequest {
+    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
+    string revision = 2;
 }
 
 // KsonnetAppSpec contains Ksonnet app response
@@ -154,5 +153,9 @@ service RepoServerService {
 
     // Generate manifest for application in specified repo name and revision
     rpc GetAppDetails(RepoServerAppDetailsQuery) returns (RepoAppDetailsResponse) {
+    }
+
+    // Get the meta-data for a revision
+    rpc GetRevisionMetadata(RepoServerRevisionMetadataRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RevisionMetadata) {
     }
 }

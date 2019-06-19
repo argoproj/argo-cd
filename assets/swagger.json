@@ -639,6 +639,37 @@
         }
       }
     },
+    "/api/v1/applications/{name}/revisions/{revision}/metadata": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Get the meta-data for a revision",
+        "operationId": "RevisionMetadata",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "revision",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RevisionMetadata"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/rollback": {
       "post": {
         "tags": [
@@ -1832,9 +1863,6 @@
         "kustomize": {
           "$ref": "#/definitions/repositoryKustomizeAppSpec"
         },
-        "revisionMetadata": {
-          "$ref": "#/definitions/repositoryRevisionMetadata"
-        },
         "type": {
           "type": "string"
         }
@@ -1854,23 +1882,6 @@
     },
     "repositoryRepoResponse": {
       "type": "object"
-    },
-    "repositoryRevisionMetadata": {
-      "type": "object",
-      "properties": {
-        "author": {
-          "type": "string"
-        },
-        "message": {
-          "type": "string"
-        },
-        "tags": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      }
     },
     "sessionSessionCreateRequest": {
       "description": "SessionCreateRequest is for logging in.",
@@ -3334,6 +3345,23 @@
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
+        }
+      }
+    },
+    "v1alpha1RevisionMetadata": {
+      "type": "object",
+      "properties": {
+        "author": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

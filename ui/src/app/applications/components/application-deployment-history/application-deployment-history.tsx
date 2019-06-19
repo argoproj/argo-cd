@@ -5,6 +5,7 @@ import * as React from 'react';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 import { ApplicationParameters } from '../application-parameters/application-parameters';
+import {RevisionMetadataList} from "./revision-metadata-list";
 
 require('./application-deployment-history.scss');
 
@@ -52,29 +53,12 @@ export const ApplicationDeploymentHistory = ({
                                 </div>
                             </div>
                         </div>
+                        <RevisionMetadataList applicationName={app.metadata.name} revision={recentDeployments[index].revision}/>
                         {selectedRollbackDeploymentIndex === index ? (
                             <DataLoader input={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision}}
                                 load={(src) => services.repos.appDetails(src.repoURL, src.path, src.targetRevision, { helm: src.helm, ksonnet: src.ksonnet })}>
                             {(details: models.RepoAppDetails) => (
                                 <div>
-                                    {details.revisionMetadata && (
-                                    <div className='row'>
-                                        <div className='columns small-2'>AUTHOR:</div>
-                                        <div className='columns small-10'>{details.revisionMetadata.author}</div>
-                                    </div>
-                                    )}
-                                    {details.revisionMetadata && (
-                                    <div className='row'>
-                                        <div className='columns small-2'>MESSAGE:</div>
-                                        <div className='columns small-10'>{details.revisionMetadata.message}</div>
-                                    </div>
-                                    )}
-                                    {details.revisionMetadata && details.revisionMetadata.tags && (
-                                    <div className='row'>
-                                        <div className='columns small-2'>TAGS:</div>
-                                        <div className='columns small-10'>{details.revisionMetadata.tags.join(', ')}</div>
-                                    </div>
-                                    )}
                                     <ApplicationParameters application={{...app, spec: {...app.spec, source: recentDeployments[index].source} }} details={details} />
                                 </div>
                             )

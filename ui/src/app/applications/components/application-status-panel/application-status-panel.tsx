@@ -4,6 +4,7 @@ import * as React from 'react';
 import * as models from '../../../shared/models';
 import * as utils from '../utils';
 import { ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage } from '../utils';
+import {RevisionMetadataPanel} from "./revision-metadata-panel";
 
 require('./application-status-panel.scss');
 
@@ -65,6 +66,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                     {tooltip('Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.')}
                 </div>
                 <div className='application-status-panel__item-name'>{syncStatusMessage(application)}</div>
+                <RevisionMetadataPanel applicationName={application.metadata.name} revision={application.spec.source.targetRevision}/>
             </div>
             {appOperationState && (
             <div className='application-status-panel__item columns small-4'>
@@ -78,6 +80,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 <div className='application-status-panel__item-name'>
                     {appOperationState.phase} at {appOperationState.finishedAt || appOperationState.startedAt}.<br/>
                 </div>
+                <RevisionMetadataPanel applicationName={application.metadata.name} revision={appOperationState.syncResult.revision}/>
             </div>
             )}
             {application.status.conditions && (

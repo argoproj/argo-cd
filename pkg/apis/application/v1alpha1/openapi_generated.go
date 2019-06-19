@@ -68,6 +68,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceResult":             schema_pkg_apis_application_v1alpha1_ResourceResult(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceStatus":             schema_pkg_apis_application_v1alpha1_ResourceStatus(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionHistory":            schema_pkg_apis_application_v1alpha1_RevisionHistory(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionMetadata":           schema_pkg_apis_application_v1alpha1_RevisionMetadata(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperation":              schema_pkg_apis_application_v1alpha1_SyncOperation(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperationResource":      schema_pkg_apis_application_v1alpha1_SyncOperationResource(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperationResult":        schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref),
@@ -2467,6 +2468,45 @@ func schema_pkg_apis_application_v1alpha1_RevisionHistory(ref common.ReferenceCa
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSource", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_RevisionMetadata(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"author": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"tags": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"author", "message", "tags"},
+			},
+		},
+		Dependencies: []string{},
 	}
 }
 

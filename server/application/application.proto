@@ -22,6 +22,11 @@ message ApplicationQuery {
 	optional string resourceVersion = 4 [(gogoproto.nullable) = false];
 }
 
+message RevisionMetadataQuery{
+	required string name = 1 [(gogoproto.nullable) = true];
+	required string revision = 2;
+}
+
 // ApplicationEventsQuery is a query for application resource events
 message ApplicationResourceEventsQuery {
 	required string name = 1;
@@ -193,6 +198,11 @@ service ApplicationService {
 		option (google.api.http).get = "/api/v1/applications/{name}";
 	}
 
+	// Get the meta-data for a revision
+	rpc RevisionMetadata(RevisionMetadataQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RevisionMetadata) {
+		option (google.api.http).get = "/api/v1/applications/{name}/revisions/{revision}/metadata";
+	}
+
 	// GetManifests returns application manifests
 	rpc GetManifests(ApplicationManifestQuery) returns (repository.ManifestResponse) {
 		option (google.api.http).get = "/api/v1/applications/{name}/manifests";
@@ -242,7 +252,6 @@ service ApplicationService {
 	rpc ResourceTree(ResourcesQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationTree) {
 		option (google.api.http).get = "/api/v1/applications/{applicationName}/resource-tree";
 	}
-
 	// Rollback syncs an application to its target state
 	rpc Rollback(ApplicationRollbackRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {

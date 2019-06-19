@@ -118,6 +118,10 @@ func appDetailsCacheKey(commitSHA, path string, valueFiles []string) string {
 	return fmt.Sprintf("appdetails|%s|%s|%s", commitSHA, path, valuesStr)
 }
 
+func revisionMetadataKey(repoURL, revision string) string {
+	return fmt.Sprintf("revisionmetadata|%s|%s", repoURL, revision)
+}
+
 func (c *Cache) setItem(key string, item interface{}, expiration time.Duration, delete bool) error {
 	key = fmt.Sprintf("%s|%s", key, common.CacheVersion)
 	if delete {
@@ -171,7 +175,6 @@ func (c *Cache) GetRepoConnectionState(repo string) (appv1.ConnectionState, erro
 func (c *Cache) SetRepoConnectionState(repo string, state *appv1.ConnectionState) error {
 	return c.setItem(repoConnectionStateKey(repo), &state, connectionStatusCacheExpiration, state == nil)
 }
-
 func (c *Cache) GetGitListDir(commitSha string, path string) ([]string, error) {
 	res := make([]string, 0)
 	err := c.getItem(listDirKey(commitSha, path), &res)
@@ -206,6 +209,15 @@ func (c *Cache) GetAppDetails(commitSHA, path string, valueFiles []string, res i
 
 func (c *Cache) SetAppDetails(commitSHA, path string, valueFiles []string, res interface{}) error {
 	return c.setItem(appDetailsCacheKey(commitSHA, path, valueFiles), res, repoCacheExpiration, res == nil)
+}
+
+func (c *Cache) GetRevisionMetadata(repoURL, revision string) (*appv1.RevisionMetadata, error) {
+	item := &appv1.RevisionMetadata{}
+	return item, c.getItem(revisionMetadataKey(repoURL, revision), item)
+}
+
+func (c *Cache) SetRevisionMetadata(repoURL, revision string, item *appv1.RevisionMetadata) error {
+	return c.setItem(revisionMetadataKey(repoURL, revision), item, repoCacheExpiration, false)
 }
 
 func (c *Cache) GetOIDCState(key string) (*OIDCState, error) {
