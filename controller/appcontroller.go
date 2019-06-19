@@ -113,7 +113,10 @@ func NewApplicationController(
 	appInformer, appLister := ctrl.newApplicationInformerAndLister()
 	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, cache.Indexers{})
 	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
-	ctrl.metricsServer = metrics.NewMetricsServer(metricsAddr, appLister)
+	ctrl.metricsServer = metrics.NewMetricsServer(metricsAddr, appLister, func() error {
+		_, err := kubeClientset.Discovery().ServerVersion()
+		return err
+	})
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settings, kubectlCmd, ctrl.metricsServer, ctrl.handleAppUpdated)
 	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectlCmd, ctrl.settings, stateCache, projInformer, ctrl.metricsServer)
 	ctrl.appInformer = appInformer
