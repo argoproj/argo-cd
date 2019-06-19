@@ -13,6 +13,7 @@ import (
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	applister "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/healthz"
 )
 
 type MetricsServer struct {
@@ -59,12 +60,13 @@ var (
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
-func NewMetricsServer(addr string, appLister applister.ApplicationLister) *MetricsServer {
+func NewMetricsServer(addr string, appLister applister.ApplicationLister, healthCheck func() error) *MetricsServer {
 	mux := http.NewServeMux()
 	appRegistry := NewAppRegistry(appLister)
 	appRegistry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
 	appRegistry.MustRegister(prometheus.NewGoCollector())
 	mux.Handle(MetricsPath, promhttp.HandlerFor(appRegistry, promhttp.HandlerOpts{}))
+	healthz.ServeHealthCheck(mux, healthCheck)
 
 	syncCounter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{

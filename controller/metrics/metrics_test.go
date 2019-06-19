@@ -104,6 +104,10 @@ argocd_app_sync_status{name="my-app",namespace="argocd",project="default",sync_s
 argocd_app_sync_status{name="my-app",namespace="argocd",project="default",sync_status="Unknown"} 0
 `
 
+var noOpHealthCheck = func() error {
+	return nil
+}
+
 func newFakeApp(fakeApp string) *argoappv1.Application {
 	var app argoappv1.Application
 	err := yaml.Unmarshal([]byte(fakeApp), &app)
@@ -133,7 +137,7 @@ func newFakeLister(fakeApp ...string) (context.CancelFunc, applister.Application
 func testApp(t *testing.T, fakeApp string, expectedResponse string) {
 	cancel, appLister := newFakeLister(fakeApp)
 	defer cancel()
-	metricsServ := NewMetricsServer("localhost:8082", appLister)
+	metricsServ := NewMetricsServer("localhost:8082", appLister, noOpHealthCheck)
 	req, err := http.NewRequest("GET", "/metrics", nil)
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
@@ -176,7 +180,7 @@ argocd_app_sync_total{name="my-app",namespace="argocd",phase="Succeeded",project
 func TestMetricsSyncCounter(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
-	metricsServ := NewMetricsServer("localhost:8082", appLister)
+	metricsServ := NewMetricsServer("localhost:8082", appLister, noOpHealthCheck)
 
 	fakeApp := newFakeApp(fakeApp)
 	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: argoappv1.OperationRunning})
@@ -217,7 +221,7 @@ argocd_app_reconcile_count{name="my-app",namespace="argocd",project="important-p
 func TestReconcileMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
-	metricsServ := NewMetricsServer("localhost:8082", appLister)
+	metricsServ := NewMetricsServer("localhost:8082", appLister, noOpHealthCheck)
 
 	fakeApp := newFakeApp(fakeApp)
 	metricsServ.IncReconcile(fakeApp, 5*time.Second)
