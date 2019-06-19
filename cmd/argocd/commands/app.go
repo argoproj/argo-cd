@@ -412,6 +412,8 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 			app.Spec.Project = appOpts.project
 		case "nameprefix":
 			setKustomizeOpt(&app.Spec.Source, &appOpts.namePrefix)
+		case "jsonnet-tlas":
+			setJsonnetOpt(&app.Spec.Source, appOpts.jsonnetTlaParameters)
 		case "sync-policy":
 			switch appOpts.syncPolicy {
 			case "automated":
@@ -474,6 +476,33 @@ func setHelmOpt(src *argoappv1.ApplicationSource, valueFiles []string, releaseNa
 	}
 }
 
+func setJsonnetOpt(src *argoappv1.ApplicationSource, tlaParameters []string) {
+	if src.Directory == nil {
+		src.Directory = &argoappv1.ApplicationSourceDirectory{}
+	}
+
+	if len(tlaParameters) != 0 {
+		tlas := make([]argoappv1.JsonnetVar, len(tlaParameters))
+		for index, paramStr := range tlaParameters {
+			parts := strings.SplitN(paramStr, "=", 2)
+			if len(parts) != 2 {
+				log.Fatalf("Expected parameter of the form: param=value. Received: %s", paramStr)
+				break
+			}
+			tlas[index] = argoappv1.JsonnetVar{
+				Name:  parts[0],
+				Value: parts[1],
+				Code:  true}
+		}
+		src.Directory.Jsonnet.TLAs = tlas
+	}
+
+	if src.Directory.IsZero() {
+		src.Directory = nil
+	}
+
+}
+
 type appOptions struct {
 	repoURL                string
 	appPath                string
@@ -490,6 +519,7 @@ type appOptions struct {
 	namePrefix             string
 	directoryRecurse       bool
 	configManagementPlugin string
+	jsonnetTlaParameters   []string
 }
 
 func addAppFlags(command *cobra.Command, opts *appOptions) {
@@ -508,6 +538,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
 	command.Flags().BoolVar(&opts.directoryRecurse, "directory-recurse", false, "Recurse directory")
 	command.Flags().StringVar(&opts.configManagementPlugin, "config-management-plugin", "", "Config management plugin name")
+	command.Flags().StringArrayVar(&opts.jsonnetTlaParameters, "jsonnet-tlas", []string{}, "Jsonnet top level arguments")
 }
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
