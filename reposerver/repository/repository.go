@@ -32,7 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"
-	"github.com/argoproj/argo-cd/util/trunc"
+	"github.com/argoproj/argo-cd/util/text"
 )
 
 const (
@@ -720,7 +720,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *RepoServerRevision
 			return nil, err
 		}
 		// discard anything after the first new line and then truncate to 64 chars
-		message := trunc.Trunc(strings.SplitN(gitMetadata.Message, "\n", 2)[0], 64)
+		message := text.Trunc(strings.SplitN(gitMetadata.Message, "\n", 2)[0], 64)
 		metadata = &v1alpha1.RevisionMetadata{Author: gitMetadata.Author, Date: metav1.Time{Time: gitMetadata.Date}, Tags: gitMetadata.Tags, Message: message}
 		_ = s.cache.SetRevisionMetadata(q.Repo.Repo, q.Revision, metadata)
 		return metadata, nil

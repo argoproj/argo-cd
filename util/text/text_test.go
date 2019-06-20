@@ -1,4 +1,4 @@
-package trunc
+package text
 
 import (
 	"testing"
