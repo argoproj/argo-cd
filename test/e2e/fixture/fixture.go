@@ -316,7 +316,7 @@ func AddFile(path, contents string) {
 	CheckError(ioutil.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0644))
 
 	FailOnErr(Run(repoDirectory(), "git", "diff"))
-	FailOnErr(Run(repoDirectory(), "git", "add", "*"))
+	FailOnErr(Run(repoDirectory(), "git", "add", "."))
 	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "add file"))
 }
 
