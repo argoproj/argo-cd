@@ -2637,6 +2637,10 @@
         },
         "syncPolicy": {
           "$ref": "#/definitions/v1alpha1SyncPolicy"
+        },
+        "alwaysHardrefresh": {
+          "description": "Always use hard-refresh to track changes in remote-bases",
+          "type": "boolean"
         }
       }
     },

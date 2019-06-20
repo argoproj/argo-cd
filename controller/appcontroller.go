@@ -624,7 +624,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	defer func() {
 		reconcileDuration := time.Since(startTime)
 		ctrl.metricsServer.IncReconcile(origApp, reconcileDuration)
-		logCtx := log.WithFields(log.Fields{"application": origApp.Name, "time_ms": reconcileDuration.Seconds() * 1e3, "full": fullRefresh})
+		logCtx := log.WithFields(log.Fields{"application": origApp.Name, "time_ms": reconcileDuration.Seconds() * 1e3, "full": fullRefresh, "alwaysHardrefresh": origApp.Spec.Alwayshardrefresh})
 		logCtx.Info("Reconciliation completed")
 	}()
 
@@ -702,6 +702,9 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	var reason string
 	fullRefresh := true
 	refreshType := appv1.RefreshTypeNormal
+	if app.Spec.Alwayshardrefresh {
+		refreshType = appv1.RefreshTypeHard
+	}
 	expired := app.Status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
 	if requestedType, ok := app.IsRefreshRequested(); ok {
 		refreshType = requestedType
@@ -719,6 +722,8 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 		reason = fmt.Sprintf("comparison expired. reconciledAt: %v, expiry: %v", app.Status.ReconciledAt, statusRefreshTimeout)
 	}
 	if reason != "" {
+		reason += fmt.Sprintf(" application: %s", app.Name)
+		reason += fmt.Sprintf(" alwaysHardrefresh: %t", app.Spec.Alwayshardrefresh)
 		logCtx.Infof("Refreshing app status (%s)", reason)
 		return true, refreshType, fullRefresh
 	}

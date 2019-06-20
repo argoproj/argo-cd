@@ -487,6 +487,9 @@ spec:
                       type: boolean
                   type: object
               type: object
+            alwaysHardrefresh:
+              description: 'Always use hard-refresh to track changes in remote-bases (default: false)'
+              type: boolean
           required:
           - source
           - destination

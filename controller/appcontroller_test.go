@@ -136,6 +136,7 @@ spec:
     repoURL: https://github.com/argoproj/argocd-example-apps.git
   syncPolicy:
     automated: {}
+  alwaysHardrefresh: true
 status:
   operationState:
     finishedAt: 2018-09-21T23:50:29Z
