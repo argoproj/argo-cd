@@ -195,9 +195,8 @@ func (sc *syncContext) sync() {
 	}
 
 	// Split normal tasks from SyncFail tasks
-	syncFailTasks, tasks := tasks.Split(func(t *syncTask) bool { return t.phase == v1alpha1.SyncPhaseSyncFail })
 
-	sc.log.WithFields(log.Fields{"tasks": tasks, "syncFailTasks": syncFailTasks, "isSelectiveSync": sc.isSelectiveSync()}).Info("tasks")
+	sc.log.WithFields(log.Fields{"tasks": tasks, "isSelectiveSync": sc.isSelectiveSync()}).Info("all tasks")
 
 	// Perform a `kubectl apply --dry-run` against all the manifests. This will detect most (but
 	// not all) validation issues with the user's manifests (e.g. will detect syntax issues, but
@@ -205,27 +204,18 @@ func (sc *syncContext) sync() {
 	// to perform the sync. we only wish to do this once per operation, performing additional dry-runs
 	// is harmless, but redundant. The indicator we use to detect if we have already performed
 	// the dry-run for this operation, is if the resource or hook list is empty.
-	dryRunFailed := false
 	if !sc.started() {
 		sc.log.Debug("dry-run")
 		if !sc.runTasks(tasks, true) {
-			sc.setOperationPhase(v1alpha1.OperationFailed, "one or more objects failed to apply (dry run)")
-			sc.log.WithFields(log.Fields{"syncFailTasks": syncFailTasks}).Debug("running sync fail tasks")
-			if !sc.runTasks(syncFailTasks, false) {
-				sc.setOperationPhase(v1alpha1.OperationFailed, "one or more objects failed to apply; SyncFail hooks failed to apply")
-			}
-			dryRunFailed = true
+			return
 		}
 	}
 
-	runningFilterFunc := func(t *syncTask) bool {
+	// update status of any tasks that are running, note that this must exclude pruning tasks
+	for _, task := range tasks.Filter(func(t *syncTask) bool {
 		// just occasionally, you can be running yet not have a live resource
 		return t.running() && t.liveObj != nil
-	}
-	// update status of any tasks that are running, note that this must exclude pruning tasks
-
-	sc.log.WithFields(log.Fields{"appendeed": append(tasks.Filter(runningFilterFunc), syncFailTasks.Filter(runningFilterFunc)...)}).Debug("for loop")
-	for _, task := range append(tasks.Filter(runningFilterFunc), syncFailTasks.Filter(runningFilterFunc)...) {
+	}) {
 		if task.isHook() {
 			// update the hook's result
 			sc.log.WithFields(log.Fields{"task": task, "op": task.phase}).Debug("this task is a hook")
@@ -261,9 +251,6 @@ func (sc *syncContext) sync() {
 		}
 	}
 
-	if dryRunFailed {
-		return
-	}
 
 	// any running tasks, lets wait...
 	if tasks.Find(func(t *syncTask) bool { return t.running() }) != nil {
@@ -271,9 +258,13 @@ func (sc *syncContext) sync() {
 		return
 	}
 
+	syncFailTasks, tasks := tasks.Split(func(t *syncTask) bool { return t.phase == v1alpha1.SyncPhaseSyncFail })
+
+
 	// if there are any completed but unsuccessful tasks, sync is a failure.
 	if tasks.Find(func(t *syncTask) bool { return t.completed() && !t.successful() }) != nil {
-		sc.setOperationPhase(v1alpha1.OperationFailed, "one or more synchronization tasks completed unsuccessfully")
+		sc.log.WithFields(log.Fields{"tasks": tasks, "SyncFail tasks": syncFailTasks}).Debug("completed, but unsuccessful failure")
+		sc.runFailedTasksIfAny(syncFailTasks, "one or more synchronization tasks completed unsuccessfully")
 		return
 	}
 
@@ -306,15 +297,27 @@ func (sc *syncContext) sync() {
 
 	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("wet-run")
 	if !sc.runTasks(tasks, false) {
-		sc.setOperationPhase(v1alpha1.OperationFailed, "one or more objects failed to apply")
-		sc.log.WithFields(log.Fields{"syncFailTasks": syncFailTasks}).Debug("running sync fail tasks")
-		if !sc.runTasks(syncFailTasks, false) {
-			sc.setOperationPhase(v1alpha1.OperationFailed, "one or more objects failed to apply; SyncFail hooks failed to apply")
-		}
+		sc.log.WithFields(log.Fields{"tasks": tasks, "SyncFail tasks": syncFailTasks}).Debug("run failure")
+		sc.runFailedTasksIfAny(syncFailTasks, "one or more objects failed to apply")
 	} else {
 		if complete {
 			sc.setOperationPhase(v1alpha1.OperationSucceeded, "successfully synced (all tasks run)")
 		}
+	}
+}
+
+func (sc *syncContext) runFailedTasksIfAny(syncFailTasks syncTasks, failMessage string) {
+	if len(syncFailTasks) > 0 {
+		if syncFailTasks.All(func(task *syncTask) bool { return task.completed() }) {
+			sc.setOperationPhase(v1alpha1.OperationFailed, fmt.Sprintf("%s; SyncFail hooks applied successfully", failMessage))
+			return
+		}
+		sc.log.WithFields(log.Fields{"syncFailTasks": syncFailTasks}).Debug("running sync fail tasks")
+		if !sc.runTasks(syncFailTasks, false) {
+			sc.setOperationPhase(v1alpha1.OperationFailed, fmt.Sprintf("%s; SyncFail hooks failed to apply", failMessage))
+		}
+	} else {
+		sc.setOperationPhase(v1alpha1.OperationFailed, failMessage)
 	}
 }
 

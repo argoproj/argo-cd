@@ -116,6 +116,24 @@ func (s syncTasks) Split(predicate func(task *syncTask) bool) (trueTasks, falseT
 	return trueTasks, falseTasks
 }
 
+func (s syncTasks) All(predicate func(task *syncTask) bool) bool {
+	for _, task := range s {
+		if !predicate(task) {
+			return false
+		}
+	}
+	return true
+}
+
+func (s syncTasks) Any(predicate func(task *syncTask) bool) bool {
+	for _, task := range s {
+		if predicate(task) {
+			return true
+		}
+	}
+	return false
+}
+
 func (s syncTasks) Find(predicate func(task *syncTask) bool) *syncTask {
 	for _, task := range s {
 		if predicate(task) {
