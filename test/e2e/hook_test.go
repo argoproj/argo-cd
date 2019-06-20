@@ -128,8 +128,6 @@ func TestSyncFailHookPodFailure(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook2", Message: "pod/hook2 created", HookType: HookTypeSyncFail, HookPhase: OperationSucceeded, SyncPhase: SyncPhaseSyncFail}))
-		//Expect(ResourceResultNumbering(1)).
-		//Expect(NotPod(func(p v1.Pod) bool { return p.Name == "hook" }))
 }
 
 // make sure that we delete the hook on success

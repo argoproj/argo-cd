@@ -194,9 +194,7 @@ func (sc *syncContext) sync() {
 		return
 	}
 
-	// Split normal tasks from SyncFail tasks
-
-	sc.log.WithFields(log.Fields{"tasks": tasks, "isSelectiveSync": sc.isSelectiveSync()}).Info("all tasks")
+	sc.log.WithFields(log.Fields{"tasks": tasks, "isSelectiveSync": sc.isSelectiveSync()}).Info("tasks")
 
 	// Perform a `kubectl apply --dry-run` against all the manifests. This will detect most (but
 	// not all) validation issues with the user's manifests (e.g. will detect syntax issues, but
@@ -218,14 +216,11 @@ func (sc *syncContext) sync() {
 	}) {
 		if task.isHook() {
 			// update the hook's result
-			sc.log.WithFields(log.Fields{"task": task, "op": task.phase}).Debug("this task is a hook")
 			operationState, message := getOperationPhase(task.liveObj)
 			sc.setResourceResult(task, "", operationState, message)
-			sc.log.WithFields(log.Fields{"task": task}).Debug("this task is a hook-post")
 
 			// maybe delete the hook
 			if enforceHookDeletePolicy(task.liveObj, task.operationState) {
-				sc.log.WithFields(log.Fields{"task": task}).Debug("this task is a hook and was deleted")
 				err := sc.deleteResource(task)
 				if err != nil {
 					sc.setResourceResult(task, "", v1alpha1.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
@@ -251,7 +246,6 @@ func (sc *syncContext) sync() {
 		}
 	}
 
-
 	// any running tasks, lets wait...
 	if tasks.Find(func(t *syncTask) bool { return t.running() }) != nil {
 		sc.setOperationPhase(v1alpha1.OperationRunning, "one or more tasks are running")
@@ -263,7 +257,6 @@ func (sc *syncContext) sync() {
 
 	// if there are any completed but unsuccessful tasks, sync is a failure.
 	if tasks.Find(func(t *syncTask) bool { return t.completed() && !t.successful() }) != nil {
-		sc.log.WithFields(log.Fields{"tasks": tasks, "SyncFail tasks": syncFailTasks}).Debug("completed, but unsuccessful failure")
 		sc.runFailedTasksIfAny(syncFailTasks, "one or more synchronization tasks completed unsuccessfully")
 		return
 	}
@@ -271,7 +264,6 @@ func (sc *syncContext) sync() {
 	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("filtering out completed tasks")
 	// remove tasks that are completed, we can assume that there are no running tasks
 	tasks = tasks.Filter(func(t *syncTask) bool { return !t.completed() })
-
 
 	// If no sync tasks were generated (e.g., in case all application manifests have been removed),
 	// the sync operation is successful.
@@ -283,7 +275,6 @@ func (sc *syncContext) sync() {
 	// remove any tasks not in this wave
 	phase := tasks.phase()
 	wave := tasks.wave()
-
 
 	// if it is the last phase/wave and the only remaining tasks are non-hooks, the we are successful
 	// EVEN if those objects subsequently degraded
@@ -297,7 +288,6 @@ func (sc *syncContext) sync() {
 
 	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("wet-run")
 	if !sc.runTasks(tasks, false) {
-		sc.log.WithFields(log.Fields{"tasks": tasks, "SyncFail tasks": syncFailTasks}).Debug("run failure")
 		sc.runFailedTasksIfAny(syncFailTasks, "one or more objects failed to apply")
 	} else {
 		if complete {
@@ -403,8 +393,6 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 				// or formulated at the time of the operation (metadata.generateName). If user specifies
 				// metadata.generateName, then we will generate a formulated metadata.name before submission.
 				targetObj := obj.DeepCopy()
-
-				sc.log.WithFields(log.Fields{"task": targetObj.Object}).Debug("Sync Tast")
 				if targetObj.GetName() == "" {
 					postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", sc.syncRes.Revision[0:7], phase, sc.opState.StartedAt.UTC().Unix()))
 					generateName := obj.GetGenerateName()
@@ -449,7 +437,6 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 	for _, task := range tasks {
 		_, result := sc.syncRes.Resources.Find(task.group(), task.kind(), task.namespace(), task.name(), task.phase)
 		if result != nil {
-			sc.log.WithFields(log.Fields{"task": task, "result": result}).Debug("Sync result")
 			task.syncStatus = result.Status
 			task.operationState = result.HookPhase
 			task.message = result.Message
