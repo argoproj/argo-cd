@@ -46,11 +46,7 @@ export const ApplicationTiles = ({applications, syncApplication, deleteApplicati
                             <div className='row'>
                                 <div className='columns small-3'>Repository:</div>
                                 <div className='columns small-9'>
-                                    <Tooltip content={app.spec.source.repoURL}>
-                                        <a href={app.spec.source.repoURL} target='_blank' onClick={(event) => event.stopPropagation()}>
-                                            <i className='fa fa-external-link'/> {app.spec.source.repoURL}
-                                        </a>
-                                    </Tooltip>
+                                    <Tooltip content={app.spec.source.repoURL}>{app.spec.source.repoURL}</Tooltip>
                                 </div>
                             </div>
                             <div className='row'>

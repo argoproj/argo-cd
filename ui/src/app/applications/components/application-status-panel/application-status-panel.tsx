@@ -1,5 +1,6 @@
 import {Tooltip} from 'argo-ui';
 import * as React from 'react';
+import {Revision} from '../../../shared/components/revision';
 import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import * as utils from '../utils';
@@ -67,7 +68,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 </div>
                 <div className='application-status-panel__item-name'>{syncStatusMessage(application)}</div>
                 <RevisionMetadataPanel applicationName={application.metadata.name}
-                                       revision={application.spec.source.targetRevision || 'HEAD'}/>
+                                       revision={application.spec.source.targetRevision}/>
             </div>
             {appOperationState && (
                 <div className='application-status-panel__item columns small-4'>
@@ -79,6 +80,11 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                         {tooltip('Whether or not your last app sync was successful. It has been ' + daysSinceLastSynchronized +
                             ' days since last sync. Click for the status of that sync.')}
                     </div>
+                    {appOperationState.syncResult && (
+                        <div className='application-status-panel__item-name'>To <Revision
+                            repoUrl={application.spec.source.repoURL} revision={appOperationState.syncResult.revision}/>
+                        </div>
+                    )}
                     <div className='application-status-panel__item-name'>
                         {appOperationState.phase} <Timestamp
                         date={appOperationState.finishedAt || appOperationState.startedAt}/>

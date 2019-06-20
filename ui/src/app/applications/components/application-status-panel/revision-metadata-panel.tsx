@@ -21,7 +21,7 @@ export class RevisionMetadataPanel extends React.Component<Props, State> {
     }
 
     public componentDidMount() {
-        services.applications.revisionMetadata(this.props.applicationName, this.props.revision)
+        services.applications.revisionMetadata(this.props.applicationName, this.props.revision || 'HEAD')
             .then((value) => this.setState({revisionMetadata: value}))
             .catch((e) => this.setState({error: e}));
     }
@@ -47,7 +47,7 @@ export class RevisionMetadataPanel extends React.Component<Props, State> {
                         Authored by {author}<br/>
                         {tags && <span>Tagged {tags.join(', ')}<br/></span>}
                         {message}
-                        </div>
+                    </div>
                 </Tooltip>
             );
         }

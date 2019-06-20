@@ -1,6 +1,7 @@
 import {DataLoader, DropDownMenu, Duration} from 'argo-ui';
 import * as moment from 'moment';
 import * as React from 'react';
+import {Revision} from '../../../shared/components/revision';
 import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -44,7 +45,7 @@ export const ApplicationDeploymentHistory = ({
                                 Revision:
                             </div>
                             <div className='columns small-9'>
-                                {info.revision}
+                                <Revision repoUrl={info.source.repoURL} revision={info.revision}/>
                                 <div className='application-deployment-history__item-menu'>
                                     <DropDownMenu anchor={() => <button
                                         className='argo-button argo-button--light argo-button--lg argo-button--short'>
