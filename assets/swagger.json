@@ -49,7 +49,7 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "ListMixin5",
+        "operationId": "ListMixin3",
         "parameters": [
           {
             "type": "string",
@@ -89,7 +89,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "CreateMixin5",
+        "operationId": "CreateMixin3",
         "parameters": [
           {
             "name": "body",
@@ -116,7 +116,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "UpdateMixin5",
+        "operationId": "UpdateMixin3",
         "parameters": [
           {
             "type": "string",
@@ -197,7 +197,7 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "GetMixin5",
+        "operationId": "Get",
         "parameters": [
           {
             "type": "string",
@@ -238,7 +238,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "DeleteMixin5",
+        "operationId": "DeleteMixin3",
         "parameters": [
           {
             "type": "string",
@@ -744,7 +744,7 @@
           "ClusterService"
         ],
         "summary": "List returns list of clusters",
-        "operationId": "List",
+        "operationId": "ListMixin4",
         "parameters": [
           {
             "type": "string",
@@ -766,7 +766,7 @@
           "ClusterService"
         ],
         "summary": "Create creates a cluster",
-        "operationId": "Create",
+        "operationId": "CreateMixin4",
         "parameters": [
           {
             "name": "body",
@@ -793,7 +793,7 @@
           "ClusterService"
         ],
         "summary": "Update updates a cluster",
-        "operationId": "Update",
+        "operationId": "UpdateMixin4",
         "parameters": [
           {
             "type": "string",
@@ -826,7 +826,7 @@
           "ClusterService"
         ],
         "summary": "Get returns a cluster by server address",
-        "operationId": "GetMixin1",
+        "operationId": "GetMixin4",
         "parameters": [
           {
             "type": "string",
@@ -849,7 +849,7 @@
           "ClusterService"
         ],
         "summary": "Delete deletes a cluster",
-        "operationId": "Delete",
+        "operationId": "DeleteMixin4",
         "parameters": [
           {
             "type": "string",
@@ -874,7 +874,7 @@
           "ProjectService"
         ],
         "summary": "List returns list of projects",
-        "operationId": "ListMixin3",
+        "operationId": "ListMixin6",
         "parameters": [
           {
             "type": "string",
@@ -896,7 +896,7 @@
           "ProjectService"
         ],
         "summary": "Create a new project.",
-        "operationId": "CreateMixin3",
+        "operationId": "CreateMixin6",
         "parameters": [
           {
             "name": "body",
@@ -923,7 +923,7 @@
           "ProjectService"
         ],
         "summary": "Get returns a project by name",
-        "operationId": "GetMixin3",
+        "operationId": "GetMixin6",
         "parameters": [
           {
             "type": "string",
@@ -946,7 +946,7 @@
           "ProjectService"
         ],
         "summary": "Delete deletes a project",
-        "operationId": "DeleteMixin3",
+        "operationId": "DeleteMixin6",
         "parameters": [
           {
             "type": "string",
@@ -996,7 +996,7 @@
           "ProjectService"
         ],
         "summary": "Update updates a project",
-        "operationId": "UpdateMixin3",
+        "operationId": "UpdateMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1106,7 +1106,7 @@
           "RepositoryService"
         ],
         "summary": "List returns list of repos",
-        "operationId": "ListMixin2",
+        "operationId": "List",
         "parameters": [
           {
             "type": "string",
@@ -1128,7 +1128,7 @@
           "RepositoryService"
         ],
         "summary": "Create creates a repo",
-        "operationId": "CreateMixin2",
+        "operationId": "Create",
         "parameters": [
           {
             "name": "body",
@@ -1155,7 +1155,7 @@
           "RepositoryService"
         ],
         "summary": "Update updates a repo",
-        "operationId": "UpdateMixin2",
+        "operationId": "Update",
         "parameters": [
           {
             "type": "string",
@@ -1188,7 +1188,7 @@
           "RepositoryService"
         ],
         "summary": "Delete deletes a repo",
-        "operationId": "DeleteMixin2",
+        "operationId": "Delete",
         "parameters": [
           {
             "type": "string",
@@ -1292,7 +1292,7 @@
           "SessionService"
         ],
         "summary": "Create a new JWT for authentication and set a cookie if using HTTP.",
-        "operationId": "CreateMixin7",
+        "operationId": "CreateMixin2",
         "parameters": [
           {
             "name": "body",
@@ -1317,7 +1317,7 @@
           "SessionService"
         ],
         "summary": "Delete an existing JWT cookie if using HTTP.",
-        "operationId": "DeleteMixin7",
+        "operationId": "DeleteMixin2",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -1334,7 +1334,7 @@
           "SettingsService"
         ],
         "summary": "Get returns Argo CD settings",
-        "operationId": "Get",
+        "operationId": "GetMixin5",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -2611,6 +2611,11 @@
       "description": "ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.",
       "type": "object",
       "properties": {
+        "alwaysHardrefresh": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "Always use hard-refresh for application"
+        },
         "destination": {
           "$ref": "#/definitions/v1alpha1ApplicationDestination"
         },
@@ -2637,10 +2642,6 @@
         },
         "syncPolicy": {
           "$ref": "#/definitions/v1alpha1SyncPolicy"
-        },
-        "alwaysHardrefresh": {
-          "description": "Always use hard-refresh to track changes in remote-bases",
-          "type": "boolean"
         }
       }
     },

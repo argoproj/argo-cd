@@ -16,8 +16,8 @@ patchesStrategicMerge:
 
 images:
 - name: argoproj/argocd
-  newName: argoproj/argocd
+  newName: meichhorn/argocd
   newTag: latest
 - name: argoproj/argocd-ui
-  newName: argoproj/argocd-ui
+  newName: meichhorn/argocd-ui
   newTag: latest

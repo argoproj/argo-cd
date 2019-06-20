@@ -264,6 +264,9 @@ spec:
             link to repository with application definition and additional parameters
             link definition revision.
           properties:
+            alwaysHardrefresh:
+              description: Always use hard-refresh for application
+              type: boolean
             destination:
               description: ApplicationDestination contains deployment destination
                 information
@@ -2120,7 +2123,7 @@ spec:
         - argocd-redis-ha-announce-2:26379
         - --sentinelmaster
         - argocd
-        image: argoproj/argocd:latest
+        image: meichhorn/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -2174,7 +2177,7 @@ spec:
         - cp
         - /usr/local/bin/argocd-util
         - /shared
-        image: argoproj/argocd:latest
+        image: meichhorn/argocd:latest
         imagePullPolicy: Always
         name: copyutil
         volumeMounts:
@@ -2229,7 +2232,7 @@ spec:
         - argocd-redis-ha-announce-2:26379
         - --sentinelmaster
         - argocd
-        image: argoproj/argocd:latest
+        image: meichhorn/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           initialDelaySeconds: 5
@@ -2291,7 +2294,7 @@ spec:
         - argocd-redis-ha-announce-2:26379
         - --sentinelmaster
         - argocd
-        image: argoproj/argocd:latest
+        image: meichhorn/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -2318,7 +2321,7 @@ spec:
         - -r
         - /app
         - /shared
-        image: argoproj/argocd-ui:latest
+        image: meichhorn/argocd-ui:latest
         imagePullPolicy: Always
         name: ui
         volumeMounts:

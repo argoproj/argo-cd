@@ -263,6 +263,9 @@ spec:
             link to repository with application definition and additional parameters
             link definition revision.
           properties:
+            alwaysHardrefresh:
+              description: Always use hard-refresh for application
+              type: boolean
             destination:
               description: ApplicationDestination contains deployment destination
                 information
@@ -487,9 +490,6 @@ spec:
                       type: boolean
                   type: object
               type: object
-            alwaysHardrefresh:
-              description: 'Always use hard-refresh to track changes in remote-bases (default: false)'
-              type: boolean
           required:
           - source
           - destination
