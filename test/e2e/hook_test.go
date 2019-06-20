@@ -117,17 +117,34 @@ func TestPostSyncHookPodFailure(t *testing.T) {
 }
 
 func TestSyncFailHookPodFailure(t *testing.T) {
+	hook2Contents := `
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    argocd.argoproj.io/hook: Sync
+  name: hook2
+spec:
+  containers:
+    - command:
+        - "true"
+      image: "alpine:latest"
+      imagePullPolicy: IfNotPresent
+      name: main
+  restartPolicy: Never
+`
 	Given(t).
 		Path("hook").
 		When().
+		AddFile("hook2.yaml", hook2Contents).
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "PostSync"}}]`).
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}]`).
 		PatchFile("hook2.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "SyncFail"}}]`).
 		Create().
 		Sync().
 		Then().
-		Expect(OperationPhaseIs(OperationFailed)).
-		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook2", Message: "pod/hook2 created", HookType: HookTypeSyncFail, HookPhase: OperationSucceeded, SyncPhase: SyncPhaseSyncFail}))
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook2", Message: "pod/hook2 created", HookType: HookTypeSyncFail, HookPhase: OperationSucceeded, SyncPhase: SyncPhaseSyncFail})).
+		Expect(OperationPhaseIs(OperationFailed))
 }
 
 // make sure that we delete the hook on success
