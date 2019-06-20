@@ -31,7 +31,7 @@ func TestAnySyncTasks(t *testing.T) {
 	res = unsortedTasks.Any(func(task *syncTask) bool {
 		return task.name() == "does-not-exist"
 	})
-	assert.True(t, res)
+	assert.False(t, res)
 
 }
 
