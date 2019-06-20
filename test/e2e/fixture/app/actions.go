@@ -28,7 +28,7 @@ func (a *Actions) DeleteFile(file string) *Actions {
 }
 
 func (a *Actions) AddFile(fileName, fileContents string) *Actions {
-	fixture.AddFile(a.context.path + "/" + fileName, fileContents)
+	fixture.AddFile(a.context.path+"/"+fileName, fileContents)
 	return a
 }
 
