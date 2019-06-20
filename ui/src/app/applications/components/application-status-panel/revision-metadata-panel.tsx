@@ -1,6 +1,6 @@
 import {Tooltip} from 'argo-ui';
 import * as React from 'react';
-import Moment from 'react-moment';
+import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
@@ -35,7 +35,7 @@ export class RevisionMetadataPanel extends React.Component<Props, State> {
             const message = revisionMetadata.message;
             const tip = (
                 <span>
-                    <span>Authored by {author} <Moment fromNow={true}>{date}</Moment> (<Moment local={true}>{date}</Moment>)</span><br/>
+                    <span>Authored by {author} <Timestamp date={date}/></span><br/>
                     {tags && (<span>Tags: {tags}<br/></span>)}
                     <span>{message}</span>
                 </span>
@@ -43,11 +43,11 @@ export class RevisionMetadataPanel extends React.Component<Props, State> {
 
             return (
                 <Tooltip content={tip} placement='bottom' allowHTML={true}>
-                    <div>
-                        <div className='application-status-panel__item-name'>Authored by {author}</div>
-                        {tags && <div className='application-status-panel__item-name'>Tagged {tags.join(', ')}</div>}
-                        <div className='application-status-panel__item-name'>{message}</div>
-                    </div>
+                    <div className='application-status-panel__item-name'>
+                        Authored by {author}<br/>
+                        {tags && <span>Tagged {tags.join(', ')}<br/></span>}
+                        {message}
+                        </div>
                 </Tooltip>
             );
         }

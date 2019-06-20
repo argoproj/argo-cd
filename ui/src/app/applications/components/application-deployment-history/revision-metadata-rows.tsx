@@ -1,5 +1,5 @@
 import * as React from 'react';
-import Moment from 'react-moment';
+import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
@@ -38,7 +38,7 @@ export class RevisionMetadataRows extends React.Component<Props, State> {
                         <div className='columns small-3'>Authored by</div>
                         <div className='columns small-9'>
                             {author}<br/>
-                            <Moment fromNow={true}>{date}</Moment> (<Moment local={true}>{date}</Moment>)
+                            <Timestamp date={date}/>
                         </div>
                     </div>
                     {tags && (

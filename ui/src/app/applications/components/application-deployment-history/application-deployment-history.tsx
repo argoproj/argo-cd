@@ -1,21 +1,20 @@
-import { DataLoader, DropDownMenu, Duration } from 'argo-ui';
+import {DataLoader, DropDownMenu, Duration} from 'argo-ui';
 import * as moment from 'moment';
 import * as React from 'react';
-
-import Moment from 'react-moment';
+import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
-import { services } from '../../../shared/services';
-import { ApplicationParameters } from '../application-parameters/application-parameters';
+import {services} from '../../../shared/services';
+import {ApplicationParameters} from '../application-parameters/application-parameters';
 import {RevisionMetadataRows} from './revision-metadata-rows';
 
 require('./application-deployment-history.scss');
 
 export const ApplicationDeploymentHistory = ({
-    app,
-    rollbackApp,
-    selectedRollbackDeploymentIndex,
-    selectDeployment,
-}: {
+                                                 app,
+                                                 rollbackApp,
+                                                 selectedRollbackDeploymentIndex,
+                                                 selectDeployment,
+                                             }: {
     app: models.Application,
     selectedRollbackDeploymentIndex: number,
     rollbackApp: (info: models.RevisionHistory) => any,
@@ -31,12 +30,12 @@ export const ApplicationDeploymentHistory = ({
     return (
         <div className='application-deployment-history'>
             {recentDeployments.map((info, index) => (
-                <div className='row application-deployment-history__item' key={info.deployedAt} onClick={() => selectDeployment(index)}>
+                <div className='row application-deployment-history__item' key={info.deployedAt}
+                     onClick={() => selectDeployment(index)}>
                     <div className='columns small-3'>
                         <div>
-                            <i className='fa fa-clock'/> <Moment fromNow={true}>{info.deployedAt}</Moment>
+                            <i className='fa fa-clock'/> <Timestamp date={info.deployedAt}/>
                         </div>
-                        <div>(<Moment local={true}>{info.deployedAt}</Moment>)</div>
                         <div><Duration durationMs={info.durationMs}/></div>
                     </div>
                     <div className='columns small-9'>
@@ -47,7 +46,8 @@ export const ApplicationDeploymentHistory = ({
                             <div className='columns small-9'>
                                 {info.revision}
                                 <div className='application-deployment-history__item-menu'>
-                                    <DropDownMenu anchor={() => <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                    <DropDownMenu anchor={() => <button
+                                        className='argo-button argo-button--light argo-button--lg argo-button--short'>
                                         <i className='fa fa-ellipsis-v'/>
                                     </button>} items={[{
                                         title: info.nextDeployedAt && 'Rollback' || 'Redeploy',
@@ -56,19 +56,29 @@ export const ApplicationDeploymentHistory = ({
                                 </div>
                             </div>
                         </div>
-                        <RevisionMetadataRows applicationName={app.metadata.name} revision={recentDeployments[index].revision}/>
+                        <RevisionMetadataRows applicationName={app.metadata.name}
+                                              revision={recentDeployments[index].revision}/>
                         {selectedRollbackDeploymentIndex === index ? (
-                            <DataLoader input={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision}}
-                                load={(src) => services.repos.appDetails(src.repoURL, src.path, src.targetRevision, { helm: src.helm, ksonnet: src.ksonnet })}>
-                            {(details: models.RepoAppDetails) => (
-                                <div>
-                                    <ApplicationParameters application={{...app, spec: {...app.spec, source: recentDeployments[index].source} }} details={details} />
-                                </div>
+                                <DataLoader input={{
+                                    ...recentDeployments[index].source,
+                                    targetRevision: recentDeployments[index].revision,
+                                }}
+                                            load={(src) => services.repos.appDetails(src.repoURL, src.path, src.targetRevision, {
+                                                helm: src.helm,
+                                                ksonnet: src.ksonnet,
+                                            })}>
+                                    {(details: models.RepoAppDetails) => (
+                                        <div>
+                                            <ApplicationParameters application={{
+                                                ...app,
+                                                spec: {...app.spec, source: recentDeployments[index].source},
+                                            }} details={details}/>
+                                        </div>
+                                    )
+                                    }
+                                </DataLoader>
                             )
-                            }
-                            </DataLoader>
-                        )
-                        : null }
+                            : null}
                     </div>
                 </div>
             ))}

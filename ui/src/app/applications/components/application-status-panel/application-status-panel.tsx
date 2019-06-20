@@ -1,6 +1,6 @@
 import {Tooltip} from 'argo-ui';
 import * as React from 'react';
-import Moment from 'react-moment';
+import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import * as utils from '../utils';
 import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage} from '../utils';
@@ -51,7 +51,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
 
     return (
         <div className='application-status-panel row'>
-            <div className='application-status-panel__item columns small-3'>
+            <div className='application-status-panel__item columns small-2'>
                 <div className='application-status-panel__item-value'>
                     <HealthStatusIcon state={application.status.health}/>&nbsp;
                     {application.status.health.status}
@@ -59,7 +59,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 </div>
                 <div className='application-status-panel__item-name'>{application.status.health.message}</div>
             </div>
-            <div className='application-status-panel__item columns small-3' style={{position: 'relative'}}>
+            <div className='application-status-panel__item columns small-4' style={{position: 'relative'}}>
                 <div className='application-status-panel__item-value'>
                     <ComparisonStatusIcon status={application.status.sync.status}/>&nbsp;
                     {application.status.sync.status}
@@ -80,9 +80,8 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                             ' days since last sync. Click for the status of that sync.')}
                     </div>
                     <div className='application-status-panel__item-name'>
-                        {appOperationState.phase} <Moment
-                        fromNow={true}>{appOperationState.finishedAt || appOperationState.startedAt}</Moment> (<Moment
-                        local={true}>{appOperationState.finishedAt || appOperationState.startedAt}</Moment>)
+                        {appOperationState.phase} <Timestamp
+                        date={appOperationState.finishedAt || appOperationState.startedAt}/>
                     </div>
                     {appOperationState.syncResult && (
                         <RevisionMetadataPanel applicationName={application.metadata.name}
