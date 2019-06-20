@@ -49,7 +49,7 @@ type ApplicationSpec struct {
 	// Infos contains a list of useful information (URLs, email addresses, and plain text) that relates to the application
 	Info []Info `json:"info,omitempty" protobuf:"bytes,6,name=info"`
 	// Always use hard-refresh for application
-	Alwayshardrefresh bool `json:"alwaysHardrefresh,omitempty" protobuf:"bytes,1,opt,name=alwaysHardrefresh"`
+	Alwayshardrefresh bool `json:"alwaysHardrefresh,omitempty" protobuf:"bytes,7,opt,name=alwaysHardrefresh"`
 }
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
