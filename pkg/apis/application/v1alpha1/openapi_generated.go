@@ -2475,23 +2475,26 @@ func schema_pkg_apis_application_v1alpha1_RevisionMetadata(ref common.ReferenceC
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "data about a specific revision within a repo",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"author": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "who authored this revision, typically their name and email, e.g. \"John Doe <john_doe@my-company.com>\", but might not match this example",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
-					"message": {
+					"date": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "when the revision was authored",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
 					"tags": {
 						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
+							Description: "tags on the revision, note - tags can move from one revision to another",
+							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
@@ -2502,11 +2505,19 @@ func schema_pkg_apis_application_v1alpha1_RevisionMetadata(ref common.ReferenceC
 							},
 						},
 					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "the message associated with the revision, probably the commit message, this is truncated to the first newline or 64 characters (which ever comes first)",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
-				Required: []string{"author", "message", "tags"},
+				Required: []string{"author", "date", "tags", "message"},
 			},
 		},
-		Dependencies: []string{},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 

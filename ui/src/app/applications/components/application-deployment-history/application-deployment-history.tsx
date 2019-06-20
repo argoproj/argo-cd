@@ -2,10 +2,11 @@ import { DataLoader, DropDownMenu, Duration } from 'argo-ui';
 import * as moment from 'moment';
 import * as React from 'react';
 
+import Moment from 'react-moment';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 import { ApplicationParameters } from '../application-parameters/application-parameters';
-import {RevisionMetadataRows} from "./revision-metadata-rows";
+import {RevisionMetadataRows} from './revision-metadata-rows';
 
 require('./application-deployment-history.scss');
 
@@ -32,16 +33,18 @@ export const ApplicationDeploymentHistory = ({
             {recentDeployments.map((info, index) => (
                 <div className='row application-deployment-history__item' key={info.deployedAt} onClick={() => selectDeployment(index)}>
                     <div className='columns small-3'>
-                        <i className='fa fa-clock'/>
-                        <div>{info.deployedAt} - {info.nextDeployedAt || 'now'}</div>
+                        <div>
+                            <i className='fa fa-clock'/> <Moment fromNow={true}>{info.deployedAt}</Moment>
+                        </div>
+                        <div>(<Moment local={true}>{info.deployedAt}</Moment>)</div>
                         <div><Duration durationMs={info.durationMs}/></div>
                     </div>
                     <div className='columns small-9'>
                         <div className='row'>
-                            <div className='columns small-2'>
-                                REVISION:
+                            <div className='columns small-3'>
+                                Revision:
                             </div>
-                            <div className='columns small-10'>
+                            <div className='columns small-9'>
                                 {info.revision}
                                 <div className='application-deployment-history__item-menu'>
                                     <DropDownMenu anchor={() => <button className='argo-button argo-button--light argo-button--lg argo-button--short'>

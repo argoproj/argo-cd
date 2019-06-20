@@ -389,10 +389,21 @@ const (
 	HookDeletePolicyHookFailed    HookDeletePolicy = "HookFailed"
 )
 
+// data about a specific revision within a repo
 type RevisionMetadata struct {
-	Author  string   `json:"author" protobuf:"bytes,1,opt,name=author"`
-	Message string   `json:"message" protobuf:"bytes,2,opt,name=message"`
-	Tags    []string `json:"tags" protobuf:"bytes,3,opt,name=tags"`
+	// who authored this revision,
+	// typically their name and email, e.g. "John Doe <john_doe@my-company.com>",
+	// but might not match this example
+	Author string `json:"author" protobuf:"bytes,1,opt,name=author"`
+	// when the revision was authored
+	Date metav1.Time `json:"date" protobuf:"bytes,2,opt,name=date"`
+	// tags on the revision,
+	// note - tags can move from one revision to another
+	Tags []string `json:"tags" protobuf:"bytes,3,opt,name=tags"`
+	// the message associated with the revision,
+	// probably the commit message,
+	// this is truncated to the first newline or 64 characters (which ever comes first)
+	Message string `json:"message" protobuf:"bytes,4,opt,name=message"`
 }
 
 // SyncOperationResult represent result of sync operation

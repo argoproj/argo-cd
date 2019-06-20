@@ -19,6 +19,7 @@ import (
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -703,10 +704,6 @@ func (s *Service) getRevisionMetadata(repoURL *v1alpha1.Repository, revision str
 	if err != nil {
 		return nil, err
 	}
-	err = client.Checkout(revision)
-	if err != nil {
-		return nil, err
-	}
 	return client.RevisionMetadata(revision)
 }
 
@@ -724,7 +721,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *RepoServerRevision
 		}
 		// discard anything after the first new line and then truncate to 64 chars
 		message := trunc.Trunc(strings.SplitN(gitMetadata.Message, "\n", 2)[0], 64)
-		metadata = &v1alpha1.RevisionMetadata{Author: gitMetadata.Author, Message: message, Tags: gitMetadata.Tags}
+		metadata = &v1alpha1.RevisionMetadata{Author: gitMetadata.Author, Date: metav1.Time{Time: gitMetadata.Date}, Tags: gitMetadata.Tags, Message: message}
 		_ = s.cache.SetRevisionMetadata(q.Repo.Repo, q.Revision, metadata)
 		return metadata, nil
 	}

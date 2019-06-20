@@ -23,7 +23,9 @@ message ApplicationQuery {
 }
 
 message RevisionMetadataQuery{
-	required string name = 1 [(gogoproto.nullable) = true];
+	// the application's name
+	required string name = 1;
+	// the revision of the app
 	required string revision = 2;
 }
 
@@ -198,7 +200,7 @@ service ApplicationService {
 		option (google.api.http).get = "/api/v1/applications/{name}";
 	}
 
-	// Get the meta-data for a revision
+	// Get the meta-data (author, date, tags, message) for a specific revision of the application
 	rpc RevisionMetadata(RevisionMetadataQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RevisionMetadata) {
 		option (google.api.http).get = "/api/v1/applications/{name}/revisions/{revision}/metadata";
 	}

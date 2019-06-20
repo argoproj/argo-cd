@@ -127,10 +127,10 @@ export function syncStatusMessage(app: appModels.Application) {
     }
     switch (app.status.sync.status) {
         case appModels.SyncStatuses.Synced:
-            message += ' to ' + rev;
+            message += 'To ' + rev;
             break;
         case appModels.SyncStatuses.OutOfSync:
-            message += ' from ' + rev;
+            message += 'From ' + rev;
             break;
         case appModels.SyncStatuses.Unknown:
             break;

@@ -182,8 +182,9 @@ func TestNewFactory(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, revisionMetadata)
 		assert.Regexp(t, "^.*<.*>$", revisionMetadata.Author)
-		assert.NotEmpty(t, revisionMetadata.Message)
 		assert.Len(t, revisionMetadata.Tags, 0)
+		assert.NotEmpty(t, revisionMetadata.Date)
+		assert.NotEmpty(t, revisionMetadata.Message)
 
 		commitSHA2, err := client.CommitSHA()
 		assert.NoError(t, err)

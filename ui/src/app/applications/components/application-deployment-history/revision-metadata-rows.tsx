@@ -1,6 +1,7 @@
 import * as React from 'react';
+import Moment from 'react-moment';
 import * as models from '../../../shared/models';
-import {services} from "../../../shared/services";
+import {services} from '../../../shared/services';
 
 interface Props {
     applicationName: string;
@@ -18,32 +19,44 @@ export class RevisionMetadataRows extends React.Component<Props, State> {
         this.state = {};
     }
 
-    componentDidMount() {
+    public componentDidMount() {
         services.applications.revisionMetadata(this.props.applicationName, this.props.revision)
-            .then(value => this.setState({revisionMetadata: value}))
-            .catch(e => this.setState({error: e}))
+            .then((value) => this.setState({revisionMetadata: value}))
+            .catch((e) => this.setState({error: e}));
     }
 
-    render() {
-        return this.state.revisionMetadata ? (
-            <div>
-                <div className='row'>
-                    <div className='columns small-2'>AUTHOR:</div>
-                    <div className='columns small-10'>{this.state.revisionMetadata.author}</div>
-                </div>
-                {this.state.revisionMetadata.tags && (
+    public render() {
+        const revisionMetadata = this.state.revisionMetadata;
+        if (revisionMetadata) {
+            const author = revisionMetadata.author;
+            const date = revisionMetadata.date;
+            const tags = revisionMetadata.tags;
+            const message = revisionMetadata.message;
+            return (
+                <div>
                     <div className='row'>
-                        <div className='columns small-2'>TAGS:</div>
-                        <div
-                            className='columns small-10'>{this.state.revisionMetadata.tags.join(', ') || "∅"}</div>
+                        <div className='columns small-3'>Authored by</div>
+                        <div className='columns small-9'>
+                            {author}<br/>
+                            <Moment fromNow={true}>{date}</Moment> (<Moment local={true}>{date}</Moment>)
+                        </div>
                     </div>
-                )}
-                <div className='row'>
-                    <div className='columns small-12'>{this.state.revisionMetadata.message}</div>
+                    {tags && (
+                        <div className='row'>
+                            <div className='columns small-3'>Tagged</div>
+                            <div className='columns small-9'>{tags.join(', ')}</div>
+                        </div>
+                    )}
+                    <div className='row'>
+                        <div className='columns small-3'/>
+                        <div className='columns small-9'>{message}</div>
+                    </div>
                 </div>
-            </div>
-        ) : this.state.error ? (
-            <div>{this.state.error.message}</div>
-        ) : <div>Loading...</div>;
+            );
+        }
+        if (this.state.error) {
+            return <div>{this.state.error.message}</div>;
+        }
+        return <div>Loading...</div>;
     }
 }
