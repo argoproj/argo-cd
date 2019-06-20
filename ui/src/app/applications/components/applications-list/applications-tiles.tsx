@@ -46,7 +46,7 @@ export const ApplicationTiles = ({applications, syncApplication, deleteApplicati
                             <div className='row'>
                                 <div className='columns small-3'>Repository:</div>
                                 <div className='columns small-9'>
-                                    <Tooltip content={app.spec.source.repoURL}>{app.spec.source.repoURL}</Tooltip>
+                                    <Tooltip content={app.spec.source.repoURL}><span>{app.spec.source.repoURL}</span></Tooltip>
                                 </div>
                             </div>
                             <div className='row'>

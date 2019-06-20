@@ -11,11 +11,11 @@ import {RevisionMetadataRows} from './revision-metadata-rows';
 require('./application-deployment-history.scss');
 
 export const ApplicationDeploymentHistory = ({
-                                                 app,
-                                                 rollbackApp,
-                                                 selectedRollbackDeploymentIndex,
-                                                 selectDeployment,
-                                             }: {
+    app,
+    rollbackApp,
+    selectedRollbackDeploymentIndex,
+    selectDeployment,
+}: {
     app: models.Application,
     selectedRollbackDeploymentIndex: number,
     rollbackApp: (info: models.RevisionHistory) => any,

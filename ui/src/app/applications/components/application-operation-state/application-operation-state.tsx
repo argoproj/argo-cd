@@ -4,6 +4,7 @@ import * as PropTypes from 'prop-types';
 import * as React from 'react';
 
 import { ErrorNotification } from '../../../shared/components';
+import {Revision} from '../../../shared/components/revision';
 import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -51,7 +52,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
     }
     if (operationState.syncResult) {
         operationAttributes.push(
-            {title: 'REVISION', value: operationState.syncResult.revision},
+            {title: 'REVISION', value: <Revision repoUrl={application.spec.source.repoURL} revision={operationState.syncResult.revision}/>},
         );
     }
 
