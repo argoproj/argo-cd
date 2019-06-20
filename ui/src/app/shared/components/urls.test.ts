@@ -1,4 +1,4 @@
-import {repoUrl, revisionUrl} from './repo-urls';
+import {repoUrl, revisionUrl} from './urls';
 
 function testExample(http: string, ssl: string, revision: string, expectedRepoUrl: string, expectedRevisionUrl: string) {
     expect(repoUrl(http)).toBe(expectedRepoUrl);
