@@ -919,6 +919,42 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	return command
 }
 
+func applicationListName(apps *argoappv1.ApplicationList) {
+	for _, app := range apps.Items {
+		fmt.Println(app.Name)
+	}
+}
+
+func applicationListWide(apps *argoappv1.ApplicationList, output *string) {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	var fmtStr string
+	headers := []interface{}{"NAME", "CLUSTER", "NAMESPACE", "PROJECT", "STATUS", "HEALTH", "SYNCPOLICY", "CONDITIONS"}
+	if *output == "wide" {
+		fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
+		headers = append(headers, "REPO", "PATH", "TARGET")
+	} else {
+		fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
+	}
+	fmt.Fprintf(w, fmtStr, headers...)
+	for _, app := range apps.Items {
+		vals := []interface{}{
+			app.Name,
+			app.Spec.Destination.Server,
+			app.Spec.Destination.Namespace,
+			app.Spec.GetProject(),
+			app.Status.Sync.Status,
+			app.Status.Health.Status,
+			formatSyncPolicy(app),
+			formatConditionsSummary(app),
+		}
+		if *output == "wide" {
+			vals = append(vals, app.Spec.Source.RepoURL, app.Spec.Source.Path, app.Spec.Source.TargetRevision)
+		}
+		fmt.Fprintf(w, fmtStr, vals...)
+	}
+	_ = w.Flush()
+}
+
 // NewApplicationListCommand returns a new instance of an `argocd app list` command
 func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -932,33 +968,11 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			defer util.Close(conn)
 			apps, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{})
 			errors.CheckError(err)
-			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			var fmtStr string
-			headers := []interface{}{"NAME", "CLUSTER", "NAMESPACE", "PROJECT", "STATUS", "HEALTH", "SYNCPOLICY", "CONDITIONS"}
-			if output == "wide" {
-				fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
-				headers = append(headers, "REPO", "PATH", "TARGET")
+			if output == "name" {
+				applicationListName(apps)
 			} else {
-				fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
+				applicationListWide(apps, &output)
 			}
-			fmt.Fprintf(w, fmtStr, headers...)
-			for _, app := range apps.Items {
-				vals := []interface{}{
-					app.Name,
-					app.Spec.Destination.Server,
-					app.Spec.Destination.Namespace,
-					app.Spec.GetProject(),
-					app.Status.Sync.Status,
-					app.Status.Health.Status,
-					formatSyncPolicy(app),
-					formatConditionsSummary(app),
-				}
-				if output == "wide" {
-					vals = append(vals, app.Spec.Source.RepoURL, app.Spec.Source.Path, app.Spec.Source.TargetRevision)
-				}
-				fmt.Fprintf(w, fmtStr, vals...)
-			}
-			_ = w.Flush()
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: wide")
@@ -1597,7 +1611,7 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			_ = w.Flush()
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: wide")
+	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: wide|name")
 	return command
 }
 
