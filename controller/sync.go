@@ -258,8 +258,8 @@ func (sc *syncContext) sync() {
 		return
 	}
 
+	// syncFailTasks only run during failure, so separate them from regular tasks
 	syncFailTasks, tasks := tasks.Split(func(t *syncTask) bool { return t.phase == v1alpha1.SyncPhaseSyncFail })
-
 
 	// if there are any completed but unsuccessful tasks, sync is a failure.
 	if tasks.Find(func(t *syncTask) bool { return t.completed() && !t.successful() }) != nil {
@@ -308,8 +308,13 @@ func (sc *syncContext) sync() {
 
 func (sc *syncContext) runFailedTasksIfAny(syncFailTasks syncTasks, failMessage string) {
 	if len(syncFailTasks) > 0 {
+		// If tasks are already completed, don't run them again
 		if syncFailTasks.All(func(task *syncTask) bool { return task.completed() }) {
-			sc.setOperationPhase(v1alpha1.OperationFailed, fmt.Sprintf("%s; SyncFail hooks applied successfully", failMessage))
+			if syncFailTasks.All(func(task *syncTask) bool { return task.successful() }) {
+				sc.setOperationPhase(v1alpha1.OperationFailed, fmt.Sprintf("%s; SyncFail hooks applied successfully", failMessage))
+			} else {
+				sc.setOperationPhase(v1alpha1.OperationFailed, fmt.Sprintf("%s; SyncFail hooks failed to apply", failMessage))
+			}
 			return
 		}
 		sc.log.WithFields(log.Fields{"syncFailTasks": syncFailTasks}).Debug("running sync fail tasks")
