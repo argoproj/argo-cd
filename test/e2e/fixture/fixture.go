@@ -169,7 +169,7 @@ func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
 	})
 }
 
-func SetConfigManagementPlugin(plugin ...v1alpha1.ConfigManagementPlugin) {
+func SetConfigManagementPlugins(plugin ...v1alpha1.ConfigManagementPlugin) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		yamlBytes, err := yaml.Marshal(plugin)
 		if err != nil {
@@ -221,7 +221,7 @@ func EnsureCleanState(t *testing.T) {
 		Secrets:              s.Secrets,
 	}))
 	SetResourceOverrides(make(map[string]v1alpha1.ResourceOverride))
-	SetConfigManagementPlugin()
+	SetConfigManagementPlugins()
 
 	// remove tmp dir
 	CheckError(os.RemoveAll(tmpDir))

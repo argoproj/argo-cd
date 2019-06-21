@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -84,4 +85,71 @@ func TestGetResourceFilter(t *testing.T) {
 		ResourceInclusions: []FilteredResource{{APIGroups: []string{"group2"}, Kinds: []string{"kind2"}, Clusters: []string{"cluster2"}}},
 	}, filter)
 
+}
+
+func TestGetConfigManagementPlugins(t *testing.T) {
+	kubeClient := fake.NewSimpleClientset(&v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
+		},
+		Data: map[string]string{
+			"configManagementPlugins": `
+      - name: kasane
+        init:
+          command: [kasane, update]
+        generate:
+          command: [kasane, show]`,
+		},
+	})
+	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	plugins, err := settingsManager.GetConfigManagementPlugins()
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []v1alpha1.ConfigManagementPlugin{{
+		Name:     "kasane",
+		Init:     &v1alpha1.Command{Command: []string{"kasane", "update"}},
+		Generate: v1alpha1.Command{Command: []string{"kasane", "show"}},
+	}}, plugins)
+}
+
+func TestGetAppInstanceLabelKey(t *testing.T) {
+	kubeClient := fake.NewSimpleClientset(&v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
+		},
+		Data: map[string]string{
+			"application.instanceLabelKey": "testLabel",
+		},
+	})
+	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	label, err := settingsManager.GetAppInstanceLabelKey()
+	assert.NoError(t, err)
+	assert.Equal(t, "testLabel", label)
+}
+
+func TestGetResourceOverrides(t *testing.T) {
+	kubeClient := fake.NewSimpleClientset(&v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
+		},
+		Data: map[string]string{
+			"resource.customizations": `
+    admissionregistration.k8s.io/MutatingWebhookConfiguration:
+      ignoreDifferences: |
+        jsonPointers:
+        - /webhooks/0/clientConfig/caBundle`,
+		},
+	})
+	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	overrides, err := settingsManager.GetResourceOverrides()
+	assert.NoError(t, err)
+
+	webHookOverrides := overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"]
+	assert.NotNil(t, webHookOverrides)
+
+	assert.Equal(t, v1alpha1.ResourceOverride{
+		IgnoreDifferences: "jsonPointers:\n- /webhooks/0/clientConfig/caBundle",
+	}, webHookOverrides)
 }
