@@ -202,53 +202,6 @@ func TestCleanKubectlOutput(t *testing.T) {
 	assert.Equal(t, cleanKubectlOutput(testString), `error validating data: ValidationError(Deployment.spec): missing required field "selector" in io.k8s.api.apps.v1beta2.DeploymentSpec`)
 }
 
-func TestRemarshal(t *testing.T) {
-	manifest := []byte(`
-apiVersion: v1
-kind: ServiceAccount
-imagePullSecrets: []
-metadata:
-  name: my-sa
-`)
-	var un unstructured.Unstructured
-	err := yaml.Unmarshal(manifest, &un)
-	assert.NoError(t, err)
-	newUn, err := Remarshal(&un)
-	assert.NoError(t, err)
-	_, ok := newUn.Object["imagePullSecrets"]
-	assert.False(t, ok)
-	metadata := newUn.Object["metadata"].(map[string]interface{})
-	_, ok = metadata["creationTimestamp"]
-	assert.False(t, ok)
-}
-
-func TestRemarshalResources(t *testing.T) {
-	manifest := []byte(`
-apiVersion: v1
-kind: Pod
-metadata:
-  name: my-pod
-spec:
-  containers:
-  - image: nginx:1.7.9
-    name: nginx
-    resources:
-      requests:
-        cpu: 0.2
-`)
-	un := unstructured.Unstructured{}
-	err := yaml.Unmarshal(manifest, &un)
-	assert.NoError(t, err)
-	requestsBefore := un.Object["spec"].(map[string]interface{})["containers"].([]interface{})[0].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
-	log.Println(requestsBefore)
-	newUn, err := Remarshal(&un)
-	assert.NoError(t, err)
-	requestsAfter := newUn.Object["spec"].(map[string]interface{})["containers"].([]interface{})[0].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
-	log.Println(requestsAfter)
-	assert.Equal(t, float64(0.2), requestsBefore["cpu"])
-	assert.Equal(t, "200m", requestsAfter["cpu"])
-}
-
 func TestInClusterKubeConfig(t *testing.T) {
 	restConfig := &rest.Config{}
 	kubeConfig := NewKubeConfig(restConfig, "")
