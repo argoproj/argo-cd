@@ -126,7 +126,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                                 </div>
                                 <div className='columns large-1 small-2'>
                                     <utils.ResourceResultIcon
-                                        resource={resource}/> {resource.status || resource.hookPhase}
+                                        resource={resource}/> {resource.hookType ? resource.hookPhase : resource.status}
                                 </div>
                                 <div className='columns large-1 show-for-large'>
                                     {resource.hookType}
