@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
@@ -17,6 +19,13 @@ import (
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 )
 
+type RevisionMetadata struct {
+	Author  string
+	Date    time.Time
+	Tags    []string
+	Message string
+}
+
 // Client is a generic git client interface
 type Client interface {
 	Root() string
@@ -26,6 +35,7 @@ type Client interface {
 	LsRemote(revision string) (string, error)
 	LsFiles(path string) ([]string, error)
 	CommitSHA() (string, error)
+	RevisionMetadata(revision string) (*RevisionMetadata, error)
 }
 
 // ClientFactory is a factory of Git Clients
@@ -234,6 +244,29 @@ func (m *nativeGitClient) CommitSHA() (string, error) {
 		return "", err
 	}
 	return strings.TrimSpace(out), nil
+}
+
+// returns the meta-data for the commit
+func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, error) {
+	out, err := m.runCmd("git", "show", "-s", "--format=%an <%ae>|%at|%B", revision)
+	if err != nil {
+		return nil, err
+	}
+	segments := strings.SplitN(out, "|", 3)
+	if len(segments) != 3 {
+		return nil, fmt.Errorf("expected 3 segments, got %v", segments)
+	}
+	author := segments[0]
+	authorDateUnixTimestamp, _ := strconv.ParseInt(segments[1], 10, 64)
+	message := strings.TrimSpace(segments[2])
+
+	out, err = m.runCmd("git", "tag", "--points-at", revision)
+	if err != nil {
+		return nil, err
+	}
+	tags := strings.Fields(out)
+
+	return &RevisionMetadata{author, time.Unix(authorDateUnixTimestamp, 0), tags, message}, nil
 }
 
 // runCmd is a convenience function to run a command in a given directory and return its output

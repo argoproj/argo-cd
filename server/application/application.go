@@ -707,6 +707,26 @@ func (s *Server) ResourceTree(ctx context.Context, q *application.ResourcesQuery
 	return s.getAppResources(ctx, q)
 }
 
+func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMetadataQuery) (*v1alpha1.RevisionMetadata, error) {
+	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(q.GetName(), metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
+		return nil, err
+	}
+	repo, err := s.db.GetRepository(ctx, a.Spec.Source.RepoURL)
+	if err != nil {
+		return nil, err
+	}
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return nil, err
+	}
+	defer util.Close(conn)
+	return repoClient.GetRevisionMetadata(ctx, &repository.RepoServerRevisionMetadataRequest{Repo: repo, Revision: q.GetRevision()})
+}
+
 func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQuery) (*application.ManagedResourcesResponse, error) {
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.ApplicationName, metav1.GetOptions{})
 	if err != nil {

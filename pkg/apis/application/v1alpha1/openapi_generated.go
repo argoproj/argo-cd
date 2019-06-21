@@ -68,6 +68,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceResult":             schema_pkg_apis_application_v1alpha1_ResourceResult(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceStatus":             schema_pkg_apis_application_v1alpha1_ResourceStatus(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionHistory":            schema_pkg_apis_application_v1alpha1_RevisionHistory(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionMetadata":           schema_pkg_apis_application_v1alpha1_RevisionMetadata(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperation":              schema_pkg_apis_application_v1alpha1_SyncOperation(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperationResource":      schema_pkg_apis_application_v1alpha1_SyncOperationResource(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperationResult":        schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref),
@@ -2447,6 +2448,56 @@ func schema_pkg_apis_application_v1alpha1_RevisionHistory(ref common.ReferenceCa
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSource", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_RevisionMetadata(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "data about a specific revision within a repo",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"author": {
+						SchemaProps: spec.SchemaProps{
+							Description: "who authored this revision, typically their name and email, e.g. \"John Doe <john_doe@my-company.com>\", but might not match this example",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"date": {
+						SchemaProps: spec.SchemaProps{
+							Description: "when the revision was authored",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"tags": {
+						SchemaProps: spec.SchemaProps{
+							Description: "tags on the revision, note - tags can move from one revision to another",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "the message associated with the revision, probably the commit message, this is truncated to the first newline or 64 characters (which ever comes first)",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"author", "date", "tags", "message"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 

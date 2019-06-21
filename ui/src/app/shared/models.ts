@@ -61,8 +61,16 @@ export interface OperationState {
 
 export type HookType = 'PreSync' | 'Sync' | 'PostSync' | 'Skip';
 
+export interface RevisionMetadata {
+    author: string;
+    date: models.Time;
+    tags: string[];
+    message: string;
+}
+
 export interface SyncOperationResult {
     resources: ResourceResult[];
+    revision: string;
 }
 
 export type ResultCode = 'Synced' | 'SyncFailed' | 'Pruned' | 'PruneSkipped';

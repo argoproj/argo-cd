@@ -31,6 +31,11 @@ export class ApplicationsService {
         return requests.get(`/applications/${name}`).query(query).then((res) => this.parseAppFields(res.body));
     }
 
+    public revisionMetadata(name: string, revision: string): Promise<models.RevisionMetadata> {
+        return requests.get(`/applications/${name}/revisions/${revision}/metadata`)
+            .then((res) => res.body as models.RevisionMetadata);
+    }
+
     public resourceTree(name: string): Promise<models.ApplicationTree> {
         return requests.get(`/applications/${name}/resource-tree`).then((res) => res.body as models.ApplicationTree);
     }
