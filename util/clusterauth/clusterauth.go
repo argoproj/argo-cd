@@ -1,11 +1,13 @@
-package common
+package clusterauth
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
+	jwt "github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
-	apiv1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,7 +41,7 @@ func CreateServiceAccount(
 	serviceAccountName string,
 	namespace string,
 ) error {
-	serviceAccount := apiv1.ServiceAccount{
+	serviceAccount := corev1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "ServiceAccount",
@@ -153,7 +155,7 @@ func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string) (strin
 		return "", err
 	}
 
-	var serviceAccount *apiv1.ServiceAccount
+	var serviceAccount *corev1.ServiceAccount
 	var secretName string
 	err = wait.Poll(500*time.Millisecond, 30*time.Second, func() (bool, error) {
 		serviceAccount, err = clientset.CoreV1().ServiceAccounts(ns).Get(ArgoCDManagerServiceAccount, metav1.GetOptions{})
@@ -212,6 +214,109 @@ func UninstallRBAC(clientset kubernetes.Interface, namespace, bindingName, roleN
 		log.Infof("ServiceAccount %q in namespace %q not found", serviceAccount, namespace)
 	} else {
 		log.Infof("ServiceAccount %q deleted", serviceAccount)
+	}
+	return nil
+}
+
+type ServiceAccountClaims struct {
+	Sub                string `json:"sub"`
+	Iss                string `json:"iss"`
+	Namespace          string `json:"kubernetes.io/serviceaccount/namespace"`
+	SecretName         string `json:"kubernetes.io/serviceaccount/secret.name"`
+	ServiceAccountName string `json:"kubernetes.io/serviceaccount/service-account.name"`
+	ServiceAccountUID  string `json:"kubernetes.io/serviceaccount/service-account.uid"`
+}
+
+// Valid satisfies the jwt.Claims interface to enable JWT parsing
+func (sac *ServiceAccountClaims) Valid() error {
+	return nil
+}
+
+// ParseServiceAccountToken parses a Kubernetes service account token
+func ParseServiceAccountToken(token string) (*ServiceAccountClaims, error) {
+	parser := &jwt.Parser{
+		SkipClaimsValidation: true,
+	}
+	var claims ServiceAccountClaims
+	_, _, err := parser.ParseUnverified(token, &claims)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to parse service account token: %s", err)
+	}
+	return &claims, nil
+}
+
+// GenerateNewClusterManagerSecret creates a new secret derived with same metadata as existing one
+// and waits until the secret is populated with a bearer token
+func GenerateNewClusterManagerSecret(clientset kubernetes.Interface, claims *ServiceAccountClaims) (*corev1.Secret, error) {
+	secretsClient := clientset.CoreV1().Secrets(claims.Namespace)
+	existingSecret, err := secretsClient.Get(claims.SecretName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	var newSecret corev1.Secret
+	secretNameSplit := strings.Split(claims.SecretName, "-")
+	if len(secretNameSplit) > 0 {
+		secretNameSplit = secretNameSplit[:len(secretNameSplit)-1]
+	}
+	newSecret.Type = corev1.SecretTypeServiceAccountToken
+	newSecret.GenerateName = strings.Join(secretNameSplit, "-") + "-"
+	newSecret.Annotations = existingSecret.Annotations
+	// We will create an empty secret and let kubernetes populate the data
+	newSecret.Data = nil
+
+	created, err := secretsClient.Create(&newSecret)
+	if err != nil {
+		return nil, err
+	}
+
+	err = wait.Poll(500*time.Millisecond, 30*time.Second, func() (bool, error) {
+		created, err = secretsClient.Get(created.Name, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+		if len(created.Data) == 0 {
+			return false, nil
+		}
+		return true, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Timed out waiting for secret to generate new token")
+	}
+	return created, nil
+}
+
+// RotateServiceAccountSecrets rotates the entries in the service accounts secrets list
+func RotateServiceAccountSecrets(clientset kubernetes.Interface, claims *ServiceAccountClaims, newSecret *corev1.Secret) error {
+	// 1. update service account secrets list with new secret name while also removing the old name
+	saClient := clientset.CoreV1().ServiceAccounts(claims.Namespace)
+	sa, err := saClient.Get(claims.ServiceAccountName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	var newSecretsList []corev1.ObjectReference
+	alreadyPresent := false
+	for _, objRef := range sa.Secrets {
+		if objRef.Name == claims.SecretName {
+			continue
+		}
+		if objRef.Name == newSecret.Name {
+			alreadyPresent = true
+		}
+		newSecretsList = append(newSecretsList, objRef)
+	}
+	if !alreadyPresent {
+		sa.Secrets = append(newSecretsList, corev1.ObjectReference{Name: newSecret.Name})
+	}
+	_, err = saClient.Update(sa)
+	if err != nil {
+		return err
+	}
+
+	// 2. delete existing secret object
+	secretsClient := clientset.CoreV1().Secrets(claims.Namespace)
+	err = secretsClient.Delete(claims.SecretName, &metav1.DeleteOptions{})
+	if !apierr.IsNotFound(err) {
+		return err
 	}
 	return nil
 }
