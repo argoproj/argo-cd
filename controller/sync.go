@@ -457,7 +457,8 @@ func (sc *syncContext) liveObj(obj *unstructured.Unstructured) *unstructured.Uns
 	for _, resource := range sc.compareResult.managedResources {
 		if resource.Group == obj.GroupVersionKind().Group &&
 			resource.Kind == obj.GetKind() &&
-			resource.Namespace == obj.GetNamespace() &&
+			// cluster scoped objects will not have a namespace, even if the user has defined it
+			(resource.Namespace == "" || resource.Namespace == obj.GetNamespace()) &&
 			resource.Name == obj.GetName() {
 			return resource.Live
 		}
