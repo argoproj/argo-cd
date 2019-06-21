@@ -868,6 +868,31 @@
         }
       }
     },
+    "/api/v1/clusters/{server}/rotate-auth": {
+      "post": {
+        "tags": [
+          "ClusterService"
+        ],
+        "summary": "RotateAuth returns a cluster by server address",
+        "operationId": "RotateAuth",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "server",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/clusterClusterResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects": {
       "get": {
         "tags": [
