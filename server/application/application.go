@@ -178,7 +178,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	if q.Revision != "" {
 		revision = q.Revision
 	}
-	settings, err := s.settingsMgr.GetSettings()
+	appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
 		return nil, err
 	}
@@ -186,14 +186,20 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	if err != nil {
 		return nil, err
 	}
-	tools := make([]*appv1.ConfigManagementPlugin, len(settings.ConfigManagementPlugins))
-	for i := range settings.ConfigManagementPlugins {
-		tools[i] = &settings.ConfigManagementPlugins[i]
+
+	plugins, err := s.settingsMgr.GetConfigManagementPlugins()
+	if err != nil {
+		return nil, err
+	}
+
+	tools := make([]*appv1.ConfigManagementPlugin, len(plugins))
+	for i := range plugins {
+		tools[i] = &plugins[i]
 	}
 	manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
 		Repo:              repo,
 		Revision:          revision,
-		AppLabelKey:       settings.GetAppInstanceLabelKey(),
+		AppLabelKey:       appInstanceLabelKey,
 		AppLabelValue:     a.Name,
 		Namespace:         a.Spec.Destination.Namespace,
 		ApplicationSource: &a.Spec.Source,

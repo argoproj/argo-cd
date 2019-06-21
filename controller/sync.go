@@ -144,8 +144,15 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
+	resourceOverrides, err := m.settingsMgr.GetResourceOverrides()
+	if err != nil {
+		state.Phase = v1alpha1.OperationError
+		state.Message = fmt.Sprintf("Failed to load resource overrides: %v", err)
+		return
+	}
+
 	syncCtx := syncContext{
-		resourceOverrides: m.settings.ResourceOverrides,
+		resourceOverrides: resourceOverrides,
 		appName:           app.Name,
 		proj:              proj,
 		compareResult:     compareResult,
