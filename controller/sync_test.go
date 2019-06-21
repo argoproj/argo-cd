@@ -574,8 +574,8 @@ func Test_syncContext_liveObj(t *testing.T) {
 		want   *unstructured.Unstructured
 	}{
 		{"None", fields{compareResult: &comparisonResult{managedResources: []managedResource{}}}, args{obj: &unstructured.Unstructured{}}, nil},
-		{"Found", fields{compareResult: &comparisonResult{managedResources: []managedResource{{Group:obj.GroupVersionKind().Group, Kind:obj.GetKind(), Namespace:obj.GetNamespace(), Name:obj.GetName(), Live:found}}}}, args{obj: obj}, found},
-		{"EmptyNamespace", fields{compareResult: &comparisonResult{managedResources: []managedResource{{Group:obj.GroupVersionKind().Group, Kind:obj.GetKind(), Name:obj.GetName(), Live:found}}}}, args{obj: obj}, found},
+		{"Found", fields{compareResult: &comparisonResult{managedResources: []managedResource{{Group: obj.GroupVersionKind().Group, Kind: obj.GetKind(), Namespace: obj.GetNamespace(), Name: obj.GetName(), Live: found}}}}, args{obj: obj}, found},
+		{"EmptyNamespace", fields{compareResult: &comparisonResult{managedResources: []managedResource{{Group: obj.GroupVersionKind().Group, Kind: obj.GetKind(), Name: obj.GetName(), Live: found}}}}, args{obj: obj}, found},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
