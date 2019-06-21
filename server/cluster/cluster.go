@@ -206,7 +206,13 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 	clust.Config.KeyData = nil
 	clust.Config.CertData = nil
 	clust.Config.BearerToken = string(newSecret.Data["token"])
-	clust, err = s.db.UpdateCluster(ctx, clust)
+
+	// Test the token we just created before persisting it
+	err = kube.TestConfig(clust.RESTConfig())
+	if err != nil {
+		return nil, err
+	}
+	_, err = s.db.UpdateCluster(ctx, clust)
 	if err != nil {
 		return nil, err
 	}
