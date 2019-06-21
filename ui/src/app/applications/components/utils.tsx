@@ -171,7 +171,7 @@ export const ResourceResultIcon = ({resource}: { resource: appModels.ResourceRes
     let color = COLORS.sync_result.unknown;
     let icon = 'fa-question-circle';
 
-    if (resource.status) {
+    if (!resource.hookType && resource.status) {
         switch (resource.status) {
             case appModels.ResultCodes.Synced:
                 color = COLORS.sync_result.synced;
@@ -195,7 +195,7 @@ export const ResourceResultIcon = ({resource}: { resource: appModels.ResourceRes
         }
         return <i title={title} className={'fa ' + icon} style={{ color }} />;
     }
-    if (resource.hookPhase) {
+    if (resource.hookType && resource.hookPhase) {
         let className = '';
         switch (resource.hookPhase) {
             case appModels.OperationPhases.Running:

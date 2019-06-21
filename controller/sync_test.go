@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
@@ -522,6 +523,40 @@ func Test_syncContext_isSelectiveSync(t *testing.T) {
 			}
 			if got := sc.isSelectiveSync(); got != tt.want {
 				t.Errorf("syncContext.isSelectiveSync() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_syncContext_liveObj(t *testing.T) {
+	type fields struct {
+		compareResult *comparisonResult
+	}
+	type args struct {
+		obj *unstructured.Unstructured
+	}
+	obj := test.NewPod()
+	obj.SetNamespace("my-ns")
+
+	found := test.NewPod()
+
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   *unstructured.Unstructured
+	}{
+		{"None", fields{compareResult: &comparisonResult{managedResources: []managedResource{}}}, args{obj: &unstructured.Unstructured{}}, nil},
+		{"Found", fields{compareResult: &comparisonResult{managedResources: []managedResource{{Group: obj.GroupVersionKind().Group, Kind: obj.GetKind(), Namespace: obj.GetNamespace(), Name: obj.GetName(), Live: found}}}}, args{obj: obj}, found},
+		{"EmptyNamespace", fields{compareResult: &comparisonResult{managedResources: []managedResource{{Group: obj.GroupVersionKind().Group, Kind: obj.GetKind(), Name: obj.GetName(), Live: found}}}}, args{obj: obj}, found},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sc := &syncContext{
+				compareResult: tt.fields.compareResult,
+			}
+			if got := sc.liveObj(tt.args.obj); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("syncContext.liveObj() = %v, want %v", got, tt.want)
 			}
 		})
 	}
