@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"os"
 	"testing"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -25,6 +26,10 @@ func TestSyncOptionsValidateFalse(t *testing.T) {
 // TestSyncOptionsValidateTrue verifies when 'argocd.argoproj.io/sync-options: Validate=false' is
 // not present, then validation is performed and we fail during the apply
 func TestSyncOptionsValidateTrue(t *testing.T) {
+	// k3s does not validate at all, so this test does not work
+	if os.Getenv("ARGOCD_E2E_K3S") == "true" {
+		t.SkipNow()
+	}
 	Given(t).
 		Path("sync-options-validate-false").
 		When().
