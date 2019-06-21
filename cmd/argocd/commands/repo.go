@@ -116,8 +116,28 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 	return command
 }
 
+// Print table of repo info
+func printRepoTable(repos []appsv1.Repository) {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintf(w, "REPO\tUSER\tSTATUS\tMESSAGE\n")
+	for _, r := range repos {
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", r.Repo, r.Username, r.ConnectionState.Status, r.ConnectionState.Message)
+	}
+	_ = w.Flush()
+}
+
+// Print list of repo urls
+func printRepoUrls(repos []appsv1.Repository) {
+	for _, r := range repos {
+		fmt.Println(r.Repo)
+	}
+}
+
 // NewRepoListCommand returns a new instance of an `argocd repo rm` command
 func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		output string
+	)
 	var command = &cobra.Command{
 		Use:   "list",
 		Short: "List configured repositories",
@@ -126,13 +146,13 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			defer util.Close(conn)
 			repos, err := repoIf.List(context.Background(), &repositorypkg.RepoQuery{})
 			errors.CheckError(err)
-			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "REPO\tUSER\tSTATUS\tMESSAGE\n")
-			for _, r := range repos.Items {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", r.Repo, r.Username, r.ConnectionState.Status, r.ConnectionState.Message)
+			if output == "url" {
+				printRepoUrls(repos.Items)
+			} else {
+				printRepoTable(repos.Items)
 			}
-			_ = w.Flush()
 		},
 	}
+	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: wide|url")
 	return command
 }

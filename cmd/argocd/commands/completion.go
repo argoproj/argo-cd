@@ -19,21 +19,16 @@ __argocd_list_apps() {
 }
 
 __argocd_app_rollback() {
-	# Determine if we already have selected an app
 	local -a command
-	local app
 	for comp_word in "${COMP_WORDS[@]}"; do
 		if [[ $comp_word =~ ^-.*$ ]]; then
 			continue
 		fi
-		if [[ $comp_word =~ ^(app|rollback)$ ]]; then
-			command+=($comp_word)
-		elif [[ "${command[*]}" == "app rollback" ]]; then
-			app=$comp_word
-			break
-		fi
+		command+=($comp_word)
 	done
 
+	# fourth arg is app (if present): e.g.- argocd app rollback guestbook
+	local app=${command[3]}
 	if [[ -z $app ]]; then
 		__argocd_list_apps
 	else
@@ -41,6 +36,56 @@ __argocd_app_rollback() {
 		if argocd_out=($(argocd app history $app --output id 2>/dev/null)); then
 			COMPREPLY+=( $( compgen -W "${argocd_out[*]}" -- "$cur" ) )
 		fi
+	fi
+}
+
+__argocd_list_servers() {
+	local -a argocd_out
+	if argocd_out=($(argocd cluster list --output server 2>/dev/null)); then
+		COMPREPLY+=( $( compgen -W "${argocd_out[*]}" -- "$cur" ) )
+	fi
+}
+
+__argocd_list_repos() {
+	local -a argocd_out
+	if argocd_out=($(argocd repo list --output url 2>/dev/null)); then
+		COMPREPLY+=( $( compgen -W "${argocd_out[*]}" -- "$cur" ) )
+	fi
+}
+
+__argocd_list_projects() {
+	local -a argocd_out
+	if argocd_out=($(argocd proj list --output name 2>/dev/null)); then
+		COMPREPLY+=( $( compgen -W "${argocd_out[*]}" -- "$cur" ) )
+	fi
+}
+
+__argocd_list_namespaces() {
+	local -a argocd_out
+	if argocd_out=($(kubectl get namespaces --no-headers 2>/dev/null | cut -f1 -d' ' 2>/dev/null)); then
+		COMPREPLY+=( $( compgen -W "${argocd_out[*]}" -- "$cur" ) )
+	fi
+}
+
+__argocd_proj_server_namespace() {
+	local -a command
+	for comp_word in "${COMP_WORDS[@]}"; do
+		if [[ $comp_word =~ ^-.*$ ]]; then
+			continue
+		fi
+		command+=($comp_word)
+	done
+
+	# expect something like this: argocd proj add-destination PROJECT SERVER NAMESPACE
+	local project=${command[3]}
+	local server=${command[4]}
+	local namespace=${command[5]}
+	if [[ -z $project ]]; then
+		__argocd_list_projects
+	elif [[ -z $server ]]; then
+		__argocd_list_servers
+	elif [[ -z $namespace ]]; then
+		__argocd_list_namespaces
 	fi
 }
 
@@ -55,6 +100,25 @@ __argocd_custom_func() {
 			;;
 		argocd_app_rollback)
 			__argocd_app_rollback
+			return
+			;;
+		argocd_cluster_get | argocd_cluster_rm | argocd_login)
+			__argocd_list_servers
+			return
+			;;
+		argocd_repo_rm)
+			__argocd_list_repos
+			return
+			;;
+		argocd_proj_add-destination | argocd_proj_remove-destination)
+			__argocd_proj_server_namespace
+			return
+			;;
+		argocd_proj_add-source | argocd_proj_remove-source | \
+		argocd_proj_allow-cluster-resource | argocd_proj_allow-namespace-resource | \
+		argocd_proj_deny-cluster-resource | argocd_proj_deny-namespace-resource | \
+		argocd_proj_delete | argocd_proj_edit | argocd_proj_get | argocd_proj_set )
+			__argocd_list_projects
 			return
 			;;
 		*)
