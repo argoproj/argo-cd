@@ -23,19 +23,27 @@ func NewServer(mgr *settings.SettingsManager) *Server {
 
 // Get returns Argo CD settings
 func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settingspkg.Settings, error) {
+	resourceOverrides, err := s.mgr.GetResourceOverrides()
+	if err != nil {
+		return nil, err
+	}
+	appInstanceLabelKey, err := s.mgr.GetAppInstanceLabelKey()
+	if err != nil {
+		return nil, err
+	}
 	argoCDSettings, err := s.mgr.GetSettings()
 	if err != nil {
 		return nil, err
 	}
 
 	overrides := make(map[string]*v1alpha1.ResourceOverride)
-	for k := range argoCDSettings.ResourceOverrides {
-		val := argoCDSettings.ResourceOverrides[k]
+	for k := range resourceOverrides {
+		val := resourceOverrides[k]
 		overrides[k] = &val
 	}
 	set := settingspkg.Settings{
 		URL:               argoCDSettings.URL,
-		AppLabelKey:       argoCDSettings.GetAppInstanceLabelKey(),
+		AppLabelKey:       appInstanceLabelKey,
 		ResourceOverrides: overrides,
 	}
 	if argoCDSettings.DexConfig != "" {

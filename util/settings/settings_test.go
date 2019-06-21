@@ -1,20 +1,18 @@
 package settings
 
 import (
+	"context"
 	"testing"
+
+	"github.com/argoproj/argo-cd/common"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
-func TestArgoCDSettings_IsExcludedResource(t *testing.T) {
-	settings := &ArgoCDSettings{}
-	assert.True(t, settings.IsExcludedResource("events.k8s.io", "", ""))
-	assert.True(t, settings.IsExcludedResource("metrics.k8s.io", "", ""))
-	assert.False(t, settings.IsExcludedResource("rubbish.io", "", ""))
-}
-
-func Test_updateSettingsFromConfigMap(t *testing.T) {
+func TestUpdateSettingsFromConfigMap(t *testing.T) {
 	tests := []struct {
 		name    string
 		key     string
@@ -23,24 +21,6 @@ func Test_updateSettingsFromConfigMap(t *testing.T) {
 		get     func(settings ArgoCDSettings) interface{}
 		want    interface{}
 	}{
-		{
-			name:  "TestResourceExclusions",
-			key:   "resource.exclusions",
-			value: "\n  - apiGroups: []\n    kinds: []\n    clusters: []\n",
-			get: func(settings ArgoCDSettings) interface{} {
-				return settings.ResourceExclusions
-			},
-			want: []FilteredResource{{APIGroups: []string{}, Kinds: []string{}, Clusters: []string{}}},
-		},
-		{
-			name:  "TestResourceInclusion",
-			key:   "resource.inclusions",
-			value: "\n  - apiGroups: []\n    kinds: [managed_only]\n    clusters: []\n",
-			get: func(settings ArgoCDSettings) interface{} {
-				return settings.ResourceInclusions
-			},
-			want: []FilteredResource{{APIGroups: []string{}, Kinds: []string{"managed_only"}, Clusters: []string{}}},
-		},
 		{
 			name:  "TestRepositories",
 			key:   "repositories",
@@ -85,69 +65,23 @@ func Test_updateSettingsFromConfigMap(t *testing.T) {
 	}
 }
 
-func TestResourceInclusions(t *testing.T) {
-
-	settings := ArgoCDSettings{}
-	configMap := v1.ConfigMap{}
-	err := updateSettingsFromConfigMap(&settings, &configMap)
-
+func TestGetResourceFilter(t *testing.T) {
+	kubeClient := fake.NewSimpleClientset(&v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
+		},
+		Data: map[string]string{
+			"resource.exclusions": "\n  - apiGroups: [\"group1\"]\n    kinds: [\"kind1\"]\n    clusters: [\"cluster1\"]\n",
+			"resource.inclusions": "\n  - apiGroups: [\"group2\"]\n    kinds: [\"kind2\"]\n    clusters: [\"cluster2\"]\n",
+		},
+	})
+	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	filter, err := settingsManager.GetResourcesFilter()
 	assert.NoError(t, err)
-	assert.Nil(t, settings.ResourceExclusions)
+	assert.Equal(t, &ResourcesFilter{
+		ResourceExclusions: []FilteredResource{{APIGroups: []string{"group1"}, Kinds: []string{"kind1"}, Clusters: []string{"cluster1"}}},
+		ResourceInclusions: []FilteredResource{{APIGroups: []string{"group2"}, Kinds: []string{"kind2"}, Clusters: []string{"cluster2"}}},
+	}, filter)
 
-	configMap.Data = map[string]string{
-		"resource.inclusions": "\n  - apiGroups: [\"whitelisted-resource\"]\n    kinds: []\n    clusters: []\n",
-	}
-
-	err = updateSettingsFromConfigMap(&settings, &configMap)
-
-	assert.NoError(t, err)
-	assert.Equal(t, []FilteredResource{{APIGroups: []string{"whitelisted-resource"}, Kinds: []string{}, Clusters: []string{}}}, settings.ResourceInclusions)
-
-	assert.True(t, settings.IsExcludedResource("non-whitelisted-resource", "", ""))
-	assert.False(t, settings.IsExcludedResource("whitelisted-resource", "", ""))
-}
-
-func TestResourceInclusionsExclusionNonMutex(t *testing.T) {
-
-	settings := ArgoCDSettings{}
-	configMap := v1.ConfigMap{}
-	err := updateSettingsFromConfigMap(&settings, &configMap)
-
-	assert.NoError(t, err)
-	assert.Nil(t, settings.ResourceExclusions)
-
-	configMap.Data = map[string]string{
-		"resource.inclusions": "\n  - apiGroups: [\"whitelisted-resource\"]\n    kinds: []\n    clusters: []\n",
-		"resource.exclusions": "\n  - apiGroups: [\"whitelisted-resource\"]\n    kinds: [\"blacklisted-kind\"]\n    clusters: []\n",
-	}
-
-	err = updateSettingsFromConfigMap(&settings, &configMap)
-	assert.NoError(t, err)
-
-	assert.True(t, settings.IsExcludedResource("whitelisted-resource", "blacklisted-kind", ""))
-	assert.False(t, settings.IsExcludedResource("whitelisted-resource", "", ""))
-	assert.False(t, settings.IsExcludedResource("whitelisted-resource", "non-blacklisted-kind", ""))
-
-	configMap.Data = map[string]string{
-		"resource.inclusions": "\n  - apiGroups: [\"whitelisted-resource\"]\n    kinds: [\"whitelisted-kind\"]\n    clusters: []\n",
-		"resource.exclusions": "\n  - apiGroups: [\"whitelisted-resource\"]\n    kinds: []\n    clusters: []\n",
-	}
-
-	err = updateSettingsFromConfigMap(&settings, &configMap)
-	assert.NoError(t, err)
-
-	assert.True(t, settings.IsExcludedResource("whitelisted-resource", "whitelisted-kind", ""))
-	assert.True(t, settings.IsExcludedResource("whitelisted-resource", "", ""))
-	assert.True(t, settings.IsExcludedResource("whitelisted-resource", "non-whitelisted-kind", ""))
-
-	configMap.Data = map[string]string{
-		"resource.inclusions": "\n  - apiGroups: [\"foo-bar\"]\n    kinds: [\"whitelisted-kind\"]\n    clusters: []\n",
-		"resource.exclusions": "\n  - apiGroups: [\"whitelisted-resource\"]\n    kinds: []\n    clusters: []\n",
-	}
-
-	err = updateSettingsFromConfigMap(&settings, &configMap)
-	assert.NoError(t, err)
-
-	assert.True(t, settings.IsExcludedResource("not-whitelisted-resource", "whitelisted-kind", ""))
-	assert.True(t, settings.IsExcludedResource("not-whitelisted-resource", "", ""))
 }

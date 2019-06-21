@@ -11,14 +11,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/pkg/errors"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/argoproj/argo-cd/common"
 	. "github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
@@ -140,15 +143,40 @@ func Settings(consumer func(s *settings.ArgoCDSettings)) {
 	CheckError(settingsManager.SaveSettings(s))
 }
 
+func updateSettingConfigMap(updater func(cm *corev1.ConfigMap) error) {
+	cm, err := KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Get(common.ArgoCDConfigMapName, v1.GetOptions{})
+	errors.CheckError(err)
+	if cm.Data == nil {
+		cm.Data = make(map[string]string)
+	}
+	errors.CheckError(updater(cm))
+	_, err = KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Update(cm)
+	errors.CheckError(err)
+}
+
 func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
-	Settings(func(s *settings.ArgoCDSettings) {
-		s.ResourceOverrides = overrides
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		if len(overrides) > 0 {
+			yamlBytes, err := yaml.Marshal(overrides)
+			if err != nil {
+				return err
+			}
+			cm.Data["resource.customizations"] = string(yamlBytes)
+		} else {
+			delete(cm.Data, "resource.customizations")
+		}
+		return nil
 	})
 }
 
-func SetConfigManagementPlugin(plugin v1alpha1.ConfigManagementPlugin) {
-	Settings(func(s *settings.ArgoCDSettings) {
-		s.ConfigManagementPlugins = []v1alpha1.ConfigManagementPlugin{plugin}
+func SetConfigManagementPlugin(plugin ...v1alpha1.ConfigManagementPlugin) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		yamlBytes, err := yaml.Marshal(plugin)
+		if err != nil {
+			return err
+		}
+		cm.Data["configManagementPlugins"] = string(yamlBytes)
+		return nil
 	})
 }
 
@@ -192,6 +220,8 @@ func EnsureCleanState(t *testing.T) {
 		WebhookBitbucketUUID: s.WebhookBitbucketUUID,
 		Secrets:              s.Secrets,
 	}))
+	SetResourceOverrides(make(map[string]v1alpha1.ResourceOverride))
+	SetConfigManagementPlugin()
 
 	// remove tmp dir
 	CheckError(os.RemoveAll(tmpDir))
