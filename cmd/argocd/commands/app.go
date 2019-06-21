@@ -150,9 +150,14 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			fmt.Printf("application '%s' created\n", created.ObjectMeta.Name)
 		},
 	}
-	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the app")
 	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set (DEPRECATED)")
 	command.Flags().BoolVar(&upsert, "upsert", false, "Allows to override application with the same name even if supplied application spec is different from existing spec")
+	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the app")
+	// Only complete files with appropriate extension.
+	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
+	if err != nil {
+		log.Fatal(err)
+	}
 	addAppFlags(command, &appOpts)
 	return command
 }
@@ -919,13 +924,15 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	return command
 }
 
-func applicationListName(apps *argoappv1.ApplicationList) {
-	for _, app := range apps.Items {
+// Print simple list of application names
+func printApplicationNames(apps []argoappv1.Application) {
+	for _, app := range apps {
 		fmt.Println(app.Name)
 	}
 }
 
-func applicationListWide(apps *argoappv1.ApplicationList, output *string) {
+// Print table of application data
+func printApplicationTable(apps []argoappv1.Application, output *string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	var fmtStr string
 	headers := []interface{}{"NAME", "CLUSTER", "NAMESPACE", "PROJECT", "STATUS", "HEALTH", "SYNCPOLICY", "CONDITIONS"}
@@ -936,7 +943,7 @@ func applicationListWide(apps *argoappv1.ApplicationList, output *string) {
 		fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
 	}
 	fmt.Fprintf(w, fmtStr, headers...)
-	for _, app := range apps.Items {
+	for _, app := range apps {
 		vals := []interface{}{
 			app.Name,
 			app.Spec.Destination.Server,
@@ -969,9 +976,9 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			apps, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{})
 			errors.CheckError(err)
 			if output == "name" {
-				applicationListName(apps)
+				printApplicationNames(apps.Items)
 			} else {
-				applicationListWide(apps, &output)
+				printApplicationTable(apps.Items, &output)
 			}
 		},
 	}
@@ -1581,6 +1588,27 @@ func setParameterOverrides(app *argoappv1.Application, parameters []string) {
 	}
 }
 
+// Print list of history ID's for an application.
+func printApplicationHistoryIds(revHistory []argoappv1.RevisionHistory) {
+	for _, depInfo := range revHistory {
+		fmt.Println(depInfo.ID)
+	}
+}
+
+// Print a history table for an application.
+func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory, output *string) {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintf(w, "ID\tDATE\tREVISION\n")
+	for _, depInfo := range revHistory {
+		rev := depInfo.Source.TargetRevision
+		if len(depInfo.Revision) >= 7 {
+			rev = fmt.Sprintf("%s (%s)", rev, depInfo.Revision[0:7])
+		}
+		fmt.Fprintf(w, "%d\t%s\t%s\n", depInfo.ID, depInfo.DeployedAt, rev)
+	}
+	_ = w.Flush()
+}
+
 // NewApplicationHistoryCommand returns a new instance of an `argocd app history` command
 func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -1599,19 +1627,14 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			appName := args[0]
 			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
-			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "ID\tDATE\tREVISION\n")
-			for _, depInfo := range app.Status.History {
-				rev := depInfo.Source.TargetRevision
-				if len(depInfo.Revision) >= 7 {
-					rev = fmt.Sprintf("%s (%s)", rev, depInfo.Revision[0:7])
-				}
-				fmt.Fprintf(w, "%d\t%s\t%s\n", depInfo.ID, depInfo.DeployedAt, rev)
+			if output == "id" {
+				printApplicationHistoryIds(app.Status.History)
+			} else {
+				printApplicationHistoryTable(app.Status.History, &output)
 			}
-			_ = w.Flush()
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: wide|name")
+	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: wide|id")
 	return command
 }
 
