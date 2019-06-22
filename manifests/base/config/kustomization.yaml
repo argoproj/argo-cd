@@ -5,3 +5,4 @@ resources:
 - argocd-cm.yaml
 - argocd-secret.yaml
 - argocd-rbac-cm.yaml
+- argocd-runtime-cm.yaml

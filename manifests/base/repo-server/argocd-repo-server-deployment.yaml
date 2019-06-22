@@ -37,3 +37,10 @@ spec:
             port: 8081
           initialDelaySeconds: 5
           periodSeconds: 10
+        volumeMounts:
+        - name: runtime-config
+          mountPath: /app/config
+      volumes:
+        - name: runtime-config
+          configMap:
+            name: argocd-runtime-cm

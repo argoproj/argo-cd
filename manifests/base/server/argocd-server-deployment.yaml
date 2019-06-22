@@ -32,6 +32,8 @@ spec:
         volumeMounts:
         - mountPath: /shared
           name: static-files
+        - name: runtime-config
+          mountPath: /app/config
         ports:
         - containerPort: 8080
         - containerPort: 8083
@@ -50,3 +52,6 @@ spec:
       volumes:
       - emptyDir: {}
         name: static-files
+      - name: runtime-config
+        configMap:
+          name: argocd-runtime-cm
