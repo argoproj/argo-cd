@@ -81,6 +81,7 @@ type RepoCredentials struct {
 	PasswordSecret        *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
 	SSHPrivateKeySecret   *apiv1.SecretKeySelector `json:"sshPrivateKeySecret,omitempty"`
 	InsecureIgnoreHostKey bool                     `json:"insecureIgnoreHostKey,omitempty"`
+	Insecure              bool                     `json:"insecure,omitempty"`
 }
 
 type HelmRepoCredentials struct {

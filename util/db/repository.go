@@ -64,7 +64,8 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 
 	repoInfo := settings.RepoCredentials{
 		URL:                   r.Repo,
-		InsecureIgnoreHostKey: r.InsecureIgnoreHostKey,
+		InsecureIgnoreHostKey: (r.InsecureIgnoreHostKey || r.Insecure),
+		Insecure:              (r.InsecureIgnoreHostKey || r.Insecure),
 	}
 	err = db.updateSecrets(&repoInfo, r)
 	if err != nil {
@@ -117,6 +118,7 @@ func (db *db) credentialsToRepository(repoInfo settings.RepoCredentials) (*appsv
 	repo := &appsv1.Repository{
 		Repo:                  repoInfo.URL,
 		InsecureIgnoreHostKey: repoInfo.InsecureIgnoreHostKey,
+		Insecure:              repoInfo.Insecure,
 	}
 	err := db.unmarshalFromSecretsStr(map[*string]*apiv1.SecretKeySelector{
 		&repo.Username:      repoInfo.UsernameSecret,
