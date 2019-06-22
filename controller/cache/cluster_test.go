@@ -60,6 +60,8 @@ var (
     uid: "2"
     name: helm-guestbook-rs
     namespace: default
+    annotations:
+      deployment.kubernetes.io/revision: "2"
     ownerReferences:
     - apiVersion: apps/v1beta1
       kind: Deployment
@@ -214,7 +216,7 @@ func TestGetChildren(t *testing.T) {
 		},
 		ResourceVersion: "123",
 		Health:          &appv1.HealthStatus{Status: appv1.HealthStatusHealthy},
-		Info:            []appv1.InfoItem{},
+		Info:            []appv1.InfoItem{{Name: "Revision", Value: "Rev:2"}},
 		ParentRefs:      []appv1.ResourceRef{{Group: "apps", Version: "", Kind: "Deployment", Namespace: "default", Name: "helm-guestbook", UID: "3"}},
 	}}, rsChildren...), deployChildren)
 }
