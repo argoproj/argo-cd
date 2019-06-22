@@ -49,7 +49,7 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "ListMixin5",
+        "operationId": "ListMixin1",
         "parameters": [
           {
             "type": "string",
@@ -89,7 +89,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "CreateMixin5",
+        "operationId": "CreateMixin1",
         "parameters": [
           {
             "name": "body",
@@ -116,7 +116,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "UpdateMixin5",
+        "operationId": "UpdateMixin1",
         "parameters": [
           {
             "type": "string",
@@ -197,7 +197,7 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "GetMixin5",
+        "operationId": "Get",
         "parameters": [
           {
             "type": "string",
@@ -238,7 +238,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "DeleteMixin5",
+        "operationId": "DeleteMixin1",
         "parameters": [
           {
             "type": "string",
@@ -775,7 +775,7 @@
           "ClusterService"
         ],
         "summary": "List returns list of clusters",
-        "operationId": "List",
+        "operationId": "ListMixin2",
         "parameters": [
           {
             "type": "string",
@@ -797,7 +797,7 @@
           "ClusterService"
         ],
         "summary": "Create creates a cluster",
-        "operationId": "Create",
+        "operationId": "CreateMixin2",
         "parameters": [
           {
             "name": "body",
@@ -824,7 +824,7 @@
           "ClusterService"
         ],
         "summary": "Update updates a cluster",
-        "operationId": "Update",
+        "operationId": "UpdateMixin2",
         "parameters": [
           {
             "type": "string",
@@ -857,7 +857,7 @@
           "ClusterService"
         ],
         "summary": "Get returns a cluster by server address",
-        "operationId": "GetMixin1",
+        "operationId": "GetMixin2",
         "parameters": [
           {
             "type": "string",
@@ -880,7 +880,7 @@
           "ClusterService"
         ],
         "summary": "Delete deletes a cluster",
-        "operationId": "Delete",
+        "operationId": "DeleteMixin2",
         "parameters": [
           {
             "type": "string",
@@ -1162,7 +1162,7 @@
           "RepositoryService"
         ],
         "summary": "List returns list of repos",
-        "operationId": "ListMixin2",
+        "operationId": "List",
         "parameters": [
           {
             "type": "string",
@@ -1184,7 +1184,7 @@
           "RepositoryService"
         ],
         "summary": "Create creates a repo",
-        "operationId": "CreateMixin2",
+        "operationId": "Create",
         "parameters": [
           {
             "name": "body",
@@ -1211,7 +1211,7 @@
           "RepositoryService"
         ],
         "summary": "Update updates a repo",
-        "operationId": "UpdateMixin2",
+        "operationId": "Update",
         "parameters": [
           {
             "type": "string",
@@ -1244,7 +1244,7 @@
           "RepositoryService"
         ],
         "summary": "Delete deletes a repo",
-        "operationId": "DeleteMixin2",
+        "operationId": "Delete",
         "parameters": [
           {
             "type": "string",
@@ -1342,6 +1342,39 @@
         }
       }
     },
+    "/api/v1/repositories/{repo}/validate": {
+      "post": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "ValidateAccessPreCreate validates access to not yet configured repo",
+        "operationId": "ValidateAccess",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "repo",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/repositoryRepoResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/session": {
       "post": {
         "tags": [
@@ -1390,7 +1423,7 @@
           "SettingsService"
         ],
         "summary": "Get returns Argo CD settings",
-        "operationId": "Get",
+        "operationId": "GetMixin4",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -3055,21 +3088,31 @@
         "connectionState": {
           "$ref": "#/definitions/v1alpha1ConnectionState"
         },
+        "insecure": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "Whether the repo is insecure"
+        },
         "insecureIgnoreHostKey": {
           "type": "boolean",
-          "format": "boolean"
+          "format": "boolean",
+          "title": "InsecureIgnoreHostKey should not be used anymore, Insecure is favoured"
         },
         "password": {
-          "type": "string"
+          "type": "string",
+          "title": "Password for authenticating at the repo server"
         },
         "repo": {
-          "type": "string"
+          "type": "string",
+          "title": "URL of the repo"
         },
         "sshPrivateKey": {
-          "type": "string"
+          "type": "string",
+          "title": "SSH private key data for authenticating at the repo server"
         },
         "username": {
-          "type": "string"
+          "type": "string",
+          "title": "Username for authenticating at the repo server"
         }
       }
     },
