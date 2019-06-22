@@ -33,7 +33,6 @@ func NewRepoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.AddCommand(NewRepoAddCommand(clientOpts))
 	command.AddCommand(NewRepoListCommand(clientOpts))
 	command.AddCommand(NewRepoRemoveCommand(clientOpts))
-	command.AddCommand(NewRepoKeyCommand(clientOpts))
 	return command
 }
 
