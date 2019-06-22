@@ -661,6 +661,26 @@ message RevisionHistory {
   optional ApplicationSource source = 6;
 }
 
+// data about a specific revision within a repo
+message RevisionMetadata {
+  // who authored this revision,
+  // typically their name and email, e.g. "John Doe <john_doe@my-company.com>",
+  // but might not match this example
+  optional string author = 1;
+
+  // when the revision was authored
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time date = 2;
+
+  // tags on the revision,
+  // note - tags can move from one revision to another
+  repeated string tags = 3;
+
+  // the message associated with the revision,
+  // probably the commit message,
+  // this is truncated to the first newline or 64 characters (which ever comes first)
+  optional string message = 4;
+}
+
 // SyncOperation contains sync operation details.
 message SyncOperation {
   // Revision is the git revision in which to sync the application to.

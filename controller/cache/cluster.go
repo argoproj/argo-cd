@@ -24,7 +24,6 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/health"
 	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/settings"
 )
 
 const (
@@ -49,11 +48,11 @@ type clusterInfo struct {
 	nodes   map[kube.ResourceKey]*node
 	nsIndex map[string]map[kube.ResourceKey]*node
 
-	onAppUpdated AppUpdatedHandler
-	kubectl      kube.Kubectl
-	cluster      *appv1.Cluster
-	log          *log.Entry
-	settings     *settings.ArgoCDSettings
+	onAppUpdated     AppUpdatedHandler
+	kubectl          kube.Kubectl
+	cluster          *appv1.Cluster
+	log              *log.Entry
+	cacheSettingsSrc func() *cacheSettings
 }
 
 func (c *clusterInfo) replaceResourceCache(gk schema.GroupKind, resourceVersion string, objs []unstructured.Unstructured) {
@@ -107,7 +106,7 @@ func (c *clusterInfo) createObjInfo(un *unstructured.Unstructured, appInstanceLa
 		nodeInfo.appName = appName
 		nodeInfo.resource = un
 	}
-	nodeInfo.health, _ = health.GetResourceHealth(un, c.settings.ResourceOverrides)
+	nodeInfo.health, _ = health.GetResourceHealth(un, c.cacheSettingsSrc().ResourceOverrides)
 	return nodeInfo
 }
 
@@ -166,7 +165,7 @@ func (c *clusterInfo) stopWatching(gk schema.GroupKind) {
 // startMissingWatches lists supported cluster resources and start watching for changes unless watch is already running
 func (c *clusterInfo) startMissingWatches() error {
 
-	apis, err := c.kubectl.GetAPIResources(c.cluster.RESTConfig(), c.settings)
+	apis, err := c.kubectl.GetAPIResources(c.cluster.RESTConfig(), c.cacheSettingsSrc().ResourcesFilter)
 	if err != nil {
 		return err
 	}
@@ -282,7 +281,7 @@ func (c *clusterInfo) sync() (err error) {
 	c.apisMeta = make(map[schema.GroupKind]*apiMeta)
 	c.nodes = make(map[kube.ResourceKey]*node)
 
-	apis, err := c.kubectl.GetAPIResources(c.cluster.RESTConfig(), c.settings)
+	apis, err := c.kubectl.GetAPIResources(c.cluster.RESTConfig(), c.cacheSettingsSrc().ResourcesFilter)
 	if err != nil {
 		return err
 	}
@@ -296,7 +295,7 @@ func (c *clusterInfo) sync() (err error) {
 
 		lock.Lock()
 		for i := range list.Items {
-			c.setNode(c.createObjInfo(&list.Items[i], c.settings.GetAppInstanceLabelKey()))
+			c.setNode(c.createObjInfo(&list.Items[i], c.cacheSettingsSrc().AppInstanceLabelKey))
 		}
 		lock.Unlock()
 		return nil
@@ -358,7 +357,7 @@ func (c *clusterInfo) iterateHierarchy(obj *unstructured.Unstructured, action fu
 			}
 		}
 	} else {
-		action(c.createObjInfo(obj, c.settings.GetAppInstanceLabelKey()).asResourceNode())
+		action(c.createObjInfo(obj, c.cacheSettingsSrc().AppInstanceLabelKey).asResourceNode())
 	}
 }
 
@@ -466,7 +465,7 @@ func (c *clusterInfo) onNodeUpdated(exists bool, existingNode *node, un *unstruc
 	if exists {
 		nodes = append(nodes, existingNode)
 	}
-	newObj := c.createObjInfo(un, c.settings.GetAppInstanceLabelKey())
+	newObj := c.createObjInfo(un, c.cacheSettingsSrc().AppInstanceLabelKey)
 	c.setNode(newObj)
 	nodes = append(nodes, newObj)
 	toNotify := make(map[string]bool)

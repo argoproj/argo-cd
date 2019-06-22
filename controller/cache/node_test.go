@@ -3,12 +3,14 @@ package cache
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/argoproj/argo-cd/common"
 
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/stretchr/testify/assert"
 )
 
-var c = &clusterInfo{settings: &settings.ArgoCDSettings{}}
+var c = &clusterInfo{cacheSettingsSrc: func() *cacheSettings {
+	return &cacheSettings{AppInstanceLabelKey: common.LabelKeyAppInstance}
+}}
 
 func TestIsParentOf(t *testing.T) {
 	child := c.createObjInfo(testPod, "")

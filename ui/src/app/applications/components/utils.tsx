@@ -1,10 +1,11 @@
 import * as React from 'react';
 
-import { Checkbox, NotificationsApi, NotificationType } from 'argo-ui';
-import { COLORS, ErrorNotification } from '../../shared/components';
-import { ContextApis } from '../../shared/context';
+import {Checkbox, NotificationsApi, NotificationType} from 'argo-ui';
+import {COLORS, ErrorNotification} from '../../shared/components';
+import {Revision} from '../../shared/components/revision';
+import {ContextApis} from '../../shared/context';
 import * as appModels from '../../shared/models';
-import { services } from '../../shared/services';
+import {services} from '../../shared/services';
 
 export const ICON_CLASS_BY_KIND = {
     application: 'argo-icon-application',
@@ -19,6 +20,7 @@ export interface NodeId {
     name: string;
     group: string;
 }
+
 export function nodeKey(node: NodeId) {
     return [node.group, node.kind, node.namespace, node.name].join('/');
 }
@@ -29,19 +31,22 @@ export function isSameNode(first: NodeId, second: NodeId) {
 
 export async function deleteApplication(appName: string, apis: ContextApis): Promise<boolean> {
     let cascade = false;
-    const confirmationForm = class extends React.Component<{}, { cascade: boolean } > {
+    const confirmationForm = class extends React.Component<{}, { cascade: boolean }> {
         constructor(props: any) {
             super(props);
             this.state = {cascade: true};
         }
+
         public render() {
             return (
                 <div>
                     <p>Are you sure you want to delete the application "{appName}"?</p>
-                    <p><Checkbox checked={this.state.cascade} onChange={(val) => this.setState({ cascade: val })} /> Cascade</p>
+                    <p><Checkbox checked={this.state.cascade}
+                                 onChange={(val) => this.setState({cascade: val})}/> Cascade</p>
                 </div>
             );
         }
+
         public componentWillUnmount() {
             cascade = this.state.cascade;
         }
@@ -96,7 +101,7 @@ export const OperationPhaseIcon = ({phase}: { phase: appModels.OperationPhase })
             color = COLORS.operation.running;
             break;
     }
-    return <i title={phase} className={className} style={{ color }} />;
+    return <i title={phase} className={className} style={{color}}/>;
 };
 
 export const ComparisonStatusIcon = ({status}: { status: appModels.SyncStatusCode }) => {
@@ -116,26 +121,28 @@ export const ComparisonStatusIcon = ({status}: { status: appModels.SyncStatusCod
             className = 'fa fa-circle-notch fa-spin';
             break;
     }
-    return <i title={status} className={className} style={{ color }} />;
+    return <i title={status} className={className} style={{color}}/>;
 };
 
 export function syncStatusMessage(app: appModels.Application) {
-    let message = '';
     let rev = app.spec.source.targetRevision || 'HEAD';
     if (app.status.sync.revision && (app.status.sync.revision.length >= 7 && !app.status.sync.revision.startsWith(app.spec.source.targetRevision))) {
         rev += ' (' + app.status.sync.revision.substr(0, 7) + ')';
     }
     switch (app.status.sync.status) {
         case appModels.SyncStatuses.Synced:
-            message += ' to ' + rev;
-            break;
+            return (
+                <span>To <Revision repoUrl={app.spec.source.repoURL}
+                                   revision={app.spec.source.targetRevision || 'HEAD'}>{rev}</Revision> </span>
+            );
         case appModels.SyncStatuses.OutOfSync:
-            message += ' from ' + rev;
-            break;
-        case appModels.SyncStatuses.Unknown:
-            break;
+            return (
+                <span>From <Revision repoUrl={app.spec.source.repoURL}
+                                     revision={app.spec.source.targetRevision || 'HEAD'}>{rev}</Revision> </span>
+            );
+        default:
+            return <span>{rev}</span>;
     }
-    return message;
 }
 
 export const HealthStatusIcon = ({state}: { state: appModels.HealthStatus }) => {
@@ -164,7 +171,7 @@ export const HealthStatusIcon = ({state}: { state: appModels.HealthStatus }) => 
     if (state.message) {
         title = `${state.status}: ${state.message};`;
     }
-    return <i title={title} className={'fa ' + icon} style={{ color }} />;
+    return <i title={title} className={'fa ' + icon} style={{color}}/>;
 };
 
 export const ResourceResultIcon = ({resource}: { resource: appModels.ResourceResult }) => {
@@ -193,7 +200,7 @@ export const ResourceResultIcon = ({resource}: { resource: appModels.ResourceRes
         if (resource.message) {
             title = `${resource.status}: ${resource.message};`;
         }
-        return <i title={title} className={'fa ' + icon} style={{ color }} />;
+        return <i title={title} className={'fa ' + icon} style={{color}}/>;
     }
     if (resource.hookType && resource.hookPhase) {
         let className = '';
@@ -223,7 +230,7 @@ export const ResourceResultIcon = ({resource}: { resource: appModels.ResourceRes
         if (resource.message) {
             title = `${resource.hookPhase}: ${resource.message};`;
         }
-        return <i title={title} className={className} style={{ color }} />;
+        return <i title={title} className={className} style={{color}}/>;
     }
     return null;
 };
@@ -275,7 +282,7 @@ export function getPodStateReason(pod: appModels.State): { message: string; reas
             if (container.state.waiting && container.state.waiting.reason) {
                 reason = container.state.waiting.reason;
                 message = container.state.waiting.message;
-            } else if (container.state.terminated && container.state.terminated.reason ) {
+            } else if (container.state.terminated && container.state.terminated.reason) {
                 reason = container.state.terminated.reason;
                 message = container.state.terminated.message;
             } else if (container.state.terminated && container.state.terminated.reason) {

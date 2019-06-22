@@ -96,7 +96,7 @@ func (c *Context) ResourceOverrides(overrides map[string]v1alpha1.ResourceOverri
 
 // this both configures the plugin, but forces use of it
 func (c *Context) ConfigManagementPlugin(plugin v1alpha1.ConfigManagementPlugin) *Context {
-	fixture.SetConfigManagementPlugin(plugin)
+	fixture.SetConfigManagementPlugins(plugin)
 	c.configManagementPlugin = plugin.Name
 	return c
 }

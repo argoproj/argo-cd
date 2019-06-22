@@ -77,7 +77,7 @@ type comparisonResult struct {
 type appStateManager struct {
 	metricsServer  *metrics.MetricsServer
 	db             db.ArgoDB
-	settings       *settings.ArgoCDSettings
+	settingsMgr    *settings.SettingsManager
 	appclientset   appclientset.Interface
 	projInformer   cache.SharedIndexInformer
 	kubectl        kubeutil.Kubectl
@@ -105,9 +105,14 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		revision = source.TargetRevision
 	}
 
-	tools := make([]*appv1.ConfigManagementPlugin, len(m.settings.ConfigManagementPlugins))
-	for i := range m.settings.ConfigManagementPlugins {
-		tools[i] = &m.settings.ConfigManagementPlugins[i]
+	plugins, err := m.settingsMgr.GetConfigManagementPlugins()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	tools := make([]*appv1.ConfigManagementPlugin, len(plugins))
+	for i := range plugins {
+		tools[i] = &plugins[i]
 	}
 
 	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &repository.ManifestRequest{
@@ -227,7 +232,15 @@ func dedupLiveResources(targetObjs []*unstructured.Unstructured, liveObjsByKey m
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
 func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, noCache bool, localManifests []string) (*comparisonResult, error) {
-	diffNormalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, m.settings.ResourceOverrides)
+	resourceOverrides, err := m.settingsMgr.GetResourceOverrides()
+	if err != nil {
+		return nil, err
+	}
+	appLabelKey, err := m.settingsMgr.GetAppInstanceLabelKey()
+	if err != nil {
+		return nil, err
+	}
+	diffNormalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, resourceOverrides)
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +249,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	observedAt := metav1.Now()
 	failedToLoadObjs := false
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
-	appLabelKey := m.settings.GetAppInstanceLabelKey()
 
 	var targetObjs []*unstructured.Unstructured
 	var hooks []*unstructured.Unstructured
@@ -384,7 +396,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		syncStatus.Revision = manifestInfo.Revision
 	}
 
-	healthStatus, err := health.SetApplicationHealth(resourceSummaries, GetLiveObjs(managedResources), m.settings.ResourceOverrides, func(obj *unstructured.Unstructured) bool {
+	healthStatus, err := health.SetApplicationHealth(resourceSummaries, GetLiveObjs(managedResources), resourceOverrides, func(obj *unstructured.Unstructured) bool {
 		return !isSelfReferencedApp(app, kubeutil.GetObjectRef(obj))
 	})
 
@@ -443,7 +455,7 @@ func NewAppStateManager(
 	repoClientset reposerver.Clientset,
 	namespace string,
 	kubectl kubeutil.Kubectl,
-	settings *settings.ArgoCDSettings,
+	settingsMgr *settings.SettingsManager,
 	liveStateCache statecache.LiveStateCache,
 	projInformer cache.SharedIndexInformer,
 	metricsServer *metrics.MetricsServer,
@@ -455,7 +467,7 @@ func NewAppStateManager(
 		kubectl:        kubectl,
 		repoClientset:  repoClientset,
 		namespace:      namespace,
-		settings:       settings,
+		settingsMgr:    settingsMgr,
 		projInformer:   projInformer,
 		metricsServer:  metricsServer,
 	}

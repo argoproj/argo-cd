@@ -1,13 +1,14 @@
-import { DropDownMenu, FormField, NotificationType, SlidingPanel } from 'argo-ui';
+import {DropDownMenu, FormField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
-import { Form, FormApi, Text } from 'react-form';
-import { RouteComponentProps } from 'react-router';
+import {Form, FormApi, Text} from 'react-form';
+import {RouteComponentProps} from 'react-router';
 
-import { ConnectionStateIcon, DataLoader, EmptyState, ErrorNotification, Page } from '../../../shared/components';
-import { AppContext } from '../../../shared/context';
+import {ConnectionStateIcon, DataLoader, EmptyState, ErrorNotification, Page} from '../../../shared/components';
+import {Repo} from '../../../shared/components/repo';
+import {AppContext} from '../../../shared/context';
 import * as models from '../../../shared/models';
-import { services } from '../../../shared/services';
+import {services} from '../../../shared/services';
 
 require('./repos-list.scss');
 
@@ -30,7 +31,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
     public render() {
         return (
             <Page title='Repositories' toolbar={{
-                breadcrumbs: [{title: 'Settings', path: '/settings' }, {title: 'Repositories'}],
+                breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Repositories'}],
                 actionMenu: {
                     className: 'fa fa-plus',
                     items: [{
@@ -41,65 +42,71 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
             }}>
                 <div className='repos-list'>
                     <div className='argo-container'>
-                    <DataLoader load={() => services.repos.list()} ref={(loader) => this.loader = loader}>
-                    {(repos: models.Repository[]) => (
-                        repos.length > 0 && (
-                        <div className='argo-table-list'>
-                            <div className='argo-table-list__head'>
-                                <div className='row'>
-                                    <div className='columns small-9'>REPOSITORY</div>
-                                    <div className='columns small-3'>CONNECTION STATUS</div>
-                                </div>
-                            </div>
-                            {repos.map((repo) => (
-                                <div className='argo-table-list__row' key={repo.repo}>
-                                    <div className='row'>
-                                        <div className='columns small-9'>
-                                        <i className='icon argo-icon-git'/> {repo.repo}
+                        <DataLoader load={() => services.repos.list()} ref={(loader) => this.loader = loader}>
+                            {(repos: models.Repository[]) => (
+                                repos.length > 0 && (
+                                    <div className='argo-table-list'>
+                                        <div className='argo-table-list__head'>
+                                            <div className='row'>
+                                                <div className='columns small-9'>REPOSITORY</div>
+                                                <div className='columns small-3'>CONNECTION STATUS</div>
+                                            </div>
                                         </div>
-                                        <div className='columns small-3'>
-                                            <ConnectionStateIcon state={repo.connectionState}/> {repo.connectionState.status}
-                                            <DropDownMenu anchor={() => <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                                <i className='fa fa-ellipsis-v'/>
-                                            </button>} items={[{
-                                                title: 'Create application',
-                                                action: () => this.appContext.apis.navigation.goto('/applications', {
-                                                    new: JSON.stringify({spec: { source: { repoURL: repo.repo } } }),
-                                                }),
-                                            }, {
-                                                title: 'Disconnect',
-                                                action: () => this.disconnectRepo(repo.repo),
-                                            }]}/>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div> ) || (
-                            <EmptyState icon='argo-icon-git'>
-                                <h4>No repositories connected</h4>
-                                <h5>Connect your repo to deploy apps.</h5>
-                                <button className='argo-button argo-button--base' onClick={() => this.showConnectRepo = true}>Connect Repo</button>
-                            </EmptyState>
-                        )
-                    )}
-                    </DataLoader>
+                                        {repos.map((repo) => (
+                                            <div className='argo-table-list__row' key={repo.repo}>
+                                                <div className='row'>
+                                                    <div className='columns small-9'>
+                                                        <i className='icon argo-icon-git'/> <Repo url={repo.repo}/>
+                                                    </div>
+                                                    <div className='columns small-3'>
+                                                        <ConnectionStateIcon
+                                                            state={repo.connectionState}/> {repo.connectionState.status}
+                                                        <DropDownMenu anchor={() => <button
+                                                            className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                            <i className='fa fa-ellipsis-v'/>
+                                                        </button>} items={[{
+                                                            title: 'Create application',
+                                                            action: () => this.appContext.apis.navigation.goto('/applications', {
+                                                                new: JSON.stringify({spec: {source: {repoURL: repo.repo}}}),
+                                                            }),
+                                                        }, {
+                                                            title: 'Disconnect',
+                                                            action: () => this.disconnectRepo(repo.repo),
+                                                        }]}/>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>) || (
+                                    <EmptyState icon='argo-icon-git'>
+                                        <h4>No repositories connected</h4>
+                                        <h5>Connect your repo to deploy apps.</h5>
+                                        <button className='argo-button argo-button--base'
+                                                onClick={() => this.showConnectRepo = true}>Connect Repo
+                                        </button>
+                                    </EmptyState>
+                                )
+                            )}
+                        </DataLoader>
                     </div>
                 </div>
                 <SlidingPanel isShown={this.showConnectRepo} onClose={() => this.showConnectRepo = false} header={(
                     <div>
-                    <button className='argo-button argo-button--base' onClick={() => this.formApi.submitForm(null)}>
-                        Connect
-                    </button> <button onClick={() => this.showConnectRepo = false} className='argo-button argo-button--base-o'>
-                        Cancel
-                    </button>
+                        <button className='argo-button argo-button--base' onClick={() => this.formApi.submitForm(null)}>
+                            Connect
+                        </button>
+                        <button onClick={() => this.showConnectRepo = false}
+                                className='argo-button argo-button--base-o'>
+                            Cancel
+                        </button>
                     </div>
                 )}>
                     <h4>Connect Git repo</h4>
                     <Form onSubmit={(params) => this.connectRepo(params as NewRepoParams)}
-                        getApi={(api) => this.formApi = api}
-                        validateError={(params: NewRepoParams) => ({
-                            url: !params.url && 'Repo URL is required',
-                        })}>
+                          getApi={(api) => this.formApi = api}
+                          validateError={(params: NewRepoParams) => ({
+                              url: !params.url && 'Repo URL is required',
+                          })}>
                         {(formApi) => (
                             <form onSubmit={formApi.submitForm} role='form' className='width-control'>
                                 <div className='argo-form-row'>
@@ -109,7 +116,8 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                     <FormField formApi={formApi} label='Username' field='username' component={Text}/>
                                 </div>
                                 <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Password' field='password' component={Text} componentProps={{type: 'password'}}/>
+                                    <FormField formApi={formApi} label='Password' field='password' component={Text}
+                                               componentProps={{type: 'password'}}/>
                                 </div>
                             </form>
                         )}

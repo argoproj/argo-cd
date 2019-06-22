@@ -19,6 +19,7 @@ import (
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -31,6 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"
+	"github.com/argoproj/argo-cd/util/text"
 )
 
 const (
@@ -508,9 +510,7 @@ func pathExists(ss ...string) bool {
 // newClientResolveRevision is a helper to perform the common task of instantiating a git client
 // and resolving a revision to a commit SHA
 func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision string) (git.Client, string, error) {
-	repoURL := git.NormalizeGitURL(repo.Repo)
-	appRepoPath := tempRepoPath(repoURL)
-	gitClient, err := s.gitFactory.NewClient(repo.Repo, appRepoPath, repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
+	gitClient, err := s.newClient(repo)
 	if err != nil {
 		return nil, "", err
 	}
@@ -519,6 +519,11 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 		return nil, "", err
 	}
 	return gitClient, commitSHA, nil
+}
+
+func (s *Service) newClient(repo *v1alpha1.Repository) (git.Client, error) {
+	appPath := tempRepoPath(git.NormalizeGitURL(repo.Repo))
+	return s.gitFactory.NewClient(repo.Repo, appPath, repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
 }
 
 func runCommand(command v1alpha1.Command, path string, env []string) (string, error) {
@@ -678,6 +683,46 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 		res.Kustomize.Images = images
 	}
 	return &res, nil
+}
+
+func (s *Service) getRevisionMetadata(repoURL *v1alpha1.Repository, revision string) (*git.RevisionMetadata, error) {
+	client, err := s.newClient(repoURL)
+	if err != nil {
+		return nil, err
+	}
+	s.repoLock.Lock(client.Root())
+	defer s.repoLock.Unlock(client.Root())
+	err = client.Init()
+	if err != nil {
+		return nil, err
+	}
+	err = client.Fetch()
+	if err != nil {
+		return nil, err
+	}
+	return client.RevisionMetadata(revision)
+}
+
+func (s *Service) GetRevisionMetadata(ctx context.Context, q *RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
+	metadata, err := s.cache.GetRevisionMetadata(q.Repo.Repo, q.Revision)
+	if err == nil {
+		log.WithFields(log.Fields{"repoURL": q.Repo.Repo, "revision": q.Revision}).Debug("cache hit")
+		return metadata, nil
+	}
+	if err == cache.ErrCacheMiss {
+		log.WithFields(log.Fields{"repoURL": q.Repo.Repo, "revision": q.Revision}).Debug("cache miss")
+		gitMetadata, err := s.getRevisionMetadata(q.Repo, q.Revision)
+		if err != nil {
+			return nil, err
+		}
+		// discard anything after the first new line and then truncate to 64 chars
+		message := text.Trunc(strings.SplitN(gitMetadata.Message, "\n", 2)[0], 64)
+		metadata = &v1alpha1.RevisionMetadata{Author: gitMetadata.Author, Date: metav1.Time{Time: gitMetadata.Date}, Tags: gitMetadata.Tags, Message: message}
+		_ = s.cache.SetRevisionMetadata(q.Repo.Repo, q.Revision, metadata)
+		return metadata, nil
+	}
+	log.WithFields(log.Fields{"repoURL": q.Repo.Repo, "revision": q.Revision, "err": err}).Debug("cache error")
+	return nil, err
 }
 
 func kustomizeImageTags(imageTags []kustomize.ImageTag) []*v1alpha1.KustomizeImageTag {
