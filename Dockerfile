@@ -107,7 +107,6 @@ RUN groupadd -g 999 argocd && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-COPY hack/ssh_known_hosts /etc/ssh/ssh_known_hosts
 COPY hack/git-ask-pass.sh /usr/local/bin/git-ask-pass.sh
 COPY --from=builder /usr/local/bin/ks /usr/local/bin/ks
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
@@ -115,6 +114,11 @@ COPY --from=builder /usr/local/bin/kubectl /usr/local/bin/kubectl
 COPY --from=builder /usr/local/bin/kustomize1 /usr/local/bin/kustomize1
 COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
 COPY --from=builder /usr/local/bin/aws-iam-authenticator /usr/local/bin/aws-iam-authenticator
+
+# support for mounting configuration from a configmap
+RUN mkdir -p /app/config && \
+    touch /app/config/ssh_known_hosts && \
+    ln -s /app/config/ssh_known_hosts /etc/ssh/ssh_known_hosts 
 
 # workaround ksonnet issue https://github.com/ksonnet/ksonnet/issues/298
 ENV USER=argocd
