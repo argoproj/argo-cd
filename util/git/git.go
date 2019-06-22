@@ -74,11 +74,7 @@ func IsSSHURL(url string) (bool, string) {
 
 // IsSSHURL returns true if supplied URL is HTTPS URL
 func IsHTTPSURL(url string) bool {
-	matches := httpsURLRegex.MatchString(url)
-	if matches {
-		return true
-	}
-	return false
+	return httpsURLRegex.MatchString(url)
 }
 
 // TestRepo tests if a repo exists and is accessible with the given credentials
