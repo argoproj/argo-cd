@@ -68,6 +68,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceResult":             schema_pkg_apis_application_v1alpha1_ResourceResult(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceStatus":             schema_pkg_apis_application_v1alpha1_ResourceStatus(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionHistory":            schema_pkg_apis_application_v1alpha1_RevisionHistory(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionMetadata":           schema_pkg_apis_application_v1alpha1_RevisionMetadata(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperation":              schema_pkg_apis_application_v1alpha1_SyncOperation(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperationResource":      schema_pkg_apis_application_v1alpha1_SyncOperationResource(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperationResult":        schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref),
@@ -106,6 +107,7 @@ func schema_pkg_apis_application_v1alpha1_AWSAuthConfig(ref common.ReferenceCall
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -359,6 +361,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationCondition(ref common.Refere
 				Required: []string{"type", "message"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -386,6 +389,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationDestination(ref common.Refe
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -699,7 +703,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							Description: "CommonLabels adds additional kustomize commonLabels",
 							Type:        []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Type:   []string{"string"},
@@ -733,6 +736,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourcePlugin(ref common.Ref
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -927,6 +931,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSummary(ref common.Referenc
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1144,6 +1149,7 @@ func schema_pkg_apis_application_v1alpha1_Command(ref common.ReferenceCallback) 
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1202,6 +1208,7 @@ func schema_pkg_apis_application_v1alpha1_ComponentParameter(ref common.Referenc
 				Required: []string{"name", "value"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1291,6 +1298,7 @@ func schema_pkg_apis_application_v1alpha1_HealthStatus(ref common.ReferenceCallb
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1318,6 +1326,7 @@ func schema_pkg_apis_application_v1alpha1_HelmParameter(ref common.ReferenceCall
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1373,6 +1382,7 @@ func schema_pkg_apis_application_v1alpha1_HelmRepository(ref common.ReferenceCal
 				Required: []string{"url", "name"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1398,6 +1408,7 @@ func schema_pkg_apis_application_v1alpha1_Info(ref common.ReferenceCallback) com
 				Required: []string{"name", "value"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1425,6 +1436,7 @@ func schema_pkg_apis_application_v1alpha1_InfoItem(ref common.ReferenceCallback)
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1451,6 +1463,7 @@ func schema_pkg_apis_application_v1alpha1_JWTToken(ref common.ReferenceCallback)
 				Required: []string{"iat"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1483,6 +1496,7 @@ func schema_pkg_apis_application_v1alpha1_JsonnetVar(ref common.ReferenceCallbac
 				Required: []string{"name", "value"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1515,6 +1529,7 @@ func schema_pkg_apis_application_v1alpha1_KsonnetParameter(ref common.ReferenceC
 				Required: []string{"name", "value"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1542,6 +1557,7 @@ func schema_pkg_apis_application_v1alpha1_KustomizeImageTag(ref common.Reference
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1828,6 +1844,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceActionDefinition(ref common.Re
 				Required: []string{"name", "action.lua"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1864,6 +1881,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceActionParam(ref common.Referen
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -1952,6 +1970,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceDiff(ref common.ReferenceCallb
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -2003,6 +2022,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceIgnoreDifferences(ref common.R
 				Required: []string{"group", "kind", "jsonPointers"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -2017,7 +2037,6 @@ func schema_pkg_apis_application_v1alpha1_ResourceNetworkingInfo(ref common.Refe
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Type:   []string{"string"},
@@ -2043,7 +2062,6 @@ func schema_pkg_apis_application_v1alpha1_ResourceNetworkingInfo(ref common.Refe
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Type:   []string{"string"},
@@ -2219,6 +2237,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceOverride(ref common.ReferenceC
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -2268,6 +2287,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceRef(ref common.ReferenceCallba
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -2347,6 +2367,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceResult(ref common.ReferenceCal
 				Required: []string{"group", "version", "kind", "namespace", "name"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -2447,6 +2468,56 @@ func schema_pkg_apis_application_v1alpha1_RevisionHistory(ref common.ReferenceCa
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSource", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_RevisionMetadata(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "data about a specific revision within a repo",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"author": {
+						SchemaProps: spec.SchemaProps{
+							Description: "who authored this revision, typically their name and email, e.g. \"John Doe <john_doe@my-company.com>\", but might not match this example",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"date": {
+						SchemaProps: spec.SchemaProps{
+							Description: "when the revision was authored",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"tags": {
+						SchemaProps: spec.SchemaProps{
+							Description: "tags on the revision, note - tags can move from one revision to another",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "the message associated with the revision, probably the commit message, this is truncated to the first newline or 64 characters (which ever comes first)",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"author", "date", "tags", "message"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
@@ -2554,6 +2625,7 @@ func schema_pkg_apis_application_v1alpha1_SyncOperationResource(ref common.Refer
 				Required: []string{"kind", "name"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -2637,6 +2709,7 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicyAutomated(ref common.Referen
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -2717,6 +2790,7 @@ func schema_pkg_apis_application_v1alpha1_SyncStrategyApply(ref common.Reference
 				},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -2787,6 +2861,7 @@ func schema_pkg_apis_application_v1alpha1_TLSClientConfig(ref common.ReferenceCa
 				Required: []string{"insecure"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }
 
@@ -2807,5 +2882,6 @@ func schema_pkg_apis_application_v1alpha1_objectMeta(ref common.ReferenceCallbac
 				Required: []string{"Name"},
 			},
 		},
+		Dependencies: []string{},
 	}
 }

@@ -639,6 +639,37 @@
         }
       }
     },
+    "/api/v1/applications/{name}/revisions/{revision}/metadata": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Get the meta-data (author, date, tags, message) for a specific revision of the application",
+        "operationId": "RevisionMetadata",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "revision",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RevisionMetadata"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/rollback": {
       "post": {
         "tags": [
@@ -3339,6 +3370,30 @@
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
+        }
+      }
+    },
+    "v1alpha1RevisionMetadata": {
+      "type": "object",
+      "title": "data about a specific revision within a repo",
+      "properties": {
+        "author": {
+          "type": "string",
+          "title": "who authored this revision,\ntypically their name and email, e.g. \"John Doe <john_doe@my-company.com>\",\nbut might not match this example"
+        },
+        "date": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "message": {
+          "type": "string",
+          "title": "the message associated with the revision,\nprobably the commit message,\nthis is truncated to the first newline or 64 characters (which ever comes first)"
+        },
+        "tags": {
+          "type": "array",
+          "title": "tags on the revision,\nnote - tags can move from one revision to another",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

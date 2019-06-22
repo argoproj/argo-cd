@@ -9,6 +9,8 @@ import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 
+import {Repo} from '../../../shared/components/repo';
+import {Revision} from '../../../shared/components/revision';
 import { ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage } from '../utils';
 
 const urlPattern = new RegExp('^(https?:\\/\\/)?((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|((\\d{1,3}\\.){3}\\d{1,3}))'
@@ -57,16 +59,12 @@ export const ApplicationSummary = (props: {
         },
         {
             title: 'REPO URL',
-            view: (
-                <a href={app.spec.source.repoURL} target='_blank' onClick={(event) => event.stopPropagation()}>
-                    <i className='fa fa-external-link'/> {app.spec.source.repoURL}
-                </a>
-            ),
+            view: <Repo url={app.spec.source.repoURL}/>,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.repoURL' component={Text}/>,
         },
         {
             title: 'TARGET REVISION',
-            view: app.spec.source.targetRevision || 'HEAD',
+            view: <Revision repoUrl={app.spec.source.repoURL} revision={app.spec.source.targetRevision}/>,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.targetRevision' component={Text}/>,
         },
         {

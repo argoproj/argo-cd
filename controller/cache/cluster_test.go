@@ -18,11 +18,11 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic/fake"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kube/kubetest"
-	"github.com/argoproj/argo-cd/util/settings"
 )
 
 func strToUnstructured(jsonStr string) *unstructured.Unstructured {
@@ -60,6 +60,8 @@ var (
     uid: "2"
     name: helm-guestbook-rs
     namespace: default
+    annotations:
+      deployment.kubernetes.io/revision: "2"
     ownerReferences:
     - apiVersion: apps/v1beta1
       kind: Deployment
@@ -159,7 +161,9 @@ func newClusterExt(kubectl kube.Kubectl) *clusterInfo {
 		syncLock:     &sync.Mutex{},
 		apisMeta:     make(map[schema.GroupKind]*apiMeta),
 		log:          log.WithField("cluster", "test"),
-		settings:     &settings.ArgoCDSettings{},
+		cacheSettingsSrc: func() *cacheSettings {
+			return &cacheSettings{AppInstanceLabelKey: common.LabelKeyAppInstance}
+		},
 	}
 }
 
@@ -212,7 +216,7 @@ func TestGetChildren(t *testing.T) {
 		},
 		ResourceVersion: "123",
 		Health:          &appv1.HealthStatus{Status: appv1.HealthStatusHealthy},
-		Info:            []appv1.InfoItem{},
+		Info:            []appv1.InfoItem{{Name: "Revision", Value: "Rev:2"}},
 		ParentRefs:      []appv1.ResourceRef{{Group: "apps", Version: "", Kind: "Deployment", Namespace: "default", Name: "helm-guestbook", UID: "3"}},
 	}}, rsChildren...), deployChildren)
 }
