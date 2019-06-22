@@ -1,7 +1,9 @@
 package git
 
 import (
+	"crypto/tls"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"strings"
@@ -12,7 +14,8 @@ import (
 	"gopkg.in/src-d/go-git.v4/config"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
+	gitclient "gopkg.in/src-d/go-git.v4/plumbing/transport/client"
+	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	ssh2 "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 )
@@ -31,7 +34,7 @@ type Client interface {
 // ClientFactory is a factory of Git Clients
 // Primarily used to support creation of mock git clients during unit testing
 type ClientFactory interface {
-	NewClient(repoURL, path, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (Client, error)
+	NewClient(repoURL, path, username, password, sshPrivateKey string, insecure bool) (Client, error)
 }
 
 // nativeGitClient implements Client interface using git CLI
@@ -47,14 +50,32 @@ func NewFactory() ClientFactory {
 	return &factory{}
 }
 
-func (f *factory) NewClient(rawRepoURL, path, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (Client, error) {
+func (f *factory) NewClient(rawRepoURL, path, username, password, sshPrivateKey string, insecure bool) (Client, error) {
 	var creds Creds
 	if sshPrivateKey != "" {
-		creds = SSHCreds{sshPrivateKey, insecureIgnoreHostKey}
+		creds = SSHCreds{sshPrivateKey, insecure}
 	} else if username != "" || password != "" {
 		creds = HTTPSCreds{username, password}
 	} else {
 		creds = NopCreds{}
+	}
+
+	// We need a custom HTTP client for go-git when we want to skip validation
+	// of the server's TLS certificate (--insecure-ignore-server-cert). Since
+	// this change is permanent to go-git Client during runtime, we need to
+	// explicitly replace it with default client for repositories without the
+	// insecure flag set.
+	if IsHTTPSURL(rawRepoURL) {
+		if insecure {
+			customHttpClient := &http.Client{
+				Transport: &http.Transport{
+					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				},
+			}
+			gitclient.InstallProtocol("https", githttp.NewClient(customHttpClient))
+		} else {
+			gitclient.InstallProtocol("https", githttp.NewClient(&http.Client{}))
+		}
 	}
 	client := nativeGitClient{
 		repoURL: rawRepoURL,
@@ -81,7 +102,7 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		}
 		return auth, nil
 	case HTTPSCreds:
-		auth := http.BasicAuth{Username: creds.username, Password: creds.password}
+		auth := githttp.BasicAuth{Username: creds.username, Password: creds.password}
 		return &auth, nil
 	}
 	return nil, nil
