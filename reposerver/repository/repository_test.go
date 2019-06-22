@@ -64,7 +64,7 @@ func (f *fakeGitClientFactory) NewClient(repoURL, path, username, password, sshP
 
 func TestGenerateYamlManifestInDir(t *testing.T) {
 	// update this value if we add/remove manifests
-	const countOfManifests = 23
+	const countOfManifests = 24
 
 	q := ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{},
