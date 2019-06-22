@@ -19,8 +19,10 @@ func TestGetRevision(t *testing.T) {
 	}{
 		{"Nil", args{}, 0},
 		{"Empty", args{obj: test.NewPod()}, 0},
-		{"Invalid", args{obj: revisionExample("garbage")}, 0},
-		{"Valid", args{obj: revisionExample("1")}, 1},
+		{"Invalid", args{obj: revisionExample("deployment.kubernetes.io/revision", "garbage")}, 0},
+		{"Garbage", args{obj: revisionExample("garbage.kubernetes.io/revision", "1")}, 0},
+		{"Deployments", args{obj: revisionExample("deployment.kubernetes.io/revision", "1")}, 1},
+		{"Rollouts", args{obj: revisionExample("rollout.argoproj.io/revision", "1")}, 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -31,8 +33,8 @@ func TestGetRevision(t *testing.T) {
 	}
 }
 
-func revisionExample(value string) *unstructured.Unstructured {
+func revisionExample(name, value string) *unstructured.Unstructured {
 	pod := test.NewPod()
-	pod.SetAnnotations(map[string]string{"deployment.kubernetes.io/revision": value})
+	pod.SetAnnotations(map[string]string{name: value})
 	return pod
 }

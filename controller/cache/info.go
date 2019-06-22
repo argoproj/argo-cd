@@ -19,7 +19,7 @@ func populateNodeInfo(un *unstructured.Unstructured, node *node) {
 	gvk := un.GroupVersionKind()
 	revision := resource.GetRevision(un)
 	if revision > 0 {
-		node.info = append(node.info, v1alpha1.InfoItem{Name: "Revision", Value: fmt.Sprintf("%v", revision)})
+		node.info = append(node.info, v1alpha1.InfoItem{Name: "Revision", Value: fmt.Sprintf("Rev:%v", revision)})
 	}
 	switch gvk.Group {
 	case "":
