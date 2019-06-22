@@ -147,7 +147,7 @@ __argocd_custom_func() {
 		argocd_cluster_get | \
 		argocd_cluster_rm | \
 		argocd_login | \
-	    argocd_cluster_add)
+		argocd_cluster_add)
 			__argocd_list_servers
 			return
 			;;
@@ -171,7 +171,7 @@ __argocd_custom_func() {
 		argocd_proj_edit | \
 		argocd_proj_get | \
 		argocd_proj_set | \
-	    argocd_proj_role_list)
+		argocd_proj_role_list)
 			__argocd_list_projects
 			return
 			;;
