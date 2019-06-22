@@ -853,7 +853,7 @@ type Repository struct {
 	// SSH private key data for authenticating at the repo server
 	SSHPrivateKey   string          `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
 	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,5,opt,name=connectionState"`
-	// Deprecated: InsecureIgnoreHostKey should not be used anymore, Insecure is favoured
+	// InsecureIgnoreHostKey should not be used anymore, Insecure is favoured
 	InsecureIgnoreHostKey bool `json:"insecureIgnoreHostKey,omitempty" protobuf:"bytes,6,opt,name=insecureIgnoreHostKey"`
 	// Whether the repo is insecure
 	Insecure bool `json:"insecure,omitempty" protobuf:"bytes,7,opt,name=insecure"`
