@@ -44,6 +44,28 @@ message RepoQuery {
 	string repo = 1;
 }
 
+// RepoAccessQuery is a query for checking access to a repo
+message RepoAccessQuery {
+	// The URL to the repo
+	string repo = 1;
+	// Username for accessing repo
+	string username = 2;
+	// Password for accessing repo
+	string password = 3;
+	// Private key data for accessing SSH repository
+	string PrivateKey = 4;
+	// Whether to skip certificate or host key validation
+	bool   Insecure = 5;
+}
+
+// RepoAccessResponse is the response to RepoAccessQuery
+message RepoAccessResponse {
+	// Whether access is possible
+	bool accessPossible = 1;
+	// Message containing additional information
+	string accessMessage = 2;
+}
+
 message RepoResponse {}
 
 message RepoCreateRequest {
@@ -92,6 +114,14 @@ service RepositoryService {
 	// Delete deletes a repo
 	rpc Delete(RepoQuery) returns (RepoResponse) {
 		option (google.api.http).delete = "/api/v1/repositories/{repo}";
+	}
+
+	// ValidateAccessPreCreate validates access to not yet configured repo
+	rpc ValidateAccess(RepoAccessQuery) returns (RepoResponse) {
+		option (google.api.http) = {
+			post: "/api/v1/repositories/{repo}/validate"
+			body: "repo"
+		};
 	}
 
 }
