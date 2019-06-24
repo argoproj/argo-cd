@@ -196,19 +196,14 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	//Gogs needs to be checked before Github since it carries both Gogs and (incompatible) Github headers
 	case r.Header.Get("X-Gogs-Event") != "":
 		payload, err = a.gogs.Parse(r, gogs.PushEvent)
-		break
 	case r.Header.Get("X-GitHub-Event") != "":
 		payload, err = a.github.Parse(r, github.PushEvent)
-		break
 	case r.Header.Get("X-Gitlab-Event") != "":
 		payload, err = a.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents)
-		break
 	case r.Header.Get("X-Hook-UUID") != "":
 		payload, err = a.bitbucket.Parse(r, bitbucket.RepoPushEvent)
-		break
 	case r.Header.Get("X-Event-Key") != "":
 		payload, err = a.bitbucketserver.Parse(r, bitbucketserver.RepositoryReferenceChangedEvent)
-		break
 	default:
 		log.Debug("Ignoring unknown webhook event")
 		return
