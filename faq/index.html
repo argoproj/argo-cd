@@ -913,6 +913,13 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#ive-deletedcorrupted-my-repo-and-cant-delete-my-app" title="I've deleted/corrupted my repo and can't delete my app." class="md-nav__link">
+    I've deleted/corrupted my repo and can't delete my app.
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#why-is-my-application-still-outofsync-immediately-after-a-successful-sync" title="Why is my application still OutOfSync immediately after a successful Sync?" class="md-nav__link">
     Why is my application still OutOfSync immediately after a successful Sync?
   </a>
@@ -1041,6 +1048,13 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#ive-deletedcorrupted-my-repo-and-cant-delete-my-app" title="I've deleted/corrupted my repo and can't delete my app." class="md-nav__link">
+    I've deleted/corrupted my repo and can't delete my app.
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#why-is-my-application-still-outofsync-immediately-after-a-successful-sync" title="Why is my application still OutOfSync immediately after a successful Sync?" class="md-nav__link">
     Why is my application still OutOfSync immediately after a successful Sync?
   </a>
@@ -1109,6 +1123,12 @@
                 
                 
                 <h1 id="faq">FAQ<a class="headerlink" href="#faq" title="Permanent link">&para;</a></h1>
+<h2 id="ive-deletedcorrupted-my-repo-and-cant-delete-my-app">I've deleted/corrupted my repo and can't delete my app.<a class="headerlink" href="#ive-deletedcorrupted-my-repo-and-cant-delete-my-app" title="Permanent link">&para;</a></h2>
+<p>Argo CD can't delete an app if it cannot generate manifests. You need to either: </p>
+<ol>
+<li>Reinstate/fix your repo.</li>
+<li>Delete the app using <code>--cascade=false</code> and then manually deleting the resources.</li>
+</ol>
 <h2 id="why-is-my-application-still-outofsync-immediately-after-a-successful-sync">Why is my application still <code>OutOfSync</code> immediately after a successful Sync?<a class="headerlink" href="#why-is-my-application-still-outofsync-immediately-after-a-successful-sync" title="Permanent link">&para;</a></h2>
 <p>See <a href="../user-guide/diffing/">Diffing</a> documentation for reasons resources can be OutOfSync, and ways to configure
 Argo CD to ignore fields when differences are expected.</p>

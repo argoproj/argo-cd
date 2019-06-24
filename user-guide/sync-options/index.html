@@ -700,6 +700,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#disable-kubectl-validation" title="Disable Kubectl Validation" class="md-nav__link">
+    Disable Kubectl Validation
+  </a>
+  
+</li>
+      
       
       
       
@@ -1007,6 +1014,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#disable-kubectl-validation" title="Disable Kubectl Validation" class="md-nav__link">
+    Disable Kubectl Validation
+  </a>
+  
+</li>
+      
       
       
       
@@ -1028,6 +1042,9 @@
                 
                 <h1 id="sync-options">Sync Options<a class="headerlink" href="#sync-options" title="Permanent link">&para;</a></h1>
 <h2 id="no-prune-resources">No Prune Resources<a class="headerlink" href="#no-prune-resources" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p>v1.1</p>
+</blockquote>
 <p>You may wish to prevent an object from being pruned:</p>
 <div class="codehilite"><pre><span></span><span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">annotations</span><span class="p">:</span>
@@ -1039,10 +1056,19 @@
 <p><img alt="sync option no prune" src="../../assets/sync-option-no-prune.png" /></p>
 <p>The sync-status panel shows that pruning was skipped, and why:</p>
 <p><img alt="sync option no prune" src="../../assets/sync-option-no-prune-sync-status.png" /></p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
 <p>The app will be out of sync if Argo CD expects a resource to be pruned. You may wish to use this along with <a href="../compare-options/">compare options</a>.</p>
-</div>
+<h2 id="disable-kubectl-validation">Disable Kubectl Validation<a class="headerlink" href="#disable-kubectl-validation" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p>v1.2</p>
+</blockquote>
+<p>For a certain class of objects, it is necessary to <code>kubectl apply</code> them using the <code>--validate=false</code> flag. Examples of this are kubernetes types which uses <code>RawExtension</code>, such as <a href="https://github.com/kubernetes-incubator/service-catalog/blob/master/pkg/apis/servicecatalog/v1beta1/types.go#L497">ServiceCatalog</a>. You can do using this annotations:</p>
+<div class="codehilite"><pre><span></span><span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">annotations</span><span class="p">:</span>
+    <span class="nt">argocd.argoproj.io/sync-options</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Validate=false</span>
+</pre></div>
+
+
+<p>If you want to exclude a whole class of objects globally, consider setting <code>resource.customizations</code> in <a href="../diffing/#system-level-configuration">system level configuation</a>. </p>
                 
                   
                 

@@ -1208,6 +1208,10 @@ happen at the ingress controller.</p>
 <p>Neither ALBs and Classic ELB in HTTP mode, do not have full support for HTTP2/gRPC which is the
 protocol used by the <code>argocd</code> CLI. Thus, when using an AWS load balancer, either Classic ELB in
 passthrough mode is needed, or NLBs.</p>
+<div class="codehilite"><pre><span></span>$ argocd login &lt;host&gt;:&lt;port&gt; --grpc-web
+</pre></div>
+
+
 <h2 id="ui-base-path">UI Base Path<a class="headerlink" href="#ui-base-path" title="Permanent link">&para;</a></h2>
 <p>If Argo CD UI is available under non-root path (e.g. <code>/argo-cd</code> instead of <code>/</code>) then UI path should be configured in API server.
 To configure UI path add <code>--basehref</code> flag into <code>argocd-server</code> deployment command:</p>
