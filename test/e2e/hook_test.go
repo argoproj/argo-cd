@@ -143,7 +143,7 @@ spec:
 		Create().
 		Sync().
 		Then().
-		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook2", Message: "pod/hook2 created", HookType: HookTypeSyncFail, HookPhase: OperationSucceeded, SyncPhase: SyncPhaseSyncFail})).
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook2", Message: "applied successfully", HookType: HookTypeSyncFail, HookPhase: OperationSucceeded, SyncPhase: SyncPhaseSyncFail, Status: ResultCodeSynced})).
 		Expect(OperationPhaseIs(OperationFailed))
 }
 

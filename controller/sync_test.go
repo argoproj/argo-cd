@@ -518,6 +518,85 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 	assert.Equal(t, "abc123", updatedApp.Status.History[0].Revision)
 }
 
+func TestRunSyncFailHooksNoHooks(t *testing.T) {
+	syncCtx := newTestSyncCtx()
+	syncCtx.syncOp.SyncStrategy.Apply = nil
+	pod := test.NewPod()
+	pod.SetName("")
+	pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PostSync"})
+	syncCtx.compareResult = &comparisonResult{hooks: []*unstructured.Unstructured{pod}}
+
+	tasks, successful := syncCtx.getSyncTasks()
+	assert.True(t, successful)
+
+	syncFailTasks, tasks := tasks.Split(func(task *syncTask) bool {
+		return task.phase == v1alpha1.SyncPhaseSyncFail
+	})
+
+	assert.Len(t, syncFailTasks, 0)
+	assert.Len(t, tasks, 1)
+
+	syncCtx.runFailedTasksIfAny(syncFailTasks, "test message")
+	assert.Equal(t, v1alpha1.OperationFailed, syncCtx.opState.Phase)
+}
+
+func TestRunSyncFailHooksCompleted(t *testing.T) {
+	syncCtx := newTestSyncCtx()
+	syncCtx.syncOp.SyncStrategy.Apply = nil
+	pod := test.NewPod()
+	pod.SetName("")
+	pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "SyncFail"})
+	syncCtx.compareResult = &comparisonResult{hooks: []*unstructured.Unstructured{pod}}
+
+	tasks, successful := syncCtx.getSyncTasks()
+	assert.True(t, successful)
+
+	syncFailTasks, tasks := tasks.Split(func(task *syncTask) bool {
+		return task.phase == v1alpha1.SyncPhaseSyncFail
+	})
+
+	assert.Len(t, syncFailTasks, 1)
+	assert.Len(t, tasks, 0)
+
+    syncFailTasks[0].syncStatus = ResultCodeSynced
+    syncFailTasks[0].operationState = OperationSucceeded
+
+	syncCtx.runFailedTasksIfAny(syncFailTasks, "test message")
+	assert.Equal(t, v1alpha1.OperationFailed, syncCtx.opState.Phase)
+	assert.Equal(t, syncFailTasks[0].operationState, OperationSucceeded)
+	assert.Equal(t, syncFailTasks[0].syncStatus, ResultCodeSynced)
+    assert.Contains(t, syncFailTasks[0].message, "applied successfully")
+}
+
+
+func TestRunSyncFailHooksFailed(t *testing.T) {
+	syncCtx := newTestSyncCtx()
+	syncCtx.syncOp.SyncStrategy.Apply = nil
+	pod := test.NewPod()
+	pod.SetName("")
+	pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "SyncFail"})
+	syncCtx.compareResult = &comparisonResult{hooks: []*unstructured.Unstructured{pod}}
+
+	tasks, successful := syncCtx.getSyncTasks()
+	assert.True(t, successful)
+
+	syncFailTasks, tasks := tasks.Split(func(task *syncTask) bool {
+		return task.phase == v1alpha1.SyncPhaseSyncFail
+	})
+
+	assert.Len(t, syncFailTasks, 1)
+	assert.Len(t, tasks, 0)
+
+	syncFailTasks[0].syncStatus = ResultCodeSynced
+	syncFailTasks[0].operationState = OperationFailed
+
+	syncCtx.runFailedTasksIfAny(syncFailTasks, "test message")
+	assert.Equal(t, v1alpha1.OperationFailed, syncCtx.opState.Phase)
+	assert.Equal(t, syncFailTasks[0].operationState, OperationFailed)
+	assert.Equal(t, syncFailTasks[0].syncStatus, ResultCodeSynced)
+	assert.Contains(t, syncFailTasks[0].message, "failed to apply")
+}
+
 func Test_syncContext_isSelectiveSync(t *testing.T) {
 	type fields struct {
 		compareResult *comparisonResult
