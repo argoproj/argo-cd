@@ -546,10 +546,7 @@ func TestRunSyncFailHooksCompleted(t *testing.T) {
 	pod := test.NewPod()
 	pod.SetName("")
 	pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "SyncFail"})
-	pod2 := test.NewPod()
-	pod2.SetName("")
-	pod2.SetAnnotations(map[string]string{common.AnnotationKeyHook: "SyncFail"})
-	syncCtx.compareResult = &comparisonResult{hooks: []*unstructured.Unstructured{pod, pod2}}
+	syncCtx.compareResult = &comparisonResult{hooks: []*unstructured.Unstructured{pod}}
 
 	tasks, successful := syncCtx.getSyncTasks()
 	assert.True(t, successful)
@@ -577,7 +574,10 @@ func TestRunSyncFailHooksFailed(t *testing.T) {
 	pod := test.NewPod()
 	pod.SetName("")
 	pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "SyncFail"})
-	syncCtx.compareResult = &comparisonResult{hooks: []*unstructured.Unstructured{pod}}
+	pod2 := test.NewPod()
+	pod2.SetName("")
+	pod2.SetAnnotations(map[string]string{common.AnnotationKeyHook: "SyncFail"})
+	syncCtx.compareResult = &comparisonResult{hooks: []*unstructured.Unstructured{pod, pod2}}
 
 	tasks, successful := syncCtx.getSyncTasks()
 	assert.True(t, successful)
