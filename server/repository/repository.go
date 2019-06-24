@@ -86,12 +86,7 @@ func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.
 			if err != nil {
 				return nil, err
 			}
-			username := repo.Username
-			if username == "" {
-				username = "-"
-			}
-
-			items = append(items, appsv1.Repository{Repo: url, Insecure: (repo.InsecureIgnoreHostKey || repo.Insecure), Username: username})
+			items = append(items, appsv1.Repository{Repo: url, Insecure: (repo.InsecureIgnoreHostKey || repo.Insecure), Username: repo.Username})
 		}
 	}
 	err = util.RunAllAsync(len(items), func(i int) error {

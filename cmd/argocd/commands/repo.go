@@ -138,7 +138,11 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			fmt.Fprintf(w, "REPO\tINSECURE\tUSER\tSTATUS\tMESSAGE\n")
 			for _, r := range repos.Items {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", r.Repo, strconv.FormatBool((r.InsecureIgnoreHostKey || r.Insecure)), r.Username, r.ConnectionState.Status, r.ConnectionState.Message)
+				username := r.Username
+				if username == "" {
+					username = "-"
+				}
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", r.Repo, strconv.FormatBool((r.InsecureIgnoreHostKey || r.Insecure)), username, r.ConnectionState.Status, r.ConnectionState.Message)
 			}
 			_ = w.Flush()
 		},
