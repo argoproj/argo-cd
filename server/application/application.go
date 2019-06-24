@@ -197,9 +197,9 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		tools[i] = &plugins[i]
 	}
 	// If source is Kustomize add build options
-	if a.Spec.Source.Kustomize != nil {
-		a.Spec.Source.Kustomize.BuildOptions = settings.KustomizeBuildOptions
-	}
+	settings, err := s.settingsMgr.GetSettings()
+	fmt.Println("SIMON [Application] Getting manifests with source", settings.KustomizeBuildOptions)
+
 	manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
 		Repo:              repo,
 		Revision:          revision,
@@ -209,6 +209,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		ApplicationSource: &a.Spec.Source,
 		HelmRepos:         helmRepos,
 		Plugins:           tools,
+		KustomizeBuildOptions: settings.KustomizeBuildOptions,
 	})
 	if err != nil {
 		return nil, err

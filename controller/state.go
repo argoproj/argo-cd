@@ -115,6 +115,9 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		tools[i] = &plugins[i]
 	}
 
+	settings, err := m.settingsMgr.GetSettings()
+	fmt.Println("SIMON [State] Getting manifests with source", settings.KustomizeBuildOptions)
+
 	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &repository.ManifestRequest{
 		Repo:              repo,
 		HelmRepos:         helmRepos,
@@ -125,6 +128,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		Namespace:         app.Spec.Destination.Namespace,
 		ApplicationSource: &source,
 		Plugins:           tools,
+		KustomizeBuildOptions: settings.KustomizeBuildOptions,
 	})
 	if err != nil {
 		return nil, nil, nil, err

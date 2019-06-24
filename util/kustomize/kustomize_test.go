@@ -51,7 +51,7 @@ func TestKustomizeBuild(t *testing.T) {
 			"app.kubernetes.io/part-of":    "argo-cd-tests",
 		},
 	}
-	objs, imageTags, images, err := kustomize.Build(&kustomizeSource)
+	objs, imageTags, images, err := kustomize.Build(&kustomizeSource, "")
 	assert.Nil(t, err)
 	if err != nil {
 		assert.Equal(t, len(objs), 2)
@@ -148,7 +148,7 @@ func TestNewKustomizeApp(t *testing.T) {
 	}
 	for _, tt := range tests {
 		kust := NewKustomizeApp(tt.args.path, tt.args.creds)
-		objs, _, _, err := kust.Build(nil)
+		objs, _, _, err := kust.Build(nil, "")
 		assert.NoError(t, err)
 		assert.Len(t, objs, tt.wantLen)
 	}

@@ -40,7 +40,7 @@ type Image = string
 // Kustomize provides wrapper functionality around the `kustomize` command.
 type Kustomize interface {
 	// Build returns a list of unstructured objects from a `kustomize build` command and extract supported parameters
-	Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstructured.Unstructured, []ImageTag, []Image, error)
+	Build(opts *v1alpha1.ApplicationSourceKustomize, buildOptions string) ([]*unstructured.Unstructured, []ImageTag, []Image, error)
 }
 
 // NewKustomizeApp create a new wrapper to run commands on the `kustomize` command-line tool.
@@ -56,7 +56,7 @@ type kustomize struct {
 	creds git.Creds
 }
 
-func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstructured.Unstructured, []ImageTag, []Image, error) {
+func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, buildOptions string) ([]*unstructured.Unstructured, []ImageTag, []Image, error) {
 
 	version, err := k.getKustomizationVersion()
 	if err != nil {
@@ -128,12 +128,13 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstruc
 	}
 
 	var cmd *exec.Cmd
-	if opts.BuildOptions == "" {
-		cmd = exec.Command(commandName, "build", k.path)
+	if buildOptions != "" {
+		params := append([]string{"build", k.path}, strings.Split(buildOptions, " ")...)
+		cmd = exec.Command(commandName, params...)
 	} else {
-		cmd = exec.Command(commandName, "build", opts.BuildOptions, k.path)
+		cmd = exec.Command(commandName, "build", k.path)
 	}
-	
+
 	cmd.Env = os.Environ()
 	closer, environ, err := k.creds.Environ()
 	if err != nil {

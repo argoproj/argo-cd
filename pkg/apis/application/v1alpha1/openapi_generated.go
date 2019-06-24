@@ -107,7 +107,6 @@ func schema_pkg_apis_application_v1alpha1_AWSAuthConfig(ref common.ReferenceCall
 				},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -361,7 +360,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationCondition(ref common.Refere
 				Required: []string{"type", "message"},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -389,7 +387,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationDestination(ref common.Refe
 				},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -703,6 +700,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							Description: "CommonLabels adds additional kustomize commonLabels",
 							Type:        []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Type:   []string{"string"},
@@ -712,7 +710,15 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							},
 						},
 					},
+					"BuildOptions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "BuildOptions is a string of parameters called with `kustomize build`",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
+				Required: []string{"BuildOptions"},
 			},
 		},
 		Dependencies: []string{
@@ -736,7 +742,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourcePlugin(ref common.Ref
 				},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -931,7 +936,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSummary(ref common.Referenc
 				},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -1149,7 +1153,6 @@ func schema_pkg_apis_application_v1alpha1_Command(ref common.ReferenceCallback) 
 				},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -1208,7 +1211,6 @@ func schema_pkg_apis_application_v1alpha1_ComponentParameter(ref common.Referenc
 				Required: []string{"name", "value"},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -1298,7 +1300,6 @@ func schema_pkg_apis_application_v1alpha1_HealthStatus(ref common.ReferenceCallb
 				},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -1326,7 +1327,6 @@ func schema_pkg_apis_application_v1alpha1_HelmParameter(ref common.ReferenceCall
 				},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -1382,7 +1382,6 @@ func schema_pkg_apis_application_v1alpha1_HelmRepository(ref common.ReferenceCal
 				Required: []string{"url", "name"},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -1408,7 +1407,6 @@ func schema_pkg_apis_application_v1alpha1_Info(ref common.ReferenceCallback) com
 				Required: []string{"name", "value"},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -1436,7 +1434,6 @@ func schema_pkg_apis_application_v1alpha1_InfoItem(ref common.ReferenceCallback)
 				},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -1463,7 +1460,6 @@ func schema_pkg_apis_application_v1alpha1_JWTToken(ref common.ReferenceCallback)
 				Required: []string{"iat"},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -1496,7 +1492,6 @@ func schema_pkg_apis_application_v1alpha1_JsonnetVar(ref common.ReferenceCallbac
 				Required: []string{"name", "value"},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -1529,7 +1524,6 @@ func schema_pkg_apis_application_v1alpha1_KsonnetParameter(ref common.ReferenceC
 				Required: []string{"name", "value"},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -1557,7 +1551,6 @@ func schema_pkg_apis_application_v1alpha1_KustomizeImageTag(ref common.Reference
 				},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -1844,7 +1837,6 @@ func schema_pkg_apis_application_v1alpha1_ResourceActionDefinition(ref common.Re
 				Required: []string{"name", "action.lua"},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -1881,7 +1873,6 @@ func schema_pkg_apis_application_v1alpha1_ResourceActionParam(ref common.Referen
 				},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -1970,7 +1961,6 @@ func schema_pkg_apis_application_v1alpha1_ResourceDiff(ref common.ReferenceCallb
 				},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -2022,7 +2012,6 @@ func schema_pkg_apis_application_v1alpha1_ResourceIgnoreDifferences(ref common.R
 				Required: []string{"group", "kind", "jsonPointers"},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -2037,6 +2026,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceNetworkingInfo(ref common.Refe
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Type:   []string{"string"},
@@ -2062,6 +2052,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceNetworkingInfo(ref common.Refe
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Type:   []string{"string"},
@@ -2237,7 +2228,6 @@ func schema_pkg_apis_application_v1alpha1_ResourceOverride(ref common.ReferenceC
 				},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -2287,7 +2277,6 @@ func schema_pkg_apis_application_v1alpha1_ResourceRef(ref common.ReferenceCallba
 				},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -2367,7 +2356,6 @@ func schema_pkg_apis_application_v1alpha1_ResourceResult(ref common.ReferenceCal
 				Required: []string{"group", "version", "kind", "namespace", "name"},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -2625,7 +2613,6 @@ func schema_pkg_apis_application_v1alpha1_SyncOperationResource(ref common.Refer
 				Required: []string{"kind", "name"},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -2709,7 +2696,6 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicyAutomated(ref common.Referen
 				},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -2790,7 +2776,6 @@ func schema_pkg_apis_application_v1alpha1_SyncStrategyApply(ref common.Reference
 				},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -2861,7 +2846,6 @@ func schema_pkg_apis_application_v1alpha1_TLSClientConfig(ref common.ReferenceCa
 				Required: []string{"insecure"},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -2882,6 +2866,5 @@ func schema_pkg_apis_application_v1alpha1_objectMeta(ref common.ReferenceCallbac
 				Required: []string{"Name"},
 			},
 		},
-		Dependencies: []string{},
 	}
 }

@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"github.com/argoproj/argo-cd/errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -135,4 +136,22 @@ func TestKustomizeDeclarativeInvalidApp(t *testing.T) {
 		Expect(HealthIs(HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
 		Expect(Condition(ApplicationConditionComparisonError, "invalid-kustomize/does-not-exist.yaml: no such file or directory"))
+}
+
+func TestKustomizeBuildOptions(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		And(func() {
+			errors.FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
+				"-n", fixture.ArgoCDNamespace,
+				"-p", `{ "data": { "kustomize.buildOptions": "--load_restrictor none" } }`))
+		}).
+		When().
+		PatchFile("kustomization.yaml", `[{"op": "replace", "path": "/resources/1", "value": "../guestbook_local/guestbook-ui-svc.yaml"}]`).
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }

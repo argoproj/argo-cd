@@ -2627,6 +2627,10 @@
       "type": "object",
       "title": "ApplicationSourceKustomize holds kustomize specific options",
       "properties": {
+        "buildOptions": {
+          "type": "string",
+          "title": "BuildOptions is a string of parameters called with `kustomize build`"
+        },
         "commonLabels": {
           "type": "object",
           "title": "CommonLabels adds additional kustomize commonLabels",

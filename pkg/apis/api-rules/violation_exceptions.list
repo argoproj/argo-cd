@@ -1,4 +1,5 @@
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSourceJsonnet,TLAs
+API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ApplicationSourceKustomize,BuildOptions
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ConnectionState,ModifiedAt
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,JWTToken,ExpiresAt
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,JWTToken,IssuedAt

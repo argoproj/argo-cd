@@ -184,6 +184,9 @@ message ApplicationSourceKustomize {
 
   // CommonLabels adds additional kustomize commonLabels
   map<string, string> commonLabels = 4;
+
+  // BuildOptions is a string of parameters called with `kustomize build`
+  optional string buildOptions = 5;
 }
 
 // ApplicationSourcePlugin holds config management plugin specific options

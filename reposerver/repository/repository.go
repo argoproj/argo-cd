@@ -239,7 +239,7 @@ func GenerateManifests(root, path string, q *ManifestRequest) (*ManifestResponse
 		}
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		k := kustomize.NewKustomizeApp(appPath, creds)
-		targetObjs, _, _, err = k.Build(q.ApplicationSource.Kustomize)
+		targetObjs, _, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeBuildOptions)
 	case v1alpha1.ApplicationSourceTypePlugin:
 		targetObjs, err = runConfigManagementPlugin(appPath, q, creds, q.Plugins)
 	case v1alpha1.ApplicationSourceTypeDirectory:
@@ -675,7 +675,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 		res.Kustomize = &KustomizeAppSpec{}
 		res.Kustomize.Path = q.Path
 		k := kustomize.NewKustomizeApp(appPath, newCreds(q.Repo))
-		_, imageTags, images, err := k.Build(nil)
+		_, imageTags, images, err := k.Build(nil, "")
 		if err != nil {
 			return nil, err
 		}
