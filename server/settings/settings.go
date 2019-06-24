@@ -41,6 +41,10 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		val := resourceOverrides[k]
 		overrides[k] = &val
 	}
+	kustomizeBuildOptions, err := s.mgr.GetSettings()
+	if err != nil {
+		return nil, err
+	}
 	set := settingspkg.Settings{
 		URL:               argoCDSettings.URL,
 		AppLabelKey:       appInstanceLabelKey,

@@ -1647,6 +1647,9 @@
         "dexConfig": {
           "$ref": "#/definitions/clusterDexConfig"
         },
+        "kustomizeBuildOptions": {
+          "type": "string"
+        },
         "oidcConfig": {
           "$ref": "#/definitions/clusterOIDCConfig"
         },
