@@ -558,16 +558,15 @@ func TestRunSyncFailHooksCompleted(t *testing.T) {
 	assert.Len(t, syncFailTasks, 1)
 	assert.Len(t, tasks, 0)
 
-    syncFailTasks[0].syncStatus = ResultCodeSynced
-    syncFailTasks[0].operationState = OperationSucceeded
+	syncFailTasks[0].syncStatus = ResultCodeSynced
+	syncFailTasks[0].operationState = OperationSucceeded
 
 	syncCtx.runFailedTasksIfAny(syncFailTasks, "test message")
 	assert.Equal(t, v1alpha1.OperationFailed, syncCtx.opState.Phase)
 	assert.Equal(t, syncFailTasks[0].operationState, OperationSucceeded)
 	assert.Equal(t, syncFailTasks[0].syncStatus, ResultCodeSynced)
-    assert.Contains(t, syncFailTasks[0].message, "applied successfully")
+	assert.Contains(t, syncFailTasks[0].message, "applied successfully")
 }
-
 
 func TestRunSyncFailHooksFailed(t *testing.T) {
 	syncCtx := newTestSyncCtx()

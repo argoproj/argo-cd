@@ -302,17 +302,17 @@ func (sc *syncContext) runFailedTasksIfAny(syncFailTasks syncTasks, failMessage 
 		if syncFailTasks.All(func(task *syncTask) bool { return task.completed() }) {
 			if syncFailTasks.All(func(task *syncTask) bool { return task.successful() }) {
 				sc.setOperationPhase(v1alpha1.OperationFailed, failMessage)
-				syncFailTasks.ApplyResourceResult(sc, v1alpha1.ResultCodeSynced ,v1alpha1.OperationSucceeded, "applied successfully")
+				syncFailTasks.ApplyResourceResult(sc, v1alpha1.ResultCodeSynced, v1alpha1.OperationSucceeded, "applied successfully")
 			} else {
 				sc.setOperationPhase(v1alpha1.OperationFailed, failMessage)
-				syncFailTasks.ApplyResourceResult(sc, v1alpha1.ResultCodeSynced ,v1alpha1.OperationFailed, "failed to apply")
+				syncFailTasks.ApplyResourceResult(sc, v1alpha1.ResultCodeSynced, v1alpha1.OperationFailed, "failed to apply")
 			}
 			return
 		}
 		sc.log.WithFields(log.Fields{"syncFailTasks": syncFailTasks}).Debug("running sync fail tasks")
 		if !sc.runTasks(syncFailTasks, false) {
-            sc.setOperationPhase(v1alpha1.OperationFailed, failMessage)
-            syncFailTasks.ApplyResourceResult(sc, v1alpha1.ResultCodeSyncFailed ,v1alpha1.OperationFailed, "failed to apply")
+			sc.setOperationPhase(v1alpha1.OperationFailed, failMessage)
+			syncFailTasks.ApplyResourceResult(sc, v1alpha1.ResultCodeSyncFailed, v1alpha1.OperationFailed, "failed to apply")
 		}
 	} else {
 		sc.setOperationPhase(v1alpha1.OperationFailed, failMessage)
