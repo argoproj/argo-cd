@@ -982,7 +982,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: wide")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name")
 	return command
 }
 
@@ -1634,7 +1634,7 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			}
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: wide|id")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|id")
 	return command
 }
 

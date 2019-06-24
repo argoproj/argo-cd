@@ -291,7 +291,7 @@ func NewProjectRoleListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: wide|name")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name")
 	return command
 }
 

@@ -480,7 +480,7 @@ func NewProjectListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			}
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: wide|name")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name")
 	return command
 }
 

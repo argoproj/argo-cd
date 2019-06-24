@@ -153,6 +153,6 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			}
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: wide|url")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|url")
 	return command
 }

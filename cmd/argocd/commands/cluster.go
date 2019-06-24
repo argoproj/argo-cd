@@ -266,7 +266,7 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			}
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: wide|server")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|server")
 	return command
 }
 
