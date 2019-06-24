@@ -27,7 +27,7 @@
     "@types/react-router": "^4.0.27",
     "@types/react-router-dom": "^4.2.3",
     "@types/superagent": "^3.5.7",
-    "argo-ui": "git://github.com/argoproj/argo-ui.git",
+    "argo-ui": "https://github.com/argoproj/argo-ui.git#20bf3cbe3db2c60f5882bd95c153c538e39a0b7b",
     "awesome-typescript-loader": "^5.2.1",
     "babel-core": "^6.26.0",
     "babel-loader": "^7.1.3",
