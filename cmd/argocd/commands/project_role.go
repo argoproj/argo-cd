@@ -248,8 +248,28 @@ func NewProjectRoleDeleteTokenCommand(clientOpts *argocdclient.ClientOptions) *c
 	return command
 }
 
+// Print list of project role names
+func printProjectRoleListName(roles []v1alpha1.ProjectRole) {
+	for _, role := range roles {
+		fmt.Println(role.Name)
+	}
+}
+
+// Print table of project roles
+func printProjectRoleListTable(roles []v1alpha1.ProjectRole) {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintf(w, "ROLE-NAME\tDESCRIPTION\n")
+	for _, role := range roles {
+		fmt.Fprintf(w, "%s\t%s\n", role.Name, role.Description)
+	}
+	_ = w.Flush()
+}
+
 // NewProjectRoleListCommand returns a new instance of an `argocd proj roles list` command
 func NewProjectRoleListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		output string
+	)
 	var command = &cobra.Command{
 		Use:   "list PROJECT",
 		Short: "List all the roles in a project",
@@ -264,14 +284,14 @@ func NewProjectRoleListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			project, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
-			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "ROLE-NAME\tDESCRIPTION\n")
-			for _, role := range project.Spec.Roles {
-				fmt.Fprintf(w, "%s\t%s\n", role.Name, role.Description)
+			if output == "name" {
+				printProjectRoleListName(project.Spec.Roles)
+			} else {
+				printProjectRoleListTable(project.Spec.Roles)
 			}
-			_ = w.Flush()
 		},
 	}
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name")
 	return command
 }
 

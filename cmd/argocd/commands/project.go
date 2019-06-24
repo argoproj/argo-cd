@@ -443,8 +443,28 @@ func NewProjectDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 	return command
 }
 
+// Print list of project names
+func printProjectNames(projects []v1alpha1.AppProject) {
+	for _, p := range projects {
+		fmt.Println(p.Name)
+	}
+}
+
+// Print table of project info
+func printProjectTable(projects []v1alpha1.AppProject) {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintf(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\n")
+	for _, p := range projects {
+		printProjectLine(w, &p)
+	}
+	_ = w.Flush()
+}
+
 // NewProjectListCommand returns a new instance of an `argocd proj list` command
 func NewProjectListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		output string
+	)
 	var command = &cobra.Command{
 		Use:   "list",
 		Short: "List projects",
@@ -453,14 +473,14 @@ func NewProjectListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			defer util.Close(conn)
 			projects, err := projIf.List(context.Background(), &projectpkg.ProjectQuery{})
 			errors.CheckError(err)
-			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\n")
-			for _, p := range projects.Items {
-				printProjectLine(w, &p)
+			if output == "name" {
+				printProjectNames(projects.Items)
+			} else {
+				printProjectTable(projects.Items)
 			}
-			_ = w.Flush()
 		},
 	}
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name")
 	return command
 }
 
