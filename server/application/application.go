@@ -196,6 +196,10 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	for i := range plugins {
 		tools[i] = &plugins[i]
 	}
+	// If source is Kustomize add build options
+	if a.Spec.Source.Kustomize != nil {
+		a.Spec.Source.Kustomize.BuildOptions = settings.KustomizeBuildOptions
+	}
 	manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
 		Repo:              repo,
 		Revision:          revision,

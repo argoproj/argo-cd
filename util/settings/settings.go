@@ -64,6 +64,8 @@ type ArgoCDSettings struct {
 	RepositoryCredentials []RepoCredentials
 	// Repositories holds list of configured helm repositories
 	HelmRepositories []HelmRepoCredentials
+	// KustomizeBuildOptions is a string of kustomize build parameters
+	KustomizeBuildOptions string
 }
 
 type OIDCConfig struct {
@@ -132,6 +134,8 @@ const (
 	resourceInclusionsKey = "resource.inclusions"
 	// configManagementPluginsKey is the key to the list of config management plugins
 	configManagementPluginsKey = "configManagementPlugins"
+	// kustomizeBuildOptions is a string of kustomize build parameters
+	kustomizeBuildOptions = "kustomize.buildOptions"
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -400,6 +404,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
 	settings.URL = argoCDCM.Data[settingURLKey]
+	settings.KustomizeBuildOptions = argoCDCM.Data[kustomizeBuildOptions]
 	repositoriesStr := argoCDCM.Data[repositoriesKey]
 	repositoryCredentialsStr := argoCDCM.Data[repositoryCredentialsKey]
 	var errors []error

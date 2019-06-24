@@ -127,7 +127,13 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstruc
 		}
 	}
 
-	cmd := exec.Command(commandName, "build", k.path)
+	var cmd *exec.Cmd
+	if opts.BuildOptions == "" {
+		cmd = exec.Command(commandName, "build", k.path)
+	} else {
+		cmd = exec.Command(commandName, "build", opts.BuildOptions, k.path)
+	}
+	
 	cmd.Env = os.Environ()
 	closer, environ, err := k.creds.Environ()
 	if err != nil {
