@@ -350,6 +350,14 @@
   version = "v0.2.3"
 
 [[projects]]
+  branch = "master"
+  digest = "1:9a06e7365c6039daf4db9bbf79650e2933a2880982cbab8106cb74a36617f40d"
+  name = "github.com/gogits/go-gogs-client"
+  packages = ["."]
+  pruneopts = ""
+  revision = "5a05380e4bc2440e0ec12f54f6f45648dbdd5e55"
+
+[[projects]]
   digest = "1:6e73003ecd35f4487a5e88270d3ca0a81bc80dc88053ac7e4dcfec5fba30d918"
   name = "github.com/gogo/protobuf"
   packages = [
@@ -786,7 +794,10 @@
 [[projects]]
   digest = "1:01d968ff6535945510c944983eee024e81f1c949043e9bbfe5ab206ebc3588a4"
   name = "github.com/sirupsen/logrus"
-  packages = ["."]
+  packages = [
+    ".",
+    "hooks/test",
+  ]
   pruneopts = ""
   revision = "a67f783a3814b8729bd2dac5780b5f78f8dbd64d"
   version = "v1.1.0"
@@ -1102,17 +1113,18 @@
   version = "v1.15.0"
 
 [[projects]]
-  digest = "1:bf7444e1e6a36e633f4f1624a67b9e4734cfb879c27ac0a2082ac16aff8462ac"
-  name = "gopkg.in/go-playground/webhooks.v3"
+  digest = "1:adf5b0ae3467c3182757ecb86fbfe819939473bb870a42789dc1a3e7729397cd"
+  name = "gopkg.in/go-playground/webhooks.v5"
   packages = [
-    ".",
     "bitbucket",
+    "bitbucket-server",
     "github",
     "gitlab",
+    "gogs",
   ]
   pruneopts = ""
-  revision = "5580947e3ec83427ef5f6f2392eddca8dde5d99a"
-  version = "v3.11.0"
+  revision = "175186584584a83966dc9a7b8ec6c3d3a4ce6110"
+  version = "v5.11.0"
 
 [[projects]]
   digest = "1:e5d1fb981765b6f7513f793a3fcaac7158408cca77f75f7311ac82cc88e9c445"
@@ -1595,6 +1607,7 @@
     "github.com/prometheus/client_golang/prometheus",
     "github.com/prometheus/client_golang/prometheus/promhttp",
     "github.com/sirupsen/logrus",
+    "github.com/sirupsen/logrus/hooks/test",
     "github.com/skratchdot/open-golang/open",
     "github.com/soheilhy/cmux",
     "github.com/spf13/cobra",
@@ -1620,10 +1633,11 @@
     "google.golang.org/grpc/metadata",
     "google.golang.org/grpc/reflection",
     "google.golang.org/grpc/status",
-    "gopkg.in/go-playground/webhooks.v3",
-    "gopkg.in/go-playground/webhooks.v3/bitbucket",
-    "gopkg.in/go-playground/webhooks.v3/github",
-    "gopkg.in/go-playground/webhooks.v3/gitlab",
+    "gopkg.in/go-playground/webhooks.v5/bitbucket",
+    "gopkg.in/go-playground/webhooks.v5/bitbucket-server",
+    "gopkg.in/go-playground/webhooks.v5/github",
+    "gopkg.in/go-playground/webhooks.v5/gitlab",
+    "gopkg.in/go-playground/webhooks.v5/gogs",
     "gopkg.in/src-d/go-git.v4",
     "gopkg.in/src-d/go-git.v4/config",
     "gopkg.in/src-d/go-git.v4/plumbing",

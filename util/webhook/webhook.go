@@ -6,11 +6,13 @@ import (
 	"regexp"
 	"strings"
 
+	gogsclient "github.com/gogits/go-gogs-client"
 	log "github.com/sirupsen/logrus"
-	webhooks "gopkg.in/go-playground/webhooks.v3"
-	"gopkg.in/go-playground/webhooks.v3/bitbucket"
-	"gopkg.in/go-playground/webhooks.v3/github"
-	"gopkg.in/go-playground/webhooks.v3/gitlab"
+	"gopkg.in/go-playground/webhooks.v5/bitbucket"
+	bitbucketserver "gopkg.in/go-playground/webhooks.v5/bitbucket-server"
+	"gopkg.in/go-playground/webhooks.v5/github"
+	"gopkg.in/go-playground/webhooks.v5/gitlab"
+	"gopkg.in/go-playground/webhooks.v5/gogs"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -20,30 +22,48 @@ import (
 )
 
 type ArgoCDWebhookHandler struct {
-	ns               string
-	appClientset     appclientset.Interface
-	github           *github.Webhook
-	githubHandler    http.Handler
-	gitlab           *gitlab.Webhook
-	gitlabHandler    http.Handler
-	bitbucket        *bitbucket.Webhook
-	bitbucketHandler http.Handler
+	ns              string
+	appClientset    appclientset.Interface
+	github          *github.Webhook
+	gitlab          *gitlab.Webhook
+	bitbucket       *bitbucket.Webhook
+	bitbucketserver *bitbucketserver.Webhook
+	gogs            *gogs.Webhook
 }
 
 func NewHandler(namespace string, appClientset appclientset.Interface, set *settings.ArgoCDSettings) *ArgoCDWebhookHandler {
-	acdWebhook := ArgoCDWebhookHandler{
-		ns:           namespace,
-		appClientset: appClientset,
-		github:       github.New(&github.Config{Secret: set.WebhookGitHubSecret}),
-		gitlab:       gitlab.New(&gitlab.Config{Secret: set.WebhookGitLabSecret}),
-		bitbucket:    bitbucket.New(&bitbucket.Config{UUID: set.WebhookBitbucketUUID}),
+
+	githubWebhook, err := github.New(github.Options.Secret(set.WebhookGitHubSecret))
+	if err != nil {
+		log.Warnf("Unable to init the Github webhook")
 	}
-	acdWebhook.github.RegisterEvents(acdWebhook.HandleEvent, github.PushEvent)
-	acdWebhook.gitlab.RegisterEvents(acdWebhook.HandleEvent, gitlab.PushEvents, gitlab.TagEvents)
-	acdWebhook.bitbucket.RegisterEvents(acdWebhook.HandleEvent, bitbucket.RepoPushEvent)
-	acdWebhook.githubHandler = webhooks.Handler(acdWebhook.github)
-	acdWebhook.gitlabHandler = webhooks.Handler(acdWebhook.gitlab)
-	acdWebhook.bitbucketHandler = webhooks.Handler(acdWebhook.bitbucket)
+	gitlabWebhook, err := gitlab.New(gitlab.Options.Secret(set.WebhookGitLabSecret))
+	if err != nil {
+		log.Warnf("Unable to init the Gitlab webhook")
+	}
+	bitbucketWebhook, err := bitbucket.New(bitbucket.Options.UUID(set.WebhookBitbucketUUID))
+	if err != nil {
+		log.Warnf("Unable to init the Bitbucket webhook")
+	}
+	bitbucketserverWebhook, err := bitbucketserver.New(bitbucketserver.Options.Secret(set.WebhookBitbucketServerSecret))
+	if err != nil {
+		log.Warnf("Unable to init the Bitbucket Server webhook")
+	}
+	gogsWebhook, err := gogs.New(gogs.Options.Secret(set.WebhookGogsSecret))
+	if err != nil {
+		log.Warnf("Unable to init the Gogs webhook")
+	}
+
+	acdWebhook := ArgoCDWebhookHandler{
+		ns:              namespace,
+		appClientset:    appClientset,
+		github:          githubWebhook,
+		gitlab:          gitlabWebhook,
+		bitbucket:       bitbucketWebhook,
+		bitbucketserver: bitbucketserverWebhook,
+		gogs:            gogsWebhook,
+	}
+
 	return &acdWebhook
 }
 
@@ -90,12 +110,37 @@ func affectedRevisionInfo(payloadIf interface{}) (string, string, bool) {
 		// Not actually sure how to check if the incoming change affected HEAD just by examining the
 		// payload alone. To be safe, we just return true and let the controller check for himself.
 		touchedHead = true
+	case bitbucketserver.RepositoryReferenceChangedPayload:
+
+		// Webhook module does not parse the inner links
+		for _, l := range payload.Repository.Links["clone"].([]interface{}) {
+			link := l.(map[string]interface{})
+			if link["name"] == "http" {
+				webURL = link["href"].(string)
+				break
+			}
+		}
+
+		// TODO: bitbucket includes multiple changes as part of a single event.
+		// We only pick the first but need to consider how to handle multiple
+		for _, change := range payload.Changes {
+			revision = parseRef(change.Reference.ID)
+			break
+		}
+		// Not actually sure how to check if the incoming change affected HEAD just by examining the
+		// payload alone. To be safe, we just return true and let the controller check for himself.
+		touchedHead = true
+
+	case gogsclient.PushPayload:
+		webURL = payload.Repo.HTMLURL
+		revision = parseRef(payload.Ref)
+		touchedHead = bool(payload.Repo.DefaultBranch == revision)
 	}
 	return webURL, revision, touchedHead
 }
 
 // HandleEvent handles webhook events for repo push events
-func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}, header webhooks.Header) {
+func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 	webURL, revision, touchedHead := affectedRevisionInfo(payload)
 	// NOTE: the webURL does not include the .git extension
 	if webURL == "" {
@@ -143,20 +188,31 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}, header webhooks.
 }
 
 func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
-	event := r.Header.Get("X-GitHub-Event")
-	if len(event) > 0 {
-		a.githubHandler.ServeHTTP(w, r)
+
+	var payload interface{}
+	var err error
+
+	switch {
+	//Gogs needs to be checked before Github since it carries both Gogs and (incompatible) Github headers
+	case r.Header.Get("X-Gogs-Event") != "":
+		payload, err = a.gogs.Parse(r, gogs.PushEvent)
+	case r.Header.Get("X-GitHub-Event") != "":
+		payload, err = a.github.Parse(r, github.PushEvent)
+	case r.Header.Get("X-Gitlab-Event") != "":
+		payload, err = a.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents)
+	case r.Header.Get("X-Hook-UUID") != "":
+		payload, err = a.bitbucket.Parse(r, bitbucket.RepoPushEvent)
+	case r.Header.Get("X-Event-Key") != "":
+		payload, err = a.bitbucketserver.Parse(r, bitbucketserver.RepositoryReferenceChangedEvent)
+	default:
+		log.Debug("Ignoring unknown webhook event")
 		return
 	}
-	event = r.Header.Get("X-Gitlab-Event")
-	if len(event) > 0 {
-		a.gitlabHandler.ServeHTTP(w, r)
+
+	if err != nil {
+		log.Infof("Webhook processing failed: %s", err)
 		return
 	}
-	uuid := r.Header.Get("X-Hook-UUID")
-	if len(uuid) > 0 {
-		a.bitbucketHandler.ServeHTTP(w, r)
-		return
-	}
-	log.Debug("Ignoring unknown webhook event")
+
+	a.HandleEvent(payload)
 }

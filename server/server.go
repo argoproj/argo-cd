@@ -313,7 +313,9 @@ func (a *ArgoCDServer) watchSettings(ctx context.Context) {
 	errors.CheckError(err)
 	prevGitHubSecret := a.settings.WebhookGitHubSecret
 	prevGitLabSecret := a.settings.WebhookGitLabSecret
-	prevBitBucketUUID := a.settings.WebhookBitbucketUUID
+	prevBitbucketUUID := a.settings.WebhookBitbucketUUID
+	prevBitbucketServerSecret := a.settings.WebhookBitbucketServerSecret
+	prevGogsSecret := a.settings.WebhookGogsSecret
 	var prevCert, prevCertKey string
 	if a.settings.Certificate != nil && !a.ArgoCDServerOpts.Insecure {
 		prevCert, prevCertKey = tlsutil.EncodeX509KeyPairString(*a.settings.Certificate)
@@ -344,8 +346,16 @@ func (a *ArgoCDServer) watchSettings(ctx context.Context) {
 			log.Infof("gitlab secret modified. restarting")
 			break
 		}
-		if prevBitBucketUUID != a.settings.WebhookBitbucketUUID {
+		if prevBitbucketUUID != a.settings.WebhookBitbucketUUID {
 			log.Infof("bitbucket uuid modified. restarting")
+			break
+		}
+		if prevBitbucketServerSecret != a.settings.WebhookBitbucketServerSecret {
+			log.Infof("bitbucket server secret modified. restarting")
+			break
+		}
+		if prevGogsSecret != a.settings.WebhookGogsSecret {
+			log.Infof("gogs secret modified. restarting")
 			break
 		}
 		if !a.ArgoCDServerOpts.Insecure {
