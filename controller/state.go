@@ -116,8 +116,6 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	}
 
 	settings, err := m.settingsMgr.GetSettings()
-	fmt.Println("SIMON [State] Getting manifests with source", settings.KustomizeBuildOptions)
-
 	kustomizeOptions := appv1.KustomizeOptions{
 		BuildOptions: settings.KustomizeBuildOptions,
 	}
