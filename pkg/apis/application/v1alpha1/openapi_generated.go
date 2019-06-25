@@ -795,6 +795,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref common.ReferenceCa
 							},
 						},
 					},
+					"alwaysHardRefresh": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Always use hard-refresh for application refreshing",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"source", "destination", "project"},
 			},

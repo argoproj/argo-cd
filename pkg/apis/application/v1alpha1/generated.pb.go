@@ -2675,6 +2675,14 @@ func (m *ApplicationSpec) MarshalTo(dAtA []byte) (int, error) {
 			i += n
 		}
 	}
+	dAtA[i] = 0x38
+	i++
+	if m.AlwaysHardRefresh {
+		dAtA[i] = 1
+	} else {
+		dAtA[i] = 0
+	}
+	i++
 	return i, nil
 }
 
@@ -5095,6 +5103,7 @@ func (m *ApplicationSpec) Size() (n int) {
 			n += 1 + l + sovGenerated(uint64(l))
 		}
 	}
+	n += 2
 	return n
 }
 
@@ -6124,6 +6133,7 @@ func (this *ApplicationSpec) String() string {
 		`SyncPolicy:` + strings.Replace(fmt.Sprintf("%v", this.SyncPolicy), "SyncPolicy", "SyncPolicy", 1) + `,`,
 		`IgnoreDifferences:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.IgnoreDifferences), "ResourceIgnoreDifferences", "ResourceIgnoreDifferences", 1), `&`, ``, 1) + `,`,
 		`Info:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Info), "Info", "Info", 1), `&`, ``, 1) + `,`,
+		`AlwaysHardRefresh:` + fmt.Sprintf("%v", this.AlwaysHardRefresh) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -9160,6 +9170,26 @@ func (m *ApplicationSpec) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 7:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AlwaysHardRefresh", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.AlwaysHardRefresh = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
