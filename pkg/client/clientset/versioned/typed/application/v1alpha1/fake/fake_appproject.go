@@ -103,7 +103,7 @@ func (c *FakeAppProjects) DeleteCollection(options *v1.DeleteOptions, listOption
 // Patch applies the patch and returns the patched appProject.
 func (c *FakeAppProjects) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.AppProject, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(appprojectsResource, c.ns, name, data, subresources...), &v1alpha1.AppProject{})
+		Invokes(testing.NewPatchSubresourceAction(appprojectsResource, c.ns, name, pt, data, subresources...), &v1alpha1.AppProject{})
 
 	if obj == nil {
 		return nil, err
