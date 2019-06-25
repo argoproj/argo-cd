@@ -263,6 +263,9 @@ spec:
             link to repository with application definition and additional parameters
             link definition revision.
           properties:
+            alwaysHardRefresh:
+              description: Always use hard-refresh for application refreshing
+              type: boolean
             destination:
               description: ApplicationDestination contains deployment destination
                 information

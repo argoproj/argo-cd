@@ -210,6 +210,9 @@ message ApplicationSpec {
 
   // Infos contains a list of useful information (URLs, email addresses, and plain text) that relates to the application
   repeated Info info = 6;
+
+  // Always use hard-refresh for application refreshing
+  optional bool alwaysHardRefresh = 7;
 }
 
 // ApplicationStatus contains information about application sync, health status
