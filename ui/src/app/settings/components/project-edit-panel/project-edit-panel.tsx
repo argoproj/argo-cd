@@ -1,11 +1,11 @@
-import { FormField, FormSelect } from 'argo-ui';
+import {FormField, FormSelect} from 'argo-ui';
 import * as React from 'react';
 import {Form, FormApi, Text} from 'react-form';
 
-import { DataLoader } from '../../../shared/components';
+import {DataLoader} from '../../../shared/components';
+import {clusterTitle} from '../../../shared/components/cluster';
 import * as models from '../../../shared/models';
-import { ProjectParams, services } from '../../../shared/services';
-import {clusterTitle} from "../../../shared/components/cluster";
+import {ProjectParams, services} from '../../../shared/services';
 
 require('./project-edit-panel.scss');
 
@@ -77,7 +77,11 @@ export const ProjectEditPanel = (props: {
                             {(api.values.destinations as Array<models.ApplicationDestination>).map((_, i) => (
                                 <div key={i} className='row project-edit-panel__form-row'>
                                     <div className='columns small-5'>
-                                        <FormSelect field={['destinations', i, 'server']} options={clusters.map(cluster => ({value:cluster.server, title: clusterTitle(cluster)})).concat({value: '*', title: '*'})}/>
+                                        <FormSelect field={['destinations', i, 'server']}
+                                                    options={clusters.map((cluster) => ({
+                                                        value: cluster.server,
+                                                        title: clusterTitle(cluster),
+                                                    })).concat({value: '*', title: '*'})}/>
                                     </div>
                                     <div className='columns small-5'>
                                         <Text className='argo-field' field={['destinations', i, 'namespace']}/>

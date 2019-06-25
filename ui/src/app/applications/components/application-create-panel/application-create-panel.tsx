@@ -6,9 +6,9 @@ import { FieldApi, Form, FormApi, FormField as ReactFormField, Text } from 'reac
 const jsonMergePatch = require('json-merge-patch');
 
 import { AutocompleteField, CheckboxField, TagsInputField, YamlEditor } from '../../../shared/components';
+import {clusterTitle} from '../../../shared/components/cluster';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
-import {clusterTitle} from "../../../shared/components/cluster";
 
 require('./application-create-panel.scss');
 

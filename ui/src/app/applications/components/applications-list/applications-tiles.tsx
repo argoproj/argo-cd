@@ -4,9 +4,9 @@ import * as React from 'react';
 import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 
+import {Cluster} from '../../../shared/components/cluster';
 import { ApplicationURLs } from '../application-urls';
 import * as AppUtils from '../utils';
-import {Cluster} from '../../../shared/components/cluster';
 
 export interface ApplicationTilesProps {
     applications: models.Application[];

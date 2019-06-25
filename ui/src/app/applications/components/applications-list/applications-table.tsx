@@ -1,11 +1,11 @@
 import { DropDownMenu } from 'argo-ui';
 import * as React from 'react';
 
+import {Cluster} from '../../../shared/components/cluster';
 import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { ApplicationURLs } from '../application-urls';
 import * as AppUtils from '../utils';
-import {Cluster} from '../../../shared/components/cluster';
 
 export const ApplicationsTable = (props: {
     applications: models.Application[];
