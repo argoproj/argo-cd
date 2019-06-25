@@ -140,6 +140,7 @@ func TestKustomizeDeclarativeInvalidApp(t *testing.T) {
 }
 
 func TestKustomizeBuildOptions(t *testing.T) {
+	// This test requires Kustomize version 2.1.0
 	Given(t).
 		Path(guestbookPath).
 		And(func() {
