@@ -20,7 +20,7 @@ message Settings {
     OIDCConfig oidcConfig = 3 [(gogoproto.customname) = "OIDCConfig"];
     string appLabelKey = 4;
     map<string, github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ResourceOverride> resourceOverrides = 5;
-    string kustomizeBuildOptions = 6;
+    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 6;
 }
 
 message DexConfig {

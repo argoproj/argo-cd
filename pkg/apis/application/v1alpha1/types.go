@@ -955,6 +955,11 @@ type ConfigManagementPlugin struct {
 	Generate Command  `json:"generate" protobuf:"bytes,3,name=generate"`
 }
 
+type KustomizeOptions struct {
+	// BuildOptions is a string of build parameters to use
+	BuildOptions string `protobuf:"bytes,1,opt,name=buildOptions"`
+}
+
 // ProjectPoliciesString returns Casbin formated string of a project's policies for each role
 func (proj *AppProject) ProjectPoliciesString() string {
 	var policies []string

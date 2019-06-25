@@ -644,7 +644,7 @@ func liveObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstructu
 }
 
 func getLocalObjects(app *argoappv1.Application, local string, appLabelKey string) []*unstructured.Unstructured {
-	manifestStrings := getLocalObjectsString(app, local, appLabelKey)
+	manifestStrings := getLocalObjectsString(app, local, appLabelKey, nil)
 	objs := make([]*unstructured.Unstructured, len(manifestStrings))
 	for i := range manifestStrings {
 		obj := unstructured.Unstructured{}
@@ -655,12 +655,13 @@ func getLocalObjects(app *argoappv1.Application, local string, appLabelKey strin
 	return objs
 }
 
-func getLocalObjectsString(app *argoappv1.Application, local string, appLabelKey string) []string {
+func getLocalObjectsString(app *argoappv1.Application, local string, appLabelKey string, kustomizeOptions *argoappv1.KustomizeOptions) []string {
 	res, err := repository.GenerateManifests(filepath.Dir(local), filepath.Base(local), &repository.ManifestRequest{
 		ApplicationSource: &app.Spec.Source,
 		AppLabelKey:       appLabelKey,
 		AppLabelValue:     app.Name,
 		Namespace:         app.Spec.Destination.Namespace,
+		KustomizeOptions: kustomizeOptions,
 	})
 	errors.CheckError(err)
 
@@ -1196,7 +1197,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 				util.Close(conn)
 
-				localObjsStrings = getLocalObjectsString(app, local, argoSettings.AppLabelKey)
+				localObjsStrings = getLocalObjectsString(app, local, argoSettings.AppLabelKey, argoSettings.KustomizeOptions)
 
 			}
 

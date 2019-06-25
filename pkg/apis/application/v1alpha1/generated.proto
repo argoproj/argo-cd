@@ -426,6 +426,11 @@ message KustomizeImageTag {
   optional string value = 2;
 }
 
+message KustomizeOptions {
+  // BuildOptions is a string of build parameters to use
+  optional string buildOptions = 1;
+}
+
 // Operation contains requested operation parameters.
 message Operation {
   optional SyncOperation sync = 1;

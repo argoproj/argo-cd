@@ -1647,8 +1647,8 @@
         "dexConfig": {
           "$ref": "#/definitions/clusterDexConfig"
         },
-        "kustomizeBuildOptions": {
-          "type": "string"
+        "kustomizeOptions": {
+          "$ref": "#/definitions/v1alpha1KustomizeOptions"
         },
         "oidcConfig": {
           "$ref": "#/definitions/clusterOIDCConfig"
@@ -2982,6 +2982,15 @@
         "value": {
           "type": "string",
           "title": "Value is the value for the new tag (e.g. 1.8.0)"
+        }
+      }
+    },
+    "v1alpha1KustomizeOptions": {
+      "type": "object",
+      "properties": {
+        "buildOptions": {
+          "type": "string",
+          "title": "BuildOptions is a string of build parameters to use"
         }
       }
     },
