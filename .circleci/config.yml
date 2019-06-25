@@ -85,8 +85,8 @@ commands:
           command: mkdir -p /tmp/dl
       - restore_cache:
           keys:
+            - dl-v5
             - dl-v4
-            - dl-v3
       - run:
           name: Install JQ v1.6
           command: |
@@ -166,7 +166,7 @@ commands:
             sudo unzip /tmp/dl/protoc.zip include/* -d /usr/local/
             protoc --version
       - save_cache:
-          key: dl-v4
+          key: dl-v5
           paths:
             - /tmp/dl
   save_go_cache:
