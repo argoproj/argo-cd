@@ -98,6 +98,7 @@ func ResourceResultNumbering(num int) Expectation {
 func ResourceResultIs(result ResourceResult) Expectation {
 	return func(c *Consequences) (state, string) {
 		for _, res := range c.app().Status.OperationState.SyncResult.Resources {
+			fmt.Println("TRYING: ", res)
 			if *res == result {
 				return succeeded, fmt.Sprintf("found resource result %v", result)
 			}

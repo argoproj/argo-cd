@@ -300,17 +300,7 @@ func (sc *syncContext) setOperationFailed(syncFailTasks syncTasks, failMessage s
 	if len(syncFailTasks) > 0 {
 		// If tasks are already completed, don't run them again
 		if syncFailTasks.All(func(task *syncTask) bool { return task.completed() }) {
-			if syncFailTasks.All(func(task *syncTask) bool { return task.successful() }) {
-				sc.setOperationPhase(v1alpha1.OperationFailed, failMessage)
-				syncFailTasks.ApplyResourceResult(sc, v1alpha1.ResultCodeSynced, v1alpha1.OperationSucceeded, "applied successfully")
-			} else {
-				sc.setOperationPhase(v1alpha1.OperationFailed, failMessage)
-				successfulTasks, failedTasks := syncFailTasks.Split(func(task *syncTask) bool {
-					return task.successful()
-				})
-				successfulTasks.ApplyResourceResult(sc, v1alpha1.ResultCodeSynced, v1alpha1.OperationSucceeded, "applied successfully")
-				failedTasks.ApplyResourceResult(sc, v1alpha1.ResultCodeSynced, v1alpha1.OperationFailed, "failed to apply")
-			}
+			sc.setOperationPhase(v1alpha1.OperationFailed, failMessage)
 			return
 		}
 		sc.log.WithFields(log.Fields{"syncFailTasks": syncFailTasks}).Debug("running sync fail tasks")
