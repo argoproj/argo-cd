@@ -208,17 +208,19 @@ func EnsureCleanState(t *testing.T) {
 	CheckError(err)
 	CheckError(settingsManager.SaveSettings(&settings.ArgoCDSettings{
 		// changing theses causes a restart
-		AdminPasswordHash:    s.AdminPasswordHash,
-		AdminPasswordMtime:   s.AdminPasswordMtime,
-		ServerSignature:      s.ServerSignature,
-		Certificate:          s.Certificate,
-		DexConfig:            s.DexConfig,
-		OIDCConfigRAW:        s.OIDCConfigRAW,
-		URL:                  s.URL,
-		WebhookGitHubSecret:  s.WebhookGitHubSecret,
-		WebhookGitLabSecret:  s.WebhookGitLabSecret,
-		WebhookBitbucketUUID: s.WebhookBitbucketUUID,
-		Secrets:              s.Secrets,
+		AdminPasswordHash:            s.AdminPasswordHash,
+		AdminPasswordMtime:           s.AdminPasswordMtime,
+		ServerSignature:              s.ServerSignature,
+		Certificate:                  s.Certificate,
+		DexConfig:                    s.DexConfig,
+		OIDCConfigRAW:                s.OIDCConfigRAW,
+		URL:                          s.URL,
+		WebhookGitHubSecret:          s.WebhookGitHubSecret,
+		WebhookGitLabSecret:          s.WebhookGitLabSecret,
+		WebhookBitbucketUUID:         s.WebhookBitbucketUUID,
+		WebhookBitbucketServerSecret: s.WebhookBitbucketServerSecret,
+		WebhookGogsSecret:            s.WebhookGogsSecret,
+		Secrets:                      s.Secrets,
 	}))
 	SetResourceOverrides(make(map[string]v1alpha1.ResourceOverride))
 	SetConfigManagementPlugins()

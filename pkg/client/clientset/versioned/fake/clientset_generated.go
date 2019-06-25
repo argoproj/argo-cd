@@ -59,8 +59,3 @@ var _ clientset.Interface = &Clientset{}
 func (c *Clientset) ArgoprojV1alpha1() argoprojv1alpha1.ArgoprojV1alpha1Interface {
 	return &fakeargoprojv1alpha1.FakeArgoprojV1alpha1{Fake: &c.Fake}
 }
-
-// Argoproj retrieves the ArgoprojV1alpha1Client
-func (c *Clientset) Argoproj() argoprojv1alpha1.ArgoprojV1alpha1Interface {
-	return &fakeargoprojv1alpha1.FakeArgoprojV1alpha1{Fake: &c.Fake}
-}
