@@ -19,6 +19,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/kubectl/util/term"
 
 	"github.com/argoproj/argo-cd/common"
@@ -149,9 +150,9 @@ func SetLogLevel(logLevel string) {
 
 // SetGLogLevel set the glog level for the k8s go-client
 func SetGLogLevel(glogLevel int) {
-	_ = flag.CommandLine.Parse([]string{})
-	_ = flag.Lookup("logtostderr").Value.Set("true")
-	_ = flag.Lookup("v").Value.Set(strconv.Itoa(glogLevel))
+	klog.InitFlags(nil)
+	_ = flag.Set("logtostderr", "true")
+	_ = flag.Set("v", strconv.Itoa(glogLevel))
 }
 
 func writeToTempFile(pattern string, data []byte) string {

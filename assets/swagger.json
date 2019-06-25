@@ -2042,6 +2042,19 @@
         }
       }
     },
+    "v1Fields": {
+      "type": "object",
+      "title": "Fields stores a set of fields in a data structure like a Trie.\nTo understand how this is used, see: https://github.com/kubernetes-sigs/structured-merge-diff",
+      "properties": {
+        "map": {
+          "description": "Map stores a set of fields in a data structure like a Trie.\n\nEach key is either a '.' representing the field itself, and will always map to an empty set,\nor a string representing a sub-field or item. The string will follow one of these four formats:\n'f:<name>', where <name> is the name of a field in a struct, or key in a map\n'v:<value>', where <value> is the exact json formatted value of a list item\n'i:<index>', where <index> is position of a item in a list\n'k:<keys>', where <keys> is a map of  a list item's key fields to their unique values\nIf a key maps to an empty Fields value, the field that key represents is part of the set.\n\nThe exact format is defined in k8s.io/apiserver/pkg/endpoints/handlers/fieldmanager/internal",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1Fields"
+          }
+        }
+      }
+    },
     "v1GroupKind": {
       "description": "+protobuf.options.(gogoproto.goproto_stringer)=false",
       "type": "object",
@@ -2113,6 +2126,30 @@
         }
       }
     },
+    "v1ManagedFieldsEntry": {
+      "description": "ManagedFieldsEntry is a workflow-id, a FieldSet and the group version of the resource\nthat the fieldset applies to.",
+      "type": "object",
+      "properties": {
+        "apiVersion": {
+          "description": "APIVersion defines the version of this resource that this field set\napplies to. The format is \"group/version\" just like the top-level\nAPIVersion field. It is necessary to track the version of a field\nset because it cannot be automatically converted.",
+          "type": "string"
+        },
+        "fields": {
+          "$ref": "#/definitions/v1Fields"
+        },
+        "manager": {
+          "description": "Manager is an identifier of the workflow managing these fields.",
+          "type": "string"
+        },
+        "operation": {
+          "description": "Operation is the type of operation which lead to this ManagedFieldsEntry being created.\nThe only valid values for this field are 'Apply' and 'Update'.",
+          "type": "string"
+        },
+        "time": {
+          "$ref": "#/definitions/v1Time"
+        }
+      }
+    },
     "v1MicroTime": {
       "description": "MicroTime is version of Time with microsecond level precision.\n\n+protobuf.options.marshal=false\n+protobuf.as=Timestamp\n+protobuf.options.(gogoproto.goproto_stringer)=false",
       "type": "object",
@@ -2181,6 +2218,13 @@
             "type": "string"
           }
         },
+        "managedFields": {
+          "description": "ManagedFields maps workflow-id and version to the set of fields\nthat are managed by that workflow. This is mostly for internal\nhousekeeping, and users typically shouldn't need to set or\nunderstand this field. A workflow can be the user's name, a\ncontroller's name, or the name of a specific apply path like\n\"ci-cd\". The set of fields is always in the version that the\nworkflow used when modifying the object.\n\nThis field is alpha and can be changed or removed without notice.\n\n+optional",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1ManagedFieldsEntry"
+          }
+        },
         "name": {
           "type": "string",
           "title": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names\n+optional"
@@ -2245,7 +2289,7 @@
       }
     },
     "v1OwnerReference": {
-      "description": "OwnerReference contains enough information to let you identify an owning\nobject. Currently, an owning object must be in the same namespace, so there\nis no namespace field.",
+      "description": "OwnerReference contains enough information to let you identify an owning\nobject. An owning object must be in the same namespace as the dependent, or\nbe cluster-scoped, so there is no namespace field.",
       "type": "object",
       "properties": {
         "apiVersion": {

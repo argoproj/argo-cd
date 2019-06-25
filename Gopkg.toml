@@ -35,16 +35,24 @@ required = [
   name = "github.com/prometheus/client_golang"
   revision = "7858729281ec582767b20e0d696b6041d995d5e0"
 
-[[constraint]]
-  branch = "release-1.12"
+[[override]]
+  branch = "release-1.14"
   name = "k8s.io/api"
 
-[[constraint]]
-  branch = "release-1.12"
+[[override]]
+  branch = "release-1.14"
+  name = "k8s.io/kubernetes"
+
+[[override]]
+  branch = "release-1.14"
   name = "k8s.io/code-generator"
 
-[[constraint]]
-  branch = "release-9.0"
+[[override]]
+  branch = "release-1.14"
+  name = "k8s.io/apimachinery"
+
+[[override]]
+  branch = "release-11.0"
   name = "k8s.io/client-go"
 
 [[constraint]]
@@ -62,6 +70,10 @@ required = [
 [[constraint]]
   branch = "master"
   name = "github.com/yudai/gojsondiff"
+
+[[constraint]]
+  name = "github.com/spf13/cobra"
+  revision = "fe5e611709b0c57fa4a89136deaa8e1d4004d053"
 
 # TODO: move off of k8s.io/kube-openapi and use controller-tools for CRD spec generation
 # (override argoproj/argo contraint on master)

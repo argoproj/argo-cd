@@ -229,8 +229,28 @@ func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 	return command
 }
 
+// Print table of cluster information
+func printClusterTable(clusters []argoappv1.Cluster) {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintf(w, "SERVER\tNAME\tSTATUS\tMESSAGE\n")
+	for _, c := range clusters {
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", c.Server, c.Name, c.ConnectionState.Status, c.ConnectionState.Message)
+	}
+	_ = w.Flush()
+}
+
+// Print list of cluster servers
+func printClusterServers(clusters []argoappv1.Cluster) {
+	for _, c := range clusters {
+		fmt.Println(c.Server)
+	}
+}
+
 // NewClusterListCommand returns a new instance of an `argocd cluster rm` command
 func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		output string
+	)
 	var command = &cobra.Command{
 		Use:   "list",
 		Short: "List configured clusters",
@@ -239,14 +259,14 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			defer util.Close(conn)
 			clusters, err := clusterIf.List(context.Background(), &clusterpkg.ClusterQuery{})
 			errors.CheckError(err)
-			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "SERVER\tNAME\tSTATUS\tMESSAGE\n")
-			for _, c := range clusters.Items {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", c.Server, c.Name, c.ConnectionState.Status, c.ConnectionState.Message)
+			if output == "server" {
+				printClusterServers(clusters.Items)
+			} else {
+				printClusterTable(clusters.Items)
 			}
-			_ = w.Flush()
 		},
 	}
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|server")
 	return command
 }
 
