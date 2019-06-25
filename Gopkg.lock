@@ -73,6 +73,7 @@
   digest = "1:e8ec0abbf32fdcc9f7eb14c0656c1d0fc2fc7ec8f60dff4b7ac080c50afd8e49"
   name = "github.com/argoproj/pkg"
   packages = [
+    "errors",
     "exec",
     "time",
   ]
@@ -1550,6 +1551,7 @@
     "github.com/ant31/crd-validation/pkg",
     "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1",
     "github.com/argoproj/argo/util",
+    "github.com/argoproj/pkg/errors",
     "github.com/argoproj/pkg/exec",
     "github.com/argoproj/pkg/time",
     "github.com/casbin/casbin",

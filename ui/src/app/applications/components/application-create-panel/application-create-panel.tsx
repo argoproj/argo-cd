@@ -8,6 +8,7 @@ const jsonMergePatch = require('json-merge-patch');
 import { AutocompleteField, CheckboxField, TagsInputField, YamlEditor } from '../../../shared/components';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
+import {clusterTitle} from "../../../shared/components/cluster";
 
 require('./application-create-panel.scss');
 
@@ -91,7 +92,7 @@ export const ApplicationCreatePanel = (props: {
             <DataLoader key='creation-deps' load={() => Promise.all([
                 services.projects.list().then((projects) => projects.map((proj) => proj.metadata.name).sort()),
                 services.clusters.list().then((clusters) => clusters
-                    .map((cluster) => ({label: `${cluster.name || 'in-cluster'}: ${cluster.server}`, value: cluster.server}))
+                    .map((cluster) => ({label: clusterTitle(cluster), value: cluster.server}))
                     .sort((first, second) => first.label.localeCompare(second.label)),
                 ),
                 services.repos.list().then((repos) => repos.map((repo) => repo.repo).sort()),
@@ -113,7 +114,7 @@ export const ApplicationCreatePanel = (props: {
                                 'spec.source.repoURL': !a.spec.source.repoURL && 'Repository URL is required',
                                 'spec.source.targetRevision': !a.spec.source.targetRevision && 'Revision is required',
                                 'spec.source.path': !a.spec.source.path && 'Path is required',
-                                'spec.destination.server': !a.spec.destination.server && 'Cluster URL is required',
+                                'spec.destination.server': !a.spec.destination.server && 'Cluster is required',
                                 'spec.destination.namespace': !a.spec.destination.namespace && 'Namespace is required',
                             })} defaultValues={app} formDidUpdate={(state) => props.onAppChanged(state.values as any)} onSubmit={props.createApp} getApi={props.getFormApi}>
                             {(api) => {
@@ -170,7 +171,7 @@ export const ApplicationCreatePanel = (props: {
                                         <p>DESTINATION</p>
                                         <div className='argo-form-row'>
                                             <FormField formApi={api}
-                                                label='Cluster URL' field='spec.destination.server' componentProps={{items: clusters}} component={AutocompleteField}/>
+                                                label='Cluster' field='spec.destination.server' componentProps={{items: clusters}} component={AutocompleteField}/>
                                         </div>
                                         <div className='argo-form-row'>
                                             <FormField formApi={api} label='Namespace' field='spec.destination.namespace' component={Text}/>

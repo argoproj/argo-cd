@@ -12,6 +12,7 @@ import { services } from '../../../shared/services';
 import {Repo} from '../../../shared/components/repo';
 import {Revision} from '../../../shared/components/revision';
 import { ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage } from '../utils';
+import {Cluster, clusterTitle} from "../../../shared/components/cluster";
 
 const urlPattern = new RegExp('^(https?:\\/\\/)?((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|((\\d{1,3}\\.){3}\\d{1,3}))'
     + '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*(\\?[;&a-z\\d%_.~+=-]*)?(\\#[-a-z\\d_]*)?$', 'i');
@@ -40,10 +41,10 @@ export const ApplicationSummary = (props: {
         },
         {
             title: 'CLUSTER',
-            view: app.spec.destination.server,
+            view: <Cluster url={app.spec.destination.server} showUrl={true}/> ,
             edit: (formApi: FormApi) => (
                 <DataLoader load={() => services.clusters.list().then((clusters) => clusters.map((cluster) => ({
-                    title: `${cluster.name || 'in-cluster'}: ${cluster.server}`,
+                    title: clusterTitle(cluster),
                     value: cluster.server,
                 })))}>
                     {(clusters) => (
@@ -170,7 +171,7 @@ export const ApplicationSummary = (props: {
             save={props.updateApp}
             validate={(input) => ({
                 'spec.project': !input.spec.project && 'Project name is required',
-                'spec.destination.server': !input.spec.destination.server && 'Cluster URL is required',
+                'spec.destination.server': !input.spec.destination.server && 'Cluster is required',
                 'spec.destination.namespace': !input.spec.destination.namespace && 'Namespace is required',
             })} values={app} title={app.metadata.name.toLocaleUpperCase()} items={attributes} />
             <Consumer>{(ctx) => (

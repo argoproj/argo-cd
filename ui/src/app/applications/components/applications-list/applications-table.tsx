@@ -5,6 +5,7 @@ import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { ApplicationURLs } from '../application-urls';
 import * as AppUtils from '../utils';
+import {Cluster} from '../../../shared/components/cluster';
 
 export const ApplicationsTable = (props: {
     applications: models.Application[];
@@ -39,7 +40,7 @@ export const ApplicationsTable = (props: {
                         {app.spec.source.targetRevision || 'HEAD'}
                     </div>
                     <div className='columns large-3 show-for-large'>
-                        {app.spec.destination.server}/{app.spec.destination.namespace}
+                        <Cluster url={app.spec.destination.server}/>/{app.spec.destination.namespace}
                     </div>
                     <div className='columns large-3 small-4'>
                         <div className='applications-list__table-icon'>
