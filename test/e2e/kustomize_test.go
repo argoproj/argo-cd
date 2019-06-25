@@ -1,8 +1,9 @@
 package e2e
 
 import (
-	"github.com/argoproj/argo-cd/errors"
 	"testing"
+
+	"github.com/argoproj/argo-cd/errors"
 
 	"github.com/stretchr/testify/assert"
 
@@ -153,5 +154,11 @@ func TestKustomizeBuildOptions(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(HealthIs(HealthStatusHealthy)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced))
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Given().
+		And(func() {
+			errors.FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
+				"-n", fixture.ArgoCDNamespace,
+				"-p", `{ "data": { "kustomize.buildOptions": "" } }`))
+	})
 }

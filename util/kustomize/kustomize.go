@@ -128,7 +128,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	}
 
 	var cmd *exec.Cmd
-	if kustomizeOptions != nil {
+	if kustomizeOptions != nil && kustomizeOptions.BuildOptions != "" {
 		params := append([]string{"build", k.path}, strings.Split(kustomizeOptions.BuildOptions, " ")...)
 		cmd = exec.Command(commandName, params...)
 	} else {
