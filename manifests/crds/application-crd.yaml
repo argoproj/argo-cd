@@ -595,6 +595,9 @@ spec:
           type: object
         spec:
           properties:
+            alwaysHardRefresh:
+              description: Always use hard-refresh for application refreshing
+              type: boolean
             destination:
               description: Destination overrides the kubernetes server and namespace
                 defined in the environment ksonnet app.yaml

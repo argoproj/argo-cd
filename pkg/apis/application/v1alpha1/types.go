@@ -49,6 +49,8 @@ type ApplicationSpec struct {
 	IgnoreDifferences []ResourceIgnoreDifferences `json:"ignoreDifferences,omitempty" protobuf:"bytes,5,name=ignoreDifferences"`
 	// Infos contains a list of useful information (URLs, email addresses, and plain text) that relates to the application
 	Info []Info `json:"info,omitempty" protobuf:"bytes,6,name=info"`
+	// Always use hard-refresh for application refreshing
+	AlwaysHardRefresh bool `json:"alwaysHardRefresh,omitempty" protobuf:"bytes,7,opt,name=alwaysHardRefresh"`
 }
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
@@ -988,6 +990,9 @@ func (app *Application) CascadedDeletion() bool {
 
 func (app *Application) IsRefreshRequested() (RefreshType, bool) {
 	refreshType := RefreshTypeNormal
+	if app.Spec.AlwaysHardRefresh {
+		refreshType = RefreshTypeHard
+	}
 	annotations := app.GetAnnotations()
 	if annotations == nil {
 		return refreshType, false

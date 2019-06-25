@@ -81,3 +81,7 @@ spec:
     kind: Deployment
     jsonPointers:
     - /spec/replicas
+
+  # Always use hard-refresh to determine changes in referenced remote repositories, e.g. kustomize remote bases
+  # *WARNING* this option requires more computing resources for ArgoCD
+  alwaysHardRefresh: false
