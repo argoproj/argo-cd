@@ -153,7 +153,7 @@ commands:
           command: |
             set -x
             [ -e /tmp/dl/kustomize2.1.0 ] || curl -sLf -C - -o /tmp/dl/kustomize2.1.0 https://github.com/kubernetes-sigs/kustomize/releases/download/v2.1.0/kustomize_2.1.0_linux_amd64
-            sudo cp /tmp/dl/kustomize2.1.0 /usr/local/go/bin/
+            sudo cp /tmp/dl/kustomize2.1.0 /usr/local/go/bin/kustomize
             sudo chmod +x /usr/local/go/bin/kustomize
             kustomize version
       - run:
