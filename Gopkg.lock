@@ -73,6 +73,7 @@
   digest = "1:904f77e68fe6fcd96cb5be14491573e4bcbe0b5cab3f5bc46b3d67fe50074a64"
   name = "github.com/argoproj/pkg"
   packages = [
+    "errors",
     "exec",
     "time",
   ]
@@ -1500,12 +1501,12 @@
   revision = "e17681d19d3ac4837a019ece36c2a0ec31ffe985"
 
 [[projects]]
-  digest = "1:4f5eb833037cc0ba0bf8fe9cae6be9df62c19dd1c869415275c708daa8ccfda5"
+  digest = "1:9eaf86f4f6fb4a8f177220d488ef1e3255d06a691cca95f14ef085d4cd1cef3c"
   name = "k8s.io/klog"
   packages = ["."]
   pruneopts = ""
-  revision = "a5bc97fbc634d635061f3146511332c7e313a55a"
-  version = "v0.1.0"
+  revision = "d98d8acdac006fb39831f1b25640813fef9c314f"
+  version = "v0.3.3"
 
 [[projects]]
   digest = "1:42ea993b351fdd39b9aad3c9ebe71f2fdb5d1f8d12eed24e71c3dff1a31b2a43"
@@ -1577,6 +1578,7 @@
     "github.com/ant31/crd-validation/pkg",
     "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1",
     "github.com/argoproj/argo/util",
+    "github.com/argoproj/pkg/errors",
     "github.com/argoproj/pkg/exec",
     "github.com/argoproj/pkg/time",
     "github.com/casbin/casbin",
@@ -1594,6 +1596,7 @@
     "github.com/go-redis/redis",
     "github.com/gobuffalo/packr",
     "github.com/gobwas/glob",
+    "github.com/gogits/go-gogs-client",
     "github.com/gogo/protobuf/gogoproto",
     "github.com/gogo/protobuf/proto",
     "github.com/gogo/protobuf/protoc-gen-gofast",
@@ -1700,6 +1703,7 @@
     "k8s.io/client-go/util/flowcontrol",
     "k8s.io/client-go/util/workqueue",
     "k8s.io/code-generator/cmd/go-to-protobuf",
+    "k8s.io/klog",
     "k8s.io/kube-openapi/cmd/openapi-gen",
     "k8s.io/kube-openapi/pkg/common",
     "k8s.io/kubernetes/pkg/api/v1/pod",
