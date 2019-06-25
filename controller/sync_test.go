@@ -518,87 +518,38 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 	assert.Equal(t, "abc123", updatedApp.Status.History[0].Revision)
 }
 
-func TestRunSyncFailHooksNoHooks(t *testing.T) {
+func TestSyncFailureHookWithSuccessfulSync(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	syncCtx.syncOp.SyncStrategy.Apply = nil
-	pod := test.NewPod()
-	pod.SetName("")
-	pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PostSync"})
-	syncCtx.compareResult = &comparisonResult{hooks: []*unstructured.Unstructured{pod}}
+	syncCtx.compareResult = &comparisonResult{
+		managedResources: []managedResource{{Target: test.NewPod()}},
+		hooks:            []*unstructured.Unstructured{test.NewHook(HookTypeSyncFail)},
+	}
 
-	tasks, successful := syncCtx.getSyncTasks()
-	assert.True(t, successful)
+	syncCtx.sync()
 
-	syncFailTasks, tasks := tasks.Split(func(task *syncTask) bool {
-		return task.phase == v1alpha1.SyncPhaseSyncFail
-	})
-
-	assert.Len(t, syncFailTasks, 0)
-	assert.Len(t, tasks, 1)
-
-	syncCtx.setOperationFailed(syncFailTasks, "test message")
-	assert.Equal(t, v1alpha1.OperationFailed, syncCtx.opState.Phase)
+	assert.Equal(t, OperationSucceeded, syncCtx.opState.Phase)
+	// only one result, we did not run the failure failureHook
+	assert.Len(t, syncCtx.syncRes.Resources, 1)
 }
 
-func TestRunSyncFailHooksCompleted(t *testing.T) {
+func TestSyncFailureHookWithFailedSync(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	syncCtx.syncOp.SyncStrategy.Apply = nil
 	pod := test.NewPod()
-	pod.SetName("")
-	pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "SyncFail"})
-	syncCtx.compareResult = &comparisonResult{hooks: []*unstructured.Unstructured{pod}}
+	syncCtx.compareResult = &comparisonResult{
+		managedResources: []managedResource{{Target: pod}},
+		hooks:            []*unstructured.Unstructured{test.NewHook(HookTypeSyncFail)},
+	}
+	syncCtx.kubectl = &kubetest.MockKubectlCmd{
+		Commands: map[string]kubetest.KubectlOutput{pod.GetName(): {Err: fmt.Errorf("")}},
+	}
 
-	tasks, successful := syncCtx.getSyncTasks()
-	assert.True(t, successful)
+	syncCtx.sync()
+	syncCtx.sync()
 
-	syncFailTasks, tasks := tasks.Split(func(task *syncTask) bool {
-		return task.phase == v1alpha1.SyncPhaseSyncFail
-	})
-
-	assert.Len(t, syncFailTasks, 1)
-	assert.Len(t, tasks, 0)
-
-	syncFailTasks[0].syncStatus = ResultCodeSynced
-	syncFailTasks[0].operationState = OperationSucceeded
-
-	syncCtx.setOperationFailed(syncFailTasks, "test message")
-	assert.Equal(t, v1alpha1.OperationFailed, syncCtx.opState.Phase)
-	assert.Equal(t, syncFailTasks[0].operationState, OperationSucceeded)
-	assert.Equal(t, syncFailTasks[0].syncStatus, ResultCodeSynced)
-}
-
-func TestRunSyncFailHooksFailed(t *testing.T) {
-	syncCtx := newTestSyncCtx()
-	syncCtx.syncOp.SyncStrategy.Apply = nil
-	pod := test.NewPod()
-	pod.SetName("")
-	pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "SyncFail"})
-	pod2 := test.NewPod()
-	pod2.SetName("")
-	pod2.SetAnnotations(map[string]string{common.AnnotationKeyHook: "SyncFail"})
-	syncCtx.compareResult = &comparisonResult{hooks: []*unstructured.Unstructured{pod, pod2}}
-
-	tasks, successful := syncCtx.getSyncTasks()
-	assert.True(t, successful)
-
-	syncFailTasks, tasks := tasks.Split(func(task *syncTask) bool {
-		return task.phase == v1alpha1.SyncPhaseSyncFail
-	})
-
-	assert.Len(t, syncFailTasks, 2)
-	assert.Len(t, tasks, 0)
-
-	syncFailTasks[0].syncStatus = ResultCodeSynced
-	syncFailTasks[0].operationState = OperationFailed
-	syncFailTasks[1].syncStatus = ResultCodeSynced
-	syncFailTasks[1].operationState = OperationSucceeded
-
-	syncCtx.setOperationFailed(syncFailTasks, "test message")
-	assert.Equal(t, v1alpha1.OperationFailed, syncCtx.opState.Phase)
-	assert.Equal(t, syncFailTasks[0].operationState, OperationFailed)
-	assert.Equal(t, syncFailTasks[0].syncStatus, ResultCodeSynced)
-	assert.Equal(t, syncFailTasks[1].operationState, OperationSucceeded)
-	assert.Equal(t, syncFailTasks[1].syncStatus, ResultCodeSynced)
+	assert.Equal(t, OperationFailed, syncCtx.opState.Phase)
+	assert.Len(t, syncCtx.syncRes.Resources, 2)
 }
 
 func Test_syncContext_isSelectiveSync(t *testing.T) {

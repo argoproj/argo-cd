@@ -56,6 +56,7 @@ func NewPod() *unstructured.Unstructured {
 
 func NewHook(hookType v1alpha1.HookType) *unstructured.Unstructured {
 	pod := NewPod()
+	pod.SetName("my-hook")
 	pod.SetAnnotations(map[string]string{
 		"argocd.argoproj.io/hook": string(hookType),
 	})

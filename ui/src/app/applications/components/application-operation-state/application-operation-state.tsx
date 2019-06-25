@@ -9,6 +9,7 @@ import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import * as utils from '../utils';
+import {Timestamp} from "../../../shared/components/timestamp";
 
 require('./application-operation-state.scss');
 
@@ -20,7 +21,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
         {title: 'OPERATION', value: utils.getOperationType(application)},
         {title: 'PHASE', value: operationState.phase},
         ...(operationState.message ? [{title: 'MESSAGE', value: operationState.message}] : []),
-        {title: 'STARTED AT', value: operationState.startedAt},
+        {title: 'STARTED AT', value: <Timestamp date={operationState.startedAt}/>},
         {title: 'DURATION', value: (
             <Ticker>
                 {(time) => <Duration durationMs={(operationState.finishedAt && moment(operationState.finishedAt) || time).diff(moment(operationState.startedAt)) / 1000}/>}
@@ -29,7 +30,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
     ];
 
     if (operationState.finishedAt) {
-        operationAttributes.push({ title: 'FINISHED AT', value: operationState.finishedAt});
+        operationAttributes.push({ title: 'FINISHED AT', value: <Timestamp date={operationState.finishedAt}/>});
     } else if (operationState.phase !== 'Terminating') {
         operationAttributes.push({
             title: '',

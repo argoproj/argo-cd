@@ -117,13 +117,13 @@ func TestPostSyncHookPodFailure(t *testing.T) {
 }
 
 func TestSyncFailHookPodFailure(t *testing.T) {
-	hook2Contents := `
+	failureHookManifest := `
 apiVersion: v1
 kind: Pod
 metadata:
   annotations:
     argocd.argoproj.io/hook: SyncFail
-  name: hook2
+  name: failure-hook
 spec:
   containers:
     - command:
@@ -136,24 +136,24 @@ spec:
 	Given(t).
 		Path("hook").
 		When().
-		AddFile("hook2.yaml", hook2Contents).
+		AddFile("failure-hook.yaml", failureHookManifest).
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "PostSync"}}]`).
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}]`).
 		Create().
 		Sync().
 		Then().
-		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook2", Message: "pod/hook2 created", HookType: HookTypeSyncFail, HookPhase: OperationSucceeded, SyncPhase: SyncPhaseSyncFail})).
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook2", Message: "pod/failure-hook created", HookType: HookTypeSyncFail, HookPhase: OperationSucceeded, SyncPhase: SyncPhaseSyncFail})).
 		Expect(OperationPhaseIs(OperationFailed))
 }
 
-func TestSyncFailHookPodFailureSyncFailFaiure(t *testing.T) {
-	hook2Contents := `
+func TestSyncFailHookPodFailureSyncFailFailure(t *testing.T) {
+	failureHoook1Manifest := `
 apiVersion: v1
 kind: Pod
 metadata:
   annotations:
     argocd.argoproj.io/hook: SyncFail
-  name: hook2
+  name: failure-hook
 spec:
   containers:
     - command:
@@ -163,7 +163,7 @@ spec:
       name: main
   restartPolicy: Never
 `
-	hook3Contents := `
+	failureHook2Manifest := `
 apiVersion: v1
 kind: Pod
 metadata:
@@ -182,15 +182,15 @@ spec:
 	Given(t).
 		Path("hook").
 		When().
-		AddFile("hook2.yaml", hook2Contents).
-		AddFile("hook3.yaml", hook3Contents).
+		AddFile("failure-hook-1.yaml", failureHoook1Manifest).
+		AddFile("failure-hook-2.yaml", failureHook2Manifest).
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "PostSync"}}]`).
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}]`).
 		Create().
 		Sync().
 		Then().
-		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook2", Message: "pod/hook2 created", HookType: HookTypeSyncFail, HookPhase: OperationSucceeded, SyncPhase: SyncPhaseSyncFail})).
-		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook3", Message: `container "main" failed with exit code 1`, HookType: HookTypeSyncFail, HookPhase: OperationFailed, SyncPhase: SyncPhaseSyncFail})).
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "failure-hook-1", Message: "pod/hook2 created", HookType: HookTypeSyncFail, HookPhase: OperationSucceeded, SyncPhase: SyncPhaseSyncFail})).
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "failure-hook-2", Message: `container "main" failed with exit code 1`, HookType: HookTypeSyncFail, HookPhase: OperationFailed, SyncPhase: SyncPhaseSyncFail})).
 		Expect(OperationPhaseIs(OperationFailed))
 }
 

@@ -35,26 +35,6 @@ func TestAnySyncTasks(t *testing.T) {
 
 }
 
-func TestAllSyncTasks(t *testing.T) {
-	res := unsortedTasks.All(func(task *syncTask) bool {
-		return task.name() != ""
-	})
-	assert.False(t, res)
-
-	res = unsortedTasks.All(func(task *syncTask) bool {
-		return task.name() == "a"
-	})
-	assert.False(t, res)
-}
-
-func TestSplitSyncTasks(t *testing.T) {
-	named, unnamed := sortedTasks.Split(func(task *syncTask) bool {
-		return task.name() != ""
-	})
-	assert.Equal(t, named, namedObjTasks)
-	assert.Equal(t, unnamed, unnamedTasks)
-}
-
 var unsortedTasks = syncTasks{
 	{
 		targetObj: &unstructured.Unstructured{
@@ -214,99 +194,6 @@ var sortedTasks = syncTasks{
 				"metadata": map[string]interface{}{
 					"name": "b",
 				},
-			},
-		},
-	},
-	{
-		targetObj: &unstructured.Unstructured{
-			Object: map[string]interface{}{
-				"metadata": map[string]interface{}{
-					"annotations": map[string]interface{}{
-						"argocd.argoproj.io/sync-wave": "1",
-					},
-				},
-			},
-		},
-	},
-	{
-		phase:     SyncPhasePostSync,
-		targetObj: &unstructured.Unstructured{},
-	},
-}
-
-var namedObjTasks = syncTasks{
-	{
-		targetObj: &unstructured.Unstructured{
-			Object: map[string]interface{}{
-				"metadata": map[string]interface{}{
-					"name": "a",
-				},
-			},
-		},
-	},
-	{
-		targetObj: &unstructured.Unstructured{
-			Object: map[string]interface{}{
-				"metadata": map[string]interface{}{
-					"name": "b",
-				},
-			},
-		},
-	},
-}
-
-var unnamedTasks = syncTasks{
-	{
-		phase:     SyncPhasePreSync,
-		targetObj: &unstructured.Unstructured{},
-	},
-	{
-		targetObj: &unstructured.Unstructured{
-			Object: map[string]interface{}{
-				"metadata": map[string]interface{}{
-					"annotations": map[string]interface{}{
-						"argocd.argoproj.io/sync-wave": "-1",
-					},
-				},
-			},
-		},
-	},
-	{
-		targetObj: &unstructured.Unstructured{
-			Object: map[string]interface{}{
-				"GroupVersion": apiv1.SchemeGroupVersion.String(),
-				"kind":         "ConfigMap",
-			},
-		},
-	},
-	{
-		targetObj: &unstructured.Unstructured{
-			Object: map[string]interface{}{
-				"GroupVersion": apiv1.SchemeGroupVersion.String(),
-				"kind":         "PersistentVolume",
-			},
-		},
-	},
-	{
-		targetObj: &unstructured.Unstructured{
-			Object: map[string]interface{}{
-				"GroupVersion": apiv1.SchemeGroupVersion.String(),
-				"kind":         "Service",
-			},
-		},
-	},
-	{
-		targetObj: &unstructured.Unstructured{
-			Object: map[string]interface{}{
-				"GroupVersion": apiv1.SchemeGroupVersion.String(),
-				"kind":         "Pod",
-			},
-		},
-	},
-	{
-		targetObj: &unstructured.Unstructured{
-			Object: map[string]interface{}{
-				"GroupVersion": apiv1.SchemeGroupVersion.String(),
 			},
 		},
 	},
