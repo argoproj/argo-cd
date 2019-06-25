@@ -536,7 +536,7 @@ func TestRunSyncFailHooksNoHooks(t *testing.T) {
 	assert.Len(t, syncFailTasks, 0)
 	assert.Len(t, tasks, 1)
 
-	syncCtx.runFailedTasksIfAny(syncFailTasks, "test message")
+	syncCtx.setOperationFailed(syncFailTasks, "test message")
 	assert.Equal(t, v1alpha1.OperationFailed, syncCtx.opState.Phase)
 }
 
@@ -561,11 +561,10 @@ func TestRunSyncFailHooksCompleted(t *testing.T) {
 	syncFailTasks[0].syncStatus = ResultCodeSynced
 	syncFailTasks[0].operationState = OperationSucceeded
 
-	syncCtx.runFailedTasksIfAny(syncFailTasks, "test message")
+	syncCtx.setOperationFailed(syncFailTasks, "test message")
 	assert.Equal(t, v1alpha1.OperationFailed, syncCtx.opState.Phase)
 	assert.Equal(t, syncFailTasks[0].operationState, OperationSucceeded)
 	assert.Equal(t, syncFailTasks[0].syncStatus, ResultCodeSynced)
-	assert.Contains(t, syncFailTasks[0].message, "applied successfully")
 }
 
 func TestRunSyncFailHooksFailed(t *testing.T) {
@@ -594,14 +593,12 @@ func TestRunSyncFailHooksFailed(t *testing.T) {
 	syncFailTasks[1].syncStatus = ResultCodeSynced
 	syncFailTasks[1].operationState = OperationSucceeded
 
-	syncCtx.runFailedTasksIfAny(syncFailTasks, "test message")
+	syncCtx.setOperationFailed(syncFailTasks, "test message")
 	assert.Equal(t, v1alpha1.OperationFailed, syncCtx.opState.Phase)
 	assert.Equal(t, syncFailTasks[0].operationState, OperationFailed)
 	assert.Equal(t, syncFailTasks[0].syncStatus, ResultCodeSynced)
-	assert.Contains(t, syncFailTasks[0].message, "failed to apply")
 	assert.Equal(t, syncFailTasks[1].operationState, OperationSucceeded)
 	assert.Equal(t, syncFailTasks[1].syncStatus, ResultCodeSynced)
-	assert.Contains(t, syncFailTasks[1].message, "applied successfully")
 }
 
 func Test_syncContext_isSelectiveSync(t *testing.T) {

@@ -257,7 +257,7 @@ func (sc *syncContext) sync() {
 
 	// if there are any completed but unsuccessful tasks, sync is a failure.
 	if tasks.Any(func(t *syncTask) bool { return t.completed() && !t.successful() }) {
-		sc.runFailedTasksIfAny(syncFailTasks, "one or more synchronization tasks completed unsuccessfully")
+		sc.setOperationFailed(syncFailTasks, "one or more synchronization tasks completed unsuccessfully")
 		return
 	}
 
@@ -288,7 +288,7 @@ func (sc *syncContext) sync() {
 
 	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("wet-run")
 	if !sc.runTasks(tasks, false) {
-		sc.runFailedTasksIfAny(syncFailTasks, "one or more objects failed to apply")
+		sc.setOperationFailed(syncFailTasks, "one or more objects failed to apply")
 	} else {
 		if complete {
 			sc.setOperationPhase(v1alpha1.OperationSucceeded, "successfully synced (all tasks run)")
@@ -296,7 +296,7 @@ func (sc *syncContext) sync() {
 	}
 }
 
-func (sc *syncContext) runFailedTasksIfAny(syncFailTasks syncTasks, failMessage string) {
+func (sc *syncContext) setOperationFailed(syncFailTasks syncTasks, failMessage string) {
 	if len(syncFailTasks) > 0 {
 		// If tasks are already completed, don't run them again
 		if syncFailTasks.All(func(task *syncTask) bool { return task.completed() }) {
@@ -305,11 +305,11 @@ func (sc *syncContext) runFailedTasksIfAny(syncFailTasks syncTasks, failMessage 
 				syncFailTasks.ApplyResourceResult(sc, v1alpha1.ResultCodeSynced, v1alpha1.OperationSucceeded, "applied successfully")
 			} else {
 				sc.setOperationPhase(v1alpha1.OperationFailed, failMessage)
-				successfulTasks, failedTasdks := syncFailTasks.Split(func(task *syncTask) bool {
+				successfulTasks, failedTasks := syncFailTasks.Split(func(task *syncTask) bool {
 					return task.successful()
 				})
 				successfulTasks.ApplyResourceResult(sc, v1alpha1.ResultCodeSynced, v1alpha1.OperationSucceeded, "applied successfully")
-				failedTasdks.ApplyResourceResult(sc, v1alpha1.ResultCodeSynced, v1alpha1.OperationFailed, "failed to apply")
+				failedTasks.ApplyResourceResult(sc, v1alpha1.ResultCodeSynced, v1alpha1.OperationFailed, "failed to apply")
 			}
 			return
 		}
