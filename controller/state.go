@@ -116,6 +116,9 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	}
 
 	settings, err := m.settingsMgr.GetSettings()
+	if err != nil {
+		return nil, nil, nil, err
+	}
 	kustomizeOptions := appv1.KustomizeOptions{
 		BuildOptions: settings.KustomizeBuildOptions,
 	}
@@ -129,7 +132,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		Namespace:         app.Spec.Destination.Namespace,
 		ApplicationSource: &source,
 		Plugins:           tools,
-		KustomizeOptions: &kustomizeOptions,
+		KustomizeOptions:  &kustomizeOptions,
 	})
 	if err != nil {
 		return nil, nil, nil, err

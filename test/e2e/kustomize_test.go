@@ -161,5 +161,5 @@ func TestKustomizeBuildOptions(t *testing.T) {
 			errors.FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
 				"-n", fixture.ArgoCDNamespace,
 				"-p", `{ "data": { "kustomize.buildOptions": "" } }`))
-	})
+		})
 }

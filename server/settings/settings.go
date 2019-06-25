@@ -50,7 +50,7 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		URL:               argoCDSettings.URL,
 		AppLabelKey:       appInstanceLabelKey,
 		ResourceOverrides: overrides,
-		KustomizeOptions: &kustomizeOptions,
+		KustomizeOptions:  &kustomizeOptions,
 	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg settingspkg.DexConfig
