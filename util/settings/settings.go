@@ -177,6 +177,19 @@ func (mgr *SettingsManager) getConfigMap() (*apiv1.ConfigMap, error) {
 	return argoCDCM, err
 }
 
+// Returns the ConfigMap with the given name from the cluster
+func (mgr *SettingsManager) getNamedConfigMap(configMapName string) (*apiv1.ConfigMap, error) {
+	err := mgr.ensureSynced(false)
+	if err != nil {
+		return nil, err
+	}
+	configMap, err := mgr.configmaps.ConfigMaps(mgr.namespace).Get(configMapName)
+	if err != nil {
+		return nil, err
+	}
+	return configMap, err
+}
+
 func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
