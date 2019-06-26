@@ -522,14 +522,14 @@ func TestPermissions(t *testing.T) {
 	assert.NoError(t, err)
 
 	// make sure app cannot be created without permissions in project
-	output, err := fixture.RunCli("app", "create", appName, "--repo", fixture.RepoURL(),
+	_, err = fixture.RunCli("app", "create", appName, "--repo", fixture.RepoURL(),
 		"--path", guestbookPath, "--project", "test", "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
 	assert.Error(t, err)
 	sourceError := fmt.Sprintf("application repo %s is not permitted in project 'test'", fixture.RepoURL())
 	destinationError := fmt.Sprintf("application destination {%s %s} is not permitted in project 'test'", common.KubernetesInternalAPIServerAddr, fixture.DeploymentNamespace())
 
-	assert.Contains(t, output, sourceError)
-	assert.Contains(t, output, destinationError)
+	assert.Contains(t, err.Error(), sourceError)
+	assert.Contains(t, err.Error(), destinationError)
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get("test", metav1.GetOptions{})
 	assert.NoError(t, err)
