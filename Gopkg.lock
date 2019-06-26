@@ -50,6 +50,26 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:2e37a5d64464ac14b838a0d3aa677eb0e61de44124a25e338d0cf6cd48b8fe71"
+  name = "github.com/ajstarks/svgo"
+  packages = ["."]
+  pruneopts = ""
+  revision = "6ce6a3bcf6cde6c5007887677ebd148ec30f42a4"
+
+[[projects]]
+  branch = "exec"
+  digest = "1:6fe401a4c13aa8eb9531c2d2f94d19e0e1d78e378ef3619c7ed570c2b2cada88"
+  name = "github.com/alexec/pkg"
+  packages = [
+    "errors",
+    "exec",
+    "time",
+  ]
+  pruneopts = ""
+  revision = "cf5e2daf6766102b52446e529864d52d529a7c96"
+
+[[projects]]
+  branch = "master"
   digest = "1:0cac9c70f3308d54ed601878aa66423eb95c374616fdd7d2ea4e2d18b045ae62"
   name = "github.com/ant31/crd-validation"
   packages = ["pkg"]
@@ -72,11 +92,7 @@
   branch = "master"
   digest = "1:904f77e68fe6fcd96cb5be14491573e4bcbe0b5cab3f5bc46b3d67fe50074a64"
   name = "github.com/argoproj/pkg"
-  packages = [
-    "errors",
-    "exec",
-    "time",
-  ]
+  packages = ["exec"]
   pruneopts = ""
   revision = "34e483a53c4b4978cdf76000a3dc010174489e7f"
 
@@ -1575,12 +1591,14 @@
   input-imports = [
     "github.com/Masterminds/semver",
     "github.com/TomOnTime/utfutil",
+    "github.com/ajstarks/svgo",
+    "github.com/alexec/pkg/errors",
+    "github.com/alexec/pkg/exec",
+    "github.com/alexec/pkg/time",
     "github.com/ant31/crd-validation/pkg",
     "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1",
     "github.com/argoproj/argo/util",
-    "github.com/argoproj/pkg/errors",
     "github.com/argoproj/pkg/exec",
-    "github.com/argoproj/pkg/time",
     "github.com/casbin/casbin",
     "github.com/casbin/casbin/model",
     "github.com/casbin/casbin/persist",

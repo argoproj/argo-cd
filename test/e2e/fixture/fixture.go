@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/pkg/errors"
+	"github.com/alexec/pkg/errors"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"

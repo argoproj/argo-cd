@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/pkg/exec"
+	"github.com/alexec/pkg/exec"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -119,7 +119,7 @@ func TestGenerateHelmChartWithDependencies(t *testing.T) {
 	helmHome, err := ioutil.TempDir("", "")
 	assert.NoError(t, err)
 	os.Setenv("HELM_HOME", helmHome)
-	_, err = exec.RunCommand("helm", "init", "--client-only", "--skip-refresh")
+	_, err = exec.RunCommand("helm", exec.CmdOpts{}, "init", "--client-only", "--skip-refresh")
 	assert.NoError(t, err)
 	defer func() {
 		_ = os.RemoveAll(helmHome)
