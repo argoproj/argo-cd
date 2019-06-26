@@ -246,12 +246,12 @@ func TestAppWithSecrets(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
 
-			_, err := fixture.RunCli("app", "diff", app.Name)
+			diffOutput, err := fixture.RunCli("app", "diff", app.Name)
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "username: '*********'")
+			assert.Contains(t, diffOutput, "username: '*********'")
 
 			// local diff should ignore secrets
-			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", "testdata/secrets")
+			diffOutput, err = fixture.RunCli("app", "diff", app.Name, "--local", "testdata/secrets")
 			assert.NoError(t, err)
 			assert.Empty(t, diffOutput)
 
