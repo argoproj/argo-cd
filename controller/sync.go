@@ -177,6 +177,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 
 	syncCtx.log.Info("sync/terminate complete")
 
+	// we only store complete and successful syncs, you would not want to rollback to others
 	if !syncOp.DryRun && !syncCtx.isSelectiveSync() && syncCtx.opState.Phase.Successful() {
 		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source)
 		if err != nil {
@@ -218,6 +219,7 @@ func (sc *syncContext) sync() {
 		if task.isHook() {
 			// update the hook's result
 			operationState, message := getOperationPhase(task.liveObj)
+			log.WithFields(log.Fields{"task": task, "operationState": operationState}).Debug("attempting to update operation state of running hook")
 			sc.setResourceResult(task, "", operationState, message)
 
 			// maybe delete the hook

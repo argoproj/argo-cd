@@ -117,7 +117,10 @@ func TestPostSyncHookPodFailure(t *testing.T) {
 }
 
 func TestSyncFailHookPodFailure(t *testing.T) {
-	failureHookManifest := `
+	Given(t).
+		Path("hook").
+		When().
+		AddFile("failure-hook.yaml", `
 apiVersion: v1
 kind: Pod
 metadata:
@@ -132,11 +135,7 @@ spec:
       imagePullPolicy: IfNotPresent
       name: main
   restartPolicy: Never
-`
-	Given(t).
-		Path("hook").
-		When().
-		AddFile("failure-hook.yaml", failureHookManifest).
+`).
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "PostSync"}}]`).
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}]`).
 		Create().
@@ -147,7 +146,10 @@ spec:
 }
 
 func TestSyncFailHookPodFailureSyncFailFailure(t *testing.T) {
-	failureHook1Manifest := `
+	Given(t).
+		Path("hook").
+		When().
+		AddFile("failure-hook-1.yaml", `
 apiVersion: v1
 kind: Pod
 metadata:
@@ -162,8 +164,8 @@ spec:
       imagePullPolicy: IfNotPresent
       name: main
   restartPolicy: Never
-`
-	failureHook2Manifest := `
+`).
+		AddFile("failure-hook-2.yaml", `
 apiVersion: v1
 kind: Pod
 metadata:
@@ -178,12 +180,7 @@ spec:
       imagePullPolicy: IfNotPresent
       name: main
   restartPolicy: Never
-`
-	Given(t).
-		Path("hook").
-		When().
-		AddFile("failure-hook-1.yaml", failureHook1Manifest).
-		AddFile("failure-hook-2.yaml", failureHook2Manifest).
+`).
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "PostSync"}}]`).
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}]`).
 		Create().
