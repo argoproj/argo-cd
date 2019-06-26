@@ -62,7 +62,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			}
 			// InsecureIgnoreHostKey is deprecated and only here for backwards compat
 			repo.InsecureIgnoreHostKey = insecureIgnoreHostKey
-			repo.Insecure = insecureSkipServerValidation
+			repo.Insecure = insecureSkipServerVerification
 
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
 			defer util.Close(conn)
