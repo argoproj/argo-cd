@@ -268,7 +268,7 @@ func runKubectl(kubeconfigPath string, namespace string, args []string, manifest
 	if err != nil {
 		return "", fmt.Errorf(cleanKubectlOutput(err.Error()))
 	}
-	return strings.TrimSpace(out), nil
+	return out, nil
 }
 
 // ConvertToVersion converts an unstructured object into the specified group/version
