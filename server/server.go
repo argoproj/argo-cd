@@ -15,6 +15,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/server/badge"
+
 	"gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
 
@@ -313,7 +315,9 @@ func (a *ArgoCDServer) watchSettings(ctx context.Context) {
 	errors.CheckError(err)
 	prevGitHubSecret := a.settings.WebhookGitHubSecret
 	prevGitLabSecret := a.settings.WebhookGitLabSecret
-	prevBitBucketUUID := a.settings.WebhookBitbucketUUID
+	prevBitbucketUUID := a.settings.WebhookBitbucketUUID
+	prevBitbucketServerSecret := a.settings.WebhookBitbucketServerSecret
+	prevGogsSecret := a.settings.WebhookGogsSecret
 	var prevCert, prevCertKey string
 	if a.settings.Certificate != nil && !a.ArgoCDServerOpts.Insecure {
 		prevCert, prevCertKey = tlsutil.EncodeX509KeyPairString(*a.settings.Certificate)
@@ -344,8 +348,16 @@ func (a *ArgoCDServer) watchSettings(ctx context.Context) {
 			log.Infof("gitlab secret modified. restarting")
 			break
 		}
-		if prevBitBucketUUID != a.settings.WebhookBitbucketUUID {
+		if prevBitbucketUUID != a.settings.WebhookBitbucketUUID {
 			log.Infof("bitbucket uuid modified. restarting")
+			break
+		}
+		if prevBitbucketServerSecret != a.settings.WebhookBitbucketServerSecret {
+			log.Infof("bitbucket server secret modified. restarting")
+			break
+		}
+		if prevGogsSecret != a.settings.WebhookGogsSecret {
+			log.Infof("gogs secret modified. restarting")
 			break
 		}
 		if !a.ArgoCDServerOpts.Insecure {
@@ -482,6 +494,9 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		Addr: endpoint,
 		Handler: &handlerSwitcher{
 			handler: &bug21955Workaround{handler: mux},
+			urlToHandler: map[string]http.Handler{
+				"/api/badge": badge.NewHandler(a.AppClientset, a.Namespace),
+			},
 			contentTypeToHandler: map[string]http.Handler{
 				"application/grpc-web+proto": grpcWebHandler,
 			},
@@ -721,11 +736,14 @@ func getToken(md metadata.MD) string {
 
 type handlerSwitcher struct {
 	handler              http.Handler
+	urlToHandler         map[string]http.Handler
 	contentTypeToHandler map[string]http.Handler
 }
 
 func (s *handlerSwitcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if contentHandler, ok := s.contentTypeToHandler[r.Header.Get("content-type")]; ok {
+	if urlHandler, ok := s.urlToHandler[r.URL.Path]; ok {
+		urlHandler.ServeHTTP(w, r)
+	} else if contentHandler, ok := s.contentTypeToHandler[r.Header.Get("content-type")]; ok {
 		contentHandler.ServeHTTP(w, r)
 	} else {
 		s.handler.ServeHTTP(w, r)

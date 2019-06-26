@@ -35,16 +35,24 @@ required = [
   name = "github.com/prometheus/client_golang"
   revision = "7858729281ec582767b20e0d696b6041d995d5e0"
 
-[[constraint]]
-  branch = "release-1.12"
+[[override]]
+  branch = "release-1.14"
   name = "k8s.io/api"
 
-[[constraint]]
-  branch = "release-1.12"
+[[override]]
+  branch = "release-1.14"
+  name = "k8s.io/kubernetes"
+
+[[override]]
+  branch = "release-1.14"
   name = "k8s.io/code-generator"
 
-[[constraint]]
-  branch = "release-9.0"
+[[override]]
+  branch = "release-1.14"
+  name = "k8s.io/apimachinery"
+
+[[override]]
+  branch = "release-11.0"
   name = "k8s.io/client-go"
 
 [[constraint]]

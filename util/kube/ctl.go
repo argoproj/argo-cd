@@ -146,7 +146,7 @@ func (k KubectlCmd) PatchResource(config *rest.Config, gvk schema.GroupVersionKi
 	}
 	resource := gvk.GroupVersion().WithResource(apiResource.Name)
 	resourceIf := ToResourceInterface(dynamicIf, apiResource, resource, namespace)
-	return resourceIf.Patch(name, patchType, patchBytes, metav1.UpdateOptions{})
+	return resourceIf.Patch(name, patchType, patchBytes, metav1.PatchOptions{})
 }
 
 // DeleteResource deletes resource
