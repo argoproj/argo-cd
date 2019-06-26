@@ -335,7 +335,6 @@ func TestCertsAreNotGeneratedInInsecureMode(t *testing.T) {
 }
 
 func TestUserAgent(t *testing.T) {
-	defer func() { time.Sleep(1 * time.Second) }()
 	s := fakeServer()
 	cancelInformer := test.StartInformer(s.projInformer)
 	defer cancelInformer()
@@ -346,6 +345,7 @@ func TestUserAgent(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go s.Run(ctx, port, metricsPort)
+	defer func() { time.Sleep(3 * time.Second) }()
 
 	err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
 	assert.NoError(t, err)
