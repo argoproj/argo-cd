@@ -209,9 +209,6 @@ func (sc *syncContext) sync() {
 		}
 	}
 
-	// filter out failure tasks
-	tasks = tasks.Filter(func(t *syncTask) bool { return t.phase != v1alpha1.SyncPhaseSyncFail })
-
 	// update status of any tasks that are running, note that this must exclude pruning tasks
 	for _, task := range tasks.Filter(func(t *syncTask) bool {
 		// just occasionally, you can be running yet not have a live resource
@@ -254,6 +251,9 @@ func (sc *syncContext) sync() {
 		sc.setOperationPhase(v1alpha1.OperationRunning, "one or more tasks are running")
 		return
 	}
+
+	// filter out failure tasks
+	tasks = tasks.Filter(func(t *syncTask) bool { return t.phase != v1alpha1.SyncPhaseSyncFail })
 
 	// if there are any completed but unsuccessful tasks, sync is a failure.
 	if tasks.Any(func(t *syncTask) bool { return t.completed() && !t.successful() }) {

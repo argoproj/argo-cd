@@ -142,18 +142,18 @@ spec:
 		Create().
 		Sync().
 		Then().
-		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook2", Message: "pod/failure-hook created", HookType: HookTypeSyncFail, HookPhase: OperationSucceeded, SyncPhase: SyncPhaseSyncFail})).
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "failure-hook", Message: "pod/failure-hook created", HookType: HookTypeSyncFail, HookPhase: OperationSucceeded, SyncPhase: SyncPhaseSyncFail})).
 		Expect(OperationPhaseIs(OperationFailed))
 }
 
 func TestSyncFailHookPodFailureSyncFailFailure(t *testing.T) {
-	failureHoook1Manifest := `
+	failureHook1Manifest := `
 apiVersion: v1
 kind: Pod
 metadata:
   annotations:
     argocd.argoproj.io/hook: SyncFail
-  name: failure-hook
+  name: failure-hook-1
 spec:
   containers:
     - command:
@@ -169,7 +169,7 @@ kind: Pod
 metadata:
   annotations:
     argocd.argoproj.io/hook: SyncFail
-  name: hook3
+  name: failure-hook-2
 spec:
   containers:
     - command:
@@ -182,14 +182,14 @@ spec:
 	Given(t).
 		Path("hook").
 		When().
-		AddFile("failure-hook-1.yaml", failureHoook1Manifest).
+		AddFile("failure-hook-1.yaml", failureHook1Manifest).
 		AddFile("failure-hook-2.yaml", failureHook2Manifest).
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "PostSync"}}]`).
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}]`).
 		Create().
 		Sync().
 		Then().
-		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "failure-hook-1", Message: "pod/hook2 created", HookType: HookTypeSyncFail, HookPhase: OperationSucceeded, SyncPhase: SyncPhaseSyncFail})).
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "failure-hook-1", Message: "pod/failure-hook-1 created", HookType: HookTypeSyncFail, HookPhase: OperationSucceeded, SyncPhase: SyncPhaseSyncFail})).
 		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "failure-hook-2", Message: `container "main" failed with exit code 1`, HookType: HookTypeSyncFail, HookPhase: OperationFailed, SyncPhase: SyncPhaseSyncFail})).
 		Expect(OperationPhaseIs(OperationFailed))
 }
