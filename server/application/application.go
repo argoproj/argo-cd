@@ -197,12 +197,12 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		tools[i] = &plugins[i]
 	}
 	// If source is Kustomize add build options
-	settings, err := s.settingsMgr.GetSettings()
+	buildOptions, err := s.settingsMgr.GetKustomizeBuildOptions()
 	if err != nil {
 		return nil, err
 	}
 	kustomizeOptions := appv1.KustomizeOptions{
-		BuildOptions: settings.KustomizeBuildOptions,
+		BuildOptions: buildOptions,
 	}
 
 	manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
@@ -557,12 +557,12 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	if len(conditions) > 0 {
 		return status.Errorf(codes.InvalidArgument, "application spec is invalid: %s", argo.FormatAppConditions(conditions))
 	}
-	settings, err := s.settingsMgr.GetSettings()
+	buildOptions, err := s.settingsMgr.GetKustomizeBuildOptions()
 	if err != nil {
 		return err
 	}
 	kustomizeOptions := appv1.KustomizeOptions{
-		BuildOptions: settings.KustomizeBuildOptions,
+		BuildOptions: buildOptions,
 	}
 	conditions, appSourceType, err := argo.ValidateRepo(ctx, &app.Spec, s.repoClientset, s.db, &kustomizeOptions)
 	if err != nil {

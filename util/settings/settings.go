@@ -21,7 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
-	v1 "k8s.io/client-go/informers/core/v1"
+	"k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	v1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -241,7 +241,7 @@ func (mgr *SettingsManager) GetConfigManagementPlugins() ([]v1alpha1.ConfigManag
 	return plugins, nil
 }
 
-// GetResouceOverrides loads Resource Overrides from argocd-cm ConfigMap
+// GetResourceOverrides loads Resource Overrides from argocd-cm ConfigMap
 func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.ResourceOverride, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -256,6 +256,20 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 	}
 
 	return resourceOverrides, nil
+}
+
+// GetKustomizeBuildOptions loads the kustomize build options from argocd-cm ConfigMap
+func (mgr *SettingsManager) GetKustomizeBuildOptions() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", err
+	}
+	value, ok := argoCDCM.Data[kustomizeBuildOptions]
+	if !ok {
+		return "", err
+	}
+
+	return value, nil
 }
 
 // GetSettings retrieves settings from the ArgoCDConfigMap and secret.

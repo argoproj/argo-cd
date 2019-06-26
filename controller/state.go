@@ -115,12 +115,12 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		tools[i] = &plugins[i]
 	}
 
-	settings, err := m.settingsMgr.GetSettings()
+	buildOptions, err := m.settingsMgr.GetKustomizeBuildOptions()
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	kustomizeOptions := appv1.KustomizeOptions{
-		BuildOptions: settings.KustomizeBuildOptions,
+		BuildOptions: buildOptions,
 	}
 	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &repository.ManifestRequest{
 		Repo:              repo,

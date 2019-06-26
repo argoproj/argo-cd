@@ -50,6 +50,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:2e37a5d64464ac14b838a0d3aa677eb0e61de44124a25e338d0cf6cd48b8fe71"
+  name = "github.com/ajstarks/svgo"
+  packages = ["."]
+  pruneopts = ""
+  revision = "6ce6a3bcf6cde6c5007887677ebd148ec30f42a4"
+
+[[projects]]
+  branch = "master"
   digest = "1:0cac9c70f3308d54ed601878aa66423eb95c374616fdd7d2ea4e2d18b045ae62"
   name = "github.com/ant31/crd-validation"
   packages = ["pkg"]
@@ -1575,6 +1583,7 @@
   input-imports = [
     "github.com/Masterminds/semver",
     "github.com/TomOnTime/utfutil",
+    "github.com/ajstarks/svgo",
     "github.com/ant31/crd-validation/pkg",
     "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1",
     "github.com/argoproj/argo/util",
