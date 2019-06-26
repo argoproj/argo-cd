@@ -328,7 +328,14 @@ func TestRevokedToken(t *testing.T) {
 	assert.False(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 }
 
+func TestCertsAreNotGeneratedInInsecureMode(t *testing.T) {
+	s := fakeServer()
+	assert.True(t, s.Insecure)
+	assert.Nil(t, s.settings.Certificate)
+}
+
 func TestUserAgent(t *testing.T) {
+	defer func() { time.Sleep(1 * time.Second) }()
 	s := fakeServer()
 	cancelInformer := test.StartInformer(s.projInformer)
 	defer cancelInformer()
@@ -394,10 +401,4 @@ func TestUserAgent(t *testing.T) {
 		}
 		_ = conn.Close()
 	}
-}
-
-func TestCertsAreNotGeneratedInInsecureMode(t *testing.T) {
-	s := fakeServer()
-	assert.True(t, s.Insecure)
-	assert.Nil(t, s.settings.Certificate)
 }
