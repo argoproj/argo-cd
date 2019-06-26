@@ -38,11 +38,11 @@ func NewRepoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 // NewRepoAddCommand returns a new instance of an `argocd repo add` command
 func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		repo                         appsv1.Repository
-		upsert                       bool
-		sshPrivateKeyPath            string
-		insecureIgnoreHostKey        bool
-		insecureSkipServerValidation bool
+		repo                           appsv1.Repository
+		upsert                         bool
+		sshPrivateKeyPath              string
+		insecureIgnoreHostKey          bool
+		insecureSkipServerVerification bool
 	)
 	var command = &cobra.Command{
 		Use:   "add REPO",
@@ -60,6 +60,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				}
 				repo.SSHPrivateKey = string(keyData)
 			}
+			// InsecureIgnoreHostKey is deprecated and only here for backwards compat
 			repo.InsecureIgnoreHostKey = insecureIgnoreHostKey
 			repo.Insecure = insecureSkipServerValidation
 
@@ -98,7 +99,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.Flags().StringVar(&repo.Password, "password", "", "password to the repository")
 	command.Flags().StringVar(&sshPrivateKeyPath, "ssh-private-key-path", "", "path to the private ssh key (e.g. ~/.ssh/id_rsa)")
 	command.Flags().BoolVar(&insecureIgnoreHostKey, "insecure-ignore-host-key", false, "disables SSH strict host key checking (deprecated, use --insecure-skip-server-validation instead)")
-	command.Flags().BoolVar(&insecureSkipServerValidation, "insecure-skip-server-validation", false, "disables server certificate and host key checks")
+	command.Flags().BoolVar(&insecureSkipServerVerification, "insecure-skip-server-verification", false, "disables server certificate and host key checks")
 	command.Flags().BoolVar(&upsert, "upsert", false, "Override an existing repository with the same name even if the spec differs")
 	return command
 }
