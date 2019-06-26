@@ -205,6 +205,7 @@ func (sc *syncContext) sync() {
 	if !sc.started() {
 		sc.log.Debug("dry-run")
 		if !sc.runTasks(tasks, true) {
+			sc.setOperationPhase(v1alpha1.OperationFailed, "one or more objects failed to apply (dry run)")
 			return
 		}
 	}
@@ -476,7 +477,6 @@ func (sc *syncContext) liveObj(obj *unstructured.Unstructured) *unstructured.Uns
 }
 
 func (sc *syncContext) setOperationPhase(phase v1alpha1.OperationPhase, message string) {
-
 	if sc.opState.Phase != phase || sc.opState.Message != message {
 		sc.log.Infof("Updating operation state. phase: %s -> %s, message: '%s' -> '%s'", sc.opState.Phase, phase, sc.opState.Message, message)
 	}
