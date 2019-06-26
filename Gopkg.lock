@@ -58,7 +58,7 @@
 
 [[projects]]
   branch = "exec"
-  digest = "1:e59baa8b04a5da884f3c65fc254393902370aba51c50dd86147d2dd28021c10c"
+  digest = "1:5aab4996c21564f17c94e4f9693532dc8dc076e2d64e93118676b7bc3db379d7"
   name = "github.com/alexec/pkg"
   packages = [
     "errors",
@@ -66,7 +66,7 @@
     "time",
   ]
   pruneopts = ""
-  revision = "0afec31be96f7b6df809a59ade7904554a0e4b47"
+  revision = "060f6004d39d83e50dc386002a45ce9b8c30f385"
 
 [[projects]]
   branch = "master"
@@ -87,6 +87,14 @@
   ]
   pruneopts = ""
   revision = "7ef1cea68c94f7f0e1e2f8bd75bedc5a7df8af90"
+
+[[projects]]
+  branch = "master"
+  digest = "1:904f77e68fe6fcd96cb5be14491573e4bcbe0b5cab3f5bc46b3d67fe50074a64"
+  name = "github.com/argoproj/pkg"
+  packages = ["rand"]
+  pruneopts = ""
+  revision = "34e483a53c4b4978cdf76000a3dc010174489e7f"
 
 [[projects]]
   digest = "1:d8a2bb36a048d1571bcc1aee208b61f39dc16c6c53823feffd37449dde162507"
