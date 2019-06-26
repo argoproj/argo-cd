@@ -56,6 +56,10 @@ type ArgoCDSettings struct {
 	WebhookGitLabSecret string `json:"webhookGitLabSecret,omitempty"`
 	// WebhookBitbucketUUID holds the UUID for authenticating Bitbucket webhook events
 	WebhookBitbucketUUID string `json:"webhookBitbucketUUID,omitempty"`
+	// WebhookBitbucketServerSecret holds the shared secret for authenticating BitbucketServer webhook events
+	WebhookBitbucketServerSecret string `json:"webhookBitbucketServerSecret,omitempty"`
+	// WebhookGogsSecret holds the shared secret for authenticating Gogs webhook events
+	WebhookGogsSecret string `json:"webhookGogsSecret,omitempty"`
 	// Secrets holds all secrets in argocd-secret as a map[string]string
 	Secrets map[string]string `json:"secrets,omitempty"`
 	// Repositories holds list of configured git repositories
@@ -123,6 +127,10 @@ const (
 	settingsWebhookGitLabSecretKey = "webhook.gitlab.secret"
 	// settingsWebhookBitbucketUUID is the key for Bitbucket webhook UUID
 	settingsWebhookBitbucketUUIDKey = "webhook.bitbucket.uuid"
+	// settingsWebhookBitbucketServerSecret is the key for BitbucketServer webhook secret
+	settingsWebhookBitbucketServerSecretKey = "webhook.bitbucketserver.secret"
+	// settingsWebhookGogsSecret is the key for Gogs webhook secret
+	settingsWebhookGogsSecretKey = "webhook.gogs.secret"
 	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
 	settingsApplicationInstanceLabelKey = "application.instanceLabelKey"
 	// resourcesCustomizationsKey is the key to the map of resource overrides
@@ -482,6 +490,12 @@ func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secr
 	if bitbucketWebhookUUID := argoCDSecret.Data[settingsWebhookBitbucketUUIDKey]; len(bitbucketWebhookUUID) > 0 {
 		settings.WebhookBitbucketUUID = string(bitbucketWebhookUUID)
 	}
+	if bitbucketserverWebhookSecret := argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey]; len(bitbucketserverWebhookSecret) > 0 {
+		settings.WebhookBitbucketServerSecret = string(bitbucketserverWebhookSecret)
+	}
+	if gogsWebhookSecret := argoCDSecret.Data[settingsWebhookGogsSecretKey]; len(gogsWebhookSecret) > 0 {
+		settings.WebhookGogsSecret = string(gogsWebhookSecret)
+	}
 
 	serverCert, certOk := argoCDSecret.Data[settingServerCertificate]
 	serverKey, keyOk := argoCDSecret.Data[settingServerPrivateKey]
@@ -610,6 +624,12 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 	}
 	if settings.WebhookBitbucketUUID != "" {
 		argoCDSecret.Data[settingsWebhookBitbucketUUIDKey] = []byte(settings.WebhookBitbucketUUID)
+	}
+	if settings.WebhookBitbucketServerSecret != "" {
+		argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey] = []byte(settings.WebhookBitbucketServerSecret)
+	}
+	if settings.WebhookGogsSecret != "" {
+		argoCDSecret.Data[settingsWebhookGogsSecretKey] = []byte(settings.WebhookGogsSecret)
 	}
 	if settings.Certificate != nil {
 		cert, key := tlsutil.EncodeX509KeyPair(*settings.Certificate)

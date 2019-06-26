@@ -36,6 +36,7 @@ func NewCommand() *cobra.Command {
 		},
 	}
 
+	command.AddCommand(NewCompletionCommand())
 	command.AddCommand(NewVersionCmd(&clientOpts))
 	command.AddCommand(NewClusterCommand(&clientOpts, pathOpts))
 	command.AddCommand(NewApplicationCommand(&clientOpts))
