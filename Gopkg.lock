@@ -58,7 +58,7 @@
 
 [[projects]]
   branch = "exec"
-  digest = "1:6fe401a4c13aa8eb9531c2d2f94d19e0e1d78e378ef3619c7ed570c2b2cada88"
+  digest = "1:e59baa8b04a5da884f3c65fc254393902370aba51c50dd86147d2dd28021c10c"
   name = "github.com/alexec/pkg"
   packages = [
     "errors",
@@ -66,7 +66,7 @@
     "time",
   ]
   pruneopts = ""
-  revision = "cf5e2daf6766102b52446e529864d52d529a7c96"
+  revision = "0afec31be96f7b6df809a59ade7904554a0e4b47"
 
 [[projects]]
   branch = "master"
