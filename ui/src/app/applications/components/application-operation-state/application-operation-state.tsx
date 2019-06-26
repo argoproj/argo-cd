@@ -5,11 +5,11 @@ import * as React from 'react';
 
 import { ErrorNotification } from '../../../shared/components';
 import {Revision} from '../../../shared/components/revision';
+import {Timestamp} from '../../../shared/components/timestamp';
 import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import * as utils from '../utils';
-import {Timestamp} from "../../../shared/components/timestamp";
 
 require('./application-operation-state.scss');
 
