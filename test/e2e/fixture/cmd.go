@@ -5,7 +5,13 @@ import (
 	"os/exec"
 
 	argoexec "github.com/alexec/pkg/exec"
+	log "github.com/sirupsen/logrus"
 )
+
+func init() {
+	// ensure we log all shell execs
+	log.SetLevel(log.DebugLevel)
+}
 
 func Run(workDir, name string, args ...string) (string, error) {
 

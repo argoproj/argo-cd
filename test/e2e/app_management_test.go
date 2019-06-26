@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -219,7 +218,7 @@ func TestManipulateApplicationResources(t *testing.T) {
 }
 
 func TestAppWithSecrets(t *testing.T) {
-	closer, _, err := fixture.ArgoCDClientset.NewApplicationClient()
+	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 	assert.NoError(t, err)
 	defer util.Close(closer)
 
@@ -251,11 +250,29 @@ func TestAppWithSecrets(t *testing.T) {
 			assert.Error(t, err)
 			assert.Contains(t, diffOutput, "username: '*********'")
 
-		})
-}
+			// local diff should ignore secrets
+			diffOutput, err = fixture.RunCli("app", "diff", app.Name, "--local", "testdata/secrets")
+			assert.NoError(t, err)
+			assert.Empty(t, diffOutput)
 
-func init() {
-	log.SetLevel(log.DebugLevel)
+			// ignore missing field and make sure diff shows no difference
+			app.Spec.IgnoreDifferences = []ResourceIgnoreDifferences{{
+				Kind: kube.SecretKind, JSONPointers: []string{"/data/username"},
+			}}
+			_, err = client.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: app.Spec})
+
+			assert.NoError(t, err)
+		}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			diffOutput, err := fixture.RunCli("app", "diff", app.Name)
+			assert.NoError(t, err)
+			assert.Empty(t, diffOutput)
+		})
 }
 
 func TestResourceDiffing(t *testing.T) {
