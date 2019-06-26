@@ -21,5 +21,5 @@ func TestPruningRequired(t *testing.T) {
 		DeleteFile("pod-2.yaml").
 		Sync().
 		Then().
-		Expect(Error("1 resources require pruning"))
+		Expect(Error("1 resources require pruning", ""))
 }

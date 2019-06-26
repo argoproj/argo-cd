@@ -62,7 +62,7 @@ func TestInvalidAppProject(t *testing.T) {
 		When().
 		Create().
 		Then().
-		Expect(Error("application references project does-not-exist which does not exist"))
+		Expect(Error("application references project does-not-exist which does not exist", ""))
 }
 
 func TestAppDeletion(t *testing.T) {
@@ -246,12 +246,12 @@ func TestAppWithSecrets(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
 
-			diffOutput, err := fixture.RunCli("app", "diff", app.Name)
+			_, err := fixture.RunCli("app", "diff", app.Name)
 			assert.Error(t, err)
-			assert.Contains(t, diffOutput, "username: '*********'")
+			assert.Contains(t, err.Error(), "username: '*********'")
 
 			// local diff should ignore secrets
-			diffOutput, err = fixture.RunCli("app", "diff", app.Name, "--local", "testdata/secrets")
+			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", "testdata/secrets")
 			assert.NoError(t, err)
 			assert.Empty(t, diffOutput)
 
@@ -614,13 +614,13 @@ func TestSyncOptionValidateFalse(t *testing.T) {
 		Sync().
 		Then().
 		// client error
-		Expect(Error("error validating data")).
+		Expect(Error("error validating data", "")).
 		When().
 		PatchFile("deployment.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Validate=false"}}]`).
 		Sync().
 		Then().
 		// server error
-		Expect(Error("Error from server"))
+		Expect(Error("Error from server", ""))
 }
 
 // make sure that, if we have a resource that needs pruning, but we're ignoring it, the app is in-sync

@@ -264,8 +264,11 @@ func runKubectl(kubeconfigPath string, namespace string, args []string, manifest
 		log.Debug(string(redactedBytes))
 	}
 	cmd.Stdin = bytes.NewReader(manifestBytes)
-
-	return argoexec.RunCommandExt(cmd, argoexec.CmdOpts{})
+	out, err := argoexec.RunCommandExt(cmd, argoexec.CmdOpts{})
+	if err != nil {
+		return "", fmt.Errorf(cleanKubectlOutput(err.Error()))
+	}
+	return strings.TrimSpace(string(out)), nil
 }
 
 // ConvertToVersion converts an unstructured object into the specified group/version
