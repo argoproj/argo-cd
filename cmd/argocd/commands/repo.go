@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strconv"
 	"text/tabwriter"
 
 	log "github.com/sirupsen/logrus"
@@ -128,7 +127,7 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 // Print table of repo info
 func printRepoTable(repos []appsv1.Repository) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "REPO\tUSER\tSTATUS\tMESSAGE\n")
+	fmt.Fprintf(w, "REPO\tINSECURE\tUSER\tSTATUS\tMESSAGE\n")
 	for _, r := range repos {
 		var username string
 		if r.Username == "" {
@@ -136,7 +135,7 @@ func printRepoTable(repos []appsv1.Repository) {
 		} else {
 			username = r.Username
 		}
-		fmt.Fprintf(w, "%s\t%v\t%s\t%s\t%s\n", r.Repo, (r.InsecureIgnoreHostKey || r.insecureSkipServerValidation), username, r.ConnectionState.Status, r.ConnectionState.Message)
+		fmt.Fprintf(w, "%s\t%v\t%s\t%s\t%s\n", r.Repo, r.Insecure, username, r.ConnectionState.Status, r.ConnectionState.Message)
 	}
 	_ = w.Flush()
 }
