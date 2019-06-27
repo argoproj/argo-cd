@@ -89,14 +89,6 @@
   revision = "7ef1cea68c94f7f0e1e2f8bd75bedc5a7df8af90"
 
 [[projects]]
-  branch = "master"
-  digest = "1:904f77e68fe6fcd96cb5be14491573e4bcbe0b5cab3f5bc46b3d67fe50074a64"
-  name = "github.com/argoproj/pkg"
-  packages = ["rand"]
-  pruneopts = ""
-  revision = "34e483a53c4b4978cdf76000a3dc010174489e7f"
-
-[[projects]]
   digest = "1:d8a2bb36a048d1571bcc1aee208b61f39dc16c6c53823feffd37449dde162507"
   name = "github.com/asaskevich/govalidator"
   packages = ["."]
@@ -1591,6 +1583,7 @@
   input-imports = [
     "github.com/Masterminds/semver",
     "github.com/TomOnTime/utfutil",
+    "github.com/ajstarks/svgo",
     "github.com/ajstarks/svgo",
     "github.com/alexec/pkg/errors",
     "github.com/alexec/pkg/exec",
