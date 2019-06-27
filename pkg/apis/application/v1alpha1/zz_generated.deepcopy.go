@@ -466,13 +466,19 @@ func (in *ApplicationStatus) DeepCopyInto(out *ApplicationStatus) {
 		*out = make([]ApplicationCondition, len(*in))
 		copy(*out, *in)
 	}
-	in.ReconciledAt.DeepCopyInto(&out.ReconciledAt)
+	if in.ReconciledAt != nil {
+		in, out := &in.ReconciledAt, &out.ReconciledAt
+		*out = (*in).DeepCopy()
+	}
 	if in.OperationState != nil {
 		in, out := &in.OperationState, &out.OperationState
 		*out = new(OperationState)
 		(*in).DeepCopyInto(*out)
 	}
-	in.ObservedAt.DeepCopyInto(&out.ObservedAt)
+	if in.ObservedAt != nil {
+		in, out := &in.ObservedAt, &out.ObservedAt
+		*out = (*in).DeepCopy()
+	}
 	in.Summary.DeepCopyInto(&out.Summary)
 	return
 }
