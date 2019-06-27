@@ -1584,7 +1584,6 @@
     "github.com/Masterminds/semver",
     "github.com/TomOnTime/utfutil",
     "github.com/ajstarks/svgo",
-    "github.com/ajstarks/svgo",
     "github.com/alexec/pkg/errors",
     "github.com/alexec/pkg/exec",
     "github.com/alexec/pkg/time",
