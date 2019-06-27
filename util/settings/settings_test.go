@@ -29,6 +29,21 @@ func TestGetRepositories(t *testing.T) {
 	assert.Equal(t, []RepoCredentials{{URL: "http://foo"}}, filter)
 }
 
+func TestSaveRepositories(t *testing.T) {
+	kubeClient := fake.NewSimpleClientset(&v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
+		},
+	})
+	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	err := settingsManager.SaveRepositories([]RepoCredentials{{URL: "http://foo"}})
+	assert.NoError(t, err)
+	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, cm.Data["repositories"], "- url: http://foo\n")
+}
+
 func TestGetRepositoryCredentials(t *testing.T) {
 	kubeClient := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{

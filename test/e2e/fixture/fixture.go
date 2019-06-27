@@ -180,6 +180,28 @@ func SetConfigManagementPlugins(plugin ...v1alpha1.ConfigManagementPlugin) {
 	})
 }
 
+func SetRepos(repos ...settings.RepoCredentials) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		yamlBytes, err := yaml.Marshal(repos)
+		if err != nil {
+			return err
+		}
+		cm.Data["repositories"] = string(yamlBytes)
+		return nil
+	})
+}
+
+func SetRepoCredentials(repos ...settings.RepoCredentials) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		yamlBytes, err := yaml.Marshal(repos)
+		if err != nil {
+			return err
+		}
+		cm.Data["repository.credentials"] = string(yamlBytes)
+		return nil
+	})
+}
+
 func SetHelmRepoCredential(creds settings.HelmRepoCredentials) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		yamlBytes, err := yaml.Marshal(creds)
@@ -229,6 +251,8 @@ func EnsureCleanState(t *testing.T) {
 	}))
 	SetResourceOverrides(make(map[string]v1alpha1.ResourceOverride))
 	SetConfigManagementPlugins()
+	SetRepoCredentials()
+	SetRepos()
 
 	// remove tmp dir
 	CheckError(os.RemoveAll(tmpDir))
