@@ -426,7 +426,6 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
 	settings.URL = argoCDCM.Data[settingURLKey]
-	settings.KustomizeBuildOptions = argoCDCM.Data[kustomizeBuildOptions]
 	repositoriesStr := argoCDCM.Data[repositoriesKey]
 	repositoryCredentialsStr := argoCDCM.Data[repositoryCredentialsKey]
 	var errors []error

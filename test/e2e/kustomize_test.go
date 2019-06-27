@@ -140,6 +140,42 @@ func TestKustomizeDeclarativeInvalidApp(t *testing.T) {
 		Expect(Condition(ApplicationConditionComparisonError, "invalid-kustomize/does-not-exist.yaml: no such file or directory"))
 }
 
+func TestKustomizeBuildOptionsNotFail(t *testing.T) {
+	// First test that the inputted build options are actually passed to `kustomize build` by creating an error, then
+	// test that acceptable parameters do not cause an error.
+	Given(t).
+		Path(guestbookPath).
+		And(func() {
+			errors.FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
+				"-n", fixture.ArgoCDNamespace,
+				"-p", `{ "data": { "kustomize.buildOptions": "--thisflagdoesnotexist" } }`))
+		}).
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(Error("")).
+		Given().
+		And(func() {
+			errors.FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
+				"-n", fixture.ArgoCDNamespace,
+				"-p", `{ "data": { "kustomize.buildOptions": "-v 6 --logtostderr" } }`))
+		}).
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Given().
+		And(func() {
+			errors.FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
+				"-n", fixture.ArgoCDNamespace,
+				"-p", `{ "data": { "kustomize.buildOptions": "" } }`))
+		})
+}
+
 func TestKustomizeBuildOptionsLoadRestrictor(t *testing.T) {
 	out, err := fixture.Run("", "kustomize", "version")
 	if err != nil {
