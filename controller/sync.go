@@ -299,11 +299,13 @@ func (sc *syncContext) sync() {
 
 func (sc *syncContext) setOperationFailed(syncFailTasks syncTasks, message string) {
 	if len(syncFailTasks) > 0 {
-		// If tasks are already completed, don't run them again
+		// if all the failure hooks are completed, don't run them again, and mark the sync as failed
 		if syncFailTasks.All(func(task *syncTask) bool { return task.completed() }) {
 			sc.setOperationPhase(v1alpha1.OperationFailed, message)
 			return
 		}
+		// otherwise, we need to start the failure hooks, and ther return without setting
+		// the phase, so we make sure we have at least one more sync
 		sc.log.WithFields(log.Fields{"syncFailTasks": syncFailTasks}).Debug("running sync fail tasks")
 		if !sc.runTasks(syncFailTasks, false) {
 			sc.setOperationPhase(v1alpha1.OperationFailed, message)
