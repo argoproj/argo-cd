@@ -328,6 +328,12 @@ func TestRevokedToken(t *testing.T) {
 	assert.False(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 }
 
+func TestCertsAreNotGeneratedInInsecureMode(t *testing.T) {
+	s := fakeServer()
+	assert.True(t, s.Insecure)
+	assert.Nil(t, s.settings.Certificate)
+}
+
 func TestUserAgent(t *testing.T) {
 	s := fakeServer()
 	cancelInformer := test.StartInformer(s.projInformer)
@@ -339,6 +345,7 @@ func TestUserAgent(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go s.Run(ctx, port, metricsPort)
+	defer func() { time.Sleep(3 * time.Second) }()
 
 	err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
 	assert.NoError(t, err)
@@ -394,10 +401,4 @@ func TestUserAgent(t *testing.T) {
 		}
 		_ = conn.Close()
 	}
-}
-
-func TestCertsAreNotGeneratedInInsecureMode(t *testing.T) {
-	s := fakeServer()
-	assert.True(t, s.Insecure)
-	assert.Nil(t, s.settings.Certificate)
 }
