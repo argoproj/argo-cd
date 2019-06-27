@@ -19,8 +19,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	v1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	v1listers "k8s.io/client-go/listers/core/v1"
@@ -62,12 +60,6 @@ type ArgoCDSettings struct {
 	WebhookGogsSecret string `json:"webhookGogsSecret,omitempty"`
 	// Secrets holds all secrets in argocd-secret as a map[string]string
 	Secrets map[string]string `json:"secrets,omitempty"`
-	// Repositories holds list of configured git repositories
-	Repositories []RepoCredentials
-	// Repositories holds list of repo credentials
-	RepositoryCredentials []RepoCredentials
-	// Repositories holds list of configured helm repositories
-	HelmRepositories []HelmRepoCredentials
 }
 
 type OIDCConfig struct {
@@ -181,6 +173,9 @@ func (mgr *SettingsManager) getConfigMap() (*apiv1.ConfigMap, error) {
 	if err != nil {
 		return nil, err
 	}
+	if argoCDCM.Data == nil {
+		argoCDCM.Data = make(map[string]string)
+	}
 	return argoCDCM, err
 }
 
@@ -254,6 +249,73 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 	return resourceOverrides, nil
 }
 
+func (mgr *SettingsManager) GetHelmRepositories() ([]HelmRepoCredentials, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return nil, err
+	}
+	helmRepositories := make([]HelmRepoCredentials, 0)
+	helmRepositoriesStr := argoCDCM.Data[helmRepositoriesKey]
+	if helmRepositoriesStr != "" {
+		err := yaml.Unmarshal([]byte(helmRepositoriesStr), &helmRepositories)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return helmRepositories, nil
+}
+
+func (mgr *SettingsManager) GetRepositories() ([]RepoCredentials, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return nil, err
+	}
+	repositories := make([]RepoCredentials, 0)
+	repositoriesStr := argoCDCM.Data[repositoriesKey]
+	if repositoriesStr != "" {
+		err := yaml.Unmarshal([]byte(repositoriesStr), &repositories)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return repositories, nil
+}
+
+func (mgr *SettingsManager) SaveRepositories(repos []RepoCredentials) error {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return err
+	}
+	if len(repos) > 0 {
+		yamlStr, err := yaml.Marshal(repos)
+		if err != nil {
+			return err
+		}
+		argoCDCM.Data[repositoriesKey] = string(yamlStr)
+	} else {
+		delete(argoCDCM.Data, repositoriesKey)
+	}
+	_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(argoCDCM)
+	return err
+}
+
+func (mgr *SettingsManager) GetRepositoryCredentials() ([]RepoCredentials, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return nil, err
+	}
+
+	repositoryCredentials := make([]RepoCredentials, 0)
+	repositoryCredentialsStr := argoCDCM.Data[repositoryCredentialsKey]
+	if repositoryCredentialsStr != "" {
+		err := yaml.Unmarshal([]byte(repositoryCredentialsStr), &repositoryCredentials)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return repositoryCredentials, nil
+}
+
 // GetSettings retrieves settings from the ArgoCDConfigMap and secret.
 func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	err := mgr.ensureSynced(false)
@@ -280,53 +342,6 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 		return &settings, errs[0]
 	}
 	return &settings, nil
-}
-
-// MigrateLegacyRepoSettings migrates legacy (v0.10 and below) repo secrets into the v0.11 configmap
-func (mgr *SettingsManager) MigrateLegacyRepoSettings(settings *ArgoCDSettings) error {
-	err := mgr.ensureSynced(false)
-	if err != nil {
-		return err
-	}
-
-	labelSelector := labels.NewSelector()
-	req, err := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{"repository"})
-	if err != nil {
-		return err
-	}
-	labelSelector = labelSelector.Add(*req)
-	repoSecrets, err := mgr.secrets.Secrets(mgr.namespace).List(labelSelector)
-	if err != nil {
-		return err
-	}
-	settings.Repositories = make([]RepoCredentials, len(repoSecrets))
-	for i, s := range repoSecrets {
-		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Update(s)
-		if err != nil {
-			return err
-		}
-		cred := RepoCredentials{URL: string(s.Data["repository"])}
-		if username, ok := s.Data["username"]; ok && string(username) != "" {
-			cred.UsernameSecret = &apiv1.SecretKeySelector{
-				LocalObjectReference: apiv1.LocalObjectReference{Name: s.Name},
-				Key:                  "username",
-			}
-		}
-		if password, ok := s.Data["password"]; ok && string(password) != "" {
-			cred.PasswordSecret = &apiv1.SecretKeySelector{
-				LocalObjectReference: apiv1.LocalObjectReference{Name: s.Name},
-				Key:                  "password",
-			}
-		}
-		if sshPrivateKey, ok := s.Data["sshPrivateKey"]; ok && string(sshPrivateKey) != "" {
-			cred.SSHPrivateKeySecret = &apiv1.SecretKeySelector{
-				LocalObjectReference: apiv1.LocalObjectReference{Name: s.Name},
-				Key:                  "sshPrivateKey",
-			}
-		}
-		settings.Repositories[i] = cred
-	}
-	return nil
 }
 
 func (mgr *SettingsManager) initialize(ctx context.Context) error {
@@ -408,41 +423,6 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
 	settings.URL = argoCDCM.Data[settingURLKey]
-	repositoriesStr := argoCDCM.Data[repositoriesKey]
-	repositoryCredentialsStr := argoCDCM.Data[repositoryCredentialsKey]
-	var errors []error
-	if repositoriesStr != "" {
-		repositories := make([]RepoCredentials, 0)
-		err := yaml.Unmarshal([]byte(repositoriesStr), &repositories)
-		if err != nil {
-			errors = append(errors, err)
-		} else {
-			settings.Repositories = repositories
-		}
-	}
-	if repositoryCredentialsStr != "" {
-		repositoryCredentials := make([]RepoCredentials, 0)
-		err := yaml.Unmarshal([]byte(repositoryCredentialsStr), &repositoryCredentials)
-		if err != nil {
-			errors = append(errors, err)
-		} else {
-			settings.RepositoryCredentials = repositoryCredentials
-		}
-	}
-	helmRepositoriesStr := argoCDCM.Data[helmRepositoriesKey]
-	if helmRepositoriesStr != "" {
-		helmRepositories := make([]HelmRepoCredentials, 0)
-		err := yaml.Unmarshal([]byte(helmRepositoriesStr), &helmRepositories)
-		if err != nil {
-			errors = append(errors, err)
-		} else {
-			settings.HelmRepositories = helmRepositories
-		}
-	}
-
-	if len(errors) > 0 {
-		return errors[0]
-	}
 	return nil
 }
 
@@ -542,33 +522,6 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		argoCDCM.Data[settingsOIDCConfigKey] = settings.OIDCConfigRAW
 	} else {
 		delete(argoCDCM.Data, settingsOIDCConfigKey)
-	}
-	if len(settings.Repositories) > 0 {
-		yamlStr, err := yaml.Marshal(settings.Repositories)
-		if err != nil {
-			return err
-		}
-		argoCDCM.Data[repositoriesKey] = string(yamlStr)
-	} else {
-		delete(argoCDCM.Data, repositoriesKey)
-	}
-	if len(settings.RepositoryCredentials) > 0 {
-		yamlStr, err := yaml.Marshal(settings.RepositoryCredentials)
-		if err != nil {
-			return err
-		}
-		argoCDCM.Data[repositoryCredentialsKey] = string(yamlStr)
-	} else {
-		delete(argoCDCM.Data, repositoryCredentialsKey)
-	}
-	if len(settings.HelmRepositories) > 0 {
-		yamlStr, err := yaml.Marshal(settings.HelmRepositories)
-		if err != nil {
-			return err
-		}
-		argoCDCM.Data[helmRepositoriesKey] = string(yamlStr)
-	} else {
-		delete(argoCDCM.Data, helmRepositoriesKey)
 	}
 
 	if createCM {
@@ -848,13 +801,6 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		}
 		cdSettings.Certificate = cert
 		log.Info("Initialized TLS certificate")
-	}
-
-	if len(cdSettings.Repositories) == 0 {
-		err = mgr.MigrateLegacyRepoSettings(cdSettings)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	err = mgr.SaveSettings(cdSettings)

@@ -60,15 +60,7 @@ cd ~/go/src/github.com/argoproj/argo-cd
 Install go dependencies:
 
 ```bash
-go get github.com/gobuffalo/packr/packr
-go get github.com/gogo/protobuf/gogoproto
-go get github.com/golang/protobuf/protoc-gen-go
-go get github.com/golangci/golangci-lint/cmd/golangci-lint
-go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
-go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
-go get github.com/jstemmer/go-junit-report
-go get github.com/mattn/goreman
-go get golang.org/x/tools/cmd/goimports
+make install-dev-tools
 ```
 
 ## Building
