@@ -26,6 +26,7 @@ import (
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:path=applications,shortName=app;apps
 type Application struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
@@ -365,7 +366,7 @@ type SyncStrategyApply struct {
 type SyncStrategyHook struct {
 	// Embed SyncStrategyApply type to inherit any `apply` options
 	// +optional
-	SyncStrategyApply `protobuf:"bytes,1,opt,name=syncStrategyApply"`
+	SyncStrategyApply `json:",inline" protobuf:"bytes,1,opt,name=syncStrategyApply"`
 }
 
 type HookType string
@@ -888,6 +889,7 @@ type AppProjectList struct {
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:path=appprojects,shortName=appproj;appprojs
 type AppProject struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`

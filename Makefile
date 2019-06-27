@@ -68,6 +68,21 @@ clientgen:
 .PHONY: codegen
 codegen: protogen clientgen openapigen manifests
 
+.PHONY: install-dev-tools
+install-dev-tools:
+	cd ./hack && \
+	GO111MODULE=on go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.0-alpha.2 && \
+	GO111MODULE=on go get github.com/gobuffalo/packr/packr@v1.30.1 && \
+	GO111MODULE=on go get github.com/gogo/protobuf/gogoproto@v1.2.1 && \
+	GO111MODULE=on go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.0-beta.2 && \
+	GO111MODULE=on go get github.com/golang/protobuf/protoc-gen-go@v1.3.1 && \
+	GO111MODULE=on go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.17.1 && \
+	GO111MODULE=on go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway@v1.9.2 && \
+	GO111MODULE=on go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger@v1.9.2 && \
+	GO111MODULE=on go get github.com/jstemmer/go-junit-report && \
+	GO111MODULE=on go get github.com/mattn/goreman && \
+	GO111MODULE=on go get golang.org/x/tools/cmd/goimports
+
 .PHONY: cli
 cli: clean-debug
 	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd

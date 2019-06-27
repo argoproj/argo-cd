@@ -41,15 +41,7 @@ commands:
           name: Install Go deps
           command: |
             set -x
-            go get github.com/gobuffalo/packr/packr
-            go get github.com/gogo/protobuf/gogoproto
-            go get github.com/golang/protobuf/protoc-gen-go
-            go get github.com/golangci/golangci-lint/cmd/golangci-lint
-            go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
-            go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
-            go get github.com/jstemmer/go-junit-report
-            go get github.com/mattn/goreman
-            go get golang.org/x/tools/cmd/goimports
+            make install-dev-tools
   dep_ensure:
     steps:
       - restore_cache:
@@ -65,12 +57,12 @@ commands:
   install_golang:
     steps:
       - run:
-          name: Install Golang v1.11.4
+          name: Install Golang v1.12.6
           command: |
-            go get golang.org/dl/go1.11.4
-            [ -e /home/circleci/sdk/go1.11.4 ] || go1.11.4 download
+            go get golang.org/dl/go1.12.6
+            [ -e /home/circleci/sdk/go1.12.6 ] || go1.12.6 download
             echo "export GOPATH=/home/circleci/.go_workspace" | tee -a $BASH_ENV
-            echo "export PATH=/home/circleci/sdk/go1.11.4/bin:\$PATH" | tee -a $BASH_ENV
+            echo "export PATH=/home/circleci/sdk/go1.12.6/bin:\$PATH" | tee -a $BASH_ENV
       - run:
           name: Golang diagnostics
           command: |
@@ -176,7 +168,7 @@ commands:
           paths:
             - /home/circleci/.go_workspace
             - /home/circleci/.cache/go-build
-            - /home/circleci/sdk/go1.11.4
+            - /home/circleci/sdk/go1.12.6
   restore_go_cache:
     steps:
       - restore_cache:
