@@ -79,9 +79,9 @@ install-dev-tools:
 	GO111MODULE=on go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.17.1 && \
 	GO111MODULE=on go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway@v1.9.2 && \
 	GO111MODULE=on go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger@v1.9.2 && \
-	GO111MODULE=on go get github.com/jstemmer/go-junit-report && \
-	GO111MODULE=on go get github.com/mattn/goreman && \
-	GO111MODULE=on go get golang.org/x/tools/cmd/goimports
+	GO111MODULE=on go get github.com/jstemmer/go-junit-report@v0.0.0-20190106144839-af01ea7f8024 && \
+	GO111MODULE=on go get github.com/mattn/goreman@v0.2.1 && \
+	GO111MODULE=on go get golang.org/x/tools/cmd/goimports@v0.0.0-20190627203933-19ff4fff8850
 
 .PHONY: cli
 cli: clean-debug
