@@ -564,7 +564,7 @@ func TestRunSyncFailHooksFailed(t *testing.T) {
 	failedSyncFailHook.SetName("failed-sync-fail-hook")
 	syncCtx.compareResult = &comparisonResult{
 		managedResources: []managedResource{{Target: pod}},
-		hooks: []*unstructured.Unstructured{successfulSyncFailHook, failedSyncFailHook},
+		hooks:            []*unstructured.Unstructured{successfulSyncFailHook, failedSyncFailHook},
 	}
 
 	syncCtx.kubectl = &kubetest.MockKubectlCmd{

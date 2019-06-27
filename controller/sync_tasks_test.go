@@ -236,7 +236,7 @@ var sortedTasks = syncTasks{
 		targetObj: &unstructured.Unstructured{},
 	},
 	{
-		phase: SyncPhaseSyncFail,
+		phase:     SyncPhaseSyncFail,
 		targetObj: &unstructured.Unstructured{},
 	},
 }
