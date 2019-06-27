@@ -583,11 +583,11 @@ func TestRunSyncFailHooksFailed(t *testing.T) {
 	// Operation as a whole should fail
 	assert.Equal(t, OperationFailed, syncCtx.opState.Phase)
 	// failedSyncFailHook should fail
-	assert.Equal(t, syncCtx.syncRes.Resources[1].HookPhase, OperationFailed)
-	assert.Equal(t, syncCtx.syncRes.Resources[1].Status, ResultCodeSyncFailed)
+	assert.Equal(t, OperationFailed, syncCtx.syncRes.Resources[1].HookPhase)
+	assert.Equal(t, ResultCodeSyncFailed, syncCtx.syncRes.Resources[1].Status)
 	// successfulSyncFailHook should be synced running (it is an nginx pod)
-	assert.Equal(t, syncCtx.syncRes.Resources[2].HookPhase, OperationRunning)
-	assert.Equal(t, syncCtx.syncRes.Resources[2].Status, ResultCodeSynced)
+	assert.Equal(t, OperationRunning, syncCtx.syncRes.Resources[2].HookPhase)
+	assert.Equal(t, ResultCodeSynced, syncCtx.syncRes.Resources[2].Status)
 }
 
 func Test_syncContext_isSelectiveSync(t *testing.T) {

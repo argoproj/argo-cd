@@ -332,6 +332,10 @@ var unnamedTasks = syncTasks{
 		phase:     SyncPhasePostSync,
 		targetObj: &unstructured.Unstructured{},
 	},
+	{
+		phase:     SyncPhaseSyncFail,
+		targetObj: &unstructured.Unstructured{},
+	},
 }
 
 func Test_syncTasks_Filter(t *testing.T) {

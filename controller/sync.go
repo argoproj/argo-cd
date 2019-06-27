@@ -205,6 +205,7 @@ func (sc *syncContext) sync() {
 	if !sc.started() {
 		sc.log.Debug("dry-run")
 		if !sc.runTasks(tasks, true) {
+			sc.setOperationPhase(v1alpha1.OperationFailed, "one or more objects failed to apply (dry run)")
 			return
 		}
 	}
