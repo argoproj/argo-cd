@@ -167,12 +167,12 @@ func TestRemoveProjectDestination(t *testing.T) {
 		t.Fatalf("Unable to remove project destination %v", err)
 	}
 
-	output, err := fixture.RunCli("proj", "remove-destination", projectName,
+	_, err = fixture.RunCli("proj", "remove-destination", projectName,
 		"https://192.168.99.100:8443",
 		"test1",
 	)
-	assert.NotNil(t, err)
-	assert.True(t, strings.Contains(output, "does not exist"))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "does not exist")
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(projectName, metav1.GetOptions{})
 	if err != nil {
