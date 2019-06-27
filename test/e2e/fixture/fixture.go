@@ -181,8 +181,13 @@ func SetConfigManagementPlugins(plugin ...v1alpha1.ConfigManagementPlugin) {
 }
 
 func SetHelmRepoCredential(creds settings.HelmRepoCredentials) {
-	Settings(func(s *settings.ArgoCDSettings) {
-		s.HelmRepositories = []settings.HelmRepoCredentials{creds}
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		yamlBytes, err := yaml.Marshal(creds)
+		if err != nil {
+			return err
+		}
+		cm.Data["helm.repositories"] = string(yamlBytes)
+		return nil
 	})
 }
 

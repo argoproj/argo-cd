@@ -13,57 +13,36 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-func TestUpdateSettingsFromConfigMap(t *testing.T) {
-	tests := []struct {
-		name    string
-		key     string
-		value   string
-		wantErr bool
-		get     func(settings ArgoCDSettings) interface{}
-		want    interface{}
-	}{
-		{
-			name:  "TestRepositories",
-			key:   "repositories",
-			value: "\n  - url: http://foo\n",
-			get: func(settings ArgoCDSettings) interface{} {
-				return settings.Repositories
-			},
-			want: []RepoCredentials{{URL: "http://foo"}},
+func TestGetRepositories(t *testing.T) {
+	kubeClient := fake.NewSimpleClientset(&v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
 		},
-		{
-			name:  "TestHelmRepositories",
-			key:   "helm.repositories",
-			value: "\n  - url: http://foo\n",
-			get: func(settings ArgoCDSettings) interface{} {
-				return settings.HelmRepositories
-			},
-			want: []HelmRepoCredentials{{URL: "http://foo"}},
+		Data: map[string]string{
+			"repositories": "\n  - url: http://foo\n",
 		},
-		{
-			name:  "TestRepositoryCredentials",
-			key:   "repository.credentials",
-			value: "\n  - url: http://foo\n",
-			get: func(settings ArgoCDSettings) interface{} {
-				return settings.RepositoryCredentials
-			},
-			want: []RepoCredentials{{URL: "http://foo"}},
+	})
+	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	filter, err := settingsManager.GetRepositories()
+	assert.NoError(t, err)
+	assert.Equal(t, []RepoCredentials{{URL: "http://foo"}}, filter)
+}
+
+func TestGetRepositoryCredentials(t *testing.T) {
+	kubeClient := fake.NewSimpleClientset(&v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
 		},
-	}
-	for _, tt := range tests {
-		settings := ArgoCDSettings{}
-		configMap := v1.ConfigMap{
-			Data: map[string]string{
-				tt.key: tt.value,
-			},
-		}
-		t.Run(tt.name, func(t *testing.T) {
-			if err := updateSettingsFromConfigMap(&settings, &configMap); (err != nil) != tt.wantErr {
-				t.Errorf("updateSettingsFromConfigMap() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			assert.Equal(t, tt.want, tt.get(settings))
-		})
-	}
+		Data: map[string]string{
+			"repository.credentials": "\n  - url: http://foo\n",
+		},
+	})
+	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	filter, err := settingsManager.GetRepositoryCredentials()
+	assert.NoError(t, err)
+	assert.Equal(t, []RepoCredentials{{URL: "http://foo"}}, filter)
 }
 
 func TestGetResourceFilter(t *testing.T) {
@@ -84,7 +63,6 @@ func TestGetResourceFilter(t *testing.T) {
 		ResourceExclusions: []FilteredResource{{APIGroups: []string{"group1"}, Kinds: []string{"kind1"}, Clusters: []string{"cluster1"}}},
 		ResourceInclusions: []FilteredResource{{APIGroups: []string{"group2"}, Kinds: []string{"kind2"}, Clusters: []string{"cluster2"}}},
 	}, filter)
-
 }
 
 func TestGetConfigManagementPlugins(t *testing.T) {
@@ -152,4 +130,21 @@ func TestGetResourceOverrides(t *testing.T) {
 	assert.Equal(t, v1alpha1.ResourceOverride{
 		IgnoreDifferences: "jsonPointers:\n- /webhooks/0/clientConfig/caBundle",
 	}, webHookOverrides)
+}
+
+func TestGetHelmRepositories(t *testing.T) {
+	kubeClient := fake.NewSimpleClientset(&v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
+		},
+		Data: map[string]string{
+			"helm.repositories": "\n  - url: http://foo\n",
+		},
+	})
+	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	helmRepositories, err := settingsManager.GetHelmRepositories()
+	assert.NoError(t, err)
+
+	assert.ElementsMatch(t, helmRepositories, []HelmRepoCredentials{{URL: "http://foo"}})
 }
