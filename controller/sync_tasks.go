@@ -152,12 +152,6 @@ func (s syncTasks) String() string {
 	return "[" + strings.Join(values, ", ") + "]"
 }
 
-func (s syncTasks) ApplyResourceResult(sc *syncContext, syncStatus v1alpha1.ResultCode, operationState v1alpha1.OperationPhase, message string) {
-	for _, task := range s {
-		sc.setResourceResult(task, syncStatus, operationState, message)
-	}
-}
-
 func (s syncTasks) phase() v1alpha1.SyncPhase {
 	if len(s) > 0 {
 		return s[0].phase

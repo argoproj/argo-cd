@@ -81,6 +81,9 @@ var unsortedTasks = syncTasks{
 		},
 	},
 	{
+		phase: SyncPhaseSyncFail, targetObj: &unstructured.Unstructured{},
+	},
+	{
 		targetObj: &unstructured.Unstructured{
 			Object: map[string]interface{}{
 				"metadata": map[string]interface{}{
@@ -230,6 +233,10 @@ var sortedTasks = syncTasks{
 	},
 	{
 		phase:     SyncPhasePostSync,
+		targetObj: &unstructured.Unstructured{},
+	},
+	{
+		phase: SyncPhaseSyncFail,
 		targetObj: &unstructured.Unstructured{},
 	},
 }

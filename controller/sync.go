@@ -296,19 +296,19 @@ func (sc *syncContext) sync() {
 	}
 }
 
-func (sc *syncContext) setOperationFailed(syncFailTasks syncTasks, failMessage string) {
+func (sc *syncContext) setOperationFailed(syncFailTasks syncTasks, message string) {
 	if len(syncFailTasks) > 0 {
 		// If tasks are already completed, don't run them again
 		if syncFailTasks.All(func(task *syncTask) bool { return task.completed() }) {
-			sc.setOperationPhase(v1alpha1.OperationFailed, failMessage)
+			sc.setOperationPhase(v1alpha1.OperationFailed, message)
 			return
 		}
 		sc.log.WithFields(log.Fields{"syncFailTasks": syncFailTasks}).Debug("running sync fail tasks")
 		if !sc.runTasks(syncFailTasks, false) {
-			sc.setOperationPhase(v1alpha1.OperationFailed, failMessage)
+			sc.setOperationPhase(v1alpha1.OperationFailed, message)
 		}
 	} else {
-		sc.setOperationPhase(v1alpha1.OperationFailed, failMessage)
+		sc.setOperationPhase(v1alpha1.OperationFailed, message)
 	}
 }
 

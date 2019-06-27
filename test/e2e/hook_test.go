@@ -117,7 +117,11 @@ func TestPostSyncHookPodFailure(t *testing.T) {
 }
 
 func TestSyncFailHookPodFailure(t *testing.T) {
-	hook2Contents := `
+	// Tests that a SyncFail hook will successfully run upon a pod failure (which leads to a sync failure)
+	Given(t).
+		Path("hook").
+		When().
+		AddFile("sync-fail-hook.yaml", `
 apiVersion: v1
 kind: Pod
 metadata:
@@ -132,11 +136,7 @@ spec:
       imagePullPolicy: IfNotPresent
       name: main
   restartPolicy: Never
-`
-	Given(t).
-		Path("hook").
-		When().
-		AddFile("hook2.yaml", hook2Contents).
+`).
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "PostSync"}}]`).
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}]`).
 		Create().
@@ -146,8 +146,12 @@ spec:
 		Expect(OperationPhaseIs(OperationFailed))
 }
 
-func TestSyncFailHookPodFailureSyncFailFaiure(t *testing.T) {
-	hook2Contents := `
+func TestSyncFailHookPodFailureSyncFailFailure(t *testing.T) {
+	// Tests that a failing SyncFail hook will successfully be marked as failed
+	Given(t).
+		Path("hook").
+		When().
+		AddFile("successful-sync-fail-hook.yaml", `
 apiVersion: v1
 kind: Pod
 metadata:
@@ -162,8 +166,8 @@ spec:
       imagePullPolicy: IfNotPresent
       name: main
   restartPolicy: Never
-`
-	hook3Contents := `
+`).
+		AddFile("failed-sync-fail-hook.yaml", `
 apiVersion: v1
 kind: Pod
 metadata:
@@ -178,12 +182,7 @@ spec:
       imagePullPolicy: IfNotPresent
       name: main
   restartPolicy: Never
-`
-	Given(t).
-		Path("hook").
-		When().
-		AddFile("hook2.yaml", hook2Contents).
-		AddFile("hook3.yaml", hook3Contents).
+`).
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "PostSync"}}]`).
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}]`).
 		Create().
