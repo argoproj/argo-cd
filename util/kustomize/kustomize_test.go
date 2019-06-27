@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/alexec/pkg/exec"
+	"github.com/argoproj/pkg/exec"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"

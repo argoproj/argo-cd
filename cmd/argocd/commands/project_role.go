@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"text/tabwriter"
 
-	timeutil "github.com/alexec/pkg/time"
+	timeutil "github.com/argoproj/pkg/time"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/errors"

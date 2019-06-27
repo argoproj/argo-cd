@@ -4,7 +4,7 @@ import (
 	"os"
 	"os/exec"
 
-	argoexec "github.com/alexec/pkg/exec"
+	argoexec "github.com/argoproj/pkg/exec"
 	log "github.com/sirupsen/logrus"
 )
 

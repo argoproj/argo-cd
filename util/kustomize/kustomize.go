@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	argoexec "github.com/alexec/pkg/exec"
+	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"

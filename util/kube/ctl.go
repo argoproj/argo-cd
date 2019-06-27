@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"strings"
 
-	argoexec "github.com/alexec/pkg/exec"
+	argoexec "github.com/argoproj/pkg/exec"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"

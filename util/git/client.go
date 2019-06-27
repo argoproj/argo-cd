@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	argoexec "github.com/alexec/pkg/exec"
+	argoexec "github.com/argoproj/pkg/exec"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"gopkg.in/src-d/go-git.v4"
