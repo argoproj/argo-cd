@@ -1255,6 +1255,10 @@ in an environment. It is defined by two key pieces of information:</p>
 
 
 <p>See <a href="../application.yaml">application.yaml</a> for additional fields</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The namespace must match the namespace of your Argo cd, typically this is <code>argocd</code>.</p>
+</div>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>By default, deleting an application will not perform a cascade delete, thereby deleting its resources. You must add the finalizer if you want this behaviour - which you may well not want.</p>
