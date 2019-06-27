@@ -306,6 +306,104 @@ func TestDontSyncOrPruneHooks(t *testing.T) {
 	assert.Equal(t, v1alpha1.OperationSucceeded, syncCtx.opState.Phase)
 }
 
+// make sure that if we have two hooks, then we remain running if the resources are running
+func TestMultipleHooks(t *testing.T) {
+	syncCtx := newTestSyncCtx()
+	syncCtx.syncOp.SyncStrategy.Apply = nil
+
+	preSyncHook := test.NewHook(v1alpha1.HookTypePreSync)
+	preSyncHook.SetNamespace(test.FakeArgoCDNamespace)
+
+	postSyncHook := test.NewHook(v1alpha1.HookTypePostSync)
+	postSyncHook.SetNamespace(test.FakeArgoCDNamespace)
+
+	syncCtx.compareResult = &comparisonResult{hooks: []*unstructured.Unstructured{preSyncHook, postSyncHook}}
+
+	syncCtx.sync()
+
+	assert.Equal(t, v1alpha1.OperationRunning, syncCtx.opState.Phase)
+	assert.Equal(t, "one or more tasks are running", syncCtx.opState.Message)
+
+	assert.Len(t, syncCtx.syncRes.Resources, 1)
+
+	resource := syncCtx.syncRes.Resources[0]
+	assert.Equal(t, v1alpha1.ResultCodeSynced, resource.Status)
+	assert.Equal(t, v1alpha1.OperationRunning, resource.HookPhase)
+
+	// we repeat the sync, and the sync remains running, because tasks are not healthy/degraded
+	syncCtx.sync()
+
+	assert.Equal(t, v1alpha1.OperationRunning, syncCtx.opState.Phase)
+	assert.Equal(t, "one or more tasks are running", syncCtx.opState.Message)
+
+	assert.Len(t, syncCtx.syncRes.Resources, 1)
+
+	resource = syncCtx.syncRes.Resources[0]
+	assert.Equal(t, v1alpha1.ResultCodeSynced, resource.Status)
+	assert.Equal(t, v1alpha1.OperationRunning, resource.HookPhase)
+}
+
+// make sure that if we have two hooks, then we remain running if the resources are running
+func TestMultipleWaves(t *testing.T) {
+	syncCtx := newTestSyncCtx()
+	syncCtx.syncOp.SyncStrategy.Apply = nil
+
+	wave0Pod := test.NewPod()
+	wave0Pod.SetAnnotations(map[string]string{common.AnnotationSyncWave: "0"})
+	wave0Pod.SetNamespace(test.FakeArgoCDNamespace)
+
+	wave1Pod := test.NewPod()
+	wave1Pod.SetAnnotations(map[string]string{common.AnnotationSyncWave: "1"})
+	wave1Pod.SetNamespace(test.FakeArgoCDNamespace)
+
+	syncCtx.compareResult = &comparisonResult{managedResources: []managedResource{{Target: wave0Pod}, {Target: wave1Pod}}}
+
+	syncCtx.sync()
+
+	assert.Equal(t, v1alpha1.OperationRunning, syncCtx.opState.Phase)
+	assert.Equal(t, "one or more tasks are running", syncCtx.opState.Message)
+
+	assert.Len(t, syncCtx.syncRes.Resources, 1)
+
+	resource := syncCtx.syncRes.Resources[0]
+	assert.Equal(t, v1alpha1.ResultCodeSynced, resource.Status)
+	assert.Equal(t, v1alpha1.OperationRunning, resource.HookPhase)
+
+	// we repeat the sync, and the sync remains running, because tasks are not healthy/degraded
+	syncCtx.sync()
+
+	assert.Equal(t, v1alpha1.OperationRunning, syncCtx.opState.Phase)
+	assert.Equal(t, "one or more tasks are running", syncCtx.opState.Message)
+
+	assert.Len(t, syncCtx.syncRes.Resources, 1)
+
+	resource = syncCtx.syncRes.Resources[0]
+	assert.Equal(t, v1alpha1.ResultCodeSynced, resource.Status)
+	assert.Equal(t, v1alpha1.OperationRunning, resource.HookPhase)
+}
+
+// make sure that if we have two hooks, then we remain running if the resources are running
+func TestSingleWave(t *testing.T) {
+	syncCtx := newTestSyncCtx()
+	syncCtx.syncOp.SyncStrategy.Apply = nil
+
+	pod := test.NewPod()
+	pod.SetNamespace(test.FakeArgoCDNamespace)
+
+	syncCtx.compareResult = &comparisonResult{managedResources: []managedResource{{Target: pod}}}
+
+	syncCtx.sync()
+
+	assert.Equal(t, v1alpha1.OperationSucceeded, syncCtx.opState.Phase)
+	assert.Equal(t, "successfully synced (all tasks run)", syncCtx.opState.Message)
+
+	assert.Len(t, syncCtx.syncRes.Resources, 1)
+
+	resource := syncCtx.syncRes.Resources[0]
+	assert.Equal(t, v1alpha1.ResultCodeSynced, resource.Status)
+	assert.Equal(t, v1alpha1.OperationRunning, resource.HookPhase)
+}
+
 // make sure that we do not prune resources with Prune=false
 func TestDontPrunePruneFalse(t *testing.T) {
 	syncCtx := newTestSyncCtx()

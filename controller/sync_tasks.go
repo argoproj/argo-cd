@@ -143,4 +143,3 @@ func (s syncTasks) wave() int {
 	}
 	return 0
 }
-

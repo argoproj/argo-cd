@@ -229,3 +229,55 @@ func TestSyncNamespaceAgainstCRD(t *testing.T) {
 
 	assert.Equal(t, syncTasks{namespace, crd}, unsorted)
 }
+
+func Test_syncTasks_Any(t *testing.T) {
+	type args struct {
+		predicate func(t *syncTask) bool
+	}
+	messageIsYes := func(t *syncTask) bool {
+		return t.message == "yes"
+	}
+	tests := []struct {
+		name string
+		s    syncTasks
+		args args
+		want bool
+	}{
+		{"Nil", syncTasks{}, args{predicate: messageIsYes}, false},
+		{"ZeroOfTwo", syncTasks{{}, {}}, args{predicate: messageIsYes}, false},
+		{"OneOfTwo", syncTasks{{message: "yes"}, {}}, args{predicate: messageIsYes}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.s.Any(tt.args.predicate); got != tt.want {
+				t.Errorf("syncTasks.Any() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_syncTasks_None(t *testing.T) {
+	type args struct {
+		predicate func(t *syncTask) bool
+	}
+	messageIsYes := func(t *syncTask) bool {
+		return t.message == "yes"
+	}
+	tests := []struct {
+		name string
+		s    syncTasks
+		args args
+		want bool
+	}{
+		{"Nil", syncTasks{}, args{predicate: messageIsYes}, true},
+		{"ZeroOfTwo", syncTasks{{}, {}}, args{predicate: messageIsYes}, true},
+		{"OneOfTwo", syncTasks{{message: "yes"}, {}}, args{predicate: messageIsYes}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.s.None(tt.args.predicate); got != tt.want {
+				t.Errorf("syncTasks.None() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
