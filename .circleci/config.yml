@@ -164,7 +164,7 @@ commands:
   save_go_cache:
     steps:
       - save_cache:
-          key: go-v15-{{ .Branch }}
+          key: go-v16-{{ .Branch }}
           paths:
             - /home/circleci/.go_workspace
             - /home/circleci/.cache/go-build
@@ -173,6 +173,8 @@ commands:
     steps:
       - restore_cache:
           keys:
+            - go-v16-{{ .Branch }}
+            - go-v16-master
             - go-v15-{{ .Branch }}
             - go-v15-master
 jobs:
