@@ -11,6 +11,7 @@ var syncPhaseOrder = map[v1alpha1.SyncPhase]int{
 	v1alpha1.SyncPhasePreSync:  -1,
 	v1alpha1.SyncPhaseSync:     0,
 	v1alpha1.SyncPhasePostSync: 1,
+	v1alpha1.SyncPhaseSyncFail: 2,
 }
 
 // kindOrder represents the correct order of Kubernetes resources within a manifest
