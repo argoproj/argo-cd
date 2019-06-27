@@ -18,6 +18,8 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	ssh2 "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
+
+	argoconfig "github.com/argoproj/argo-cd/util/config"
 )
 
 type RevisionMetadata struct {
@@ -112,7 +114,7 @@ func (m *nativeGitClient) Init() error {
 		return err
 	}
 	log.Infof("Initializing %s to %s", m.repoURL, m.root)
-	_, err = argoexec.RunCommand("rm", argoexec.CmdOpts{}, "-rf", m.root)
+	_, err = argoexec.RunCommand("rm", argoconfig.CmdOpts(), "-rf", m.root)
 	if err != nil {
 		return fmt.Errorf("unable to clean repo at %s: %v", m.root, err)
 	}
@@ -295,5 +297,5 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 	cmd.Env = append(cmd.Env, "HOME=/dev/null")
 	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOSYSTEM=true")
 	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOGLOBAL=true")
-	return argoexec.RunCommandExt(cmd, argoexec.CmdOpts{})
+	return argoexec.RunCommandExt(cmd, argoconfig.CmdOpts())
 }

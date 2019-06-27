@@ -20,6 +20,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/config"
 )
 
 type Kubectl interface {
@@ -247,7 +248,7 @@ func runKubectl(kubeconfigPath string, namespace string, args []string, manifest
 	}
 	cmd := exec.Command("kubectl", cmdArgs...)
 	cmd.Stdin = bytes.NewReader(manifestBytes)
-	out, err := argoexec.RunCommandExt(cmd, argoexec.CmdOpts{})
+	out, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
 	if err != nil {
 		return "", fmt.Errorf(cleanKubectlOutput(err.Error()))
 	}
@@ -277,7 +278,7 @@ func (k KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group strin
 	outputVersion := fmt.Sprintf("%s/%s", group, version)
 	cmd := exec.Command("kubectl", "convert", "--output-version", outputVersion, "-o", "json", "--local=true", "-f", f.Name())
 	cmd.Stdin = bytes.NewReader(manifestBytes)
-	out, err := argoexec.RunCommandExt(cmd, argoexec.CmdOpts{})
+	out, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
 	if err != nil {
 		return nil, fmt.Errorf(cleanKubectlOutput(err.Error()))
 	}

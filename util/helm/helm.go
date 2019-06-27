@@ -226,7 +226,7 @@ func (h *helm) helmCmdExt(args []string, logFormat func(string) string) (string,
 		cmd.Env = append(cmd.Env, fmt.Sprintf("HELM_HOME=%s", h.home))
 	}
 
-	return argoexec.RunCommandExt(cmd, argoexec.CmdOpts{})
+	return argoexec.RunCommandExt(cmd, config.CmdOpts())
 }
 
 func flatVals(input map[string]interface{}, output map[string]string, prefixes ...string) {

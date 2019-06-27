@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
@@ -98,7 +99,7 @@ func (k *ksonnetApp) ksCmd(args ...string) (string, error) {
 	cmd := exec.Command("ks", args...)
 	cmd.Dir = k.Root()
 
-	return argoexec.RunCommandExt(cmd, argoexec.CmdOpts{})
+	return argoexec.RunCommandExt(cmd, config.CmdOpts())
 }
 
 func (k *ksonnetApp) Root() string {

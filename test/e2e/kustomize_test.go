@@ -29,7 +29,6 @@ func TestKustomize2AppSource(t *testing.T) {
 		NamePrefix("k2-").
 		When().
 		Create().
-		Refresh(RefreshTypeHard).
 		PatchApp(`[
 			{
 				"op": "replace",
