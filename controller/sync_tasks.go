@@ -114,6 +114,14 @@ func (s syncTasks) Find(predicate func(task *syncTask) bool) *syncTask {
 	return nil
 }
 
+func (s syncTasks) Any(predicate func(t *syncTask) bool) bool {
+	return s.Find(predicate) != nil
+}
+
+func (s syncTasks) None(predicate func(t *syncTask) bool) bool {
+	return !s.Any(predicate)
+}
+
 func (s syncTasks) String() string {
 	var values []string
 	for _, task := range s {
@@ -135,3 +143,4 @@ func (s syncTasks) wave() int {
 	}
 	return 0
 }
+

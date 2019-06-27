@@ -247,16 +247,18 @@ func (sc *syncContext) sync() {
 		}
 	}
 
-	// any running tasks, lets wait...
-	if tasks.Find(func(t *syncTask) bool { return t.running() }) != nil {
-		sc.setOperationPhase(v1alpha1.OperationRunning, "one or more tasks are running")
-		return
-	}
+	// this block of logic is only for hook/wave syncs - it does not apply retro syncs
+	if tasks.Any(func(t *syncTask) bool { return t.isHook() || t.wave() != 0 }) {
+		if tasks.Find(func(t *syncTask) bool { return t.running() }) != nil {
+			sc.setOperationPhase(v1alpha1.OperationRunning, "one or more tasks are running")
+			return
+		}
 
-	// if there are any completed but unsuccessful tasks, sync is a failure.
-	if tasks.Find(func(t *syncTask) bool { return t.completed() && !t.successful() }) != nil {
-		sc.setOperationPhase(v1alpha1.OperationFailed, "one or more synchronization tasks completed unsuccessfully")
-		return
+		// if there are any completed but unsuccessful tasks, sync is a failure.
+		if tasks.Find(func(t *syncTask) bool { return t.completed() && !t.successful() }) != nil {
+			sc.setOperationPhase(v1alpha1.OperationFailed, "one or more synchronization tasks completed unsuccessfully")
+			return
+		}
 	}
 
 	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("filtering out completed tasks")
@@ -277,7 +279,7 @@ func (sc *syncContext) sync() {
 	// if it is the last phase/wave and the only remaining tasks are non-hooks, the we are successful
 	// EVEN if those objects subsequently degraded
 	// This handles the common case where neither hooks or waves are used and a sync equates to simply an (asynchronous) kubectl apply of manifests, which succeeds immediately.
-	complete := tasks.Find(func(t *syncTask) bool { return t.phase != phase || wave != t.wave() || t.isHook() }) == nil
+	complete := tasks.None(func(t *syncTask) bool { return t.phase != phase || wave != t.wave() || t.isHook() })
 
 	sc.log.WithFields(log.Fields{"phase": phase, "wave": wave, "tasks": tasks}).Debug("filtering tasks in correct phase and wave")
 	tasks = tasks.Filter(func(t *syncTask) bool { return t.phase == phase && t.wave() == wave })
@@ -464,7 +466,7 @@ func (sc *syncContext) liveObj(obj *unstructured.Unstructured) *unstructured.Uns
 	for _, resource := range sc.compareResult.managedResources {
 		if resource.Group == obj.GroupVersionKind().Group &&
 			resource.Kind == obj.GetKind() &&
-			// cluster scoped objects will not have a namespace, even if the user has defined it
+		// cluster scoped objects will not have a namespace, even if the user has defined it
 			(resource.Namespace == "" || resource.Namespace == obj.GetNamespace()) &&
 			resource.Name == obj.GetName() {
 			return resource.Live
