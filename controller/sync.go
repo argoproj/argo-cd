@@ -249,13 +249,13 @@ func (sc *syncContext) sync() {
 
 	// this block of logic is only for hook/wave syncs - it does not apply retro syncs
 	if tasks.Any(func(t *syncTask) bool { return t.isHook() || t.wave() != 0 }) {
-		if tasks.Find(func(t *syncTask) bool { return t.running() }) != nil {
+		if tasks.Any(func(t *syncTask) bool { return t.running() }) {
 			sc.setOperationPhase(v1alpha1.OperationRunning, "one or more tasks are running")
 			return
 		}
 
 		// if there are any completed but unsuccessful tasks, sync is a failure.
-		if tasks.Find(func(t *syncTask) bool { return t.completed() && !t.successful() }) != nil {
+		if tasks.Any(func(t *syncTask) bool { return t.completed() && !t.successful() }) {
 			sc.setOperationPhase(v1alpha1.OperationFailed, "one or more synchronization tasks completed unsuccessfully")
 			return
 		}

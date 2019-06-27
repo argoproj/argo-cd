@@ -105,17 +105,13 @@ func (s syncTasks) Filter(predicate func(task *syncTask) bool) (tasks syncTasks)
 	return tasks
 }
 
-func (s syncTasks) Find(predicate func(task *syncTask) bool) *syncTask {
+func (s syncTasks) Any(predicate func(t *syncTask) bool) bool {
 	for _, task := range s {
 		if predicate(task) {
-			return task
+			return true
 		}
 	}
-	return nil
-}
-
-func (s syncTasks) Any(predicate func(t *syncTask) bool) bool {
-	return s.Find(predicate) != nil
+	return false
 }
 
 func (s syncTasks) None(predicate func(t *syncTask) bool) bool {
