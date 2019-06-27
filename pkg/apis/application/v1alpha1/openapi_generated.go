@@ -2778,17 +2778,16 @@ func schema_pkg_apis_application_v1alpha1_SyncStrategyHook(ref common.ReferenceC
 				Description: "SyncStrategyHook will perform a sync using hooks annotations. If no hook annotation is specified falls back to `kubectl apply`.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"SyncStrategyApply": {
+					"force": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Embed SyncStrategyApply type to inherit any `apply` options",
-							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncStrategyApply"),
+							Description: "Force indicates whether or not to supply the --force flag to `kubectl apply`. The --force flag deletes and re-create the resource, when PATCH encounters conflict and has retried for 5 times.",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
 				},
 			},
 		},
-		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncStrategyApply"},
 	}
 }
 
