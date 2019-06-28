@@ -4,7 +4,6 @@ import * as React from 'react';
 import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 
-import {Cluster} from '../../../shared/components/cluster';
 import { ApplicationURLs } from '../application-urls';
 import * as AppUtils from '../utils';
 
@@ -60,9 +59,7 @@ export const ApplicationTiles = ({applications, syncApplication, deleteApplicati
                             </div>
                             <div className='row'>
                                 <div className='columns small-3'>Destination:</div>
-                                <div className='columns small-9'>
-                                    <Cluster url={app.spec.destination.server}/>
-                                </div>
+                                <div className='columns small-9'>{app.spec.destination.server}</div>
                             </div>
                             <div className='row'>
                                 <div className='columns small-3'>Namespace:</div>

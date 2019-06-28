@@ -1,7 +1,6 @@
 import { DropDownMenu } from 'argo-ui';
 import * as React from 'react';
 
-import {Cluster} from '../../../shared/components/cluster';
 import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { ApplicationURLs } from '../application-urls';
@@ -40,7 +39,7 @@ export const ApplicationsTable = (props: {
                         {app.spec.source.targetRevision || 'HEAD'}
                     </div>
                     <div className='columns large-3 show-for-large'>
-                        <Cluster url={app.spec.destination.server}/>/{app.spec.destination.namespace}
+                        {app.spec.destination.server}/{app.spec.destination.namespace}
                     </div>
                     <div className='columns large-3 small-4'>
                         <div className='applications-list__table-icon'>
