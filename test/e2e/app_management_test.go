@@ -671,10 +671,14 @@ func TestSelfManagedApps(t *testing.T) {
 			reconciledCount := 0
 			var lastReconciledAt *metav1.Time
 			for event := range fixture.ArgoCDClientset.WatchApplicationWithRetry(ctx, a.Name) {
-				if lastReconciledAt != nil && !lastReconciledAt.Equal(&event.Application.Status.ReconciledAt) {
+				reconciledAt := event.Application.Status.ReconciledAt
+				if reconciledAt == nil {
+					reconciledAt = &metav1.Time{}
+				}
+				if lastReconciledAt != nil && !lastReconciledAt.Equal(reconciledAt) {
 					reconciledCount = reconciledCount + 1
 				}
-				lastReconciledAt = &event.Application.Status.ReconciledAt
+				lastReconciledAt = reconciledAt
 			}
 
 			assert.True(t, reconciledCount < maxReconcileCount, "Application was reconciled too many times")
