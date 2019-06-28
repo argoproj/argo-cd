@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	argoexec "github.com/argoproj/pkg/exec"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"gopkg.in/src-d/go-git.v4"
@@ -17,6 +18,8 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	ssh2 "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
+
+	argoconfig "github.com/argoproj/argo-cd/util/config"
 )
 
 type RevisionMetadata struct {
@@ -111,7 +114,7 @@ func (m *nativeGitClient) Init() error {
 		return err
 	}
 	log.Infof("Initializing %s to %s", m.repoURL, m.root)
-	_, err = exec.Command("rm", "-rf", m.root).Output()
+	_, err = argoexec.RunCommand("rm", argoconfig.CmdOpts(), "-rf", m.root)
 	if err != nil {
 		return fmt.Errorf("unable to clean repo at %s: %v", m.root, err)
 	}
@@ -294,18 +297,5 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 	cmd.Env = append(cmd.Env, "HOME=/dev/null")
 	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOSYSTEM=true")
 	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOGLOBAL=true")
-	out, err := cmd.Output()
-	if len(out) > 0 {
-		log.Debug(string(out))
-	}
-	if err != nil {
-		exErr, ok := err.(*exec.ExitError)
-		if ok {
-			errOutput := strings.Split(string(exErr.Stderr), "\n")[0]
-			log.Debug(errOutput)
-			return string(out), fmt.Errorf("'%s' failed: %v", strings.Join(cmd.Args, " "), errOutput)
-		}
-		return string(out), fmt.Errorf("'%s' failed: %v", strings.Join(cmd.Args, " "), err)
-	}
-	return string(out), nil
+	return argoexec.RunCommandExt(cmd, argoconfig.CmdOpts())
 }

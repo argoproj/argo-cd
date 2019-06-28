@@ -636,7 +636,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 					return
 				}
 			}
-			app.Status.ObservedAt = metav1.Now()
+			now := metav1.Now()
+			app.Status.ObservedAt = &now
 			ctrl.persistAppStatus(origApp, &app.Status)
 			return
 		}
@@ -675,8 +676,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		conditions = append(conditions, *syncErrCond)
 	}
 
-	app.Status.ObservedAt = compareResult.reconciledAt
-	app.Status.ReconciledAt = compareResult.reconciledAt
+	app.Status.ObservedAt = &compareResult.reconciledAt
+	app.Status.ReconciledAt = &compareResult.reconciledAt
 	app.Status.Sync = *compareResult.syncStatus
 	app.Status.Health = *compareResult.healthStatus
 	app.Status.Resources = compareResult.resources
@@ -695,7 +696,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	var reason string
 	fullRefresh := true
 	refreshType := appv1.RefreshTypeNormal
-	expired := app.Status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
+	expired := app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
 	if requestedType, ok := app.IsRefreshRequested(); ok {
 		refreshType = requestedType
 		reason = fmt.Sprintf("%s refresh requested", refreshType)

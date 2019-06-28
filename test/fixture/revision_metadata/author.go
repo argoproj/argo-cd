@@ -2,8 +2,9 @@ package revision_metadata
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
+
+	argoexec "github.com/argoproj/pkg/exec"
 
 	"github.com/argoproj/argo-cd/errors"
 )
@@ -11,9 +12,9 @@ import (
 var Author string
 
 func init() {
-	userName, err := exec.Command("git", "config", "--get", "user.name").Output()
+	userName, err := argoexec.RunCommand("git", argoexec.CmdOpts{}, "config", "--get", "user.name")
 	errors.CheckError(err)
-	userEmail, err := exec.Command("git", "config", "--get", "user.email").Output()
+	userEmail, err := argoexec.RunCommand("git", argoexec.CmdOpts{}, "config", "--get", "user.email")
 	errors.CheckError(err)
-	Author = fmt.Sprintf("%s <%s>", strings.TrimSpace(string(userName)), strings.TrimSpace(string(userEmail)))
+	Author = fmt.Sprintf("%s <%s>", strings.TrimSpace(userName), strings.TrimSpace(userEmail))
 }
