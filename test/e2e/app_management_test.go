@@ -62,7 +62,7 @@ func TestInvalidAppProject(t *testing.T) {
 		When().
 		Create().
 		Then().
-		Expect(Error("application references project does-not-exist which does not exist"))
+		Expect(Error("", "application references project does-not-exist which does not exist"))
 }
 
 func TestAppDeletion(t *testing.T) {
@@ -294,7 +294,8 @@ func TestResourceDiffing(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
-			diffOutput, _ := fixture.RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
+			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
+			assert.Error(t, err)
 			assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", fixture.DeploymentNamespace()))
 		}).
 		Given().
@@ -445,8 +446,9 @@ func TestSyncResourceByLabel(t *testing.T) {
 		}).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			res, _ := fixture.RunCli("app", "sync", app.Name, "--label", "this-label=does-not-exist")
-			assert.Contains(t, res, "level=fatal")
+			_, err := fixture.RunCli("app", "sync", app.Name, "--label", "this-label=does-not-exist")
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "level=fatal")
 		})
 }
 
@@ -522,14 +524,14 @@ func TestPermissions(t *testing.T) {
 	assert.NoError(t, err)
 
 	// make sure app cannot be created without permissions in project
-	output, err := fixture.RunCli("app", "create", appName, "--repo", fixture.RepoURL(),
+	_, err = fixture.RunCli("app", "create", appName, "--repo", fixture.RepoURL(),
 		"--path", guestbookPath, "--project", "test", "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
 	assert.Error(t, err)
 	sourceError := fmt.Sprintf("application repo %s is not permitted in project 'test'", fixture.RepoURL())
 	destinationError := fmt.Sprintf("application destination {%s %s} is not permitted in project 'test'", common.KubernetesInternalAPIServerAddr, fixture.DeploymentNamespace())
 
-	assert.Contains(t, output, sourceError)
-	assert.Contains(t, output, destinationError)
+	assert.Contains(t, err.Error(), sourceError)
+	assert.Contains(t, err.Error(), destinationError)
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get("test", metav1.GetOptions{})
 	assert.NoError(t, err)
@@ -614,13 +616,13 @@ func TestSyncOptionValidateFalse(t *testing.T) {
 		Sync().
 		Then().
 		// client error
-		Expect(Error("error validating data")).
+		Expect(Error("error validating data", "")).
 		When().
 		PatchFile("deployment.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Validate=false"}}]`).
 		Sync().
 		Then().
 		// server error
-		Expect(Error("Error from server"))
+		Expect(Error("Error from server", ""))
 }
 
 // make sure that, if we have a resource that needs pruning, but we're ignoring it, the app is in-sync
