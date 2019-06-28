@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"os"
 	"path"
 	"strings"
 	"testing"
@@ -52,16 +53,6 @@ func TestAppCreation(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Contains(t, output, fixture.Name())
 		})
-}
-
-func TestInvalidAppProject(t *testing.T) {
-	Given(t).
-		Path(guestbookPath).
-		Project("does-not-exist").
-		When().
-		Create().
-		Then().
-		Expect(Error("", "application references project does-not-exist which does not exist"))
 }
 
 func TestAppDeletion(t *testing.T) {
