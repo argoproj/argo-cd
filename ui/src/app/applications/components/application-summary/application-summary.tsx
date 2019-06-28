@@ -9,7 +9,7 @@ import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 
-import {Cluster, clusterTitle} from '../../../shared/components/cluster';
+import {Cluster, clusterTitle} from '../../../shared/components';
 import {Repo} from '../../../shared/components/repo';
 import {Revision} from '../../../shared/components/revision';
 import { ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage } from '../utils';

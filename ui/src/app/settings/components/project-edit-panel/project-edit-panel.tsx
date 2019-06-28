@@ -3,7 +3,7 @@ import * as React from 'react';
 import {Form, FormApi, Text} from 'react-form';
 
 import {DataLoader} from '../../../shared/components';
-import {clusterTitle} from '../../../shared/components/cluster';
+import {clusterTitle} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {ProjectParams, services} from '../../../shared/services';
 
