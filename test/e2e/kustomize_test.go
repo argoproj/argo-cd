@@ -81,7 +81,7 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 		When().
 		Sync().
 		Then().
-		Expect(Error("1 resources require pruning")).
+		Expect(Error("", "1 resources require pruning")).
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		// this is a key check - we expect the app to be healthy because, even though we have a resources that needs
 		// pruning, because it is annotated with IgnoreExtraneous it should not contribute to the sync status

@@ -187,9 +187,9 @@ func Success(message string) Expectation {
 }
 
 // asserts that the last command was an error with substring match
-func Error(message string) Expectation {
+func Error(message, err string) Expectation {
 	return func(c *Consequences) (state, string) {
-		if c.actions.lastError != nil && strings.Contains(c.actions.lastOutput, message) {
+		if c.actions.lastError != nil && strings.Contains(c.actions.lastOutput, message) && strings.Contains(c.actions.lastError.Error(), err) {
 			return succeeded, fmt.Sprintf("found error with message '%s'", c.actions.lastOutput)
 		}
 		return failed, fmt.Sprintf("expected error with message '%s', got error '%v' message '%s'", message, c.actions.lastError, c.actions.lastOutput)
