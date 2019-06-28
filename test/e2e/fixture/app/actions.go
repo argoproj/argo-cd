@@ -27,6 +27,11 @@ func (a *Actions) DeleteFile(file string) *Actions {
 	return a
 }
 
+func (a *Actions) AddFile(fileName, fileContents string) *Actions {
+	fixture.AddFile(a.context.path+"/"+fileName, fileContents)
+	return a
+}
+
 func (a *Actions) Create() *Actions {
 
 	args := []string{
