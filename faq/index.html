@@ -767,6 +767,18 @@
   </li>
 
         
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../user-guide/status-badge/" title="Status Badge" class="md-nav__link">
+      Status Badge
+    </a>
+  </li>
+
+        
       </ul>
     </nav>
   </li>
@@ -1142,7 +1154,7 @@ to return <code>Progressing</code> state instead of <code>Healthy</code>.</p>
  <code>status.loadBalancer.ingress</code> field which causes <code>Ingress</code> to stuck in <code>Progressing</code> state forever.</p>
 </li>
 <li>
-<p><code>StatufulSet</code> is considered healthy if value of <code>status.updatedReplicas</code> field matches to <code>spec.replicas</code> field. Due to Kubernetes bug
+<p><code>StatefulSet</code> is considered healthy if value of <code>status.updatedReplicas</code> field matches to <code>spec.replicas</code> field. Due to Kubernetes bug
 <a href="https://github.com/kubernetes/kubernetes/issues/68573">kubernetes/kubernetes#68573</a> the <code>status.updatedReplicas</code> is not populated. So unless you run Kubernetes version which
 include the fix <a href="https://github.com/kubernetes/kubernetes/pull/67570">kubernetes/kubernetes#67570</a> <code>StatefulSet</code> might stay in <code>Progressing</code> state.</p>
 </li>
@@ -1151,7 +1163,7 @@ include the fix <a href="https://github.com/kubernetes/kubernetes/pull/67570">ku
 <h2 id="i-forgot-the-admin-password-how-do-i-reset-it">I forgot the admin password, how do I reset it?<a class="headerlink" href="#i-forgot-the-admin-password-how-do-i-reset-it" title="Permanent link">&para;</a></h2>
 <p>By default the password is set to the name of the server pod, as per <a href="../getting_started/">the getting started guide</a>.</p>
 <p>To change the password, edit the <code>argocd-secret</code> secret and update the <code>admin.password</code> field with a new bcrypt hash. You
-can use a site like https://www.browserling.com/tools/bcrypt to generate a new hash. For example: </p>
+can use a site like https://www.browserling.com/tools/bcrypt to generate a new hash. For example:</p>
 <div class="codehilite"><pre><span></span><span class="c1"># bcrypt(Password1!)=$2a$10$hDj12Tw9xVmvybSahN1Y0.f9DZixxN8oybyA32Uy/eqWklFU4Mo8O</span>
 kubectl -n argocd patch secret argocd-secret <span class="se">\</span>
   -p <span class="s2">&quot;{\&quot;data\&quot;: \</span>
