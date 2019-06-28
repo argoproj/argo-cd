@@ -5,16 +5,24 @@ import (
 	"time"
 
 	"github.com/argoproj/pkg/exec"
+	log "github.com/sirupsen/logrus"
 )
 
-func timeout() time.Duration {
-	duration, err := time.ParseDuration(os.Getenv("ARGOCD_EXEC_TIMEOUT"))
+var timeout time.Duration
+
+func init() {
+	initTimeout()
+}
+
+func initTimeout() {
+	var err error
+	timeout, err = time.ParseDuration(os.Getenv("ARGOCD_EXEC_TIMEOUT"))
 	if err != nil {
-		duration = 90 * time.Second
+		timeout = 90 * time.Second
 	}
-	return duration
+	log.WithFields(log.Fields{"timeout": timeout}).Info("configured exec timout")
 }
 
 func CmdOpts() exec.CmdOpts {
-	return exec.CmdOpts{Timeout: timeout()}
+	return exec.CmdOpts{Timeout: timeout}
 }

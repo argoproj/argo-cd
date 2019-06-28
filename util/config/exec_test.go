@@ -22,11 +22,13 @@ func Test_timeout(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_ = os.Setenv("ARGOCD_EXEC_TIMEOUT", tt.text)
-			assert.Equal(t, tt.want, timeout())
+			initTimeout()
+			assert.Equal(t, tt.want, timeout)
 		})
 	}
 }
 
 func TestCmdOpts(t *testing.T) {
+	initTimeout()
 	assert.Equal(t, exec.CmdOpts{Timeout: 90 * time.Second}, CmdOpts())
 }
