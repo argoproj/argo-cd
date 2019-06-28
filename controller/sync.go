@@ -304,7 +304,7 @@ func (sc *syncContext) setOperationFailed(syncFailTasks syncTasks, message strin
 			sc.setOperationPhase(v1alpha1.OperationFailed, message)
 			return
 		}
-		// otherwise, we need to start the failure hooks, and ther return without setting
+		// otherwise, we need to start the failure hooks, and then return without setting
 		// the phase, so we make sure we have at least one more sync
 		sc.log.WithFields(log.Fields{"syncFailTasks": syncFailTasks}).Debug("running sync fail tasks")
 		if !sc.runTasks(syncFailTasks, false) {
