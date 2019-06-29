@@ -26,6 +26,7 @@ import (
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:path=applications,shortName=app;apps
 type Application struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
@@ -228,9 +229,9 @@ type ApplicationStatus struct {
 	Health         HealthStatus           `json:"health,omitempty" protobuf:"bytes,3,opt,name=health"`
 	History        []RevisionHistory      `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
 	Conditions     []ApplicationCondition `json:"conditions,omitempty" protobuf:"bytes,5,opt,name=conditions"`
-	ReconciledAt   metav1.Time            `json:"reconciledAt,omitempty" protobuf:"bytes,6,opt,name=reconciledAt"`
+	ReconciledAt   *metav1.Time           `json:"reconciledAt,omitempty" protobuf:"bytes,6,opt,name=reconciledAt"`
 	OperationState *OperationState        `json:"operationState,omitempty" protobuf:"bytes,7,opt,name=operationState"`
-	ObservedAt     metav1.Time            `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
+	ObservedAt     *metav1.Time           `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
 	SourceType     ApplicationSourceType  `json:"sourceType,omitempty" protobuf:"bytes,9,opt,name=sourceType"`
 	Summary        ApplicationSummary     `json:"summary,omitempty" protobuf:"bytes,10,opt,name=summary"`
 }
@@ -367,7 +368,7 @@ type SyncStrategyApply struct {
 type SyncStrategyHook struct {
 	// Embed SyncStrategyApply type to inherit any `apply` options
 	// +optional
-	SyncStrategyApply `protobuf:"bytes,1,opt,name=syncStrategyApply"`
+	SyncStrategyApply `json:",inline" protobuf:"bytes,1,opt,name=syncStrategyApply"`
 }
 
 type HookType string
@@ -377,6 +378,7 @@ const (
 	HookTypeSync     HookType = "Sync"
 	HookTypePostSync HookType = "PostSync"
 	HookTypeSkip     HookType = "Skip"
+	HookTypeSyncFail HookType = "SyncFail"
 
 	// NOTE: we may consider adding SyncFail hook. With a SyncFail hook, finalizer-like logic could
 	// be implemented by specifying both PostSync,SyncFail in the hook annotation:
@@ -433,6 +435,7 @@ const (
 	SyncPhasePreSync  = "PreSync"
 	SyncPhaseSync     = "Sync"
 	SyncPhasePostSync = "PostSync"
+	SyncPhaseSyncFail = "SyncFail"
 )
 
 // ResourceResult holds the operation result details of a specific resource
@@ -890,6 +893,7 @@ type AppProjectList struct {
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:path=appprojects,shortName=appproj;appprojs
 type AppProject struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`

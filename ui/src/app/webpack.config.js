@@ -1,8 +1,10 @@
 'use strict;';
 
+const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const webpack = require('webpack');
+const path = require('path');
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -29,7 +31,7 @@ const config = {
         rules: [
             {
                 test: /\.tsx?$/,
-                loaders: [ ...( isProd ? [] : ['react-hot-loader/webpack']), 'awesome-typescript-loader?configFileName=./src/app/tsconfig.json']
+                loaders: [ ...( isProd ? [] : ['react-hot-loader/webpack']), `ts-loader?allowTsInNodeModules=true&configFile=${path.resolve('./src/app/tsconfig.json')}`]
             }, {
                 enforce: 'pre',
                 exclude: [
@@ -65,6 +67,7 @@ const config = {
         }, {
             from: 'node_modules/@fortawesome/fontawesome-free/webfonts', to: 'assets/fonts'
         }]),
+        new MonacoWebpackPlugin(),
     ],
     devServer: {
         historyApiFallback: true,

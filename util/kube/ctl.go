@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/pkg/errors"
+	argoexec "github.com/argoproj/pkg/exec"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -20,6 +20,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/diff"
 )
 
@@ -247,7 +248,6 @@ func runKubectl(kubeconfigPath string, namespace string, args []string, manifest
 		cmdArgs = append(cmdArgs, "--dry-run")
 	}
 	cmd := exec.Command("kubectl", cmdArgs...)
-	log.Info(cmd.Args)
 	if log.IsLevelEnabled(log.DebugLevel) {
 		var obj unstructured.Unstructured
 		err := json.Unmarshal(manifestBytes, &obj)
@@ -265,15 +265,11 @@ func runKubectl(kubeconfigPath string, namespace string, args []string, manifest
 		log.Debug(string(redactedBytes))
 	}
 	cmd.Stdin = bytes.NewReader(manifestBytes)
-	out, err := cmd.Output()
+	out, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
 	if err != nil {
-		if exErr, ok := err.(*exec.ExitError); ok {
-			errMsg := cleanKubectlOutput(string(exErr.Stderr))
-			return "", errors.New(errMsg)
-		}
-		return "", err
+		return "", fmt.Errorf(cleanKubectlOutput(err.Error()))
 	}
-	return strings.TrimSpace(string(out)), nil
+	return out, nil
 }
 
 // ConvertToVersion converts an unstructured object into the specified group/version
@@ -299,18 +295,14 @@ func (k KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group strin
 	outputVersion := fmt.Sprintf("%s/%s", group, version)
 	cmd := exec.Command("kubectl", "convert", "--output-version", outputVersion, "-o", "json", "--local=true", "-f", f.Name())
 	cmd.Stdin = bytes.NewReader(manifestBytes)
-	out, err := cmd.Output()
+	out, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
 	if err != nil {
-		if exErr, ok := err.(*exec.ExitError); ok {
-			errMsg := cleanKubectlOutput(string(exErr.Stderr))
-			return nil, errors.New(errMsg)
-		}
-		return nil, fmt.Errorf("failed to convert %s/%s to %s/%s", obj.GetKind(), obj.GetName(), group, version)
+		return nil, fmt.Errorf(cleanKubectlOutput(err.Error()))
 	}
 	// NOTE: when kubectl convert runs against stdin (i.e. kubectl convert -f -), the output is
 	// a unstructured list instead of an unstructured object
 	var convertedObj unstructured.Unstructured
-	err = json.Unmarshal(out, &convertedObj)
+	err = json.Unmarshal([]byte(out), &convertedObj)
 	if err != nil {
 		return nil, err
 	}

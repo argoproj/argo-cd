@@ -180,9 +180,36 @@ func SetConfigManagementPlugins(plugin ...v1alpha1.ConfigManagementPlugin) {
 	})
 }
 
+func SetRepos(repos ...settings.RepoCredentials) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		yamlBytes, err := yaml.Marshal(repos)
+		if err != nil {
+			return err
+		}
+		cm.Data["repositories"] = string(yamlBytes)
+		return nil
+	})
+}
+
+func SetRepoCredentials(repos ...settings.RepoCredentials) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		yamlBytes, err := yaml.Marshal(repos)
+		if err != nil {
+			return err
+		}
+		cm.Data["repository.credentials"] = string(yamlBytes)
+		return nil
+	})
+}
+
 func SetHelmRepoCredential(creds settings.HelmRepoCredentials) {
-	Settings(func(s *settings.ArgoCDSettings) {
-		s.HelmRepositories = []settings.HelmRepoCredentials{creds}
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		yamlBytes, err := yaml.Marshal(creds)
+		if err != nil {
+			return err
+		}
+		cm.Data["helm.repositories"] = string(yamlBytes)
+		return nil
 	})
 }
 
@@ -224,6 +251,8 @@ func EnsureCleanState(t *testing.T) {
 	}))
 	SetResourceOverrides(make(map[string]v1alpha1.ResourceOverride))
 	SetConfigManagementPlugins()
+	SetRepoCredentials()
+	SetRepos()
 
 	// remove tmp dir
 	CheckError(os.RemoveAll(tmpDir))
@@ -307,6 +336,19 @@ func Delete(path string) {
 
 	FailOnErr(Run(repoDirectory(), "git", "diff"))
 	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "delete"))
+}
+
+func AddFile(path, contents string) {
+
+	checkLocalRepo()
+
+	log.WithFields(log.Fields{"path": path}).Info("adding")
+
+	CheckError(ioutil.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0644))
+
+	FailOnErr(Run(repoDirectory(), "git", "diff"))
+	FailOnErr(Run(repoDirectory(), "git", "add", "."))
+	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "add file"))
 }
 
 func checkLocalRepo() {
