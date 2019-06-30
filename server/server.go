@@ -495,7 +495,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		Handler: &handlerSwitcher{
 			handler: &bug21955Workaround{handler: mux},
 			urlToHandler: map[string]http.Handler{
-				"/api/badge": badge.NewHandler(a.AppClientset, a.Namespace),
+				"/api/badge": badge.NewHandler(a.AppClientset, a.settingsMgr, a.Namespace),
 			},
 			contentTypeToHandler: map[string]http.Handler{
 				"application/grpc-web+proto": grpcWebHandler,

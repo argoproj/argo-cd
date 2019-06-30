@@ -7,6 +7,9 @@ data:
   # Argo CD's externally facing base URL (optional). Required when configuring SSO
   url: https://argo-cd-demo.argoproj.io
 
+  # Enables application status badge feature
+  statusbadge.enabled: 'true'
+
   # A dex connector configuration (optional). See SSO configuration documentation:
   # https://github.com/argoproj/argo-cd/blob/master/docs/sso.md
   # https://github.com/dexidp/dex/tree/master/Documentation/connectors

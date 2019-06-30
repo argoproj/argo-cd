@@ -36,6 +36,8 @@ type ArgoCDSettings struct {
 	// URL is the externally facing URL users will visit to reach Argo CD.
 	// The value here is used when configuring SSO. Omitting this value will disable SSO.
 	URL string `json:"url,omitempty"`
+	// Indicates if status badge is enabled or not.
+	StatusBadgeEnabled bool `json:"statusBadgeEnable"`
 	// Admin superuser password storage
 	AdminPasswordHash  string    `json:"adminPasswordHash,omitempty"`
 	AdminPasswordMtime time.Time `json:"adminPasswordMtime,omitempty"`
@@ -112,6 +114,7 @@ const (
 	settingDexConfigKey = "dex.config"
 	// settingsOIDCConfigKey designates the key for OIDC config
 	settingsOIDCConfigKey = "oidc.config"
+	statusBadgeEnabledKey = "statusbadge.enabled"
 	// settingsWebhookGitHubSecret is the key for the GitHub shared webhook secret
 	settingsWebhookGitHubSecretKey = "webhook.github.secret"
 	// settingsWebhookGitLabSecret is the key for the GitLab shared webhook secret
@@ -423,6 +426,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
 	settings.URL = argoCDCM.Data[settingURLKey]
+	settings.StatusBadgeEnabled = argoCDCM.Data[statusBadgeEnabledKey] == "true"
 	return nil
 }
 
