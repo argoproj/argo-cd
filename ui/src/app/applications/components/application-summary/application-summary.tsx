@@ -4,7 +4,7 @@ import { FormApi, Text } from 'react-form';
 
 require('./application-summary.scss');
 
-import { DataLoader, EditablePanel, EditablePanelItem } from '../../../shared/components';
+import { Cluster, clusterTitle, DataLoader, EditablePanel, EditablePanelItem } from '../../../shared/components';
 import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
@@ -40,10 +40,10 @@ export const ApplicationSummary = (props: {
         },
         {
             title: 'CLUSTER',
-            view: app.spec.destination.server,
+            view: <Cluster url={app.spec.destination.server} showUrl={true}/> ,
             edit: (formApi: FormApi) => (
                 <DataLoader load={() => services.clusters.list().then((clusters) => clusters.map((cluster) => ({
-                    title: `${cluster.name || 'in-cluster'}: ${cluster.server}`,
+                    title: clusterTitle(cluster),
                     value: cluster.server,
                 })))}>
                     {(clusters) => (
@@ -173,7 +173,7 @@ export const ApplicationSummary = (props: {
             save={props.updateApp}
             validate={(input) => ({
                 'spec.project': !input.spec.project && 'Project name is required',
-                'spec.destination.server': !input.spec.destination.server && 'Cluster URL is required',
+                'spec.destination.server': !input.spec.destination.server && 'Cluster is required',
                 'spec.destination.namespace': !input.spec.destination.namespace && 'Namespace is required',
             })} values={app} title={app.metadata.name.toLocaleUpperCase()} items={attributes} />
             <Consumer>{(ctx) => (

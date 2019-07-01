@@ -2,7 +2,7 @@ import { Checkbox, DataLoader } from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
 
-import { TagsInput } from '../../../shared/components';
+import {TagsInput} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import { AppsListPreferences, services } from '../../../shared/services';
 

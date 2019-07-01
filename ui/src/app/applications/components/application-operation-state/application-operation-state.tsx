@@ -5,6 +5,7 @@ import * as React from 'react';
 
 import { ErrorNotification } from '../../../shared/components';
 import {Revision} from '../../../shared/components/revision';
+import {Timestamp} from '../../../shared/components/timestamp';
 import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -20,7 +21,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
         {title: 'OPERATION', value: utils.getOperationType(application)},
         {title: 'PHASE', value: operationState.phase},
         ...(operationState.message ? [{title: 'MESSAGE', value: operationState.message}] : []),
-        {title: 'STARTED AT', value: operationState.startedAt},
+        {title: 'STARTED AT', value: <Timestamp date={operationState.startedAt}/>},
         {title: 'DURATION', value: (
             <Ticker>
                 {(time) => <Duration durationMs={(operationState.finishedAt && moment(operationState.finishedAt) || time).diff(moment(operationState.startedAt)) / 1000}/>}
@@ -29,7 +30,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
     ];
 
     if (operationState.finishedAt) {
-        operationAttributes.push({ title: 'FINISHED AT', value: operationState.finishedAt});
+        operationAttributes.push({ title: 'FINISHED AT', value: <Timestamp date={operationState.finishedAt}/>});
     } else if (operationState.phase !== 'Terminating') {
         operationAttributes.push({
             title: '',

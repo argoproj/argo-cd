@@ -1,10 +1,10 @@
-import { FormField, FormSelect } from 'argo-ui';
+import {FormField, FormSelect} from 'argo-ui';
 import * as React from 'react';
-import { Form, FormApi, Text } from 'react-form';
+import {Form, FormApi, Text} from 'react-form';
 
-import { DataLoader } from '../../../shared/components';
+import {clusterTitle, DataLoader} from '../../../shared/components';
 import * as models from '../../../shared/models';
-import { ProjectParams, services } from '../../../shared/services';
+import {ProjectParams, services} from '../../../shared/services';
 
 require('./project-edit-panel.scss');
 
@@ -62,21 +62,25 @@ export const ProjectEditPanel = (props: {
                     )}
                 </DataLoader>
 
-                <DataLoader load={() => services.clusters.list().then((clusters) => clusters.concat({server: '*'} as models.Cluster).map((cluster) => cluster.server))}>
+                <DataLoader load={() => services.clusters.list()}>
                     {(clusters) => (
                         <React.Fragment>
                             <h4>Destinations</h4>
-                            <div>Cluster URLs and namespaces where applications are permitted to be deployed to</div>
+                            <div>Cluster and namespaces where applications are permitted to be deployed to</div>
                             <div className='argo-table-list__head'>
                                 <div className='row'>
-                                    <div className='columns small-5'>CLUSTER URL</div>
+                                    <div className='columns small-5'>CLUSTER</div>
                                     <div className='columns small-5'>NAMESPACE</div>
                                 </div>
                             </div>
                             {(api.values.destinations as Array<models.ApplicationDestination>).map((_, i) => (
                                 <div key={i} className='row project-edit-panel__form-row'>
                                     <div className='columns small-5'>
-                                        <FormSelect field={['destinations', i, 'server']} options={clusters}/>
+                                        <FormSelect field={['destinations', i, 'server']}
+                                                    options={clusters.map((cluster) => ({
+                                                        value: cluster.server,
+                                                        title: clusterTitle(cluster),
+                                                    })).concat({value: '*', title: '*'})}/>
                                     </div>
                                     <div className='columns small-5'>
                                         <Text className='argo-field' field={['destinations', i, 'namespace']}/>

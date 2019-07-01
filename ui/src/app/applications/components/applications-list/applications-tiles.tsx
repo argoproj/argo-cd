@@ -59,9 +59,13 @@ export const ApplicationTiles = ({applications, syncApplication, deleteApplicati
                             </div>
                             <div className='row'>
                                 <div className='columns small-3'>Destination:</div>
+                                <div className='columns small-9'>{app.spec.destination.server}</div>
+                            </div>
+                            <div className='row'>
+                                <div className='columns small-3'>Namespace:</div>
                                 <div className='columns small-9'>
-                                    <Tooltip content={app.spec.destination.server + '/' + app.spec.destination.namespace}>
-                                        <span>{app.spec.destination.server}/{app.spec.destination.namespace}</span>
+                                    <Tooltip content={app.spec.destination.namespace}>
+                                        <span>{app.spec.destination.namespace}</span>
                                     </Tooltip>
                                 </div>
                             </div>
