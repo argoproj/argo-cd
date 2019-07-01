@@ -21,6 +21,12 @@ message Settings {
     string appLabelKey = 4;
     map<string, github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ResourceOverride> resourceOverrides = 5;
     bool statusBadgeEnabled = 6;
+    GoogleAnalyticsConfig googleAnalytics =7;
+}
+
+message GoogleAnalyticsConfig {
+    string trackingID = 1;
+    bool anonymizeUsers = 2;
 }
 
 message DexConfig {

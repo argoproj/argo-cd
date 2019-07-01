@@ -1615,6 +1615,18 @@
         }
       }
     },
+    "clusterGoogleAnalyticsConfig": {
+      "type": "object",
+      "properties": {
+        "anonymizeUsers": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "trackingID": {
+          "type": "string"
+        }
+      }
+    },
     "clusterOIDCConfig": {
       "type": "object",
       "properties": {
@@ -1646,6 +1658,9 @@
         },
         "dexConfig": {
           "$ref": "#/definitions/clusterDexConfig"
+        },
+        "googleAnalytics": {
+          "$ref": "#/definitions/clusterGoogleAnalyticsConfig"
         },
         "oidcConfig": {
           "$ref": "#/definitions/clusterOIDCConfig"

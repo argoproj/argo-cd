@@ -9,6 +9,7 @@ import { Redirect, Route, RouteComponentProps, Router, Switch } from 'react-rout
 
 import { services } from './shared/services';
 import requests from './shared/services/requests';
+import { hashCode  } from './shared/utils';
 
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
@@ -96,8 +97,28 @@ export class App extends React.Component<{}, { popupProps: PopupProps, error: Er
         this.navigationManager = new NavigationManager(history);
     }
 
-    public componentDidMount() {
+    public async componentDidMount() {
         this.popupManager.popupProps.subscribe((popupProps) => this.setState({ popupProps }));
+        const gaSettings = await services.authService.settings().then((item) => item.googleAnalytics || {  trackingID: '', anonymizeUsers: true });
+        const { trackingID, anonymizeUsers } = gaSettings;
+        if (trackingID) {
+            const ga = await import('react-ga');
+            ga.initialize(trackingID);
+            let userId = '';
+            const trackPageView = () => {
+                let nextUserId = services.authService.getCurrentUserId();
+                if (anonymizeUsers) {
+                   nextUserId = hashCode(nextUserId).toString();
+                }
+                if (nextUserId !== userId) {
+                    userId = nextUserId;
+                    ga.set({ userId });
+                }
+                ga.pageview(location.pathname + location.search);
+            };
+            trackPageView();
+            history.listen(trackPageView);
+        }
     }
 
     public render() {
