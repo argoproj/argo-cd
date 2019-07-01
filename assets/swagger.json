@@ -1656,6 +1656,10 @@
             "$ref": "#/definitions/v1alpha1ResourceOverride"
           }
         },
+        "statusBadgeEnabled": {
+          "type": "boolean",
+          "format": "boolean"
+        },
         "url": {
           "type": "string"
         }

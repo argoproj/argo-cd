@@ -318,6 +318,7 @@ export interface LogEntry {
 
 export interface AuthSettings {
     url: string;
+    statusBadgeEnabled: boolean;
     dexConfig: {
         connectors: {
             name: string;

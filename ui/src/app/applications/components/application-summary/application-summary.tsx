@@ -1,4 +1,4 @@
-import { FormField, FormSelect, PopupApi } from 'argo-ui';
+import { DropDownMenu, FormField, FormSelect, PopupApi } from 'argo-ui';
 import * as React from 'react';
 import { FormApi, Text } from 'react-form';
 
@@ -163,6 +163,9 @@ export const ApplicationSummary = (props: {
         view: null as any,
         edit: null,
     });
+    const [badgeType, setBadgeType] = React.useState('URL');
+    const badgeURL = `${location.protocol}//${location.host}/api/badge?name=${props.app.metadata.name}`;
+    const appURL = `${location.protocol}//${location.host}/applications/${props.app.metadata.name}`;
 
     return (
         <React.Fragment>
@@ -210,10 +213,32 @@ export const ApplicationSummary = (props: {
                             </div>
                         </div>
                     )}
-
                 </div>
             </div>
             )}</Consumer>
+            <DataLoader load={() => services.authService.settings()}>
+            {(settings) => (
+                settings.statusBadgeEnabled && (
+                    <div className='white-box'>
+                        <div className='white-box__details'>
+                            <p>Status Badge     <img src={`/api/badge?name=${props.app.metadata.name}`}/> </p>
+                            <div className='white-box__details-row'>
+                                <DropDownMenu anchor={() => (<p>{badgeType} <i className='fa fa-caret-down'/></p>)}
+                                    items={['URL', 'Markdown', 'Textile', 'Rdoc', 'AsciiDoc'].map((type) => ({ title: type, action: () => setBadgeType(type) }))}
+                                />
+                                <textarea onClick={(e) => (e.target as HTMLInputElement).select()} className='application-summary__badge' readOnly={true} value={
+                                    badgeType === 'URL' ? badgeURL :
+                                    badgeType === 'Markdown' ? `[![App Status](${badgeURL})](${appURL})` :
+                                    badgeType === 'Textile' ? `!${badgeURL}!:${appURL}` :
+                                    badgeType === 'Rdoc' ? `{<img src="${badgeURL}" alt="App Status" />}[${appURL}]` :
+                                    badgeType === 'AsciiDoc' ? `image:${badgeURL}["App Status", link="${appURL}"]` : ''
+                                }/>
+                            </div>
+                        </div>
+                    </div>
+                ) || null
+            )}
+            </DataLoader>
             <EditablePanel save={(props.updateApp)} values={app} title='Info' items={infoItems} onModeSwitch={() => setAdjustedCount(0)}/>
         </React.Fragment>
     );
