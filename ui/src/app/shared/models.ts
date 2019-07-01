@@ -319,6 +319,10 @@ export interface LogEntry {
 export interface AuthSettings {
     url: string;
     statusBadgeEnabled: boolean;
+    googleAnalytics: {
+        trackingID: string;
+        anonymizeUsers: boolean;
+    };
     dexConfig: {
         connectors: {
             name: string;

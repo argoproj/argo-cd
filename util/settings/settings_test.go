@@ -163,3 +163,20 @@ func TestGetHelmRepositories(t *testing.T) {
 
 	assert.ElementsMatch(t, helmRepositories, []HelmRepoCredentials{{URL: "http://foo"}})
 }
+
+func TestGetGoogleAnalytics(t *testing.T) {
+	kubeClient := fake.NewSimpleClientset(&v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
+		},
+		Data: map[string]string{
+			"ga.trackingid": "123",
+		},
+	})
+	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	ga, err := settingsManager.GetGoogleAnalytics()
+	assert.NoError(t, err)
+	assert.Equal(t, "123", ga.TrackingID)
+	assert.Equal(t, true, ga.AnonymizeUsers)
+}

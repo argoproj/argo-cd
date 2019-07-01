@@ -64,6 +64,11 @@ type ArgoCDSettings struct {
 	Secrets map[string]string `json:"secrets,omitempty"`
 }
 
+type GoogleAnalytics struct {
+	TrackingID     string `json:"trackingID,omitempty"`
+	AnonymizeUsers bool   `json:"anonymizeUsers,omitempty"`
+}
+
 type OIDCConfig struct {
 	Name            string   `json:"name,omitempty"`
 	Issuer          string   `json:"issuer,omitempty"`
@@ -98,6 +103,10 @@ const (
 	settingAdminPasswordMtimeKey = "admin.passwordMtime"
 	// settingServerSignatureKey designates the key for a server secret key inside a Kubernetes secret.
 	settingServerSignatureKey = "server.secretkey"
+	// gaTrackingID holds Google Analytics tracking id
+	gaTrackingID = "ga.trackingid"
+	// gaAnonymizeUsers specifies if user ids should be anonymized (hashed) before sending to Google Analytics. True unless value is set to 'false'
+	gaAnonymizeUsers = "ga.anonymizeusers"
 	// settingServerCertificate designates the key for the public cert used in TLS
 	settingServerCertificate = "tls.crt"
 	// settingServerPrivateKey designates the key for the private key used in TLS
@@ -318,6 +327,17 @@ func (mgr *SettingsManager) GetRepositoryCredentials() ([]RepoCredentials, error
 		}
 	}
 	return repositoryCredentials, nil
+}
+
+func (mgr *SettingsManager) GetGoogleAnalytics() (*GoogleAnalytics, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return nil, err
+	}
+	return &GoogleAnalytics{
+		TrackingID:     argoCDCM.Data[gaTrackingID],
+		AnonymizeUsers: argoCDCM.Data[gaAnonymizeUsers] != "false",
+	}, nil
 }
 
 // GetSettings retrieves settings from the ArgoCDConfigMap and secret.
