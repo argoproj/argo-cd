@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ConnectionStateIcon, DataLoader, Page } from '../../../shared/components';
+import {clusterName, ConnectionStateIcon, DataLoader, Page} from '../../../shared/components';
 
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
@@ -25,7 +25,7 @@ export const ClustersList = () => (
                             <div className='argo-table-list__row' key={cluster.server}>
                                 <div className='row'>
                                     <div className='columns small-3'>
-                                        <i className='icon argo-icon-hosts'/> {cluster.name || 'in-cluster'}
+                                        <i className='icon argo-icon-hosts'/> {clusterName(cluster.name)}
                                     </div>
                                     <div className='columns small-6'>
                                         {cluster.server}
