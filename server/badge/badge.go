@@ -114,9 +114,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		rightColor = unknown
 	}
 	badge := assets.BadgeSVG
-	badge = leftPathColorPattern.ReplaceAllString(badge, fmt.Sprintf(`fill="%s" $2`, leftColor))
-	badge = rightPathColorPattern.ReplaceAllString(badge, fmt.Sprintf(`fill="%s" $2`, rightColor))
-	badge = rightPathColorPattern.ReplaceAllString(badge, fmt.Sprintf(`fill="%s" $2`, rightColor))
+	badge = leftPathColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="leftPath" fill="%s" $2`, leftColor))
+	badge = rightPathColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="rightPath" fill="%s" $2`, rightColor))
 	badge = replaceFirstGroupSubMatch(leftText1Pattern, badge, leftText)
 	badge = replaceFirstGroupSubMatch(leftText2Pattern, badge, leftText)
 	badge = replaceFirstGroupSubMatch(rightText1Pattern, badge, rightText)
