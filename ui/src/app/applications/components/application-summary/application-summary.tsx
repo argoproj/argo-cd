@@ -4,12 +4,11 @@ import { FormApi, Text } from 'react-form';
 
 require('./application-summary.scss');
 
-import { DataLoader, EditablePanel, EditablePanelItem } from '../../../shared/components';
+import { Cluster, clusterTitle, DataLoader, EditablePanel, EditablePanelItem } from '../../../shared/components';
 import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 
-import {Cluster, clusterTitle} from '../../../shared/components';
 import {Repo} from '../../../shared/components/repo';
 import {Revision} from '../../../shared/components/revision';
 import { ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage } from '../utils';
