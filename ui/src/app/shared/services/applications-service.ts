@@ -93,7 +93,7 @@ export class ApplicationsService {
     }
 
     public getContainerLogs(applicationName: string, namespace: string, podName: string, containerName: string): Observable<models.LogEntry> {
-        return requests.loadEventSource(`/applications/${applicationName}/pods/${podName}/logs?container=${containerName}&follow=true&namespace=${namespace}`).repeat().retry().map(
+        return requests.loadEventSource(`/applications/${applicationName}/pods/${podName}/logs?container=${containerName}&follow=true&namespace=${namespace}`).map(
             (data) => JSON.parse(data).result as models.LogEntry);
     }
 

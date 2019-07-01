@@ -10,7 +10,9 @@ export const PodsLogsViewer = (props: { applicationName: string, pod: models.Res
     if (!container) {
         return <div>Pod does not have container with index {props.containerIndex}</div>;
     }
-    const isRunning = props.pod.status.phase === 'Running';
+    const containerStatuses = (props.pod.status && props.pod.status.containerStatuses || []).concat(props.pod.status && props.pod.status.initContainerStatuses || []);
+    const containerStatus = containerStatuses.find((status: any) => status.name === container.name);
+    const isRunning = !!(containerStatus && containerStatus.state && containerStatus && containerStatus.state.running);
     return (
         <div style={{height: '100%'}}>
             <LogsViewer source={{
