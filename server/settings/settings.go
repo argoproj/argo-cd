@@ -42,9 +42,10 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		overrides[k] = &val
 	}
 	set := settingspkg.Settings{
-		URL:               argoCDSettings.URL,
-		AppLabelKey:       appInstanceLabelKey,
-		ResourceOverrides: overrides,
+		URL:                argoCDSettings.URL,
+		AppLabelKey:        appInstanceLabelKey,
+		ResourceOverrides:  overrides,
+		StatusBadgeEnabled: argoCDSettings.StatusBadgeEnabled,
 	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg settingspkg.DexConfig

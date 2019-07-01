@@ -338,6 +338,19 @@ func Delete(path string) {
 	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "delete"))
 }
 
+func AddFile(path, contents string) {
+
+	checkLocalRepo()
+
+	log.WithFields(log.Fields{"path": path}).Info("adding")
+
+	CheckError(ioutil.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0644))
+
+	FailOnErr(Run(repoDirectory(), "git", "diff"))
+	FailOnErr(Run(repoDirectory(), "git", "add", "."))
+	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "add file"))
+}
+
 func checkLocalRepo() {
 	if !strings.HasPrefix(repoUrl, "file://") {
 		log.WithFields(log.Fields{"repoUrl": repoUrl}).Fatal("cannot patch repo unless it is local")

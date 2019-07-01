@@ -35,6 +35,10 @@ func TestSyncPhasePost(t *testing.T) {
 	assert.Equal(t, []SyncPhase{SyncPhasePostSync}, syncPhases(pod("PostSync")))
 }
 
+func TestSyncPhaseFail(t *testing.T) {
+	assert.Equal(t, []SyncPhase{SyncPhaseSyncFail}, syncPhases(pod("SyncFail")))
+}
+
 func TestSyncPhaseTwoPhases(t *testing.T) {
 	assert.Equal(t, []SyncPhase{SyncPhasePreSync, SyncPhasePostSync}, syncPhases(pod("PreSync,PostSync")))
 }
