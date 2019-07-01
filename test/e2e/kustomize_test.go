@@ -29,12 +29,8 @@ func TestKustomize2AppSource(t *testing.T) {
 		NamePrefix("k2-").
 		When().
 		Create().
-		Sync().
 		Then().
-		Expect(Success("")).
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		When().
 		PatchApp(`[
 			{
