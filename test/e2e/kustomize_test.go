@@ -29,7 +29,13 @@ func TestKustomize2AppSource(t *testing.T) {
 		NamePrefix("k2-").
 		When().
 		Create().
-		Refresh(RefreshTypeHard).
+		Sync().
+		Then().
+		Expect(Success("")).
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusHealthy)).
+		When().
 		PatchApp(`[
 			{
 				"op": "replace",
