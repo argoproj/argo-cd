@@ -1719,6 +1719,13 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 							Format: "",
 						},
 					},
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "type of the repo, maybe \"git or \"helm, \"git\" is assumed if empty or absent",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"caData": {
 						SchemaProps: spec.SchemaProps{
 							Description: "only for Helm repos",

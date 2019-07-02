@@ -477,17 +477,20 @@ message Repository {
 
   optional bool insecureIgnoreHostKey = 6;
 
-  // only for Helm repos
-  optional bytes caData = 7;
+  // type of the repo, maybe "git or "helm, "git" is assumed if empty or absent
+  optional string type = 7;
 
   // only for Helm repos
-  optional bytes certData = 8;
+  optional bytes caData = 8;
 
   // only for Helm repos
-  optional bytes keyData = 9;
+  optional bytes certData = 9;
 
   // only for Helm repos
-  optional string name = 10;
+  optional bytes keyData = 10;
+
+  // only for Helm repos
+  optional string name = 11;
 }
 
 // RepositoryList is a collection of Repositories.

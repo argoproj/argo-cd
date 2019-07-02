@@ -875,14 +875,16 @@ type Repository struct {
 	SSHPrivateKey         string          `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
 	ConnectionState       ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,5,opt,name=connectionState"`
 	InsecureIgnoreHostKey bool            `json:"insecureIgnoreHostKey,omitempty" protobuf:"bytes,6,opt,name=insecureIgnoreHostKey"`
+	// type of the repo, maybe "git or "helm, "git" is assumed if empty or absent
+	Type string `json:"type,omitempty" protobuf:"bytes,7,opt,name=type"`
 	// only for Helm repos
-	CAData []byte `json:"caData,omitempty" protobuf:"bytes,7,opt,name=caData"`
+	CAData []byte `json:"caData,omitempty" protobuf:"bytes,8,opt,name=caData"`
 	// only for Helm repos
-	CertData []byte `json:"certData,omitempty" protobuf:"bytes,8,opt,name=certData"`
+	CertData []byte `json:"certData,omitempty" protobuf:"bytes,9,opt,name=certData"`
 	// only for Helm repos
-	KeyData []byte `json:"keyData,omitempty" protobuf:"bytes,9,opt,name=keyData"`
+	KeyData []byte `json:"keyData,omitempty" protobuf:"bytes,10,opt,name=keyData"`
 	// only for Helm repos
-	Name string `json:"name,omitempty" protobuf:"bytes,10,opt,name=name"`
+	Name string `json:"name,omitempty" protobuf:"bytes,11,opt,name=name"`
 }
 
 func (m *Repository) HasCredentials() bool {

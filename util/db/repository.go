@@ -50,6 +50,7 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 
 	repoInfo := settings.RepoCredentials{
 		URL:                   r.Repo,
+		Type:                  r.Type,
 		InsecureIgnoreHostKey: r.InsecureIgnoreHostKey,
 	}
 	err = db.updateSecrets(&repoInfo, r)
@@ -124,6 +125,7 @@ func (db *db) ListRepositories(ctx context.Context) ([]*appsv1.Repository, error
 func (db *db) credentialsToRepository(repoInfo settings.RepoCredentials) (*appsv1.Repository, error) {
 	repo := &appsv1.Repository{
 		Repo:                  repoInfo.URL,
+		Type:                  repoInfo.Type,
 		InsecureIgnoreHostKey: repoInfo.InsecureIgnoreHostKey,
 	}
 	cache := make(map[string]*apiv1.Secret)

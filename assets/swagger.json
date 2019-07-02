@@ -3172,6 +3172,10 @@
         "sshPrivateKey": {
           "type": "string"
         },
+        "type": {
+          "type": "string",
+          "title": "type of the repo, maybe \"git or \"helm, \"git\" is assumed if empty or absent"
+        },
         "username": {
           "type": "string"
         }
