@@ -15,11 +15,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/server/badge"
-
 	"gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
 
+	"github.com/dgrijalva/jwt-go"
 	golang_proto "github.com/golang/protobuf/proto"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
@@ -60,6 +59,7 @@ import (
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/server/account"
 	"github.com/argoproj/argo-cd/server/application"
+	"github.com/argoproj/argo-cd/server/badge"
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/server/project"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
@@ -697,21 +697,36 @@ func (a *ArgoCDServer) authenticate(ctx context.Context) (context.Context, error
 	if a.DisableAuth {
 		return ctx, nil
 	}
+	if claims, claimsErr := a.getClaims(ctx); claimsErr != nil {
+		argoCDSettings, err := a.settingsMgr.GetSettings()
+		if err != nil {
+			return ctx, status.Errorf(codes.Internal, "unable to load settings: %v", err)
+		}
+		if !argoCDSettings.AnonymousUserEnabled {
+			return ctx, claimsErr
+		}
+	} else {
+		// Add claims to the context to inspect for RBAC
+		ctx = context.WithValue(ctx, "claims", claims)
+	}
+
+	return ctx, nil
+}
+
+func (a *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return ctx, ErrNoSession
+		return nil, ErrNoSession
 	}
 	tokenString := getToken(md)
 	if tokenString == "" {
-		return ctx, ErrNoSession
+		return nil, ErrNoSession
 	}
 	claims, err := a.sessionMgr.VerifyToken(tokenString)
 	if err != nil {
-		return ctx, status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
+		return nil, status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
-	// Add claims to the context to inspect for RBAC
-	ctx = context.WithValue(ctx, "claims", claims)
-	return ctx, nil
+	return claims, nil
 }
 
 // getToken extracts the token from gRPC metadata or cookie headers
