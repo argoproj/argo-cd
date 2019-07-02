@@ -60,6 +60,33 @@ type ResourceIgnoreDifferences struct {
 	JSONPointers []string `json:"jsonPointers" protobuf:"bytes,5,opt,name=jsonPointers"`
 }
 
+type EnvEntry struct {
+	// the name, usually uppercase
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	// the value
+	Value string `json:"value" protobuf:"bytes,2,opt,name=value"`
+}
+
+func (a *EnvEntry) IsZero() bool {
+	return a == nil || a.Name == "" && a.Value == ""
+}
+
+type Env []*EnvEntry
+
+func (e Env) IsZero() bool {
+	return len(e) == 0
+}
+
+func (e Env) Environ() []string {
+	var environ []string
+	for _, item := range e {
+		if !item.IsZero() {
+			environ = append(environ, fmt.Sprintf("%s=%s", item.Name, item.Value))
+		}
+	}
+	return environ
+}
+
 // ApplicationSource contains information about github repository, path within repository and target application environment.
 type ApplicationSource struct {
 	// RepoURL is the git repository URL of the application manifests
@@ -82,15 +109,16 @@ type ApplicationSource struct {
 	Plugin *ApplicationSourcePlugin `json:"plugin,omitempty" protobuf:"bytes,11,opt,name=plugin"`
 }
 
-func (a ApplicationSource) IsZero() bool {
-	return a.RepoURL == "" &&
-		a.Path == "" &&
-		a.TargetRevision == "" &&
-		a.Helm.IsZero() &&
-		a.Kustomize.IsZero() &&
-		a.Ksonnet.IsZero() &&
-		a.Directory.IsZero() &&
-		a.Plugin.IsZero()
+func (a *ApplicationSource) IsZero() bool {
+	return a == nil ||
+		a.RepoURL == "" &&
+			a.Path == "" &&
+			a.TargetRevision == "" &&
+			a.Helm.IsZero() &&
+			a.Kustomize.IsZero() &&
+			a.Ksonnet.IsZero() &&
+			a.Directory.IsZero() &&
+			a.Plugin.IsZero()
 }
 
 type ApplicationSourceType string
@@ -129,7 +157,7 @@ type HelmParameter struct {
 }
 
 func (h *ApplicationSourceHelm) IsZero() bool {
-	return (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0
+	return h == nil || (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0
 }
 
 // ApplicationSourceKustomize holds kustomize specific options
@@ -153,7 +181,7 @@ type KustomizeImageTag struct {
 }
 
 func (k *ApplicationSourceKustomize) IsZero() bool {
-	return k.NamePrefix == "" && len(k.ImageTags) == 0 && len(k.Images) == 0
+	return k == nil || k.NamePrefix == "" && len(k.ImageTags) == 0 && len(k.Images) == 0 && len(k.CommonLabels) == 0
 }
 
 // JsonnetVar is a jsonnet variable
@@ -172,7 +200,7 @@ type ApplicationSourceJsonnet struct {
 }
 
 func (j *ApplicationSourceJsonnet) IsZero() bool {
-	return len(j.ExtVars) == 0 && len(j.TLAs) == 0
+	return j == nil || len(j.ExtVars) == 0 && len(j.TLAs) == 0
 }
 
 // ApplicationSourceKsonnet holds ksonnet specific options
@@ -191,7 +219,7 @@ type KsonnetParameter struct {
 }
 
 func (k *ApplicationSourceKsonnet) IsZero() bool {
-	return k.Environment == "" && len(k.Parameters) == 0
+	return k == nil || k.Environment == "" && len(k.Parameters) == 0
 }
 
 type ApplicationSourceDirectory struct {
@@ -200,16 +228,17 @@ type ApplicationSourceDirectory struct {
 }
 
 func (d *ApplicationSourceDirectory) IsZero() bool {
-	return !d.Recurse && d.Jsonnet.IsZero()
+	return d == nil || !d.Recurse && d.Jsonnet.IsZero()
 }
 
 // ApplicationSourcePlugin holds config management plugin specific options
 type ApplicationSourcePlugin struct {
 	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	Env  `json:"env,omitempty" protobuf:"bytes,2,opt,name=env"`
 }
 
 func (c *ApplicationSourcePlugin) IsZero() bool {
-	return c.Name == ""
+	return c == nil || c.Name == "" && c.Env.IsZero()
 }
 
 // ApplicationDestination contains deployment destination information

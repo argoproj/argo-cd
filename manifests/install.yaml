@@ -549,6 +549,20 @@ spec:
                       description: ConfigManagementPlugin holds config management
                         plugin specific options
                       properties:
+                        env:
+                          items:
+                            properties:
+                              name:
+                                description: the name, usually uppercase
+                                type: string
+                              value:
+                                description: the value
+                                type: string
+                            required:
+                            - name
+                            - value
+                            type: object
+                          type: array
                         name:
                           type: string
                       type: object
@@ -782,6 +796,20 @@ spec:
                   description: ConfigManagementPlugin holds config management plugin
                     specific options
                   properties:
+                    env:
+                      items:
+                        properties:
+                          name:
+                            description: the name, usually uppercase
+                            type: string
+                          value:
+                            description: the value
+                            type: string
+                        required:
+                        - name
+                        - value
+                        type: object
+                      type: array
                     name:
                       type: string
                   type: object
@@ -983,6 +1011,20 @@ spec:
                         description: ConfigManagementPlugin holds config management
                           plugin specific options
                         properties:
+                          env:
+                            items:
+                              properties:
+                                name:
+                                  description: the name, usually uppercase
+                                  type: string
+                                value:
+                                  description: the value
+                                  type: string
+                              required:
+                              - name
+                              - value
+                              type: object
+                            type: array
                           name:
                             type: string
                         type: object
@@ -1200,6 +1242,20 @@ spec:
                               description: ConfigManagementPlugin holds config management
                                 plugin specific options
                               properties:
+                                env:
+                                  items:
+                                    properties:
+                                      name:
+                                        description: the name, usually uppercase
+                                        type: string
+                                      value:
+                                        description: the value
+                                        type: string
+                                    required:
+                                    - name
+                                    - value
+                                    type: object
+                                  type: array
                                 name:
                                   type: string
                               type: object
@@ -1440,6 +1496,20 @@ spec:
                           description: ConfigManagementPlugin holds config management
                             plugin specific options
                           properties:
+                            env:
+                              items:
+                                properties:
+                                  name:
+                                    description: the name, usually uppercase
+                                    type: string
+                                  value:
+                                    description: the value
+                                    type: string
+                                required:
+                                - name
+                                - value
+                                type: object
+                              type: array
                             name:
                               type: string
                           type: object
@@ -1661,6 +1731,20 @@ spec:
                           description: ConfigManagementPlugin holds config management
                             plugin specific options
                           properties:
+                            env:
+                              items:
+                                properties:
+                                  name:
+                                    description: the name, usually uppercase
+                                    type: string
+                                  value:
+                                    description: the value
+                                    type: string
+                                required:
+                                - name
+                                - value
+                                type: object
+                              type: array
                             name:
                               type: string
                           type: object

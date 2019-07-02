@@ -191,6 +191,8 @@ message ApplicationSourceKustomize {
 // ApplicationSourcePlugin holds config management plugin specific options
 message ApplicationSourcePlugin {
   optional string name = 1;
+
+  repeated EnvEntry env = 2;
 }
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
@@ -343,6 +345,14 @@ message ConnectionState {
   optional string message = 2;
 
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time attemptedAt = 3;
+}
+
+message EnvEntry {
+  // the name, usually uppercase
+  optional string name = 1;
+
+  // the value
+  optional string value = 2;
 }
 
 message HealthStatus {

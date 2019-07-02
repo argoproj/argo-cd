@@ -63,7 +63,11 @@ spec:
 
     # plugin specific config
     plugin:
-    - name: mypluginname
+      name: mypluginname
+      # environment variables passed to the plugin
+      env:
+        - name: FOO
+          value: bar
 
   # Destination cluster and namespace to deploy the application
   destination:

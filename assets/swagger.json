@@ -2724,6 +2724,12 @@
       "type": "object",
       "title": "ApplicationSourcePlugin holds config management plugin specific options",
       "properties": {
+        "env": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1EnvEntry"
+          }
+        },
         "name": {
           "type": "string"
         }
@@ -2932,6 +2938,19 @@
         },
         "status": {
           "type": "string"
+        }
+      }
+    },
+    "v1alpha1EnvEntry": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "the name, usually uppercase"
+        },
+        "value": {
+          "type": "string",
+          "title": "the value"
         }
       }
     },

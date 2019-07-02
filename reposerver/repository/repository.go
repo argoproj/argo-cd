@@ -242,7 +242,7 @@ func GenerateManifests(root, path string, q *ManifestRequest) (*ManifestResponse
 		k := kustomize.NewKustomizeApp(appPath, creds)
 		targetObjs, _, _, err = k.Build(q.ApplicationSource.Kustomize)
 	case v1alpha1.ApplicationSourceTypePlugin:
-		targetObjs, err = runConfigManagementPlugin(appPath, q, creds, q.Plugins)
+		targetObjs, err = runConfigManagementPlugin(appPath, q, creds)
 	case v1alpha1.ApplicationSourceTypeDirectory:
 		var directory *v1alpha1.ApplicationSourceDirectory
 		if directory = q.ApplicationSource.Directory; directory == nil {
@@ -537,14 +537,17 @@ func runCommand(command v1alpha1.Command, path string, env []string) (string, er
 	return argoexec.RunCommandExt(cmd, config.CmdOpts())
 }
 
-func runConfigManagementPlugin(appPath string, q *ManifestRequest, creds git.Creds, plugins []*v1alpha1.ConfigManagementPlugin) ([]*unstructured.Unstructured, error) {
-	var plugin *v1alpha1.ConfigManagementPlugin
-	for i := range plugins {
-		if plugins[i].Name == q.ApplicationSource.Plugin.Name {
-			plugin = plugins[i]
-			break
+func findPlugin(plugins []*v1alpha1.ConfigManagementPlugin, name string) *v1alpha1.ConfigManagementPlugin {
+	for _, plugin := range plugins {
+		if plugin.Name == name {
+			return plugin
 		}
 	}
+	return nil
+}
+
+func runConfigManagementPlugin(appPath string, q *ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
+	plugin := findPlugin(q.Plugins, q.ApplicationSource.Plugin.Name)
 	if plugin == nil {
 		return nil, fmt.Errorf("Config management plugin with name '%s' is not supported.", q.ApplicationSource.Plugin.Name)
 	}
@@ -557,6 +560,7 @@ func runConfigManagementPlugin(appPath string, q *ManifestRequest, creds git.Cre
 		defer func() { _ = closer.Close() }()
 		env = append(env, environ...)
 	}
+	env = append(env, q.ApplicationSource.Plugin.Env.Environ()...)
 	if plugin.Init != nil {
 		_, err := runCommand(*plugin.Init, appPath, env)
 		if err != nil {
