@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/argoproj/argo-cd/test/fixture/log"
 	"github.com/argoproj/argo-cd/test/fixture/path"
 	"github.com/argoproj/argo-cd/test/fixture/testrepos"
 )
@@ -141,6 +142,10 @@ func TestLsRemote(t *testing.T) {
 func TestNewFactory(t *testing.T) {
 	addBinDirToPath := path.NewBinDirToPath()
 	defer addBinDirToPath.Close()
+	closer := log.Debug()
+	defer closer()
+
+	testutil.Retr
 
 	type args struct {
 		url, username, password, sshPrivateKey string
