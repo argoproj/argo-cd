@@ -349,11 +349,6 @@ func (s *Server) UpdateSpec(ctx context.Context, q *application.ApplicationUpdat
 // Patch patches an application
 func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchRequest) (*appv1.Application, error) {
 
-	patch, err := jsonpatch.DecodePatch([]byte(q.Patch))
-	if err != nil {
-		return nil, err
-	}
-
 	app, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -368,9 +363,25 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 		return nil, err
 	}
 
-	patchApp, err := patch.Apply(jsonApp)
-	if err != nil {
-		return nil, err
+	var patchApp []byte
+
+	switch q.PatchType {
+	case "json", "":
+		patch, err := jsonpatch.DecodePatch([]byte(q.Patch))
+		if err != nil {
+			return nil, err
+		}
+		patchApp, err = patch.Apply(jsonApp)
+		if err != nil {
+			return nil, err
+		}
+	case "merge":
+		patchApp, err = jsonpatch.MergePatch(jsonApp, []byte(q.Patch))
+		if err != nil {
+			return nil, err
+		}
+	default:
+		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("Patch type '%s' is not supported", q.PatchType))
 	}
 
 	s.logEvent(app, ctx, argo.EventReasonResourceUpdated, fmt.Sprintf("patched application %s/%s", app.Namespace, app.Name))
