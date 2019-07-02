@@ -2587,13 +2587,6 @@
         "directory": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceDirectory"
         },
-        "env": {
-          "type": "array",
-          "title": "Env is a list of environment variables passed to the tool",
-          "items": {
-            "$ref": "#/definitions/v1alpha1EnvEntry"
-          }
-        },
         "helm": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceHelm"
         },
@@ -2728,6 +2721,12 @@
       "type": "object",
       "title": "ApplicationSourcePlugin holds config management plugin specific options",
       "properties": {
+        "env": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1EnvEntry"
+          }
+        },
         "name": {
           "type": "string"
         }

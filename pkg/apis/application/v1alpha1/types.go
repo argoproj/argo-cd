@@ -107,8 +107,6 @@ type ApplicationSource struct {
 	Directory *ApplicationSourceDirectory `json:"directory,omitempty" protobuf:"bytes,10,opt,name=directory"`
 	// ConfigManagementPlugin holds config management plugin specific options
 	Plugin *ApplicationSourcePlugin `json:"plugin,omitempty" protobuf:"bytes,11,opt,name=plugin"`
-	// Env is a list of environment variables passed to the tool
-	Env `json:"env,omitempty" protobuf:"bytes,12,opt,name=env"`
 }
 
 func (a *ApplicationSource) IsZero() bool {
@@ -120,15 +118,7 @@ func (a *ApplicationSource) IsZero() bool {
 			a.Kustomize.IsZero() &&
 			a.Ksonnet.IsZero() &&
 			a.Directory.IsZero() &&
-			a.Plugin.IsZero() &&
-			a.Env.IsZero()
-}
-
-func (a *ApplicationSource) Environ() []string {
-	if a != nil {
-		return a.Env.Environ()
-	}
-	return nil
+			a.Plugin.IsZero()
 }
 
 type ApplicationSourceType string
@@ -244,10 +234,18 @@ func (d *ApplicationSourceDirectory) IsZero() bool {
 // ApplicationSourcePlugin holds config management plugin specific options
 type ApplicationSourcePlugin struct {
 	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	Env  `json:"env,omitempty" protobuf:"bytes,2,opt,name=env"`
 }
 
 func (c *ApplicationSourcePlugin) IsZero() bool {
-	return c == nil || c.Name == ""
+	return c == nil || c.Name == "" && c.Env.IsZero()
+}
+
+func (c *ApplicationSourcePlugin) Environ() []string {
+	if c != nil {
+		return c.Env.Environ()
+	}
+	return nil
 }
 
 // ApplicationDestination contains deployment destination information

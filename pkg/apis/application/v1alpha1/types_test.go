@@ -415,7 +415,6 @@ func TestApplicationSource_IsZero(t *testing.T) {
 		{"Helm", &ApplicationSource{Ksonnet: &ApplicationSourceKsonnet{Environment: "foo"}}, false},
 		{"Directory", &ApplicationSource{Directory: &ApplicationSourceDirectory{Recurse: true}}, false},
 		{"Plugin", &ApplicationSource{Plugin: &ApplicationSourcePlugin{Name: "foo"}}, false},
-		{"Env", &ApplicationSource{Env: Env{{}}}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -527,6 +526,7 @@ func TestApplicationSourcePlugin_IsZero(t *testing.T) {
 		{"Nil", nil, true},
 		{"Empty", &ApplicationSourcePlugin{}, true},
 		{"Name", &ApplicationSourcePlugin{Name: "foo"}, false},
+		{"Env", &ApplicationSourcePlugin{Env: Env{{}}}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -553,16 +553,16 @@ func TestEnvEntry_IsZero(t *testing.T) {
 	}
 }
 
-func TestApplicationSource_Environ(t *testing.T) {
+func TestApplicationSourcePlugin_Environ(t *testing.T) {
 	tests := []struct {
 		name   string
-		source *ApplicationSource
+		source *ApplicationSourcePlugin
 		want   []string
 	}{
 		{"Nil", nil, nil},
-		{"Empty", &ApplicationSource{}, nil},
-		{"Zero", &ApplicationSource{Env: Env{{}}}, nil},
-		{"One", &ApplicationSource{Env: Env{{"FOO", "bar"}}}, []string{"FOO=bar"}},
+		{"Empty", &ApplicationSourcePlugin{}, nil},
+		{"Zero", &ApplicationSourcePlugin{Env: Env{{}}}, nil},
+		{"One", &ApplicationSourcePlugin{Env: Env{{"FOO", "bar"}}}, []string{"FOO=bar"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

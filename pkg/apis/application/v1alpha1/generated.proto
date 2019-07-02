@@ -135,9 +135,6 @@ message ApplicationSource {
 
   // ConfigManagementPlugin holds config management plugin specific options
   optional ApplicationSourcePlugin plugin = 11;
-
-  // Env is a list of environment variables passed to the tool
-  repeated EnvEntry env = 12;
 }
 
 message ApplicationSourceDirectory {
@@ -194,6 +191,8 @@ message ApplicationSourceKustomize {
 // ApplicationSourcePlugin holds config management plugin specific options
 message ApplicationSourcePlugin {
   optional string name = 1;
+
+  repeated EnvEntry env = 2;
 }
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
