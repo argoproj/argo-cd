@@ -3409,6 +3409,9 @@
         "namespace": {
           "type": "string"
         },
+        "resourceVersion": {
+          "type": "string"
+        },
         "status": {
           "type": "string"
         },

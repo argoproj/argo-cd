@@ -650,6 +650,8 @@ message ResourceStatus {
   optional HealthStatus health = 7;
 
   optional bool hook = 8;
+
+  optional string resourceVersion = 9;
 }
 
 // RevisionHistory contains information relevant to an application deployment

@@ -87,7 +87,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {
                                     return (
                                         <div key={resKey}>
                                             <Checkbox id={resKey} field={`resources[${i}]`}/> <label htmlFor={resKey}>
-                                                {resKey} <ComparisonStatusIcon status={item.status}/></label>
+                                                {resKey} <ComparisonStatusIcon status={item.status} resource={item}/></label>
                                         </div>
                                     );
                                 })}

@@ -238,6 +238,7 @@ export interface ResourceStatus {
     status: SyncStatusCode;
     health: HealthStatus;
     hook?: boolean;
+    resourceVersion?: string;
 }
 
 export interface ResourceRef {

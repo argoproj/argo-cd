@@ -48,7 +48,7 @@ export const ApplicationNodeInfo = (props: {
     if (props.controlled) {
         if (!props.controlled.summary.hook) {
             attributes.push({title: 'STATUS', value: (
-                <span><ComparisonStatusIcon status={props.controlled.summary.status}/> {props.controlled.summary.status}</span>
+                <span><ComparisonStatusIcon status={props.controlled.summary.status} resource={props.controlled.summary} label={true}/></span>
             )} as any);
         }
         if (props.controlled.summary.health !== undefined) {
