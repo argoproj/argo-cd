@@ -1840,10 +1840,17 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var patch string
+	var patchType string
 
 	command := cobra.Command{
 		Use:   "patch APPNAME",
 		Short: "Patch application",
+		Long: `Examples:
+	# Update an application's source path using json patch
+	argocd app patch myapplication --patch='[{"op": "replace", "path": "/spec/source/path", "value": "newPath"}]' --type json
+
+	# Update an application's repository target revision using merge patch
+	argocd app patch myapplication --patch '{"spec": { "source": { "targetRevision": "master" } }}' --type merge`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
@@ -1854,8 +1861,9 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			defer util.Close(conn)
 
 			patchedApp, err := appIf.Patch(context.Background(), &applicationpkg.ApplicationPatchRequest{
-				Name:  &appName,
-				Patch: patch,
+				Name:      &appName,
+				Patch:     patch,
+				PatchType: patchType,
 			})
 			errors.CheckError(err)
 
@@ -1866,7 +1874,8 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 		},
 	}
 
-	command.Flags().StringVar(&patch, "patch", "", "Patch")
+	command.Flags().StringVar(&patch, "patch", "", "Patch body")
+	command.Flags().StringVar(&patchType, "type", "json", "The type of patch being provided; one of [json merge]")
 	return &command
 }
 
