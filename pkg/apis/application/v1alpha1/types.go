@@ -241,13 +241,6 @@ func (c *ApplicationSourcePlugin) IsZero() bool {
 	return c == nil || c.Name == "" && c.Env.IsZero()
 }
 
-func (c *ApplicationSourcePlugin) Environ() []string {
-	if c != nil {
-		return c.Env.Environ()
-	}
-	return nil
-}
-
 // ApplicationDestination contains deployment destination information
 type ApplicationDestination struct {
 	// Server overrides the environment server value in the ksonnet app.yaml

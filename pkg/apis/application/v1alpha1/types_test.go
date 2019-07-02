@@ -553,24 +553,6 @@ func TestEnvEntry_IsZero(t *testing.T) {
 	}
 }
 
-func TestApplicationSourcePlugin_Environ(t *testing.T) {
-	tests := []struct {
-		name   string
-		source *ApplicationSourcePlugin
-		want   []string
-	}{
-		{"Nil", nil, nil},
-		{"Empty", &ApplicationSourcePlugin{}, nil},
-		{"Zero", &ApplicationSourcePlugin{Env: Env{{}}}, nil},
-		{"One", &ApplicationSourcePlugin{Env: Env{{"FOO", "bar"}}}, []string{"FOO=bar"}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, tt.source.Environ())
-		})
-	}
-}
-
 func TestEnv_IsZero(t *testing.T) {
 	tests := []struct {
 		name string
