@@ -563,7 +563,6 @@ func TestApplicationSource_Environ(t *testing.T) {
 		{"Empty", &ApplicationSource{}, nil},
 		{"Zero", &ApplicationSource{Env: Env{{}}}, nil},
 		{"One", &ApplicationSource{Env: Env{{"FOO", "bar"}}}, []string{"FOO=bar"}},
-		{"Two", &ApplicationSource{Env: Env{{"FOO", "bar"}, {"FOO", "bar"}}}, []string{"FOO=bar", "FOO=bar"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -584,6 +583,24 @@ func TestEnv_IsZero(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, tt.e.IsZero())
+		})
+	}
+}
+
+func TestEnv_Environ(t *testing.T) {
+	tests := []struct {
+		name string
+		e    Env
+		want []string
+	}{
+		{"Nil", nil, nil},
+		{"Env", Env{{}}, nil},
+		{"One", Env{{"FOO", "bar"}}, []string{"FOO=bar"}},
+		{"Two", Env{{"FOO", "bar"}, {"FOO", "bar"}}, []string{"FOO=bar", "FOO=bar"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.e.Environ())
 		})
 	}
 }

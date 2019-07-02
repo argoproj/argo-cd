@@ -77,6 +77,16 @@ func (e Env) IsZero() bool {
 	return len(e) == 0
 }
 
+func (e Env) Environ() []string {
+	var environ []string
+	for _, item := range e {
+		if !item.IsZero() {
+			environ = append(environ, fmt.Sprintf("%s=%s", item.Name, item.Value))
+		}
+	}
+	return environ
+}
+
 // ApplicationSource contains information about github repository, path within repository and target application environment.
 type ApplicationSource struct {
 	// RepoURL is the git repository URL of the application manifests
@@ -115,15 +125,10 @@ func (a *ApplicationSource) IsZero() bool {
 }
 
 func (a *ApplicationSource) Environ() []string {
-	var environ []string
 	if a != nil {
-		for _, item := range a.Env {
-			if !item.IsZero() {
-				environ = append(environ, fmt.Sprintf("%s=%s", item.Name, item.Value))
-			}
-		}
+		return a.Env.Environ()
 	}
-	return environ
+	return nil
 }
 
 type ApplicationSourceType string
