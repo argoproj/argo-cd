@@ -332,7 +332,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	managedResources := make([]managedResource, len(targetObjs))
 	resourceSummaries := make([]v1alpha1.ResourceStatus, len(targetObjs))
 	for i, targetObj := range targetObjs {
+		resourceVersion := ""
 		liveObj := managedLiveObj[i]
+		if liveObj != nil {
+			resourceVersion = liveObj.GetResourceVersion()
+		}
 		obj := liveObj
 		if obj == nil {
 			obj = targetObj
@@ -343,12 +347,13 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		gvk := obj.GroupVersionKind()
 
 		resState := v1alpha1.ResourceStatus{
-			Namespace: obj.GetNamespace(),
-			Name:      obj.GetName(),
-			Kind:      gvk.Kind,
-			Version:   gvk.Version,
-			Group:     gvk.Group,
-			Hook:      hookutil.IsHook(obj),
+			Namespace:       obj.GetNamespace(),
+			Name:            obj.GetName(),
+			Kind:            gvk.Kind,
+			Version:         gvk.Version,
+			Group:           gvk.Group,
+			Hook:            hookutil.IsHook(obj),
+			ResourceVersion: resourceVersion,
 		}
 
 		diffResult := diffResults.Diffs[i]

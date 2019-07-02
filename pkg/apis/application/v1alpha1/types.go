@@ -692,14 +692,15 @@ func (n *ResourceNode) GroupKindVersion() schema.GroupVersionKind {
 
 // ResourceStatus holds the current sync and health status of a resource
 type ResourceStatus struct {
-	Group     string         `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
-	Version   string         `json:"version,omitempty" protobuf:"bytes,2,opt,name=version"`
-	Kind      string         `json:"kind,omitempty" protobuf:"bytes,3,opt,name=kind"`
-	Namespace string         `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
-	Name      string         `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
-	Status    SyncStatusCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
-	Health    *HealthStatus  `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
-	Hook      bool           `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
+	Group           string         `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Version         string         `json:"version,omitempty" protobuf:"bytes,2,opt,name=version"`
+	Kind            string         `json:"kind,omitempty" protobuf:"bytes,3,opt,name=kind"`
+	Namespace       string         `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
+	Name            string         `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
+	Status          SyncStatusCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
+	Health          *HealthStatus  `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
+	Hook            bool           `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
+	ResourceVersion string         `json:"resourceVersion,omitempty" protobuf:"bytes,9,opt,name=resourceVersion"`
 }
 
 func (r *ResourceStatus) GroupVersionKind() schema.GroupVersionKind {
