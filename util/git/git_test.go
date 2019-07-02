@@ -165,7 +165,6 @@ func TestNewFactory(t *testing.T) {
 			test.Flaky(t)
 		}
 
-
 		dirName, err := ioutil.TempDir("", "git-client-test-")
 		assert.NoError(t, err)
 		defer func() { _ = os.RemoveAll(dirName) }()
