@@ -13,6 +13,6 @@ export class AuthService {
         const cookies = parse(document.cookie);
         const token = cookies['argocd.token'];
         const user: any = token && jwt(token) || null;
-        return (user && user.email || user.sub) || '';
+        return (user && (user.email || user.sub)) || '';
     }
 }
