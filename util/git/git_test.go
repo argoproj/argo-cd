@@ -9,6 +9,7 @@ import (
 
 	"github.com/argoproj/argo-cd/test/fixture/log"
 	"github.com/argoproj/argo-cd/test/fixture/path"
+	"github.com/argoproj/argo-cd/test/fixture/test"
 	"github.com/argoproj/argo-cd/test/fixture/testrepos"
 )
 
@@ -145,8 +146,6 @@ func TestNewFactory(t *testing.T) {
 	closer := log.Debug()
 	defer closer()
 
-	testutil.Retr
-
 	type args struct {
 		url, username, password, sshPrivateKey string
 		insecureIgnoreHostKey                  bool
@@ -161,6 +160,12 @@ func TestNewFactory(t *testing.T) {
 		{"PrivateSSHRepo", args{testrepos.SSHTestRepo.URL, "", "", testrepos.SSHTestRepo.SSHPrivateKey, testrepos.SSHTestRepo.InsecureIgnoreHostKey}},
 	}
 	for _, tt := range tests {
+
+		if tt.name == "PrivateSSHRepo" {
+			test.Flaky(t)
+		}
+
+
 		dirName, err := ioutil.TempDir("", "git-client-test-")
 		assert.NoError(t, err)
 		defer func() { _ = os.RemoveAll(dirName) }()
