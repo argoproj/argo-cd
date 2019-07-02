@@ -180,6 +180,22 @@ func SetConfigManagementPlugins(plugin ...v1alpha1.ConfigManagementPlugin) {
 	})
 }
 
+func SetResourceFilter(filters settings.ResourcesFilter) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		exclusions, err := yaml.Marshal(filters.ResourceExclusions)
+		if err != nil {
+			return err
+		}
+		inclusions, err := yaml.Marshal(filters.ResourceInclusions)
+		if err != nil {
+			return err
+		}
+		cm.Data["resource.exclusions"] = string(exclusions)
+		cm.Data["resource.inclusions"] = string(inclusions)
+		return nil
+	})
+}
+
 func SetRepos(repos ...settings.RepoCredentials) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		yamlBytes, err := yaml.Marshal(repos)
@@ -253,6 +269,7 @@ func EnsureCleanState(t *testing.T) {
 	SetConfigManagementPlugins()
 	SetRepoCredentials()
 	SetRepos()
+	SetResourceFilter(settings.ResourcesFilter{})
 
 	// remove tmp dir
 	CheckError(os.RemoveAll(tmpDir))

@@ -94,6 +94,11 @@ func (c *Context) ResourceOverrides(overrides map[string]v1alpha1.ResourceOverri
 	return c
 }
 
+func (c *Context) ResourceFilter(filter settings.ResourcesFilter) *Context {
+	fixture.SetResourceFilter(filter)
+	return c
+}
+
 // this both configures the plugin, but forces use of it
 func (c *Context) ConfigManagementPlugin(plugin v1alpha1.ConfigManagementPlugin) *Context {
 	fixture.SetConfigManagementPlugins(plugin)

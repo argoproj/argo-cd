@@ -277,6 +277,23 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	}
 	conditions = append(conditions, dedupConditions...)
 
+	resFilter, err := m.settingsMgr.GetResourcesFilter()
+	if err != nil {
+		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
+	} else {
+		for i := len(targetObjs) - 1; i >= 0; i-- {
+			targetObj := targetObjs[i]
+			gvk := targetObj.GroupVersionKind()
+			if resFilter.IsExcludedResource(gvk.Group, gvk.Kind, app.Spec.Destination.Server) {
+				targetObjs = append(targetObjs[:i], targetObjs[i+1:]...)
+				conditions = append(conditions, v1alpha1.ApplicationCondition{
+					Type:    v1alpha1.ApplicationConditionExcludedResourceWarning,
+					Message: fmt.Sprintf("Resource %s/%s %s is excluded in the settings", gvk.Group, gvk.Kind, targetObj.GetName()),
+				})
+			}
+		}
+	}
+
 	logCtx.Debugf("Generated config manifests")
 	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(app, targetObjs)
 	dedupLiveResources(targetObjs, liveObjByKey)
