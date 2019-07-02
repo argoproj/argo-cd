@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/util/settings"
+
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -682,4 +684,18 @@ func TestSelfManagedApps(t *testing.T) {
 
 			assert.True(t, reconciledCount < 3, "Application was reconciled too many times")
 		})
+}
+
+func TestExcludedResource(t *testing.T) {
+	Given(t).
+		ResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {Actions: actionsConfig}}).
+		Path(guestbookPath).
+		ResourceFilter(settings.ResourcesFilter{
+			ResourceExclusions: []settings.FilteredResource{{Kinds: []string{kube.DeploymentKind}}},
+		}).
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(Condition(ApplicationConditionExcludedResourceWarning, "Resource apps/Deployment guestbook-ui is excluded in the settings"))
 }

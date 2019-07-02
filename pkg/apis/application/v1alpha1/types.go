@@ -588,6 +588,8 @@ const (
 	ApplicationConditionSharedResourceWarning = "SharedResourceWarning"
 	// ApplicationConditionRepeatedResourceWarning indicates that application source has resource with same Group, Kind, Name, Namespace multiple times
 	ApplicationConditionRepeatedResourceWarning = "RepeatedResourceWarning"
+	// ApplicationConditionExcludedResourceWarning indicates that application has resource which is configured to be excluded
+	ApplicationConditionExcludedResourceWarning = "ExcludedResourceWarning"
 )
 
 // ApplicationCondition contains details about current application condition
