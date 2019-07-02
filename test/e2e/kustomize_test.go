@@ -29,7 +29,9 @@ func TestKustomize2AppSource(t *testing.T) {
 		NamePrefix("k2-").
 		When().
 		Create().
-		Refresh(RefreshTypeHard).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
 		PatchApp(`[
 			{
 				"op": "replace",

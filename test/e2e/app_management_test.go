@@ -664,10 +664,7 @@ func TestSelfManagedApps(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(a *Application) {
-			maxReconcileCount := 1
-			waitDuration := time.Second * 3
-
-			ctx, cancel := context.WithTimeout(context.Background(), waitDuration)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 			defer cancel()
 
 			reconciledCount := 0
@@ -683,6 +680,6 @@ func TestSelfManagedApps(t *testing.T) {
 				lastReconciledAt = reconciledAt
 			}
 
-			assert.True(t, reconciledCount < maxReconcileCount, "Application was reconciled too many times")
+			assert.True(t, reconciledCount < 3, "Application was reconciled too many times")
 		})
 }

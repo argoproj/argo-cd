@@ -215,7 +215,7 @@ jobs:
             # We exclude the Swagger resources; CircleCI doesn't generate them correctly.
             # When this fails, it will, create a patch file you can apply locally to fix it.
             # To troubleshoot builds: https://argoproj.github.io/argo-cd/developer-guide/ci/
-            git diff --exit-code -- . ':!Gopkg.lock' ':!assets/swagger.json' ':!pkg/apis/api-rules/violation_exceptions.list' ':!pkg/apis/application/v1alpha1/openapi_generated.go' | tee codegen.patch
+            git diff --exit-code -- . ':!Gopkg.lock'  ':!assets/swagger.json' | tee codegen.patch
       - store_artifacts:
           path: codegen.patch
           when: always
