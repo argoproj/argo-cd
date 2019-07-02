@@ -24,9 +24,6 @@ type ArgoDB interface {
 	// DeleteCluster deletes a cluster by name
 	DeleteCluster(ctx context.Context, name string) error
 
-	// ListRepoURLs lists repositories
-	// DEPRECATED
-	ListRepoURLs(ctx context.Context) ([]string, error)
 	// ListRepositories lists configured helm repositories
 	ListRepositories(ctx context.Context) ([]*appv1.Repository, error)
 	// CreateRepository creates a repository

@@ -25,20 +25,6 @@ const (
 	sshPrivateKey = "sshPrivateKey"
 )
 
-// ListRepoURLs returns list of repositories
-func (db *db) ListRepoURLs(ctx context.Context) ([]string, error) {
-	repos, err := db.settingsMgr.GetRepositories()
-	if err != nil {
-		return nil, err
-	}
-
-	urls := make([]string, len(repos))
-	for i := range repos {
-		urls[i] = repos[i].URL
-	}
-	return urls, nil
-}
-
 // CreateRepository creates a repository
 func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
 	repos, err := db.settingsMgr.GetRepositories()

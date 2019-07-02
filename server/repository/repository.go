@@ -75,14 +75,14 @@ func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.Conn
 
 // List returns list of repositories
 func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.RepositoryList, error) {
-	urls, err := s.db.ListRepoURLs(ctx)
+	repos, err := s.db.ListRepositories(ctx)
 	if err != nil {
 		return nil, err
 	}
 	items := make([]appsv1.Repository, 0)
-	for _, url := range urls {
+	for _, url := range repos {
 		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, url) {
-			items = append(items, appsv1.Repository{Repo: url})
+			items = append(items, appsv1.Repository{Repo: url.Repo})
 		}
 	}
 	err = util.RunAllAsync(len(items), func(i int) error {
