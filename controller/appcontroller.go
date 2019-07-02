@@ -754,6 +754,7 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 		appv1.ApplicationConditionSharedResourceWarning:   true,
 		appv1.ApplicationConditionSyncError:               true,
 		appv1.ApplicationConditionRepeatedResourceWarning: true,
+		appv1.ApplicationConditionExcludedResourceWarning: true,
 	}
 	appConditions := make([]appv1.ApplicationCondition, 0)
 	for i := 0; i < len(app.Status.Conditions); i++ {
