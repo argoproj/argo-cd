@@ -863,7 +863,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	// auto-sync with pruning disabled). We need to ensure that we do not keep Syncing an
 	// application in an infinite loop. To detect this, we only attempt the Sync if the revision
 	// and parameter overrides are different from our most recent sync operation.
-	if alreadyAttemptedSync(app, desiredCommitSHA) {
+	if !ctrl.setSelfHealingSequence(app, &app.Status) && alreadyAttemptedSync(app, desiredCommitSHA) {
 		if app.Status.OperationState.Phase != appv1.OperationSucceeded {
 			logCtx.Warnf("Skipping auto-sync: failed previous sync attempt to %s", desiredCommitSHA)
 			message := fmt.Sprintf("Failed sync attempt to %s: %s", desiredCommitSHA, app.Status.OperationState.Message)
@@ -971,5 +971,41 @@ func toggledAutomatedSync(old *appv1.Application, new *appv1.Application) bool {
 		return true
 	}
 	// nothing changed
+	return false
+}
+
+func (ctrl *ApplicationController) setSelfHealingSequence(app *appv1.Application, status *appv1.ApplicationStatus) bool {
+	if app.Spec.SyncPolicy.Automated.SelfHeal == nil {
+		return false
+	}
+	logCtx := log.WithFields(log.Fields{"application": app.Name})
+	//recover if self heal sequence is not set
+	defer func() {
+		if r := recover(); r != nil {
+			status.SelfHealSequence = 0
+		}
+	}()
+	//reset self-heal counter
+	if status.Sync.Status == appv1.SyncStatusCodeSynced && status.Health.Status == appv1.HealthStatusHealthy {
+		if status.SelfHealSequence != 0 {
+			status.SelfHealSequence = 0
+			logCtx.Infof("Application healthy, resetting self-heal sequence")
+			ctrl.persistAppStatus(app, status)
+		}
+		return false
+	}
+	// skip operation until application is healthy
+	if status.SelfHealSequence >= app.Spec.SyncPolicy.Automated.SelfHeal.MaxRetries {
+		logCtx.Infof("Skipping self-heal: reached maximum self-healing retries %d", app.Spec.SyncPolicy.Automated.SelfHeal.MaxRetries)
+		return false
+	}
+	// increment sequence
+	if status.SelfHealSequence < app.Spec.SyncPolicy.Automated.SelfHeal.MaxRetries {
+		status.SelfHealSequence++
+		ctrl.persistAppStatus(app, &app.Status)
+		logCtx.Infof("proceeding with self-healing app %s", app.Name)
+		return true
+	}
+	logCtx.Errorf("unknown self-healing state %s", app.Name)
 	return false
 }

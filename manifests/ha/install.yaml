@@ -812,6 +812,16 @@ spec:
                       description: 'Prune will prune resources automatically as part
                         of automated sync (default: false)'
                       type: boolean
+                    selfHeal:
+                      description: 'SelfHeal applies all app resources repeatedly,
+                        regardless of changes to git commit SHA (default: false)'
+                      properties:
+                        maxRetries:
+                          description: Number of retries for the self-healing operation
+                            (resets if application is healthy)
+                          format: int64
+                          type: integer
+                      type: object
                   type: object
               type: object
           required:
@@ -1497,6 +1507,9 @@ spec:
                     type: string
                 type: object
               type: array
+            selfHealSequence:
+              format: int64
+              type: integer
             sourceType:
               type: string
             summary:

@@ -238,6 +238,8 @@ message ApplicationStatus {
   optional string sourceType = 9;
 
   optional ApplicationSummary summary = 10;
+
+  optional int64 selfHealSequence = 11;
 }
 
 message ApplicationSummary {
@@ -743,6 +745,15 @@ message SyncPolicy {
 message SyncPolicyAutomated {
   // Prune will prune resources automatically as part of automated sync (default: false)
   optional bool prune = 1;
+
+  // SelfHeal applies all app resources repeatedly, regardless of changes to git commit SHA (default: false)
+  optional SyncPolicySelfHeal selfHeal = 2;
+}
+
+// SyncPolicySelfHeal controls the behavior of the self healing mechanism
+message SyncPolicySelfHeal {
+  // Number of retries for the self-healing operation (resets if application is healthy)
+  optional int64 maxRetries = 1;
 }
 
 // SyncStatus is a comparison result of application spec and deployed application.

@@ -74,6 +74,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperationResult":        schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncPolicy":                 schema_pkg_apis_application_v1alpha1_SyncPolicy(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncPolicyAutomated":        schema_pkg_apis_application_v1alpha1_SyncPolicyAutomated(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncPolicySelfHeal":         schema_pkg_apis_application_v1alpha1_SyncPolicySelfHeal(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncStatus":                 schema_pkg_apis_application_v1alpha1_SyncStatus(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncStrategy":               schema_pkg_apis_application_v1alpha1_SyncStrategy(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncStrategyApply":          schema_pkg_apis_application_v1alpha1_SyncStrategyApply(ref),
@@ -888,6 +889,12 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 					"summary": {
 						SchemaProps: spec.SchemaProps{
 							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSummary"),
+						},
+					},
+					"selfHealSequence": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
 						},
 					},
 				},
@@ -2690,6 +2697,34 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicyAutomated(ref common.Referen
 							Description: "Prune will prune resources automatically as part of automated sync (default: false)",
 							Type:        []string{"boolean"},
 							Format:      "",
+						},
+					},
+					"selfHeal": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SelfHeal applies all app resources repeatedly, regardless of changes to git commit SHA (default: false)",
+							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncPolicySelfHeal"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncPolicySelfHeal"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_SyncPolicySelfHeal(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SyncPolicySelfHeal controls the behavior of the self healing mechanism",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"maxRetries": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Number of retries for the self-healing operation (resets if application is healthy)",
+							Type:        []string{"integer"},
+							Format:      "int64",
 						},
 					},
 				},
