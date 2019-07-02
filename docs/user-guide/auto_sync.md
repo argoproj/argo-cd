@@ -39,13 +39,27 @@ spec:
       prune: true
 ```
 
+## Self Healing
+
+Self healing in automated sync will retry to apply all manifests for the application, regardless of git commit SHA changes.
+The retry-counter resets if the application is synchronized and healthy.
+
+```yaml
+spec:
+  syncPolicy:
+    automated:
+      selfHeal:
+        maxRetries: 3
+```
+
 ## Automated Sync Semantics
 
 * An automated sync will only be performed if the application is OutOfSync. Applications in a
   Synced or error state will not attempt automated sync.
-* Automated sync will only attempt one synchronization per unique combination of commit SHA1 and
-  application parameters. If the most recent successful sync in the history was already performed
-  against the same commit-SHA and parameters, a second sync will not be attempted.
-* Automatic sync will not reattempt a sync if the previous sync attempt against the same commit-SHA
-  and parameters had failed.
+* Unless self-healing is configured:
+  * Automated sync will only attempt one synchronization per unique combination of commit SHA1 and
+    application parameters. If the most recent successful sync in the history was already performed
+    against the same commit-SHA and parameters, a second sync will not be attempted.
+  * Automatic sync will not reattempt a sync if the previous sync attempt against the same commit-SHA
+    and parameters had failed.
 * Rollback cannot be performed against an application with automated sync enabled.

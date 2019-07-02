@@ -2798,6 +2798,10 @@
             "$ref": "#/definitions/v1alpha1ResourceStatus"
           }
         },
+        "selfHealSequence": {
+          "type": "string",
+          "format": "int64"
+        },
         "sourceType": {
           "type": "string"
         },
@@ -3560,6 +3564,20 @@
           "type": "boolean",
           "format": "boolean",
           "title": "Prune will prune resources automatically as part of automated sync (default: false)"
+        },
+        "selfHeal": {
+          "$ref": "#/definitions/v1alpha1SyncPolicySelfHeal"
+        }
+      }
+    },
+    "v1alpha1SyncPolicySelfHeal": {
+      "type": "object",
+      "title": "SyncPolicySelfHeal controls the behavior of the self healing mechanism",
+      "properties": {
+        "maxRetries": {
+          "type": "string",
+          "format": "int64",
+          "title": "Number of retries for the self-healing operation (resets if application is healthy)"
         }
       }
     },

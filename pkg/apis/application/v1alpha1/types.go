@@ -224,16 +224,17 @@ type ApplicationDestination struct {
 
 // ApplicationStatus contains information about application sync, health status
 type ApplicationStatus struct {
-	Resources      []ResourceStatus       `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
-	Sync           SyncStatus             `json:"sync,omitempty" protobuf:"bytes,2,opt,name=sync"`
-	Health         HealthStatus           `json:"health,omitempty" protobuf:"bytes,3,opt,name=health"`
-	History        []RevisionHistory      `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
-	Conditions     []ApplicationCondition `json:"conditions,omitempty" protobuf:"bytes,5,opt,name=conditions"`
-	ReconciledAt   *metav1.Time           `json:"reconciledAt,omitempty" protobuf:"bytes,6,opt,name=reconciledAt"`
-	OperationState *OperationState        `json:"operationState,omitempty" protobuf:"bytes,7,opt,name=operationState"`
-	ObservedAt     *metav1.Time           `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
-	SourceType     ApplicationSourceType  `json:"sourceType,omitempty" protobuf:"bytes,9,opt,name=sourceType"`
-	Summary        ApplicationSummary     `json:"summary,omitempty" protobuf:"bytes,10,opt,name=summary"`
+	Resources        []ResourceStatus       `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
+	Sync             SyncStatus             `json:"sync,omitempty" protobuf:"bytes,2,opt,name=sync"`
+	Health           HealthStatus           `json:"health,omitempty" protobuf:"bytes,3,opt,name=health"`
+	History          []RevisionHistory      `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
+	Conditions       []ApplicationCondition `json:"conditions,omitempty" protobuf:"bytes,5,opt,name=conditions"`
+	ReconciledAt     *metav1.Time           `json:"reconciledAt,omitempty" protobuf:"bytes,6,opt,name=reconciledAt"`
+	OperationState   *OperationState        `json:"operationState,omitempty" protobuf:"bytes,7,opt,name=operationState"`
+	ObservedAt       *metav1.Time           `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
+	SourceType       ApplicationSourceType  `json:"sourceType,omitempty" protobuf:"bytes,9,opt,name=sourceType"`
+	Summary          ApplicationSummary     `json:"summary,omitempty" protobuf:"bytes,10,opt,name=summary"`
+	SelfHealSequence int64                  `json:"selfHealSequence,omitempty" protobuf:"bytes,11,opt,name=selfHealSequence"`
 }
 
 // Operation contains requested operation parameters.
@@ -333,6 +334,14 @@ type SyncPolicy struct {
 type SyncPolicyAutomated struct {
 	// Prune will prune resources automatically as part of automated sync (default: false)
 	Prune bool `json:"prune,omitempty" protobuf:"bytes,1,opt,name=prune"`
+	// SelfHeal applies all app resources repeatedly, regardless of changes to git commit SHA (default: false)
+	SelfHeal *SyncPolicySelfHeal `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
+}
+
+// SyncPolicySelfHeal controls the behavior of the self healing mechanism
+type SyncPolicySelfHeal struct {
+	// Number of retries for the self-healing operation (resets if application is healthy)
+	MaxRetries int64 `json:"maxRetries,omitempty" protobuf:"bytes,1,opt,name=maxRetries"`
 }
 
 // SyncStrategy controls the manner in which a sync is performed
