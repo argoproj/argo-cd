@@ -398,3 +398,139 @@ func TestResourceResults_PruningRequired(t *testing.T) {
 		})
 	}
 }
+
+func TestApplicationSource_IsZero(t *testing.T) {
+	tests := []struct {
+		name   string
+		source *ApplicationSource
+		want   bool
+	}{
+		{"Nil", nil, true},
+		{"Empty", &ApplicationSource{}, true},
+		{"RepoURL", &ApplicationSource{RepoURL: "foo"}, false},
+		{"Path", &ApplicationSource{Path: "foo"}, false},
+		{"TargetRevision", &ApplicationSource{TargetRevision: "foo"}, false},
+		{"Helm", &ApplicationSource{Helm: &ApplicationSourceHelm{ReleaseName: "foo"}}, false},
+		{"Kustomize", &ApplicationSource{Kustomize: &ApplicationSourceKustomize{Images: []string{""}}}, false},
+		{"Helm", &ApplicationSource{Ksonnet: &ApplicationSourceKsonnet{Environment: "foo"}}, false},
+		{"Directory", &ApplicationSource{Directory: &ApplicationSourceDirectory{Recurse: true}}, false},
+		{"Plugin", &ApplicationSource{Plugin: &ApplicationSourcePlugin{Name: "foo"}}, false},
+		{"Env", &ApplicationSource{Env: []Env{{}}}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.source.IsZero(), tt.want)
+		})
+	}
+}
+
+func TestApplicationSourceHelm_IsZero(t *testing.T) {
+	tests := []struct {
+		name   string
+		source *ApplicationSourceHelm
+		want   bool
+	}{
+		{"Nil", nil, true},
+		{"Empty", &ApplicationSourceHelm{}, true},
+		{"ValueFiles", &ApplicationSourceHelm{ValueFiles: []string{""}}, false},
+		{"Parameters", &ApplicationSourceHelm{Parameters: []HelmParameter{{}}}, false},
+		{"ReleaseName", &ApplicationSourceHelm{ReleaseName: "foa"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.source.IsZero(), tt.want)
+		})
+	}
+}
+
+func TestApplicationSourceKustomize_IsZero(t *testing.T) {
+	tests := []struct {
+		name   string
+		source *ApplicationSourceKustomize
+		want   bool
+	}{
+		{"Nil", nil, true},
+		{"Empty", &ApplicationSourceKustomize{}, true},
+		{"NamePrefix", &ApplicationSourceKustomize{NamePrefix: "foo"}, false},
+		{"ImageTags", &ApplicationSourceKustomize{ImageTags: []KustomizeImageTag{{}}}, false},
+		{"Images", &ApplicationSourceKustomize{Images: []string{""}}, false},
+		{"CommonLabels", &ApplicationSourceKustomize{CommonLabels: map[string]string{"": ""}}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.source.IsZero(), tt.want)
+		})
+	}
+}
+
+func TestApplicationSourceJsonnet_IsZero(t *testing.T) {
+	tests := []struct {
+		name   string
+		source *ApplicationSourceJsonnet
+		want   bool
+	}{
+		{"Nil", nil, true},
+		{"Empty", &ApplicationSourceJsonnet{}, true},
+		{"ExtVars", &ApplicationSourceJsonnet{ExtVars: []JsonnetVar{{}}}, false},
+		{"TLAs", &ApplicationSourceJsonnet{TLAs: []JsonnetVar{{}}}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.source.IsZero(), tt.want)
+		})
+	}
+}
+
+func TestApplicationSourceKsonnet_IsZero(t *testing.T) {
+	tests := []struct {
+		name   string
+		source *ApplicationSourceKsonnet
+		want   bool
+	}{
+		{"Nil", nil, true},
+		{"Empty", &ApplicationSourceKsonnet{}, true},
+		{"Environment", &ApplicationSourceKsonnet{Environment: "foo"}, false},
+		{"Parameters", &ApplicationSourceKsonnet{Parameters: []KsonnetParameter{{}}}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.source.IsZero(), tt.want)
+		})
+	}
+}
+
+func TestApplicationSourceDirectory_IsZero(t *testing.T) {
+	tests := []struct {
+		name   string
+		source *ApplicationSourceDirectory
+		want   bool
+	}{
+		{"Nil", nil, true},
+		{"Empty", &ApplicationSourceDirectory{}, true},
+		{"Recurse", &ApplicationSourceDirectory{Recurse: true}, false},
+		{"Jsonnet", &ApplicationSourceDirectory{Jsonnet: ApplicationSourceJsonnet{ExtVars: []JsonnetVar{{}}}}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.source.IsZero(), tt.want)
+		})
+	}
+}
+
+func TestApplicationSourcePlugin_IsZero(t *testing.T) {
+
+	tests := []struct {
+		name   string
+		source *ApplicationSourcePlugin
+		want   bool
+	}{
+		{"Nil", nil, true},
+		{"Empty", &ApplicationSourcePlugin{}, true},
+		{"Name", &ApplicationSourcePlugin{Name: "foo"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.source.IsZero(), tt.want)
+		})
+	}
+}

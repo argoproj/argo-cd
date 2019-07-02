@@ -460,6 +460,18 @@ spec:
                         recurse:
                           type: boolean
                       type: object
+                    env:
+                      items:
+                        properties:
+                          name:
+                            type: string
+                          value:
+                            type: string
+                        required:
+                        - name
+                        - value
+                        type: object
+                      type: array
                     helm:
                       description: Helm holds helm specific options
                       properties:
@@ -693,6 +705,18 @@ spec:
                     recurse:
                       type: boolean
                   type: object
+                env:
+                  items:
+                    properties:
+                      name:
+                        type: string
+                      value:
+                        type: string
+                    required:
+                    - name
+                    - value
+                    type: object
+                  type: array
                 helm:
                   description: Helm holds helm specific options
                   properties:
@@ -893,6 +917,18 @@ spec:
                           recurse:
                             type: boolean
                         type: object
+                      env:
+                        items:
+                          properties:
+                            name:
+                              type: string
+                            value:
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
                       helm:
                         description: Helm holds helm specific options
                         properties:
@@ -1105,6 +1141,18 @@ spec:
                                 recurse:
                                   type: boolean
                               type: object
+                            env:
+                              items:
+                                properties:
+                                  name:
+                                    type: string
+                                  value:
+                                    type: string
+                                required:
+                                - name
+                                - value
+                                type: object
+                              type: array
                             helm:
                               description: Helm holds helm specific options
                               properties:
@@ -1349,6 +1397,18 @@ spec:
                             recurse:
                               type: boolean
                           type: object
+                        env:
+                          items:
+                            properties:
+                              name:
+                                type: string
+                              value:
+                                type: string
+                            required:
+                            - name
+                            - value
+                            type: object
+                          type: array
                         helm:
                           description: Helm holds helm specific options
                           properties:
@@ -1570,6 +1630,18 @@ spec:
                             recurse:
                               type: boolean
                           type: object
+                        env:
+                          items:
+                            properties:
+                              name:
+                                type: string
+                              value:
+                                type: string
+                            required:
+                            - name
+                            - value
+                            type: object
+                          type: array
                         helm:
                           description: Helm holds helm specific options
                           properties:

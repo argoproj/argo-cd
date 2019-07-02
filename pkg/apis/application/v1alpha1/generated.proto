@@ -135,6 +135,8 @@ message ApplicationSource {
 
   // ConfigManagementPlugin holds config management plugin specific options
   optional ApplicationSourcePlugin plugin = 11;
+
+  repeated Env env = 12;
 }
 
 message ApplicationSourceDirectory {
@@ -343,6 +345,12 @@ message ConnectionState {
   optional string message = 2;
 
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time attemptedAt = 3;
+}
+
+message Env {
+  optional string name = 1;
+
+  optional string value = 2;
 }
 
 message HealthStatus {

@@ -2587,6 +2587,12 @@
         "directory": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceDirectory"
         },
+        "env": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1Env"
+          }
+        },
         "helm": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceHelm"
         },
@@ -2928,6 +2934,17 @@
           "type": "string"
         },
         "status": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1Env": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
           "type": "string"
         }
       }
