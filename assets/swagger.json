@@ -2589,6 +2589,7 @@
         },
         "env": {
           "type": "array",
+          "title": "Env is a list of environment variables passed to the tool",
           "items": {
             "$ref": "#/definitions/v1alpha1Env"
           }
@@ -2942,10 +2943,12 @@
       "type": "object",
       "properties": {
         "name": {
-          "type": "string"
+          "type": "string",
+          "title": "the name, usually uppercase"
         },
         "value": {
-          "type": "string"
+          "type": "string",
+          "title": "the value"
         }
       }
     },

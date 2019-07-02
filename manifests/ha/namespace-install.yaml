@@ -461,11 +461,15 @@ spec:
                           type: boolean
                       type: object
                     env:
+                      description: Env is a list of environment variables passed to
+                        the tool
                       items:
                         properties:
                           name:
+                            description: the name, usually uppercase
                             type: string
                           value:
+                            description: the value
                             type: string
                         required:
                         - name
@@ -706,11 +710,15 @@ spec:
                       type: boolean
                   type: object
                 env:
+                  description: Env is a list of environment variables passed to the
+                    tool
                   items:
                     properties:
                       name:
+                        description: the name, usually uppercase
                         type: string
                       value:
+                        description: the value
                         type: string
                     required:
                     - name
@@ -918,11 +926,15 @@ spec:
                             type: boolean
                         type: object
                       env:
+                        description: Env is a list of environment variables passed
+                          to the tool
                         items:
                           properties:
                             name:
+                              description: the name, usually uppercase
                               type: string
                             value:
+                              description: the value
                               type: string
                           required:
                           - name
@@ -1142,11 +1154,15 @@ spec:
                                   type: boolean
                               type: object
                             env:
+                              description: Env is a list of environment variables
+                                passed to the tool
                               items:
                                 properties:
                                   name:
+                                    description: the name, usually uppercase
                                     type: string
                                   value:
+                                    description: the value
                                     type: string
                                 required:
                                 - name
@@ -1398,11 +1414,15 @@ spec:
                               type: boolean
                           type: object
                         env:
+                          description: Env is a list of environment variables passed
+                            to the tool
                           items:
                             properties:
                               name:
+                                description: the name, usually uppercase
                                 type: string
                               value:
+                                description: the value
                                 type: string
                             required:
                             - name
@@ -1631,11 +1651,15 @@ spec:
                               type: boolean
                           type: object
                         env:
+                          description: Env is a list of environment variables passed
+                            to the tool
                           items:
                             properties:
                               name:
+                                description: the name, usually uppercase
                                 type: string
                               value:
+                                description: the value
                                 type: string
                             required:
                             - name

@@ -498,7 +498,8 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSource(ref common.Reference
 					},
 					"env": {
 						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
+							Description: "Env is a list of environment variables passed to the tool",
+							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
@@ -1292,14 +1293,16 @@ func schema_pkg_apis_application_v1alpha1_Env(ref common.ReferenceCallback) comm
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "the name, usually uppercase",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"value": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "the value",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},

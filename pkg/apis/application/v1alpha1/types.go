@@ -67,6 +67,10 @@ type Env struct {
 	Value string `json:"value" protobuf:"bytes,2,opt,name=value"`
 }
 
+func (a *Env) IsZero() bool {
+	return a == nil || a.Name == "" && a.Value == ""
+}
+
 // ApplicationSource contains information about github repository, path within repository and target application environment.
 type ApplicationSource struct {
 	// RepoURL is the git repository URL of the application manifests
@@ -102,6 +106,18 @@ func (a *ApplicationSource) IsZero() bool {
 			a.Directory.IsZero() &&
 			a.Plugin.IsZero() &&
 			len(a.Env) == 0
+}
+
+func (a *ApplicationSource) Environ() []string {
+	var environ []string
+	if a != nil {
+		for _, item := range a.Env {
+			if !item.IsZero() {
+				environ = append(environ, fmt.Sprintf("%s=%s", item.Name, item.Value))
+			}
+		}
+	}
+	return environ
 }
 
 type ApplicationSourceType string

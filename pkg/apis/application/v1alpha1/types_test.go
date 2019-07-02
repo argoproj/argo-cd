@@ -419,7 +419,7 @@ func TestApplicationSource_IsZero(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.source.IsZero(), tt.want)
+			assert.Equal(t, tt.want, tt.source.IsZero())
 		})
 	}
 }
@@ -438,7 +438,7 @@ func TestApplicationSourceHelm_IsZero(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.source.IsZero(), tt.want)
+			assert.Equal(t, tt.want, tt.source.IsZero())
 		})
 	}
 }
@@ -458,7 +458,7 @@ func TestApplicationSourceKustomize_IsZero(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.source.IsZero(), tt.want)
+			assert.Equal(t, tt.want, tt.source.IsZero())
 		})
 	}
 }
@@ -476,7 +476,7 @@ func TestApplicationSourceJsonnet_IsZero(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.source.IsZero(), tt.want)
+			assert.Equal(t, tt.want, tt.source.IsZero())
 		})
 	}
 }
@@ -494,7 +494,7 @@ func TestApplicationSourceKsonnet_IsZero(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.source.IsZero(), tt.want)
+			assert.Equal(t, tt.want, tt.source.IsZero())
 		})
 	}
 }
@@ -512,7 +512,7 @@ func TestApplicationSourceDirectory_IsZero(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.source.IsZero(), tt.want)
+			assert.Equal(t, tt.want, tt.source.IsZero())
 		})
 	}
 }
@@ -530,7 +530,44 @@ func TestApplicationSourcePlugin_IsZero(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.source.IsZero(), tt.want)
+			assert.Equal(t, tt.want, tt.source.IsZero())
+		})
+	}
+}
+
+func TestEnv_IsZero(t *testing.T) {
+	tests := []struct {
+		name string
+		env  *Env
+		want bool
+	}{
+		{"Nil", nil, true},
+		{"Empty", &Env{}, true},
+		{"Name", &Env{Name: "FOO"}, false},
+		{"Value", &Env{Value: "foo"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.env.IsZero())
+		})
+	}
+}
+
+func TestApplicationSource_Environ(t *testing.T) {
+	tests := []struct {
+		name   string
+		source *ApplicationSource
+		want   []string
+	}{
+		{"Nil", nil, nil},
+		{"Empty", &ApplicationSource{}, nil},
+		{"Zero", &ApplicationSource{Env: []Env{{}}}, nil},
+		{"One", &ApplicationSource{Env: []Env{{"FOO", "bar"}}}, []string{"FOO=bar"}},
+		{"Two", &ApplicationSource{Env: []Env{{"FOO", "bar"}, {"FOO", "bar"}}}, []string{"FOO=bar", "FOO=bar"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.source.Environ())
 		})
 	}
 }

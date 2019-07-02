@@ -136,6 +136,7 @@ message ApplicationSource {
   // ConfigManagementPlugin holds config management plugin specific options
   optional ApplicationSourcePlugin plugin = 11;
 
+  // Env is a list of environment variables passed to the tool
   repeated Env env = 12;
 }
 
@@ -348,8 +349,10 @@ message ConnectionState {
 }
 
 message Env {
+  // the name, usually uppercase
   optional string name = 1;
 
+  // the value
   optional string value = 2;
 }
 
