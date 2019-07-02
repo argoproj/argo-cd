@@ -2591,7 +2591,7 @@
           "type": "array",
           "title": "Env is a list of environment variables passed to the tool",
           "items": {
-            "$ref": "#/definitions/v1alpha1Env"
+            "$ref": "#/definitions/v1alpha1EnvEntry"
           }
         },
         "helm": {
@@ -2939,7 +2939,7 @@
         }
       }
     },
-    "v1alpha1Env": {
+    "v1alpha1EnvEntry": {
       "type": "object",
       "properties": {
         "name": {

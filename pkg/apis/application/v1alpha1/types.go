@@ -60,15 +60,21 @@ type ResourceIgnoreDifferences struct {
 	JSONPointers []string `json:"jsonPointers" protobuf:"bytes,5,opt,name=jsonPointers"`
 }
 
-type Env struct {
+type EnvEntry struct {
 	// the name, usually uppercase
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	// the value
 	Value string `json:"value" protobuf:"bytes,2,opt,name=value"`
 }
 
-func (a *Env) IsZero() bool {
+func (a *EnvEntry) IsZero() bool {
 	return a == nil || a.Name == "" && a.Value == ""
+}
+
+type Env []*EnvEntry
+
+func (e Env) IsZero() bool {
+	return len(e) == 0
 }
 
 // ApplicationSource contains information about github repository, path within repository and target application environment.
@@ -92,7 +98,7 @@ type ApplicationSource struct {
 	// ConfigManagementPlugin holds config management plugin specific options
 	Plugin *ApplicationSourcePlugin `json:"plugin,omitempty" protobuf:"bytes,11,opt,name=plugin"`
 	// Env is a list of environment variables passed to the tool
-	Env []Env `json:"env,omitempty" protobuf:"bytes,12,opt,name=env"`
+	Env `json:"env,omitempty" protobuf:"bytes,12,opt,name=env"`
 }
 
 func (a *ApplicationSource) IsZero() bool {
@@ -105,7 +111,7 @@ func (a *ApplicationSource) IsZero() bool {
 			a.Ksonnet.IsZero() &&
 			a.Directory.IsZero() &&
 			a.Plugin.IsZero() &&
-			len(a.Env) == 0
+			a.Env.IsZero()
 }
 
 func (a *ApplicationSource) Environ() []string {

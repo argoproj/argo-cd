@@ -415,7 +415,7 @@ func TestApplicationSource_IsZero(t *testing.T) {
 		{"Helm", &ApplicationSource{Ksonnet: &ApplicationSourceKsonnet{Environment: "foo"}}, false},
 		{"Directory", &ApplicationSource{Directory: &ApplicationSourceDirectory{Recurse: true}}, false},
 		{"Plugin", &ApplicationSource{Plugin: &ApplicationSourcePlugin{Name: "foo"}}, false},
-		{"Env", &ApplicationSource{Env: []Env{{}}}, false},
+		{"Env", &ApplicationSource{Env: Env{{}}}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -535,16 +535,16 @@ func TestApplicationSourcePlugin_IsZero(t *testing.T) {
 	}
 }
 
-func TestEnv_IsZero(t *testing.T) {
+func TestEnvEntry_IsZero(t *testing.T) {
 	tests := []struct {
 		name string
-		env  *Env
+		env  *EnvEntry
 		want bool
 	}{
 		{"Nil", nil, true},
-		{"Empty", &Env{}, true},
-		{"Name", &Env{Name: "FOO"}, false},
-		{"Value", &Env{Value: "foo"}, false},
+		{"Empty", &EnvEntry{}, true},
+		{"Name", &EnvEntry{Name: "FOO"}, false},
+		{"Value", &EnvEntry{Value: "foo"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -561,13 +561,29 @@ func TestApplicationSource_Environ(t *testing.T) {
 	}{
 		{"Nil", nil, nil},
 		{"Empty", &ApplicationSource{}, nil},
-		{"Zero", &ApplicationSource{Env: []Env{{}}}, nil},
-		{"One", &ApplicationSource{Env: []Env{{"FOO", "bar"}}}, []string{"FOO=bar"}},
-		{"Two", &ApplicationSource{Env: []Env{{"FOO", "bar"}, {"FOO", "bar"}}}, []string{"FOO=bar", "FOO=bar"}},
+		{"Zero", &ApplicationSource{Env: Env{{}}}, nil},
+		{"One", &ApplicationSource{Env: Env{{"FOO", "bar"}}}, []string{"FOO=bar"}},
+		{"Two", &ApplicationSource{Env: Env{{"FOO", "bar"}, {"FOO", "bar"}}}, []string{"FOO=bar", "FOO=bar"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, tt.source.Environ())
+		})
+	}
+}
+
+func TestEnv_IsZero(t *testing.T) {
+	tests := []struct {
+		name string
+		e    Env
+		want bool
+	}{
+		{"Empty", Env{}, true},
+		{"One", Env{{}}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.e.IsZero())
 		})
 	}
 }

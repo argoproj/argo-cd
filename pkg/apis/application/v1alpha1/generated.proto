@@ -137,7 +137,7 @@ message ApplicationSource {
   optional ApplicationSourcePlugin plugin = 11;
 
   // Env is a list of environment variables passed to the tool
-  repeated Env env = 12;
+  repeated EnvEntry env = 12;
 }
 
 message ApplicationSourceDirectory {
@@ -348,7 +348,7 @@ message ConnectionState {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time attemptedAt = 3;
 }
 
-message Env {
+message EnvEntry {
   // the name, usually uppercase
   optional string name = 1;
 
