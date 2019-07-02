@@ -395,7 +395,7 @@ func TestFuzzyEquivalence(t *testing.T) {
 
 func TestListHelmRepositories(t *testing.T) {
 	config := map[string]string{
-		"helm.repositories": `
+		"repositories": `
 - url: https://argoproj.github.io/argo-helm
   name: argo
   usernameSecret:
@@ -429,9 +429,9 @@ func TestListHelmRepositories(t *testing.T) {
 	})
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 
-	repos, err := db.ListHelmRepos(context.Background())
+	repos, err := db.ListRepositories(context.Background())
 	assert.Nil(t, err)
-	assert.Equal(t, 1, len(repos))
+	assert.Len(t, repos, 1)
 	repo := repos[0]
 	assert.Equal(t, "test-username", repo.Username)
 	assert.Equal(t, "test-password", repo.Password)

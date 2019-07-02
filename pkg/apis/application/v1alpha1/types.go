@@ -829,16 +829,6 @@ type TLSClientConfig struct {
 	CAData []byte `json:"caData,omitempty" protobuf:"bytes,5,opt,name=caData"`
 }
 
-type HelmRepository struct {
-	URL      string `json:"url" protobuf:"bytes,1,opt,name=url"`
-	Name     string `json:"name" protobuf:"bytes,2,opt,name=name"`
-	CAData   []byte `json:"caData,omitempty" protobuf:"bytes,3,opt,name=caData"`
-	CertData []byte `json:"certData,omitempty" protobuf:"bytes,4,opt,name=certData"`
-	KeyData  []byte `json:"keyData,omitempty" protobuf:"bytes,5,opt,name=keyData"`
-	Username string `json:"username,omitempty" protobuf:"bytes,6,opt,name=username"`
-	Password string `json:"password,omitempty" protobuf:"bytes,7,opt,name=password"`
-}
-
 // ResourceOverride holds configuration to customize resource diffing and health assessment
 type ResourceOverride struct {
 	HealthLua         string `json:"health.lua,omitempty" protobuf:"bytes,1,opt,name=healthLua"`
@@ -885,6 +875,14 @@ type Repository struct {
 	SSHPrivateKey         string          `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
 	ConnectionState       ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,5,opt,name=connectionState"`
 	InsecureIgnoreHostKey bool            `json:"insecureIgnoreHostKey,omitempty" protobuf:"bytes,6,opt,name=insecureIgnoreHostKey"`
+	// only for Helm repos
+	CAData []byte `json:"caData,omitempty" protobuf:"bytes,7,opt,name=caData"`
+	// only for Helm repos
+	CertData []byte `json:"certData,omitempty" protobuf:"bytes,8,opt,name=certData"`
+	// only for Helm repos
+	KeyData []byte `json:"keyData,omitempty" protobuf:"bytes,9,opt,name=keyData"`
+	// only for Helm repos
+	Name string `json:"name,omitempty" protobuf:"bytes,10,opt,name=name"`
 }
 
 func (m *Repository) HasCredentials() bool {

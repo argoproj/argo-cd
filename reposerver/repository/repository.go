@@ -218,7 +218,7 @@ func GenerateManifests(root, path string, q *ManifestRequest) (*ManifestResponse
 	case v1alpha1.ApplicationSourceTypeKsonnet:
 		targetObjs, dest, err = ksShow(q.AppLabelKey, appPath, q.ApplicationSource.Ksonnet)
 	case v1alpha1.ApplicationSourceTypeHelm:
-		h := helm.NewHelmApp(appPath, q.HelmRepos)
+		h := helm.NewHelmApp(appPath, q.Repos)
 		err := h.Init()
 		if err != nil {
 			return nil, err
@@ -665,7 +665,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 				res.Helm.ValueFiles = append(res.Helm.ValueFiles, fName)
 			}
 		}
-		h := helm.NewHelmApp(appPath, q.HelmRepos)
+		h := helm.NewHelmApp(appPath, q.Repos)
 		err = h.Init()
 		if err != nil {
 			return nil, err

@@ -3137,12 +3137,31 @@
       "type": "object",
       "title": "Repository is a Git repository holding application configurations",
       "properties": {
+        "caData": {
+          "type": "string",
+          "format": "byte",
+          "title": "only for Helm repos"
+        },
+        "certData": {
+          "type": "string",
+          "format": "byte",
+          "title": "only for Helm repos"
+        },
         "connectionState": {
           "$ref": "#/definitions/v1alpha1ConnectionState"
         },
         "insecureIgnoreHostKey": {
           "type": "boolean",
           "format": "boolean"
+        },
+        "keyData": {
+          "type": "string",
+          "format": "byte",
+          "title": "only for Helm repos"
+        },
+        "name": {
+          "type": "string",
+          "title": "only for Helm repos"
         },
         "password": {
           "type": "string"

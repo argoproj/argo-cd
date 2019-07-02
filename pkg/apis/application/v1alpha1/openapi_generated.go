@@ -44,7 +44,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.EnvEntry":                   schema_pkg_apis_application_v1alpha1_EnvEntry(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HealthStatus":               schema_pkg_apis_application_v1alpha1_HealthStatus(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HelmParameter":              schema_pkg_apis_application_v1alpha1_HelmParameter(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HelmRepository":             schema_pkg_apis_application_v1alpha1_HelmRepository(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Info":                       schema_pkg_apis_application_v1alpha1_Info(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.InfoItem":                   schema_pkg_apis_application_v1alpha1_InfoItem(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.JWTToken":                   schema_pkg_apis_application_v1alpha1_JWTToken(ref),
@@ -1364,61 +1363,6 @@ func schema_pkg_apis_application_v1alpha1_HelmParameter(ref common.ReferenceCall
 	}
 }
 
-func schema_pkg_apis_application_v1alpha1_HelmRepository(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"url": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"name": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"caData": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "byte",
-						},
-					},
-					"certData": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "byte",
-						},
-					},
-					"keyData": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "byte",
-						},
-					},
-					"username": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"password": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-				},
-				Required: []string{"url", "name"},
-			},
-		},
-	}
-}
-
 func schema_pkg_apis_application_v1alpha1_Info(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1773,6 +1717,34 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"boolean"},
 							Format: "",
+						},
+					},
+					"caData": {
+						SchemaProps: spec.SchemaProps{
+							Description: "only for Helm repos",
+							Type:        []string{"string"},
+							Format:      "byte",
+						},
+					},
+					"certData": {
+						SchemaProps: spec.SchemaProps{
+							Description: "only for Helm repos",
+							Type:        []string{"string"},
+							Format:      "byte",
+						},
+					},
+					"keyData": {
+						SchemaProps: spec.SchemaProps{
+							Description: "only for Helm repos",
+							Type:        []string{"string"},
+							Format:      "byte",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "only for Helm repos",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},

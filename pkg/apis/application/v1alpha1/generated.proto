@@ -370,22 +370,6 @@ message HelmParameter {
   optional string value = 2;
 }
 
-message HelmRepository {
-  optional string url = 1;
-
-  optional string name = 2;
-
-  optional bytes caData = 3;
-
-  optional bytes certData = 4;
-
-  optional bytes keyData = 5;
-
-  optional string username = 6;
-
-  optional string password = 7;
-}
-
 message Info {
   optional string name = 1;
 
@@ -492,6 +476,18 @@ message Repository {
   optional ConnectionState connectionState = 5;
 
   optional bool insecureIgnoreHostKey = 6;
+
+  // only for Helm repos
+  optional bytes caData = 7;
+
+  // only for Helm repos
+  optional bytes certData = 8;
+
+  // only for Helm repos
+  optional bytes keyData = 9;
+
+  // only for Helm repos
+  optional string name = 10;
 }
 
 // RepositoryList is a collection of Repositories.

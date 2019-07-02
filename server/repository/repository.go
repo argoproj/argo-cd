@@ -204,17 +204,17 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		return nil, err
 	}
 	defer util.Close(conn)
-	helmRepos, err := s.db.ListHelmRepos(ctx)
+	repos, err := s.db.ListRepositories(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return repoClient.GetAppDetails(ctx, &repository.RepoServerAppDetailsQuery{
-		Repo:      repo,
-		Revision:  q.Revision,
-		Path:      q.Path,
-		HelmRepos: helmRepos,
-		Helm:      q.Helm,
-		Ksonnet:   q.Ksonnet,
+		Repo:     repo,
+		Revision: q.Revision,
+		Path:     q.Path,
+		Repos:    repos,
+		Helm:     q.Helm,
+		Ksonnet:  q.Ksonnet,
 	})
 }
 

@@ -109,13 +109,13 @@ func (_m *ArgoDB) GetCluster(ctx context.Context, name string) (*v1alpha1.Cluste
 	return r0, r1
 }
 
-// GetRepository provides a mock function with given fields: ctx, repoURL
-func (_m *ArgoDB) GetRepository(ctx context.Context, repoURL string) (*v1alpha1.Repository, error) {
-	ret := _m.Called(ctx, repoURL)
+// GetRepository provides a mock function with given fields: ctx, name
+func (_m *ArgoDB) GetRepository(ctx context.Context, name string) (*v1alpha1.Repository, error) {
+	ret := _m.Called(ctx, name)
 
 	var r0 *v1alpha1.Repository
 	if rf, ok := ret.Get(0).(func(context.Context, string) *v1alpha1.Repository); ok {
-		r0 = rf(ctx, repoURL)
+		r0 = rf(ctx, name)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*v1alpha1.Repository)
@@ -124,7 +124,7 @@ func (_m *ArgoDB) GetRepository(ctx context.Context, repoURL string) (*v1alpha1.
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, repoURL)
+		r1 = rf(ctx, name)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -155,16 +155,16 @@ func (_m *ArgoDB) ListClusters(ctx context.Context) (*v1alpha1.ClusterList, erro
 	return r0, r1
 }
 
-// ListHelmRepos provides a mock function with given fields: ctx
-func (_m *ArgoDB) ListHelmRepos(ctx context.Context) ([]*v1alpha1.HelmRepository, error) {
+// ListRepoURLs provides a mock function with given fields: ctx
+func (_m *ArgoDB) ListRepoURLs(ctx context.Context) ([]string, error) {
 	ret := _m.Called(ctx)
 
-	var r0 []*v1alpha1.HelmRepository
-	if rf, ok := ret.Get(0).(func(context.Context) []*v1alpha1.HelmRepository); ok {
+	var r0 []string
+	if rf, ok := ret.Get(0).(func(context.Context) []string); ok {
 		r0 = rf(ctx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*v1alpha1.HelmRepository)
+			r0 = ret.Get(0).([]string)
 		}
 	}
 
@@ -178,16 +178,16 @@ func (_m *ArgoDB) ListHelmRepos(ctx context.Context) ([]*v1alpha1.HelmRepository
 	return r0, r1
 }
 
-// ListRepoURLs provides a mock function with given fields: ctx
-func (_m *ArgoDB) ListRepoURLs(ctx context.Context) ([]string, error) {
+// ListRepositories provides a mock function with given fields: ctx
+func (_m *ArgoDB) ListRepositories(ctx context.Context) ([]*v1alpha1.Repository, error) {
 	ret := _m.Called(ctx)
 
-	var r0 []string
-	if rf, ok := ret.Get(0).(func(context.Context) []string); ok {
+	var r0 []*v1alpha1.Repository
+	if rf, ok := ret.Get(0).(func(context.Context) []*v1alpha1.Repository); ok {
 		r0 = rf(ctx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]string)
+			r0 = ret.Get(0).([]*v1alpha1.Repository)
 		}
 	}
 

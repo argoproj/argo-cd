@@ -147,23 +147,6 @@ func TestGetResourceOverrides(t *testing.T) {
 	}, webHookOverrides)
 }
 
-func TestGetHelmRepositories(t *testing.T) {
-	kubeClient := fake.NewSimpleClientset(&v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDConfigMapName,
-			Namespace: "default",
-		},
-		Data: map[string]string{
-			"helm.repositories": "\n  - url: http://foo\n",
-		},
-	})
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
-	helmRepositories, err := settingsManager.GetHelmRepositories()
-	assert.NoError(t, err)
-
-	assert.ElementsMatch(t, helmRepositories, []HelmRepoCredentials{{URL: "http://foo"}})
-}
-
 func TestGetGoogleAnalytics(t *testing.T) {
 	kubeClient := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{

@@ -117,17 +117,43 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 	return repo, err
 }
 
+func (db *db) ListRepositories(ctx context.Context) ([]*appsv1.Repository, error) {
+	creds, err := db.settingsMgr.GetRepositories()
+	if err != nil {
+		return nil, err
+	}
+
+	var repos []*appsv1.Repository
+	for _, cred := range creds {
+		repo, err := db.GetRepository(ctx, cred.URL)
+		if err != nil {
+			return nil, err
+		}
+		repos = append(repos, repo)
+
+	}
+	return repos, nil
+}
+
 func (db *db) credentialsToRepository(repoInfo settings.RepoCredentials) (*appsv1.Repository, error) {
 	repo := &appsv1.Repository{
 		Repo:                  repoInfo.URL,
 		InsecureIgnoreHostKey: repoInfo.InsecureIgnoreHostKey,
 	}
-	err := db.unmarshalFromSecretsStr(map[*string]*apiv1.SecretKeySelector{
+	cache := make(map[string]*apiv1.Secret)
+	err := db.unmarshalFromSecretsBytes(map[*[]byte]*apiv1.SecretKeySelector{
+		&repo.CAData:   repoInfo.CASecret,
+		&repo.CertData: repoInfo.CertSecret,
+		&repo.KeyData:  repoInfo.KeySecret,
+	}, cache)
+	if err != nil {
+		return nil, err
+	}
+	err = db.unmarshalFromSecretsStr(map[*string]*apiv1.SecretKeySelector{
 		&repo.Username:      repoInfo.UsernameSecret,
 		&repo.Password:      repoInfo.PasswordSecret,
 		&repo.SSHPrivateKey: repoInfo.SSHPrivateKeySecret,
-	}, make(map[string]*apiv1.Secret))
-
+	}, cache)
 	return repo, err
 }
 

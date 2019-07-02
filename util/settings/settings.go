@@ -84,16 +84,14 @@ type RepoCredentials struct {
 	PasswordSecret        *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
 	SSHPrivateKeySecret   *apiv1.SecretKeySelector `json:"sshPrivateKeySecret,omitempty"`
 	InsecureIgnoreHostKey bool                     `json:"insecureIgnoreHostKey,omitempty"`
-}
-
-type HelmRepoCredentials struct {
-	URL            string                   `json:"url,omitempty"`
-	Name           string                   `json:"name,omitempty"`
-	UsernameSecret *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
-	PasswordSecret *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
-	CASecret       *apiv1.SecretKeySelector `json:"caSecret,omitempty"`
-	CertSecret     *apiv1.SecretKeySelector `json:"certSecret,omitempty"`
-	KeySecret      *apiv1.SecretKeySelector `json:"keySecret,omitempty"`
+	// helm only
+	Name string `json:"name,omitempty"`
+	// helm only
+	CASecret *apiv1.SecretKeySelector `json:"caSecret,omitempty"`
+	// helm only
+	CertSecret *apiv1.SecretKeySelector `json:"certSecret,omitempty"`
+	// helm only
+	KeySecret *apiv1.SecretKeySelector `json:"keySecret,omitempty"`
 }
 
 const (
@@ -117,8 +115,6 @@ const (
 	repositoriesKey = "repositories"
 	// repositoryCredentialsKey designates the key where ArgoCDs repositories credentials list is set
 	repositoryCredentialsKey = "repository.credentials"
-	// helmRepositoriesKey designates the key where list of helm repositories is set
-	helmRepositoriesKey = "helm.repositories"
 	// settingDexConfigKey designates the key for the dex config
 	settingDexConfigKey = "dex.config"
 	// settingsOIDCConfigKey designates the key for OIDC config
@@ -260,22 +256,6 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 	}
 
 	return resourceOverrides, nil
-}
-
-func (mgr *SettingsManager) GetHelmRepositories() ([]HelmRepoCredentials, error) {
-	argoCDCM, err := mgr.getConfigMap()
-	if err != nil {
-		return nil, err
-	}
-	helmRepositories := make([]HelmRepoCredentials, 0)
-	helmRepositoriesStr := argoCDCM.Data[helmRepositoriesKey]
-	if helmRepositoriesStr != "" {
-		err := yaml.Unmarshal([]byte(helmRepositoriesStr), &helmRepositories)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return helmRepositories, nil
 }
 
 func (mgr *SettingsManager) GetRepositories() ([]RepoCredentials, error) {

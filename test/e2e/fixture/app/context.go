@@ -106,11 +106,6 @@ func (c *Context) ConfigManagementPlugin(plugin v1alpha1.ConfigManagementPlugin)
 	return c
 }
 
-func (c *Context) HelmRepoCredential(name, url string) *Context {
-	fixture.SetHelmRepoCredential(settings.HelmRepoCredentials{Name: name, URL: url})
-	return c
-}
-
 func (c *Context) And(block func()) *Context {
 	block()
 	return c

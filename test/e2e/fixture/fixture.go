@@ -222,17 +222,6 @@ func SetRepoCredentials(repos ...settings.RepoCredentials) {
 	})
 }
 
-func SetHelmRepoCredential(creds settings.HelmRepoCredentials) {
-	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
-		yamlBytes, err := yaml.Marshal(creds)
-		if err != nil {
-			return err
-		}
-		cm.Data["helm.repositories"] = string(yamlBytes)
-		return nil
-	})
-}
-
 func EnsureCleanState(t *testing.T) {
 
 	start := time.Now()

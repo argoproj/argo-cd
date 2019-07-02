@@ -195,7 +195,7 @@ func ValidateRepo(ctx context.Context, spec *argoappv1.ApplicationSpec, repoClie
 					conditions = append(conditions, helmConditions...)
 				}
 			case argoappv1.ApplicationSourceTypeDirectory, argoappv1.ApplicationSourceTypeKustomize:
-				mainDirConditions := verifyGenerateManifests(ctx, repoRes, []*argoappv1.HelmRepository{}, spec, repoClient)
+				mainDirConditions := verifyGenerateManifests(ctx, repoRes, []*argoappv1.Repository{}, spec, repoClient)
 				if len(mainDirConditions) > 0 {
 					conditions = append(conditions, mainDirConditions...)
 				}
@@ -354,7 +354,7 @@ func verifyHelmChart(ctx context.Context, repoRes *argoappv1.Repository, spec *a
 
 // verifyGenerateManifests verifies a repo path can generate manifests
 func verifyGenerateManifests(
-	ctx context.Context, repoRes *argoappv1.Repository, helmRepos []*argoappv1.HelmRepository, spec *argoappv1.ApplicationSpec, repoClient repository.RepoServerServiceClient) []argoappv1.ApplicationCondition {
+	ctx context.Context, repoRes *argoappv1.Repository, repos []*argoappv1.Repository, spec *argoappv1.ApplicationSpec, repoClient repository.RepoServerServiceClient) []argoappv1.ApplicationCondition {
 
 	var conditions []argoappv1.ApplicationCondition
 	if spec.Destination.Server == "" || spec.Destination.Namespace == "" {
@@ -367,7 +367,7 @@ func verifyGenerateManifests(
 		Repo: &argoappv1.Repository{
 			Repo: spec.Source.RepoURL,
 		},
-		HelmRepos:         helmRepos,
+		Repos:             repos,
 		Revision:          spec.Source.TargetRevision,
 		Namespace:         spec.Destination.Namespace,
 		ApplicationSource: &spec.Source,
