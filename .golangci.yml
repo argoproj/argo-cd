@@ -18,4 +18,6 @@ linters:
     - structcheck
     - ineffassign
     - unconvert
+    # use this to debug maligned structs http://golang-sizeof.tips/
+    - maligned
     - misspell

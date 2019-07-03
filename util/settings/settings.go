@@ -33,11 +33,13 @@ import (
 
 // ArgoCDSettings holds in-memory runtime configuration options.
 type ArgoCDSettings struct {
+	// Indicates if status badge is enabled or not.
+	StatusBadgeEnabled bool `json:"statusBadgeEnable"`
+	// Indicates if anonymous user is enabled or not
+	AnonymousUserEnabled bool
 	// URL is the externally facing URL users will visit to reach Argo CD.
 	// The value here is used when configuring SSO. Omitting this value will disable SSO.
 	URL string `json:"url,omitempty"`
-	// Indicates if status badge is enabled or not.
-	StatusBadgeEnabled bool `json:"statusBadgeEnable"`
 	// Admin superuser password storage
 	AdminPasswordHash  string    `json:"adminPasswordHash,omitempty"`
 	AdminPasswordMtime time.Time `json:"adminPasswordMtime,omitempty"`
@@ -62,8 +64,6 @@ type ArgoCDSettings struct {
 	WebhookGogsSecret string `json:"webhookGogsSecret,omitempty"`
 	// Secrets holds all secrets in argocd-secret as a map[string]string
 	Secrets map[string]string `json:"secrets,omitempty"`
-	// Indicates if anonymous user is enabled or not
-	AnonymousUserEnabled bool
 }
 
 type GoogleAnalytics struct {

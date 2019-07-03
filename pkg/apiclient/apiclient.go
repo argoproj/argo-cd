@@ -77,31 +77,31 @@ type Client interface {
 
 // ClientOptions hold address, security, and other settings for the API client.
 type ClientOptions struct {
-	ServerAddr string
 	PlainText  bool
 	Insecure   bool
+	GRPCWeb    bool
+	ServerAddr string
 	CertFile   string
 	AuthToken  string
 	ConfigPath string
 	Context    string
 	UserAgent  string
-	GRPCWeb    bool
 }
 
 type client struct {
-	ServerAddr   string
-	PlainText    bool
-	Insecure     bool
-	CertPEMData  []byte
-	AuthToken    string
-	RefreshToken string
-	UserAgent    string
-	GRPCWeb      bool
-
-	proxyMutex      *sync.Mutex
-	proxyListener   net.Listener
-	proxyServer     *grpc.Server
 	proxyUsersCount int
+	PlainText       bool
+	Insecure        bool
+	GRPCWeb         bool
+	ServerAddr      string
+	CertPEMData     []byte
+	AuthToken       string
+	RefreshToken    string
+	UserAgent       string
+
+	proxyMutex    *sync.Mutex
+	proxyListener net.Listener
+	proxyServer   *grpc.Server
 }
 
 // NewClient creates a new API client from a set of config options.

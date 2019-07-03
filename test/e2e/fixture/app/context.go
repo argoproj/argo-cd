@@ -12,10 +12,12 @@ import (
 
 // this implements the "given" part of given/when/then
 type Context struct {
-	t    *testing.T
-	path string
+	t     *testing.T
+	prune bool
+	async bool
 	// seconds
 	timeout                int
+	path                   string
 	name                   string
 	destServer             string
 	env                    string
@@ -23,9 +25,7 @@ type Context struct {
 	jsonnetTLAS            []string
 	namePrefix             string
 	resource               string
-	prune                  bool
 	configManagementPlugin string
-	async                  bool
 	localPath              string
 	project                string
 }

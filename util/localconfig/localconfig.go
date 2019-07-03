@@ -35,17 +35,17 @@ type Context struct {
 
 // Server contains Argo CD server information
 type Server struct {
-	// Server is the Argo CD server address
-	Server string `json:"server"`
 	// Insecure indicates to connect to the server over TLS insecurely
 	Insecure bool `json:"insecure,omitempty"`
 	// GRPCWeb indicates to connect to the server using gRPC Web protocol
 	GRPCWeb bool `json:"grpc-web,omitempty"`
 	// CACertificateAuthorityData is the base64 string of a PEM encoded certificate
-	// TODO: not yet implemented
-	CACertificateAuthorityData string `json:"certificate-authority-data,omitempty"`
 	// PlainText indicates to connect with TLS disabled
 	PlainText bool `json:"plain-text,omitempty"`
+	// TODO: not yet implemented
+	CACertificateAuthorityData string `json:"certificate-authority-data,omitempty"`
+	// Server is the Argo CD server address
+	Server string `json:"server"`
 }
 
 // User contains user authentication information

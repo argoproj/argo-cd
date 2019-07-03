@@ -509,6 +509,8 @@ func setJsonnetOpt(src *argoappv1.ApplicationSource, tlaParameters []string) {
 }
 
 type appOptions struct {
+	autoPrune              bool
+	directoryRecurse       bool
 	repoURL                string
 	appPath                string
 	env                    string
@@ -520,9 +522,7 @@ type appOptions struct {
 	releaseName            string
 	project                string
 	syncPolicy             string
-	autoPrune              bool
 	namePrefix             string
-	directoryRecurse       bool
 	configManagementPlugin string
 	jsonnetTlaParameters   []string
 }
