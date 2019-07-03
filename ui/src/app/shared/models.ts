@@ -141,12 +141,6 @@ export interface ApplicationSource {
      */
     path: string;
 
-    /**
-     * DEPRECATED.
-     * Overridden component parameters.
-     */
-    componentParameterOverrides?: ComponentParameter[];
-
     helm?: ApplicationSourceHelm;
 
     kustomize?: ApplicationSourceKustomize;

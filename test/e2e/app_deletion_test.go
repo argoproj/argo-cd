@@ -7,12 +7,15 @@ import (
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/test/fixture/test"
 )
 
 // when a app gets stuck in sync, and we try to delete it, it won't delete, instead we must then terminate it
 // and deletion will then just happen
-// NOTE: this test is being flaky on CI, so don't assume failure means the PR is bad
 func TestDeletingAppStuckInSync(t *testing.T) {
+
+	test.Flaky(t)
+
 	Given(t).
 		Path("hook").
 		When().

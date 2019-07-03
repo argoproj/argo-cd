@@ -39,7 +39,7 @@ func NewServer(db db.ArgoDB, enf *rbac.Enforcer, cache *cache.Cache) *Server {
 	}
 }
 
-func (s *Server) getConnectionState(ctx context.Context, cluster appv1.Cluster, errorMessage string) appv1.ConnectionState {
+func (s *Server) getConnectionState(cluster appv1.Cluster, errorMessage string) appv1.ConnectionState {
 	if connectionState, err := s.cache.GetClusterConnectionState(cluster.Server); err == nil {
 		return connectionState
 	}
@@ -98,7 +98,7 @@ func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clus
 			warningMessage = fmt.Sprintf("There are %d credentials configured this cluster.", len(clusters))
 		}
 		if clust.ConnectionState.Status == "" {
-			clust.ConnectionState = s.getConnectionState(ctx, clust, warningMessage)
+			clust.ConnectionState = s.getConnectionState(clust, warningMessage)
 		}
 		items[i] = *redact(&clust)
 		return nil

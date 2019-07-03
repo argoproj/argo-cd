@@ -551,14 +551,6 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 			return err
 		}
 	}
-
-	conditions, err := argo.ValidatePermissions(ctx, &app.Spec, proj, s.db)
-	if err != nil {
-		return err
-	}
-	if len(conditions) > 0 {
-		return status.Errorf(codes.InvalidArgument, "application spec is invalid: %s", argo.FormatAppConditions(conditions))
-	}
 	conditions, appSourceType, err := argo.ValidateRepo(ctx, &app.Spec, s.repoClientset, s.db)
 	if err != nil {
 		return err
@@ -566,12 +558,21 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	if len(conditions) > 0 {
 		return status.Errorf(codes.InvalidArgument, "application spec is invalid: %s", argo.FormatAppConditions(conditions))
 	}
+
+	conditions, err = argo.ValidatePermissions(ctx, &app.Spec, proj, s.db)
+	if err != nil {
+		return err
+	}
+	if len(conditions) > 0 {
+		return status.Errorf(codes.InvalidArgument, "application spec is invalid: %s", argo.FormatAppConditions(conditions))
+	}
+
 	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec, appSourceType)
 	return nil
 }
 
 func (s *Server) getApplicationClusterConfig(applicationName string) (*rest.Config, string, error) {
-	server, namespace, err := s.getApplicationDestination(context.Background(), applicationName)
+	server, namespace, err := s.getApplicationDestination(applicationName)
 	if err != nil {
 		return nil, "", err
 	}
@@ -583,7 +584,7 @@ func (s *Server) getApplicationClusterConfig(applicationName string) (*rest.Conf
 	return config, namespace, err
 }
 
-func (s *Server) getAppResources(ctx context.Context, q *application.ResourcesQuery) (*appv1.ApplicationTree, error) {
+func (s *Server) getAppResources(q *application.ResourcesQuery) (*appv1.ApplicationTree, error) {
 	return s.cache.GetAppResourcesTree(*q.ApplicationName)
 }
 
@@ -596,7 +597,7 @@ func (s *Server) getAppResource(ctx context.Context, action string, q *applicati
 		return nil, nil, nil, err
 	}
 
-	tree, err := s.getAppResources(ctx, &application.ResourcesQuery{ApplicationName: &a.Name})
+	tree, err := s.getAppResources(&application.ResourcesQuery{ApplicationName: &a.Name})
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -722,7 +723,7 @@ func (s *Server) ResourceTree(ctx context.Context, q *application.ResourcesQuery
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
 		return nil, err
 	}
-	return s.getAppResources(ctx, q)
+	return s.getAppResources(q)
 }
 
 func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMetadataQuery) (*v1alpha1.RevisionMetadata, error) {
@@ -841,7 +842,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	return nil
 }
 
-func (s *Server) getApplicationDestination(ctx context.Context, name string) (string, string, error) {
+func (s *Server) getApplicationDestination(name string) (string, string, error) {
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return "", "", err
@@ -1035,14 +1036,14 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 		return nil, err
 	}
 
-	availableActions, err := s.getAvailableActions(config, resourceOverrides, obj, "")
+	availableActions, err := s.getAvailableActions(resourceOverrides, obj, "")
 	if err != nil {
 		return nil, err
 	}
 	return &application.ResourceActionsListResponse{Actions: availableActions}, nil
 }
 
-func (s *Server) getAvailableActions(config *rest.Config, resourceOverrides map[string]v1alpha1.ResourceOverride, obj *unstructured.Unstructured, filterAction string) ([]appv1.ResourceAction, error) {
+func (s *Server) getAvailableActions(resourceOverrides map[string]v1alpha1.ResourceOverride, obj *unstructured.Unstructured, filterAction string) ([]appv1.ResourceAction, error) {
 	luaVM := lua.VM{
 		ResourceOverrides: resourceOverrides,
 	}
@@ -1089,7 +1090,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 	if err != nil {
 		return nil, err
 	}
-	filteredAvailableActions, err := s.getAvailableActions(config, resourceOverrides, liveObj, q.Action)
+	filteredAvailableActions, err := s.getAvailableActions(resourceOverrides, liveObj, q.Action)
 	if err != nil {
 		return nil, err
 	}
