@@ -32,6 +32,8 @@ func TestCustomToolWithGitCreds(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusHealthy)).
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitAskpass}")
 			assert.NoError(t, err)
@@ -70,6 +72,8 @@ func TestCustomToolWithEnv(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusHealthy)).
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.Foo}")
 			assert.NoError(t, err)
