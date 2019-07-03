@@ -23,7 +23,7 @@ import (
 func NewRepoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "repo",
-		Short: "Manage git repository credentials",
+		Short: "Manage repository credentials",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
@@ -46,7 +46,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	)
 	var command = &cobra.Command{
 		Use:   "add REPO",
-		Short: "Add git repository credentials",
+		Short: "Add repository credentials",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
@@ -87,6 +87,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			fmt.Printf("repository '%s' added\n", createdRepo.Repo)
 		},
 	}
+	command.Flags().StringVar(&repo.Type, "type", "", "type of the repository, \"git\" or \"helm\"")
 	command.Flags().StringVar(&repo.Username, "username", "", "username to the repository")
 	command.Flags().StringVar(&repo.Password, "password", "", "password to the repository")
 	command.Flags().StringVar(&sshPrivateKeyPath, "ssh-private-key-path", "", "path to the private ssh key (e.g. ~/.ssh/id_rsa)")
@@ -99,7 +100,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "rm REPO",
-		Short: "Remove git repository credentials",
+		Short: "Remove repository credentials",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
@@ -117,7 +118,7 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 }
 
 // Print table of repo info
-func printRepoTable(repos []appsv1.Repository) {
+func printRepoTable(repos appsv1.Repositories) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintf(w, "REPO\tUSER\tSTATUS\tMESSAGE\n")
 	for _, r := range repos {
@@ -127,7 +128,7 @@ func printRepoTable(repos []appsv1.Repository) {
 }
 
 // Print list of repo urls
-func printRepoUrls(repos []appsv1.Repository) {
+func printRepoUrls(repos appsv1.Repositories) {
 	for _, r := range repos {
 		fmt.Println(r.Repo)
 	}

@@ -473,8 +473,8 @@ spec:
                 type: object
               type: array
             sourceRepos:
-              description: SourceRepos contains list of git repository URLs which
-                can be used for deployment
+              description: SourceRepos contains list of repository URLs which can
+                be used for deployment
               items:
                 type: string
               type: array

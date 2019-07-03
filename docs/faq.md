@@ -55,8 +55,9 @@ uses only internally available Helm repositories. Even if the chart uses only de
 
 ```yaml
 data:
-  helm.repositories: |
-    - url: http://<internal-helm-repo-host>:8080
+  repositories: |
+    - type: helm
+      url: http://<internal-helm-repo-host>:8080
       name: stable
 ```
 

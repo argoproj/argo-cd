@@ -2515,7 +2515,7 @@
         },
         "sourceRepos": {
           "type": "array",
-          "title": "SourceRepos contains list of git repository URLs which can be used for deployment",
+          "title": "SourceRepos contains list of repository URLs which can be used for deployment",
           "items": {
             "type": "string"
           }
@@ -2608,7 +2608,7 @@
         },
         "repoURL": {
           "type": "string",
-          "title": "RepoURL is the git repository URL of the application manifests"
+          "title": "RepoURL is the repository URL of the application manifests"
         },
         "targetRevision": {
           "type": "string",
@@ -3537,7 +3537,7 @@
           }
         },
         "revision": {
-          "description": "Revision is the git revision in which to sync the application to.\nIf omitted, will use the revision specified in app spec.",
+          "description": "Revision is the revision in which to sync the application to.\nIf omitted, will use the revision specified in app spec.",
           "type": "string"
         },
         "source": {
@@ -3576,7 +3576,7 @@
         },
         "revision": {
           "type": "string",
-          "title": "Revision holds the git commit SHA of the sync"
+          "title": "Revision holds the revision of the sync"
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"

@@ -39,7 +39,7 @@ func TestCompareAppStateEmpty(t *testing.T) {
 	assert.Equal(t, 0, len(compRes.conditions))
 }
 
-// TestCompareAppStateMissing tests when there is a manifest defined in git which doesn't exist in live
+// TestCompareAppStateMissing tests when there is a manifest defined in the repo which doesn't exist in live
 func TestCompareAppStateMissing(t *testing.T) {
 	app := newFakeApp()
 	data := fakeData{

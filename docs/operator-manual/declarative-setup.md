@@ -308,8 +308,8 @@ stringData:
 
 ## Helm Chart Repositories
 
-Non standard Helm Chart repositories have to be registered under the `helm.repositories` key in the
-`argocd-cm` ConfigMap. Each repository must have `url` and `name` fields. For private Helm repos you
+Non standard Helm Chart repositories have to be registered under the `repositories` key in the
+`argocd-cm` ConfigMap. Each repository must have `url`, `type` and `name` fields. For private Helm repos you
 may need to configure access credentials and HTTPS settings using `usernameSecret`, `passwordSecret`,
 `caSecret`, `certSecret` and `keySecret` fields.
 
@@ -322,10 +322,12 @@ metadata:
   name: argocd-cm
   namespace: argocd
 data:
-  helm.repositories: |
-    - url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts
+  repositories: |
+    - type: helm
+      url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts
       name: istio.io
-    - url: https://argoproj.github.io/argo-helm
+    - type: helm
+      url: https://argoproj.github.io/argo-helm
       name: argo
       usernameSecret:
         name: my-secret

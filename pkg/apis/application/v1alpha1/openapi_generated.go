@@ -206,7 +206,7 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 				Properties: map[string]spec.Schema{
 					"sourceRepos": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SourceRepos contains list of git repository URLs which can be used for deployment",
+							Description: "SourceRepos contains list of repository URLs which can be used for deployment",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -446,7 +446,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSource(ref common.Reference
 				Properties: map[string]spec.Schema{
 					"repoURL": {
 						SchemaProps: spec.SchemaProps{
-							Description: "RepoURL is the git repository URL of the application manifests",
+							Description: "RepoURL is the repository URL of the application manifests",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1726,6 +1726,13 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "only for Helm repos",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"caData": {
 						SchemaProps: spec.SchemaProps{
 							Description: "only for Helm repos",
@@ -1745,13 +1752,6 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 							Description: "only for Helm repos",
 							Type:        []string{"string"},
 							Format:      "byte",
-						},
-					},
-					"name": {
-						SchemaProps: spec.SchemaProps{
-							Description: "only for Helm repos",
-							Type:        []string{"string"},
-							Format:      "",
 						},
 					},
 				},
@@ -2537,7 +2537,7 @@ func schema_pkg_apis_application_v1alpha1_SyncOperation(ref common.ReferenceCall
 				Properties: map[string]spec.Schema{
 					"revision": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Revision is the git revision in which to sync the application to. If omitted, will use the revision specified in app spec.",
+							Description: "Revision is the revision in which to sync the application to. If omitted, will use the revision specified in app spec.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2657,7 +2657,7 @@ func schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref common.Referen
 					},
 					"revision": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Revision holds the git commit SHA of the sync",
+							Description: "Revision holds the revision of the sync",
 							Type:        []string{"string"},
 							Format:      "",
 						},

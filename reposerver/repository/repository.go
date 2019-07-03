@@ -355,11 +355,11 @@ func isNullList(obj *unstructured.Unstructured) bool {
 func checkoutRevision(gitClient git.Client, commitSHA string) (string, error) {
 	err := gitClient.Init()
 	if err != nil {
-		return "", status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
+		return "", status.Errorf(codes.Internal, "Failed to initialize repo: %v", err)
 	}
 	err = gitClient.Fetch()
 	if err != nil {
-		return "", status.Errorf(codes.Internal, "Failed to fetch git repo: %v", err)
+		return "", status.Errorf(codes.Internal, "Failed to fetch repo: %v", err)
 	}
 	err = gitClient.Checkout(commitSHA)
 	if err != nil {
@@ -508,7 +508,7 @@ func pathExists(ss ...string) bool {
 	return true
 }
 
-// newClientResolveRevision is a helper to perform the common task of instantiating a git client
+// newClientResolveRevision is a helper to perform the common task of instantiating a client
 // and resolving a revision to a commit SHA
 func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision string) (git.Client, string, error) {
 	gitClient, err := s.newClient(repo)

@@ -128,8 +128,8 @@ func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, na
 }
 
 // ValidateRepo validates the repository specified in application spec. Following is checked:
-// * the git repository is accessible
-// * the git path contains valid manifests
+// * the repository is accessible
+// * the path contains valid manifests
 // * there are parameters of only one app source type
 // * ksonnet: the specified environment exists
 func ValidateRepo(ctx context.Context, spec *argoappv1.ApplicationSpec, repoClientset reposerver.Clientset, db db.ArgoDB) ([]argoappv1.ApplicationCondition, argoappv1.ApplicationSourceType, error) {
@@ -195,7 +195,7 @@ func ValidateRepo(ctx context.Context, spec *argoappv1.ApplicationSpec, repoClie
 					conditions = append(conditions, helmConditions...)
 				}
 			case argoappv1.ApplicationSourceTypeDirectory, argoappv1.ApplicationSourceTypeKustomize:
-				mainDirConditions := verifyGenerateManifests(ctx, repoRes, []*argoappv1.Repository{}, spec, repoClient)
+				mainDirConditions := verifyGenerateManifests(ctx, repoRes, argoappv1.Repositories{}, spec, repoClient)
 				if len(mainDirConditions) > 0 {
 					conditions = append(conditions, mainDirConditions...)
 				}
@@ -354,7 +354,7 @@ func verifyHelmChart(ctx context.Context, repoRes *argoappv1.Repository, spec *a
 
 // verifyGenerateManifests verifies a repo path can generate manifests
 func verifyGenerateManifests(
-	ctx context.Context, repoRes *argoappv1.Repository, repos []*argoappv1.Repository, spec *argoappv1.ApplicationSpec, repoClient repository.RepoServerServiceClient) []argoappv1.ApplicationCondition {
+	ctx context.Context, repoRes *argoappv1.Repository, repos argoappv1.Repositories, spec *argoappv1.ApplicationSpec, repoClient repository.RepoServerServiceClient) []argoappv1.ApplicationCondition {
 
 	var conditions []argoappv1.ApplicationCondition
 	if spec.Destination.Server == "" || spec.Destination.Namespace == "" {

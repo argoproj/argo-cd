@@ -54,12 +54,11 @@ data:
       sshPrivateKeySecret:
         name: my-secret
         key: sshPrivateKey
-
-  # Non-standard and private Helm repositories (optional).
-  helm.repositories: |
-    - url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts
+    - type: helm
+      url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts
       name: istio.io
-    - url: https://my-private-chart-repo.internal
+    - type: helm
+      url: https://my-private-chart-repo.internal
       name: private-repo
       usernameSecret:
         name: my-secret

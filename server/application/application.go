@@ -951,8 +951,8 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 	return a, err
 }
 
-// resolveRevision resolves the git revision specified either in the sync request, or the
-// application source, into a concrete commit SHA that will be used for a sync operation.
+// resolveRevision resolves the revision specified either in the sync request, or the
+// application source, into a concrete revision that will be used for a sync operation.
 func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, syncReq *application.ApplicationSyncRequest) (string, string, error) {
 	ambiguousRevision := syncReq.Revision
 	if ambiguousRevision == "" {

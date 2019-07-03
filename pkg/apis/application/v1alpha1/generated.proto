@@ -48,7 +48,7 @@ message AppProjectList {
 
 // AppProjectSpec is the specification of an AppProject
 message AppProjectSpec {
-  // SourceRepos contains list of git repository URLs which can be used for deployment
+  // SourceRepos contains list of repository URLs which can be used for deployment
   repeated string sourceRepos = 1;
 
   // Destinations contains list of destinations available for deployment
@@ -110,7 +110,7 @@ message ApplicationList {
 
 // ApplicationSource contains information about github repository, path within repository and target application environment.
 message ApplicationSource {
-  // RepoURL is the git repository URL of the application manifests
+  // RepoURL is the repository URL of the application manifests
   optional string repoURL = 1;
 
   // Path is a directory path within the repository containing a
@@ -481,16 +481,16 @@ message Repository {
   optional string type = 7;
 
   // only for Helm repos
-  optional bytes caData = 8;
+  optional string name = 8;
 
   // only for Helm repos
-  optional bytes certData = 9;
+  optional bytes caData = 9;
 
   // only for Helm repos
-  optional bytes keyData = 10;
+  optional bytes certData = 10;
 
   // only for Helm repos
-  optional string name = 11;
+  optional bytes keyData = 11;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -696,7 +696,7 @@ message RevisionMetadata {
 
 // SyncOperation contains sync operation details.
 message SyncOperation {
-  // Revision is the git revision in which to sync the application to.
+  // Revision is the revision in which to sync the application to.
   // If omitted, will use the revision specified in app spec.
   optional string revision = 1;
 
@@ -734,7 +734,7 @@ message SyncOperationResult {
   // Resources holds the sync result of each individual resource
   repeated ResourceResult resources = 1;
 
-  // Revision holds the git commit SHA of the sync
+  // Revision holds the revision of the sync
   optional string revision = 2;
 
   // Source records the application source information of the sync, used for comparing auto-sync

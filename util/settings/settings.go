@@ -84,7 +84,7 @@ type RepoCredentials struct {
 	PasswordSecret        *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
 	SSHPrivateKeySecret   *apiv1.SecretKeySelector `json:"sshPrivateKeySecret,omitempty"`
 	InsecureIgnoreHostKey bool                     `json:"insecureIgnoreHostKey,omitempty"`
-	// the type of the repo, assumed to be git if empty or absent
+	// the type of the repo, "git" or "helm", assumed to be "git" if empty or absent
 	Type string `json:"type,omitempty"`
 	// helm only
 	Name string `json:"name,omitempty"`

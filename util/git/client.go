@@ -29,7 +29,7 @@ type RevisionMetadata struct {
 	Message string
 }
 
-// Client is a generic git client interface
+// Client is a generic repo client interface
 type Client interface {
 	Root() string
 	Init() error
@@ -42,7 +42,7 @@ type Client interface {
 }
 
 // ClientFactory is a factory of Git Clients
-// Primarily used to support creation of mock git clients during unit testing
+// Primarily used to support creation of mock clients during unit testing
 type ClientFactory interface {
 	NewClient(repoURL, path, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (Client, error)
 }

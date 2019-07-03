@@ -39,14 +39,14 @@ type Helm interface {
 }
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
-func NewHelmApp(path string, repos []*argoappv1.Repository) Helm {
+func NewHelmApp(path string, repos argoappv1.Repositories) Helm {
 	return &helm{path: path, repos: repos}
 }
 
 type helm struct {
 	path             string
 	home             string
-	repos            []*argoappv1.Repository
+	repos            argoappv1.Repositories
 	reposInitialized bool
 	tempDirs         []string
 }
@@ -99,7 +99,7 @@ func (h *helm) DependencyBuild() error {
 			}
 		}()
 
-		for _, repo := range h.repos {
+		for _, repo := range h.repos.Filter(func(r *argoappv1.Repository) bool { return r.Type == "helm" }) {
 			args := []string{"repo", "add"}
 
 			for flag, data := range map[string][]byte{"--ca-file": repo.CAData, "--cert-file": repo.CertData, "--key-file": repo.KeyData} {

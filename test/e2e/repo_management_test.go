@@ -46,3 +46,39 @@ func TestAddRemovePublicRepo(t *testing.T) {
 	}
 	assert.False(t, exists)
 }
+
+func TestAddRemoveHelmRepo(t *testing.T) {
+	repoUrl := "https://kubernetes-charts.storage.googleapis.com"
+	_, err := fixture.RunCli("repo", "add", repoUrl, "--type", "helm")
+	assert.NoError(t, err)
+
+	conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
+	assert.Nil(t, err)
+	defer util.Close(conn)
+
+	repo, err := repoClient.List(context.Background(), &repositorypkg.RepoQuery{})
+
+	assert.Nil(t, err)
+	exists := false
+	for i := range repo.Items {
+		if repo.Items[i].Repo == repoUrl {
+			exists = true
+			break
+		}
+	}
+	assert.True(t, exists)
+
+	_, err = fixture.RunCli("repo", "rm", repoUrl)
+	assert.Nil(t, err)
+
+	repo, err = repoClient.List(context.Background(), &repositorypkg.RepoQuery{})
+	assert.Nil(t, err)
+	exists = false
+	for i := range repo.Items {
+		if repo.Items[i].Repo == repoUrl {
+			exists = true
+			break
+		}
+	}
+	assert.False(t, exists)
+}

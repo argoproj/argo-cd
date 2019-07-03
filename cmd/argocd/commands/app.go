@@ -102,7 +102,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	)
 	var command = &cobra.Command{
 		Use:   "create APPNAME",
-		Short: "Create an application from a git location",
+		Short: "Create an application",
 		Run: func(c *cobra.Command, args []string) {
 			var app argoappv1.Application
 			argocdClient := argocdclient.NewClientOrDie(clientOpts)

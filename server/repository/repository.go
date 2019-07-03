@@ -79,10 +79,10 @@ func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.
 	if err != nil {
 		return nil, err
 	}
-	items := make([]appsv1.Repository, 0)
+	items := appsv1.Repositories{}
 	for _, url := range repos {
 		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, url) {
-			items = append(items, appsv1.Repository{Repo: url.Repo})
+			items = append(items, &appsv1.Repository{Repo: url.Repo})
 		}
 	}
 	err = util.RunAllAsync(len(items), func(i int) error {

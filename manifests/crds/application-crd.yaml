@@ -412,7 +412,7 @@ spec:
                     type: object
                   type: array
                 revision:
-                  description: Revision is the git revision in which to sync the application
+                  description: Revision is the revision in which to sync the application
                     to. If omitted, will use the revision specified in app spec.
                   type: string
                 source:
@@ -566,7 +566,7 @@ spec:
                           type: string
                       type: object
                     repoURL:
-                      description: RepoURL is the git repository URL of the application
+                      description: RepoURL is the repository URL of the application
                         manifests
                       type: string
                     targetRevision:
@@ -813,8 +813,7 @@ spec:
                       type: string
                   type: object
                 repoURL:
-                  description: RepoURL is the git repository URL of the application
-                    manifests
+                  description: RepoURL is the repository URL of the application manifests
                   type: string
                 targetRevision:
                   description: Environment is a ksonnet application environment name
@@ -1028,7 +1027,7 @@ spec:
                             type: string
                         type: object
                       repoURL:
-                        description: RepoURL is the git repository URL of the application
+                        description: RepoURL is the repository URL of the application
                           manifests
                         type: string
                       targetRevision:
@@ -1095,9 +1094,9 @@ spec:
                             type: object
                           type: array
                         revision:
-                          description: Revision is the git revision in which to sync
-                            the application to. If omitted, will use the revision
-                            specified in app spec.
+                          description: Revision is the revision in which to sync the
+                            application to. If omitted, will use the revision specified
+                            in app spec.
                           type: string
                         source:
                           description: Source overrides the source definition set
@@ -1259,8 +1258,8 @@ spec:
                                   type: string
                               type: object
                             repoURL:
-                              description: RepoURL is the git repository URL of the
-                                application manifests
+                              description: RepoURL is the repository URL of the application
+                                manifests
                               type: string
                             targetRevision:
                               description: Environment is a ksonnet application environment
@@ -1357,7 +1356,7 @@ spec:
                         type: object
                       type: array
                     revision:
-                      description: Revision holds the git commit SHA of the sync
+                      description: Revision holds the revision of the sync
                       type: string
                     source:
                       description: Source records the application source information
@@ -1513,7 +1512,7 @@ spec:
                               type: string
                           type: object
                         repoURL:
-                          description: RepoURL is the git repository URL of the application
+                          description: RepoURL is the repository URL of the application
                             manifests
                           type: string
                         targetRevision:
@@ -1748,7 +1747,7 @@ spec:
                               type: string
                           type: object
                         repoURL:
-                          description: RepoURL is the git repository URL of the application
+                          description: RepoURL is the repository URL of the application
                             manifests
                           type: string
                         targetRevision:

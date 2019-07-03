@@ -89,7 +89,7 @@ func (e Env) Environ() []string {
 
 // ApplicationSource contains information about github repository, path within repository and target application environment.
 type ApplicationSource struct {
-	// RepoURL is the git repository URL of the application manifests
+	// RepoURL is the repository URL of the application manifests
 	RepoURL string `json:"repoURL" protobuf:"bytes,1,opt,name=repoURL"`
 	// Path is a directory path within the repository containing a
 	Path string `json:"path" protobuf:"bytes,2,opt,name=path"`
@@ -285,7 +285,7 @@ func (r SyncOperationResource) HasIdentity(name string, gvk schema.GroupVersionK
 
 // SyncOperation contains sync operation details.
 type SyncOperation struct {
-	// Revision is the git revision in which to sync the application to.
+	// Revision is the revision in which to sync the application to.
 	// If omitted, will use the revision specified in app spec.
 	Revision string `json:"revision,omitempty" protobuf:"bytes,1,opt,name=revision"`
 	// Prune deletes resources that are no longer tracked in git
@@ -441,7 +441,7 @@ type RevisionMetadata struct {
 type SyncOperationResult struct {
 	// Resources holds the sync result of each individual resource
 	Resources ResourceResults `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
-	// Revision holds the git commit SHA of the sync
+	// Revision holds the revision of the sync
 	Revision string `json:"revision" protobuf:"bytes,2,opt,name=revision"`
 	// Source records the application source information of the sync, used for comparing auto-sync
 	Source ApplicationSource `json:"source,omitempty" protobuf:"bytes,3,opt,name=source"`
@@ -878,13 +878,13 @@ type Repository struct {
 	// type of the repo, maybe "git or "helm, "git" is assumed if empty or absent
 	Type string `json:"type,omitempty" protobuf:"bytes,7,opt,name=type"`
 	// only for Helm repos
-	CAData []byte `json:"caData,omitempty" protobuf:"bytes,8,opt,name=caData"`
+	Name string `json:"name,omitempty" protobuf:"bytes,8,opt,name=name"`
 	// only for Helm repos
-	CertData []byte `json:"certData,omitempty" protobuf:"bytes,9,opt,name=certData"`
+	CAData []byte `json:"caData,omitempty" protobuf:"bytes,9,opt,name=caData"`
 	// only for Helm repos
-	KeyData []byte `json:"keyData,omitempty" protobuf:"bytes,10,opt,name=keyData"`
+	CertData []byte `json:"certData,omitempty" protobuf:"bytes,10,opt,name=certData"`
 	// only for Helm repos
-	Name string `json:"name,omitempty" protobuf:"bytes,11,opt,name=name"`
+	KeyData []byte `json:"keyData,omitempty" protobuf:"bytes,11,opt,name=keyData"`
 }
 
 func (m *Repository) HasCredentials() bool {
@@ -900,10 +900,22 @@ func (m *Repository) CopyCredentialsFrom(source *Repository) {
 	}
 }
 
+type Repositories []*Repository
+
+func (r Repositories) Filter(predicate func(r *Repository) bool) Repositories {
+	var res Repositories
+	for _, repo := range r {
+		if predicate(repo) {
+			res = append(res, repo)
+		}
+	}
+	return res
+}
+
 // RepositoryList is a collection of Repositories.
 type RepositoryList struct {
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
-	Items           []Repository `json:"items" protobuf:"bytes,2,rep,name=items"`
+	Items           Repositories `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
 // AppProjectList is list of AppProject resources
@@ -932,7 +944,7 @@ type AppProject struct {
 
 // AppProjectSpec is the specification of an AppProject
 type AppProjectSpec struct {
-	// SourceRepos contains list of git repository URLs which can be used for deployment
+	// SourceRepos contains list of repository URLs which can be used for deployment
 	SourceRepos []string `json:"sourceRepos,omitempty" protobuf:"bytes,1,name=sourceRepos"`
 	// Destinations contains list of destinations available for deployment
 	Destinations []ApplicationDestination `json:"destinations,omitempty" protobuf:"bytes,2,name=destination"`
