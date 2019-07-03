@@ -20,32 +20,8 @@ import (
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 
 	argoconfig "github.com/argoproj/argo-cd/util/config"
+	"github.com/argoproj/argo-cd/util/depot"
 )
-
-type RevisionMetadata struct {
-	Author  string
-	Date    time.Time
-	Tags    []string
-	Message string
-}
-
-// Client is a generic repo client interface
-type Client interface {
-	Root() string
-	Init() error
-	Fetch() error
-	Checkout(revision string) error
-	LsRemote(revision string) (string, error)
-	LsFiles(path string) ([]string, error)
-	CommitSHA() (string, error)
-	RevisionMetadata(revision string) (*RevisionMetadata, error)
-}
-
-// ClientFactory is a factory of Git Clients
-// Primarily used to support creation of mock clients during unit testing
-type ClientFactory interface {
-	NewClient(repoURL, path, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (Client, error)
-}
 
 // nativeGitClient implements Client interface using git CLI
 type nativeGitClient struct {
@@ -54,13 +30,7 @@ type nativeGitClient struct {
 	creds   Creds
 }
 
-type factory struct{}
-
-func NewFactory() ClientFactory {
-	return &factory{}
-}
-
-func (f *factory) NewClient(rawRepoURL, path, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (Client, error) {
+func NewClient(rawRepoURL, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (depot.Client, error) {
 	var creds Creds
 	if sshPrivateKey != "" {
 		creds = SSHCreds{sshPrivateKey, insecureIgnoreHostKey}
@@ -71,7 +41,7 @@ func (f *factory) NewClient(rawRepoURL, path, username, password, sshPrivateKey 
 	}
 	client := nativeGitClient{
 		repoURL: rawRepoURL,
-		root:    path,
+		root:    depot.TempRepoPath(rawRepoURL),
 		creds:   creds,
 	}
 	return &client, nil
@@ -151,7 +121,7 @@ func (m *nativeGitClient) LsFiles(path string) ([]string, error) {
 }
 
 // Checkout checkout specified git sha
-func (m *nativeGitClient) Checkout(revision string) error {
+func (m *nativeGitClient) Checkout(_, revision string) error {
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
 	}
@@ -169,7 +139,7 @@ func (m *nativeGitClient) Checkout(revision string) error {
 // Otherwise, it returns an error indicating that the revision could not be resolved. This method
 // runs with in-memory storage and is safe to run concurrently, or to be run without a git
 // repository locally cloned.
-func (m *nativeGitClient) LsRemote(revision string) (string, error) {
+func (m *nativeGitClient) LsRemote(_, revision string) (string, error) {
 	if IsCommitSHA(revision) {
 		return revision, nil
 	}
@@ -250,7 +220,7 @@ func (m *nativeGitClient) CommitSHA() (string, error) {
 }
 
 // returns the meta-data for the commit
-func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, error) {
+func (m *nativeGitClient) RevisionMetadata(revision string) (*depot.RevisionMetadata, error) {
 	out, err := m.runCmd("git", "show", "-s", "--format=%an <%ae>|%at|%B", revision)
 	if err != nil {
 		return nil, err
@@ -269,7 +239,7 @@ func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, 
 	}
 	tags := strings.Fields(out)
 
-	return &RevisionMetadata{author, time.Unix(authorDateUnixTimestamp, 0), tags, message}, nil
+	return &depot.RevisionMetadata{Author: author, Date: time.Unix(authorDateUnixTimestamp, 0), Tags: tags, Message: message}, nil
 }
 
 // runCmd is a convenience function to run a command in a given directory and return its output
@@ -298,4 +268,10 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOSYSTEM=true")
 	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOGLOBAL=true")
 	return argoexec.RunCommandExt(cmd, argoconfig.CmdOpts())
+}
+
+// TestRepo tests if a repo exists and is accessible with the given credentials
+func (m *nativeGitClient) Test() error {
+	_, err := m.LsRemote(".", "HEAD")
+	return err
 }

@@ -1,8 +1,6 @@
 package git
 
 import (
-	"io/ioutil"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -108,7 +106,7 @@ func TestSameURL(t *testing.T) {
 }
 
 func TestLsRemote(t *testing.T) {
-	clnt, err := NewFactory().NewClient("https://github.com/argoproj/argo-cd.git", "/tmp", "", "", "", false)
+	clnt, err := NewClient("https://github.com/argoproj/argo-cd.git", "", "", "", false)
 	assert.NoError(t, err)
 	xpass := []string{
 		"HEAD",
@@ -119,13 +117,13 @@ func TestLsRemote(t *testing.T) {
 		//"4e22a3c",
 	}
 	for _, revision := range xpass {
-		commitSHA, err := clnt.LsRemote(revision)
+		commitSHA, err := clnt.LsRemote(".", revision)
 		assert.NoError(t, err)
 		assert.True(t, IsCommitSHA(commitSHA))
 	}
 
 	// We do not resolve truncated git hashes and return the commit as-is if it appears to be a commit
-	commitSHA, err := clnt.LsRemote("4e22a3c")
+	commitSHA, err := clnt.LsRemote(".", "4e22a3c")
 	assert.NoError(t, err)
 	assert.False(t, IsCommitSHA(commitSHA))
 	assert.True(t, IsTruncatedCommitSHA(commitSHA))
@@ -135,7 +133,7 @@ func TestLsRemote(t *testing.T) {
 		"4e22a3", // too short (6 characters)
 	}
 	for _, revision := range xfail {
-		_, err := clnt.LsRemote(revision)
+		_, err := clnt.LsRemote(".", revision)
 		assert.Error(t, err)
 	}
 }
@@ -165,13 +163,9 @@ func TestNewFactory(t *testing.T) {
 			test.Flaky(t)
 		}
 
-		dirName, err := ioutil.TempDir("", "git-client-test-")
+		client, err := NewClient(tt.args.url, tt.args.username, tt.args.password, tt.args.sshPrivateKey, tt.args.insecureIgnoreHostKey)
 		assert.NoError(t, err)
-		defer func() { _ = os.RemoveAll(dirName) }()
-
-		client, err := NewFactory().NewClient(tt.args.url, dirName, tt.args.username, tt.args.password, tt.args.sshPrivateKey, tt.args.insecureIgnoreHostKey)
-		assert.NoError(t, err)
-		commitSHA, err := client.LsRemote("HEAD")
+		commitSHA, err := client.LsRemote(".", "HEAD")
 		assert.NoError(t, err)
 
 		err = client.Init()
@@ -184,7 +178,7 @@ func TestNewFactory(t *testing.T) {
 		err = client.Fetch()
 		assert.NoError(t, err)
 
-		err = client.Checkout(commitSHA)
+		err = client.Checkout(".", commitSHA)
 		assert.NoError(t, err)
 
 		revisionMetadata, err := client.RevisionMetadata(commitSHA)

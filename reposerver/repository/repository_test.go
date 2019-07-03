@@ -19,15 +19,15 @@ import (
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
-	"github.com/argoproj/argo-cd/util/git"
-	gitmocks "github.com/argoproj/argo-cd/util/git/mocks"
+	"github.com/argoproj/argo-cd/util/depot"
+	gitmocks "github.com/argoproj/argo-cd/util/depot/mocks"
 )
 
 func newMockRepoServerService(root string) *Service {
 	return &Service{
-		repoLock:   util.NewKeyLock(),
-		gitFactory: newFakeGitClientFactory(root),
-		cache:      cache.NewCache(cache.NewInMemoryCache(time.Hour)),
+		repoLock:      util.NewKeyLock(),
+		clientFactory: newFakeGitClientFactory(root),
+		cache:         cache.NewCache(cache.NewInMemoryCache(time.Hour)),
 	}
 }
 
@@ -35,17 +35,17 @@ func newFakeGitClientFactory(root string) *fakeGitClientFactory {
 	return &fakeGitClientFactory{
 		root:             root,
 		revision:         "aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd",
-		revisionMetadata: &git.RevisionMetadata{Author: "foo", Message: strings.Repeat("x", 99), Tags: []string{"bar"}},
+		revisionMetadata: &depot.RevisionMetadata{Author: "foo", Message: strings.Repeat("x", 99), Tags: []string{"bar"}},
 	}
 }
 
 type fakeGitClientFactory struct {
 	root             string
 	revision         string
-	revisionMetadata *git.RevisionMetadata
+	revisionMetadata *depot.RevisionMetadata
 }
 
-func (f *fakeGitClientFactory) NewClient(repoURL, path, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (git.Client, error) {
+func (f *fakeGitClientFactory) NewClient(r *v1alpha1.Repository) (depot.Client, error) {
 	mockClient := gitmocks.Client{}
 	root := "./testdata"
 	if f.root != "" {
@@ -54,8 +54,8 @@ func (f *fakeGitClientFactory) NewClient(repoURL, path, username, password, sshP
 	mockClient.On("Root").Return(root)
 	mockClient.On("Init").Return(nil)
 	mockClient.On("Fetch", mock.Anything).Return(nil)
-	mockClient.On("Checkout", mock.Anything).Return(nil)
-	mockClient.On("LsRemote", mock.Anything).Return(f.revision, nil)
+	mockClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
+	mockClient.On("LsRemote", mock.Anything, mock.Anything).Return(f.revision, nil)
 	mockClient.On("LsFiles", mock.Anything).Return([]string{}, nil)
 	mockClient.On("CommitSHA", mock.Anything).Return(f.revision, nil)
 	mockClient.On("RevisionMetadata", f.revision).Return(f.revisionMetadata, nil)
@@ -131,7 +131,7 @@ func TestGenerateHelmChartWithDependencies(t *testing.T) {
 	}
 	res1, err := GenerateManifests("../../util/helm/testdata", "wordpress", &q)
 	assert.Nil(t, err)
-	assert.Equal(t, 12, len(res1.Manifests))
+	assert.Len(t, res1.Manifests, 12)
 }
 
 func TestGenerateNullList(t *testing.T) {
@@ -284,9 +284,9 @@ func TestGetAppDetailsKustomize(t *testing.T) {
 func TestService_GetRevisionMetadata(t *testing.T) {
 	factory := newFakeGitClientFactory(".")
 	service := &Service{
-		repoLock:   util.NewKeyLock(),
-		gitFactory: factory,
-		cache:      cache.NewCache(cache.NewInMemoryCache(1 * time.Hour)),
+		repoLock:      util.NewKeyLock(),
+		clientFactory: factory,
+		cache:         cache.NewCache(cache.NewInMemoryCache(1 * time.Hour)),
 	}
 	type args struct {
 		q *RepoServerRevisionMetadataRequest

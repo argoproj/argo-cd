@@ -28,6 +28,8 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/config"
+	"github.com/argoproj/argo-cd/util/depot"
+	"github.com/argoproj/argo-cd/util/factory"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/ksonnet"
@@ -44,13 +46,13 @@ const (
 // Service implements ManifestService interface
 type Service struct {
 	repoLock                  *util.KeyLock
-	gitFactory                git.ClientFactory
+	clientFactory             factory.ClientFactory
 	cache                     *cache.Cache
 	parallelismLimitSemaphore *semaphore.Weighted
 }
 
 // NewService returns a new instance of the Manifest service
-func NewService(gitFactory git.ClientFactory, cache *cache.Cache, parallelismLimit int64) *Service {
+func NewService(clientFactory factory.ClientFactory, cache *cache.Cache, parallelismLimit int64) *Service {
 	var parallelismLimitSemaphore *semaphore.Weighted
 	if parallelismLimit > 0 {
 		parallelismLimitSemaphore = semaphore.NewWeighted(parallelismLimit)
@@ -58,15 +60,15 @@ func NewService(gitFactory git.ClientFactory, cache *cache.Cache, parallelismLim
 	return &Service{
 		parallelismLimitSemaphore: parallelismLimitSemaphore,
 
-		repoLock:   util.NewKeyLock(),
-		gitFactory: gitFactory,
-		cache:      cache,
+		repoLock:      util.NewKeyLock(),
+		clientFactory: clientFactory,
+		cache:         cache,
 	}
 }
 
 // ListDir lists the contents of a GitHub repo
 func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, error) {
-	gitClient, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Revision)
+	client, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Path, q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -75,14 +77,14 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, er
 		return &FileList{Items: files}, nil
 	}
 
-	s.repoLock.Lock(gitClient.Root())
-	defer s.repoLock.Unlock(gitClient.Root())
-	commitSHA, err = checkoutRevision(gitClient, commitSHA)
+	s.repoLock.Lock(client.Root())
+	defer s.repoLock.Unlock(client.Root())
+	commitSHA, err = checkoutRevision(client, q.Path, commitSHA)
 	if err != nil {
 		return nil, err
 	}
 
-	lsFiles, err := gitClient.LsFiles(q.Path)
+	lsFiles, err := client.LsFiles(q.Path)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +98,7 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, er
 }
 
 func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileResponse, error) {
-	gitClient, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Revision)
+	client, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Path, q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -106,13 +108,13 @@ func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileRespo
 		return &GetFileResponse{Data: data}, nil
 	}
 
-	s.repoLock.Lock(gitClient.Root())
-	defer s.repoLock.Unlock(gitClient.Root())
-	commitSHA, err = checkoutRevision(gitClient, commitSHA)
+	s.repoLock.Lock(client.Root())
+	defer s.repoLock.Unlock(client.Root())
+	commitSHA, err = checkoutRevision(client, q.Path, commitSHA)
 	if err != nil {
 		return nil, err
 	}
-	data, err := ioutil.ReadFile(filepath.Join(gitClient.Root(), q.Path))
+	data, err := ioutil.ReadFile(filepath.Join(client.Root(), q.Path))
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +129,7 @@ func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileRespo
 }
 
 func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*ManifestResponse, error) {
-	gitClient, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Revision)
+	client, commitSHA, err := s.newClientResolveRevision(q.Repo, q.ApplicationSource.Path, q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -153,8 +155,8 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 		return cached, nil
 	}
 
-	s.repoLock.Lock(gitClient.Root())
-	defer s.repoLock.Unlock(gitClient.Root())
+	s.repoLock.Lock(client.Root())
+	defer s.repoLock.Unlock(client.Root())
 
 	cached = getCached()
 	if cached != nil {
@@ -169,12 +171,12 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 		defer s.parallelismLimitSemaphore.Release(1)
 	}
 
-	commitSHA, err = checkoutRevision(gitClient, commitSHA)
+	commitSHA, err = checkoutRevision(client, q.ApplicationSource.Path, commitSHA)
 	if err != nil {
 		return nil, err
 	}
 
-	genRes, err := GenerateManifests(gitClient.Root(), q.ApplicationSource.Path, q)
+	genRes, err := GenerateManifests(client.Root(), q.ApplicationSource.Path, q)
 	if err != nil {
 		return nil, err
 	}
@@ -218,8 +220,11 @@ func GenerateManifests(root, path string, q *ManifestRequest) (*ManifestResponse
 	case v1alpha1.ApplicationSourceTypeKsonnet:
 		targetObjs, dest, err = ksShow(q.AppLabelKey, appPath, q.ApplicationSource.Ksonnet)
 	case v1alpha1.ApplicationSourceTypeHelm:
-		h := helm.NewHelmApp(appPath, q.Repos)
-		err := h.Init()
+		h, err := helm.NewHelmApp(appPath, q.Repos)
+		if err != nil {
+			return nil, err
+		}
+		err = h.Init()
 		if err != nil {
 			return nil, err
 		}
@@ -301,11 +306,6 @@ func GenerateManifests(root, path string, q *ManifestRequest) (*ManifestResponse
 	return &res, nil
 }
 
-// tempRepoPath returns a formulated temporary directory location to clone a repository
-func tempRepoPath(repo string) string {
-	return filepath.Join(os.TempDir(), strings.Replace(repo, "/", "_", -1))
-}
-
 // GetAppSourceType returns explicit application source type or examines a directory and determines its application source type
 func GetAppSourceType(source *v1alpha1.ApplicationSource, appDirPath string) (v1alpha1.ApplicationSourceType, error) {
 	appSourceType, err := source.ExplicitType()
@@ -352,20 +352,20 @@ func isNullList(obj *unstructured.Unstructured) bool {
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
-func checkoutRevision(gitClient git.Client, commitSHA string) (string, error) {
-	err := gitClient.Init()
+func checkoutRevision(client depot.Client, path, commitSHA string) (string, error) {
+	err := client.Init()
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "Failed to initialize repo: %v", err)
 	}
-	err = gitClient.Fetch()
+	err = client.Fetch()
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "Failed to fetch repo: %v", err)
 	}
-	err = gitClient.Checkout(commitSHA)
+	err = client.Checkout(path, commitSHA)
 	if err != nil {
-		return "", status.Errorf(codes.Internal, "Failed to checkout %s: %v", commitSHA, err)
+		return "", status.Errorf(codes.Internal, "Failed to checkout %s, %s: %v", path, commitSHA, err)
 	}
-	return gitClient.CommitSHA()
+	return client.CommitSHA()
 }
 
 // ksShow runs `ks show` in an app directory after setting any component parameter overrides
@@ -510,21 +510,20 @@ func pathExists(ss ...string) bool {
 
 // newClientResolveRevision is a helper to perform the common task of instantiating a client
 // and resolving a revision to a commit SHA
-func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision string) (git.Client, string, error) {
-	gitClient, err := s.newClient(repo)
+func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, path, revision string) (depot.Client, string, error) {
+	client, err := s.newClient(repo)
 	if err != nil {
 		return nil, "", err
 	}
-	commitSHA, err := gitClient.LsRemote(revision)
+	commitSHA, err := client.LsRemote(path, revision)
 	if err != nil {
 		return nil, "", err
 	}
-	return gitClient, commitSHA, nil
+	return client, commitSHA, nil
 }
 
-func (s *Service) newClient(repo *v1alpha1.Repository) (git.Client, error) {
-	appPath := tempRepoPath(git.NormalizeGitURL(repo.Repo))
-	return s.gitFactory.NewClient(repo.Repo, appPath, repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
+func (s *Service) newClient(r *v1alpha1.Repository) (depot.Client, error) {
+	return s.clientFactory.NewClient(r)
 }
 
 func runCommand(command v1alpha1.Command, path string, env []string) (string, error) {
@@ -579,7 +578,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 	if revision == "" {
 		revision = "HEAD"
 	}
-	gitClient, commitSHA, err := s.newClientResolveRevision(q.Repo, revision)
+	client, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Path, revision)
 	if err != nil {
 		return nil, err
 	}
@@ -601,19 +600,19 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 	if cached != nil {
 		return cached, nil
 	}
-	s.repoLock.Lock(gitClient.Root())
-	defer s.repoLock.Unlock(gitClient.Root())
+	s.repoLock.Lock(client.Root())
+	defer s.repoLock.Unlock(client.Root())
 	cached = getCached()
 	if cached != nil {
 		return cached, nil
 	}
 
-	commitSHA, err = checkoutRevision(gitClient, commitSHA)
+	commitSHA, err = checkoutRevision(client, q.Path, commitSHA)
 	if err != nil {
 		return nil, err
 	}
 
-	appPath := filepath.Join(gitClient.Root(), q.Path)
+	appPath := filepath.Join(client.Root(), q.Path)
 
 	appSourceType, err := GetAppSourceType(&v1alpha1.ApplicationSource{}, appPath)
 	if err != nil {
@@ -665,7 +664,10 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 				res.Helm.ValueFiles = append(res.Helm.ValueFiles, fName)
 			}
 		}
-		h := helm.NewHelmApp(appPath, q.Repos)
+		h, err := helm.NewHelmApp(appPath, q.Repos)
+		if err != nil {
+			return nil, err
+		}
 		err = h.Init()
 		if err != nil {
 			return nil, err
@@ -690,7 +692,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 	return &res, nil
 }
 
-func (s *Service) getRevisionMetadata(repoURL *v1alpha1.Repository, revision string) (*git.RevisionMetadata, error) {
+func (s *Service) getRevisionMetadata(repoURL *v1alpha1.Repository, revision string) (*depot.RevisionMetadata, error) {
 	client, err := s.newClient(repoURL)
 	if err != nil {
 		return nil, err

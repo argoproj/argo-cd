@@ -1,7 +1,6 @@
 package helm
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -23,7 +22,8 @@ func findParameter(params []*argoappv1.HelmParameter, name string) *argoappv1.He
 }
 
 func TestHelmTemplateParams(t *testing.T) {
-	h := NewHelmApp("./testdata/minio", argoappv1.Repositories{})
+	h, err := NewHelmApp("./testdata/minio", argoappv1.Repositories{})
+	assert.NoError(t, err)
 	opts := argoappv1.ApplicationSourceHelm{
 		Parameters: []argoappv1.HelmParameter{
 			{
@@ -52,7 +52,8 @@ func TestHelmTemplateParams(t *testing.T) {
 }
 
 func TestHelmTemplateValues(t *testing.T) {
-	h := NewHelmApp("./testdata/redis", argoappv1.Repositories{})
+	h, err := NewHelmApp("./testdata/redis", argoappv1.Repositories{})
+	assert.NoError(t, err)
 	opts := argoappv1.ApplicationSourceHelm{
 		ValueFiles: []string{"values-production.yaml"},
 	}
@@ -71,7 +72,8 @@ func TestHelmTemplateValues(t *testing.T) {
 }
 
 func TestHelmTemplateValuesURL(t *testing.T) {
-	h := NewHelmApp("./testdata/redis", argoappv1.Repositories{})
+	h, err := NewHelmApp("./testdata/redis", argoappv1.Repositories{})
+	assert.NoError(t, err)
 	opts := argoappv1.ApplicationSourceHelm{
 		ValueFiles: []string{"https://raw.githubusercontent.com/argoproj/argo-cd/master/util/helm/testdata/redis/values-production.yaml"},
 	}
@@ -84,7 +86,8 @@ func TestHelmTemplateValuesURL(t *testing.T) {
 }
 
 func TestHelmGetParams(t *testing.T) {
-	h := NewHelmApp("./testdata/redis", argoappv1.Repositories{})
+	h, err := NewHelmApp("./testdata/redis", argoappv1.Repositories{})
+	assert.NoError(t, err)
 	params, err := h.GetParameters([]string{})
 	assert.Nil(t, err)
 
@@ -94,7 +97,8 @@ func TestHelmGetParams(t *testing.T) {
 }
 
 func TestHelmGetParamsValueFiles(t *testing.T) {
-	h := NewHelmApp("./testdata/redis", argoappv1.Repositories{})
+	h, err := NewHelmApp("./testdata/redis", argoappv1.Repositories{})
+	assert.NoError(t, err)
 	params, err := h.GetParameters([]string{"values-production.yaml"})
 	assert.Nil(t, err)
 
@@ -109,11 +113,8 @@ func TestHelmDependencyBuild(t *testing.T) {
 	}
 	clean()
 	defer clean()
-	h := NewHelmApp("./testdata/wordpress", argoappv1.Repositories{})
-	helmHome, err := ioutil.TempDir("", "")
+	h, err := NewHelmApp("./testdata/wordpress", argoappv1.Repositories{})
 	assert.NoError(t, err)
-	defer func() { _ = os.RemoveAll(helmHome) }()
-	h.SetHome(helmHome)
 	err = h.Init()
 	assert.NoError(t, err)
 	_, err = h.Template("wordpress", "", nil)
@@ -125,7 +126,8 @@ func TestHelmDependencyBuild(t *testing.T) {
 }
 
 func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
-	h := NewHelmApp("./testdata/redis", argoappv1.Repositories{})
+	h, err := NewHelmApp("./testdata/redis", argoappv1.Repositories{})
+	assert.NoError(t, err)
 	opts := argoappv1.ApplicationSourceHelm{
 		ReleaseName: "my-release",
 	}
@@ -144,7 +146,8 @@ func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
 }
 
 func TestHelmTemplateReleaseName(t *testing.T) {
-	h := NewHelmApp("./testdata/redis", argoappv1.Repositories{})
+	h, err := NewHelmApp("./testdata/redis", argoappv1.Repositories{})
+	assert.NoError(t, err)
 	opts := argoappv1.ApplicationSourceHelm{}
 	objs, err := h.Template("test", "", &opts)
 	assert.Nil(t, err)

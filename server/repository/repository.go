@@ -21,7 +21,8 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/depot"
+	"github.com/argoproj/argo-cd/util/factory"
 	"github.com/argoproj/argo-cd/util/kustomize"
 	"github.com/argoproj/argo-cd/util/rbac"
 )
@@ -58,9 +59,14 @@ func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.Conn
 		Status:     appsv1.ConnectionStatusSuccessful,
 		ModifiedAt: &now,
 	}
+	var client depot.Client
+	var err error
 	repo, err := s.db.GetRepository(ctx, url)
 	if err == nil {
-		err = git.TestRepo(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
+		client, err = factory.NewClientFactory().NewClient(repo)
+	}
+	if client != nil && err == nil {
+		err = client.Test()
 	}
 	if err != nil {
 		connectionState.Status = appsv1.ConnectionStatusFailed
@@ -220,11 +226,12 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 
 // Create creates a repository
 func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest) (*appsv1.Repository, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, q.Repo.Repo); err != nil {
+	err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, q.Repo.Repo)
+	if err != nil {
 		return nil, err
 	}
 	r := q.Repo
-	err := git.TestRepo(r.Repo, r.Username, r.Password, r.SSHPrivateKey, r.InsecureIgnoreHostKey)
+	_, err = factory.NewClientFactory().NewClient(q.Repo)
 	if err != nil {
 		return nil, err
 	}

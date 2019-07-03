@@ -16,6 +16,7 @@ import (
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/factory"
 	"github.com/argoproj/argo-cd/util/git"
 )
 
@@ -66,7 +67,10 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			// NOTE: it is important not to run git commands to test git credentials on the user's
 			// system since it may mess with their git credential store (e.g. osx keychain).
 			// See issue #315
-			err := git.TestRepo(repo.Repo, "", "", repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
+			client, err := factory.NewClientFactory().NewClient(&repo)
+			if err == nil {
+				err = client.Test()
+			}
 			if err != nil {
 				if yes, _ := git.IsSSHURL(repo.Repo); yes {
 					// If we failed using git SSH credentials, then the repo is automatically bad
@@ -120,9 +124,9 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 // Print table of repo info
 func printRepoTable(repos appsv1.Repositories) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "REPO\tUSER\tSTATUS\tMESSAGE\n")
+	_, _ = fmt.Fprintf(w, "TYPE\nREPO\tUSER\tSTATUS\tMESSAGE\n")
 	for _, r := range repos {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", r.Repo, r.Username, r.ConnectionState.Status, r.ConnectionState.Message)
+		_, _ = fmt.Fprintf(w, "%s\n%s\t%s\t%s\t%s\n", r.Type, r.Repo, r.Username, r.ConnectionState.Status, r.ConnectionState.Message)
 	}
 	_ = w.Flush()
 }

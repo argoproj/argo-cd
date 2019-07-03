@@ -35,6 +35,7 @@ import (
 	argoutil "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/factory"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/lua"
@@ -54,7 +55,7 @@ type Server struct {
 	enf           *rbac.Enforcer
 	projectLock   *util.KeyLock
 	auditLogger   *argo.AuditLogger
-	gitFactory    git.ClientFactory
+	clientFactory factory.ClientFactory
 	settingsMgr   *settings.SettingsManager
 	cache         *cache.Cache
 }
@@ -84,7 +85,7 @@ func NewServer(
 		enf:           enf,
 		projectLock:   projectLock,
 		auditLogger:   argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
-		gitFactory:    git.NewFactory(),
+		clientFactory: factory.NewClientFactory(),
 		settingsMgr:   settingsMgr,
 	}
 }
@@ -966,11 +967,11 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	if err != nil {
 		return "", "", err
 	}
-	gitClient, err := s.gitFactory.NewClient(repo.Repo, "", repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
+	client, err := s.clientFactory.NewClient(repo)
 	if err != nil {
 		return "", "", err
 	}
-	commitSHA, err := gitClient.LsRemote(ambiguousRevision)
+	commitSHA, err := client.LsRemote(app.Spec.Source.Path, ambiguousRevision)
 	if err != nil {
 		return "", "", err
 	}
