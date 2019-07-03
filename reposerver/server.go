@@ -29,7 +29,7 @@ type ArgoCDRepoServer struct {
 }
 
 // NewServer returns a new instance of the Argo CD Repo server
-func NewServer(cache *cache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, parallelismLimit int64) (*ArgoCDRepoServer, error) {
+func NewServer(clientFactory factory.ClientFactory, cache *cache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, parallelismLimit int64) (*ArgoCDRepoServer, error) {
 	// generate TLS cert
 	hosts := []string{
 		"localhost",
@@ -54,6 +54,7 @@ func NewServer(cache *cache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, p
 
 	return &ArgoCDRepoServer{
 		log:              serverLog,
+		clientFactory:    clientFactory,
 		cache:            cache,
 		parallelismLimit: parallelismLimit,
 		opts: []grpc.ServerOption{

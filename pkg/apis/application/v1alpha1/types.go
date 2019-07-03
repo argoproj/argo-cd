@@ -869,12 +869,14 @@ type ResourceActionParam struct {
 
 // Repository is a repository holding application configurations
 type Repository struct {
-	Repo                  string          `json:"repo" protobuf:"bytes,1,opt,name=repo"`
-	Username              string          `json:"username,omitempty" protobuf:"bytes,2,opt,name=username"`
-	Password              string          `json:"password,omitempty" protobuf:"bytes,3,opt,name=password"`
-	SSHPrivateKey         string          `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
-	ConnectionState       ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,5,opt,name=connectionState"`
-	InsecureIgnoreHostKey bool            `json:"insecureIgnoreHostKey,omitempty" protobuf:"bytes,6,opt,name=insecureIgnoreHostKey"`
+	Repo     string `json:"repo" protobuf:"bytes,1,opt,name=repo"`
+	Username string `json:"username,omitempty" protobuf:"bytes,2,opt,name=username"`
+	Password string `json:"password,omitempty" protobuf:"bytes,3,opt,name=password"`
+	// only for Git repos
+	SSHPrivateKey   string          `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
+	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,5,opt,name=connectionState"`
+	// only for Git repos
+	InsecureIgnoreHostKey bool `json:"insecureIgnoreHostKey,omitempty" protobuf:"bytes,6,opt,name=insecureIgnoreHostKey"`
 	// type of the repo, maybe "git or "helm, "git" is assumed if empty or absent
 	Type string `json:"type,omitempty" protobuf:"bytes,7,opt,name=type"`
 	// only for Helm repos

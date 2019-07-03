@@ -13,7 +13,7 @@ type ClientFactory interface {
 	NewClient(r *v1alpha1.Repository) (depot.Client, error)
 }
 
-func NewClientFactory() ClientFactory {
+func NewFactory() ClientFactory {
 	return &defaultClientFactory{}
 }
 

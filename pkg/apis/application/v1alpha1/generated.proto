@@ -471,10 +471,12 @@ message Repository {
 
   optional string password = 3;
 
+  // only for Git repos
   optional string sshPrivateKey = 4;
 
   optional ConnectionState connectionState = 5;
 
+  // only for Git repos
   optional bool insecureIgnoreHostKey = 6;
 
   // type of the repo, maybe "git or "helm, "git" is assumed if empty or absent

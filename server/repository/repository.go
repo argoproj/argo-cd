@@ -63,7 +63,7 @@ func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.Conn
 	var err error
 	repo, err := s.db.GetRepository(ctx, url)
 	if err == nil {
-		client, err = factory.NewClientFactory().NewClient(repo)
+		client, err = factory.NewFactory().NewClient(repo)
 	}
 	if client != nil && err == nil {
 		err = client.Test()
@@ -231,7 +231,7 @@ func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest)
 		return nil, err
 	}
 	r := q.Repo
-	_, err = factory.NewClientFactory().NewClient(q.Repo)
+	_, err = factory.NewFactory().NewClient(q.Repo)
 	if err != nil {
 		return nil, err
 	}

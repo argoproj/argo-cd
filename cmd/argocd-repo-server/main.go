@@ -16,6 +16,7 @@ import (
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/factory"
 	"github.com/argoproj/argo-cd/util/stats"
 	"github.com/argoproj/argo-cd/util/tls"
 )
@@ -46,7 +47,7 @@ func newCommand() *cobra.Command {
 			cache, err := cacheSrc()
 			errors.CheckError(err)
 
-			server, err := reposerver.NewServer(cache, tlsConfigCustomizer, parallelismLimit)
+			server, err := reposerver.NewServer(factory.NewFactory(), cache, tlsConfigCustomizer, parallelismLimit)
 			errors.CheckError(err)
 			grpc := server.CreateGRPC()
 			listener, err := net.Listen("tcp", fmt.Sprintf(":%d", listenPort))

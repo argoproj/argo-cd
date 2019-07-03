@@ -85,7 +85,7 @@ func NewServer(
 		enf:           enf,
 		projectLock:   projectLock,
 		auditLogger:   argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
-		clientFactory: factory.NewClientFactory(),
+		clientFactory: factory.NewFactory(),
 		settingsMgr:   settingsMgr,
 	}
 }

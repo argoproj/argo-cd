@@ -67,7 +67,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			// NOTE: it is important not to run git commands to test git credentials on the user's
 			// system since it may mess with their git credential store (e.g. osx keychain).
 			// See issue #315
-			client, err := factory.NewClientFactory().NewClient(&repo)
+			client, err := factory.NewFactory().NewClient(&repo)
 			if err == nil {
 				err = client.Test()
 			}

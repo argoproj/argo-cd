@@ -147,7 +147,7 @@ func ValidateRepo(ctx context.Context, spec *argoappv1.ApplicationSpec, repoClie
 		return nil, "", err
 	}
 
-	client, err := factory.NewClientFactory().NewClient(repoRes)
+	client, err := factory.NewFactory().NewClient(repoRes)
 	if err == nil {
 		err = client.Test()
 	}

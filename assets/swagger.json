@@ -3152,7 +3152,8 @@
         },
         "insecureIgnoreHostKey": {
           "type": "boolean",
-          "format": "boolean"
+          "format": "boolean",
+          "title": "only for Git repos"
         },
         "keyData": {
           "type": "string",
@@ -3170,7 +3171,8 @@
           "type": "string"
         },
         "sshPrivateKey": {
-          "type": "string"
+          "type": "string",
+          "title": "only for Git repos"
         },
         "type": {
           "type": "string",

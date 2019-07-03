@@ -1704,8 +1704,9 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 					},
 					"sshPrivateKey": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "only for Git repos",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"connectionState": {
@@ -1715,8 +1716,9 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 					},
 					"insecureIgnoreHostKey": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
+							Description: "only for Git repos",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
 					"type": {
