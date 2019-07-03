@@ -50,7 +50,6 @@ export class ApplicationsService {
     }
 
     public updateSpec(appName: string, spec: models.ApplicationSpec): Promise<models.ApplicationSpec> {
-        spec.source.componentParameterOverrides = null;
         return requests.put(`/applications/${appName}/spec`).send(spec).then((res) => res.body as models.ApplicationSpec);
     }
 
@@ -179,7 +178,6 @@ export class ApplicationsService {
                 summary: {},
             },
         }, data);
-        delete data.spec.source.componentParameterOverrides;
 
         return data as models.Application;
     }
