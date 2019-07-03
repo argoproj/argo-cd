@@ -18,7 +18,9 @@ export class Page extends React.Component<{ title: string, toolbar?: Toolbar | O
                 toolbar = toolbar || {};
                 toolbar.tools = [
                     toolbar.tools,
-                    <a key='logout' onClick={() => this.logout()}>Logout</a>,
+                    services.authService.getCurrentUserId() ?
+                        <a key='logout' onClick={() => this.goToLogin(true)}>Logout</a> :
+                        <a key='login' onClick={() => this.goToLogin(false)}>Login</a>,
                 ];
                 return toolbar;
             })}>
@@ -29,8 +31,10 @@ export class Page extends React.Component<{ title: string, toolbar?: Toolbar | O
         );
     }
 
-    private async logout() {
-        await services.users.logout();
+    private async goToLogin(logout = false) {
+        if (logout) {
+            await services.users.logout();
+        }
         this.appContext.history.push('/login');
     }
 

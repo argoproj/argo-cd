@@ -10,6 +10,9 @@ data:
   # Enables application status badge feature
   statusbadge.enabled: 'true'
 
+  # Enables anonymous user access. The anonymous users get default role permissions specified argocd-rbac-cm.yaml.
+  users.anonymous.enabled: "true"
+
   # Enables google analytics tracking is specified
   ga.trackingid: 'UA-12345-1'
   # Unless set to 'false' then user ids are hashed before sending to google analytics
