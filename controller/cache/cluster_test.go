@@ -253,8 +253,7 @@ func TestChildDeletedEvent(t *testing.T) {
 	err := cluster.ensureSynced()
 	assert.Nil(t, err)
 
-	err = cluster.processEvent(watch.Deleted, testPod)
-	assert.Nil(t, err)
+	cluster.processEvent(watch.Deleted, testPod)
 
 	rsChildren := getChildren(cluster, testRS)
 	assert.Equal(t, []appv1.ResourceNode{}, rsChildren)
@@ -279,8 +278,7 @@ func TestProcessNewChildEvent(t *testing.T) {
       uid: "2"
     resourceVersion: "123"`)
 
-	err = cluster.processEvent(watch.Added, newPod)
-	assert.Nil(t, err)
+	cluster.processEvent(watch.Added, newPod)
 
 	rsChildren := getChildren(cluster, testRS)
 	sort.Slice(rsChildren, func(i, j int) bool {
@@ -361,8 +359,7 @@ func TestUpdateResourceTags(t *testing.T) {
 			},
 		}},
 	}
-	err = cluster.processEvent(watch.Modified, mustToUnstructured(pod))
-	assert.Nil(t, err)
+	cluster.processEvent(watch.Modified, mustToUnstructured(pod))
 
 	podNode = cluster.nodes[kube.GetResourceKey(mustToUnstructured(pod))]
 
@@ -380,8 +377,7 @@ func TestUpdateAppResource(t *testing.T) {
 	err := cluster.ensureSynced()
 	assert.Nil(t, err)
 
-	err = cluster.processEvent(watch.Modified, mustToUnstructured(testPod))
-	assert.Nil(t, err)
+	cluster.processEvent(watch.Modified, mustToUnstructured(testPod))
 
 	assert.Contains(t, updatesReceived, "helm-guestbook: false")
 }

@@ -141,7 +141,7 @@ func (m *nativeGitClient) Fetch() error {
 
 // LsFiles lists the local working tree, including only files that are under source control
 func (m *nativeGitClient) LsFiles(path string) ([]string, error) {
-	out, err := m.runCmd("git", "ls-files", "--full-name", "-z", "--", path)
+	out, err := m.runCmd("ls-files", "--full-name", "-z", "--", path)
 	if err != nil {
 		return nil, err
 	}
@@ -155,10 +155,10 @@ func (m *nativeGitClient) Checkout(revision string) error {
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
 	}
-	if _, err := m.runCmd("git", "checkout", "--force", revision); err != nil {
+	if _, err := m.runCmd("checkout", "--force", revision); err != nil {
 		return err
 	}
-	if _, err := m.runCmd("git", "clean", "-fdx"); err != nil {
+	if _, err := m.runCmd("clean", "-fdx"); err != nil {
 		return err
 	}
 	return nil
@@ -242,7 +242,7 @@ func (m *nativeGitClient) LsRemote(revision string) (string, error) {
 
 // CommitSHA returns current commit sha from `git rev-parse HEAD`
 func (m *nativeGitClient) CommitSHA() (string, error) {
-	out, err := m.runCmd("git", "rev-parse", "HEAD")
+	out, err := m.runCmd("rev-parse", "HEAD")
 	if err != nil {
 		return "", err
 	}
@@ -251,7 +251,7 @@ func (m *nativeGitClient) CommitSHA() (string, error) {
 
 // returns the meta-data for the commit
 func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, error) {
-	out, err := m.runCmd("git", "show", "-s", "--format=%an <%ae>|%at|%B", revision)
+	out, err := m.runCmd("show", "-s", "--format=%an <%ae>|%at|%B", revision)
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +263,7 @@ func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, 
 	authorDateUnixTimestamp, _ := strconv.ParseInt(segments[1], 10, 64)
 	message := strings.TrimSpace(segments[2])
 
-	out, err = m.runCmd("git", "tag", "--points-at", revision)
+	out, err = m.runCmd("tag", "--points-at", revision)
 	if err != nil {
 		return nil, err
 	}
@@ -273,8 +273,8 @@ func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, 
 }
 
 // runCmd is a convenience function to run a command in a given directory and return its output
-func (m *nativeGitClient) runCmd(command string, args ...string) (string, error) {
-	cmd := exec.Command(command, args...)
+func (m *nativeGitClient) runCmd(args ...string) (string, error) {
+	cmd := exec.Command("git", args...)
 	return m.runCmdOutput(cmd)
 }
 

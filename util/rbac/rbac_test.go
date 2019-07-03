@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	apiv1 "k8s.io/api/core/v1"
@@ -26,7 +26,7 @@ var (
 	}
 )
 
-func fakeConfigMap(policy ...string) *apiv1.ConfigMap {
+func fakeConfigMap() *apiv1.ConfigMap {
 	cm := apiv1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ConfigMap",
@@ -37,9 +37,6 @@ func fakeConfigMap(policy ...string) *apiv1.ConfigMap {
 			Namespace: fakeNamespace,
 		},
 		Data: make(map[string]string),
-	}
-	if len(policy) > 0 {
-		cm.Data[ConfigMapPolicyCSVKey] = policy[0]
 	}
 	return &cm
 }

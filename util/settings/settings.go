@@ -360,9 +360,7 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	}
 	var settings ArgoCDSettings
 	var errs []error
-	if err := updateSettingsFromConfigMap(&settings, argoCDCM); err != nil {
-		errs = append(errs, err)
-	}
+	updateSettingsFromConfigMap(&settings, argoCDCM)
 	if err := updateSettingsFromSecret(&settings, argoCDSecret); err != nil {
 		errs = append(errs, err)
 	}
@@ -447,13 +445,12 @@ func (mgr *SettingsManager) ensureSynced(forceResync bool) error {
 	return mgr.initialize(ctx)
 }
 
-func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.ConfigMap) error {
+func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.ConfigMap) {
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
 	settings.URL = argoCDCM.Data[settingURLKey]
 	settings.StatusBadgeEnabled = argoCDCM.Data[statusBadgeEnabledKey] == "true"
 	settings.AnonymousUserEnabled = argoCDCM.Data[anonymousUserEnabledKey] == "true"
-	return nil
 }
 
 // updateSettingsFromSecret transfers settings from a Kubernetes secret into an ArgoCDSettings struct.
