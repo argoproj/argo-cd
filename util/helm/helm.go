@@ -212,12 +212,10 @@ func (h *helm) GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, 
 }
 
 func (h *helm) helmCmd(args ...string) (string, error) {
-	return h.helmCmdExt(args, func(s string) string {
-		return s
-	})
+	return h.helmCmdExt(args, argoexec.Unredacted)
 }
 
-func (h *helm) helmCmdExt(args []string, logFormat func(string) string) (string, error) {
+func (h *helm) helmCmdExt(args []string, redactor func(string) string) (string, error) {
 	cleanHelmParameters(args)
 	cmd := exec.Command("helm", args...)
 	cmd.Env = os.Environ()
@@ -226,7 +224,10 @@ func (h *helm) helmCmdExt(args []string, logFormat func(string) string) (string,
 		cmd.Env = append(cmd.Env, fmt.Sprintf("HELM_HOME=%s", h.home))
 	}
 
-	return argoexec.RunCommandExt(cmd, config.CmdOpts())
+	return argoexec.RunCommandExt(cmd, argoexec.CmdOpts{
+		Timeout:  config.CmdOpts().Timeout,
+		Redactor: redactor,
+	})
 }
 
 func flatVals(input map[string]interface{}, output map[string]string, prefixes ...string) {
