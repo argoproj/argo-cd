@@ -224,7 +224,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					printOperationResult(app.Status.OperationState)
 				}
 				if showParams {
-					printParams(app, appIf)
+					printParams(app)
 				}
 				if len(app.Status.Resources) > 0 {
 					fmt.Println()
@@ -330,7 +330,7 @@ func truncateString(str string, num int) string {
 }
 
 // printParams prints parameters and overrides
-func printParams(app *argoappv1.Application, appIf applicationpkg.ApplicationServiceClient) {
+func printParams(app *argoappv1.Application) {
 	paramLenLimit := 80
 	fmt.Println()
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
@@ -1596,7 +1596,7 @@ func printApplicationHistoryIds(revHistory []argoappv1.RevisionHistory) {
 }
 
 // Print a history table for an application.
-func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory, output *string) {
+func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintf(w, "ID\tDATE\tREVISION\n")
 	for _, depInfo := range revHistory {
@@ -1630,7 +1630,7 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			if output == "id" {
 				printApplicationHistoryIds(app.Status.History)
 			} else {
-				printApplicationHistoryTable(app.Status.History, &output)
+				printApplicationHistoryTable(app.Status.History)
 			}
 		},
 	}

@@ -314,19 +314,19 @@ func TestResourceDiffing(t *testing.T) {
 }
 
 func TestDeprecatedExtensions(t *testing.T) {
-	testEdgeCasesApplicationResources(t, "deprecated-extensions", OperationSucceeded, HealthStatusProgressing)
+	testEdgeCasesApplicationResources(t, "deprecated-extensions", HealthStatusProgressing)
 }
 
 func TestCRDs(t *testing.T) {
-	testEdgeCasesApplicationResources(t, "crd-creation", OperationSucceeded, HealthStatusHealthy)
+	testEdgeCasesApplicationResources(t, "crd-creation", HealthStatusHealthy)
 }
 
 func TestDuplicatedResources(t *testing.T) {
-	testEdgeCasesApplicationResources(t, "duplicated-resources", OperationSucceeded, HealthStatusHealthy)
+	testEdgeCasesApplicationResources(t, "duplicated-resources", HealthStatusHealthy)
 }
 
 func TestConfigMap(t *testing.T) {
-	testEdgeCasesApplicationResources(t, "config-map", OperationSucceeded, HealthStatusHealthy)
+	testEdgeCasesApplicationResources(t, "config-map", HealthStatusHealthy)
 }
 
 func TestFailedConversion(t *testing.T) {
@@ -335,17 +335,17 @@ func TestFailedConversion(t *testing.T) {
 		errors.FailOnErr(fixture.Run("", "kubectl", "delete", "apiservice", "v1beta1.metrics.k8s.io"))
 	}()
 
-	testEdgeCasesApplicationResources(t, "failed-conversion", OperationSucceeded, HealthStatusHealthy)
+	testEdgeCasesApplicationResources(t, "failed-conversion", HealthStatusHealthy)
 }
 
-func testEdgeCasesApplicationResources(t *testing.T, appPath string, phase OperationPhase, statusCode HealthStatusCode) {
+func testEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode HealthStatusCode) {
 	Given(t).
 		Path(appPath).
 		When().
 		Create().
 		Sync().
 		Then().
-		Expect(OperationPhaseIs(phase)).
+		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(statusCode)).
 		And(func(app *Application) {

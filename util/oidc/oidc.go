@@ -13,7 +13,7 @@ import (
 	"time"
 
 	gooidc "github.com/coreos/go-oidc"
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
@@ -206,7 +206,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	state := r.FormValue("state")
 	if code == "" {
 		// If code was not given, it implies implicit flow
-		a.handleImplicitFlow(w, r, state)
+		a.handleImplicitFlow(w, state)
 		return
 	}
 	appState, err := a.verifyAppState(state)
@@ -280,7 +280,7 @@ if (state != "" && returnURL == "") {
 // state nonce for verification, as well as looking up the return URL. Once verified, the client
 // stores the id_token from the fragment as a cookie. Finally it performs the final redirect back to
 // the return URL.
-func (a *ClientApp) handleImplicitFlow(w http.ResponseWriter, r *http.Request, state string) {
+func (a *ClientApp) handleImplicitFlow(w http.ResponseWriter, state string) {
 	type implicitFlowValues struct {
 		CookieName string
 		ReturnURL  string

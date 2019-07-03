@@ -266,7 +266,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 		go func() { a.checkServeErr("httpsS", httpsS.Serve(httpsL)) }()
 		go func() { a.checkServeErr("tlsm", tlsm.Serve()) }()
 	}
-	go a.watchSettings(ctx)
+	go a.watchSettings()
 	go a.rbacPolicyLoader(ctx)
 	go func() { a.checkServeErr("tcpm", tcpm.Serve()) }()
 	go func() { a.checkServeErr("metrics", metricsServ.ListenAndServe()) }()
@@ -305,7 +305,7 @@ func (a *ArgoCDServer) Shutdown() {
 
 // watchSettings watches the configmap and secret for any setting updates that would warrant a
 // restart of the API server.
-func (a *ArgoCDServer) watchSettings(ctx context.Context) {
+func (a *ArgoCDServer) watchSettings() {
 	updateCh := make(chan *settings_util.ArgoCDSettings, 1)
 	a.settingsMgr.Subscribe(updateCh)
 

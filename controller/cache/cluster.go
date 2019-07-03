@@ -237,12 +237,7 @@ func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo,
 				if ok {
 					obj := event.Object.(*unstructured.Unstructured)
 					info.resourceVersion = obj.GetResourceVersion()
-					err = c.processEvent(event.Type, obj)
-					if err != nil {
-						log.Warnf("Failed to process event %s %s/%s/%s: %v", event.Type, obj.GroupVersionKind(), obj.GetNamespace(), obj.GetName(), err)
-						continue
-					}
-
+					c.processEvent(event.Type, obj)
 					if kube.IsCRD(obj) {
 						if event.Type == watch.Deleted {
 							group, groupOk, groupErr := unstructured.NestedString(obj.Object, "spec", "group")
@@ -444,7 +439,7 @@ func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*uns
 	return managedObjs, nil
 }
 
-func (c *clusterInfo) processEvent(event watch.EventType, un *unstructured.Unstructured) error {
+func (c *clusterInfo) processEvent(event watch.EventType, un *unstructured.Unstructured) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	key := kube.GetResourceKey(un)
@@ -456,8 +451,6 @@ func (c *clusterInfo) processEvent(event watch.EventType, un *unstructured.Unstr
 	} else if event != watch.Deleted {
 		c.onNodeUpdated(exists, existingNode, un, key)
 	}
-
-	return nil
 }
 
 func (c *clusterInfo) onNodeUpdated(exists bool, existingNode *node, un *unstructured.Unstructured, key kube.ResourceKey) {

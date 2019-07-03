@@ -22,7 +22,7 @@ func getHelmRepoCredIndex(helmRepositories []settings.HelmRepoCredentials, repoU
 	return -1
 }
 
-func (db *db) getHelmRepo(ctx context.Context, repoURL string, helmRepositories []settings.HelmRepoCredentials) (*appv1.HelmRepository, error) {
+func (db *db) getHelmRepo(repoURL string, helmRepositories []settings.HelmRepoCredentials) (*appv1.HelmRepository, error) {
 	index := getHelmRepoCredIndex(helmRepositories, repoURL)
 	if index < 0 {
 		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", repoURL)
@@ -58,7 +58,7 @@ func (db *db) ListHelmRepos(ctx context.Context) ([]*appv1.HelmRepository, error
 
 	repos := make([]*appv1.HelmRepository, len(helmRepositories))
 	for i, helmRepoInfo := range helmRepositories {
-		repo, err := db.getHelmRepo(ctx, helmRepoInfo.URL, helmRepositories)
+		repo, err := db.getHelmRepo(helmRepoInfo.URL, helmRepositories)
 		if err != nil {
 			return nil, err
 		}
