@@ -4,8 +4,10 @@ kind: Service
 metadata:
   name: argocd-server
 spec:
-  type: LoadBalancer
-
+  ports:
+    - port: 443
+      nodePort: 30585
+  type: NodePort
 ---
 apiVersion: apps/v1
 kind: Deployment
