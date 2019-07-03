@@ -101,7 +101,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                         </button>
                     </div>
                 )}>
-                    <h4>Connect Git repo</h4>
+                    <h4>Connect repo</h4>
                     <Form onSubmit={(params) => this.connectRepo(params as NewRepoParams)}
                           getApi={(api) => this.formApi = api}
                           validateError={(params: NewRepoParams) => ({
@@ -109,6 +109,10 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                           })}>
                         {(formApi) => (
                             <form onSubmit={formApi.submitForm} role='form' className='width-control'>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Type' field='type' component={Text}/>
+                                    Either blanc, "git" or "helm".
+                                </div>
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Repository URL' field='url' component={Text}/>
                                 </div>

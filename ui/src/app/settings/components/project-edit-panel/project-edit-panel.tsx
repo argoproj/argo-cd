@@ -48,7 +48,7 @@ export const ProjectEditPanel = (props: {
                     {(repos) => (
                         <React.Fragment>
                         <h4>Sources</h4>
-                        <div>Git repositories where application manifests are permitted to be retrieved from</div>
+                            <div>Repositories where application manifests are permitted to be retrieved from</div>
                         {(api.values.sourceRepos as Array<string>).map((_, i) => (
                             <div key={i} className='row project-edit-panel__form-row'>
                                 <div className='columns small-12'>

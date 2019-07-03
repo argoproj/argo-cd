@@ -867,7 +867,7 @@ type ResourceActionParam struct {
 	Default string `json:"default,omitempty" protobuf:"bytes,4,opt,name=default"`
 }
 
-// Repository is a Git repository holding application configurations
+// Repository is a repository holding application configurations
 type Repository struct {
 	Repo                  string          `json:"repo" protobuf:"bytes,1,opt,name=repo"`
 	Username              string          `json:"username,omitempty" protobuf:"bytes,2,opt,name=username"`

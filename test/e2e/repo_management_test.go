@@ -17,7 +17,7 @@ func TestAddRemovePublicRepo(t *testing.T) {
 	assert.NoError(t, err)
 
 	conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	defer util.Close(conn)
 
 	repo, err := repoClient.List(context.Background(), &repositorypkg.RepoQuery{})
@@ -33,10 +33,10 @@ func TestAddRemovePublicRepo(t *testing.T) {
 	assert.True(t, exists)
 
 	_, err = fixture.RunCli("repo", "rm", repoUrl)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	repo, err = repoClient.List(context.Background(), &repositorypkg.RepoQuery{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	exists = false
 	for i := range repo.Items {
 		if repo.Items[i].Repo == repoUrl {
@@ -53,12 +53,12 @@ func TestAddRemoveHelmRepo(t *testing.T) {
 	assert.NoError(t, err)
 
 	conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	defer util.Close(conn)
 
 	repo, err := repoClient.List(context.Background(), &repositorypkg.RepoQuery{})
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	exists := false
 	for i := range repo.Items {
 		if repo.Items[i].Repo == repoUrl {
@@ -69,10 +69,10 @@ func TestAddRemoveHelmRepo(t *testing.T) {
 	assert.True(t, exists)
 
 	_, err = fixture.RunCli("repo", "rm", repoUrl)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	repo, err = repoClient.List(context.Background(), &repositorypkg.RepoQuery{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	exists = false
 	for i := range repo.Items {
 		if repo.Items[i].Repo == repoUrl {

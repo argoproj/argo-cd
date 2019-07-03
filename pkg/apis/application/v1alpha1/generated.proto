@@ -463,7 +463,7 @@ message ProjectRole {
   repeated string groups = 5;
 }
 
-// Repository is a Git repository holding application configurations
+// Repository is a repository holding application configurations
 message Repository {
   optional string repo = 1;
 

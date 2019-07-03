@@ -1681,7 +1681,7 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "Repository is a Git repository holding application configurations",
+				Description: "Repository is a repository holding application configurations",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"repo": {
