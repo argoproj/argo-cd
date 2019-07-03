@@ -3135,7 +3135,7 @@
     },
     "v1alpha1Repository": {
       "type": "object",
-      "title": "Repository is a Git repository holding application configurations",
+      "title": "Repository is a repository holding application configurations",
       "properties": {
         "caData": {
           "type": "string",
