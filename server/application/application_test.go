@@ -91,9 +91,9 @@ func fakeListDirResponse() *repository.FileList {
 func newTestAppServer(objects ...runtime.Object) *Server {
 	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: testNamespace, 
-			Name: "argocd-cm",
-			Labels: map[string]string {
+			Namespace: testNamespace,
+			Name:      "argocd-cm",
+			Labels: map[string]string{
 				"app.kubernetes.io/part-of": "argocd",
 			},
 		},

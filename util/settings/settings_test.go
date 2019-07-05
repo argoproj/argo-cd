@@ -18,7 +18,7 @@ func TestGetRepositories(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: "default",
-			Labels: map[string]string {
+			Labels: map[string]string{
 				"app.kubernetes.io/part-of": "argocd",
 			},
 		},
@@ -37,7 +37,7 @@ func TestSaveRepositories(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: "default",
-			Labels: map[string]string {
+			Labels: map[string]string{
 				"app.kubernetes.io/part-of": "argocd",
 			},
 		},
@@ -55,7 +55,7 @@ func TestGetRepositoryCredentials(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: "default",
-			Labels: map[string]string {
+			Labels: map[string]string{
 				"app.kubernetes.io/part-of": "argocd",
 			},
 		},
@@ -74,7 +74,7 @@ func TestGetResourceFilter(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: "default",
-			Labels: map[string]string {
+			Labels: map[string]string{
 				"app.kubernetes.io/part-of": "argocd",
 			},
 		},
@@ -97,7 +97,7 @@ func TestGetConfigManagementPlugins(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: "default",
-			Labels: map[string]string {
+			Labels: map[string]string{
 				"app.kubernetes.io/part-of": "argocd",
 			},
 		},
@@ -125,7 +125,7 @@ func TestGetAppInstanceLabelKey(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: "default",
-			Labels: map[string]string {
+			Labels: map[string]string{
 				"app.kubernetes.io/part-of": "argocd",
 			},
 		},
@@ -144,7 +144,7 @@ func TestGetResourceOverrides(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: "default",
-			Labels: map[string]string {
+			Labels: map[string]string{
 				"app.kubernetes.io/part-of": "argocd",
 			},
 		},
@@ -173,7 +173,7 @@ func TestGetHelmRepositories(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: "default",
-			Labels: map[string]string {
+			Labels: map[string]string{
 				"app.kubernetes.io/part-of": "argocd",
 			},
 		},
@@ -193,7 +193,7 @@ func TestGetGoogleAnalytics(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: "default",
-			Labels: map[string]string {
+			Labels: map[string]string{
 				"app.kubernetes.io/part-of": "argocd",
 			},
 		},

@@ -26,9 +26,9 @@ var (
 	}
 	argoCDCm = corev1.ConfigMap{
 		ObjectMeta: v1.ObjectMeta{
-			Name: "argocd-cm", 
+			Name:      "argocd-cm",
 			Namespace: "default",
-			Labels: map[string]string {
+			Labels: map[string]string{
 				"app.kubernetes.io/part-of": "argocd",
 			},
 		},

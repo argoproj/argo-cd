@@ -31,7 +31,7 @@ func newTestAccountServer(ctx context.Context) (*fake.Clientset, *Server, *sessi
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
 			Namespace: testNamespace,
-			Labels: map[string]string {
+			Labels: map[string]string{
 				"app.kubernetes.io/part-of": "argocd",
 			},
 		},

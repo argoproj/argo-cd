@@ -198,7 +198,7 @@ func NewFakeConfigMap() *apiv1.ConfigMap {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: FakeArgoCDNamespace,
-			Labels: 	 map[string]string {
+			Labels: map[string]string{
 				"app.kubernetes.io/part-of": "argocd",
 			},
 		},

@@ -27,7 +27,7 @@ func TestSessionManager(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
 			Namespace: "argocd",
-			Labels: map[string]string {
+			Labels: map[string]string{
 				"app.kubernetes.io/part-of": "argocd",
 			},
 		},
