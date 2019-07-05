@@ -18,7 +18,7 @@ func TestCannotAddAppFromPrivateRepoWithoutCfg(t *testing.T) {
 		When().
 		Create().
 		Then().
-		Expect(Error("repository not accessible: authentication required"))
+		Expect(Error("", "repository not accessible: authentication required"))
 }
 
 // make sure you can create an app from a private repo, if the repo is set-up in the CM

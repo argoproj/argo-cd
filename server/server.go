@@ -15,11 +15,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/server/badge"
-
 	"gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
 
+	"github.com/dgrijalva/jwt-go"
 	golang_proto "github.com/golang/protobuf/proto"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
@@ -62,6 +61,7 @@ import (
 	"github.com/argoproj/argo-cd/server/account"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/certificate"
+	"github.com/argoproj/argo-cd/server/badge"
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/server/project"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
@@ -268,7 +268,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 		go func() { a.checkServeErr("httpsS", httpsS.Serve(httpsL)) }()
 		go func() { a.checkServeErr("tlsm", tlsm.Serve()) }()
 	}
-	go a.watchSettings(ctx)
+	go a.watchSettings()
 	go a.rbacPolicyLoader(ctx)
 	go func() { a.checkServeErr("tcpm", tcpm.Serve()) }()
 	go func() { a.checkServeErr("metrics", metricsServ.ListenAndServe()) }()
@@ -307,7 +307,7 @@ func (a *ArgoCDServer) Shutdown() {
 
 // watchSettings watches the configmap and secret for any setting updates that would warrant a
 // restart of the API server.
-func (a *ArgoCDServer) watchSettings(ctx context.Context) {
+func (a *ArgoCDServer) watchSettings() {
 	updateCh := make(chan *settings_util.ArgoCDSettings, 1)
 	a.settingsMgr.Subscribe(updateCh)
 
@@ -499,7 +499,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		Handler: &handlerSwitcher{
 			handler: &bug21955Workaround{handler: mux},
 			urlToHandler: map[string]http.Handler{
-				"/api/badge": badge.NewHandler(a.AppClientset, a.Namespace),
+				"/api/badge": badge.NewHandler(a.AppClientset, a.settingsMgr, a.Namespace),
 			},
 			contentTypeToHandler: map[string]http.Handler{
 				"application/grpc-web+proto": grpcWebHandler,
@@ -702,21 +702,36 @@ func (a *ArgoCDServer) authenticate(ctx context.Context) (context.Context, error
 	if a.DisableAuth {
 		return ctx, nil
 	}
+	if claims, claimsErr := a.getClaims(ctx); claimsErr != nil {
+		argoCDSettings, err := a.settingsMgr.GetSettings()
+		if err != nil {
+			return ctx, status.Errorf(codes.Internal, "unable to load settings: %v", err)
+		}
+		if !argoCDSettings.AnonymousUserEnabled {
+			return ctx, claimsErr
+		}
+	} else {
+		// Add claims to the context to inspect for RBAC
+		ctx = context.WithValue(ctx, "claims", claims)
+	}
+
+	return ctx, nil
+}
+
+func (a *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return ctx, ErrNoSession
+		return nil, ErrNoSession
 	}
 	tokenString := getToken(md)
 	if tokenString == "" {
-		return ctx, ErrNoSession
+		return nil, ErrNoSession
 	}
 	claims, err := a.sessionMgr.VerifyToken(tokenString)
 	if err != nil {
-		return ctx, status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
+		return nil, status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
-	// Add claims to the context to inspect for RBAC
-	ctx = context.WithValue(ctx, "claims", claims)
-	return ctx, nil
+	return claims, nil
 }
 
 // getToken extracts the token from gRPC metadata or cookie headers

@@ -8,6 +8,7 @@ var (
 	BuiltinPolicyCSV string
 	ModelConf        string
 	SwaggerJSON      string
+	BadgeSVG         string
 )
 
 func init() {
@@ -22,6 +23,10 @@ func init() {
 		panic(err)
 	}
 	SwaggerJSON, err = box.MustString("swagger.json")
+	if err != nil {
+		panic(err)
+	}
+	BadgeSVG, err = box.MustString("badge.svg")
 	if err != nil {
 		panic(err)
 	}

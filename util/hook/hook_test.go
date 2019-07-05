@@ -18,10 +18,14 @@ func TestNoHooks(t *testing.T) {
 }
 
 func TestOneHook(t *testing.T) {
-	obj := example("Sync")
-	assert.True(t, IsHook(obj))
-	assert.False(t, Skip(obj))
-	assert.Equal(t, []HookType{HookTypeSync}, Types(obj))
+	hookTypesString := []string{"PreSync", "Sync", "PostSync", "SyncFail"}
+	hookTypes := []HookType{HookTypePreSync, HookTypeSync, HookTypePostSync, HookTypeSyncFail}
+	for i, hook := range hookTypesString {
+		obj := example(hook)
+		assert.True(t, IsHook(obj))
+		assert.False(t, Skip(obj))
+		assert.Equal(t, []HookType{hookTypes[i]}, Types(obj))
+	}
 }
 
 // peculiar case of something marked with "Skip" cannot, by definition, be a hook

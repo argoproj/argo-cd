@@ -24,9 +24,7 @@ func TestRepoURLToSecretName(t *testing.T) {
 }
 
 func Test_getRepositoryCredentialIndex(t *testing.T) {
-	argoCDSettings := settings.ArgoCDSettings{
-		RepositoryCredentials: []settings.RepoCredentials{{URL: "http://known"}},
-	}
+	repositoryCredentials := []settings.RepoCredentials{{URL: "http://known"}}
 	tests := []struct {
 		name    string
 		repoURL string
@@ -37,7 +35,7 @@ func Test_getRepositoryCredentialIndex(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getRepositoryCredentialIndex(&argoCDSettings, tt.repoURL); got != tt.want {
+			if got := getRepositoryCredentialIndex(repositoryCredentials, tt.repoURL); got != tt.want {
 				t.Errorf("getRepositoryCredentialIndex() = %v, want %v", got, tt.want)
 			}
 		})

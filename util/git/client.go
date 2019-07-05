@@ -11,8 +11,12 @@ import (
 	"strings"
 	"time"
 
+<<<<<<< HEAD
 	certutil "github.com/argoproj/argo-cd/util/cert"
 
+=======
+	argoexec "github.com/argoproj/pkg/exec"
+>>>>>>> a123f0bd375690e7eda04bcfbb9a5b60442c0fe8
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"gopkg.in/src-d/go-git.v4"
@@ -23,6 +27,8 @@ import (
 	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	ssh2 "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
+
+	argoconfig "github.com/argoproj/argo-cd/util/config"
 )
 
 type RevisionMetadata struct {
@@ -178,7 +184,7 @@ func (m *nativeGitClient) Init() error {
 		return err
 	}
 	log.Infof("Initializing %s to %s", m.repoURL, m.root)
-	_, err = exec.Command("rm", "-rf", m.root).Output()
+	_, err = argoexec.RunCommand("rm", argoconfig.CmdOpts(), "-rf", m.root)
 	if err != nil {
 		return fmt.Errorf("unable to clean repo at %s: %v", m.root, err)
 	}
@@ -205,7 +211,7 @@ func (m *nativeGitClient) Fetch() error {
 
 // LsFiles lists the local working tree, including only files that are under source control
 func (m *nativeGitClient) LsFiles(path string) ([]string, error) {
-	out, err := m.runCmd("git", "ls-files", "--full-name", "-z", "--", path)
+	out, err := m.runCmd("ls-files", "--full-name", "-z", "--", path)
 	if err != nil {
 		return nil, err
 	}
@@ -219,10 +225,10 @@ func (m *nativeGitClient) Checkout(revision string) error {
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
 	}
-	if _, err := m.runCmd("git", "checkout", "--force", revision); err != nil {
+	if _, err := m.runCmd("checkout", "--force", revision); err != nil {
 		return err
 	}
-	if _, err := m.runCmd("git", "clean", "-fdx"); err != nil {
+	if _, err := m.runCmd("clean", "-fdx"); err != nil {
 		return err
 	}
 	return nil
@@ -306,7 +312,7 @@ func (m *nativeGitClient) LsRemote(revision string) (string, error) {
 
 // CommitSHA returns current commit sha from `git rev-parse HEAD`
 func (m *nativeGitClient) CommitSHA() (string, error) {
-	out, err := m.runCmd("git", "rev-parse", "HEAD")
+	out, err := m.runCmd("rev-parse", "HEAD")
 	if err != nil {
 		return "", err
 	}
@@ -315,7 +321,7 @@ func (m *nativeGitClient) CommitSHA() (string, error) {
 
 // returns the meta-data for the commit
 func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, error) {
-	out, err := m.runCmd("git", "show", "-s", "--format=%an <%ae>|%at|%B", revision)
+	out, err := m.runCmd("show", "-s", "--format=%an <%ae>|%at|%B", revision)
 	if err != nil {
 		return nil, err
 	}
@@ -327,7 +333,7 @@ func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, 
 	authorDateUnixTimestamp, _ := strconv.ParseInt(segments[1], 10, 64)
 	message := strings.TrimSpace(segments[2])
 
-	out, err = m.runCmd("git", "tag", "--points-at", revision)
+	out, err = m.runCmd("tag", "--points-at", revision)
 	if err != nil {
 		return nil, err
 	}
@@ -337,8 +343,8 @@ func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, 
 }
 
 // runCmd is a convenience function to run a command in a given directory and return its output
-func (m *nativeGitClient) runCmd(command string, args ...string) (string, error) {
-	cmd := exec.Command(command, args...)
+func (m *nativeGitClient) runCmd(args ...string) (string, error) {
+	cmd := exec.Command("git", args...)
 	return m.runCmdOutput(cmd)
 }
 
@@ -361,18 +367,5 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 	cmd.Env = append(cmd.Env, "HOME=/dev/null")
 	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOSYSTEM=true")
 	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOGLOBAL=true")
-	out, err := cmd.Output()
-	if len(out) > 0 {
-		log.Debug(string(out))
-	}
-	if err != nil {
-		exErr, ok := err.(*exec.ExitError)
-		if ok {
-			errOutput := strings.Split(string(exErr.Stderr), "\n")[0]
-			log.Debug(errOutput)
-			return string(out), fmt.Errorf("'%s' failed: %v", strings.Join(cmd.Args, " "), errOutput)
-		}
-		return string(out), fmt.Errorf("'%s' failed: %v", strings.Join(cmd.Args, " "), err)
-	}
-	return string(out), nil
+	return argoexec.RunCommandExt(cmd, argoconfig.CmdOpts())
 }

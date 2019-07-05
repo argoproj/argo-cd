@@ -15,11 +15,4 @@ go run ${CODEGEN_PKG}/cmd/openapi-gen/openapi-gen.go \
   --report-filename pkg/apis/api-rules/violation_exceptions.list \
   $@
 
-go run ./hack/update-openapi-validation/main.go \
-  ./manifests/crds/application-crd.yaml \
-  github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Application
-
-go run ./hack/update-openapi-validation/main.go \
-  ./manifests/crds/appproject-crd.yaml \
-  github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.AppProject
-
+go run ./hack/gen-crd-spec/main.go

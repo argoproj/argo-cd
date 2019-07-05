@@ -248,14 +248,17 @@ func (sc *syncContext) sync() {
 	}
 
 	// any running tasks, lets wait...
-	if tasks.Find(func(t *syncTask) bool { return t.running() }) != nil {
+	if tasks.Any(func(t *syncTask) bool { return t.running() }) {
 		sc.setOperationPhase(v1alpha1.OperationRunning, "one or more tasks are running")
 		return
 	}
 
+	// syncFailTasks only run during failure, so separate them from regular tasks
+	syncFailTasks, tasks := tasks.Split(func(t *syncTask) bool { return t.phase == v1alpha1.SyncPhaseSyncFail })
+
 	// if there are any completed but unsuccessful tasks, sync is a failure.
-	if tasks.Find(func(t *syncTask) bool { return t.completed() && !t.successful() }) != nil {
-		sc.setOperationPhase(v1alpha1.OperationFailed, "one or more synchronization tasks completed unsuccessfully")
+	if tasks.Any(func(t *syncTask) bool { return t.completed() && !t.successful() }) {
+		sc.setOperationFailed(syncFailTasks, "one or more synchronization tasks completed unsuccessfully")
 		return
 	}
 
@@ -277,20 +280,38 @@ func (sc *syncContext) sync() {
 	// if it is the last phase/wave and the only remaining tasks are non-hooks, the we are successful
 	// EVEN if those objects subsequently degraded
 	// This handles the common case where neither hooks or waves are used and a sync equates to simply an (asynchronous) kubectl apply of manifests, which succeeds immediately.
-	complete := tasks.Find(func(t *syncTask) bool { return t.phase != phase || wave != t.wave() || t.isHook() }) == nil
+	complete := !tasks.Any(func(t *syncTask) bool { return t.phase != phase || wave != t.wave() || t.isHook() })
 
-	sc.log.WithFields(log.Fields{"phase": phase, "wave": wave, "tasks": tasks}).Debug("filtering tasks in correct phase and wave")
+	sc.log.WithFields(log.Fields{"phase": phase, "wave": wave, "tasks": tasks, "syncFailTasks": syncFailTasks}).Debug("filtering tasks in correct phase and wave")
 	tasks = tasks.Filter(func(t *syncTask) bool { return t.phase == phase && t.wave() == wave })
 
 	sc.setOperationPhase(v1alpha1.OperationRunning, "one or more tasks are running")
 
 	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("wet-run")
 	if !sc.runTasks(tasks, false) {
-		sc.setOperationPhase(v1alpha1.OperationFailed, "one or more objects failed to apply")
+		sc.setOperationFailed(syncFailTasks, "one or more objects failed to apply")
 	} else {
 		if complete {
 			sc.setOperationPhase(v1alpha1.OperationSucceeded, "successfully synced (all tasks run)")
 		}
+	}
+}
+
+func (sc *syncContext) setOperationFailed(syncFailTasks syncTasks, message string) {
+	if len(syncFailTasks) > 0 {
+		// if all the failure hooks are completed, don't run them again, and mark the sync as failed
+		if syncFailTasks.All(func(task *syncTask) bool { return task.completed() }) {
+			sc.setOperationPhase(v1alpha1.OperationFailed, message)
+			return
+		}
+		// otherwise, we need to start the failure hooks, and then return without setting
+		// the phase, so we make sure we have at least one more sync
+		sc.log.WithFields(log.Fields{"syncFailTasks": syncFailTasks}).Debug("running sync fail tasks")
+		if !sc.runTasks(syncFailTasks, false) {
+			sc.setOperationPhase(v1alpha1.OperationFailed, message)
+		}
+	} else {
+		sc.setOperationPhase(v1alpha1.OperationFailed, message)
 	}
 }
 

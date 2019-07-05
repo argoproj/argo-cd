@@ -7,7 +7,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/argoproj/argo-cd/test/fixture/log"
 	"github.com/argoproj/argo-cd/test/fixture/path"
+	"github.com/argoproj/argo-cd/test/fixture/test"
 	"github.com/argoproj/argo-cd/test/fixture/testrepos"
 )
 
@@ -141,6 +143,8 @@ func TestLsRemote(t *testing.T) {
 func TestNewFactory(t *testing.T) {
 	addBinDirToPath := path.NewBinDirToPath()
 	defer addBinDirToPath.Close()
+	closer := log.Debug()
+	defer closer()
 
 	type args struct {
 		url, username, password, sshPrivateKey string
@@ -156,6 +160,11 @@ func TestNewFactory(t *testing.T) {
 		{"PrivateSSHRepo", args{testrepos.SSHTestRepo.URL, "", "", testrepos.SSHTestRepo.SSHPrivateKey, testrepos.SSHTestRepo.InsecureIgnoreHostKey}},
 	}
 	for _, tt := range tests {
+
+		if tt.name == "PrivateSSHRepo" {
+			test.Flaky(t)
+		}
+
 		dirName, err := ioutil.TempDir("", "git-client-test-")
 		assert.NoError(t, err)
 		defer func() { _ = os.RemoveAll(dirName) }()

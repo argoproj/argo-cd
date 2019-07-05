@@ -301,12 +301,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             iconClassName: 'fa fa-sync',
             title: <span className='show-for-medium'>Sync</span>,
             action: () => this.showDeploy('all'),
-        }, ...(application.status.operationState && [{
+        }, {
             iconClassName: 'fa fa-info-circle',
             title: <span className='show-for-medium'>Sync Status</span>,
             action:  () => this.setOperationStatusVisible(true),
             disabled: !application.status.operationState,
-        }] || []), {
+        }, {
             iconClassName: 'fa fa-history',
             title: <span className='show-for-medium'>History and rollback</span>,
             action: () => this.setRollbackPanelVisible(0),

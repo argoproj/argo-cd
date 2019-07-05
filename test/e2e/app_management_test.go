@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/util/settings"
+
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -62,7 +64,7 @@ func TestInvalidAppProject(t *testing.T) {
 		When().
 		Create().
 		Then().
-		Expect(Error("application references project does-not-exist which does not exist"))
+		Expect(Error("", "application references project does-not-exist which does not exist"))
 }
 
 func TestAppDeletion(t *testing.T) {
@@ -294,7 +296,8 @@ func TestResourceDiffing(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
-			diffOutput, _ := fixture.RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
+			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
+			assert.Error(t, err)
 			assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", fixture.DeploymentNamespace()))
 		}).
 		Given().
@@ -311,19 +314,19 @@ func TestResourceDiffing(t *testing.T) {
 }
 
 func TestDeprecatedExtensions(t *testing.T) {
-	testEdgeCasesApplicationResources(t, "deprecated-extensions", OperationSucceeded, HealthStatusProgressing)
+	testEdgeCasesApplicationResources(t, "deprecated-extensions", HealthStatusProgressing)
 }
 
 func TestCRDs(t *testing.T) {
-	testEdgeCasesApplicationResources(t, "crd-creation", OperationSucceeded, HealthStatusHealthy)
+	testEdgeCasesApplicationResources(t, "crd-creation", HealthStatusHealthy)
 }
 
 func TestDuplicatedResources(t *testing.T) {
-	testEdgeCasesApplicationResources(t, "duplicated-resources", OperationSucceeded, HealthStatusHealthy)
+	testEdgeCasesApplicationResources(t, "duplicated-resources", HealthStatusHealthy)
 }
 
 func TestConfigMap(t *testing.T) {
-	testEdgeCasesApplicationResources(t, "config-map", OperationSucceeded, HealthStatusHealthy)
+	testEdgeCasesApplicationResources(t, "config-map", HealthStatusHealthy)
 }
 
 func TestFailedConversion(t *testing.T) {
@@ -332,17 +335,17 @@ func TestFailedConversion(t *testing.T) {
 		errors.FailOnErr(fixture.Run("", "kubectl", "delete", "apiservice", "v1beta1.metrics.k8s.io"))
 	}()
 
-	testEdgeCasesApplicationResources(t, "failed-conversion", OperationSucceeded, HealthStatusHealthy)
+	testEdgeCasesApplicationResources(t, "failed-conversion", HealthStatusHealthy)
 }
 
-func testEdgeCasesApplicationResources(t *testing.T, appPath string, phase OperationPhase, statusCode HealthStatusCode) {
+func testEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode HealthStatusCode) {
 	Given(t).
 		Path(appPath).
 		When().
 		Create().
 		Sync().
 		Then().
-		Expect(OperationPhaseIs(phase)).
+		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(statusCode)).
 		And(func(app *Application) {
@@ -356,7 +359,9 @@ func TestKsonnetApp(t *testing.T) {
 	Given(t).
 		Path("ksonnet").
 		Env("prod").
+		// Null out dest server to verify that destination is inferred from ksonnet app
 		Parameter("guestbook-ui=image=gcr.io/heptio-images/ks-guestbook-demo:0.1").
+		DestServer("").
 		When().
 		Create().
 		Sync().
@@ -445,8 +450,9 @@ func TestSyncResourceByLabel(t *testing.T) {
 		}).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			res, _ := fixture.RunCli("app", "sync", app.Name, "--label", "this-label=does-not-exist")
-			assert.Contains(t, res, "level=fatal")
+			_, err := fixture.RunCli("app", "sync", app.Name, "--label", "this-label=does-not-exist")
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "level=fatal")
 		})
 }
 
@@ -522,14 +528,14 @@ func TestPermissions(t *testing.T) {
 	assert.NoError(t, err)
 
 	// make sure app cannot be created without permissions in project
-	output, err := fixture.RunCli("app", "create", appName, "--repo", fixture.RepoURL(),
+	_, err = fixture.RunCli("app", "create", appName, "--repo", fixture.RepoURL(),
 		"--path", guestbookPath, "--project", "test", "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
 	assert.Error(t, err)
 	sourceError := fmt.Sprintf("application repo %s is not permitted in project 'test'", fixture.RepoURL())
 	destinationError := fmt.Sprintf("application destination {%s %s} is not permitted in project 'test'", common.KubernetesInternalAPIServerAddr, fixture.DeploymentNamespace())
 
-	assert.Contains(t, output, sourceError)
-	assert.Contains(t, output, destinationError)
+	assert.Contains(t, err.Error(), sourceError)
+	assert.Contains(t, err.Error(), destinationError)
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get("test", metav1.GetOptions{})
 	assert.NoError(t, err)
@@ -614,13 +620,13 @@ func TestSyncOptionValidateFalse(t *testing.T) {
 		Sync().
 		Then().
 		// client error
-		Expect(Error("error validating data")).
+		Expect(Error("error validating data", "")).
 		When().
 		PatchFile("deployment.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Validate=false"}}]`).
 		Sync().
 		Then().
 		// server error
-		Expect(Error("Error from server"))
+		Expect(Error("Error from server", ""))
 }
 
 // make sure that, if we have a resource that needs pruning, but we're ignoring it, the app is in-sync
@@ -662,21 +668,36 @@ func TestSelfManagedApps(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(a *Application) {
-			maxReconcileCount := 1
-			waitDuration := time.Second * 3
-
-			ctx, cancel := context.WithTimeout(context.Background(), waitDuration)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 			defer cancel()
 
 			reconciledCount := 0
 			var lastReconciledAt *metav1.Time
 			for event := range fixture.ArgoCDClientset.WatchApplicationWithRetry(ctx, a.Name) {
-				if lastReconciledAt != nil && !lastReconciledAt.Equal(&event.Application.Status.ReconciledAt) {
+				reconciledAt := event.Application.Status.ReconciledAt
+				if reconciledAt == nil {
+					reconciledAt = &metav1.Time{}
+				}
+				if lastReconciledAt != nil && !lastReconciledAt.Equal(reconciledAt) {
 					reconciledCount = reconciledCount + 1
 				}
-				lastReconciledAt = &event.Application.Status.ReconciledAt
+				lastReconciledAt = reconciledAt
 			}
 
-			assert.True(t, reconciledCount < maxReconcileCount, "Application was reconciled too many times")
+			assert.True(t, reconciledCount < 3, "Application was reconciled too many times")
 		})
+}
+
+func TestExcludedResource(t *testing.T) {
+	Given(t).
+		ResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {Actions: actionsConfig}}).
+		Path(guestbookPath).
+		ResourceFilter(settings.ResourcesFilter{
+			ResourceExclusions: []settings.FilteredResource{{Kinds: []string{kube.DeploymentKind}}},
+		}).
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(Condition(ApplicationConditionExcludedResourceWarning, "Resource apps/Deployment guestbook-ui is excluded in the settings"))
 }

@@ -34,7 +34,7 @@ func Types(obj *unstructured.Unstructured) []v1alpha1.HookType {
 	var hookTypes []v1alpha1.HookType
 	for _, hookType := range types(obj) {
 		switch v1alpha1.HookType(hookType) {
-		case v1alpha1.HookTypePreSync, v1alpha1.HookTypeSync, v1alpha1.HookTypePostSync:
+		case v1alpha1.HookTypePreSync, v1alpha1.HookTypeSync, v1alpha1.HookTypePostSync, v1alpha1.HookTypeSyncFail:
 			hookTypes = append(hookTypes, v1alpha1.HookType(hookType))
 		}
 	}

@@ -26,6 +26,7 @@ import (
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:path=applications,shortName=app;apps
 type Application struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
@@ -59,6 +60,33 @@ type ResourceIgnoreDifferences struct {
 	JSONPointers []string `json:"jsonPointers" protobuf:"bytes,5,opt,name=jsonPointers"`
 }
 
+type EnvEntry struct {
+	// the name, usually uppercase
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	// the value
+	Value string `json:"value" protobuf:"bytes,2,opt,name=value"`
+}
+
+func (a *EnvEntry) IsZero() bool {
+	return a == nil || a.Name == "" && a.Value == ""
+}
+
+type Env []*EnvEntry
+
+func (e Env) IsZero() bool {
+	return len(e) == 0
+}
+
+func (e Env) Environ() []string {
+	var environ []string
+	for _, item := range e {
+		if !item.IsZero() {
+			environ = append(environ, fmt.Sprintf("%s=%s", item.Name, item.Value))
+		}
+	}
+	return environ
+}
+
 // ApplicationSource contains information about github repository, path within repository and target application environment.
 type ApplicationSource struct {
 	// RepoURL is the git repository URL of the application manifests
@@ -81,15 +109,16 @@ type ApplicationSource struct {
 	Plugin *ApplicationSourcePlugin `json:"plugin,omitempty" protobuf:"bytes,11,opt,name=plugin"`
 }
 
-func (a ApplicationSource) IsZero() bool {
-	return a.RepoURL == "" &&
-		a.Path == "" &&
-		a.TargetRevision == "" &&
-		a.Helm.IsZero() &&
-		a.Kustomize.IsZero() &&
-		a.Ksonnet.IsZero() &&
-		a.Directory.IsZero() &&
-		a.Plugin.IsZero()
+func (a *ApplicationSource) IsZero() bool {
+	return a == nil ||
+		a.RepoURL == "" &&
+			a.Path == "" &&
+			a.TargetRevision == "" &&
+			a.Helm.IsZero() &&
+			a.Kustomize.IsZero() &&
+			a.Ksonnet.IsZero() &&
+			a.Directory.IsZero() &&
+			a.Plugin.IsZero()
 }
 
 type ApplicationSourceType string
@@ -128,7 +157,7 @@ type HelmParameter struct {
 }
 
 func (h *ApplicationSourceHelm) IsZero() bool {
-	return (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0
+	return h == nil || (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0
 }
 
 // ApplicationSourceKustomize holds kustomize specific options
@@ -152,7 +181,7 @@ type KustomizeImageTag struct {
 }
 
 func (k *ApplicationSourceKustomize) IsZero() bool {
-	return k.NamePrefix == "" && len(k.ImageTags) == 0 && len(k.Images) == 0
+	return k == nil || k.NamePrefix == "" && len(k.ImageTags) == 0 && len(k.Images) == 0 && len(k.CommonLabels) == 0
 }
 
 // JsonnetVar is a jsonnet variable
@@ -171,7 +200,7 @@ type ApplicationSourceJsonnet struct {
 }
 
 func (j *ApplicationSourceJsonnet) IsZero() bool {
-	return len(j.ExtVars) == 0 && len(j.TLAs) == 0
+	return j == nil || len(j.ExtVars) == 0 && len(j.TLAs) == 0
 }
 
 // ApplicationSourceKsonnet holds ksonnet specific options
@@ -190,7 +219,7 @@ type KsonnetParameter struct {
 }
 
 func (k *ApplicationSourceKsonnet) IsZero() bool {
-	return k.Environment == "" && len(k.Parameters) == 0
+	return k == nil || k.Environment == "" && len(k.Parameters) == 0
 }
 
 type ApplicationSourceDirectory struct {
@@ -199,16 +228,17 @@ type ApplicationSourceDirectory struct {
 }
 
 func (d *ApplicationSourceDirectory) IsZero() bool {
-	return !d.Recurse && d.Jsonnet.IsZero()
+	return d == nil || !d.Recurse && d.Jsonnet.IsZero()
 }
 
 // ApplicationSourcePlugin holds config management plugin specific options
 type ApplicationSourcePlugin struct {
 	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	Env  `json:"env,omitempty" protobuf:"bytes,2,opt,name=env"`
 }
 
 func (c *ApplicationSourcePlugin) IsZero() bool {
-	return c.Name == ""
+	return c == nil || c.Name == "" && c.Env.IsZero()
 }
 
 // ApplicationDestination contains deployment destination information
@@ -226,9 +256,9 @@ type ApplicationStatus struct {
 	Health         HealthStatus           `json:"health,omitempty" protobuf:"bytes,3,opt,name=health"`
 	History        []RevisionHistory      `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
 	Conditions     []ApplicationCondition `json:"conditions,omitempty" protobuf:"bytes,5,opt,name=conditions"`
-	ReconciledAt   metav1.Time            `json:"reconciledAt,omitempty" protobuf:"bytes,6,opt,name=reconciledAt"`
+	ReconciledAt   *metav1.Time           `json:"reconciledAt,omitempty" protobuf:"bytes,6,opt,name=reconciledAt"`
 	OperationState *OperationState        `json:"operationState,omitempty" protobuf:"bytes,7,opt,name=operationState"`
-	ObservedAt     metav1.Time            `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
+	ObservedAt     *metav1.Time           `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
 	SourceType     ApplicationSourceType  `json:"sourceType,omitempty" protobuf:"bytes,9,opt,name=sourceType"`
 	Summary        ApplicationSummary     `json:"summary,omitempty" protobuf:"bytes,10,opt,name=summary"`
 }
@@ -365,7 +395,7 @@ type SyncStrategyApply struct {
 type SyncStrategyHook struct {
 	// Embed SyncStrategyApply type to inherit any `apply` options
 	// +optional
-	SyncStrategyApply `protobuf:"bytes,1,opt,name=syncStrategyApply"`
+	SyncStrategyApply `json:",inline" protobuf:"bytes,1,opt,name=syncStrategyApply"`
 }
 
 type HookType string
@@ -375,6 +405,7 @@ const (
 	HookTypeSync     HookType = "Sync"
 	HookTypePostSync HookType = "PostSync"
 	HookTypeSkip     HookType = "Skip"
+	HookTypeSyncFail HookType = "SyncFail"
 
 	// NOTE: we may consider adding SyncFail hook. With a SyncFail hook, finalizer-like logic could
 	// be implemented by specifying both PostSync,SyncFail in the hook annotation:
@@ -431,6 +462,7 @@ const (
 	SyncPhasePreSync  = "PreSync"
 	SyncPhaseSync     = "Sync"
 	SyncPhasePostSync = "PostSync"
+	SyncPhaseSyncFail = "SyncFail"
 )
 
 // ResourceResult holds the operation result details of a specific resource
@@ -556,6 +588,8 @@ const (
 	ApplicationConditionSharedResourceWarning = "SharedResourceWarning"
 	// ApplicationConditionRepeatedResourceWarning indicates that application source has resource with same Group, Kind, Name, Namespace multiple times
 	ApplicationConditionRepeatedResourceWarning = "RepeatedResourceWarning"
+	// ApplicationConditionExcludedResourceWarning indicates that application has resource which is configured to be excluded
+	ApplicationConditionExcludedResourceWarning = "ExcludedResourceWarning"
 )
 
 // ApplicationCondition contains details about current application condition
@@ -689,14 +723,15 @@ func (n *ResourceNode) GroupKindVersion() schema.GroupVersionKind {
 
 // ResourceStatus holds the current sync and health status of a resource
 type ResourceStatus struct {
-	Group     string         `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
-	Version   string         `json:"version,omitempty" protobuf:"bytes,2,opt,name=version"`
-	Kind      string         `json:"kind,omitempty" protobuf:"bytes,3,opt,name=kind"`
-	Namespace string         `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
-	Name      string         `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
-	Status    SyncStatusCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
-	Health    *HealthStatus  `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
-	Hook      bool           `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
+	Group           string         `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Version         string         `json:"version,omitempty" protobuf:"bytes,2,opt,name=version"`
+	Kind            string         `json:"kind,omitempty" protobuf:"bytes,3,opt,name=kind"`
+	Namespace       string         `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
+	Name            string         `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
+	Status          SyncStatusCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
+	Health          *HealthStatus  `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
+	Hook            bool           `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
+	ResourceVersion string         `json:"resourceVersion,omitempty" protobuf:"bytes,9,opt,name=resourceVersion"`
 }
 
 func (r *ResourceStatus) GroupVersionKind() schema.GroupVersionKind {
@@ -917,6 +952,7 @@ type AppProjectList struct {
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:path=appprojects,shortName=appproj;appprojs
 type AppProject struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`

@@ -1594,6 +1594,9 @@
         },
         "patch": {
           "type": "string"
+        },
+        "patchType": {
+          "type": "string"
         }
       }
     },
@@ -1724,6 +1727,18 @@
         }
       }
     },
+    "clusterGoogleAnalyticsConfig": {
+      "type": "object",
+      "properties": {
+        "anonymizeUsers": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "trackingID": {
+          "type": "string"
+        }
+      }
+    },
     "clusterOIDCConfig": {
       "type": "object",
       "properties": {
@@ -1756,6 +1771,9 @@
         "dexConfig": {
           "$ref": "#/definitions/clusterDexConfig"
         },
+        "googleAnalytics": {
+          "$ref": "#/definitions/clusterGoogleAnalyticsConfig"
+        },
         "oidcConfig": {
           "$ref": "#/definitions/clusterOIDCConfig"
         },
@@ -1764,6 +1782,10 @@
           "additionalProperties": {
             "$ref": "#/definitions/v1alpha1ResourceOverride"
           }
+        },
+        "statusBadgeEnabled": {
+          "type": "boolean",
+          "format": "boolean"
         },
         "url": {
           "type": "string"
@@ -2539,7 +2561,7 @@
     },
     "v1alpha1AppProject": {
       "type": "object",
-      "title": "AppProject provides a logical grouping of applications, providing controls for:\n* where the apps may deploy to (cluster whitelist)\n* what may be deployed (repository whitelist, resource whitelist/blacklist)\n* who can access these applications (roles, OIDC group claims bindings)\n* and what they can do (RBAC policies)\n* automation access to these roles (JWT tokens)\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object",
+      "title": "AppProject provides a logical grouping of applications, providing controls for:\n* where the apps may deploy to (cluster whitelist)\n* what may be deployed (repository whitelist, resource whitelist/blacklist)\n* who can access these applications (roles, OIDC group claims bindings)\n* and what they can do (RBAC policies)\n* automation access to these roles (JWT tokens)\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=appprojects,shortName=appproj;appprojs",
       "properties": {
         "metadata": {
           "$ref": "#/definitions/v1ObjectMeta"
@@ -2611,7 +2633,7 @@
     },
     "v1alpha1Application": {
       "type": "object",
-      "title": "Application is a definition of Application resource.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object",
+      "title": "Application is a definition of Application resource.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applications,shortName=app;apps",
       "properties": {
         "metadata": {
           "$ref": "#/definitions/v1ObjectMeta"
@@ -2811,6 +2833,12 @@
       "type": "object",
       "title": "ApplicationSourcePlugin holds config management plugin specific options",
       "properties": {
+        "env": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1EnvEntry"
+          }
+        },
         "name": {
           "type": "string"
         }
@@ -3019,6 +3047,19 @@
         },
         "status": {
           "type": "string"
+        }
+      }
+    },
+    "v1alpha1EnvEntry": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "the name, usually uppercase"
+        },
+        "value": {
+          "type": "string",
+          "title": "the value"
         }
       }
     },
@@ -3550,6 +3591,9 @@
           "type": "string"
         },
         "namespace": {
+          "type": "string"
+        },
+        "resourceVersion": {
           "type": "string"
         },
         "status": {

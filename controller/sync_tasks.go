@@ -11,6 +11,7 @@ var syncPhaseOrder = map[v1alpha1.SyncPhase]int{
 	v1alpha1.SyncPhasePreSync:  -1,
 	v1alpha1.SyncPhaseSync:     0,
 	v1alpha1.SyncPhasePostSync: 1,
+	v1alpha1.SyncPhaseSyncFail: 2,
 }
 
 // kindOrder represents the correct order of Kubernetes resources within a manifest
@@ -103,6 +104,35 @@ func (s syncTasks) Filter(predicate func(task *syncTask) bool) (tasks syncTasks)
 		}
 	}
 	return tasks
+}
+
+func (s syncTasks) Split(predicate func(task *syncTask) bool) (trueTasks, falseTasks syncTasks) {
+	for _, task := range s {
+		if predicate(task) {
+			trueTasks = append(trueTasks, task)
+		} else {
+			falseTasks = append(falseTasks, task)
+		}
+	}
+	return trueTasks, falseTasks
+}
+
+func (s syncTasks) All(predicate func(task *syncTask) bool) bool {
+	for _, task := range s {
+		if !predicate(task) {
+			return false
+		}
+	}
+	return true
+}
+
+func (s syncTasks) Any(predicate func(task *syncTask) bool) bool {
+	for _, task := range s {
+		if predicate(task) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s syncTasks) Find(predicate func(task *syncTask) bool) *syncTask {

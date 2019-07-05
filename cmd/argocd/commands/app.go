@@ -224,7 +224,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					printOperationResult(app.Status.OperationState)
 				}
 				if showParams {
-					printParams(app, appIf)
+					printParams(app)
 				}
 				if len(app.Status.Resources) > 0 {
 					fmt.Println()
@@ -330,7 +330,7 @@ func truncateString(str string, num int) string {
 }
 
 // printParams prints parameters and overrides
-func printParams(app *argoappv1.Application, appIf applicationpkg.ApplicationServiceClient) {
+func printParams(app *argoappv1.Application) {
 	paramLenLimit := 80
 	fmt.Println()
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
@@ -1596,7 +1596,7 @@ func printApplicationHistoryIds(revHistory []argoappv1.RevisionHistory) {
 }
 
 // Print a history table for an application.
-func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory, output *string) {
+func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintf(w, "ID\tDATE\tREVISION\n")
 	for _, depInfo := range revHistory {
@@ -1630,7 +1630,7 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			if output == "id" {
 				printApplicationHistoryIds(app.Status.History)
 			} else {
-				printApplicationHistoryTable(app.Status.History, &output)
+				printApplicationHistoryTable(app.Status.History)
 			}
 		},
 	}
@@ -1840,10 +1840,17 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var patch string
+	var patchType string
 
 	command := cobra.Command{
 		Use:   "patch APPNAME",
 		Short: "Patch application",
+		Long: `Examples:
+	# Update an application's source path using json patch
+	argocd app patch myapplication --patch='[{"op": "replace", "path": "/spec/source/path", "value": "newPath"}]' --type json
+
+	# Update an application's repository target revision using merge patch
+	argocd app patch myapplication --patch '{"spec": { "source": { "targetRevision": "master" } }}' --type merge`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
@@ -1854,8 +1861,9 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			defer util.Close(conn)
 
 			patchedApp, err := appIf.Patch(context.Background(), &applicationpkg.ApplicationPatchRequest{
-				Name:  &appName,
-				Patch: patch,
+				Name:      &appName,
+				Patch:     patch,
+				PatchType: patchType,
 			})
 			errors.CheckError(err)
 
@@ -1866,7 +1874,8 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 		},
 	}
 
-	command.Flags().StringVar(&patch, "patch", "", "Patch")
+	command.Flags().StringVar(&patch, "patch", "", "Patch body")
+	command.Flags().StringVar(&patchType, "type", "json", "The type of patch being provided; one of [json merge]")
 	return &command
 }
 

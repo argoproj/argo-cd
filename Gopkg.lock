@@ -50,22 +50,6 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:2e37a5d64464ac14b838a0d3aa677eb0e61de44124a25e338d0cf6cd48b8fe71"
-  name = "github.com/ajstarks/svgo"
-  packages = ["."]
-  pruneopts = ""
-  revision = "6ce6a3bcf6cde6c5007887677ebd148ec30f42a4"
-
-[[projects]]
-  branch = "master"
-  digest = "1:0cac9c70f3308d54ed601878aa66423eb95c374616fdd7d2ea4e2d18b045ae62"
-  name = "github.com/ant31/crd-validation"
-  packages = ["pkg"]
-  pruneopts = ""
-  revision = "38f6a293f140402953f884b015014e0cd519bbb3"
-
-[[projects]]
-  branch = "master"
   digest = "1:0caf9208419fa5db5a0ca7112affaa9550c54291dda8e2abac0c0e76181c959e"
   name = "github.com/argoproj/argo"
   packages = [
@@ -78,15 +62,16 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:904f77e68fe6fcd96cb5be14491573e4bcbe0b5cab3f5bc46b3d67fe50074a64"
+  digest = "1:c7b3f972d6de22ee4059a67d1df322699cd39793553e5dd265ce0e05e4b0eca5"
   name = "github.com/argoproj/pkg"
   packages = [
     "errors",
     "exec",
+    "rand",
     "time",
   ]
   pruneopts = ""
-  revision = "34e483a53c4b4978cdf76000a3dc010174489e7f"
+  revision = "b94327e4ce8fabfc3819d4d3fdb01aab7c39bf87"
 
 [[projects]]
   digest = "1:d8a2bb36a048d1571bcc1aee208b61f39dc16c6c53823feffd37449dde162507"
@@ -1583,8 +1568,6 @@
   input-imports = [
     "github.com/Masterminds/semver",
     "github.com/TomOnTime/utfutil",
-    "github.com/ajstarks/svgo",
-    "github.com/ant31/crd-validation/pkg",
     "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1",
     "github.com/argoproj/argo/util",
     "github.com/argoproj/pkg/errors",

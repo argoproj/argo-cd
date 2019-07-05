@@ -25,7 +25,7 @@ func testDataDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	_, err = exec.RunCommand("cp", "-r", "./testdata/"+kustomization1, filepath.Join(res, "testdata"))
+	_, err = exec.RunCommand("cp", exec.CmdOpts{}, "-r", "./testdata/"+kustomization1, filepath.Join(res, "testdata"))
 	if err != nil {
 		return "", err
 	}
