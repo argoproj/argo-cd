@@ -116,9 +116,11 @@ COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
 COPY --from=builder /usr/local/bin/aws-iam-authenticator /usr/local/bin/aws-iam-authenticator
 
 # support for mounting configuration from a configmap
-RUN mkdir -p /app/config && \
-    touch /app/config/ssh_known_hosts && \
-    ln -s /app/config/ssh_known_hosts /etc/ssh/ssh_known_hosts 
+RUN mkdir -p /app/config/ssh && \
+    touch /app/config/ssh/ssh_known_hosts && \
+    ln -s /app/config/ssh/ssh_known_hosts /etc/ssh/ssh_known_hosts 
+
+RUN mkdir -p /app/config/tls
 
 # workaround ksonnet issue https://github.com/ksonnet/ksonnet/issues/298
 ENV USER=argocd
