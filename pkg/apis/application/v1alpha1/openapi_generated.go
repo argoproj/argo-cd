@@ -54,6 +54,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OperationState":             schema_pkg_apis_application_v1alpha1_OperationState(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectRole":                schema_pkg_apis_application_v1alpha1_ProjectRole(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Repository":                 schema_pkg_apis_application_v1alpha1_Repository(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RepositoryCertificate":      schema_pkg_apis_application_v1alpha1_RepositoryCertificate(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RepositoryCertificateList":  schema_pkg_apis_application_v1alpha1_RepositoryCertificateList(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RepositoryList":             schema_pkg_apis_application_v1alpha1_RepositoryList(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceAction":             schema_pkg_apis_application_v1alpha1_ResourceAction(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceActionDefinition":   schema_pkg_apis_application_v1alpha1_ResourceActionDefinition(ref),
@@ -1751,6 +1753,89 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConnectionState"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_RepositoryCertificate(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "A RepositoryCertificate is either SSH known hosts entry or HTTPS certificate",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"servername": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of the server the certificate is intended for",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Type of certificate - currently \"https\" or \"ssh\"",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"cipher": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The cipher for the cert (currently SSH only)",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"certdata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Actual certificate data",
+							Type:        []string{"string"},
+							Format:      "byte",
+						},
+					},
+					"certfingerprint": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Certificate fingerprint",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"servername", "type", "cipher", "certdata", "certfingerprint"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_RepositoryCertificateList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RepositoryCertificateList is a collection of RepositoryCertificates",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Description: "List of certificates to be processed",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RepositoryCertificate"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RepositoryCertificate", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 

@@ -185,8 +185,10 @@ func (mgr *SettingsManager) getConfigMap() (*apiv1.ConfigMap, error) {
 	return argoCDCM, err
 }
 
-// Returns the ConfigMap with the given name from the cluster
-func (mgr *SettingsManager) getNamedConfigMap(configMapName string) (*apiv1.ConfigMap, error) {
+// Returns the ConfigMap with the given name from the cluster.
+// The ConfigMap must be labeled with "app.kubernetes.io/part-of: argocd" in
+// order to be retrievable.
+func (mgr *SettingsManager) GetNamedConfigMap(configMapName string) (*apiv1.ConfigMap, error) {
 	err := mgr.ensureSynced(false)
 	if err != nil {
 		return nil, err
@@ -345,8 +347,9 @@ func (mgr *SettingsManager) MigrateLegacyRepoSettings(settings *ArgoCDSettings) 
 
 func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	tweakConfigMap := func(options *metav1.ListOptions) {
-		cmFieldSelector := fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", common.ArgoCDConfigMapName))
-		options.FieldSelector = cmFieldSelector.String()
+		//cmFieldSelector := fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", common.ArgoCDConfigMapName))
+		cmLabelSelector := fields.ParseSelectorOrDie("app.kubernetes.io/part-of=argocd")
+		options.LabelSelector = cmLabelSelector.String()
 	}
 
 	cmInformer := v1.NewFilteredConfigMapInformer(mgr.clientset, mgr.namespace, 3*time.Minute, cache.Indexers{}, tweakConfigMap)
@@ -647,6 +650,51 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 	if err != nil {
 		return err
 	}
+	return mgr.ResyncInformers()
+}
+
+// Save the SSH known host data into the corresponding ConfigMap
+func (mgr *SettingsManager) SaveSSHKnownHostsData(ctx context.Context, knownHostsList []string) error {
+	err := mgr.ensureSynced(false)
+	if err != nil {
+		return err
+	}
+
+	certCM, err := mgr.GetNamedConfigMap(common.ArgoCDKnownHostsConfigMapName)
+	if err != nil {
+		return err
+	}
+
+	if certCM.Data == nil {
+		certCM.Data = make(map[string]string)
+	}
+
+	certCM.Data["ssh_known_hosts"] = strings.Join(knownHostsList, "\n")
+	_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(certCM)
+	if err != nil {
+		return nil
+	}
+
+	return mgr.ResyncInformers()
+}
+
+func (mgr *SettingsManager) SaveTLSCertificateData(ctx context.Context, tlsCertificates map[string]string) error {
+	err := mgr.ensureSynced(false)
+	if err != nil {
+		return err
+	}
+
+	certCM, err := mgr.GetNamedConfigMap(common.ArgoCDTLSCertsConfigMapName)
+	if err != nil {
+		return err
+	}
+
+	certCM.Data = tlsCertificates
+	_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(certCM)
+	if err != nil {
+		return nil
+	}
+
 	return mgr.ResyncInformers()
 }
 

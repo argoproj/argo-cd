@@ -879,6 +879,27 @@ type RepositoryList struct {
 	Items           []Repository `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
+// A RepositoryCertificate is either SSH known hosts entry or HTTPS certificate
+type RepositoryCertificate struct {
+	// Name of the server the certificate is intended for
+	ServerName string `json:"servername" protobuf:"bytes,1,opt,name=servername"`
+	// Type of certificate - currently "https" or "ssh"
+	CertType string `json:"type" protobuf:"bytes,2,opt,name=type"`
+	// The cipher for the cert (currently SSH only)
+	CertCipher string `json:"cipher" protobuf:"bytes,3,opt,name=cipher"`
+	// Actual certificate data
+	CertData []byte `json:"certdata" protobuf:"bytes,4,opt,name=certdata"`
+	// Certificate fingerprint
+	CertFingerprint string `json:"certfingerprint" protobuf:"bytes,5,opt,name=certfingerprint"`
+}
+
+// RepositoryCertificateList is a collection of RepositoryCertificates
+type RepositoryCertificateList struct {
+	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+	// List of certificates to be processed
+	Items []RepositoryCertificate `json:"items" protobuf:"bytes,2,rep,name=items"`
+}
+
 // AppProjectList is list of AppProject resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type AppProjectList struct {

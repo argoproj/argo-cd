@@ -4,11 +4,14 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
+
+	certutil "github.com/argoproj/argo-cd/util/cert"
 
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
@@ -76,16 +79,19 @@ func (f *factory) NewClient(rawRepoURL, path, username, password, sshPrivateKey 
 	// explicitly replace it with default client for repositories without the
 	// insecure flag set.
 	if IsHTTPSURL(rawRepoURL) {
-		if insecure {
-			customHttpClient := &http.Client{
-				Transport: &http.Transport{
-					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-				},
+		/*
+			if insecure {
+				customHttpClient := &http.Client{
+					Transport: &http.Transport{
+						TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+					},
+				}
+				gitclient.InstallProtocol("https", githttp.NewClient(customHttpClient))
+			} else {
+				gitclient.InstallProtocol("https", githttp.NewClient(&http.Client{}))
 			}
-			gitclient.InstallProtocol("https", githttp.NewClient(customHttpClient))
-		} else {
-			gitclient.InstallProtocol("https", githttp.NewClient(&http.Client{}))
-		}
+		*/
+		gitclient.InstallProtocol("https", githttp.NewClient(getRepoHTTPClient(rawRepoURL, insecure)))
 	}
 	client := nativeGitClient{
 		repoURL: rawRepoURL,
@@ -93,6 +99,46 @@ func (f *factory) NewClient(rawRepoURL, path, username, password, sshPrivateKey 
 		creds:   creds,
 	}
 	return &client, nil
+}
+
+func getRepoHTTPClient(repoURL string, insecure bool) *http.Client {
+	var customHTTPClient *http.Client = &http.Client{}
+
+	if insecure {
+		log.Debugf("Insecure repository: %s", repoURL)
+		customHTTPClient = &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+			},
+		}
+	} else {
+		log.Debugf("Looking for custom cert: %s", repoURL)
+		parsedURL, err := url.Parse(repoURL)
+		if err != nil {
+			return customHTTPClient
+		}
+		log.Debugf("Looking for following cert: %s", parsedURL.Host)
+		serverCertificatePem, err := certutil.GetCertificateForConnect(parsedURL.Host)
+		if err != nil {
+			log.Debugf("Could not get certificates for %s (%s)", repoURL, parsedURL.Host)
+			return customHTTPClient
+		} else if len(serverCertificatePem) > 0 {
+			log.Debugf("Adding custom TLS Root CA")
+			certPool := certutil.GetCertPoolFromPEMData(serverCertificatePem)
+			customHTTPClient = &http.Client{
+				Transport: &http.Transport{
+					TLSClientConfig: &tls.Config{
+						RootCAs: certPool,
+					},
+				},
+			}
+		}
+		// else no custom certificate stored.
+	}
+
+	return customHTTPClient
 }
 
 func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {

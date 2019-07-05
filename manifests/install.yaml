@@ -1834,9 +1834,18 @@ data:
 kind: ConfigMap
 metadata:
   labels:
-    app.kubernetes.io/name: argocd-runtime-cm
+    app.kubernetes.io/name: argocd-ssh-known-hosts-cm
     app.kubernetes.io/part-of: argocd
-  name: argocd-runtime-cm
+  name: argocd-ssh-known-hosts-cm
+---
+apiVersion: v1
+data: null
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-tls-certs-cm
+    app.kubernetes.io/part-of: argocd
+  name: argocd-tls-certs-cm
 ---
 apiVersion: v1
 kind: Secret
@@ -2120,12 +2129,17 @@ spec:
           tcpSocket:
             port: 8081
         volumeMounts:
-        - mountPath: /app/config
-          name: runtime-config
+        - mountPath: /app/config/ssh
+          name: ssh-known-hosts
+        - mountPath: /app/config/tls
+          name: tls-certs
       volumes:
       - configMap:
-          name: argocd-runtime-cm
-        name: runtime-config
+          name: argocd-ssh-known-hosts-cm
+        name: ssh-known-hosts
+      - configMap:
+          name: argocd-tls-certs-cm
+        name: tls-certs
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -2170,8 +2184,10 @@ spec:
         volumeMounts:
         - mountPath: /shared
           name: static-files
-        - mountPath: /app/config
-          name: runtime-config
+        - mountPath: /app/config/ssh
+          name: ssh-known-hosts
+        - mountPath: /app/config/tls
+          name: tls-certs
       initContainers:
       - command:
         - cp
@@ -2189,5 +2205,8 @@ spec:
       - emptyDir: {}
         name: static-files
       - configMap:
-          name: argocd-runtime-cm
-        name: runtime-config
+          name: argocd-ssh-known-hosts-cm
+        name: ssh-known-hosts
+      - configMap:
+          name: argocd-tls-certs-cm
+        name: tls-certs

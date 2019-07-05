@@ -490,6 +490,32 @@ message Repository {
   optional bool insecure = 7;
 }
 
+// A RepositoryCertificate is either SSH known hosts entry or HTTPS certificate
+message RepositoryCertificate {
+  // Name of the server the certificate is intended for
+  optional string servername = 1;
+
+  // Type of certificate - currently "https" or "ssh"
+  optional string type = 2;
+
+  // The cipher for the cert (currently SSH only)
+  optional string cipher = 3;
+
+  // Actual certificate data
+  optional bytes certdata = 4;
+
+  // Certificate fingerprint
+  optional string certfingerprint = 5;
+}
+
+// RepositoryCertificateList is a collection of RepositoryCertificates
+message RepositoryCertificateList {
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  // List of certificates to be processed
+  repeated RepositoryCertificate items = 2;
+}
+
 // RepositoryList is a collection of Repositories.
 message RepositoryList {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
