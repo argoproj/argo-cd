@@ -11,8 +11,8 @@ bases:
 
 images:
 - name: argoproj/argocd
-  newName: jannfis/argocd
+  newName: argoproj/argocd
   newTag: latest
 - name: argoproj/argocd-ui
-  newName: jannfis/argocd-ui
+  newName: argoproj/argocd-ui
   newTag: latest
