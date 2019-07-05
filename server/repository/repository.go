@@ -286,7 +286,7 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		return nil, err
 	}
 
-	err := git.TestRepo(q.Repo, q.Username, q.Password, q.PrivateKey, q.Insecure)
+	err := git.TestRepo(q.Repo, q.Username, q.Password, q.SshPrivateKey, q.Insecure)
 	if err != nil {
 		return nil, err
 	}

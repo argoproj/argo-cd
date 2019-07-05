@@ -53,17 +53,9 @@ message RepoAccessQuery {
 	// Password for accessing repo
 	string password = 3;
 	// Private key data for accessing SSH repository
-	string PrivateKey = 4;
+	string sshPrivateKey = 4;
 	// Whether to skip certificate or host key validation
-	bool   Insecure = 5;
-}
-
-// RepoAccessResponse is the response to RepoAccessQuery
-message RepoAccessResponse {
-	// Whether access is possible
-	bool accessPossible = 1;
-	// Message containing additional information
-	string accessMessage = 2;
+	bool   insecure = 5;
 }
 
 message RepoResponse {}

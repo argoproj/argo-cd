@@ -77,11 +77,11 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			// it is a private repo, but we cannot access with with the credentials
 			// that were supplied, we bail out.
 			repoAccessReq := repositorypkg.RepoAccessQuery{
-				Repo:       repo.Repo,
-				Username:   repo.Username,
-				Password:   repo.Password,
-				PrivateKey: repo.SSHPrivateKey,
-				Insecure:   (repo.InsecureIgnoreHostKey || repo.Insecure),
+				Repo:          repo.Repo,
+				Username:      repo.Username,
+				Password:      repo.Password,
+				SshPrivateKey: repo.SSHPrivateKey,
+				Insecure:      (repo.InsecureIgnoreHostKey || repo.Insecure),
 			}
 			_, err := repoIf.ValidateAccess(context.Background(), &repoAccessReq)
 			errors.CheckError(err)
