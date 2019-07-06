@@ -15,6 +15,24 @@ commands:
             - vendor
 
 jobs:
+  draft:
+    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
+    machine:
+      image: circleci/classic:201808-01
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - dep-ensure-v2-{{ checksum "Gopkg.lock" }}
+      - run:
+          name: Dep Ensure
+          command: |
+            docker run --rm -it -v $(pwd):/go/src/github.com/argoproj/argo-cd -w /go/src/github.com/argoproj/argo-cd argoproj/argo-cd-ci-builder:v1.0.0 bash -c "dep ensure"
+      - save_cache:
+          key: dep-ensure-v2-{{ checksum "Gopkg.lock" }}
+          paths:
+            - vendor
+
   # Run tests
   test:
     working_directory: /go/src/github.com/argoproj/argo-cd
@@ -142,7 +160,7 @@ workflows:
   workflow:
     jobs:
 #      - build
-      - e2e
+     - draft
 #      - ui:
 #          # this isn't strictly true, we just put in here so that we 2/4 executors rather than 3/4
 #          requires:
