@@ -5,12 +5,12 @@ commands:
       - checkout
       - restore_cache:
           keys:
-            - dep-ensure-v1-{{ checksum "Gopkg.lock" }}
+            - dep-ensure-v2-{{ checksum "Gopkg.lock" }}
       - run:
           name: Run dep ensure
           command: '[ -f ./vendor/$(sha256sum Gopkg.lock | cut -d " " -f 1) ] || (dep ensure -v && touch ./vendor/$(sha256sum Gopkg.lock | cut -d " " -f 1) )'
       - save_cache:
-          key: dep-ensure-v1-{{ checksum "Gopkg.lock" }}
+          key: dep-ensure-v2-{{ checksum "Gopkg.lock" }}
           paths:
             - vendor
 
