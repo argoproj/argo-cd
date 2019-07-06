@@ -21,7 +21,7 @@ jobs:
       image: circleci/classic:201808-01
     environment:
       HOME_PATH: /go/src/github.com/argoproj/argo-cd
-      BUILDER_IMG: argoproj/argo-cd-ci-builder:v1.0.0-1
+      BUILDER_IMG: argoproj/argo-cd-ci-builder:v1.0.0
         
     steps:
       - run:
@@ -33,6 +33,9 @@ jobs:
           keys:
             - dep-ensure-v2-{{ checksum "Gopkg.lock" }}
       - run:
+          name: Ensure Image Downloaded
+          command: until docker inspect $BUILDER_IMG; do sleep 1; done
+      - run:
           name: Dep Ensure
           command: |
             docker run --rm -it -v $(pwd):$HOME_PATH -w $HOME_PATH $BUILDER_IMG bash -c "dep ensure"
@@ -43,7 +46,7 @@ jobs:
       - run:
           name: Build image
           command: |
-            docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd):$HOME_PATH -w $HOME_PATH $BUILDER_IMG bash -c "docker build --cache-from $BUILDER_IMG -t argocd:latest ."
+            docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd):$HOME_PATH -w $HOME_PATH $BUILDER_IMG bash -c "docker build -t argocd:latest ."
 
   # Run tests
   test:
