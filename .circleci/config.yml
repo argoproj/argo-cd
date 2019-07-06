@@ -44,9 +44,27 @@ jobs:
           paths:
             - vendor
       - run:
+          name: Install and Start K3S
+          command: |
+            curl -sfL https://get.k3s.io | sh -
+            sudo chmod -R a+rw /etc/rancher/k3s
+            kubectl version
+          background: true
+          environment:
+            INSTALL_K3S_EXEC: --docker
+            INSTALL_K3S_VERSION: v0.6.0
+      - run:
           name: Build image
           command: |
             docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd):$HOME_PATH -w $HOME_PATH $BUILDER_IMG bash -c "make image DEV_IMAGE=true"
+      - run:
+          name: Install Argo CD
+          command: |
+            docker run -e KUBECONFIG=/k3s/k3s.yaml -w $HOME_PATH -v $(pwd):$HOME_PATH -v /etc/rancher/k3s:/k3s --rm -it $BUILDER_IMG bash -c "\
+              until ls /k3s/k3s.yaml; do sleep 3; done && \
+              kubectl config set-cluster default --server=https://$(hostname):6443 && kubectl config set-context --current --namespace=argocd-e2e && \
+              until kubectl get pods; do sleep 3; done && kubectl create ns argocd-e2e || true && \
+              kustomize build test/manifests/ci | kubectl apply -f -"
 
   # Run tests
   test:
