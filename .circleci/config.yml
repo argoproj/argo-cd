@@ -19,6 +19,10 @@ jobs:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
       image: circleci/classic:201808-01
+    environment:
+      HOME_PATH: /go/src/github.com/argoproj/argo-cd
+      BUILDER_IMG: argoproj/argo-cd-ci-builder:v1.0.0
+        
     steps:
       - checkout
       - restore_cache:
@@ -27,11 +31,15 @@ jobs:
       - run:
           name: Dep Ensure
           command: |
-            docker run --rm -it -v $(pwd):/go/src/github.com/argoproj/argo-cd -w /go/src/github.com/argoproj/argo-cd argoproj/argo-cd-ci-builder:v1.0.0 bash -c "dep ensure"
+            docker run --rm -it -v $(pwd):$HOME_PATH -w $HOME_PATH $BUILDER_IMG:v1.0.0 bash -c "dep ensure"
       - save_cache:
           key: dep-ensure-v2-{{ checksum "Gopkg.lock" }}
           paths:
             - vendor
+      - run:
+          name: Build image
+          command: |
+            docker run --rm -it -v $(pwd):$HOME_PATH -w $HOME_PATH $BUILDER_IMG:v1.0.0 bash -c "docker build --cache-from $BUILDER_IMG -t argocd:latest ."
 
   # Run tests
   test:
