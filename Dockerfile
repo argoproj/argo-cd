@@ -85,27 +85,6 @@ RUN wget https://install.goreleaser.com/github.com/golangci/golangci-lint.sh  &&
     ./golangci-lint.sh -b $GOPATH/bin && \
     golangci-lint linters
 
-COPY Makefile .
-COPY hack ./hack
-
-RUN make install-dev-tools
-
-RUN curl -sLf -C - -o /tmp/protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v3.7.1/protoc-3.7.1-linux-x86_64.zip && \
-   unzip /tmp/protoc.zip bin/protoc -d /usr/local/ && \
-   chmod +x /usr/local/bin/protoc && \
-   unzip /tmp/protoc.zip include/* -d /usr/local/ && \
-   protoc --version
-
-RUN curl -sLf -C - -o /tmp/swagger https://github.com/go-swagger/go-swagger/releases/download/v0.19.0/swagger_linux_amd64 && \
-    cp /tmp/swagger /usr/local/bin/swagger && \
-    chmod +x /usr/local/bin/swagger && \
-    swagger version
-
-RUN curl -sLf -C - -o /tmp/jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 && \
-    cp /tmp/jq /usr/local/bin/jq && \
-    chmod +x /usr/local/bin/jq && \
-    jq --version
-
 COPY .golangci.yml ${GOPATH}/src/dummy/.golangci.yml
 
 RUN cd ${GOPATH}/src/dummy && \

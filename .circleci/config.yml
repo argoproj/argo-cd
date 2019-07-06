@@ -2,23 +2,6 @@ version: 2.1
 commands:
   before:
     steps:
-      - dep_ensure
-      - configure_git
-
-jobs:
-  # Config git and dep ensure
-  init_workspace:
-    working_directory: /go/src/github.com/argoproj/argo-cd
-    docker:
-      - image: argoproj/argo-cd-ci-builder:v1.0.0
-    steps:
-      - run:
-          name: Configure Git
-          command: |
-            set -x
-            # must be configured for tests to run
-            git config --global user.email you@example.com
-            git config --global user.name "Your Name"
       - checkout
       - restore_cache:
           keys:
@@ -30,10 +13,8 @@ jobs:
           key: dep-ensure-v1-{{ checksum "Gopkg.lock" }}
           paths:
             - vendor
-      - persist_to_workspace:
-          root: /go/src/github.com/argoproj/argo-cd
-          paths:
-            - ./
+
+jobs:
   # Run tests
   test:
     working_directory: /go/src/github.com/argoproj/argo-cd
@@ -79,8 +60,7 @@ jobs:
     machine:
       image: circleci/classic:201808-01
     steps:
-      - attach_workspace:
-          at: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
+      - before
       - run:
           name: Make Image
           command: |
@@ -162,12 +142,8 @@ workflows:
   workflow:
     jobs:
       - init_workspace
-#      - build:
-#          requires:
-#          - init_workspace
-      - e2e:
-          requires:
-            - init_workspace
+#      - build
+      - e2e
 #      - ui:
 #          # this isn't strictly true, we just put in here so that we 2/4 executors rather than 3/4
 #          requires:
