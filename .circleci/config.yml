@@ -141,7 +141,6 @@ workflows:
   version: 2
   workflow:
     jobs:
-      - init_workspace
 #      - build
       - e2e
 #      - ui:
