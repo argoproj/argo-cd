@@ -75,7 +75,8 @@ jobs:
               kubectl rollout status deployment/argocd-server"
             curl -k -o /tmp/argocd https://localhost:30585/download/argocd-linux-amd64
             chmod +x /tmp/argocd
-            mv /tmp/argocd ./argocd
+            mkdir ./dist
+            mv /tmp/argocd ./dist/argocd
       - run:
           name: Run E2E Tests
           command: |
