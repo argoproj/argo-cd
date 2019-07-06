@@ -6,6 +6,7 @@ import (
 	certificatepkg "github.com/argoproj/argo-cd/pkg/apiclient/certificate"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver"
+	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/rbac"
@@ -34,8 +35,15 @@ func NewServer(
 	}
 }
 
+// TODO: RBAC policies are currently an all-or-nothing approach, so there is no
+// fine grained control for certificate manipulation. Either a user has access
+// to a given certificate operation (get/create/delete), or it doesn't.
+
 // Returns a list of configured certificates that match the query
 func (s *Server) List(ctx context.Context, q *certificatepkg.RepositoryCertificateQuery) (*appsv1.RepositoryCertificateList, error) {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceCertificates, rbacpolicy.ActionGet, ""); err != nil {
+		return nil, err
+	}
 	certList, err := s.db.ListRepoCertificates(ctx, &db.CertificateListSelector{
 		HostNamePattern: q.GetHostNamePattern(),
 		CertType:        q.GetCertType(),
@@ -49,6 +57,9 @@ func (s *Server) List(ctx context.Context, q *certificatepkg.RepositoryCertifica
 
 // Batch creates certificates for verifying repositories
 func (s *Server) Create(ctx context.Context, q *certificatepkg.RepositoryCertificateCreateRequest) (*appsv1.RepositoryCertificateList, error) {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceCertificates, rbacpolicy.ActionCreate, ""); err != nil {
+		return nil, err
+	}
 	certs, err := s.db.CreateRepoCertificate(ctx, q.Certificates)
 	if err != nil {
 		return nil, err
@@ -59,6 +70,9 @@ func (s *Server) Create(ctx context.Context, q *certificatepkg.RepositoryCertifi
 
 // Batch deletes a list of certificates that match the query
 func (s *Server) Delete(ctx context.Context, q *certificatepkg.RepositoryCertificateQuery) (*appsv1.RepositoryCertificateList, error) {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceCertificates, rbacpolicy.ActionDelete, ""); err != nil {
+		return nil, err
+	}
 	certs, err := s.db.RemoveRepoCertificates(ctx, &db.CertificateListSelector{
 		HostNamePattern: q.GetHostNamePattern(),
 		CertType:        q.GetCertType(),
