@@ -31,7 +31,7 @@ jobs:
       - run:
           name: Dep Ensure
           command: |
-            docker run --rm -it -v $(pwd):$HOME_PATH -w $HOME_PATH $BUILDER_IMG:v1.0.0 bash -c "dep ensure"
+            docker run --rm -it -v $(pwd):$HOME_PATH -w $HOME_PATH $BUILDER_IMG bash -c "dep ensure"
       - save_cache:
           key: dep-ensure-v2-{{ checksum "Gopkg.lock" }}
           paths:
@@ -39,7 +39,7 @@ jobs:
       - run:
           name: Build image
           command: |
-            docker run --rm -it -v $(pwd):$HOME_PATH -w $HOME_PATH $BUILDER_IMG:v1.0.0 bash -c "docker build --cache-from $BUILDER_IMG -t argocd:latest ."
+            docker run --rm -it -v $(pwd):$HOME_PATH -w $HOME_PATH $BUILDER_IMG bash -c "docker build --cache-from $BUILDER_IMG -t argocd:latest ."
 
   # Run tests
   test:
