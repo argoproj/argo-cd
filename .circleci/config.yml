@@ -65,6 +65,15 @@ jobs:
               kubectl config set-cluster default --server=https://$(hostname):6443 && kubectl config set-context --current --namespace=argocd-e2e && \
               until kubectl get pods; do sleep 3; done && kubectl create ns argocd-e2e || true && \
               kustomize build test/manifests/ci | kubectl apply -f -"
+      - run:
+          name: Wait for API server
+          command: |
+            set -x
+            until curl -v -k https://localhost:30585/healthz; do kubectl get pods && sleep 3; done
+            mkdir -p ./dist
+            curl -k -o /tmp/argocd https://localhost:30585/download/argocd-linux-amd64
+            chmod +x /tmp/argocd
+            mv /tmp/argocd ./argocd
 
   # Run tests
   test:
