@@ -56,7 +56,10 @@ jobs:
       - run:
           name: Build image
           command: |
-            docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd):$HOME_PATH -w $HOME_PATH $BUILDER_IMG bash -c "make image DEV_IMAGE=true"
+            docker pull argoproj/argocd:latest
+            docker tag argoproj/argocd:latest argocd:latest
+        #   command: |
+        #     docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd):$HOME_PATH -w $HOME_PATH $BUILDER_IMG bash -c "make image DEV_IMAGE=true"
       - run:
           name: Install Argo CD
           command: |
@@ -77,7 +80,7 @@ jobs:
       - run:
           name: Run E2E Tests
           command: |
-            docker run -e ARGOCD_E2E_EXPECT_TIMEOUT=30 -e ARGOCD_E2E_K3S="true" -e ARGOCD_OPTS="--server localhost:30585 --insecure" -e KUBECONFIG=/k3s/k3s.yaml -w $HOME_PATH -v $(pwd):$HOME_PATH -v /etc/rancher/k3s:/k3s --rm -it $BUILDER_IMG bash -c "\
+            docker run -e ARGOCD_E2E_EXPECT_TIMEOUT=30 -e ARGOCD_E2E_K3S="true" -e ARGOCD_OPTS="--server $(hostname):30585 --insecure" -e KUBECONFIG=/k3s/k3s.yaml -w $HOME_PATH -v $(pwd):$HOME_PATH -v /etc/rancher/k3s:/k3s --rm -it $BUILDER_IMG bash -c "\
               go test -v -timeout 10m ./test/e2e"
   # Run tests
   test:
