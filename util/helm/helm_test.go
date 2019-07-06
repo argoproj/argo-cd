@@ -35,8 +35,8 @@ func TestHelmTemplateParams(t *testing.T) {
 				Value: "1234",
 			},
 			{
-				Name:  "service.annotations.prometheus\\.io/scrape",
-				Value: "true",
+				Name:        "service.annotations.prometheus\\.io/scrape",
+				Value:       "true",
 				ForceString: true,
 			},
 		},
