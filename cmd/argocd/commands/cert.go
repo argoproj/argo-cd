@@ -149,7 +149,7 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				fmt.Printf("Parsed %d known host entries from input stream.\n", len(sshKnownHostsLists))
 			} else {
 				if sshServerName == "" || sshKeyData == "" {
-					err := fmt.Errorf("You need to specify all of --ssh-server-name, --ssh-key-type and --ssh-key-data\n")
+					err := fmt.Errorf("You need to specify --ssh-server-name and --ssh-key-data\n")
 					errors.CheckError(err)
 				}
 
@@ -168,10 +168,10 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				_, _, err = certutil.KnownHostsLineToPublicKey(knownHostsEntry)
 				errors.CheckError(err)
 				certificate := appsv1.RepositoryCertificate{
-					ServerName: hostname,
-					CertType:   "ssh",
-					CertCipher: certSubType,
-					CertData:   certData,
+					ServerName:  hostname,
+					CertType:    "ssh",
+					CertSubType: certSubType,
+					CertData:    certData,
 				}
 
 				certificates = append(certificates, certificate)
@@ -226,7 +226,7 @@ func NewCertRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			errors.CheckError(err)
 			if len(removed.Items) > 0 {
 				for _, cert := range removed.Items {
-					fmt.Printf("Removed cert for '%s' of type '%s' (subtype '%s')\n", cert.ServerName, cert.CertType, cert.CertCipher)
+					fmt.Printf("Removed cert for '%s' of type '%s' (subtype '%s')\n", cert.ServerName, cert.CertType, cert.CertSubType)
 				}
 			} else {
 				fmt.Println("No certificates were removed (none matched the given patterns)")
@@ -293,7 +293,7 @@ func printCertTable(certs []appsv1.RepositoryCertificate, sortOrder string) {
 		if c.CertType == "ssh" {
 			_, pubKey, err := certutil.TokenizedDataToPublicKey(c.ServerName, string(c.CertData))
 			errors.CheckError(err)
-			fmt.Fprintf(w, "%s\t%s\t%s\tSHA256:%s\n", c.ServerName, c.CertType, c.CertCipher, certutil.SSHFingerprintSHA256(pubKey))
+			fmt.Fprintf(w, "%s\t%s\t%s\tSHA256:%s\n", c.ServerName, c.CertType, c.CertSubType, certutil.SSHFingerprintSHA256(pubKey))
 		} else if c.CertType == "https" {
 			x509Data, err := certutil.DecodePEMCertificateToX509(string(c.CertData))
 			var subject string

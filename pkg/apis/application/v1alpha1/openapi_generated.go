@@ -1802,7 +1802,7 @@ func schema_pkg_apis_application_v1alpha1_RepositoryCertificate(ref common.Refer
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "A RepositoryCertificate is either SSH known hosts entry or HTTPS certificate",
+				Description: "A RepositoryCertificate is either SSH known hosts entry or TLS certificate",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"servername": {
@@ -1821,14 +1821,14 @@ func schema_pkg_apis_application_v1alpha1_RepositoryCertificate(ref common.Refer
 					},
 					"cipher": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The cipher for the cert (currently SSH only)",
+							Description: "The sub type of the cert, i.e. \"ssh-rsa\"",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"certdata": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Actual certificate data",
+							Description: "Actual certificate data, protocol dependent",
 							Type:        []string{"string"},
 							Format:      "byte",
 						},

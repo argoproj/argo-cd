@@ -502,7 +502,7 @@ message Repository {
   optional bool insecure = 7;
 }
 
-// A RepositoryCertificate is either SSH known hosts entry or HTTPS certificate
+// A RepositoryCertificate is either SSH known hosts entry or TLS certificate
 message RepositoryCertificate {
   // Name of the server the certificate is intended for
   optional string servername = 1;
@@ -510,10 +510,10 @@ message RepositoryCertificate {
   // Type of certificate - currently "https" or "ssh"
   optional string type = 2;
 
-  // The cipher for the cert (currently SSH only)
+  // The sub type of the cert, i.e. "ssh-rsa"
   optional string cipher = 3;
 
-  // Actual certificate data
+  // Actual certificate data, protocol dependent
   optional bytes certdata = 4;
 
   // Certificate fingerprint

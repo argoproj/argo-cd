@@ -3279,12 +3279,12 @@
     },
     "v1alpha1RepositoryCertificate": {
       "type": "object",
-      "title": "A RepositoryCertificate is either SSH known hosts entry or HTTPS certificate",
+      "title": "A RepositoryCertificate is either SSH known hosts entry or TLS certificate",
       "properties": {
         "certdata": {
           "type": "string",
           "format": "byte",
-          "title": "Actual certificate data"
+          "title": "Actual certificate data, protocol dependent"
         },
         "certfingerprint": {
           "type": "string",
@@ -3292,7 +3292,7 @@
         },
         "cipher": {
           "type": "string",
-          "title": "The cipher for the cert (currently SSH only)"
+          "title": "The sub type of the cert, i.e. \"ssh-rsa\""
         },
         "servername": {
           "type": "string",

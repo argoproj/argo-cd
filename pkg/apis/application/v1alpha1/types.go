@@ -914,15 +914,15 @@ type RepositoryList struct {
 	Items           []Repository `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
-// A RepositoryCertificate is either SSH known hosts entry or HTTPS certificate
+// A RepositoryCertificate is either SSH known hosts entry or TLS certificate
 type RepositoryCertificate struct {
 	// Name of the server the certificate is intended for
 	ServerName string `json:"servername" protobuf:"bytes,1,opt,name=servername"`
 	// Type of certificate - currently "https" or "ssh"
 	CertType string `json:"type" protobuf:"bytes,2,opt,name=type"`
-	// The cipher for the cert (currently SSH only)
-	CertCipher string `json:"cipher" protobuf:"bytes,3,opt,name=cipher"`
-	// Actual certificate data
+	// The sub type of the cert, i.e. "ssh-rsa"
+	CertSubType string `json:"cipher" protobuf:"bytes,3,opt,name=cipher"`
+	// Actual certificate data, protocol dependent
 	CertData []byte `json:"certdata" protobuf:"bytes,4,opt,name=certdata"`
 	// Certificate fingerprint
 	CertFingerprint string `json:"certfingerprint" protobuf:"bytes,5,opt,name=certfingerprint"`

@@ -66,7 +66,7 @@ func (db *db) ListRepoCertificates(ctx context.Context, selector *CertificateLis
 				certificates = append(certificates, appsv1.RepositoryCertificate{
 					ServerName:      entry.Host,
 					CertType:        "ssh",
-					CertCipher:      entry.SubType,
+					CertSubType:     entry.SubType,
 					CertData:        []byte(entry.Data),
 					CertFingerprint: entry.Fingerprint,
 				})
@@ -107,7 +107,7 @@ func (db *db) GetRepoCertificate(ctx context.Context, serverType string, serverN
 				repo := &appsv1.RepositoryCertificate{
 					ServerName:      entry.Host,
 					CertType:        "ssh",
-					CertCipher:      entry.SubType,
+					CertSubType:     entry.SubType,
 					CertData:        []byte(entry.Data),
 					CertFingerprint: entry.Fingerprint,
 				}
@@ -147,13 +147,13 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 		if certificate.CertType == "ssh" {
 			// Check whether known hosts entry already exists
 			for _, entry := range sshKnownHostsList {
-				if entry.Host == certificate.ServerName && entry.SubType == certificate.CertCipher {
+				if entry.Host == certificate.ServerName && entry.SubType == certificate.CertSubType {
 					return nil, fmt.Errorf("Duplicate SSH key sent for '%s' (subtype: '%s')", entry.Host, entry.SubType)
 				}
 			}
 
 			// Make sure that we received a valid public host key by parsing it
-			_, _, rawKeyData, _, _, err := ssh.ParseKnownHosts([]byte(fmt.Sprintf("%s %s %s", certificate.ServerName, certificate.CertCipher, certificate.CertData)))
+			_, _, rawKeyData, _, _, err := ssh.ParseKnownHosts([]byte(fmt.Sprintf("%s %s %s", certificate.ServerName, certificate.CertSubType, certificate.CertData)))
 			if err != nil {
 				return nil, err
 			}
@@ -161,7 +161,7 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 			sshKnownHostsList = append(sshKnownHostsList, SSHKnownHostsEntry{
 				Host:    certificate.ServerName,
 				Data:    string(certificate.CertData),
-				SubType: certificate.CertCipher,
+				SubType: certificate.CertSubType,
 			})
 
 			certificate.CertFingerprint = certutil.SSHFingerprintSHA256(rawKeyData)
@@ -238,10 +238,10 @@ func (db *db) RemoveRepoCertificates(ctx context.Context, selector *CertificateL
 		for _, entry := range knownHostsOld {
 			if matchSSHKnownHostsEntry(entry, selector) {
 				removed.Items = append(removed.Items, appsv1.RepositoryCertificate{
-					ServerName: entry.Host,
-					CertType:   "ssh",
-					CertCipher: entry.SubType,
-					CertData:   []byte(entry.Data),
+					ServerName:  entry.Host,
+					CertType:    "ssh",
+					CertSubType: entry.SubType,
+					CertData:    []byte(entry.Data),
 				})
 			} else {
 				knownHostsNew = append(knownHostsNew, entry)
