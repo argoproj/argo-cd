@@ -466,10 +466,6 @@ spec:
                           description: Parameters are parameters to the helm template
                           items:
                             properties:
-                              forceString:
-                                description: ForceString determines whether to tell
-                                  Helm to interpret booleans and numbers as strings
-                                type: boolean
                               name:
                                 description: Name is the name of the helm parameter
                                 type: string
@@ -717,10 +713,6 @@ spec:
                       description: Parameters are parameters to the helm template
                       items:
                         properties:
-                          forceString:
-                            description: ForceString determines whether to tell Helm
-                              to interpret booleans and numbers as strings
-                            type: boolean
                           name:
                             description: Name is the name of the helm parameter
                             type: string
@@ -935,10 +927,6 @@ spec:
                             description: Parameters are parameters to the helm template
                             items:
                               properties:
-                                forceString:
-                                  description: ForceString determines whether to tell
-                                    Helm to interpret booleans and numbers as strings
-                                  type: boolean
                                 name:
                                   description: Name is the name of the helm parameter
                                   type: string
@@ -1166,11 +1154,6 @@ spec:
                                     template
                                   items:
                                     properties:
-                                      forceString:
-                                        description: ForceString determines whether
-                                          to tell Helm to interpret booleans and numbers
-                                          as strings
-                                        type: boolean
                                       name:
                                         description: Name is the name of the helm
                                           parameter
@@ -1428,11 +1411,6 @@ spec:
                               description: Parameters are parameters to the helm template
                               items:
                                 properties:
-                                  forceString:
-                                    description: ForceString determines whether to
-                                      tell Helm to interpret booleans and numbers
-                                      as strings
-                                    type: boolean
                                   name:
                                     description: Name is the name of the helm parameter
                                     type: string
@@ -1668,11 +1646,6 @@ spec:
                               description: Parameters are parameters to the helm template
                               items:
                                 properties:
-                                  forceString:
-                                    description: ForceString determines whether to
-                                      tell Helm to interpret booleans and numbers
-                                      as strings
-                                    type: boolean
                                   name:
                                     description: Name is the name of the helm parameter
                                     type: string
