@@ -21,9 +21,13 @@ jobs:
       image: circleci/classic:201808-01
     environment:
       HOME_PATH: /go/src/github.com/argoproj/argo-cd
-      BUILDER_IMG: argoproj/argo-cd-ci-builder:v1.0.0
+      BUILDER_IMG: argoproj/argo-cd-ci-builder:v1.0.0-1
         
     steps:
+      - run:
+          name: Pull Image
+          command: docker pull $BUILDER_IMG
+          background: true
       - checkout
       - restore_cache:
           keys:
