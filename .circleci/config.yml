@@ -72,11 +72,10 @@ jobs:
           name: Wait for API server
           command: |
             docker run -e KUBECONFIG=/k3s/k3s.yaml -w $HOME_PATH -v $(pwd):$HOME_PATH -v /etc/rancher/k3s:/k3s --rm -it $BUILDER_IMG bash -c "\
-              kubectl rollout status deployment/argocd-server"
-            curl -k -o /tmp/argocd https://localhost:30585/download/argocd-linux-amd64
-            chmod +x /tmp/argocd
-            mkdir ./dist
-            mv /tmp/argocd ./dist/argocd
+              kubectl rollout status deployment/argocd-server && \
+              mkdir -p ./dist && \
+              curl -k -o ./dist/argocd https://$(hostname):30585/download/argocd-linux-amd64 && \
+              ./dist/argocd version --server $(hostname):30585 --insecure"
       - run:
           name: Run E2E Tests
           command: |
