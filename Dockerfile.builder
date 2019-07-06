@@ -7,6 +7,7 @@ FROM golang:1.12.6
 
 RUN apt-get update && apt-get install -y \
     git \
+    openssh-server \
     make \
     wget \
     gcc \

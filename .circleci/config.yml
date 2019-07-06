@@ -71,9 +71,8 @@ jobs:
       - run:
           name: Wait for API server
           command: |
-            set -x
-            until curl -v -k https://localhost:30585/healthz; do kubectl get pods && sleep 3; done
-            mkdir -p ./dist
+            docker run -e KUBECONFIG=/k3s/k3s.yaml -w $HOME_PATH -v $(pwd):$HOME_PATH -v /etc/rancher/k3s:/k3s --rm -it $BUILDER_IMG bash -c "\
+              kubectl rollout status deployment/argocd-server"
             curl -k -o /tmp/argocd https://localhost:30585/download/argocd-linux-amd64
             chmod +x /tmp/argocd
             mv /tmp/argocd ./argocd
