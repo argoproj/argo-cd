@@ -41,7 +41,7 @@ func NewCertCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		fromFile string
-		upsert bool
+		upsert   bool
 	)
 	var command = &cobra.Command{
 		Use:   "add-tls SERVERNAME",
@@ -119,10 +119,10 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 // NewCertAddCommand returns a new instance of an `argocd cert add` command
 func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		fromFile    string
-		batchProcess  bool
-		upsert bool
-		certificates  []appsv1.RepositoryCertificate
+		fromFile     string
+		batchProcess bool
+		upsert       bool
+		certificates []appsv1.RepositoryCertificate
 	)
 
 	var command = &cobra.Command{
@@ -173,7 +173,7 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			certList := &appsv1.RepositoryCertificateList{Items: certificates}
 			response, err := certIf.Create(context.Background(), &certificatepkg.RepositoryCertificateCreateRequest{
 				Certificates: certList,
-				Upsert: upsert,
+				Upsert:       upsert,
 			})
 			errors.CheckError(err)
 			fmt.Printf("Successfully created %d SSH known host entries\n", len(response.Items))
@@ -285,7 +285,7 @@ func printCertTable(certs []appsv1.RepositoryCertificate, sortOrder string) {
 
 	for _, c := range certs {
 		if c.CertType == "ssh" {
-			_, pubKey, err := certutil.TokenizedDataToPublicKey(c.ServerName, string(c.CertData))
+			_, pubKey, err := certutil.TokenizedDataToPublicKey(c.ServerName, c.CertSubType, string(c.CertData))
 			errors.CheckError(err)
 			fmt.Fprintf(w, "%s\t%s\t%s\tSHA256:%s\n", c.ServerName, c.CertType, c.CertSubType, certutil.SSHFingerprintSHA256(pubKey))
 		} else if c.CertType == "https" {

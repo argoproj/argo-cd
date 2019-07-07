@@ -183,6 +183,7 @@ func IsValidSSHKnownHostsEntry(line string) bool {
 	return len(keyData) == 3
 }
 
+// Tokenize a known_hosts entry into hostname, key sub type and actual key data
 func TokenizeSSHKnownHostsEntry(knownHostsEntry string) (string, string, []byte, error) {
 	knownHostsToken := strings.SplitN(knownHostsEntry, " ", 3)
 	if len(knownHostsToken) != 3 {
@@ -201,8 +202,8 @@ func KnownHostsLineToPublicKey(line string) ([]string, ssh.PublicKey, error) {
 	return hostnames, keyData, nil
 }
 
-func TokenizedDataToPublicKey(hostname string, rawKeyData string) ([]string, ssh.PublicKey, error) {
-	hostnames, keyData, err := KnownHostsLineToPublicKey(fmt.Sprintf("%s %s", hostname, rawKeyData))
+func TokenizedDataToPublicKey(hostname string, subType string, rawKeyData string) ([]string, ssh.PublicKey, error) {
+	hostnames, keyData, err := KnownHostsLineToPublicKey(fmt.Sprintf("%s %s %s", hostname, subType, rawKeyData))
 	if err != nil {
 		return nil, nil, err
 	}

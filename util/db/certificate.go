@@ -122,7 +122,7 @@ func (db *db) GetRepoCertificate(ctx context.Context, serverType string, serverN
 
 // Create one or more repository certificates and returns a list of certificates
 // actually created.
-func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.RepositoryCertificateList) (*appsv1.RepositoryCertificateList, error) {
+func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.RepositoryCertificateList, upsert bool) (*appsv1.RepositoryCertificateList, error) {
 	var (
 		saveSSHData bool = false
 		saveTLSData bool = false
@@ -145,10 +145,28 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 	// make sure to handle each request accordingly.
 	for _, certificate := range certificates.Items {
 		if certificate.CertType == "ssh" {
-			// Check whether known hosts entry already exists
+			// Whether we have a new certificate entry
+			newEntry := true
+			// Whether we have upserted an existing certificate entry
+			upserted := false
+
+			// Check whether known hosts entry already exists. Must match hostname
+			// and the key sub type (e.g. ssh-rsa). It is considered an error if we
+			// already have a corresponding key and upsert was not specified.
 			for _, entry := range sshKnownHostsList {
 				if entry.Host == certificate.ServerName && entry.SubType == certificate.CertSubType {
-					return nil, fmt.Errorf("Duplicate SSH key sent for '%s' (subtype: '%s')", entry.Host, entry.SubType)
+					if !upsert {
+						return nil, fmt.Errorf("Key for '%s' (subtype: '%s') already exist and upsert was not specified.", entry.Host, entry.SubType)
+					} else {
+						// Do not add an entry on upsert, but remember if we actual did an
+						// upsert.
+						newEntry = false
+						if entry.Data != string(certificate.CertData) {
+							entry.Data = string(certificate.CertData)
+							upserted = true
+						}
+						break
+					}
 				}
 			}
 
@@ -158,24 +176,37 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 				return nil, err
 			}
 
-			sshKnownHostsList = append(sshKnownHostsList, SSHKnownHostsEntry{
-				Host:    certificate.ServerName,
-				Data:    string(certificate.CertData),
-				SubType: certificate.CertSubType,
-			})
+			if newEntry {
+				sshKnownHostsList = append(sshKnownHostsList, &SSHKnownHostsEntry{
+					Host:    certificate.ServerName,
+					Data:    string(certificate.CertData),
+					SubType: certificate.CertSubType,
+				})
+			}
 
-			certificate.CertFingerprint = certutil.SSHFingerprintSHA256(rawKeyData)
-			created = append(created, certificate)
-
-			saveSSHData = true
+			// If we created a new entry, or if we upserted an existing one, we need
+			// to save the data and notify the consumer about the operation.
+			if newEntry || upserted {
+				certificate.CertFingerprint = certutil.SSHFingerprintSHA256(rawKeyData)
+				created = append(created, certificate)
+				saveSSHData = true
+			}
 
 		} else if certificate.CertType == "https" {
 			var tlsCertificate *TLSCertificate = nil
+			newEntry := true
+			upserted := false
 			for _, entry := range tlsCertificates {
 				if entry.Subject == certificate.ServerName {
+					newEntry = false
+					if entry.Data != string(certificate.CertData) {
+						if !upsert {
+							return nil, fmt.Errorf("TLS certificate for server '%s' already exist and upsert was not specified.", entry.Subject)
+						}
+						upserted = true
+					}
 					tlsCertificate = entry
 					break
-					//return nil, errors.New(fmt.Sprintf("Duplicate TLS certificate sent for '%s'", entry.Subject))
 				}
 			}
 
@@ -186,11 +217,13 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 				}
 				tlsCertificates = append(tlsCertificates, tlsCertificate)
 			} else {
-				tlsCertificate.Data += "\n" + string(certificate.CertData)
+				tlsCertificate.Data = string(certificate.CertData)
 			}
 
-			created = append(created, certificate)
-			saveTLSData = true
+			if newEntry || upserted {
+				created = append(created, certificate)
+				saveTLSData = true
+			}
 		} else {
 			// Invalid/unknown certificate type
 			return nil, fmt.Errorf("Unknown certificate type: %s", certificate.CertType)
@@ -217,8 +250,8 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 // Batch remove configured certificates according to the selector query
 func (db *db) RemoveRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appsv1.RepositoryCertificateList, error) {
 	var (
-		knownHostsOld      []SSHKnownHostsEntry
-		knownHostsNew      []SSHKnownHostsEntry
+		knownHostsOld      []*SSHKnownHostsEntry
+		knownHostsNew      []*SSHKnownHostsEntry
 		tlsCertificatesOld []*TLSCertificate
 		tlsCertificatesNew []*TLSCertificate
 		err                error
@@ -233,7 +266,7 @@ func (db *db) RemoveRepoCertificates(ctx context.Context, selector *CertificateL
 		if err != nil {
 			return nil, err
 		}
-		knownHostsNew = make([]SSHKnownHostsEntry, 0)
+		knownHostsNew = make([]*SSHKnownHostsEntry, 0)
 
 		for _, entry := range knownHostsOld {
 			if matchSSHKnownHostsEntry(entry, selector) {
@@ -287,7 +320,7 @@ func (db *db) RemoveRepoCertificates(ctx context.Context, selector *CertificateL
 
 // Converts list of known hosts data to array of strings, suitable for storing
 // in a known_hosts file for SSH.
-func knownHostsDataToStrings(knownHostsList []SSHKnownHostsEntry) []string {
+func knownHostsDataToStrings(knownHostsList []*SSHKnownHostsEntry) []string {
 	knownHostsData := make([]string, 0)
 	for _, entry := range knownHostsList {
 		knownHostsData = append(knownHostsData, fmt.Sprintf("%s %s %s", entry.Host, entry.SubType, entry.Data))
@@ -321,14 +354,14 @@ func (db *db) getTLSCertificateData() ([]*TLSCertificate, error) {
 
 // Gets the SSH known host data from ConfigMap and parse it into an array of
 // SSHKnownHostEntry structs.
-func (db *db) getSSHKnownHostsData() ([]SSHKnownHostsEntry, error) {
+func (db *db) getSSHKnownHostsData() ([]*SSHKnownHostsEntry, error) {
 	certCM, err := db.settingsMgr.GetNamedConfigMap(common.ArgoCDKnownHostsConfigMapName)
 	if err != nil {
 		return nil, err
 	}
 
 	sshKnownHostsData := certCM.Data["ssh_known_hosts"]
-	entries := make([]SSHKnownHostsEntry, 0)
+	entries := make([]*SSHKnownHostsEntry, 0)
 
 	// ssh_known_hosts data contains one key per line, so we must iterate over
 	// the whole data to get all keys.
@@ -346,16 +379,16 @@ func (db *db) getSSHKnownHostsData() ([]SSHKnownHostsEntry, error) {
 		if err != nil {
 			return nil, err
 		}
-		entries = append(entries, SSHKnownHostsEntry{
+		entries = append(entries, &SSHKnownHostsEntry{
 			Host:    hostname,
 			SubType: subType,
-			Data:    fmt.Sprintf("%s %s", subType, keyData),
+			Data:    string(keyData),
 		})
 	}
 
 	return entries, nil
 }
 
-func matchSSHKnownHostsEntry(entry SSHKnownHostsEntry, selector *CertificateListSelector) bool {
+func matchSSHKnownHostsEntry(entry *SSHKnownHostsEntry, selector *CertificateListSelector) bool {
 	return certutil.MatchHostName(entry.Host, selector.HostNamePattern) && (selector.CertSubType == "" || selector.CertSubType == "*" || selector.CertSubType == entry.SubType)
 }

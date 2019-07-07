@@ -41,7 +41,7 @@ type ArgoDB interface {
 	// ListRepoCerticifates lists all configured certificates
 	ListRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appv1.RepositoryCertificateList, error)
 	// CreateRepoCertificate creates a new certificate entry
-	CreateRepoCertificate(ctx context.Context, certificate *appv1.RepositoryCertificateList) (*appv1.RepositoryCertificateList, error)
+	CreateRepoCertificate(ctx context.Context, certificate *appv1.RepositoryCertificateList, upsert bool) (*appv1.RepositoryCertificateList, error)
 	// CreateRepoCertificate creates a new certificate entry
 	RemoveRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appv1.RepositoryCertificateList, error)
 }

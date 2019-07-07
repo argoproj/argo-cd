@@ -60,7 +60,7 @@ func (s *Server) Create(ctx context.Context, q *certificatepkg.RepositoryCertifi
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceCertificates, rbacpolicy.ActionCreate, ""); err != nil {
 		return nil, err
 	}
-	certs, err := s.db.CreateRepoCertificate(ctx, q.Certificates)
+	certs, err := s.db.CreateRepoCertificate(ctx, q.Certificates, q.Upsert)
 	if err != nil {
 		return nil, err
 	}

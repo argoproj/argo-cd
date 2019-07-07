@@ -50,7 +50,7 @@ func (m *RepositoryCertificateQuery) Reset()         { *m = RepositoryCertificat
 func (m *RepositoryCertificateQuery) String() string { return proto.CompactTextString(m) }
 func (*RepositoryCertificateQuery) ProtoMessage()    {}
 func (*RepositoryCertificateQuery) Descriptor() ([]byte, []int) {
-	return fileDescriptor_certificate_b130e800f0e2a4a5, []int{0}
+	return fileDescriptor_certificate_7cceab803f50bba4, []int{0}
 }
 func (m *RepositoryCertificateQuery) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -104,7 +104,7 @@ func (m *RepositoryCertificateQuery) GetCertSubType() string {
 type RepositoryCertificateCreateRequest struct {
 	// List of certificates to be created
 	Certificates *v1alpha1.RepositoryCertificateList `protobuf:"bytes,1,opt,name=certificates" json:"certificates,omitempty"`
-	// Whether to upsert already existing repositories
+	// Whether to upsert already existing certificates
 	Upsert               bool     `protobuf:"varint,2,opt,name=upsert,proto3" json:"upsert,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -115,7 +115,7 @@ func (m *RepositoryCertificateCreateRequest) Reset()         { *m = RepositoryCe
 func (m *RepositoryCertificateCreateRequest) String() string { return proto.CompactTextString(m) }
 func (*RepositoryCertificateCreateRequest) ProtoMessage()    {}
 func (*RepositoryCertificateCreateRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_certificate_b130e800f0e2a4a5, []int{1}
+	return fileDescriptor_certificate_7cceab803f50bba4, []int{1}
 }
 func (m *RepositoryCertificateCreateRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -168,7 +168,7 @@ func (m *RepositoryCertificateResponse) Reset()         { *m = RepositoryCertifi
 func (m *RepositoryCertificateResponse) String() string { return proto.CompactTextString(m) }
 func (*RepositoryCertificateResponse) ProtoMessage()    {}
 func (*RepositoryCertificateResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_certificate_b130e800f0e2a4a5, []int{2}
+	return fileDescriptor_certificate_7cceab803f50bba4, []int{2}
 }
 func (m *RepositoryCertificateResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -913,10 +913,10 @@ var (
 )
 
 func init() {
-	proto.RegisterFile("server/certificate/certificate.proto", fileDescriptor_certificate_b130e800f0e2a4a5)
+	proto.RegisterFile("server/certificate/certificate.proto", fileDescriptor_certificate_7cceab803f50bba4)
 }
 
-var fileDescriptor_certificate_b130e800f0e2a4a5 = []byte{
+var fileDescriptor_certificate_7cceab803f50bba4 = []byte{
 	// 448 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x53, 0x41, 0x6b, 0x14, 0x31,
 	0x14, 0x26, 0xb5, 0x2c, 0x35, 0x15, 0x84, 0x50, 0x4a, 0x19, 0xea, 0x5a, 0x86, 0x82, 0xa5, 0x60,

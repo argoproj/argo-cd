@@ -25,7 +25,7 @@ message RepositoryCertificateQuery {
 message RepositoryCertificateCreateRequest {
   // List of certificates to be created
   github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RepositoryCertificateList certificates = 1;
-  // Whether to upsert already existing repositories
+  // Whether to upsert already existing certificates
   bool upsert = 2;
 }
 
