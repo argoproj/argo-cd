@@ -41,6 +41,7 @@ func NewCertCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		fromFile string
+		upsert bool
 	)
 	var command = &cobra.Command{
 		Use:   "add-tls SERVERNAME",
@@ -101,6 +102,7 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 					Certificates: &appsv1.RepositoryCertificateList{
 						Items: certificateList,
 					},
+					Upsert: upsert,
 				})
 				errors.CheckError(err)
 				fmt.Printf("Created %d certificates for server %s\n", len(certificates.Items), serverName)
@@ -110,6 +112,7 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		},
 	}
 	command.Flags().StringVar(&fromFile, "from", "", "read TLS certificate data from file (default is to read from stdin)")
+	command.Flags().BoolVar(&upsert, "upsert", false, "Replace existing TLS certificate if certificate is different in input")
 	return command
 }
 
@@ -118,11 +121,12 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 	var (
 		fromFile    string
 		batchProcess  bool
+		upsert bool
 		certificates  []appsv1.RepositoryCertificate
 	)
 
 	var command = &cobra.Command{
-		Use:   "add-ssh",
+		Use:   "add-ssh --batch",
 		Short: "Add SSH known host entries for repository servers",
 		Run: func(c *cobra.Command, args []string) {
 
@@ -135,18 +139,17 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			// --batch is a flag, but it is mandatory for now.
 			if batchProcess {
 				if fromFile != "" {
+					fmt.Printf("Reading SSH known hosts entries from file '%s'\n", fromFile)
 					sshKnownHostsLists, err = certutil.ParseSSHKnownHostsFromPath(fromFile)
 				} else {
+					fmt.Println("Enter SSH known hosts entries, one per line. Press CTRL-D when finished.")
 					sshKnownHostsLists, err = certutil.ParseSSHKnownHostsFromStream(os.Stdin)
 				}
-
-				errors.CheckError(err)
-				fmt.Printf("Parsed %d known host entries from input stream.\n", len(sshKnownHostsLists))
 			} else {
-				fmt.Printf("You need to specify --batch")
-				c.HelpFunc()(c, args)
-				os.Exit(1)
+				err = fmt.Errorf("You need to specify --batch or specify --help for usage instructions")
 			}
+
+			errors.CheckError(err)
 
 			if len(sshKnownHostsLists) == 0 {
 				errors.CheckError(fmt.Errorf("No valid SSH known hosts data found."))
@@ -168,13 +171,17 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			}
 
 			certList := &appsv1.RepositoryCertificateList{Items: certificates}
-			response, err := certIf.Create(context.Background(), &certificatepkg.RepositoryCertificateCreateRequest{Certificates: certList})
+			response, err := certIf.Create(context.Background(), &certificatepkg.RepositoryCertificateCreateRequest{
+				Certificates: certList,
+				Upsert: upsert,
+			})
 			errors.CheckError(err)
 			fmt.Printf("Successfully created %d SSH known host entries\n", len(response.Items))
 		},
 	}
 	command.Flags().StringVar(&fromFile, "from", "", "Read SSH known hosts data from file (default is to read from stdin)")
-	command.Flags().BoolVar(&batchProcess, "batch", false, "Perform batch processing by reading in SSH known hosts data")
+	command.Flags().BoolVar(&batchProcess, "batch", false, "Perform batch processing by reading in SSH known hosts data (mandatory flag)")
+	command.Flags().BoolVar(&upsert, "upsert", false, "Replace existing SSH server public host keys if key is different in input")
 	return command
 }
 
