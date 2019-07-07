@@ -51,7 +51,7 @@ jobs:
             kubectl version
           background: true
           environment:
-            INSTALL_K3S_EXEC: --docker
+#            INSTALL_K3S_EXEC: --docker
             INSTALL_K3S_VERSION: v0.6.0
       - run:
           name: Build image
