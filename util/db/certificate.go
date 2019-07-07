@@ -55,6 +55,7 @@ func (db *db) ListRepoCertificates(ctx context.Context, selector *CertificateLis
 
 	certificates := make([]appsv1.RepositoryCertificate, 0)
 
+	// Get all SSH known host entries
 	if selector.CertType == "" || selector.CertType == "*" || selector.CertType == "ssh" {
 		sshKnownHosts, err := db.getSSHKnownHostsData()
 		if err != nil {
@@ -74,6 +75,7 @@ func (db *db) ListRepoCertificates(ctx context.Context, selector *CertificateLis
 		}
 	}
 
+	// Get all TLS certificates
 	if selector.CertType == "" || selector.CertType == "https" || selector.CertType == "tls" {
 		tlsCertificates, err := db.getTLSCertificateData()
 		if err != nil {
@@ -81,11 +83,17 @@ func (db *db) ListRepoCertificates(ctx context.Context, selector *CertificateLis
 		}
 		for _, entry := range tlsCertificates {
 			if certutil.MatchHostName(entry.Subject, selector.HostNamePattern) {
-				certificates = append(certificates, appsv1.RepositoryCertificate{
-					ServerName: entry.Subject,
-					CertType:   "https",
-					CertData:   []byte(entry.Data),
-				})
+				pemEntries, err := certutil.ParseTLSCertificatesFromData(entry.Data)
+				if err != nil {
+					continue
+				}
+				for _, pemEntry := range pemEntries {
+					certificates = append(certificates, appsv1.RepositoryCertificate{
+						ServerName: entry.Subject,
+						CertType:   "https",
+						CertData:   []byte(pemEntry),
+					})
+				}
 			}
 		}
 	}
@@ -196,20 +204,37 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 			var tlsCertificate *TLSCertificate = nil
 			newEntry := true
 			upserted := false
+			pemCreated := make([]string, 0)
+
 			for _, entry := range tlsCertificates {
+				// We have an entry for this server already. Check for upsert.
 				if entry.Subject == certificate.ServerName {
 					newEntry = false
 					if entry.Data != string(certificate.CertData) {
 						if !upsert {
 							return nil, fmt.Errorf("TLS certificate for server '%s' already exist and upsert was not specified.", entry.Subject)
 						}
-						upserted = true
 					}
+					// Store pointer to this entry for later use.
 					tlsCertificate = entry
 					break
 				}
 			}
 
+			// Check for validity of data received
+			pemData, err := certutil.ParseTLSCertificatesFromData(string(certificate.CertData))
+			if err != nil {
+				return nil, err
+			}
+			for _, entry := range pemData {
+				_, err := certutil.ParseTLSCertificatesFromData(entry)
+				if err != nil {
+					return nil, err
+				}
+				pemCreated = append(pemCreated, entry)
+			}
+
+			// New certificate if pointer to existing cert is nil
 			if tlsCertificate == nil {
 				tlsCertificate = &TLSCertificate{
 					Subject: certificate.ServerName,
@@ -217,11 +242,24 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 				}
 				tlsCertificates = append(tlsCertificates, tlsCertificate)
 			} else {
-				tlsCertificate.Data = string(certificate.CertData)
+				// We have made sure the upsert flag was set above. Now just figure out
+				// again if we have to actually update the data in the existing cert.
+				if tlsCertificate.Data != string(certificate.CertData) {
+					tlsCertificate.Data = string(certificate.CertData)
+					upserted = true
+				}
 			}
 
 			if newEntry || upserted {
-				created = append(created, certificate)
+				// We append the certificate for every PEM entry in the request, so the
+				// caller knows that we processed each single item.
+				for _, entry := range pemCreated {
+					created = append(created, appsv1.RepositoryCertificate{
+						ServerName: certificate.ServerName,
+						CertType:   "https",
+						CertData:   []byte(entry),
+					})
+				}
 				saveTLSData = true
 			}
 		} else {

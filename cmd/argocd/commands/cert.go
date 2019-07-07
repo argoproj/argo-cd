@@ -59,17 +59,19 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			var err error
 
 			if fromFile != "" {
+				fmt.Printf("Reading TLS certificate data in PEM format from '%s'\n", fromFile)
 				certificateArray, err = certutil.ParseTLSCertificatesFromPath(fromFile)
 			} else {
+				fmt.Println("Enter TLS certificate data in PEM format. Press CTRL-D when finished.")
 				certificateArray, err = certutil.ParseTLSCertificatesFromStream(os.Stdin)
 			}
 
 			errors.CheckError(err)
 
-			fmt.Printf("Parsed %d possible PEM certificates from input stream.\n", len(certificateArray))
-
 			certificateList := make([]appsv1.RepositoryCertificate, 0)
+
 			subjectMap := make(map[string]*x509.Certificate)
+
 			for _, entry := range certificateArray {
 				// We want to make sure to only send valid certificate data to the
 				// server, so we decode the certificate into X509 structure before
@@ -81,23 +83,21 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				// maybe by using fingerprints? For now, no two certs with the same
 				// subject may be sent.
 				if subjectMap[x509cert.Subject.String()] != nil {
-					fmt.Printf("ERROR: Cert with subject '%s' already seen.\n", x509cert.Subject.String())
+					fmt.Printf("ERROR: Cert with subject '%s' already seen in the input stream.\n", x509cert.Subject.String())
 					continue
 				} else {
-					fmt.Printf("Found certificate with subject '%s'\n", x509cert.Subject.String())
 					subjectMap[x509cert.Subject.String()] = x509cert
 				}
-
-				certificateList = append(certificateList, appsv1.RepositoryCertificate{
-					ServerName: args[0],
-					CertType:   "https",
-					CertData:   []byte(entry),
-				})
 			}
 
 			serverName := args[0]
 
-			if len(certificateList) > 0 {
+			if len(certificateArray) > 0 {
+				certificateList = append(certificateList, appsv1.RepositoryCertificate{
+					ServerName: serverName,
+					CertType:   "https",
+					CertData:   []byte(strings.Join(certificateArray, "\n")),
+				})
 				certificates, err := certIf.Create(context.Background(), &certificatepkg.RepositoryCertificateCreateRequest{
 					Certificates: &appsv1.RepositoryCertificateList{
 						Items: certificateList,
@@ -105,9 +105,9 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 					Upsert: upsert,
 				})
 				errors.CheckError(err)
-				fmt.Printf("Created %d certificates for server %s\n", len(certificates.Items), serverName)
+				fmt.Printf("Created entry with %d PEM certificates for repository server %s\n", len(certificates.Items), serverName)
 			} else {
-				fmt.Printf("No valid certificate has been detected in the stream.\n")
+				fmt.Printf("No valid certificates have been detected in the stream.\n")
 			}
 		},
 	}
