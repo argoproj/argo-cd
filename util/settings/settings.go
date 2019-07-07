@@ -80,13 +80,20 @@ type OIDCConfig struct {
 	RequestedScopes []string `json:"requestedScopes,omitempty"`
 }
 
+// Credentials for accessing a Git repository
 type RepoCredentials struct {
-	URL                   string                   `json:"url,omitempty"`
-	UsernameSecret        *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
-	PasswordSecret        *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
-	SSHPrivateKeySecret   *apiv1.SecretKeySelector `json:"sshPrivateKeySecret,omitempty"`
-	InsecureIgnoreHostKey bool                     `json:"insecureIgnoreHostKey,omitempty"`
-	Insecure              bool                     `json:"insecure,omitempty"`
+	// The URL to the repository
+	URL string `json:"url,omitempty"`
+	// Name of the secret storing the username used to access the repo
+	UsernameSecret *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
+	// Name of the secret storing the password used to access the repo
+	PasswordSecret *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
+	// Name of the secret storing the SSH private key used to access the repo
+	SSHPrivateKeySecret *apiv1.SecretKeySelector `json:"sshPrivateKeySecret,omitempty"`
+	// Whether to connect the repository in an insecure way (deprecated)
+	InsecureIgnoreHostKey bool `json:"insecureIgnoreHostKey,omitempty"`
+	// Whether to connect the repository in an insecure way
+	Insecure bool `json:"insecure,omitempty"`
 }
 
 type HelmRepoCredentials struct {
