@@ -467,10 +467,6 @@ spec:
                           description: Parameters are parameters to the helm template
                           items:
                             properties:
-                              forceString:
-                                description: ForceString determines whether to tell
-                                  Helm to interpret booleans and numbers as strings
-                                type: boolean
                               name:
                                 description: Name is the name of the helm parameter
                                 type: string
@@ -718,10 +714,6 @@ spec:
                       description: Parameters are parameters to the helm template
                       items:
                         properties:
-                          forceString:
-                            description: ForceString determines whether to tell Helm
-                              to interpret booleans and numbers as strings
-                            type: boolean
                           name:
                             description: Name is the name of the helm parameter
                             type: string
@@ -936,10 +928,6 @@ spec:
                             description: Parameters are parameters to the helm template
                             items:
                               properties:
-                                forceString:
-                                  description: ForceString determines whether to tell
-                                    Helm to interpret booleans and numbers as strings
-                                  type: boolean
                                 name:
                                   description: Name is the name of the helm parameter
                                   type: string
@@ -1167,11 +1155,6 @@ spec:
                                     template
                                   items:
                                     properties:
-                                      forceString:
-                                        description: ForceString determines whether
-                                          to tell Helm to interpret booleans and numbers
-                                          as strings
-                                        type: boolean
                                       name:
                                         description: Name is the name of the helm
                                           parameter
@@ -1429,11 +1412,6 @@ spec:
                               description: Parameters are parameters to the helm template
                               items:
                                 properties:
-                                  forceString:
-                                    description: ForceString determines whether to
-                                      tell Helm to interpret booleans and numbers
-                                      as strings
-                                    type: boolean
                                   name:
                                     description: Name is the name of the helm parameter
                                     type: string
@@ -1669,11 +1647,6 @@ spec:
                               description: Parameters are parameters to the helm template
                               items:
                                 properties:
-                                  forceString:
-                                    description: ForceString determines whether to
-                                      tell Helm to interpret booleans and numbers
-                                      as strings
-                                    type: boolean
                                   name:
                                     description: Name is the name of the helm parameter
                                     type: string
@@ -2666,6 +2639,23 @@ kind: Service
 metadata:
   labels:
     app.kubernetes.io/component: server
+    app.kubernetes.io/name: argocd-server-metrics
+    app.kubernetes.io/part-of: argocd
+  name: argocd-server-metrics
+spec:
+  ports:
+  - name: metrics
+    port: 8083
+    protocol: TCP
+    targetPort: 8083
+  selector:
+    app.kubernetes.io/name: argocd-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: server
     app.kubernetes.io/name: argocd-server
     app.kubernetes.io/part-of: argocd
   name: argocd-server
@@ -2679,23 +2669,6 @@ spec:
     port: 443
     protocol: TCP
     targetPort: 8080
-  selector:
-    app.kubernetes.io/name: argocd-server
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app.kubernetes.io/component: server
-    app.kubernetes.io/name: argocd-server-metrics
-    app.kubernetes.io/part-of: argocd
-  name: argocd-server-metrics
-spec:
-  ports:
-  - name: metrics
-    port: 8083
-    protocol: TCP
-    targetPort: 8083
   selector:
     app.kubernetes.io/name: argocd-server
 ---
