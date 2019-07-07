@@ -8,7 +8,6 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	//log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/errors"
@@ -17,8 +16,6 @@ import (
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 	certutil "github.com/argoproj/argo-cd/util/cert"
-
-	//"github.com/argoproj/argo-cd/util/cli"
 
 	"crypto/x509"
 )
@@ -43,7 +40,7 @@ func NewCertCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		sourceFile string
+		fromFile string
 	)
 	var command = &cobra.Command{
 		Use:   "add-tls SERVERNAME",
@@ -60,8 +57,8 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			var certificateArray []string
 			var err error
 
-			if sourceFile != "" {
-				certificateArray, err = certutil.ParseTLSCertificatesFromPath(sourceFile)
+			if fromFile != "" {
+				certificateArray, err = certutil.ParseTLSCertificatesFromPath(fromFile)
 			} else {
 				certificateArray, err = certutil.ParseTLSCertificatesFromStream(os.Stdin)
 			}
@@ -112,18 +109,15 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			}
 		},
 	}
-	command.Flags().StringVar(&sourceFile, "source-file", "", "load certificate from file instead of stdin")
+	command.Flags().StringVar(&fromFile, "from", "", "read TLS certificate data from file (default is to read from stdin)")
 	return command
 }
 
 // NewCertAddCommand returns a new instance of an `argocd cert add` command
 func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		sourceFile    string
+		fromFile    string
 		batchProcess  bool
-		sshServerName string
-		sshKeyType    string
-		sshKeyData    string
 		certificates  []appsv1.RepositoryCertificate
 	)
 
@@ -138,9 +132,10 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			var sshKnownHostsLists []string
 			var err error
 
+			// --batch is a flag, but it is mandatory for now.
 			if batchProcess {
-				if sourceFile != "" {
-					sshKnownHostsLists, err = certutil.ParseSSHKnownHostsFromPath(sourceFile)
+				if fromFile != "" {
+					sshKnownHostsLists, err = certutil.ParseSSHKnownHostsFromPath(fromFile)
 				} else {
 					sshKnownHostsLists, err = certutil.ParseSSHKnownHostsFromStream(os.Stdin)
 				}
@@ -148,14 +143,9 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				errors.CheckError(err)
 				fmt.Printf("Parsed %d known host entries from input stream.\n", len(sshKnownHostsLists))
 			} else {
-				if sshServerName == "" || sshKeyData == "" {
-					err := fmt.Errorf("You need to specify --ssh-server-name and --ssh-key-data\n")
-					errors.CheckError(err)
-				}
-
-				sshKnownHostsLists, err = certutil.ParseSSHKnownHostsFromData(fmt.Sprintf("%s %s", sshServerName, sshKeyData))
-				errors.CheckError(err)
-				fmt.Printf("Successfully parsed SSH key data.\n")
+				fmt.Printf("You need to specify --batch")
+				c.HelpFunc()(c, args)
+				os.Exit(1)
 			}
 
 			if len(sshKnownHostsLists) == 0 {
@@ -183,11 +173,8 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			fmt.Printf("Successfully created %d SSH known host entries\n", len(response.Items))
 		},
 	}
-	command.Flags().StringVar(&sourceFile, "source-file", "", "Specify file to read SSH known hosts from (default is to read from stdin)")
+	command.Flags().StringVar(&fromFile, "from", "", "Read SSH known hosts data from file (default is to read from stdin)")
 	command.Flags().BoolVar(&batchProcess, "batch", false, "Perform batch processing by reading in SSH known hosts data")
-	command.Flags().StringVar(&sshServerName, "ssh-server-name", "", "The name of the SSH server to store the key for")
-	command.Flags().StringVar(&sshKeyType, "ssh-key-type", "", "The type of the key to add")
-	command.Flags().StringVar(&sshKeyData, "ssh-key-data", "", "Actual key data, base64 encoded")
 	return command
 }
 
