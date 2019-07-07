@@ -2969,6 +2969,11 @@
       "type": "object",
       "title": "HelmParameter is a parameter to a helm template",
       "properties": {
+        "forceString": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "ForceString determines whether to tell Helm to interpret booleans and numbers as strings"
+        },
         "name": {
           "type": "string",
           "title": "Name is the name of the helm parameter"

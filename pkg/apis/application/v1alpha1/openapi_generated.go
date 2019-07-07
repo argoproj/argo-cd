@@ -1358,6 +1358,13 @@ func schema_pkg_apis_application_v1alpha1_HelmParameter(ref common.ReferenceCall
 							Format:      "",
 						},
 					},
+					"forceString": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ForceString determines whether to tell Helm to interpret booleans and numbers as strings",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
