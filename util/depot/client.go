@@ -17,7 +17,9 @@ type Client interface {
 	Test() error
 	// return a unique key for the repo server to use for locking
 	LockKey() string
+	// clean-up any working directories, connect to repo
 	Init() error
+	// fetch data
 	Fetch() error
 	Checkout(path, revision string) error
 	LsRemote(path, revision string) (string, error)
