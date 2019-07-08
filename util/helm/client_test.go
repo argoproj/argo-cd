@@ -35,6 +35,10 @@ func TestRepo(t *testing.T) {
 	t.Run("Checkout", func(t *testing.T) {
 		err := repo.Checkout("wordpress", latestWordpressVersion)
 		assert.NoError(t, err)
+
+		revision, err := repo.Revision("wordpress")
+		assert.NoError(t, err)
+		assert.Equal(t, latestWordpressVersion, revision)
 	})
 
 	t.Run("CheckoutUnresolvedRevision", func(t *testing.T) {
