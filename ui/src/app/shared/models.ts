@@ -345,6 +345,8 @@ export interface ConnectionState {
 
 export interface Repository {
     repo: string;
+    type?: string;
+    name?: string;
     connectionState: ConnectionState;
 }
 

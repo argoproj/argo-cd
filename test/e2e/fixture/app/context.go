@@ -28,6 +28,7 @@ type Context struct {
 	async                  bool
 	localPath              string
 	project                string
+	revision               string
 }
 
 func Given(t *testing.T) *Context {
@@ -132,5 +133,15 @@ func (c *Context) LocalPath(localPath string) *Context {
 
 func (c *Context) Project(project string) *Context {
 	c.project = project
+	return c
+}
+
+func (c *Context) Revision(revision string) *Context{
+	c.revision = revision
+	return c
+}
+
+func (c *Context) Repos(repos ...settings.RepoCredentials) *Context {
+	fixture.SetRepos(repos...)
 	return c
 }

@@ -7,6 +7,7 @@ import (
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 func TestHelmHooksAreNotCreated(t *testing.T) {
@@ -60,6 +61,29 @@ func TestDeclarativeHelmInvalidValuesFile(t *testing.T) {
 		When().
 		Declarative("declarative-apps/invalid-helm.yaml").
 		Then().
+		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
+		Expect(Condition(ApplicationConditionComparisonError, "open does-not-exist-values.yaml: no such file or directory"))
+}
+
+func TestHelmRepo(t *testing.T) {
+	Given(t).
+		Repos(settings.RepoCredentials{
+			Type: "helm",
+			Name: "stable",
+			URL:  "https://kubernetes-charts.storage.googleapis.com",
+		}).
+		Repo("https://kubernetes-charts.storage.googleapis.com").
+		Path("wordpress").
+		Revision("5.8.0").
+		When().
+		Create().
+		Then().
+		Expect(Success("")).
+		When().
+		Sync().
+		Then().
+		Expect(Success("")).
 		Expect(HealthIs(HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
 		Expect(Condition(ApplicationConditionComparisonError, "open does-not-exist-values.yaml: no such file or directory"))
