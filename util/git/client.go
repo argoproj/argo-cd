@@ -221,7 +221,7 @@ func (m *nativeGitClient) CommitSHA() (string, error) {
 
 // returns the meta-data for the commit
 func (m *nativeGitClient) RevisionMetadata(revision string) (*depot.RevisionMetadata, error) {
-	out, err := m.runCmd("git", "show", "-s", "--format=%an <%ae>|%at|%B", revision)
+	out, err := m.runCmd("show", "-s", "--format=%an <%ae>|%at|%B", revision)
 	if err != nil {
 		return nil, err
 	}
