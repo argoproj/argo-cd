@@ -7,6 +7,7 @@ import (
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/test/fixture/testrepos"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -71,9 +72,9 @@ func TestHelmRepo(t *testing.T) {
 		Repos(settings.RepoCredentials{
 			Type: "helm",
 			Name: "stable",
-			URL:  "https://kubernetes-charts.storage.googleapis.com",
+			URL:  testrepos.HelmStable,
 		}).
-		Repo("https://kubernetes-charts.storage.googleapis.com").
+		Repo(testrepos.HelmStable).
 		Path("wordpress").
 		Revision("5.8.0").
 		When().

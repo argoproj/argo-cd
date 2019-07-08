@@ -116,7 +116,7 @@ func (c client) LsFiles(path string) ([]string, error) {
 	var charts []string
 
 	for chartName := range index.Entries {
-		if strings.HasPrefix(chartName, path) {
+		if strings.HasPrefix(path, chartName) {
 			charts = append(charts, chartName)
 		}
 	}

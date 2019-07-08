@@ -48,6 +48,14 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "add REPO",
 		Short: "Add repository credentials",
+		Example: `
+  # Add a Git repo:
+  
+  argocd repo add https://github.com/argoproj/argocd-example-apps
+  
+  # Add a Helm repo:
+  
+  argocd repo add https://kubernetes-charts.storage.googleapis.com --type helm --name stable`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
@@ -92,6 +100,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		},
 	}
 	command.Flags().StringVar(&repo.Type, "type", "", "type of the repository, \"git\" or \"helm\"")
+	command.Flags().StringVar(&repo.Name, "name", "", "name of the repository")
 	command.Flags().StringVar(&repo.Username, "username", "", "username to the repository")
 	command.Flags().StringVar(&repo.Password, "password", "", "password to the repository")
 	command.Flags().StringVar(&sshPrivateKeyPath, "ssh-private-key-path", "", "path to the private ssh key (e.g. ~/.ssh/id_rsa)")

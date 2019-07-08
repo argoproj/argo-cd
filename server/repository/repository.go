@@ -256,7 +256,7 @@ func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest)
 			return nil, status.Errorf(codes.InvalidArgument, "existing repository spec is different; use upsert flag to force update")
 		}
 	}
-	return &appsv1.Repository{Repo: repo.Repo}, err
+	return &appsv1.Repository{Repo: repo.Repo, Type: repo.Type, Name: repo.Name}, err
 }
 
 // Update updates a repository
@@ -265,7 +265,7 @@ func (s *Server) Update(ctx context.Context, q *repositorypkg.RepoUpdateRequest)
 		return nil, err
 	}
 	_, err := s.db.UpdateRepository(ctx, q.Repo)
-	return &appsv1.Repository{Repo: q.Repo.Repo}, err
+	return &appsv1.Repository{Repo: q.Repo.Repo, Type: q.Repo.Type, Name: q.Repo.Name}, err
 }
 
 // Delete updates a repository

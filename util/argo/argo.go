@@ -260,6 +260,8 @@ func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, re
 	req := repository.ListDirRequest{
 		Repo: &argoappv1.Repository{
 			Repo: spec.Source.RepoURL,
+			Type: repoRes.Type,
+			Name: repoRes.Name,
 		},
 		Revision: spec.Source.TargetRevision,
 		Path:     fmt.Sprintf("%s/*.yaml", spec.Source.Path),
@@ -340,6 +342,8 @@ func verifyHelmChart(ctx context.Context, repoRes *argoappv1.Repository, spec *a
 	req := repository.GetFileRequest{
 		Repo: &argoappv1.Repository{
 			Repo: spec.Source.RepoURL,
+			Type: repoRes.Type,
+			Name: repoRes.Name,
 		},
 		Revision: spec.Source.TargetRevision,
 		Path:     path.Join(spec.Source.Path, "Chart.yaml"),
@@ -369,6 +373,8 @@ func verifyGenerateManifests(
 	req := repository.ManifestRequest{
 		Repo: &argoappv1.Repository{
 			Repo: spec.Source.RepoURL,
+			Type: repoRes.Type,
+			Name: repoRes.Name,
 		},
 		Repos:             repos,
 		Revision:          spec.Source.TargetRevision,
