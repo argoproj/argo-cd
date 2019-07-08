@@ -136,7 +136,7 @@ func (c *Context) Project(project string) *Context {
 	return c
 }
 
-func (c *Context) Revision(revision string) *Context{
+func (c *Context) Revision(revision string) *Context {
 	c.revision = revision
 	return c
 }

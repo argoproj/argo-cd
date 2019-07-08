@@ -24,11 +24,11 @@ type Client interface {
 	// checkout a specific directory, the revision maybe empty - in that case assume the latest version
 	Checkout(path, revision string) error
 	// convert an ambiguous revision (e.g. "master" or "HEAD") into a specific revision
-	LsRemote(path, revision string) (string, error)
+	ResolveRevision(path, revision string) (string, error)
 	// list files matching the path
 	LsFiles(path string) ([]string, error)
 	// return the revision for the checked out code
-	CommitSHA() (string, error)
+	Revision() (string, error)
 	// return the revision meta-data for the checked out code
 	RevisionMetadata(revision string) (*RevisionMetadata, error)
 }

@@ -365,7 +365,7 @@ func checkoutRevision(client depot.Client, path, commitSHA string) (string, erro
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "Failed to checkout %s, %s: %v", path, commitSHA, err)
 	}
-	return client.CommitSHA()
+	return client.Revision()
 }
 
 // ksShow runs `ks show` in an app directory after setting any component parameter overrides
@@ -515,7 +515,7 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, path, revi
 	if err != nil {
 		return nil, "", err
 	}
-	commitSHA, err := client.LsRemote(path, revision)
+	commitSHA, err := client.ResolveRevision(path, revision)
 	if err != nil {
 		return nil, "", err
 	}

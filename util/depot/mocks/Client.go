@@ -27,8 +27,8 @@ func (_m *Client) Checkout(path string, revision string) error {
 	return r0
 }
 
-// CommitSHA provides a mock function with given fields:
-func (_m *Client) CommitSHA() (string, error) {
+// Revision provides a mock function with given fields:
+func (_m *Client) Revision() (string, error) {
 	ret := _m.Called()
 
 	var r0 string
@@ -99,8 +99,8 @@ func (_m *Client) LsFiles(path string) ([]string, error) {
 	return r0, r1
 }
 
-// LsRemote provides a mock function with given fields: path, revision
-func (_m *Client) LsRemote(path string, revision string) (string, error) {
+// ResolveRevision provides a mock function with given fields: path, revision
+func (_m *Client) ResolveRevision(path string, revision string) (string, error) {
 	ret := _m.Called(path, revision)
 
 	var r0 string

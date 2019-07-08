@@ -117,13 +117,13 @@ func TestLsRemote(t *testing.T) {
 		//"4e22a3c",
 	}
 	for _, revision := range xpass {
-		commitSHA, err := clnt.LsRemote(".", revision)
+		commitSHA, err := clnt.ResolveRevision(".", revision)
 		assert.NoError(t, err)
 		assert.True(t, IsCommitSHA(commitSHA))
 	}
 
 	// We do not resolve truncated git hashes and return the commit as-is if it appears to be a commit
-	commitSHA, err := clnt.LsRemote(".", "4e22a3c")
+	commitSHA, err := clnt.ResolveRevision(".", "4e22a3c")
 	assert.NoError(t, err)
 	assert.False(t, IsCommitSHA(commitSHA))
 	assert.True(t, IsTruncatedCommitSHA(commitSHA))
@@ -133,7 +133,7 @@ func TestLsRemote(t *testing.T) {
 		"4e22a3", // too short (6 characters)
 	}
 	for _, revision := range xfail {
-		_, err := clnt.LsRemote(".", revision)
+		_, err := clnt.ResolveRevision(".", revision)
 		assert.Error(t, err)
 	}
 }
@@ -165,7 +165,7 @@ func TestNewFactory(t *testing.T) {
 
 		client, err := NewClient(tt.args.url, tt.args.username, tt.args.password, tt.args.sshPrivateKey, tt.args.insecureIgnoreHostKey)
 		assert.NoError(t, err)
-		commitSHA, err := client.LsRemote(".", "HEAD")
+		commitSHA, err := client.ResolveRevision(".", "HEAD")
 		assert.NoError(t, err)
 
 		err = client.Init()
@@ -189,7 +189,7 @@ func TestNewFactory(t *testing.T) {
 		assert.NotEmpty(t, revisionMetadata.Date)
 		assert.NotEmpty(t, revisionMetadata.Message)
 
-		commitSHA2, err := client.CommitSHA()
+		commitSHA2, err := client.Revision()
 		assert.NoError(t, err)
 
 		assert.Equal(t, commitSHA, commitSHA2)

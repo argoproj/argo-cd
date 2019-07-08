@@ -134,12 +134,12 @@ func (m *nativeGitClient) Checkout(_, revision string) error {
 	return nil
 }
 
-// LsRemote resolves the commit SHA of a specific branch, tag, or HEAD. If the supplied revision
+// ResolveRevision resolves the commit SHA of a specific branch, tag, or HEAD. If the supplied revision
 // does not resolve, and "looks" like a 7+ hexadecimal commit SHA, it return the revision string.
 // Otherwise, it returns an error indicating that the revision could not be resolved. This method
 // runs with in-memory storage and is safe to run concurrently, or to be run without a git
 // repository locally cloned.
-func (m *nativeGitClient) LsRemote(_, revision string) (string, error) {
+func (m *nativeGitClient) ResolveRevision(_, revision string) (string, error) {
 	if IsCommitSHA(revision) {
 		return revision, nil
 	}
@@ -210,8 +210,8 @@ func (m *nativeGitClient) LsRemote(_, revision string) (string, error) {
 	return "", fmt.Errorf("Unable to resolve '%s' to a commit SHA", revision)
 }
 
-// CommitSHA returns current commit sha from `git rev-parse HEAD`
-func (m *nativeGitClient) CommitSHA() (string, error) {
+// Revision returns current commit sha from `git rev-parse HEAD`
+func (m *nativeGitClient) Revision() (string, error) {
 	out, err := m.runCmd("rev-parse", "HEAD")
 	if err != nil {
 		return "", err
@@ -272,6 +272,6 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 
 // TestRepo tests if a repo exists and is accessible with the given credentials
 func (m *nativeGitClient) Test() error {
-	_, err := m.LsRemote(".", "HEAD")
+	_, err := m.ResolveRevision(".", "HEAD")
 	return err
 }

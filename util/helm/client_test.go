@@ -19,15 +19,15 @@ func TestRepo(t *testing.T) {
 		assert.Len(t, apps, 1)
 	})
 
-	t.Run("LsRemote", func(t *testing.T) {
+	t.Run("ResolveRevision", func(t *testing.T) {
 		unresolvedRevision := ""
-		resolvedRevision, err := repo.LsRemote("wordpress", unresolvedRevision)
+		resolvedRevision, err := repo.ResolveRevision("wordpress", unresolvedRevision)
 		assert.NoError(t, err)
 		assert.NotEqual(t, unresolvedRevision, resolvedRevision)
 	})
 
 	t.Run("LsRemote2", func(t *testing.T) {
-		resolvedRevision, err := repo.LsRemote("wordpress", latestWordpressVersion)
+		resolvedRevision, err := repo.ResolveRevision("wordpress", latestWordpressVersion)
 		assert.NoError(t, err)
 		assert.Equal(t, latestWordpressVersion, resolvedRevision)
 	})

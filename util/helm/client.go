@@ -46,7 +46,7 @@ func (c client) Fetch() error {
 	return nil
 }
 
-func (c client) LsRemote(path, revision string) (string, error) {
+func (c client) ResolveRevision(path, revision string) (string, error) {
 	if revision != "" {
 		return revision, nil
 	}
@@ -65,7 +65,7 @@ func (c client) LsRemote(path, revision string) (string, error) {
 	return "", errors.New("failed to find chart " + path)
 }
 
-func (c client) CommitSHA() (string, error) {
+func (c client) Revision() (string, error) {
 	return "", nil
 }
 

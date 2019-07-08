@@ -55,9 +55,9 @@ func (f *fakeGitClientFactory) NewClient(r *v1alpha1.Repository) (depot.Client, 
 	mockClient.On("Init").Return(nil)
 	mockClient.On("Fetch", mock.Anything).Return(nil)
 	mockClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
-	mockClient.On("LsRemote", mock.Anything, mock.Anything).Return(f.revision, nil)
+	mockClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(f.revision, nil)
 	mockClient.On("LsFiles", mock.Anything).Return([]string{}, nil)
-	mockClient.On("CommitSHA", mock.Anything).Return(f.revision, nil)
+	mockClient.On("Revision", mock.Anything).Return(f.revision, nil)
 	mockClient.On("RevisionMetadata", f.revision).Return(f.revisionMetadata, nil)
 	return &mockClient, nil
 }
