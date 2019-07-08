@@ -507,7 +507,7 @@ func pathExists(ss ...string) bool {
 // newClientResolveRevision is a helper to perform the common task of instantiating a client
 // and resolving a revision to a commit SHA
 func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, path, revision string) (depot.Client, string, error) {
-	client, err := s.newClient(repo)
+	client, err := s.clientFactory.NewClient(repo)
 	if err != nil {
 		return nil, "", err
 	}
@@ -516,10 +516,6 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, path, revi
 		return nil, "", err
 	}
 	return client, commitSHA, nil
-}
-
-func (s *Service) newClient(r *v1alpha1.Repository) (depot.Client, error) {
-	return s.clientFactory.NewClient(r)
 }
 
 func runCommand(command v1alpha1.Command, path string, env []string) (string, error) {
@@ -685,8 +681,8 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 	return &res, nil
 }
 
-func (s *Service) getRevisionMetadata(repoURL *v1alpha1.Repository, path, revision string) (*depot.RevisionMetadata, error) {
-	client, err := s.newClient(repoURL)
+func (s *Service) getRevisionMetadata(repo *v1alpha1.Repository, path, revision string) (*depot.RevisionMetadata, error) {
+	client, err := s.clientFactory.NewClient(repo)
 	if err != nil {
 		return nil, err
 	}

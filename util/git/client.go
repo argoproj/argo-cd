@@ -103,7 +103,7 @@ func (m *nativeGitClient) Init() error {
 	if err != nil {
 		return err
 	}
-	_, err = m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
+	_, err = m.runCredentialedCmd("fetch", "origin", "--tags", "--force")
 	return err
 }
 
@@ -138,6 +138,9 @@ func (m *nativeGitClient) Checkout(_, revision string) error {
 // runs with in-memory storage and is safe to run concurrently, or to be run without a git
 // repository locally cloned.
 func (m *nativeGitClient) ResolveRevision(_, revision string) (string, error) {
+	if revision == "" {
+		revision = "HEAD"
+	}
 	if IsCommitSHA(revision) {
 		return revision, nil
 	}
@@ -159,9 +162,6 @@ func (m *nativeGitClient) ResolveRevision(_, revision string) (string, error) {
 	refs, err := remote.List(&git.ListOptions{Auth: auth})
 	if err != nil {
 		return "", err
-	}
-	if revision == "" {
-		revision = "HEAD"
 	}
 	// refToHash keeps a maps of remote refs to their hash
 	// (e.g. refs/heads/master -> a67038ae2e9cb9b9b16423702f98b41e36601001)
@@ -247,8 +247,8 @@ func (m *nativeGitClient) runCmd(args ...string) (string, error) {
 }
 
 // runCredentialedCmd is a convenience function to run a git command with username/password credentials
-func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) (string, error) {
-	cmd := exec.Command(command, args...)
+func (m *nativeGitClient) runCredentialedCmd( args ...string) (string, error) {
+	cmd := exec.Command("git", args...)
 	closer, environ, err := m.creds.Environ()
 	if err != nil {
 		return "", err
