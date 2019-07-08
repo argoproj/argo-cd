@@ -248,6 +248,14 @@ func Test_TLSCertificate_ValidPEM_ValidCert_FromFile(t *testing.T) {
 	assert.Equal(t, x509Cert.Subject.String(), Test_Cert1CN)
 }
 
+func Test_TLSCertPool(t *testing.T) {
+	certificates, err := ParseTLSCertificatesFromData(Test_TLSValidMultiCert)
+	assert.Nil(t, err)
+	assert.Equal(t, len(certificates), 2)
+	certPool := GetCertPoolFromPEMData(certificates)
+	assert.NotNil(t, certPool)
+}
+
 func Test_TLSCertificate_CertFromNonExistingFile(t *testing.T) {
 	// Non-existing file, expect err
 	_, err := ParseTLSCertificatesFromPath("../../test/certificates/cert_nonexisting.pem")
@@ -285,6 +293,7 @@ func Test_SSHKnownHostsData_Tokenize(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, len(hosts), 1)
 		hoststring, subtype, certdata, err := TokenizeSSHKnownHostsEntry(entry)
+		assert.Nil(t, err)
 		hosts, _, err = TokenizedDataToPublicKey(hoststring, subtype, string(certdata))
 		assert.Nil(t, err)
 		assert.Equal(t, len(hosts), 1)
