@@ -5,16 +5,15 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/argoproj/pkg/exec"
 	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 
-	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/depot"
 )
 
@@ -36,11 +35,13 @@ func (c client) LockKey() string {
 }
 
 func (c client) Init() error {
-	_, err := exec.RunCommand("rm", config.CmdOpts(), "-rf", c.cmd.workDir)
+	info, err := os.Stat(c.cmd.workDir)
 	if err != nil {
 		return err
 	}
-	_, err = c.cmd.init()
+	if !info.IsDir() {
+		_, err = c.cmd.init()
+	}
 	return err
 }
 

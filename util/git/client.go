@@ -77,31 +77,30 @@ func (m *nativeGitClient) LockKey() string {
 // Init initializes a local git repository and sets the remote origin
 func (m *nativeGitClient) Init() error {
 	_, err := git.PlainOpen(m.root)
-	if err == nil {
-		return nil
-	}
-	if err != git.ErrRepositoryNotExists {
-		return err
-	}
-	log.Infof("Initializing %s to %s", m.repoURL, m.root)
-	_, err = argoexec.RunCommand("rm", argoconfig.CmdOpts(), "-rf", m.root)
 	if err != nil {
-		return fmt.Errorf("unable to clean repo at %s: %v", m.root, err)
-	}
-	err = os.MkdirAll(m.root, 0755)
-	if err != nil {
-		return err
-	}
-	repo, err := git.PlainInit(m.root, false)
-	if err != nil {
-		return err
-	}
-	_, err = repo.CreateRemote(&config.RemoteConfig{
-		Name: git.DefaultRemoteName,
-		URLs: []string{m.repoURL},
-	})
-	if err != nil {
-		return err
+		if err != git.ErrRepositoryNotExists {
+			return err
+		}
+		log.Infof("Initializing %s to %s", m.repoURL, m.root)
+		_, err = argoexec.RunCommand("rm", argoconfig.CmdOpts(), "-rf", m.root)
+		if err != nil {
+			return fmt.Errorf("unable to clean repo at %s: %v", m.root, err)
+		}
+		err = os.MkdirAll(m.root, 0755)
+		if err != nil {
+			return err
+		}
+		repo, err := git.PlainInit(m.root, false)
+		if err != nil {
+			return err
+		}
+		_, err = repo.CreateRemote(&config.RemoteConfig{
+			Name: git.DefaultRemoteName,
+			URLs: []string{m.repoURL},
+		})
+		if err != nil {
+			return err
+		}
 	}
 	_, err = m.runCredentialedCmd("fetch", "origin", "--tags", "--force")
 	return err

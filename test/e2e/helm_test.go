@@ -85,7 +85,7 @@ func TestHelmRepo(t *testing.T) {
 		Sync().
 		Then().
 		Expect(Success("")).
+		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(HealthIs(HealthStatusHealthy)).
-		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
-		Expect(Condition(ApplicationConditionComparisonError, "open does-not-exist-values.yaml: no such file or directory"))
+		Expect(SyncStatusIs(SyncStatusCodeUnknown))
 }

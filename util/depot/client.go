@@ -17,7 +17,7 @@ type Client interface {
 	Test() error
 	// return a key suitable for use for locking this object
 	LockKey() string
-	// clean-up any working directories, connect to repo
+	// get to a "zero" state, i.e. make sure working directory exists and are up-to date
 	Init() error
 	// checkout a specific directory, the revision maybe empty - in that case assume the latest version
 	Checkout(path, revision string) error
