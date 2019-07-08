@@ -254,11 +254,25 @@ func Test_TLSCertificate_CertFromNonExistingFile(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func Test_SSHKnownHostsData_Parse(t *testing.T) {
+func Test_SSHKnownHostsData_ParseData(t *testing.T) {
 	// Expect valid data with 7 known host entries
 	entries, err := ParseSSHKnownHostsFromData(Test_ValidSSHKnownHostsData)
 	assert.Nil(t, err)
 	assert.Equal(t, len(entries), 7)
+}
+
+func Test_SSHKnownHostsData_ParseFile(t *testing.T) {
+	// Expect valid data with 7 known host entries
+	entries, err := ParseSSHKnownHostsFromPath("../../test/certificates/ssh_known_hosts")
+	assert.Nil(t, err)
+	assert.Equal(t, len(entries), 7)
+}
+
+func Test_SSHKnownHostsData_ParseNonExistingFile(t *testing.T) {
+	// Expect valid data with 7 known host entries
+	entries, err := ParseSSHKnownHostsFromPath("../../test/certificates/ssh_known_hosts_invalid")
+	assert.NotNil(t, err)
+	assert.Nil(t, entries)
 }
 
 func Test_SSHKnownHostsData_Tokenize(t *testing.T) {
