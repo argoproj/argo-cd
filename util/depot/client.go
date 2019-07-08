@@ -19,16 +19,14 @@ type Client interface {
 	LockKey() string
 	// clean-up any working directories, connect to repo
 	Init() error
-	// fetch data
-	Fetch() error
 	// checkout a specific directory, the revision maybe empty - in that case assume the latest version
 	Checkout(path, revision string) error
-	// convert an ambiguous revision (e.g. "master" or "HEAD") into a specific revision
+	// convert an ambiguous revision (e.g. "", "master" or "HEAD") into a specific revision (e.g. "231345034boc" or "5.8.0")
 	ResolveRevision(path, revision string) (string, error)
 	// list files matching the path
 	LsFiles(path string) ([]string, error)
 	// return the revision for the checked out code
-	Revision() (string, error)
+	Revision(path string) (string, error)
 	// return the revision meta-data for the checked out code
-	RevisionMetadata(revision string) (*RevisionMetadata, error)
+	RevisionMetadata(path, revision string) (*RevisionMetadata, error)
 }

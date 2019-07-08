@@ -165,23 +165,17 @@ func TestNewFactory(t *testing.T) {
 
 		client, err := NewClient(tt.args.url, tt.args.username, tt.args.password, tt.args.sshPrivateKey, tt.args.insecureIgnoreHostKey)
 		assert.NoError(t, err)
-		commitSHA, err := client.ResolveRevision(".", "HEAD")
+		commitSHA, err := client.ResolveRevision(".", "")
 		assert.NoError(t, err)
+		assert.NotEmpty(t, commitSHA)
 
 		err = client.Init()
-		assert.NoError(t, err)
-
-		err = client.Fetch()
-		assert.NoError(t, err)
-
-		// Do a second fetch to make sure we can treat `already up-to-date` error as not an error
-		err = client.Fetch()
 		assert.NoError(t, err)
 
 		err = client.Checkout(".", commitSHA)
 		assert.NoError(t, err)
 
-		revisionMetadata, err := client.RevisionMetadata(commitSHA)
+		revisionMetadata, err := client.RevisionMetadata(".", commitSHA)
 		assert.NoError(t, err)
 		assert.NotNil(t, revisionMetadata)
 		assert.Regexp(t, "^.*<.*>$", revisionMetadata.Author)
@@ -189,7 +183,7 @@ func TestNewFactory(t *testing.T) {
 		assert.NotEmpty(t, revisionMetadata.Date)
 		assert.NotEmpty(t, revisionMetadata.Message)
 
-		commitSHA2, err := client.Revision()
+		commitSHA2, err := client.Revision(".")
 		assert.NoError(t, err)
 
 		assert.Equal(t, commitSHA, commitSHA2)

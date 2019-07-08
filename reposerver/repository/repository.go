@@ -357,15 +357,11 @@ func checkoutRevision(client depot.Client, path, commitSHA string) (string, erro
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "Failed to initialize repo: %v", err)
 	}
-	err = client.Fetch()
-	if err != nil {
-		return "", status.Errorf(codes.Internal, "Failed to fetch repo: %v", err)
-	}
 	err = client.Checkout(path, commitSHA)
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "Failed to checkout %s, %s: %v", path, commitSHA, err)
 	}
-	return client.Revision()
+	return client.Revision(path)
 }
 
 // ksShow runs `ks show` in an app directory after setting any component parameter overrides
@@ -689,7 +685,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 	return &res, nil
 }
 
-func (s *Service) getRevisionMetadata(repoURL *v1alpha1.Repository, revision string) (*depot.RevisionMetadata, error) {
+func (s *Service) getRevisionMetadata(repoURL *v1alpha1.Repository, path, revision string) (*depot.RevisionMetadata, error) {
 	client, err := s.newClient(repoURL)
 	if err != nil {
 		return nil, err
@@ -700,29 +696,25 @@ func (s *Service) getRevisionMetadata(repoURL *v1alpha1.Repository, revision str
 	if err != nil {
 		return nil, err
 	}
-	err = client.Fetch()
-	if err != nil {
-		return nil, err
-	}
-	return client.RevisionMetadata(revision)
+	return client.RevisionMetadata(path, revision)
 }
 
 func (s *Service) GetRevisionMetadata(ctx context.Context, q *RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
-	metadata, err := s.cache.GetRevisionMetadata(q.Repo.Repo, q.Revision)
+	metadata, err := s.cache.GetRevisionMetadata(q.Repo.Repo, q.Path, q.Revision)
 	if err == nil {
-		log.WithFields(log.Fields{"repoURL": q.Repo.Repo, "revision": q.Revision}).Debug("cache hit")
+		log.WithFields(log.Fields{"repoURL": q.Repo.Repo, "path": q.Path, "revision": q.Revision}).Debug("cache hit")
 		return metadata, nil
 	}
 	if err == cache.ErrCacheMiss {
-		log.WithFields(log.Fields{"repoURL": q.Repo.Repo, "revision": q.Revision}).Debug("cache miss")
-		gitMetadata, err := s.getRevisionMetadata(q.Repo, q.Revision)
+		log.WithFields(log.Fields{"repoURL": q.Repo.Repo, "path": q.Path, "revision": q.Revision}).Debug("cache miss")
+		gitMetadata, err := s.getRevisionMetadata(q.Repo, q.Path, q.Revision)
 		if err != nil {
 			return nil, err
 		}
 		// discard anything after the first new line and then truncate to 64 chars
 		message := text.Trunc(strings.SplitN(gitMetadata.Message, "\n", 2)[0], 64)
 		metadata = &v1alpha1.RevisionMetadata{Author: gitMetadata.Author, Date: metav1.Time{Time: gitMetadata.Date}, Tags: gitMetadata.Tags, Message: message}
-		_ = s.cache.SetRevisionMetadata(q.Repo.Repo, q.Revision, metadata)
+		_ = s.cache.SetRevisionMetadata(q.Repo.Repo, q.Path, q.Revision, metadata)
 		return metadata, nil
 	}
 	log.WithFields(log.Fields{"repoURL": q.Repo.Repo, "revision": q.Revision, "err": err}).Debug("cache error")

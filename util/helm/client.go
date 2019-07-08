@@ -3,7 +3,9 @@ package helm
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -42,10 +44,6 @@ func (c client) Init() error {
 	return err
 }
 
-func (c client) Fetch() error {
-	return nil
-}
-
 func (c client) ResolveRevision(path, revision string) (string, error) {
 	if revision != "" {
 		return revision, nil
@@ -65,11 +63,20 @@ func (c client) ResolveRevision(path, revision string) (string, error) {
 	return "", errors.New("failed to find chart " + path)
 }
 
-func (c client) Revision() (string, error) {
-	return "", nil
+func (c client) Revision(path string) (string, error) {
+
+	yamlFile, err := ioutil.ReadFile(filepath.Join(c.cmd.workDir, path, "Chart.yaml"))
+	if err != nil {
+		return "", err
+	}
+
+	entry := &entry{}
+	err = yaml.Unmarshal(yamlFile, entry)
+
+	return entry.Version, err
 }
 
-func (c client) RevisionMetadata(revision string) (*depot.RevisionMetadata, error) {
+func (c client) RevisionMetadata(_, _ string) (*depot.RevisionMetadata, error) {
 	return &depot.RevisionMetadata{}, nil
 }
 

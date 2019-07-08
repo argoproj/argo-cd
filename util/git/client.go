@@ -100,12 +100,10 @@ func (m *nativeGitClient) Init() error {
 		Name: git.DefaultRemoteName,
 		URLs: []string{m.repoURL},
 	})
-	return err
-}
-
-// Fetch fetches latest updates from origin
-func (m *nativeGitClient) Fetch() error {
-	_, err := m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
+	if err != nil {
+		return err
+	}
+	_, err = m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
 	return err
 }
 
@@ -211,7 +209,7 @@ func (m *nativeGitClient) ResolveRevision(_, revision string) (string, error) {
 }
 
 // Revision returns current commit sha from `git rev-parse HEAD`
-func (m *nativeGitClient) Revision() (string, error) {
+func (m *nativeGitClient) Revision(_ string) (string, error) {
 	out, err := m.runCmd("rev-parse", "HEAD")
 	if err != nil {
 		return "", err
@@ -220,7 +218,7 @@ func (m *nativeGitClient) Revision() (string, error) {
 }
 
 // returns the meta-data for the commit
-func (m *nativeGitClient) RevisionMetadata(revision string) (*depot.RevisionMetadata, error) {
+func (m *nativeGitClient) RevisionMetadata(_, revision string) (*depot.RevisionMetadata, error) {
 	out, err := m.runCmd("show", "-s", "--format=%an <%ae>|%at|%B", revision)
 	if err != nil {
 		return nil, err
