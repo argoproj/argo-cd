@@ -70,7 +70,7 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 	return nil, nil
 }
 
-func (m *nativeGitClient) Root() string {
+func (m *nativeGitClient) LockKey() string {
 	return m.root
 }
 

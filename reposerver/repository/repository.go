@@ -77,8 +77,8 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, er
 		return &FileList{Items: files}, nil
 	}
 
-	s.repoLock.Lock(client.Root())
-	defer s.repoLock.Unlock(client.Root())
+	s.repoLock.Lock(client.LockKey())
+	defer s.repoLock.Unlock(client.LockKey())
 	commitSHA, err = checkoutRevision(client, q.Path, commitSHA)
 	if err != nil {
 		return nil, err
@@ -108,13 +108,13 @@ func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileRespo
 		return &GetFileResponse{Data: data}, nil
 	}
 
-	s.repoLock.Lock(client.Root())
-	defer s.repoLock.Unlock(client.Root())
+	s.repoLock.Lock(client.LockKey())
+	defer s.repoLock.Unlock(client.LockKey())
 	commitSHA, err = checkoutRevision(client, q.Path, commitSHA)
 	if err != nil {
 		return nil, err
 	}
-	data, err := ioutil.ReadFile(filepath.Join(client.Root(), q.Path))
+	data, err := ioutil.ReadFile(filepath.Join(client.LockKey(), q.Path))
 	if err != nil {
 		return nil, err
 	}
@@ -155,8 +155,8 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 		return cached, nil
 	}
 
-	s.repoLock.Lock(client.Root())
-	defer s.repoLock.Unlock(client.Root())
+	s.repoLock.Lock(client.LockKey())
+	defer s.repoLock.Unlock(client.LockKey())
 
 	cached = getCached()
 	if cached != nil {
@@ -176,7 +176,7 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 		return nil, err
 	}
 
-	genRes, err := GenerateManifests(client.Root(), q.ApplicationSource.Path, q)
+	genRes, err := GenerateManifests(client.LockKey(), q.ApplicationSource.Path, q)
 	if err != nil {
 		return nil, err
 	}
@@ -600,8 +600,8 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 	if cached != nil {
 		return cached, nil
 	}
-	s.repoLock.Lock(client.Root())
-	defer s.repoLock.Unlock(client.Root())
+	s.repoLock.Lock(client.LockKey())
+	defer s.repoLock.Unlock(client.LockKey())
 	cached = getCached()
 	if cached != nil {
 		return cached, nil
@@ -612,7 +612,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 		return nil, err
 	}
 
-	appPath := filepath.Join(client.Root(), q.Path)
+	appPath := filepath.Join(client.LockKey(), q.Path)
 
 	appSourceType, err := GetAppSourceType(&v1alpha1.ApplicationSource{}, appPath)
 	if err != nil {
@@ -697,8 +697,8 @@ func (s *Service) getRevisionMetadata(repoURL *v1alpha1.Repository, revision str
 	if err != nil {
 		return nil, err
 	}
-	s.repoLock.Lock(client.Root())
-	defer s.repoLock.Unlock(client.Root())
+	s.repoLock.Lock(client.LockKey())
+	defer s.repoLock.Unlock(client.LockKey())
 	err = client.Init()
 	if err != nil {
 		return nil, err

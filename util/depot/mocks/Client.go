@@ -144,7 +144,7 @@ func (_m *Client) RevisionMetadata(revision string) (*depot.RevisionMetadata, er
 }
 
 // Root provides a mock function with given fields:
-func (_m *Client) Root() string {
+func (_m *Client) LockKey() string {
 	ret := _m.Called()
 
 	var r0 string

@@ -27,7 +27,7 @@ func (c client) Test() error {
 	return err
 }
 
-func (c client) Root() string {
+func (c client) LockKey() string {
 	return c.cmd.workDir
 }
 

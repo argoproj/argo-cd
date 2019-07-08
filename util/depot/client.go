@@ -13,9 +13,10 @@ type RevisionMetadata struct {
 
 // Client is a generic repo client interface
 type Client interface {
-	// check we can connect to the repo
+	// test to see we can connect to the repo, returning an error if we cannot
 	Test() error
-	Root() string
+	// return a unique key for the repo server to use for locking
+	LockKey() string
 	Init() error
 	Fetch() error
 	Checkout(path, revision string) error
