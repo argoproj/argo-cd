@@ -2,6 +2,7 @@ package cert
 
 import (
 	"testing"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -224,7 +225,7 @@ func Test_TLSCertificate_InvalidPEM(t *testing.T) {
 }
 
 func Test_TLSCertificate_ValidPEM_ValidCert_Multi(t *testing.T) {
-	// Valid PEM data, two certificates, expect array of lenght 2
+	// Valid PEM data, two certificates, expect array of length 2
 	certificates, err := ParseTLSCertificatesFromData(Test_TLSValidMultiCert)
 	assert.Nil(t, err)
 	assert.Equal(t, len(certificates), 2)
@@ -301,7 +302,7 @@ func Test_SSHKnownHostsData_Tokenize(t *testing.T) {
 }
 
 func Test_MatchHostName(t *testing.T) {
-	matchHostName := "foo.example.com"	
+	matchHostName := "foo.example.com"
 	assert.Equal(t, MatchHostName(matchHostName, "*"), true)
 	assert.Equal(t, MatchHostName(matchHostName, "*.example.com"), true)
 	assert.Equal(t, MatchHostName(matchHostName, "foo.*"), true)
@@ -332,5 +333,5 @@ func Test_SSHFingerprintSHA256(t *testing.T) {
 		assert.Nil(t, err)
 		fp := SSHFingerprintSHA256(pubKey)
 		assert.Equal(t, fp, fingerprints[idx])
-	}	
+	}
 }
