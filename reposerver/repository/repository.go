@@ -575,9 +575,6 @@ func runConfigManagementPlugin(appPath string, q *ManifestRequest, creds git.Cre
 
 func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuery) (*RepoAppDetailsResponse, error) {
 	revision := q.Revision
-	if revision == "" {
-		revision = "HEAD"
-	}
 	client, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Path, revision)
 	if err != nil {
 		return nil, err

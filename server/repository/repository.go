@@ -105,10 +105,6 @@ func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.
 func (s *Server) listAppsPaths(
 	ctx context.Context, repoClient repository.RepoServerServiceClient, repo *appsv1.Repository, revision string, subPath string) (map[string]appsv1.ApplicationSourceType, error) {
 
-	if revision == "" {
-		revision = "HEAD"
-	}
-
 	ksonnetRes, err := repoClient.ListDir(ctx, &repository.ListDirRequest{Repo: repo, Revision: revision, Path: path.Join(subPath, "*app.yaml")})
 	if err != nil {
 		return nil, err
@@ -183,10 +179,6 @@ func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (
 	defer util.Close(conn)
 
 	revision := q.Revision
-	if revision == "" {
-		revision = "HEAD"
-	}
-
 	paths, err := s.listAppsPaths(ctx, repoClient, repo, revision, "")
 	if err != nil {
 		return nil, err
