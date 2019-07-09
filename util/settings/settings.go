@@ -62,16 +62,8 @@ type ArgoCDSettings struct {
 	WebhookGogsSecret string `json:"webhookGogsSecret,omitempty"`
 	// Secrets holds all secrets in argocd-secret as a map[string]string
 	Secrets map[string]string `json:"secrets,omitempty"`
-<<<<<<< HEAD
-	// Repositories holds list of configured git repositories
-	Repositories []RepoCredentials
-	// Repositories holds list of repo credentials
-	RepositoryCredentials []RepoCredentials
-	// Repositories holds list of configured helm repositories
-	HelmRepositories []HelmRepoCredentials
 	// KustomizeBuildOptions is a string of kustomize build parameters
 	KustomizeBuildOptions string
-=======
 	// Indicates if anonymous user is enabled or not
 	AnonymousUserEnabled bool
 }
@@ -79,7 +71,6 @@ type ArgoCDSettings struct {
 type GoogleAnalytics struct {
 	TrackingID     string `json:"trackingID,omitempty"`
 	AnonymizeUsers bool   `json:"anonymizeUsers,omitempty"`
->>>>>>> master
 }
 
 type OIDCConfig struct {
@@ -158,13 +149,10 @@ const (
 	resourceInclusionsKey = "resource.inclusions"
 	// configManagementPluginsKey is the key to the list of config management plugins
 	configManagementPluginsKey = "configManagementPlugins"
-<<<<<<< HEAD
 	// kustomizeBuildOptions is a string of kustomize build parameters
 	kustomizeBuildOptions = "kustomize.buildOptions"
-=======
 	// anonymousUserEnabledKey is the key which enables or disables anonymous user
 	anonymousUserEnabledKey = "users.anonymous.enabled"
->>>>>>> master
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.

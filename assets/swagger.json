@@ -1662,13 +1662,11 @@
         "dexConfig": {
           "$ref": "#/definitions/clusterDexConfig"
         },
-<<<<<<< HEAD
-        "kustomizeOptions": {
-          "$ref": "#/definitions/v1alpha1KustomizeOptions"
-=======
         "googleAnalytics": {
           "$ref": "#/definitions/clusterGoogleAnalyticsConfig"
->>>>>>> master
+        },
+        "kustomizeOptions": {
+          "$ref": "#/definitions/v1alpha1KustomizeOptions"
         },
         "oidcConfig": {
           "$ref": "#/definitions/clusterOIDCConfig"
