@@ -10,13 +10,14 @@ export const RevisionMetadataRows = (props: {
 }) => {
     return (
         <DataLoader input={props}
-                    load={(input) => services.applications.revisionMetadata(input.applicationName, input.revision || 'HEAD')}
+                    load={(input) => services.applications.revisionMetadata(input.applicationName, input.revision || '')}
         >{(m: RevisionMetadata) => (
             <div>
+
                 <div className='row'>
                     <div className='columns small-3'>Authored by</div>
                     <div className='columns small-9'>
-                        {m.author}<br/>
+                        {m.author || 'unknown'}<br/>
                         <Timestamp date={m.date}/>
                     </div>
                 </div>

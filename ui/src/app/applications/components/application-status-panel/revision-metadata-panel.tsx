@@ -10,17 +10,17 @@ export const RevisionMetadataPanel = (props: {
 }) => {
     return (
         <DataLoader input={props}
-                    load={(input) => services.applications.revisionMetadata(input.applicationName, input.revision || 'HEAD')}
+                    load={(input) => services.applications.revisionMetadata(input.applicationName, input.revision || '')}
         >{(m: RevisionMetadata) => (
             <Tooltip content={(
                 <span>
-            <span>Authored by {m.author} <Timestamp date={m.date}/></span><br/>
+            <span>Authored by {m.author || 'unknown'} <Timestamp date={m.date}/></span><br/>
                     {m.tags && (<span>Tags: {m.tags}<br/></span>)}
                     <span>{m.message}</span>
         </span>
             )} placement='bottom' allowHTML={true}>
                 <div className='application-status-panel__item-name'>
-                    Authored by {m.author}<br/>
+                    Authored by {m.author || 'unknown'}<br/>
                     {m.tags && <span>Tagged {m.tags.join(', ')}<br/></span>}
                     {m.message}
                 </div>

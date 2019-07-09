@@ -14,9 +14,9 @@ func TestRepo(t *testing.T) {
 	const latestWordpressVersion = "5.8.0"
 
 	t.Run("LsFiles", func(t *testing.T) {
-		apps, err := repo.LsFiles("wordpress")
+		apps, err := repo.LsFiles("wordpress/*.yaml")
 		assert.NoError(t, err)
-		assert.Len(t, apps, 1)
+		assert.ElementsMatch(t, apps, []string{"wordpress/Chart.yaml"})
 	})
 
 	t.Run("ResolveRevision", func(t *testing.T) {
@@ -26,7 +26,7 @@ func TestRepo(t *testing.T) {
 		assert.NotEqual(t, unresolvedRevision, resolvedRevision)
 	})
 
-	t.Run("LsRemote2", func(t *testing.T) {
+	t.Run("ResolveRevision/Latest", func(t *testing.T) {
 		resolvedRevision, err := repo.ResolveRevision("wordpress", latestWordpressVersion)
 		assert.NoError(t, err)
 		assert.Equal(t, latestWordpressVersion, resolvedRevision)
@@ -41,13 +41,29 @@ func TestRepo(t *testing.T) {
 		assert.Equal(t, latestWordpressVersion, revision)
 	})
 
-	t.Run("CheckoutUnresolvedRevision", func(t *testing.T) {
+	t.Run("Checkout/File", func(t *testing.T) {
+		err := repo.Checkout("wordpress/Chart.yaml", latestWordpressVersion)
+		assert.NoError(t, err)
+	})
+
+	t.Run("Checkout/UnresolvedRevision", func(t *testing.T) {
 		err = repo.Checkout("wordpress", "")
 		assert.EqualError(t, err, "invalid resolved revision \"\", must be resolved")
 	})
 
-	t.Run("CheckoutUnknownChart", func(t *testing.T) {
-		err = repo.Checkout("wordpress1", latestWordpressVersion)
-		assert.EqualError(t, err, "unknown chart \"wordpress1\"")
+	t.Run("Checkout/UnknownChart", func(t *testing.T) {
+		err = repo.Checkout("garbage", latestWordpressVersion)
+		assert.EqualError(t, err, "unknown chart \"garbage\"")
+	})
+
+	t.Run("RevisionMetadata/UnknownChart", func(t *testing.T) {
+		_, err = repo.RevisionMetadata("garbage", latestWordpressVersion)
+		assert.EqualError(t, err, "unknown chart \"garbage/5.8.0\"")
+	})
+
+	t.Run("RevisionMetadata/KnownChart", func(t *testing.T) {
+		metaData, err := repo.RevisionMetadata("wordpress", latestWordpressVersion)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, metaData.Date)
 	})
 }

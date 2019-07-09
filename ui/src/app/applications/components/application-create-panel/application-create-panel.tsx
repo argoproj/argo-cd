@@ -32,7 +32,7 @@ const DEFAULT_APP: Partial<models.Application> = {
         source: {
             path: '',
             repoURL: '',
-            targetRevision: 'HEAD',
+            targetRevision: 'latest',
         },
         project: '',
     },

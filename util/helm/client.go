@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gobwas/glob"
 	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
@@ -66,7 +67,8 @@ func (c client) ResolveRevision(path, revision string) (string, error) {
 
 func (c client) Revision(path string) (string, error) {
 
-	yamlFile, err := ioutil.ReadFile(filepath.Join(c.cmd.workDir, path, "Chart.yaml"))
+	chartName := strings.Split(path, "/")[0]
+	yamlFile, err := ioutil.ReadFile(filepath.Join(c.cmd.workDir, chartName, "Chart.yaml"))
 	if err != nil {
 		return "", err
 	}
@@ -77,12 +79,25 @@ func (c client) Revision(path string) (string, error) {
 	return entry.Version, err
 }
 
-func (c client) RevisionMetadata(_, _ string) (*depot.RevisionMetadata, error) {
-	return &depot.RevisionMetadata{}, nil
+func (c client) RevisionMetadata(path, revision string) (*depot.RevisionMetadata, error) {
+
+	index, err := c.getIndex()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, entry := range index.Entries[path] {
+		if entry.Version == revision {
+			return &depot.RevisionMetadata{Date: entry.Created}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("unknown chart \"%s/%s\"", path, revision)
 }
 
 type entry struct {
 	Version string
+	Created time.Time
 }
 
 type index struct {
@@ -122,20 +137,24 @@ func (c client) getIndex() (*index, error) {
 
 func (c client) LsFiles(path string) ([]string, error) {
 
+	matcher, err := glob.Compile(path)
+	if err != nil {
+		return nil, err
+	}
 	index, err := c.getIndex()
 	if err != nil {
 		return nil, err
 	}
 
-	var charts []string
-
+	var files []string
 	for chartName := range index.Entries {
-		if strings.HasPrefix(path, chartName) {
-			charts = append(charts, chartName)
+		file := filepath.Join(chartName, "Chart.yaml")
+		if matcher.Match(file) {
+			files = append(files, file)
 		}
 	}
 
-	return charts, nil
+	return files, nil
 }
 
 func (c client) repoAdd() (string, error) {
@@ -151,12 +170,13 @@ func (c client) Checkout(path string, resolvedRevision string) error {
 		return fmt.Errorf("invalid resolved revision \"%s\", must be resolved", resolvedRevision)
 	}
 
-	err := c.checkKnownChart(path)
+	chartName := strings.Split(path, "/")[0]
+	err := c.checkKnownChart(chartName)
 	if err != nil {
 		return err
 	}
 
-	_, err = c.cmd.fetch(c.name, path, fetchOpts{version: resolvedRevision, destination: "."})
+	_, err = c.cmd.fetch(c.name, chartName, fetchOpts{version: resolvedRevision, destination: "."})
 
 	return err
 }

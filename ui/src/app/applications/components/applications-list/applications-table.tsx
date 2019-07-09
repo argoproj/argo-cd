@@ -36,7 +36,7 @@ export const ApplicationsTable = (props: {
                         {app.spec.source.repoURL}/{app.spec.source.path}
                     </div>
                     <div className='columns large-1 small-2'>
-                        {app.spec.source.targetRevision || 'HEAD'}
+                        {app.spec.source.targetRevision || 'latest'}
                     </div>
                     <div className='columns large-3 show-for-large'>
                         {app.spec.destination.server}/{app.spec.destination.namespace}
@@ -54,7 +54,10 @@ export const ApplicationsTable = (props: {
                             </button>
                         )
                         } items={[
-                            { title: 'Sync', action: () => props.syncApplication(app.metadata.name, app.spec.source.targetRevision || 'HEAD') },
+                            {
+                                title: 'Sync',
+                                action: () => props.syncApplication(app.metadata.name, app.spec.source.targetRevision || '')
+                            },
                             { title: 'Delete', action: () => props.deleteApplication(app.metadata.name) },
                         ]} />
                     </div>

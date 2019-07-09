@@ -26,5 +26,5 @@ export function revisionUrl(url: string, revision: string): string {
         return null;
     }
 
-    return `${protocol(parsed.protocol)}://${parsed.resource}/${parsed.owner}/${parsed.name}/${(url.indexOf('bitbucket') >= 0 ? 'commits' : 'commit')}/${revision}`;
+    return `${protocol(parsed.protocol)}://${parsed.resource}/${parsed.owner}/${parsed.name}/${(url.indexOf('bitbucket') >= 0 ? 'commits' : 'commit')}/${revision || 'HEAD'}`;
 }

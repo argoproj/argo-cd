@@ -34,7 +34,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {
             {isVisible && (
                 <Form
                     defaultValues={{
-                        revision: application.spec.source.targetRevision || 'HEAD',
+                        revision: application.spec.source.targetRevision || 'latest',
                         resources: appResources.filter((item) => !item.hook).map((_, i) => i === syncResIndex || syncResIndex === -1),
                     }}
                     validateError={(values) => ({

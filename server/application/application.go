@@ -743,7 +743,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 		return nil, err
 	}
 	defer util.Close(conn)
-	return repoClient.GetRevisionMetadata(ctx, &repository.RepoServerRevisionMetadataRequest{Repo: repo, Revision: q.GetRevision()})
+	return repoClient.GetRevisionMetadata(ctx, &repository.RepoServerRevisionMetadataRequest{Repo: repo, Path: a.Spec.Source.Path, Revision: q.GetRevision()})
 }
 
 func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQuery) (*application.ManagedResourcesResponse, error) {
