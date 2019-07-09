@@ -63,7 +63,7 @@ func (db *db) ListRepoCertificates(ctx context.Context, selector *CertificateLis
 		}
 
 		for _, entry := range sshKnownHosts {
-			if certutil.MatchHostName(entry.Host, selector.HostNamePattern) {
+			if certutil.MatchHostName(entry.Host, selector.HostNamePattern) && (selector.CertSubType == "" || selector.CertSubType == "*" || selector.CertSubType == entry.SubType) {
 				certificates = append(certificates, appsv1.RepositoryCertificate{
 					ServerName:      entry.Host,
 					CertType:        "ssh",
@@ -163,7 +163,7 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 			// already have a corresponding key and upsert was not specified.
 			for _, entry := range sshKnownHostsList {
 				if entry.Host == certificate.ServerName && entry.SubType == certificate.CertSubType {
-					if !upsert {
+					if !upsert && entry.Data != string(certificate.CertData) {
 						return nil, fmt.Errorf("Key for '%s' (subtype: '%s') already exist and upsert was not specified.", entry.Host, entry.SubType)
 					} else {
 						// Do not add an entry on upsert, but remember if we actual did an
@@ -226,8 +226,15 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 			if err != nil {
 				return nil, err
 			}
+
+			// We should have at least one valid PEM entry
+			if len(pemData) == 0 {
+				return nil, fmt.Errorf("No valid PEM data received.")
+			}
+
+			// Make sure we have valid X509 certificates in the data
 			for _, entry := range pemData {
-				_, err := certutil.ParseTLSCertificatesFromData(entry)
+				_, err := certutil.DecodePEMCertificateToX509(entry)
 				if err != nil {
 					return nil, err
 				}
@@ -328,11 +335,25 @@ func (db *db) RemoveRepoCertificates(ctx context.Context, selector *CertificateL
 		tlsCertificatesNew = make([]*TLSCertificate, 0)
 		for _, entry := range tlsCertificatesOld {
 			if certutil.MatchHostName(entry.Subject, selector.HostNamePattern) {
-				removed.Items = append(removed.Items, appsv1.RepositoryCertificate{
-					ServerName: entry.Subject,
-					CertType:   "https",
-					CertData:   []byte(entry.Data),
-				})
+				// Wrap each PEM certificate into its own RepositoryCertificate object
+				// so the caller knows what has been removed actually.
+				//
+				// The downside of this is, only valid data can be removed from the CM,
+				// so if the data somehow got corrupted, it can only be removed by
+				// means of editing the CM directly using e.g. kubectl.
+				pemCertificates, err := certutil.ParseTLSCertificatesFromData(entry.Data)
+				if err != nil {
+					return nil, err
+				}
+				if len(pemCertificates) > 0 {
+					for _, pem := range pemCertificates {
+						removed.Items = append(removed.Items, appsv1.RepositoryCertificate{
+							ServerName: entry.Subject,
+							CertType:   "https",
+							CertData:   []byte(pem),
+						})
+					}
+				}
 			} else {
 				tlsCertificatesNew = append(tlsCertificatesNew, entry)
 			}
