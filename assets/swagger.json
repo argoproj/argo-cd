@@ -3068,10 +3068,11 @@
     },
     "v1alpha1KustomizeOptions": {
       "type": "object",
+      "title": "KustomizeOptions are options for kustomize to use when building manifests",
       "properties": {
         "buildOptions": {
           "type": "string",
-          "title": "BuildOptions is a string of build parameters to use"
+          "title": "BuildOptions is a string of build parameters to use when calling `kustomize build`"
         }
       }
     },

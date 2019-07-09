@@ -1593,11 +1593,12 @@ func schema_pkg_apis_application_v1alpha1_KustomizeOptions(ref common.ReferenceC
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "KustomizeOptions are options for kustomize to use when building manifests",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"BuildOptions": {
 						SchemaProps: spec.SchemaProps{
-							Description: "BuildOptions is a string of build parameters to use",
+							Description: "BuildOptions is a string of build parameters to use when calling `kustomize build`",
 							Type:        []string{"string"},
 							Format:      "",
 						},
