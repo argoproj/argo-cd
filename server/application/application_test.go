@@ -382,7 +382,7 @@ p, admin, applications, update, my-proj/test-app, allow
 	assert.Equal(t, "my-proj", updatedApp.Spec.Project)
 }
 
-func TestPatch(t *testing.T) {
+func TestAppJsonPatch(t *testing.T) {
 	testApp := newTestApp()
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
@@ -398,6 +398,19 @@ func TestPatch(t *testing.T) {
 	assert.NotNil(t, app)
 
 	app, err = appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: `[{"op": "replace", "path": "/spec/source/path", "value": "foo"}]`})
+	assert.NoError(t, err)
+	assert.Equal(t, "foo", app.Spec.Source.Path)
+}
+
+func TestAppMergePatch(t *testing.T) {
+	testApp := newTestApp()
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
+	appServer := newTestAppServer(testApp)
+	appServer.enf.SetDefaultRole("")
+
+	app, err := appServer.Patch(ctx, &application.ApplicationPatchRequest{
+		Name: &testApp.Name, Patch: `{"spec": { "source": { "path": "foo" } }}`, PatchType: "merge"})
 	assert.NoError(t, err)
 	assert.Equal(t, "foo", app.Spec.Source.Path)
 }

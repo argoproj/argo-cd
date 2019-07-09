@@ -43,7 +43,11 @@ func (m *SettingsQuery) Reset()         { *m = SettingsQuery{} }
 func (m *SettingsQuery) String() string { return proto.CompactTextString(m) }
 func (*SettingsQuery) ProtoMessage()    {}
 func (*SettingsQuery) Descriptor() ([]byte, []int) {
+<<<<<<< HEAD
 	return fileDescriptor_settings_e45f02fe747b345a, []int{0}
+=======
+	return fileDescriptor_settings_3c30afb496728e5c, []int{0}
+>>>>>>> master
 }
 func (m *SettingsQuery) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -78,7 +82,12 @@ type Settings struct {
 	OIDCConfig           *OIDCConfig                           `protobuf:"bytes,3,opt,name=oidcConfig" json:"oidcConfig,omitempty"`
 	AppLabelKey          string                                `protobuf:"bytes,4,opt,name=appLabelKey,proto3" json:"appLabelKey,omitempty"`
 	ResourceOverrides    map[string]*v1alpha1.ResourceOverride `protobuf:"bytes,5,rep,name=resourceOverrides" json:"resourceOverrides,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value"`
+<<<<<<< HEAD
 	KustomizeOptions     *v1alpha1.KustomizeOptions            `protobuf:"bytes,6,opt,name=kustomizeOptions" json:"kustomizeOptions,omitempty"`
+=======
+	StatusBadgeEnabled   bool                                  `protobuf:"varint,6,opt,name=statusBadgeEnabled,proto3" json:"statusBadgeEnabled,omitempty"`
+	GoogleAnalytics      *GoogleAnalyticsConfig                `protobuf:"bytes,7,opt,name=googleAnalytics" json:"googleAnalytics,omitempty"`
+>>>>>>> master
 	XXX_NoUnkeyedLiteral struct{}                              `json:"-"`
 	XXX_unrecognized     []byte                                `json:"-"`
 	XXX_sizecache        int32                                 `json:"-"`
@@ -88,7 +97,11 @@ func (m *Settings) Reset()         { *m = Settings{} }
 func (m *Settings) String() string { return proto.CompactTextString(m) }
 func (*Settings) ProtoMessage()    {}
 func (*Settings) Descriptor() ([]byte, []int) {
+<<<<<<< HEAD
 	return fileDescriptor_settings_e45f02fe747b345a, []int{1}
+=======
+	return fileDescriptor_settings_3c30afb496728e5c, []int{1}
+>>>>>>> master
 }
 func (m *Settings) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -152,13 +165,84 @@ func (m *Settings) GetResourceOverrides() map[string]*v1alpha1.ResourceOverride 
 	return nil
 }
 
+<<<<<<< HEAD
 func (m *Settings) GetKustomizeOptions() *v1alpha1.KustomizeOptions {
 	if m != nil {
 		return m.KustomizeOptions
+=======
+func (m *Settings) GetStatusBadgeEnabled() bool {
+	if m != nil {
+		return m.StatusBadgeEnabled
+	}
+	return false
+}
+
+func (m *Settings) GetGoogleAnalytics() *GoogleAnalyticsConfig {
+	if m != nil {
+		return m.GoogleAnalytics
+>>>>>>> master
 	}
 	return nil
 }
 
+<<<<<<< HEAD
+=======
+type GoogleAnalyticsConfig struct {
+	TrackingID           string   `protobuf:"bytes,1,opt,name=trackingID,proto3" json:"trackingID,omitempty"`
+	AnonymizeUsers       bool     `protobuf:"varint,2,opt,name=anonymizeUsers,proto3" json:"anonymizeUsers,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *GoogleAnalyticsConfig) Reset()         { *m = GoogleAnalyticsConfig{} }
+func (m *GoogleAnalyticsConfig) String() string { return proto.CompactTextString(m) }
+func (*GoogleAnalyticsConfig) ProtoMessage()    {}
+func (*GoogleAnalyticsConfig) Descriptor() ([]byte, []int) {
+	return fileDescriptor_settings_3c30afb496728e5c, []int{2}
+}
+func (m *GoogleAnalyticsConfig) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *GoogleAnalyticsConfig) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_GoogleAnalyticsConfig.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (dst *GoogleAnalyticsConfig) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GoogleAnalyticsConfig.Merge(dst, src)
+}
+func (m *GoogleAnalyticsConfig) XXX_Size() int {
+	return m.Size()
+}
+func (m *GoogleAnalyticsConfig) XXX_DiscardUnknown() {
+	xxx_messageInfo_GoogleAnalyticsConfig.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GoogleAnalyticsConfig proto.InternalMessageInfo
+
+func (m *GoogleAnalyticsConfig) GetTrackingID() string {
+	if m != nil {
+		return m.TrackingID
+	}
+	return ""
+}
+
+func (m *GoogleAnalyticsConfig) GetAnonymizeUsers() bool {
+	if m != nil {
+		return m.AnonymizeUsers
+	}
+	return false
+}
+
+>>>>>>> master
 type DexConfig struct {
 	Connectors           []*Connector `protobuf:"bytes,1,rep,name=connectors" json:"connectors,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
@@ -170,7 +254,11 @@ func (m *DexConfig) Reset()         { *m = DexConfig{} }
 func (m *DexConfig) String() string { return proto.CompactTextString(m) }
 func (*DexConfig) ProtoMessage()    {}
 func (*DexConfig) Descriptor() ([]byte, []int) {
+<<<<<<< HEAD
 	return fileDescriptor_settings_e45f02fe747b345a, []int{2}
+=======
+	return fileDescriptor_settings_3c30afb496728e5c, []int{3}
+>>>>>>> master
 }
 func (m *DexConfig) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -218,7 +306,11 @@ func (m *Connector) Reset()         { *m = Connector{} }
 func (m *Connector) String() string { return proto.CompactTextString(m) }
 func (*Connector) ProtoMessage()    {}
 func (*Connector) Descriptor() ([]byte, []int) {
+<<<<<<< HEAD
 	return fileDescriptor_settings_e45f02fe747b345a, []int{3}
+=======
+	return fileDescriptor_settings_3c30afb496728e5c, []int{4}
+>>>>>>> master
 }
 func (m *Connector) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -276,7 +368,11 @@ func (m *OIDCConfig) Reset()         { *m = OIDCConfig{} }
 func (m *OIDCConfig) String() string { return proto.CompactTextString(m) }
 func (*OIDCConfig) ProtoMessage()    {}
 func (*OIDCConfig) Descriptor() ([]byte, []int) {
+<<<<<<< HEAD
 	return fileDescriptor_settings_e45f02fe747b345a, []int{4}
+=======
+	return fileDescriptor_settings_3c30afb496728e5c, []int{5}
+>>>>>>> master
 }
 func (m *OIDCConfig) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -344,6 +440,7 @@ func init() {
 	proto.RegisterType((*SettingsQuery)(nil), "cluster.SettingsQuery")
 	proto.RegisterType((*Settings)(nil), "cluster.Settings")
 	proto.RegisterMapType((map[string]*v1alpha1.ResourceOverride)(nil), "cluster.Settings.ResourceOverridesEntry")
+	proto.RegisterType((*GoogleAnalyticsConfig)(nil), "cluster.GoogleAnalyticsConfig")
 	proto.RegisterType((*DexConfig)(nil), "cluster.DexConfig")
 	proto.RegisterType((*Connector)(nil), "cluster.Connector")
 	proto.RegisterType((*OIDCConfig)(nil), "cluster.OIDCConfig")
@@ -519,16 +616,74 @@ func (m *Settings) MarshalTo(dAtA []byte) (int, error) {
 			}
 		}
 	}
+<<<<<<< HEAD
 	if m.KustomizeOptions != nil {
 		dAtA[i] = 0x32
 		i++
 		i = encodeVarintSettings(dAtA, i, uint64(m.KustomizeOptions.Size()))
 		n4, err := m.KustomizeOptions.MarshalTo(dAtA[i:])
+=======
+	if m.StatusBadgeEnabled {
+		dAtA[i] = 0x30
+		i++
+		if m.StatusBadgeEnabled {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i++
+	}
+	if m.GoogleAnalytics != nil {
+		dAtA[i] = 0x3a
+		i++
+		i = encodeVarintSettings(dAtA, i, uint64(m.GoogleAnalytics.Size()))
+		n4, err := m.GoogleAnalytics.MarshalTo(dAtA[i:])
+>>>>>>> master
 		if err != nil {
 			return 0, err
 		}
 		i += n4
 	}
+<<<<<<< HEAD
+=======
+	if m.XXX_unrecognized != nil {
+		i += copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	return i, nil
+}
+
+func (m *GoogleAnalyticsConfig) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *GoogleAnalyticsConfig) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.TrackingID) > 0 {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintSettings(dAtA, i, uint64(len(m.TrackingID)))
+		i += copy(dAtA[i:], m.TrackingID)
+	}
+	if m.AnonymizeUsers {
+		dAtA[i] = 0x10
+		i++
+		if m.AnonymizeUsers {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i++
+	}
+>>>>>>> master
 	if m.XXX_unrecognized != nil {
 		i += copy(dAtA[i:], m.XXX_unrecognized)
 	}
@@ -711,10 +866,36 @@ func (m *Settings) Size() (n int) {
 			n += mapEntrySize + 1 + sovSettings(uint64(mapEntrySize))
 		}
 	}
+<<<<<<< HEAD
 	if m.KustomizeOptions != nil {
 		l = m.KustomizeOptions.Size()
 		n += 1 + l + sovSettings(uint64(l))
 	}
+=======
+	if m.StatusBadgeEnabled {
+		n += 2
+	}
+	if m.GoogleAnalytics != nil {
+		l = m.GoogleAnalytics.Size()
+		n += 1 + l + sovSettings(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *GoogleAnalyticsConfig) Size() (n int) {
+	var l int
+	_ = l
+	l = len(m.TrackingID)
+	if l > 0 {
+		n += 1 + l + sovSettings(uint64(l))
+	}
+	if m.AnonymizeUsers {
+		n += 2
+	}
+>>>>>>> master
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
 	}
@@ -1125,8 +1306,33 @@ func (m *Settings) Unmarshal(dAtA []byte) error {
 			m.ResourceOverrides[mapkey] = mapvalue
 			iNdEx = postIndex
 		case 6:
+<<<<<<< HEAD
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field KustomizeOptions", wireType)
+=======
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StatusBadgeEnabled", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSettings
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.StatusBadgeEnabled = bool(v != 0)
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field GoogleAnalytics", wireType)
+>>>>>>> master
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -1150,6 +1356,7 @@ func (m *Settings) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
+<<<<<<< HEAD
 			if m.KustomizeOptions == nil {
 				m.KustomizeOptions = &v1alpha1.KustomizeOptions{}
 			}
@@ -1157,6 +1364,115 @@ func (m *Settings) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+=======
+			if m.GoogleAnalytics == nil {
+				m.GoogleAnalytics = &GoogleAnalyticsConfig{}
+			}
+			if err := m.GoogleAnalytics.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipSettings(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthSettings
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *GoogleAnalyticsConfig) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowSettings
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: GoogleAnalyticsConfig: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: GoogleAnalyticsConfig: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TrackingID", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSettings
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthSettings
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.TrackingID = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AnonymizeUsers", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSettings
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.AnonymizeUsers = bool(v != 0)
+>>>>>>> master
 		default:
 			iNdEx = preIndex
 			skippy, err := skipSettings(dAtA[iNdEx:])
@@ -1672,6 +1988,7 @@ var (
 )
 
 func init() {
+<<<<<<< HEAD
 	proto.RegisterFile("server/settings/settings.proto", fileDescriptor_settings_e45f02fe747b345a)
 }
 
@@ -1715,4 +2032,54 @@ var fileDescriptor_settings_e45f02fe747b345a = []byte{
 	0xec, 0x9b, 0x63, 0x30, 0xed, 0x55, 0x97, 0x64, 0xf0, 0xe4, 0x47, 0xda, 0xb4, 0x7e, 0xa6, 0x4d,
 	0xeb, 0x77, 0xda, 0xb4, 0x5e, 0xf7, 0xff, 0xe1, 0x28, 0xe4, 0x4b, 0x56, 0x15, 0x2e, 0xb6, 0xcd,
 	0x11, 0x38, 0xfa, 0x1b, 0x00, 0x00, 0xff, 0xff, 0x88, 0xe5, 0xa5, 0x19, 0xae, 0x04, 0x00, 0x00,
+=======
+	proto.RegisterFile("server/settings/settings.proto", fileDescriptor_settings_3c30afb496728e5c)
+}
+
+var fileDescriptor_settings_3c30afb496728e5c = []byte{
+	// 675 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x54, 0xcd, 0x6e, 0x13, 0x3b,
+	0x18, 0xd5, 0x34, 0xfd, 0x49, 0xbe, 0xdc, 0xdb, 0xb4, 0xbe, 0xf7, 0x56, 0x73, 0xa3, 0xab, 0x24,
+	0xca, 0xe2, 0x2a, 0x1b, 0x66, 0x48, 0xba, 0x41, 0x6c, 0x80, 0x24, 0x55, 0x09, 0xad, 0x54, 0x31,
+	0x55, 0x59, 0x20, 0xa1, 0xca, 0xf1, 0x98, 0xa9, 0xc9, 0xd4, 0x1e, 0xd9, 0x9e, 0x88, 0xb0, 0xe4,
+	0x0d, 0x10, 0xaf, 0xc0, 0x96, 0xf7, 0x60, 0x89, 0xc4, 0x3e, 0x42, 0x11, 0x0f, 0x82, 0xc6, 0xf3,
+	0x93, 0xd0, 0x64, 0xc1, 0xee, 0xf3, 0x39, 0xdf, 0xf1, 0x9c, 0xcf, 0x3e, 0x63, 0x68, 0x28, 0x2a,
+	0xa7, 0x54, 0xba, 0x8a, 0x6a, 0xcd, 0x78, 0xa0, 0x8a, 0xc2, 0x89, 0xa4, 0xd0, 0x02, 0xed, 0x91,
+	0x30, 0x56, 0x9a, 0xca, 0xfa, 0xdf, 0x81, 0x08, 0x84, 0xc1, 0xdc, 0xa4, 0x4a, 0xe9, 0xfa, 0x7f,
+	0x81, 0x10, 0x41, 0x48, 0x5d, 0x1c, 0x31, 0x17, 0x73, 0x2e, 0x34, 0xd6, 0x4c, 0xf0, 0x4c, 0x5c,
+	0x1f, 0x05, 0x4c, 0xdf, 0xc4, 0x63, 0x87, 0x88, 0x5b, 0x17, 0x4b, 0x23, 0x7f, 0x63, 0x8a, 0x7b,
+	0xc4, 0x77, 0xa3, 0x49, 0x90, 0xc8, 0x94, 0x8b, 0xa3, 0x28, 0x64, 0xc4, 0x08, 0xdd, 0x69, 0x17,
+	0x87, 0xd1, 0x0d, 0xee, 0xba, 0x01, 0xe5, 0x54, 0x62, 0x4d, 0xfd, 0x74, 0xab, 0x76, 0x0d, 0xfe,
+	0xbc, 0xcc, 0x9c, 0x3d, 0x8f, 0xa9, 0x9c, 0xb5, 0x3f, 0x6d, 0x43, 0x39, 0x47, 0xd0, 0xbf, 0x50,
+	0x8a, 0x65, 0x68, 0x5b, 0x2d, 0xab, 0x53, 0xe9, 0xef, 0x2d, 0xe6, 0xcd, 0xd2, 0x95, 0x77, 0xee,
+	0x25, 0x18, 0xba, 0x0f, 0x15, 0x9f, 0xbe, 0x1d, 0x08, 0xfe, 0x9a, 0x05, 0xf6, 0x56, 0xcb, 0xea,
+	0x54, 0x7b, 0xc8, 0xc9, 0x86, 0x72, 0x86, 0x39, 0xe3, 0x2d, 0x9b, 0xd0, 0x00, 0x40, 0x30, 0x9f,
+	0x64, 0x92, 0x92, 0x91, 0xfc, 0x55, 0x48, 0x2e, 0x46, 0xc3, 0x41, 0x4a, 0xf5, 0xf7, 0x17, 0xf3,
+	0x26, 0x2c, 0xd7, 0xde, 0x8a, 0x0c, 0xb5, 0xa0, 0x8a, 0xa3, 0xe8, 0x1c, 0x8f, 0x69, 0x78, 0x46,
+	0x67, 0xf6, 0x76, 0xe2, 0xcc, 0x5b, 0x85, 0xd0, 0x0b, 0x38, 0x94, 0x54, 0x89, 0x58, 0x12, 0x7a,
+	0x31, 0xa5, 0x52, 0x32, 0x9f, 0x2a, 0x7b, 0xa7, 0x55, 0xea, 0x54, 0x7b, 0x9d, 0xe2, 0x6b, 0xf9,
+	0x84, 0x8e, 0x77, 0xb7, 0xf5, 0x84, 0x6b, 0x39, 0xf3, 0xd6, 0xb7, 0x40, 0x0e, 0x20, 0xa5, 0xb1,
+	0x8e, 0x55, 0x1f, 0xfb, 0x01, 0x3d, 0xe1, 0x78, 0x1c, 0x52, 0xdf, 0xde, 0x6d, 0x59, 0x9d, 0xb2,
+	0xb7, 0x81, 0x41, 0x4f, 0xa1, 0x96, 0x5e, 0xe2, 0x13, 0x8e, 0xc3, 0x99, 0x66, 0x44, 0xd9, 0x7b,
+	0x66, 0xe6, 0x46, 0xe1, 0xe2, 0xf4, 0x57, 0x3e, 0x1b, 0xf7, 0xae, 0xac, 0xfe, 0xc1, 0x82, 0xa3,
+	0xcd, 0x3e, 0xd1, 0x01, 0x94, 0x26, 0x74, 0x96, 0x5e, 0x90, 0x97, 0x94, 0x08, 0xc3, 0xce, 0x14,
+	0x87, 0x31, 0xcd, 0xee, 0xe4, 0xcc, 0x59, 0x66, 0xc5, 0xc9, 0xb3, 0x62, 0x8a, 0x6b, 0xe2, 0x3b,
+	0xd1, 0x24, 0x70, 0x92, 0xac, 0x38, 0x2b, 0x59, 0x71, 0xf2, 0xac, 0xac, 0x9d, 0x8d, 0x97, 0xee,
+	0xfc, 0x70, 0xeb, 0x81, 0xd5, 0xbe, 0x86, 0x7f, 0x36, 0xba, 0x47, 0x0d, 0x00, 0x2d, 0x31, 0x99,
+	0x30, 0x1e, 0x8c, 0x86, 0x99, 0xb1, 0x15, 0x04, 0xfd, 0x0f, 0xfb, 0x98, 0x0b, 0x3e, 0xbb, 0x65,
+	0xef, 0xe8, 0x95, 0xa2, 0x52, 0x19, 0xa3, 0x65, 0xef, 0x0e, 0xda, 0x7e, 0x04, 0x95, 0x22, 0x45,
+	0xa8, 0x07, 0x40, 0x04, 0xe7, 0x94, 0x68, 0x21, 0x95, 0x6d, 0x99, 0xcb, 0x5c, 0xa6, 0x6d, 0x90,
+	0x53, 0xde, 0x4a, 0x57, 0xfb, 0x18, 0x2a, 0x05, 0x81, 0x10, 0x6c, 0x73, 0x7c, 0x4b, 0x33, 0x3f,
+	0xa6, 0x4e, 0x30, 0x3d, 0x8b, 0xd2, 0x83, 0xaa, 0x78, 0xa6, 0x6e, 0x7f, 0xb6, 0x60, 0x25, 0x79,
+	0x1b, 0x65, 0x47, 0xb0, 0xcb, 0x94, 0x8a, 0xa9, 0xcc, 0x84, 0xd9, 0x0a, 0x75, 0xa0, 0x4c, 0x42,
+	0x46, 0xb9, 0x1e, 0x0d, 0x4d, 0xb8, 0x2b, 0xfd, 0x3f, 0x16, 0xf3, 0x66, 0x79, 0x90, 0x61, 0x5e,
+	0xc1, 0xa2, 0x2e, 0x54, 0x49, 0xc8, 0x72, 0x22, 0xcd, 0x70, 0xbf, 0xb6, 0x98, 0x37, 0xab, 0x83,
+	0xf3, 0x51, 0xd1, 0xbf, 0xda, 0x93, 0x7c, 0x54, 0x11, 0x11, 0x65, 0x49, 0xae, 0x78, 0xd9, 0xaa,
+	0xf7, 0x0a, 0x6a, 0x79, 0x94, 0x2f, 0xa9, 0x9c, 0x32, 0x42, 0xd1, 0x33, 0x28, 0x9d, 0x52, 0x8d,
+	0x8e, 0xd6, 0xb2, 0x6e, 0xfe, 0xef, 0xfa, 0xe1, 0x1a, 0xde, 0xb6, 0xdf, 0x7f, 0xfb, 0xf1, 0x71,
+	0x0b, 0xa1, 0x03, 0xf3, 0xdc, 0x4c, 0xbb, 0xc5, 0x5b, 0xd5, 0x7f, 0xfc, 0x65, 0xd1, 0xb0, 0xbe,
+	0x2e, 0x1a, 0xd6, 0xf7, 0x45, 0xc3, 0x7a, 0xd9, 0xfb, 0x8d, 0x67, 0x27, 0x1d, 0xb2, 0xd8, 0x61,
+	0xbc, 0x6b, 0x9e, 0x99, 0xe3, 0x9f, 0x01, 0x00, 0x00, 0xff, 0xff, 0x95, 0x84, 0x73, 0xa3, 0x10,
+	0x05, 0x00, 0x00,
+>>>>>>> master
 }

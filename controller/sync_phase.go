@@ -14,7 +14,7 @@ func syncPhases(obj *unstructured.Unstructured) []v1alpha1.SyncPhase {
 		var phases []v1alpha1.SyncPhase
 		for _, hookType := range hook.Types(obj) {
 			switch hookType {
-			case v1alpha1.HookTypePreSync, v1alpha1.HookTypeSync, v1alpha1.HookTypePostSync:
+			case v1alpha1.HookTypePreSync, v1alpha1.HookTypeSync, v1alpha1.HookTypePostSync, v1alpha1.HookTypeSyncFail:
 				phases = append(phases, v1alpha1.SyncPhase(hookType))
 			}
 		}

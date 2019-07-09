@@ -20,7 +20,17 @@ message Settings {
     OIDCConfig oidcConfig = 3 [(gogoproto.customname) = "OIDCConfig"];
     string appLabelKey = 4;
     map<string, github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ResourceOverride> resourceOverrides = 5;
+<<<<<<< HEAD
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 6;
+=======
+    bool statusBadgeEnabled = 6;
+    GoogleAnalyticsConfig googleAnalytics =7;
+}
+
+message GoogleAnalyticsConfig {
+    string trackingID = 1;
+    bool anonymizeUsers = 2;
+>>>>>>> master
 }
 
 message DexConfig {

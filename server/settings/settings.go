@@ -35,6 +35,10 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 	if err != nil {
 		return nil, err
 	}
+	gaSettings, err := s.mgr.GetGoogleAnalytics()
+	if err != nil {
+		return nil, err
+	}
 
 	overrides := make(map[string]*v1alpha1.ResourceOverride)
 	for k := range resourceOverrides {
@@ -42,15 +46,18 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		overrides[k] = &val
 	}
 
-	kustomizeOptions := v1alpha1.KustomizeOptions{
-		BuildOptions: argoCDSettings.KustomizeBuildOptions,
-	}
-
 	set := settingspkg.Settings{
-		URL:               argoCDSettings.URL,
-		AppLabelKey:       appInstanceLabelKey,
-		ResourceOverrides: overrides,
-		KustomizeOptions:  &kustomizeOptions,
+		URL:                argoCDSettings.URL,
+		AppLabelKey:        appInstanceLabelKey,
+		ResourceOverrides:  overrides,
+		StatusBadgeEnabled: argoCDSettings.StatusBadgeEnabled,
+		KustomizeOptions:  &v1alpha1.KustomizeOptions{
+			BuildOptions: argoCDSettings.KustomizeBuildOptions,
+		},
+		GoogleAnalytics: &settingspkg.GoogleAnalyticsConfig{
+			TrackingID:     gaSettings.TrackingID,
+			AnonymizeUsers: gaSettings.AnonymizeUsers,
+		},
 	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg settingspkg.DexConfig

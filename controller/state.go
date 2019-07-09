@@ -285,6 +285,23 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	}
 	conditions = append(conditions, dedupConditions...)
 
+	resFilter, err := m.settingsMgr.GetResourcesFilter()
+	if err != nil {
+		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
+	} else {
+		for i := len(targetObjs) - 1; i >= 0; i-- {
+			targetObj := targetObjs[i]
+			gvk := targetObj.GroupVersionKind()
+			if resFilter.IsExcludedResource(gvk.Group, gvk.Kind, app.Spec.Destination.Server) {
+				targetObjs = append(targetObjs[:i], targetObjs[i+1:]...)
+				conditions = append(conditions, v1alpha1.ApplicationCondition{
+					Type:    v1alpha1.ApplicationConditionExcludedResourceWarning,
+					Message: fmt.Sprintf("Resource %s/%s %s is excluded in the settings", gvk.Group, gvk.Kind, targetObj.GetName()),
+				})
+			}
+		}
+	}
+
 	logCtx.Debugf("Generated config manifests")
 	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(app, targetObjs)
 	dedupLiveResources(targetObjs, liveObjByKey)
@@ -340,7 +357,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	managedResources := make([]managedResource, len(targetObjs))
 	resourceSummaries := make([]v1alpha1.ResourceStatus, len(targetObjs))
 	for i, targetObj := range targetObjs {
+		resourceVersion := ""
 		liveObj := managedLiveObj[i]
+		if liveObj != nil {
+			resourceVersion = liveObj.GetResourceVersion()
+		}
 		obj := liveObj
 		if obj == nil {
 			obj = targetObj
@@ -351,12 +372,13 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		gvk := obj.GroupVersionKind()
 
 		resState := v1alpha1.ResourceStatus{
-			Namespace: obj.GetNamespace(),
-			Name:      obj.GetName(),
-			Kind:      gvk.Kind,
-			Version:   gvk.Version,
-			Group:     gvk.Group,
-			Hook:      hookutil.IsHook(obj),
+			Namespace:       obj.GetNamespace(),
+			Name:            obj.GetName(),
+			Kind:            gvk.Kind,
+			Version:         gvk.Version,
+			Group:           gvk.Group,
+			Hook:            hookutil.IsHook(obj),
+			ResourceVersion: resourceVersion,
 		}
 
 		diffResult := diffResults.Diffs[i]

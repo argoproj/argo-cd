@@ -141,12 +141,6 @@ export interface ApplicationSource {
      */
     path: string;
 
-    /**
-     * DEPRECATED.
-     * Overridden component parameters.
-     */
-    componentParameterOverrides?: ComponentParameter[];
-
     helm?: ApplicationSourceHelm;
 
     kustomize?: ApplicationSourceKustomize;
@@ -238,6 +232,7 @@ export interface ResourceStatus {
     status: SyncStatusCode;
     health: HealthStatus;
     hook?: boolean;
+    resourceVersion?: string;
 }
 
 export interface ResourceRef {
@@ -318,6 +313,11 @@ export interface LogEntry {
 
 export interface AuthSettings {
     url: string;
+    statusBadgeEnabled: boolean;
+    googleAnalytics: {
+        trackingID: string;
+        anonymizeUsers: boolean;
+    };
     dexConfig: {
         connectors: {
             name: string;

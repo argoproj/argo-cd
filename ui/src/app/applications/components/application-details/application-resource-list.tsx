@@ -28,7 +28,7 @@ export const ApplicationResourceList = ({ resources, onNodeClick, nodeMenu }: {
                     <div className='columns small-2'>{res.namespace}</div>
                     <div className='columns small-4'>
                         {res.health && <React.Fragment><HealthStatusIcon state={res.health}/> {res.health.status} &nbsp;</React.Fragment>}
-                        {res.status && <ComparisonStatusIcon status={res.status}/>} {res.status}
+                        {res.status && <ComparisonStatusIcon status={res.status} resource={res} label={true}/>}
                         {res.hook && (<i title='Resource lifecycle hook' className='fa fa-anchor' />)}
                         <div className='application-details__node-menu'>
                             <DropDown isMenu={true} anchor={() => <button className='argo-button argo-button--light argo-button--lg argo-button--short'>

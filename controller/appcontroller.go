@@ -147,7 +147,7 @@ func (ctrl *ApplicationController) handleAppUpdated(appName string, fullRefresh 
 }
 
 func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, comparisonResult *comparisonResult) (*appv1.ApplicationTree, error) {
-	managedResources, err := ctrl.managedResources(a, comparisonResult)
+	managedResources, err := ctrl.managedResources(comparisonResult)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +201,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	return &appv1.ApplicationTree{Nodes: nodes}, nil
 }
 
-func (ctrl *ApplicationController) managedResources(a *appv1.Application, comparisonResult *comparisonResult) ([]*appv1.ResourceDiff, error) {
+func (ctrl *ApplicationController) managedResources(comparisonResult *comparisonResult) ([]*appv1.ResourceDiff, error) {
 	items := make([]*appv1.ResourceDiff, len(comparisonResult.managedResources))
 	for i := range comparisonResult.managedResources {
 		res := comparisonResult.managedResources[i]
@@ -636,7 +636,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 					return
 				}
 			}
-			app.Status.ObservedAt = metav1.Now()
+			now := metav1.Now()
+			app.Status.ObservedAt = &now
 			ctrl.persistAppStatus(origApp, &app.Status)
 			return
 		}
@@ -675,8 +676,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		conditions = append(conditions, *syncErrCond)
 	}
 
-	app.Status.ObservedAt = compareResult.reconciledAt
-	app.Status.ReconciledAt = compareResult.reconciledAt
+	app.Status.ObservedAt = &compareResult.reconciledAt
+	app.Status.ReconciledAt = &compareResult.reconciledAt
 	app.Status.Sync = *compareResult.syncStatus
 	app.Status.Health = *compareResult.healthStatus
 	app.Status.Resources = compareResult.resources
@@ -695,7 +696,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	var reason string
 	fullRefresh := true
 	refreshType := appv1.RefreshTypeNormal
-	expired := app.Status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
+	expired := app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
 	if requestedType, ok := app.IsRefreshRequested(); ok {
 		refreshType = requestedType
 		reason = fmt.Sprintf("%s refresh requested", refreshType)
@@ -753,6 +754,7 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 		appv1.ApplicationConditionSharedResourceWarning:   true,
 		appv1.ApplicationConditionSyncError:               true,
 		appv1.ApplicationConditionRepeatedResourceWarning: true,
+		appv1.ApplicationConditionExcludedResourceWarning: true,
 	}
 	appConditions := make([]appv1.ApplicationCondition, 0)
 	for i := 0; i < len(app.Status.Conditions); i++ {

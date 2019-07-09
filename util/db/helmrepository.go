@@ -13,8 +13,8 @@ import (
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
-func getHelmRepoCredIndex(s *settings.ArgoCDSettings, repoURL string) int {
-	for i, cred := range s.HelmRepositories {
+func getHelmRepoCredIndex(helmRepositories []settings.HelmRepoCredentials, repoURL string) int {
+	for i, cred := range helmRepositories {
 		if strings.EqualFold(cred.URL, repoURL) {
 			return i
 		}
@@ -22,13 +22,13 @@ func getHelmRepoCredIndex(s *settings.ArgoCDSettings, repoURL string) int {
 	return -1
 }
 
-func (db *db) getHelmRepo(ctx context.Context, repoURL string, s *settings.ArgoCDSettings) (*appv1.HelmRepository, error) {
-	index := getHelmRepoCredIndex(s, repoURL)
+func (db *db) getHelmRepo(repoURL string, helmRepositories []settings.HelmRepoCredentials) (*appv1.HelmRepository, error) {
+	index := getHelmRepoCredIndex(helmRepositories, repoURL)
 	if index < 0 {
 		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", repoURL)
 	}
 
-	helmRepoInfo := s.HelmRepositories[index]
+	helmRepoInfo := helmRepositories[index]
 	helmRepo := &appv1.HelmRepository{URL: repoURL, Name: helmRepoInfo.Name}
 	cache := make(map[string]*apiv1.Secret)
 	err := db.unmarshalFromSecretsBytes(map[*[]byte]*apiv1.SecretKeySelector{
@@ -51,14 +51,14 @@ func (db *db) getHelmRepo(ctx context.Context, repoURL string, s *settings.ArgoC
 
 // ListHelmRepoURLs lists configured helm repositories
 func (db *db) ListHelmRepos(ctx context.Context) ([]*appv1.HelmRepository, error) {
-	s, err := db.settingsMgr.GetSettings()
+	helmRepositories, err := db.settingsMgr.GetHelmRepositories()
 	if err != nil {
 		return nil, err
 	}
 
-	repos := make([]*appv1.HelmRepository, len(s.HelmRepositories))
-	for i, helmRepoInfo := range s.HelmRepositories {
-		repo, err := db.getHelmRepo(ctx, helmRepoInfo.URL, s)
+	repos := make([]*appv1.HelmRepository, len(helmRepositories))
+	for i, helmRepoInfo := range helmRepositories {
+		repo, err := db.getHelmRepo(helmRepoInfo.URL, helmRepositories)
 		if err != nil {
 			return nil, err
 		}

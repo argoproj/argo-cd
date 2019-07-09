@@ -9,11 +9,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/ghodss/yaml"
-	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
@@ -98,21 +99,7 @@ func (k *ksonnetApp) ksCmd(args ...string) (string, error) {
 	cmd := exec.Command("ks", args...)
 	cmd.Dir = k.Root()
 
-	cmdStr := strings.Join(cmd.Args, " ")
-	log.Debug(cmdStr)
-	outBytes, err := cmd.Output()
-	if err != nil {
-		exErr, ok := err.(*exec.ExitError)
-		if !ok {
-			return "", err
-		}
-		errOutput := string(exErr.Stderr)
-		log.Errorf("`%s` failed: %s", cmdStr, errOutput)
-		return "", fmt.Errorf(strings.TrimSpace(errOutput))
-	}
-	out := string(outBytes)
-	log.Debug(out)
-	return out, nil
+	return argoexec.RunCommandExt(cmd, config.CmdOpts())
 }
 
 func (k *ksonnetApp) Root() string {

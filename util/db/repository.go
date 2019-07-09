@@ -27,26 +27,26 @@ const (
 
 // ListRepoURLs returns list of repositories
 func (db *db) ListRepoURLs(ctx context.Context) ([]string, error) {
-	s, err := db.settingsMgr.GetSettings()
+	repos, err := db.settingsMgr.GetRepositories()
 	if err != nil {
 		return nil, err
 	}
 
-	urls := make([]string, len(s.Repositories))
-	for i := range s.Repositories {
-		urls[i] = s.Repositories[i].URL
+	urls := make([]string, len(repos))
+	for i := range repos {
+		urls[i] = repos[i].URL
 	}
 	return urls, nil
 }
 
 // CreateRepository creates a repository
 func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
-	s, err := db.settingsMgr.GetSettings()
+	repos, err := db.settingsMgr.GetRepositories()
 	if err != nil {
 		return nil, err
 	}
 
-	index := getRepositoryIndex(s, r.Repo)
+	index := getRepositoryIndex(repos, r.Repo)
 	if index > -1 {
 		return nil, status.Errorf(codes.AlreadyExists, "repository '%s' already exists", r.Repo)
 	}
@@ -71,8 +71,8 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 		return nil, err
 	}
 
-	s.Repositories = append(s.Repositories, repoInfo)
-	err = db.settingsMgr.SaveSettings(s)
+	repos = append(repos, repoInfo)
+	err = db.settingsMgr.SaveRepositories(repos)
 	if err != nil {
 		return nil, err
 	}
@@ -81,25 +81,29 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 
 // GetRepository returns a repository by URL
 func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
-	s, err := db.settingsMgr.GetSettings()
+	repos, err := db.settingsMgr.GetRepositories()
+	if err != nil {
+		return nil, err
+	}
+	repoCredentials, err := db.settingsMgr.GetRepositoryCredentials()
 	if err != nil {
 		return nil, err
 	}
 
 	repo := &appsv1.Repository{Repo: repoURL}
-	index := getRepositoryIndex(s, repoURL)
+	index := getRepositoryIndex(repos, repoURL)
 	if index >= 0 {
-		repo, err = db.credentialsToRepository(s.Repositories[index])
+		repo, err = db.credentialsToRepository(repos[index])
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	if !repo.HasCredentials() {
-		index := getRepositoryCredentialIndex(s, repoURL)
+		index := getRepositoryCredentialIndex(repoCredentials, repoURL)
 		if index >= 0 {
 
-			credential, err := db.credentialsToRepository(s.RepositoryCredentials[index])
+			credential, err := db.credentialsToRepository(repoCredentials[index])
 
 			if err != nil {
 				return nil, err
@@ -129,23 +133,23 @@ func (db *db) credentialsToRepository(repoInfo settings.RepoCredentials) (*appsv
 
 // UpdateRepository updates a repository
 func (db *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
-	s, err := db.settingsMgr.GetSettings()
+	repos, err := db.settingsMgr.GetRepositories()
 	if err != nil {
 		return nil, err
 	}
 
-	index := getRepositoryIndex(s, r.Repo)
+	index := getRepositoryIndex(repos, r.Repo)
 	if index < 0 {
 		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", r.Repo)
 	}
 
-	repoInfo := s.Repositories[index]
+	repoInfo := repos[index]
 	err = db.updateSecrets(&repoInfo, r)
 	if err != nil {
 		return nil, err
 	}
-	s.Repositories[index] = repoInfo
-	err = db.settingsMgr.SaveSettings(s)
+	repos[index] = repoInfo
+	err = db.settingsMgr.SaveRepositories(repos)
 	if err != nil {
 		return nil, err
 	}
@@ -154,16 +158,16 @@ func (db *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 
 // Delete updates a repository
 func (db *db) DeleteRepository(ctx context.Context, repoURL string) error {
-	s, err := db.settingsMgr.GetSettings()
+	repos, err := db.settingsMgr.GetRepositories()
 	if err != nil {
 		return err
 	}
 
-	index := getRepositoryIndex(s, repoURL)
+	index := getRepositoryIndex(repos, repoURL)
 	if index < 0 {
 		return status.Errorf(codes.NotFound, "repo '%s' not found", repoURL)
 	}
-	err = db.updateSecrets(&s.Repositories[index], &appsv1.Repository{
+	err = db.updateSecrets(&repos[index], &appsv1.Repository{
 		SSHPrivateKey: "",
 		Password:      "",
 		Username:      "",
@@ -171,8 +175,8 @@ func (db *db) DeleteRepository(ctx context.Context, repoURL string) error {
 	if err != nil {
 		return err
 	}
-	s.Repositories = append(s.Repositories[:index], s.Repositories[index+1:]...)
-	return db.settingsMgr.SaveSettings(s)
+	repos = append(repos[:index], repos[index+1:]...)
+	return db.settingsMgr.SaveRepositories(repos)
 }
 
 func (db *db) updateSecrets(repoInfo *settings.RepoCredentials, r *appsv1.Repository) error {
@@ -264,8 +268,8 @@ func (db *db) upsertSecret(name string, data map[string][]byte) error {
 	return nil
 }
 
-func getRepositoryIndex(s *settings.ArgoCDSettings, repoURL string) int {
-	for i, repo := range s.Repositories {
+func getRepositoryIndex(repos []settings.RepoCredentials, repoURL string) int {
+	for i, repo := range repos {
 		if git.SameURL(repo.URL, repoURL) {
 			return i
 		}
@@ -273,9 +277,9 @@ func getRepositoryIndex(s *settings.ArgoCDSettings, repoURL string) int {
 	return -1
 }
 
-func getRepositoryCredentialIndex(s *settings.ArgoCDSettings, repoURL string) int {
+func getRepositoryCredentialIndex(repoCredentials []settings.RepoCredentials, repoURL string) int {
 	repoURL = git.NormalizeGitURL(repoURL)
-	for i, cred := range s.RepositoryCredentials {
+	for i, cred := range repoCredentials {
 		credUrl := git.NormalizeGitURL(cred.URL)
 		if strings.HasPrefix(repoURL, credUrl) {
 			return i

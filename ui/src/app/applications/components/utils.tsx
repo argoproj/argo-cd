@@ -104,9 +104,10 @@ export const OperationPhaseIcon = ({phase}: { phase: appModels.OperationPhase })
     return <i title={phase} className={className} style={{color}}/>;
 };
 
-export const ComparisonStatusIcon = ({status}: { status: appModels.SyncStatusCode }) => {
+export const ComparisonStatusIcon = ({status, resource, label}: { status: appModels.SyncStatusCode, resource?: { resourceVersion?: string }, label?: boolean }) => {
     let className = 'fa fa-question-circle';
     let color = COLORS.sync.unknown;
+    let title: string = status;
 
     switch (status) {
         case appModels.SyncStatuses.Synced:
@@ -114,14 +115,18 @@ export const ComparisonStatusIcon = ({status}: { status: appModels.SyncStatusCod
             color = COLORS.sync.synced;
             break;
         case appModels.SyncStatuses.OutOfSync:
-            className = 'fa fa-times';
+            const requiresPruning = resource && resource.resourceVersion;
+            className = requiresPruning ? 'fa fa-times-circle' : 'fa fa-times';
+            if (requiresPruning) {
+                title = `${title} (requires pruning)`;
+            }
             color = COLORS.sync.out_of_sync;
             break;
         case appModels.SyncStatuses.Unknown:
             className = 'fa fa-circle-notch fa-spin';
             break;
     }
-    return <i title={status} className={className} style={{color}}/>;
+    return <React.Fragment><i title={title} className={className} style={{color}}/> {label && title}</React.Fragment>;
 };
 
 export function syncStatusMessage(app: appModels.Application) {

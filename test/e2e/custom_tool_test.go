@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -32,6 +33,8 @@ func TestCustomToolWithGitCreds(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusHealthy)).
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitAskpass}")
 			assert.NoError(t, err)
@@ -46,5 +49,43 @@ func TestCustomToolWithGitCreds(t *testing.T) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitPassword}")
 			assert.NoError(t, err)
 			assert.Equal(t, testrepos.HTTPSTestRepo.Password, output)
+		})
+}
+
+// make sure we can echo back the env
+func TestCustomToolWithEnv(t *testing.T) {
+	Given(t).
+		// path does not matter, we ignore it
+		ConfigManagementPlugin(
+			ConfigManagementPlugin{
+				Name: Name(),
+				Generate: Command{
+					Command: []string{"sh", "-c"},
+					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\", \"Bar\": \"baz\"}}}"`},
+				},
+			},
+		).
+		// does not matter what the path is
+		Path("guestbook").
+		When().
+		Create().
+		PatchApp(`[{"op": "add", "path": "/spec/source/plugin", "value": {"env": [{"name": "FOO", "value": "bar"}]}}]`).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusHealthy)).
+		And(func(app *Application) {
+			time.Sleep(1 * time.Second)
+		}).
+		And(func(app *Application) {
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.Bar}")
+			assert.NoError(t, err)
+			assert.Equal(t, "baz", output)
+		}).
+		And(func(app *Application) {
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.Foo}")
+			assert.NoError(t, err)
+			assert.Equal(t, "bar", output)
 		})
 }

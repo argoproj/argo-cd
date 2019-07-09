@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/kube"
 )
@@ -69,7 +70,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		if opts.NamePrefix != "" {
 			cmd := exec.Command(commandName, "edit", "set", "nameprefix", opts.NamePrefix)
 			cmd.Dir = k.path
-			_, err := argoexec.RunCommandExt(cmd)
+			_, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
 			if err != nil {
 				return nil, nil, nil, err
 			}
@@ -82,7 +83,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 				for _, override := range opts.ImageTags {
 					cmd := exec.Command(commandName, "edit", "set", "imagetag", fmt.Sprintf("%s:%s", override.Name, override.Value))
 					cmd.Dir = k.path
-					_, err := argoexec.RunCommandExt(cmd)
+					_, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
 					if err != nil {
 						return nil, nil, nil, err
 					}
@@ -100,7 +101,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 				args = append(args, opts.Images...)
 				cmd := exec.Command(commandName, args...)
 				cmd.Dir = k.path
-				_, err := argoexec.RunCommandExt(cmd)
+				_, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
 				if err != nil {
 					return nil, nil, nil, err
 				}
@@ -120,7 +121,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			args = append(args, arg)
 			cmd := exec.Command(commandName, args...)
 			cmd.Dir = k.path
-			_, err := argoexec.RunCommandExt(cmd)
+			_, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
 			if err != nil {
 				return nil, nil, nil, err
 			}
@@ -142,7 +143,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	}
 	defer func() { _ = closer.Close() }()
 	cmd.Env = append(cmd.Env, environ...)
-	out, err := argoexec.RunCommandExt(cmd)
+	out, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
 	if err != nil {
 		return nil, nil, nil, err
 	}

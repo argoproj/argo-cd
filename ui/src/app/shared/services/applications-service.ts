@@ -55,7 +55,6 @@ export class ApplicationsService {
     }
 
     public updateSpec(appName: string, spec: models.ApplicationSpec): Promise<models.ApplicationSpec> {
-        spec.source.componentParameterOverrides = null;
         return requests.put(`/applications/${appName}/spec`).send(spec).then((res) => res.body as models.ApplicationSpec);
     }
 
@@ -93,7 +92,7 @@ export class ApplicationsService {
     }
 
     public getContainerLogs(applicationName: string, namespace: string, podName: string, containerName: string): Observable<models.LogEntry> {
-        return requests.loadEventSource(`/applications/${applicationName}/pods/${podName}/logs?container=${containerName}&follow=true&namespace=${namespace}`).repeat().retry().map(
+        return requests.loadEventSource(`/applications/${applicationName}/pods/${podName}/logs?container=${containerName}&follow=true&namespace=${namespace}`).map(
             (data) => JSON.parse(data).result as models.LogEntry);
     }
 
@@ -184,7 +183,6 @@ export class ApplicationsService {
                 summary: {},
             },
         }, data);
-        delete data.spec.source.componentParameterOverrides;
 
         return data as models.Application;
     }

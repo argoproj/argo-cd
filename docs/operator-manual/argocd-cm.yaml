@@ -7,6 +7,17 @@ data:
   # Argo CD's externally facing base URL (optional). Required when configuring SSO
   url: https://argo-cd-demo.argoproj.io
 
+  # Enables application status badge feature
+  statusbadge.enabled: 'true'
+
+  # Enables anonymous user access. The anonymous users get default role permissions specified argocd-rbac-cm.yaml.
+  users.anonymous.enabled: "true"
+
+  # Enables google analytics tracking is specified
+  ga.trackingid: 'UA-12345-1'
+  # Unless set to 'false' then user ids are hashed before sending to google analytics
+  ga.anonymizeusers: 'false'
+
   # A dex connector configuration (optional). See SSO configuration documentation:
   # https://github.com/argoproj/argo-cd/blob/master/docs/sso.md
   # https://github.com/dexidp/dex/tree/master/Documentation/connectors

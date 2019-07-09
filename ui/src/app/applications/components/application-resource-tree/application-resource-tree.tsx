@@ -178,7 +178,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 })}>
                     {node.hook && (<i title='Resource lifecycle hook' className='fa fa-anchor' />)}
                     {healthState != null && <HealthStatusIcon state={healthState}/>}
-                    {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus}/>}
+                    {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus} resource={!isAppNode(node) && node} />}
                     <ApplicationURLs urls={isAppNode(node) ? props.app.status.summary.externalURLs : node.networkingInfo && node.networkingInfo.externalURLs}/>
                 </div>
             </div>

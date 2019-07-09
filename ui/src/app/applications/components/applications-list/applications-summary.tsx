@@ -1,7 +1,7 @@
 import * as React from 'react';
 const PieChart = require('react-svg-piechart').default;
 
-import { COLORS} from '../../../shared/components';
+import {COLORS} from '../../../shared/components';
 import * as models from '../../../shared/models';
 
 const healthColors = new Map<models.HealthStatusCode, string>();

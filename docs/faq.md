@@ -22,7 +22,7 @@ to return `Progressing` state instead of `Healthy`.
  ([contour](https://github.com/heptio/contour/issues/403), [traefik](https://github.com/argoproj/argo-cd/issues/968#issuecomment-451082913)) don't update
  `status.loadBalancer.ingress` field which causes `Ingress` to stuck in `Progressing` state forever.
 
-* `StatufulSet` is considered healthy if value of `status.updatedReplicas` field matches to `spec.replicas` field. Due to Kubernetes bug
+* `StatefulSet` is considered healthy if value of `status.updatedReplicas` field matches to `spec.replicas` field. Due to Kubernetes bug
 [kubernetes/kubernetes#68573](https://github.com/kubernetes/kubernetes/issues/68573) the `status.updatedReplicas` is not populated. So unless you run Kubernetes version which
 include the fix [kubernetes/kubernetes#67570](https://github.com/kubernetes/kubernetes/pull/67570) `StatefulSet` might stay in `Progressing` state.
 
@@ -33,7 +33,7 @@ As workaround Argo CD allows providing [health check](operator-manual/health.md)
 By default the password is set to the name of the server pod, as per [the getting started guide](getting_started.md).
 
 To change the password, edit the `argocd-secret` secret and update the `admin.password` field with a new bcrypt hash. You
-can use a site like https://www.browserling.com/tools/bcrypt to generate a new hash. For example: 
+can use a site like https://www.browserling.com/tools/bcrypt to generate a new hash. For example:
 
 ```bash
 # bcrypt(Password1!)=$2a$10$hDj12Tw9xVmvybSahN1Y0.f9DZixxN8oybyA32Uy/eqWklFU4Mo8O
