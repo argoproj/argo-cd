@@ -56,7 +56,7 @@ export const ApplicationsTable = (props: {
                         } items={[
                             {
                                 title: 'Sync',
-                                action: () => props.syncApplication(app.metadata.name, app.spec.source.targetRevision || '')
+                                action: () => props.syncApplication(app.metadata.name, app.spec.source.targetRevision || ''),
                             },
                             { title: 'Delete', action: () => props.deleteApplication(app.metadata.name) },
                         ]} />
