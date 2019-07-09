@@ -1,0 +1,7 @@
+apiVersion: v1
+entries:
+  helm:
+    - created: 2019-07-08T23:26:50.723856689Z
+      urls:
+        - https://kubernetes-charts.storage.googleapis.com/acs-engine-autoscaler-2.2.2.tgz
+      version: 2.2.2
