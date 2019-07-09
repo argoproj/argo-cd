@@ -368,6 +368,9 @@ message HelmParameter {
 
   // Value is the value for the helm parameter
   optional string value = 2;
+
+  // ForceString determines whether to tell Helm to interpret booleans and numbers as strings
+  optional bool forceString = 3;
 }
 
 message HelmRepository {
