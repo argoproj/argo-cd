@@ -3100,6 +3100,11 @@
         },
         "syncResult": {
           "$ref": "#/definitions/v1alpha1SyncOperationResult"
+        },
+        "try": {
+          "description": "Try contains the number of times we have tried this sync.",
+          "type": "string",
+          "format": "int64"
         }
       }
     },
@@ -3571,6 +3576,11 @@
       "properties": {
         "automated": {
           "$ref": "#/definitions/v1alpha1SyncPolicyAutomated"
+        },
+        "maxRetries": {
+          "description": "If an error is returned when Argo CD  tries to perform a transfer, it will retry this number of times before giving up.\nSetting the number to 0 makes Argo CD  do no retries (which is the default).",
+          "type": "string",
+          "format": "int64"
         }
       }
     },

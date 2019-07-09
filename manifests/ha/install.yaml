@@ -846,6 +846,12 @@ spec:
                         of automated sync (default: false)'
                       type: boolean
                   type: object
+                maxRetries:
+                  description: If an error is returned when Argo CD  tries to perform
+                    a transfer, it will retry this number of times before giving up.
+                    Setting the number to 0 makes Argo CD  do no retries (which is
+                    the default).
+                  type: integer
               type: object
           required:
           - source
@@ -1552,6 +1558,10 @@ spec:
                   required:
                   - revision
                   type: object
+                try:
+                  description: Try contains the number of times we have tried this
+                    sync.
+                  type: integer
               required:
               - operation
               - phase

@@ -462,6 +462,9 @@ message OperationState {
 
   // FinishedAt contains time of operation completion
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 7;
+
+  // Try contains the number of times we have tried this sync.
+  optional int64 try = 8;
 }
 
 // ProjectRole represents a role that has access to a project
@@ -749,6 +752,10 @@ message SyncOperationResult {
 message SyncPolicy {
   // Automated will keep an application synced to the target revision
   optional SyncPolicyAutomated automated = 1;
+
+  // If an error is returned when Argo CD  tries to perform a transfer, it will retry this number of times before giving up.
+  // Setting the number to 0 makes Argo CD  do no retries (which is the default).
+  optional int64 maxRetries = 2;
 }
 
 // SyncPolicyAutomated controls the behavior of an automated sync

@@ -102,6 +102,7 @@ export const ApplicationSummary = (props: {
         const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);
         if (confirmed) {
             const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
+            // TODO - test with retries
             updatedApp.spec.syncPolicy = { automated: { prune } };
             props.updateApp(updatedApp);
         }

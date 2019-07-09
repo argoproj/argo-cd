@@ -261,6 +261,7 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string) {
 		if app.Spec.SyncPolicy.Automated.Prune {
 			syncPolicy += " (Prune)"
 		}
+		// TODO - add retries here
 	} else {
 		syncPolicy = "<none>"
 	}
