@@ -67,6 +67,9 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                     {tooltip('Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.')}
                 </div>
                 <div className='application-status-panel__item-name'>{syncStatusMessage(application)}</div>
+                <div className='application-status-panel__item-name'>
+                    <RevisionMetadataPanel applicationName={application.metadata.name} revision={application.spec.source.targetRevision}/>
+                </div>
             </div>
             {appOperationState && (
                 <div className='application-status-panel__item columns small-4'>
