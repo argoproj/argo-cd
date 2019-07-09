@@ -154,6 +154,8 @@ type HelmParameter struct {
 	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
 	// Value is the value for the helm parameter
 	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
+	// ForceString determines whether to tell Helm to interpret booleans and numbers as strings
+	ForceString bool `json:"forceString,omitempty" protobuf:"bytes,3,opt,name=forceString"`
 }
 
 func (h *ApplicationSourceHelm) IsZero() bool {

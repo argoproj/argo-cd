@@ -75,7 +75,11 @@ func (h *helm) Template(appName string, namespace string, opts *argoappv1.Applic
 			args = append(args, "-f", valuesFile)
 		}
 		for _, p := range opts.Parameters {
-			args = append(args, "--set", fmt.Sprintf("%s=%s", p.Name, p.Value))
+			if p.ForceString {
+				args = append(args, "--set-string", fmt.Sprintf("%s=%s", p.Name, p.Value))
+			} else {
+				args = append(args, "--set", fmt.Sprintf("%s=%s", p.Name, p.Value))
+			}
 		}
 	}
 
