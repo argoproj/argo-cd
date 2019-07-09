@@ -130,7 +130,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 
 	var cmd *exec.Cmd
 	if kustomizeOptions != nil && kustomizeOptions.BuildOptions != "" {
-		params := append([]string{"build", k.path}, strings.Split(kustomizeOptions.BuildOptions, " ")...)
+		params := parseKustomizeBuildOptions(k.path, kustomizeOptions.BuildOptions)
 		cmd = exec.Command(commandName, params...)
 	} else {
 		cmd = exec.Command(commandName, "build", k.path)
@@ -158,6 +158,10 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	}
 
 	return objs, nil, getImageParameters(objs), nil
+}
+
+func parseKustomizeBuildOptions(path, buildOptions string) []string {
+	return append([]string{"build", path}, strings.Split(buildOptions, " ")...)
 }
 
 func GetCommandName(version int) string {

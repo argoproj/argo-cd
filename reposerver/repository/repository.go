@@ -680,7 +680,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 		res.Kustomize = &KustomizeAppSpec{}
 		res.Kustomize.Path = q.Path
 		k := kustomize.NewKustomizeApp(appPath, newCreds(q.Repo))
-		_, imageTags, images, err := k.Build(nil, nil)
+		_, imageTags, images, err := k.Build(nil, q.KustomizeOptions)
 		if err != nil {
 			return nil, err
 		}
