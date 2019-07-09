@@ -76,7 +76,7 @@ func (db *db) ListRepoCertificates(ctx context.Context, selector *CertificateLis
 	}
 
 	// Get all TLS certificates
-	if selector.CertType == "" || selector.CertType == "https" || selector.CertType == "tls" {
+	if selector.CertType == "" || selector.CertType == "*" || selector.CertType == "https" || selector.CertType == "tls" {
 		tlsCertificates, err := db.getTLSCertificateData()
 		if err != nil {
 			return nil, err
