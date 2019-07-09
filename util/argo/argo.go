@@ -180,7 +180,7 @@ func ValidateRepo(ctx context.Context, spec *argoappv1.ApplicationSpec, repoClie
 		if err != nil {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("Unable to determine app source type ALEX: %v", err),
+				Message: fmt.Sprintf("Unable to determine app source type: %v", err),
 			})
 		} else {
 			switch appSourceType {

@@ -71,12 +71,12 @@ func TestHelmRepo(t *testing.T) {
 	Given(t).
 		Repos(settings.RepoCredentials{
 			Type: "helm",
-			Name: "stable",
-			URL:  testrepos.HelmStable,
+			Name: "testrepo",
+			URL:  testrepos.HelmTestRepo,
 		}).
-		Repo(testrepos.HelmStable).
-		Path("wordpress").
-		Revision("5.8.0").
+		Repo(testrepos.HelmTestRepo).
+		Path("helm").
+		Revision("1.0.0").
 		When().
 		Create().
 		Then().
@@ -87,5 +87,5 @@ func TestHelmRepo(t *testing.T) {
 		Expect(Success("")).
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(HealthIs(HealthStatusHealthy)).
-		Expect(SyncStatusIs(SyncStatusCodeUnknown))
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }

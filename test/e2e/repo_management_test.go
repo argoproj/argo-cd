@@ -8,6 +8,7 @@ import (
 
 	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/test/fixture/testrepos"
 	"github.com/argoproj/argo-cd/util"
 )
 
@@ -48,8 +49,8 @@ func TestAddRemovePublicRepo(t *testing.T) {
 }
 
 func TestAddRemoveHelmRepo(t *testing.T) {
-	repoUrl := "https://kubernetes-charts.storage.googleapis.com"
-	_, err := fixture.RunCli("repo", "add", repoUrl, "--name", "stable", "--type", "helm")
+	repoUrl := testrepos.HelmTestRepo
+	_, err := fixture.RunCli("repo", "add", repoUrl, "--name", "testrepo", "--type", "helm")
 	assert.NoError(t, err)
 
 	conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()

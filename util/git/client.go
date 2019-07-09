@@ -246,7 +246,7 @@ func (m *nativeGitClient) runCmd(args ...string) (string, error) {
 }
 
 // runCredentialedCmd is a convenience function to run a git command with username/password credentials
-func (m *nativeGitClient) runCredentialedCmd( args ...string) (string, error) {
+func (m *nativeGitClient) runCredentialedCmd(args ...string) (string, error) {
 	cmd := exec.Command("git", args...)
 	closer, environ, err := m.creds.Environ()
 	if err != nil {
