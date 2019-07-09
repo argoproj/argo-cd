@@ -11,8 +11,6 @@ import (
 	"strings"
 	"time"
 
-	certutil "github.com/argoproj/argo-cd/util/cert"
-
 	argoexec "github.com/argoproj/pkg/exec"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
@@ -20,11 +18,11 @@ import (
 	"gopkg.in/src-d/go-git.v4/config"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
-	gitclient "gopkg.in/src-d/go-git.v4/plumbing/transport/client"
 	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	ssh2 "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 
+	certutil "github.com/argoproj/argo-cd/util/cert"
 	argoconfig "github.com/argoproj/argo-cd/util/config"
 )
 
@@ -55,9 +53,14 @@ type ClientFactory interface {
 
 // nativeGitClient implements Client interface using git CLI
 type nativeGitClient struct {
+	// URL of the repository
 	repoURL string
-	root    string
-	creds   Creds
+	// Root path of repository
+	root string
+	// Authenticator credentials for private repositories
+	creds Creds
+	// Whether to connect insecurely to repository, e.g. don't verify certificate
+	insecure bool
 }
 
 type factory struct{}
@@ -81,13 +84,14 @@ func (f *factory) NewClient(rawRepoURL, path, username, password, sshPrivateKey 
 	// this change is permanent to go-git Client during runtime, we need to
 	// explicitly replace it with default client for repositories without the
 	// insecure flag set.
-	if IsHTTPSURL(rawRepoURL) {
-		gitclient.InstallProtocol("https", githttp.NewClient(getRepoHTTPClient(rawRepoURL, insecure)))
-	}
+	//if IsHTTPSURL(rawRepoURL) {
+	//	gitclient.InstallProtocol("https", githttp.NewClient(getRepoHTTPClient(rawRepoURL, insecure)))
+	//}
 	client := nativeGitClient{
-		repoURL: rawRepoURL,
-		root:    path,
-		creds:   creds,
+		repoURL:  rawRepoURL,
+		root:     path,
+		creds:    creds,
+		insecure: insecure,
 	}
 	return &client, nil
 }
@@ -100,18 +104,25 @@ func (f *factory) NewClient(rawRepoURL, path, username, password, sshPrivateKey 
 //   a client with those certificates in the list of root CAs used to verify
 //   the server's certificate.
 // - Otherwise (and on non-fatal errors), a default HTTP client is returned.
-func getRepoHTTPClient(repoURL string, insecure bool) *http.Client {
+func getRepoHTTPClient(repoURL string, insecure bool) transport.Transport {
 	// Default HTTP client
-	var customHTTPClient *http.Client = &http.Client{}
+	var customHTTPClient transport.Transport = githttp.NewClient(&http.Client{})
 
 	if insecure {
-		customHTTPClient = &http.Client{
+		customHTTPClient = githttp.NewClient(&http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{
 					InsecureSkipVerify: true,
 				},
 			},
-		}
+			// 15 second timeout
+			Timeout: 15 * time.Second,
+
+			// don't follow redirect
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		})
 	} else {
 		parsedURL, err := url.Parse(repoURL)
 		if err != nil {
@@ -122,13 +133,19 @@ func getRepoHTTPClient(repoURL string, insecure bool) *http.Client {
 			return customHTTPClient
 		} else if len(serverCertificatePem) > 0 {
 			certPool := certutil.GetCertPoolFromPEMData(serverCertificatePem)
-			customHTTPClient = &http.Client{
+			customHTTPClient = githttp.NewClient(&http.Client{
 				Transport: &http.Transport{
 					TLSClientConfig: &tls.Config{
 						RootCAs: certPool,
 					},
 				},
-			}
+				// 15 second timeout
+				Timeout: 15 * time.Second,
+				// don't follow redirect
+				CheckRedirect: func(req *http.Request, via []*http.Request) error {
+					return http.ErrUseLastResponse
+				},
+			})
 		}
 		// else no custom certificate stored.
 	}
@@ -247,7 +264,8 @@ func (m *nativeGitClient) LsRemote(revision string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	refs, err := remote.List(&git.ListOptions{Auth: auth})
+	//refs, err := remote.List(&git.ListOptions{Auth: auth})
+	refs, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure)
 	if err != nil {
 		return "", err
 	}
