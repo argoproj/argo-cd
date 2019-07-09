@@ -4,4 +4,4 @@ entries:
     - created: 2019-07-08T23:26:50.723856689Z
       urls:
         - https://github.com/alexec/argo-cd/blob/helm-1st-class/test/e2e/testdata/helm-1.0.0.tgz?raw=true
-      version: 2.2.2
+      version: 1.0.0
