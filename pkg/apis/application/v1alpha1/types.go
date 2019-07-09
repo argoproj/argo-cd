@@ -141,8 +141,6 @@ type ApplicationSourceKustomize struct {
 	Images []string `json:"images,omitempty" protobuf:"bytes,3,opt,name=images"`
 	// CommonLabels adds additional kustomize commonLabels
 	CommonLabels map[string]string `json:"commonLabels,omitempty" protobuf:"bytes,4,opt,name=commonLabels"`
-	// BuildOptions is a string of parameters called with `kustomize build`
-	BuildOptions string `protobuf:"bytes,5,opt,name=buildOptions"`
 }
 
 // KustomizeImageTag is a kustomize image tag

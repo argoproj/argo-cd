@@ -711,15 +711,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							},
 						},
 					},
-					"BuildOptions": {
-						SchemaProps: spec.SchemaProps{
-							Description: "BuildOptions is a string of parameters called with `kustomize build`",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 				},
-				Required: []string{"BuildOptions"},
 			},
 		},
 		Dependencies: []string{

@@ -171,10 +171,6 @@ spec:
                       description: ApplicationSourceKustomize holds kustomize specific
                         options
                       properties:
-                        BuildOptions:
-                          description: BuildOptions is a string of parameters called
-                            with `kustomize build`
-                          type: string
                         commonLabels:
                           description: CommonLabels adds additional kustomize commonLabels
                           type: object
@@ -201,8 +197,6 @@ spec:
                           description: NamePrefix is a prefix appended to resources
                             for kustomize apps
                           type: string
-                      required:
-                      - BuildOptions
                       type: object
                     path:
                       description: Path is a directory path within the repository
@@ -428,10 +422,6 @@ spec:
                   description: ApplicationSourceKustomize holds kustomize specific
                     options
                   properties:
-                    BuildOptions:
-                      description: BuildOptions is a string of parameters called with
-                        `kustomize build`
-                      type: string
                     commonLabels:
                       description: CommonLabels adds additional kustomize commonLabels
                       type: object
@@ -458,8 +448,6 @@ spec:
                       description: NamePrefix is a prefix appended to resources for
                         kustomize apps
                       type: string
-                  required:
-                  - BuildOptions
                   type: object
                 path:
                   description: Path is a directory path within the repository containing
@@ -649,10 +637,6 @@ spec:
                         description: ApplicationSourceKustomize holds kustomize specific
                           options
                         properties:
-                          BuildOptions:
-                            description: BuildOptions is a string of parameters called
-                              with `kustomize build`
-                            type: string
                           commonLabels:
                             description: CommonLabels adds additional kustomize commonLabels
                             type: object
@@ -681,8 +665,6 @@ spec:
                             description: NamePrefix is a prefix appended to resources
                               for kustomize apps
                             type: string
-                        required:
-                        - BuildOptions
                         type: object
                       path:
                         description: Path is a directory path within the repository
@@ -879,10 +861,6 @@ spec:
                               description: ApplicationSourceKustomize holds kustomize
                                 specific options
                               properties:
-                                BuildOptions:
-                                  description: BuildOptions is a string of parameters
-                                    called with `kustomize build`
-                                  type: string
                                 commonLabels:
                                   description: CommonLabels adds additional kustomize
                                     commonLabels
@@ -913,8 +891,6 @@ spec:
                                   description: NamePrefix is a prefix appended to
                                     resources for kustomize apps
                                   type: string
-                              required:
-                              - BuildOptions
                               type: object
                             path:
                               description: Path is a directory path within the repository
@@ -1142,10 +1118,6 @@ spec:
                           description: ApplicationSourceKustomize holds kustomize
                             specific options
                           properties:
-                            BuildOptions:
-                              description: BuildOptions is a string of parameters
-                                called with `kustomize build`
-                              type: string
                             commonLabels:
                               description: CommonLabels adds additional kustomize
                                 commonLabels
@@ -1175,8 +1147,6 @@ spec:
                               description: NamePrefix is a prefix appended to resources
                                 for kustomize apps
                               type: string
-                          required:
-                          - BuildOptions
                           type: object
                         path:
                           description: Path is a directory path within the repository
@@ -1385,10 +1355,6 @@ spec:
                           description: ApplicationSourceKustomize holds kustomize
                             specific options
                           properties:
-                            BuildOptions:
-                              description: BuildOptions is a string of parameters
-                                called with `kustomize build`
-                              type: string
                             commonLabels:
                               description: CommonLabels adds additional kustomize
                                 commonLabels
@@ -1418,8 +1384,6 @@ spec:
                               description: NamePrefix is a prefix appended to resources
                                 for kustomize apps
                               type: string
-                          required:
-                          - BuildOptions
                           type: object
                         path:
                           description: Path is a directory path within the repository
