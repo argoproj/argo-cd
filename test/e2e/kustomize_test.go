@@ -169,13 +169,7 @@ func TestKustomizeBuildOptionsNotFail(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(HealthIs(HealthStatusHealthy)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Given().
-		And(func() {
-			errors.FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
-				"-n", fixture.ArgoCDNamespace,
-				"-p", `{ "data": { "kustomize.buildOptions": "" } }`))
-		})
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
 func TestKustomizeBuildOptionsLoadRestrictor(t *testing.T) {
@@ -185,7 +179,7 @@ func TestKustomizeBuildOptionsLoadRestrictor(t *testing.T) {
 	}
 	// This test is only relevant to Kustomize version 2.1.0+
 	if strings.Contains(out, "KustomizeVersion:2.0.") || strings.Contains(out, "KustomizeVersion:1.0.") {
-		return
+		t.Skip()
 	}
 	Given(t).
 		Path(guestbookPath).
