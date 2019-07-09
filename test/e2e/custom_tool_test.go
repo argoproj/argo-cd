@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -60,7 +61,7 @@ func TestCustomToolWithEnv(t *testing.T) {
 				Name: Name(),
 				Generate: Command{
 					Command: []string{"sh", "-c"},
-					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\"}}}"`},
+					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\", \"Bar\": \"baz\"}}}"`},
 				},
 			},
 		).
@@ -74,6 +75,14 @@ func TestCustomToolWithEnv(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(HealthStatusHealthy)).
+		And(func(app *Application) {
+			time.Sleep(1 * time.Second)
+		}).
+		And(func(app *Application) {
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.Bar}")
+			assert.NoError(t, err)
+			assert.Equal(t, "baz", output)
+		}).
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.Foo}")
 			assert.NoError(t, err)
