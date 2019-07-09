@@ -989,8 +989,9 @@ type ConfigManagementPlugin struct {
 	Generate Command  `json:"generate" protobuf:"bytes,3,name=generate"`
 }
 
+// KustomizeOptions are options for kustomize to use when building manifests
 type KustomizeOptions struct {
-	// BuildOptions is a string of build parameters to use
+	// BuildOptions is a string of build parameters to use when calling `kustomize build`
 	BuildOptions string `protobuf:"bytes,1,opt,name=buildOptions"`
 }
 
