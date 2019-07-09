@@ -182,7 +182,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                     {healthState != null && <HealthStatusIcon state={healthState}/>}
                     {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus} resource={!rootNode && node} />}
                     {(appNode && !rootNode) && (
-                        <a href={'/applications/' + node.name} title='Open application'><i className="fa fa-external-link-alt"/></a>
+                        <a href={'/applications/' + node.name} title='Open application'><i className='fa fa-external-link-alt'/></a>
                     )}
                     <ApplicationURLs urls={rootNode ? props.app.status.summary.externalURLs : node.networkingInfo && node.networkingInfo.externalURLs}/>
                 </div>

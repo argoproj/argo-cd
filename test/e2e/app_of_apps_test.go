@@ -20,8 +20,8 @@ func TestAppOfApps(t *testing.T) {
 		// we are missing the child apps, as we do not auto-sync them
 		Expect(HealthIs(HealthStatusMissing)).
 		When().
-		PatchFile("app-of-apps/templates/guestbook.yaml", `[
-	{"op": "add", "path": "/spec", "value": {"syncPolicy": {"automated": {"prune": true}}}
+		PatchFile("templates/guestbook.yaml", `[
+	{"op": "add", "path": "/spec/syncPolicy", "value": {"automated": {"prune": true}}}
 ]`).
 		Sync().
 		Then().
