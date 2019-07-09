@@ -3,11 +3,12 @@ package kustomize
 import (
 	"fmt"
 	"io/ioutil"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"os"
 	"path"
 	"path/filepath"
 	"testing"
+
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/pkg/exec"
 	"github.com/stretchr/testify/assert"

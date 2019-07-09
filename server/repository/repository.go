@@ -3,10 +3,11 @@ package repository
 import (
 	"errors"
 	"fmt"
-	"github.com/argoproj/argo-cd/util/settings"
 	"path"
 	"path/filepath"
 	"reflect"
+
+	"github.com/argoproj/argo-cd/util/settings"
 
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -33,7 +34,7 @@ type Server struct {
 	repoClientset reposerver.Clientset
 	enf           *rbac.Enforcer
 	cache         *cache.Cache
-	settings *settings.SettingsManager
+	settings      *settings.SettingsManager
 }
 
 // NewServer returns a new instance of the Repository service
@@ -49,7 +50,7 @@ func NewServer(
 		repoClientset: repoClientset,
 		enf:           enf,
 		cache:         cache,
-		settings: settings,
+		settings:      settings,
 	}
 }
 

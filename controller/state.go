@@ -129,7 +129,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		Namespace:         app.Spec.Destination.Namespace,
 		ApplicationSource: &source,
 		Plugins:           tools,
-		KustomizeOptions:  &appv1.KustomizeOptions{
+		KustomizeOptions: &appv1.KustomizeOptions{
 			BuildOptions: buildOptions,
 		},
 	})
