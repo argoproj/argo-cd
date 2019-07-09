@@ -156,7 +156,7 @@ func TestKustomizeBuildOptionsNotFail(t *testing.T) {
 		Create().
 		Sync().
 		Then().
-		Expect(Error("")).
+		Expect(Error("","")).
 		Given().
 		And(func() {
 			errors.FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
