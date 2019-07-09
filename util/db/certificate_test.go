@@ -2,27 +2,17 @@ package db
 
 import (
 	"context"
-	//	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	//	"google.golang.org/grpc/codes"
-	//	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
-	//	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 
-	//	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/settings"
-	//	"github.com/argoproj/argo-cd/util/cert"
 )
-
-//const (
-//	testNamespace = "default"
-//)
 
 const Test_Cert1CN = "CN=foo.example.com,OU=SpecOps,O=Capone\\, Inc,L=Chicago,ST=IL,C=US"
 const Test_Cert2CN = "CN=bar.example.com,OU=Testsuite,O=Testing Corp,L=Hanover,ST=Lower Saxony,C=DE"
