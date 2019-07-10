@@ -850,6 +850,7 @@ spec:
                     a transfer, it will retry this number of times before giving up.
                     Setting the number to 0 makes Argo CD  do no retries (which is
                     the default).
+                  format: int64
                   type: integer
               type: object
           required:
@@ -1560,6 +1561,7 @@ spec:
                 try:
                   description: Try contains the number of times we have tried this
                     sync.
+                  format: int64
                   type: integer
               required:
               - operation
