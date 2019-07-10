@@ -384,7 +384,7 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 			// case.
 			if err == nil {
 				caPath, err := certutil.GetCertBundlePathForRepository(parsedURL.Host)
-				if err != nil && caPath != "" {
+				if err == nil && caPath != "" {
 					cmd.Args = append(cmd.Args, "-c", fmt.Sprintf("http.sslCAPath=%s", caPath))
 				}
 			} else {
