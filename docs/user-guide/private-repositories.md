@@ -43,7 +43,7 @@ argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-ke
 
 ## Self-signed & Untrusted TLS Certificates
 
-> v1.x or higher
+> v1.2 or higher
 
 If you are connecting a repository on a HTTPS server using a self-signed certificate, or a certificate signed by a custom Certificate Authority (CA) which are not known to ArgoCD, the repository will not be added due to security reasons. This is indicated by an error message such as `x509: certificate signed by unknown authority`.
 
@@ -89,7 +89,7 @@ You can also manage TLS certificates in a declarative, self-managed ArgoCD setup
 
 Managing TLS certificates via the web UI is currently not possible.
 
-> Before v1.x
+> Before v1.2
 
 We do not currently have first-class support for this. See [#1513](https://github.com/argoproj/argo-cd/issues/1513).
 
@@ -99,7 +99,7 @@ As a work-around, you can customize your Argo CD image. See [#1344](https://gith
 
 If you are using a privately hosted Git service over SSH, then you have the following  options:
 
-> v1.x or later
+> v1.2 or later
 
 1. You can let ArgoCD connect the repository in an insecure way, without verifying the server's SSH host key at all. This can be accomplished by using the `--insecure-repository` flag when adding the repository with the `argocd` CLI utility. However, this should be done only for non-production setups, as it imposes a serious security issue through possible man-in-the-middle attacks.
 
@@ -125,7 +125,7 @@ You can also manage SSH known hosts entries in a declarative, self-managed ArgoC
 
 Managing SSH public host keys via the web UI is currently not possible.
 
-> Before v1.x
+> Before v1.2
 
  
 (1) You can customize the Argo CD Docker image by adding the host's SSH public key to `/etc/ssh/ssh_known_hosts`. Additional entries to this file can be generated using the `ssh-keyscan` utility (e.g. `ssh-keyscan your-private-git-server.com`. For more information see [example](https://github.com/argoproj/argo-cd/tree/master/examples/known-hosts) which demonstrates how `/etc/ssh/ssh_known_hosts` can be customized.
