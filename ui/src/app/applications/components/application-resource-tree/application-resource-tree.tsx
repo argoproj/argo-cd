@@ -161,25 +161,30 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
         healthState = node.health;
     }
     const kindIcon = ICON_CLASS_BY_KIND[node.kind.toLocaleLowerCase()] || 'fa fa-cogs';
+    const appNode = isAppNode(node);
+    const rootNode = !node.root;
     return (
         <div onClick={() => props.onNodeClick && props.onNodeClick(fullName)} className={classNames('application-resource-tree__node', {
             active: fullName === props.selectedNodeFullName,
         })} style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
-            {!isAppNode(node) && <NodeUpdateAnimation resourceVersion={node.resourceVersion} />}
+            {!appNode && <NodeUpdateAnimation resourceVersion={node.resourceVersion} />}
             <div className={classNames('application-resource-tree__node-kind-icon', {
-                'application-resource-tree__node-kind-icon--big': isAppNode(node),
+                'application-resource-tree__node-kind-icon--big': rootNode,
             })}>
                 <i title={node.kind} className={`icon ${kindIcon}`} />
             </div>
             <div className='application-resource-tree__node-content'>
                 <span className='application-resource-tree__node-title'>{node.name}</span>
                 <div className={classNames('application-resource-tree__node-status-icon', {
-                    'application-resource-tree__node-status-icon--offset': isAppNode(node),
+                    'application-resource-tree__node-status-icon--offset': rootNode,
                 })}>
                     {node.hook && (<i title='Resource lifecycle hook' className='fa fa-anchor' />)}
                     {healthState != null && <HealthStatusIcon state={healthState}/>}
-                    {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus} resource={!isAppNode(node) && node} />}
-                    <ApplicationURLs urls={isAppNode(node) ? props.app.status.summary.externalURLs : node.networkingInfo && node.networkingInfo.externalURLs}/>
+                    {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus} resource={!rootNode && node} />}
+                    {(appNode && !rootNode) && (
+                        <a href={'/applications/' + node.name} title='Open application'><i className='fa fa-external-link-alt'/></a>
+                    )}
+                    <ApplicationURLs urls={rootNode ? props.app.status.summary.externalURLs : node.networkingInfo && node.networkingInfo.externalURLs}/>
                 </div>
             </div>
             <div className='application-resource-tree__node-labels'>
