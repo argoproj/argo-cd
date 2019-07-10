@@ -3436,8 +3436,9 @@
         "namespace": {
           "type": "string"
         },
-        "resourceVersion": {
-          "type": "string"
+        "requiresPruning": {
+          "type": "boolean",
+          "format": "boolean"
         },
         "status": {
           "type": "string"
