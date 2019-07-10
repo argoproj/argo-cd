@@ -664,7 +664,7 @@ message ResourceStatus {
 
   optional bool hook = 8;
 
-  optional string resourceVersion = 9;
+  optional bool requiresPruning = 9;
 }
 
 // RevisionHistory contains information relevant to an application deployment

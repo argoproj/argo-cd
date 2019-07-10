@@ -733,7 +733,7 @@ type ResourceStatus struct {
 	Status          SyncStatusCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
 	Health          *HealthStatus  `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
 	Hook            bool           `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
-	ResourceVersion string         `json:"resourceVersion,omitempty" protobuf:"bytes,9,opt,name=resourceVersion"`
+	RequiresPruning bool           `json:"requiresPruning,omitempty" protobuf:"bytes,9,opt,name=requiresPruning"`
 }
 
 func (r *ResourceStatus) GroupVersionKind() schema.GroupVersionKind {
