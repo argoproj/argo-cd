@@ -56,6 +56,7 @@
     "raw-loader": "^0.5.1",
     "react": "^16.8.3",
     "react-autocomplete": "^1.8.1",
+    "react-diff-view": "^2.1.4",
     "react-dom": "^16.8.3",
     "react-form": "2.16.0",
     "react-ga": "^2.6.0",
@@ -76,6 +77,7 @@
     "tslint": "^5.16.0",
     "tslint-react": "^3.4.0",
     "typescript": "^3.4.5",
+    "unidiff": "^1.0.2",
     "webpack": "^4.29.5",
     "webpack-cli": "^3.2.3",
     "webpack-dev-server": "^3.2.1"
