@@ -252,6 +252,18 @@ func GetCertificateForConnect(serverName string) ([]string, error) {
 	return certificates, nil
 }
 
+func GetCertBundlePathForRepository(serverName string) (string, error) {
+	certPath := fmt.Sprintf("%s/%s", CertificateDataPath, serverName)
+	certs, err := GetCertificateForConnect(serverName)
+	if err != nil {
+		return "", nil
+	}
+	if len(certs) == 0 {
+		return "", nil
+	}
+	return certPath, nil
+}
+
 func GetCertPoolFromPEMData(pemData []string) *x509.CertPool {
 	certPool := x509.NewCertPool()
 	for _, pem := range pemData {

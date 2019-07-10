@@ -368,11 +368,30 @@ func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) (st
 }
 
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
-	log.Debug(strings.Join(cmd.Args, " "))
 	cmd.Dir = m.root
 	cmd.Env = append(cmd.Env, os.Environ()...)
 	cmd.Env = append(cmd.Env, "HOME=/dev/null")
 	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOSYSTEM=true")
 	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOGLOBAL=true")
+	// For HTTPS repositories, we need to consider insecure repositories as well
+	// as custom CA bundles from the cert database.
+	if IsHTTPSURL(m.repoURL) {
+		if m.insecure {
+			cmd.Env = append(cmd.Env, "GIT_SSL_NO_VERIFY=true")
+		} else {
+			parsedURL, err := url.Parse(m.repoURL)
+			// We fail silently if we cannot parse the URL, but log a warning in that
+			// case.
+			if err == nil {
+				caPath, err := certutil.GetCertBundlePathForRepository(parsedURL.Host)
+				if err != nil && caPath != "" {
+					cmd.Args = append(cmd.Args, "-c", fmt.Sprintf("http.sslCAPath=%s", caPath))
+				}
+			} else {
+				log.Warnf("runCmdOutput: Could not parse repo URL '%s'", m.repoURL)
+			}
+		}
+	}
+	log.Debug(strings.Join(cmd.Args, " "))
 	return argoexec.RunCommandExt(cmd, argoconfig.CmdOpts())
 }
