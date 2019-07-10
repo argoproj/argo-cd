@@ -1107,6 +1107,7 @@ and after a Sync operation. Some use cases for hooks are:</p>
 <li>Using a <code>Sync</code> hook to orchestrate a complex deployment requiring more sophistication than the
 kubernetes rolling update strategy (e.g. a blue/green deployment).</li>
 <li>Using a <code>PostSync</code> hook to run integration and health checks after a deployment.</li>
+<li>Using a <code>SyncFail</code> hook to run clean-up or finalizer logic if a Sync operation fails.</li>
 </ul>
 <h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
 <p>Hooks are simply kubernetes manifests annotated with the <code>argocd.argoproj.io/hook</code> annotation. To
@@ -1150,6 +1151,10 @@ separated list.</p>
 <tr>
 <td><code>PostSync</code></td>
 <td>Executes after all <code>Sync</code> hooks completed and were successful, a succcessful apply, and all resources in a <code>Healthy</code> state.</td>
+</tr>
+<tr>
+<td><code>SyncFail</code></td>
+<td>Executes if and only if any part of the Sync operation fails.</td>
 </tr>
 </tbody>
 </table>

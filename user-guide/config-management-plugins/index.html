@@ -591,9 +591,38 @@
       
     
     
+      <label class="md-nav__link md-nav__link--active" for="__toc">
+        Plugins
+      </label>
+    
     <a href="./" title="Plugins" class="md-nav__link md-nav__link--active">
       Plugins
     </a>
+    
+      
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#environment" title="Environment" class="md-nav__link">
+    Environment
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
     
   </li>
 
@@ -980,6 +1009,22 @@
     
   
   
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#environment" title="Environment" class="md-nav__link">
+    Environment
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1011,9 +1056,7 @@
 </pre></div>
 
 
-<p>The <code>generate</code> command must print a valid YAML stream to stdout. Both <code>init</code> and <code>generate</code> commands are executed inside the application source directory.
-Commands have access to system environment variables and following additional variables:</p>
-<p><code>ARGOCD_APP_NAME</code> - name of application; <code>ARGOCD_APP_NAMESPACE</code> - destination application namespace</p>
+<p>The <code>generate</code> command must print a valid YAML stream to stdout. Both <code>init</code> and <code>generate</code> commands are executed inside the application source directory.</p>
 <ul>
 <li>Create an application and specify required config management plugin name.</li>
 </ul>
@@ -1022,6 +1065,22 @@ Commands have access to system environment variables and following additional va
 
 
 <p>More config management plugin examples are available in <a href="https://github.com/argoproj/argocd-example-apps/tree/master/plugins">argocd-example-apps</a>.</p>
+<h2 id="environment">Environment<a class="headerlink" href="#environment" title="Permanent link">&para;</a></h2>
+<p>Commands have access to</p>
+<p>(1) The system environment variables
+(2) Argo CD  environment variables:</p>
+<ul>
+<li><code>ARGOCD_APP_NAME</code> - name of application</li>
+<li><code>ARGOCD_APP_NAMESPACE</code> - destination application namespace.</li>
+</ul>
+<p>(3) Variables in the application spec:</p>
+<div class="codehilite"><pre><span></span><span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">source</span><span class="p">:</span>
+    <span class="nt">plugin</span><span class="p">:</span>
+      <span class="nt">env</span><span class="p">:</span>
+        <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">FOO</span>
+          <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">bar</span>
+</pre></div>
                 
                   
                 
