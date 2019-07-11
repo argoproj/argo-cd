@@ -380,15 +380,15 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 			cmd.Env = append(cmd.Env, "GIT_SSL_NO_VERIFY=true")
 		} else {
 			parsedURL, err := url.Parse(m.repoURL)
-			// We fail silently if we cannot parse the URL, but log a warning in that
-			// case.
-			if err == nil {
+			// We don't fail if we cannot parse the URL, but log a warning in that
+			// case. And we execute the command in a verbatim way.
+			if err != nil {
+				log.Warnf("runCmdOutput: Could not parse repo URL '%s'", m.repoURL)
+			} else {
 				caPath, err := certutil.GetCertBundlePathForRepository(parsedURL.Host)
 				if err == nil && caPath != "" {
-					cmd.Args = append(cmd.Args, "-c", fmt.Sprintf("http.sslCAPath=%s", caPath))
+					cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_SSL_CAINFO=%s", caPath))
 				}
-			} else {
-				log.Warnf("runCmdOutput: Could not parse repo URL '%s'", m.repoURL)
 			}
 		}
 	}
