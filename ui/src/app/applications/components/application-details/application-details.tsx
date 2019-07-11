@@ -268,7 +268,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                 selectedResource={syncResourceKey}
                                 />
                             <SlidingPanel isShown={this.selectedRollbackDeploymentIndex > -1} onClose={() => this.setRollbackPanelVisible(-1)}>
-                                {<ApplicationDeploymentHistory
+                                {this.selectedRollbackDeploymentIndex > -1 && <ApplicationDeploymentHistory
                                     app={application}
                                     selectedRollbackDeploymentIndex={this.selectedRollbackDeploymentIndex}
                                     rollbackApp={(info) => this.rollbackApplication(info)}
