@@ -1502,6 +1502,18 @@
   version = "v0.3.3"
 
 [[projects]]
+  branch = "master"
+  digest = "1:0d737d598e9db0a38d6ef6cba514c358b9fe7e1bc6b1128d02b2622700c75f2a"
+  name = "k8s.io/kube-aggregator"
+  packages = [
+    "pkg/apis/apiregistration",
+    "pkg/apis/apiregistration/v1",
+    "pkg/apis/apiregistration/v1beta1",
+  ]
+  pruneopts = ""
+  revision = "e80910364765199a4baebd4dec54c885fe52b680"
+
+[[projects]]
   digest = "1:42ea993b351fdd39b9aad3c9ebe71f2fdb5d1f8d12eed24e71c3dff1a31b2a43"
   name = "k8s.io/kube-openapi"
   packages = [
@@ -1541,6 +1553,7 @@
   packages = [
     "buffer",
     "integer",
+    "pointer",
     "trace",
   ]
   pruneopts = ""
@@ -1698,6 +1711,8 @@
     "k8s.io/client-go/util/workqueue",
     "k8s.io/code-generator/cmd/go-to-protobuf",
     "k8s.io/klog",
+    "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1",
+    "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1beta1",
     "k8s.io/kube-openapi/cmd/openapi-gen",
     "k8s.io/kube-openapi/pkg/common",
     "k8s.io/kubernetes/pkg/api/v1/pod",
