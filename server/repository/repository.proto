@@ -108,7 +108,7 @@ service RepositoryService {
 		option (google.api.http).delete = "/api/v1/repositories/{repo}";
 	}
 
-	// ValidateAccessPreCreate validates access to not yet configured repo
+	// ValidateAccess validates access to a repository with given parameters
 	rpc ValidateAccess(RepoAccessQuery) returns (RepoResponse) {
 		option (google.api.http) = {
 			post: "/api/v1/repositories/{repo}/validate"
