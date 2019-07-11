@@ -31,7 +31,13 @@ const testNamespace = "default"
 
 func TestProjectServer(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(&corev1.ConfigMap{
-		ObjectMeta: v1.ObjectMeta{Namespace: testNamespace, Name: "argocd-cm"},
+		ObjectMeta: v1.ObjectMeta{
+			Namespace: testNamespace,
+			Name:      "argocd-cm",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
 	}, &corev1.Secret{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "argocd-secret",

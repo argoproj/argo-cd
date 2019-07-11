@@ -484,17 +484,51 @@ message ProjectRole {
 
 // Repository is a Git repository holding application configurations
 message Repository {
+  // URL of the repo
   optional string repo = 1;
 
+  // Username for authenticating at the repo server
   optional string username = 2;
 
+  // Password for authenticating at the repo server
   optional string password = 3;
 
+  // SSH private key data for authenticating at the repo server
   optional string sshPrivateKey = 4;
 
   optional ConnectionState connectionState = 5;
 
+  // InsecureIgnoreHostKey should not be used anymore, Insecure is favoured
   optional bool insecureIgnoreHostKey = 6;
+
+  // Whether the repo is insecure
+  optional bool insecure = 7;
+}
+
+// A RepositoryCertificate is either SSH known hosts entry or TLS certificate
+message RepositoryCertificate {
+  // Name of the server the certificate is intended for
+  optional string servername = 1;
+
+  // Type of certificate - currently "https" or "ssh"
+  optional string type = 2;
+
+  // The sub type of the cert, i.e. "ssh-rsa"
+  optional string cipher = 3;
+
+  // Actual certificate data, protocol dependent
+  optional bytes certdata = 4;
+
+  // Certificate fingerprint
+  optional string certfingerprint = 5;
+}
+
+// RepositoryCertificateList is a collection of RepositoryCertificates
+message RepositoryCertificateList {
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  // List of certificates to be processed
+  repeated RepositoryCertificate items = 2;
 }
 
 // RepositoryList is a collection of Repositories.

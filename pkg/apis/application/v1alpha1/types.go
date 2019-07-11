@@ -881,12 +881,19 @@ type ResourceActionParam struct {
 
 // Repository is a Git repository holding application configurations
 type Repository struct {
-	Repo                  string          `json:"repo" protobuf:"bytes,1,opt,name=repo"`
-	Username              string          `json:"username,omitempty" protobuf:"bytes,2,opt,name=username"`
-	Password              string          `json:"password,omitempty" protobuf:"bytes,3,opt,name=password"`
-	SSHPrivateKey         string          `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
-	ConnectionState       ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,5,opt,name=connectionState"`
-	InsecureIgnoreHostKey bool            `json:"insecureIgnoreHostKey,omitempty" protobuf:"bytes,6,opt,name=insecureIgnoreHostKey"`
+	// URL of the repo
+	Repo string `json:"repo" protobuf:"bytes,1,opt,name=repo"`
+	// Username for authenticating at the repo server
+	Username string `json:"username,omitempty" protobuf:"bytes,2,opt,name=username"`
+	// Password for authenticating at the repo server
+	Password string `json:"password,omitempty" protobuf:"bytes,3,opt,name=password"`
+	// SSH private key data for authenticating at the repo server
+	SSHPrivateKey   string          `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
+	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,5,opt,name=connectionState"`
+	// InsecureIgnoreHostKey should not be used anymore, Insecure is favoured
+	InsecureIgnoreHostKey bool `json:"insecureIgnoreHostKey,omitempty" protobuf:"bytes,6,opt,name=insecureIgnoreHostKey"`
+	// Whether the repo is insecure
+	Insecure bool `json:"insecure,omitempty" protobuf:"bytes,7,opt,name=insecure"`
 }
 
 func (m *Repository) HasCredentials() bool {
@@ -899,6 +906,7 @@ func (m *Repository) CopyCredentialsFrom(source *Repository) {
 		m.Password = source.Password
 		m.SSHPrivateKey = source.SSHPrivateKey
 		m.InsecureIgnoreHostKey = source.InsecureIgnoreHostKey
+		m.Insecure = source.Insecure
 	}
 }
 
@@ -906,6 +914,27 @@ func (m *Repository) CopyCredentialsFrom(source *Repository) {
 type RepositoryList struct {
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	Items           []Repository `json:"items" protobuf:"bytes,2,rep,name=items"`
+}
+
+// A RepositoryCertificate is either SSH known hosts entry or TLS certificate
+type RepositoryCertificate struct {
+	// Name of the server the certificate is intended for
+	ServerName string `json:"servername" protobuf:"bytes,1,opt,name=servername"`
+	// Type of certificate - currently "https" or "ssh"
+	CertType string `json:"type" protobuf:"bytes,2,opt,name=type"`
+	// The sub type of the cert, i.e. "ssh-rsa"
+	CertSubType string `json:"cipher" protobuf:"bytes,3,opt,name=cipher"`
+	// Actual certificate data, protocol dependent
+	CertData []byte `json:"certdata" protobuf:"bytes,4,opt,name=certdata"`
+	// Certificate fingerprint
+	CertFingerprint string `json:"certfingerprint" protobuf:"bytes,5,opt,name=certfingerprint"`
+}
+
+// RepositoryCertificateList is a collection of RepositoryCertificates
+type RepositoryCertificateList struct {
+	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+	// List of certificates to be processed
+	Items []RepositoryCertificate `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
 // AppProjectList is list of AppProject resources

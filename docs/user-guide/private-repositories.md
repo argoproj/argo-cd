@@ -43,6 +43,54 @@ argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-ke
 
 ## Self-signed & Untrusted TLS Certificates
 
+> v1.2 or higher
+
+If you are connecting a repository on a HTTPS server using a self-signed certificate, or a certificate signed by a custom Certificate Authority (CA) which are not known to ArgoCD, the repository will not be added due to security reasons. This is indicated by an error message such as `x509: certificate signed by unknown authority`.
+
+1. You can let ArgoCD connect the repository in an insecure way, without verifying the server's certificate at all. This can be accomplished by using the `--insecure-repository` flag when adding the repository with the `argocd` CLI utility. However, this should be done only for non-production setups, as it imposes a serious security issue through possible man-in-the-middle attacks.
+
+2. You can let ArgoCD use a custom certificate for the verification of the server's certificate using the `cert add-tls` command of the `argocd` CLI utility. This is the recommended method and suitable for production use. In order to do so, you will need the server's certificate, or the certificate of the CA used to sign the server's certificate, in PEM format.
+
+!!! note
+    For invalid server certificates, such as those without matching server name, or those that are expired, adding a CA certificate will not help. In this case, your only option will be to use the `--insecure-repository` flag to connect the repository. You are strongly urged to use a valid certificate on the repository server, or to urge the server's administrator to replace the faulty certificate with a valid one.
+
+Example for adding a HTTPS repository to ArgoCD without verifying the server's certificate (**Caution:** This is **not** recommended for production use):
+
+```bash
+argocd repo add --insecure-repository https://git.example.com/test-repo
+```
+
+Example for adding a CA certificate contained in file `~/myca-cert.pem` to properly verify the repository server:
+
+```bash
+argocd cert add-tls git.example.com --from ~/myca-cert.pem
+argocd repo add https://git.example.com/test-repo
+```
+
+You can also add more than one PEM for a server by concatenating them into the input stream. This might be useful if the repository server is about to replace the server certificate, possibly with one signed by a different CA. This way, you can have the old (current) as well as the new (future) certificate co-existing. If you already have the old certificate configured, use the `--upsert` flag and add the old and the new one in a single run:
+
+```bash
+cat cert1.pem cert2.pem | argocd cert add-tls git.example.com --upsert
+```
+
+!!! note
+    You can add multiple TLS certificates for a single server by either using a file containing multiple PEM certificates, or by using the `--append` flag to the `cert add-tls` command of the CLI.
+
+!!! note
+    To replace an existing certificate for a server, use the `--upsert` flag to the `cert add-tls` CLI command. 
+
+!!! note
+    TLS certificates are configured on a per-server, not on a per-repository basis. If you connect multiple repositories from the same server, you only have to configure the certificates once for this server.
+
+!!! note
+    It can take up to a couple of minutes until the changes performed by the `argocd cert` command are propagated across your cluster, depending on your Kubernetes setup.
+
+You can also manage TLS certificates in a declarative, self-managed ArgoCD setup. All TLS certificates are stored in the ConfigMap object `argocd-tls-cert-cm`.
+
+Managing TLS certificates via the web UI is currently not possible.
+
+> Before v1.2
+
 We do not currently have first-class support for this. See [#1513](https://github.com/argoproj/argo-cd/issues/1513).
 
 As a work-around, you can customize your Argo CD image. See [#1344](https://github.com/argoproj/argo-cd/issues/1344#issuecomment-479811810)
@@ -50,6 +98,35 @@ As a work-around, you can customize your Argo CD image. See [#1344](https://gith
 ## Unknown SSH Hosts
 
 If you are using a privately hosted Git service over SSH, then you have the following  options:
+
+> v1.2 or later
+
+1. You can let ArgoCD connect the repository in an insecure way, without verifying the server's SSH host key at all. This can be accomplished by using the `--insecure-repository` flag when adding the repository with the `argocd` CLI utility. However, this should be done only for non-production setups, as it imposes a serious security issue through possible man-in-the-middle attacks.
+
+2. You can make the server's SSH public key known to ArgoCD by using the `cert add-ssh` command of the `argocd` CLI utility. This is the recommended method and suitable for production use. In order to do so, you will need the server's SSH public host key, in the `known_hosts` format understood by `ssh`. You can get the server's public SSH host key e.g. by using the `ssh-keyscan` utility.
+
+Example for adding all available SSH public host keys for a server to ArgoCD:
+
+```bash
+ssh-keyscan server.example.com | argocd cert add-ssh --batch 
+
+```
+
+Example for importing an existing `known_hosts` file to ArgoCD:
+
+```bash
+argocd cert add-ssh --batch --from /etc/ssh/ssh_known_hosts
+```
+
+!!! note
+    It can take up to a couple of minutes until the changes performed by the `argocd cert` command are propagated across your cluster, depending on your Kubernetes setup.
+
+You can also manage SSH known hosts entries in a declarative, self-managed ArgoCD setup. All SSH public host keys are stored in the ConfigMap object `argocd-ssh-known-hosts-cm`.
+
+Managing SSH public host keys via the web UI is currently not possible.
+
+> Before v1.2
+
  
 (1) You can customize the Argo CD Docker image by adding the host's SSH public key to `/etc/ssh/ssh_known_hosts`. Additional entries to this file can be generated using the `ssh-keyscan` utility (e.g. `ssh-keyscan your-private-git-server.com`. For more information see [example](https://github.com/argoproj/argo-cd/tree/master/examples/known-hosts) which demonstrates how `/etc/ssh/ssh_known_hosts` can be customized.
 
@@ -71,5 +148,5 @@ argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-ke
 
 ## Declarative Configuration
 
-See [declarative setup](../operator-manual/declarative-setup#Repositories)
+See [declarative setup](../../operator-manual/declarative-setup#Repositories)
 
