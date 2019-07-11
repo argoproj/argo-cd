@@ -19,6 +19,7 @@ import {AppContext} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewType, services} from '../../../shared/services';
 
+import {SyncStatuses} from '../../../shared/models';
 import {ApplicationConditions} from '../application-conditions/application-conditions';
 import {ApplicationDeploymentHistory} from '../application-deployment-history/application-deployment-history';
 import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
@@ -316,11 +317,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         }, {
             iconClassName: 'fa fa-exchange-alt',
             title: <span className='show-for-medium'>App Diff</span>,
-            action: () => this.selectNode('all'),
+            action: () => this.selectNode(fullName, 0, 'diff'),
+            disabled: app.status.sync.status === SyncStatuses.Synced,
         }, {
             iconClassName: 'fa fa-sync',
             title: <span className='show-for-medium'>Sync</span>,
-            action: () => this.selectNode(fullName, 0, 'diff'),
+            action: () => this.showDeploy('all'),
         }, {
             iconClassName: 'fa fa-info-circle',
             title: <span className='show-for-medium'>Sync Status</span>,
