@@ -45,7 +45,3 @@ func (w *gitClientWrapper) Root() string {
 func (w *gitClientWrapper) Init() error {
 	return w.client.Init()
 }
-
-func (w *gitClientWrapper) RevisionMetadata(revision string) (*git.RevisionMetadata, error) {
-	return w.client.RevisionMetadata(revision)
-}
