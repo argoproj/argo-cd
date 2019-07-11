@@ -33,7 +33,8 @@ export const ApplicationResourcesDiff = (props: ApplicationResourcesDiffProps) =
                 const a = live ? jsYaml.safeDump(live, {indent: 2}) : '';
                 const b = target ? jsYaml.safeDump(target, {indent: 2}) : '';
                 const context = pref.appDetails.compactDiff ? 2 : Number.MAX_SAFE_INTEGER;
-                const name = state.namespace + '/' + state.kind + '-' + state.name + '.yaml';
+                // doubles as sort order
+                const name = (state.group || '') + '/' + state.kind + '/' + state.namespace + '/' + state.name;
                 // react-diff-view, awesome as it is, does not accept unidiff format, you must add a git header section
                 return `diff --git a/${name} b/${name}
 index 6829b8a2..4c565f1b 100644
@@ -72,7 +73,7 @@ ${formatLines(diffLines(a, b), {context, aname: `a/${name}}`, bname: `b/${name}`
                                   })}/>
                         <label htmlFor='hideDefaultedFields'>Hide default fields</label>
                     </div>
-                    {files.map((file: any) => (
+                    {files.sort((a: any, b: any) => a.newPath.localeCompare(b.newPath)).map((file: any) => (
                         <div key={file.newPath} className={whiteBox + ' application-component-diff__diff'}>
                             {showPath && (
                                 <p className='application-component-diff__diff__title'>{file.newPath}</p>
