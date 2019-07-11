@@ -372,7 +372,7 @@ func TestFailedConversion(t *testing.T) {
 		errors.FailOnErr(fixture.Run("", "kubectl", "delete", "apiservice", "v1beta1.metrics.k8s.io"))
 	}()
 
-	testEdgeCasesApplicationResources(t, "failed-conversion", HealthStatusHealthy)
+	testEdgeCasesApplicationResources(t, "failed-conversion", HealthStatusProgressing)
 }
 
 func testEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode HealthStatusCode) {
