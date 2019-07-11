@@ -72,7 +72,7 @@ export const ApplicationNodeInfo = (props: {
     if (props.controlled && !props.controlled.summary.hook) {
         tabs.push({
             key: 'diff',
-            icon: 'fa fa-exchange-alt',
+            icon: 'fa fa-file-medical',
             title: 'Diff',
             content: <ApplicationResourcesDiff states={[props.controlled.state]}/>,
         });

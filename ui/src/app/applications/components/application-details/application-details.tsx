@@ -268,7 +268,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                             }}/>
                                         ),
                                     }, {
-                                        icon: 'fa fa-exchange-alt', title: 'DIFF', key: 'diff', content: (
+                                        icon: 'fa fa-file-medical', title: 'DIFF', key: 'diff', content: (
                                             <DataLoader key='diff'
                                                         load={async () => await services.applications.managedResources(application.metadata.name)}>{(managedResources) =>
                                                 <ApplicationResourcesDiff states={managedResources}/>}</DataLoader>
@@ -315,7 +315,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             title: <span className='show-for-medium'>App Details</span>,
             action: () => this.selectNode(fullName),
         }, {
-            iconClassName: 'fa fa-exchange-alt',
+            iconClassName: 'fa fa-file-medical',
             title: <span className='show-for-medium'>App Diff</span>,
             action: () => this.selectNode(fullName, 0, 'diff'),
             disabled: app.status.sync.status === SyncStatuses.Synced,
