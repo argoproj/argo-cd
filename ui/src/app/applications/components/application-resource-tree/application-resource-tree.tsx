@@ -23,6 +23,7 @@ export interface ResourceTreeNode extends models.ResourceNode {
     health?: models.HealthStatus;
     hook?: boolean;
     root?: ResourceTreeNode;
+    requiresPruning?: boolean;
 }
 
 export interface ApplicationResourceTreeProps {
@@ -249,6 +250,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             resourceNode.health = status.health;
             resourceNode.status = status.status;
             resourceNode.hook = status.hook;
+            resourceNode.requiresPruning = status.requiresPruning;
         }
         nodeByKey.set(treeNodeKey(node), resourceNode);
     });

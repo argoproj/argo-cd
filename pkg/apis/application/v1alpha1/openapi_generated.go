@@ -2454,9 +2454,9 @@ func schema_pkg_apis_application_v1alpha1_ResourceStatus(ref common.ReferenceCal
 							Format: "",
 						},
 					},
-					"resourceVersion": {
+					"requiresPruning": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
+							Type:   []string{"boolean"},
 							Format: "",
 						},
 					},

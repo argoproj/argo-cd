@@ -131,5 +131,11 @@ func TestSetApplicationHealth(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, appv1.HealthStatusHealthy, healthStatus.Status)
+}
 
+func TestAPIService(t *testing.T) {
+	assertAppHealth(t, "./testdata/apiservice-v1-true.yaml", appv1.HealthStatusHealthy)
+	assertAppHealth(t, "./testdata/apiservice-v1-false.yaml", appv1.HealthStatusProgressing)
+	assertAppHealth(t, "./testdata/apiservice-v1beta1-true.yaml", appv1.HealthStatusHealthy)
+	assertAppHealth(t, "./testdata/apiservice-v1beta1-false.yaml", appv1.HealthStatusProgressing)
 }
