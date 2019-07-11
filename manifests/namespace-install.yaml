@@ -1580,8 +1580,8 @@ spec:
                     type: string
                   namespace:
                     type: string
-                  resourceVersion:
-                    type: string
+                  requiresPruning:
+                    type: boolean
                   status:
                     type: string
                   version:

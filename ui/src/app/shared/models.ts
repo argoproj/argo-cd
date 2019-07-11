@@ -232,7 +232,7 @@ export interface ResourceStatus {
     status: SyncStatusCode;
     health: HealthStatus;
     hook?: boolean;
-    resourceVersion?: string;
+    requiresPruning?: boolean;
 }
 
 export interface ResourceRef {
