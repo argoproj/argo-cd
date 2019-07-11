@@ -9,35 +9,44 @@ import {services} from '../../../shared/services';
 
 const jsonDiffPatch = require('jsondiffpatch');
 
-require('./application-resource-diff.scss');
+require('./application-resources-diff.scss');
 
-export interface ApplicationComponentDiffProps {
-    state: models.ResourceDiff;
+export interface ApplicationResourcesDiffProps {
+    states: models.ResourceDiff[];
 }
 
-export const ApplicationResourceDiff = (props: ApplicationComponentDiffProps) => (
-    <DataLoader load={() => services.viewPreferences.getPreferences()}>
+export const ApplicationResourcesDiff = (props: ApplicationResourcesDiffProps) => (
+    <DataLoader key='resource-diff' load={() => services.viewPreferences.getPreferences()}>
         {(pref) => {
-            let live = props.state.liveState;
-            if (pref.appDetails.hideDefaultedFields && live) {
-                live = removeDefaultedFields(props.state.targetState, live);
-            }
+            const diffText = props.states.map((state) => {
+                let live = state.liveState;
+                if (pref.appDetails.hideDefaultedFields && live) {
+                    live = removeDefaultedFields(state.targetState, live);
+                }
 
-            const liveCopy = JSON.parse(JSON.stringify(live || {}));
-            let target: any = null;
-            if (props.state.targetState) {
-                target = props.state.diff ? jsonDiffPatch.patch(liveCopy, JSON.parse(props.state.diff)) : liveCopy;
-            }
+                const liveCopy = JSON.parse(JSON.stringify(live || {}));
+                let target: any = null;
+                if (state.targetState) {
+                    target = state.diff ? jsonDiffPatch.patch(liveCopy, JSON.parse(state.diff)) : liveCopy;
+                }
 
-            const a = live ? jsYaml.safeDump(live, {indent: 2}) : '';
-            const b = target ? jsYaml.safeDump(target, {indent: 2}) : '';
-            const context = pref.appDetails.compactDiff ? 2 : Number.MAX_SAFE_INTEGER;
-            const diffText = formatLines(diffLines(a, b), {context});
-            const files = parseDiff(diffText, {nearbySequences: 'zip'});
+                const a = live ? jsYaml.safeDump(live, {indent: 2}) : '';
+                const b = target ? jsYaml.safeDump(target, {indent: 2}) : '';
+                const context = pref.appDetails.compactDiff ? 2 : Number.MAX_SAFE_INTEGER;
+                const name = state.namespace + '/' + state.kind + '-' + state.name + '.yaml';
+                // react-diff-view, awesome as it is, does not accept unidiff format, you must add a git header section
+                return `diff --git a/${name} b/${name}
+index 6829b8a2..4c565f1b 100644
+${formatLines(diffLines(a, b), {context, aname: `a/${name}}`, bname: `b/${name}`})}`;
+            }).join('\n');
+            // assume that if you only have one file, we don't need the file path
+            const whiteBox = props.states.length > 1 ? 'white-box' : '';
+            const showPath = props.states.length > 1;
+            const files = parseDiff(diffText);
             const viewType = pref.appDetails.inlineDiff ? 'unified' : 'split';
             return (
                 <div className='application-component-diff'>
-                    <div className='application-component-diff__checkboxes'>
+                    <div className={whiteBox + ' application-component-diff__checkboxes'}>
                         <Checkbox id='compactDiff' checked={pref.appDetails.compactDiff}
                                   onChange={() => services.viewPreferences.updatePreferences({
                                       appDetails: {
@@ -48,7 +57,10 @@ export const ApplicationResourceDiff = (props: ApplicationComponentDiffProps) =>
                         <label htmlFor='compactDiff'>Compact diff</label>
                         <Checkbox id='inlineDiff' checked={pref.appDetails.inlineDiff}
                                   onChange={() => services.viewPreferences.updatePreferences({
-                                      appDetails: {...pref.appDetails, inlineDiff: !pref.appDetails.inlineDiff},
+                                      appDetails: {
+                                          ...pref.appDetails,
+                                          inlineDiff: !pref.appDetails.inlineDiff,
+                                      },
                                   })}/>
                         <label htmlFor='inlineDiff'>Inline Diff</label>
                         <Checkbox id='hideDefaultedFields' checked={pref.appDetails.hideDefaultedFields}
@@ -60,26 +72,27 @@ export const ApplicationResourceDiff = (props: ApplicationComponentDiffProps) =>
                                   })}/>
                         <label htmlFor='hideDefaultedFields'>Hide default fields</label>
                     </div>
-                    <div className='application-component-diff__diff'>
-                        {files.map((file: any) => (
-                            <Diff key={file.oldRevision + '-' + file.newRevision} viewType={viewType}
-                                  diffType={file.type} hunks={file.hunks}>
+                    {files.map((file: any) => (
+                        <div key={file.newPath} className={whiteBox + ' application-component-diff__diff'}>
+                            {showPath && (
+                                <p className='application-component-diff__diff__title'>{file.newPath}</p>
+                            )}
+                            <Diff viewType={viewType} diffType={file.type} hunks={file.hunks}>
                                 {(hunks: any) => hunks.map((hunk: any) => (<Hunk key={hunk.content} hunk={hunk}/>))}
                             </Diff>
-                        ))
-                        }
-                    </div>
+                        </div>
+                    ))}
                 </div>
             );
         }}
     </DataLoader>
 );
 
-function removeDefaultedFields(config: any, live: any): any {
+function removeDefaultedFields(config: any, obj: any): any {
     if (config instanceof Array) {
         const result = [];
-        for (let i = 0; i < live.length; i++) {
-            let v2 = live[i];
+        for (let i = 0; i < obj.length; i++) {
+            let v2 = obj[i];
             if (config.length > i) {
                 if (v2) {
                     v2 = removeDefaultedFields(config[i], v2);
@@ -94,8 +107,8 @@ function removeDefaultedFields(config: any, live: any): any {
         const result: any = {};
         for (const k of Object.keys(config)) {
             const v1 = config[k];
-            if (live.hasOwnProperty(k)) {
-                let v2 = live[k];
+            if (obj.hasOwnProperty(k)) {
+                let v2 = obj[k];
                 if (v2) {
                     v2 = removeDefaultedFields(v1, v2);
                 }
@@ -104,5 +117,5 @@ function removeDefaultedFields(config: any, live: any): any {
         }
         return result;
     }
-    return live;
+    return obj;
 }

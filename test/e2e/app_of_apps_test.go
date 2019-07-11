@@ -5,10 +5,12 @@ import (
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/test/fixture/test"
 )
 
 // mostly provided as a way to easily create an app of apps for manual testing
 func TestAppOfApps(t *testing.T) {
+	test.LocalOnly(t)
 	Given(t).
 		Path("app-of-apps").
 		When().
