@@ -35,6 +35,7 @@ import (
 	argoutil "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/lua"
@@ -604,7 +605,7 @@ func (s *Server) GetResource(ctx context.Context, q *application.ApplicationReso
 	if err != nil {
 		return nil, err
 	}
-	err = replaceSecretValues(obj)
+	obj, err = replaceSecretValues(obj)
 	if err != nil {
 		return nil, err
 	}
@@ -615,20 +616,15 @@ func (s *Server) GetResource(ctx context.Context, q *application.ApplicationReso
 	return &application.ApplicationResourceResponse{Manifest: string(data)}, nil
 }
 
-func replaceSecretValues(obj *unstructured.Unstructured) error {
+func replaceSecretValues(obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
-		data, _, _ := unstructured.NestedMap(obj.Object, "data")
-		if data != nil {
-			for k := range data {
-				data[k] = "**********"
-			}
-			err := unstructured.SetNestedField(obj.Object, data, "data")
-			if err != nil {
-				return err
-			}
+		_, obj, err := diff.HideSecretData(nil, obj)
+		if err != nil {
+			return nil, err
 		}
+		return obj, err
 	}
-	return nil
+	return obj, nil
 }
 
 // PatchResource patches a resource
@@ -653,7 +649,7 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 	if err != nil {
 		return nil, err
 	}
-	err = replaceSecretValues(manifest)
+	manifest, err = replaceSecretValues(manifest)
 	if err != nil {
 		return nil, err
 	}
