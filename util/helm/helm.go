@@ -53,6 +53,7 @@ func IsMissingDependencyErr(err error) bool {
 func (h *helm) Template(appName string, namespace string, opts *argoappv1.ApplicationSourceHelm) ([]*unstructured.Unstructured, error) {
 	templateOpts := templateOpts{
 		set: map[string]string{},
+		setString: map[string]string{},
 	}
 	templateOpts.namespace = namespace
 	if opts != nil {
