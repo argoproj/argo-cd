@@ -53,8 +53,8 @@ func (m *MetricsServer) IncGitRequest(repo string, requestType GitRequestType) {
 	m.gitRequestCounter.WithLabelValues(repo, string(requestType)).Inc()
 }
 
-func (m *MetricsServer) NewClient(repoURL, path, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (git.Client, error) {
-	client, err := m.gitClientFactory.NewClient(repoURL, path, username, password, sshPrivateKey, insecureIgnoreHostKey)
+func (m *MetricsServer) NewClient(repoURL string, path string, creds git.Creds, insecureIgnoreHostKey bool) (git.Client, error) {
+	client, err := m.gitClientFactory.NewClient(repoURL, path, creds, insecureIgnoreHostKey)
 	if err != nil {
 		return nil, err
 	}

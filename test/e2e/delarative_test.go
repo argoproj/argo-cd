@@ -61,10 +61,9 @@ func TestDeclarativeInvalidProject(t *testing.T) {
 
 func TestDeclarativeInvalidRepoURL(t *testing.T) {
 	Given(t).
-		Repo("http://github.com").
 		Path("whatever").
 		When().
-		Declarative("declarative-apps/app.yaml").
+		DeclarativeWithCustomRepo("declarative-apps/app.yaml", "http://github.com").
 		Then().
 		Expect(Success("")).
 		Expect(HealthIs(HealthStatusHealthy)).

@@ -1,9 +1,7 @@
 package kustomize
 
 import (
-	"fmt"
 	"io/ioutil"
-	"os"
 	"path"
 	"path/filepath"
 	"testing"
@@ -12,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/test/fixture/testrepos"
 	"github.com/argoproj/argo-cd/util/git"
 )
 
@@ -120,38 +117,6 @@ func TestIsKustomization(t *testing.T) {
 	assert.True(t, IsKustomization("kustomization.yml"))
 	assert.True(t, IsKustomization("Kustomization"))
 	assert.False(t, IsKustomization("rubbish.yml"))
-}
-
-func TestNewKustomizeApp(t *testing.T) {
-	_ = os.Setenv("GIT_CONFIG_NOSYSTEM", "true")
-	defer func() { _ = os.Unsetenv("GIT_CONFIG_NOSYSTEM") }()
-
-	// add the hack path which has the git-ask-pass.sh shell script
-	osPath := os.Getenv("PATH")
-	hackPath, err := filepath.Abs("../../hack")
-	assert.NoError(t, err)
-	err = os.Setenv("PATH", fmt.Sprintf("%s:%s", osPath, hackPath))
-	assert.NoError(t, err)
-	defer func() { _ = os.Setenv("PATH", osPath) }()
-
-	type args struct {
-		path  string
-		creds git.Creds
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantLen int
-	}{
-		{"PrivateRemoteBase", args{"./testdata/private-remote-base", git.NewHTTPSCreds(testrepos.HTTPSTestRepo.Username, testrepos.HTTPSTestRepo.Password)}, 2},
-		{"PrivateSSHRemoteBase", args{"./testdata/private-ssh-remote-base", git.NewSSHCreds(testrepos.SSHTestRepo.SSHPrivateKey, testrepos.SSHTestRepo.InsecureIgnoreHostKey)}, 1},
-	}
-	for _, tt := range tests {
-		kust := NewKustomizeApp(tt.args.path, tt.args.creds)
-		objs, _, _, err := kust.Build(nil)
-		assert.NoError(t, err)
-		assert.Len(t, objs, tt.wantLen)
-	}
 }
 
 func TestNewImageTag(t *testing.T) {

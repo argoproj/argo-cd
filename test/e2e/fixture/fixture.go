@@ -34,13 +34,14 @@ import (
 )
 
 const (
-	defaultAriServer = "localhost:8080"
+	defaultApiServer = "localhost:8080"
 	adminPassword    = "password"
 	testingLabel     = "e2e.argoproj.io"
 	ArgoCDNamespace  = "argocd-e2e"
 
 	// ensure all repos are in one directory tree, so we can easily clean them up
-	tmpDir = "/tmp/argo-e2e"
+	tmpDir  = "/tmp/argo-e2e"
+	repoDir = "testdata.git"
 )
 
 var (
@@ -53,7 +54,16 @@ var (
 	apiServerAddress string
 	token            string
 	plainText        bool
-	repoUrl          string
+)
+
+type RepoURLType string
+
+const (
+	RepoURLTypeFile  = "file"
+	RepoURLTypeHTTPS = "https"
+	RepoURLTypeSSH   = "ssh"
+	GitUsername      = "admin"
+	GitPassword      = "password"
 )
 
 // getKubeConfig creates new kubernetes client config using specified config path and config overrides variables
@@ -78,8 +88,9 @@ func init() {
 	KubeClientset = kubernetes.NewForConfigOrDie(config)
 	apiServerAddress = os.Getenv(argocdclient.EnvArgoCDServer)
 	if apiServerAddress == "" {
-		apiServerAddress = defaultAriServer
+		apiServerAddress = defaultApiServer
 	}
+
 	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress)
 	CheckError(err)
 
@@ -113,14 +124,18 @@ func Name() string {
 }
 
 func repoDirectory() string {
-	return path.Join(tmpDir, name)
-}
-func SetRepoURL(url string) {
-	repoUrl = url
+	return path.Join(tmpDir, repoDir)
 }
 
-func RepoURL() string {
-	return repoUrl
+func RepoURL(urlType RepoURLType) string {
+	switch urlType {
+	case RepoURLTypeSSH:
+		return "ssh://root@localhost:2222/tmp/argo-e2e/testdata.git"
+	case RepoURLTypeHTTPS:
+		return "https://localhost:9443/argo-e2e/testdata.git"
+	default:
+		return fmt.Sprintf("file://%s", repoDirectory())
+	}
 }
 
 func DeploymentNamespace() string {
@@ -280,7 +295,6 @@ func EnsureCleanState(t *testing.T) {
 	name = dnsFriendly(t.Name())
 	// random id - unique across test runs
 	id = name + "-" + strings.ToLower(rand.RandString(5))
-	repoUrl = fmt.Sprintf("file://%s", repoDirectory())
 
 	// create tmp dir
 	FailOnErr(Run("", "mkdir", "-p", tmpDir))
@@ -310,8 +324,6 @@ func RunCli(args ...string) (string, error) {
 }
 
 func Patch(path string, jsonPatch string) {
-
-	checkLocalRepo()
 
 	log.WithFields(log.Fields{"path": path, "jsonPatch": jsonPatch}).Info("patching")
 
@@ -347,8 +359,6 @@ func Patch(path string, jsonPatch string) {
 
 func Delete(path string) {
 
-	checkLocalRepo()
-
 	log.WithFields(log.Fields{"path": path}).Info("deleting")
 
 	CheckError(os.Remove(filepath.Join(repoDirectory(), path)))
@@ -359,8 +369,6 @@ func Delete(path string) {
 
 func AddFile(path, contents string) {
 
-	checkLocalRepo()
-
 	log.WithFields(log.Fields{"path": path}).Info("adding")
 
 	CheckError(ioutil.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0644))
@@ -370,16 +378,10 @@ func AddFile(path, contents string) {
 	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "add file"))
 }
 
-func checkLocalRepo() {
-	if !strings.HasPrefix(repoUrl, "file://") {
-		log.WithFields(log.Fields{"repoUrl": repoUrl}).Fatal("cannot patch repo unless it is local")
-	}
-}
-
-// create the resource by creating using "kubctl apply", with bonus templating
+// create the resource by creating using "kubectl apply", with bonus templating
 func Declarative(filename string, values interface{}) (string, error) {
 
-	bytes, err := ioutil.ReadFile("testdata/" + filename)
+	bytes, err := ioutil.ReadFile(path.Join("testdata", filename))
 	CheckError(err)
 
 	tmpFile, err := ioutil.TempFile("", "")

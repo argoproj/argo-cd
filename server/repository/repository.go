@@ -60,7 +60,7 @@ func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.Conn
 	}
 	repo, err := s.db.GetRepository(ctx, url)
 	if err == nil {
-		err = git.TestRepo(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey, repo.Insecure)
+		err = git.TestRepo(repo.Repo, repo.GetCreds(), repo.IsInsecure())
 	}
 	if err != nil {
 		connectionState.Status = appsv1.ConnectionStatusFailed
@@ -86,7 +86,7 @@ func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.
 			if err != nil {
 				return nil, err
 			}
-			items = append(items, appsv1.Repository{Repo: url, Insecure: (repo.InsecureIgnoreHostKey || repo.Insecure), Username: repo.Username})
+			items = append(items, appsv1.Repository{Repo: url, Insecure: repo.IsInsecure(), Username: repo.Username})
 		}
 	}
 	err = util.RunAllAsync(len(items), func(i int) error {
@@ -228,7 +228,7 @@ func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest)
 		return nil, err
 	}
 	r := q.Repo
-	err := git.TestRepo(r.Repo, r.Username, r.Password, r.SSHPrivateKey, (r.InsecureIgnoreHostKey || r.Insecure))
+	err := git.TestRepo(r.Repo, r.GetCreds(), r.IsInsecure())
 	if err != nil {
 		return nil, err
 	}
@@ -286,7 +286,8 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		return nil, err
 	}
 
-	err := git.TestRepo(q.Repo, q.Username, q.Password, q.SshPrivateKey, q.Insecure)
+	repo := appsv1.Repository{Username: q.Username, Password: q.Password, SSHPrivateKey: q.SshPrivateKey}
+	err := git.TestRepo(q.Repo, repo.GetCreds(), q.Insecure)
 	if err != nil {
 		return nil, err
 	}

@@ -9,7 +9,6 @@ import (
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
-	"github.com/argoproj/argo-cd/test/fixture/testrepos"
 )
 
 // make sure we can echo back the Git creds
@@ -26,8 +25,9 @@ func TestCustomToolWithGitCreds(t *testing.T) {
 			},
 		).
 		// add the private repo
-		HTTPSRepo().
-		Path("child-base").
+		HTTPSRepoURLAdded().
+		RepoURLType(RepoURLTypeHTTPS).
+		Path("https-kustomize-base").
 		When().
 		Create().
 		Sync().
@@ -43,12 +43,12 @@ func TestCustomToolWithGitCreds(t *testing.T) {
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitUsername}")
 			assert.NoError(t, err)
-			assert.Equal(t, testrepos.HTTPSTestRepo.Username, output)
+			assert.Equal(t, GitUsername, output)
 		}).
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitPassword}")
 			assert.NoError(t, err)
-			assert.Equal(t, testrepos.HTTPSTestRepo.Password, output)
+			assert.Equal(t, GitPassword, output)
 		})
 }
 

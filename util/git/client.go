@@ -48,7 +48,7 @@ type Client interface {
 // ClientFactory is a factory of Git Clients
 // Primarily used to support creation of mock git clients during unit testing
 type ClientFactory interface {
-	NewClient(repoURL, path, username, password, sshPrivateKey string, insecure bool) (Client, error)
+	NewClient(rawRepoURL string, path string, creds Creds, insecure bool) (Client, error)
 }
 
 // nativeGitClient implements Client interface using git CLI
@@ -69,16 +69,7 @@ func NewFactory() ClientFactory {
 	return &factory{}
 }
 
-func (f *factory) NewClient(rawRepoURL, path, username, password, sshPrivateKey string, insecure bool) (Client, error) {
-	var creds Creds
-	if sshPrivateKey != "" {
-		creds = SSHCreds{sshPrivateKey, insecure}
-	} else if username != "" || password != "" {
-		creds = HTTPSCreds{username, password}
-	} else {
-		creds = NopCreds{}
-	}
-
+func (f *factory) NewClient(rawRepoURL string, path string, creds Creds, insecure bool) (Client, error) {
 	// We need a custom HTTP client for go-git when we want to skip validation
 	// of the server's TLS certificate (--insecure-ignore-server-cert). Since
 	// this change is permanent to go-git Client during runtime, we need to
@@ -165,7 +156,7 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 			return nil, err
 		}
 		auth := &ssh2.PublicKeys{User: sshUser, Signer: signer}
-		if creds.insecureIgnoreHostKey {
+		if creds.insecure {
 			auth.HostKeyCallback = ssh.InsecureIgnoreHostKey()
 		}
 		return auth, nil

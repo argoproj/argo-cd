@@ -7,6 +7,9 @@ ARG BASE_IMAGE=debian:9.5-slim
 FROM golang:1.12.6 as builder
 
 RUN apt-get update && apt-get install -y \
+    openssh-server \
+    nginx \
+    fcgiwrap \
     git \
     make \
     wget \

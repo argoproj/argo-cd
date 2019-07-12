@@ -524,7 +524,7 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 
 func (s *Service) newClient(repo *v1alpha1.Repository) (git.Client, error) {
 	appPath := tempRepoPath(git.NormalizeGitURL(repo.Repo))
-	return s.gitFactory.NewClient(repo.Repo, appPath, repo.Username, repo.Password, repo.SSHPrivateKey, (repo.InsecureIgnoreHostKey || repo.Insecure))
+	return s.gitFactory.NewClient(repo.Repo, appPath, repo.GetCreds(), repo.IsInsecure())
 }
 
 func runCommand(command v1alpha1.Command, path string, env []string) (string, error) {
@@ -749,11 +749,5 @@ func newCreds(repo *v1alpha1.Repository) git.Creds {
 	if repo == nil {
 		return git.NopCreds{}
 	}
-	if repo.Username != "" && repo.Password != "" {
-		return git.NewHTTPSCreds(repo.Username, repo.Password)
-	}
-	if repo.SSHPrivateKey != "" {
-		return git.NewSSHCreds(repo.SSHPrivateKey, (repo.InsecureIgnoreHostKey || repo.Insecure))
-	}
-	return git.NopCreds{}
+	return repo.GetCreds()
 }
