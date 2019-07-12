@@ -179,6 +179,8 @@ start-e2e: cli
 	kubectl create ns argocd-e2e || true
 	kubens argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
+	# check we can connect to Docker to start Redis
+	docker version
 	goreman start
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes
@@ -194,6 +196,8 @@ clean: clean-debug
 start:
 	killall goreman || true
 	kubens argocd
+	# check we can connect to Docker to start Redis
+	docker version
 	goreman start
 
 .PHONY: pre-commit

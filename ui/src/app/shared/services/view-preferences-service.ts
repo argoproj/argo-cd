@@ -7,6 +7,7 @@ export interface AppDetailsPreferences {
     view: AppsDetailsViewType;
     hideDefaultedFields: boolean;
     inlineDiff: boolean;
+    compactDiff: boolean;
 }
 
 export type AppsListViewType = 'tiles' | 'list' | 'summary';
@@ -49,6 +50,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         ],
         hideDefaultedFields: false,
         inlineDiff: false,
+        compactDiff: false,
     },
     appList: {
         view: 'tiles' as AppsListViewType,
