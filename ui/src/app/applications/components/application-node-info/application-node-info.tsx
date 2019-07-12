@@ -4,7 +4,7 @@ import * as React from 'react';
 import { YamlEditor } from '../../../shared/components';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
-import { ApplicationResourceDiff } from '../application-resource-diff/application-resource-diff';
+import { ApplicationResourcesDiff } from '../application-resources-diff/application-resources-diff';
 import { ComparisonStatusIcon, getPodStateReason, HealthStatusIcon } from '../utils';
 
 require('./application-node-info.scss');
@@ -72,8 +72,9 @@ export const ApplicationNodeInfo = (props: {
     if (props.controlled && !props.controlled.summary.hook) {
         tabs.push({
             key: 'diff',
+            icon: 'fa fa-file-medical',
             title: 'Diff',
-            content: <ApplicationResourceDiff state={props.controlled.state}/>,
+            content: <ApplicationResourcesDiff states={[props.controlled.state]}/>,
         });
     }
 

@@ -1,32 +1,42 @@
-import { DropDownMenu, MenuItem, NotificationType, SlidingPanel, Tab, Tabs, TopBarFilter } from 'argo-ui';
+import {DropDownMenu, MenuItem, NotificationType, SlidingPanel, Tab, Tabs, TopBarFilter} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
-import { Checkbox } from 'react-form';
-import { RouteComponentProps } from 'react-router';
-import { BehaviorSubject, Observable } from 'rxjs';
+import {Checkbox} from 'react-form';
+import {RouteComponentProps} from 'react-router';
+import {BehaviorSubject, Observable} from 'rxjs';
+import {
+    DataLoader,
+    EmptyState,
+    ErrorNotification,
+    EventsList,
+    ObservableQuery,
+    Page,
+    Paginate,
+    YamlEditor,
+} from '../../../shared/components';
+import {AppContext} from '../../../shared/context';
+import * as appModels from '../../../shared/models';
+import {AppDetailsPreferences, AppsDetailsViewType, services} from '../../../shared/services';
+
+import {SyncStatuses} from '../../../shared/models';
+import {ApplicationConditions} from '../application-conditions/application-conditions';
+import {ApplicationDeploymentHistory} from '../application-deployment-history/application-deployment-history';
+import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
+import {ApplicationOperationState} from '../application-operation-state/application-operation-state';
+import {ApplicationParameters} from '../application-parameters/application-parameters';
+import {ApplicationResourceEvents} from '../application-resource-events/application-resource-events';
+import {ApplicationResourceTree, ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
+import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
+import {ApplicationStatusPanel} from '../application-status-panel/application-status-panel';
+import {ApplicationSummary} from '../application-summary/application-summary';
+import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
+import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
+import * as AppUtils from '../utils';
+import {isSameNode, nodeKey} from '../utils';
+import {ApplicationResourceList} from './application-resource-list';
 
 const jsonMergePatch = require('json-merge-patch');
-
-import { DataLoader, EmptyState, ErrorNotification, EventsList, ObservableQuery, Page, Paginate, YamlEditor } from '../../../shared/components';
-import { AppContext } from '../../../shared/context';
-import * as appModels from '../../../shared/models';
-import { AppDetailsPreferences, AppsDetailsViewType, services } from '../../../shared/services';
-
-import { ApplicationConditions } from '../application-conditions/application-conditions';
-import { ApplicationDeploymentHistory } from '../application-deployment-history/application-deployment-history';
-import { ApplicationNodeInfo } from '../application-node-info/application-node-info';
-import { ApplicationOperationState } from '../application-operation-state/application-operation-state';
-import { ApplicationParameters } from '../application-parameters/application-parameters';
-import { ApplicationResourceEvents } from '../application-resource-events/application-resource-events';
-import { ApplicationResourceTree, ResourceTreeNode } from '../application-resource-tree/application-resource-tree';
-import { ApplicationStatusPanel } from '../application-status-panel/application-status-panel';
-import { ApplicationSummary } from '../application-summary/application-summary';
-import { ApplicationSyncPanel } from '../application-sync-panel/application-sync-panel';
-import { PodsLogsViewer } from '../pod-logs-viewer/pod-logs-viewer';
-import * as AppUtils from '../utils';
-import { isSameNode, nodeKey } from '../utils';
-import { ApplicationResourceList } from './application-resource-list';
 
 require('./application-details.scss');
 
@@ -168,7 +178,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                             <div className='application-details__status-panel'>
                                 <ApplicationStatusPanel application={application}
                                     showOperation={() => this.setOperationStatusVisible(true)}
-                                    showConditions={() => this.setConditionsStatusVisible(true)}/>
+                                    showConditions={() => this.setConditionsStatusVisible(true)}
+                                />
                             </div>
                             <div className='application-details__tree'>
                                 {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
@@ -250,11 +261,17 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                             </DataLoader>
                                         ),
                                     }, {
-                                        title: 'SPEC MANIFEST', key: 'manifest', content: (
+                                        title: 'MANIFEST', key: 'manifest', content: (
                                             <YamlEditor minHeight={800} input={application.spec} onSave={async (patch) => {
                                                 const spec = JSON.parse(JSON.stringify(application.spec));
                                                 return services.applications.updateSpec(application.metadata.name, jsonMergePatch.apply(spec, JSON.parse(patch)));
                                             }}/>
+                                        ),
+                                    }, {
+                                        icon: 'fa fa-file-medical', title: 'DIFF', key: 'diff', content: (
+                                            <DataLoader key='diff'
+                                                        load={async () => await services.applications.managedResources(application.metadata.name)}>{(managedResources) =>
+                                                <ApplicationResourcesDiff states={managedResources}/>}</DataLoader>
                                         ),
                                     }, {
                                         title: 'EVENTS', key: 'event', content: <ApplicationResourceEvents applicationName={application.metadata.name}/>,
@@ -290,13 +307,18 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         );
     }
 
-    private getApplicationActionMenu(application: appModels.Application) {
-        const refreshing = application.metadata.annotations && application.metadata.annotations[appModels.AnnotationRefreshKey];
+    private getApplicationActionMenu(app: appModels.Application) {
+        const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
+        const fullName = nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace });
         return [{
             iconClassName: 'fa fa-info-circle',
-            title: <span className='show-for-medium'>Details</span>,
-            action: () => this.selectNode(nodeKey({
-                group: 'argoproj.io', kind: application.kind, name: application.metadata.name, namespace: application.metadata.namespace })),
+            title: <span className='show-for-medium'>App Details</span>,
+            action: () => this.selectNode(fullName),
+        }, {
+            iconClassName: 'fa fa-file-medical',
+            title: <span className='show-for-medium'>App Diff</span>,
+            action: () => this.selectNode(fullName, 0, 'diff'),
+            disabled: app.status.sync.status === SyncStatuses.Synced,
         }, {
             iconClassName: 'fa fa-sync',
             title: <span className='show-for-medium'>Sync</span>,
@@ -305,12 +327,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             iconClassName: 'fa fa-info-circle',
             title: <span className='show-for-medium'>Sync Status</span>,
             action:  () => this.setOperationStatusVisible(true),
-            disabled: !application.status.operationState,
+            disabled: !app.status.operationState,
         }, {
             iconClassName: 'fa fa-history',
             title: <span className='show-for-medium'>History and rollback</span>,
             action: () => this.setRollbackPanelVisible(0),
-            disabled: !application.status.operationState,
+            disabled: !app.status.operationState,
         }, {
             iconClassName: 'fa fa-times-circle',
             title: <span className='show-for-medium'>Delete</span>,
@@ -319,11 +341,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             iconClassName: classNames('fa fa-redo', { 'status-icon--spin': !!refreshing }),
             title: (
                 <React.Fragment><span className='show-for-medium'>Refresh</span> <DropDownMenu items={[{
-                    title: 'Hard Refresh', action: () => !refreshing && services.applications.get(application.metadata.name, 'hard'),
+                    title: 'Hard Refresh', action: () => !refreshing && services.applications.get(app.metadata.name, 'hard'),
                 }]} anchor={() => <i className='fa fa-caret-down'/>} /></React.Fragment>
             ),
             disabled: !!refreshing,
-            action: () => !refreshing && services.applications.get(application.metadata.name, 'normal'),
+            action: () => !refreshing && services.applications.get(app.metadata.name, 'normal'),
         }];
     }
 
