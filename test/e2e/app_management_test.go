@@ -5,14 +5,15 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/util/settings"
-
 	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-cd/common"
@@ -27,6 +28,7 @@ import (
 	. "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 const (
@@ -219,6 +221,30 @@ func TestManipulateApplicationResources(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
 }
 
+func assetSecretDataHidden(t *testing.T, manifest string) {
+	secret, err := UnmarshalToUnstructured(manifest)
+	assert.NoError(t, err)
+
+	_, hasStringData, err := unstructured.NestedMap(secret.Object, "stringData")
+	assert.NoError(t, err)
+	assert.False(t, hasStringData)
+
+	secretData, hasData, err := unstructured.NestedMap(secret.Object, "data")
+	assert.NoError(t, err)
+	assert.True(t, hasData)
+	for _, v := range secretData {
+		assert.Regexp(t, regexp.MustCompile(`[*]*`), v)
+	}
+	var lastAppliedConfigAnnotation string
+	annotations := secret.GetAnnotations()
+	if annotations != nil {
+		lastAppliedConfigAnnotation = annotations[v1.LastAppliedConfigAnnotation]
+	}
+	if lastAppliedConfigAnnotation != "" {
+		assetSecretDataHidden(t, lastAppliedConfigAnnotation)
+	}
+}
+
 func TestAppWithSecrets(t *testing.T) {
 	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 	assert.NoError(t, err)
@@ -232,6 +258,17 @@ func TestAppWithSecrets(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
+			res, err := client.GetResource(context.Background(), &applicationpkg.ApplicationResourceRequest{
+				Namespace:    app.Spec.Destination.Namespace,
+				Kind:         kube.SecretKind,
+				Group:        "",
+				Name:         &app.Name,
+				Version:      "v1",
+				ResourceName: "test-secret",
+			})
+			assert.NoError(t, err)
+
+			assetSecretDataHidden(t, res.Manifest)
 
 			diffOutput, err := fixture.RunCli("app", "diff", app.Name)
 			assert.NoError(t, err)
@@ -335,7 +372,7 @@ func TestFailedConversion(t *testing.T) {
 		errors.FailOnErr(fixture.Run("", "kubectl", "delete", "apiservice", "v1beta1.metrics.k8s.io"))
 	}()
 
-	testEdgeCasesApplicationResources(t, "failed-conversion", HealthStatusHealthy)
+	testEdgeCasesApplicationResources(t, "failed-conversion", HealthStatusProgressing)
 }
 
 func testEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode HealthStatusCode) {

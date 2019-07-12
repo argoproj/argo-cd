@@ -44,6 +44,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.EnvEntry":                   schema_pkg_apis_application_v1alpha1_EnvEntry(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HealthStatus":               schema_pkg_apis_application_v1alpha1_HealthStatus(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HelmParameter":              schema_pkg_apis_application_v1alpha1_HelmParameter(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HelmRepository":             schema_pkg_apis_application_v1alpha1_HelmRepository(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Info":                       schema_pkg_apis_application_v1alpha1_Info(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.InfoItem":                   schema_pkg_apis_application_v1alpha1_InfoItem(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.JWTToken":                   schema_pkg_apis_application_v1alpha1_JWTToken(ref),
@@ -54,6 +55,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OperationState":             schema_pkg_apis_application_v1alpha1_OperationState(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectRole":                schema_pkg_apis_application_v1alpha1_ProjectRole(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Repository":                 schema_pkg_apis_application_v1alpha1_Repository(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RepositoryCertificate":      schema_pkg_apis_application_v1alpha1_RepositoryCertificate(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RepositoryCertificateList":  schema_pkg_apis_application_v1alpha1_RepositoryCertificateList(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RepositoryList":             schema_pkg_apis_application_v1alpha1_RepositoryList(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceAction":             schema_pkg_apis_application_v1alpha1_ResourceAction(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceActionDefinition":   schema_pkg_apis_application_v1alpha1_ResourceActionDefinition(ref),
@@ -206,7 +209,7 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 				Properties: map[string]spec.Schema{
 					"sourceRepos": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SourceRepos contains list of repository URLs which can be used for deployment",
+							Description: "SourceRepos contains list of git repository URLs which can be used for deployment",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -446,7 +449,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSource(ref common.Reference
 				Properties: map[string]spec.Schema{
 					"repoURL": {
 						SchemaProps: spec.SchemaProps{
-							Description: "RepoURL is the repository URL of the application manifests",
+							Description: "RepoURL is the git repository URL of the application manifests",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1357,7 +1360,69 @@ func schema_pkg_apis_application_v1alpha1_HelmParameter(ref common.ReferenceCall
 							Format:      "",
 						},
 					},
+					"forceString": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ForceString determines whether to tell Helm to interpret booleans and numbers as strings",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_HelmRepository(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"url": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"caData": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "byte",
+						},
+					},
+					"certData": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "byte",
+						},
+					},
+					"keyData": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "byte",
+						},
+					},
+					"username": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"password": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"url", "name"},
 			},
 		},
 	}
@@ -1681,30 +1746,33 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "Repository is a repository holding application configurations",
+				Description: "Repository is a Git repository holding application configurations",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"repo": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "URL of the repo",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"username": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "Username for authenticating at the repo server",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"password": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "Password for authenticating at the repo server",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"sshPrivateKey": {
 						SchemaProps: spec.SchemaProps{
-							Description: "only for Git repos",
+							Description: "SSH private key data for authenticating at the repo server",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1716,44 +1784,16 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 					},
 					"insecureIgnoreHostKey": {
 						SchemaProps: spec.SchemaProps{
-							Description: "only for Git repos",
+							Description: "InsecureIgnoreHostKey should not be used anymore, Insecure is favoured",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
-					"type": {
+					"insecure": {
 						SchemaProps: spec.SchemaProps{
-							Description: "type of the repo, maybe \"git or \"helm, \"git\" is assumed if empty or absent",
-							Type:        []string{"string"},
+							Description: "Whether the repo is insecure",
+							Type:        []string{"boolean"},
 							Format:      "",
-						},
-					},
-					"name": {
-						SchemaProps: spec.SchemaProps{
-							Description: "only for Helm repos",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"caData": {
-						SchemaProps: spec.SchemaProps{
-							Description: "only for Helm repos",
-							Type:        []string{"string"},
-							Format:      "byte",
-						},
-					},
-					"certData": {
-						SchemaProps: spec.SchemaProps{
-							Description: "only for Helm repos",
-							Type:        []string{"string"},
-							Format:      "byte",
-						},
-					},
-					"keyData": {
-						SchemaProps: spec.SchemaProps{
-							Description: "only for Helm repos",
-							Type:        []string{"string"},
-							Format:      "byte",
 						},
 					},
 				},
@@ -1762,6 +1802,89 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConnectionState"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_RepositoryCertificate(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "A RepositoryCertificate is either SSH known hosts entry or TLS certificate",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"servername": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of the server the certificate is intended for",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Type of certificate - currently \"https\" or \"ssh\"",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"cipher": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The sub type of the cert, i.e. \"ssh-rsa\"",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"certdata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Actual certificate data, protocol dependent",
+							Type:        []string{"string"},
+							Format:      "byte",
+						},
+					},
+					"certfingerprint": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Certificate fingerprint",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"servername", "type", "cipher", "certdata", "certfingerprint"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_RepositoryCertificateList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RepositoryCertificateList is a collection of RepositoryCertificates",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Description: "List of certificates to be processed",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RepositoryCertificate"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RepositoryCertificate", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
@@ -2428,9 +2551,9 @@ func schema_pkg_apis_application_v1alpha1_ResourceStatus(ref common.ReferenceCal
 							Format: "",
 						},
 					},
-					"resourceVersion": {
+					"requiresPruning": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
+							Type:   []string{"boolean"},
 							Format: "",
 						},
 					},
@@ -2539,7 +2662,7 @@ func schema_pkg_apis_application_v1alpha1_SyncOperation(ref common.ReferenceCall
 				Properties: map[string]spec.Schema{
 					"revision": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Revision is the revision in which to sync the application to. If omitted, will use the revision specified in app spec.",
+							Description: "Revision is the git revision in which to sync the application to. If omitted, will use the revision specified in app spec.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2659,7 +2782,7 @@ func schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref common.Referen
 					},
 					"revision": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Revision holds the revision of the sync",
+							Description: "Revision holds the git commit SHA of the sync",
 							Type:        []string{"string"},
 							Format:      "",
 						},

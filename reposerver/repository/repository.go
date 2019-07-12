@@ -740,7 +740,7 @@ func newCreds(repo *v1alpha1.Repository) git.Creds {
 		return git.NewHTTPSCreds(repo.Username, repo.Password)
 	}
 	if repo.SSHPrivateKey != "" {
-		return git.NewSSHCreds(repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
+		return git.NewSSHCreds(repo.SSHPrivateKey, (repo.InsecureIgnoreHostKey || repo.Insecure))
 	}
 	return git.NopCreds{}
 }

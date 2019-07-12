@@ -34,6 +34,11 @@ func TestHelmTemplateParams(t *testing.T) {
 				Name:  "service.port",
 				Value: "1234",
 			},
+			{
+				Name:        "service.annotations.prometheus\\.io/scrape",
+				Value:       "true",
+				ForceString: true,
+			},
 		},
 	}
 	objs, err := h.Template("test", "", &opts)
@@ -47,6 +52,7 @@ func TestHelmTemplateParams(t *testing.T) {
 			assert.Nil(t, err)
 			assert.Equal(t, apiv1.ServiceTypeLoadBalancer, svc.Spec.Type)
 			assert.Equal(t, int32(1234), svc.Spec.Ports[0].TargetPort.IntVal)
+			assert.Equal(t, "true", svc.ObjectMeta.Annotations["prometheus.io/scrape"])
 		}
 	}
 }

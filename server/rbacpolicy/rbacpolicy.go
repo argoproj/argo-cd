@@ -18,6 +18,7 @@ const (
 	ResourceProjects     = "projects"
 	ResourceApplications = "applications"
 	ResourceRepositories = "repositories"
+	ResourceCertificates = "certificates"
 
 	ActionGet      = "get"
 	ActionCreate   = "create"

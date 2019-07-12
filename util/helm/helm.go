@@ -59,7 +59,11 @@ func (h *helm) Template(appName string, namespace string, opts *argoappv1.Applic
 		templateOpts.name = opts.ReleaseName
 		templateOpts.values = opts.ValueFiles
 		for _, p := range opts.Parameters {
-			templateOpts.set[p.Name] = p.Value
+			if p.ForceString {
+				args = append(args, "--set-string", fmt.Sprintf("%s=%s", p.Name, p.Value))
+			} else {
+				args = append(args, "--set", fmt.Sprintf("%s=%s", p.Name, p.Value))
+			}
 		}
 	}
 	if templateOpts.name == "" {

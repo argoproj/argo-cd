@@ -154,6 +154,8 @@ type HelmParameter struct {
 	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
 	// Value is the value for the helm parameter
 	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
+	// ForceString determines whether to tell Helm to interpret booleans and numbers as strings
+	ForceString bool `json:"forceString,omitempty" protobuf:"bytes,3,opt,name=forceString"`
 }
 
 func (h *ApplicationSourceHelm) IsZero() bool {
@@ -731,7 +733,7 @@ type ResourceStatus struct {
 	Status          SyncStatusCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
 	Health          *HealthStatus  `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
 	Hook            bool           `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
-	ResourceVersion string         `json:"resourceVersion,omitempty" protobuf:"bytes,9,opt,name=resourceVersion"`
+	RequiresPruning bool           `json:"requiresPruning,omitempty" protobuf:"bytes,9,opt,name=requiresPruning"`
 }
 
 func (r *ResourceStatus) GroupVersionKind() schema.GroupVersionKind {
@@ -869,14 +871,21 @@ type ResourceActionParam struct {
 
 // Repository is a repository holding application configurations
 type Repository struct {
-	Repo     string `json:"repo" protobuf:"bytes,1,opt,name=repo"`
+	// URL of the repo
+	Repo string `json:"repo" protobuf:"bytes,1,opt,name=repo"`
+	// Username for authenticating at the repo server
 	Username string `json:"username,omitempty" protobuf:"bytes,2,opt,name=username"`
+	// Password for authenticating at the repo server
 	Password string `json:"password,omitempty" protobuf:"bytes,3,opt,name=password"`
+	// SSH private key data for authenticating at the repo server
 	// only for Git repos
 	SSHPrivateKey   string          `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
 	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,5,opt,name=connectionState"`
+	// InsecureIgnoreHostKey should not be used anymore, Insecure is favoured
 	// only for Git repos
 	InsecureIgnoreHostKey bool `json:"insecureIgnoreHostKey,omitempty" protobuf:"bytes,6,opt,name=insecureIgnoreHostKey"`
+	// Whether the repo is insecure
+	Insecure bool `json:"insecure,omitempty" protobuf:"bytes,7,opt,name=insecure"`
 	// type of the repo, maybe "git or "helm, "git" is assumed if empty or absent
 	Type string `json:"type,omitempty" protobuf:"bytes,7,opt,name=type"`
 	// only for Helm repos
@@ -899,6 +908,7 @@ func (m *Repository) CopyCredentialsFrom(source *Repository) {
 		m.Password = source.Password
 		m.SSHPrivateKey = source.SSHPrivateKey
 		m.InsecureIgnoreHostKey = source.InsecureIgnoreHostKey
+		m.Insecure = source.Insecure
 	}
 }
 
@@ -918,6 +928,27 @@ func (r Repositories) Filter(predicate func(r *Repository) bool) Repositories {
 type RepositoryList struct {
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	Items           Repositories `json:"items" protobuf:"bytes,2,rep,name=items"`
+}
+
+// A RepositoryCertificate is either SSH known hosts entry or TLS certificate
+type RepositoryCertificate struct {
+	// Name of the server the certificate is intended for
+	ServerName string `json:"servername" protobuf:"bytes,1,opt,name=servername"`
+	// Type of certificate - currently "https" or "ssh"
+	CertType string `json:"type" protobuf:"bytes,2,opt,name=type"`
+	// The sub type of the cert, i.e. "ssh-rsa"
+	CertSubType string `json:"cipher" protobuf:"bytes,3,opt,name=cipher"`
+	// Actual certificate data, protocol dependent
+	CertData []byte `json:"certdata" protobuf:"bytes,4,opt,name=certdata"`
+	// Certificate fingerprint
+	CertFingerprint string `json:"certfingerprint" protobuf:"bytes,5,opt,name=certfingerprint"`
+}
+
+// RepositoryCertificateList is a collection of RepositoryCertificates
+type RepositoryCertificateList struct {
+	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+	// List of certificates to be processed
+	Items []RepositoryCertificate `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
 // AppProjectList is list of AppProject resources

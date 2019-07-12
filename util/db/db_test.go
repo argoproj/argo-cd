@@ -38,6 +38,9 @@ func getClientset(config map[string]string, objects ...runtime.Object) *fake.Cli
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
 			Namespace: testNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
 		},
 		Data: config,
 	}

@@ -89,7 +89,7 @@ func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.
 	for _, repo := range repos {
 		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, repo.Repo) {
 			// remove secrets
-			items = append(items, &appsv1.Repository{Repo: repo.Repo, Type: repo.Type, Name: repo.Name})
+			items = append(items, &appsv1.Repository{Repo: repo.Repo, Type: repo.Type, Name: repo.Name, Insecure: (repo.InsecureIgnoreHostKey || repo.Insecure), Username: repo.Username})
 		}
 	}
 	err = util.RunAllAsync(len(items), func(i int) error {
@@ -272,5 +272,20 @@ func (s *Server) Delete(ctx context.Context, q *repositorypkg.RepoQuery) (*repos
 	}
 
 	err := s.db.DeleteRepository(ctx, q.Repo)
+	return &repositorypkg.RepoResponse{}, err
+}
+
+// ValidateAccess checks whether access to a repository is possible with the
+// given URL and credentials.
+func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccessQuery) (*repositorypkg.RepoResponse, error) {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, q.Repo); err != nil {
+		return nil, err
+	}
+
+	err := git.TestRepo(q.Repo, q.Username, q.Password, q.SshPrivateKey, q.Insecure)
+	if err != nil {
+		return nil, err
+	}
+
 	return &repositorypkg.RepoResponse{}, err
 }

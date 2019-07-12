@@ -104,7 +104,7 @@ export const OperationPhaseIcon = ({phase}: { phase: appModels.OperationPhase })
     return <i title={phase} className={className} style={{color}}/>;
 };
 
-export const ComparisonStatusIcon = ({status, resource, label}: { status: appModels.SyncStatusCode, resource?: { resourceVersion?: string }, label?: boolean }) => {
+export const ComparisonStatusIcon = ({status, resource, label}: { status: appModels.SyncStatusCode, resource?: { requiresPruning?: boolean }, label?: boolean }) => {
     let className = 'fa fa-question-circle';
     let color = COLORS.sync.unknown;
     let title: string = status;
@@ -115,7 +115,7 @@ export const ComparisonStatusIcon = ({status, resource, label}: { status: appMod
             color = COLORS.sync.synced;
             break;
         case appModels.SyncStatuses.OutOfSync:
-            const requiresPruning = resource && resource.resourceVersion;
+            const requiresPruning = resource && resource.requiresPruning;
             className = requiresPruning ? 'fa fa-times-circle' : 'fa fa-times';
             if (requiresPruning) {
                 title = `${title} (requires pruning)`;

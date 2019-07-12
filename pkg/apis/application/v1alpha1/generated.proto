@@ -48,7 +48,7 @@ message AppProjectList {
 
 // AppProjectSpec is the specification of an AppProject
 message AppProjectSpec {
-  // SourceRepos contains list of repository URLs which can be used for deployment
+  // SourceRepos contains list of git repository URLs which can be used for deployment
   repeated string sourceRepos = 1;
 
   // Destinations contains list of destinations available for deployment
@@ -110,7 +110,7 @@ message ApplicationList {
 
 // ApplicationSource contains information about github repository, path within repository and target application environment.
 message ApplicationSource {
-  // RepoURL is the repository URL of the application manifests
+  // RepoURL is the git repository URL of the application manifests
   optional string repoURL = 1;
 
   // Path is a directory path within the repository containing a
@@ -368,6 +368,25 @@ message HelmParameter {
 
   // Value is the value for the helm parameter
   optional string value = 2;
+
+  // ForceString determines whether to tell Helm to interpret booleans and numbers as strings
+  optional bool forceString = 3;
+}
+
+message HelmRepository {
+  optional string url = 1;
+
+  optional string name = 2;
+
+  optional bytes caData = 3;
+
+  optional bytes certData = 4;
+
+  optional bytes keyData = 5;
+
+  optional string username = 6;
+
+  optional string password = 7;
 }
 
 message Info {
@@ -463,36 +482,53 @@ message ProjectRole {
   repeated string groups = 5;
 }
 
-// Repository is a repository holding application configurations
+// Repository is a Git repository holding application configurations
 message Repository {
+  // URL of the repo
   optional string repo = 1;
 
+  // Username for authenticating at the repo server
   optional string username = 2;
 
+  // Password for authenticating at the repo server
   optional string password = 3;
 
-  // only for Git repos
+  // SSH private key data for authenticating at the repo server
   optional string sshPrivateKey = 4;
 
   optional ConnectionState connectionState = 5;
 
-  // only for Git repos
+  // InsecureIgnoreHostKey should not be used anymore, Insecure is favoured
   optional bool insecureIgnoreHostKey = 6;
 
-  // type of the repo, maybe "git or "helm, "git" is assumed if empty or absent
-  optional string type = 7;
+  // Whether the repo is insecure
+  optional bool insecure = 7;
+}
 
-  // only for Helm repos
-  optional string name = 8;
+// A RepositoryCertificate is either SSH known hosts entry or TLS certificate
+message RepositoryCertificate {
+  // Name of the server the certificate is intended for
+  optional string servername = 1;
 
-  // only for Helm repos
-  optional bytes caData = 9;
+  // Type of certificate - currently "https" or "ssh"
+  optional string type = 2;
 
-  // only for Helm repos
-  optional bytes certData = 10;
+  // The sub type of the cert, i.e. "ssh-rsa"
+  optional string cipher = 3;
 
-  // only for Helm repos
-  optional bytes keyData = 11;
+  // Actual certificate data, protocol dependent
+  optional bytes certdata = 4;
+
+  // Certificate fingerprint
+  optional string certfingerprint = 5;
+}
+
+// RepositoryCertificateList is a collection of RepositoryCertificates
+message RepositoryCertificateList {
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  // List of certificates to be processed
+  repeated RepositoryCertificate items = 2;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -662,7 +698,7 @@ message ResourceStatus {
 
   optional bool hook = 8;
 
-  optional string resourceVersion = 9;
+  optional bool requiresPruning = 9;
 }
 
 // RevisionHistory contains information relevant to an application deployment
@@ -698,7 +734,7 @@ message RevisionMetadata {
 
 // SyncOperation contains sync operation details.
 message SyncOperation {
-  // Revision is the revision in which to sync the application to.
+  // Revision is the git revision in which to sync the application to.
   // If omitted, will use the revision specified in app spec.
   optional string revision = 1;
 
@@ -736,7 +772,7 @@ message SyncOperationResult {
   // Resources holds the sync result of each individual resource
   repeated ResourceResult resources = 1;
 
-  // Revision holds the revision of the sync
+  // Revision holds the git commit SHA of the sync
   optional string revision = 2;
 
   // Source records the application source information of the sync, used for comparing auto-sync
