@@ -488,7 +488,7 @@ func (sc *syncContext) liveObj(obj *unstructured.Unstructured) *unstructured.Uns
 	for _, resource := range sc.compareResult.managedResources {
 		if resource.Group == obj.GroupVersionKind().Group &&
 			resource.Kind == obj.GetKind() &&
-		// cluster scoped objects will not have a namespace, even if the user has defined it
+			// cluster scoped objects will not have a namespace, even if the user has defined it
 			(resource.Namespace == "" || resource.Namespace == obj.GetNamespace()) &&
 			resource.Name == obj.GetName() {
 			return resource.Live
@@ -510,7 +510,7 @@ func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun 
 	validate := !resource.HasAnnotationOption(targetObj, common.AnnotationSyncOptions, "Validate=false")
 	var message string
 	var err error
-	for i := 0; i < 1 + sc.maxRetries; i++ {
+	for i := 0; i < 1+sc.maxRetries; i++ {
 		message, err = sc.kubectl.ApplyResource(sc.config, targetObj, targetObj.GetNamespace(), dryRun, force, validate)
 		if err == nil {
 			break

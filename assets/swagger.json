@@ -3737,7 +3737,7 @@
           "$ref": "#/definitions/v1alpha1SyncPolicyAutomated"
         },
         "maxRetries": {
-          "description": "If an error is returned when Argo CD  tries to perform a kubectl apply, it will retry this number of times before giving up.\nSetting the number to 0 makes Argo CD  do no retries (which is the default).",
+          "description": "If an error is returned when Argo CD  tries to perform a kubectl apply, it will retry this number of times before giving up.\nSetting the number to 0 makes Argo CD  do no retries (which is the default).\nYou should be cautious when setting this to a non-zero value. For example, setting it to (say) 3 would, in the\nworst case, result in a 4-fold increase in traffic through the Kubernetes API.",
           "type": "string",
           "format": "int64"
         }

@@ -2817,7 +2817,7 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicy(ref common.ReferenceCallbac
 					},
 					"maxRetries": {
 						SchemaProps: spec.SchemaProps{
-							Description: "If an error is returned when Argo CD  tries to perform a kubectl apply, it will retry this number of times before giving up. Setting the number to 0 makes Argo CD  do no retries (which is the default).",
+							Description: "If an error is returned when Argo CD  tries to perform a kubectl apply, it will retry this number of times before giving up. Setting the number to 0 makes Argo CD  do no retries (which is the default). You should be cautious when setting this to a non-zero value. For example, setting it to (say) 3 would, in the worst case, result in a 4-fold increase in traffic through the Kubernetes API.",
 							Type:        []string{"integer"},
 							Format:      "int64",
 						},
