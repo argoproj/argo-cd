@@ -282,9 +282,14 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		return nil, err
 	}
 
-	repo, err := s.db.GetRepository(ctx, q.Repo)
-	if err != nil {
-		return nil, err
+	repo := &appsv1.Repository{
+		Repo:          q.Repo,
+		Username:      q.Username,
+		Password:      q.Password,
+		SSHPrivateKey: q.SshPrivateKey,
+		Insecure:      q.Insecure,
+		Type:          q.Type,
+		Name:          q.Name,
 	}
 
 	client, err := factory.NewFactory().NewClient(repo)

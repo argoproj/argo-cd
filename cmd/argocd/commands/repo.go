@@ -86,6 +86,8 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			// that were supplied, we bail out.
 			repoAccessReq := repositorypkg.RepoAccessQuery{
 				Repo:          repo.Repo,
+				Type:          repo.Type,
+				Name:          repo.Name,
 				Username:      repo.Username,
 				Password:      repo.Password,
 				SshPrivateKey: repo.SSHPrivateKey,
