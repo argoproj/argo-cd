@@ -32,20 +32,21 @@ message RepositoryCertificateCreateRequest {
 message RepositoryCertificateResponse {}
 
 service CertificateService {
-  // List all available certificates
-  rpc List(RepositoryCertificateQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RepositoryCertificateList) {
+  // List all available repository certificates
+  rpc ListCertificates(RepositoryCertificateQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RepositoryCertificateList) {
     option (google.api.http).get = "/api/v1/certificates";
   }
 
-  // Creates the requested certificates on the server
-  rpc Create(RepositoryCertificateCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RepositoryCertificateList) {
+  // Creates repository certificates on the server 
+  rpc CreateCertificate(RepositoryCertificateCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RepositoryCertificateList) {
     option (google.api.http) = {
       post: "/api/v1/certificates"
       body: "certificates"
     };
   }
 
-  rpc Delete(RepositoryCertificateQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RepositoryCertificateList) {
+  // Delete the certificates that match the RepositoryCertificateQuery
+  rpc DeleteCertificate(RepositoryCertificateQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RepositoryCertificateList) {
     option (google.api.http).delete = "/api/v1/certificates";
   }
 }

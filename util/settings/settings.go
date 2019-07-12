@@ -207,7 +207,7 @@ func (mgr *SettingsManager) getConfigMap() (*apiv1.ConfigMap, error) {
 // Returns the ConfigMap with the given name from the cluster.
 // The ConfigMap must be labeled with "app.kubernetes.io/part-of: argocd" in
 // order to be retrievable.
-func (mgr *SettingsManager) GetNamedConfigMap(configMapName string) (*apiv1.ConfigMap, error) {
+func (mgr *SettingsManager) GetConfigMapByName(configMapName string) (*apiv1.ConfigMap, error) {
 	err := mgr.ensureSynced(false)
 	if err != nil {
 		return nil, err
@@ -647,7 +647,7 @@ func (mgr *SettingsManager) SaveSSHKnownHostsData(ctx context.Context, knownHost
 		return err
 	}
 
-	certCM, err := mgr.GetNamedConfigMap(common.ArgoCDKnownHostsConfigMapName)
+	certCM, err := mgr.GetConfigMapByName(common.ArgoCDKnownHostsConfigMapName)
 	if err != nil {
 		return err
 	}
@@ -671,7 +671,7 @@ func (mgr *SettingsManager) SaveTLSCertificateData(ctx context.Context, tlsCerti
 		return err
 	}
 
-	certCM, err := mgr.GetNamedConfigMap(common.ArgoCDTLSCertsConfigMapName)
+	certCM, err := mgr.GetConfigMapByName(common.ArgoCDTLSCertsConfigMapName)
 	if err != nil {
 		return err
 	}
