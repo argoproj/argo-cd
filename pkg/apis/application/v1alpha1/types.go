@@ -358,6 +358,8 @@ type SyncPolicy struct {
 	Automated *SyncPolicyAutomated `json:"automated,omitempty" protobuf:"bytes,1,opt,name=automated"`
 	// If an error is returned when Argo CD  tries to perform a kubectl apply, it will retry this number of times before giving up.
 	// Setting the number to 0 makes Argo CD  do no retries (which is the default).
+	// You should be cautious when setting this to a non-zero value. For example, setting it to (say) 3 would, in the
+	// worst case, result in a 4-fold increase in traffic through the Kubernetes API.
 	MaxRetries int64 `json:"maxRetries,omitempty" protobuf:"bytes,2,opt,name=maxRetries"`
 }
 
