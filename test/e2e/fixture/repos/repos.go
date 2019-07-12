@@ -19,6 +19,9 @@ func AddSSHRepo() string {
 	if r.InsecureIgnoreHostKey {
 		args = append(args, "--insecure-ignore-host-key")
 	}
+	if r.InsecureSkipServerVerification {
+		args = append(args, "--insecure-skip-server-verification")
+	}
 	errors.FailOnErr(fixture.RunCli(args...))
 	return r.URL
 }

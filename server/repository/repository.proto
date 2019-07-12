@@ -56,10 +56,10 @@ message RepoAccessQuery {
 	string sshPrivateKey = 4;
 	// Whether to skip certificate or host key validation
 	bool   insecure = 5;
-	// The name ofthe repo
-	string name = 6;
 	// The type of the repo
-	string type = 7;
+	string type = 6;
+	// The name of the repo
+	string name = 7;
 }
 
 message RepoResponse {}
