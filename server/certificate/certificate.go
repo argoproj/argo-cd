@@ -40,7 +40,7 @@ func NewServer(
 // to a given certificate operation (get/create/delete), or it doesn't.
 
 // Returns a list of configured certificates that match the query
-func (s *Server) List(ctx context.Context, q *certificatepkg.RepositoryCertificateQuery) (*appsv1.RepositoryCertificateList, error) {
+func (s *Server) ListCertificates(ctx context.Context, q *certificatepkg.RepositoryCertificateQuery) (*appsv1.RepositoryCertificateList, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceCertificates, rbacpolicy.ActionGet, ""); err != nil {
 		return nil, err
 	}
@@ -56,7 +56,7 @@ func (s *Server) List(ctx context.Context, q *certificatepkg.RepositoryCertifica
 }
 
 // Batch creates certificates for verifying repositories
-func (s *Server) Create(ctx context.Context, q *certificatepkg.RepositoryCertificateCreateRequest) (*appsv1.RepositoryCertificateList, error) {
+func (s *Server) CreateCertificate(ctx context.Context, q *certificatepkg.RepositoryCertificateCreateRequest) (*appsv1.RepositoryCertificateList, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceCertificates, rbacpolicy.ActionCreate, ""); err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func (s *Server) Create(ctx context.Context, q *certificatepkg.RepositoryCertifi
 }
 
 // Batch deletes a list of certificates that match the query
-func (s *Server) Delete(ctx context.Context, q *certificatepkg.RepositoryCertificateQuery) (*appsv1.RepositoryCertificateList, error) {
+func (s *Server) DeleteCertificate(ctx context.Context, q *certificatepkg.RepositoryCertificateQuery) (*appsv1.RepositoryCertificateList, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceCertificates, rbacpolicy.ActionDelete, ""); err != nil {
 		return nil, err
 	}

@@ -774,8 +774,8 @@
         "tags": [
           "CertificateService"
         ],
-        "summary": "List all available certificates",
-        "operationId": "ListMixin2",
+        "summary": "List all available repository certificates",
+        "operationId": "ListCertificates",
         "parameters": [
           {
             "type": "string",
@@ -809,8 +809,8 @@
         "tags": [
           "CertificateService"
         ],
-        "summary": "Creates the requested certificates on the server",
-        "operationId": "CreateMixin2",
+        "summary": "Creates repository certificates on the server",
+        "operationId": "CreateCertificate",
         "parameters": [
           {
             "name": "body",
@@ -834,7 +834,8 @@
         "tags": [
           "CertificateService"
         ],
-        "operationId": "DeleteMixin2",
+        "summary": "Delete the certificates that match the RepositoryCertificateQuery",
+        "operationId": "DeleteCertificate",
         "responses": {
           "200": {
             "description": "(empty)",
