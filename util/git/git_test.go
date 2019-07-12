@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test/fixture/log"
 	"github.com/argoproj/argo-cd/test/fixture/path"
 	"github.com/argoproj/argo-cd/test/fixture/test"
@@ -167,8 +166,7 @@ func TestNewFactory(t *testing.T) {
 		assert.NoError(t, err)
 		defer func() { _ = os.RemoveAll(dirName) }()
 
-		client, err := NewFactory().NewClient(
-			tt.args.url, dirName, v1alpha1.Repository{Username: tt.args.username, Password: tt.args.password, SSHPrivateKey: tt.args.sshPrivateKey}.GetCreds(), tt.args.insecureIgnoreHostKey)
+		client, err := NewFactory().NewClient(tt.args.url, dirName, NopCreds{}, tt.args.insecureIgnoreHostKey)
 		assert.NoError(t, err)
 		commitSHA, err := client.LsRemote("HEAD")
 		assert.NoError(t, err)
