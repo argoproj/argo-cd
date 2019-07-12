@@ -29,14 +29,13 @@ type ArgoDB interface {
 	// CreateRepository creates a repository
 	CreateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
 	// GetRepository returns a repository by URL
-	GetRepository(ctx context.Context, name string) (*appv1.Repository, error)
+	GetRepository(ctx context.Context, url string) (*appv1.Repository, error)
 	// UpdateRepository updates a repository
 	UpdateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
 	// DeleteRepository updates a repository
-	DeleteRepository(ctx context.Context, name string) error
+	DeleteRepository(ctx context.Context, url string) error
 
-
-	// ListRepoCerticifates lists all configured certificates
+	// ListRepoCertificates lists all configured certificates
 	ListRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appv1.RepositoryCertificateList, error)
 	// CreateRepoCertificate creates a new certificate entry
 	CreateRepoCertificate(ctx context.Context, certificate *appv1.RepositoryCertificateList, upsert bool) (*appv1.RepositoryCertificateList, error)

@@ -16,8 +16,6 @@ import (
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/factory"
-	"github.com/argoproj/argo-cd/util/git"
 )
 
 // NewRepoCommand returns a new instance of an `argocd repo` command
@@ -74,6 +72,8 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			repo.InsecureIgnoreHostKey = insecureIgnoreHostKey
 			repo.Insecure = insecureSkipServerVerification
 
+			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
+			defer util.Close(conn)
 
 			// If the user set a username, but didn't supply password via --password,
 			// then we prompt for it
@@ -89,7 +89,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				Username:      repo.Username,
 				Password:      repo.Password,
 				SshPrivateKey: repo.SSHPrivateKey,
-				Insecure:      (repo.InsecureIgnoreHostKey || repo.Insecure),
+				Insecure:      repo.InsecureIgnoreHostKey || repo.Insecure,
 			}
 			_, err := repoIf.ValidateAccess(context.Background(), &repoAccessReq)
 			errors.CheckError(err)

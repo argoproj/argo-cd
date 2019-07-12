@@ -282,10 +282,15 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		return nil, err
 	}
 
-	err := git.TestRepo(q.Repo, q.Username, q.Password, q.SshPrivateKey, q.Insecure)
+	repo, err := s.db.GetRepository(ctx, q.Repo)
 	if err != nil {
 		return nil, err
 	}
 
-	return &repositorypkg.RepoResponse{}, err
+	client, err := factory.NewFactory().NewClient(repo)
+	if err != nil {
+		return nil, err
+	}
+
+	return &repositorypkg.RepoResponse{}, client.Test()
 }

@@ -130,6 +130,7 @@ type templateOpts struct {
 	name      string
 	namespace string
 	set       map[string]string
+	setString map[string]string
 	values    []string
 }
 
@@ -141,6 +142,9 @@ func (c *cmd) template(chart string, opts templateOpts) (string, error) {
 	}
 	for key, val := range opts.set {
 		args = append(args, "--set", key+"="+val)
+	}
+	for key, val := range opts.setString {
+		args = append(args, "--set-string", key+"="+val)
 	}
 	for _, set := range opts.values {
 		args = append(args, "--values", set)

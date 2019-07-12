@@ -49,7 +49,7 @@ func newCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			metricsServer := metrics.NewMetricsServer(factory.NewFactory())
-			server, err := reposerver.NewServer(metricsServer, factory.NewFactory(), cache, tlsConfigCustomizer, parallelismLimit)
+			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, parallelismLimit)
 			errors.CheckError(err)
 
 			grpc := server.CreateGRPC()

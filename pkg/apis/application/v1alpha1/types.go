@@ -887,15 +887,15 @@ type Repository struct {
 	// Whether the repo is insecure
 	Insecure bool `json:"insecure,omitempty" protobuf:"bytes,7,opt,name=insecure"`
 	// type of the repo, maybe "git or "helm, "git" is assumed if empty or absent
-	Type string `json:"type,omitempty" protobuf:"bytes,7,opt,name=type"`
+	Type string `json:"type,omitempty" protobuf:"bytes,8,opt,name=type"`
 	// only for Helm repos
-	Name string `json:"name,omitempty" protobuf:"bytes,8,opt,name=name"`
+	Name string `json:"name,omitempty" protobuf:"bytes,9,opt,name=name"`
 	// only for Helm repos
-	CAData []byte `json:"caData,omitempty" protobuf:"bytes,9,opt,name=caData"`
+	CAData []byte `json:"caData,omitempty" protobuf:"bytes,10,opt,name=caData"`
 	// only for Helm repos
-	CertData []byte `json:"certData,omitempty" protobuf:"bytes,10,opt,name=certData"`
+	CertData []byte `json:"certData,omitempty" protobuf:"bytes,11,opt,name=certData"`
 	// only for Helm repos
-	KeyData []byte `json:"keyData,omitempty" protobuf:"bytes,11,opt,name=keyData"`
+	KeyData []byte `json:"keyData,omitempty" protobuf:"bytes,12,opt,name=keyData"`
 }
 
 func (m *Repository) HasCredentials() bool {

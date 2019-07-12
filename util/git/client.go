@@ -58,10 +58,10 @@ func NewClient(rawRepoURL, username, password, sshPrivateKey string, insecure bo
 	//	gitclient.InstallProtocol("https", githttp.NewClient(getRepoHTTPClient(rawRepoURL, insecure)))
 	//}
 	client := nativeGitClient{
-		repoURL: rawRepoURL,
-		root:    depot.TempRepoPath(rawRepoURL),
-		creds:   creds,
-		insecure: insecure
+		repoURL:  rawRepoURL,
+		root:     depot.TempRepoPath(rawRepoURL),
+		creds:    creds,
+		insecure: insecure,
 	}
 	return &client, nil
 }
