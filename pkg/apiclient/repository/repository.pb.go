@@ -13,7 +13,7 @@ import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"
 import math "math"
 import v1alpha1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-import repository "github.com/argoproj/argo-cd/reposerver/repository"
+import apiclient "github.com/argoproj/argo-cd/reposerver/apiclient"
 import _ "github.com/gogo/protobuf/gogoproto"
 import _ "google.golang.org/genproto/googleapis/api/annotations"
 import _ "k8s.io/api/core/v1"
@@ -148,14 +148,14 @@ func (m *AppInfo) GetPath() string {
 
 // RepoAppDetailsQuery contains query information for app details request
 type RepoAppDetailsQuery struct {
-	Repo                 string                             `protobuf:"bytes,1,opt,name=repo,proto3" json:"repo,omitempty"`
-	Revision             string                             `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
-	Path                 string                             `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
-	Helm                 *repository.HelmAppDetailsQuery    `protobuf:"bytes,4,opt,name=helm" json:"helm,omitempty"`
-	Ksonnet              *repository.KsonnetAppDetailsQuery `protobuf:"bytes,5,opt,name=ksonnet" json:"ksonnet,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}                           `json:"-"`
-	XXX_unrecognized     []byte                             `json:"-"`
-	XXX_sizecache        int32                              `json:"-"`
+	Repo                 string                            `protobuf:"bytes,1,opt,name=repo,proto3" json:"repo,omitempty"`
+	Revision             string                            `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	Path                 string                            `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	Helm                 *apiclient.HelmAppDetailsQuery    `protobuf:"bytes,4,opt,name=helm" json:"helm,omitempty"`
+	Ksonnet              *apiclient.KsonnetAppDetailsQuery `protobuf:"bytes,5,opt,name=ksonnet" json:"ksonnet,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                          `json:"-"`
+	XXX_unrecognized     []byte                            `json:"-"`
+	XXX_sizecache        int32                             `json:"-"`
 }
 
 func (m *RepoAppDetailsQuery) Reset()         { *m = RepoAppDetailsQuery{} }
@@ -212,14 +212,14 @@ func (m *RepoAppDetailsQuery) GetPath() string {
 	return ""
 }
 
-func (m *RepoAppDetailsQuery) GetHelm() *repository.HelmAppDetailsQuery {
+func (m *RepoAppDetailsQuery) GetHelm() *apiclient.HelmAppDetailsQuery {
 	if m != nil {
 		return m.Helm
 	}
 	return nil
 }
 
-func (m *RepoAppDetailsQuery) GetKsonnet() *repository.KsonnetAppDetailsQuery {
+func (m *RepoAppDetailsQuery) GetKsonnet() *apiclient.KsonnetAppDetailsQuery {
 	if m != nil {
 		return m.Ksonnet
 	}
@@ -576,7 +576,7 @@ type RepositoryServiceClient interface {
 	// ListApps returns list of apps in the repo
 	ListApps(ctx context.Context, in *RepoAppsQuery, opts ...grpc.CallOption) (*RepoAppsResponse, error)
 	// GetAppDetails returns application details by given path
-	GetAppDetails(ctx context.Context, in *RepoAppDetailsQuery, opts ...grpc.CallOption) (*repository.RepoAppDetailsResponse, error)
+	GetAppDetails(ctx context.Context, in *RepoAppDetailsQuery, opts ...grpc.CallOption) (*apiclient.RepoAppDetailsResponse, error)
 	// Create creates a repo
 	Create(ctx context.Context, in *RepoCreateRequest, opts ...grpc.CallOption) (*v1alpha1.Repository, error)
 	// Update updates a repo
@@ -613,8 +613,8 @@ func (c *repositoryServiceClient) ListApps(ctx context.Context, in *RepoAppsQuer
 	return out, nil
 }
 
-func (c *repositoryServiceClient) GetAppDetails(ctx context.Context, in *RepoAppDetailsQuery, opts ...grpc.CallOption) (*repository.RepoAppDetailsResponse, error) {
-	out := new(repository.RepoAppDetailsResponse)
+func (c *repositoryServiceClient) GetAppDetails(ctx context.Context, in *RepoAppDetailsQuery, opts ...grpc.CallOption) (*apiclient.RepoAppDetailsResponse, error) {
+	out := new(apiclient.RepoAppDetailsResponse)
 	err := c.cc.Invoke(ctx, "/repository.RepositoryService/GetAppDetails", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -666,7 +666,7 @@ type RepositoryServiceServer interface {
 	// ListApps returns list of apps in the repo
 	ListApps(context.Context, *RepoAppsQuery) (*RepoAppsResponse, error)
 	// GetAppDetails returns application details by given path
-	GetAppDetails(context.Context, *RepoAppDetailsQuery) (*repository.RepoAppDetailsResponse, error)
+	GetAppDetails(context.Context, *RepoAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error)
 	// Create creates a repo
 	Create(context.Context, *RepoCreateRequest) (*v1alpha1.Repository, error)
 	// Update updates a repo
@@ -1717,7 +1717,7 @@ func (m *RepoAppDetailsQuery) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if m.Helm == nil {
-				m.Helm = &repository.HelmAppDetailsQuery{}
+				m.Helm = &apiclient.HelmAppDetailsQuery{}
 			}
 			if err := m.Helm.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
@@ -1750,7 +1750,7 @@ func (m *RepoAppDetailsQuery) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if m.Ksonnet == nil {
-				m.Ksonnet = &repository.KsonnetAppDetailsQuery{}
+				m.Ksonnet = &apiclient.KsonnetAppDetailsQuery{}
 			}
 			if err := m.Ksonnet.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err

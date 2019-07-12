@@ -23,9 +23,9 @@ import (
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
+	"github.com/argoproj/argo-cd/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/reposerver/apiclient/mocks"
 	mockrepo "github.com/argoproj/argo-cd/reposerver/mocks"
-	"github.com/argoproj/argo-cd/reposerver/repository"
-	mockreposerver "github.com/argoproj/argo-cd/reposerver/repository/mocks"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util"
@@ -61,8 +61,8 @@ func fakeCluster() *appsv1.Cluster {
 	}
 }
 
-func fakeFileResponse() *repository.GetFileResponse {
-	return &repository.GetFileResponse{
+func fakeFileResponse() *apiclient.GetFileResponse {
+	return &apiclient.GetFileResponse{
 		Data: []byte(`
 apiVersion: 0.1.0
 environments:
@@ -79,8 +79,8 @@ version: 0.0.1
 	}
 }
 
-func fakeListDirResponse() *repository.FileList {
-	return &repository.FileList{
+func fakeListDirResponse() *apiclient.FileList {
+	return &apiclient.FileList{
 		Items: []string{
 			"some/path/app.yaml",
 		},
@@ -114,10 +114,10 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 	_, err = db.CreateCluster(ctx, fakeCluster())
 	errors.CheckError(err)
 
-	mockRepoServiceClient := mockreposerver.RepoServerServiceClient{}
+	mockRepoServiceClient := mocks.RepoServerServiceClient{}
 	mockRepoServiceClient.On("GetFile", mock.Anything, mock.Anything).Return(fakeFileResponse(), nil)
 	mockRepoServiceClient.On("ListDir", mock.Anything, mock.Anything).Return(fakeListDirResponse(), nil)
-	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&repository.ManifestResponse{}, nil)
+	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&apiclient.ManifestResponse{}, nil)
 
 	mockRepoClient := &mockrepo.Clientset{}
 	mockRepoClient.On("NewRepoServerClient").Return(&fakeCloser{}, &mockRepoServiceClient, nil)

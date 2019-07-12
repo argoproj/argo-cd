@@ -32,7 +32,7 @@ import (
 	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/pkg/client/informers/externalversions/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/reposerver"
+	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	argocache "github.com/argoproj/argo-cd/util/cache"
@@ -62,7 +62,7 @@ type ApplicationController struct {
 	appStateManager           AppStateManager
 	stateCache                statecache.LiveStateCache
 	statusRefreshTimeout      time.Duration
-	repoClientset             reposerver.Clientset
+	repoClientset             apiclient.Clientset
 	db                        db.ArgoDB
 	settingsMgr               *settings_util.SettingsManager
 	refreshRequestedApps      map[string]bool
@@ -81,7 +81,7 @@ func NewApplicationController(
 	settingsMgr *settings_util.SettingsManager,
 	kubeClientset kubernetes.Interface,
 	applicationClientset appclientset.Interface,
-	repoClientset reposerver.Clientset,
+	repoClientset apiclient.Clientset,
 	argoCache *argocache.Cache,
 	appResyncPeriod time.Duration,
 	metricsPort int,

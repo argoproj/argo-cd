@@ -36,6 +36,7 @@ import (
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	repoapiclient "github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
@@ -661,7 +662,7 @@ func getLocalObjects(app *argoappv1.Application, local string, appLabelKey strin
 }
 
 func getLocalObjectsString(app *argoappv1.Application, local string, appLabelKey string) []string {
-	res, err := repository.GenerateManifests(filepath.Dir(local), filepath.Base(local), &repository.ManifestRequest{
+	res, err := repository.GenerateManifests(filepath.Dir(local), filepath.Base(local), &repoapiclient.ManifestRequest{
 		ApplicationSource: &app.Spec.Source,
 		AppLabelKey:       appLabelKey,
 		AppLabelValue:     app.Name,
