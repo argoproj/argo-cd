@@ -46,7 +46,7 @@ ${formatLines(diffLines(a, b), {context, aname: `a/${name}}`, bname: `b/${name}`
             const files = parseDiff(diffText);
             const viewType = pref.appDetails.inlineDiff ? 'unified' : 'split';
             return (
-                <div className='application-component-diff'>
+                <div className='application-resouces-diff'>
                     <div className={whiteBox + ' application-component-diff__checkboxes'}>
                         <Checkbox id='compactDiff' checked={pref.appDetails.compactDiff}
                                   onChange={() => services.viewPreferences.updatePreferences({

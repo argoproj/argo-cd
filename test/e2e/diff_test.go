@@ -13,6 +13,19 @@ func TestPatch(t *testing.T) {
 	Given(t).
 		Path("two-nice-pods").
 		When().
+		AddFile("pod-3.yaml", `apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-3
+spec:
+  containers:
+    - name: main
+      image: alpine:latest
+      imagePullPolicy: IfNotPresent
+      command:
+        - "true"
+  restartPolicy: Never
+`).
 		Create().
 		Sync().
 		Then().
@@ -21,10 +34,10 @@ func TestPatch(t *testing.T) {
 		When().
 		DeleteFile("pod-1.yaml").
 		PatchFile("pod-2.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"bar": "Baz"}}]`).
-		AddFile("pod-3.yaml", `apiVersion: v1
+		AddFile("pod-4.yaml", `apiVersion: v1
 kind: Pod
 metadata:
-  name: pod-3
+  name: pod-4
 spec:
   containers:
     - name: main
