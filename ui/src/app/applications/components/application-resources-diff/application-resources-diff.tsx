@@ -30,15 +30,19 @@ export const ApplicationResourcesDiff = (props: ApplicationResourcesDiffProps) =
                     target = state.diff ? jsonDiffPatch.patch(liveCopy, JSON.parse(state.diff)) : liveCopy;
                 }
 
-                const a = live ? jsYaml.safeDump(live, {indent: 2}) : '';
-                const b = target ? jsYaml.safeDump(target, {indent: 2}) : '';
+                return {
+                    a: live ? jsYaml.safeDump(live, {indent: 2}) : '',
+                    b: target ? jsYaml.safeDump(target, {indent: 2}) : '',
+                    // doubles as sort order
+                    name: (state.group || '') + '/' + state.kind + '/' + state.namespace + '/' + state.name,
+                };
+            }).filter((i) => i.a !== i.b)
+                .map((i) => {
                 const context = pref.appDetails.compactDiff ? 2 : Number.MAX_SAFE_INTEGER;
-                // doubles as sort order
-                const name = (state.group || '') + '/' + state.kind + '/' + state.namespace + '/' + state.name;
                 // react-diff-view, awesome as it is, does not accept unidiff format, you must add a git header section
-                return `diff --git a/${name} b/${name}
+                return `diff --git a/${i.name} b/${i.name}
 index 6829b8a2..4c565f1b 100644
-${formatLines(diffLines(a, b), {context, aname: `a/${name}}`, bname: `b/${name}`})}`;
+${formatLines(diffLines(i.a, i.b), {context, aname: `a/${name}}`, bname: `b/${i.name}`})}`;
             }).join('\n');
             // assume that if you only have one file, we don't need the file path
             const whiteBox = props.states.length > 1 ? 'white-box' : '';
@@ -46,8 +50,8 @@ ${formatLines(diffLines(a, b), {context, aname: `a/${name}}`, bname: `b/${name}`
             const files = parseDiff(diffText);
             const viewType = pref.appDetails.inlineDiff ? 'unified' : 'split';
             return (
-                <div className='application-resouces-diff'>
-                    <div className={whiteBox + ' application-component-diff__checkboxes'}>
+                <div className='application-resources-diff'>
+                    <div className={whiteBox + ' application-resources-diff__checkboxes'}>
                         <Checkbox id='compactDiff' checked={pref.appDetails.compactDiff}
                                   onChange={() => services.viewPreferences.updatePreferences({
                                       appDetails: {
@@ -76,7 +80,7 @@ ${formatLines(diffLines(a, b), {context, aname: `a/${name}}`, bname: `b/${name}`
                     {files.sort((a: any, b: any) => a.newPath.localeCompare(b.newPath)).map((file: any) => (
                         <div key={file.newPath} className={whiteBox + ' application-component-diff__diff'}>
                             {showPath && (
-                                <p className='application-component-diff__diff__title'>{file.newPath}</p>
+                                <p className='application-resources-diff__diff__title'>{file.newPath}</p>
                             )}
                             <Diff viewType={viewType} diffType={file.type} hunks={file.hunks}>
                                 {(hunks: any) => hunks.map((hunk: any) => (<Hunk key={hunk.content} hunk={hunk}/>))}
