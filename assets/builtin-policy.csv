@@ -7,6 +7,7 @@
 # p, <user/group>, <resource>, <action>, <object>
 
 p, role:readonly, applications, get, */*, allow
+p, role:readonly, certificates, get, *, allow
 p, role:readonly, clusters, get, *, allow
 p, role:readonly, repositories, get, *, allow
 p, role:readonly, projects, get, *, allow
@@ -16,6 +17,9 @@ p, role:admin, applications, update, */*, allow
 p, role:admin, applications, delete, */*, allow
 p, role:admin, applications, sync, */*, allow
 p, role:admin, applications, override, */*, allow
+p, role:admin, certificates, create, *, allow
+p, role:admin, certificates, update, *, allow
+p, role:admin, certificates, delete, *, allow
 p, role:admin, clusters, create, *, allow
 p, role:admin, clusters, update, *, allow
 p, role:admin, clusters, delete, *, allow

@@ -25,7 +25,13 @@ var (
 		},
 	}
 	argoCDCm = corev1.ConfigMap{
-		ObjectMeta: v1.ObjectMeta{Name: "argocd-cm", Namespace: "default"},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "argocd-cm",
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
 		Data: map[string]string{
 			"statusbadge.enabled": "true",
 		},

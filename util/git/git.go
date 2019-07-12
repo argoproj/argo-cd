@@ -25,6 +25,7 @@ func removeSuffix(s, suffix string) string {
 var (
 	commitSHARegex = regexp.MustCompile("^[0-9A-Fa-f]{40}$")
 	sshURLRegex    = regexp.MustCompile("^(ssh://)?([^/@:]*?)@.*")
+	httpsURLRegex  = regexp.MustCompile("^(https://).*")
 )
 
 // IsCommitSHA returns whether or not a string is a 40 character SHA-1
@@ -69,6 +70,11 @@ func IsSSHURL(url string) (bool, string) {
 		return true, matches[2]
 	}
 	return false, ""
+}
+
+// IsHTTPSURL returns true if supplied URL is HTTPS URL
+func IsHTTPSURL(url string) bool {
+	return httpsURLRegex.MatchString(url)
 }
 
 // TestRepo tests if a repo exists and is accessible with the given credentials

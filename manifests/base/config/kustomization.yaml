@@ -5,3 +5,5 @@ resources:
 - argocd-cm.yaml
 - argocd-secret.yaml
 - argocd-rbac-cm.yaml
+- argocd-ssh-known-hosts-cm.yaml
+- argocd-tls-certs-cm.yaml

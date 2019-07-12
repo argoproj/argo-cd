@@ -1,7 +1,10 @@
 package git
 
 import (
+	"crypto/tls"
 	"fmt"
+	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"strconv"
@@ -15,10 +18,11 @@ import (
 	"gopkg.in/src-d/go-git.v4/config"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
+	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	ssh2 "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 
+	certutil "github.com/argoproj/argo-cd/util/cert"
 	argoconfig "github.com/argoproj/argo-cd/util/config"
 )
 
@@ -44,14 +48,19 @@ type Client interface {
 // ClientFactory is a factory of Git Clients
 // Primarily used to support creation of mock git clients during unit testing
 type ClientFactory interface {
-	NewClient(repoURL, path, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (Client, error)
+	NewClient(repoURL, path, username, password, sshPrivateKey string, insecure bool) (Client, error)
 }
 
 // nativeGitClient implements Client interface using git CLI
 type nativeGitClient struct {
+	// URL of the repository
 	repoURL string
-	root    string
-	creds   Creds
+	// Root path of repository
+	root string
+	// Authenticator credentials for private repositories
+	creds Creds
+	// Whether to connect insecurely to repository, e.g. don't verify certificate
+	insecure bool
 }
 
 type factory struct{}
@@ -60,21 +69,88 @@ func NewFactory() ClientFactory {
 	return &factory{}
 }
 
-func (f *factory) NewClient(rawRepoURL, path, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (Client, error) {
+func (f *factory) NewClient(rawRepoURL, path, username, password, sshPrivateKey string, insecure bool) (Client, error) {
 	var creds Creds
 	if sshPrivateKey != "" {
-		creds = SSHCreds{sshPrivateKey, insecureIgnoreHostKey}
+		creds = SSHCreds{sshPrivateKey, insecure}
 	} else if username != "" || password != "" {
 		creds = HTTPSCreds{username, password}
 	} else {
 		creds = NopCreds{}
 	}
+
+	// We need a custom HTTP client for go-git when we want to skip validation
+	// of the server's TLS certificate (--insecure-ignore-server-cert). Since
+	// this change is permanent to go-git Client during runtime, we need to
+	// explicitly replace it with default client for repositories without the
+	// insecure flag set.
+	//if IsHTTPSURL(rawRepoURL) {
+	//	gitclient.InstallProtocol("https", githttp.NewClient(getRepoHTTPClient(rawRepoURL, insecure)))
+	//}
 	client := nativeGitClient{
-		repoURL: rawRepoURL,
-		root:    path,
-		creds:   creds,
+		repoURL:  rawRepoURL,
+		root:     path,
+		creds:    creds,
+		insecure: insecure,
 	}
 	return &client, nil
+}
+
+// Returns a HTTP client object suitable for go-git to use using the following
+// pattern:
+// - If insecure is true, always returns a client with certificate verification
+//   turned off.
+// - If one or more custom certificates are stored for the repository, returns
+//   a client with those certificates in the list of root CAs used to verify
+//   the server's certificate.
+// - Otherwise (and on non-fatal errors), a default HTTP client is returned.
+func getRepoHTTPClient(repoURL string, insecure bool) transport.Transport {
+	// Default HTTP client
+	var customHTTPClient transport.Transport = githttp.NewClient(&http.Client{})
+
+	if insecure {
+		customHTTPClient = githttp.NewClient(&http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+			},
+			// 15 second timeout
+			Timeout: 15 * time.Second,
+
+			// don't follow redirect
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		})
+	} else {
+		parsedURL, err := url.Parse(repoURL)
+		if err != nil {
+			return customHTTPClient
+		}
+		serverCertificatePem, err := certutil.GetCertificateForConnect(parsedURL.Host)
+		if err != nil {
+			return customHTTPClient
+		} else if len(serverCertificatePem) > 0 {
+			certPool := certutil.GetCertPoolFromPEMData(serverCertificatePem)
+			customHTTPClient = githttp.NewClient(&http.Client{
+				Transport: &http.Transport{
+					TLSClientConfig: &tls.Config{
+						RootCAs: certPool,
+					},
+				},
+				// 15 second timeout
+				Timeout: 15 * time.Second,
+				// don't follow redirect
+				CheckRedirect: func(req *http.Request, via []*http.Request) error {
+					return http.ErrUseLastResponse
+				},
+			})
+		}
+		// else no custom certificate stored.
+	}
+
+	return customHTTPClient
 }
 
 func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
@@ -94,7 +170,7 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		}
 		return auth, nil
 	case HTTPSCreds:
-		auth := http.BasicAuth{Username: creds.username, Password: creds.password}
+		auth := githttp.BasicAuth{Username: creds.username, Password: creds.password}
 		return &auth, nil
 	}
 	return nil, nil
@@ -188,7 +264,8 @@ func (m *nativeGitClient) LsRemote(revision string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	refs, err := remote.List(&git.ListOptions{Auth: auth})
+	//refs, err := remote.List(&git.ListOptions{Auth: auth})
+	refs, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure)
 	if err != nil {
 		return "", err
 	}
@@ -291,11 +368,30 @@ func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) (st
 }
 
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
-	log.Debug(strings.Join(cmd.Args, " "))
 	cmd.Dir = m.root
 	cmd.Env = append(cmd.Env, os.Environ()...)
 	cmd.Env = append(cmd.Env, "HOME=/dev/null")
 	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOSYSTEM=true")
 	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOGLOBAL=true")
+	// For HTTPS repositories, we need to consider insecure repositories as well
+	// as custom CA bundles from the cert database.
+	if IsHTTPSURL(m.repoURL) {
+		if m.insecure {
+			cmd.Env = append(cmd.Env, "GIT_SSL_NO_VERIFY=true")
+		} else {
+			parsedURL, err := url.Parse(m.repoURL)
+			// We don't fail if we cannot parse the URL, but log a warning in that
+			// case. And we execute the command in a verbatim way.
+			if err != nil {
+				log.Warnf("runCmdOutput: Could not parse repo URL '%s'", m.repoURL)
+			} else {
+				caPath, err := certutil.GetCertBundlePathForRepository(parsedURL.Host)
+				if err == nil && caPath != "" {
+					cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_SSL_CAINFO=%s", caPath))
+				}
+			}
+		}
+	}
+	log.Debug(strings.Join(cmd.Args, " "))
 	return argoexec.RunCommandExt(cmd, argoconfig.CmdOpts())
 }

@@ -47,6 +47,7 @@ const (
 	PersistentVolumeClaimKind    = "PersistentVolumeClaim"
 	CustomResourceDefinitionKind = "CustomResourceDefinition"
 	PodKind                      = "Pod"
+	APIServiceKind               = "APIService"
 )
 
 type ResourceKey struct {
