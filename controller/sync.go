@@ -169,7 +169,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		syncResources:     syncResources,
 		opState:           state,
 		log:               log.WithFields(log.Fields{"application": app.Name}),
-		maxRetries:        int(app.Spec.SyncPolicy.MaxRetries),
+		maxRetries:        int(app.Spec.SyncPolicy.GetMaxRetries()),
 	}
 
 	if state.Phase == v1alpha1.OperationTerminating {

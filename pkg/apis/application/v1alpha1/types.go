@@ -363,6 +363,13 @@ type SyncPolicy struct {
 	MaxRetries int64 `json:"maxRetries,omitempty" protobuf:"bytes,2,opt,name=maxRetries"`
 }
 
+func (in *SyncPolicy) GetMaxRetries() int64 {
+	if in == nil {
+		return 0
+	}
+	return in.MaxRetries
+}
+
 // SyncPolicyAutomated controls the behavior of an automated sync
 type SyncPolicyAutomated struct {
 	// Prune will prune resources automatically as part of automated sync (default: false)
