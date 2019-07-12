@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -44,7 +45,8 @@ type syncContext struct {
 	opState           *v1alpha1.OperationState
 	log               *log.Entry
 	// lock to protect concurrent updates of the result list
-	lock sync.Mutex
+	lock       sync.Mutex
+	maxRetries int
 }
 
 func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState) {
@@ -167,6 +169,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		syncResources:     syncResources,
 		opState:           state,
 		log:               log.WithFields(log.Fields{"application": app.Name}),
+		maxRetries:        int(app.Spec.SyncPolicy.MaxRetries),
 	}
 
 	if state.Phase == v1alpha1.OperationTerminating {
@@ -485,7 +488,7 @@ func (sc *syncContext) liveObj(obj *unstructured.Unstructured) *unstructured.Uns
 	for _, resource := range sc.compareResult.managedResources {
 		if resource.Group == obj.GroupVersionKind().Group &&
 			resource.Kind == obj.GetKind() &&
-			// cluster scoped objects will not have a namespace, even if the user has defined it
+		// cluster scoped objects will not have a namespace, even if the user has defined it
 			(resource.Namespace == "" || resource.Namespace == obj.GetNamespace()) &&
 			resource.Name == obj.GetName() {
 			return resource.Live
@@ -505,7 +508,15 @@ func (sc *syncContext) setOperationPhase(phase v1alpha1.OperationPhase, message 
 // applyObject performs a `kubectl apply` of a single resource
 func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun bool, force bool) (v1alpha1.ResultCode, string) {
 	validate := !resource.HasAnnotationOption(targetObj, common.AnnotationSyncOptions, "Validate=false")
-	message, err := sc.kubectl.ApplyResource(sc.config, targetObj, targetObj.GetNamespace(), dryRun, force, validate)
+	var message string
+	var err error
+	for i := 0; i < 1 + sc.maxRetries; i++ {
+		message, err = sc.kubectl.ApplyResource(sc.config, targetObj, targetObj.GetNamespace(), dryRun, force, validate)
+		if err == nil {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
 	if err != nil {
 		return v1alpha1.ResultCodeSyncFailed, err.Error()
 	}

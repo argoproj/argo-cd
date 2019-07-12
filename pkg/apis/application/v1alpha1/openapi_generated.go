@@ -1662,13 +1662,6 @@ func schema_pkg_apis_application_v1alpha1_OperationState(ref common.ReferenceCal
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
-					"try": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Try contains the number of times we have tried this sync.",
-							Type:        []string{"integer"},
-							Format:      "int64",
-						},
-					},
 				},
 				Required: []string{"operation", "phase", "startedAt"},
 			},
@@ -2824,7 +2817,7 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicy(ref common.ReferenceCallbac
 					},
 					"maxRetries": {
 						SchemaProps: spec.SchemaProps{
-							Description: "If an error is returned when Argo CD  tries to perform a transfer, it will retry this number of times before giving up. Setting the number to 0 makes Argo CD  do no retries (which is the default).",
+							Description: "If an error is returned when Argo CD  tries to perform a kubectl apply, it will retry this number of times before giving up. Setting the number to 0 makes Argo CD  do no retries (which is the default).",
 							Type:        []string{"integer"},
 							Format:      "int64",
 						},

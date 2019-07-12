@@ -345,8 +345,6 @@ type OperationState struct {
 	StartedAt metav1.Time `json:"startedAt" protobuf:"bytes,6,opt,name=startedAt"`
 	// FinishedAt contains time of operation completion
 	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,7,opt,name=finishedAt"`
-	// Try contains the number of times we have tried this sync.
-	Try int64 `json:"try,omitempty" protobuf:"bytes,8,opt,name=try"`
 }
 
 type Info struct {
@@ -358,7 +356,7 @@ type Info struct {
 type SyncPolicy struct {
 	// Automated will keep an application synced to the target revision
 	Automated *SyncPolicyAutomated `json:"automated,omitempty" protobuf:"bytes,1,opt,name=automated"`
-	// If an error is returned when Argo CD  tries to perform a transfer, it will retry this number of times before giving up.
+	// If an error is returned when Argo CD  tries to perform a kubectl apply, it will retry this number of times before giving up.
 	// Setting the number to 0 makes Argo CD  do no retries (which is the default).
 	MaxRetries int64 `json:"maxRetries,omitempty" protobuf:"bytes,2,opt,name=maxRetries"`
 }

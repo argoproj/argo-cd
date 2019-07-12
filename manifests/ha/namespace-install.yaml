@@ -848,9 +848,9 @@ spec:
                   type: object
                 maxRetries:
                   description: If an error is returned when Argo CD  tries to perform
-                    a transfer, it will retry this number of times before giving up.
-                    Setting the number to 0 makes Argo CD  do no retries (which is
-                    the default).
+                    a kubectl apply, it will retry this number of times before giving
+                    up. Setting the number to 0 makes Argo CD  do no retries (which
+                    is the default).
                   format: int64
                   type: integer
               type: object
@@ -1559,11 +1559,6 @@ spec:
                   required:
                   - revision
                   type: object
-                try:
-                  description: Try contains the number of times we have tried this
-                    sync.
-                  format: int64
-                  type: integer
               required:
               - operation
               - phase
