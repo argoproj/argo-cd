@@ -466,12 +466,12 @@ func TestHandleAppUpdated(t *testing.T) {
 	ctrl.handleAppUpdated(app.Name, true, kube.GetObjectRef(kube.MustToUnstructured(app)))
 	isRequested, level := ctrl.isRefreshRequested(app.Name)
 	assert.False(t, isRequested)
-	assert.Equal(t, ComparisonLevelSkip, level)
+	assert.Equal(t, ComparisonWithNothing, level)
 
 	ctrl.handleAppUpdated(app.Name, true, corev1.ObjectReference{UID: "test", Kind: kube.DeploymentKind, Name: "test", Namespace: "default"})
 	isRequested, level = ctrl.isRefreshRequested(app.Name)
 	assert.True(t, isRequested)
-	assert.Equal(t, ComparisonLevelRecent, level)
+	assert.Equal(t, CompareWithRecent, level)
 }
 
 func TestSetOperationStateOnDeletedApp(t *testing.T) {
@@ -506,29 +506,29 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 	assert.False(t, needRefresh)
 
 	// refresh app using the 'deepest' requested comparison level
-	ctrl.requestAppRefresh(app.Name, ComparisonLevelRecent)
-	ctrl.requestAppRefresh(app.Name, ComparisonLevelSkip)
+	ctrl.requestAppRefresh(app.Name, CompareWithRecent)
+	ctrl.requestAppRefresh(app.Name, ComparisonWithNothing)
 
-	needRefresh, refreshType, comparisonLevel := ctrl.needRefreshAppStatus(app, 1*time.Hour)
+	needRefresh, refreshType, compareWith := ctrl.needRefreshAppStatus(app, 1*time.Hour)
 	assert.True(t, needRefresh)
 	assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
-	assert.Equal(t, ComparisonLevelRecent, comparisonLevel)
+	assert.Equal(t, CompareWithRecent, compareWith)
 
 	// refresh application which status is not reconciled using latest commit
 	app.Status.Sync = argoappv1.SyncStatus{Status: argoappv1.SyncStatusCodeUnknown}
 
-	needRefresh, refreshType, comparisonLevel = ctrl.needRefreshAppStatus(app, 1*time.Hour)
+	needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour)
 	assert.True(t, needRefresh)
 	assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
-	assert.Equal(t, ComparisonLevelLatest, comparisonLevel)
+	assert.Equal(t, CompareWithLatest, compareWith)
 
 	// execute hard refresh if app has refresh annotation
 	app.Annotations = map[string]string{
 		common.AnnotationKeyRefresh: string(argoappv1.RefreshTypeHard),
 	}
-	needRefresh, refreshType, comparisonLevel = ctrl.needRefreshAppStatus(app, 1*time.Hour)
+	needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour)
 	assert.True(t, needRefresh)
 	assert.Equal(t, argoappv1.RefreshTypeHard, refreshType)
-	assert.Equal(t, ComparisonLevelLatest, comparisonLevel)
+	assert.Equal(t, CompareWithLatest, compareWith)
 
 }
