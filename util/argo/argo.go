@@ -134,6 +134,8 @@ func getCAPath(repoURL string) string {
 		if parsedURL, err := url.Parse(repoURL); err == nil {
 			if caPath, err := cert.GetCertBundlePathForRepository(parsedURL.Host); err != nil {
 				return caPath
+			} else {
+				log.Warnf("Could not get cert bundle path for host '%s'", parsedURL.Host)
 			}
 		} else {
 			// We don't fail if we cannot parse the URL, but log a warning in that
