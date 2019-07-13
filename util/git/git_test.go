@@ -10,7 +10,6 @@ import (
 	"github.com/argoproj/argo-cd/test/fixture/log"
 	"github.com/argoproj/argo-cd/test/fixture/path"
 	"github.com/argoproj/argo-cd/test/fixture/test"
-	"github.com/argoproj/argo-cd/test/fixture/testrepos"
 )
 
 func TestIsCommitSHA(t *testing.T) {
@@ -108,7 +107,7 @@ func TestSameURL(t *testing.T) {
 }
 
 func TestLsRemote(t *testing.T) {
-	clnt, err := NewFactory().NewClient("https://github.com/argoproj/argo-cd.git", "/tmp", "", "", "", false)
+	clnt, err := NewFactory().NewClient("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false)
 	assert.NoError(t, err)
 	xpass := []string{
 		"HEAD",
@@ -147,8 +146,8 @@ func TestNewFactory(t *testing.T) {
 	defer closer()
 
 	type args struct {
-		url, username, password, sshPrivateKey string
-		insecureIgnoreHostKey                  bool
+		url                   string
+		insecureIgnoreHostKey bool
 	}
 	tests := []struct {
 		name string
@@ -156,8 +155,6 @@ func TestNewFactory(t *testing.T) {
 	}{
 		{"Github", args{url: "https://github.com/argoproj/argocd-example-apps"}},
 		{"Azure", args{url: "https://jsuen0437@dev.azure.com/jsuen0437/jsuen/_git/jsuen"}},
-		{"PrivateRepo", args{testrepos.HTTPSTestRepo.URL, testrepos.HTTPSTestRepo.Username, testrepos.HTTPSTestRepo.Password, "", false}},
-		{"PrivateSSHRepo", args{testrepos.SSHTestRepo.URL, "", "", testrepos.SSHTestRepo.SSHPrivateKey, testrepos.SSHTestRepo.InsecureIgnoreHostKey}},
 	}
 	for _, tt := range tests {
 
@@ -169,7 +166,7 @@ func TestNewFactory(t *testing.T) {
 		assert.NoError(t, err)
 		defer func() { _ = os.RemoveAll(dirName) }()
 
-		client, err := NewFactory().NewClient(tt.args.url, dirName, tt.args.username, tt.args.password, tt.args.sshPrivateKey, tt.args.insecureIgnoreHostKey)
+		client, err := NewFactory().NewClient(tt.args.url, dirName, NopCreds{}, tt.args.insecureIgnoreHostKey)
 		assert.NoError(t, err)
 		commitSHA, err := client.LsRemote("HEAD")
 		assert.NoError(t, err)

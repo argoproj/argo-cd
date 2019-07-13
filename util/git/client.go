@@ -48,7 +48,7 @@ type Client interface {
 // ClientFactory is a factory of Git Clients
 // Primarily used to support creation of mock git clients during unit testing
 type ClientFactory interface {
-	NewClient(repoURL, path, username, password, sshPrivateKey string, insecure bool) (Client, error)
+	NewClient(rawRepoURL string, path string, creds Creds, insecure bool) (Client, error)
 }
 
 // nativeGitClient implements Client interface using git CLI
@@ -69,16 +69,7 @@ func NewFactory() ClientFactory {
 	return &factory{}
 }
 
-func (f *factory) NewClient(rawRepoURL, path, username, password, sshPrivateKey string, insecure bool) (Client, error) {
-	var creds Creds
-	if sshPrivateKey != "" {
-		creds = SSHCreds{sshPrivateKey, insecure}
-	} else if username != "" || password != "" {
-		creds = HTTPSCreds{username, password}
-	} else {
-		creds = NopCreds{}
-	}
-
+func (f *factory) NewClient(rawRepoURL string, path string, creds Creds, insecure bool) (Client, error) {
 	// We need a custom HTTP client for go-git when we want to skip validation
 	// of the server's TLS certificate (--insecure-ignore-server-cert). Since
 	// this change is permanent to go-git Client during runtime, we need to
@@ -165,7 +156,7 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 			return nil, err
 		}
 		auth := &ssh2.PublicKeys{User: sshUser, Signer: signer}
-		if creds.insecureIgnoreHostKey {
+		if creds.insecure {
 			auth.HostKeyCallback = ssh.InsecureIgnoreHostKey()
 		}
 		return auth, nil
@@ -373,25 +364,6 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 	cmd.Env = append(cmd.Env, "HOME=/dev/null")
 	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOSYSTEM=true")
 	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOGLOBAL=true")
-	// For HTTPS repositories, we need to consider insecure repositories as well
-	// as custom CA bundles from the cert database.
-	if IsHTTPSURL(m.repoURL) {
-		if m.insecure {
-			cmd.Env = append(cmd.Env, "GIT_SSL_NO_VERIFY=true")
-		} else {
-			parsedURL, err := url.Parse(m.repoURL)
-			// We don't fail if we cannot parse the URL, but log a warning in that
-			// case. And we execute the command in a verbatim way.
-			if err != nil {
-				log.Warnf("runCmdOutput: Could not parse repo URL '%s'", m.repoURL)
-			} else {
-				caPath, err := certutil.GetCertBundlePathForRepository(parsedURL.Host)
-				if err == nil && caPath != "" {
-					cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_SSL_CAINFO=%s", caPath))
-				}
-			}
-		}
-	}
 	log.Debug(strings.Join(cmd.Args, " "))
 	return argoexec.RunCommandExt(cmd, argoconfig.CmdOpts())
 }

@@ -22,9 +22,9 @@ import (
 	mockstatecache "github.com/argoproj/argo-cd/controller/cache/mocks"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/reposerver/apiclient"
+	mockrepoclient "github.com/argoproj/argo-cd/reposerver/apiclient/mocks"
 	mockreposerver "github.com/argoproj/argo-cd/reposerver/mocks"
-	"github.com/argoproj/argo-cd/reposerver/repository"
-	mockrepoclient "github.com/argoproj/argo-cd/reposerver/repository/mocks"
 	"github.com/argoproj/argo-cd/test"
 	utilcache "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/kube"
@@ -33,7 +33,7 @@ import (
 
 type fakeData struct {
 	apps             []runtime.Object
-	manifestResponse *repository.ManifestResponse
+	manifestResponse *apiclient.ManifestResponse
 	managedLiveObjs  map[kube.ResourceKey]*unstructured.Unstructured
 }
 
@@ -405,7 +405,7 @@ func TestNormalizeApplication(t *testing.T) {
 	app.Spec.Source.Kustomize = &argoappv1.ApplicationSourceKustomize{NamePrefix: "foo-"}
 	data := fakeData{
 		apps: []runtime.Object{app, &defaultProj},
-		manifestResponse: &repository.ManifestResponse{
+		manifestResponse: &apiclient.ManifestResponse{
 			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,

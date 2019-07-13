@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+
 	"os"
 	"path/filepath"
 	"reflect"
@@ -894,6 +895,10 @@ type Repository struct {
 	InsecureIgnoreHostKey bool `json:"insecureIgnoreHostKey,omitempty" protobuf:"bytes,6,opt,name=insecureIgnoreHostKey"`
 	// Whether the repo is insecure
 	Insecure bool `json:"insecure,omitempty" protobuf:"bytes,7,opt,name=insecure"`
+}
+
+func (repo *Repository) IsInsecure() bool {
+	return repo.InsecureIgnoreHostKey || repo.Insecure
 }
 
 func (m *Repository) HasCredentials() bool {

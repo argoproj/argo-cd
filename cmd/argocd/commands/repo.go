@@ -81,7 +81,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				Username:      repo.Username,
 				Password:      repo.Password,
 				SshPrivateKey: repo.SSHPrivateKey,
-				Insecure:      (repo.InsecureIgnoreHostKey || repo.Insecure),
+				Insecure:      repo.IsInsecure(),
 			}
 			_, err := repoIf.ValidateAccess(context.Background(), &repoAccessReq)
 			errors.CheckError(err)

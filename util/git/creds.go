@@ -33,29 +33,32 @@ func (c NopCreds) Environ() (io.Closer, []string, error) {
 
 // HTTPS creds implementation
 type HTTPSCreds struct {
-	username, password string
+	username string
+	password string
+	insecure bool
 }
 
-func NewHTTPSCreds(username, password string) HTTPSCreds {
-	return HTTPSCreds{username, password}
+func NewHTTPSCreds(username, password string, insecure bool) HTTPSCreds {
+	return HTTPSCreds{username, password, insecure}
 }
 
 func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
-	return NopCloser{}, []string{
-		fmt.Sprintf("GIT_ASKPASS=%s", "git-ask-pass.sh"),
-		fmt.Sprintf("GIT_USERNAME=%s", c.username),
-		fmt.Sprintf("GIT_PASSWORD=%s", c.password),
-	}, nil
+	env := []string{fmt.Sprintf("GIT_ASKPASS=%s", "git-ask-pass.sh"), fmt.Sprintf("GIT_USERNAME=%s", c.username), fmt.Sprintf("GIT_PASSWORD=%s", c.password)}
+	if c.insecure {
+		env = append(env, "GIT_SSL_NO_VERIFY=true")
+	}
+	return NopCloser{}, env, nil
 }
 
 // SSH implementation
 type SSHCreds struct {
-	sshPrivateKey         string
-	insecureIgnoreHostKey bool
+	sshPrivateKey string
+	caPath        string
+	insecure      bool
 }
 
-func NewSSHCreds(sshPrivateKey string, insecureIgnoreHostKey bool) SSHCreds {
-	return SSHCreds{sshPrivateKey, insecureIgnoreHostKey}
+func NewSSHCreds(sshPrivateKey string, caPath string, insecureIgnoreHostKey bool) SSHCreds {
+	return SSHCreds{sshPrivateKey, caPath, insecureIgnoreHostKey}
 }
 
 type sshPrivateKeyFile string
@@ -79,13 +82,16 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 		return nil, nil, err
 	}
 	args := []string{"ssh", "-i", file.Name()}
-	if c.insecureIgnoreHostKey {
+	var env []string
+	if c.caPath != "" {
+		env = append(env, fmt.Sprintf("GIT_SSL_CAINFO=%s", c.caPath))
+	}
+	if c.insecure {
 		log.Warn("temporarily disabling strict host key checking (i.e. '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'), please don't use in production")
 		// StrictHostKeyChecking will add the host to the knownhosts file,  we don't want that - a security issue really,
 		// UserKnownHostsFile=/dev/null is therefore used so we write the new insecure host to /dev/null
 		args = append(args, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null")
 	}
-	return sshPrivateKeyFile(file.Name()),
-		[]string{fmt.Sprintf("GIT_SSH_COMMAND=%s", strings.Join(args, " "))},
-		nil
+	env = append(env, []string{fmt.Sprintf("GIT_SSH_COMMAND=%s", strings.Join(args, " "))}...)
+	return sshPrivateKeyFile(file.Name()), env, nil
 }

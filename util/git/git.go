@@ -78,8 +78,8 @@ func IsHTTPSURL(url string) bool {
 }
 
 // TestRepo tests if a repo exists and is accessible with the given credentials
-func TestRepo(repo, username, password string, sshPrivateKey string, insecureIgnoreHostKey bool) error {
-	clnt, err := NewFactory().NewClient(repo, "", username, password, sshPrivateKey, insecureIgnoreHostKey)
+func TestRepo(repo string, creds Creds, insecure bool) error {
+	clnt, err := NewFactory().NewClient(repo, "", creds, insecure)
 	if err != nil {
 		return err
 	}

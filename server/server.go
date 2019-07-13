@@ -57,7 +57,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	appinformer "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
-	"github.com/argoproj/argo-cd/reposerver"
+	repoapiclient "github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/server/account"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/badge"
@@ -141,7 +141,7 @@ type ArgoCDServerOpts struct {
 	BaseHRef            string
 	KubeClientset       kubernetes.Interface
 	AppClientset        appclientset.Interface
-	RepoClientset       reposerver.Clientset
+	RepoClientset       repoapiclient.Clientset
 	Cache               *argocache.Cache
 	TLSConfigCustomizer tlsutil.ConfigCustomizer
 }

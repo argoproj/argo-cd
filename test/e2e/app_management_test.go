@@ -21,7 +21,7 @@ import (
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	argorepo "github.com/argoproj/argo-cd/reposerver/repository"
+	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 	"github.com/argoproj/argo-cd/util"
@@ -45,7 +45,7 @@ func TestAppCreation(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
 			assert.Equal(t, fixture.Name(), app.Name)
-			assert.Equal(t, fixture.RepoURL(), app.Spec.Source.RepoURL)
+			assert.Equal(t, fixture.RepoURL(fixture.RepoURLTypeFile), app.Spec.Source.RepoURL)
 			assert.Equal(t, guestbookPath, app.Spec.Source.Path)
 			assert.Equal(t, fixture.DeploymentNamespace(), app.Spec.Destination.Namespace)
 			assert.Equal(t, common.KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
@@ -412,7 +412,7 @@ func TestKsonnetApp(t *testing.T) {
 				Path:     app.Spec.Source.Path,
 				Repo:     app.Spec.Source.RepoURL,
 				Revision: app.Spec.Source.TargetRevision,
-				Ksonnet:  &argorepo.KsonnetAppDetailsQuery{Environment: "prod"},
+				Ksonnet:  &apiclient.KsonnetAppDetailsQuery{Environment: "prod"},
 			})
 			assert.NoError(t, err)
 
@@ -565,10 +565,10 @@ func TestPermissions(t *testing.T) {
 	assert.NoError(t, err)
 
 	// make sure app cannot be created without permissions in project
-	_, err = fixture.RunCli("app", "create", appName, "--repo", fixture.RepoURL(),
+	_, err = fixture.RunCli("app", "create", appName, "--repo", fixture.RepoURL(fixture.RepoURLTypeFile),
 		"--path", guestbookPath, "--project", "test", "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
 	assert.Error(t, err)
-	sourceError := fmt.Sprintf("application repo %s is not permitted in project 'test'", fixture.RepoURL())
+	sourceError := fmt.Sprintf("application repo %s is not permitted in project 'test'", fixture.RepoURL(fixture.RepoURLTypeFile))
 	destinationError := fmt.Sprintf("application destination {%s %s} is not permitted in project 'test'", common.KubernetesInternalAPIServerAddr, fixture.DeploymentNamespace())
 
 	assert.Contains(t, err.Error(), sourceError)
@@ -583,7 +583,7 @@ func TestPermissions(t *testing.T) {
 	assert.NoError(t, err)
 
 	// make sure controller report permissions issues in conditions
-	_, err = fixture.RunCli("app", "create", appName, "--repo", fixture.RepoURL(),
+	_, err = fixture.RunCli("app", "create", appName, "--repo", fixture.RepoURL(fixture.RepoURLTypeFile),
 		"--path", guestbookPath, "--project", "test", "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
 	assert.NoError(t, err)
 	defer func() {
@@ -698,7 +698,7 @@ func TestSelfManagedApps(t *testing.T) {
 	Given(t).
 		Path("self-managed-app").
 		When().
-		PatchFile("resources.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/spec/source/repoURL", "value": "%s"}]`, fixture.RepoURL())).
+		PatchFile("resources.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/spec/source/repoURL", "value": "%s"}]`, fixture.RepoURL(fixture.RepoURLTypeFile))).
 		Create().
 		Sync().
 		Then().

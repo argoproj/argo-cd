@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"path"
 	"path/filepath"
 	"strings"
@@ -23,9 +24,10 @@ import (
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	applicationsv1 "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/reposerver"
-	"github.com/argoproj/argo-cd/reposerver/repository"
+	"github.com/argoproj/argo-cd/reposerver/apiclient"
+
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/cert"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/ksonnet"
@@ -127,12 +129,42 @@ func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, na
 	return nil, fmt.Errorf("application refresh deadline exceeded")
 }
 
+func getCAPath(repoURL string) string {
+	if git.IsHTTPSURL(repoURL) {
+		if parsedURL, err := url.Parse(repoURL); err == nil {
+			if caPath, err := cert.GetCertBundlePathForRepository(parsedURL.Host); err != nil {
+				return caPath
+			} else {
+				log.Warnf("Could not get cert bundle path for host '%s'", parsedURL.Host)
+			}
+		} else {
+			// We don't fail if we cannot parse the URL, but log a warning in that
+			// case. And we execute the command in a verbatim way.
+			log.Warnf("Could not parse repo URL '%s'", repoURL)
+		}
+	}
+	return ""
+}
+
+func GetRepoCreds(repo *argoappv1.Repository) git.Creds {
+	if repo == nil {
+		return git.NopCreds{}
+	}
+	if repo.Username != "" && repo.Password != "" {
+		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.IsInsecure())
+	}
+	if repo.SSHPrivateKey != "" {
+		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure())
+	}
+	return git.NopCreds{}
+}
+
 // ValidateRepo validates the repository specified in application spec. Following is checked:
 // * the git repository is accessible
 // * the git path contains valid manifests
 // * there are parameters of only one app source type
 // * ksonnet: the specified environment exists
-func ValidateRepo(ctx context.Context, spec *argoappv1.ApplicationSpec, repoClientset reposerver.Clientset, db db.ArgoDB) ([]argoappv1.ApplicationCondition, argoappv1.ApplicationSourceType, error) {
+func ValidateRepo(ctx context.Context, spec *argoappv1.ApplicationSpec, repoClientset apiclient.Clientset, db db.ArgoDB) ([]argoappv1.ApplicationCondition, argoappv1.ApplicationSourceType, error) {
 	conditions := make([]argoappv1.ApplicationCondition, 0)
 
 	// Test the repo
@@ -147,7 +179,7 @@ func ValidateRepo(ctx context.Context, spec *argoappv1.ApplicationSpec, repoClie
 		return nil, "", err
 	}
 
-	err = git.TestRepo(repoRes.Repo, repoRes.Username, repoRes.Password, repoRes.SSHPrivateKey, repoRes.InsecureIgnoreHostKey)
+	err = git.TestRepo(repoRes.Repo, GetRepoCreds(repoRes), repoRes.IsInsecure())
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
@@ -253,8 +285,8 @@ func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.Ap
 	return projLister.AppProjects(ns).Get(spec.GetProject())
 }
 
-func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, repoRes *argoappv1.Repository, repoClient repository.RepoServerServiceClient) (argoappv1.ApplicationSourceType, error) {
-	req := repository.ListDirRequest{
+func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, repoRes *argoappv1.Repository, repoClient apiclient.RepoServerServiceClient) (argoappv1.ApplicationSourceType, error) {
+	req := apiclient.ListDirRequest{
 		Repo: &argoappv1.Repository{
 			Repo: spec.Source.RepoURL,
 		},
@@ -284,13 +316,13 @@ func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, re
 }
 
 // verifyAppYAML verifies that a ksonnet app.yaml is functional
-func verifyAppYAML(ctx context.Context, repoRes *argoappv1.Repository, spec *argoappv1.ApplicationSpec, repoClient repository.RepoServerServiceClient) error {
+func verifyAppYAML(ctx context.Context, repoRes *argoappv1.Repository, spec *argoappv1.ApplicationSpec, repoClient apiclient.RepoServerServiceClient) error {
 	// Default revision to HEAD if unspecified
 	if spec.Source.TargetRevision == "" {
 		spec.Source.TargetRevision = "HEAD"
 	}
 
-	req := repository.GetFileRequest{
+	req := apiclient.GetFileRequest{
 		Repo: &argoappv1.Repository{
 			Repo: spec.Source.RepoURL,
 		},
@@ -326,7 +358,7 @@ func verifyAppYAML(ctx context.Context, repoRes *argoappv1.Repository, spec *arg
 
 // verifyHelmChart verifies a helm chart is functional
 // verifyHelmChart verifies a helm chart is functional
-func verifyHelmChart(ctx context.Context, repoRes *argoappv1.Repository, spec *argoappv1.ApplicationSpec, repoClient repository.RepoServerServiceClient) []argoappv1.ApplicationCondition {
+func verifyHelmChart(ctx context.Context, repoRes *argoappv1.Repository, spec *argoappv1.ApplicationSpec, repoClient apiclient.RepoServerServiceClient) []argoappv1.ApplicationCondition {
 	var conditions []argoappv1.ApplicationCondition
 	if spec.Destination.Server == "" || spec.Destination.Namespace == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
@@ -334,7 +366,7 @@ func verifyHelmChart(ctx context.Context, repoRes *argoappv1.Repository, spec *a
 			Message: errDestinationMissing,
 		})
 	}
-	req := repository.GetFileRequest{
+	req := apiclient.GetFileRequest{
 		Repo: &argoappv1.Repository{
 			Repo: spec.Source.RepoURL,
 		},
@@ -354,7 +386,7 @@ func verifyHelmChart(ctx context.Context, repoRes *argoappv1.Repository, spec *a
 
 // verifyGenerateManifests verifies a repo path can generate manifests
 func verifyGenerateManifests(
-	ctx context.Context, repoRes *argoappv1.Repository, helmRepos []*argoappv1.HelmRepository, spec *argoappv1.ApplicationSpec, repoClient repository.RepoServerServiceClient) []argoappv1.ApplicationCondition {
+	ctx context.Context, repoRes *argoappv1.Repository, helmRepos []*argoappv1.HelmRepository, spec *argoappv1.ApplicationSpec, repoClient apiclient.RepoServerServiceClient) []argoappv1.ApplicationCondition {
 
 	var conditions []argoappv1.ApplicationCondition
 	if spec.Destination.Server == "" || spec.Destination.Namespace == "" {
@@ -363,7 +395,7 @@ func verifyGenerateManifests(
 			Message: errDestinationMissing,
 		})
 	}
-	req := repository.ManifestRequest{
+	req := apiclient.ManifestRequest{
 		Repo: &argoappv1.Repository{
 			Repo: spec.Source.RepoURL,
 		},

@@ -1,4 +1,4 @@
-package reposerver
+package apiclient
 
 import (
 	"crypto/tls"
@@ -9,14 +9,13 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/util"
 	argogrpc "github.com/argoproj/argo-cd/util/grpc"
 )
 
 // Clientset represets repository server api clients
 type Clientset interface {
-	NewRepoServerClient() (util.Closer, repository.RepoServerServiceClient, error)
+	NewRepoServerClient() (util.Closer, RepoServerServiceClient, error)
 }
 
 type clientSet struct {
@@ -24,7 +23,7 @@ type clientSet struct {
 	timeoutSeconds int
 }
 
-func (c *clientSet) NewRepoServerClient() (util.Closer, repository.RepoServerServiceClient, error) {
+func (c *clientSet) NewRepoServerClient() (util.Closer, RepoServerServiceClient, error) {
 	retryOpts := []grpc_retry.CallOption{
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffLinear(1000 * time.Millisecond)),
@@ -41,7 +40,7 @@ func (c *clientSet) NewRepoServerClient() (util.Closer, repository.RepoServerSer
 		log.Errorf("Unable to connect to repository service with address %s", c.address)
 		return nil, nil, err
 	}
-	return conn, repository.NewRepoServerServiceClient(conn), nil
+	return conn, NewRepoServerServiceClient(conn), nil
 }
 
 // NewRepoServerClientset creates new instance of repo server Clientset

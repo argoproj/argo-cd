@@ -13,7 +13,7 @@ import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"
 import math "math"
 import v1alpha1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-import repository "github.com/argoproj/argo-cd/reposerver/repository"
+import apiclient "github.com/argoproj/argo-cd/reposerver/apiclient"
 import _ "github.com/gogo/protobuf/gogoproto"
 import _ "google.golang.org/genproto/googleapis/api/annotations"
 import v11 "k8s.io/api/core/v1"
@@ -1640,7 +1640,7 @@ type ApplicationServiceClient interface {
 	// Get the meta-data (author, date, tags, message) for a specific revision of the application
 	RevisionMetadata(ctx context.Context, in *RevisionMetadataQuery, opts ...grpc.CallOption) (*v1alpha1.RevisionMetadata, error)
 	// GetManifests returns application manifests
-	GetManifests(ctx context.Context, in *ApplicationManifestQuery, opts ...grpc.CallOption) (*repository.ManifestResponse, error)
+	GetManifests(ctx context.Context, in *ApplicationManifestQuery, opts ...grpc.CallOption) (*apiclient.ManifestResponse, error)
 	// Update updates an application
 	Update(ctx context.Context, in *ApplicationUpdateRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error)
 	// UpdateSpec updates an application spec
@@ -1754,8 +1754,8 @@ func (c *applicationServiceClient) RevisionMetadata(ctx context.Context, in *Rev
 	return out, nil
 }
 
-func (c *applicationServiceClient) GetManifests(ctx context.Context, in *ApplicationManifestQuery, opts ...grpc.CallOption) (*repository.ManifestResponse, error) {
-	out := new(repository.ManifestResponse)
+func (c *applicationServiceClient) GetManifests(ctx context.Context, in *ApplicationManifestQuery, opts ...grpc.CallOption) (*apiclient.ManifestResponse, error) {
+	out := new(apiclient.ManifestResponse)
 	err := c.cc.Invoke(ctx, "/application.ApplicationService/GetManifests", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -1937,7 +1937,7 @@ type ApplicationServiceServer interface {
 	// Get the meta-data (author, date, tags, message) for a specific revision of the application
 	RevisionMetadata(context.Context, *RevisionMetadataQuery) (*v1alpha1.RevisionMetadata, error)
 	// GetManifests returns application manifests
-	GetManifests(context.Context, *ApplicationManifestQuery) (*repository.ManifestResponse, error)
+	GetManifests(context.Context, *ApplicationManifestQuery) (*apiclient.ManifestResponse, error)
 	// Update updates an application
 	Update(context.Context, *ApplicationUpdateRequest) (*v1alpha1.Application, error)
 	// UpdateSpec updates an application spec
