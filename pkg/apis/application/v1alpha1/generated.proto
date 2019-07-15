@@ -503,6 +503,9 @@ message Repository {
 
   // Whether the repo is insecure
   optional bool insecure = 7;
+
+  // Whether git-lfs support should be enabled for this repo
+  optional bool enableLfs = 8;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate

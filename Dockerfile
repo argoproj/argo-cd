@@ -101,12 +101,14 @@ FROM $BASE_IMAGE as argocd-base
 
 USER root
 
+RUN echo 'deb http://deb.debian.org/debian stretch-backports main' >> /etc/apt/sources.list
+
 RUN groupadd -g 999 argocd && \
     useradd -r -u 999 -g argocd argocd && \
     mkdir -p /home/argocd && \
     chown argocd:argocd /home/argocd && \
     apt-get update && \
-    apt-get install -y git && \
+    apt-get install -y git git-lfs && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 

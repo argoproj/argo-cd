@@ -94,6 +94,8 @@ type RepoCredentials struct {
 	InsecureIgnoreHostKey bool `json:"insecureIgnoreHostKey,omitempty"`
 	// Whether to connect the repository in an insecure way
 	Insecure bool `json:"insecure,omitempty"`
+	// Whether the repo is git-lfs enabled
+	EnableLFS bool `json:"enableLfs,omitempty"`
 }
 
 type HelmRepoCredentials struct {
