@@ -38,7 +38,7 @@ type LiveStateCache interface {
 	Invalidate()
 }
 
-type AppUpdatedHandler = func(appName string, fullRefresh bool, ref v1.ObjectReference)
+type AppUpdatedHandler = func(appName string, isManagedResource bool, ref v1.ObjectReference)
 
 func GetTargetObjKey(a *appv1.Application, un *unstructured.Unstructured, isNamespaced bool) kube.ResourceKey {
 	key := kube.GetResourceKey(un)
