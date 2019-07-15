@@ -42,3 +42,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 ## Documentation
 
 To learn more about Argo CD [go to the complete documentation](https://argoproj.github.io/argo-cd/).
+
+## Community Blogs and Presentations
+
+1. Comparison of Argo CD, Spinnaker, Jenkins X, and Tekton (https://www.inovex.de/blog/spinnaker-vs-argo-cd-vs-tekton-vs-jenkins-x/)
