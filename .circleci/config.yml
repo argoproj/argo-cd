@@ -68,6 +68,7 @@ commands:
           command: mkdir -p /tmp/dl
       - restore_cache:
           keys:
+						- dl-v6
             - dl-v5
             - dl-v4
             - dl-v3
