@@ -142,7 +142,7 @@ func TestLsRemote(t *testing.T) {
 
 // Running this test requires git-lfs to be installed on your machine.
 func TestLFSClient(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "argo-test-git")
+	tempDir, err := ioutil.TempDir("", "git-client-lfs-test-")
 	assert.NoError(t, err)
 	defer func() { _ = os.RemoveAll(tempDir) }()
 	client, err := NewFactory().NewClient("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true)
