@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+	"fmt"
 
 	"github.com/stretchr/testify/assert"
 
@@ -136,6 +137,37 @@ func TestLsRemote(t *testing.T) {
 	for _, revision := range xfail {
 		_, err := clnt.LsRemote(revision)
 		assert.Error(t, err)
+	}
+}
+
+// Running this test requires git-lfs to be installed on your machine.
+func TestLFSClient(t *testing.T) {
+	tempDir, err := ioutil.TempDir("", "argo-test-git")
+	assert.NoError(t, err)
+	defer func() { _ = os.RemoveAll(tempDir) }()
+	client, err := NewFactory().NewClient("https://github.com/jannfis/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true)
+	assert.NoError(t, err)
+	commitSHA, err := client.LsRemote("HEAD")
+	assert.NoError(t, err)
+	assert.NotEqual(t, "", commitSHA)
+	err = client.Init()
+	assert.NoError(t, err)
+	err = client.Fetch()
+	assert.NoError(t, err)
+	err = client.Checkout(commitSHA)
+	assert.NoError(t, err)
+	largeFiles, err := client.LsLargeFiles()
+	assert.NoError(t, err)
+	assert.Equal(t, 3, len(largeFiles))
+	fileHandle, err := os.Open(fmt.Sprintf("%s/test3.yaml", tempDir))
+	assert.NoError(t, err)
+	if err == nil {
+		defer fileHandle.Close()
+		text, err := ioutil.ReadAll(fileHandle)
+		assert.NoError(t, err)
+		if err == nil {
+			assert.Equal(t, "This is not a YAML, sorry.\n", string(text))
+		}
 	}
 }
 

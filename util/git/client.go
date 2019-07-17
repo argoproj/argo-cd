@@ -41,6 +41,7 @@ type Client interface {
 	Checkout(revision string) error
 	LsRemote(revision string) (string, error)
 	LsFiles(path string) ([]string, error)
+	LsLargeFiles() ([]string, error)
 	CommitSHA() (string, error)
 	RevisionMetadata(revision string) (*RevisionMetadata, error)
 }
@@ -233,9 +234,8 @@ func (m *nativeGitClient) LsLargeFiles() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	// remove last element, which is blank regardless of whether we're using nullbyte or newline
 	ss := strings.Split(out, "\n")
-	return ss[:len(ss)-1], nil
+	return ss, nil
 }
 
 // Checkout checkout specified git sha
