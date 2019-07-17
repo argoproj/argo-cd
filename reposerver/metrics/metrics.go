@@ -30,7 +30,7 @@ func NewMetricsServer(gitClientFactory git.ClientFactory) *MetricsServer {
 
 	gitRequestCounter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "argocd_git_ls_remote_total",
+			Name: "argocd_git_request_total",
 			Help: "Number of git requests performed by repo server",
 		},
 		[]string{"repo", "request_type"},
