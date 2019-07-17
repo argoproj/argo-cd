@@ -68,8 +68,12 @@ func TestCustomToolWithEnv(t *testing.T) {
 		// does not matter what the path is
 		Path("guestbook").
 		When().
-		Create().
-		PatchApp(`[{"op": "add", "path": "/spec/source/plugin", "value": {"env": [{"name": "FOO", "value": "bar"}]}}]`).
+		CreateFromFile(func(app *Application) {
+			app.Spec.Source.Plugin.Env = Env{{
+				Name:  "FOO",
+				Value: "bar",
+			}}
+		}).
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).

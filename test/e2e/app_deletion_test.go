@@ -3,7 +3,6 @@ package e2e
 import (
 	"testing"
 
-	. "github.com/argoproj/argo-cd/errors"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
@@ -17,9 +16,10 @@ func TestDeletingAppStuckInSync(t *testing.T) {
 	test.Flaky(t)
 
 	Given(t).
+		Async(true).
 		Path("hook").
 		When().
-		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command", "value": ["sleep", "999"]}]`).
+		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command", "value": ["sh", "-c", "until ls /tmp/done; do sleep 0.1; done"]}]`).
 		Create().
 		Sync().
 		Then().
@@ -31,11 +31,11 @@ func TestDeletingAppStuckInSync(t *testing.T) {
 		// delete is ignored, still stuck in running state
 		Expect(OperationPhaseIs(OperationRunning)).
 		When().
+		TerminateOp().
 		And(func() {
 			// force delete the resource
-			FailOnErr(Run("", "kubectl", "-n", DeploymentNamespace(), "delete", "pod", "hook", "--force", "--grace-period", "0"))
+			_, _ = Run("", "kubectl", "-n", DeploymentNamespace(), "exec", "-i", "hook", "touch", "/tmp/done")
 		}).
-		TerminateOp().
 		Then().
 		// delete is successful
 		Expect(DoesNotExist())
