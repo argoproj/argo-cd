@@ -36,7 +36,7 @@ func (a *Actions) Create() *Actions {
 
 	args := []string{
 		"app", "create", a.context.name,
-		"--repo", fixture.RepoURL(),
+		"--repo", fixture.RepoURL(a.context.repoURLType),
 		"--path", a.context.path,
 		"--dest-server", a.context.destServer,
 		"--dest-namespace", fixture.DeploymentNamespace(),
@@ -70,13 +70,17 @@ func (a *Actions) Create() *Actions {
 }
 
 func (a *Actions) Declarative(filename string) *Actions {
+	return a.DeclarativeWithCustomRepo(filename, fixture.RepoURL(a.context.repoURLType))
+}
+
+func (a *Actions) DeclarativeWithCustomRepo(filename string, repoURL string) *Actions {
 	values := map[string]interface{}{
 		"ArgoCDNamespace":     fixture.ArgoCDNamespace,
 		"DeploymentNamespace": fixture.DeploymentNamespace(),
 		"Name":                a.context.name,
 		"Path":                a.context.path,
 		"Project":             a.context.project,
-		"RepoURL":             fixture.RepoURL(),
+		"RepoURL":             repoURL,
 	}
 	a.lastOutput, a.lastError = fixture.Declarative(filename, values)
 	return a

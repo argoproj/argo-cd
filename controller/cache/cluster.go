@@ -472,8 +472,8 @@ func (c *clusterInfo) onNodeUpdated(exists bool, existingNode *node, un *unstruc
 			toNotify[app] = n.isRootAppNode() || toNotify[app]
 		}
 	}
-	for name, full := range toNotify {
-		c.onAppUpdated(name, full, newObj.ref)
+	for name, isRootAppNode := range toNotify {
+		c.onAppUpdated(name, isRootAppNode, newObj.ref)
 	}
 }
 

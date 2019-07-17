@@ -7,7 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/argoproj/argo-cd/reposerver/metrics"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -47,13 +48,15 @@ func newCommand() *cobra.Command {
 			cache, err := cacheSrc()
 			errors.CheckError(err)
 
-			server, err := reposerver.NewServer(git.NewFactory(), cache, tlsConfigCustomizer, parallelismLimit)
+			metricsServer := metrics.NewMetricsServer(git.NewFactory())
+			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, parallelismLimit)
 			errors.CheckError(err)
+
 			grpc := server.CreateGRPC()
 			listener, err := net.Listen("tcp", fmt.Sprintf(":%d", listenPort))
 			errors.CheckError(err)
 
-			http.Handle("/metrics", promhttp.Handler())
+			http.Handle("/metrics", metricsServer.GetHandler())
 			go func() { errors.CheckError(http.ListenAndServe(fmt.Sprintf(":%d", metricsPort), nil)) }()
 
 			log.Infof("argocd-repo-server %s serving on %s", common.GetVersion(), listener.Addr())

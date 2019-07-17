@@ -5,14 +5,15 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/util/settings"
-
 	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-cd/common"
@@ -20,13 +21,14 @@ import (
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	argorepo "github.com/argoproj/argo-cd/reposerver/repository"
+	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 	"github.com/argoproj/argo-cd/util"
 	. "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 const (
@@ -43,7 +45,7 @@ func TestAppCreation(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
 			assert.Equal(t, fixture.Name(), app.Name)
-			assert.Equal(t, fixture.RepoURL(), app.Spec.Source.RepoURL)
+			assert.Equal(t, fixture.RepoURL(fixture.RepoURLTypeFile), app.Spec.Source.RepoURL)
 			assert.Equal(t, guestbookPath, app.Spec.Source.Path)
 			assert.Equal(t, fixture.DeploymentNamespace(), app.Spec.Destination.Namespace)
 			assert.Equal(t, common.KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
@@ -219,6 +221,30 @@ func TestManipulateApplicationResources(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
 }
 
+func assetSecretDataHidden(t *testing.T, manifest string) {
+	secret, err := UnmarshalToUnstructured(manifest)
+	assert.NoError(t, err)
+
+	_, hasStringData, err := unstructured.NestedMap(secret.Object, "stringData")
+	assert.NoError(t, err)
+	assert.False(t, hasStringData)
+
+	secretData, hasData, err := unstructured.NestedMap(secret.Object, "data")
+	assert.NoError(t, err)
+	assert.True(t, hasData)
+	for _, v := range secretData {
+		assert.Regexp(t, regexp.MustCompile(`[*]*`), v)
+	}
+	var lastAppliedConfigAnnotation string
+	annotations := secret.GetAnnotations()
+	if annotations != nil {
+		lastAppliedConfigAnnotation = annotations[v1.LastAppliedConfigAnnotation]
+	}
+	if lastAppliedConfigAnnotation != "" {
+		assetSecretDataHidden(t, lastAppliedConfigAnnotation)
+	}
+}
+
 func TestAppWithSecrets(t *testing.T) {
 	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 	assert.NoError(t, err)
@@ -232,6 +258,17 @@ func TestAppWithSecrets(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
+			res, err := client.GetResource(context.Background(), &applicationpkg.ApplicationResourceRequest{
+				Namespace:    app.Spec.Destination.Namespace,
+				Kind:         kube.SecretKind,
+				Group:        "",
+				Name:         &app.Name,
+				Version:      "v1",
+				ResourceName: "test-secret",
+			})
+			assert.NoError(t, err)
+
+			assetSecretDataHidden(t, res.Manifest)
 
 			diffOutput, err := fixture.RunCli("app", "diff", app.Name)
 			assert.NoError(t, err)
@@ -335,7 +372,7 @@ func TestFailedConversion(t *testing.T) {
 		errors.FailOnErr(fixture.Run("", "kubectl", "delete", "apiservice", "v1beta1.metrics.k8s.io"))
 	}()
 
-	testEdgeCasesApplicationResources(t, "failed-conversion", HealthStatusHealthy)
+	testEdgeCasesApplicationResources(t, "failed-conversion", HealthStatusProgressing)
 }
 
 func testEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode HealthStatusCode) {
@@ -375,7 +412,7 @@ func TestKsonnetApp(t *testing.T) {
 				Path:     app.Spec.Source.Path,
 				Repo:     app.Spec.Source.RepoURL,
 				Revision: app.Spec.Source.TargetRevision,
-				Ksonnet:  &argorepo.KsonnetAppDetailsQuery{Environment: "prod"},
+				Ksonnet:  &apiclient.KsonnetAppDetailsQuery{Environment: "prod"},
 			})
 			assert.NoError(t, err)
 
@@ -528,10 +565,10 @@ func TestPermissions(t *testing.T) {
 	assert.NoError(t, err)
 
 	// make sure app cannot be created without permissions in project
-	_, err = fixture.RunCli("app", "create", appName, "--repo", fixture.RepoURL(),
+	_, err = fixture.RunCli("app", "create", appName, "--repo", fixture.RepoURL(fixture.RepoURLTypeFile),
 		"--path", guestbookPath, "--project", "test", "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
 	assert.Error(t, err)
-	sourceError := fmt.Sprintf("application repo %s is not permitted in project 'test'", fixture.RepoURL())
+	sourceError := fmt.Sprintf("application repo %s is not permitted in project 'test'", fixture.RepoURL(fixture.RepoURLTypeFile))
 	destinationError := fmt.Sprintf("application destination {%s %s} is not permitted in project 'test'", common.KubernetesInternalAPIServerAddr, fixture.DeploymentNamespace())
 
 	assert.Contains(t, err.Error(), sourceError)
@@ -546,7 +583,7 @@ func TestPermissions(t *testing.T) {
 	assert.NoError(t, err)
 
 	// make sure controller report permissions issues in conditions
-	_, err = fixture.RunCli("app", "create", appName, "--repo", fixture.RepoURL(),
+	_, err = fixture.RunCli("app", "create", appName, "--repo", fixture.RepoURL(fixture.RepoURLTypeFile),
 		"--path", guestbookPath, "--project", "test", "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
 	assert.NoError(t, err)
 	defer func() {
@@ -661,7 +698,7 @@ func TestSelfManagedApps(t *testing.T) {
 	Given(t).
 		Path("self-managed-app").
 		When().
-		PatchFile("resources.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/spec/source/repoURL", "value": "%s"}]`, fixture.RepoURL())).
+		PatchFile("resources.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/spec/source/repoURL", "value": "%s"}]`, fixture.RepoURL(fixture.RepoURLTypeFile))).
 		Create().
 		Sync().
 		Then().

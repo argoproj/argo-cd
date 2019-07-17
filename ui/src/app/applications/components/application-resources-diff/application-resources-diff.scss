@@ -1,0 +1,14 @@
+.application-resources-diff {
+    &__checkboxes {
+        text-align: right;
+        label {
+            padding-right: 2em;
+        }
+    }
+    &__diff {
+        font-size: 10pt;
+        &__title {
+            font-weight: bold;
+        }
+    }
+}

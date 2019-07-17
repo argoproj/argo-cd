@@ -18,8 +18,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/reposerver"
-	"github.com/argoproj/argo-cd/reposerver/repository"
+	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
@@ -81,12 +80,12 @@ type appStateManager struct {
 	appclientset   appclientset.Interface
 	projInformer   cache.SharedIndexInformer
 	kubectl        kubeutil.Kubectl
-	repoClientset  reposerver.Clientset
+	repoClientset  apiclient.Clientset
 	liveStateCache statecache.LiveStateCache
 	namespace      string
 }
 
-func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *repository.ManifestResponse, error) {
+func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
 	helmRepos, err := m.db.ListHelmRepos(context.Background())
 	if err != nil {
 		return nil, nil, nil, err
@@ -119,7 +118,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &repository.ManifestRequest{
+	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 		Repo:              repo,
 		HelmRepos:         helmRepos,
 		Revision:          revision,
@@ -259,7 +258,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 
 	var targetObjs []*unstructured.Unstructured
 	var hooks []*unstructured.Unstructured
-	var manifestInfo *repository.ManifestResponse
+	var manifestInfo *apiclient.ManifestResponse
 
 	if len(localManifests) == 0 {
 		targetObjs, hooks, manifestInfo, err = m.getRepoObjs(app, source, appLabelKey, revision, noCache)
@@ -356,11 +355,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	managedResources := make([]managedResource, len(targetObjs))
 	resourceSummaries := make([]v1alpha1.ResourceStatus, len(targetObjs))
 	for i, targetObj := range targetObjs {
-		resourceVersion := ""
 		liveObj := managedLiveObj[i]
-		if liveObj != nil {
-			resourceVersion = liveObj.GetResourceVersion()
-		}
 		obj := liveObj
 		if obj == nil {
 			obj = targetObj
@@ -377,7 +372,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 			Version:         gvk.Version,
 			Group:           gvk.Group,
 			Hook:            hookutil.IsHook(obj),
-			ResourceVersion: resourceVersion,
+			RequiresPruning: targetObj == nil && liveObj != nil,
 		}
 
 		diffResult := diffResults.Diffs[i]
@@ -481,7 +476,7 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 func NewAppStateManager(
 	db db.ArgoDB,
 	appclientset appclientset.Interface,
-	repoClientset reposerver.Clientset,
+	repoClientset apiclient.Clientset,
 	namespace string,
 	kubectl kubeutil.Kubectl,
 	settingsMgr *settings.SettingsManager,

@@ -32,6 +32,10 @@ spec:
         volumeMounts:
         - mountPath: /shared
           name: static-files
+        - name: ssh-known-hosts
+          mountPath: /app/config/ssh
+        - name: tls-certs
+          mountPath: /app/config/tls
         ports:
         - containerPort: 8080
         - containerPort: 8083
@@ -50,3 +54,9 @@ spec:
       volumes:
       - emptyDir: {}
         name: static-files
+      - name: ssh-known-hosts
+        configMap:
+          name: argocd-ssh-known-hosts-cm
+      - name: tls-certs
+        configMap:
+          name: argocd-tls-certs-cm

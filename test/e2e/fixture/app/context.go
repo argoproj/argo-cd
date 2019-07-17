@@ -12,8 +12,9 @@ import (
 
 // this implements the "given" part of given/when/then
 type Context struct {
-	t    *testing.T
-	path string
+	t           *testing.T
+	path        string
+	repoURLType fixture.RepoURLType
 	// seconds
 	timeout                int
 	name                   string
@@ -32,19 +33,21 @@ type Context struct {
 
 func Given(t *testing.T) *Context {
 	fixture.EnsureCleanState(t)
-	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, name: fixture.Name(), timeout: 5, project: "default", prune: true}
+	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, repoURLType: fixture.RepoURLTypeFile, name: fixture.Name(), timeout: 5, project: "default", prune: true}
 }
 
-func (c *Context) SSHRepo() *Context {
-	return c.Repo(repos.AddSSHRepo())
+func (c *Context) HTTPSRepoURLAdded() *Context {
+	repos.AddHTTPSRepo()
+	return c
 }
 
-func (c *Context) HTTPSRepo() *Context {
-	return c.Repo(repos.AddHTTPSRepo())
+func (c *Context) SSHRepoURLAdded() *Context {
+	repos.AddSSHRepo()
+	return c
 }
 
-func (c *Context) Repo(url string) *Context {
-	fixture.SetRepoURL(url)
+func (c *Context) RepoURLType(urlType fixture.RepoURLType) *Context {
+	c.repoURLType = urlType
 	return c
 }
 

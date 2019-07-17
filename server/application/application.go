@@ -27,14 +27,14 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/reposerver"
-	"github.com/argoproj/argo-cd/reposerver/repository"
+	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	argoutil "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/lua"
@@ -48,7 +48,7 @@ type Server struct {
 	ns            string
 	kubeclientset kubernetes.Interface
 	appclientset  appclientset.Interface
-	repoClientset reposerver.Clientset
+	repoClientset apiclient.Clientset
 	kubectl       kube.Kubectl
 	db            db.ArgoDB
 	enf           *rbac.Enforcer
@@ -64,7 +64,7 @@ func NewServer(
 	namespace string,
 	kubeclientset kubernetes.Interface,
 	appclientset appclientset.Interface,
-	repoClientset reposerver.Clientset,
+	repoClientset apiclient.Clientset,
 	cache *cache.Cache,
 	kubectl kube.Kubectl,
 	db db.ArgoDB,
@@ -157,7 +157,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 }
 
 // GetManifests returns application manifests
-func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationManifestQuery) (*repository.ManifestResponse, error) {
+func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationManifestQuery) (*apiclient.ManifestResponse, error) {
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -205,7 +205,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		BuildOptions: buildOptions,
 	}
 
-	manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
+	manifestInfo, err := repoClient.GenerateManifest(ctx, &apiclient.ManifestRequest{
 		Repo:              repo,
 		Revision:          revision,
 		AppLabelKey:       appInstanceLabelKey,
@@ -639,7 +639,7 @@ func (s *Server) GetResource(ctx context.Context, q *application.ApplicationReso
 	if err != nil {
 		return nil, err
 	}
-	err = replaceSecretValues(obj)
+	obj, err = replaceSecretValues(obj)
 	if err != nil {
 		return nil, err
 	}
@@ -650,20 +650,15 @@ func (s *Server) GetResource(ctx context.Context, q *application.ApplicationReso
 	return &application.ApplicationResourceResponse{Manifest: string(data)}, nil
 }
 
-func replaceSecretValues(obj *unstructured.Unstructured) error {
+func replaceSecretValues(obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
-		data, _, _ := unstructured.NestedMap(obj.Object, "data")
-		if data != nil {
-			for k := range data {
-				data[k] = "**********"
-			}
-			err := unstructured.SetNestedField(obj.Object, data, "data")
-			if err != nil {
-				return err
-			}
+		_, obj, err := diff.HideSecretData(nil, obj)
+		if err != nil {
+			return nil, err
 		}
+		return obj, err
 	}
-	return nil
+	return obj, nil
 }
 
 // PatchResource patches a resource
@@ -688,7 +683,7 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 	if err != nil {
 		return nil, err
 	}
-	err = replaceSecretValues(manifest)
+	manifest, err = replaceSecretValues(manifest)
 	if err != nil {
 		return nil, err
 	}
@@ -760,7 +755,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 		return nil, err
 	}
 	defer util.Close(conn)
-	return repoClient.GetRevisionMetadata(ctx, &repository.RepoServerRevisionMetadataRequest{Repo: repo, Revision: q.GetRevision()})
+	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{Repo: repo, Revision: q.GetRevision()})
 }
 
 func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQuery) (*application.ManagedResourcesResponse, error) {
@@ -985,7 +980,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	if err != nil {
 		return "", "", err
 	}
-	gitClient, err := s.gitFactory.NewClient(repo.Repo, "", repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
+	gitClient, err := s.gitFactory.NewClient(repo.Repo, "", argoutil.GetRepoCreds(repo), repo.IsInsecure())
 	if err != nil {
 		return "", "", err
 	}

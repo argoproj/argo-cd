@@ -15,6 +15,10 @@ const (
 	ArgoCDConfigMapName     = "argocd-cm"
 	ArgoCDSecretName        = "argocd-secret"
 	ArgoCDRBACConfigMapName = "argocd-rbac-cm"
+	// Contains SSH known hosts data for connecting repositories. Will get mounted as volume to pods
+	ArgoCDKnownHostsConfigMapName = "argocd-ssh-known-hosts-cm"
+	// Contains TLS certificate data for connecting repositories. Will get mounted as volume to pods
+	ArgoCDTLSCertsConfigMapName = "argocd-tls-certs-cm"
 )
 
 // Default system namespace

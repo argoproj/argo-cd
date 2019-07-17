@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 
 	versionpkg "github.com/argoproj/argo-cd/pkg/apiclient/version"
+	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server/version"
 	"github.com/argoproj/argo-cd/util/cache"
@@ -70,7 +71,7 @@ func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 	server := grpc.NewServer(a.opts...)
 	versionpkg.RegisterVersionServiceServer(server, &version.Server{})
 	manifestService := repository.NewService(a.gitFactory, a.cache, a.parallelismLimit)
-	repository.RegisterRepoServerServiceServer(server, manifestService)
+	apiclient.RegisterRepoServerServiceServer(server, manifestService)
 
 	// Register reflection service on gRPC server.
 	reflection.Register(server)
