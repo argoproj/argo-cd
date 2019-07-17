@@ -15,6 +15,7 @@ func TestCannotAddAppFromPrivateRepoWithoutCfg(t *testing.T) {
 		RepoURLType(fixture.RepoURLTypeHTTPS).
 		Path(guestbookPath).
 		When().
+		IgnoreErrors().
 		Create().
 		Then().
 		Expect(Error("", "repository not accessible"))

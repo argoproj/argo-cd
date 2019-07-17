@@ -85,6 +85,7 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 		Then().
 		// this is standard logging from the command - tough one - true statement
 		When().
+		IgnoreErrors().
 		Sync().
 		Then().
 		Expect(Error("", "1 resources require pruning")).
