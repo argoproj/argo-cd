@@ -137,8 +137,9 @@ commands:
           name: Install Kustomize v3.0.0
           command: |
             set -x
-            [ -e /tmp/dl/kustomize ] || curl -sLf -C - -o /tmp/dl/kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v3.0.0/kustomize_3.0.0_linux_amd64
-            sudo cp /tmp/dl/kustomize /usr/local/go/bin/
+            export VER=3.0.0
+            [ -e /tmp/dl/kustomize_${VER} ] || curl -sLf -C - -o /tmp/dl/kustomize_${VER} https://github.com/kubernetes-sigs/kustomize/releases/download/v${VER}/kustomize_${VER}_linux_amd64
+            sudo cp /tmp/dl/kustomize_${VER} /usr/local/go/bin/kustomize
             sudo chmod +x /usr/local/go/bin/kustomize
             kustomize version
       - run:
