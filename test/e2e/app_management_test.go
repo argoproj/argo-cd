@@ -64,6 +64,7 @@ func TestInvalidAppProject(t *testing.T) {
 		Path(guestbookPath).
 		Project("does-not-exist").
 		When().
+		IgnoreErrors().
 		Create().
 		Then().
 		Expect(Error("", "application references project does-not-exist which does not exist"))
@@ -153,6 +154,7 @@ func TestComparisonFailsIfClusterNotAdded(t *testing.T) {
 		Path(guestbookPath).
 		DestServer("https://not-registered-cluster/api").
 		When().
+		IgnoreErrors().
 		Create().
 		Then().
 		Expect(DoesNotExist())
@@ -632,6 +634,7 @@ func TestSyncOptionPruneFalse(t *testing.T) {
 		When().
 		DeleteFile("pod-1.yaml").
 		Refresh(RefreshTypeHard).
+		IgnoreErrors().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -654,6 +657,7 @@ func TestSyncOptionValidateFalse(t *testing.T) {
 		Then().
 		Expect(Success("")).
 		When().
+		IgnoreErrors().
 		Sync().
 		Then().
 		// client error

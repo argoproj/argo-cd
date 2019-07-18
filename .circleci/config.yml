@@ -68,6 +68,8 @@ commands:
           command: mkdir -p /tmp/dl
       - restore_cache:
           keys:
+            - dl-v6
+            - dl-v5
             - dl-v4
             - dl-v3
       - run:
@@ -132,11 +134,12 @@ commands:
             sudo chmod +x /usr/local/go/bin/kustomize1
             kustomize1 version
       - run:
-          name: Install Kustomize v2.0.3
+          name: Install Kustomize v3.0.2
           command: |
             set -x
-            [ -e /tmp/dl/kustomize ] || curl -sLf -C - -o /tmp/dl/kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v2.0.3/kustomize_2.0.3_linux_amd64
-            sudo cp /tmp/dl/kustomize /usr/local/go/bin/
+            export VER=3.0.2
+            [ -e /tmp/dl/kustomize_${VER} ] || curl -sLf -C - -o /tmp/dl/kustomize_${VER} https://github.com/kubernetes-sigs/kustomize/releases/download/v${VER}/kustomize_${VER}_linux_amd64
+            sudo cp /tmp/dl/kustomize_${VER} /usr/local/go/bin/kustomize
             sudo chmod +x /usr/local/go/bin/kustomize
             kustomize version
       - run:

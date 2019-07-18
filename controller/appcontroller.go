@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"reflect"
 	"runtime/debug"
 	"strings"
@@ -46,6 +47,21 @@ const (
 	updateOperationStateTimeout = 1 * time.Second
 )
 
+type CompareWith int
+
+const (
+	// Compare live application state against state defined in latest git revision.
+	CompareWithLatest CompareWith = 2
+	// Compare live application state against state defined using revision of most recent comparison.
+	CompareWithRecent CompareWith = 1
+	// Skip comparison and only refresh application resources tree
+	ComparisonWithNothing CompareWith = 0
+)
+
+func (a CompareWith) Max(b CompareWith) CompareWith {
+	return CompareWith(math.Max(float64(a), float64(b)))
+}
+
 // ApplicationController is the controller for application resources.
 type ApplicationController struct {
 	cache                     *argocache.Cache
@@ -65,7 +81,7 @@ type ApplicationController struct {
 	repoClientset             apiclient.Clientset
 	db                        db.ArgoDB
 	settingsMgr               *settings_util.SettingsManager
-	refreshRequestedApps      map[string]bool
+	refreshRequestedApps      map[string]CompareWith
 	refreshRequestedAppsMutex *sync.Mutex
 	metricsServer             *metrics.MetricsServer
 }
@@ -99,7 +115,7 @@ func NewApplicationController(
 		appOperationQueue:         workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
 		db:                        db,
 		statusRefreshTimeout:      appResyncPeriod,
-		refreshRequestedApps:      make(map[string]bool),
+		refreshRequestedApps:      make(map[string]CompareWith),
 		refreshRequestedAppsMutex: &sync.Mutex{},
 		auditLogger:               argo.NewAuditLogger(namespace, kubeClientset, "argocd-application-controller"),
 		settingsMgr:               settingsMgr,
@@ -131,7 +147,7 @@ func isSelfReferencedApp(app *appv1.Application, ref v1.ObjectReference) bool {
 		gvk.Kind == application.ApplicationKind
 }
 
-func (ctrl *ApplicationController) handleAppUpdated(appName string, fullRefresh bool, ref v1.ObjectReference) {
+func (ctrl *ApplicationController) handleAppUpdated(appName string, isManagedResource bool, ref v1.ObjectReference) {
 	skipForceRefresh := false
 
 	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(ctrl.namespace + "/" + appName)
@@ -141,7 +157,11 @@ func (ctrl *ApplicationController) handleAppUpdated(appName string, fullRefresh 
 	}
 
 	if !skipForceRefresh {
-		ctrl.requestAppRefresh(appName, fullRefresh)
+		level := ComparisonWithNothing
+		if isManagedResource {
+			level = CompareWithRecent
+		}
+		ctrl.requestAppRefresh(appName, level)
 	}
 	ctrl.appRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, appName))
 }
@@ -287,20 +307,20 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	<-ctx.Done()
 }
 
-func (ctrl *ApplicationController) requestAppRefresh(appName string, fullRefresh bool) {
+func (ctrl *ApplicationController) requestAppRefresh(appName string, compareWith CompareWith) {
 	ctrl.refreshRequestedAppsMutex.Lock()
 	defer ctrl.refreshRequestedAppsMutex.Unlock()
-	ctrl.refreshRequestedApps[appName] = fullRefresh || ctrl.refreshRequestedApps[appName]
+	ctrl.refreshRequestedApps[appName] = compareWith.Max(ctrl.refreshRequestedApps[appName])
 }
 
-func (ctrl *ApplicationController) isRefreshRequested(appName string) (bool, bool) {
+func (ctrl *ApplicationController) isRefreshRequested(appName string) (bool, CompareWith) {
 	ctrl.refreshRequestedAppsMutex.Lock()
 	defer ctrl.refreshRequestedAppsMutex.Unlock()
-	fullRefresh, ok := ctrl.refreshRequestedApps[appName]
+	level, ok := ctrl.refreshRequestedApps[appName]
 	if ok {
 		delete(ctrl.refreshRequestedApps, appName)
 	}
-	return ok, fullRefresh
+	return ok, level
 }
 
 func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext bool) {
@@ -512,7 +532,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	if state.Phase.Completed() {
 		// if we just completed an operation, force a refresh so that UI will report up-to-date
 		// sync/health information
-		ctrl.requestAppRefresh(app.ObjectMeta.Name, true)
+		ctrl.requestAppRefresh(app.ObjectMeta.Name, CompareWithLatest)
 	}
 }
 
@@ -607,7 +627,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		log.Warnf("Key '%s' in index is not an application", appKey)
 		return
 	}
-	needRefresh, refreshType, fullRefresh := ctrl.needRefreshAppStatus(origApp, ctrl.statusRefreshTimeout)
+	needRefresh, refreshType, comparisonLevel := ctrl.needRefreshAppStatus(origApp, ctrl.statusRefreshTimeout)
 
 	if !needRefresh {
 		return
@@ -617,13 +637,13 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	defer func() {
 		reconcileDuration := time.Since(startTime)
 		ctrl.metricsServer.IncReconcile(origApp, reconcileDuration)
-		logCtx := log.WithFields(log.Fields{"application": origApp.Name, "time_ms": reconcileDuration.Seconds() * 1e3, "full": fullRefresh})
+		logCtx := log.WithFields(log.Fields{"application": origApp.Name, "time_ms": reconcileDuration.Seconds() * 1e3, "level": comparisonLevel})
 		logCtx.Info("Reconciliation completed")
 	}()
 
 	app := origApp.DeepCopy()
 	logCtx := log.WithFields(log.Fields{"application": app.Name})
-	if !fullRefresh {
+	if comparisonLevel == ComparisonWithNothing {
 		if managedResources, err := ctrl.cache.GetAppManagedResources(app.Name); err != nil {
 			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fallback to full reconciliation")
 		} else {
@@ -657,7 +677,11 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		localManifests = opState.Operation.Sync.Manifests
 	}
 
-	compareResult, err := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, refreshType == appv1.RefreshTypeHard, localManifests)
+	revision := app.Spec.Source.TargetRevision
+	if comparisonLevel == CompareWithRecent {
+		revision = app.Status.Sync.Revision
+	}
+	compareResult, err := ctrl.appStateManager.CompareAppState(app, revision, app.Spec.Source, refreshType == appv1.RefreshTypeHard, localManifests)
 	if err != nil {
 		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
 	} else {
@@ -691,17 +715,17 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 // Returns true if application never been compared, has changed or comparison result has expired.
 // Additionally returns whether full refresh was requested or not.
 // If full refresh is requested then target and live state should be reconciled, else only live state tree should be updated.
-func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, statusRefreshTimeout time.Duration) (bool, appv1.RefreshType, bool) {
+func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, statusRefreshTimeout time.Duration) (bool, appv1.RefreshType, CompareWith) {
 	logCtx := log.WithFields(log.Fields{"application": app.Name})
 	var reason string
-	fullRefresh := true
+	compareWith := CompareWithLatest
 	refreshType := appv1.RefreshTypeNormal
 	expired := app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
 	if requestedType, ok := app.IsRefreshRequested(); ok {
 		refreshType = requestedType
 		reason = fmt.Sprintf("%s refresh requested", refreshType)
-	} else if requested, full := ctrl.isRefreshRequested(app.Name); requested {
-		fullRefresh = full
+	} else if requested, level := ctrl.isRefreshRequested(app.Name); requested {
+		compareWith = level
 		reason = fmt.Sprintf("controller refresh requested")
 	} else if app.Status.Sync.Status == appv1.SyncStatusCodeUnknown && expired {
 		reason = "comparison status unknown"
@@ -713,10 +737,10 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 		reason = fmt.Sprintf("comparison expired. reconciledAt: %v, expiry: %v", app.Status.ReconciledAt, statusRefreshTimeout)
 	}
 	if reason != "" {
-		logCtx.Infof("Refreshing app status (%s)", reason)
-		return true, refreshType, fullRefresh
+		logCtx.Infof("Refreshing app status (%s), level (%d)", reason, compareWith)
+		return true, refreshType, compareWith
 	}
-	return false, refreshType, fullRefresh
+	return false, refreshType, compareWith
 }
 
 func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) ([]appv1.ApplicationCondition, bool) {
@@ -933,7 +957,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				if oldOK && newOK {
 					if toggledAutomatedSync(oldApp, newApp) {
 						log.WithField("application", newApp.Name).Info("Enabled automated sync")
-						ctrl.requestAppRefresh(newApp.Name, true)
+						ctrl.requestAppRefresh(newApp.Name, CompareWithLatest)
 					}
 				}
 				ctrl.appRefreshQueue.Add(key)

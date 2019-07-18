@@ -33,6 +33,7 @@ func TestSyncOptionsValidateTrue(t *testing.T) {
 	Given(t).
 		Path("sync-options-validate-false").
 		When().
+		IgnoreErrors().
 		Create().
 		PatchFile("invalid-cm.yaml", `[{"op": "remove", "path": "/metadata/annotations"}]`).
 		Sync().

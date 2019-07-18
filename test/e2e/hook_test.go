@@ -54,6 +54,7 @@ func TestPreSyncHookFailure(t *testing.T) {
 		// make hook fail
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command", "value": ["false"]}]`).
 		Create().
+		IgnoreErrors().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
@@ -71,6 +72,7 @@ func TestSyncHookFailure(t *testing.T) {
 		// make hook fail
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}]`).
 		Create().
+		IgnoreErrors().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
@@ -89,6 +91,7 @@ func TestPostSyncHookFailure(t *testing.T) {
 		// make hook fail
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}]`).
 		Create().
+		IgnoreErrors().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
@@ -102,6 +105,7 @@ func TestPostSyncHookPodFailure(t *testing.T) {
 	Given(t).
 		Path("hook").
 		When().
+		IgnoreErrors().
 		PatchFile("hook.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "PostSync"}}]`).
 		// make pod fail
 		PatchFile("pod.yaml", `[{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}]`).
@@ -121,6 +125,7 @@ func TestSyncFailHookPodFailure(t *testing.T) {
 	Given(t).
 		Path("hook").
 		When().
+		IgnoreErrors().
 		AddFile("sync-fail-hook.yaml", `
 apiVersion: v1
 kind: Pod
@@ -151,6 +156,7 @@ func TestSyncFailHookPodFailureSyncFailFailure(t *testing.T) {
 	Given(t).
 		Path("hook").
 		When().
+		IgnoreErrors().
 		AddFile("successful-sync-fail-hook.yaml", `
 apiVersion: v1
 kind: Pod
@@ -214,6 +220,7 @@ func TestHookDeletePolicyHookSucceededHookExit1(t *testing.T) {
 		PatchFile("hook.yaml", `[{"op": "add", "path": "/metadata/annotations/argocd.argoproj.io~1hook-delete-policy", "value": "HookSucceeded"}]`).
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}]`).
 		Create().
+		IgnoreErrors().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
@@ -240,6 +247,7 @@ func TestHookDeletePolicyHookFailedHookExit1(t *testing.T) {
 	Given(t).
 		Path("hook").
 		When().
+		IgnoreErrors().
 		PatchFile("hook.yaml", `[{"op": "add", "path": "/metadata/annotations/argocd.argoproj.io~1hook-delete-policy", "value": "HookFailed"}]`).
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}]`).
 		Create().
@@ -268,6 +276,7 @@ func TestHookSkip(t *testing.T) {
 // make sure that we do NOT name non-hook resources in they are unnamed
 func TestNamingNonHookResource(t *testing.T) {
 	Given(t).
+		Async(true).
 		Path("hook").
 		When().
 		PatchFile("pod.yaml", `[{"op": "remove", "path": "/metadata/name"}]`).
@@ -280,6 +289,7 @@ func TestNamingNonHookResource(t *testing.T) {
 // make sure that we name hook resources in they are unnamed
 func TestAutomaticallyNamingUnnamedHook(t *testing.T) {
 	Given(t).
+		Async(true).
 		Path("hook").
 		When().
 		PatchFile("hook.yaml", `[{"op": "remove", "path": "/metadata/name"}]`).
