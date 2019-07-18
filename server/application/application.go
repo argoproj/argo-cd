@@ -962,7 +962,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	if err != nil {
 		return "", "", err
 	}
-	gitClient, err := s.gitFactory.NewClient(repo.Repo, "", argoutil.GetRepoCreds(repo), repo.IsInsecure())
+	gitClient, err := s.gitFactory.NewClient(repo.Repo, "", argoutil.GetRepoCreds(repo), repo.IsInsecure(), repo.IsLFSEnabled())
 	if err != nil {
 		return "", "", err
 	}

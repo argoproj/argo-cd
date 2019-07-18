@@ -179,7 +179,7 @@ func ValidateRepo(ctx context.Context, spec *argoappv1.ApplicationSpec, repoClie
 		return nil, "", err
 	}
 
-	err = git.TestRepo(repoRes.Repo, GetRepoCreds(repoRes), repoRes.IsInsecure())
+	err = git.TestRepo(repoRes.Repo, GetRepoCreds(repoRes), repoRes.IsInsecure(), repoRes.EnableLFS)
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,

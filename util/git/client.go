@@ -41,6 +41,7 @@ type Client interface {
 	Checkout(revision string) error
 	LsRemote(revision string) (string, error)
 	LsFiles(path string) ([]string, error)
+	LsLargeFiles() ([]string, error)
 	CommitSHA() (string, error)
 	RevisionMetadata(revision string) (*RevisionMetadata, error)
 }
@@ -48,7 +49,7 @@ type Client interface {
 // ClientFactory is a factory of Git Clients
 // Primarily used to support creation of mock git clients during unit testing
 type ClientFactory interface {
-	NewClient(rawRepoURL string, path string, creds Creds, insecure bool) (Client, error)
+	NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool) (Client, error)
 }
 
 // nativeGitClient implements Client interface using git CLI
@@ -61,6 +62,8 @@ type nativeGitClient struct {
 	creds Creds
 	// Whether to connect insecurely to repository, e.g. don't verify certificate
 	insecure bool
+	// Whether the repository is LFS enabled
+	enableLfs bool
 }
 
 type factory struct{}
@@ -69,20 +72,13 @@ func NewFactory() ClientFactory {
 	return &factory{}
 }
 
-func (f *factory) NewClient(rawRepoURL string, path string, creds Creds, insecure bool) (Client, error) {
-	// We need a custom HTTP client for go-git when we want to skip validation
-	// of the server's TLS certificate (--insecure-ignore-server-cert). Since
-	// this change is permanent to go-git Client during runtime, we need to
-	// explicitly replace it with default client for repositories without the
-	// insecure flag set.
-	//if IsHTTPSURL(rawRepoURL) {
-	//	gitclient.InstallProtocol("https", githttp.NewClient(getRepoHTTPClient(rawRepoURL, insecure)))
-	//}
+func (f *factory) NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool) (Client, error) {
 	client := nativeGitClient{
-		repoURL:  rawRepoURL,
-		root:     path,
-		creds:    creds,
-		insecure: insecure,
+		repoURL:   rawRepoURL,
+		root:      path,
+		creds:     creds,
+		insecure:  insecure,
+		enableLfs: enableLfs,
 	}
 	return &client, nil
 }
@@ -200,9 +196,24 @@ func (m *nativeGitClient) Init() error {
 	return err
 }
 
+// Returns true if the repository is LFS enabled
+func (m *nativeGitClient) IsLFSEnabled() bool {
+	return m.enableLfs
+}
+
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch() error {
 	_, err := m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
+	// When we have LFS support enabled, check for large files and fetch them too.
+	if err == nil && m.IsLFSEnabled() {
+		largeFiles, err := m.LsLargeFiles()
+		if err == nil && len(largeFiles) > 0 {
+			_, err = m.runCredentialedCmd("git", "lfs", "fetch", "--all")
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return err
 }
 
@@ -217,6 +228,16 @@ func (m *nativeGitClient) LsFiles(path string) ([]string, error) {
 	return ss[:len(ss)-1], nil
 }
 
+// LsLargeFiles lists all files that have references to LFS storage
+func (m *nativeGitClient) LsLargeFiles() ([]string, error) {
+	out, err := m.runCmd("lfs", "ls-files", "-n")
+	if err != nil {
+		return nil, err
+	}
+	ss := strings.Split(out, "\n")
+	return ss, nil
+}
+
 // Checkout checkout specified git sha
 func (m *nativeGitClient) Checkout(revision string) error {
 	if revision == "" || revision == "HEAD" {
@@ -224,6 +245,19 @@ func (m *nativeGitClient) Checkout(revision string) error {
 	}
 	if _, err := m.runCmd("checkout", "--force", revision); err != nil {
 		return err
+	}
+	// We must populate LFS content by using lfs checkout, if we have at least
+	// one LFS reference in the current revision.
+	if m.IsLFSEnabled() {
+		if largeFiles, err := m.LsLargeFiles(); err == nil {
+			if len(largeFiles) > 0 {
+				if _, err := m.runCmd("lfs", "checkout"); err != nil {
+					return err
+				}
+			}
+		} else {
+			return err
+		}
 	}
 	if _, err := m.runCmd("clean", "-fdx"); err != nil {
 		return err
@@ -361,9 +395,12 @@ func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) (st
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 	cmd.Dir = m.root
 	cmd.Env = append(cmd.Env, os.Environ()...)
+	// Set $HOME to nowhere, so we can be execute Git regardless of any external
+	// authentication keys (e.g. in ~/.ssh) -- this is especially important for
+	// running tests on local machines and/or CircleCI.
 	cmd.Env = append(cmd.Env, "HOME=/dev/null")
-	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOSYSTEM=true")
-	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOGLOBAL=true")
+	// Skip LFS for most Git operations except when explicitly requested
+	cmd.Env = append(cmd.Env, "GIT_LFS_SKIP_SMUDGE=1")
 	log.Debug(strings.Join(cmd.Args, " "))
 	return argoexec.RunCommandExt(cmd, argoconfig.CmdOpts())
 }
