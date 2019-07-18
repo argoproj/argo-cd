@@ -144,21 +144,30 @@ func TestLsRemote(t *testing.T) {
 func TestLFSClient(t *testing.T) {
 	tempDir, err := ioutil.TempDir("", "git-client-lfs-test-")
 	assert.NoError(t, err)
-	defer func() { _ = os.RemoveAll(tempDir) }()
+	if err == nil {
+		defer func() { _ = os.RemoveAll(tempDir) }()
+	}
+
 	client, err := NewFactory().NewClient("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true)
 	assert.NoError(t, err)
+
 	commitSHA, err := client.LsRemote("HEAD")
 	assert.NoError(t, err)
 	assert.NotEqual(t, "", commitSHA)
+
 	err = client.Init()
 	assert.NoError(t, err)
+
 	err = client.Fetch()
 	assert.NoError(t, err)
+
 	err = client.Checkout(commitSHA)
 	assert.NoError(t, err)
+
 	largeFiles, err := client.LsLargeFiles()
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(largeFiles))
+
 	fileHandle, err := os.Open(fmt.Sprintf("%s/test3.yaml", tempDir))
 	assert.NoError(t, err)
 	if err == nil {
