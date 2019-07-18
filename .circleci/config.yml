@@ -152,9 +152,9 @@ commands:
           name: Install Git LFS plugin
           command: |
             set -x
-            curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash
-            apt-get update
-            apt-get install -y git-lfs 
+            sudo curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash
+            sudo apt-get update
+            sudo apt-get install -y git-lfs 
       - save_cache:
           key: dl-v4
           paths:
