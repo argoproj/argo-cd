@@ -153,6 +153,8 @@ commands:
           command: |
             set -x
             curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
+            sleep 5
+            sudo killall -9 apt-get || true
             sudo apt-get update
             sudo apt-get install -y git-lfs openssh-client
       - save_cache:
