@@ -629,6 +629,10 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}()
 
 	app := origApp.DeepCopy()
+	app.Status.Sync.ComparedTo = appv1.ComparedTo{
+		Source:      app.Spec.Source,
+		Destination: app.Spec.Destination,
+	}
 	logCtx := log.WithFields(log.Fields{"application": app.Name})
 	if !fullRefresh {
 		if managedResources, err := ctrl.cache.GetAppManagedResources(app.Name); err != nil {
