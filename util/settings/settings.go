@@ -96,6 +96,10 @@ type RepoCredentials struct {
 	Insecure bool `json:"insecure,omitempty"`
 	// Whether the repo is git-lfs enabled
 	EnableLFS bool `json:"enableLfs,omitempty"`
+	// Name of the secret storing the TLS client cert data
+	TLSClientCertDataSecret *apiv1.SecretKeySelector `json:"tlsClientCertDataSecret,omitempty"`
+	// Name of the secret storing the TLS client cert's key data
+	TLSClientCertKeySecret *apiv1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
 }
 
 type HelmRepoCredentials struct {

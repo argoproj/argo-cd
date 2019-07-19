@@ -291,7 +291,14 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		return nil, err
 	}
 
-	repo := &appsv1.Repository{Username: q.Username, Password: q.Password, SSHPrivateKey: q.SshPrivateKey, Insecure: q.Insecure}
+	repo := &appsv1.Repository{
+		Username:          q.Username,
+		Password:          q.Password,
+		SSHPrivateKey:     q.SshPrivateKey,
+		Insecure:          q.Insecure,
+		TLSClientCertData: q.TlsClientCertData,
+		TLSClientCertKey:  q.TlsClientCertKey,
+	}
 	err := git.TestRepo(q.Repo, argo.GetRepoCreds(repo), q.Insecure, false)
 	if err != nil {
 		return nil, err

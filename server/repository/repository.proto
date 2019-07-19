@@ -56,6 +56,10 @@ message RepoAccessQuery {
 	string sshPrivateKey = 4;
 	// Whether to skip certificate or host key validation
 	bool   insecure = 5;
+	// TLS client cert data for accessing HTTPS repository
+	string tlsClientCertData = 6;
+	// TLS client cert key for accessing HTTPS repository
+	string tlsClientCertKey = 7;
 }
 
 message RepoResponse {}
