@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -1107,29 +1108,35 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 // printAppResources prints the resources of an application in a tabwriter table
 func printAppResources(w io.Writer, app *argoappv1.Application) {
 	_, _ = fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tSTATUS\tHEALTH\tHOOK\tMESSAGE\n")
-	for _, res := range app.Status.Resources {
-		status := ""
-		if res.Health != nil {
-			status = res.Health.Status
-		}
 
-		// if an operation has occurred, we search for the result and print that out
-		operationState := app.Status.OperationState
-		if operationState != nil && operationState.SyncResult != nil {
-			// in most cases you'll only get one instance (if it is a non-hook resource, or a hook for a single phase),
-			// but in edge-cases you may get more than one
-			for _, result := range operationState.SyncResult.Resources.Filter(func(r *argoappv1.ResourceResult) bool {
-				return r.Group == res.Group && r.Kind == res.Kind && r.Namespace == res.Namespace && r.Name == res.Name
-			}) {
-				// for hooks, we print the result of the operation, not the sync status
-				if res.Hook {
-					status = string(result.HookPhase)
-				}
-				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", res.Group, res.Kind, res.Namespace, res.Name, res.Status, status, result.HookType, result.Message)
-			}
-		} else {
-			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", res.Group, res.Kind, res.Namespace, res.Name, res.Status, status, "", "")
+	resourceByKey := make(map[kube.ResourceKey]argoappv1.ResourceStatus)
+	for i := range app.Status.Resources {
+		res := app.Status.Resources[i]
+		resourceByKey[kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name)] = res
+	}
+
+	// print most resources info along with most recent operation results
+	if app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil {
+		for _, res := range app.Status.OperationState.SyncResult.Resources {
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", res.Group, res.Kind, res.Namespace, res.Name, res.Status, res.HookPhase, res.HookType, res.Message)
+			delete(resourceByKey, kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name))
 		}
+	}
+	resKeys := make([]kube.ResourceKey, 0)
+	for k := range resourceByKey {
+		resKeys = append(resKeys, k)
+	}
+	sort.Slice(resKeys, func(i, j int) bool {
+		return resKeys[i].String() < resKeys[j].String()
+	})
+	// print rest of resources which were not part of most recent operation
+	for _, resKey := range resKeys {
+		res := resourceByKey[resKey]
+		health := argoappv1.HealthStatusUnknown
+		if res.Health != nil {
+			health = res.Health.Status
+		}
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", res.Group, res.Kind, res.Namespace, res.Name, res.Status, health, "", "")
 	}
 }
 
