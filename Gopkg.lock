@@ -1497,7 +1497,7 @@
   version = "v0.3.3"
 
 [[projects]]
-  digest = "1:e5e6165f043c38f641355912f5bf94134531e82abceaa5f086a9008f1bea6655"
+  digest = "1:42ea993b351fdd39b9aad3c9ebe71f2fdb5d1f8d12eed24e71c3dff1a31b2a43"
   name = "k8s.io/kube-openapi"
   packages = [
     "cmd/openapi-gen",
@@ -1509,7 +1509,7 @@
     "pkg/util/sets",
   ]
   pruneopts = ""
-  revision = "master"
+  revision = "411b2483e5034420675ebcdd4a55fc76fe5e55cf"
 
 [[projects]]
   branch = "release-1.14"
