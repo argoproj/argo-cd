@@ -28,7 +28,6 @@ import (
 	. "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/settings"
 )
 
 const (
@@ -66,7 +65,7 @@ func TestInvalidAppProject(t *testing.T) {
 		When().
 		Create().
 		Then().
-		Expect(Error("application references project does-not-exist which does not exist"))
+		Expect(Error("application references project does-not-exist which does not exist", ""))
 }
 
 func TestAppDeletion(t *testing.T) {

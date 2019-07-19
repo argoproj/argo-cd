@@ -488,8 +488,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
 
 	app := newFakeApp()
-	now := metav1.Now()
-	app.Status.ReconciledAt = &now
+	app.Status.ReconciledAt = metav1.Now()
 	app.Status.Sync = argoappv1.SyncStatus{
 		Status: argoappv1.SyncStatusCodeSynced,
 		ComparedTo: argoappv1.ComparedTo{
