@@ -693,7 +693,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 }
 
 func (s *Service) getRevisionMetadata(repoURL *v1alpha1.Repository, revision string) (*git.RevisionMetadata, error) {
-	client, err := s.newClient(repoURL)
+	client, commitSHA, err := s.newClientResolveRevision(repoURL, revision)
 	if err != nil {
 		return nil, err
 	}
@@ -707,7 +707,7 @@ func (s *Service) getRevisionMetadata(repoURL *v1alpha1.Repository, revision str
 	if err != nil {
 		return nil, err
 	}
-	return client.RevisionMetadata(revision)
+	return client.RevisionMetadata(commitSHA)
 }
 
 func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
