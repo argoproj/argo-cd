@@ -239,6 +239,18 @@ func (k KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstruc
 	return strings.Join(out, ". "), nil
 }
 
+func convertKubectlError(err error) error {
+	errorStr := err.Error()
+	if cmdErr, ok := err.(*argoexec.CmdError); ok {
+		parts := []string{fmt.Sprintf("kubectl failed %s", cmdErr.Cause.Error())}
+		if cmdErr.Stderr != "" {
+			parts = append(parts, cleanKubectlOutput(cmdErr.Stderr))
+		}
+		errorStr = strings.Join(parts, ": ")
+	}
+	return fmt.Errorf(errorStr)
+}
+
 func runKubectl(kubeconfigPath string, namespace string, args []string, manifestBytes []byte, dryRun bool) (string, error) {
 	cmdArgs := append([]string{"--kubeconfig", kubeconfigPath, "-f", "-"}, args...)
 	if namespace != "" {
@@ -267,7 +279,7 @@ func runKubectl(kubeconfigPath string, namespace string, args []string, manifest
 	cmd.Stdin = bytes.NewReader(manifestBytes)
 	out, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
 	if err != nil {
-		return "", fmt.Errorf(cleanKubectlOutput(err.Error()))
+		return "", convertKubectlError(err)
 	}
 	return out, nil
 }
@@ -297,7 +309,7 @@ func (k KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group strin
 	cmd.Stdin = bytes.NewReader(manifestBytes)
 	out, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
 	if err != nil {
-		return nil, fmt.Errorf(cleanKubectlOutput(err.Error()))
+		return nil, convertKubectlError(err)
 	}
 	// NOTE: when kubectl convert runs against stdin (i.e. kubectl convert -f -), the output is
 	// a unstructured list instead of an unstructured object
