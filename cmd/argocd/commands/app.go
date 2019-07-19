@@ -1476,7 +1476,7 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 			selectedResourcesAreReady = checkResourceStatus(watchSync, watchHealth, watchOperation, watchSuspended, app.Status.Health.Status, string(app.Status.Sync.Status), appEvent.Application.Operation)
 		}
 
-		if len(app.Status.GetErrorConditions()) == 0 && selectedResourcesAreReady {
+		if selectedResourcesAreReady {
 			printFinalStatus(app)
 			return app, nil
 		}
