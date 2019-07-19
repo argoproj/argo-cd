@@ -371,7 +371,7 @@ func (m *nativeGitClient) LsRemote(revision string) (string, error) {
 
 // CommitSHA returns current commit sha from `git rev-parse HEAD`
 func (m *nativeGitClient) CommitSHA() (string, error) {
-	out, err := m.runCredentialedCmd("git", "rev-parse", "HEAD")
+	out, err := m.runCmd("rev-parse", "HEAD")
 	if err != nil {
 		return "", err
 	}
