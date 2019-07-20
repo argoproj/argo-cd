@@ -378,8 +378,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                 const treeSource = new Observable<{ application: appModels.Application, tree: appModels.ApplicationTree }>((observer) => {
                     services.applications.resourceTree(app.metadata.name)
                         .then((tree) => observer.next({ application: app, tree }))
-                        .catch((e) => observer.error(e));
-                }).repeat().retryWhen((errors) => errors.delay(500));
+                        .catch((e) => {
+                            observer.next({ application: app, tree: fallbackTree });
+                            observer.error(e);
+                        });
+                }).repeat().retryWhen((errors) => errors.delay(1000));
                 if (appInfo.watchEvent) {
                     return treeSource;
                 } else {
