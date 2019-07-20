@@ -114,7 +114,7 @@ func TestCustomHTTPClient(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEqual(t, "", certFile)
 
-	keyFile, err := filepath.Abs("../../test/certificates/argocd-test-client.key")
+	keyFile, err := filepath.Abs("../../test/fixture/certs/argocd-test-client.key")
 	assert.NoError(t, err)
 	assert.NotEqual(t, "", keyFile)
 
