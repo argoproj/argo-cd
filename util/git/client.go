@@ -91,9 +91,9 @@ func (f *factory) NewClient(rawRepoURL string, path string, creds Creds, insecur
 //   a client with those certificates in the list of root CAs used to verify
 //   the server's certificate.
 // - Otherwise (and on non-fatal errors), a default HTTP client is returned.
-func getRepoHTTPClient(repoURL string, insecure bool, creds Creds) transport.Transport {
+func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client {
 	// Default HTTP client
-	var customHTTPClient transport.Transport = githttp.NewClient(&http.Client{})
+	var customHTTPClient *http.Client = &http.Client{}
 
 	// Callback function to return any configured client certificate
 	// We never return err, but an empty cert instead.
@@ -121,7 +121,7 @@ func getRepoHTTPClient(repoURL string, insecure bool, creds Creds) transport.Tra
 	}
 
 	if insecure {
-		customHTTPClient = githttp.NewClient(&http.Client{
+		customHTTPClient = &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{
 					InsecureSkipVerify:   true,
@@ -135,7 +135,7 @@ func getRepoHTTPClient(repoURL string, insecure bool, creds Creds) transport.Tra
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				return http.ErrUseLastResponse
 			},
-		})
+		}
 	} else {
 		parsedURL, err := url.Parse(repoURL)
 		if err != nil {
@@ -146,7 +146,7 @@ func getRepoHTTPClient(repoURL string, insecure bool, creds Creds) transport.Tra
 			return customHTTPClient
 		} else if len(serverCertificatePem) > 0 {
 			certPool := certutil.GetCertPoolFromPEMData(serverCertificatePem)
-			customHTTPClient = githttp.NewClient(&http.Client{
+			customHTTPClient = &http.Client{
 				Transport: &http.Transport{
 					TLSClientConfig: &tls.Config{
 						RootCAs:              certPool,
@@ -159,9 +159,23 @@ func getRepoHTTPClient(repoURL string, insecure bool, creds Creds) transport.Tra
 				CheckRedirect: func(req *http.Request, via []*http.Request) error {
 					return http.ErrUseLastResponse
 				},
-			})
+			}
+		} else {
+			// else no custom certificate stored.
+			customHTTPClient = &http.Client{
+				Transport: &http.Transport{
+					TLSClientConfig: &tls.Config{
+						GetClientCertificate: clientCertFunc,
+					},
+				},
+				// 15 second timeout
+				Timeout: 15 * time.Second,
+				// don't follow redirect
+				CheckRedirect: func(req *http.Request, via []*http.Request) error {
+					return http.ErrUseLastResponse
+				},
+			}
 		}
-		// else no custom certificate stored.
 	}
 
 	return customHTTPClient

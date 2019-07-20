@@ -5,6 +5,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/client"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	"gopkg.in/src-d/go-git.v4/utils/ioutil"
 )
 
@@ -31,7 +32,7 @@ func newClient(url string, insecure bool, creds Creds) (transport.Transport, *tr
 	// For HTTPS repositories, we get a custom Transport. Everything else will
 	// be default.
 	if IsHTTPSURL(url) {
-		c = getRepoHTTPClient(url, insecure, creds)
+		c = http.NewClient(GetRepoHTTPClient(url, insecure, creds))
 	} else {
 		c, err = client.NewClient(ep)
 		if err != nil {
