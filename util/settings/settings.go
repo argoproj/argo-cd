@@ -668,7 +668,7 @@ func (mgr *SettingsManager) SaveSSHKnownHostsData(ctx context.Context, knownHost
 	certCM.Data["ssh_known_hosts"] = sshKnownHostsData
 	_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(certCM)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	// If we are running outside a K8S cluster, the ConfigMap mount will not
@@ -700,7 +700,7 @@ func (mgr *SettingsManager) SaveTLSCertificateData(ctx context.Context, tlsCerti
 	certCM.Data = tlsCertificates
 	_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(certCM)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	// If we are running outside a K8S cluster, the ConfigMap mount will not
@@ -731,6 +731,7 @@ func (mgr *SettingsManager) SaveTLSCertificateData(ctx context.Context, tlsCerti
 		// Recreate configured TLS certificates
 		for hostName, certData := range tlsCertificates {
 			certPath := fmt.Sprintf("%s/%s", tlsDataPath, hostName)
+			log.Debugf("Writing TLS Certificate data to %s", certPath)
 			err := ioutil.WriteFile(certPath, []byte(certData), 0644)
 			if err != nil {
 				log.Errorf("Could not write PEM data to %s: %v", certPath, err)
