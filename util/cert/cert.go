@@ -256,10 +256,15 @@ func SSHFingerprintSHA256(key ssh.PublicKey) string {
 	return strings.TrimRight(b64hash, "=")
 }
 
+// Remove possible port number from hostname and return just the FQDN
+func ServerNameWithoutPort(serverName string) string {
+	return strings.Split(serverName, ":")[0]
+}
+
 // Load certificate data from a file. If the file does not exist, we do not
 // consider it an error and just return empty data.
 func GetCertificateForConnect(serverName string) ([]string, error) {
-	certPath := fmt.Sprintf("%s/%s", GetTLSCertificateDataPath(), serverName)
+	certPath := fmt.Sprintf("%s/%s", GetTLSCertificateDataPath(), ServerNameWithoutPort(serverName))
 	certificates, err := ParseTLSCertificatesFromPath(certPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -280,7 +285,7 @@ func GetCertificateForConnect(serverName string) ([]string, error) {
 // mount. This function makes sure that the path returned actually contain
 // at least one valid certificate, and no invalid data.
 func GetCertBundlePathForRepository(serverName string) (string, error) {
-	certPath := fmt.Sprintf("%s/%s", GetTLSCertificateDataPath(), serverName)
+	certPath := fmt.Sprintf("%s/%s", GetTLSCertificateDataPath(), ServerNameWithoutPort(serverName))
 	certs, err := GetCertificateForConnect(serverName)
 	if err != nil {
 		return "", nil
