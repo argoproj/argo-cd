@@ -35,6 +35,18 @@ const (
 	DefaultPortRepoServerMetrics      = 8084
 )
 
+// Default paths on the pod's file system
+const (
+	// The default base path where application config is located
+	DefaultPathAppConfig = "/app/config"
+	// The default path where TLS certificates for repositories are located
+	DefaultPathTLSConfig = "/app/config/tls"
+	// The default path where SSH known hosts are stored
+	DefaultPathSSHConfig = "/app/config/ssh"
+	// Default name for the SSH known hosts file
+	DefaultSSHKnownHostsName = "ssh_known_hosts"
+)
+
 // Argo CD application related constants
 const (
 	// KubernetesInternalAPIServerAddr is address of the k8s API server when accessing internal to the cluster
