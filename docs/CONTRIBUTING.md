@@ -65,6 +65,14 @@ make install-dev-tools
 
 ## Building
 
+Ensure dependencies are up to date first:
+
+```shell
+make dep
+```
+
+Build `cli`, `image`, and `argocd-util` as default targets by running make:
+
 ```bash
 make
 ```
