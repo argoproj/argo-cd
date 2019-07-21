@@ -131,6 +131,10 @@ const (
 	// EnvVarFakeInClusterConfig is an environment variable to fake an in-cluster RESTConfig using
 	// the current kubectl context (for development purposes)
 	EnvVarFakeInClusterConfig = "ARGOCD_FAKE_IN_CLUSTER"
+	// Overrides the location where SSH known hosts for repo access data is stored
+	EnvVarSSHDataPath = "ARGOCD_SSH_DATA_PATH"
+	// Overrides the location where TLS certificate for repo access data is stored
+	EnvVarTLSDataPath = "ARGOCD_TLS_DATA_PATH"
 )
 
 const (

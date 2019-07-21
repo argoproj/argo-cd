@@ -67,7 +67,7 @@ const (
 // filesystem. If ARGOCD_TLS_DATA_PATH environment is set, path is taken from
 // there, otherwise the default will be returned.
 func GetTLSCertificateDataPath() string {
-	envPath := os.Getenv("ARGOCD_TLS_DATA_PATH")
+	envPath := os.Getenv(common.EnvVarTLSDataPath)
 	if envPath != "" {
 		return envPath
 	} else {
@@ -79,7 +79,7 @@ func GetTLSCertificateDataPath() string {
 // filesystem. If ARGOCD_SSH_DATA_PATH environment is set, path is taken from
 // there, otherwise the default will be returned.
 func GetSSHKnownHostsDataPath() string {
-	envPath := os.Getenv("ARGOCD_SSH_DATA_PATH")
+	envPath := os.Getenv(common.EnvVarSSHDataPath)
 	if envPath != "" {
 		return envPath + "/" + common.DefaultSSHKnownHostsName
 	} else {
