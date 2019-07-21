@@ -61,8 +61,6 @@ const (
 	CertificateMaxLines = 128
 	// Maximum number of certificates or known host entries in a stream
 	CertificateMaxEntriesPerStream = 256
-	// Local path where certificate data is stored
-	CertificateDataPath = "/app/config/tls"
 )
 
 // Get the configured path to where TLS certificates are stored on the local
