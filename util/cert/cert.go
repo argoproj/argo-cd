@@ -66,8 +66,8 @@ const (
 )
 
 // Get the configured path to where TLS certificates are stored on the local
-// filesystem. This can be either from ARGOCD_TLS_DATA_PATH environment var,
-// or the default will be used.
+// filesystem. If ARGOCD_TLS_DATA_PATH environment is set, path is taken from
+// there, otherwise the default will be returned.
 func GetTLSCertificateDataPath() string {
 	envPath := os.Getenv("ARGOCD_TLS_DATA_PATH")
 	if envPath != "" {
@@ -77,6 +77,9 @@ func GetTLSCertificateDataPath() string {
 	}
 }
 
+// Get the configured path to where SSH certificates are stored on the local
+// filesystem. If ARGOCD_SSH_DATA_PATH environment is set, path is taken from
+// there, otherwise the default will be returned.
 func GetSSHKnownHostsDataPath() string {
 	envPath := os.Getenv("ARGOCD_SSH_DATA_PATH")
 	if envPath != "" {
