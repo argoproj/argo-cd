@@ -18,7 +18,6 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/depot"
@@ -90,10 +89,10 @@ func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.
 		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, repo.Repo) {
 			// remove secrets
 			items = append(items, &appsv1.Repository{
-				Repo: repo.Repo,
-				Type: repo.Type,
-				Name: repo.Name,
-				Username: repo.Username,
+				Repo:      repo.Repo,
+				Type:      repo.Type,
+				Name:      repo.Name,
+				Username:  repo.Username,
 				Insecure:  repo.IsInsecure(),
 				EnableLFS: repo.EnableLFS,
 			})

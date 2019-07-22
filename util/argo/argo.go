@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"path"
 	"path/filepath"
 	"strings"
@@ -25,9 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	applicationsv1 "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
-
 	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/cert"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/factory"
 	"github.com/argoproj/argo-cd/util/ksonnet"
@@ -127,36 +124,6 @@ func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, na
 		}
 	}
 	return nil, fmt.Errorf("application refresh deadline exceeded")
-}
-
-func getCAPath(repoURL string) string {
-	if git.IsHTTPSURL(repoURL) {
-		if parsedURL, err := url.Parse(repoURL); err == nil {
-			if caPath, err := cert.GetCertBundlePathForRepository(parsedURL.Host); err != nil {
-				return caPath
-			} else {
-				log.Warnf("Could not get cert bundle path for host '%s'", parsedURL.Host)
-			}
-		} else {
-			// We don't fail if we cannot parse the URL, but log a warning in that
-			// case. And we execute the command in a verbatim way.
-			log.Warnf("Could not parse repo URL '%s'", repoURL)
-		}
-	}
-	return ""
-}
-
-func GetRepoCreds(repo *argoappv1.Repository) git.Creds {
-	if repo == nil {
-		return git.NopCreds{}
-	}
-	if repo.Username != "" && repo.Password != "" {
-		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.IsInsecure())
-	}
-	if repo.SSHPrivateKey != "" {
-		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure())
-	}
-	return git.NopCreds{}
 }
 
 // ValidateRepo validates the repository specified in application spec. Following is checked:
@@ -321,7 +288,7 @@ func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, re
 }
 
 // verifyAppYAML verifies that a ksonnet app.yaml is functional
-func verifyAppYAML(ctx context.Context, repoRes *argoappv1.Repository, spec *argoappv1.ApplicationSpec, repoClient repository.RepoServerServiceClient) error {
+func verifyAppYAML(ctx context.Context, repoRes *argoappv1.Repository, spec *argoappv1.ApplicationSpec, repoClient apiclient.RepoServerServiceClient) error {
 	req := apiclient.GetFileRequest{
 		Repo: &argoappv1.Repository{
 			Repo: spec.Source.RepoURL,

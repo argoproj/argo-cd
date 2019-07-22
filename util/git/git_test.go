@@ -10,7 +10,6 @@ import (
 
 	"github.com/argoproj/argo-cd/test/fixture/log"
 	"github.com/argoproj/argo-cd/test/fixture/path"
-	"github.com/argoproj/argo-cd/test/fixture/test"
 )
 
 func TestIsCommitSHA(t *testing.T) {
@@ -108,7 +107,7 @@ func TestSameURL(t *testing.T) {
 }
 
 func TestLsRemote(t *testing.T) {
-	clnt, err := NewClient("https://github.com/argoproj/argo-cd.git", "", "", "", false)
+	clnt, err := NewClient("https://github.com/argoproj/argo-cd.git", NopCreds{}, false, false)
 	assert.NoError(t, err)
 	xpass := []string{
 		"HEAD",
@@ -142,33 +141,25 @@ func TestLsRemote(t *testing.T) {
 
 // Running this test requires git-lfs to be installed on your machine.
 func TestLFSClient(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "git-client-lfs-test-")
-	assert.NoError(t, err)
-	if err == nil {
-		defer func() { _ = os.RemoveAll(tempDir) }()
-	}
 
-	client, err := NewFactory().NewClient("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true)
+	client, err := NewClient("https://github.com/argoproj-labs/argocd-testrepo-lfs", NopCreds{}, false, true)
 	assert.NoError(t, err)
 
-	commitSHA, err := client.LsRemote("HEAD")
+	commitSHA, err := client.ResolveRevision(".", "HEAD")
 	assert.NoError(t, err)
 	assert.NotEqual(t, "", commitSHA)
 
 	err = client.Init()
 	assert.NoError(t, err)
 
-	err = client.Fetch()
+	err = client.Checkout(".", commitSHA)
 	assert.NoError(t, err)
 
-	err = client.Checkout(commitSHA)
+	largeFiles, err := client.LsFiles(".")
 	assert.NoError(t, err)
+	assert.Len(t,  largeFiles, 5)
 
-	largeFiles, err := client.LsLargeFiles()
-	assert.NoError(t, err)
-	assert.Equal(t, 3, len(largeFiles))
-
-	fileHandle, err := os.Open(fmt.Sprintf("%s/test3.yaml", tempDir))
+	fileHandle, err := os.Open(fmt.Sprintf("%s/test3.yaml", client.LockKey()))
 	assert.NoError(t, err)
 	if err == nil {
 		defer fileHandle.Close()
@@ -199,11 +190,7 @@ func TestNewFactory(t *testing.T) {
 	}
 	for _, tt := range tests {
 
-		if tt.name == "PrivateSSHRepo" {
-			test.Flaky(t)
-		}
-
-		client, err := NewClient(tt.args.url, tt.args.username, tt.args.password, tt.args.sshPrivateKey, tt.args.insecureIgnoreHostKey)
+		client, err := NewClient(tt.args.url, NopCreds{}, tt.args.insecureIgnoreHostKey, false)
 		assert.NoError(t, err)
 		commitSHA, err := client.ResolveRevision(".", "")
 		assert.NoError(t, err)

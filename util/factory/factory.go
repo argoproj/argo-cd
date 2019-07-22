@@ -2,6 +2,7 @@ package factory
 
 import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/creds"
 	"github.com/argoproj/argo-cd/util/depot"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
@@ -25,6 +26,6 @@ func (f *defaultClientFactory) NewClient(r *v1alpha1.Repository) (depot.Client, 
 	case "helm":
 		return helm.NewClient(r.Repo, r.Name, r.Username, r.Password, r.CAData, r.CertData, r.KeyData)
 	default:
-		return git.NewClient(r.Repo, r.Username, r.Password, r.SSHPrivateKey, r.InsecureIgnoreHostKey, r.EnableLFS)
+		return git.NewClient(r.Repo, creds.GetRepoCreds(r), r.IsInsecure(), r.EnableLFS)
 	}
 }

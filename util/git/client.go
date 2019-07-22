@@ -41,29 +41,12 @@ type nativeGitClient struct {
 	enableLfs bool
 }
 
-func NewClient(rawRepoURL, username, password, sshPrivateKey, caPath string, insecure, enableLfs bool) (depot.Client, error) {
-	var creds Creds
-	if sshPrivateKey != "" {
-		creds = SSHCreds{sshPrivateKey,caPath, insecure}
-	} else if username != "" || password != "" {
-		creds = HTTPSCreds{username, password, insecure}
-	} else {
-		creds = NopCreds{}
-	}
-
-	// We need a custom HTTP client for go-git when we want to skip validation
-	// of the server's TLS certificate (--insecure-ignore-server-cert). Since
-	// this change is permanent to go-git Client during runtime, we need to
-	// explicitly replace it with default client for repositories without the
-	// insecure flag set.
-	//if IsHTTPSURL(rawRepoURL) {
-	//	gitclient.InstallProtocol("https", githttp.NewClient(getRepoHTTPClient(rawRepoURL, insecure)))
-	//}
+func NewClient(rawRepoURL string, creds Creds, insecure, enableLfs bool) (depot.Client, error) {
 	client := nativeGitClient{
-		repoURL:  rawRepoURL,
-		root:     depot.TempRepoPath(rawRepoURL),
-		creds:    creds,
-		insecure: insecure,
+		repoURL:   rawRepoURL,
+		root:      depot.TempRepoPath(rawRepoURL),
+		creds:     creds,
+		insecure:  insecure,
 		enableLfs: enableLfs,
 	}
 	return &client, nil
@@ -180,17 +163,20 @@ func (m *nativeGitClient) Init() error {
 		if err != nil {
 			return err
 		}
-		if m.IsLFSEnabled() {
-			largeFiles, err := m.LsLargeFiles()
-			if err == nil && len(largeFiles) > 0 {
-				_, err = m.runCredentialedCmd("git", "lfs", "fetch", "--all")
-				if err != nil {
-					return err
-				}
+	}
+	_, err = m.runCredentialedCmd("fetch", "origin", "--tags", "--force")
+	if m.IsLFSEnabled() {
+		largeFiles, err := m.LsLargeFiles()
+		if err != nil {
+			return err
+		}
+		if len(largeFiles) > 0 {
+			_, err = m.runCredentialedCmd("lfs", "fetch", "--all")
+			if err != nil {
+				return err
 			}
 		}
 	}
-	_, err = m.runCredentialedCmd("fetch", "origin", "--tags", "--force")
 	return err
 }
 

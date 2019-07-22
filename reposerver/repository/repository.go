@@ -27,9 +27,9 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/config"
+	"github.com/argoproj/argo-cd/util/creds"
 	"github.com/argoproj/argo-cd/util/depot"
 	"github.com/argoproj/argo-cd/util/factory"
 	"github.com/argoproj/argo-cd/util/git"
@@ -70,7 +70,7 @@ func NewService(clientFactory factory.ClientFactory, cache *cache.Cache, paralle
 
 // ListDir lists the contents of a GitHub repo
 func (s *Service) ListDir(ctx context.Context, q *apiclient.ListDirRequest) (*apiclient.FileList, error) {
-	gitClient, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Path, q.Revision)
+	client, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Path, q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +217,7 @@ func GenerateManifests(root, path string, q *apiclient.ManifestRequest) (*apicli
 	var dest *v1alpha1.ApplicationDestination
 
 	appSourceType, err := GetAppSourceType(q.ApplicationSource, appPath)
-	creds := argo.GetRepoCreds(q.Repo)
+	creds := creds.GetRepoCreds(q.Repo)
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeKsonnet:
 		targetObjs, dest, err = ksShow(q.AppLabelKey, appPath, q.ApplicationSource.Ksonnet)
@@ -672,7 +672,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		res.Kustomize = &apiclient.KustomizeAppSpec{}
 		res.Kustomize.Path = q.Path
-		k := kustomize.NewKustomizeApp(appPath, argo.GetRepoCreds(q.Repo))
+		k := kustomize.NewKustomizeApp(appPath, creds.GetRepoCreds(q.Repo))
 		_, imageTags, images, err := k.Build(nil)
 		if err != nil {
 			return nil, err
