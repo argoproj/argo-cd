@@ -6,6 +6,7 @@ import (
 	. "github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/test/e2e/fixture/certs"
 	"github.com/argoproj/argo-cd/test/e2e/fixture/repos"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -36,13 +37,38 @@ func Given(t *testing.T) *Context {
 	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, repoURLType: fixture.RepoURLTypeFile, name: fixture.Name(), timeout: 5, project: "default", prune: true}
 }
 
+func (c *Context) CustomCACertAdded() *Context {
+	certs.AddCustomCACert()
+	return c
+}
+
 func (c *Context) HTTPSRepoURLAdded() *Context {
-	repos.AddHTTPSRepo()
+	repos.AddHTTPSRepo(false)
+	return c
+}
+
+func (c *Context) HTTPSInsecureRepoURLAdded() *Context {
+	repos.AddHTTPSRepo(true)
+	return c
+}
+
+func (c *Context) HTTPSInsecureRepoURLWithClientCertAdded() *Context {
+	repos.AddHTTPSRepoClientCert(false)
+	return c
+}
+
+func (c *Context) HTTPSRepoURLWithClientCertAdded() *Context {
+	repos.AddHTTPSRepoClientCert(true)
 	return c
 }
 
 func (c *Context) SSHRepoURLAdded() *Context {
-	repos.AddSSHRepo()
+	repos.AddSSHRepo(false)
+	return c
+}
+
+func (c *Context) SSHInsecureRepoURLAdded() *Context {
+	repos.AddSSHRepo(true)
 	return c
 }
 

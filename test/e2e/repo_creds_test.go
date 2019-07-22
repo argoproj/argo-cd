@@ -13,7 +13,20 @@ import (
 func TestCannotAddAppFromPrivateRepoWithoutCfg(t *testing.T) {
 	Given(t).
 		RepoURLType(fixture.RepoURLTypeHTTPS).
-		Path(guestbookPath).
+		Path(fixture.GuestbookPath).
+		When().
+		IgnoreErrors().
+		Create().
+		Then().
+		Expect(Error("", "repository not accessible"))
+}
+
+// make sure you cannot create an app from a private repo without set-up
+func TestCannotAddAppFromClientCertRepoWithoutCfg(t *testing.T) {
+	Given(t).
+		HTTPSInsecureRepoURLAdded().
+		RepoURLType(fixture.RepoURLTypeHTTPSClientCert).
+		Path(fixture.GuestbookPath).
 		When().
 		IgnoreErrors().
 		Create().
@@ -37,9 +50,9 @@ func TestCanAddAppFromPrivateRepoWithRepoCfg(t *testing.T) {
 }
 
 // make sure you can create an app from a private repo, if the creds are set-up in the CM
-func TestCanAddAppFromPrivateRepoWithCredCfg(t *testing.T) {
+func TestCanAddAppFromInsecurePrivateRepoWithCredCfg(t *testing.T) {
 	Given(t).
-		HTTPSRepoURLAdded().
+		HTTPSInsecureRepoURLAdded().
 		RepoURLType(fixture.RepoURLTypeHTTPS).
 		Path("https-kustomize-base").
 		And(func() {
@@ -48,6 +61,56 @@ func TestCanAddAppFromPrivateRepoWithCredCfg(t *testing.T) {
 				"-n", fixture.ArgoCDNamespace,
 				"-p", fmt.Sprintf(
 					`{"data": {"repository.credentials": "- passwordSecret:\n    key: password\n    name: %s\n  url: %s\n  insecure: true\n  usernameSecret:\n    key: username\n    name: %s\n"}}`,
+					secretName,
+					fixture.RepoURL(fixture.RepoURLTypeHTTPS),
+					secretName,
+				)))
+		}).
+		When().
+		Create().
+		Then().
+		Expect(Success(""))
+}
+
+// make sure we can create an app from a private repo, in a secure manner using
+// a custom CA certificate bundle
+func TestCanAddAppFromPrivateRepoWithCredCfg(t *testing.T) {
+	Given(t).
+		CustomCACertAdded().
+		HTTPSRepoURLAdded().
+		RepoURLType(fixture.RepoURLTypeHTTPS).
+		Path("https-kustomize-base").
+		And(func() {
+			secretName := fixture.CreateSecret(fixture.GitUsername, fixture.GitPassword)
+			FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
+				"-n", fixture.ArgoCDNamespace,
+				"-p", fmt.Sprintf(
+					`{"data": {"repository.credentials": "- passwordSecret:\n    key: password\n    name: %s\n  url: %s\n  usernameSecret:\n    key: username\n    name: %s\n"}}`,
+					secretName,
+					fixture.RepoURL(fixture.RepoURLTypeHTTPS),
+					secretName,
+				)))
+		}).
+		When().
+		Create().
+		Then().
+		Expect(Success(""))
+}
+
+// make sure we can create an app from a private repo, in a secure manner using
+// a custom CA certificate bundle
+func TestCanAddAppFromClientCertRepoWithCredCfg(t *testing.T) {
+	Given(t).
+		CustomCACertAdded().
+		HTTPSRepoURLWithClientCertAdded().
+		RepoURLType(fixture.RepoURLTypeHTTPSClientCert).
+		Path("https-kustomize-base").
+		And(func() {
+			secretName := fixture.CreateSecret(fixture.GitUsername, fixture.GitPassword)
+			FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
+				"-n", fixture.ArgoCDNamespace,
+				"-p", fmt.Sprintf(
+					`{"data": {"repository.credentials": "- passwordSecret:\n    key: password\n    name: %s\n  url: %s\n  usernameSecret:\n    key: username\n    name: %s\n"}}`,
 					secretName,
 					fixture.RepoURL(fixture.RepoURLTypeHTTPS),
 					secretName,

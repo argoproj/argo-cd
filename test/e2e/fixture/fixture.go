@@ -42,6 +42,8 @@ const (
 	// ensure all repos are in one directory tree, so we can easily clean them up
 	tmpDir  = "/tmp/argo-e2e"
 	repoDir = "testdata.git"
+
+	GuestbookPath = "guestbook"
 )
 
 var (
@@ -59,11 +61,12 @@ var (
 type RepoURLType string
 
 const (
-	RepoURLTypeFile  = "file"
-	RepoURLTypeHTTPS = "https"
-	RepoURLTypeSSH   = "ssh"
-	GitUsername      = "admin"
-	GitPassword      = "password"
+	RepoURLTypeFile            = "file"
+	RepoURLTypeHTTPS           = "https"
+	RepoURLTypeHTTPSClientCert = "https-cc"
+	RepoURLTypeSSH             = "ssh"
+	GitUsername                = "admin"
+	GitPassword                = "password"
 )
 
 // getKubeConfig creates new kubernetes client config using specified config path and config overrides variables
@@ -129,10 +132,16 @@ func repoDirectory() string {
 
 func RepoURL(urlType RepoURLType) string {
 	switch urlType {
+	// Git server via SSH
 	case RepoURLTypeSSH:
 		return "ssh://root@localhost:2222/tmp/argo-e2e/testdata.git"
+	// Git server via HTTPS
 	case RepoURLTypeHTTPS:
 		return "https://localhost:9443/argo-e2e/testdata.git"
+	// Git server via HTTPS - Client Cert protected
+	case RepoURLTypeHTTPSClientCert:
+		return "https://localhost:9444/argo-e2e/testdata.git"
+	// Default - file based Git repository
 	default:
 		return fmt.Sprintf("file://%s", repoDirectory())
 	}
@@ -162,6 +171,28 @@ func Settings(consumer func(s *settings.ArgoCDSettings)) {
 
 func updateSettingConfigMap(updater func(cm *corev1.ConfigMap) error) {
 	cm, err := KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Get(common.ArgoCDConfigMapName, v1.GetOptions{})
+	errors.CheckError(err)
+	if cm.Data == nil {
+		cm.Data = make(map[string]string)
+	}
+	errors.CheckError(updater(cm))
+	_, err = KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Update(cm)
+	errors.CheckError(err)
+}
+
+func updateTLSCertsConfigMap(updater func(cm *corev1.ConfigMap) error) {
+	cm, err := KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Get(common.ArgoCDTLSCertsConfigMapName, v1.GetOptions{})
+	errors.CheckError(err)
+	if cm.Data == nil {
+		cm.Data = make(map[string]string)
+	}
+	errors.CheckError(updater(cm))
+	_, err = KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Update(cm)
+	errors.CheckError(err)
+}
+
+func updateSSHKnownHostsConfigMap(updater func(cm *corev1.ConfigMap) error) {
+	cm, err := KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Get(common.ArgoCDKnownHostsConfigMapName, v1.GetOptions{})
 	errors.CheckError(err)
 	if cm.Data == nil {
 		cm.Data = make(map[string]string)
@@ -235,6 +266,20 @@ func SetRepoCredentials(repos ...settings.RepoCredentials) {
 	})
 }
 
+func SetTLSCerts() {
+	updateTLSCertsConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data = map[string]string{}
+		return nil
+	})
+}
+
+func SetSSHKnownHosts() {
+	updateSSHKnownHostsConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data = map[string]string{}
+		return nil
+	})
+}
+
 func SetHelmRepoCredential(creds settings.HelmRepoCredentials) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		yamlBytes, err := yaml.Marshal(creds)
@@ -287,6 +332,7 @@ func EnsureCleanState(t *testing.T) {
 	SetRepoCredentials()
 	SetRepos()
 	SetResourceFilter(settings.ResourcesFilter{})
+	SetTLSCerts()
 
 	// remove tmp dir
 	CheckError(os.RemoveAll(tmpDir))
@@ -298,6 +344,10 @@ func EnsureCleanState(t *testing.T) {
 
 	// create tmp dir
 	FailOnErr(Run("", "mkdir", "-p", tmpDir))
+
+	// create TLS and SSH certificate directories
+	FailOnErr(Run("", "mkdir", "-p", tmpDir+"/app/config/tls"))
+	FailOnErr(Run("", "mkdir", "-p", tmpDir+"/app/config/ssh"))
 
 	// set-up tmp repo, must have unique name
 	FailOnErr(Run("", "cp", "-Rf", "testdata", repoDirectory()))
