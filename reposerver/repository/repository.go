@@ -216,6 +216,10 @@ func GenerateManifests(root, path string, q *apiclient.ManifestRequest) (*apicli
 
 	appSourceType, err := GetAppSourceType(q.ApplicationSource, appPath)
 	creds := argo.GetRepoCreds(q.Repo)
+	repoURL := ""
+	if q.Repo != nil {
+		repoURL = q.Repo.Repo
+	}
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeKsonnet:
 		targetObjs, dest, err = ksShow(q.AppLabelKey, appPath, q.ApplicationSource.Ksonnet)
@@ -241,7 +245,7 @@ func GenerateManifests(root, path string, q *apiclient.ManifestRequest) (*apicli
 			}
 		}
 	case v1alpha1.ApplicationSourceTypeKustomize:
-		k := kustomize.NewKustomizeApp(appPath, creds)
+		k := kustomize.NewKustomizeApp(appPath, creds, repoURL)
 		targetObjs, _, _, err = k.Build(q.ApplicationSource.Kustomize)
 	case v1alpha1.ApplicationSourceTypePlugin:
 		targetObjs, err = runConfigManagementPlugin(appPath, q, creds)
@@ -681,7 +685,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		res.Kustomize = &apiclient.KustomizeAppSpec{}
 		res.Kustomize.Path = q.Path
-		k := kustomize.NewKustomizeApp(appPath, argo.GetRepoCreds(q.Repo))
+		k := kustomize.NewKustomizeApp(appPath, argo.GetRepoCreds(q.Repo), q.Repo.Repo)
 		_, imageTags, images, err := k.Build(nil)
 		if err != nil {
 			return nil, err
