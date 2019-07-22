@@ -85,6 +85,7 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 		Then().
 		// this is standard logging from the command - tough one - true statement
 		When().
+		IgnoreErrors().
 		Sync().
 		Then().
 		Expect(Error("", "1 resources require pruning")).
@@ -116,8 +117,9 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 func TestKustomizeSSHRemoteBase(t *testing.T) {
 	Given(t).
 		// not the best test, as we should have two remote repos both with the same SSH private key
-		SSHRepo().
-		Path("remote-base").
+		SSHRepoURLAdded().
+		RepoURLType(fixture.RepoURLTypeSSH).
+		Path("ssh-kustomize-base").
 		When().
 		Create().
 		Sync().

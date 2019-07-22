@@ -17,6 +17,7 @@ import (
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/depot"
@@ -65,7 +66,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	// update this value if we add/remove manifests
 	const countOfManifests = 25
 
-	q := ManifestRequest{
+	q := apiclient.ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
 	res1, err := GenerateManifests("../../manifests", "base", &q)
@@ -79,7 +80,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 }
 
 func TestRecurseManifestsInDir(t *testing.T) {
-	q := ManifestRequest{
+	q := apiclient.ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
 	q.ApplicationSource.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: true}
@@ -99,7 +100,7 @@ func TestPathNotDir(t *testing.T) {
 }
 
 func TestGenerateJsonnetManifestInDir(t *testing.T) {
-	q := ManifestRequest{
+	q := apiclient.ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Directory: &argoappv1.ApplicationSourceDirectory{
 				Jsonnet: argoappv1.ApplicationSourceJsonnet{
@@ -125,7 +126,7 @@ func TestGenerateHelmChartWithDependencies(t *testing.T) {
 		_ = os.RemoveAll("../../util/helm/testdata/wordpress/charts")
 		os.Unsetenv("HELM_HOME")
 	}()
-	q := ManifestRequest{
+	q := apiclient.ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
 	res1, err := GenerateManifests("../../util/helm/testdata", "wordpress", &q)
@@ -134,7 +135,7 @@ func TestGenerateHelmChartWithDependencies(t *testing.T) {
 }
 
 func TestGenerateNullList(t *testing.T) {
-	q := ManifestRequest{
+	q := apiclient.ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
 	res1, err := GenerateManifests("./testdata", "null-list", &q)
@@ -167,7 +168,7 @@ func TestIdentifyAppSourceTypeByAppDirWithKustomizations(t *testing.T) {
 }
 
 func TestRunCustomTool(t *testing.T) {
-	res, err := GenerateManifests(".", ".", &ManifestRequest{
+	res, err := GenerateManifests(".", ".", &apiclient.ManifestRequest{
 		AppLabelValue: "test-app",
 		Namespace:     "test-namespace",
 		ApplicationSource: &argoappv1.ApplicationSource{
@@ -201,7 +202,7 @@ func TestRunCustomTool(t *testing.T) {
 }
 
 func TestGenerateFromUTF16(t *testing.T) {
-	q := ManifestRequest{
+	q := apiclient.ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
 	res1, err := GenerateManifests("./testdata", "utf-16", &q)
@@ -215,7 +216,7 @@ func TestGetAppDetailsHelm(t *testing.T) {
 
 	// verify default parameters are returned when not supplying values
 	{
-		res, err := serve.GetAppDetails(ctx, &RepoServerAppDetailsQuery{
+		res, err := serve.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 			Repo: &argoappv1.Repository{Repo: "https://github.com/fakeorg/fakerepo.git"},
 			Path: "redis",
 		})
@@ -227,10 +228,10 @@ func TestGetAppDetailsHelm(t *testing.T) {
 
 	// verify values specific parameters are returned when a values is specified
 	{
-		res, err := serve.GetAppDetails(ctx, &RepoServerAppDetailsQuery{
+		res, err := serve.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 			Repo: &argoappv1.Repository{Repo: "https://github.com/fakeorg/fakerepo.git"},
 			Path: "redis",
-			Helm: &HelmAppDetailsQuery{
+			Helm: &apiclient.HelmAppDetailsQuery{
 				ValueFiles: []string{"values-production.yaml"},
 			},
 		})
@@ -254,7 +255,7 @@ func TestGetAppDetailsKsonnet(t *testing.T) {
 	serve := newMockRepoServerService("../../test/e2e/testdata")
 	ctx := context.Background()
 
-	res, err := serve.GetAppDetails(ctx, &RepoServerAppDetailsQuery{
+	res, err := serve.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 		Repo: &argoappv1.Repository{Repo: "https://github.com/fakeorg/fakerepo.git"},
 		Path: "ksonnet",
 	})
@@ -271,7 +272,7 @@ func TestGetAppDetailsKustomize(t *testing.T) {
 	serve := newMockRepoServerService("../../util/kustomize/testdata")
 	ctx := context.Background()
 
-	res, err := serve.GetAppDetails(ctx, &RepoServerAppDetailsQuery{
+	res, err := serve.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 		Repo: &argoappv1.Repository{Repo: "https://github.com/fakeorg/fakerepo.git"},
 		Path: "kustomization_yaml",
 	})
@@ -288,9 +289,9 @@ func TestService_GetRevisionMetadata(t *testing.T) {
 		cache:         cache.NewCache(cache.NewInMemoryCache(1 * time.Hour)),
 	}
 	type args struct {
-		q *RepoServerRevisionMetadataRequest
+		q *apiclient.RepoServerRevisionMetadataRequest
 	}
-	q := &RepoServerRevisionMetadataRequest{Repo: &argoappv1.Repository{}, Revision: factory.revision}
+	q := &apiclient.RepoServerRevisionMetadataRequest{Repo: &argoappv1.Repository{}, Revision: factory.revision}
 	metadata := &v1alpha1.RevisionMetadata{
 		Author:  factory.revisionMetadata.Author,
 		Message: strings.Repeat("x", 61) + "...",

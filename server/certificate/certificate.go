@@ -5,7 +5,7 @@ import (
 
 	certificatepkg "github.com/argoproj/argo-cd/pkg/apiclient/certificate"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/reposerver"
+	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
@@ -15,14 +15,14 @@ import (
 // Server provides a Certificate service
 type Server struct {
 	db            db.ArgoDB
-	repoClientset reposerver.Clientset
+	repoClientset apiclient.Clientset
 	enf           *rbac.Enforcer
 	cache         *cache.Cache
 }
 
 // NewServer returns a new instance of the Certificate service
 func NewServer(
-	repoClientset reposerver.Clientset,
+	repoClientset apiclient.Clientset,
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
 	cache *cache.Cache,
@@ -40,7 +40,7 @@ func NewServer(
 // to a given certificate operation (get/create/delete), or it doesn't.
 
 // Returns a list of configured certificates that match the query
-func (s *Server) List(ctx context.Context, q *certificatepkg.RepositoryCertificateQuery) (*appsv1.RepositoryCertificateList, error) {
+func (s *Server) ListCertificates(ctx context.Context, q *certificatepkg.RepositoryCertificateQuery) (*appsv1.RepositoryCertificateList, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceCertificates, rbacpolicy.ActionGet, ""); err != nil {
 		return nil, err
 	}
@@ -56,7 +56,7 @@ func (s *Server) List(ctx context.Context, q *certificatepkg.RepositoryCertifica
 }
 
 // Batch creates certificates for verifying repositories
-func (s *Server) Create(ctx context.Context, q *certificatepkg.RepositoryCertificateCreateRequest) (*appsv1.RepositoryCertificateList, error) {
+func (s *Server) CreateCertificate(ctx context.Context, q *certificatepkg.RepositoryCertificateCreateRequest) (*appsv1.RepositoryCertificateList, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceCertificates, rbacpolicy.ActionCreate, ""); err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func (s *Server) Create(ctx context.Context, q *certificatepkg.RepositoryCertifi
 }
 
 // Batch deletes a list of certificates that match the query
-func (s *Server) Delete(ctx context.Context, q *certificatepkg.RepositoryCertificateQuery) (*appsv1.RepositoryCertificateList, error) {
+func (s *Server) DeleteCertificate(ctx context.Context, q *certificatepkg.RepositoryCertificateQuery) (*appsv1.RepositoryCertificateList, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceCertificates, rbacpolicy.ActionDelete, ""); err != nil {
 		return nil, err
 	}

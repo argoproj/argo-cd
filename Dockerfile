@@ -6,8 +6,14 @@ ARG BASE_IMAGE=debian:9.5-slim
 ####################################################################################################
 FROM golang:1.12.6 as builder
 
+RUN echo 'deb http://deb.debian.org/debian stretch-backports main' >> /etc/apt/sources.list
+
 RUN apt-get update && apt-get install -y \
+    openssh-server \
+    nginx \
+    fcgiwrap \
     git \
+    git-lfs \
     make \
     wget \
     gcc \
@@ -69,7 +75,7 @@ RUN curl -L -o /usr/local/bin/kustomize1 https://github.com/kubernetes-sigs/kust
     kustomize1 version
 
 
-ENV KUSTOMIZE_VERSION=2.0.3
+ENV KUSTOMIZE_VERSION=3.0.2
 RUN curl -L -o /usr/local/bin/kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64 && \
     chmod +x /usr/local/bin/kustomize && \
     kustomize version
@@ -98,12 +104,14 @@ FROM $BASE_IMAGE as argocd-base
 
 USER root
 
+RUN echo 'deb http://deb.debian.org/debian stretch-backports main' >> /etc/apt/sources.list
+
 RUN groupadd -g 999 argocd && \
     useradd -r -u 999 -g argocd argocd && \
     mkdir -p /home/argocd && \
     chown argocd:argocd /home/argocd && \
     apt-get update && \
-    apt-get install -y git && \
+    apt-get install -y git git-lfs && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 

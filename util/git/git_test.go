@@ -1,6 +1,9 @@
 package git
 
 import (
+	"fmt"
+	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -8,7 +11,6 @@ import (
 	"github.com/argoproj/argo-cd/test/fixture/log"
 	"github.com/argoproj/argo-cd/test/fixture/path"
 	"github.com/argoproj/argo-cd/test/fixture/test"
-	"github.com/argoproj/argo-cd/test/fixture/testrepos"
 )
 
 func TestIsCommitSHA(t *testing.T) {
@@ -138,6 +140,46 @@ func TestLsRemote(t *testing.T) {
 	}
 }
 
+// Running this test requires git-lfs to be installed on your machine.
+func TestLFSClient(t *testing.T) {
+	tempDir, err := ioutil.TempDir("", "git-client-lfs-test-")
+	assert.NoError(t, err)
+	if err == nil {
+		defer func() { _ = os.RemoveAll(tempDir) }()
+	}
+
+	client, err := NewFactory().NewClient("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true)
+	assert.NoError(t, err)
+
+	commitSHA, err := client.LsRemote("HEAD")
+	assert.NoError(t, err)
+	assert.NotEqual(t, "", commitSHA)
+
+	err = client.Init()
+	assert.NoError(t, err)
+
+	err = client.Fetch()
+	assert.NoError(t, err)
+
+	err = client.Checkout(commitSHA)
+	assert.NoError(t, err)
+
+	largeFiles, err := client.LsLargeFiles()
+	assert.NoError(t, err)
+	assert.Equal(t, 3, len(largeFiles))
+
+	fileHandle, err := os.Open(fmt.Sprintf("%s/test3.yaml", tempDir))
+	assert.NoError(t, err)
+	if err == nil {
+		defer fileHandle.Close()
+		text, err := ioutil.ReadAll(fileHandle)
+		assert.NoError(t, err)
+		if err == nil {
+			assert.Equal(t, "This is not a YAML, sorry.\n", string(text))
+		}
+	}
+}
+
 func TestNewFactory(t *testing.T) {
 	addBinDirToPath := path.NewBinDirToPath()
 	defer addBinDirToPath.Close()
@@ -145,8 +187,8 @@ func TestNewFactory(t *testing.T) {
 	defer closer()
 
 	type args struct {
-		url, username, password, sshPrivateKey string
-		insecureIgnoreHostKey                  bool
+		url                   string
+		insecureIgnoreHostKey bool
 	}
 	tests := []struct {
 		name string
@@ -154,8 +196,6 @@ func TestNewFactory(t *testing.T) {
 	}{
 		{"Github", args{url: "https://github.com/argoproj/argocd-example-apps"}},
 		{"Azure", args{url: "https://jsuen0437@dev.azure.com/jsuen0437/jsuen/_git/jsuen"}},
-		{"PrivateRepo", args{testrepos.HTTPSTestRepo.URL, testrepos.HTTPSTestRepo.Username, testrepos.HTTPSTestRepo.Password, "", false}},
-		{"PrivateSSHRepo", args{testrepos.SSHTestRepo.URL, "", "", testrepos.SSHTestRepo.SSHPrivateKey, testrepos.SSHTestRepo.InsecureIgnoreHostKey}},
 	}
 	for _, tt := range tests {
 

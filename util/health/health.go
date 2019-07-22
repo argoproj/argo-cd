@@ -42,14 +42,35 @@ func SetApplicationHealth(resStatuses []appv1.ResourceStatus, liveObjs []*unstru
 		}
 		if resHealth != nil {
 			resStatuses[i].Health = resHealth
-			// Don't allow resource hooks to affect health status
-			ignore := liveObj != nil && (hookutil.IsHook(liveObj) || resource.Ignore(liveObj))
+			ignore := ignoreLiveObjectHealth(liveObj, *resHealth)
 			if !ignore && IsWorse(appHealth.Status, resHealth.Status) {
 				appHealth.Status = resHealth.Status
 			}
 		}
 	}
 	return &appHealth, savedErr
+}
+
+// ignoreLiveObjectHealth determines if we should not allow the live object to affect the overall
+// health of the application (e.g. hooks, missing child applications)
+func ignoreLiveObjectHealth(liveObj *unstructured.Unstructured, resHealth appv1.HealthStatus) bool {
+	if liveObj != nil {
+		if hookutil.IsHook(liveObj) {
+			// Don't allow resource hooks to affect health status
+			return true
+		}
+		if resource.Ignore(liveObj) {
+			return true
+		}
+		gvk := liveObj.GroupVersionKind()
+		if gvk.Group == "argoproj.io" && gvk.Kind == "Application" && resHealth.Status == appv1.HealthStatusMissing {
+			// Covers the app-of-apps corner case where child app is deployed but that app itself
+			// has a status of 'Missing', which we don't want to cause the parent's health status
+			// to also be Missing
+			return true
+		}
+	}
+	return false
 }
 
 // GetResourceHealth returns the health of a k8s resource

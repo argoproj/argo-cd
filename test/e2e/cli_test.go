@@ -18,12 +18,9 @@ func TestCliAppCommand(t *testing.T) {
 		And(func() {
 			output, err := RunCli("app", "sync", Name(), "--timeout", "90")
 			assert.NoError(t, err)
-			expected := Tmpl(
-				`GROUP KIND NAMESPACE NAME STATUS HEALTH HOOK MESSAGE
- Pod {{.Namespace}} pod Synced Healthy pod/pod created
- Pod {{.Namespace}} hook Succeeded Sync pod/hook created`,
-				map[string]interface{}{"Name": Name(), "Namespace": DeploymentNamespace()})
-			assert.Contains(t, NormalizeOutput(output), expected)
+			vars := map[string]interface{}{"Name": Name(), "Namespace": DeploymentNamespace()}
+			assert.Contains(t, NormalizeOutput(output), Tmpl(`Pod {{.Namespace}} pod Synced Succeeded pod/pod created`, vars))
+			assert.Contains(t, NormalizeOutput(output), Tmpl(`Pod {{.Namespace}} hook Succeeded Sync pod/hook created`, vars))
 		}).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).

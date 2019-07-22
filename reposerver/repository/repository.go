@@ -25,7 +25,9 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/depot"
@@ -67,14 +69,14 @@ func NewService(clientFactory factory.ClientFactory, cache *cache.Cache, paralle
 }
 
 // ListDir lists the contents of a GitHub repo
-func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, error) {
-	client, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Path, q.Revision)
+func (s *Service) ListDir(ctx context.Context, q *apiclient.ListDirRequest) (*apiclient.FileList, error) {
+	gitClient, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Path, q.Revision)
 	if err != nil {
 		return nil, err
 	}
 	if files, err := s.cache.GetGitListDir(commitSHA, q.Path); err == nil {
 		log.Infof("listdir cache hit: %s/%s", commitSHA, q.Path)
-		return &FileList{Items: files}, nil
+		return &apiclient.FileList{Items: files}, nil
 	}
 
 	s.repoLock.Lock(client.LockKey())
@@ -89,7 +91,7 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, er
 		return nil, err
 	}
 
-	res := FileList{Items: lsFiles}
+	res := apiclient.FileList{Items: lsFiles}
 	err = s.cache.SetListDir(commitSHA, q.Path, res.Items)
 	if err != nil {
 		log.Warnf("listdir cache set error %s/%s: %v", commitSHA, q.Path, err)
@@ -97,7 +99,7 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, er
 	return &res, nil
 }
 
-func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileResponse, error) {
+func (s *Service) GetFile(ctx context.Context, q *apiclient.GetFileRequest) (*apiclient.GetFileResponse, error) {
 	client, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Path, q.Revision)
 	if err != nil {
 		return nil, err
@@ -105,7 +107,7 @@ func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileRespo
 
 	if data, err := s.cache.GetGitFile(commitSHA, q.Path); err == nil {
 		log.Infof("getfile cache hit: %s/%s", commitSHA, q.Path)
-		return &GetFileResponse{Data: data}, nil
+		return &apiclient.GetFileResponse{Data: data}, nil
 	}
 
 	s.repoLock.Lock(client.LockKey())
@@ -118,7 +120,7 @@ func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileRespo
 	if err != nil {
 		return nil, err
 	}
-	res := GetFileResponse{
+	res := apiclient.GetFileResponse{
 		Data: data,
 	}
 	err = s.cache.SetGitFile(commitSHA, q.Path, data)
@@ -128,13 +130,13 @@ func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileRespo
 	return &res, nil
 }
 
-func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*ManifestResponse, error) {
+func (s *Service) GenerateManifest(c context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
 	client, commitSHA, err := s.newClientResolveRevision(q.Repo, q.ApplicationSource.Path, q.Revision)
 	if err != nil {
 		return nil, err
 	}
-	getCached := func() *ManifestResponse {
-		var res ManifestResponse
+	getCached := func() *apiclient.ManifestResponse {
+		var res apiclient.ManifestResponse
 		if !q.NoCache {
 			err = s.cache.GetManifests(commitSHA, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
 			if err == nil {
@@ -204,7 +206,7 @@ func checkPath(root, path string) error {
 }
 
 // GenerateManifests generates manifests from a path
-func GenerateManifests(root, path string, q *ManifestRequest) (*ManifestResponse, error) {
+func GenerateManifests(root, path string, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
 	err := checkPath(root, path)
 	if err != nil {
 		return nil, err
@@ -215,7 +217,7 @@ func GenerateManifests(root, path string, q *ManifestRequest) (*ManifestResponse
 	var dest *v1alpha1.ApplicationDestination
 
 	appSourceType, err := GetAppSourceType(q.ApplicationSource, appPath)
-	creds := newCreds(q.Repo)
+	creds := argo.GetRepoCreds(q.Repo)
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeKsonnet:
 		targetObjs, dest, err = ksShow(q.AppLabelKey, appPath, q.ApplicationSource.Ksonnet)
@@ -295,7 +297,7 @@ func GenerateManifests(root, path string, q *ManifestRequest) (*ManifestResponse
 		}
 	}
 
-	res := ManifestResponse{
+	res := apiclient.ManifestResponse{
 		Manifests:  manifests,
 		SourceType: string(appSourceType),
 	}
@@ -537,7 +539,7 @@ func findPlugin(plugins []*v1alpha1.ConfigManagementPlugin, name string) *v1alph
 	return nil
 }
 
-func runConfigManagementPlugin(appPath string, q *ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
+func runConfigManagementPlugin(appPath string, q *apiclient.ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
 	plugin := findPlugin(q.Plugins, q.ApplicationSource.Plugin.Name)
 	if plugin == nil {
 		return nil, fmt.Errorf("Config management plugin with name '%s' is not supported.", q.ApplicationSource.Plugin.Name)
@@ -565,15 +567,15 @@ func runConfigManagementPlugin(appPath string, q *ManifestRequest, creds git.Cre
 	return kube.SplitYAML(out)
 }
 
-func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuery) (*RepoAppDetailsResponse, error) {
+func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error) {
 	revision := q.Revision
 	client, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Path, revision)
 	if err != nil {
 		return nil, err
 	}
-	getCached := func() *RepoAppDetailsResponse {
-		var res RepoAppDetailsResponse
-		err = s.cache.GetAppDetails(commitSHA, q.Path, q.valueFiles(), &res)
+	getCached := func() *apiclient.RepoAppDetailsResponse {
+		var res apiclient.RepoAppDetailsResponse
+		err = s.cache.GetAppDetails(commitSHA, q.Path, valueFiles(q), &res)
 		if err == nil {
 			log.Infof("manifest cache hit: %s/%s", commitSHA, q.Path)
 			return &res
@@ -608,13 +610,13 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 		return nil, err
 	}
 
-	res := RepoAppDetailsResponse{
+	res := apiclient.RepoAppDetailsResponse{
 		Type: string(appSourceType),
 	}
 
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeKsonnet:
-		var ksonnetAppSpec KsonnetAppSpec
+		var ksonnetAppSpec apiclient.KsonnetAppSpec
 		data, err := ioutil.ReadFile(filepath.Join(appPath, "app.yaml"))
 		if err != nil {
 			return nil, err
@@ -638,7 +640,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 		ksonnetAppSpec.Parameters = params
 		res.Ksonnet = &ksonnetAppSpec
 	case v1alpha1.ApplicationSourceTypeHelm:
-		res.Helm = &HelmAppSpec{}
+		res.Helm = &apiclient.HelmAppSpec{}
 		res.Helm.Path = q.Path
 		files, err := ioutil.ReadDir(appPath)
 		if err != nil {
@@ -662,15 +664,15 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 			return nil, err
 		}
 		defer h.Dispose()
-		params, err := h.GetParameters(q.valueFiles())
+		params, err := h.GetParameters(valueFiles(q))
 		if err != nil {
 			return nil, err
 		}
 		res.Helm.Parameters = params
 	case v1alpha1.ApplicationSourceTypeKustomize:
-		res.Kustomize = &KustomizeAppSpec{}
+		res.Kustomize = &apiclient.KustomizeAppSpec{}
 		res.Kustomize.Path = q.Path
-		k := kustomize.NewKustomizeApp(appPath, newCreds(q.Repo))
+		k := kustomize.NewKustomizeApp(appPath, argo.GetRepoCreds(q.Repo))
 		_, imageTags, images, err := k.Build(nil)
 		if err != nil {
 			return nil, err
@@ -695,7 +697,7 @@ func (s *Service) getRevisionMetadata(repo *v1alpha1.Repository, path, revision 
 	return client.RevisionMetadata(path, revision)
 }
 
-func (s *Service) GetRevisionMetadata(ctx context.Context, q *RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
+func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
 	metadata, err := s.cache.GetRevisionMetadata(q.Repo.Repo, q.Path, q.Revision)
 	if err == nil {
 		log.WithFields(log.Fields{"repoURL": q.Repo.Repo, "path": q.Path, "revision": q.Revision}).Debug("cache hit")
@@ -725,22 +727,9 @@ func kustomizeImageTags(imageTags []kustomize.ImageTag) []*v1alpha1.KustomizeIma
 	return output
 }
 
-func (q *RepoServerAppDetailsQuery) valueFiles() []string {
+func valueFiles(q *apiclient.RepoServerAppDetailsQuery) []string {
 	if q.Helm == nil {
 		return nil
 	}
 	return q.Helm.ValueFiles
-}
-
-func newCreds(repo *v1alpha1.Repository) git.Creds {
-	if repo == nil {
-		return git.NopCreds{}
-	}
-	if repo.Username != "" && repo.Password != "" {
-		return git.NewHTTPSCreds(repo.Username, repo.Password)
-	}
-	if repo.SSHPrivateKey != "" {
-		return git.NewSSHCreds(repo.SSHPrivateKey, (repo.InsecureIgnoreHostKey || repo.Insecure))
-	}
-	return git.NopCreds{}
 }

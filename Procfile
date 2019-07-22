@@ -4,3 +4,4 @@ dex: sh -c "go run ./cmd/argocd-util/main.go gendexcfg -o `pwd`/dist/dex.yaml &&
 redis: docker run --rm --name argocd-redis -i -p ${ARGOCD_E2E_REDIS_PORT:-6379}:${ARGOCD_E2E_REDIS_PORT:-6379} redis:5.0.3-alpine --save "" --appendonly no --port ${ARGOCD_E2E_REDIS_PORT:-6379}
 repo-server: sh -c "FORCE_LOG_COLORS=1 go run ./cmd/argocd-repo-server/main.go --loglevel debug --port ${ARGOCD_E2E_REPOSERVER_PORT:-8081} --redis localhost:${ARGOCD_E2E_REDIS_PORT:-6379}"
 ui: sh -c 'cd ui && ${ARGOCD_E2E_YARN_CMD:-yarn} start'
+git-server: test/fixture/testrepos/start-git.sh

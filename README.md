@@ -28,6 +28,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [Intuit](https://www.intuit.com/)
 1. [KintoHub](https://www.kintohub.com/)
 1. [KompiTech GmbH](https://www.kompitech.com/)
+1. [Mambu](https://www.mambu.com/) 
 1. [Mirantis](https://mirantis.com/)
 1. [OpenSaaS Studio](https://opensaas.studio)
 1. [Optoro](https://www.optoro.com/)
@@ -42,3 +43,10 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 ## Documentation
 
 To learn more about Argo CD [go to the complete documentation](https://argoproj.github.io/argo-cd/).
+
+## Community Blogs and Presentations
+
+1. [Comparison of Argo CD, Spinnaker, Jenkins X, and Tekton](https://www.inovex.de/blog/spinnaker-vs-argo-cd-vs-tekton-vs-jenkins-x/)
+1. [Simplify and Automate Deployments Using GitOps with IBM Multicloud Manager 3.1.2](https://medium.com/ibm-cloud/simplify-and-automate-deployments-using-gitops-with-ibm-multicloud-manager-3-1-2-4395af317359)
+1. [GitOps for Kubeflow using Argo CD](https://www.kubeflow.org/docs/use-cases/gitops-for-kubeflow/)
+1. [GitOps Toolsets on Kubernetes with CircleCI and Argo CD](https://www.digitalocean.com/community/tutorials/webinar-series-gitops-tool-sets-on-kubernetes-with-circleci-and-argo-cd)

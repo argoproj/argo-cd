@@ -43,6 +43,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		sshPrivateKeyPath              string
 		insecureIgnoreHostKey          bool
 		insecureSkipServerVerification bool
+		enableLfs                      bool
 	)
 	var command = &cobra.Command{
 		Use:   "add REPO",
@@ -71,6 +72,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			// InsecureIgnoreHostKey is deprecated and only here for backwards compat
 			repo.InsecureIgnoreHostKey = insecureIgnoreHostKey
 			repo.Insecure = insecureSkipServerVerification
+			repo.EnableLFS = enableLfs
 
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
 			defer util.Close(conn)
@@ -91,7 +93,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				Username:      repo.Username,
 				Password:      repo.Password,
 				SshPrivateKey: repo.SSHPrivateKey,
-				Insecure:      repo.InsecureIgnoreHostKey || repo.Insecure,
+				Insecure:      repo.IsInsecure(),
 			}
 			_, err := repoIf.ValidateAccess(context.Background(), &repoAccessReq)
 			errors.CheckError(err)
@@ -112,6 +114,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.Flags().StringVar(&sshPrivateKeyPath, "ssh-private-key-path", "", "path to the private ssh key (e.g. ~/.ssh/id_rsa)")
 	command.Flags().BoolVar(&insecureIgnoreHostKey, "insecure-ignore-host-key", false, "disables SSH strict host key checking (deprecated, use --insecure-skip-server-validation instead)")
 	command.Flags().BoolVar(&insecureSkipServerVerification, "insecure-skip-server-verification", false, "disables server certificate and host key checks")
+	command.Flags().BoolVar(&enableLfs, "enable-lfs", false, "enable git-lfs (Large File Support) on this repository")
 	command.Flags().BoolVar(&upsert, "upsert", false, "Override an existing repository with the same name even if the spec differs")
 	return command
 }
@@ -140,7 +143,7 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 // Print table of repo info
 func printRepoTable(repos appsv1.Repositories) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "TYPE\nREPO\tINSECURE\tUSER\tSTATUS\tMESSAGE\n")
+	fmt.Fprintf(w, "TYPE\nREPO\tINSECURE\tLFS\tUSER\tSTATUS\tMESSAGE\n")
 	for _, r := range repos {
 		var username string
 		if r.Username == "" {
@@ -148,7 +151,7 @@ func printRepoTable(repos appsv1.Repositories) {
 		} else {
 			username = r.Username
 		}
-		fmt.Fprintf(w, "%s\t%s\t%v\t%s\t%s\t%s\n", r.Type, r.Repo, r.Insecure, username, r.ConnectionState.Status, r.ConnectionState.Message)
+		fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%s\t%s\t%s\n", t.Type, r.Repo, r.Insecure, r.EnableLFS, username, r.ConnectionState.Status, r.ConnectionState.Message)
 	}
 	_ = w.Flush()
 }

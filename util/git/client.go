@@ -37,9 +37,11 @@ type nativeGitClient struct {
 	creds Creds
 	// Whether to connect insecurely to repository, e.g. don't verify certificate
 	insecure bool
+	// Whether the repository is LFS enabled
+	enableLfs bool
 }
 
-func NewClient(rawRepoURL, username, password, sshPrivateKey string, insecure bool) (depot.Client, error) {
+func NewClient(rawRepoURL, username, password, sshPrivateKey string, insecure, enableLfs bool) (depot.Client, error) {
 	var creds Creds
 	if sshPrivateKey != "" {
 		creds = SSHCreds{sshPrivateKey, insecure}
@@ -62,6 +64,7 @@ func NewClient(rawRepoURL, username, password, sshPrivateKey string, insecure bo
 		root:     depot.TempRepoPath(rawRepoURL),
 		creds:    creds,
 		insecure: insecure,
+		enableLfs: enableLfs,
 	}
 	return &client, nil
 }
@@ -135,7 +138,7 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 			return nil, err
 		}
 		auth := &ssh2.PublicKeys{User: sshUser, Signer: signer}
-		if creds.insecureIgnoreHostKey {
+		if creds.insecure {
 			auth.HostKeyCallback = ssh.InsecureIgnoreHostKey()
 		}
 		return auth, nil
@@ -177,9 +180,23 @@ func (m *nativeGitClient) Init() error {
 		if err != nil {
 			return err
 		}
+		if m.IsLFSEnabled() {
+			largeFiles, err := m.LsLargeFiles()
+			if err == nil && len(largeFiles) > 0 {
+				_, err = m.runCredentialedCmd("git", "lfs", "fetch", "--all")
+				if err != nil {
+					return err
+				}
+			}
+		}
 	}
 	_, err = m.runCredentialedCmd("fetch", "origin", "--tags", "--force")
 	return err
+}
+
+// Returns true if the repository is LFS enabled
+func (m *nativeGitClient) IsLFSEnabled() bool {
+	return m.enableLfs
 }
 
 // LsFiles lists the local working tree, including only files that are under source control
@@ -193,6 +210,16 @@ func (m *nativeGitClient) LsFiles(path string) ([]string, error) {
 	return ss[:len(ss)-1], nil
 }
 
+// LsLargeFiles lists all files that have references to LFS storage
+func (m *nativeGitClient) LsLargeFiles() ([]string, error) {
+	out, err := m.runCmd("lfs", "ls-files", "-n")
+	if err != nil {
+		return nil, err
+	}
+	ss := strings.Split(out, "\n")
+	return ss, nil
+}
+
 // Checkout checkout specified git sha
 func (m *nativeGitClient) Checkout(_, revision string) error {
 	if revision == "" || revision == "HEAD" {
@@ -200,6 +227,19 @@ func (m *nativeGitClient) Checkout(_, revision string) error {
 	}
 	if _, err := m.runCmd("checkout", "--force", revision); err != nil {
 		return err
+	}
+	// We must populate LFS content by using lfs checkout, if we have at least
+	// one LFS reference in the current revision.
+	if m.IsLFSEnabled() {
+		if largeFiles, err := m.LsLargeFiles(); err == nil {
+			if len(largeFiles) > 0 {
+				if _, err := m.runCmd("lfs", "checkout"); err != nil {
+					return err
+				}
+			}
+		} else {
+			return err
+		}
 	}
 	if _, err := m.runCmd("clean", "-fdx"); err != nil {
 		return err
@@ -337,28 +377,12 @@ func (m *nativeGitClient) runCredentialedCmd(args ...string) (string, error) {
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 	cmd.Dir = m.root
 	cmd.Env = append(cmd.Env, os.Environ()...)
+	// Set $HOME to nowhere, so we can be execute Git regardless of any external
+	// authentication keys (e.g. in ~/.ssh) -- this is especially important for
+	// running tests on local machines and/or CircleCI.
 	cmd.Env = append(cmd.Env, "HOME=/dev/null")
-	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOSYSTEM=true")
-	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOGLOBAL=true")
-	// For HTTPS repositories, we need to consider insecure repositories as well
-	// as custom CA bundles from the cert database.
-	if IsHTTPSURL(m.repoURL) {
-		if m.insecure {
-			cmd.Env = append(cmd.Env, "GIT_SSL_NO_VERIFY=true")
-		} else {
-			parsedURL, err := url.Parse(m.repoURL)
-			// We don't fail if we cannot parse the URL, but log a warning in that
-			// case. And we execute the command in a verbatim way.
-			if err != nil {
-				log.Warnf("runCmdOutput: Could not parse repo URL '%s'", m.repoURL)
-			} else {
-				caPath, err := certutil.GetCertBundlePathForRepository(parsedURL.Host)
-				if err == nil && caPath != "" {
-					cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_SSL_CAINFO=%s", caPath))
-				}
-			}
-		}
-	}
+	// Skip LFS for most Git operations except when explicitly requested
+	cmd.Env = append(cmd.Env, "GIT_LFS_SKIP_SMUDGE=1")
 	log.Debug(strings.Join(cmd.Args, " "))
 	return argoexec.RunCommandExt(cmd, argoconfig.CmdOpts())
 }

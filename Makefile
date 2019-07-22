@@ -145,7 +145,7 @@ endif
 .PHONY: builder-image
 builder-image:
 	docker build  -t $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) --target builder .
-	docker push $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG)
+	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) ; fi
 
 .PHONY: dep-ensure
 dep-ensure:
@@ -177,7 +177,7 @@ test-e2e: cli
 start-e2e: cli
 	killall goreman || true
 	kubectl create ns argocd-e2e || true
-	kubens argocd-e2e
+	kubectl config set-context --current --namespace=argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
 	# check we can connect to Docker to start Redis
 	docker version

@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+
 	"os"
 	"path/filepath"
 	"reflect"
@@ -886,6 +887,8 @@ type Repository struct {
 	InsecureIgnoreHostKey bool `json:"insecureIgnoreHostKey,omitempty" protobuf:"bytes,6,opt,name=insecureIgnoreHostKey"`
 	// Whether the repo is insecure
 	Insecure bool `json:"insecure,omitempty" protobuf:"bytes,7,opt,name=insecure"`
+	// Whether git-lfs support should be enabled for this repo
+	EnableLFS bool `json:"enableLfs,omitempty" protobuf:"bytes,8,opt,name=enableLfs"`
 	// type of the repo, maybe "git or "helm, "git" is assumed if empty or absent
 	Type string `json:"type,omitempty" protobuf:"bytes,8,opt,name=type"`
 	// only for Helm repos
@@ -896,6 +899,14 @@ type Repository struct {
 	CertData []byte `json:"certData,omitempty" protobuf:"bytes,11,opt,name=certData"`
 	// only for Helm repos
 	KeyData []byte `json:"keyData,omitempty" protobuf:"bytes,12,opt,name=keyData"`
+}
+
+func (repo *Repository) IsInsecure() bool {
+	return repo.InsecureIgnoreHostKey || repo.Insecure
+}
+
+func (repo *Repository) IsLFSEnabled() bool {
+	return repo.EnableLFS
 }
 
 func (m *Repository) HasCredentials() bool {
@@ -909,6 +920,7 @@ func (m *Repository) CopyCredentialsFrom(source *Repository) {
 		m.SSHPrivateKey = source.SSHPrivateKey
 		m.InsecureIgnoreHostKey = source.InsecureIgnoreHostKey
 		m.Insecure = source.Insecure
+		m.EnableLFS = source.EnableLFS
 	}
 }
 

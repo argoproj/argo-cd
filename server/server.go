@@ -57,7 +57,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	appinformer "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
-	"github.com/argoproj/argo-cd/reposerver"
+	repoapiclient "github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/server/account"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/badge"
@@ -141,7 +141,7 @@ type ArgoCDServerOpts struct {
 	BaseHRef            string
 	KubeClientset       kubernetes.Interface
 	AppClientset        appclientset.Interface
-	RepoClientset       reposerver.Clientset
+	RepoClientset       repoapiclient.Clientset
 	Cache               *argocache.Cache
 	TLSConfigCustomizer tlsutil.ConfigCustomizer
 }
@@ -576,8 +576,10 @@ func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 	// Run dex OpenID Connect Identity Provider behind a reverse proxy (served at /api/dex)
 	var err error
 	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy(a.DexServerAddr))
-	tlsConfig := a.settings.TLSConfig()
-	tlsConfig.InsecureSkipVerify = true
+	if a.useTLS() {
+		tlsConfig := a.settings.TLSConfig()
+		tlsConfig.InsecureSkipVerify = true
+	}
 	a.ssoClientApp, err = oidc.NewClientApp(a.settings, a.Cache, a.DexServerAddr)
 	errors.CheckError(err)
 	mux.HandleFunc(common.LoginEndpoint, a.ssoClientApp.HandleLogin)

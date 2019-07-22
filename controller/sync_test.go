@@ -19,7 +19,7 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/reposerver/repository"
+	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kube/kubetest"
@@ -444,7 +444,7 @@ func TestPersistRevisionHistory(t *testing.T) {
 	}
 	data := fakeData{
 		apps: []runtime.Object{app, defaultProject},
-		manifestResponse: &repository.ManifestResponse{
+		manifestResponse: &apiclient.ManifestResponse{
 			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
@@ -481,7 +481,7 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 	}
 	data := fakeData{
 		apps: []runtime.Object{app, defaultProject},
-		manifestResponse: &repository.ManifestResponse{
+		manifestResponse: &apiclient.ManifestResponse{
 			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,

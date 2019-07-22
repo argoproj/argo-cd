@@ -2,9 +2,15 @@ package app
 
 import (
 	"fmt"
+	"io/ioutil"
 
+	"github.com/sirupsen/logrus"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/argo-cd/errors"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/util/json"
 )
 
 // this implements the "when" part of given/when/then
@@ -12,9 +18,15 @@ import (
 // none of the func implement error checks, and that is complete intended, you should check for errors
 // using the Then()
 type Actions struct {
-	context    *Context
-	lastOutput string
-	lastError  error
+	context      *Context
+	lastOutput   string
+	lastError    error
+	ignoreErrors bool
+}
+
+func (a *Actions) IgnoreErrors() *Actions {
+	a.ignoreErrors = true
+	return a
 }
 
 func (a *Actions) PatchFile(file string, jsonPath string) *Actions {
@@ -32,11 +44,59 @@ func (a *Actions) AddFile(fileName, fileContents string) *Actions {
 	return a
 }
 
+func (a *Actions) CreateFromFile(handler func(app *Application)) *Actions {
+	app := &Application{
+		ObjectMeta: v1.ObjectMeta{
+			Name: a.context.name,
+		},
+		Spec: ApplicationSpec{
+			Project: a.context.project,
+			Source: ApplicationSource{
+				RepoURL: fixture.RepoURL(a.context.repoURLType),
+				Path:    a.context.path,
+			},
+			Destination: ApplicationDestination{
+				Server:    a.context.destServer,
+				Namespace: fixture.DeploymentNamespace(),
+			},
+		},
+	}
+	if a.context.env != "" {
+		app.Spec.Source.Ksonnet = &ApplicationSourceKsonnet{
+			Environment: a.context.env,
+		}
+	}
+	if a.context.namePrefix != "" {
+		app.Spec.Source.Kustomize = &ApplicationSourceKustomize{
+			NamePrefix: a.context.namePrefix,
+		}
+	}
+	if a.context.configManagementPlugin != "" {
+		app.Spec.Source.Plugin = &ApplicationSourcePlugin{
+			Name: a.context.configManagementPlugin,
+		}
+	}
+
+	if len(a.context.jsonnetTLAS) > 0 || len(a.context.parameters) > 0 {
+		logrus.Fatal("Application parameters or json tlas are not supported")
+	}
+
+	handler(app)
+	data := json.MustMarshal(app)
+	tmpFile, err := ioutil.TempFile("", "")
+	errors.CheckError(err)
+	_, err = tmpFile.Write(data)
+	errors.CheckError(err)
+
+	a.runCli("app", "create", "-f", tmpFile.Name())
+	return a
+}
+
 func (a *Actions) Create() *Actions {
 
 	args := []string{
 		"app", "create", a.context.name,
-		"--repo", fixture.RepoURL(),
+		"--repo", fixture.RepoURL(a.context.repoURLType),
 		"--path", a.context.path,
 		"--dest-server", a.context.destServer,
 		"--dest-namespace", fixture.DeploymentNamespace(),
@@ -74,15 +134,20 @@ func (a *Actions) Create() *Actions {
 }
 
 func (a *Actions) Declarative(filename string) *Actions {
+	return a.DeclarativeWithCustomRepo(filename, fixture.RepoURL(a.context.repoURLType))
+}
+
+func (a *Actions) DeclarativeWithCustomRepo(filename string, repoURL string) *Actions {
 	values := map[string]interface{}{
 		"ArgoCDNamespace":     fixture.ArgoCDNamespace,
 		"DeploymentNamespace": fixture.DeploymentNamespace(),
 		"Name":                a.context.name,
 		"Path":                a.context.path,
 		"Project":             a.context.project,
-		"RepoURL":             fixture.RepoURL(),
+		"RepoURL":             repoURL,
 	}
 	a.lastOutput, a.lastError = fixture.Declarative(filename, values)
+	a.verifyAction()
 	return a
 }
 
@@ -111,6 +176,7 @@ func (a *Actions) Sync() *Actions {
 	}
 
 	a.runCli(args...)
+
 	return a
 }
 
@@ -147,4 +213,11 @@ func (a *Actions) Then() *Consequences {
 
 func (a *Actions) runCli(args ...string) {
 	a.lastOutput, a.lastError = fixture.RunCli(args...)
+	a.verifyAction()
+}
+
+func (a *Actions) verifyAction() {
+	if !a.ignoreErrors {
+		a.Then().Expect(Success(""))
+	}
 }

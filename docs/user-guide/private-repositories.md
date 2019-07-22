@@ -47,17 +47,17 @@ argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-ke
 
 If you are connecting a repository on a HTTPS server using a self-signed certificate, or a certificate signed by a custom Certificate Authority (CA) which are not known to ArgoCD, the repository will not be added due to security reasons. This is indicated by an error message such as `x509: certificate signed by unknown authority`.
 
-1. You can let ArgoCD connect the repository in an insecure way, without verifying the server's certificate at all. This can be accomplished by using the `--insecure-repository` flag when adding the repository with the `argocd` CLI utility. However, this should be done only for non-production setups, as it imposes a serious security issue through possible man-in-the-middle attacks.
+1. You can let ArgoCD connect the repository in an insecure way, without verifying the server's certificate at all. This can be accomplished by using the `--insecure-skip-server-verification` flag when adding the repository with the `argocd` CLI utility. However, this should be done only for non-production setups, as it imposes a serious security issue through possible man-in-the-middle attacks.
 
 2. You can let ArgoCD use a custom certificate for the verification of the server's certificate using the `cert add-tls` command of the `argocd` CLI utility. This is the recommended method and suitable for production use. In order to do so, you will need the server's certificate, or the certificate of the CA used to sign the server's certificate, in PEM format.
 
 !!! note
-    For invalid server certificates, such as those without matching server name, or those that are expired, adding a CA certificate will not help. In this case, your only option will be to use the `--insecure-repository` flag to connect the repository. You are strongly urged to use a valid certificate on the repository server, or to urge the server's administrator to replace the faulty certificate with a valid one.
+    For invalid server certificates, such as those without matching server name, or those that are expired, adding a CA certificate will not help. In this case, your only option will be to use the `--insecure-skip-server-verification` flag to connect the repository. You are strongly urged to use a valid certificate on the repository server, or to urge the server's administrator to replace the faulty certificate with a valid one.
 
 Example for adding a HTTPS repository to ArgoCD without verifying the server's certificate (**Caution:** This is **not** recommended for production use):
 
 ```bash
-argocd repo add --insecure-repository https://git.example.com/test-repo
+argocd repo add --insecure-skip-server-verification https://git.example.com/test-repo
 ```
 
 Example for adding a CA certificate contained in file `~/myca-cert.pem` to properly verify the repository server:
@@ -72,9 +72,6 @@ You can also add more than one PEM for a server by concatenating them into the i
 ```bash
 cat cert1.pem cert2.pem | argocd cert add-tls git.example.com --upsert
 ```
-
-!!! note
-    You can add multiple TLS certificates for a single server by either using a file containing multiple PEM certificates, or by using the `--append` flag to the `cert add-tls` command of the CLI.
 
 !!! note
     To replace an existing certificate for a server, use the `--upsert` flag to the `cert add-tls` CLI command. 
@@ -101,7 +98,7 @@ If you are using a privately hosted Git service over SSH, then you have the foll
 
 > v1.2 or later
 
-1. You can let ArgoCD connect the repository in an insecure way, without verifying the server's SSH host key at all. This can be accomplished by using the `--insecure-repository` flag when adding the repository with the `argocd` CLI utility. However, this should be done only for non-production setups, as it imposes a serious security issue through possible man-in-the-middle attacks.
+1. You can let ArgoCD connect the repository in an insecure way, without verifying the server's SSH host key at all. This can be accomplished by using the `--insecure-skip-server-verification` flag when adding the repository with the `argocd` CLI utility. However, this should be done only for non-production setups, as it imposes a serious security issue through possible man-in-the-middle attacks.
 
 2. You can make the server's SSH public key known to ArgoCD by using the `cert add-ssh` command of the `argocd` CLI utility. This is the recommended method and suitable for production use. In order to do so, you will need the server's SSH public host key, in the `known_hosts` format understood by `ssh`. You can get the server's public SSH host key e.g. by using the `ssh-keyscan` utility.
 
