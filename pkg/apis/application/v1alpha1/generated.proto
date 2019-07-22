@@ -496,7 +496,7 @@ message Repository {
   // SSH private key data for authenticating at the repo server
   optional string sshPrivateKey = 4;
 
-  // Current state of repository server connectin
+  // Current state of repository server connecting
   optional ConnectionState connectionState = 5;
 
   // InsecureIgnoreHostKey should not be used anymore, Insecure is favoured

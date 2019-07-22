@@ -890,7 +890,7 @@ type Repository struct {
 	Password string `json:"password,omitempty" protobuf:"bytes,3,opt,name=password"`
 	// SSH private key data for authenticating at the repo server
 	SSHPrivateKey string `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
-	// Current state of repository server connectin
+	// Current state of repository server connecting
 	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,5,opt,name=connectionState"`
 	// InsecureIgnoreHostKey should not be used anymore, Insecure is favoured
 	InsecureIgnoreHostKey bool `json:"insecureIgnoreHostKey,omitempty" protobuf:"bytes,6,opt,name=insecureIgnoreHostKey"`

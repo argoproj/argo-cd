@@ -1779,7 +1779,7 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 					},
 					"connectionState": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Current state of repository server connectin",
+							Description: "Current state of repository server connecting",
 							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConnectionState"),
 						},
 					},
