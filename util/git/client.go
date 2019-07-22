@@ -139,6 +139,7 @@ func (m *nativeGitClient) LockKey() string {
 // Init initializes a local git repository and sets the remote origin
 func (m *nativeGitClient) Init() error {
 	_, err := git.PlainOpen(m.root)
+	log.SetLevel(log.DebugLevel)
 	if err != nil {
 		if err != git.ErrRepositoryNotExists {
 			return err
@@ -171,7 +172,7 @@ func (m *nativeGitClient) Init() error {
 			return err
 		}
 		if len(largeFiles) > 0 {
-			_, err = m.runCredentialedCmd("lfs", "fetch", "--all")
+			_, err := m.runCredentialedCmd("lfs", "fetch", "--all")
 			if err != nil {
 				return err
 			}

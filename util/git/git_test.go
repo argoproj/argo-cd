@@ -155,9 +155,9 @@ func TestLFSClient(t *testing.T) {
 	err = client.Checkout(".", commitSHA)
 	assert.NoError(t, err)
 
-	largeFiles, err := client.LsFiles(".")
+	largeFiles, err := client.(*nativeGitClient).LsLargeFiles()
 	assert.NoError(t, err)
-	assert.Len(t, largeFiles, 5)
+	assert.Len(t, largeFiles, 3)
 
 	fileHandle, err := os.Open(fmt.Sprintf("%s/test3.yaml", client.LockKey()))
 	assert.NoError(t, err)
