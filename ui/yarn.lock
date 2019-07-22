@@ -2263,7 +2263,7 @@ compressible@~2.0.13:
 
 compression@^1.5.2:
   version "1.7.2"
-  resolved "http://registry.npmjs.org/compression/-/compression-1.7.2.tgz#aaffbcd6aaf854b44ebb280353d5ad1651f59a69"
+  resolved "https://registry.npmjs.org/compression/-/compression-1.7.2.tgz#aaffbcd6aaf854b44ebb280353d5ad1651f59a69"
   dependencies:
     accepts "~1.3.4"
     bytes "3.0.0"
@@ -4829,8 +4829,9 @@ jmespath@0.15.0:
   integrity sha1-o/Iiqarp+Wb10nx5ZRDigJF2Qhc=
 
 jquery@>=3.0.0:
-  version "3.3.1"
-  resolved "https://registry.yarnpkg.com/jquery/-/jquery-3.3.1.tgz#958ce29e81c9790f31be7792df5d4d95fc57fbca"
+  version "3.4.1"
+  resolved "https://registry.yarnpkg.com/jquery/-/jquery-3.4.1.tgz#714f1f8d9dde4bdfa55764ba37ef214630d80ef2"
+  integrity sha512-36+AdBzCL+y6qjw5Tx7HgzeGCzC81MDDgaUP8ld2zhx58HdqXGoBd+tHdrBMiyjGQs0Hxs/MLZTu/eHNJJuWPw==
 
 js-base64@^2.1.8:
   version "2.4.5"
