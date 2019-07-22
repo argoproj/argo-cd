@@ -81,11 +81,9 @@ func TestHelmRepo(t *testing.T) {
 		When().
 		Create().
 		Then().
-		Expect(Success("")).
 		When().
 		Sync().
 		Then().
-		Expect(Success("")).
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(HealthIs(HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))

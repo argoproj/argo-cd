@@ -27,6 +27,7 @@ import (
 	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/test/fixture/testrepos"
 	"github.com/argoproj/argo-cd/util"
 	grpcutil "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/rand"
@@ -134,6 +135,8 @@ func RepoURL(urlType RepoURLType) string {
 		return "ssh://root@localhost:2222/tmp/argo-e2e/testdata.git"
 	case RepoURLTypeHTTPS:
 		return "https://localhost:9443/argo-e2e/testdata.git"
+	case RepoURLTypeHelm:
+		return testrepos.HelmTestRepo
 	default:
 		return fmt.Sprintf("file://%s", repoDirectory())
 	}
