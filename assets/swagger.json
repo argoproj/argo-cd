@@ -49,7 +49,7 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "ListMixin1",
+        "operationId": "ListMixin6",
         "parameters": [
           {
             "type": "string",
@@ -89,7 +89,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "CreateMixin1",
+        "operationId": "CreateMixin6",
         "parameters": [
           {
             "name": "body",
@@ -116,7 +116,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "UpdateMixin1",
+        "operationId": "UpdateMixin6",
         "parameters": [
           {
             "type": "string",
@@ -197,7 +197,7 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "Get",
+        "operationId": "GetMixin6",
         "parameters": [
           {
             "type": "string",
@@ -238,7 +238,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "DeleteMixin1",
+        "operationId": "DeleteMixin6",
         "parameters": [
           {
             "type": "string",
@@ -852,7 +852,7 @@
           "ClusterService"
         ],
         "summary": "List returns list of clusters",
-        "operationId": "ListMixin3",
+        "operationId": "List",
         "parameters": [
           {
             "type": "string",
@@ -874,7 +874,7 @@
           "ClusterService"
         ],
         "summary": "Create creates a cluster",
-        "operationId": "CreateMixin3",
+        "operationId": "Create",
         "parameters": [
           {
             "name": "body",
@@ -901,7 +901,7 @@
           "ClusterService"
         ],
         "summary": "Update updates a cluster",
-        "operationId": "UpdateMixin3",
+        "operationId": "Update",
         "parameters": [
           {
             "type": "string",
@@ -934,7 +934,7 @@
           "ClusterService"
         ],
         "summary": "Get returns a cluster by server address",
-        "operationId": "GetMixin3",
+        "operationId": "GetMixin1",
         "parameters": [
           {
             "type": "string",
@@ -957,7 +957,7 @@
           "ClusterService"
         ],
         "summary": "Delete deletes a cluster",
-        "operationId": "DeleteMixin3",
+        "operationId": "Delete",
         "parameters": [
           {
             "type": "string",
@@ -1239,7 +1239,7 @@
           "RepositoryService"
         ],
         "summary": "List returns list of repos",
-        "operationId": "List",
+        "operationId": "ListMixin2",
         "parameters": [
           {
             "type": "string",
@@ -1261,7 +1261,7 @@
           "RepositoryService"
         ],
         "summary": "Create creates a repo",
-        "operationId": "Create",
+        "operationId": "CreateMixin2",
         "parameters": [
           {
             "name": "body",
@@ -1288,7 +1288,7 @@
           "RepositoryService"
         ],
         "summary": "Update updates a repo",
-        "operationId": "Update",
+        "operationId": "UpdateMixin2",
         "parameters": [
           {
             "type": "string",
@@ -1321,7 +1321,7 @@
           "RepositoryService"
         ],
         "summary": "Delete deletes a repo",
-        "operationId": "Delete",
+        "operationId": "DeleteMixin2",
         "parameters": [
           {
             "type": "string",
@@ -1500,7 +1500,7 @@
           "SettingsService"
         ],
         "summary": "Get returns Argo CD settings",
-        "operationId": "GetMixin5",
+        "operationId": "Get",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -2625,7 +2625,7 @@
         },
         "sourceRepos": {
           "type": "array",
-          "title": "SourceRepos contains list of git repository URLs which can be used for deployment",
+          "title": "SourceRepos contains list of repository URLs which can be used for deployment",
           "items": {
             "type": "string"
           }
@@ -2718,7 +2718,7 @@
         },
         "repoURL": {
           "type": "string",
-          "title": "RepoURL is the git repository URL of the application manifests"
+          "title": "RepoURL is the repository URL of the application manifests"
         },
         "targetRevision": {
           "type": "string",
@@ -3250,8 +3250,18 @@
     },
     "v1alpha1Repository": {
       "type": "object",
-      "title": "Repository is a Git repository holding application configurations",
+      "title": "Repository is a repository holding application configurations",
       "properties": {
+        "caData": {
+          "type": "string",
+          "format": "byte",
+          "title": "only for Helm repos"
+        },
+        "certData": {
+          "type": "string",
+          "format": "byte",
+          "title": "only for Helm repos"
+        },
         "connectionState": {
           "$ref": "#/definitions/v1alpha1ConnectionState"
         },
@@ -3268,7 +3278,16 @@
         "insecureIgnoreHostKey": {
           "type": "boolean",
           "format": "boolean",
-          "title": "InsecureIgnoreHostKey should not be used anymore, Insecure is favoured"
+          "title": "InsecureIgnoreHostKey should not be used anymore, Insecure is favoured\nonly for Git repos"
+        },
+        "keyData": {
+          "type": "string",
+          "format": "byte",
+          "title": "only for Helm repos"
+        },
+        "name": {
+          "type": "string",
+          "title": "only for Helm repos"
         },
         "password": {
           "type": "string",
@@ -3280,7 +3299,11 @@
         },
         "sshPrivateKey": {
           "type": "string",
-          "title": "SSH private key data for authenticating at the repo server"
+          "title": "SSH private key data for authenticating at the repo server\nonly for Git repos"
+        },
+        "type": {
+          "type": "string",
+          "title": "type of the repo, maybe \"git or \"helm, \"git\" is assumed if empty or absent"
         },
         "username": {
           "type": "string",
@@ -3688,7 +3711,7 @@
           }
         },
         "revision": {
-          "description": "Revision is the git revision in which to sync the application to.\nIf omitted, will use the revision specified in app spec.",
+          "description": "Revision is the revision in which to sync the application to.\nIf omitted, will use the revision specified in app spec.",
           "type": "string"
         },
         "source": {
@@ -3727,7 +3750,7 @@
         },
         "revision": {
           "type": "string",
-          "title": "Revision holds the git commit SHA of the sync"
+          "title": "Revision holds the revision of the sync"
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"

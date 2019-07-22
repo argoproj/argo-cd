@@ -41,12 +41,12 @@ type nativeGitClient struct {
 	enableLfs bool
 }
 
-func NewClient(rawRepoURL, username, password, sshPrivateKey string, insecure, enableLfs bool) (depot.Client, error) {
+func NewClient(rawRepoURL, username, password, sshPrivateKey, caPath string, insecure, enableLfs bool) (depot.Client, error) {
 	var creds Creds
 	if sshPrivateKey != "" {
-		creds = SSHCreds{sshPrivateKey, insecure}
+		creds = SSHCreds{sshPrivateKey,caPath, insecure}
 	} else if username != "" || password != "" {
-		creds = HTTPSCreds{username, password}
+		creds = HTTPSCreds{username, password, insecure}
 	} else {
 		creds = NopCreds{}
 	}

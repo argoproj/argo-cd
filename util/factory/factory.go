@@ -25,6 +25,6 @@ func (f *defaultClientFactory) NewClient(r *v1alpha1.Repository) (depot.Client, 
 	case "helm":
 		return helm.NewClient(r.Repo, r.Name, r.Username, r.Password, r.CAData, r.CertData, r.KeyData)
 	default:
-		return git.NewClient(r.Repo, r.Username, r.Password, r.SSHPrivateKey, r.InsecureIgnoreHostKey)
+		return git.NewClient(r.Repo, r.Username, r.Password, r.SSHPrivateKey, r.InsecureIgnoreHostKey, r.EnableLFS)
 	}
 }
