@@ -157,7 +157,7 @@ func TestLFSClient(t *testing.T) {
 
 	largeFiles, err := client.LsFiles(".")
 	assert.NoError(t, err)
-	assert.Len(t,  largeFiles, 5)
+	assert.Len(t, largeFiles, 5)
 
 	fileHandle, err := os.Open(fmt.Sprintf("%s/test3.yaml", client.LockKey()))
 	assert.NoError(t, err)

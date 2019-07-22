@@ -62,7 +62,7 @@ const (
 	RepoURLTypeFile  = "file"
 	RepoURLTypeHTTPS = "https"
 	RepoURLTypeSSH   = "ssh"
-	RepoURLTypeHelm   = "helm"
+	RepoURLTypeHelm  = "helm"
 	GitUsername      = "admin"
 	GitPassword      = "password"
 )
