@@ -69,7 +69,7 @@ func HelmHook(obj *unstructured.Unstructured, hookType string) *unstructured.Uns
 }
 
 func Annotate(obj *unstructured.Unstructured, key, val string) *unstructured.Unstructured {
-	annotations:= obj.GetAnnotations()
+	annotations := obj.GetAnnotations()
 	if annotations == nil {
 		annotations = map[string]string{}
 	}
