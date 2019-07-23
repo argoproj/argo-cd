@@ -1,12 +1,12 @@
 import * as React from 'react';
 import { Redirect, Route, RouteComponentProps, Switch } from 'react-router';
 
+import { CertsList } from './certs-list/certs-list';
 import { ClustersList } from './clusters-list/clusters-list';
 import { ProjectDetails } from './project-details/project-details';
 import { ProjectsList } from './projects-list/projects-list';
 import { ReposList } from './repos-list/repos-list';
 import { SettingsOverview } from './settings-overview/settings-overview';
-import { CertsList } from './certs-list/certs-list';
 
 export const SettingsContainer = (props: RouteComponentProps<any>) => (
     <Switch>

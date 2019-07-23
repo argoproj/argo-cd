@@ -1,11 +1,11 @@
 import { ApplicationsService } from './applications-service';
 import { AuthService } from './auth-service';
+import { CertificatesService } from './cert-service';
 import { ClustersService } from './clusters-service';
 import { ProjectsService } from './projects-service';
 import { RepositoriesService } from './repo-service';
 import { UserService } from './user-service';
 import { ViewPreferencesService } from './view-preferences-service';
-import { CertificatesService } from './cert-service';
 
 export interface Services {
     applications: ApplicationsService;

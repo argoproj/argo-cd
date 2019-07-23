@@ -11,7 +11,8 @@ export class CertificatesService {
     }
 
     public delete(serverName: string, certType: string, certSubType: string): Promise<models.RepoCert> {
-        return requests.delete(`/certificates?hostNamePattern=${encodeURIComponent(serverName)}&certType=${encodeURIComponent(certType)}&certSubType=${encodeURIComponent(certSubType)}`).send().then((res) => res.body as models.RepoCert);
+        return requests.delete(`/certificates?hostNamePattern=${encodeURIComponent(serverName)}` +
+            `&certType=${encodeURIComponent(certType)}&certSubType=${encodeURIComponent(certSubType)}`).send().then((res) => res.body as models.RepoCert);
     }
 
 }

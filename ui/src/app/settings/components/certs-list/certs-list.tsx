@@ -40,7 +40,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                     items: [{
                         title: 'Add TLS certificate',
                         action: () => this.showAddTLSCertificate = true,
-                    },{
+                    }, {
                         title: 'Add SSH known hosts',
                         action: () => this.showAddSSHKnownHosts = true,
                     }],
@@ -60,7 +60,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                                             </div>
                                         </div>
                                         {certs.map((cert) => (
-                                            <div className='argo-table-list__row' key={cert.type + "_" + cert.cipher + "_" + cert.servername}>
+                                            <div className='argo-table-list__row' key={cert.type + '_' + cert.cipher + '_' + cert.servername}>
                                                 <div className='row'>
                                                     <div className='columns small-3'>
                                                         <i className='icon argo-icon-git'/> {cert.servername}
@@ -168,7 +168,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
 
     private async addTLSCertificate(params: NewTLSCertParams) {
         try {
-            await services.certs.create({items: [{servername: params.servername, type: "https", certdata: (params.certdata), cipher: "", certinfo: ""}], metadata: null})
+            await services.certs.create({items: [{servername: params.servername, type: 'https', certdata: (params.certdata), cipher: '', certinfo: ''}], metadata: null});
             this.showAddTLSCertificate = false;
             this.loader.reload();
         } catch (e) {
@@ -181,13 +181,13 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
 
     private async addSSHKnownHosts(params: NewSSHKnownHostParams) {
         try {
-            var knownHostEntries : models.RepoCert[] = [];
-            atob(params.data).split("\n").forEach(function(item, index) {
-                var trimmedLine = item.trimLeft(); 
-                if (trimmedLine.startsWith("#") == false) {
-                    var knownHosts =  trimmedLine.split(" ", 3);
-                    if (knownHosts.length == 3) {
-                        knownHostEntries = knownHostEntries.concat({servername: knownHosts[0], type: "ssh", cipher: knownHosts[1], certdata: btoa(knownHosts[2]), certinfo: "" });
+            let knownHostEntries: models.RepoCert[] = [];
+            atob(params.data).split('\n').forEach(function processEntry(item, index) {
+                const trimmedLine = item.trimLeft();
+                if (trimmedLine.startsWith('#') === false) {
+                    const knownHosts =  trimmedLine.split(' ', 3);
+                    if (knownHosts.length === 3) {
+                        knownHostEntries = knownHostEntries.concat({servername: knownHosts[0], type: 'ssh', cipher: knownHosts[1], certdata: btoa(knownHosts[2]), certinfo: '' });
                     }
                 }
             });
@@ -204,9 +204,9 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
 
     private async removeCert(serverName: string, certType: string, certSubType: string) {
         const confirmed = await this.appContext.apis.popup.confirm(
-            "Remove certificate", "Are you sure you want to remove " + certType + "certificate for " + serverName + "?");
+            'Remove certificate', 'Are you sure you want to remove ' + certType + 'certificate for ' + serverName + '?');
         if (confirmed) {
-            await services.certs.delete(serverName, certType, certSubType)
+            await services.certs.delete(serverName, certType, certSubType);
             this.loader.reload();
         }
     }
