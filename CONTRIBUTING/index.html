@@ -1119,37 +1119,21 @@
 <li><a href="https://git-scm.com/">git</a> and <a href="https://git-lfs.github.com/">git-lfs</a></li>
 <li><a href="https://golang.org/">golang</a></li>
 <li><a href="https://github.com/golang/dep">dep</a></li>
-<li><a href="https://developers.google.com/protocol-buffers/">protobuf</a></li>
 <li><a href="https://github.com/ksonnet/ksonnet#install">ksonnet</a></li>
 <li><a href="https://github.com/helm/helm/releases">helm</a></li>
 <li><a href="https://github.com/kubernetes-sigs/kustomize/releases">kustomize</a></li>
-<li><a href="https://github.com/go-swagger/go-swagger/blob/master/docs/install.md">go-swagger</a></li>
-<li><a href="https://stedolan.github.io/jq/">jq</a></li>
 <li><a href="https://kubernetes.io/docs/tasks/tools/install-kubectl/">kubectl</a></li>
 <li><a href="https://kubectx.dev">kubectx</a></li>
 <li><a href="https://kubernetes.io/docs/setup/minikube/">minikube</a> or Docker for Desktop</li>
 </ul>
-<div class="admonition warning">
-<p class="admonition-title">Versions</p>
-<p>You will find problems generating code if you do not have the correct versions of <code>protoc</code> and <code>swagger</code></p>
-</div>
-<div class="codehilite"><pre><span></span>$ protoc --version
-libprotoc <span class="m">3</span>.7.1
-~/go/src/github.com/argoproj/argo-cd <span class="o">(</span>ui<span class="o">)</span>
-$ swagger version
-version: v0.19.0
-</pre></div>
-
-
 <p>Brew users can quickly install the lot:</p>
-<div class="codehilite"><pre><span></span>brew tap go-swagger/go-swagger
-brew install git-lfs go dep protobuf kubectl kubectx ksonnet/tap/ks kubernetes-helm jq go-swagger kustomize 
+<div class="codehilite"><pre><span></span>brew install git-lfs go dep kubectl kubectx ksonnet/tap/ks kubernetes-helm kustomize 
 </pre></div>
 
 
 <div class="admonition note">
 <p class="admonition-title">Kustomize</p>
-<p>Since Argo CD supports Kustomize v1.0 and v2.0, you will need to install both versions in order for the unit tests to run. The Kustomize 1 unit test expects to find a <code>kustomize1</code> binary in the path.  You can use this <a href="https://github.com/argoproj/argo-cd/blob/master/Dockerfile#L66-L69">link</a> to find the Kustomize 1 currently used by Argo CD and modify the curl command to download the correct OS.</p>
+<p>Since Argo CD supports Kustomize v1.0 and v3.0, you will need to install both versions in order for the unit tests to run. The Kustomize 1 unit test expects to find a <code>kustomize1</code> binary in the path.  You can use this <a href="https://github.com/argoproj/argo-cd/blob/master/Dockerfile#L66-L69">link</a> to find the Kustomize 1 currently used by Argo CD and modify the curl command to download the correct OS.</p>
 </div>
 <p>Set up environment variables (e.g. is <code>~/.bashrc</code>):</p>
 <div class="codehilite"><pre><span></span><span class="nb">export</span> <span class="nv">GOPATH</span><span class="o">=</span>~/go
@@ -1160,11 +1144,6 @@ brew install git-lfs go dep protobuf kubectl kubectx ksonnet/tap/ks kubernetes-h
 <p>Checkout the code:</p>
 <div class="codehilite"><pre><span></span>go get -u github.com/argoproj/argo-cd
 <span class="nb">cd</span> ~/go/src/github.com/argoproj/argo-cd
-</pre></div>
-
-
-<p>Install go dependencies:</p>
-<div class="codehilite"><pre><span></span>make install-dev-tools
 </pre></div>
 
 
@@ -1181,7 +1160,11 @@ brew install git-lfs go dep protobuf kubectl kubectx ksonnet/tap/ks kubernetes-h
 
 <p>The make command can take a while, and we recommend building the specific component you are working on</p>
 <ul>
-<li><code>make codegen</code> - Builds protobuf and swagger files</li>
+<li><code>make codegen</code> - Builds protobuf and swagger files.</li>
+</ul>
+<p>Note: <code>make codegen</code> is slow because it uses docker + volume mounts. To improve performance you might install binaries from <code>./hack/Dockerfile.dev-tools</code>
+and use <code>make codegen-local</code>. It is still recommended to run <code>make codegen</code> once before sending PR to make sure correct version of codegen tools is used.   </p>
+<ul>
 <li><code>make cli</code> - Make the argocd CLI tool</li>
 <li><code>make server</code> - Make the API/repo/controller server</li>
 <li><code>make argocd-util</code> - Make the administrator's utility, used for certain tasks such as import/export</li>
