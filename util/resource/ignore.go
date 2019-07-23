@@ -12,6 +12,7 @@ import (
 func Ignore(obj *unstructured.Unstructured) bool {
 	// Ignore helm hooks, except crd-install
 	// Jesse: "we need to pretend that they don’t even exist" ;-)
-	hooks, ok := obj.GetAnnotations()[common.AnnotationKeyHelmHook]
-	return ok && !strings.Contains(hooks, common.AnnotationValueHelmHookCRDInstall)
+	_, hasHook := obj.GetAnnotations()[common.AnnotationKeyHook]
+	hooks, hasHelmHook := obj.GetAnnotations()[common.AnnotationKeyHelmHook]
+	return !hasHook && hasHelmHook && !strings.Contains(hooks, common.AnnotationValueHelmHookCRDInstall)
 }
