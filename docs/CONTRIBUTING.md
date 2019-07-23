@@ -10,6 +10,7 @@ Then, to get a good grounding in Go, try out [the tutorial](https://tour.golang.
 Install:
 
 * [docker](https://docs.docker.com/install/#supported-platforms)
+* [git](https://git-scm.com/) and [git-lfs](https://git-lfs.github.com/)
 * [golang](https://golang.org/)
 * [dep](https://github.com/golang/dep)
 * [protobuf](https://developers.google.com/protocol-buffers/)
@@ -37,7 +38,7 @@ Brew users can quickly install the lot:
     
 ```bash
 brew tap go-swagger/go-swagger
-brew install go dep protobuf kubectl kubectx ksonnet/tap/ks kubernetes-helm jq go-swagger kustomize 
+brew install git-lfs go dep protobuf kubectl kubectx ksonnet/tap/ks kubernetes-helm jq go-swagger kustomize 
 ```
 
 !!! note "Kustomize"
