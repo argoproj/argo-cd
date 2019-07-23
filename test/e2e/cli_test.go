@@ -19,7 +19,7 @@ func TestCliAppCommand(t *testing.T) {
 			output, err := RunCli("app", "sync", Name(), "--timeout", "90")
 			assert.NoError(t, err)
 			vars := map[string]interface{}{"Name": Name(), "Namespace": DeploymentNamespace()}
-			assert.Contains(t, NormalizeOutput(output), Tmpl(`Pod {{.Namespace}} pod Synced Succeeded pod/pod created`, vars))
+			assert.Contains(t, NormalizeOutput(output), Tmpl(`Pod {{.Namespace}} pod Synced Healthy pod/pod created`, vars))
 			assert.Contains(t, NormalizeOutput(output), Tmpl(`Pod {{.Namespace}} hook Succeeded Sync pod/hook created`, vars))
 		}).
 		Then().

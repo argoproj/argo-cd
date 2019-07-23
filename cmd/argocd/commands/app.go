@@ -1118,7 +1118,18 @@ func printAppResources(w io.Writer, app *argoappv1.Application) {
 	// print most resources info along with most recent operation results
 	if app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil {
 		for _, res := range app.Status.OperationState.SyncResult.Resources {
-			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", res.Group, res.Kind, res.Namespace, res.Name, res.Status, res.HookPhase, res.HookType, res.Message)
+			sync := string(res.HookPhase)
+			health := string(res.Status)
+			key := kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name)
+			if resource, ok := resourceByKey[key]; ok && res.HookType == "" {
+				health = argoappv1.HealthStatusUnknown
+				if resource.Health != nil {
+					health = resource.Health.Status
+				}
+				sync = string(resource.Status)
+			}
+
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", res.Group, res.Kind, res.Namespace, res.Name, sync, health, res.HookType, res.Message)
 			delete(resourceByKey, kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name))
 		}
 	}
