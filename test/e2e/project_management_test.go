@@ -279,7 +279,8 @@ func TestUseJWTToken(t *testing.T) {
 	_, err = fixture.RunCli("proj", "role", "create-token", projectName, roleName)
 	assert.NoError(t, err)
 
-	_, err = fixture.RunCli("proj", "role", "add-policy", projectName, roleName, "-a", "get", "-o", "*", "-p", "allow")
-	assert.NoError(t, err)
-
+	for _, action := range []string{"get", "update", "sync", "create", "override", "*"} {
+		_, err = fixture.RunCli("proj", "role", "add-policy", projectName, roleName, "-a", action, "-o", "*", "-p", "allow")
+		assert.NoError(t, err)
+	}
 }
