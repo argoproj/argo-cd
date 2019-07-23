@@ -141,7 +141,7 @@ func (f authFilePaths) Close() error {
 	for _, path := range f {
 		err := os.Remove(path)
 		if err != nil {
-			log.Errorf("HttpsCredsCloser: Could not remove temp file %s: %v", path, err)
+			log.Errorf("HTTPSCreds.Close(): Could not remove temp file %s: %v", path, err)
 			retErr = err
 		}
 	}
