@@ -1,0 +1,236 @@
+import {DropDownMenu, FormField, NotificationType, SlidingPanel} from 'argo-ui';
+import * as PropTypes from 'prop-types';
+import * as React from 'react';
+import {Form, FormApi, Text, TextArea} from 'react-form';
+import {RouteComponentProps} from 'react-router';
+
+import {DataLoader, EmptyState, ErrorNotification, Page} from '../../../shared/components';
+import {AppContext} from '../../../shared/context';
+import * as models from '../../../shared/models';
+import {services} from '../../../shared/services';
+
+require('./certs-list.scss');
+
+interface NewTLSCertParams {
+    servername: string;
+    type: string;
+    certdata: string;
+}
+
+interface NewSSHKnownHostParams {
+    data: string;
+}
+
+export class CertsList extends React.Component<RouteComponentProps<any>> {
+    public static contextTypes = {
+        router: PropTypes.object,
+        apis: PropTypes.object,
+        history: PropTypes.object,
+    };
+
+    private formApi: FormApi;
+    private loader: DataLoader;
+
+    public render() {
+        return (
+            <Page title='Repository certificates' toolbar={{
+                breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Repository certificates'}],
+                actionMenu: {
+                    className: 'fa fa-plus',
+                    items: [{
+                        title: 'Add TLS certificate',
+                        action: () => this.showAddTLSCertificate = true,
+                    },{
+                        title: 'Add SSH known hosts',
+                        action: () => this.showAddSSHKnownHosts = true,
+                    }],
+                },
+            }}>
+                <div className='certs-list'>
+                    <div className='argo-container'>
+                        <DataLoader load={() => services.certs.list()} ref={(loader) => this.loader = loader}>
+                            {(certs: models.RepoCert[]) => (
+                                certs.length > 0 && (
+                                    <div className='argo-table-list'>
+                                        <div className='argo-table-list__head'>
+                                            <div className='row'>
+                                                <div className='columns small-6'>SERVER NAME</div>
+                                                <div className='columns small-3'>CERT TYPE</div>
+                                                <div className='columns small-3'>CERT INFO</div>
+                                            </div>
+                                        </div>
+                                        {certs.map((cert) => (
+                                            <div className='argo-table-list__row' key={cert.type + "_" + cert.cipher + "_" + cert.servername}>
+                                                <div className='row'>
+                                                    <div className='columns small-3'>
+                                                        <i className='icon argo-icon-git'/> {cert.servername}
+                                                    </div>
+                                                    <div className='columns small-3'>
+                                                        {cert.type}
+                                                    </div>
+                                                    <div className='columns small-3'>
+                                                        {cert.cipher}
+                                                    </div>
+                                                    <div className='columns small-3'>
+                                                            {cert.certinfo}
+                                                        <DropDownMenu anchor={() => <button
+                                                            className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                            <i className='fa fa-ellipsis-v'/>
+                                                        </button>} items={[{
+                                                            title: 'Remove',
+                                                            action: () => this.removeCert(cert.servername, cert.type, cert.cipher),
+                                                        }]}/>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>) || (
+                                    <EmptyState icon='argo-icon-git'>
+                                        <h4>No certificates configured</h4>
+                                        <h5>You can add further certificates below..</h5>
+                                        <button className='argo-button argo-button--base'
+                                                onClick={() => this.showAddTLSCertificate = true}>Add TLS certificates
+                                        </button>
+                                        <button className='argo-button argo-button--base'
+                                                onClick={() => this.showAddSSHKnownHosts = true}>Add SSH known hosts
+                                        </button>
+                                    </EmptyState>
+                                )
+                            )}
+                        </DataLoader>
+                    </div>
+                </div>
+                <SlidingPanel isShown={this.showAddTLSCertificate} onClose={() => this.showAddTLSCertificate = false} header={(
+                    <div>
+                        <button className='argo-button argo-button--base' onClick={() => this.formApi.submitForm(null)}>
+                            Create
+                        </button>
+                        <button onClick={() => this.showAddTLSCertificate = false}
+                                className='argo-button argo-button--base-o'>
+                            Cancel
+                        </button>
+                    </div>
+                )}>
+                    <h4>Create TLS repository certificate</h4>
+                    <Form onSubmit={(params) => this.addTLSCertificate(params as NewTLSCertParams)}
+                          getApi={(api) => this.formApi = api}
+                          preSubmit={(params: NewTLSCertParams) => ({
+                              servername: params.servername,
+                              certdata: btoa(params.certdata),
+                          })}
+                          validateError={(params: NewTLSCertParams) => ({
+                              servername: !params.servername && 'Repository server name is required',
+                              certdata: !params.certdata && 'Certificate data is required',
+                          })}>
+                        {(formApi) => (
+                            <form onSubmit={formApi.submitForm} role='form' className='width-control' encType='multipart/form-data'>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Repository server name' field='servername' component={Text}/>
+                                </div>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='TLS certificate (PEM format)' field='certdata' component={TextArea}/>
+                                </div>
+                           </form>
+                        )}
+                    </Form>
+                </SlidingPanel>
+                <SlidingPanel isShown={this.showAddSSHKnownHosts} onClose={() => this.showAddSSHKnownHosts = false} header={(
+                    <div>
+                        <button className='argo-button argo-button--base' onClick={() => this.formApi.submitForm(null)}>
+                            Create
+                        </button>
+                        <button onClick={() => this.showAddSSHKnownHosts = false}
+                                className='argo-button argo-button--base-o'>
+                            Cancel
+                        </button>
+                    </div>
+                )}>
+                    <h4>Create SSH known host entries</h4>
+                    <Form onSubmit={(params) => this.addSSHKnownHosts(params as NewSSHKnownHostParams)}
+                          getApi={(api) => this.formApi = api}
+                          preSubmit={(params: NewSSHKnownHostParams) => ({
+                              data: btoa(params.data),
+                          })}
+                          validateError={(params: NewSSHKnownHostParams) => ({
+                              data: !params.data && 'SSH known hosts data is required',
+                          })}>
+                        {(formApi) => (
+                            <form onSubmit={formApi.submitForm} role='form' className='width-control' encType='multipart/form-data'>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='SSH known hosts data' field='data' component={TextArea}/>
+                                </div>
+                           </form>
+                        )}
+                    </Form>
+                </SlidingPanel>
+
+            </Page>
+        );
+    }
+
+    private async addTLSCertificate(params: NewTLSCertParams) {
+        try {
+            await services.certs.create({items: [{servername: params.servername, type: "https", certdata: (params.certdata), cipher: "", certinfo: ""}], metadata: null})
+            this.showAddTLSCertificate = false;
+            this.loader.reload();
+        } catch (e) {
+            this.appContext.apis.notifications.show({
+                content: <ErrorNotification title='Unable to add TLS certificate' e={e}/>,
+                type: NotificationType.Error,
+            });
+        }
+    }
+
+    private async addSSHKnownHosts(params: NewSSHKnownHostParams) {
+        try {
+            var knownHostEntries : models.RepoCert[] = [];
+            atob(params.data).split("\n").forEach(function(item, index) {
+                var trimmedLine = item.trimLeft(); 
+                if (trimmedLine.startsWith("#") == false) {
+                    var knownHosts =  trimmedLine.split(" ", 3);
+                    if (knownHosts.length == 3) {
+                        knownHostEntries = knownHostEntries.concat({servername: knownHosts[0], type: "ssh", cipher: knownHosts[1], certdata: btoa(knownHosts[2]), certinfo: "" });
+                    }
+                }
+            });
+            await services.certs.create({items: knownHostEntries, metadata: null});
+            this.showAddSSHKnownHosts = false;
+            this.loader.reload();
+        } catch (e) {
+            this.appContext.apis.notifications.show({
+                content: <ErrorNotification title='Unable to add SSH known hosts data' e={e}/>,
+                type: NotificationType.Error,
+            });
+        }
+    }
+
+    private async removeCert(serverName: string, certType: string, certSubType: string) {
+        const confirmed = await this.appContext.apis.popup.confirm(
+            "Remove certificate", "Are you sure you want to remove certificate?");
+        if (confirmed) {
+            await services.certs.delete(serverName, certType, certSubType)
+            this.appContext.apis.popup.confirm("Ok", "OK")
+            this.loader.reload();
+        }
+    }
+
+    private get showAddTLSCertificate() {
+        return new URLSearchParams(this.props.location.search).get('addTLSCert') === 'true';
+    }
+
+    private set showAddTLSCertificate(val: boolean) {
+        this.appContext.router.history.push(`${this.props.match.url}?addTLSCert=${val}`);
+    }
+
+    private get showAddSSHKnownHosts() {
+        return new URLSearchParams(this.props.location.search).get('addSSHKnownHosts') === 'true';
+    }
+
+    private set showAddSSHKnownHosts(val: boolean) {
+        this.appContext.router.history.push(`${this.props.match.url}?addSSHKnownHosts=${val}`);
+    }
+
+    private get appContext(): AppContext {
+        return this.context as AppContext;
+    }
+}
