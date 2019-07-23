@@ -153,11 +153,13 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstruc
 		} else {
 			caPath, err := certutil.GetCertBundlePathForRepository(parsedURL.Host)
 			if err != nil {
+				// Some error while getting CA bundle
 				log.Warnf("Could not get CA bundle path for %s: %v", parsedURL.Host, err)
 			} else if caPath == "" {
+				// No cert configured
 				log.Debugf("No caCert found for repo %s", parsedURL.Host)
 			} else {
-				log.Debugf("Using Kustomize CA Path: %s", caPath)
+				// Make Git use CA bundle
 				environ = append(environ, fmt.Sprintf("GIT_SSL_CAINFO=%s", caPath))
 			}
 		}
