@@ -59,11 +59,7 @@ func main() {
 
 func issueId(subject string) int {
 	rx := regexp.MustCompile("#[0-9][0-9]+")
-	split := rx.FindAll([]byte(subject), 3)
-	if len(split) == 0 {
-		return 0
-	}
-	match := split[len(split)-1]
+	match := rx.Find([]byte(subject))
 	issueId, _ := strconv.ParseInt(strings.TrimPrefix(string(match), "#"), 10, 0)
 	return int(issueId)
 }
