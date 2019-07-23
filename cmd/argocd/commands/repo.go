@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 	"text/tabwriter"
 
 	log "github.com/sirupsen/logrus"
@@ -23,7 +24,7 @@ import (
 func NewRepoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "repo",
-		Short: "Manage git repository credentials",
+		Short: "Manage git repository connection parameters",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
@@ -48,9 +49,21 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		tlsClientCertKeyPath           string
 		enableLfs                      bool
 	)
+
+	// For better readability and easier formatting
+	var repoAddExamples = []string{
+		"  Add a SSH repository using a private key for authentication, ignoring the server's host key:",
+		"    $ argocd repo add git@git.example.com --insecure-ignore-host-key --ssh-private-key-path ~/id_rsa",
+		"  Add a HTTPS repository using username/password and TLS client certificates:",
+		"    $ argocd repo add https://git.example.com --username git --password secret --tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key",
+		"  Add a HTTPS repository using username/password without verifying the server's TLS certificate:",
+		"    $ argocd repo add https://git.example.com --username git --password secret --insecure-skip-server-verification",
+	}
+
 	var command = &cobra.Command{
-		Use:   "add REPO",
-		Short: "Add git repository credentials",
+		Use:     "add REPOURL",
+		Short:   "Add git repository connection parameters",
+		Example: strings.Join(repoAddExamples, "\n"),
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
