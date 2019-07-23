@@ -62,14 +62,11 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                                         {certs.map((cert) => (
                                             <div className='argo-table-list__row' key={cert.type + "_" + cert.cipher + "_" + cert.servername}>
                                                 <div className='row'>
-                                                    <div className='columns small-3'>
+                                                    <div className='columns small-6'>
                                                         <i className='icon argo-icon-git'/> {cert.servername}
                                                     </div>
                                                     <div className='columns small-3'>
-                                                        {cert.type}
-                                                    </div>
-                                                    <div className='columns small-3'>
-                                                        {cert.cipher}
+                                                        {cert.type} {cert.cipher}
                                                     </div>
                                                     <div className='columns small-3'>
                                                             {cert.certinfo}
