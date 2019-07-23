@@ -154,14 +154,13 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	defer file.Close()
+
 	_, err = file.WriteString(c.sshPrivateKey)
 	if err != nil {
 		return nil, nil, err
 	}
-	err = file.Close()
-	if err != nil {
-		return nil, nil, err
-	}
+
 	args := []string{"ssh", "-i", file.Name()}
 	var env []string
 	if c.caPath != "" {
