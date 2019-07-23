@@ -45,8 +45,8 @@ func main() {
 	}
 	{
 		for _, branch := range branches {
-			fmt.Printf("## v%s\n\n", strings.TrimPrefix(branch, "origin/release-"))
-			fmt.Printf("%d issue(s)", len(branchIssueIds[branch]))
+			fmt.Printf("## v%s\n", strings.TrimPrefix(branch, "origin/release-"))
+			fmt.Printf("%d issue(s)\n\n", len(branchIssueIds[branch]))
 			for _, issueId := range branchIssueIds[branch] {
 				link := fmt.Sprintf("[#%d](https://github.com/argoproj/argo-cd/issues/%d)", issueId, issueId)
 				fmt.Printf("* %s\n", strings.Replace(issues[issueId].subject, fmt.Sprintf("#%d", issueId), link, -1))

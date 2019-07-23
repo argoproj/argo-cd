@@ -1,7 +1,8 @@
 # Changelog
 ## v1.1
+219 issue(s)
 
-219 issue(s)* Fix argocd app sync/get cli ([#1959](https://github.com/argoproj/argo-cd/issues/1959))
+* Fix argocd app sync/get cli ([#1959](https://github.com/argoproj/argo-cd/issues/1959))
 * Issue #1935 - `argocd app sync` hangs when cluster is not configured #1935 ([#1962](https://github.com/argoproj/argo-cd/issues/1962))
 * Remove unnecessary details from sync errors ([#1951](https://github.com/argoproj/argo-cd/issues/1951))
 * Issue #1919 - Eliminate unnecessary git interactions for top-level resource changes ([#1929](https://github.com/argoproj/argo-cd/issues/1929))
@@ -222,8 +223,9 @@
 * Issue [#191](https://github.com/argoproj/argo-cd/issues/191) - ArgoCD UI s/rollback/history/ and s/deploy/sync/
 
 ## v1.0
+108 issue(s)
 
-108 issue(s)* Cluster registration was unintentionally persisting client-cert auth credentials ([#1742](https://github.com/argoproj/argo-cd/issues/1742))
+* Cluster registration was unintentionally persisting client-cert auth credentials ([#1742](https://github.com/argoproj/argo-cd/issues/1742))
 * Public git creds ([#1633](https://github.com/argoproj/argo-cd/issues/1633))
 * Issue #1471 - Support configuring requested OIDC provider scopes and enforced RBAC scopes ([#1585](https://github.com/argoproj/argo-cd/issues/1585))
 * Issue #1533 - Prevent reconciliation loop for self-managed apps ([#1608](https://github.com/argoproj/argo-cd/issues/1608))
@@ -333,8 +335,9 @@
 * Update documentation for v0.12.0 ([#1227](https://github.com/argoproj/argo-cd/issues/1227))
 
 ## v0.12
+127 issue(s)
 
-127 issue(s)* Issue 1476 - Avoid validating repository in application controller ([#1535](https://github.com/argoproj/argo-cd/issues/1535))
+* Issue 1476 - Avoid validating repository in application controller ([#1535](https://github.com/argoproj/argo-cd/issues/1535))
 * Issue #1476 - Add repo server grpc call timeout ([#1528](https://github.com/argoproj/argo-cd/issues/1528))
 * Issue #1476 - Fix racing condition in controller cache ([#1485](https://github.com/argoproj/argo-cd/issues/1485))
 * Fix Failing Linter ([#1350](https://github.com/argoproj/argo-cd/issues/1350))
@@ -463,8 +466,9 @@
 * Add v0.11.0-rc1 to getting_started.md ([#919](https://github.com/argoproj/argo-cd/issues/919))
 
 ## v0.11
+149 issue(s)
 
-149 issue(s)* Adds client retry. Fixes #959 ([#1119](https://github.com/argoproj/argo-cd/issues/1119))
+* Adds client retry. Fixes #959 ([#1119](https://github.com/argoproj/argo-cd/issues/1119))
 * Prevent deletion hotloop. Improve reconciliation log for easier log queries ([#1115](https://github.com/argoproj/argo-cd/issues/1115))
 * Fix EncodeX509KeyPair function so it takes in account chained certificates ([#1137](https://github.com/argoproj/argo-cd/issues/1137))
 * Exclude metrics.k8s.io from watch ([#1128](https://github.com/argoproj/argo-cd/issues/1128))
@@ -615,8 +619,9 @@
 * Update getting_started to use v0.10.0 ([#714](https://github.com/argoproj/argo-cd/issues/714))
 
 ## v0.10
+34 issue(s)
 
-34 issue(s)* Update to 0.10.6 also in kustomization ([#816](https://github.com/argoproj/argo-cd/issues/816))
+* Update to 0.10.6 also in kustomization ([#816](https://github.com/argoproj/argo-cd/issues/816))
 * Fix issue preventing in-cluster app sync due to go-client changes (issue [#774](https://github.com/argoproj/argo-cd/issues/774))
 * add argo cluster permission to view logs ([#766](https://github.com/argoproj/argo-cd/issues/766))
 * Update dependencies to k8s v1.12 and client-go v9.0 ([#729](https://github.com/argoproj/argo-cd/issues/729))
@@ -652,8 +657,9 @@
 * Update documentation with auto-sync and projects (issue #521) ([#616](https://github.com/argoproj/argo-cd/issues/616))
 
 ## v0.9
+40 issue(s)
 
-40 issue(s)* Add version check during release to ensure compiled version is accurate ([#646](https://github.com/argoproj/argo-cd/issues/646))
+* Add version check during release to ensure compiled version is accurate ([#646](https://github.com/argoproj/argo-cd/issues/646))
 * Fix issue where argocd-server logged credentials in plain text during repo add (issue [#653](https://github.com/argoproj/argo-cd/issues/653))
 * Switch to go-git for all remote git interactions including auth (issue [#651](https://github.com/argoproj/argo-cd/issues/651))
 * Do not append .git extension during normalization for Azure hosted git (issue #643) ([#645](https://github.com/argoproj/argo-cd/issues/645))
@@ -695,8 +701,9 @@
 * Update documentation for v0.8.0 ([#550](https://github.com/argoproj/argo-cd/issues/550))
 
 ## v0.8
+33 issue(s)
 
-33 issue(s)* Fix issue where helm hooks were being deployed as part of sync (issue [#605](https://github.com/argoproj/argo-cd/issues/605))
+* Fix issue where helm hooks were being deployed as part of sync (issue [#605](https://github.com/argoproj/argo-cd/issues/605))
 * Support helm charts with dependencies and namespace sensitivity (issue [#582](https://github.com/argoproj/argo-cd/issues/582))
 * Issue #584 - ArgoCD fails to deploy resources list ([#598](https://github.com/argoproj/argo-cd/issues/598))
 * Fix comparison failure when app contains unregistered custom resource (issue #583) ([#596](https://github.com/argoproj/argo-cd/issues/596))
@@ -731,8 +738,9 @@
 * Support UI cluster creation ([#469](https://github.com/argoproj/argo-cd/issues/469))
 
 ## v0.7
+32 issue(s)
 
-32 issue(s)* API discovery becomes best effort when partial resource list is returned (resolves #524) ([#525](https://github.com/argoproj/argo-cd/issues/525))
+* API discovery becomes best effort when partial resource list is returned (resolves #524) ([#525](https://github.com/argoproj/argo-cd/issues/525))
 * Update manifests and install instructions for v0.7.1 ([#496](https://github.com/argoproj/argo-cd/issues/496))
 * Fix 404 error in repo API ([#495](https://github.com/argoproj/argo-cd/issues/495))
 * Issue #474 - ListApps API does not scale ([#494](https://github.com/argoproj/argo-cd/issues/494))
@@ -766,8 +774,9 @@
 * Issue #340 - add gRPC payload logging interceptor ([#434](https://github.com/argoproj/argo-cd/issues/434))
 
 ## v0.6
+61 issue(s)
 
-61 issue(s)* Health check was using wrong converter for statefulsets, daemonset, replicasets ([#439](https://github.com/argoproj/argo-cd/issues/439))
+* Health check was using wrong converter for statefulsets, daemonset, replicasets ([#439](https://github.com/argoproj/argo-cd/issues/439))
 * Add UI GIF, docs for application health, resource hooks, tweaks to README.md ([#429](https://github.com/argoproj/argo-cd/issues/429))
 * Issue #428 - Add GKE specific installation instructions ([#430](https://github.com/argoproj/argo-cd/issues/430))
 * Issue #351 - forward dex error message to login page ([#425](https://github.com/argoproj/argo-cd/issues/425))
@@ -830,8 +839,9 @@
 * Issue #295 - add project CRD, basic API and CLI implementation ([#299](https://github.com/argoproj/argo-cd/issues/299))
 
 ## v0.5
+26 issue(s)
 
-26 issue(s)* Support cluster management using the internal k8s API address https://kubernetes.default.svc ([#307](https://github.com/argoproj/argo-cd/issues/307))
+* Support cluster management using the internal k8s API address https://kubernetes.default.svc ([#307](https://github.com/argoproj/argo-cd/issues/307))
 * Support diffing a local ksonnet app to the live application state (resolves #239) ([#298](https://github.com/argoproj/argo-cd/issues/298))
 * Add ability to show last operation result in `app get`. Show path in `app list -o wide` ([#297](https://github.com/argoproj/argo-cd/issues/297))
 * Update dependencies: ksonnet v0.11, golang v1.10, debian v9.4 ([#296](https://github.com/argoproj/argo-cd/issues/296))
@@ -859,8 +869,9 @@
 * Issue #244 - Cluster/Repository connection status ([#248](https://github.com/argoproj/argo-cd/issues/248))
 
 ## v0.4
+121 issue(s)
 
-121 issue(s)* Take into account number of unavailable replicas to decided if deployment is healthy or not ([#270](https://github.com/argoproj/argo-cd/issues/270))
+* Take into account number of unavailable replicas to decided if deployment is healthy or not ([#270](https://github.com/argoproj/argo-cd/issues/270))
 * Remove hard requirement of initializing OIDC app during server startup (resolves [#272](https://github.com/argoproj/argo-cd/issues/272))
 * Repo names containing underscores were not being accepted (resolves [#258](https://github.com/argoproj/argo-cd/issues/258))
 * Add ability to show parameters and overrides in CLI (resolves #240) ([#247](https://github.com/argoproj/argo-cd/issues/247))
