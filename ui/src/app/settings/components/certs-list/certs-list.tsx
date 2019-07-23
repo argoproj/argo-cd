@@ -143,6 +143,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                     </div>
                 )}>
                     <h4>Create SSH known host entries</h4>
+                    <p>Paste SSH known hosts data below, one entry per line. Make sure there are no linebreaks in the keys.</p>
                     <Form onSubmit={(params) => this.addSSHKnownHosts(params as NewSSHKnownHostParams)}
                           getApi={(api) => this.formApi = api}
                           preSubmit={(params: NewSSHKnownHostParams) => ({
