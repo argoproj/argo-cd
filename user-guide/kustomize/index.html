@@ -1039,16 +1039,16 @@
                 
                 
                 <h1 id="kustomize">Kustomize<a class="headerlink" href="#kustomize" title="Permanent link">&para;</a></h1>
-<div class="admonition warning kustomize 1 vs 2">
+<div class="admonition warning kustomize 1 vs 3">
 <p class="admonition-title">Warning</p>
 <p>Argo CD supports both versions, and auto-detects then by looking for <code>apiVersion/kind</code> is <code>kustomize.yaml</code>. 
-You're probably using version 2 now, so make sure you you have those fields.</p>
+You're probably using version 3 now, so make sure you you have those fields.</p>
 </div>
 <p>You have three configuration options for Kustomize:</p>
 <ul>
 <li><code>namePrefix</code> is a prefix appended to resources for Kustomize apps</li>
 <li><code>imageTags</code> is a list of Kustomize 1.0 image tag overrides</li>
-<li><code>images</code> is a list of Kustomize 2.0 image overrides</li>
+<li><code>images</code> is a list of Kustomize 3.0 image overrides</li>
 </ul>
 <p>To use Kustomize with an overlay, point your path to the overlay.</p>
 <div class="admonition tip">

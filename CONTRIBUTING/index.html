@@ -1116,6 +1116,7 @@
 <p>Install:</p>
 <ul>
 <li><a href="https://docs.docker.com/install/#supported-platforms">docker</a></li>
+<li><a href="https://git-scm.com/">git</a> and <a href="https://git-lfs.github.com/">git-lfs</a></li>
 <li><a href="https://golang.org/">golang</a></li>
 <li><a href="https://github.com/golang/dep">dep</a></li>
 <li><a href="https://developers.google.com/protocol-buffers/">protobuf</a></li>
@@ -1142,7 +1143,7 @@ version: v0.19.0
 
 <p>Brew users can quickly install the lot:</p>
 <div class="codehilite"><pre><span></span>brew tap go-swagger/go-swagger
-brew install go dep protobuf kubectl kubectx ksonnet/tap/ks kubernetes-helm jq go-swagger kustomize 
+brew install git-lfs go dep protobuf kubectl kubectx ksonnet/tap/ks kubernetes-helm jq go-swagger kustomize 
 </pre></div>
 
 
@@ -1168,6 +1169,12 @@ brew install go dep protobuf kubectl kubectx ksonnet/tap/ks kubernetes-helm jq g
 
 
 <h2 id="building">Building<a class="headerlink" href="#building" title="Permanent link">&para;</a></h2>
+<p>Ensure dependencies are up to date first:</p>
+<div class="codehilite"><pre><span></span>make dep
+</pre></div>
+
+
+<p>Build <code>cli</code>, <code>image</code>, and <code>argocd-util</code> as default targets by running make:</p>
 <div class="codehilite"><pre><span></span>make
 </pre></div>
 
