@@ -54,21 +54,21 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                                     <div className='argo-table-list'>
                                         <div className='argo-table-list__head'>
                                             <div className='row'>
-                                                <div className='columns small-6'>SERVER NAME</div>
+                                                <div className='columns small-3'>SERVER NAME</div>
                                                 <div className='columns small-3'>CERT TYPE</div>
-                                                <div className='columns small-3'>CERT INFO</div>
+                                                <div className='columns small-6'>CERT INFO</div>
                                             </div>
                                         </div>
                                         {certs.map((cert) => (
                                             <div className='argo-table-list__row' key={cert.type + "_" + cert.cipher + "_" + cert.servername}>
                                                 <div className='row'>
-                                                    <div className='columns small-6'>
+                                                    <div className='columns small-3'>
                                                         <i className='icon argo-icon-git'/> {cert.servername}
                                                     </div>
                                                     <div className='columns small-3'>
                                                         {cert.type} {cert.cipher}
                                                     </div>
-                                                    <div className='columns small-3'>
+                                                    <div className='columns small-6'>
                                                             {cert.certinfo}
                                                         <DropDownMenu anchor={() => <button
                                                             className='argo-button argo-button--light argo-button--lg argo-button--short'>
@@ -203,10 +203,9 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
 
     private async removeCert(serverName: string, certType: string, certSubType: string) {
         const confirmed = await this.appContext.apis.popup.confirm(
-            "Remove certificate", "Are you sure you want to remove certificate?");
+            "Remove certificate", "Are you sure you want to remove " + certType + "certificate for " + serverName + "?");
         if (confirmed) {
             await services.certs.delete(serverName, certType, certSubType)
-            this.appContext.apis.popup.confirm("Ok", "OK")
             this.loader.reload();
         }
     }
