@@ -205,7 +205,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
 
     private async removeCert(serverName: string, certType: string, certSubType: string) {
         const confirmed = await this.appContext.apis.popup.confirm(
-            'Remove certificate', 'Are you sure you want to remove ' + certType + 'certificate for ' + serverName + '?');
+            'Remove certificate', 'Are you sure you want to remove ' + certType + ' certificate for ' + serverName + '?');
         if (confirmed) {
             await services.certs.delete(serverName, certType, certSubType);
             this.loader.reload();
