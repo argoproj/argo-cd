@@ -78,6 +78,7 @@ func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
 		// must be removed.
 		certFile, err := ioutil.TempFile(util.TempDir, "")
 		if err == nil {
+			defer certFile.Close()
 			keyFile, err = ioutil.TempFile(util.TempDir, "")
 			if err != nil {
 				removeErr := os.Remove(certFile.Name())
@@ -86,6 +87,7 @@ func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
 				}
 				return NopCloser{}, nil, err
 			}
+			defer keyFile.Close()
 		} else {
 			return NopCloser{}, nil, err
 		}
@@ -100,7 +102,6 @@ func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
 		}
 		// GIT_SSL_CERT is the full path to a client certificate to be used
 		env = append(env, fmt.Sprintf("GIT_SSL_CERT=%s", certFile.Name()))
-		certFile.Close()
 
 		_, err = keyFile.WriteString(c.clientCertKey)
 		if err != nil {
@@ -109,7 +110,6 @@ func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
 		}
 		// GIT_SSL_KEY is the full path to a client certificate's key to be used
 		env = append(env, fmt.Sprintf("GIT_SSL_KEY=%s", keyFile.Name()))
-		keyFile.Close()
 
 	}
 	return httpCloser, env, nil
