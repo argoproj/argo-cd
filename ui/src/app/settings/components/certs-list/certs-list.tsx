@@ -28,7 +28,8 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
         history: PropTypes.object,
     };
 
-    private formApi: FormApi;
+    private formApiTLS: FormApi;
+    private formApiSSH: FormApi;
     private loader: DataLoader;
 
     public render() {
@@ -99,7 +100,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                 </div>
                 <SlidingPanel isShown={this.showAddTLSCertificate} onClose={() => this.showAddTLSCertificate = false} header={(
                     <div>
-                        <button className='argo-button argo-button--base' onClick={() => this.formApi.submitForm(null)}>
+                        <button className='argo-button argo-button--base' onClick={() => this.formApiTLS.submitForm(null)}>
                             Create
                         </button>
                         <button onClick={() => this.showAddTLSCertificate = false}
@@ -110,7 +111,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                 )}>
                     <h4>Create TLS repository certificate</h4>
                     <Form onSubmit={(params) => this.addTLSCertificate(params as NewTLSCertParams)}
-                          getApi={(api) => this.formApi = api}
+                          getApi={(api) => this.formApiTLS = api}
                           preSubmit={(params: NewTLSCertParams) => ({
                               servername: params.servername,
                               certdata: btoa(params.certdata),
@@ -119,13 +120,13 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                               servername: !params.servername && 'Repository server name is required',
                               certdata: !params.certdata && 'Certificate data is required',
                           })}>
-                        {(formApi) => (
-                            <form onSubmit={formApi.submitForm} role='form' className='width-control' encType='multipart/form-data'>
+                        {(formApiTLS) => (
+                            <form onSubmit={formApiTLS.submitForm} role='form' className='width-control' encType='multipart/form-data'>
                                 <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Repository server name' field='servername' component={Text}/>
+                                    <FormField formApi={formApiTLS} label='Repository server name' field='servername' component={Text}/>
                                 </div>
                                 <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='TLS certificate (PEM format)' field='certdata' component={TextArea}/>
+                                    <FormField formApi={formApiTLS} label='TLS certificate (PEM format)' field='certdata' component={TextArea}/>
                                 </div>
                            </form>
                         )}
@@ -133,7 +134,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                 </SlidingPanel>
                 <SlidingPanel isShown={this.showAddSSHKnownHosts} onClose={() => this.showAddSSHKnownHosts = false} header={(
                     <div>
-                        <button className='argo-button argo-button--base' onClick={() => this.formApi.submitForm(null)}>
+                        <button className='argo-button argo-button--base' onClick={() => this.formApiSSH.submitForm(null)}>
                             Create
                         </button>
                         <button onClick={() => this.showAddSSHKnownHosts = false}
@@ -145,17 +146,17 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                     <h4>Create SSH known host entries</h4>
                     <p>Paste SSH known hosts data below, one entry per line. Make sure there are no linebreaks in the keys.</p>
                     <Form onSubmit={(params) => this.addSSHKnownHosts(params as NewSSHKnownHostParams)}
-                          getApi={(api) => this.formApi = api}
+                          getApi={(api) => this.formApiSSH = api}
                           preSubmit={(params: NewSSHKnownHostParams) => ({
                               data: btoa(params.data),
                           })}
                           validateError={(params: NewSSHKnownHostParams) => ({
                               data: !params.data && 'SSH known hosts data is required',
                           })}>
-                        {(formApi) => (
-                            <form onSubmit={formApi.submitForm} role='form' className='width-control' encType='multipart/form-data'>
+                        {(formApiSSH) => (
+                            <form onSubmit={formApiSSH.submitForm} role='form' className='width-control' encType='multipart/form-data'>
                                 <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='SSH known hosts data' field='data' component={TextArea}/>
+                                    <FormField formApi={formApiSSH} label='SSH known hosts data' field='data' component={TextArea}/>
                                 </div>
                            </form>
                         )}
