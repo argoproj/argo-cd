@@ -7,7 +7,6 @@ commands:
       - install_tools
       - clean_checkout
       - configure_git
-      - install_go_deps
       - dep_ensure
   configure_git:
     steps:
@@ -26,13 +25,6 @@ commands:
           name: Remove checked out code
           command: rm -Rf /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
       - checkout
-  install_go_deps:
-    steps:
-      - run:
-          name: Install Go deps
-          command: |
-            set -x
-            make install-dev-tools
   dep_ensure:
     steps:
       - restore_cache:
@@ -73,14 +65,6 @@ commands:
             - dl-v4
             - dl-v3
       - run:
-          name: Install JQ v1.6
-          command: |
-            set -x
-            [ -e /tmp/dl/jq ] || curl -sLf -C - -o /tmp/dl/jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
-            sudo cp /tmp/dl/jq /usr/local/bin/jq
-            sudo chmod +x /usr/local/bin/jq
-            jq --version
-      - run:
           name: Install Kubectx v0.6.3
           command: |
             set -x
@@ -99,14 +83,6 @@ commands:
             sudo cp /tmp/dl/dep /usr/local/go/bin/dep
             sudo chmod +x /usr/local/go/bin/dep
             dep version
-      - run:
-          name: Install Go Swagger v0.19.0
-          command: |
-            set -x
-            [ -e /tmp/dl/swagger ] || curl -sLf -C - -o /tmp/dl/swagger https://github.com/go-swagger/go-swagger/releases/download/v0.19.0/swagger_linux_amd64
-            sudo cp /tmp/dl/swagger /usr/local/bin/swagger
-            sudo chmod +x /usr/local/bin/swagger
-            swagger version
       - run:
           name: Install Ksonnet v0.13.1
           command: |
@@ -142,15 +118,6 @@ commands:
             sudo cp /tmp/dl/kustomize_${VER} /usr/local/go/bin/kustomize
             sudo chmod +x /usr/local/go/bin/kustomize
             kustomize version
-      - run:
-          name: Install Protobuf compiler v3.7.1
-          command: |
-            set -x
-            [ -e /tmp/dl/protoc.zip ] || curl -sLf -C - -o /tmp/dl/protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v3.7.1/protoc-3.7.1-linux-x86_64.zip
-            sudo unzip /tmp/dl/protoc.zip bin/protoc -d /usr/local/
-            sudo chmod +x /usr/local/bin/protoc
-            sudo unzip /tmp/dl/protoc.zip include/* -d /usr/local/
-            protoc --version
       - run:
           name: Install Git LFS plugin
           command: |
