@@ -208,6 +208,9 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                     }
                 }
             });
+            if (knownHostEntries.length === 0) {
+                throw new Error('No valid known hosts data entered');
+            }
             await services.certs.create({items: knownHostEntries, metadata: null});
             this.showAddSSHKnownHosts = false;
             this.loader.reload();
