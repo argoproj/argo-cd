@@ -2859,6 +2859,13 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicyAutomated(ref common.Referen
 							Format:      "",
 						},
 					},
+					"selfHeal": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SelfHeal enables auto-syncing if  (default: false)",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
