@@ -84,7 +84,7 @@ cat cert1.pem cert2.pem | argocd cert add-tls git.example.com --upsert
 
 You can also manage TLS certificates in a declarative, self-managed ArgoCD setup. All TLS certificates are stored in the ConfigMap object `argocd-tls-cert-cm`.
 
-Managing TLS certificates via the web UI is currently not possible.
+Managing TLS certificates via the web UI is currently not possible, but will be introduced with **v1.3**
 
 > Before v1.2
 
@@ -120,7 +120,7 @@ argocd cert add-ssh --batch --from /etc/ssh/ssh_known_hosts
 
 You can also manage SSH known hosts entries in a declarative, self-managed ArgoCD setup. All SSH public host keys are stored in the ConfigMap object `argocd-ssh-known-hosts-cm`.
 
-Managing SSH public host keys via the web UI is currently not possible.
+Managing SSH public host keys via the web UI is currently not possible, but will be introduced with **v1.3**
 
 > Before v1.2
 
