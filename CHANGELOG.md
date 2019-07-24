@@ -9,13 +9,13 @@
 Sync waves feature allows executing a sync operation in a number of steps or waves. Within each synchronization phase (pre-sync, sync, post-sync) you can have one or more waves,
 than allows you to ensure certain resources are healthy before subsequent resources are synced.
 
-#### Optimized interaction with Git
+#### Optimized Interaction With Git
 
 Argo CD needs to execute `git fetch` operation to access application manifests and `git ls-remote` to resolve ambiguous git revision. The `git ls-remote` is executed very frequently
 and although the operation is very lightweight it adds unnecessary load on Git server and might cause performance issues. In v1.1 release, the application reconciliation process was
 optimized which significantly reduced the number of Git requests. With v1.1 release, Argo CD should send 3x ~ 5x fewer Git requests.
 
-#### User defined Application metadata
+#### User Defined Application Metadata
 
 User-defined Application metadata enables the user to define a list of useful URLs for their specific application and expose those links on the UI
 (e.g. reference tp a CI pipeline or an application-specific management tool). These links should provide helpful shortcuts that make easier to integrate Argo CD into existing
@@ -67,6 +67,7 @@ systems by making it easier to find other components inside and outside Argo CD.
 - Use correct healthcheck for Rollout with empty steps list (#1776)
 
 #### Other
+
 - Add Prometheus metrics for git repo interactions (#1912)
 - App controller should log additional information during app syncing (#1909)
 - Make sure api server to repo server grpc calls have timeout (#1820)
