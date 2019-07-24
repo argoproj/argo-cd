@@ -39,6 +39,8 @@ Commands have access to
 
 (3) Variables in the application spec:
 
+> v1.2
+
 ```yaml
 spec:
   source:
