@@ -198,9 +198,15 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                         // Perform a little sanity check on the data - server
                         // checks too, but let's not send it invalid data in
                         // the first place.
-                        const subType = knownHosts[1].match(/^(ssh\-[a-z0-9]+|ecdsa-[a-z0-9\-]+)$/ig)
+                        const subType = knownHosts[1].match(/^(ssh\-[a-z0-9]+|ecdsa-[a-z0-9\-]+)$/ig);
                         if (subType != null) {
-                            knownHostEntries = knownHostEntries.concat({servername: knownHosts[0], type: 'ssh', cipher: knownHosts[1], certdata: btoa(knownHosts[2]), certinfo: '' });
+                            knownHostEntries = knownHostEntries.concat({
+                                servername: knownHosts[0],
+                                type: 'ssh',
+                                cipher: knownHosts[1],
+                                certdata: btoa(knownHosts[2]),
+                                certinfo: '',
+                            });
                         }
                     }
                 }
