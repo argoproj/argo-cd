@@ -166,9 +166,13 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                         )}
                     </Form>
                 </SlidingPanel>
-
             </Page>
         );
+    }
+
+    private clearForms() {
+        this.formApiSSH.setAllValues({data: ''});
+        this.formApiTLS.setAllValues({servername: '', certdata: ''});
     }
 
     private async addTLSCertificate(params: NewTLSCertParams) {
@@ -236,6 +240,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
     }
 
     private set showAddTLSCertificate(val: boolean) {
+        this.clearForms();
         this.appContext.router.history.push(`${this.props.match.url}?addTLSCert=${val}`);
     }
 
@@ -244,6 +249,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
     }
 
     private set showAddSSHKnownHosts(val: boolean) {
+        this.clearForms();
         this.appContext.router.history.push(`${this.props.match.url}?addSSHKnownHosts=${val}`);
     }
 
