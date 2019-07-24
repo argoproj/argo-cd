@@ -31,7 +31,9 @@ export const ApplicationSummary = (props: {
     const attributes = [
         {
             title: 'PROJECT',
-            view: app.spec.project,
+            view: (
+                <a href={'/settings/projects/' + app.spec.project}>{app.spec.project}</a>
+            ),
             edit: (formApi: FormApi) => (
                 <DataLoader load={() => services.projects.list().then((projs) => projs.map((item) => item.metadata.name))}>
                     {(projects) => <FormField formApi={formApi} field='spec.project' component={FormSelect} componentProps={{options: projects}} />}
