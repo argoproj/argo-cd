@@ -88,8 +88,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                                         <h5>You can add further certificates below..</h5>
                                         <button className='argo-button argo-button--base'
                                                 onClick={() => this.showAddTLSCertificate = true}>Add TLS certificates
-                                        </button>
-                                        <button className='argo-button argo-button--base'
+                                        </button> <button className='argo-button argo-button--base'
                                                 onClick={() => this.showAddSSHKnownHosts = true}>Add SSH known hosts
                                         </button>
                                     </EmptyState>
@@ -102,8 +101,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                     <div>
                         <button className='argo-button argo-button--base' onClick={() => this.formApiTLS.submitForm(null)}>
                             Create
-                        </button>
-                        <button onClick={() => this.showAddTLSCertificate = false}
+                        </button> <button onClick={() => this.showAddTLSCertificate = false}
                                 className='argo-button argo-button--base-o'>
                             Cancel
                         </button>
@@ -136,8 +134,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                     <div>
                         <button className='argo-button argo-button--base' onClick={() => this.formApiSSH.submitForm(null)}>
                             Create
-                        </button>
-                        <button onClick={() => this.showAddSSHKnownHosts = false}
+                        </button> <button onClick={() => this.showAddSSHKnownHosts = false}
                                 className='argo-button argo-button--base-o'>
                             Cancel
                         </button>
