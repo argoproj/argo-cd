@@ -11,7 +11,7 @@ export class CertificatesService {
     }
 
     public delete(serverName: string, certType: string, certSubType: string): Promise<models.RepoCert> {
-        return requests.delete('/certificates').query({hostNamePattern: serverName, certType: certType, certSubType: certSubType})
+        return requests.delete('/certificates').query({hostNamePattern: serverName, certType, certSubType})
             .send().then((res) => res.body as models.RepoCert);
     }
 
