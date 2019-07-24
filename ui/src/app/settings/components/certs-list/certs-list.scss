@@ -33,13 +33,12 @@
         }
     }
 
-
+    textarea.argo-field {
+        height: 25em;
+        width: 1024em;
+        white-space: pre;
+        overflow-wrap: normal;
+        overflow-x: scroll;
+    }
 }
 
-textarea.argo-field {
-    height: 25em;
-    width: 1024em;
-    white-space: pre;
-    overflow-wrap: normal;
-    overflow-x: scroll;
-}

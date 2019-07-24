@@ -121,7 +121,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                               certdata: !params.certdata && 'Certificate data is required',
                           })}>
                         {(formApiTLS) => (
-                            <form onSubmit={formApiTLS.submitForm} role='form' className='width-control' encType='multipart/form-data'>
+                            <form onSubmit={formApiTLS.submitForm} role='form' className='certs-list width-control' encType='multipart/form-data'>
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApiTLS} label='Repository server name' field='servername' component={Text}/>
                                 </div>
@@ -154,7 +154,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                               data: !params.data && 'SSH known hosts data is required',
                           })}>
                         {(formApiSSH) => (
-                            <form onSubmit={formApiSSH.submitForm} role='form' className='width-control' encType='multipart/form-data'>
+                            <form onSubmit={formApiSSH.submitForm} role='form' className='certs-list width-control' encType='multipart/form-data'>
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApiSSH} label='SSH known hosts data' field='data' component={TextArea}/>
                                 </div>
