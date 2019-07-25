@@ -363,6 +363,8 @@ type SyncPolicy struct {
 type SyncPolicyAutomated struct {
 	// Prune will prune resources automatically as part of automated sync (default: false)
 	Prune bool `json:"prune,omitempty" protobuf:"bytes,1,opt,name=prune"`
+	// SelfHeal enables auto-syncing if  (default: false)
+	SelfHeal bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
 }
 
 // SyncStrategy controls the manner in which a sync is performed

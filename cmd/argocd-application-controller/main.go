@@ -40,6 +40,7 @@ func newCommand() *cobra.Command {
 		appResyncPeriod          int64
 		repoServerAddress        string
 		repoServerTimeoutSeconds int
+		selfHealTimeoutSeconds   int
 		statusProcessors         int
 		operationProcessors      int
 		logLevel                 string
@@ -82,6 +83,7 @@ func newCommand() *cobra.Command {
 				repoClientset,
 				cache,
 				resyncDuration,
+				time.Duration(selfHealTimeoutSeconds)*time.Second,
 				metricsPort)
 			errors.CheckError(err)
 
@@ -106,6 +108,8 @@ func newCommand() *cobra.Command {
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDMetrics, "Start metrics server on given port")
+	command.Flags().IntVar(&selfHealTimeoutSeconds, "self-heal-timeout-seconds", 5, "Specifies timeout between application self heal attempts")
+
 	cacheSrc = cache.AddCacheFlagsToCmd(&command)
 	return &command
 }
