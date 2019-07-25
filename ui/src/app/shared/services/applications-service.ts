@@ -90,7 +90,7 @@ export class ApplicationsService {
         } else {
             strategy = {hook: {}};
         }
-        return requests.post(`/applications/${name}/sync`).send({revision, prune: !!prune, dryRun: !!dryRun, strategy: {strategy}, resources}).then(() => true);
+        return requests.post(`/applications/${name}/sync`).send({revision, prune: !!prune, dryRun: !!dryRun, strategy, resources}).then(() => true);
     }
 
     public rollback(name: string, id: number): Promise<boolean> {

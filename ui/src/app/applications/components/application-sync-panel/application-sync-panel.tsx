@@ -73,7 +73,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {
                                     </span> <span>
                                         <Checkbox id='dry-run-checkbox' field='dryRun'/> <label htmlFor='dry-run-checkbox'>Dry Run</label>
                                     </span> <span>
-+                                        <Checkbox id='apply-only-checkbox' field='applyOnly'/> <label htmlFor='apply-only-checkbox'>Apply Only</label>
+                                        <Checkbox id='apply-only-checkbox' field='applyOnly'/> <label htmlFor='apply-only-checkbox'>Apply Only</label>
                                      </span>
                                 </div>
                                 <label>Synchronize resources:</label>
