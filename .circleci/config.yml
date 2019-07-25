@@ -315,6 +315,9 @@ jobs:
       - store_test_results:
           path: junit.xml
       - run:
+        name: Build
+        command: yarn build
+      - run:
           name: Lint
           command: yarn lint
 workflows:
