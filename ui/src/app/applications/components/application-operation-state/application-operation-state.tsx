@@ -138,7 +138,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                                 <div className='columns large-1 show-for-large'>
                                     {resource.hookType}
                                 </div>
-                                <div className='columns large-4 small-8 nowrap'>
+                                <div className='columns large-4 small-8 wrap'>
                                     {resource.message}
                                 </div>
                             </div>

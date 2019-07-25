@@ -887,7 +887,7 @@ are-we-there-yet@~1.1.2:
 
 "argo-ui@https://github.com/alexec/argo-ui.git#nowrap":
   version "1.0.0"
-  resolved "https://github.com/alexec/argo-ui.git#678f9c940344da04e7cb0f3d68a1606efaf0f652"
+  resolved "https://github.com/alexec/argo-ui.git#cfb82f43a6e3070ec0c8d957c7ff82586a97af3a"
   dependencies:
     "@fortawesome/fontawesome-free" "^5.8.1"
     "@tippy.js/react" "^2.1.2"
