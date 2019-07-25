@@ -7,6 +7,8 @@ import * as models from '../../../shared/models';
 import { ApplicationURLs } from '../application-urls';
 import * as AppUtils from '../utils';
 
+require('./applications-tiles.scss');
+
 export interface ApplicationTilesProps {
     applications: models.Application[];
     syncApplication: (appName: string) => any;
@@ -16,7 +18,7 @@ export interface ApplicationTilesProps {
 export const ApplicationTiles = ({applications, syncApplication, deleteApplication}: ApplicationTilesProps) => (
     <Consumer>
     {(ctx) => (
-    <div className='argo-table-list argo-table-list--clickable row small-up-1 medium-up-2 large-up-4'>
+    <div className='applications-tiles argo-table-list argo-table-list--clickable row small-up-1 medium-up-2 large-up-3'>
         {applications.map((app) => (
             <div key={app.metadata.name} className='column column-block'>
                 <div className={`argo-table-list__row
@@ -63,10 +65,8 @@ export const ApplicationTiles = ({applications, syncApplication, deleteApplicati
                             </div>
                             <div className='row'>
                                 <div className='columns small-3'>Namespace:</div>
-                                <div className='columns small-9'>
-                                    <Tooltip content={app.spec.destination.namespace}>
-                                        <span>{app.spec.destination.namespace}</span>
-                                    </Tooltip>
+                                <div className='columns small-9 wrap'>
+                                    {app.spec.destination.namespace}
                                 </div>
                             </div>
                             <div className='row'>

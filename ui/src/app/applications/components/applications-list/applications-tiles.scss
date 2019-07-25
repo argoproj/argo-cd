@@ -1,0 +1,9 @@
+@import 'node_modules/argo-ui/src/app/shared/styles/config';
+@import 'node_modules/foundation-sites/scss/util/util';
+
+.applications-tiles {
+    .argo-table-list__row {
+        padding-top: 0;
+        padding-bottom: 0;
+    }
+}
