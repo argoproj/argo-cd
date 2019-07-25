@@ -198,7 +198,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                         }}
                                         />
                                 ) || (
-                                    <div className='argo-container'>
+                                    <div>
                                         {filteredRes.length > 0 && (
                                             <Paginate page={this.state.page} data={filteredRes} onPageChange={(page) => this.setState({page})} preferencesKey='application-details'>
                                             {(data) => (
