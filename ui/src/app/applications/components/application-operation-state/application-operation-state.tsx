@@ -1,4 +1,4 @@
-import { Duration, NotificationType, Ticker, Tooltip } from 'argo-ui';
+import { Duration, NotificationType, Ticker } from 'argo-ui';
 import * as moment from 'moment';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -138,8 +138,8 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                                 <div className='columns large-1 show-for-large'>
                                     {resource.hookType}
                                 </div>
-                                <div className='columns large-4 small-8'>
-                                    <Tooltip content={resource.message}><span>{resource.message}</span></Tooltip>
+                                <div className='columns large-4 small-8 wrap'>
+                                    {resource.message}
                                 </div>
                             </div>
                         </div>
