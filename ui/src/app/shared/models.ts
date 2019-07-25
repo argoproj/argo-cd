@@ -343,6 +343,16 @@ export interface ConnectionState {
     attemptedAt: models.Time;
 }
 
+export interface RepoCert {
+    servername: string;
+    type: string;
+    cipher: string;
+    certdata: string;
+    certinfo: string;
+}
+
+export interface RepoCertList extends ItemsList<RepoCert> { }
+
 export interface Repository {
     repo: string;
     connectionState: ConnectionState;

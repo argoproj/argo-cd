@@ -4,7 +4,7 @@ import * as React from 'react';
 import {Form, FormApi, Text} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 
-import {ConnectionStateIcon, DataLoader, EmptyState, ErrorNotification, Page} from '../../../shared/components';
+import {CheckboxField, ConnectionStateIcon, DataLoader, EmptyState, ErrorNotification, Page} from '../../../shared/components';
 import {Repo} from '../../../shared/components/repo';
 import {AppContext} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -16,6 +16,8 @@ interface NewRepoParams {
     url: string;
     username: string;
     password: string;
+    insecure: boolean;
+    enableLfs: boolean;
 }
 
 export class ReposList extends React.Component<RouteComponentProps<any>> {
@@ -118,6 +120,12 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Password' field='password' component={Text}
                                                componentProps={{type: 'password'}}/>
+                                </div>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField}/>
+                                </div>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Enable LFS support' field='enableLfs' component={CheckboxField}/>
                                 </div>
                             </form>
                         )}

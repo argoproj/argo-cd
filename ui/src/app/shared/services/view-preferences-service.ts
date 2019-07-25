@@ -5,6 +5,7 @@ export type AppsDetailsViewType = 'tree' | 'network' | 'list';
 export interface AppDetailsPreferences {
     resourceFilter: string[];
     view: AppsDetailsViewType;
+    resourceView: 'manifest' | 'diff';
     hideDefaultedFields: boolean;
     inlineDiff: boolean;
     compactDiff: boolean;
@@ -51,6 +52,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         hideDefaultedFields: false,
         inlineDiff: false,
         compactDiff: false,
+        resourceView: 'manifest',
     },
     appList: {
         view: 'tiles' as AppsListViewType,

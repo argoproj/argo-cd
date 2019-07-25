@@ -65,23 +65,12 @@ openapigen:
 clientgen:
 	./hack/update-codegen.sh
 
-.PHONY: codegen
-codegen: protogen clientgen openapigen manifests
+.PHONY: codegen-local
+codegen-local: protogen clientgen openapigen manifests
 
-.PHONY: install-dev-tools
-install-dev-tools:
-	cd ./hack && \
-	GO111MODULE=on go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.0-alpha.2 && \
-	GO111MODULE=on go get github.com/gobuffalo/packr/packr@v1.30.1 && \
-	GO111MODULE=on go get github.com/gogo/protobuf/gogoproto@v1.2.1 && \
-	GO111MODULE=on go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.0-beta.2 && \
-	GO111MODULE=on go get github.com/golang/protobuf/protoc-gen-go@v1.3.1 && \
-	GO111MODULE=on go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.17.1 && \
-	GO111MODULE=on go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway@v1.9.2 && \
-	GO111MODULE=on go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger@v1.9.2 && \
-	GO111MODULE=on go get github.com/jstemmer/go-junit-report@v0.0.0-20190106144839-af01ea7f8024 && \
-	GO111MODULE=on go get github.com/mattn/goreman@v0.2.1 && \
-	GO111MODULE=on go get golang.org/x/tools/cmd/goimports@v0.0.0-20190627203933-19ff4fff8850
+.PHONY: codegen
+codegen: dev-tools-image
+	docker run --rm -it -v ${CURRENT_DIR}:/go/src/github.com/argoproj/argo-cd -w /go/src/github.com/argoproj/argo-cd argocd-dev-tools bash -c "GOPATH=/go make codegen-local"
 
 .PHONY: cli
 cli: clean-debug
@@ -98,6 +87,10 @@ release-cli: clean-debug image
 argocd-util: clean-debug
 	# Build argocd-util as a statically linked binary, so it could run within the alpine-based dex container (argoproj/argo-cd#844)
 	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-util ./cmd/argocd-util
+
+.PHONY: dev-tools-image
+dev-tools-image:
+	docker build -t argocd-dev-tools ./hack -f ./hack/Dockerfile.dev-tools
 
 .PHONY: manifests
 manifests:
@@ -176,14 +169,15 @@ test-e2e: cli
 .PHONY: start-e2e
 start-e2e: cli
 	killall goreman || true
+	# check we can connect to Docker to start Redis
+	docker version
 	kubectl create ns argocd-e2e || true
 	kubectl config set-context --current --namespace=argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
-	# check we can connect to Docker to start Redis
-	docker version
 	# set paths for locally managed ssh known hosts and tls certs data
 	export ARGOCD_SSH_DATA_PATH=/tmp/argo-e2e/app/config/ssh
 	export ARGOCD_TLS_DATA_PATH=/tmp/argo-e2e/app/config/tls
+
 	goreman start
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes
@@ -198,9 +192,9 @@ clean: clean-debug
 .PHONY: start
 start:
 	killall goreman || true
-	kubens argocd
 	# check we can connect to Docker to start Redis
 	docker version
+	kubens argocd
 	goreman start
 
 .PHONY: pre-commit

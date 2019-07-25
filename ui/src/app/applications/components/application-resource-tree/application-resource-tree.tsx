@@ -207,8 +207,8 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
 
 function findNetworkTargets(nodes: ResourceTreeNode[], networkingInfo: models.ResourceNetworkingInfo): ResourceTreeNode[] {
     let result = new Array<ResourceTreeNode>();
-    const refs = new Set((networkingInfo.targetRefs || []).map(treeNodeKey));
-    result = result.concat(nodes.filter((target) => refs.has(treeNodeKey(target))));
+    const refs = new Set((networkingInfo.targetRefs || []).map(nodeKey));
+    result = result.concat(nodes.filter((target) => refs.has(nodeKey(target))));
     if (networkingInfo.targetLabels) {
         result = result.concat(nodes.filter((target) => {
             if (target.networkingInfo && target.networkingInfo.labels) {

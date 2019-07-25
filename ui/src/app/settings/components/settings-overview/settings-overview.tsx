@@ -9,6 +9,8 @@ require('./settings-overview.scss');
 const settings = [{
     title: 'Repositories', description: 'Configure connected Git repositories', path: './repos',
 }, {
+    title: 'Certificates', description: 'Configure certificates for connecting Git repositories', path: './certs',
+}, {
     title: 'Clusters', description: 'Configure connected Kubernetes clusters', path: './clusters',
 }, {
     title: 'Projects', description: 'Configure Argo CD projects', path: './projects',

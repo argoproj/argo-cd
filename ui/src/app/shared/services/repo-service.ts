@@ -6,8 +6,9 @@ export class RepositoriesService {
         return requests.get('/repositories').then((res) => res.body as models.RepositoryList).then((list) => list.items || []);
     }
 
-    public create({url, username, password}: {url: string, username: string, password: string}): Promise<models.Repository> {
-        return requests.post('/repositories').send({ repo: url, username, password }).then((res) => res.body as models.Repository);
+    public create({url, username, password, insecure, enableLfs}:
+        {url: string, username: string, password: string, insecure: boolean, enableLfs: boolean}): Promise<models.Repository> {
+        return requests.post('/repositories').send({ repo: url, username, password, insecure, enableLfs }).then((res) => res.body as models.Repository);
     }
 
     public delete(url: string): Promise<models.Repository> {

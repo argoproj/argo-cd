@@ -91,12 +91,13 @@ func ValidateProject(p *v1alpha1.AppProject) error {
 
 // TODO: refactor to use rbacpolicy.ActionGet, rbacpolicy.ActionCreate, without import cycle
 var validActions = map[string]bool{
-	"get":    true,
-	"create": true,
-	"update": true,
-	"delete": true,
-	"sync":   true,
-	"*":      true,
+	"get":      true,
+	"create":   true,
+	"update":   true,
+	"delete":   true,
+	"sync":     true,
+	"override": true,
+	"*":        true,
 }
 
 func isValidAction(action string) bool {
