@@ -84,7 +84,7 @@ export class ApplicationsService {
     }
 
     public sync(name: string, revision: string, prune: boolean, dryRun: boolean, applyOnly: boolean, resources: models.SyncOperationResource[]): Promise<boolean> {
-        var strategy = null;
+        let strategy = null;
         if (applyOnly) {
             strategy = {apply:{}};
         } else {
