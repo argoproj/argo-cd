@@ -799,6 +799,9 @@ message SyncPolicy {
 message SyncPolicyAutomated {
   // Prune will prune resources automatically as part of automated sync (default: false)
   optional bool prune = 1;
+
+  // SelfHeal enables auto-syncing if  (default: false)
+  optional bool selfHeal = 2;
 }
 
 // SyncStatus is a comparison result of application spec and deployed application.

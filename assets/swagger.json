@@ -3759,6 +3759,11 @@
           "type": "boolean",
           "format": "boolean",
           "title": "Prune will prune resources automatically as part of automated sync (default: false)"
+        },
+        "selfHeal": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "SelfHeal enables auto-syncing if  (default: false)"
         }
       }
     },

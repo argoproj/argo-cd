@@ -18,6 +18,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {
     const appResources = (application && selectedResource && application.status && application.status.resources || []).sort(
         (first, second) => nodeKey(first).localeCompare(nodeKey(second)));
     const syncResIndex = appResources.findIndex((item) => nodeKey(item) === selectedResource);
+    const syncStrategy = {} as models.SyncStrategy;
 
     return (
         <Consumer>
@@ -45,8 +46,11 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {
                         if (resources.length === appResources.length) {
                             resources = null;
                         }
+                        if (params.applyOnly) {
+                            syncStrategy.apply = {};
+                        }
                         try {
-                            await services.applications.sync(application.metadata.name, params.revision, params.prune, params.dryRun, resources);
+                            await services.applications.sync(application.metadata.name, params.revision, params.prune, params.dryRun, syncStrategy, resources);
                             hide();
                         } catch (e) {
                             ctx.notifications.show({
@@ -72,7 +76,9 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {
                                         <Checkbox id='prune-on-sync-checkbox' field='prune'/> <label htmlFor='prune-on-sync-checkbox'>Prune</label>
                                     </span> <span>
                                         <Checkbox id='dry-run-checkbox' field='dryRun'/> <label htmlFor='dry-run-checkbox'>Dry Run</label>
-                                    </span>
+                                    </span> <span>
+                                        <Checkbox id='apply-only-checkbox' field='applyOnly'/> <label htmlFor='apply-only-checkbox'>Apply Only</label>
+                                     </span>
                                 </div>
                                 <label>Synchronize resources:</label>
                                 <div style={{float: 'right'}}>
