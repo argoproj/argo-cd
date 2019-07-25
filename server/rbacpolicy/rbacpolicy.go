@@ -9,7 +9,6 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	applister "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	jwtutil "github.com/argoproj/argo-cd/util/jwt"
-	projectutil "github.com/argoproj/argo-cd/util/project"
 	"github.com/argoproj/argo-cd/util/rbac"
 )
 
@@ -141,7 +140,7 @@ func (p *RBACPolicyEnforcer) enforceProjectToken(subject string, claims jwt.MapC
 	if err != nil {
 		return false
 	}
-	_, _, err = projectutil.GetJWTToken(proj, roleName, iat)
+	_, _, err = proj.GetJWTToken(roleName, iat)
 	if err != nil {
 		// if we get here the token is still valid, but has been revoked (no longer exists in the project)
 		return false

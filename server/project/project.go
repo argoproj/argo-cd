@@ -21,7 +21,6 @@ import (
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
-	projectutil "github.com/argoproj/argo-cd/util/project"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
 )
@@ -57,7 +56,7 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 	if err != nil {
 		return nil, err
 	}
-	err = projectutil.ValidateProject(prj)
+	err = prj.ValidateProject()
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +64,7 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 	s.projectLock.Lock(q.Project)
 	defer s.projectLock.Unlock(q.Project)
 
-	_, index, err := projectutil.GetRoleByName(prj, q.Role)
+	_, index, err := prj.GetRoleByName(q.Role)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "project '%s' does not have role '%s'", q.Project, q.Role)
 	}
@@ -105,7 +104,7 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 	if err != nil {
 		return nil, err
 	}
-	err = projectutil.ValidateProject(prj)
+	err = prj.ValidateProject()
 	if err != nil {
 		return nil, err
 	}
@@ -113,11 +112,11 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 	s.projectLock.Lock(q.Project)
 	defer s.projectLock.Unlock(q.Project)
 
-	_, roleIndex, err := projectutil.GetRoleByName(prj, q.Role)
+	_, roleIndex, err := prj.GetRoleByName(q.Role)
 	if err != nil {
 		return &project.EmptyResponse{}, nil
 	}
-	_, jwtTokenIndex, err := projectutil.GetJWTToken(prj, q.Role, q.Iat)
+	_, jwtTokenIndex, err := prj.GetJWTToken(q.Role, q.Iat)
 	if err != nil {
 		return &project.EmptyResponse{}, nil
 	}
@@ -136,8 +135,8 @@ func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionCreate, q.Project.Name); err != nil {
 		return nil, err
 	}
-	projectutil.NormalizePolicies(q.Project)
-	err := projectutil.ValidateProject(q.Project)
+	q.Project.NormalizePolicies()
+	err := q.Project.ValidateProject()
 	if err != nil {
 		return nil, err
 	}
@@ -217,8 +216,8 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionUpdate, q.Project.Name); err != nil {
 		return nil, err
 	}
-	projectutil.NormalizePolicies(q.Project)
-	err := projectutil.ValidateProject(q.Project)
+	q.Project.NormalizePolicies()
+	err := q.Project.ValidateProject()
 	if err != nil {
 		return nil, err
 	}
