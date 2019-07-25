@@ -239,12 +239,16 @@ jobs:
           environment:
             # pft. if you do not quote "true", CircleCI turns it into "1", stoopid
             ARGOCD_FAKE_IN_CLUSTER: "true"
+            ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
+            ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
       - run:
           name: Start API server
           command: go run ./cmd/argocd-server/main.go --loglevel debug --redis localhost:6379 --insecure --dex-server http://localhost:5556 --repo-server localhost:8081 --staticassets ../argo-cd-ui/dist/app
           background: true
           environment:
             ARGOCD_FAKE_IN_CLUSTER: "true"
+            ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
+            ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
       - run:
           name: Start Test Git
           command: |

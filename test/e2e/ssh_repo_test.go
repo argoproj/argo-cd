@@ -11,7 +11,7 @@ import (
 
 func TestCanAccessSSHRepo(t *testing.T) {
 	Given(t).
-		SSHRepoURLAdded().
+		SSHInsecureRepoURLAdded().
 		RepoURLType(fixture.RepoURLTypeSSH).
 		Path("config-map").
 		When().

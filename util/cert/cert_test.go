@@ -335,3 +335,10 @@ func Test_SSHFingerprintSHA256(t *testing.T) {
 		assert.Equal(t, fp, fingerprints[idx])
 	}
 }
+
+func Test_ServerNameWithoutPort(t *testing.T) {
+	hostNameList := []string{"localhost", "localhost:9443", "localhost:", "localhost:abc"}
+	for _, hostName := range hostNameList {
+		assert.Equal(t, "localhost", ServerNameWithoutPort(hostName))
+	}
+}

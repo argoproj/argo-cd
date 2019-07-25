@@ -496,6 +496,7 @@ message Repository {
   // SSH private key data for authenticating at the repo server
   optional string sshPrivateKey = 4;
 
+  // Current state of repository server connecting
   optional ConnectionState connectionState = 5;
 
   // InsecureIgnoreHostKey should not be used anymore, Insecure is favoured
@@ -506,6 +507,12 @@ message Repository {
 
   // Whether git-lfs support should be enabled for this repo
   optional bool enableLfs = 8;
+
+  // TLS client cert data for authenticating at the repo server
+  optional string tlsClientCertData = 9;
+
+  // TLS client cert key for authenticating at the repo server
+  optional string tlsClientCertKey = 10;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate

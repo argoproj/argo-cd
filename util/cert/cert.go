@@ -16,6 +16,8 @@ import (
 	"strings"
 
 	"golang.org/x/crypto/ssh"
+
+	"github.com/argoproj/argo-cd/common"
 )
 
 // A struct representing an entry in the list of SSH known hosts.
@@ -59,9 +61,31 @@ const (
 	CertificateMaxLines = 128
 	// Maximum number of certificates or known host entries in a stream
 	CertificateMaxEntriesPerStream = 256
-	// Local path where certificate data is stored
-	CertificateDataPath = "/app/config/tls"
 )
+
+// Get the configured path to where TLS certificates are stored on the local
+// filesystem. If ARGOCD_TLS_DATA_PATH environment is set, path is taken from
+// there, otherwise the default will be returned.
+func GetTLSCertificateDataPath() string {
+	envPath := os.Getenv(common.EnvVarTLSDataPath)
+	if envPath != "" {
+		return envPath
+	} else {
+		return common.DefaultPathTLSConfig
+	}
+}
+
+// Get the configured path to where SSH certificates are stored on the local
+// filesystem. If ARGOCD_SSH_DATA_PATH environment is set, path is taken from
+// there, otherwise the default will be returned.
+func GetSSHKnownHostsDataPath() string {
+	envPath := os.Getenv(common.EnvVarSSHDataPath)
+	if envPath != "" {
+		return envPath + "/" + common.DefaultSSHKnownHostsName
+	} else {
+		return common.DefaultPathSSHConfig + "/" + common.DefaultSSHKnownHostsName
+	}
+}
 
 // Decode a certificate in PEM format to X509 data structure
 func DecodePEMCertificateToX509(pemData string) (*x509.Certificate, error) {
@@ -232,10 +256,15 @@ func SSHFingerprintSHA256(key ssh.PublicKey) string {
 	return strings.TrimRight(b64hash, "=")
 }
 
+// Remove possible port number from hostname and return just the FQDN
+func ServerNameWithoutPort(serverName string) string {
+	return strings.Split(serverName, ":")[0]
+}
+
 // Load certificate data from a file. If the file does not exist, we do not
 // consider it an error and just return empty data.
 func GetCertificateForConnect(serverName string) ([]string, error) {
-	certPath := fmt.Sprintf("%s/%s", CertificateDataPath, serverName)
+	certPath := fmt.Sprintf("%s/%s", GetTLSCertificateDataPath(), ServerNameWithoutPort(serverName))
 	certificates, err := ParseTLSCertificatesFromPath(certPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -252,8 +281,11 @@ func GetCertificateForConnect(serverName string) ([]string, error) {
 	return certificates, nil
 }
 
+// Gets the full path for a certificate bundle configured from a ConfigMap
+// mount. This function makes sure that the path returned actually contain
+// at least one valid certificate, and no invalid data.
 func GetCertBundlePathForRepository(serverName string) (string, error) {
-	certPath := fmt.Sprintf("%s/%s", CertificateDataPath, serverName)
+	certPath := fmt.Sprintf("%s/%s", GetTLSCertificateDataPath(), ServerNameWithoutPort(serverName))
 	certs, err := GetCertificateForConnect(serverName)
 	if err != nil {
 		return "", nil
@@ -264,6 +296,8 @@ func GetCertBundlePathForRepository(serverName string) (string, error) {
 	return certPath, nil
 }
 
+// Convert a list of certificates in PEM format to a x509.CertPool object,
+// usable for most golang TLS functions.
 func GetCertPoolFromPEMData(pemData []string) *x509.CertPool {
 	certPool := x509.NewCertPool()
 	for _, pem := range pemData {

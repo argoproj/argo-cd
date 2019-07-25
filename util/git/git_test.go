@@ -3,7 +3,9 @@ package git
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -104,6 +106,70 @@ func TestSameURL(t *testing.T) {
 	}
 	for k, v := range data {
 		assert.True(t, SameURL(k, v))
+	}
+}
+
+func TestCustomHTTPClient(t *testing.T) {
+	certFile, err := filepath.Abs("../../test/fixture/certs/argocd-test-client.crt")
+	assert.NoError(t, err)
+	assert.NotEqual(t, "", certFile)
+
+	keyFile, err := filepath.Abs("../../test/fixture/certs/argocd-test-client.key")
+	assert.NoError(t, err)
+	assert.NotEqual(t, "", keyFile)
+
+	certData, err := ioutil.ReadFile(certFile)
+	assert.NoError(t, err)
+	assert.NotEqual(t, "", string(certData))
+
+	keyData, err := ioutil.ReadFile(keyFile)
+	assert.NoError(t, err)
+	assert.NotEqual(t, "", string(keyData))
+
+	// Get HTTPSCreds with client cert creds specified, and insecure connection
+	creds := NewHTTPSCreds("test", "test", string(certData), string(keyData), false)
+	client := GetRepoHTTPClient("https://localhost:9443/foo/bar", false, creds)
+	assert.NotNil(t, client)
+	assert.NotNil(t, client.Transport)
+	if client.Transport != nil {
+		httpClient := client.Transport.(*http.Transport)
+		assert.NotNil(t, httpClient.TLSClientConfig)
+
+		assert.Equal(t, false, httpClient.TLSClientConfig.InsecureSkipVerify)
+
+		assert.NotNil(t, httpClient.TLSClientConfig.GetClientCertificate)
+		if httpClient.TLSClientConfig.GetClientCertificate != nil {
+			cert, err := httpClient.TLSClientConfig.GetClientCertificate(nil)
+			assert.NoError(t, err)
+			if err == nil {
+				assert.NotNil(t, cert)
+				assert.NotEqual(t, 0, len(cert.Certificate))
+				assert.NotNil(t, cert.PrivateKey)
+			}
+		}
+	}
+
+	// Get HTTPSCreds without client cert creds, but insecure connection
+	creds = NewHTTPSCreds("test", "test", "", "", true)
+	client = GetRepoHTTPClient("https://localhost:9443/foo/bar", true, creds)
+	assert.NotNil(t, client)
+	assert.NotNil(t, client.Transport)
+	if client.Transport != nil {
+		httpClient := client.Transport.(*http.Transport)
+		assert.NotNil(t, httpClient.TLSClientConfig)
+
+		assert.Equal(t, true, httpClient.TLSClientConfig.InsecureSkipVerify)
+
+		assert.NotNil(t, httpClient.TLSClientConfig.GetClientCertificate)
+		if httpClient.TLSClientConfig.GetClientCertificate != nil {
+			cert, err := httpClient.TLSClientConfig.GetClientCertificate(nil)
+			assert.NoError(t, err)
+			if err == nil {
+				assert.NotNil(t, cert)
+				assert.Equal(t, 0, len(cert.Certificate))
+				assert.Nil(t, cert.PrivateKey)
+			}
+		}
 	}
 }
 

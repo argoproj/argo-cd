@@ -889,7 +889,8 @@ type Repository struct {
 	// Password for authenticating at the repo server
 	Password string `json:"password,omitempty" protobuf:"bytes,3,opt,name=password"`
 	// SSH private key data for authenticating at the repo server
-	SSHPrivateKey   string          `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
+	SSHPrivateKey string `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
+	// Current state of repository server connecting
 	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,5,opt,name=connectionState"`
 	// InsecureIgnoreHostKey should not be used anymore, Insecure is favoured
 	InsecureIgnoreHostKey bool `json:"insecureIgnoreHostKey,omitempty" protobuf:"bytes,6,opt,name=insecureIgnoreHostKey"`
@@ -897,6 +898,10 @@ type Repository struct {
 	Insecure bool `json:"insecure,omitempty" protobuf:"bytes,7,opt,name=insecure"`
 	// Whether git-lfs support should be enabled for this repo
 	EnableLFS bool `json:"enableLfs,omitempty" protobuf:"bytes,8,opt,name=enableLfs"`
+	// TLS client cert data for authenticating at the repo server
+	TLSClientCertData string `json:"tlsClientCertData,omitempty" protobuf:"bytes,9,opt,name=tlsClientCertData"`
+	// TLS client cert key for authenticating at the repo server
+	TLSClientCertKey string `json:"tlsClientCertKey,omitempty" protobuf:"bytes,10,opt,name=tlsClientCertKey"`
 }
 
 func (repo *Repository) IsInsecure() bool {
@@ -919,6 +924,8 @@ func (m *Repository) CopyCredentialsFrom(source *Repository) {
 		m.InsecureIgnoreHostKey = source.InsecureIgnoreHostKey
 		m.Insecure = source.Insecure
 		m.EnableLFS = source.EnableLFS
+		m.TLSClientCertData = source.TLSClientCertData
+		m.TLSClientCertKey = source.TLSClientCertKey
 	}
 }
 

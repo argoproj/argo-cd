@@ -3282,6 +3282,14 @@
           "type": "string",
           "title": "SSH private key data for authenticating at the repo server"
         },
+        "tlsClientCertData": {
+          "type": "string",
+          "title": "TLS client cert data for authenticating at the repo server"
+        },
+        "tlsClientCertKey": {
+          "type": "string",
+          "title": "TLS client cert key for authenticating at the repo server"
+        },
         "username": {
           "type": "string",
           "title": "Username for authenticating at the repo server"

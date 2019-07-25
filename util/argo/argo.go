@@ -146,12 +146,13 @@ func getCAPath(repoURL string) string {
 	return ""
 }
 
+// TODO: Figure out the correct way to distinguish between SSH and HTTPS repos
 func GetRepoCreds(repo *argoappv1.Repository) git.Creds {
 	if repo == nil {
 		return git.NopCreds{}
 	}
-	if repo.Username != "" && repo.Password != "" {
-		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.IsInsecure())
+	if (repo.Username != "" && repo.Password != "") || (repo.TLSClientCertData != "" && repo.TLSClientCertKey != "") {
+		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure())
 	}
 	if repo.SSHPrivateKey != "" {
 		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure())

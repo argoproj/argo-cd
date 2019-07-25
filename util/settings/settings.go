@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 	"sync"
@@ -27,6 +28,7 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
+	certutil "github.com/argoproj/argo-cd/util/cert"
 	"github.com/argoproj/argo-cd/util/password"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 )
@@ -96,6 +98,10 @@ type RepoCredentials struct {
 	Insecure bool `json:"insecure,omitempty"`
 	// Whether the repo is git-lfs enabled
 	EnableLFS bool `json:"enableLfs,omitempty"`
+	// Name of the secret storing the TLS client cert data
+	TLSClientCertDataSecret *apiv1.SecretKeySelector `json:"tlsClientCertDataSecret,omitempty"`
+	// Name of the secret storing the TLS client cert's key data
+	TLSClientCertKeySecret *apiv1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
 }
 
 type HelmRepoCredentials struct {
@@ -658,10 +664,23 @@ func (mgr *SettingsManager) SaveSSHKnownHostsData(ctx context.Context, knownHost
 		certCM.Data = make(map[string]string)
 	}
 
-	certCM.Data["ssh_known_hosts"] = strings.Join(knownHostsList, "\n")
+	sshKnownHostsData := strings.Join(knownHostsList, "\n") + "\n"
+	certCM.Data["ssh_known_hosts"] = sshKnownHostsData
 	_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(certCM)
 	if err != nil {
-		return nil
+		return err
+	}
+
+	// If we are running outside a K8S cluster, the ConfigMap mount will not
+	// automatically write out the SSH known hosts data. We need this mechanism
+	// for running E2E tests.
+	if os.Getenv(common.EnvVarFakeInClusterConfig) == "true" {
+		knownHostsPath := certutil.GetSSHKnownHostsDataPath()
+		err := ioutil.WriteFile(knownHostsPath, []byte(sshKnownHostsData), 0644)
+		// We don't return error, but let the user know through log
+		if err != nil {
+			log.Errorf("Could not write SSH known hosts data: %v", err)
+		}
 	}
 
 	return mgr.ResyncInformers()
@@ -681,7 +700,43 @@ func (mgr *SettingsManager) SaveTLSCertificateData(ctx context.Context, tlsCerti
 	certCM.Data = tlsCertificates
 	_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(certCM)
 	if err != nil {
-		return nil
+		return err
+	}
+
+	// If we are running outside a K8S cluster, the ConfigMap mount will not
+	// automatically write out the TLS certificate data. We need this mechanism
+	// for running E2E tests.
+	//
+	// The paradigm here is, that we first remove all files in the TLS data
+	// directory (there should be only TLS certs in it), and then recreate each
+	// single cert that is still in the tlsCertificates data map.
+	if os.Getenv(common.EnvVarFakeInClusterConfig) == "true" {
+		tlsDataPath := certutil.GetTLSCertificateDataPath()
+
+		// First throw way everything
+		tlsFiles, err := ioutil.ReadDir(tlsDataPath)
+		if err != nil {
+			log.Errorf("Could not open TLS certificate dir %s: %v", tlsDataPath, err)
+		} else {
+			for _, file := range tlsFiles {
+				tlsCertPath := fmt.Sprintf("%s/%s", tlsDataPath, file.Name())
+				log.Debugf("Deleting TLS certificate file %s", tlsCertPath)
+				err := os.Remove(tlsCertPath)
+				if err != nil {
+					log.Errorf("Could not delete TLS cert file %s: %v", tlsCertPath, err)
+				}
+			}
+		}
+
+		// Recreate configured TLS certificates
+		for hostName, certData := range tlsCertificates {
+			certPath := fmt.Sprintf("%s/%s", tlsDataPath, hostName)
+			log.Debugf("Writing TLS Certificate data to %s", certPath)
+			err := ioutil.WriteFile(certPath, []byte(certData), 0644)
+			if err != nil {
+				log.Errorf("Could not write PEM data to %s: %v", certPath, err)
+			}
+		}
 	}
 
 	return mgr.ResyncInformers()

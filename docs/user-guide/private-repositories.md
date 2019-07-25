@@ -31,6 +31,21 @@ Instead of using username and password you might use access token. Following ins
 
 Then, connect the repository using an empty string as a username and access token value as a password.
 
+### TLS Client Certificates for HTTPS repositories
+
+> v1.3 and later
+
+If your repository server requires you to use TLS client certificates for authentication, you can configure ArgoCD repositories to make use of them. For this purpose, `--tls-client-cert-path` and `--tls-client-cert-key-path` switches to the `argocd repo add` command can be used to specify the files on your local system containing client certificate and the corresponding key, respectively:
+
+```
+argocd repo add https://repo.example.com/repo.git --tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key
+```
+
+Of course, you can also use this in combination with the `--username` and `--password` switches, if your repository server should require this. The options `--tls-client-cert-path` and `--tls-client-cert-key-path` must always be specified together.
+
+!!! note
+    Your client certificate and key data must be in PEM format, other formats (such as PKCS12) are not understood. Also make sure that your certificate's key is not password protected, otherwise it cannot be used by ArgoCD.
+
 ### SSH Private Key Credential
 
 Private repositories that require an SSH private key have a URL that typically start with "git@" or "ssh://" rather than "https://".  

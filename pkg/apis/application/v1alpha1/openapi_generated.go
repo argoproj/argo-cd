@@ -1779,7 +1779,8 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 					},
 					"connectionState": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConnectionState"),
+							Description: "Current state of repository server connecting",
+							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConnectionState"),
 						},
 					},
 					"insecureIgnoreHostKey": {
@@ -1800,6 +1801,20 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 						SchemaProps: spec.SchemaProps{
 							Description: "Whether git-lfs support should be enabled for this repo",
 							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"tlsClientCertData": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TLS client cert data for authenticating at the repo server",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"tlsClientCertKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TLS client cert key for authenticating at the repo server",
+							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
