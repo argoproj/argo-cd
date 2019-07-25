@@ -47,7 +47,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {
                             resources = null;
                         }
                         if (params.applyOnly) {
-                            syncStrategy.apply = {} as models.SyncStrategyApply;
+                            syncStrategy.apply = {};
                         }
                         try {
                             await services.applications.sync(application.metadata.name, params.revision, params.prune, params.dryRun, syncStrategy, resources);
