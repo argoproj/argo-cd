@@ -83,8 +83,14 @@ export class ApplicationsService {
         });
     }
 
-    public sync(name: string, revision: string, prune: boolean, dryRun: boolean, resources: models.SyncOperationResource[]): Promise<boolean> {
-        return requests.post(`/applications/${name}/sync`).send({revision, prune: !!prune, dryRun: !!dryRun, resources}).then(() => true);
+    public sync(name: string, revision: string, prune: boolean, dryRun: boolean, applyOnly: boolean, resources: models.SyncOperationResource[]): Promise<boolean> {
+        var strategy = null;
+        if (applyOnly) {
+            strategy = {apply:{}};
+        } else {
+            strategy = {hook:{}};
+        }
+        return requests.post(`/applications/${name}/sync`).send({revision, prune: !!prune, dryRun: !!dryRun, strategy: strategy, resources}).then(() => true);
     }
 
     public rollback(name: string, id: number): Promise<boolean> {
