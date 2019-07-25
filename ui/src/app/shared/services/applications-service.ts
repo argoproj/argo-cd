@@ -83,13 +83,7 @@ export class ApplicationsService {
         });
     }
 
-    public sync(name: string, revision: string, prune: boolean, dryRun: boolean, applyOnly: boolean, resources: models.SyncOperationResource[]): Promise<boolean> {
-        let strategy = null;
-        if (applyOnly) {
-            strategy = {apply: {}};
-        } else {
-            strategy = {hook: {}};
-        }
+    public sync(name: string, revision: string, prune: boolean, dryRun: boolean, strategy: models.SyncStrategy, resources: models.SyncOperationResource[]): Promise<boolean> {
         return requests.post(`/applications/${name}/sync`).send({revision, prune: !!prune, dryRun: !!dryRun, strategy, resources}).then(() => true);
     }
 

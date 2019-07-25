@@ -19,6 +19,12 @@ export interface ApplicationList extends ItemsList<Application> { }
 
 export interface SyncOperationResource { group: string; kind: string; name: string; }
 
+export interface SyncStrategy { apply: SyncStrategyApply; hook: SyncStrategyHook; }
+
+export type SyncStrategyApply = {} | null;
+
+export type SyncStrategyHook = {} | null;
+
 export interface SyncOperation {
     revision: string;
     prune: boolean;

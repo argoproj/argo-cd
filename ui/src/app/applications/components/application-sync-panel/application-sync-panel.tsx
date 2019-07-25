@@ -18,6 +18,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {
     const appResources = (application && selectedResource && application.status && application.status.resources || []).sort(
         (first, second) => nodeKey(first).localeCompare(nodeKey(second)));
     const syncResIndex = appResources.findIndex((item) => nodeKey(item) === selectedResource);
+    const syncStrategy = {} as models.SyncStrategy;
 
     return (
         <Consumer>
@@ -45,8 +46,11 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {
                         if (resources.length === appResources.length) {
                             resources = null;
                         }
+                        if (params.applyOnly) {
+                            syncStrategy.apply = {} as models.SyncStrategyApply;
+                        }
                         try {
-                            await services.applications.sync(application.metadata.name, params.revision, params.prune, params.dryRun, params.applyOnly, resources);
+                            await services.applications.sync(application.metadata.name, params.revision, params.prune, params.dryRun, syncStrategy, resources);
                             hide();
                         } catch (e) {
                             ctx.notifications.show({
