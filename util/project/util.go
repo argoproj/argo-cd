@@ -193,7 +193,7 @@ func RemoveGroupFromRole(p *v1alpha1.AppProject, roleName, group string) (bool, 
 	}
 	for i, roleGroup := range role.Groups {
 		if group == roleGroup {
-			role.Groups = append(role.Groups[0:i], role.Groups[i:]...)
+			role.Groups = append(role.Groups[:i], role.Groups[i+1:]...)
 			p.Spec.Roles[roleIndex] = *role
 			return true, nil
 		}

@@ -40,6 +40,8 @@ func NewProjectRoleCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	roleCommand.AddCommand(NewProjectRoleDeleteTokenCommand(clientOpts))
 	roleCommand.AddCommand(NewProjectRoleAddPolicyCommand(clientOpts))
 	roleCommand.AddCommand(NewProjectRoleRemovePolicyCommand(clientOpts))
+	roleCommand.AddCommand(NewProjectRoleAddGroupCommand(clientOpts))
+	roleCommand.AddCommand(NewProjectRoleRemoveGroupCommand(clientOpts))
 	return roleCommand
 }
 
@@ -342,9 +344,9 @@ func NewProjectRoleGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 func NewProjectRoleAddGroupCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "add-group PROJECT ROLE-NAME GROUP-CLAIM",
-		Short: "Add a policy to a project role",
+		Short: "Add a group claim to a project role",
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 2 {
+			if len(args) != 3 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
@@ -355,7 +357,7 @@ func NewProjectRoleAddGroupCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			errors.CheckError(err)
 			updated, err := projectutil.AddGroupToRole(proj, roleName, groupName)
 			errors.CheckError(err)
-			if updated {
+			if !updated {
 				fmt.Printf("Group '%s' already present in role '%s'\n", groupName, roleName)
 				return
 			}
