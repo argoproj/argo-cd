@@ -70,7 +70,7 @@ codegen-local: protogen clientgen openapigen manifests
 
 .PHONY: codegen
 codegen: dev-tools-image
-	docker run --rm -it -v ${CURRENT_DIR}:/go/src/github.com/argoproj/argo-cd -w /go/src/github.com/argoproj/argo-cd argocd-dev-tools bash -c "GOPATH=/go make codegen-local"
+	docker run --rm -it -u $(shell id -u) -e HOME=/home/user -v ${CURRENT_DIR}:/go/src/github.com/argoproj/argo-cd -w /go/src/github.com/argoproj/argo-cd argocd-dev-tools bash -c "GOPATH=/go make codegen-local"
 
 .PHONY: cli
 cli: clean-debug

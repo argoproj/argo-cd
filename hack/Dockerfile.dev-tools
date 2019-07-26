@@ -33,7 +33,8 @@ RUN wget https://storage.googleapis.com/kubernetes-helm/helm-v${HELM_VERSION}-li
     mv /tmp/linux-amd64/helm /usr/local/bin/helm && \
     helm version --client
 
-RUN helm init --client-only
+RUN mkdir -p /home/user && chmod 777 /home/user
+RUN HELM_HOME=/home/user/.helm helm init --client-only
 
 RUN apt-get update && apt-get install -y \
     zip && \
@@ -55,3 +56,5 @@ RUN curl -sLf -C - -o /tmp/jq https://github.com/stedolan/jq/releases/download/j
     cp /tmp/jq /usr/local/bin/jq && \
     chmod +x /usr/local/bin/jq && \
     jq --version
+
+RUN mkdir -p /go/pkg && chmod 777 /go/pkg
