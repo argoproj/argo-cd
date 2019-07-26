@@ -33,7 +33,11 @@ export const ApplicationTiles = ({applications, syncApplication, deleteApplicati
                             </div>
                             <div className='row'>
                                 <div className='columns small-3'>Project:</div>
-                                <div className='columns small-9'>{app.spec.project}</div>
+                                <div className='columns small-9'>
+                                    <Tooltip content={app.spec.project}>
+                                        <span>{app.spec.project}</span>
+                                    </Tooltip>
+                                </div>
                             </div>
                             <div className='row'>
                                 <div className='columns small-3'>Status:</div>
@@ -59,7 +63,11 @@ export const ApplicationTiles = ({applications, syncApplication, deleteApplicati
                             </div>
                             <div className='row'>
                                 <div className='columns small-3'>Destination:</div>
-                                <div className='columns small-9'>{app.spec.destination.server}</div>
+                                <div className='columns small-9'>
+                                    <Tooltip content={app.spec.destination.server}>
+                                        <span>{app.spec.destination.server}</span>
+                                    </Tooltip>
+                                </div>
                             </div>
                             <div className='row'>
                                 <div className='columns small-3'>Namespace:</div>
