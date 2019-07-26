@@ -317,6 +317,9 @@ jobs:
       - run:
           name: Build
           command: yarn build
+      - run:
+          name: Lint
+          command: yarn lint
 workflows:
   version: 2
   workflow:
