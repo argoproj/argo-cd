@@ -10,13 +10,14 @@ import * as AppUtils from '../utils';
 export interface ApplicationTilesProps {
     applications: models.Application[];
     syncApplication: (appName: string) => any;
+    refreshApplication: (appName: string) => any;
     deleteApplication: (appName: string) => any;
 }
 
-export const ApplicationTiles = ({applications, syncApplication, deleteApplication}: ApplicationTilesProps) => (
+export const ApplicationTiles = ({applications, syncApplication, refreshApplication, deleteApplication}: ApplicationTilesProps) => (
     <Consumer>
     {(ctx) => (
-    <div className='argo-table-list argo-table-list--clickable row small-up-1 medium-up-2 large-up-4'>
+    <div className='argo-table-list argo-table-list--clickable row small-up-1 medium-up-2 large-up-3'>
         {applications.map((app) => (
             <div key={app.metadata.name} className='column column-block'>
                 <div className={`argo-table-list__row
@@ -76,6 +77,12 @@ export const ApplicationTiles = ({applications, syncApplication, deleteApplicati
                                             e.stopPropagation();
                                             syncApplication(app.metadata.name);
                                         }}><i className='fa fa-sync'/> Sync</a>
+                                    &nbsp;
+                                    <a className='argo-button argo-button--base'
+                                       onClick={(e) => {
+                                           e.stopPropagation();
+                                           refreshApplication(app.metadata.name);
+                                       }}><i className='fa fa-redo'/> Refresh</a>
                                     &nbsp;
                                     <a className='argo-button argo-button--base' onClick={(e) => {
                                         e.stopPropagation();

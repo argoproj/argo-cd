@@ -8,7 +8,8 @@ import * as AppUtils from '../utils';
 
 export const ApplicationsTable = (props: {
     applications: models.Application[];
-    syncApplication: (appName: string, revision: string) => any;
+    syncApplication: (appName: string) => any;
+    refreshApplication: (appName: string) => any;
     deleteApplication: (appName: string) => any;
 }) => (
     <Consumer>
@@ -54,7 +55,8 @@ export const ApplicationsTable = (props: {
                             </button>
                         )
                         } items={[
-                            { title: 'Sync', action: () => props.syncApplication(app.metadata.name, app.spec.source.targetRevision || 'HEAD') },
+                            { title: 'Sync', action: () => props.syncApplication(app.metadata.name) },
+                            { title: 'Refresh', action: () => props.refreshApplication(app.metadata.name) },
                             { title: 'Delete', action: () => props.deleteApplication(app.metadata.name) },
                         ]} />
                     </div>
