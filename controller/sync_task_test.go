@@ -42,7 +42,7 @@ func Test_syncTask_wave(t *testing.T) {
 	tests := []struct {
 		name string
 		obj  *unstructured.Unstructured
-		want   int
+		want int
 	}{
 		{"Empty", test.NewPod(), 0},
 		{"SyncWave", test.Annotate(test.NewPod(), common.AnnotationSyncWave, "1"), 1},
