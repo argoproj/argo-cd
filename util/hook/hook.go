@@ -41,6 +41,10 @@ func Types(obj *unstructured.Unstructured) []v1alpha1.HookType {
 	return hookTypes
 }
 
+func types(obj *unstructured.Unstructured) []string {
+	return resource.GetAnnotationCSVs(obj, common.AnnotationKeyHook)
+}
+
 func DeletePolicies(hook *unstructured.Unstructured) []v1alpha1.HookDeletePolicy {
 	var policies []v1alpha1.HookDeletePolicy
 	for _, text := range resource.GetAnnotationCSVs(hook, common.AnnotationKeyHookDeletePolicy) {
@@ -51,8 +55,4 @@ func DeletePolicies(hook *unstructured.Unstructured) []v1alpha1.HookDeletePolicy
 		}
 	}
 	return policies
-}
-
-func types(obj *unstructured.Unstructured) []string {
-	return resource.GetAnnotationCSVs(obj, common.AnnotationKeyHook)
 }
