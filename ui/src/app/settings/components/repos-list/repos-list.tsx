@@ -117,7 +117,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                         </button>
                     </div>
                 )}>
-                    <h4>Connect Git repo</h4>
+                    <h4>Connect Git repo using HTTPS</h4>
                     <Form onSubmit={(params) => this.connectHTTPSRepo(params as NewHTTPSRepoParams)}
                           getApi={(api) => this.formApiHTTPS = api}
                           validateError={(params: NewHTTPSRepoParams) => ({
