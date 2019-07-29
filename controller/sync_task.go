@@ -53,17 +53,20 @@ func (t *syncTask) obj() *unstructured.Unstructured {
 }
 
 func (t *syncTask) wave() int {
-
-	for _, annotation := range []string{common.AnnotationSyncWave, common.AnnotationHelmWeight} {
-		text, ok := t.obj().GetAnnotations()[annotation]
-		if ok {
-			val, err := strconv.Atoi(text)
-			if err == nil {
-				return val
-			}
+	text, ok := t.obj().GetAnnotations()[common.AnnotationSyncWave]
+	if ok {
+		val, err := strconv.Atoi(text)
+		if err == nil {
+			return val
 		}
 	}
-
+	text, ok = t.obj().GetAnnotations()[common.AnnotationHelmWeight]
+	if ok && t.isHook() {
+		val, err := strconv.Atoi(text)
+		if err == nil {
+			return val
+		}
+	}
 	return 0
 }
 

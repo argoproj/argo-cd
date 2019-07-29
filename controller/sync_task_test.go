@@ -8,7 +8,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/test"
+	. "github.com/argoproj/argo-cd/test"
 )
 
 func Test_syncTask_hookType(t *testing.T) {
@@ -21,10 +21,10 @@ func Test_syncTask_hookType(t *testing.T) {
 		fields fields
 		want   HookType
 	}{
-		{"Empty", fields{SyncPhaseSync, test.NewPod()}, ""},
-		{"PreSyncHook", fields{SyncPhasePreSync, test.NewHook(HookTypePreSync)}, HookTypePreSync},
-		{"SyncHook", fields{SyncPhaseSync, test.NewHook(HookTypeSync)}, HookTypeSync},
-		{"PostSyncHook", fields{SyncPhasePostSync, test.NewHook(HookTypePostSync)}, HookTypePostSync},
+		{"Empty", fields{SyncPhaseSync, NewPod()}, ""},
+		{"PreSyncHook", fields{SyncPhasePreSync, NewHook(HookTypePreSync)}, HookTypePreSync},
+		{"SyncHook", fields{SyncPhaseSync, NewHook(HookTypeSync)}, HookTypeSync},
+		{"PostSyncHook", fields{SyncPhasePostSync, NewHook(HookTypePostSync)}, HookTypePostSync},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -44,9 +44,11 @@ func Test_syncTask_wave(t *testing.T) {
 		obj  *unstructured.Unstructured
 		want int
 	}{
-		{"Empty", test.NewPod(), 0},
-		{"SyncWave", test.Annotate(test.NewPod(), common.AnnotationSyncWave, "1"), 1},
-		{"HookWeight", test.Annotate(test.NewPod(), common.AnnotationHelmWeight, "1"), 1},
+		{"Empty", NewPod(), 0},
+		{"SyncWave", Annotate(NewPod(), common.AnnotationSyncWave, "1"), 1},
+		{"NonHookWeight", Annotate(NewPod(), common.AnnotationHelmWeight, "1"), 0},
+		{"HookWeight", Annotate(Annotate(NewPod(), common.AnnotationKeyHook, "Sync"), common.AnnotationHelmWeight, "1"), 1},
+		{"HelmHookWeight", Annotate(Annotate(NewPod(), common.AnnotationKeyHelmHook, "pre-install"), common.AnnotationHelmWeight, "1"), 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t1 *testing.T) {
