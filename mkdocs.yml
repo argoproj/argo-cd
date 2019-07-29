@@ -68,6 +68,7 @@ nav:
     - developer-guide/releasing.md
     - developer-guide/site.md
   - faq.md
+  - comparison.md
   - Support: SUPPORT.md
   - Releases ⧉: https://github.com/argoproj/argo-cd/releases
   - Roadmap ⧉: https://github.com/argoproj/argo-cd/milestones
