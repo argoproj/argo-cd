@@ -1085,6 +1085,7 @@ automated sync by running:</p>
   <span class="nt">syncPolicy</span><span class="p">:</span>
     <span class="nt">automated</span><span class="p">:</span>
       <span class="nt">prune</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
+      <span class="nt">selfHeal</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
 </pre></div>
 
 
@@ -1094,10 +1095,16 @@ automated sync by running:</p>
   Synced or error state will not attempt automated sync.</li>
 <li>Automated sync will only attempt one synchronization per unique combination of commit SHA1 and
   application parameters. If the most recent successful sync in the history was already performed
-  against the same commit-SHA and parameters, a second sync will not be attempted.</li>
-<li>Automatic sync will not reattempt a sync if the previous sync attempt against the same commit-SHA
-  and parameters had failed.</li>
-<li>Rollback cannot be performed against an application with automated sync enabled.</li>
+  against the same commit-SHA and parameters, a second sync will not be attempted, unless <code>selfHeal</code> flag is set to true.</li>
+<li>If <code>selfHeal</code> flag is set to true then sync will be attempted again after self heal timeout (5 seconds by default)
+which is controller by <code>--self-heal-timeout-seconds</code> flag of <code>argocd-application-controller</code> deployment.</li>
+<li>
+<p>Automatic sync will not reattempt a sync if the previous sync attempt against the same commit-SHA
+  and parameters had failed.</p>
+</li>
+<li>
+<p>Rollback cannot be performed against an application with automated sync enabled.</p>
+</li>
 </ul>
                 
                   

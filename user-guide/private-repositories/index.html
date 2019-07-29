@@ -674,6 +674,13 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#tls-client-certificates-for-https-repositories" title="TLS Client Certificates for HTTPS repositories" class="md-nav__link">
+    TLS Client Certificates for HTTPS repositories
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#ssh-private-key-credential" title="SSH Private Key Credential" class="md-nav__link">
     SSH Private Key Credential
   </a>
@@ -1095,6 +1102,13 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#tls-client-certificates-for-https-repositories" title="TLS Client Certificates for HTTPS repositories" class="md-nav__link">
+    TLS Client Certificates for HTTPS repositories
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#ssh-private-key-credential" title="SSH Private Key Credential" class="md-nav__link">
     SSH Private Key Credential
   </a>
@@ -1170,6 +1184,20 @@
 <li><a href="https://confluence.atlassian.com/bitbucketserver/personal-access-tokens-939515499.html">Bitbucket</a></li>
 </ul>
 <p>Then, connect the repository using an empty string as a username and access token value as a password.</p>
+<h3 id="tls-client-certificates-for-https-repositories">TLS Client Certificates for HTTPS repositories<a class="headerlink" href="#tls-client-certificates-for-https-repositories" title="Permanent link">&para;</a></h3>
+<blockquote>
+<p>v1.3 and later</p>
+</blockquote>
+<p>If your repository server requires you to use TLS client certificates for authentication, you can configure ArgoCD repositories to make use of them. For this purpose, <code>--tls-client-cert-path</code> and <code>--tls-client-cert-key-path</code> switches to the <code>argocd repo add</code> command can be used to specify the files on your local system containing client certificate and the corresponding key, respectively:</p>
+<div class="codehilite"><pre><span></span>argocd repo add https://repo.example.com/repo.git --tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key
+</pre></div>
+
+
+<p>Of course, you can also use this in combination with the <code>--username</code> and <code>--password</code> switches, if your repository server should require this. The options <code>--tls-client-cert-path</code> and <code>--tls-client-cert-key-path</code> must always be specified together.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Your client certificate and key data must be in PEM format, other formats (such as PKCS12) are not understood. Also make sure that your certificate's key is not password protected, otherwise it cannot be used by ArgoCD.</p>
+</div>
 <h3 id="ssh-private-key-credential">SSH Private Key Credential<a class="headerlink" href="#ssh-private-key-credential" title="Permanent link">&para;</a></h3>
 <p>Private repositories that require an SSH private key have a URL that typically start with "git@" or "ssh://" rather than "https://".  </p>
 <p>The Argo CD UI don't support configuring SSH credentials. The SSH credentials can only be configured using the Argo CD CLI:</p>
@@ -1223,7 +1251,7 @@ argocd repo add https://git.example.com/test-repo
 <p>It can take up to a couple of minutes until the changes performed by the <code>argocd cert</code> command are propagated across your cluster, depending on your Kubernetes setup.</p>
 </div>
 <p>You can also manage TLS certificates in a declarative, self-managed ArgoCD setup. All TLS certificates are stored in the ConfigMap object <code>argocd-tls-cert-cm</code>.</p>
-<p>Managing TLS certificates via the web UI is currently not possible.</p>
+<p>Managing TLS certificates via the web UI is currently not possible, but will be introduced with <strong>v1.3</strong></p>
 <blockquote>
 <p>Before v1.2</p>
 </blockquote>
@@ -1257,7 +1285,7 @@ argocd repo add https://git.example.com/test-repo
 <p>It can take up to a couple of minutes until the changes performed by the <code>argocd cert</code> command are propagated across your cluster, depending on your Kubernetes setup.</p>
 </div>
 <p>You can also manage SSH known hosts entries in a declarative, self-managed ArgoCD setup. All SSH public host keys are stored in the ConfigMap object <code>argocd-ssh-known-hosts-cm</code>.</p>
-<p>Managing SSH public host keys via the web UI is currently not possible.</p>
+<p>Managing SSH public host keys via the web UI is currently not possible, but will be introduced with <strong>v1.3</strong></p>
 <blockquote>
 <p>Before v1.2</p>
 </blockquote>

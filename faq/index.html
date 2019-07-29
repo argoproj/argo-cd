@@ -980,6 +980,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#why-is-my-app-out-of-sync-even-after-syncing" title="Why Is My App Out Of Sync Even After Syncing?" class="md-nav__link">
+    Why Is My App Out Of Sync Even After Syncing?
+  </a>
+  
+</li>
+      
       
       
       
@@ -1115,6 +1122,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#why-is-my-app-out-of-sync-even-after-syncing" title="Why Is My App Out Of Sync Even After Syncing?" class="md-nav__link">
+    Why Is My App Out Of Sync Even After Syncing?
+  </a>
+  
+</li>
+      
       
       
       
@@ -1201,6 +1215,11 @@ argocd-util kubeconfig https://&lt;cluster-url&gt; /tmp/config --namespace argoc
 <h2 id="how-can-i-terminate-a-sync">How Can I Terminate A Sync?<a class="headerlink" href="#how-can-i-terminate-a-sync" title="Permanent link">&para;</a></h2>
 <p>To terminate the sync, click on the "synchronisation" then "terminate":</p>
 <p><img alt="Synchronization" src="../assets/synchronization-button.png" /> <img alt="Terminate" src="../assets/terminate-button.png" /></p>
+<h2 id="why-is-my-app-out-of-sync-even-after-syncing">Why Is My App Out Of Sync Even After Syncing?<a class="headerlink" href="#why-is-my-app-out-of-sync-even-after-syncing" title="Permanent link">&para;</a></h2>
+<p>Is some cases, the tool you use may conflict with Argo CD by adding the <code>app.kubernetes.io/instance</code> label. E.g. using Kustomize common labels feature.</p>
+<p>Argo CD automatically sets the <code>app.kubernetes.io/instance</code> label and uses it to determine which resources form the app. If the tool does this too, this causes confusion. You can change this label by setting the <code>application.instanceLabelKey</code> value in the <code>argocd-cm</code>.  We recommend that you use <code>argocd.argoproj.io/instance</code>. </p>
+<p>!!! note    When you make this change your applications will become out of sync and will need re-syncing.</p>
+<p>See <a href="https://github.com/argoproj/argo-cd/issues/1482">#1482</a>.</p>
                 
                   
                 
