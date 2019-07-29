@@ -136,7 +136,7 @@ func (t *syncTask) hasHookDeletePolicy(policy v1alpha1.HookDeletePolicy) bool {
 }
 
 func (t *syncTask) needsDeleting() bool {
-	return t.pending() && !t.isPrune() && t.hasHookDeletePolicy(v1alpha1.HookDeletePolicyBeforeHookCreation) ||
+	return t.liveObj != nil && (t.pending() && t.hasHookDeletePolicy(v1alpha1.HookDeletePolicyBeforeHookCreation) ||
 		t.successful() && t.hasHookDeletePolicy(v1alpha1.HookDeletePolicyHookSucceeded) ||
-		t.failed() && t.hasHookDeletePolicy(v1alpha1.HookDeletePolicyHookFailed)
+		t.failed() && t.hasHookDeletePolicy(v1alpha1.HookDeletePolicyHookFailed))
 }
