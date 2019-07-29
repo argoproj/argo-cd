@@ -70,7 +70,13 @@ func TestGarbageAndHook(t *testing.T) {
 }
 
 func example(hook string) *unstructured.Unstructured {
-	pod := test.NewPod()
-	pod.SetAnnotations(map[string]string{"argocd.argoproj.io/hook": hook})
-	return pod
+	return test.Annotate(test.NewPod(), "argocd.argoproj.io/hook", hook)
+}
+
+func TestDeletePolicies(t *testing.T) {
+	assert.Nil(t, DeletePolicies(test.NewPod()))
+	assert.Nil(t, DeletePolicies(test.Annotate(test.NewPod(), "argocd.argoproj.io/hook-delete-policy", "garbage")))
+	assert.Equal(t, []HookDeletePolicy{HookDeletePolicyBeforeHookCreation}, DeletePolicies(test.Annotate(test.NewPod(), "argocd.argoproj.io/hook-delete-policy", "BeforeHookCreation")))
+	assert.Equal(t, []HookDeletePolicy{HookDeletePolicyHookSucceeded}, DeletePolicies(test.Annotate(test.NewPod(), "argocd.argoproj.io/hook-delete-policy", "HookSucceeded")))
+	assert.Equal(t, []HookDeletePolicy{HookDeletePolicyHookFailed}, DeletePolicies(test.Annotate(test.NewPod(), "argocd.argoproj.io/hook-delete-policy", "HookFailed")))
 }

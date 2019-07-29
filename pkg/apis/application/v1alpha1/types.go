@@ -3,11 +3,10 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
-	"regexp"
-
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"google.golang.org/grpc/codes"
@@ -331,8 +330,16 @@ func (os OperationPhase) Completed() bool {
 	return false
 }
 
+func (os OperationPhase) Running() bool {
+	return os == OperationRunning
+}
+
 func (os OperationPhase) Successful() bool {
 	return os == OperationSucceeded
+}
+
+func (os OperationPhase) Failed() bool {
+	return os == OperationFailed
 }
 
 // OperationState contains information about state of currently performing operation on application.
@@ -424,8 +431,9 @@ const (
 type HookDeletePolicy string
 
 const (
-	HookDeletePolicyHookSucceeded HookDeletePolicy = "HookSucceeded"
-	HookDeletePolicyHookFailed    HookDeletePolicy = "HookFailed"
+	HookDeletePolicyHookSucceeded      HookDeletePolicy = "HookSucceeded"
+	HookDeletePolicyHookFailed         HookDeletePolicy = "HookFailed"
+	HookDeletePolicyBeforeHookCreation HookDeletePolicy = "BeforeHookCreation"
 )
 
 // data about a specific revision within a repo
