@@ -2722,7 +2722,7 @@
         },
         "targetRevision": {
           "type": "string",
-          "title": "Environment is a ksonnet application environment name\nTargetRevision defines the commit, tag, or branch in which to sync the application to.\nIf omitted, will sync to HEAD"
+          "title": "TargetRevision defines the commit, tag, or branch in which to sync the application to.\nIf omitted, will sync to HEAD"
         }
       }
     },

@@ -98,7 +98,6 @@ type ApplicationSource struct {
 	RepoURL string `json:"repoURL" protobuf:"bytes,1,opt,name=repoURL"`
 	// Path is a directory path within the repository containing a
 	Path string `json:"path" protobuf:"bytes,2,opt,name=path"`
-	// Environment is a ksonnet application environment name
 	// TargetRevision defines the commit, tag, or branch in which to sync the application to.
 	// If omitted, will sync to HEAD
 	TargetRevision string `json:"targetRevision,omitempty" protobuf:"bytes,4,opt,name=targetRevision"`

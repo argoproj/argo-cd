@@ -116,7 +116,6 @@ message ApplicationSource {
   // Path is a directory path within the repository containing a
   optional string path = 2;
 
-  // Environment is a ksonnet application environment name
   // TargetRevision defines the commit, tag, or branch in which to sync the application to.
   // If omitted, will sync to HEAD
   optional string targetRevision = 4;
