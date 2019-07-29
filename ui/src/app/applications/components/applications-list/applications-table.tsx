@@ -17,7 +17,7 @@ export const ApplicationsTable = (props: {
     <div className='argo-table-list argo-table-list--clickable'>
         <div className='argo-table-list__head'>
             <div className='row'>
-                <div className='columns large-2 small-6'>PROJECT/NAME</div>
+                <div className='columns large-3 small-6'>PROJECT/NAME</div>
                 <div className='columns large-3 show-for-large'>SOURCE</div>
                 <div className='columns large-1 small-2'>TARGET REVISION</div>
                 <div className='columns large-3 show-for-large'>DESTINATION</div>
@@ -30,25 +30,22 @@ export const ApplicationsTable = (props: {
                 applications-list__entry--health-${app.status.health.status}`
             }>
                 <div className='row applications-list__table-row' onClick={(e) => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, { event: e })}>
-                    <div className='columns large-2 small-6'>
+                    <div className='columns large-3 small-6 wrap'>
                         <i className='icon argo-icon-application'/> {app.spec.project}/{app.metadata.name} <ApplicationURLs urls={app.status.summary.externalURLs}/>
                     </div>
-                    <div className='columns large-3 show-for-large'>
+                    <div className='columns large-3 show-for-large wrap'>
                         {app.spec.source.repoURL}/{app.spec.source.path}
                     </div>
                     <div className='columns large-1 small-2'>
                         {app.spec.source.targetRevision || 'HEAD'}
                     </div>
-                    <div className='columns large-3 show-for-large'>
+                    <div className='columns large-3 show-for-large wrap'>
                         {app.spec.destination.server}/{app.spec.destination.namespace}
                     </div>
-                    <div className='columns large-3 small-4'>
-                        <div className='applications-list__table-icon'>
-                            <AppUtils.HealthStatusIcon state={app.status.health}/> <span>{app.status.health.status}</span>
-                        </div>
-                        <div className='applications-list__table-icon'>
-                            <AppUtils.ComparisonStatusIcon status={app.status.sync.status}/> <span>{app.status.sync.status}</span>
-                        </div>
+                    <div className='columns large-2 small-4'>
+                        <AppUtils.HealthStatusIcon state={app.status.health}/> <span>{app.status.health.status}</span>
+                        &nbsp;
+                        <AppUtils.ComparisonStatusIcon status={app.status.sync.status}/> <span>{app.status.sync.status}</span>
                         <DropDownMenu anchor={() => (
                             <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
                                 <i className='fa fa-ellipsis-v'/>
