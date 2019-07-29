@@ -463,7 +463,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSource(ref common.Reference
 					},
 					"targetRevision": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Environment is a ksonnet application environment name TargetRevision defines the commit, tag, or branch in which to sync the application to. If omitted, will sync to HEAD",
+							Description: "TargetRevision defines the commit, tag, or branch in which to sync the application to. If omitted, will sync to HEAD",
 							Type:        []string{"string"},
 							Format:      "",
 						},
