@@ -218,11 +218,13 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         <ApplicationTiles
                                             applications={data}
                                             syncApplication={(appName) => ctx.navigation.goto('.', { syncApp: appName })}
+                                            refreshApplication={(appName) => services.applications.get(appName, 'normal')}
                                             deleteApplication={(appName) => AppUtils.deleteApplication(appName, ctx)}
                                         />
                                     ) || (
                                         <ApplicationsTable applications={data}
                                             syncApplication={(appName) => ctx.navigation.goto('.', { syncApp: appName })}
+                                            refreshApplication={(appName) => services.applications.get(appName, 'normal')}
                                             deleteApplication={(appName) => AppUtils.deleteApplication(appName, ctx)}
                                         />
                                     )

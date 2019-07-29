@@ -193,6 +193,52 @@ func TestProjectServer(t *testing.T) {
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
 	})
 
+	t.Run("TestRemoveSourceUsedByAppSuccessfulIfPermittedByAnotherSrc", func(t *testing.T) {
+		proj := existingProj.DeepCopy()
+		proj.Spec.SourceRepos = []string{"https://github.com/argoproj/argo-cd.git", "https://github.com/argoproj/*"}
+		existingApp := v1alpha1.Application{
+			ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},
+			Spec:       v1alpha1.ApplicationSpec{Project: "test", Source: v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd.git"}},
+		}
+
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(proj, &existingApp), enforcer, util.NewKeyLock(), nil)
+
+		updatedProj := proj.DeepCopy()
+		updatedProj.Spec.SourceRepos = []string{"https://github.com/argoproj/*"}
+
+		res, err := projectServer.Update(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
+
+		assert.NoError(t, err)
+		assert.ElementsMatch(t, res.Spec.SourceRepos, updatedProj.Spec.SourceRepos)
+	})
+
+	t.Run("TestRemoveDestinationUsedByAppSuccessfulIfPermittedByAnotherDestination", func(t *testing.T) {
+		proj := existingProj.DeepCopy()
+		proj.Spec.Destinations = []v1alpha1.ApplicationDestination{
+			{Namespace: "org1-team1", Server: "https://server1"},
+			{Namespace: "org1-*", Server: "https://server1"},
+		}
+		existingApp := v1alpha1.Application{
+			ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},
+			Spec: v1alpha1.ApplicationSpec{Project: "test", Destination: v1alpha1.ApplicationDestination{
+				Server:    "https://server1",
+				Namespace: "org1-team1",
+			}},
+		}
+
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(proj, &existingApp), enforcer, util.NewKeyLock(), nil)
+
+		updatedProj := proj.DeepCopy()
+		updatedProj.Spec.Destinations = []v1alpha1.ApplicationDestination{
+			{Namespace: "org1-*", Server: "https://server1"},
+		}
+
+		res, err := projectServer.Update(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
+
+		assert.NoError(t, err)
+		assert.ElementsMatch(t, res.Spec.Destinations, updatedProj.Spec.Destinations)
+	})
+
 	t.Run("TestDeleteProjectSuccessful", func(t *testing.T) {
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj), enforcer, util.NewKeyLock(), nil)
 
