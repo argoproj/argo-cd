@@ -80,7 +80,7 @@ func (h *helm) Template(appName string, namespace string, opts *argoappv1.Applic
 				return nil, err
 			}
 			p := file.Name()
-			//defer func() {_ = os.RemoveAll(p)}()
+			defer func() {_ = os.RemoveAll(p)}()
 			err = ioutil.WriteFile(p, []byte(opts.Values), 0644)
 			if err != nil {
 				return nil, err
