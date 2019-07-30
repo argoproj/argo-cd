@@ -3,6 +3,7 @@ package e2e
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -278,6 +279,8 @@ func TestHookDeleteBeforeCreation(t *testing.T) {
 			creationTimestamp1, err = getCreationTimestamp()
 			CheckError(err)
 			assert.NotEmpty(t, creationTimestamp1)
+			// pause to ensure that timestamp will change
+			time.Sleep(1 * time.Second)
 		}).
 		When().
 		Sync().
