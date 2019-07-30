@@ -1,4 +1,5 @@
 import { Tooltip } from 'argo-ui';
+import * as classNames from 'classnames';
 import * as React from 'react';
 
 import { Consumer } from '../../../shared/context';
@@ -78,11 +79,12 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                             syncApplication(app.metadata.name);
                                         }}><i className='fa fa-sync'/> Sync</a>
                                     &nbsp;
-                                    <a className='argo-button argo-button--base'
+                                    <a className='argo-button argo-button--base' {...AppUtils.refreshLinkAttrs(app)}
                                        onClick={(e) => {
                                            e.stopPropagation();
                                            refreshApplication(app.metadata.name);
-                                       }}><i className='fa fa-redo'/> Refresh</a>
+                                       }}><i className={classNames('fa fa-redo', { 'status-icon--spin': AppUtils.isAppRefreshing(app) })}/> <span className='show-for-xlarge'>
+                                           Refresh</span></a>
                                     &nbsp;
                                     <a className='argo-button argo-button--base' onClick={(e) => {
                                         e.stopPropagation();
