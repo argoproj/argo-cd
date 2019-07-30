@@ -34,7 +34,7 @@ func NewServer(sessionMgr *session.SessionManager, settingsMgr *settings.Setting
 
 // UpdatePassword updates the password of the local admin superuser.
 func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRequest) (*account.UpdatePasswordResponse, error) {
-	username := getAuthenticatedUser(ctx)
+	username := GetAuthenticatedUser(ctx.Value("claims"))
 	if username != common.ArgoCDAdminUsername {
 		return nil, status.Errorf(codes.InvalidArgument, "password can only be changed for local users, not user %q", username)
 	}
@@ -66,9 +66,8 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 
 }
 
-// getAuthenticatedUser returns the currently authenticated user (via JWT 'sub' field)
-func getAuthenticatedUser(ctx context.Context) string {
-	claimsIf := ctx.Value("claims")
+//  returns the currently authenticated user (via JWT 'sub' field)
+func GetAuthenticatedUser(claimsIf interface{}) string {
 	if claimsIf == nil {
 		return ""
 	}
