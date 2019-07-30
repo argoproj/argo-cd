@@ -111,6 +111,21 @@ ENV USER=argocd
 USER argocd
 WORKDIR /home/argocd
 
+####################################################################################################
+# Argo CD UI stage
+####################################################################################################
+FROM node:11.15.0 as argocd-ui
+
+WORKDIR /src
+ADD ["ui/package.json", "ui/yarn.lock", "./"]
+
+RUN yarn install
+
+ADD ["ui/", "."]
+
+ARG ARGO_VERSION=latest
+ENV ARGO_VERSION=$ARGO_VERSION
+RUN NODE_ENV='production' yarn build
 
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
@@ -142,3 +157,5 @@ RUN make cli server controller repo-server argocd-util && \
 ####################################################################################################
 FROM argocd-base
 COPY --from=argocd-build /go/src/github.com/argoproj/argo-cd/dist/argocd* /usr/local/bin/
+COPY --from=argocd-ui ./src/dist/app /shared/app
+

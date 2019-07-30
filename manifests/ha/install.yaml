@@ -3186,24 +3186,10 @@ spec:
           initialDelaySeconds: 3
           periodSeconds: 30
         volumeMounts:
-        - mountPath: /shared
-          name: static-files
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
         - mountPath: /app/config/tls
           name: tls-certs
-      initContainers:
-      - command:
-        - cp
-        - -r
-        - /app
-        - /shared
-        image: argoproj/argocd-ui:latest
-        imagePullPolicy: Always
-        name: ui
-        volumeMounts:
-        - mountPath: /shared
-          name: static-files
       serviceAccountName: argocd-server
       volumes:
       - emptyDir: {}
