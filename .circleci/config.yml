@@ -7,6 +7,7 @@ commands:
       - install_tools
       - clean_checkout
       - configure_git
+      - install_go_deps
       - dep_ensure
   configure_git:
     steps:
@@ -53,6 +54,16 @@ commands:
             which go
             go version
             go env
+  install_go_deps:
+    steps:
+      - run:
+          name: Install Go deps
+          command: |
+            set -x
+            go get github.com/golangci/golangci-lint/cmd/golangci-lint
+            go get github.com/jstemmer/go-junit-report
+            go get github.com/mattn/goreman
+            go get golang.org/x/tools/cmd/goimports
   install_tools:
     steps:
       - run:
