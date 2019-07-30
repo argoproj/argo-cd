@@ -280,7 +280,7 @@ func TestHookDeleteBeforeCreation(t *testing.T) {
 			CheckError(err)
 			assert.NotEmpty(t, creationTimestamp1)
 			// pause to ensure that timestamp will change
-			time.Sleep(1 * time.Second)
+			time.Sleep(2 * time.Second)
 		}).
 		When().
 		Sync().
