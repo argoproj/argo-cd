@@ -573,6 +573,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 							Format:      "",
 						},
 					},
+					"values": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Values is Helm values, typically defined as a block",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
