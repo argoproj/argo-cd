@@ -150,6 +150,6 @@ func TestKustomizeImages(t *testing.T) {
 		AppSet("--parameter", "alpine:whatever").
 		Then().
 		And(func(app *Application) {
-			assert.Contains(t, app.Spec.Source.Kustomize.Images, "alpine:whatever")
+			assert.Contains(t, app.Spec.Source.Kustomize.Images, KustomizeImage("alpine:whatever"))
 		})
 }
