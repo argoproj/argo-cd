@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.1.2 (2019-07-30)
+- 'argocd app wait' should print correct sync status (#2049)
+- Check that TLS is enabled when registering DEX Handlers (#2047)
+- Do not ignore Argo hooks when there is a Helm hook. (#1952)
+
+## v1.1.1 (2019-07-25)
++ Support 'override' action in UI/API (#1984)
+- Fix argocd app wait message (#1982)
+
 ## v1.1.0 (2019-07-24)
 
 ### New Features
