@@ -350,3 +350,11 @@ export function getAppOverridesCount(app: appModels.Application) {
     }
     return 0;
 }
+
+export function isAppRefreshing(app: appModels.Application) {
+    return !!(app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey]);
+}
+
+export function refreshLinkAttrs(app: appModels.Application) {
+    return { disabled: isAppRefreshing(app) };
+}
