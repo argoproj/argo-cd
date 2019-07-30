@@ -368,7 +368,7 @@ func (in *ApplicationSourceKustomize) DeepCopyInto(out *ApplicationSourceKustomi
 	}
 	if in.Images != nil {
 		in, out := &in.Images, &out.Images
-		*out = make([]string, len(*in))
+		*out = make(KustomizeImages, len(*in))
 		copy(*out, *in)
 	}
 	if in.CommonLabels != nil {

@@ -616,7 +616,7 @@ func TestApplicationSource_IsZero(t *testing.T) {
 		{"Path", &ApplicationSource{Path: "foo"}, false},
 		{"TargetRevision", &ApplicationSource{TargetRevision: "foo"}, false},
 		{"Helm", &ApplicationSource{Helm: &ApplicationSourceHelm{ReleaseName: "foo"}}, false},
-		{"Kustomize", &ApplicationSource{Kustomize: &ApplicationSourceKustomize{Images: []string{""}}}, false},
+		{"Kustomize", &ApplicationSource{Kustomize: &ApplicationSourceKustomize{Images: KustomizeImages{""}}}, false},
 		{"Helm", &ApplicationSource{Ksonnet: &ApplicationSourceKsonnet{Environment: "foo"}}, false},
 		{"Directory", &ApplicationSource{Directory: &ApplicationSourceDirectory{Recurse: true}}, false},
 		{"Plugin", &ApplicationSource{Plugin: &ApplicationSourcePlugin{Name: "foo"}}, false},
@@ -657,7 +657,7 @@ func TestApplicationSourceKustomize_IsZero(t *testing.T) {
 		{"Empty", &ApplicationSourceKustomize{}, true},
 		{"NamePrefix", &ApplicationSourceKustomize{NamePrefix: "foo"}, false},
 		{"ImageTags", &ApplicationSourceKustomize{ImageTags: []KustomizeImageTag{{}}}, false},
-		{"Images", &ApplicationSourceKustomize{Images: []string{""}}, false},
+		{"Images", &ApplicationSourceKustomize{Images: []KustomizeImage{""}}, false},
 		{"CommonLabels", &ApplicationSourceKustomize{CommonLabels: map[string]string{"": ""}}, false},
 	}
 	for _, tt := range tests {
@@ -789,5 +789,23 @@ func TestEnv_Environ(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, tt.e.Environ())
 		})
+	}
+}
+
+func TestKustomizeImage_Match(t *testing.T) {
+	assert.False(t, KustomizeImage("foo=1").Match("bar=1"))
+	assert.True(t, KustomizeImage("foo=1").Match("foo=2"))
+}
+
+func TestApplicationSourceKustomize_MergeImage(t *testing.T) {
+	{
+		kustomize := ApplicationSourceKustomize{Images: []KustomizeImage{}}
+		kustomize.MergeImage("foo=1")
+		assert.Equal(t, KustomizeImages{"foo=1"}, kustomize.Images)
+	}
+	{
+		kustomize := ApplicationSourceKustomize{Images: []KustomizeImage{"foo=1"}}
+		kustomize.MergeImage("foo=2")
+		assert.Equal(t, KustomizeImages{"foo=2"}, kustomize.Images)
 	}
 }

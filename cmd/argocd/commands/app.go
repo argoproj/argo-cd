@@ -1506,6 +1506,8 @@ func setParameterOverrides(app *argoappv1.Application, parameters []string) {
 			sourceType = argoappv1.ApplicationSourceTypeKsonnet
 		} else if len(strings.SplitN(parameters[0], "=", 2)) == 2 {
 			sourceType = argoappv1.ApplicationSourceTypeHelm
+		} else {
+			sourceType = argoappv1.ApplicationSourceTypeKustomize
 		}
 	}
 
@@ -1561,6 +1563,13 @@ func setParameterOverrides(app *argoappv1.Application, parameters []string) {
 			if !found {
 				app.Spec.Source.Helm.Parameters = append(app.Spec.Source.Helm.Parameters, newParam)
 			}
+		}
+	case argoappv1.ApplicationSourceTypeKustomize:
+		if app.Spec.Source.Kustomize == nil {
+			app.Spec.Source.Kustomize = &argoappv1.ApplicationSourceKustomize{}
+		}
+		for _, p := range parameters {
+			app.Spec.Source.Kustomize.MergeImage(argoappv1.KustomizeImage(p))
 		}
 	default:
 		log.Fatalf("Parameters can only be set against Ksonnet or Helm applications")

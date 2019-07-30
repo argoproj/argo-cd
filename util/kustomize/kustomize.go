@@ -106,7 +106,9 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstruc
 				// set image postgres=eu.gcr.io/my-project/postgres:latest my-app=my-registry/my-app@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d3
 				// set image node:8.15.0 mysql=mariadb alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d3
 				args := []string{"edit", "set", "image"}
-				args = append(args, opts.Images...)
+				for _, image := range opts.Images {
+					args = append(args, string(image))
+				}
 				cmd := exec.Command(commandName, args...)
 				cmd.Dir = k.path
 				_, err := argoexec.RunCommandExt(cmd, config.CmdOpts())

@@ -9072,7 +9072,7 @@ func (m *ApplicationSourceKustomize) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Images = append(m.Images, string(dAtA[iNdEx:postIndex]))
+			m.Images = append(m.Images, KustomizeImage(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
 		case 4:
 			if wireType != 2 {

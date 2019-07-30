@@ -140,3 +140,16 @@ func TestKustomizeDeclarativeInvalidApp(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
 		Expect(Condition(ApplicationConditionComparisonError, "invalid-kustomize/does-not-exist.yaml: no such file or directory"))
 }
+
+// make sure we can create an app which has a SSH remote base
+func TestKustomizeImages(t *testing.T) {
+	Given(t).
+		Path("kustomize").
+		When().
+		Create().
+		AppSet("--parameter", "alpine:whatever").
+		Then().
+		And(func(app *Application) {
+			assert.Contains(t, app.Spec.Source.Kustomize.Images, "alpine:whatever")
+		})
+}

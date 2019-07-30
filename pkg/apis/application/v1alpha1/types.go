@@ -3,11 +3,10 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
-	"regexp"
-
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"google.golang.org/grpc/codes"
@@ -166,6 +165,25 @@ func (h *ApplicationSourceHelm) IsZero() bool {
 	return h == nil || (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0
 }
 
+type KustomizeImage string
+
+// if the image name matches (i.e. up to the first "=" symbol)
+func (i KustomizeImage) Match(j KustomizeImage) bool {
+	return strings.HasPrefix(string(i), strings.Split(string(j), "=")[0])
+}
+
+type KustomizeImages []KustomizeImage
+
+// find the image or -1
+func (images KustomizeImages) Find(image KustomizeImage) int {
+	for i, a := range images {
+		if a.Match(image) {
+			return i
+		}
+	}
+	return -1
+}
+
 // ApplicationSourceKustomize holds kustomize specific options
 type ApplicationSourceKustomize struct {
 	// NamePrefix is a prefix appended to resources for kustomize apps
@@ -173,7 +191,7 @@ type ApplicationSourceKustomize struct {
 	// ImageTags are kustomize 1.0 image tag overrides
 	ImageTags []KustomizeImageTag `json:"imageTags,omitempty" protobuf:"bytes,2,opt,name=imageTags"`
 	// Images are kustomize 2.0 image overrides
-	Images []string `json:"images,omitempty" protobuf:"bytes,3,opt,name=images"`
+	Images KustomizeImages `json:"images,omitempty" protobuf:"bytes,3,opt,name=images"`
 	// CommonLabels adds additional kustomize commonLabels
 	CommonLabels map[string]string `json:"commonLabels,omitempty" protobuf:"bytes,4,opt,name=commonLabels"`
 }
@@ -188,6 +206,16 @@ type KustomizeImageTag struct {
 
 func (k *ApplicationSourceKustomize) IsZero() bool {
 	return k == nil || k.NamePrefix == "" && len(k.ImageTags) == 0 && len(k.Images) == 0 && len(k.CommonLabels) == 0
+}
+
+// either updates or adds the images
+func (k *ApplicationSourceKustomize) MergeImage(image KustomizeImage) {
+	i := k.Images.Find(image)
+	if i >= 0 {
+		k.Images[i] = image
+	} else {
+		k.Images = append(k.Images, image)
+	}
 }
 
 // JsonnetVar is a jsonnet variable

@@ -152,6 +152,13 @@ func (a *Actions) PatchApp(patch string) *Actions {
 	return a
 }
 
+func (a *Actions) AppSet(flags ...string) *Actions {
+	args := []string{"app", "set", a.context.name}
+	args = append(args, flags...)
+	a.runCli(args...)
+	return a
+}
+
 func (a *Actions) Sync() *Actions {
 	args := []string{"app", "sync", a.context.name, "--timeout", fmt.Sprintf("%v", a.context.timeout)}
 
