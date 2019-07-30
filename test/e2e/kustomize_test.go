@@ -141,7 +141,7 @@ func TestKustomizeDeclarativeInvalidApp(t *testing.T) {
 		Expect(Condition(ApplicationConditionComparisonError, "invalid-kustomize/does-not-exist.yaml: no such file or directory"))
 }
 
-// make sure we can create an app which has a SSH remote base
+// make sure we we can invoke the CLI to replace images
 func TestKustomizeImages(t *testing.T) {
 	Given(t).
 		Path("kustomize").

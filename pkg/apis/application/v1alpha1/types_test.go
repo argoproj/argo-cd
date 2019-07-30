@@ -799,12 +799,12 @@ func TestKustomizeImage_Match(t *testing.T) {
 
 func TestApplicationSourceKustomize_MergeImage(t *testing.T) {
 	{
-		kustomize := ApplicationSourceKustomize{Images: []KustomizeImage{}}
+		kustomize := ApplicationSourceKustomize{Images: KustomizeImages{}}
 		kustomize.MergeImage("foo=1")
 		assert.Equal(t, KustomizeImages{"foo=1"}, kustomize.Images)
 	}
 	{
-		kustomize := ApplicationSourceKustomize{Images: []KustomizeImage{"foo=1"}}
+		kustomize := ApplicationSourceKustomize{Images: KustomizeImages{"foo=1"}}
 		kustomize.MergeImage("foo=2")
 		assert.Equal(t, KustomizeImages{"foo=2"}, kustomize.Images)
 	}
