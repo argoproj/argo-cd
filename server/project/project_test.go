@@ -274,43 +274,102 @@ func TestProjectServer(t *testing.T) {
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
 	})
 
-	t.Run("TestCreateTokenSuccesfully", func(t *testing.T) {
+	// configure a user named "admin" which is denied by default
+	enforcer = newEnforcer(kubeclientset)
+	_ = enforcer.SetBuiltinPolicy(`p, *, *, *, *, deny`)
+	enforcer.SetClaimsEnforcerFunc(nil)
+	ctx := context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"my-group"}})
+
+	tokenName := "testToken"
+
+	t.Run("TestCreateTokenDenied", func(t *testing.T) {
 		sessionMgr := session.NewSessionManager(settingsMgr, "")
 		projectWithRole := existingProj.DeepCopy()
-		tokenName := "testToken"
+		projectWithRole.Spec.Roles = []v1alpha1.ProjectRole{{Name: tokenName}}
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, util.NewKeyLock(), sessionMgr)
+		_, err := projectServer.CreateToken(ctx, &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 1})
+		assert.EqualError(t, err, "rpc error: code = PermissionDenied desc = permission denied: projects, update, test")
+	})
+
+	t.Run("TestCreateTokenSuccessfullyUsingGroup", func(t *testing.T) {
+		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		projectWithRole := existingProj.DeepCopy()
+		projectWithRole.Spec.Roles = []v1alpha1.ProjectRole{{Name: tokenName, Groups: []string{"my-group"}}}
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, util.NewKeyLock(), sessionMgr)
+		_, err := projectServer.CreateToken(ctx, &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 1})
+		assert.NoError(t, err)
+	})
+
+	_ = enforcer.SetBuiltinPolicy(`p, role:admin, projects, update, *, allow`)
+
+	t.Run("TestCreateTokenSuccessfully", func(t *testing.T) {
+		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		projectWithRole := existingProj.DeepCopy()
 		projectWithRole.Spec.Roles = []v1alpha1.ProjectRole{{Name: tokenName}}
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, util.NewKeyLock(), sessionMgr)
 		tokenResponse, err := projectServer.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 1})
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		claims, err := sessionMgr.Parse(tokenResponse.Token)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		mapClaims, err := jwtutil.MapClaims(claims)
 		subject, ok := mapClaims["sub"].(string)
 		assert.True(t, ok)
 		expectedSubject := fmt.Sprintf(JWTTokenSubFormat, projectWithRole.Name, tokenName)
 		assert.Equal(t, expectedSubject, subject)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	})
 
-	t.Run("TestDeleteTokenSuccesfully", func(t *testing.T) {
+	_ = enforcer.SetBuiltinPolicy(`p, *, *, *, *, deny`)
+
+	t.Run("TestDeleteTokenDenied", func(t *testing.T) {
 		sessionMgr := session.NewSessionManager(settingsMgr, "")
 		projWithToken := existingProj.DeepCopy()
-		tokenName := "testToken"
 		issuedAt := int64(1)
 		secondIssuedAt := issuedAt + 1
 		token := v1alpha1.ProjectRole{Name: tokenName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: issuedAt}, {IssuedAt: secondIssuedAt}}}
 		projWithToken.Spec.Roles = append(projWithToken.Spec.Roles, token)
 
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr)
-		_, err := projectServer.DeleteToken(context.Background(), &project.ProjectTokenDeleteRequest{Project: projWithToken.Name, Role: tokenName, Iat: issuedAt})
-		assert.Nil(t, err)
+		_, err := projectServer.DeleteToken(ctx, &project.ProjectTokenDeleteRequest{Project: projWithToken.Name, Role: tokenName, Iat: issuedAt})
+		assert.EqualError(t, err, "rpc error: code = PermissionDenied desc = permission denied: projects, update, test")
+	})
+
+	t.Run("TestDeleteTokenSuccessfullyWithGroup", func(t *testing.T) {
+		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		projWithToken := existingProj.DeepCopy()
+		issuedAt := int64(1)
+		secondIssuedAt := issuedAt + 1
+		token := v1alpha1.ProjectRole{Name: tokenName, Groups: []string{"my-group"}, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: issuedAt}, {IssuedAt: secondIssuedAt}}}
+		projWithToken.Spec.Roles = append(projWithToken.Spec.Roles, token)
+
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr)
+		_, err := projectServer.DeleteToken(ctx, &project.ProjectTokenDeleteRequest{Project: projWithToken.Name, Role: tokenName, Iat: issuedAt})
+		assert.NoError(t, err)
+	})
+
+	_ = enforcer.SetBuiltinPolicy(`p, role:admin, projects, get, *, allow
+p, role:admin, projects, update, *, allow`)
+
+	t.Run("TestDeleteTokenSuccessfully", func(t *testing.T) {
+		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		projWithToken := existingProj.DeepCopy()
+		issuedAt := int64(1)
+		secondIssuedAt := issuedAt + 1
+		token := v1alpha1.ProjectRole{Name: tokenName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: issuedAt}, {IssuedAt: secondIssuedAt}}}
+		projWithToken.Spec.Roles = append(projWithToken.Spec.Roles, token)
+
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr)
+		_, err := projectServer.DeleteToken(ctx, &project.ProjectTokenDeleteRequest{Project: projWithToken.Name, Role: tokenName, Iat: issuedAt})
+		assert.NoError(t, err)
 		projWithoutToken, err := projectServer.Get(context.Background(), &project.ProjectQuery{Name: projWithToken.Name})
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Len(t, projWithoutToken.Spec.Roles, 1)
 		assert.Len(t, projWithoutToken.Spec.Roles[0].JWTTokens, 1)
 		assert.Equal(t, projWithoutToken.Spec.Roles[0].JWTTokens[0].IssuedAt, secondIssuedAt)
 	})
+
+	enforcer = newEnforcer(kubeclientset)
 
 	t.Run("TestCreateTwoTokensInRoleSuccess", func(t *testing.T) {
 		sessionMgr := session.NewSessionManager(settingsMgr, "")
