@@ -1862,15 +1862,15 @@ func schema_pkg_apis_application_v1alpha1_RepositoryCertificate(ref common.Refer
 							Format:      "byte",
 						},
 					},
-					"certfingerprint": {
+					"certinfo": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Certificate fingerprint",
+							Description: "Additional certificate info (e.g. SSH fingerprint, X509 CommonName)",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 				},
-				Required: []string{"servername", "type", "cipher", "certdata", "certfingerprint"},
+				Required: []string{"servername", "type", "cipher", "certdata", "certinfo"},
 			},
 		},
 	}

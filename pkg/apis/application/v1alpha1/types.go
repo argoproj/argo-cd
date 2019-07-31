@@ -950,8 +950,8 @@ type RepositoryCertificate struct {
 	CertSubType string `json:"cipher" protobuf:"bytes,3,opt,name=cipher"`
 	// Actual certificate data, protocol dependent
 	CertData []byte `json:"certdata" protobuf:"bytes,4,opt,name=certdata"`
-	// Certificate fingerprint
-	CertFingerprint string `json:"certfingerprint" protobuf:"bytes,5,opt,name=certfingerprint"`
+	// Additional certificate info (e.g. SSH fingerprint, X509 CommonName)
+	CertInfo string `json:"certinfo" protobuf:"bytes,5,opt,name=certinfo"`
 }
 
 // RepositoryCertificateList is a collection of RepositoryCertificates
