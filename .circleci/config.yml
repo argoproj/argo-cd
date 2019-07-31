@@ -72,9 +72,6 @@ commands:
       - restore_cache:
           keys:
             - dl-v6
-            - dl-v5
-            - dl-v4
-            - dl-v3
       - run:
           name: Install Kubectx v0.6.3
           command: |
@@ -139,13 +136,13 @@ commands:
             sudo apt-get update
             sudo apt-get install -y git-lfs openssh-client
       - save_cache:
-          key: dl-v4
+          key: dl-v6
           paths:
             - /tmp/dl
   save_go_cache:
     steps:
       - save_cache:
-          key: go-v16-{{ .Branch }}
+          key: go-v17-{{ .Branch }}
           paths:
             - /home/circleci/.go_workspace
             - /home/circleci/.cache/go-build
@@ -154,10 +151,10 @@ commands:
     steps:
       - restore_cache:
           keys:
+            - go-v17-{{ .Branch }}
+            - go-v17-master
             - go-v16-{{ .Branch }}
             - go-v16-master
-            - go-v15-{{ .Branch }}
-            - go-v15-master
 jobs:
   build:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd

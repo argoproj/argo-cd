@@ -4,7 +4,7 @@ API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,JWTToken,IssuedAt
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,Repository,EnableLFS
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,RepositoryCertificate,CertData
-API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,RepositoryCertificate,CertFingerprint
+API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,RepositoryCertificate,CertInfo
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,RepositoryCertificate,CertSubType
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,RepositoryCertificate,CertType
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,RepositoryCertificate,ServerName

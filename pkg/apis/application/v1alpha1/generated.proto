@@ -528,8 +528,8 @@ message RepositoryCertificate {
   // Actual certificate data, protocol dependent
   optional bytes certdata = 4;
 
-  // Certificate fingerprint
-  optional string certfingerprint = 5;
+  // Additional certificate info (e.g. SSH fingerprint, X509 CommonName)
+  optional string certinfo = 5;
 }
 
 // RepositoryCertificateList is a collection of RepositoryCertificates
