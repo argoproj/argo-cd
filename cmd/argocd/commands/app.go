@@ -47,7 +47,6 @@ import (
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/hook"
 	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/resource"
 	"github.com/argoproj/argo-cd/util/templates"
 )
 
@@ -698,7 +697,7 @@ func groupLocalObjs(localObs []*unstructured.Unstructured, liveObjs []*unstructu
 	objByKey := make(map[kube.ResourceKey]*unstructured.Unstructured)
 	for i := range localObs {
 		obj := localObs[i]
-		if !(hook.IsHook(obj) || resource.Ignore(obj)) {
+		if !(hook.IsHook(obj)) {
 			objByKey[kube.GetResourceKey(obj)] = obj
 		}
 	}
