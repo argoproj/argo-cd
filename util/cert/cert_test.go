@@ -351,7 +351,6 @@ func Test_SSHFingerPrintSHA256FromString(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, len(entries), 7)
 	for idx, entry := range entries {
-		assert.Nil(t, err)
 		fp := SSHFingerprintSHA256FromString(entry)
 		assert.Equal(t, fp, fingerprints[idx])
 	}
