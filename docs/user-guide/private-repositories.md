@@ -33,7 +33,7 @@ Then, connect the repository using an empty string as a username and access toke
 
 ### TLS Client Certificates for HTTPS repositories
 
-> v1.3 and later
+> v1.2 and later
 
 If your repository server requires you to use TLS client certificates for authentication, you can configure ArgoCD repositories to make use of them. For this purpose, `--tls-client-cert-path` and `--tls-client-cert-key-path` switches to the `argocd repo add` command can be used to specify the files on your local system containing client certificate and the corresponding key, respectively:
 
@@ -58,21 +58,39 @@ argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-ke
 
 ## Self-signed & Untrusted TLS Certificates
 
-> v1.2 or higher
+> v1.2 or later
 
 If you are connecting a repository on a HTTPS server using a self-signed certificate, or a certificate signed by a custom Certificate Authority (CA) which are not known to ArgoCD, the repository will not be added due to security reasons. This is indicated by an error message such as `x509: certificate signed by unknown authority`.
 
 1. You can let ArgoCD connect the repository in an insecure way, without verifying the server's certificate at all. This can be accomplished by using the `--insecure-skip-server-verification` flag when adding the repository with the `argocd` CLI utility. However, this should be done only for non-production setups, as it imposes a serious security issue through possible man-in-the-middle attacks.
 
-2. You can let ArgoCD use a custom certificate for the verification of the server's certificate using the `cert add-tls` command of the `argocd` CLI utility. This is the recommended method and suitable for production use. In order to do so, you will need the server's certificate, or the certificate of the CA used to sign the server's certificate, in PEM format.
+2. You can configure ArgoCD to use a custom certificate for the verification of the server's certificate using the `cert add-tls` command of the `argocd` CLI utility. This is the recommended method and suitable for production use. In order to do so, you will need the server's certificate, or the certificate of the CA used to sign the server's certificate, in PEM format.
 
 !!! note
     For invalid server certificates, such as those without matching server name, or those that are expired, adding a CA certificate will not help. In this case, your only option will be to use the `--insecure-skip-server-verification` flag to connect the repository. You are strongly urged to use a valid certificate on the repository server, or to urge the server's administrator to replace the faulty certificate with a valid one.
 
-Example for adding a HTTPS repository to ArgoCD without verifying the server's certificate (**Caution:** This is **not** recommended for production use):
+!!! note
+    TLS certificates are configured on a per-server, not on a per-repository basis. If you connect multiple repositories from the same server, you only have to configure the certificates once for this server.
+
+!!! note
+    It can take up to a couple of minutes until the changes performed by the `argocd cert` command are propagated across your cluster, depending on your Kubernetes setup.
+
+### Managing TLS certificates using the CLI
+
+You can list all configured TLS certificates by using the `argocd cert list` command using the `--cert-type https` modifier:
+
+```bash
+$ argocd cert list --cert-type https
+HOSTNAME      TYPE   SUBTYPE  FINGERPRINT/SUBJECT
+docker-build  https  rsa      CN=ArgoCD Test CA
+localhost     https  rsa      CN=localhost
+```
+
+Example for adding  a HTTPS repository to ArgoCD without verifying the server's certificate (**Caution:** This is **not** recommended for production use):
 
 ```bash
 argocd repo add --insecure-skip-server-verification https://git.example.com/test-repo
+
 ```
 
 Example for adding a CA certificate contained in file `~/myca-cert.pem` to properly verify the repository server:
@@ -91,15 +109,34 @@ cat cert1.pem cert2.pem | argocd cert add-tls git.example.com --upsert
 !!! note
     To replace an existing certificate for a server, use the `--upsert` flag to the `cert add-tls` CLI command. 
 
-!!! note
-    TLS certificates are configured on a per-server, not on a per-repository basis. If you connect multiple repositories from the same server, you only have to configure the certificates once for this server.
+Finally, TLS certificates can be removed using the `argocd cert rm` command with the `--cert-type https` modifier:
 
-!!! note
-    It can take up to a couple of minutes until the changes performed by the `argocd cert` command are propagated across your cluster, depending on your Kubernetes setup.
+```bash
+argocd cert rm --cert-type https localhost
+```
+
+### Managing TLS certificates using the ArgoCD web UI
+
+It is possible to add and remove TLS certificates using the ArgoCD web UI:
+
+1. In the navigation pane to the left, click on "Settings" and choose "Certificates" from the settings menu
+
+1. The following page lists all currently configured certificates and provides you with the option to add either a new TLS certificate or SSH known entries: 
+
+    ![manage certificates](../assets/cert-management-overview.png)
+
+1. Click on "Add TLS certificate", fill in relevant data and click on "Create". Take care to specify only the FQDN of your repository server (not the URL) and that you C&P the complete PEM of your TLS certificate into the text area field, including the `----BEGIN CERTIFICATE----` and `----END CERTIFICATE----` lines:
+
+    ![add tls certificate](../assets/cert-management-add-tls.png)
+
+1. To remove a certificate, click on the small three-dotted button next to the certificate entry, select "Remove" from the pop-up menu and confirm the removal in the following dialogue.
+
+    ![remove certificate](../assets/cert-management-remove.png)
+
+### Managing TLS certificates using declarative configuration
 
 You can also manage TLS certificates in a declarative, self-managed ArgoCD setup. All TLS certificates are stored in the ConfigMap object `argocd-tls-cert-cm`.
-
-Managing TLS certificates via the web UI is currently not possible, but will be introduced with **v1.3**
+Please refer to the [Operator Manual](../../operator-manual/declarative-setup/#repositories-using-self-signed-tls-certificates-or-are-signed-by-custom-ca) for more information.
 
 > Before v1.2
 
@@ -117,7 +154,31 @@ If you are using a privately hosted Git service over SSH, then you have the foll
 
 2. You can make the server's SSH public key known to ArgoCD by using the `cert add-ssh` command of the `argocd` CLI utility. This is the recommended method and suitable for production use. In order to do so, you will need the server's SSH public host key, in the `known_hosts` format understood by `ssh`. You can get the server's public SSH host key e.g. by using the `ssh-keyscan` utility.
 
-Example for adding all available SSH public host keys for a server to ArgoCD:
+!!! note
+    It can take up to a couple of minutes until the changes performed by the `argocd cert` command are propagated across your cluster, depending on your Kubernetes setup.
+  
+!!! note
+    When importing SSH known hosts key from a `known_hosts` file, the hostnames or IP addresses in the input data must **not** be hashed. If your `known_hosts` file contains hashed entries, it cannot be used as input source for adding SSH known hosts - neither in the CLI nor in the UI. If you absolutely wish to use hashed known hosts data, the only option will be using declarative setup (see below). Be aware that this will break CLI and UI certificate management, so it is generally not recommended.
+
+### Managing SSH Known Hosts using the CLI
+
+You can list all configured SSH known host entries using the `argocd cert list` command with the `--cert-type ssh` modifier:
+
+```bash
+$ argocd cert list --cert-type ssh
+HOSTNAME                 TYPE  SUBTYPE              FINGERPRINT/SUBJECT
+bitbucket.org            ssh   ssh-rsa              SHA256:zzXQOXSRBEiUtuE8AikJYKwbHaxvSc0ojez9YXaGp1A
+github.com               ssh   ssh-rsa              SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8
+gitlab.com               ssh   ecdsa-sha2-nistp256  SHA256:HbW3g8zUjNSksFbqTiUWPWg2Bq1x8xdGUrliXFzSnUw
+gitlab.com               ssh   ssh-ed25519          SHA256:eUXGGm1YGsMAS7vkcx6JOJdOGHPem5gQp4taiCfCLB8
+gitlab.com               ssh   ssh-rsa              SHA256:ROQFvPThGrW4RuWLoL9tq9I9zJ42fK4XywyRtbOz/EQ
+ssh.dev.azure.com        ssh   ssh-rsa              SHA256:ohD8VZEXGWo6Ez8GSEJQ9WpafgLFsOfLOtGGQCQo6Og
+vs-ssh.visualstudio.com  ssh   ssh-rsa              SHA256:ohD8VZEXGWo6Ez8GSEJQ9WpafgLFsOfLOtGGQCQo6Og
+```
+
+For adding SSH known host entries, the `argocd cert add-ssh` command can be used. You can either add from a file (using the `--from <file>` modifier), or by reading `stdin` when the `--batch` modifier was specified. In both cases, input must be in `known_hosts` format as understood by the OpenSSH client.
+
+Example for adding all available SSH public host keys for a server to ArgoCD, as collected by `ssh-keyscan`:
 
 ```bash
 ssh-keyscan server.example.com | argocd cert add-ssh --batch 
@@ -130,12 +191,39 @@ Example for importing an existing `known_hosts` file to ArgoCD:
 argocd cert add-ssh --batch --from /etc/ssh/ssh_known_hosts
 ```
 
-!!! note
-    It can take up to a couple of minutes until the changes performed by the `argocd cert` command are propagated across your cluster, depending on your Kubernetes setup.
+Finally, SSH known host entries can be removed using the `argocd cert rm` command with the `--cert-type ssh` modifier:
 
-You can also manage SSH known hosts entries in a declarative, self-managed ArgoCD setup. All SSH public host keys are stored in the ConfigMap object `argocd-ssh-known-hosts-cm`.
+```bash
+argocd cert rm bitbucket.org --cert-type ssh
+```
 
-Managing SSH public host keys via the web UI is currently not possible, but will be introduced with **v1.3**
+If you have multiple SSH known host entries for a given host with different key sub-types (e.g. as for gitlab.com in the example above, there are keys of sub-types `ssh-rsa`, `ssh-ed25519` and `ecdsa-sha2-nistp256`) and you want to only remove one of them, you can further narrow down the selection using the `--cert-sub-type` modifier:
+
+```bash
+argocd cert rm gitlab.com --cert-type ssh --cert-sub-type ssh-ed25519
+```
+
+### Managing SSH known hosts data using the ArgoCD web UI
+
+It is possible to add and remove SSH known hosts entries using the ArgoCD web UI:
+
+1. In the navigation pane to the left, click on "Settings" and choose "Certificates" from the settings menu
+
+1. The following page lists all currently configured certificates and provides you with the option to add either a new TLS certificate or SSH known entries: 
+
+    ![manage certificates](../assets/cert-management-overview.png)
+
+1. Click on "Add SSH known hosts" and paste your SSH known hosts data in the following mask. **Important**: Make sure there are no line breaks in the entries (key data) when you paste the data. Afterwards, click on "Create".
+
+    ![manage ssh known hosts](../assets/cert-management-add-ssh.png)
+
+1. To remove a certificate, click on the small three-dotted button next to the certificate entry, select "Remove" from the pop-up menu and confirm the removal in the following dialogue.
+
+    ![remove certificate](../assets/cert-management-remove.png)
+
+### Managing SSH known hosts data using declarative setup
+
+You can also manage SSH known hosts entries in a declarative, self-managed ArgoCD setup. All SSH public host keys are stored in the ConfigMap object `argocd-ssh-known-hosts-cm`. For more details, please refer to the [Operator Manual](../../operator-manual/declarative-setup/#ssh-known-host-public-keys)
 
 > Before v1.2
 
