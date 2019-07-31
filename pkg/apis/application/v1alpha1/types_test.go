@@ -801,6 +801,7 @@ func TestKustomizeImage_Match(t *testing.T) {
 	// matches
 	assert.True(t, KustomizeImage("foo=1").Match("foo=2"))
 	assert.True(t, KustomizeImage("foo:1").Match("foo:2"))
+	assert.True(t, KustomizeImage("foo@1").Match("foo@2"))
 }
 
 func TestApplicationSourceKustomize_MergeImage(t *testing.T) {

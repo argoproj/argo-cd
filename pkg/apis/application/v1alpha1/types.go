@@ -168,14 +168,15 @@ func (h *ApplicationSourceHelm) IsZero() bool {
 type KustomizeImage string
 
 func (i KustomizeImage) delim() string {
-	if strings.Contains(string(i), "=") {
-		return "="
-	} else {
-		return ":"
+	for _, d := range []string{"=", ":", "@"} {
+		if strings.Contains(string(i), d) {
+			return d
+		}
 	}
+	return ":"
 }
 
-// if the image name matches (i.e. up to the first "=" symbol)
+// if the image name matches (i.e. up to the first delimiter)
 func (i KustomizeImage) Match(j KustomizeImage) bool {
 	delim := j.delim()
 	if !strings.Contains(string(j), delim) {

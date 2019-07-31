@@ -147,9 +147,10 @@ func TestKustomizeImages(t *testing.T) {
 		Path("kustomize").
 		When().
 		Create().
-		AppSet("--parameter", "alpine:whatever").
+		// pass two flags to check the multi flag logic works
+		AppSet("--kustomize-image", "alpine:foo", "--kustomize-image", "alpine:bar").
 		Then().
 		And(func(app *Application) {
-			assert.Contains(t, app.Spec.Source.Kustomize.Images, KustomizeImage("alpine:whatever"))
+			assert.Contains(t, app.Spec.Source.Kustomize.Images, KustomizeImage("alpine:bar"))
 		})
 }
