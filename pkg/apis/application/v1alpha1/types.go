@@ -167,9 +167,21 @@ func (h *ApplicationSourceHelm) IsZero() bool {
 
 type KustomizeImage string
 
+func (i KustomizeImage) delim() string {
+	if strings.Contains(string(i), "=") {
+		return "="
+	} else {
+		return ":"
+	}
+}
+
 // if the image name matches (i.e. up to the first "=" symbol)
 func (i KustomizeImage) Match(j KustomizeImage) bool {
-	return strings.HasPrefix(string(i), strings.Split(string(j), "=")[0])
+	delim := j.delim()
+	if !strings.Contains(string(j), delim) {
+		return false
+	}
+	return strings.HasPrefix(string(i), strings.Split(string(j), delim)[0])
 }
 
 type KustomizeImages []KustomizeImage
