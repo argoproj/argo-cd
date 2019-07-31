@@ -697,12 +697,66 @@
     Self-signed &amp; Untrusted TLS Certificates
   </a>
   
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#managing-tls-certificates-using-the-cli" title="Managing TLS certificates using the CLI" class="md-nav__link">
+    Managing TLS certificates using the CLI
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#managing-tls-certificates-using-the-argocd-web-ui" title="Managing TLS certificates using the ArgoCD web UI" class="md-nav__link">
+    Managing TLS certificates using the ArgoCD web UI
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#managing-tls-certificates-using-declarative-configuration" title="Managing TLS certificates using declarative configuration" class="md-nav__link">
+    Managing TLS certificates using declarative configuration
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
   <a href="#unknown-ssh-hosts" title="Unknown SSH Hosts" class="md-nav__link">
     Unknown SSH Hosts
   </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#managing-ssh-known-hosts-using-the-cli" title="Managing SSH Known Hosts using the CLI" class="md-nav__link">
+    Managing SSH Known Hosts using the CLI
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#managing-ssh-known-hosts-data-using-the-argocd-web-ui" title="Managing SSH known hosts data using the ArgoCD web UI" class="md-nav__link">
+    Managing SSH known hosts data using the ArgoCD web UI
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#managing-ssh-known-hosts-data-using-declarative-setup" title="Managing SSH known hosts data using declarative setup" class="md-nav__link">
+    Managing SSH known hosts data using declarative setup
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1125,12 +1179,66 @@
     Self-signed &amp; Untrusted TLS Certificates
   </a>
   
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#managing-tls-certificates-using-the-cli" title="Managing TLS certificates using the CLI" class="md-nav__link">
+    Managing TLS certificates using the CLI
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#managing-tls-certificates-using-the-argocd-web-ui" title="Managing TLS certificates using the ArgoCD web UI" class="md-nav__link">
+    Managing TLS certificates using the ArgoCD web UI
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#managing-tls-certificates-using-declarative-configuration" title="Managing TLS certificates using declarative configuration" class="md-nav__link">
+    Managing TLS certificates using declarative configuration
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
   <a href="#unknown-ssh-hosts" title="Unknown SSH Hosts" class="md-nav__link">
     Unknown SSH Hosts
   </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#managing-ssh-known-hosts-using-the-cli" title="Managing SSH Known Hosts using the CLI" class="md-nav__link">
+    Managing SSH Known Hosts using the CLI
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#managing-ssh-known-hosts-data-using-the-argocd-web-ui" title="Managing SSH known hosts data using the ArgoCD web UI" class="md-nav__link">
+    Managing SSH known hosts data using the ArgoCD web UI
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#managing-ssh-known-hosts-data-using-declarative-setup" title="Managing SSH known hosts data using declarative setup" class="md-nav__link">
+    Managing SSH known hosts data using declarative setup
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1186,7 +1294,7 @@
 <p>Then, connect the repository using an empty string as a username and access token value as a password.</p>
 <h3 id="tls-client-certificates-for-https-repositories">TLS Client Certificates for HTTPS repositories<a class="headerlink" href="#tls-client-certificates-for-https-repositories" title="Permanent link">&para;</a></h3>
 <blockquote>
-<p>v1.3 and later</p>
+<p>v1.2 and later</p>
 </blockquote>
 <p>If your repository server requires you to use TLS client certificates for authentication, you can configure ArgoCD repositories to make use of them. For this purpose, <code>--tls-client-cert-path</code> and <code>--tls-client-cert-key-path</code> switches to the <code>argocd repo add</code> command can be used to specify the files on your local system containing client certificate and the corresponding key, respectively:</p>
 <div class="codehilite"><pre><span></span>argocd repo add https://repo.example.com/repo.git --tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key
@@ -1207,7 +1315,7 @@
 
 <h2 id="self-signed-untrusted-tls-certificates">Self-signed &amp; Untrusted TLS Certificates<a class="headerlink" href="#self-signed-untrusted-tls-certificates" title="Permanent link">&para;</a></h2>
 <blockquote>
-<p>v1.2 or higher</p>
+<p>v1.2 or later</p>
 </blockquote>
 <p>If you are connecting a repository on a HTTPS server using a self-signed certificate, or a certificate signed by a custom Certificate Authority (CA) which are not known to ArgoCD, the repository will not be added due to security reasons. This is indicated by an error message such as <code>x509: certificate signed by unknown authority</code>.</p>
 <ol>
@@ -1215,14 +1323,31 @@
 <p>You can let ArgoCD connect the repository in an insecure way, without verifying the server's certificate at all. This can be accomplished by using the <code>--insecure-skip-server-verification</code> flag when adding the repository with the <code>argocd</code> CLI utility. However, this should be done only for non-production setups, as it imposes a serious security issue through possible man-in-the-middle attacks.</p>
 </li>
 <li>
-<p>You can let ArgoCD use a custom certificate for the verification of the server's certificate using the <code>cert add-tls</code> command of the <code>argocd</code> CLI utility. This is the recommended method and suitable for production use. In order to do so, you will need the server's certificate, or the certificate of the CA used to sign the server's certificate, in PEM format.</p>
+<p>You can configure ArgoCD to use a custom certificate for the verification of the server's certificate using the <code>cert add-tls</code> command of the <code>argocd</code> CLI utility. This is the recommended method and suitable for production use. In order to do so, you will need the server's certificate, or the certificate of the CA used to sign the server's certificate, in PEM format.</p>
 </li>
 </ol>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>For invalid server certificates, such as those without matching server name, or those that are expired, adding a CA certificate will not help. In this case, your only option will be to use the <code>--insecure-skip-server-verification</code> flag to connect the repository. You are strongly urged to use a valid certificate on the repository server, or to urge the server's administrator to replace the faulty certificate with a valid one.</p>
 </div>
-<p>Example for adding a HTTPS repository to ArgoCD without verifying the server's certificate (<strong>Caution:</strong> This is <strong>not</strong> recommended for production use):</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>TLS certificates are configured on a per-server, not on a per-repository basis. If you connect multiple repositories from the same server, you only have to configure the certificates once for this server.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>It can take up to a couple of minutes until the changes performed by the <code>argocd cert</code> command are propagated across your cluster, depending on your Kubernetes setup.</p>
+</div>
+<h3 id="managing-tls-certificates-using-the-cli">Managing TLS certificates using the CLI<a class="headerlink" href="#managing-tls-certificates-using-the-cli" title="Permanent link">&para;</a></h3>
+<p>You can list all configured TLS certificates by using the <code>argocd cert list</code> command using the <code>--cert-type https</code> modifier:</p>
+<div class="codehilite"><pre><span></span>$ argocd cert list --cert-type https
+HOSTNAME      TYPE   SUBTYPE  FINGERPRINT/SUBJECT
+docker-build  https  rsa      <span class="nv">CN</span><span class="o">=</span>ArgoCD Test CA
+localhost     https  rsa      <span class="nv">CN</span><span class="o">=</span>localhost
+</pre></div>
+
+
+<p>Example for adding  a HTTPS repository to ArgoCD without verifying the server's certificate (<strong>Caution:</strong> This is <strong>not</strong> recommended for production use):</p>
 <div class="codehilite"><pre><span></span>argocd repo add --insecure-skip-server-verification https://git.example.com/test-repo
 </pre></div>
 
@@ -1242,16 +1367,33 @@ argocd repo add https://git.example.com/test-repo
 <p class="admonition-title">Note</p>
 <p>To replace an existing certificate for a server, use the <code>--upsert</code> flag to the <code>cert add-tls</code> CLI command. </p>
 </div>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>TLS certificates are configured on a per-server, not on a per-repository basis. If you connect multiple repositories from the same server, you only have to configure the certificates once for this server.</p>
-</div>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>It can take up to a couple of minutes until the changes performed by the <code>argocd cert</code> command are propagated across your cluster, depending on your Kubernetes setup.</p>
-</div>
-<p>You can also manage TLS certificates in a declarative, self-managed ArgoCD setup. All TLS certificates are stored in the ConfigMap object <code>argocd-tls-cert-cm</code>.</p>
-<p>Managing TLS certificates via the web UI is currently not possible, but will be introduced with <strong>v1.3</strong></p>
+<p>Finally, TLS certificates can be removed using the <code>argocd cert rm</code> command with the <code>--cert-type https</code> modifier:</p>
+<div class="codehilite"><pre><span></span>argocd cert rm --cert-type https localhost
+</pre></div>
+
+
+<h3 id="managing-tls-certificates-using-the-argocd-web-ui">Managing TLS certificates using the ArgoCD web UI<a class="headerlink" href="#managing-tls-certificates-using-the-argocd-web-ui" title="Permanent link">&para;</a></h3>
+<p>It is possible to add and remove TLS certificates using the ArgoCD web UI:</p>
+<ol>
+<li>
+<p>In the navigation pane to the left, click on "Settings" and choose "Certificates" from the settings menu</p>
+</li>
+<li>
+<p>The following page lists all currently configured certificates and provides you with the option to add either a new TLS certificate or SSH known entries: </p>
+<p><img alt="manage certificates" src="../../assets/cert-management-overview.png" /></p>
+</li>
+<li>
+<p>Click on "Add TLS certificate", fill in relevant data and click on "Create". Take care to specify only the FQDN of your repository server (not the URL) and that you C&amp;P the complete PEM of your TLS certificate into the text area field, including the <code>----BEGIN CERTIFICATE----</code> and <code>----END CERTIFICATE----</code> lines:</p>
+<p><img alt="add tls certificate" src="../../assets/cert-management-add-tls.png" /></p>
+</li>
+<li>
+<p>To remove a certificate, click on the small three-dotted button next to the certificate entry, select "Remove" from the pop-up menu and confirm the removal in the following dialogue.</p>
+<p><img alt="remove certificate" src="../../assets/cert-management-remove.png" /></p>
+</li>
+</ol>
+<h3 id="managing-tls-certificates-using-declarative-configuration">Managing TLS certificates using declarative configuration<a class="headerlink" href="#managing-tls-certificates-using-declarative-configuration" title="Permanent link">&para;</a></h3>
+<p>You can also manage TLS certificates in a declarative, self-managed ArgoCD setup. All TLS certificates are stored in the ConfigMap object <code>argocd-tls-cert-cm</code>.
+Please refer to the <a href="../../operator-manual/declarative-setup/#repositories-using-self-signed-tls-certificates-or-are-signed-by-custom-ca">Operator Manual</a> for more information.</p>
 <blockquote>
 <p>Before v1.2</p>
 </blockquote>
@@ -1270,7 +1412,30 @@ argocd repo add https://git.example.com/test-repo
 <p>You can make the server's SSH public key known to ArgoCD by using the <code>cert add-ssh</code> command of the <code>argocd</code> CLI utility. This is the recommended method and suitable for production use. In order to do so, you will need the server's SSH public host key, in the <code>known_hosts</code> format understood by <code>ssh</code>. You can get the server's public SSH host key e.g. by using the <code>ssh-keyscan</code> utility.</p>
 </li>
 </ol>
-<p>Example for adding all available SSH public host keys for a server to ArgoCD:</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>It can take up to a couple of minutes until the changes performed by the <code>argocd cert</code> command are propagated across your cluster, depending on your Kubernetes setup.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When importing SSH known hosts key from a <code>known_hosts</code> file, the hostnames or IP addresses in the input data must <strong>not</strong> be hashed. If your <code>known_hosts</code> file contains hashed entries, it cannot be used as input source for adding SSH known hosts - neither in the CLI nor in the UI. If you absolutely wish to use hashed known hosts data, the only option will be using declarative setup (see below). Be aware that this will break CLI and UI certificate management, so it is generally not recommended.</p>
+</div>
+<h3 id="managing-ssh-known-hosts-using-the-cli">Managing SSH Known Hosts using the CLI<a class="headerlink" href="#managing-ssh-known-hosts-using-the-cli" title="Permanent link">&para;</a></h3>
+<p>You can list all configured SSH known host entries using the <code>argocd cert list</code> command with the <code>--cert-type ssh</code> modifier:</p>
+<div class="codehilite"><pre><span></span>$ argocd cert list --cert-type ssh
+HOSTNAME                 TYPE  SUBTYPE              FINGERPRINT/SUBJECT
+bitbucket.org            ssh   ssh-rsa              SHA256:zzXQOXSRBEiUtuE8AikJYKwbHaxvSc0ojez9YXaGp1A
+github.com               ssh   ssh-rsa              SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8
+gitlab.com               ssh   ecdsa-sha2-nistp256  SHA256:HbW3g8zUjNSksFbqTiUWPWg2Bq1x8xdGUrliXFzSnUw
+gitlab.com               ssh   ssh-ed25519          SHA256:eUXGGm1YGsMAS7vkcx6JOJdOGHPem5gQp4taiCfCLB8
+gitlab.com               ssh   ssh-rsa              SHA256:ROQFvPThGrW4RuWLoL9tq9I9zJ42fK4XywyRtbOz/EQ
+ssh.dev.azure.com        ssh   ssh-rsa              SHA256:ohD8VZEXGWo6Ez8GSEJQ9WpafgLFsOfLOtGGQCQo6Og
+vs-ssh.visualstudio.com  ssh   ssh-rsa              SHA256:ohD8VZEXGWo6Ez8GSEJQ9WpafgLFsOfLOtGGQCQo6Og
+</pre></div>
+
+
+<p>For adding SSH known host entries, the <code>argocd cert add-ssh</code> command can be used. You can either add from a file (using the <code>--from &lt;file&gt;</code> modifier), or by reading <code>stdin</code> when the <code>--batch</code> modifier was specified. In both cases, input must be in <code>known_hosts</code> format as understood by the OpenSSH client.</p>
+<p>Example for adding all available SSH public host keys for a server to ArgoCD, as collected by <code>ssh-keyscan</code>:</p>
 <div class="codehilite"><pre><span></span>ssh-keyscan server.example.com <span class="p">|</span> argocd cert add-ssh --batch 
 </pre></div>
 
@@ -1280,12 +1445,37 @@ argocd repo add https://git.example.com/test-repo
 </pre></div>
 
 
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>It can take up to a couple of minutes until the changes performed by the <code>argocd cert</code> command are propagated across your cluster, depending on your Kubernetes setup.</p>
-</div>
-<p>You can also manage SSH known hosts entries in a declarative, self-managed ArgoCD setup. All SSH public host keys are stored in the ConfigMap object <code>argocd-ssh-known-hosts-cm</code>.</p>
-<p>Managing SSH public host keys via the web UI is currently not possible, but will be introduced with <strong>v1.3</strong></p>
+<p>Finally, SSH known host entries can be removed using the <code>argocd cert rm</code> command with the <code>--cert-type ssh</code> modifier:</p>
+<div class="codehilite"><pre><span></span>argocd cert rm bitbucket.org --cert-type ssh
+</pre></div>
+
+
+<p>If you have multiple SSH known host entries for a given host with different key sub-types (e.g. as for gitlab.com in the example above, there are keys of sub-types <code>ssh-rsa</code>, <code>ssh-ed25519</code> and <code>ecdsa-sha2-nistp256</code>) and you want to only remove one of them, you can further narrow down the selection using the <code>--cert-sub-type</code> modifier:</p>
+<div class="codehilite"><pre><span></span>argocd cert rm gitlab.com --cert-type ssh --cert-sub-type ssh-ed25519
+</pre></div>
+
+
+<h3 id="managing-ssh-known-hosts-data-using-the-argocd-web-ui">Managing SSH known hosts data using the ArgoCD web UI<a class="headerlink" href="#managing-ssh-known-hosts-data-using-the-argocd-web-ui" title="Permanent link">&para;</a></h3>
+<p>It is possible to add and remove SSH known hosts entries using the ArgoCD web UI:</p>
+<ol>
+<li>
+<p>In the navigation pane to the left, click on "Settings" and choose "Certificates" from the settings menu</p>
+</li>
+<li>
+<p>The following page lists all currently configured certificates and provides you with the option to add either a new TLS certificate or SSH known entries: </p>
+<p><img alt="manage certificates" src="../../assets/cert-management-overview.png" /></p>
+</li>
+<li>
+<p>Click on "Add SSH known hosts" and paste your SSH known hosts data in the following mask. <strong>Important</strong>: Make sure there are no line breaks in the entries (key data) when you paste the data. Afterwards, click on "Create".</p>
+<p><img alt="manage ssh known hosts" src="../../assets/cert-management-add-ssh.png" /></p>
+</li>
+<li>
+<p>To remove a certificate, click on the small three-dotted button next to the certificate entry, select "Remove" from the pop-up menu and confirm the removal in the following dialogue.</p>
+<p><img alt="remove certificate" src="../../assets/cert-management-remove.png" /></p>
+</li>
+</ol>
+<h3 id="managing-ssh-known-hosts-data-using-declarative-setup">Managing SSH known hosts data using declarative setup<a class="headerlink" href="#managing-ssh-known-hosts-data-using-declarative-setup" title="Permanent link">&para;</a></h3>
+<p>You can also manage SSH known hosts entries in a declarative, self-managed ArgoCD setup. All SSH public host keys are stored in the ConfigMap object <code>argocd-ssh-known-hosts-cm</code>. For more details, please refer to the <a href="../../operator-manual/declarative-setup/#ssh-known-host-public-keys">Operator Manual</a></p>
 <blockquote>
 <p>Before v1.2</p>
 </blockquote>
