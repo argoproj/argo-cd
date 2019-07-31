@@ -19,7 +19,8 @@ import { ApplicationTiles } from './applications-tiles';
 
 require('./applications-list.scss');
 
-const APP_FIELDS = ['metadata.name', 'metadata.resourceVersion', 'metadata.creationTimestamp', 'spec', 'status.sync.status', 'status.health', 'status.summary'];
+const APP_FIELDS = [
+    'metadata.name', 'metadata.annotations', 'metadata.resourceVersion', 'metadata.creationTimestamp', 'spec', 'status.sync.status', 'status.health', 'status.summary'];
 const APP_LIST_FIELDS = APP_FIELDS.map((field) => `items.${field}`);
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map((field) => `result.application.${field}`)];
 
@@ -218,11 +219,13 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         <ApplicationTiles
                                             applications={data}
                                             syncApplication={(appName) => ctx.navigation.goto('.', { syncApp: appName })}
+                                            refreshApplication={(appName) => services.applications.get(appName, 'normal')}
                                             deleteApplication={(appName) => AppUtils.deleteApplication(appName, ctx)}
                                         />
                                     ) || (
                                         <ApplicationsTable applications={data}
                                             syncApplication={(appName) => ctx.navigation.goto('.', { syncApp: appName })}
+                                            refreshApplication={(appName) => services.applications.get(appName, 'normal')}
                                             deleteApplication={(appName) => AppUtils.deleteApplication(appName, ctx)}
                                         />
                                     )

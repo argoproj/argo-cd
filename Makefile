@@ -86,7 +86,7 @@ release-cli: clean-debug image
 .PHONY: argocd-util
 argocd-util: clean-debug
 	# Build argocd-util as a statically linked binary, so it could run within the alpine-based dex container (argoproj/argo-cd#844)
-	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-util ./cmd/argocd-util
+	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-util ./cmd/argocd-util
 
 .PHONY: dev-tools-image
 dev-tools-image:
@@ -104,7 +104,7 @@ server: clean-debug
 
 .PHONY: repo-server
 repo-server:
-	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-repo-server ./cmd/argocd-repo-server
+	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-repo-server ./cmd/argocd-repo-server
 
 .PHONY: controller
 controller:

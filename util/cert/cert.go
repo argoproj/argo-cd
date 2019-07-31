@@ -157,11 +157,12 @@ func ParseTLSCertificatesFromStream(stream io.Reader) ([]string, error) {
 	return certificateList, nil
 }
 
-// Parse TLS certificates from a multiline string
+// Parse SSH Known Hosts data from a multiline string
 func ParseSSHKnownHostsFromData(data string) ([]string, error) {
 	return ParseSSHKnownHostsFromStream(strings.NewReader(data))
 }
 
+// Parse SSH Known Hosts data from a file
 func ParseSSHKnownHostsFromPath(sourceFile string) ([]string, error) {
 	fileHandle, err := os.Open(sourceFile)
 	if err != nil {
@@ -247,6 +248,15 @@ func MatchHostName(hostname, pattern string) bool {
 		return false
 	}
 	return match
+}
+
+// Convinience wrapper around SSHFingerprintSHA256
+func SSHFingerprintSHA256FromString(key string) string {
+	pubKey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(key))
+	if err != nil {
+		return ""
+	}
+	return SSHFingerprintSHA256(pubKey)
 }
 
 // base64 sha256 hash with the trailing equal sign removed

@@ -116,7 +116,6 @@ message ApplicationSource {
   // Path is a directory path within the repository containing a
   optional string path = 2;
 
-  // Environment is a ksonnet application environment name
   // TargetRevision defines the commit, tag, or branch in which to sync the application to.
   // If omitted, will sync to HEAD
   optional string targetRevision = 4;
@@ -529,8 +528,8 @@ message RepositoryCertificate {
   // Actual certificate data, protocol dependent
   optional bytes certdata = 4;
 
-  // Certificate fingerprint
-  optional string certfingerprint = 5;
+  // Additional certificate info (e.g. SSH fingerprint, X509 CommonName)
+  optional string certinfo = 5;
 }
 
 // RepositoryCertificateList is a collection of RepositoryCertificates

@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"strings"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
@@ -44,7 +45,14 @@ type CertificateListSelector struct {
 }
 
 // Get a list of all configured repository certificates matching the given
-// selector.
+// selector. The list of certificates explicitly excludes the CertData of
+// the certificates, and only returns the metadata including CertInfo field.
+//
+// The CertInfo field in the returned entries will contain the following data:
+// - For SSH keys, the SHA256 fingerprint of the key as string, prepended by
+//   the string "SHA256:"
+// - For TLS certs, the Subject of the X509 cert as a string in DN notation
+//
 func (db *db) ListRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appsv1.RepositoryCertificateList, error) {
 
 	// selector may be given as nil, but we need at least an empty data structure
@@ -65,11 +73,10 @@ func (db *db) ListRepoCertificates(ctx context.Context, selector *CertificateLis
 		for _, entry := range sshKnownHosts {
 			if certutil.MatchHostName(entry.Host, selector.HostNamePattern) && (selector.CertSubType == "" || selector.CertSubType == "*" || selector.CertSubType == entry.SubType) {
 				certificates = append(certificates, appsv1.RepositoryCertificate{
-					ServerName:      entry.Host,
-					CertType:        "ssh",
-					CertSubType:     entry.SubType,
-					CertData:        []byte(entry.Data),
-					CertFingerprint: entry.Fingerprint,
+					ServerName:  entry.Host,
+					CertType:    "ssh",
+					CertSubType: entry.SubType,
+					CertInfo:    "SHA256:" + certutil.SSHFingerprintSHA256FromString(fmt.Sprintf("%s %s", entry.Host, entry.Data)),
 				})
 			}
 		}
@@ -88,10 +95,20 @@ func (db *db) ListRepoCertificates(ctx context.Context, selector *CertificateLis
 					continue
 				}
 				for _, pemEntry := range pemEntries {
+					var certInfo, certSubType string
+					x509Data, err := certutil.DecodePEMCertificateToX509(pemEntry)
+					if err != nil {
+						certInfo = err.Error()
+						certSubType = "invalid"
+					} else {
+						certInfo = x509Data.Subject.String()
+						certSubType = x509Data.PublicKeyAlgorithm.String()
+					}
 					certificates = append(certificates, appsv1.RepositoryCertificate{
-						ServerName: entry.Subject,
-						CertType:   "https",
-						CertData:   []byte(pemEntry),
+						ServerName:  entry.Subject,
+						CertType:    "https",
+						CertSubType: strings.ToLower(certSubType),
+						CertInfo:    certInfo,
 					})
 				}
 			}
@@ -113,11 +130,11 @@ func (db *db) GetRepoCertificate(ctx context.Context, serverType string, serverN
 		for _, entry := range sshKnownHostsList {
 			if entry.Host == serverName {
 				repo := &appsv1.RepositoryCertificate{
-					ServerName:      entry.Host,
-					CertType:        "ssh",
-					CertSubType:     entry.SubType,
-					CertData:        []byte(entry.Data),
-					CertFingerprint: entry.Fingerprint,
+					ServerName:  entry.Host,
+					CertType:    "ssh",
+					CertSubType: entry.SubType,
+					CertData:    []byte(entry.Data),
+					CertInfo:    entry.Fingerprint,
 				}
 				return repo, nil
 			}
@@ -195,7 +212,7 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 			// If we created a new entry, or if we upserted an existing one, we need
 			// to save the data and notify the consumer about the operation.
 			if newEntry || upserted {
-				certificate.CertFingerprint = certutil.SSHFingerprintSHA256(rawKeyData)
+				certificate.CertInfo = certutil.SSHFingerprintSHA256(rawKeyData)
 				created = append(created, certificate)
 				saveSSHData = true
 			}
