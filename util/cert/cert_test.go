@@ -336,6 +336,26 @@ func Test_SSHFingerprintSHA256(t *testing.T) {
 	}
 }
 
+func Test_SSHFingerPrintSHA256FromString(t *testing.T) {
+	// actual SHA256 fingerprints for keys defined above
+	fingerprints := [...]string{
+		"zzXQOXSRBEiUtuE8AikJYKwbHaxvSc0ojez9YXaGp1A",
+		"nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8",
+		"HbW3g8zUjNSksFbqTiUWPWg2Bq1x8xdGUrliXFzSnUw",
+		"eUXGGm1YGsMAS7vkcx6JOJdOGHPem5gQp4taiCfCLB8",
+		"ROQFvPThGrW4RuWLoL9tq9I9zJ42fK4XywyRtbOz/EQ",
+		"ohD8VZEXGWo6Ez8GSEJQ9WpafgLFsOfLOtGGQCQo6Og",
+		"ohD8VZEXGWo6Ez8GSEJQ9WpafgLFsOfLOtGGQCQo6Og",
+	}
+	entries, err := ParseSSHKnownHostsFromData(Test_ValidSSHKnownHostsData)
+	assert.Nil(t, err)
+	assert.Equal(t, len(entries), 7)
+	for idx, entry := range entries {
+		fp := SSHFingerprintSHA256FromString(entry)
+		assert.Equal(t, fp, fingerprints[idx])
+	}
+}
+
 func Test_ServerNameWithoutPort(t *testing.T) {
 	hostNameList := []string{"localhost", "localhost:9443", "localhost:", "localhost:abc"}
 	for _, hostName := range hostNameList {
