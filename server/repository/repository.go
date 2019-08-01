@@ -289,6 +289,7 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 	}
 
 	repo := &appsv1.Repository{
+		Repo:              q.Repo,
 		Type:              q.Type,
 		Name:              q.Name,
 		Username:          q.Username,

@@ -58,7 +58,7 @@ func (c *cmd) repoAdd(name, url string, opts repoAddOpts) (string, error) {
 		args = append([]string{"--password", opts.password}, args...)
 	}
 
-	if opts.caData != nil {
+	if len(opts.caData) > 0 {
 		caFile, err := ioutil.TempFile("", "helm")
 		if err != nil {
 			return "", err
@@ -70,7 +70,7 @@ func (c *cmd) repoAdd(name, url string, opts repoAddOpts) (string, error) {
 		args = append([]string{"--ca-file", caFile.Name()}, args...)
 	}
 
-	if opts.certData != nil {
+	if len(opts.certData) > 0 {
 		certFile, err := ioutil.TempFile("", "helm")
 		if err != nil {
 			return "", err
@@ -82,7 +82,7 @@ func (c *cmd) repoAdd(name, url string, opts repoAddOpts) (string, error) {
 		args = append([]string{"--cert-file", certFile.Name()}, args...)
 	}
 
-	if opts.keyData != nil {
+	if len(opts.keyData) > 0 {
 		keyFile, err := ioutil.TempFile("", "helm")
 		if err != nil {
 			return "", err
