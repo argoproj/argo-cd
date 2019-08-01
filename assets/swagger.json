@@ -3301,10 +3301,6 @@
           "type": "string",
           "title": "SSH private key data for authenticating at the repo server\nonly for Git repos"
         },
-        "type": {
-          "type": "string",
-          "title": "type of the repo, maybe \"git or \"helm, \"git\" is assumed if empty or absent"
-        },
         "tlsClientCertData": {
           "type": "string",
           "title": "TLS client cert data for authenticating at the repo server"
@@ -3312,6 +3308,10 @@
         "tlsClientCertKey": {
           "type": "string",
           "title": "TLS client cert key for authenticating at the repo server"
+        },
+        "type": {
+          "type": "string",
+          "title": "type of the repo, maybe \"git or \"helm, \"git\" is assumed if empty or absent"
         },
         "username": {
           "type": "string",
