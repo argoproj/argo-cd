@@ -40,7 +40,7 @@ func TestSyncPhaseFail(t *testing.T) {
 }
 
 func TestSyncPhaseTwoPhases(t *testing.T) {
-	assert.Equal(t, []SyncPhase{SyncPhasePreSync, SyncPhasePostSync}, syncPhases(pod("PreSync,PostSync")))
+	assert.ElementsMatch(t, []SyncPhase{SyncPhasePreSync, SyncPhasePostSync}, syncPhases(pod("PreSync,PostSync")))
 }
 
 func pod(hookType string) *unstructured.Unstructured {
