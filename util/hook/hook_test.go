@@ -51,7 +51,7 @@ func TestTwoHooks(t *testing.T) {
 	obj := example("PreSync,PostSync")
 	assert.True(t, IsHook(obj))
 	assert.False(t, Skip(obj))
-	assert.Equal(t, []HookType{HookTypePreSync, HookTypePostSync}, Types(obj))
+	assert.ElementsMatch(t, []HookType{HookTypePreSync, HookTypePostSync}, Types(obj))
 }
 
 func TestDupHookTypes(t *testing.T) {
@@ -63,7 +63,7 @@ func TestSkipAndHook(t *testing.T) {
 	obj := example("Skip,PreSync,PostSync")
 	assert.True(t, IsHook(obj))
 	assert.False(t, Skip(obj))
-	assert.Equal(t, []HookType{HookTypeSkip, HookTypePreSync, HookTypePostSync}, Types(obj))
+	assert.ElementsMatch(t, []HookType{HookTypeSkip, HookTypePreSync, HookTypePostSync}, Types(obj))
 }
 
 func TestGarbageAndHook(t *testing.T) {
@@ -80,10 +80,6 @@ func TestHelmHook(t *testing.T) {
 	assert.Equal(t, []HookType{HookTypePreSync}, Types(obj))
 }
 
-func example(hook string) *unstructured.Unstructured {
-	return Annotate(NewPod(), "argocd.argoproj.io/hook", hook)
-}
-
 func TestDeletePolicies(t *testing.T) {
 	assert.Nil(t, DeletePolicies(NewPod()))
 	assert.Nil(t, DeletePolicies(Annotate(NewPod(), "argocd.argoproj.io/hook-delete-policy", "garbage")))
@@ -92,4 +88,8 @@ func TestDeletePolicies(t *testing.T) {
 	assert.Equal(t, []HookDeletePolicy{HookDeletePolicyHookFailed}, DeletePolicies(Annotate(NewPod(), "argocd.argoproj.io/hook-delete-policy", "HookFailed")))
 	// Helm test
 	assert.Equal(t, []HookDeletePolicy{HookDeletePolicyHookSucceeded}, DeletePolicies(Annotate(NewPod(), "helm.sh/hook-delete-policy", "hook-succeeded")))
+}
+
+func example(hook string) *unstructured.Unstructured {
+	return Annotate(NewPod(), "argocd.argoproj.io/hook", hook)
 }
