@@ -99,11 +99,11 @@ export const ApplicationSummary = (props: {
         ) });
     }
 
-    async function setAutoSync(ctx: { popup: PopupApi }, confirmationTitle: string, confirmationText: string, prune: boolean) {
+    async function setAutoSync(ctx: { popup: PopupApi }, confirmationTitle: string, confirmationText: string, prune: boolean, selfHeal: boolean) {
         const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);
         if (confirmed) {
             const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
-            updatedApp.spec.syncPolicy = { automated: { prune } };
+            updatedApp.spec.syncPolicy = { automated: { prune, selfHeal } };
             props.updateApp(updatedApp);
         }
     }
@@ -190,29 +190,51 @@ export const ApplicationSummary = (props: {
                                 <button className='argo-button argo-button--base' onClick={() => unsetAutoSync(ctx)}>Disable Auto-Sync</button>
                             ) || (
                                 <button className='argo-button argo-button--base' onClick={() => setAutoSync(
-                                    ctx, 'Enable Auto-Sync?', 'Are you sure you want to enable automated application synchronization?', false)
+                                    ctx, 'Enable Auto-Sync?', 'Are you sure you want to enable automated application synchronization?', false, false)
                                 }>Enable Auto-Sync</button>
                             )}
                         </div>
                     </div>
 
                     {app.spec.syncPolicy && app.spec.syncPolicy.automated && (
-                        <div className='row white-box__details-row'>
-                            <div className='columns small-3'>
-                                Prune Resources
+                        <React.Fragment>
+                            <div className='row white-box__details-row'>
+                                <div className='columns small-3'>
+                                    Prune Resources
+                                </div>
+                                <div className='columns small-9'>
+                                    {app.spec.syncPolicy.automated.prune && (
+                                        <button className='argo-button argo-button--base' onClick={() => setAutoSync(
+                                            ctx, 'Disable Prune Resources?', 'Are you sure you want to disable resource pruning during automated application synchronization?',
+                                            false, app.spec.syncPolicy.automated.selfHeal)
+                                        }>Disable</button>
+                                    ) || (
+                                        <button className='argo-button argo-button--base' onClick={() => setAutoSync(
+                                            ctx, 'Enable Prune Resources?', 'Are you sure you want to enable resource pruning during automated application synchronization?',
+                                            true, app.spec.syncPolicy.automated.selfHeal)
+                                        }>Enable</button>
+                                    )}
+                                </div>
                             </div>
-                            <div className='columns small-9'>
-                                {app.spec.syncPolicy.automated.prune && (
-                                    <button className='argo-button argo-button--base' onClick={() => setAutoSync(
-                                        ctx, 'Disable Prune Resources?', 'Are you sure you want to disable resource pruning during automated application synchronization?', false)
-                                    }>Disable</button>
-                                ) || (
-                                    <button className='argo-button argo-button--base' onClick={() => setAutoSync(
-                                        ctx, 'Enable Prune Resources?', 'Are you sure you want to enable resource pruning during automated application synchronization?', true)
-                                    }>Enable</button>
-                                )}
+                            <div className='row white-box__details-row'>
+                                <div className='columns small-3'>
+                                    Self Heal
+                                </div>
+                                <div className='columns small-9'>
+                                    {app.spec.syncPolicy.automated.selfHeal && (
+                                        <button className='argo-button argo-button--base' onClick={() => setAutoSync(
+                                            ctx, 'Disable Self Heal?', 'Are you sure you want to disable automated self healing?',
+                                            app.spec.syncPolicy.automated.prune, false)
+                                        }>Disable</button>
+                                    ) || (
+                                        <button className='argo-button argo-button--base' onClick={() => setAutoSync(
+                                            ctx, 'Enable Self Heal?', 'Are you sure you want to enable automated self healing?',
+                                            app.spec.syncPolicy.automated.prune, true)
+                                        }>Enable</button>
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        </React.Fragment>
                     )}
                 </div>
             </div>
