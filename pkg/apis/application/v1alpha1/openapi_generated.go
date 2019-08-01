@@ -1762,6 +1762,13 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
+					"tlsClientCaData": {
+						SchemaProps: spec.SchemaProps{
+							Description: "only for Helm repos",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"type": {
 						SchemaProps: spec.SchemaProps{
 							Description: "type of the repo, maybe \"git or \"helm, \"git\" is assumed if empty or absent",
@@ -1774,27 +1781,6 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 							Description: "only for Helm repos",
 							Type:        []string{"string"},
 							Format:      "",
-						},
-					},
-					"caData": {
-						SchemaProps: spec.SchemaProps{
-							Description: "only for Helm repos",
-							Type:        []string{"string"},
-							Format:      "byte",
-						},
-					},
-					"certData": {
-						SchemaProps: spec.SchemaProps{
-							Description: "only for Helm repos",
-							Type:        []string{"string"},
-							Format:      "byte",
-						},
-					},
-					"keyData": {
-						SchemaProps: spec.SchemaProps{
-							Description: "only for Helm repos",
-							Type:        []string{"string"},
-							Format:      "byte",
 						},
 					},
 				},

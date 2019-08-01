@@ -152,7 +152,7 @@ func GetRepoCreds(repo *argoappv1.Repository) git.Creds {
 		return git.NopCreds{}
 	}
 	if (repo.Username != "" && repo.Password != "") || (repo.TLSClientCertData != "" && repo.TLSClientCertKey != "") {
-		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure())
+		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.TLSClientCertData, repo.TLSClientCertKey, repo.TLSClientCAData, repo.IsInsecure())
 	}
 	if repo.SSHPrivateKey != "" {
 		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure())

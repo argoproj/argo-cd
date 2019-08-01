@@ -24,7 +24,7 @@ type defaultClientFactory struct {
 func (f *defaultClientFactory) NewClient(r *v1alpha1.Repository) (depot.Client, error) {
 	switch r.Type {
 	case "helm":
-		return helm.NewClient(r.Repo, r.Name, r.Username, r.Password, r.CAData, r.CertData, r.KeyData)
+		return helm.NewClient(r.Repo, r.Name, r.Username, r.Password, []byte(r.TLSClientCAData), []byte(r.TLSClientCertData), []byte(r.TLSClientCertKey))
 	default:
 		return git.NewClient(r.Repo, creds.GetRepoCreds(r), r.IsInsecure(), r.EnableLFS)
 	}

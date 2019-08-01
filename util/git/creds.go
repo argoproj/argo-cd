@@ -43,15 +43,18 @@ type HTTPSCreds struct {
 	clientCertData string
 	// Client certificate key to use
 	clientCertKey string
+	// Client CA key
+	clientCAData string
 }
 
-func NewHTTPSCreds(username, password, clientCertData, clientCertKey string, insecure bool) HTTPSCreds {
+func NewHTTPSCreds(username, password, clientCertData, clientCertKey, clientCAData string, insecure bool) HTTPSCreds {
 	return HTTPSCreds{
 		username,
 		password,
 		insecure,
 		clientCertData,
 		clientCertKey,
+		clientCAData,
 	}
 }
 
@@ -111,6 +114,20 @@ func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
 		// GIT_SSL_KEY is the full path to a client certificate's key to be used
 		env = append(env, fmt.Sprintf("GIT_SSL_KEY=%s", keyFile.Name()))
 
+	}
+	if c.clientCAData != "" {
+		caFile, err := ioutil.TempFile(util.TempDir, "")
+		if err != nil {
+			return NopCloser{}, nil, err
+		}
+		defer func() { _ = caFile.Close() }()
+		_, err = caFile.WriteString(c.clientCertKey)
+		if err != nil {
+			_ = httpCloser.Close()
+			return NopCloser{}, nil, err
+		}
+		// GIT_SSL_KEY is the full path to a client certificate's key to be used
+		env = append(env, fmt.Sprintf("GIT_SSL_CAPATH=%s", caFile.Name()))
 	}
 	return httpCloser, env, nil
 }

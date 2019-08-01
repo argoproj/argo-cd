@@ -899,16 +899,12 @@ type Repository struct {
 	TLSClientCertData string `json:"tlsClientCertData,omitempty" protobuf:"bytes,9,opt,name=tlsClientCertData"`
 	// TLS client cert key for authenticating at the repo server
 	TLSClientCertKey string `json:"tlsClientCertKey,omitempty" protobuf:"bytes,10,opt,name=tlsClientCertKey"`
+	// only for Helm repos
+	TLSClientCAData string `json:"tlsClientCaData,omitempty" protobuf:"bytes,11,opt,name=tlsClientCaData"`
 	// type of the repo, maybe "git or "helm, "git" is assumed if empty or absent
-	Type string `json:"type,omitempty" protobuf:"bytes,11,opt,name=type"`
+	Type string `json:"type,omitempty" protobuf:"bytes,12,opt,name=type"`
 	// only for Helm repos
-	Name string `json:"name,omitempty" protobuf:"bytes,12,opt,name=name"`
-	// only for Helm repos
-	CAData []byte `json:"caData,omitempty" protobuf:"bytes,13,opt,name=caData"`
-	// only for Helm repos
-	CertData []byte `json:"certData,omitempty" protobuf:"bytes,14,opt,name=certData"`
-	// only for Helm repos
-	KeyData []byte `json:"keyData,omitempty" protobuf:"bytes,15,opt,name=keyData"`
+	Name string `json:"name,omitempty" protobuf:"bytes,13,opt,name=name"`
 }
 
 func (repo *Repository) IsInsecure() bool {

@@ -102,16 +102,12 @@ type RepoCredentials struct {
 	TLSClientCertDataSecret *apiv1.SecretKeySelector `json:"tlsClientCertDataSecret,omitempty"`
 	// Name of the secret storing the TLS client cert's key data
 	TLSClientCertKeySecret *apiv1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
+	// helm only
+	TLSClientCASecret *apiv1.SecretKeySelector `json:"tlsClientCertCaSecret,omitempty"`
 	// the type of the repo, "git" or "helm", assumed to be "git" if empty or absent
 	Type string `json:"type,omitempty"`
 	// helm only
 	Name string `json:"name,omitempty"`
-	// helm only
-	CASecret *apiv1.SecretKeySelector `json:"caSecret,omitempty"`
-	// helm only
-	CertSecret *apiv1.SecretKeySelector `json:"certSecret,omitempty"`
-	// helm only
-	KeySecret *apiv1.SecretKeySelector `json:"keySecret,omitempty"`
 }
 
 const (

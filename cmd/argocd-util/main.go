@@ -435,14 +435,14 @@ func getReferencedSecrets(un unstructured.Unstructured) map[string]bool {
 			if cred.UsernameSecret != nil {
 				referencedSecrets[cred.UsernameSecret.Name] = true
 			}
-			if cred.CASecret != nil {
-				referencedSecrets[cred.CASecret.Name] = true
+			if cred.TLSClientCASecret != nil {
+				referencedSecrets[cred.TLSClientCASecret.Name] = true
 			}
-			if cred.CertSecret != nil {
-				referencedSecrets[cred.CertSecret.Name] = true
+			if cred.TLSClientCertKeySecret != nil {
+				referencedSecrets[cred.TLSClientCertKeySecret.Name] = true
 			}
-			if cred.KeySecret != nil {
-				referencedSecrets[cred.KeySecret.Name] = true
+			if cred.TLSClientCertDataSecret != nil {
+				referencedSecrets[cred.TLSClientCertDataSecret.Name] = true
 			}
 		}
 	}

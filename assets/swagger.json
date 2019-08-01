@@ -3252,16 +3252,6 @@
       "type": "object",
       "title": "Repository is a repository holding application configurations",
       "properties": {
-        "caData": {
-          "type": "string",
-          "format": "byte",
-          "title": "only for Helm repos"
-        },
-        "certData": {
-          "type": "string",
-          "format": "byte",
-          "title": "only for Helm repos"
-        },
         "connectionState": {
           "$ref": "#/definitions/v1alpha1ConnectionState"
         },
@@ -3280,11 +3270,6 @@
           "format": "boolean",
           "title": "InsecureIgnoreHostKey should not be used anymore, Insecure is favoured\nonly for Git repos"
         },
-        "keyData": {
-          "type": "string",
-          "format": "byte",
-          "title": "only for Helm repos"
-        },
         "name": {
           "type": "string",
           "title": "only for Helm repos"
@@ -3300,6 +3285,10 @@
         "sshPrivateKey": {
           "type": "string",
           "title": "SSH private key data for authenticating at the repo server\nonly for Git repos"
+        },
+        "tlsClientCaData": {
+          "type": "string",
+          "title": "only for Helm repos"
         },
         "tlsClientCertData": {
           "type": "string",

@@ -141,22 +141,14 @@ func (db *db) credentialsToRepository(repoInfo settings.RepoCredentials) (*appsv
 		Insecure:              repoInfo.Insecure,
 		EnableLFS:             repoInfo.EnableLFS,
 	}
-	cache := make(map[string]*apiv1.Secret)
 	err := db.unmarshalFromSecretsStr(map[*string]*apiv1.SecretKeySelector{
 		&repo.Username:          repoInfo.UsernameSecret,
 		&repo.Password:          repoInfo.PasswordSecret,
 		&repo.SSHPrivateKey:     repoInfo.SSHPrivateKeySecret,
 		&repo.TLSClientCertData: repoInfo.TLSClientCertDataSecret,
 		&repo.TLSClientCertKey:  repoInfo.TLSClientCertKeySecret,
-	}, cache)
-	if err != nil {
-		return nil, err
-	}
-	err = db.unmarshalFromSecretsBytes(map[*[]byte]*apiv1.SecretKeySelector{
-		&repo.CAData:   repoInfo.CASecret,
-		&repo.CertData: repoInfo.CertSecret,
-		&repo.KeyData:  repoInfo.KeySecret,
-	}, cache)
+		&repo.TLSClientCAData:   repoInfo.TLSClientCASecret,
+	}, make(map[string]*apiv1.Secret))
 	return repo, err
 }
 

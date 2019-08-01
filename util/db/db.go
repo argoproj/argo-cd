@@ -89,16 +89,3 @@ func (db *db) unmarshalFromSecretsStr(secrets map[*string]*v1.SecretKeySelector,
 	}
 	return nil
 }
-
-func (db *db) unmarshalFromSecretsBytes(secrets map[*[]byte]*v1.SecretKeySelector, cache map[string]*v1.Secret) error {
-	for dst, src := range secrets {
-		if src != nil {
-			secret, err := db.getSecret(src.Name, cache)
-			if err != nil {
-				return err
-			}
-			*dst = secret.Data[src.Key]
-		}
-	}
-	return nil
-}

@@ -18,7 +18,6 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/depot"
@@ -299,10 +298,13 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		TLSClientCertData: q.TlsClientCertData,
 		TLSClientCertKey:  q.TlsClientCertKey,
 	}
-	err := git.TestRepo(q.Repo, argo.GetRepoCreds(repo), q.Insecure, false)
+	client, err := factory.NewFactory().NewClient(repo)
 	if err != nil {
 		return nil, err
 	}
-
+	err = client.Test()
+	if err != nil {
+		return nil, err
+	}
 	return &repositorypkg.RepoResponse{}, client.Test()
 }

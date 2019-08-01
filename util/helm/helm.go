@@ -84,9 +84,9 @@ func (h *helm) DependencyBuild() error {
 			_, err := h.cmd.repoAdd(repo.Name, repo.Repo, repoAddOpts{
 				username: repo.Username,
 				password: repo.Password,
-				caData:   repo.CAData,
-				certData: repo.CertData,
-				keyData:  repo.KeyData,
+				caData:   []byte(repo.TLSClientCAData),
+				certData: []byte(repo.TLSClientCertData),
+				keyData:  []byte(repo.TLSClientCertKey),
 			})
 
 			if err != nil {
