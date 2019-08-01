@@ -3300,26 +3300,26 @@
       "type": "object",
       "title": "A RepositoryCertificate is either SSH known hosts entry or TLS certificate",
       "properties": {
-        "certdata": {
+        "certData": {
           "type": "string",
           "format": "byte",
           "title": "Actual certificate data, protocol dependent"
         },
-        "certinfo": {
+        "certInfo": {
           "type": "string",
           "title": "Additional certificate info (e.g. SSH fingerprint, X509 CommonName)"
         },
-        "cipher": {
+        "certSubType": {
           "type": "string",
           "title": "The sub type of the cert, i.e. \"ssh-rsa\""
         },
-        "servername": {
-          "type": "string",
-          "title": "Name of the server the certificate is intended for"
-        },
-        "type": {
+        "certType": {
           "type": "string",
           "title": "Type of certificate - currently \"https\" or \"ssh\""
+        },
+        "serverName": {
+          "type": "string",
+          "title": "Name of the server the certificate is intended for"
         }
       }
     },

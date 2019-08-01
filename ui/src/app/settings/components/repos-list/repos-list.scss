@@ -32,4 +32,12 @@
             float: right;
         }
     }
+
+    textarea.argo-field {
+        height: 20em;
+        width: 1024em;
+        white-space: pre;
+        overflow-wrap: normal;
+        overflow-x: scroll;
+    }
 }

@@ -62,7 +62,7 @@ RUN curl -L -o /usr/local/bin/kustomize1 https://github.com/kubernetes-sigs/kust
     kustomize1 version
 
 
-ENV KUSTOMIZE_VERSION=3.0.2
+ENV KUSTOMIZE_VERSION=3.1.0
 RUN curl -L -o /usr/local/bin/kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64 && \
     chmod +x /usr/local/bin/kustomize && \
     kustomize version
