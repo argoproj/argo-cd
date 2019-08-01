@@ -1,7 +1,7 @@
 import {DropDownMenu, FormField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
-import {Form, FormApi, Text} from 'react-form';
+import {Form, FormApi, Text, TextArea} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 
 import {CheckboxField, ConnectionStateIcon, DataLoader, EmptyState, ErrorNotification, Page} from '../../../shared/components';
@@ -12,10 +12,19 @@ import {services} from '../../../shared/services';
 
 require('./repos-list.scss');
 
-interface NewRepoParams {
+interface NewSSHRepoParams {
+    url: string;
+    sshPrivateKey: string;
+    insecure: boolean;
+    enableLfs: boolean;
+}
+
+interface NewHTTPSRepoParams {
     url: string;
     username: string;
     password: string;
+    tlsClientCertData: string;
+    tlsClientCertKey: string;
     insecure: boolean;
     enableLfs: boolean;
 }
@@ -27,7 +36,8 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
         history: PropTypes.object,
     };
 
-    private formApi: FormApi;
+    private formApiSSH: FormApi;
+    private formApiHTTPS: FormApi;
     private loader: DataLoader;
 
     public render() {
@@ -37,8 +47,11 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                 actionMenu: {
                     className: 'fa fa-plus',
                     items: [{
-                        title: 'Connect Repo',
-                        action: () => this.showConnectRepo = true,
+                        title: 'Connect Repo using SSH',
+                        action: () => this.showConnectSSHRepo = true,
+                    }, {
+                        title: 'Connect Repo using HTTPS',
+                        action: () => this.showConnectHTTPSRepo = true,
                     }],
                 },
             }}>
@@ -84,7 +97,9 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                         <h4>No repositories connected</h4>
                                         <h5>Connect your repo to deploy apps.</h5>
                                         <button className='argo-button argo-button--base'
-                                                onClick={() => this.showConnectRepo = true}>Connect Repo
+                                                onClick={() => this.showConnectSSHRepo = true}>Connect Repo using SSH
+                                        </button> <button className='argo-button argo-button--base'
+                                                onClick={() => this.showConnectHTTPSRepo = true}>Connect Repo using HTTPS
                                         </button>
                                     </EmptyState>
                                 )
@@ -92,34 +107,76 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                         </DataLoader>
                     </div>
                 </div>
-                <SlidingPanel isShown={this.showConnectRepo} onClose={() => this.showConnectRepo = false} header={(
+                <SlidingPanel isShown={this.showConnectHTTPSRepo} onClose={() => this.showConnectHTTPSRepo = false} header={(
                     <div>
-                        <button className='argo-button argo-button--base' onClick={() => this.formApi.submitForm(null)}>
+                        <button className='argo-button argo-button--base' onClick={() => this.formApiHTTPS.submitForm(null)}>
                             Connect
-                        </button>
-                        <button onClick={() => this.showConnectRepo = false}
+                        </button> <button onClick={() => this.showConnectHTTPSRepo = false}
                                 className='argo-button argo-button--base-o'>
                             Cancel
                         </button>
                     </div>
                 )}>
-                    <h4>Connect Git repo</h4>
-                    <Form onSubmit={(params) => this.connectRepo(params as NewRepoParams)}
-                          getApi={(api) => this.formApi = api}
-                          validateError={(params: NewRepoParams) => ({
+                    <h4>Connect Git repo using HTTPS</h4>
+                    <Form onSubmit={(params) => this.connectHTTPSRepo(params as NewHTTPSRepoParams)}
+                          getApi={(api) => this.formApiHTTPS = api}
+                          validateError={(params: NewHTTPSRepoParams) => ({
                               url: !params.url && 'Repo URL is required',
+                              password: !params.password && params.username && 'Password is required if username is given.',
+                              tlsClientCertKey: !params.tlsClientCertKey && params.tlsClientCertData && 'TLS client cert key is required if TLS client cert is given.',
                           })}>
                         {(formApi) => (
-                            <form onSubmit={formApi.submitForm} role='form' className='width-control'>
+                            <form onSubmit={formApi.submitForm} role='form' className='repos-list width-control'>
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Repository URL' field='url' component={Text}/>
                                 </div>
                                 <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Username' field='username' component={Text}/>
+                                    <FormField formApi={formApi} label='Username (optional)' field='username' component={Text}/>
                                 </div>
                                 <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Password' field='password' component={Text}
+                                    <FormField formApi={formApi} label='Password (optional)' field='password' component={Text}
                                                componentProps={{type: 'password'}}/>
+                                </div>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='TLS client certificate (optional)' field='tlsClientCertData' component={TextArea}/>
+                                </div>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='TLS client certificate key (optional)' field='tlsClientCertKey' component={TextArea}/>
+                                </div>
+                               <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField}/>
+                                </div>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Enable LFS support' field='enableLfs' component={CheckboxField}/>
+                                </div>
+                            </form>
+                        )}
+                    </Form>
+                </SlidingPanel>
+                <SlidingPanel isShown={this.showConnectSSHRepo} onClose={() => this.showConnectSSHRepo = false} header={(
+                    <div>
+                        <button className='argo-button argo-button--base' onClick={() => this.formApiSSH.submitForm(null)}>
+                            Connect
+                        </button> <button onClick={() => this.showConnectSSHRepo = false}
+                                className='argo-button argo-button--base-o'>
+                            Cancel
+                        </button>
+                    </div>
+                )}>
+                    <h4>Connect Git repo using SSH</h4>
+                    <Form onSubmit={(params) => this.connectSSHRepo(params as NewSSHRepoParams)}
+                          getApi={(api) => this.formApiSSH = api}
+                          validateError={(params: NewSSHRepoParams) => ({
+                              url: !params.url && 'Repo URL is required',
+                              sshPrivateKey: !params.sshPrivateKey && 'SSH private key data is required for connecting SSH repositories',
+                          })}>
+                        {(formApi) => (
+                            <form onSubmit={formApi.submitForm} role='form' className='repos-list width-control'>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Repository URL' field='url' component={Text}/>
+                                </div>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='SSH private key data' field='sshPrivateKey' component={TextArea}/>
                                 </div>
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField}/>
@@ -135,10 +192,41 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
         );
     }
 
-    private async connectRepo(params: NewRepoParams) {
+    /*
+    private isHTTPSUrl(url: string) {
+        if (url.match(/^https:\/\/.*$/gi)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    */
+
+    private clearConnectSSHForm() {
+        this.formApiSSH.resetAll();
+    }
+
+    private clearConnectHTTPSForm() {
+        this.formApiHTTPS.resetAll();
+    }
+
+    private async connectSSHRepo(params: NewSSHRepoParams) {
         try {
-            await services.repos.create(params);
-            this.showConnectRepo = false;
+            await services.repos.createSSH(params);
+            this.showConnectSSHRepo = false;
+            this.loader.reload();
+        } catch (e) {
+            this.appContext.apis.notifications.show({
+                content: <ErrorNotification title='Unable to connect repository' e={e}/>,
+                type: NotificationType.Error,
+            });
+        }
+    }
+
+    private async connectHTTPSRepo(params: NewHTTPSRepoParams) {
+        try {
+            await services.repos.createHTTPS(params);
+            this.showConnectSSHRepo = false;
             this.loader.reload();
         } catch (e) {
             this.appContext.apis.notifications.show({
@@ -157,12 +245,22 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
         }
     }
 
-    private get showConnectRepo() {
-        return new URLSearchParams(this.props.location.search).get('addRepo') === 'true';
+    private get showConnectHTTPSRepo() {
+        return new URLSearchParams(this.props.location.search).get('addHTTPSRepo') === 'true';
     }
 
-    private set showConnectRepo(val: boolean) {
-        this.appContext.router.history.push(`${this.props.match.url}?addRepo=${val}`);
+    private set showConnectHTTPSRepo(val: boolean) {
+        this.clearConnectHTTPSForm();
+        this.appContext.router.history.push(`${this.props.match.url}?addHTTPSRepo=${val}`);
+    }
+
+    private get showConnectSSHRepo() {
+        return new URLSearchParams(this.props.location.search).get('addSSHRepo') === 'true';
+    }
+
+    private set showConnectSSHRepo(val: boolean) {
+        this.clearConnectSSHForm();
+        this.appContext.router.history.push(`${this.props.match.url}?addSSHRepo=${val}`);
     }
 
     private get appContext(): AppContext {
