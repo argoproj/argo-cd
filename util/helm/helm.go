@@ -154,8 +154,6 @@ func (h *helm) GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, 
 	return params, nil
 }
 
-// TODO  MUST reinstate redaction
-
 func flatVals(input map[string]interface{}, output map[string]string, prefixes ...string) {
 	for key, val := range input {
 		if subMap, ok := val.(map[string]interface{}); ok {
