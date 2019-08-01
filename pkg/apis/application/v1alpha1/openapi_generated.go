@@ -1834,35 +1834,35 @@ func schema_pkg_apis_application_v1alpha1_RepositoryCertificate(ref common.Refer
 				Description: "A RepositoryCertificate is either SSH known hosts entry or TLS certificate",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"servername": {
+					"serverName": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Name of the server the certificate is intended for",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
-					"type": {
+					"certType": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Type of certificate - currently \"https\" or \"ssh\"",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
-					"cipher": {
+					"certSubType": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The sub type of the cert, i.e. \"ssh-rsa\"",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
-					"certdata": {
+					"certData": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Actual certificate data, protocol dependent",
 							Type:        []string{"string"},
 							Format:      "byte",
 						},
 					},
-					"certinfo": {
+					"certInfo": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Additional certificate info (e.g. SSH fingerprint, X509 CommonName)",
 							Type:        []string{"string"},
@@ -1870,7 +1870,7 @@ func schema_pkg_apis_application_v1alpha1_RepositoryCertificate(ref common.Refer
 						},
 					},
 				},
-				Required: []string{"servername", "type", "cipher", "certdata", "certinfo"},
+				Required: []string{"serverName", "certType", "certSubType", "certData", "certInfo"},
 			},
 		},
 	}

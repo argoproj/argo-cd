@@ -943,15 +943,15 @@ type RepositoryList struct {
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
 type RepositoryCertificate struct {
 	// Name of the server the certificate is intended for
-	ServerName string `json:"servername" protobuf:"bytes,1,opt,name=servername"`
+	ServerName string `json:"serverName" protobuf:"bytes,1,opt,name=serverName"`
 	// Type of certificate - currently "https" or "ssh"
-	CertType string `json:"type" protobuf:"bytes,2,opt,name=type"`
+	CertType string `json:"certType" protobuf:"bytes,2,opt,name=certType"`
 	// The sub type of the cert, i.e. "ssh-rsa"
-	CertSubType string `json:"cipher" protobuf:"bytes,3,opt,name=cipher"`
+	CertSubType string `json:"certSubType" protobuf:"bytes,3,opt,name=certSubType"`
 	// Actual certificate data, protocol dependent
-	CertData []byte `json:"certdata" protobuf:"bytes,4,opt,name=certdata"`
+	CertData []byte `json:"certData" protobuf:"bytes,4,opt,name=certData"`
 	// Additional certificate info (e.g. SSH fingerprint, X509 CommonName)
-	CertInfo string `json:"certinfo" protobuf:"bytes,5,opt,name=certinfo"`
+	CertInfo string `json:"certInfo" protobuf:"bytes,5,opt,name=certInfo"`
 }
 
 // RepositoryCertificateList is a collection of RepositoryCertificates
