@@ -26,16 +26,6 @@ func NewType(t string) (Type, bool) {
 			t == string(PostInstall)
 }
 
-func (t Type) Order() int {
-	return map[Type]int{
-		CRDInstall:  -3,
-		PreInstall:  -2,
-		PreUpgrade:  -1,
-		PostUpgrade: 1,
-		PostInstall: 2,
-	}[t]
-}
-
 func (t Type) HookType() v1alpha1.HookType {
 	return map[Type]v1alpha1.HookType{
 		CRDInstall:  v1alpha1.HookTypePreSync,

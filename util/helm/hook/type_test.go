@@ -18,14 +18,6 @@ func TestTypes(t *testing.T) {
 	assert.Equal(t, []Type{PostInstall}, Types(Annotate(NewPod(), "helm.sh/hook", "post-install")))
 }
 
-func TestType_Order(t *testing.T) {
-	assert.Equal(t, -3, CRDInstall.Order())
-	assert.Equal(t, -2, PreInstall.Order())
-	assert.Equal(t, -1, PreUpgrade.Order())
-	assert.Equal(t, 1, PostUpgrade.Order())
-	assert.Equal(t, 2, PostInstall.Order())
-}
-
 func TestType_HookType(t *testing.T) {
 	assert.Equal(t, v1alpha1.HookTypePreSync, CRDInstall.HookType())
 	assert.Equal(t, v1alpha1.HookTypePreSync, PreInstall.HookType())

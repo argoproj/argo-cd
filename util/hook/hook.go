@@ -41,7 +41,7 @@ func Types(obj *unstructured.Unstructured) []v1alpha1.HookType {
 	for _, t := range hook.Types(obj) {
 		typeToBool[t.HookType()] = true
 	}
-	// this is very complex looking, but all it really does is ensure we can't get the hook twice, as this
+	// this ensures we can't get the hook type in the array twice, as this
 	// would ultimately result in running the hook twice
 	var types []v1alpha1.HookType
 	for t := range typeToBool {

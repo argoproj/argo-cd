@@ -3,13 +3,12 @@ package e2e
 import (
 	"testing"
 
-	v1 "k8s.io/api/core/v1"
-
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 )
 
-func TestHelmHooksAreNotCreated(t *testing.T) {
+func TestHelmHooksAreCreated(t *testing.T) {
 	Given(t).
 		Path("hook").
 		When().
@@ -18,12 +17,9 @@ func TestHelmHooksAreNotCreated(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		// important check, Helm hooks should be ignored for sync status
 		Expect(HealthIs(HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(NotPod(func(p v1.Pod) bool {
-			return p.Name == "hook"
-		}))
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook", Message: "pod/hook created", HookType: HookTypePreSync, HookPhase: OperationSucceeded, SyncPhase: SyncPhasePreSync}))
 }
 
 func TestHelmCrdInstallIsCreated(t *testing.T) {
@@ -37,9 +33,7 @@ func TestHelmCrdInstallIsCreated(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(HealthIs(HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(Pod(func(p v1.Pod) bool {
-			return p.Name == "hook"
-		}))
+		Expect(ResourceResultNumbering(2))
 }
 
 func TestDeclarativeHelm(t *testing.T) {
