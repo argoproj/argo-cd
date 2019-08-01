@@ -38,8 +38,8 @@ func (_m *Client) Init() error {
 	return r0
 }
 
-// LockKey provides a mock function with given fields:
-func (_m *Client) LockKey() string {
+// Root provides a mock function with given fields:
+func (_m *Client) Root() string {
 	ret := _m.Called()
 
 	var r0 string

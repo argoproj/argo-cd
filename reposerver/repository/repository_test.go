@@ -52,7 +52,7 @@ func (f *fakeGitClientFactory) NewClient(r *v1alpha1.Repository) (depot.Client, 
 	if f.root != "" {
 		root = f.root
 	}
-	mockClient.On("LockKey").Return(root)
+	mockClient.On("Root").Return(root)
 	mockClient.On("Init").Return(nil)
 	mockClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 	mockClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(f.revision, nil)

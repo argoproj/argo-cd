@@ -39,8 +39,8 @@ func (w *clientWrapper) Revision(path string) (string, error) {
 	return w.client.Revision(path)
 }
 
-func (w *clientWrapper) LockKey() string {
-	return w.client.LockKey()
+func (w *clientWrapper) Root() string {
+	return w.client.Root()
 }
 
 func (w *clientWrapper) Init() error {

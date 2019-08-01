@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"regexp"
 
 	argoexec "github.com/argoproj/pkg/exec"
 )
@@ -23,12 +24,18 @@ func newCmd(workDir string) (*cmd, error) {
 	return &cmd{workDir: workDir, helmHome: tmpDir}, err
 }
 
+var redactor = func(text string) string {
+	return regexp.MustCompile("(--username|--password) [^ ]*").ReplaceAllString(text, "$1 ******")
+}
+
 func (c cmd) run(args ...string) (string, error) {
 	cmd := exec.Command("helm", args...)
 	cmd.Dir = c.workDir
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, fmt.Sprintf("HELM_HOME=%s", c.helmHome))
-	return argoexec.RunCommandExt(cmd, argoexec.CmdOpts{})
+	return argoexec.RunCommandExt(cmd, argoexec.CmdOpts{
+		Redactor: redactor,
+	})
 }
 
 func (c *cmd) init() (string, error) {
