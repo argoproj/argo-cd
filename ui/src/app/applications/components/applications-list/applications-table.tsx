@@ -1,10 +1,18 @@
-import { DropDownMenu } from 'argo-ui';
+import { DropDownMenu, Tooltip } from 'argo-ui';
 import * as React from 'react';
 
+import { Cluster } from '../../../shared/components';
 import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { ApplicationURLs } from '../application-urls';
 import * as AppUtils from '../utils';
+
+require('./applications-table.scss');
+
+function shortRepo(repo: string) {
+    const url = new URL(repo);
+    return <Tooltip content={repo}><span>{url.pathname.slice(1)}</span></Tooltip>;
+}
 
 export const ApplicationsTable = (props: {
     applications: models.Application[];
@@ -14,37 +22,39 @@ export const ApplicationsTable = (props: {
 }) => (
     <Consumer>
     {(ctx) => (
-    <div className='argo-table-list argo-table-list--clickable'>
-        <div className='argo-table-list__head'>
-            <div className='row'>
-                <div className='columns large-3 small-6'>PROJECT/NAME</div>
-                <div className='columns large-3 show-for-large'>SOURCE</div>
-                <div className='columns large-1 small-2'>TARGET REVISION</div>
-                <div className='columns large-3 show-for-large'>DESTINATION</div>
-                <div className='columns large-2 small-4'>STATUS</div>
-            </div>
-        </div>
+    <div className='applications-table argo-table-list argo-table-list--clickable'>
         {props.applications.map((app) => (
             <div key={app.metadata.name} className={`argo-table-list__row
                 applications-list__entry applications-list__entry--comparison-${app.status.sync.status}
                 applications-list__entry--health-${app.status.health.status}`
             }>
                 <div className='row applications-list__table-row' onClick={(e) => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, { event: e })}>
-                    <div className='columns large-3 small-6 wrap'>
-                        <i className='icon argo-icon-application'/> {app.spec.project}/{app.metadata.name} <ApplicationURLs urls={app.status.summary.externalURLs}/>
+                    <div className='columns small-4'>
+                        <div className='row'>
+                            <div className='show-for-xxlarge columns small-3'>Project:</div>
+                            <div className='columns small-12 xxlarge-9'>{app.spec.project}</div>
+                        </div>
+                        <div className='row'>
+                            <div className='show-for-xxlarge columns small-3'>Name:</div>
+                            <div className='columns small-12 xxlarge-9'>{app.metadata.name} <ApplicationURLs urls={app.status.summary.externalURLs}/></div>
+                        </div>
                     </div>
-                    <div className='columns large-3 show-for-large wrap'>
-                        {app.spec.source.repoURL}/{app.spec.source.path}
+                    <div className='columns small-6'>
+                        <div className='row'>
+                            <div className='show-for-xxlarge columns small-2'>Source:</div>
+                            <div className='columns small-12 xxlarge-10' style={{position: 'relative'}}>
+                                {shortRepo(app.spec.source.repoURL)}/{app.spec.source.path}
+                                <span className='applications-table__revision'>{app.spec.source.targetRevision || 'HEAD'}</span>
+                            </div>
+                        </div>
+                        <div className='row'>
+                            <div className='show-for-xxlarge columns small-2'>Destination:</div>
+                            <div className='columns small-12 xxlarge-10'><Cluster url={app.spec.destination.server}/>/{app.spec.destination.namespace}</div>
+                        </div>
                     </div>
-                    <div className='columns large-1 small-2'>
-                        {app.spec.source.targetRevision || 'HEAD'}
-                    </div>
-                    <div className='columns large-3 show-for-large wrap'>
-                        {app.spec.destination.server}/{app.spec.destination.namespace}
-                    </div>
-                    <div className='columns large-2 small-4'>
+                    <div className='columns small-2'>
                         <AppUtils.HealthStatusIcon state={app.status.health}/> <span>{app.status.health.status}</span>
-                        &nbsp;
+                        <br/>
                         <AppUtils.ComparisonStatusIcon status={app.status.sync.status}/> <span>{app.status.sync.status}</span>
                         <DropDownMenu anchor={() => (
                             <button className='argo-button argo-button--light argo-button--lg argo-button--short'>

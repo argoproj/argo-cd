@@ -4,8 +4,7 @@ import * as React from 'react';
 import {Form, FormApi, Text, TextArea} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 
-import {CheckboxField, ConnectionStateIcon, DataLoader, EmptyState, ErrorNotification, Page} from '../../../shared/components';
-import {Repo} from '../../../shared/components/repo';
+import {CheckboxField, ConnectionStateIcon, DataLoader, EmptyState, ErrorNotification, Page, Repo} from '../../../shared/components';
 import {AppContext} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
