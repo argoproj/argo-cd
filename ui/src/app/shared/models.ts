@@ -159,7 +159,6 @@ export interface ApplicationSourceHelm {
 
 export interface ApplicationSourceKustomize {
     namePrefix: string;
-    imageTags: KustomizeImageTag[];
     images: string[];
 }
 
@@ -424,7 +423,6 @@ export interface KustomizeImageTag {
 
 export interface KustomizeAppSpec {
     path: string;
-    imageTags?: KustomizeImageTag[];
     images?: string[];
 }
 
