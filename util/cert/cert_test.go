@@ -362,3 +362,26 @@ func Test_ServerNameWithoutPort(t *testing.T) {
 		assert.Equal(t, "localhost", ServerNameWithoutPort(hostName))
 	}
 }
+
+func Test_ValidHostnames(t *testing.T) {
+	hostNameList := []string{"localhost", "localhost.localdomain", "foo.example.com", "argocd-server.svc.kubernetes.local"}
+	for idx, hostName := range hostNameList {
+		assert.Equal(t, true, IsValidHostname(hostName, false))
+		if idx != 0 {
+			assert.Equal(t, true, IsValidHostname(hostName, true))
+		} else {
+			assert.Equal(t, false, IsValidHostname(hostName, true))
+		}
+	}
+}
+
+func Test_InvalidHostnames(t *testing.T) {
+	hostNameList := []string{"localhost.a", "localhost.", "localhost..localdomain", ".foo.example.com", "argocd_server.svc.kubernetes.local"}
+	for idx, hostName := range hostNameList {
+		if idx == 0 {
+			assert.Equal(t, false, IsValidHostname(hostName, true))
+		} else {
+			assert.Equal(t, false, IsValidHostname(hostName, false))
+		}
+	}
+}

@@ -13,6 +13,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"golang.org/x/crypto/ssh"
@@ -62,6 +63,22 @@ const (
 	// Maximum number of certificates or known host entries in a stream
 	CertificateMaxEntriesPerStream = 256
 )
+
+// Regular expression that matches a valid hostname
+var validHostNameRegexp = regexp.MustCompile(`^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])(\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]))*$`)
+
+// Regular expression that matches a valid FQDN
+var validFQDNRegexp = regexp.MustCompile(`^([a-zA-Z0-9-]{0,62}[a-zA-Z0-9]\.)+[a-zA-Z]{2,63}$`)
+
+// Can be used to test whether a given string represents a valid hostname
+// If fqdn is true, given string must also be a FQDN representation.
+func IsValidHostname(hostname string, fqdn bool) bool {
+	if !fqdn {
+		return validHostNameRegexp.Match([]byte(hostname))
+	} else {
+		return validFQDNRegexp.Match([]byte(hostname))
+	}
+}
 
 // Get the configured path to where TLS certificates are stored on the local
 // filesystem. If ARGOCD_TLS_DATA_PATH environment is set, path is taken from
