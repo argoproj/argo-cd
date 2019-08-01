@@ -5,7 +5,7 @@ import * as React from 'react';
 import { RouteComponentProps } from 'react-router';
 import { Observable } from 'rxjs';
 
-import { Autocomplete, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Query } from '../../../shared/components';
+import { Autocomplete, ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Query } from '../../../shared/components';
 import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { AppsListPreferences, AppsListViewType, services } from '../../../shared/services';
@@ -112,6 +112,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const [createApi, setCreateApi] = React.useState(null);
 
     return (
+<ClusterCtx.Provider value={services.clusters.list()}>
 <Consumer>{
 (ctx) => (
     <Page title='Applications' toolbar={services.viewPreferences.getPreferences().map((pref) => ({
@@ -277,5 +278,6 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
         </SlidingPanel>
     </Page>
 )}
-</Consumer>);
+</Consumer>
+</ClusterCtx.Provider>);
 };

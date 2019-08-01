@@ -5,12 +5,11 @@ import { FormApi, Text } from 'react-form';
 require('./application-summary.scss');
 
 import { Cluster, clusterTitle, DataLoader, EditablePanel, EditablePanelItem } from '../../../shared/components';
+import { Repo, Revision } from '../../../shared/components';
 import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 
-import {Repo} from '../../../shared/components/repo';
-import {Revision} from '../../../shared/components/revision';
 import { ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage } from '../utils';
 
 const urlPattern = new RegExp('^(https?:\\/\\/)?((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|((\\d{1,3}\\.){3}\\d{1,3}))'
