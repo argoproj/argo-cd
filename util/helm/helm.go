@@ -78,8 +78,12 @@ func (h *helm) Template(appName string, namespace string, opts *argoappv1.Applic
 	return kube.SplitYAML(out)
 }
 
+func (h *helm) reposInitialized() bool {
+	return h.repos != nil
+}
+
 func (h *helm) DependencyBuild() error {
-	if h.repos != nil {
+	if !h.reposInitialized() {
 		for _, repo := range h.repos.Filter(func(r *argoappv1.Repository) bool { return r.Type == "helm" }) {
 			_, err := h.cmd.repoAdd(repo.Name, repo.Repo, repoAddOpts{
 				username: repo.Username,

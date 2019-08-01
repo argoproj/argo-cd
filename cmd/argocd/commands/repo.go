@@ -186,7 +186,7 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 // Print table of repo info
 func printRepoTable(repos appsv1.Repositories) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(w, "TYPE\nREPO\tINSECURE\tLFS\tUSER\tSTATUS\tMESSAGE\n")
+	_, _ = fmt.Fprintf(w, "TYPE\nNAME\nREPO\tINSECURE\tLFS\tUSER\tSTATUS\tMESSAGE\n")
 	for _, r := range repos {
 		var username string
 		if r.Username == "" {
@@ -194,7 +194,7 @@ func printRepoTable(repos appsv1.Repositories) {
 		} else {
 			username = r.Username
 		}
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%s\t%s\t%s\n", r.Type, r.Repo, r.Insecure, r.EnableLFS, username, r.ConnectionState.Status, r.ConnectionState.Message)
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%v\t%v\t%s\t%s\t%s\n", r.Type, r.Name, r.Repo, r.IsInsecure(), r.EnableLFS, username, r.ConnectionState.Status, r.ConnectionState.Message)
 	}
 	_ = w.Flush()
 }

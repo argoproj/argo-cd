@@ -177,10 +177,14 @@ func (m *nativeGitClient) LockKey() string {
 	return m.root
 }
 
+// Returns true if the repository is LFS enabled
+func (m *nativeGitClient) IsLFSEnabled() bool {
+	return m.enableLfs
+}
+
 // Init initializes a local git repository and sets the remote origin
 func (m *nativeGitClient) Init() error {
 	_, err := git.PlainOpen(m.root)
-	log.SetLevel(log.DebugLevel)
 	if err != nil {
 		if err != git.ErrRepositoryNotExists {
 			return err
@@ -220,11 +224,6 @@ func (m *nativeGitClient) Init() error {
 		}
 	}
 	return err
-}
-
-// Returns true if the repository is LFS enabled
-func (m *nativeGitClient) IsLFSEnabled() bool {
-	return m.enableLfs
 }
 
 // LsFiles lists the local working tree, including only files that are under source control

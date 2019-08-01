@@ -86,6 +86,10 @@ type OIDCConfig struct {
 type RepoCredentials struct {
 	// The URL to the repository
 	URL string `json:"url,omitempty"`
+	// the type of the repo, "git" or "helm", assumed to be "git" if empty or absent
+	Type string `json:"type,omitempty"`
+	// helm only
+	Name string `json:"name,omitempty"`
 	// Name of the secret storing the username used to access the repo
 	UsernameSecret *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
 	// Name of the secret storing the password used to access the repo
@@ -102,12 +106,8 @@ type RepoCredentials struct {
 	TLSClientCertDataSecret *apiv1.SecretKeySelector `json:"tlsClientCertDataSecret,omitempty"`
 	// Name of the secret storing the TLS client cert's key data
 	TLSClientCertKeySecret *apiv1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
-	// helm only
+	// The CA secret for TLS client cert
 	TLSClientCASecret *apiv1.SecretKeySelector `json:"tlsClientCertCaSecret,omitempty"`
-	// the type of the repo, "git" or "helm", assumed to be "git" if empty or absent
-	Type string `json:"type,omitempty"`
-	// helm only
-	Name string `json:"name,omitempty"`
 }
 
 const (

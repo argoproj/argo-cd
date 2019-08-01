@@ -83,6 +83,11 @@ func (c *Context) Path(path string) *Context {
 	return c
 }
 
+func (c *Context) Revision(revision string) *Context {
+	c.revision = revision
+	return c
+}
+
 func (c *Context) Timeout(timeout int) *Context {
 	c.timeout = timeout
 	return c
@@ -136,6 +141,11 @@ func (c *Context) ConfigManagementPlugin(plugin v1alpha1.ConfigManagementPlugin)
 	return c
 }
 
+func (c *Context) Repos(repos ...settings.RepoCredentials) *Context {
+	fixture.SetRepos(repos...)
+	return c
+}
+
 func (c *Context) And(block func()) *Context {
 	block()
 	return c
@@ -162,15 +172,5 @@ func (c *Context) LocalPath(localPath string) *Context {
 
 func (c *Context) Project(project string) *Context {
 	c.project = project
-	return c
-}
-
-func (c *Context) Revision(revision string) *Context {
-	c.revision = revision
-	return c
-}
-
-func (c *Context) Repos(repos ...settings.RepoCredentials) *Context {
-	fixture.SetRepos(repos...)
 	return c
 }
