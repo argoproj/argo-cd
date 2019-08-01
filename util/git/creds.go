@@ -33,21 +33,86 @@ func (c NopCreds) Environ() (io.Closer, []string, error) {
 
 // HTTPS creds implementation
 type HTTPSCreds struct {
+	// Username for authentication
 	username string
+	// Password for authentication
 	password string
+	// Whether to ignore invalid server certificates
 	insecure bool
+	// Client certificate to use
+	clientCertData string
+	// Client certificate key to use
+	clientCertKey string
 }
 
-func NewHTTPSCreds(username, password string, insecure bool) HTTPSCreds {
-	return HTTPSCreds{username, password, insecure}
+func NewHTTPSCreds(username, password, clientCertData, clientCertKey string, insecure bool) HTTPSCreds {
+	return HTTPSCreds{
+		username,
+		password,
+		insecure,
+		clientCertData,
+		clientCertKey,
+	}
 }
 
+// Get additional required environment variables for executing git client to
+// access specific repository via HTTPS.
 func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
 	env := []string{fmt.Sprintf("GIT_ASKPASS=%s", "git-ask-pass.sh"), fmt.Sprintf("GIT_USERNAME=%s", c.username), fmt.Sprintf("GIT_PASSWORD=%s", c.password)}
+	httpCloser := authFilePaths(make([]string, 0))
+
+	// GIT_SSL_NO_VERIFY is used to tell git not to validate the server's cert at
+	// all.
 	if c.insecure {
 		env = append(env, "GIT_SSL_NO_VERIFY=true")
 	}
-	return NopCloser{}, env, nil
+
+	// In case the repo is configured for using a TLS client cert, we need to make
+	// sure git client will use it. The certificate's key must not be password
+	// protected.
+	if c.clientCertData != "" && c.clientCertKey != "" {
+		var certFile, keyFile *os.File
+
+		// We need to actually create two temp files, one for storing cert data and
+		// another for storing the key. If we fail to create second fail, the first
+		// must be removed.
+		certFile, err := ioutil.TempFile(util.TempDir, "")
+		if err == nil {
+			defer certFile.Close()
+			keyFile, err = ioutil.TempFile(util.TempDir, "")
+			if err != nil {
+				removeErr := os.Remove(certFile.Name())
+				if removeErr != nil {
+					log.Errorf("Could not remove previously created tempfile %s: %v", certFile.Name(), removeErr)
+				}
+				return NopCloser{}, nil, err
+			}
+			defer keyFile.Close()
+		} else {
+			return NopCloser{}, nil, err
+		}
+
+		// We should have both temp files by now
+		httpCloser = authFilePaths([]string{certFile.Name(), keyFile.Name()})
+
+		_, err = certFile.WriteString(c.clientCertData)
+		if err != nil {
+			httpCloser.Close()
+			return NopCloser{}, nil, err
+		}
+		// GIT_SSL_CERT is the full path to a client certificate to be used
+		env = append(env, fmt.Sprintf("GIT_SSL_CERT=%s", certFile.Name()))
+
+		_, err = keyFile.WriteString(c.clientCertKey)
+		if err != nil {
+			httpCloser.Close()
+			return NopCloser{}, nil, err
+		}
+		// GIT_SSL_KEY is the full path to a client certificate's key to be used
+		env = append(env, fmt.Sprintf("GIT_SSL_KEY=%s", keyFile.Name()))
+
+	}
+	return httpCloser, env, nil
 }
 
 // SSH implementation
@@ -63,8 +128,24 @@ func NewSSHCreds(sshPrivateKey string, caPath string, insecureIgnoreHostKey bool
 
 type sshPrivateKeyFile string
 
+type authFilePaths []string
+
 func (f sshPrivateKeyFile) Close() error {
 	return os.Remove(string(f))
+}
+
+// Remove a list of files that have been created as temp files while creating
+// HTTPCreds object above.
+func (f authFilePaths) Close() error {
+	var retErr error = nil
+	for _, path := range f {
+		err := os.Remove(path)
+		if err != nil {
+			log.Errorf("HTTPSCreds.Close(): Could not remove temp file %s: %v", path, err)
+			retErr = err
+		}
+	}
+	return retErr
 }
 
 func (c SSHCreds) Environ() (io.Closer, []string, error) {
@@ -73,14 +154,13 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	defer file.Close()
+
 	_, err = file.WriteString(c.sshPrivateKey)
 	if err != nil {
 		return nil, nil, err
 	}
-	err = file.Close()
-	if err != nil {
-		return nil, nil, err
-	}
+
 	args := []string{"ssh", "-i", file.Name()}
 	var env []string
 	if c.caPath != "" {

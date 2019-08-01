@@ -26,13 +26,6 @@ commands:
           name: Remove checked out code
           command: rm -Rf /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
       - checkout
-  install_go_deps:
-    steps:
-      - run:
-          name: Install Go deps
-          command: |
-            set -x
-            make install-dev-tools
   dep_ensure:
     steps:
       - restore_cache:
@@ -61,6 +54,16 @@ commands:
             which go
             go version
             go env
+  install_go_deps:
+    steps:
+      - run:
+          name: Install Go deps
+          command: |
+            set -x
+            go get github.com/golangci/golangci-lint/cmd/golangci-lint
+            go get github.com/jstemmer/go-junit-report
+            go get github.com/mattn/goreman
+            go get golang.org/x/tools/cmd/goimports
   install_tools:
     steps:
       - run:
@@ -69,17 +72,6 @@ commands:
       - restore_cache:
           keys:
             - dl-v6
-            - dl-v5
-            - dl-v4
-            - dl-v3
-      - run:
-          name: Install JQ v1.6
-          command: |
-            set -x
-            [ -e /tmp/dl/jq ] || curl -sLf -C - -o /tmp/dl/jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
-            sudo cp /tmp/dl/jq /usr/local/bin/jq
-            sudo chmod +x /usr/local/bin/jq
-            jq --version
       - run:
           name: Install Kubectx v0.6.3
           command: |
@@ -99,14 +91,6 @@ commands:
             sudo cp /tmp/dl/dep /usr/local/go/bin/dep
             sudo chmod +x /usr/local/go/bin/dep
             dep version
-      - run:
-          name: Install Go Swagger v0.19.0
-          command: |
-            set -x
-            [ -e /tmp/dl/swagger ] || curl -sLf -C - -o /tmp/dl/swagger https://github.com/go-swagger/go-swagger/releases/download/v0.19.0/swagger_linux_amd64
-            sudo cp /tmp/dl/swagger /usr/local/bin/swagger
-            sudo chmod +x /usr/local/bin/swagger
-            swagger version
       - run:
           name: Install Ksonnet v0.13.1
           command: |
@@ -143,15 +127,6 @@ commands:
             sudo chmod +x /usr/local/go/bin/kustomize
             kustomize version
       - run:
-          name: Install Protobuf compiler v3.7.1
-          command: |
-            set -x
-            [ -e /tmp/dl/protoc.zip ] || curl -sLf -C - -o /tmp/dl/protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v3.7.1/protoc-3.7.1-linux-x86_64.zip
-            sudo unzip /tmp/dl/protoc.zip bin/protoc -d /usr/local/
-            sudo chmod +x /usr/local/bin/protoc
-            sudo unzip /tmp/dl/protoc.zip include/* -d /usr/local/
-            protoc --version
-      - run:
           name: Install Git LFS plugin
           command: |
             set -x
@@ -161,13 +136,13 @@ commands:
             sudo apt-get update
             sudo apt-get install -y git-lfs openssh-client
       - save_cache:
-          key: dl-v4
+          key: dl-v6
           paths:
             - /tmp/dl
   save_go_cache:
     steps:
       - save_cache:
-          key: go-v16-{{ .Branch }}
+          key: go-v17-{{ .Branch }}
           paths:
             - /home/circleci/.go_workspace
             - /home/circleci/.cache/go-build
@@ -176,10 +151,10 @@ commands:
     steps:
       - restore_cache:
           keys:
+            - go-v17-{{ .Branch }}
+            - go-v17-master
             - go-v16-{{ .Branch }}
             - go-v16-master
-            - go-v15-{{ .Branch }}
-            - go-v15-master
 jobs:
   build:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
@@ -272,12 +247,16 @@ jobs:
           environment:
             # pft. if you do not quote "true", CircleCI turns it into "1", stoopid
             ARGOCD_FAKE_IN_CLUSTER: "true"
+            ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
+            ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
       - run:
           name: Start API server
           command: go run ./cmd/argocd-server/main.go --loglevel debug --redis localhost:6379 --insecure --dex-server http://localhost:5556 --repo-server localhost:8081 --staticassets ../argo-cd-ui/dist/app
           background: true
           environment:
             ARGOCD_FAKE_IN_CLUSTER: "true"
+            ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
+            ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
       - run:
           name: Start Test Git
           command: |
@@ -343,6 +322,9 @@ jobs:
       # This does not appear to work, and I don't want to spend time on it.
       - store_test_results:
           path: junit.xml
+      - run:
+          name: Build
+          command: yarn build
       - run:
           name: Lint
           command: yarn lint

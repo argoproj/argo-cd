@@ -33,7 +33,7 @@ func TestKustomizeBuild(t *testing.T) {
 	appPath, err := testDataDir()
 	assert.Nil(t, err)
 	namePrefix := "namePrefix-"
-	kustomize := NewKustomizeApp(appPath, git.NopCreds{})
+	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "")
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		NamePrefix: namePrefix,
 		ImageTags: []v1alpha1.KustomizeImageTag{

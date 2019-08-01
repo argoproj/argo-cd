@@ -6,8 +6,16 @@ export class RepositoriesService {
         return requests.get('/repositories').then((res) => res.body as models.RepositoryList).then((list) => list.items || []);
     }
 
-    public create({url, username, password}: {url: string, username: string, password: string}): Promise<models.Repository> {
-        return requests.post('/repositories').send({ repo: url, username, password }).then((res) => res.body as models.Repository);
+    public createHTTPS({url, username, password, tlsClientCertData, tlsClientCertKey, insecure, enableLfs}:
+        {url: string, username: string, password: string, tlsClientCertData: string, tlsClientCertKey: string,
+            insecure: boolean, enableLfs: boolean}): Promise<models.Repository> {
+        return requests.post('/repositories').send({ repo: url, username, password, tlsClientCertData, tlsClientCertKey, insecure, enableLfs })
+            .then((res) => res.body as models.Repository);
+    }
+
+    public createSSH({url, sshPrivateKey, insecure, enableLfs}:
+        {url: string, sshPrivateKey: string, insecure: boolean, enableLfs: boolean}): Promise<models.Repository> {
+        return requests.post('/repositories').send({ repo: url, sshPrivateKey, insecure, enableLfs }).then((res) => res.body as models.Repository);
     }
 
     public delete(url: string): Promise<models.Repository> {

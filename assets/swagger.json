@@ -2722,7 +2722,7 @@
         },
         "targetRevision": {
           "type": "string",
-          "title": "Environment is a ksonnet application environment name\nTargetRevision defines the commit, tag, or branch in which to sync the application to.\nIf omitted, will sync to HEAD"
+          "title": "TargetRevision defines the commit, tag, or branch in which to sync the application to.\nIf omitted, will sync to HEAD"
         }
       }
     },
@@ -3305,6 +3305,14 @@
           "type": "string",
           "title": "type of the repo, maybe \"git or \"helm, \"git\" is assumed if empty or absent"
         },
+        "tlsClientCertData": {
+          "type": "string",
+          "title": "TLS client cert data for authenticating at the repo server"
+        },
+        "tlsClientCertKey": {
+          "type": "string",
+          "title": "TLS client cert key for authenticating at the repo server"
+        },
         "username": {
           "type": "string",
           "title": "Username for authenticating at the repo server"
@@ -3320,9 +3328,9 @@
           "format": "byte",
           "title": "Actual certificate data, protocol dependent"
         },
-        "certfingerprint": {
+        "certinfo": {
           "type": "string",
-          "title": "Certificate fingerprint"
+          "title": "Additional certificate info (e.g. SSH fingerprint, X509 CommonName)"
         },
         "cipher": {
           "type": "string",
@@ -3774,6 +3782,11 @@
           "type": "boolean",
           "format": "boolean",
           "title": "Prune will prune resources automatically as part of automated sync (default: false)"
+        },
+        "selfHeal": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "SelfHeal enables auto-syncing if  (default: false)"
         }
       }
     },

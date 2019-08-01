@@ -78,6 +78,7 @@ type ApplicationController struct {
 	appStateManager           AppStateManager
 	stateCache                statecache.LiveStateCache
 	statusRefreshTimeout      time.Duration
+	selfHealTimeout           time.Duration
 	repoClientset             apiclient.Clientset
 	db                        db.ArgoDB
 	settingsMgr               *settings_util.SettingsManager
@@ -100,6 +101,7 @@ func NewApplicationController(
 	repoClientset apiclient.Clientset,
 	argoCache *argocache.Cache,
 	appResyncPeriod time.Duration,
+	selfHealTimeout time.Duration,
 	metricsPort int,
 ) (*ApplicationController, error) {
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
@@ -119,6 +121,7 @@ func NewApplicationController(
 		refreshRequestedAppsMutex: &sync.Mutex{},
 		auditLogger:               argo.NewAuditLogger(namespace, kubeClientset, "argocd-application-controller"),
 		settingsMgr:               settingsMgr,
+		selfHealTimeout:           selfHealTimeout,
 	}
 	appInformer, appLister := ctrl.newApplicationInformerAndLister()
 	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, cache.Indexers{})
@@ -532,7 +535,13 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	if state.Phase.Completed() {
 		// if we just completed an operation, force a refresh so that UI will report up-to-date
 		// sync/health information
-		ctrl.requestAppRefresh(app.ObjectMeta.Name, CompareWithLatest)
+		if key, err := cache.MetaNamespaceKeyFunc(app); err == nil {
+			// force app refresh with using CompareWithLatest comparison type and trigger app reconciliation loop
+			ctrl.requestAppRefresh(app.Name, CompareWithLatest)
+			ctrl.appRefreshQueue.Add(key)
+		} else {
+			logCtx.Warnf("Fails to requeue application: %v", err)
+		}
 	}
 }
 
@@ -695,7 +704,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		app.Status.Summary = tree.GetSummary()
 	}
 
-	syncErrCond := ctrl.autoSync(app, compareResult.syncStatus)
+	syncErrCond := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources)
 	if syncErrCond != nil {
 		conditions = append(conditions, *syncErrCond)
 	}
@@ -858,7 +867,7 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 }
 
 // autoSync will initiate a sync operation for an application configured with automated sync
-func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *appv1.SyncStatus) *appv1.ApplicationCondition {
+func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *appv1.SyncStatus, resources []appv1.ResourceStatus) *appv1.ApplicationCondition {
 	if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
 		return nil
 	}
@@ -877,28 +886,52 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		logCtx.Infof("Skipping auto-sync: application status is %s", syncStatus.Status)
 		return nil
 	}
+
 	desiredCommitSHA := syncStatus.Revision
-
-	// It is possible for manifests to remain OutOfSync even after a sync/kubectl apply (e.g.
-	// auto-sync with pruning disabled). We need to ensure that we do not keep Syncing an
-	// application in an infinite loop. To detect this, we only attempt the Sync if the revision
-	// and parameter overrides are different from our most recent sync operation.
-	if alreadyAttemptedSync(app, desiredCommitSHA) {
-		if app.Status.OperationState.Phase != appv1.OperationSucceeded {
-			logCtx.Warnf("Skipping auto-sync: failed previous sync attempt to %s", desiredCommitSHA)
-			message := fmt.Sprintf("Failed sync attempt to %s: %s", desiredCommitSHA, app.Status.OperationState.Message)
-			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}
-		}
-		logCtx.Infof("Skipping auto-sync: most recent sync already to %s", desiredCommitSHA)
-		return nil
-	}
-
+	alreadyAttempted, attemptPhase := alreadyAttemptedSync(app, desiredCommitSHA)
+	selfHeal := app.Spec.SyncPolicy.Automated.SelfHeal
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
 			Revision: desiredCommitSHA,
 			Prune:    app.Spec.SyncPolicy.Automated.Prune,
 		},
 	}
+	// It is possible for manifests to remain OutOfSync even after a sync/kubectl apply (e.g.
+	// auto-sync with pruning disabled). We need to ensure that we do not keep Syncing an
+	// application in an infinite loop. To detect this, we only attempt the Sync if the revision
+	// and parameter overrides are different from our most recent sync operation.
+	if alreadyAttempted && (!selfHeal || !attemptPhase.Successful()) {
+		if !attemptPhase.Successful() {
+			logCtx.Warnf("Skipping auto-sync: failed previous sync attempt to %s", desiredCommitSHA)
+			message := fmt.Sprintf("Failed sync attempt to %s: %s", desiredCommitSHA, app.Status.OperationState.Message)
+			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}
+		}
+		logCtx.Infof("Skipping auto-sync: most recent sync already to %s", desiredCommitSHA)
+		return nil
+	} else if alreadyAttempted && selfHeal {
+		if shouldSelfHeal, retryAfter := ctrl.shouldSelfHeal(app); shouldSelfHeal {
+			for _, resource := range resources {
+				if resource.Status != appv1.SyncStatusCodeSynced {
+					op.Sync.Resources = append(op.Sync.Resources, appv1.SyncOperationResource{
+						Kind:  resource.Kind,
+						Group: resource.Group,
+						Name:  resource.Name,
+					})
+				}
+			}
+		} else {
+			logCtx.Infof("Skipping auto-sync: already attempted sync to %s with timeout %v (retrying in %v)", desiredCommitSHA, ctrl.selfHealTimeout, retryAfter)
+			if key, err := cache.MetaNamespaceKeyFunc(app); err == nil {
+				ctrl.requestAppRefresh(app.Name, CompareWithLatest)
+				ctrl.appRefreshQueue.AddAfter(key, retryAfter)
+			} else {
+				logCtx.Warnf("Fails to requeue application: %v", err)
+			}
+			return nil
+		}
+
+	}
+
 	appIf := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
 	_, err := argo.SetAppOperation(appIf, app.Name, &op)
 	if err != nil {
@@ -913,12 +946,12 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 
 // alreadyAttemptedSync returns whether or not the most recent sync was performed against the
 // commitSHA and with the same app source config which are currently set in the app
-func alreadyAttemptedSync(app *appv1.Application, commitSHA string) bool {
+func alreadyAttemptedSync(app *appv1.Application, commitSHA string) (bool, appv1.OperationPhase) {
 	if app.Status.OperationState == nil || app.Status.OperationState.Operation.Sync == nil || app.Status.OperationState.SyncResult == nil {
-		return false
+		return false, ""
 	}
 	if app.Status.OperationState.SyncResult.Revision != commitSHA {
-		return false
+		return false, ""
 	}
 	// Ignore differences in target revision, since we already just verified commitSHAs are equal,
 	// and we do not want to trigger auto-sync due to things like HEAD != master
@@ -926,7 +959,21 @@ func alreadyAttemptedSync(app *appv1.Application, commitSHA string) bool {
 	specSource.TargetRevision = ""
 	syncResSource := app.Status.OperationState.SyncResult.Source.DeepCopy()
 	syncResSource.TargetRevision = ""
-	return reflect.DeepEqual(app.Spec.Source, app.Status.OperationState.SyncResult.Source)
+	return reflect.DeepEqual(app.Spec.Source, app.Status.OperationState.SyncResult.Source), app.Status.OperationState.Phase
+}
+
+func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application) (bool, time.Duration) {
+	if app.Status.OperationState == nil {
+		return true, time.Duration(0)
+	}
+
+	var retryAfter time.Duration
+	if app.Status.OperationState.FinishedAt == nil {
+		retryAfter = ctrl.selfHealTimeout
+	} else {
+		retryAfter = ctrl.selfHealTimeout - time.Since(app.Status.OperationState.FinishedAt.Time)
+	}
+	return retryAfter <= 0, retryAfter
 }
 
 func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.SharedIndexInformer, applisters.ApplicationLister) {

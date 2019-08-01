@@ -83,8 +83,8 @@ export class ApplicationsService {
         });
     }
 
-    public sync(name: string, revision: string, prune: boolean, dryRun: boolean, resources: models.SyncOperationResource[]): Promise<boolean> {
-        return requests.post(`/applications/${name}/sync`).send({revision, prune: !!prune, dryRun: !!dryRun, resources}).then(() => true);
+    public sync(name: string, revision: string, prune: boolean, dryRun: boolean, strategy: models.SyncStrategy, resources: models.SyncOperationResource[]): Promise<boolean> {
+        return requests.post(`/applications/${name}/sync`).send({revision, prune: !!prune, dryRun: !!dryRun, strategy, resources}).then(() => true);
     }
 
     public rollback(name: string, id: number): Promise<boolean> {

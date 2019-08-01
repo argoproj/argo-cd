@@ -35,6 +35,18 @@ const (
 	DefaultPortRepoServerMetrics      = 8084
 )
 
+// Default paths on the pod's file system
+const (
+	// The default base path where application config is located
+	DefaultPathAppConfig = "/app/config"
+	// The default path where TLS certificates for repositories are located
+	DefaultPathTLSConfig = "/app/config/tls"
+	// The default path where SSH known hosts are stored
+	DefaultPathSSHConfig = "/app/config/ssh"
+	// Default name for the SSH known hosts file
+	DefaultSSHKnownHostsName = "ssh_known_hosts"
+)
+
 // Argo CD application related constants
 const (
 	// KubernetesInternalAPIServerAddr is address of the k8s API server when accessing internal to the cluster
@@ -119,6 +131,10 @@ const (
 	// EnvVarFakeInClusterConfig is an environment variable to fake an in-cluster RESTConfig using
 	// the current kubectl context (for development purposes)
 	EnvVarFakeInClusterConfig = "ARGOCD_FAKE_IN_CLUSTER"
+	// Overrides the location where SSH known hosts for repo access data is stored
+	EnvVarSSHDataPath = "ARGOCD_SSH_DATA_PATH"
+	// Overrides the location where TLS certificate for repo access data is stored
+	EnvVarTLSDataPath = "ARGOCD_TLS_DATA_PATH"
 )
 
 const (

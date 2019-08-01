@@ -2,7 +2,7 @@ import {FormField, FormSelect} from 'argo-ui';
 import * as React from 'react';
 import {Form, FormApi, Text} from 'react-form';
 
-import {clusterTitle, DataLoader} from '../../../shared/components';
+import {AutocompleteField, clusterTitle, DataLoader} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {ProjectParams, services} from '../../../shared/services';
 
@@ -52,7 +52,11 @@ export const ProjectEditPanel = (props: {
                         {(api.values.sourceRepos as Array<string>).map((_, i) => (
                             <div key={i} className='row project-edit-panel__form-row'>
                                 <div className='columns small-12'>
-                                    <FormSelect field={['sourceRepos', i]} options={repos}/>
+                                    <FormField formApi={api} field={`sourceRepos[${i}]`}
+                                        component={AutocompleteField} componentProps={{
+                                            items: repos,
+                                        }}
+                                    />
                                     <i className='fa fa-times' onClick={() => api.setValue('sourceRepos', removeEl(api.values.sourceRepos, i))}/>
                                 </div>
                             </div>

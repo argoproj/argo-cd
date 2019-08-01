@@ -19,6 +19,8 @@ export interface ApplicationList extends ItemsList<Application> { }
 
 export interface SyncOperationResource { group: string; kind: string; name: string; }
 
+export interface SyncStrategy { apply: {} | null; hook: {} | null; }
+
 export interface SyncOperation {
     revision: string;
     prune: boolean;
@@ -342,6 +344,16 @@ export interface ConnectionState {
     message: string;
     attemptedAt: models.Time;
 }
+
+export interface RepoCert {
+    servername: string;
+    type: string;
+    cipher: string;
+    certdata: string;
+    certinfo: string;
+}
+
+export interface RepoCertList extends ItemsList<RepoCert> { }
 
 export interface Repository {
     repo: string;

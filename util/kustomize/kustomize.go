@@ -3,6 +3,7 @@ package kustomize
 import (
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,6 +20,8 @@ import (
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/kube"
+
+	certutil "github.com/argoproj/argo-cd/util/cert"
 )
 
 type ImageTag struct {
@@ -45,16 +48,21 @@ type Kustomize interface {
 }
 
 // NewKustomizeApp create a new wrapper to run commands on the `kustomize` command-line tool.
-func NewKustomizeApp(path string, creds git.Creds) Kustomize {
+func NewKustomizeApp(path string, creds git.Creds, fromRepo string) Kustomize {
 	return &kustomize{
 		path:  path,
 		creds: creds,
+		repo:  fromRepo,
 	}
 }
 
 type kustomize struct {
-	path  string
+	// path inside the checked out tree
+	path string
+	// creds structure
 	creds git.Creds
+	// the Git repository URL where we checked out
+	repo string
 }
 
 func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstructured.Unstructured, []ImageTag, []Image, error) {
@@ -135,6 +143,28 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstruc
 		return nil, nil, nil, err
 	}
 	defer func() { _ = closer.Close() }()
+
+	// If we were passed a HTTPS URL, make sure that we also check whether there
+	// is a custom CA bundle configured for connecting to the server.
+	if k.repo != "" && git.IsHTTPSURL(k.repo) {
+		parsedURL, err := url.Parse(k.repo)
+		if err != nil {
+			log.Warnf("Could not parse URL %s: %v", k.repo, err)
+		} else {
+			caPath, err := certutil.GetCertBundlePathForRepository(parsedURL.Host)
+			if err != nil {
+				// Some error while getting CA bundle
+				log.Warnf("Could not get CA bundle path for %s: %v", parsedURL.Host, err)
+			} else if caPath == "" {
+				// No cert configured
+				log.Debugf("No caCert found for repo %s", parsedURL.Host)
+			} else {
+				// Make Git use CA bundle
+				environ = append(environ, fmt.Sprintf("GIT_SSL_CAINFO=%s", caPath))
+			}
+		}
+	}
+
 	cmd.Env = append(cmd.Env, environ...)
 	out, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
 	if err != nil {

@@ -1,0 +1,85 @@
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number:
+            33:af:0d:00:3e:e7:90:bb:8c:77:0e:24:82:e3:9d:61
+        Signature Algorithm: sha256WithRSAEncryption
+        Issuer: CN=ArgoCD Test CA
+        Validity
+            Not Before: Jul 20 15:39:35 2019 GMT
+            Not After : Jun 26 15:39:35 2119 GMT
+        Subject: CN=argo-test-client
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                RSA Public-Key: (2048 bit)
+                Modulus:
+                    00:96:1e:04:cc:35:14:87:98:83:58:87:21:89:2c:
+                    40:a6:40:25:60:6a:d8:85:fd:b0:c2:d7:06:8d:4a:
+                    0c:c3:ff:2a:98:77:60:f1:e6:74:49:b2:5d:8b:ef:
+                    e3:80:0e:e3:6e:e0:50:7d:13:b8:fe:89:3a:ab:a5:
+                    05:23:6d:ba:6d:f8:3e:b3:75:90:c8:41:3d:40:c8:
+                    10:8d:62:a8:a9:4b:5a:6b:56:95:94:89:ca:28:f4:
+                    7a:a4:77:07:3a:35:15:b1:79:04:3a:43:74:70:51:
+                    e7:9c:41:29:92:d3:f3:69:67:1a:1d:4a:be:0d:6e:
+                    72:bf:29:72:7d:1c:49:54:54:93:20:f3:7f:00:42:
+                    e1:98:12:57:8e:39:a7:87:6f:f5:13:3c:25:be:9b:
+                    00:5f:57:07:c8:f4:f8:b8:ca:36:fd:29:35:49:70:
+                    31:66:0b:e7:a5:36:fb:10:ba:86:f9:18:98:17:d9:
+                    7d:e0:60:4f:cf:08:85:57:8d:8b:e0:19:fe:83:28:
+                    89:98:6f:2a:d5:85:ea:1e:59:0c:04:f5:87:b6:ff:
+                    a2:8d:4c:62:ed:68:ba:9a:7f:2f:ac:94:c8:72:4e:
+                    24:f7:37:54:19:f5:14:65:3e:65:ff:7b:e4:f9:c1:
+                    42:80:a7:87:15:29:b9:78:26:f1:02:f2:4d:77:b8:
+                    04:79
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Basic Constraints: 
+                CA:FALSE
+            X509v3 Subject Key Identifier: 
+                AB:D1:69:33:0A:6A:F4:46:B1:80:D3:F7:B2:93:E8:07:FB:03:E8:BF
+            X509v3 Authority Key Identifier: 
+                keyid:1E:B1:40:6A:1F:AB:D5:3D:A7:DF:07:AE:AB:5C:37:C3:CB:18:96:AC
+                DirName:/CN=ArgoCD Test CA
+                serial:06:04:D7:D4:4E:A1:2C:3F:A4:30:9E:AD:0C:A4:DF:55:68:F7:D3:C5
+
+            X509v3 Extended Key Usage: 
+                TLS Web Client Authentication
+            X509v3 Key Usage: 
+                Digital Signature
+    Signature Algorithm: sha256WithRSAEncryption
+         03:a8:d4:3b:17:66:fc:93:20:b0:68:f9:79:fe:cd:e0:54:d6:
+         a4:20:fe:14:75:c9:63:f0:a3:ff:4a:a5:b8:d9:c8:43:fa:0b:
+         9c:da:0b:fd:23:b9:cb:c0:9e:5a:db:72:21:9e:c5:56:81:32:
+         14:4e:d5:ef:9b:97:ab:b8:93:1f:79:41:b0:fa:66:93:28:93:
+         95:54:4a:8a:27:26:8a:fe:81:fd:a5:68:f2:9b:9c:6c:63:c3:
+         96:98:9a:e9:e5:6d:34:69:f1:ea:ca:78:10:e4:2b:e1:41:bf:
+         dc:b6:c8:ba:76:ea:17:69:3e:cf:75:b8:28:03:17:06:0f:e5:
+         9a:cb:36:27:85:d7:b8:13:92:69:1c:ce:72:fb:71:1f:38:a2:
+         22:fa:86:13:20:44:79:77:9f:ab:11:e8:6e:65:94:b7:ee:c4:
+         39:bd:89:45:4c:55:80:92:a6:83:83:83:75:3c:30:4e:da:6b:
+         4b:74:0e:a7:86:4e:4f:79:d3:d2:a6:38:d5:ea:7d:fc:5f:a7:
+         73:3b:97:ef:cb:49:08:10:96:13:64:68:48:d0:b3:eb:59:93:
+         9d:22:ba:0c:83:1c:74:a1:f6:61:34:b6:8e:e5:e1:25:5a:09:
+         ec:7e:b0:b9:fd:21:7e:65:5d:3b:15:d7:a0:a3:e1:4f:fa:4e:
+         77:90:3c:83
+-----BEGIN CERTIFICATE-----
+MIIDZjCCAk6gAwIBAgIQM68NAD7nkLuMdw4kguOdYTANBgkqhkiG9w0BAQsFADAZ
+MRcwFQYDVQQDDA5BcmdvQ0QgVGVzdCBDQTAgFw0xOTA3MjAxNTM5MzVaGA8yMTE5
+MDYyNjE1MzkzNVowGzEZMBcGA1UEAwwQYXJnby10ZXN0LWNsaWVudDCCASIwDQYJ
+KoZIhvcNAQEBBQADggEPADCCAQoCggEBAJYeBMw1FIeYg1iHIYksQKZAJWBq2IX9
+sMLXBo1KDMP/Kph3YPHmdEmyXYvv44AO427gUH0TuP6JOqulBSNtum34PrN1kMhB
+PUDIEI1iqKlLWmtWlZSJyij0eqR3Bzo1FbF5BDpDdHBR55xBKZLT82lnGh1Kvg1u
+cr8pcn0cSVRUkyDzfwBC4ZgSV445p4dv9RM8Jb6bAF9XB8j0+LjKNv0pNUlwMWYL
+56U2+xC6hvkYmBfZfeBgT88IhVeNi+AZ/oMoiZhvKtWF6h5ZDAT1h7b/oo1MYu1o
+upp/L6yUyHJOJPc3VBn1FGU+Zf975PnBQoCnhxUpuXgm8QLyTXe4BHkCAwEAAaOB
+pTCBojAJBgNVHRMEAjAAMB0GA1UdDgQWBBSr0WkzCmr0RrGA0/eyk+gH+wPovzBU
+BgNVHSMETTBLgBQesUBqH6vVPaffB66rXDfDyxiWrKEdpBswGTEXMBUGA1UEAwwO
+QXJnb0NEIFRlc3QgQ0GCFAYE19ROoSw/pDCerQyk31Vo99PFMBMGA1UdJQQMMAoG
+CCsGAQUFBwMCMAsGA1UdDwQEAwIHgDANBgkqhkiG9w0BAQsFAAOCAQEAA6jUOxdm
+/JMgsGj5ef7N4FTWpCD+FHXJY/Cj/0qluNnIQ/oLnNoL/SO5y8CeWttyIZ7FVoEy
+FE7V75uXq7iTH3lBsPpmkyiTlVRKiicmiv6B/aVo8pucbGPDlpia6eVtNGnx6sp4
+EOQr4UG/3LbIunbqF2k+z3W4KAMXBg/lmss2J4XXuBOSaRzOcvtxHziiIvqGEyBE
+eXefqxHobmWUt+7EOb2JRUxVgJKmg4ODdTwwTtprS3QOp4ZOT3nT0qY41ep9/F+n
+czuX78tJCBCWE2RoSNCz61mTnSK6DIMcdKH2YTS2juXhJVoJ7H6wuf0hfmVdOxXX
+oKPhT/pOd5A8gw==
+-----END CERTIFICATE-----
