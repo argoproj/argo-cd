@@ -26,9 +26,9 @@ func TestSyncPhaseSkip(t *testing.T) {
 	assert.Nil(t, syncPhases(pod("Skip")))
 }
 
-// garbage hooks are still hooks, but have no phases, because some user spelled something wrong
+// garbage hooks are now treated as resources, but have no phases, because some user spelled something wrong
 func TestSyncPhaseGarbage(t *testing.T) {
-	assert.Nil(t, syncPhases(pod("Garbage")))
+	assert.Equal(t, []SyncPhase{SyncPhaseSync}, syncPhases(pod("Garbage")))
 }
 
 func TestSyncPhasePost(t *testing.T) {
@@ -44,7 +44,5 @@ func TestSyncPhaseTwoPhases(t *testing.T) {
 }
 
 func pod(hookType string) *unstructured.Unstructured {
-	pod := test.NewPod()
-	pod.SetAnnotations(map[string]string{"argocd.argoproj.io/hook": hookType})
-	return pod
+	return test.Annotate(test.NewPod(), "argocd.argoproj.io/hook", hookType)
 }

@@ -421,12 +421,16 @@ const (
 	HookTypePostSync HookType = "PostSync"
 	HookTypeSkip     HookType = "Skip"
 	HookTypeSyncFail HookType = "SyncFail"
-
-	// NOTE: we may consider adding SyncFail hook. With a SyncFail hook, finalizer-like logic could
-	// be implemented by specifying both PostSync,SyncFail in the hook annotation:
-	// (e.g.: argocd.argoproj.io/hook: PostSync,SyncFail)
-	//HookTypeSyncFail     HookType = "SyncFail"
 )
+
+func NewHookType(t string) (HookType, bool) {
+	hookType := HookType(t)
+	switch hookType {
+	case HookTypePreSync, HookTypeSync, HookTypePostSync, HookTypeSyncFail, HookTypeSkip:
+		return hookType, true
+	}
+	return hookType, false
+}
 
 type HookDeletePolicy string
 
@@ -435,6 +439,10 @@ const (
 	HookDeletePolicyHookFailed         HookDeletePolicy = "HookFailed"
 	HookDeletePolicyBeforeHookCreation HookDeletePolicy = "BeforeHookCreation"
 )
+
+func NewHookDeletePolicy(p string) (HookDeletePolicy, bool) {
+	return HookDeletePolicy(p), p == "HookSucceeded" || p == "HookFailed" || p == "BeforeHookCreation"
+}
 
 // data about a specific revision within a repo
 type RevisionMetadata struct {
