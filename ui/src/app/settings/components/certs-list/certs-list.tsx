@@ -12,13 +12,13 @@ import {services} from '../../../shared/services';
 require('./certs-list.scss');
 
 interface NewTLSCertParams {
-    servername: string;
-    type: string;
-    certdata: string;
+    serverName: string;
+    certType: string;
+    certData: string;
 }
 
 interface NewSSHKnownHostParams {
-    data: string;
+    certData: string;
 }
 
 export class CertsList extends React.Component<RouteComponentProps<any>> {
@@ -61,22 +61,22 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                                             </div>
                                         </div>
                                         {certs.map((cert) => (
-                                            <div className='argo-table-list__row' key={cert.type + '_' + cert.cipher + '_' + cert.servername}>
+                                            <div className='argo-table-list__row' key={cert.certType + '_' + cert.certSubType + '_' + cert.serverName}>
                                                 <div className='row'>
                                                     <div className='columns small-3'>
-                                                        <i className='icon argo-icon-git'/> {cert.servername}
+                                                        <i className='icon argo-icon-git'/> {cert.serverName}
                                                     </div>
                                                     <div className='columns small-3'>
-                                                        {cert.type} {cert.cipher}
+                                                        {cert.certType} {cert.certSubType}
                                                     </div>
                                                     <div className='columns small-6'>
-                                                            {cert.certinfo}
+                                                            {cert.certInfo}
                                                         <DropDownMenu anchor={() => <button
                                                             className='argo-button argo-button--light argo-button--lg argo-button--short'>
                                                             <i className='fa fa-ellipsis-v'/>
                                                         </button>} items={[{
                                                             title: 'Remove',
-                                                            action: () => this.removeCert(cert.servername, cert.type, cert.cipher),
+                                                            action: () => this.removeCert(cert.serverName, cert.certType, cert.certSubType),
                                                         }]}/>
                                                     </div>
                                                 </div>
@@ -111,20 +111,20 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                     <Form onSubmit={(params) => this.addTLSCertificate(params as NewTLSCertParams)}
                           getApi={(api) => this.formApiTLS = api}
                           preSubmit={(params: NewTLSCertParams) => ({
-                              servername: params.servername,
-                              certdata: btoa(params.certdata),
+                              serverName: params.serverName,
+                              certData: btoa(params.certData),
                           })}
                           validateError={(params: NewTLSCertParams) => ({
-                              servername: !params.servername && 'Repository server name is required',
-                              certdata: !params.certdata && 'Certificate data is required',
+                              serverName: !params.serverName && 'Repository server name is required',
+                              certData: !params.certData && 'Certificate data is required',
                           })}>
                         {(formApiTLS) => (
                             <form onSubmit={formApiTLS.submitForm} role='form' className='certs-list width-control' encType='multipart/form-data'>
                                 <div className='argo-form-row'>
-                                    <FormField formApi={formApiTLS} label='Repository server name' field='servername' component={Text}/>
+                                    <FormField formApi={formApiTLS} label='Repository server name' field='serverName' component={Text}/>
                                 </div>
                                 <div className='argo-form-row'>
-                                    <FormField formApi={formApiTLS} label='TLS certificate (PEM format)' field='certdata' component={TextArea}/>
+                                    <FormField formApi={formApiTLS} label='TLS certificate (PEM format)' field='certData' component={TextArea}/>
                                 </div>
                            </form>
                         )}
@@ -152,15 +152,15 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                     <Form onSubmit={(params) => this.addSSHKnownHosts(params as NewSSHKnownHostParams)}
                           getApi={(api) => this.formApiSSH = api}
                           preSubmit={(params: NewSSHKnownHostParams) => ({
-                              data: btoa(params.data),
+                              certData: btoa(params.certData),
                           })}
                           validateError={(params: NewSSHKnownHostParams) => ({
-                              data: !params.data && 'SSH known hosts data is required',
+                              certData: !params.certData && 'SSH known hosts data is required',
                           })}>
                         {(formApiSSH) => (
                             <form onSubmit={formApiSSH.submitForm} role='form' className='certs-list width-control' encType='multipart/form-data'>
                                 <div className='argo-form-row'>
-                                    <FormField formApi={formApiSSH} label='SSH known hosts data' field='data' component={TextArea}/>
+                                    <FormField formApi={formApiSSH} label='SSH known hosts data' field='certData' component={TextArea}/>
                                 </div>
                            </form>
                         )}
@@ -171,13 +171,13 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
     }
 
     private clearForms() {
-        this.formApiSSH.setAllValues({data: ''});
-        this.formApiTLS.setAllValues({servername: '', certdata: ''});
+        this.formApiSSH.resetAll();
+        this.formApiTLS.resetAll();
     }
 
     private async addTLSCertificate(params: NewTLSCertParams) {
         try {
-            await services.certs.create({items: [{servername: params.servername, type: 'https', certdata: (params.certdata), cipher: '', certinfo: ''}], metadata: null});
+            await services.certs.create({items: [{serverName: params.serverName, certType: 'https', certData: (params.certData), certSubType: '', certInfo: ''}], metadata: null});
             this.showAddTLSCertificate = false;
             this.loader.reload();
         } catch (e) {
@@ -191,7 +191,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
     private async addSSHKnownHosts(params: NewSSHKnownHostParams) {
         try {
             let knownHostEntries: models.RepoCert[] = [];
-            atob(params.data).split('\n').forEach(function processEntry(item, index) {
+            atob(params.certData).split('\n').forEach(function processEntry(item, index) {
                 const trimmedLine = item.trimLeft();
                 if (trimmedLine.startsWith('#') === false) {
                     const knownHosts =  trimmedLine.split(' ', 3);
@@ -202,11 +202,11 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                         const subType = knownHosts[1].match(/^(ssh\-[a-z0-9]+|ecdsa-[a-z0-9\-]+)$/ig);
                         if (subType != null) {
                             knownHostEntries = knownHostEntries.concat({
-                                servername: knownHosts[0],
-                                type: 'ssh',
-                                cipher: knownHosts[1],
-                                certdata: btoa(knownHosts[2]),
-                                certinfo: '',
+                                serverName: knownHosts[0],
+                                certType: 'ssh',
+                                certSubType: knownHosts[1],
+                                certData: btoa(knownHosts[2]),
+                                certInfo: '',
                             });
                         }
                     }

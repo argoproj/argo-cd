@@ -346,11 +346,11 @@ export interface ConnectionState {
 }
 
 export interface RepoCert {
-    servername: string;
-    type: string;
-    cipher: string;
-    certdata: string;
-    certinfo: string;
+    serverName: string;
+    certType: string;
+    certSubType: string;
+    certData: string;
+    certInfo: string;
 }
 
 export interface RepoCertList extends ItemsList<RepoCert> { }

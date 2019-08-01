@@ -517,19 +517,19 @@ message Repository {
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
 message RepositoryCertificate {
   // Name of the server the certificate is intended for
-  optional string servername = 1;
+  optional string serverName = 1;
 
   // Type of certificate - currently "https" or "ssh"
-  optional string type = 2;
+  optional string certType = 2;
 
   // The sub type of the cert, i.e. "ssh-rsa"
-  optional string cipher = 3;
+  optional string certSubType = 3;
 
   // Actual certificate data, protocol dependent
-  optional bytes certdata = 4;
+  optional bytes certData = 4;
 
   // Additional certificate info (e.g. SSH fingerprint, X509 CommonName)
-  optional string certinfo = 5;
+  optional string certInfo = 5;
 }
 
 // RepositoryCertificateList is a collection of RepositoryCertificates
