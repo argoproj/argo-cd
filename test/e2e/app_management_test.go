@@ -164,24 +164,15 @@ func TestComparisonFailsIfClusterNotAdded(t *testing.T) {
 		Expect(DoesNotExist())
 }
 
-func TestArgoCDWaitEnsureAppIsNotCrashing(t *testing.T) {
+func TestCannotSetInvalidPath(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
 		Create().
-		Sync().
+		IgnoreErrors().
+		AppSet("--path", "garbage").
 		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(HealthStatusHealthy)).
-		And(func(app *Application) {
-			_, err := fixture.RunCli("app", "set", app.Name, "--path", "crashing-guestbook")
-			assert.NoError(t, err)
-		}).
-		When().
-		Sync().
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(HealthStatusDegraded))
+		Expect(Error("", "app path does not exist"))
 }
 
 func TestManipulateApplicationResources(t *testing.T) {
