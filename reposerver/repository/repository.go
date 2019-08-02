@@ -246,7 +246,7 @@ func GenerateManifests(root, path string, q *apiclient.ManifestRequest) (*apicli
 		}
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		k := kustomize.NewKustomizeApp(appPath, creds, repoURL)
-		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize)
+		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions)
 	case v1alpha1.ApplicationSourceTypePlugin:
 		targetObjs, err = runConfigManagementPlugin(appPath, q, creds)
 	case v1alpha1.ApplicationSourceTypeDirectory:
@@ -686,7 +686,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		res.Kustomize = &apiclient.KustomizeAppSpec{}
 		res.Kustomize.Path = q.Path
 		k := kustomize.NewKustomizeApp(appPath, argo.GetRepoCreds(q.Repo), q.Repo.Repo)
-		_, images, err := k.Build(nil)
+		_, images, err := k.Build(nil, q.KustomizeOptions)
 		if err != nil {
 			return nil, err
 		}

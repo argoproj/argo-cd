@@ -42,7 +42,7 @@ func TestKustomizeBuild(t *testing.T) {
 			"app.kubernetes.io/part-of":    "argo-cd-tests",
 		},
 	}
-	objs, images, err := kustomize.Build(&kustomizeSource)
+	objs, images, err := kustomize.Build(&kustomizeSource, nil)
 	assert.Nil(t, err)
 	if err != nil {
 		assert.Equal(t, len(objs), 2)
@@ -91,4 +91,9 @@ func TestIsKustomization(t *testing.T) {
 	assert.True(t, IsKustomization("kustomization.yml"))
 	assert.True(t, IsKustomization("Kustomization"))
 	assert.False(t, IsKustomization("rubbish.yml"))
+}
+
+func TestParseKustomizeBuildOptions(t *testing.T) {
+	built := parseKustomizeBuildOptions("guestbook", "-v 6 --logtostderr")
+	assert.Equal(t, []string{"build", "guestbook", "-v", "6", "--logtostderr"}, built)
 }

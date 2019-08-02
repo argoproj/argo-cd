@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/pkg/errors"
@@ -27,7 +28,7 @@ type Image = string
 // Kustomize provides wrapper functionality around the `kustomize` command.
 type Kustomize interface {
 	// Build returns a list of unstructured objects from a `kustomize build` command and extract supported parameters
-	Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstructured.Unstructured, []Image, error)
+	Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions) ([]*unstructured.Unstructured, []Image, error)
 }
 
 // NewKustomizeApp create a new wrapper to run commands on the `kustomize` command-line tool.
@@ -48,7 +49,7 @@ type kustomize struct {
 	repo string
 }
 
-func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstructured.Unstructured, []Image, error) {
+func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions) ([]*unstructured.Unstructured, []Image, error) {
 
 	if opts != nil {
 		if opts.NamePrefix != "" {
@@ -94,7 +95,14 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstruc
 		}
 	}
 
-	cmd := exec.Command("kustomize", "build", k.path)
+	var cmd *exec.Cmd
+	if kustomizeOptions != nil && kustomizeOptions.BuildOptions != "" {
+		params := parseKustomizeBuildOptions(k.path, kustomizeOptions.BuildOptions)
+		cmd = exec.Command("kustomize", params...)
+	} else {
+		cmd = exec.Command("kustomize", "build", k.path)
+	}
+
 	cmd.Env = os.Environ()
 	closer, environ, err := k.creds.Environ()
 	if err != nil {
@@ -135,6 +143,10 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstruc
 	}
 
 	return objs, getImageParameters(objs), nil
+}
+
+func parseKustomizeBuildOptions(path, buildOptions string) []string {
+	return append([]string{"build", path}, strings.Split(buildOptions, " ")...)
 }
 
 var KustomizationNames = []string{"kustomization.yaml", "kustomization.yml", "Kustomization"}

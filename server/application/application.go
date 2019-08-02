@@ -196,6 +196,15 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	for i := range plugins {
 		tools[i] = &plugins[i]
 	}
+	// If source is Kustomize add build options
+	buildOptions, err := s.settingsMgr.GetKustomizeBuildOptions()
+	if err != nil {
+		return nil, err
+	}
+	kustomizeOptions := appv1.KustomizeOptions{
+		BuildOptions: buildOptions,
+	}
+
 	manifestInfo, err := repoClient.GenerateManifest(ctx, &apiclient.ManifestRequest{
 		Repo:              repo,
 		Revision:          revision,
@@ -205,6 +214,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		ApplicationSource: &a.Spec.Source,
 		HelmRepos:         helmRepos,
 		Plugins:           tools,
+		KustomizeOptions:  &kustomizeOptions,
 	})
 	if err != nil {
 		return nil, err
@@ -550,7 +560,15 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 			return err
 		}
 	}
-	conditions, appSourceType, err := argo.ValidateRepo(ctx, &app.Spec, s.repoClientset, s.db)
+
+	buildOptions, err := s.settingsMgr.GetKustomizeBuildOptions()
+	if err != nil {
+		return err
+	}
+	kustomizeOptions := appv1.KustomizeOptions{
+		BuildOptions: buildOptions,
+	}
+	conditions, appSourceType, err := argo.ValidateRepo(ctx, &app.Spec, s.repoClientset, s.db, &kustomizeOptions)
 	if err != nil {
 		return err
 	}
