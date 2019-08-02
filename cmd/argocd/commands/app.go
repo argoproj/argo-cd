@@ -421,8 +421,10 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 			setKustomizeOpt(&app.Spec.Source, &appOpts.namePrefix)
 		case "kustomize-image":
 			setKustomizeImages(&app.Spec.Source, appOpts.kustomizeImages)
-		case "jsonnet-tlas":
-			setJsonnetOpt(&app.Spec.Source, appOpts.jsonnetTlaParameters)
+		case "jsonnet-tla-str":
+			setJsonnetOpt(&app.Spec.Source, appOpts.jsonnetTlaStr, false)
+		case "jsonnet-tla-code":
+			setJsonnetOpt(&app.Spec.Source, appOpts.jsonnetTlaCode, true)
 		case "sync-policy":
 			switch appOpts.syncPolicy {
 			case "automated":
@@ -496,7 +498,7 @@ func setHelmOpt(src *argoappv1.ApplicationSource, valueFiles []string, releaseNa
 	}
 }
 
-func setJsonnetOpt(src *argoappv1.ApplicationSource, tlaParameters []string) {
+func setJsonnetOpt(src *argoappv1.ApplicationSource, tlaParameters []string, code bool) {
 	if src.Directory == nil {
 		src.Directory = &argoappv1.ApplicationSourceDirectory{}
 	}
@@ -512,9 +514,15 @@ func setJsonnetOpt(src *argoappv1.ApplicationSource, tlaParameters []string) {
 			tlas[index] = argoappv1.JsonnetVar{
 				Name:  parts[0],
 				Value: parts[1],
-				Code:  true}
+				Code:  code}
 		}
-		src.Directory.Jsonnet.TLAs = tlas
+		existingTLAs := []argoappv1.JsonnetVar{}
+		for i := range src.Directory.Jsonnet.TLAs {
+			if src.Directory.Jsonnet.TLAs[i].Code != code {
+				existingTLAs = append(existingTLAs, src.Directory.Jsonnet.TLAs[i])
+			}
+		}
+		src.Directory.Jsonnet.TLAs = append(existingTLAs, tlas...)
 	}
 
 	if src.Directory.IsZero() {
@@ -539,7 +547,8 @@ type appOptions struct {
 	namePrefix             string
 	directoryRecurse       bool
 	configManagementPlugin string
-	jsonnetTlaParameters   []string
+	jsonnetTlaStr          []string
+	jsonnetTlaCode         []string
 	kustomizeImages        []string
 }
 
@@ -559,7 +568,8 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
 	command.Flags().BoolVar(&opts.directoryRecurse, "directory-recurse", false, "Recurse directory")
 	command.Flags().StringVar(&opts.configManagementPlugin, "config-management-plugin", "", "Config management plugin name")
-	command.Flags().StringArrayVar(&opts.jsonnetTlaParameters, "jsonnet-tlas", []string{}, "Jsonnet top level arguments")
+	command.Flags().StringArrayVar(&opts.jsonnetTlaStr, "jsonnet-tla-str", []string{}, "Jsonnet top level string arguments")
+	command.Flags().StringArrayVar(&opts.jsonnetTlaCode, "jsonnet-tla-code", []string{}, "Jsonnet top level code arguments")
 	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
 }
 
