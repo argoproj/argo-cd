@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/argoproj/argo-cd/errors"
@@ -144,16 +143,7 @@ func TestKustomizeDeclarativeInvalidApp(t *testing.T) {
 		Expect(Condition(ApplicationConditionComparisonError, "invalid-kustomize/does-not-exist.yaml: no such file or directory"))
 }
 
-<<<<<<< HEAD
 func TestKustomizeBuildOptionsLoadRestrictor(t *testing.T) {
-	out, err := fixture.Run("", "kustomize", "version")
-	if err != nil {
-		assert.Fail(t, "was not able to run `kustomize version`")
-	}
-	// This test is only relevant to Kustomize version 2.1.0+
-	if strings.Contains(out, "KustomizeVersion:2.0.") || strings.Contains(out, "KustomizeVersion:1.0.") {
-		t.Skip()
-	}
 	Given(t).
 		Path(guestbookPath).
 		And(func() {

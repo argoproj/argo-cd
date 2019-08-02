@@ -149,13 +149,6 @@ func parseKustomizeBuildOptions(path, buildOptions string) []string {
 	return append([]string{"build", path}, strings.Split(buildOptions, " ")...)
 }
 
-func GetCommandName(version int) string {
-	if version == 1 {
-		return "kustomize1"
-	}
-	return "kustomize"
-}
-
 var KustomizationNames = []string{"kustomization.yaml", "kustomization.yml", "Kustomization"}
 
 // kustomization is a file that describes a configuration consumable by kustomize.
