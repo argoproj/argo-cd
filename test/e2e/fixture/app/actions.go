@@ -77,7 +77,7 @@ func (a *Actions) CreateFromFile(handler func(app *Application)) *Actions {
 		}
 	}
 
-	if len(a.context.jsonnetTLAS) > 0 || len(a.context.parameters) > 0 {
+	if len(a.context.jsonnetTLAStr) > 0 || len(a.context.parameters) > 0 {
 		logrus.Fatal("Application parameters or json tlas are not supported")
 	}
 
@@ -112,8 +112,12 @@ func (a *Actions) Create() *Actions {
 
 	args = append(args, "--project", a.context.project)
 
-	for _, jsonnetTLAParameter := range a.context.jsonnetTLAS {
-		args = append(args, "--jsonnet-tlas", jsonnetTLAParameter)
+	for _, jsonnetTLAParameter := range a.context.jsonnetTLAStr {
+		args = append(args, "--jsonnet-tla-str", jsonnetTLAParameter)
+	}
+
+	for _, jsonnetTLAParameter := range a.context.jsonnetTLACode {
+		args = append(args, "--jsonnet-tla-code", jsonnetTLAParameter)
 	}
 
 	if a.context.namePrefix != "" {
