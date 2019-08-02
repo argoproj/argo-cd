@@ -1,14 +1,9 @@
 # Kustomize
 
-!!! warning Kustomize 1 vs 3
-    Argo CD supports both versions, and auto-detects then by looking for `apiVersion/kind` is `kustomize.yaml`. 
-    You're probably using version 3 now, so make sure you you have those fields.
-    
 You have three configuration options for Kustomize:
 
 * `namePrefix` is a prefix appended to resources for Kustomize apps
-* `imageTags` is a list of Kustomize 1.0 image tag overrides
-* `images` is a list of Kustomize 3.0 image overrides
+* `images` is a list of Kustomize image overrides
     
 To use Kustomize with an overlay, point your path to the overlay.
 

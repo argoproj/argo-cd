@@ -55,13 +55,6 @@ RUN wget https://storage.googleapis.com/kubernetes-helm/helm-v${HELM_VERSION}-li
     mv /tmp/linux-amd64/helm /usr/local/bin/helm && \
     helm version --client
 
-# Install kustomize
-ENV KUSTOMIZE1_VERSION=1.0.11
-RUN curl -L -o /usr/local/bin/kustomize1 https://github.com/kubernetes-sigs/kustomize/releases/download/v${KUSTOMIZE1_VERSION}/kustomize_${KUSTOMIZE1_VERSION}_linux_amd64 && \
-    chmod +x /usr/local/bin/kustomize1 && \
-    kustomize1 version
-
-
 ENV KUSTOMIZE_VERSION=3.1.0
 RUN curl -L -o /usr/local/bin/kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64 && \
     chmod +x /usr/local/bin/kustomize && \
@@ -94,7 +87,6 @@ COPY hack/git-ask-pass.sh /usr/local/bin/git-ask-pass.sh
 COPY --from=builder /usr/local/bin/ks /usr/local/bin/ks
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
 COPY --from=builder /usr/local/bin/kubectl /usr/local/bin/kubectl
-COPY --from=builder /usr/local/bin/kustomize1 /usr/local/bin/kustomize1
 COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
 COPY --from=builder /usr/local/bin/aws-iam-authenticator /usr/local/bin/aws-iam-authenticator
 

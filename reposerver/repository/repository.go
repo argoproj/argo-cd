@@ -246,7 +246,7 @@ func GenerateManifests(root, path string, q *apiclient.ManifestRequest) (*apicli
 		}
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		k := kustomize.NewKustomizeApp(appPath, creds, repoURL)
-		targetObjs, _, _, err = k.Build(q.ApplicationSource.Kustomize)
+		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize)
 	case v1alpha1.ApplicationSourceTypePlugin:
 		targetObjs, err = runConfigManagementPlugin(appPath, q, creds)
 	case v1alpha1.ApplicationSourceTypeDirectory:
@@ -686,11 +686,10 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		res.Kustomize = &apiclient.KustomizeAppSpec{}
 		res.Kustomize.Path = q.Path
 		k := kustomize.NewKustomizeApp(appPath, argo.GetRepoCreds(q.Repo), q.Repo.Repo)
-		_, imageTags, images, err := k.Build(nil)
+		_, images, err := k.Build(nil)
 		if err != nil {
 			return nil, err
 		}
-		res.Kustomize.ImageTags = kustomizeImageTags(imageTags)
 		res.Kustomize.Images = images
 	}
 	return &res, nil
@@ -734,14 +733,6 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	}
 	log.WithFields(log.Fields{"repoURL": q.Repo.Repo, "revision": q.Revision, "err": err}).Debug("cache error")
 	return nil, err
-}
-
-func kustomizeImageTags(imageTags []kustomize.ImageTag) []*v1alpha1.KustomizeImageTag {
-	output := make([]*v1alpha1.KustomizeImageTag, len(imageTags))
-	for i, imageTag := range imageTags {
-		output[i] = &v1alpha1.KustomizeImageTag{Name: imageTag.Name, Value: imageTag.Value}
-	}
-	return output
 }
 
 func valueFiles(q *apiclient.RepoServerAppDetailsQuery) []string {

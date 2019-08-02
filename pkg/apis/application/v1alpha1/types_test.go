@@ -656,7 +656,6 @@ func TestApplicationSourceKustomize_IsZero(t *testing.T) {
 		{"Nil", nil, true},
 		{"Empty", &ApplicationSourceKustomize{}, true},
 		{"NamePrefix", &ApplicationSourceKustomize{NamePrefix: "foo"}, false},
-		{"ImageTags", &ApplicationSourceKustomize{ImageTags: []KustomizeImageTag{{}}}, false},
 		{"Images", &ApplicationSourceKustomize{Images: []KustomizeImage{""}}, false},
 		{"CommonLabels", &ApplicationSourceKustomize{CommonLabels: map[string]string{"": ""}}, false},
 	}

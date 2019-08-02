@@ -201,24 +201,14 @@ func (images KustomizeImages) Find(image KustomizeImage) int {
 type ApplicationSourceKustomize struct {
 	// NamePrefix is a prefix appended to resources for kustomize apps
 	NamePrefix string `json:"namePrefix,omitempty" protobuf:"bytes,1,opt,name=namePrefix"`
-	// ImageTags are kustomize 1.0 image tag overrides
-	ImageTags []KustomizeImageTag `json:"imageTags,omitempty" protobuf:"bytes,2,opt,name=imageTags"`
-	// Images are kustomize 2.0 image overrides
+	// Images are kustomize image overrides
 	Images KustomizeImages `json:"images,omitempty" protobuf:"bytes,3,opt,name=images"`
 	// CommonLabels adds additional kustomize commonLabels
 	CommonLabels map[string]string `json:"commonLabels,omitempty" protobuf:"bytes,4,opt,name=commonLabels"`
 }
 
-// KustomizeImageTag is a kustomize image tag
-type KustomizeImageTag struct {
-	// Name is the name of the image (e.g. nginx)
-	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-	// Value is the value for the new tag (e.g. 1.8.0)
-	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
-}
-
 func (k *ApplicationSourceKustomize) IsZero() bool {
-	return k == nil || k.NamePrefix == "" && len(k.ImageTags) == 0 && len(k.Images) == 0 && len(k.CommonLabels) == 0
+	return k == nil || k.NamePrefix == "" && len(k.Images) == 0 && len(k.CommonLabels) == 0
 }
 
 // either updates or adds the images

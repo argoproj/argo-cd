@@ -26,9 +26,6 @@ Brew users can quickly install the lot:
 brew install git-lfs go dep kubectl kubectx ksonnet/tap/ks kubernetes-helm kustomize 
 ```
 
-!!! note "Kustomize"
-    Since Argo CD supports Kustomize v1.0 and v3.0, you will need to install both versions in order for the unit tests to run. The Kustomize 1 unit test expects to find a `kustomize1` binary in the path.  You can use this [link](https://github.com/argoproj/argo-cd/blob/master/Dockerfile#L66-L69) to find the Kustomize 1 currently used by Argo CD and modify the curl command to download the correct OS.
-
 Set up environment variables (e.g. is `~/.bashrc`):
 
 ```bash

@@ -1962,15 +1962,8 @@
       "type": "object",
       "title": "KustomizeAppSpec contains kustomize app name and path in source repo",
       "properties": {
-        "imageTags": {
-          "description": "imageTags is a list of available image tags. This is only populated for Kustomize 1.",
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1KustomizeImageTag"
-          }
-        },
         "images": {
-          "description": "images is a list of available images. This is only populated for Kustomize 2.",
+          "description": "images is a list of available images.",
           "type": "array",
           "items": {
             "type": "string"
@@ -2810,16 +2803,9 @@
             "type": "string"
           }
         },
-        "imageTags": {
-          "type": "array",
-          "title": "ImageTags are kustomize 1.0 image tag overrides",
-          "items": {
-            "$ref": "#/definitions/v1alpha1KustomizeImageTag"
-          }
-        },
         "images": {
           "type": "array",
-          "title": "Images are kustomize 2.0 image overrides",
+          "title": "Images are kustomize image overrides",
           "items": {
             "type": "string"
           }
@@ -3161,20 +3147,6 @@
         },
         "value": {
           "type": "string"
-        }
-      }
-    },
-    "v1alpha1KustomizeImageTag": {
-      "type": "object",
-      "title": "KustomizeImageTag is a kustomize image tag",
-      "properties": {
-        "name": {
-          "type": "string",
-          "title": "Name is the name of the image (e.g. nginx)"
-        },
-        "value": {
-          "type": "string",
-          "title": "Value is the value for the new tag (e.g. 1.8.0)"
         }
       }
     },

@@ -522,21 +522,8 @@ spec:
                             type: string
                           description: CommonLabels adds additional kustomize commonLabels
                           type: object
-                        imageTags:
-                          description: ImageTags are kustomize 1.0 image tag overrides
-                          items:
-                            properties:
-                              name:
-                                description: Name is the name of the image (e.g. nginx)
-                                type: string
-                              value:
-                                description: Value is the value for the new tag (e.g.
-                                  1.8.0)
-                                type: string
-                            type: object
-                          type: array
                         images:
-                          description: Images are kustomize 2.0 image overrides
+                          description: Images are kustomize image overrides
                           items:
                             type: string
                           type: array
@@ -772,21 +759,8 @@ spec:
                         type: string
                       description: CommonLabels adds additional kustomize commonLabels
                       type: object
-                    imageTags:
-                      description: ImageTags are kustomize 1.0 image tag overrides
-                      items:
-                        properties:
-                          name:
-                            description: Name is the name of the image (e.g. nginx)
-                            type: string
-                          value:
-                            description: Value is the value for the new tag (e.g.
-                              1.8.0)
-                            type: string
-                        type: object
-                      type: array
                     images:
-                      description: Images are kustomize 2.0 image overrides
+                      description: Images are kustomize image overrides
                       items:
                         type: string
                       type: array
@@ -992,22 +966,8 @@ spec:
                               type: string
                             description: CommonLabels adds additional kustomize commonLabels
                             type: object
-                          imageTags:
-                            description: ImageTags are kustomize 1.0 image tag overrides
-                            items:
-                              properties:
-                                name:
-                                  description: Name is the name of the image (e.g.
-                                    nginx)
-                                  type: string
-                                value:
-                                  description: Value is the value for the new tag
-                                    (e.g. 1.8.0)
-                                  type: string
-                              type: object
-                            type: array
                           images:
-                            description: Images are kustomize 2.0 image overrides
+                            description: Images are kustomize image overrides
                             items:
                               type: string
                             type: array
@@ -1226,23 +1186,8 @@ spec:
                                   description: CommonLabels adds additional kustomize
                                     commonLabels
                                   type: object
-                                imageTags:
-                                  description: ImageTags are kustomize 1.0 image tag
-                                    overrides
-                                  items:
-                                    properties:
-                                      name:
-                                        description: Name is the name of the image
-                                          (e.g. nginx)
-                                        type: string
-                                      value:
-                                        description: Value is the value for the new
-                                          tag (e.g. 1.8.0)
-                                        type: string
-                                    type: object
-                                  type: array
                                 images:
-                                  description: Images are kustomize 2.0 image overrides
+                                  description: Images are kustomize image overrides
                                   items:
                                     type: string
                                   type: array
@@ -1485,22 +1430,8 @@ spec:
                               description: CommonLabels adds additional kustomize
                                 commonLabels
                               type: object
-                            imageTags:
-                              description: ImageTags are kustomize 1.0 image tag overrides
-                              items:
-                                properties:
-                                  name:
-                                    description: Name is the name of the image (e.g.
-                                      nginx)
-                                    type: string
-                                  value:
-                                    description: Value is the value for the new tag
-                                      (e.g. 1.8.0)
-                                    type: string
-                                type: object
-                              type: array
                             images:
-                              description: Images are kustomize 2.0 image overrides
+                              description: Images are kustomize image overrides
                               items:
                                 type: string
                               type: array
@@ -1724,22 +1655,8 @@ spec:
                               description: CommonLabels adds additional kustomize
                                 commonLabels
                               type: object
-                            imageTags:
-                              description: ImageTags are kustomize 1.0 image tag overrides
-                              items:
-                                properties:
-                                  name:
-                                    description: Name is the name of the image (e.g.
-                                      nginx)
-                                    type: string
-                                  value:
-                                    description: Value is the value for the new tag
-                                      (e.g. 1.8.0)
-                                    type: string
-                                type: object
-                              type: array
                             images:
-                              description: Images are kustomize 2.0 image overrides
+                              description: Images are kustomize image overrides
                               items:
                                 type: string
                               type: array
