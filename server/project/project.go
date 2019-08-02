@@ -21,6 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
+	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
 )
@@ -49,9 +50,6 @@ func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appcl
 
 // CreateToken creates a new token to access a project
 func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateRequest) (*project.ProjectTokenResponse, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionUpdate, q.Project); err != nil {
-		return nil, err
-	}
 	prj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -64,11 +62,15 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 	s.projectLock.Lock(q.Project)
 	defer s.projectLock.Unlock(q.Project)
 
-	_, index, err := prj.GetRoleByName(q.Role)
+	role, index, err := prj.GetRoleByName(q.Role)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "project '%s' does not have role '%s'", q.Project, q.Role)
 	}
-
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionUpdate, q.Project); err != nil {
+		if !jwtutil.IsMember(jwtutil.Claims(ctx.Value("claims")), role.Groups) {
+			return nil, err
+		}
+	}
 	tokenName := fmt.Sprintf(JWTTokenSubFormat, q.Project, q.Role)
 	jwtToken, err := s.sessionMgr.Create(tokenName, q.ExpiresIn)
 	if err != nil {
@@ -97,9 +99,6 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 
 // DeleteToken deletes a token in a project
 func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteRequest) (*project.EmptyResponse, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionDelete, q.Project); err != nil {
-		return nil, err
-	}
 	prj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -112,9 +111,14 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 	s.projectLock.Lock(q.Project)
 	defer s.projectLock.Unlock(q.Project)
 
-	_, roleIndex, err := prj.GetRoleByName(q.Role)
+	role, roleIndex, err := prj.GetRoleByName(q.Role)
 	if err != nil {
 		return &project.EmptyResponse{}, nil
+	}
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionUpdate, q.Project); err != nil {
+		if !jwtutil.IsMember(jwtutil.Claims(ctx.Value("claims")), role.Groups) {
+			return nil, err
+		}
 	}
 	_, jwtTokenIndex, err := prj.GetJWTToken(q.Role, q.Iat)
 	if err != nil {
