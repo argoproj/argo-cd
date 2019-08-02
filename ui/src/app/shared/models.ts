@@ -416,11 +416,6 @@ export interface HelmAppSpec {
     parameters: HelmParameter[];
 }
 
-export interface KustomizeImageTag {
-    name: string;
-    value: string;
-}
-
 export interface KustomizeAppSpec {
     path: string;
     images?: string[];
