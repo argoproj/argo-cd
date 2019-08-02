@@ -419,6 +419,8 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 			app.Spec.Project = appOpts.project
 		case "nameprefix":
 			setKustomizeOpt(&app.Spec.Source, &appOpts.namePrefix)
+		case "kustomize-image":
+			setKustomizeImages(&app.Spec.Source, appOpts.kustomizeImages)
 		case "jsonnet-tlas":
 			setJsonnetOpt(&app.Spec.Source, appOpts.jsonnetTlaParameters)
 		case "sync-policy":
@@ -462,6 +464,17 @@ func setKustomizeOpt(src *argoappv1.ApplicationSource, namePrefix *string) {
 	}
 	if namePrefix != nil {
 		src.Kustomize.NamePrefix = *namePrefix
+	}
+	if src.Kustomize.IsZero() {
+		src.Kustomize = nil
+	}
+}
+func setKustomizeImages(src *argoappv1.ApplicationSource, images []string) {
+	if src.Kustomize == nil {
+		src.Kustomize = &argoappv1.ApplicationSourceKustomize{}
+	}
+	for _, image := range images {
+		src.Kustomize.MergeImage(argoappv1.KustomizeImage(image))
 	}
 	if src.Kustomize.IsZero() {
 		src.Kustomize = nil
@@ -527,6 +540,7 @@ type appOptions struct {
 	directoryRecurse       bool
 	configManagementPlugin string
 	jsonnetTlaParameters   []string
+	kustomizeImages        []string
 }
 
 func addAppFlags(command *cobra.Command, opts *appOptions) {
@@ -546,6 +560,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().BoolVar(&opts.directoryRecurse, "directory-recurse", false, "Recurse directory")
 	command.Flags().StringVar(&opts.configManagementPlugin, "config-management-plugin", "", "Config management plugin name")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaParameters, "jsonnet-tlas", []string{}, "Jsonnet top level arguments")
+	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
 }
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
