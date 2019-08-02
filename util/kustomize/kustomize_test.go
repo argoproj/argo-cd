@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
 	"github.com/argoproj/pkg/exec"
 	"github.com/stretchr/testify/assert"
 
@@ -32,22 +30,9 @@ func testDataDir() (string, error) {
 }
 
 func TestKustomizeBuild(t *testing.T) {
-	kustomize, kustomizeSource := buildKustomizeSource(t)
-	objs, imageTags, images, err := kustomize.Build(&kustomizeSource, nil)
-	assertKustomizeManifests(t, objs, imageTags, images, err)
-}
-
-func TestKustomizeBuildWithOptions(t *testing.T) {
-	kustomize, kustomizeSource := buildKustomizeSource(t)
-	objs, imageTags, images, err := kustomize.Build(&kustomizeSource, &v1alpha1.KustomizeOptions{
-		BuildOptions: "-v 6 --logtostderr",
-	})
-	assertKustomizeManifests(t, objs, imageTags, images, err)
-}
-
-func buildKustomizeSource(t *testing.T) (Kustomize, v1alpha1.ApplicationSourceKustomize) {
 	appPath, err := testDataDir()
 	assert.Nil(t, err)
+	namePrefix := "namePrefix-"
 	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "")
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		NamePrefix: namePrefix,
@@ -57,11 +42,7 @@ func buildKustomizeSource(t *testing.T) (Kustomize, v1alpha1.ApplicationSourceKu
 			"app.kubernetes.io/part-of":    "argo-cd-tests",
 		},
 	}
-	return kustomize, kustomizeSource
-}
-
-func assertKustomizeManifests(t *testing.T, objs []*unstructured.Unstructured, imageTags []ImageTag, images []Image, err error) {
-	objs, images, err := kustomize.Build(&kustomizeSource)
+	objs, images, err := kustomize.Build(&kustomizeSource, nil)
 	assert.Nil(t, err)
 	if err != nil {
 		assert.Equal(t, len(objs), 2)
@@ -70,13 +51,13 @@ func assertKustomizeManifests(t *testing.T, objs []*unstructured.Unstructured, i
 	for _, obj := range objs {
 		switch obj.GetKind() {
 		case "StatefulSet":
-			assert.Equal(t, "namePrefix-web", obj.GetName())
+			assert.Equal(t, namePrefix+"web", obj.GetName())
 			assert.Equal(t, map[string]string{
 				"app.kubernetes.io/managed-by": "argo-cd",
 				"app.kubernetes.io/part-of":    "argo-cd-tests",
 			}, obj.GetLabels())
 		case "Deployment":
-			assert.Equal(t, "namePrefix-nginx-deployment", obj.GetName())
+			assert.Equal(t, namePrefix+"nginx-deployment", obj.GetName())
 			assert.Equal(t, map[string]string{
 				"app":                          "nginx",
 				"app.kubernetes.io/managed-by": "argo-cd",
@@ -110,16 +91,6 @@ func TestIsKustomization(t *testing.T) {
 	assert.True(t, IsKustomization("kustomization.yml"))
 	assert.True(t, IsKustomization("Kustomization"))
 	assert.False(t, IsKustomization("rubbish.yml"))
-}
-
-func TestNewImageTag(t *testing.T) {
-	tag := newImageTag(Image("busybox"))
-	assert.Equal(t, tag.Name, "busybox")
-	assert.Equal(t, tag.Value, "latest")
-
-	tag = newImageTag(Image("k8s.gcr.io/nginx-slim:0.8"))
-	assert.Equal(t, tag.Name, "k8s.gcr.io/nginx-slim")
-	assert.Equal(t, tag.Value, "0.8")
 }
 
 func TestParseKustomizeBuildOptions(t *testing.T) {

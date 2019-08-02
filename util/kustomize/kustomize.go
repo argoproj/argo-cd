@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/pkg/errors"
@@ -49,12 +50,6 @@ type kustomize struct {
 }
 
 func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions) ([]*unstructured.Unstructured, []Image, error) {
-	version, err := k.getKustomizationVersion()
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	commandName := GetCommandName(version)
 
 	if opts != nil {
 		if opts.NamePrefix != "" {
@@ -103,9 +98,9 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	var cmd *exec.Cmd
 	if kustomizeOptions != nil && kustomizeOptions.BuildOptions != "" {
 		params := parseKustomizeBuildOptions(k.path, kustomizeOptions.BuildOptions)
-		cmd = exec.Command(commandName, params...)
+		cmd = exec.Command("kustomize", params...)
 	} else {
-		cmd = exec.Command(commandName, "build", k.path)
+		cmd = exec.Command("kustomize", "build", k.path)
 	}
 
 	cmd.Env = os.Environ()
