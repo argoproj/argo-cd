@@ -116,7 +116,6 @@ message ApplicationSource {
   // Path is a directory path within the repository containing a
   optional string path = 2;
 
-  // Environment is a ksonnet application environment name
   // TargetRevision defines the commit, tag, or branch in which to sync the application to.
   // If omitted, will sync to HEAD
   optional string targetRevision = 4;
@@ -502,6 +501,7 @@ message Repository {
   // SSH private key data for authenticating at the repo server
   optional string sshPrivateKey = 4;
 
+  // Current state of repository server connecting
   optional ConnectionState connectionState = 5;
 
   // InsecureIgnoreHostKey should not be used anymore, Insecure is favoured
@@ -509,24 +509,33 @@ message Repository {
 
   // Whether the repo is insecure
   optional bool insecure = 7;
+
+  // Whether git-lfs support should be enabled for this repo
+  optional bool enableLfs = 8;
+
+  // TLS client cert data for authenticating at the repo server
+  optional string tlsClientCertData = 9;
+
+  // TLS client cert key for authenticating at the repo server
+  optional string tlsClientCertKey = 10;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
 message RepositoryCertificate {
   // Name of the server the certificate is intended for
-  optional string servername = 1;
+  optional string serverName = 1;
 
   // Type of certificate - currently "https" or "ssh"
-  optional string type = 2;
+  optional string certType = 2;
 
   // The sub type of the cert, i.e. "ssh-rsa"
-  optional string cipher = 3;
+  optional string certSubType = 3;
 
   // Actual certificate data, protocol dependent
-  optional bytes certdata = 4;
+  optional bytes certData = 4;
 
-  // Certificate fingerprint
-  optional string certfingerprint = 5;
+  // Additional certificate info (e.g. SSH fingerprint, X509 CommonName)
+  optional string certInfo = 5;
 }
 
 // RepositoryCertificateList is a collection of RepositoryCertificates
@@ -795,6 +804,9 @@ message SyncPolicy {
 message SyncPolicyAutomated {
   // Prune will prune resources automatically as part of automated sync (default: false)
   optional bool prune = 1;
+
+  // SelfHeal enables auto-syncing if  (default: false)
+  optional bool selfHeal = 2;
 }
 
 // SyncStatus is a comparison result of application spec and deployed application.

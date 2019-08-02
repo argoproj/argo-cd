@@ -1,4 +1,4 @@
-import { Tab, Tabs } from 'argo-ui';
+import { DataLoader, Tab, Tabs } from 'argo-ui';
 import * as React from 'react';
 
 import { YamlEditor } from '../../../shared/components';
@@ -94,7 +94,11 @@ export const ApplicationNodeInfo = (props: {
             </div>
 
             <div className='application-node-info__manifest'>
-                <Tabs selectedTabKey={tabs[0].key} tabs={tabs} />
+                <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                {(pref) => <Tabs selectedTabKey={pref.appDetails.resourceView || 'manifest'} tabs={tabs}  onTabSelected={(selected) => {
+                        services.viewPreferences.updatePreferences({ appDetails: { ...pref.appDetails, resourceView: selected as any } });
+                }} />}
+                </DataLoader>
             </div>
         </div>
     );

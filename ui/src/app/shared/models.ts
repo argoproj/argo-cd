@@ -19,6 +19,8 @@ export interface ApplicationList extends ItemsList<Application> { }
 
 export interface SyncOperationResource { group: string; kind: string; name: string; }
 
+export interface SyncStrategy { apply: {} | null; hook: {} | null; }
+
 export interface SyncOperation {
     revision: string;
     prune: boolean;
@@ -171,7 +173,7 @@ export interface ApplicationSourceDirectory {
 }
 
 export interface SyncPolicy {
-    automated?: { prune: boolean };
+    automated?: { prune: boolean;  selfHeal: boolean;  };
 }
 
 export interface Info {
@@ -342,6 +344,16 @@ export interface ConnectionState {
     message: string;
     attemptedAt: models.Time;
 }
+
+export interface RepoCert {
+    serverName: string;
+    certType: string;
+    certSubType: string;
+    certData: string;
+    certInfo: string;
+}
+
+export interface RepoCertList extends ItemsList<RepoCert> { }
 
 export interface Repository {
     repo: string;

@@ -11,6 +11,7 @@ func TestFixingDegradedApp(t *testing.T) {
 	Given(t).
 		Path("sync-waves").
 		When().
+		IgnoreErrors().
 		Create().
 		PatchFile("pod-1.yaml", `[{"op": "replace", "path": "/spec/containers/0/image", "value": "rubbish"}]`).
 		Sync().

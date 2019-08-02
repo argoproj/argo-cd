@@ -5,6 +5,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/client"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	"gopkg.in/src-d/go-git.v4/utils/ioutil"
 )
 
@@ -12,8 +13,8 @@ import (
 // As workaround methods `newUploadPackSession`, `newClient` and `listRemote` were copied from https://github.com/src-d/go-git/blob/master/remote.go and modified to use
 // transport with InsecureSkipVerify flag is verification should be disabled.
 
-func newUploadPackSession(url string, auth transport.AuthMethod, insecureSkipTLSVerify bool) (transport.UploadPackSession, error) {
-	c, ep, err := newClient(url, insecureSkipTLSVerify)
+func newUploadPackSession(url string, auth transport.AuthMethod, insecure bool, creds Creds) (transport.UploadPackSession, error) {
+	c, ep, err := newClient(url, insecure, creds)
 	if err != nil {
 		return nil, err
 	}
@@ -21,7 +22,7 @@ func newUploadPackSession(url string, auth transport.AuthMethod, insecureSkipTLS
 	return c.NewUploadPackSession(ep, auth)
 }
 
-func newClient(url string, insecureSkipTLSVerify bool) (transport.Transport, *transport.Endpoint, error) {
+func newClient(url string, insecure bool, creds Creds) (transport.Transport, *transport.Endpoint, error) {
 	ep, err := transport.NewEndpoint(url)
 	if err != nil {
 		return nil, nil, err
@@ -31,7 +32,7 @@ func newClient(url string, insecureSkipTLSVerify bool) (transport.Transport, *tr
 	// For HTTPS repositories, we get a custom Transport. Everything else will
 	// be default.
 	if IsHTTPSURL(url) {
-		c = getRepoHTTPClient(url, insecureSkipTLSVerify)
+		c = http.NewClient(GetRepoHTTPClient(url, insecure, creds))
 	} else {
 		c, err = client.NewClient(ep)
 		if err != nil {
@@ -41,8 +42,8 @@ func newClient(url string, insecureSkipTLSVerify bool) (transport.Transport, *tr
 	return c, ep, err
 }
 
-func listRemote(r *git.Remote, o *git.ListOptions, insecureSkipTLSVerify bool) (rfs []*plumbing.Reference, err error) {
-	s, err := newUploadPackSession(r.Config().URLs[0], o.Auth, insecureSkipTLSVerify)
+func listRemote(r *git.Remote, o *git.ListOptions, insecure bool, creds Creds) (rfs []*plumbing.Reference, err error) {
+	s, err := newUploadPackSession(r.Config().URLs[0], o.Auth, insecure, creds)
 	if err != nil {
 		return nil, err
 	}

@@ -1,8 +1,11 @@
 package git
 
 import (
+	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -106,8 +109,72 @@ func TestSameURL(t *testing.T) {
 	}
 }
 
+func TestCustomHTTPClient(t *testing.T) {
+	certFile, err := filepath.Abs("../../test/fixture/certs/argocd-test-client.crt")
+	assert.NoError(t, err)
+	assert.NotEqual(t, "", certFile)
+
+	keyFile, err := filepath.Abs("../../test/fixture/certs/argocd-test-client.key")
+	assert.NoError(t, err)
+	assert.NotEqual(t, "", keyFile)
+
+	certData, err := ioutil.ReadFile(certFile)
+	assert.NoError(t, err)
+	assert.NotEqual(t, "", string(certData))
+
+	keyData, err := ioutil.ReadFile(keyFile)
+	assert.NoError(t, err)
+	assert.NotEqual(t, "", string(keyData))
+
+	// Get HTTPSCreds with client cert creds specified, and insecure connection
+	creds := NewHTTPSCreds("test", "test", string(certData), string(keyData), false)
+	client := GetRepoHTTPClient("https://localhost:9443/foo/bar", false, creds)
+	assert.NotNil(t, client)
+	assert.NotNil(t, client.Transport)
+	if client.Transport != nil {
+		httpClient := client.Transport.(*http.Transport)
+		assert.NotNil(t, httpClient.TLSClientConfig)
+
+		assert.Equal(t, false, httpClient.TLSClientConfig.InsecureSkipVerify)
+
+		assert.NotNil(t, httpClient.TLSClientConfig.GetClientCertificate)
+		if httpClient.TLSClientConfig.GetClientCertificate != nil {
+			cert, err := httpClient.TLSClientConfig.GetClientCertificate(nil)
+			assert.NoError(t, err)
+			if err == nil {
+				assert.NotNil(t, cert)
+				assert.NotEqual(t, 0, len(cert.Certificate))
+				assert.NotNil(t, cert.PrivateKey)
+			}
+		}
+	}
+
+	// Get HTTPSCreds without client cert creds, but insecure connection
+	creds = NewHTTPSCreds("test", "test", "", "", true)
+	client = GetRepoHTTPClient("https://localhost:9443/foo/bar", true, creds)
+	assert.NotNil(t, client)
+	assert.NotNil(t, client.Transport)
+	if client.Transport != nil {
+		httpClient := client.Transport.(*http.Transport)
+		assert.NotNil(t, httpClient.TLSClientConfig)
+
+		assert.Equal(t, true, httpClient.TLSClientConfig.InsecureSkipVerify)
+
+		assert.NotNil(t, httpClient.TLSClientConfig.GetClientCertificate)
+		if httpClient.TLSClientConfig.GetClientCertificate != nil {
+			cert, err := httpClient.TLSClientConfig.GetClientCertificate(nil)
+			assert.NoError(t, err)
+			if err == nil {
+				assert.NotNil(t, cert)
+				assert.Equal(t, 0, len(cert.Certificate))
+				assert.Nil(t, cert.PrivateKey)
+			}
+		}
+	}
+}
+
 func TestLsRemote(t *testing.T) {
-	clnt, err := NewFactory().NewClient("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false)
+	clnt, err := NewFactory().NewClient("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false)
 	assert.NoError(t, err)
 	xpass := []string{
 		"HEAD",
@@ -139,6 +206,49 @@ func TestLsRemote(t *testing.T) {
 	}
 }
 
+// Running this test requires git-lfs to be installed on your machine.
+func TestLFSClient(t *testing.T) {
+
+	test.CIOnly(t)
+
+	tempDir, err := ioutil.TempDir("", "git-client-lfs-test-")
+	assert.NoError(t, err)
+	if err == nil {
+		defer func() { _ = os.RemoveAll(tempDir) }()
+	}
+
+	client, err := NewFactory().NewClient("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true)
+	assert.NoError(t, err)
+
+	commitSHA, err := client.LsRemote("HEAD")
+	assert.NoError(t, err)
+	assert.NotEqual(t, "", commitSHA)
+
+	err = client.Init()
+	assert.NoError(t, err)
+
+	err = client.Fetch()
+	assert.NoError(t, err)
+
+	err = client.Checkout(commitSHA)
+	assert.NoError(t, err)
+
+	largeFiles, err := client.LsLargeFiles()
+	assert.NoError(t, err)
+	assert.Equal(t, 3, len(largeFiles))
+
+	fileHandle, err := os.Open(fmt.Sprintf("%s/test3.yaml", tempDir))
+	assert.NoError(t, err)
+	if err == nil {
+		defer fileHandle.Close()
+		text, err := ioutil.ReadAll(fileHandle)
+		assert.NoError(t, err)
+		if err == nil {
+			assert.Equal(t, "This is not a YAML, sorry.\n", string(text))
+		}
+	}
+}
+
 func TestNewFactory(t *testing.T) {
 	addBinDirToPath := path.NewBinDirToPath()
 	defer addBinDirToPath.Close()
@@ -166,7 +276,7 @@ func TestNewFactory(t *testing.T) {
 		assert.NoError(t, err)
 		defer func() { _ = os.RemoveAll(dirName) }()
 
-		client, err := NewFactory().NewClient(tt.args.url, dirName, NopCreds{}, tt.args.insecureIgnoreHostKey)
+		client, err := NewFactory().NewClient(tt.args.url, dirName, NopCreds{}, tt.args.insecureIgnoreHostKey, false)
 		assert.NoError(t, err)
 		commitSHA, err := client.LsRemote("HEAD")
 		assert.NoError(t, err)

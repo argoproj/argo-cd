@@ -58,7 +58,7 @@ func Condition(conditionType ApplicationConditionType, conditionMessage string) 
 				return succeeded, message
 			}
 		}
-		return failed, message
+		return pending, message
 	}
 }
 

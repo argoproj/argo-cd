@@ -216,6 +216,10 @@ func GenerateManifests(root, path string, q *apiclient.ManifestRequest) (*apicli
 
 	appSourceType, err := GetAppSourceType(q.ApplicationSource, appPath)
 	creds := argo.GetRepoCreds(q.Repo)
+	repoURL := ""
+	if q.Repo != nil {
+		repoURL = q.Repo.Repo
+	}
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeKsonnet:
 		targetObjs, dest, err = ksShow(q.AppLabelKey, appPath, q.ApplicationSource.Ksonnet)
@@ -241,7 +245,7 @@ func GenerateManifests(root, path string, q *apiclient.ManifestRequest) (*apicli
 			}
 		}
 	case v1alpha1.ApplicationSourceTypeKustomize:
-		k := kustomize.NewKustomizeApp(appPath, creds)
+		k := kustomize.NewKustomizeApp(appPath, creds, repoURL)
 		targetObjs, _, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions)
 	case v1alpha1.ApplicationSourceTypePlugin:
 		targetObjs, err = runConfigManagementPlugin(appPath, q, creds)
@@ -526,7 +530,7 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 
 func (s *Service) newClient(repo *v1alpha1.Repository) (git.Client, error) {
 	appPath := tempRepoPath(git.NormalizeGitURL(repo.Repo))
-	return s.gitFactory.NewClient(repo.Repo, appPath, argo.GetRepoCreds(repo), repo.IsInsecure())
+	return s.gitFactory.NewClient(repo.Repo, appPath, argo.GetRepoCreds(repo), repo.IsInsecure(), repo.EnableLFS)
 }
 
 func runCommand(command v1alpha1.Command, path string, env []string) (string, error) {
@@ -681,7 +685,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		res.Kustomize = &apiclient.KustomizeAppSpec{}
 		res.Kustomize.Path = q.Path
-		k := kustomize.NewKustomizeApp(appPath, argo.GetRepoCreds(q.Repo))
+		k := kustomize.NewKustomizeApp(appPath, argo.GetRepoCreds(q.Repo), q.Repo.Repo)
 		_, imageTags, images, err := k.Build(nil, q.KustomizeOptions)
 		if err != nil {
 			return nil, err
@@ -693,7 +697,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 }
 
 func (s *Service) getRevisionMetadata(repoURL *v1alpha1.Repository, revision string) (*git.RevisionMetadata, error) {
-	client, err := s.newClient(repoURL)
+	client, commitSHA, err := s.newClientResolveRevision(repoURL, revision)
 	if err != nil {
 		return nil, err
 	}
@@ -707,7 +711,7 @@ func (s *Service) getRevisionMetadata(repoURL *v1alpha1.Repository, revision str
 	if err != nil {
 		return nil, err
 	}
-	return client.RevisionMetadata(revision)
+	return client.RevisionMetadata(commitSHA)
 }
 
 func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {

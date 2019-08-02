@@ -13,6 +13,7 @@ func TestPruningRequired(t *testing.T) {
 		Path("two-nice-pods").
 		Prune(false).
 		When().
+		IgnoreErrors().
 		Create().
 		Sync().
 		Then().

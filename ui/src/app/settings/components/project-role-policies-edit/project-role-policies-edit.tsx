@@ -17,7 +17,7 @@ function generatePolicy(project: string, role: string, action?: string, object?:
     return `p, proj:${project}:${role}, applications, ${action || ''}, ${(object ? project + '/' + object : '')}, ${permission || ''}`;
 }
 
-const actions = ['get', 'create', 'update', 'delete', 'sync'];
+const actions = ['get', 'create', 'update', 'delete', 'sync', 'override'];
 
 export const ProjectRolePoliciesEdit = (props: ProjectRolePoliciesProps) => (
     <DataLoader load={() => services.applications.list([props.projName], { fields: ['items.metadata.name'] })}>

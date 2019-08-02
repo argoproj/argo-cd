@@ -464,7 +464,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSource(ref common.Reference
 					},
 					"targetRevision": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Environment is a ksonnet application environment name TargetRevision defines the commit, tag, or branch in which to sync the application to. If omitted, will sync to HEAD",
+							Description: "TargetRevision defines the commit, tag, or branch in which to sync the application to. If omitted, will sync to HEAD",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1801,7 +1801,8 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 					},
 					"connectionState": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConnectionState"),
+							Description: "Current state of repository server connecting",
+							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConnectionState"),
 						},
 					},
 					"insecureIgnoreHostKey": {
@@ -1815,6 +1816,27 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 						SchemaProps: spec.SchemaProps{
 							Description: "Whether the repo is insecure",
 							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"enableLfs": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Whether git-lfs support should be enabled for this repo",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"tlsClientCertData": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TLS client cert data for authenticating at the repo server",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"tlsClientCertKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TLS client cert key for authenticating at the repo server",
+							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
@@ -1834,43 +1856,43 @@ func schema_pkg_apis_application_v1alpha1_RepositoryCertificate(ref common.Refer
 				Description: "A RepositoryCertificate is either SSH known hosts entry or TLS certificate",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"servername": {
+					"serverName": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Name of the server the certificate is intended for",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
-					"type": {
+					"certType": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Type of certificate - currently \"https\" or \"ssh\"",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
-					"cipher": {
+					"certSubType": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The sub type of the cert, i.e. \"ssh-rsa\"",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
-					"certdata": {
+					"certData": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Actual certificate data, protocol dependent",
 							Type:        []string{"string"},
 							Format:      "byte",
 						},
 					},
-					"certfingerprint": {
+					"certInfo": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Certificate fingerprint",
+							Description: "Additional certificate info (e.g. SSH fingerprint, X509 CommonName)",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 				},
-				Required: []string{"servername", "type", "cipher", "certdata", "certfingerprint"},
+				Required: []string{"serverName", "certType", "certSubType", "certData", "certInfo"},
 			},
 		},
 	}
@@ -2855,6 +2877,13 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicyAutomated(ref common.Referen
 					"prune": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Prune will prune resources automatically as part of automated sync (default: false)",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"selfHeal": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SelfHeal enables auto-syncing if  (default: false)",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

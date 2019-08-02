@@ -30,7 +30,7 @@ func NewMetricsServer(gitClientFactory git.ClientFactory) *MetricsServer {
 
 	gitRequestCounter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "argocd_git_ls_remote_total",
+			Name: "argocd_git_request_total",
 			Help: "Number of git requests performed by repo server",
 		},
 		[]string{"repo", "request_type"},
@@ -53,8 +53,8 @@ func (m *MetricsServer) IncGitRequest(repo string, requestType GitRequestType) {
 	m.gitRequestCounter.WithLabelValues(repo, string(requestType)).Inc()
 }
 
-func (m *MetricsServer) NewClient(repoURL string, path string, creds git.Creds, insecureIgnoreHostKey bool) (git.Client, error) {
-	client, err := m.gitClientFactory.NewClient(repoURL, path, creds, insecureIgnoreHostKey)
+func (m *MetricsServer) NewClient(repoURL string, path string, creds git.Creds, insecureIgnoreHostKey bool, lfsEnabled bool) (git.Client, error) {
+	client, err := m.gitClientFactory.NewClient(repoURL, path, creds, insecureIgnoreHostKey, lfsEnabled)
 	if err != nil {
 		return nil, err
 	}

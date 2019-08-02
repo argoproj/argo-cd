@@ -30,6 +30,10 @@ func (w *gitClientWrapper) LsFiles(path string) ([]string, error) {
 	return w.client.LsFiles(path)
 }
 
+func (w *gitClientWrapper) LsLargeFiles() ([]string, error) {
+	return w.client.LsLargeFiles()
+}
+
 func (w *gitClientWrapper) Checkout(revision string) error {
 	return w.client.Checkout(revision)
 }

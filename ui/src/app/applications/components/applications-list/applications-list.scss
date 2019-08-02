@@ -144,7 +144,7 @@
         }
     }
 
-    @include breakpoint(xxlarge only) {
+    @include breakpoint(xxlarge up) {
         &__summary {
             margin-top: 5.3em;
         }
@@ -189,12 +189,6 @@
     &__table-row {
         & > .columns:first-child {
             padding-left: 30px;
-        }
-        & > .columns:last-child {
-            .argo-dropdown {
-                position: absolute;
-                right: 0;
-            }
         }
         margin-left: -30px !important;
     }

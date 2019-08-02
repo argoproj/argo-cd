@@ -46,7 +46,7 @@ type fakeGitClientFactory struct {
 	revisionMetadata *git.RevisionMetadata
 }
 
-func (f *fakeGitClientFactory) NewClient(repoURL string, path string, creds git.Creds, insecureIgnoreHostKey bool) (git.Client, error) {
+func (f *fakeGitClientFactory) NewClient(repoURL string, path string, creds git.Creds, insecureIgnoreHostKey bool, enableLfs bool) (git.Client, error) {
 	mockClient := gitmocks.Client{}
 	root := "./testdata"
 	if f.root != "" {

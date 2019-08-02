@@ -6,10 +6,12 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/kube"
 )
 
 func assertAppHealth(t *testing.T, yamlPath string, expectedStatus appv1.HealthStatusCode) {
@@ -87,6 +89,55 @@ func TestApplication(t *testing.T) {
 	assertAppHealth(t, "./testdata/application-degraded.yaml", appv1.HealthStatusDegraded)
 }
 
+func TestAppOfAppsHealth(t *testing.T) {
+	newAppLiveObj := func(name string, status appv1.HealthStatusCode) (*unstructured.Unstructured, appv1.ResourceStatus) {
+		app := appv1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "foo",
+			},
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "argoproj.io/v1alpha1",
+				Kind:       "Application",
+			},
+			Status: appv1.ApplicationStatus{
+				Health: appv1.HealthStatus{
+					Status: status,
+				},
+			},
+		}
+		resStatus := appv1.ResourceStatus{
+			Group:   "argoproj.io",
+			Version: "v1alpha1",
+			Kind:    "Application",
+			Name:    name,
+		}
+		return kube.MustToUnstructured(&app), resStatus
+	}
+
+	missingApp, missingStatus := newAppLiveObj("foo", appv1.HealthStatusMissing)
+	healthyApp, healthyStatus := newAppLiveObj("bar", appv1.HealthStatusHealthy)
+	degradedApp, degradedStatus := newAppLiveObj("baz", appv1.HealthStatusDegraded)
+
+	// verify missing child app does not affect app health
+	{
+		missingAndHealthyStatuses := []appv1.ResourceStatus{missingStatus, healthyStatus}
+		missingAndHealthyLiveObjects := []*unstructured.Unstructured{missingApp, healthyApp}
+		healthStatus, err := SetApplicationHealth(missingAndHealthyStatuses, missingAndHealthyLiveObjects, nil, noFilter)
+		assert.NoError(t, err)
+		assert.Equal(t, appv1.HealthStatusHealthy, healthStatus.Status)
+	}
+
+	// verify degraded does affect
+	{
+		degradedAndHealthyStatuses := []appv1.ResourceStatus{degradedStatus, healthyStatus}
+		degradedAndHealthyLiveObjects := []*unstructured.Unstructured{degradedApp, healthyApp}
+		healthStatus, err := SetApplicationHealth(degradedAndHealthyStatuses, degradedAndHealthyLiveObjects, nil, noFilter)
+		assert.NoError(t, err)
+		assert.Equal(t, appv1.HealthStatusDegraded, healthStatus.Status)
+	}
+
+}
+
 func TestSetApplicationHealth(t *testing.T) {
 	yamlBytes, err := ioutil.ReadFile("./testdata/job-failed.yaml")
 	assert.Nil(t, err)
@@ -118,17 +169,13 @@ func TestSetApplicationHealth(t *testing.T) {
 		&runningPod,
 		&failedJob,
 	}
-	healthStatus, err := SetApplicationHealth(resources, liveObjs, nil, func(obj *unstructured.Unstructured) bool {
-		return true
-	})
+	healthStatus, err := SetApplicationHealth(resources, liveObjs, nil, noFilter)
 	assert.NoError(t, err)
 	assert.Equal(t, appv1.HealthStatusDegraded, healthStatus.Status)
 
 	// now mark the job as a hook and retry. it should ignore the hook and consider the app healthy
 	failedJob.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
-	healthStatus, err = SetApplicationHealth(resources, liveObjs, nil, func(obj *unstructured.Unstructured) bool {
-		return true
-	})
+	healthStatus, err = SetApplicationHealth(resources, liveObjs, nil, noFilter)
 	assert.NoError(t, err)
 	assert.Equal(t, appv1.HealthStatusHealthy, healthStatus.Status)
 }
@@ -138,4 +185,8 @@ func TestAPIService(t *testing.T) {
 	assertAppHealth(t, "./testdata/apiservice-v1-false.yaml", appv1.HealthStatusProgressing)
 	assertAppHealth(t, "./testdata/apiservice-v1beta1-true.yaml", appv1.HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/apiservice-v1beta1-false.yaml", appv1.HealthStatusProgressing)
+}
+
+func noFilter(obj *unstructured.Unstructured) bool {
+	return true
 }

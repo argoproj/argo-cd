@@ -82,3 +82,13 @@ Now you can manually verify that cluster is accessible from the Argo CD pod.
 To terminate the sync, click on the "synchronisation" then "terminate":
 
 ![Synchronization](assets/synchronization-button.png) ![Terminate](assets/terminate-button.png)
+
+## Why Is My App Out Of Sync Even After Syncing?
+
+Is some cases, the tool you use may conflict with Argo CD by adding the `app.kubernetes.io/instance` label. E.g. using Kustomize common labels feature.
+
+Argo CD automatically sets the `app.kubernetes.io/instance` label and uses it to determine which resources form the app. If the tool does this too, this causes confusion. You can change this label by setting the `application.instanceLabelKey` value in the `argocd-cm`.  We recommend that you use `argocd.argoproj.io/instance`. 
+
+!!! note    When you make this change your applications will become out of sync and will need re-syncing.
+
+See [#1482](https://github.com/argoproj/argo-cd/issues/1482).

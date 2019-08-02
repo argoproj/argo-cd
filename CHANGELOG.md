@@ -1,5 +1,102 @@
 # Changelog
 
+## v1.1.2 (2019-07-30)
+- 'argocd app wait' should print correct sync status (#2049)
+- Check that TLS is enabled when registering DEX Handlers (#2047)
+- Do not ignore Argo hooks when there is a Helm hook. (#1952)
+
+## v1.1.1 (2019-07-25)
++ Support 'override' action in UI/API (#1984)
+- Fix argocd app wait message (#1982)
+
+## v1.1.0 (2019-07-24)
+
+### New Features
+
+#### Sync Waves
+
+Sync waves feature allows executing a sync operation in a number of steps or waves. Within each synchronization phase (pre-sync, sync, post-sync) you can have one or more waves,
+than allows you to ensure certain resources are healthy before subsequent resources are synced.
+
+#### Optimized Interaction With Git
+
+Argo CD needs to execute `git fetch` operation to access application manifests and `git ls-remote` to resolve ambiguous git revision. The `git ls-remote` is executed very frequently
+and although the operation is very lightweight it adds unnecessary load on Git server and might cause performance issues. In v1.1 release, the application reconciliation process was
+optimized which significantly reduced the number of Git requests. With v1.1 release, Argo CD should send 3x ~ 5x fewer Git requests.
+
+#### User Defined Application Metadata
+
+User-defined Application metadata enables the user to define a list of useful URLs for their specific application and expose those links on the UI
+(e.g. reference tp a CI pipeline or an application-specific management tool). These links should provide helpful shortcuts that make easier to integrate Argo CD into existing
+systems by making it easier to find other components inside and outside Argo CD.
+
+### Deprecation Notice
+
+* Kustomize v1.0 is deprecated and support will be removed in the Argo CD v1.2 release.
+
+#### Enhancements
+
+- Sync waves [#1544](https://github.com/argoproj/argo-cd/issues/1544)
+- Adds Prune=false and IgnoreExtraneous options [#1629](https://github.com/argoproj/argo-cd/issues/1629)
+- Forward Git credentials to config management plugins [#1628](https://github.com/argoproj/argo-cd/issues/1628)
+- Improve Kustomize 2 parameters UI [#1609](https://github.com/argoproj/argo-cd/issues/1609)
+- Adds `argocd logout` [#1210](https://github.com/argoproj/argo-cd/issues/1210)
+- Make it possible to set Helm release name different from Argo CD app name.  [#1066](https://github.com/argoproj/argo-cd/issues/1066)
+- Add ability to specify system namespace during cluster add operation [#1661](https://github.com/argoproj/argo-cd/pull/1661) 
+- Make listener and metrics ports configurable [#1647](https://github.com/argoproj/argo-cd/pull/1647) 
+- Using SSH keys to authenticate kustomize bases from git [#827](https://github.com/argoproj/argo-cd/issues/827)
+- Adds `argocd app sync APPNAME --async` [#1728](https://github.com/argoproj/argo-cd/issues/1728)
+- Allow users to define app specific urls to expose in the UI [#1677](https://github.com/argoproj/argo-cd/issues/1677)
+- Error view instead of blank page in UI [#1375](https://github.com/argoproj/argo-cd/issues/1375)
+- Project Editor: Whitelisted Cluster Resources doesn't strip whitespace [#1693](https://github.com/argoproj/argo-cd/issues/1693)
+- Eliminate unnecessary git interactions for top-level resource changes (#1919)
+- Ability to rotate the bearer token used to manage external clusters (#1084)
+
+#### Bug Fixes
+
+- Project Editor: Whitelisted Cluster Resources doesn't strip whitespace [#1693](https://github.com/argoproj/argo-cd/issues/1693)
+- \[ui small bug\] menu position outside block [#1711](https://github.com/argoproj/argo-cd/issues/1711)
+- UI will crash when create application without destination namespace [#1701](https://github.com/argoproj/argo-cd/issues/1701)
+- ArgoCD synchronization failed due to internal error [#1697](https://github.com/argoproj/argo-cd/issues/1697)
+- Replicasets ordering is not stable on app tree view [#1668](https://github.com/argoproj/argo-cd/issues/1668)
+- Stuck processor on App Controller after deleting application with incomplete operation [#1665](https://github.com/argoproj/argo-cd/issues/1665)
+- Role edit page fails with JS error [#1662](https://github.com/argoproj/argo-cd/issues/1662)
+- failed parsing on parameters with comma [#1660](https://github.com/argoproj/argo-cd/issues/1660)
+- Handle nil obj when processing custom actions [#1700](https://github.com/argoproj/argo-cd/pull/1700)
+- Account for missing fields in Rollout HealthStatus [#1699](https://github.com/argoproj/argo-cd/pull/1699) 
+- Sync operation unnecessary waits for a healthy state of all resources [#1715](https://github.com/argoproj/argo-cd/issues/1715)
+- failed parsing on parameters with comma [#1660](https://github.com/argoproj/argo-cd/issues/1660)
+- argocd app sync hangs when cluster is not configured (#1935)
+- Do not allow app-of-app child app's Missing status to affect parent (#1954)
+- Argo CD don't handle well k8s objects which size exceeds 1mb (#1685)
+- Secret data not redacted in last-applied-configuration (#897)
+- Running app actions requires only read privileges (#1827)
+- UI should allow editing repo URL (#1763)
+- Make status fields as optional fields (#1779)
+- Use correct healthcheck for Rollout with empty steps list (#1776)
+
+#### Other
+
+- Add Prometheus metrics for git repo interactions (#1912)
+- App controller should log additional information during app syncing (#1909)
+- Make sure api server to repo server grpc calls have timeout (#1820)
+- Forked tool processes should timeout (#1821)
+- Add health check to the controller deployment (#1785)
+
+#### Contributors
+
+* [Aditya Gupta](https://github.com/AdityaGupta1)
+* [Alex Collins](https://github.com/alexec)
+* [Alex Matyushentsev](https://github.com/alexmt)
+* [Danny Thomson](https://github.com/dthomson25)
+* [jannfis](https://github.com/jannfis)
+* [Jesse Suen](https://github.com/jessesuen)
+* [Liviu Costea](https://github.com/lcostea)
+* [narg95](https://github.com/narg95)
+* [Simon Behar](https://github.com/simster7)
+
+See also [milestone v1.1](https://github.com/argoproj/argo-cd/milestone/13)
+
 ## v1.0.0 (2019-05-16)
 
 ### New Features

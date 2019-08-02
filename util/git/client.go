@@ -41,6 +41,7 @@ type Client interface {
 	Checkout(revision string) error
 	LsRemote(revision string) (string, error)
 	LsFiles(path string) ([]string, error)
+	LsLargeFiles() ([]string, error)
 	CommitSHA() (string, error)
 	RevisionMetadata(revision string) (*RevisionMetadata, error)
 }
@@ -48,7 +49,7 @@ type Client interface {
 // ClientFactory is a factory of Git Clients
 // Primarily used to support creation of mock git clients during unit testing
 type ClientFactory interface {
-	NewClient(rawRepoURL string, path string, creds Creds, insecure bool) (Client, error)
+	NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool) (Client, error)
 }
 
 // nativeGitClient implements Client interface using git CLI
@@ -61,6 +62,8 @@ type nativeGitClient struct {
 	creds Creds
 	// Whether to connect insecurely to repository, e.g. don't verify certificate
 	insecure bool
+	// Whether the repository is LFS enabled
+	enableLfs bool
 }
 
 type factory struct{}
@@ -69,20 +72,13 @@ func NewFactory() ClientFactory {
 	return &factory{}
 }
 
-func (f *factory) NewClient(rawRepoURL string, path string, creds Creds, insecure bool) (Client, error) {
-	// We need a custom HTTP client for go-git when we want to skip validation
-	// of the server's TLS certificate (--insecure-ignore-server-cert). Since
-	// this change is permanent to go-git Client during runtime, we need to
-	// explicitly replace it with default client for repositories without the
-	// insecure flag set.
-	//if IsHTTPSURL(rawRepoURL) {
-	//	gitclient.InstallProtocol("https", githttp.NewClient(getRepoHTTPClient(rawRepoURL, insecure)))
-	//}
+func (f *factory) NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool) (Client, error) {
 	client := nativeGitClient{
-		repoURL:  rawRepoURL,
-		root:     path,
-		creds:    creds,
-		insecure: insecure,
+		repoURL:   rawRepoURL,
+		root:      path,
+		creds:     creds,
+		insecure:  insecure,
+		enableLfs: enableLfs,
 	}
 	return &client, nil
 }
@@ -95,15 +91,41 @@ func (f *factory) NewClient(rawRepoURL string, path string, creds Creds, insecur
 //   a client with those certificates in the list of root CAs used to verify
 //   the server's certificate.
 // - Otherwise (and on non-fatal errors), a default HTTP client is returned.
-func getRepoHTTPClient(repoURL string, insecure bool) transport.Transport {
+func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client {
 	// Default HTTP client
-	var customHTTPClient transport.Transport = githttp.NewClient(&http.Client{})
+	var customHTTPClient *http.Client = &http.Client{}
+
+	// Callback function to return any configured client certificate
+	// We never return err, but an empty cert instead.
+	clientCertFunc := func(req *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+		var err error
+		cert := tls.Certificate{}
+
+		// If we aren't called with HTTPSCreds, then we just return an empty cert
+		httpsCreds, ok := creds.(HTTPSCreds)
+		if !ok {
+			return &cert, nil
+		}
+
+		// If the creds contain client certificate data, we return a TLS.Certificate
+		// populated with the cert and its key.
+		if httpsCreds.clientCertData != "" && httpsCreds.clientCertKey != "" {
+			cert, err = tls.X509KeyPair([]byte(httpsCreds.clientCertData), []byte(httpsCreds.clientCertKey))
+			if err != nil {
+				log.Errorf("Could not load Client Certificate: %v", err)
+				return &cert, nil
+			}
+		}
+
+		return &cert, nil
+	}
 
 	if insecure {
-		customHTTPClient = githttp.NewClient(&http.Client{
+		customHTTPClient = &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: true,
+					InsecureSkipVerify:   true,
+					GetClientCertificate: clientCertFunc,
 				},
 			},
 			// 15 second timeout
@@ -113,7 +135,7 @@ func getRepoHTTPClient(repoURL string, insecure bool) transport.Transport {
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				return http.ErrUseLastResponse
 			},
-		})
+		}
 	} else {
 		parsedURL, err := url.Parse(repoURL)
 		if err != nil {
@@ -124,10 +146,11 @@ func getRepoHTTPClient(repoURL string, insecure bool) transport.Transport {
 			return customHTTPClient
 		} else if len(serverCertificatePem) > 0 {
 			certPool := certutil.GetCertPoolFromPEMData(serverCertificatePem)
-			customHTTPClient = githttp.NewClient(&http.Client{
+			customHTTPClient = &http.Client{
 				Transport: &http.Transport{
 					TLSClientConfig: &tls.Config{
-						RootCAs: certPool,
+						RootCAs:              certPool,
+						GetClientCertificate: clientCertFunc,
 					},
 				},
 				// 15 second timeout
@@ -136,9 +159,23 @@ func getRepoHTTPClient(repoURL string, insecure bool) transport.Transport {
 				CheckRedirect: func(req *http.Request, via []*http.Request) error {
 					return http.ErrUseLastResponse
 				},
-			})
+			}
+		} else {
+			// else no custom certificate stored.
+			customHTTPClient = &http.Client{
+				Transport: &http.Transport{
+					TLSClientConfig: &tls.Config{
+						GetClientCertificate: clientCertFunc,
+					},
+				},
+				// 15 second timeout
+				Timeout: 15 * time.Second,
+				// don't follow redirect
+				CheckRedirect: func(req *http.Request, via []*http.Request) error {
+					return http.ErrUseLastResponse
+				},
+			}
 		}
-		// else no custom certificate stored.
 	}
 
 	return customHTTPClient
@@ -200,9 +237,24 @@ func (m *nativeGitClient) Init() error {
 	return err
 }
 
+// Returns true if the repository is LFS enabled
+func (m *nativeGitClient) IsLFSEnabled() bool {
+	return m.enableLfs
+}
+
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch() error {
 	_, err := m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
+	// When we have LFS support enabled, check for large files and fetch them too.
+	if err == nil && m.IsLFSEnabled() {
+		largeFiles, err := m.LsLargeFiles()
+		if err == nil && len(largeFiles) > 0 {
+			_, err = m.runCredentialedCmd("git", "lfs", "fetch", "--all")
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return err
 }
 
@@ -217,6 +269,16 @@ func (m *nativeGitClient) LsFiles(path string) ([]string, error) {
 	return ss[:len(ss)-1], nil
 }
 
+// LsLargeFiles lists all files that have references to LFS storage
+func (m *nativeGitClient) LsLargeFiles() ([]string, error) {
+	out, err := m.runCmd("lfs", "ls-files", "-n")
+	if err != nil {
+		return nil, err
+	}
+	ss := strings.Split(out, "\n")
+	return ss, nil
+}
+
 // Checkout checkout specified git sha
 func (m *nativeGitClient) Checkout(revision string) error {
 	if revision == "" || revision == "HEAD" {
@@ -224,6 +286,19 @@ func (m *nativeGitClient) Checkout(revision string) error {
 	}
 	if _, err := m.runCmd("checkout", "--force", revision); err != nil {
 		return err
+	}
+	// We must populate LFS content by using lfs checkout, if we have at least
+	// one LFS reference in the current revision.
+	if m.IsLFSEnabled() {
+		if largeFiles, err := m.LsLargeFiles(); err == nil {
+			if len(largeFiles) > 0 {
+				if _, err := m.runCmd("lfs", "checkout"); err != nil {
+					return err
+				}
+			}
+		} else {
+			return err
+		}
 	}
 	if _, err := m.runCmd("clean", "-fdx"); err != nil {
 		return err
@@ -256,7 +331,7 @@ func (m *nativeGitClient) LsRemote(revision string) (string, error) {
 		return "", err
 	}
 	//refs, err := remote.List(&git.ListOptions{Auth: auth})
-	refs, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure)
+	refs, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds)
 	if err != nil {
 		return "", err
 	}
@@ -361,9 +436,33 @@ func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) (st
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 	cmd.Dir = m.root
 	cmd.Env = append(cmd.Env, os.Environ()...)
+	// Set $HOME to nowhere, so we can be execute Git regardless of any external
+	// authentication keys (e.g. in ~/.ssh) -- this is especially important for
+	// running tests on local machines and/or CircleCI.
 	cmd.Env = append(cmd.Env, "HOME=/dev/null")
-	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOSYSTEM=true")
-	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOGLOBAL=true")
+	// Skip LFS for most Git operations except when explicitly requested
+	cmd.Env = append(cmd.Env, "GIT_LFS_SKIP_SMUDGE=1")
+
+	// For HTTPS repositories, we need to consider insecure repositories as well
+	// as custom CA bundles from the cert database.
+	if IsHTTPSURL(m.repoURL) {
+		if m.insecure {
+			cmd.Env = append(cmd.Env, "GIT_SSL_NO_VERIFY=true")
+		} else {
+			parsedURL, err := url.Parse(m.repoURL)
+			// We don't fail if we cannot parse the URL, but log a warning in that
+			// case. And we execute the command in a verbatim way.
+			if err != nil {
+				log.Warnf("runCmdOutput: Could not parse repo URL '%s'", m.repoURL)
+			} else {
+				caPath, err := certutil.GetCertBundlePathForRepository(parsedURL.Host)
+				if err == nil && caPath != "" {
+					cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_SSL_CAINFO=%s", caPath))
+				}
+			}
+		}
+	}
+
 	log.Debug(strings.Join(cmd.Args, " "))
 	return argoexec.RunCommandExt(cmd, argoconfig.CmdOpts())
 }

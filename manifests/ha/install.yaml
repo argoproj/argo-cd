@@ -575,10 +575,9 @@ spec:
                         manifests
                       type: string
                     targetRevision:
-                      description: Environment is a ksonnet application environment
-                        name TargetRevision defines the commit, tag, or branch in
-                        which to sync the application to. If omitted, will sync to
-                        HEAD
+                      description: TargetRevision defines the commit, tag, or branch
+                        in which to sync the application to. If omitted, will sync
+                        to HEAD
                       type: string
                   required:
                   - repoURL
@@ -826,9 +825,8 @@ spec:
                     manifests
                   type: string
                 targetRevision:
-                  description: Environment is a ksonnet application environment name
-                    TargetRevision defines the commit, tag, or branch in which to
-                    sync the application to. If omitted, will sync to HEAD
+                  description: TargetRevision defines the commit, tag, or branch in
+                    which to sync the application to. If omitted, will sync to HEAD
                   type: string
               required:
               - repoURL
@@ -844,6 +842,9 @@ spec:
                     prune:
                       description: 'Prune will prune resources automatically as part
                         of automated sync (default: false)'
+                      type: boolean
+                    selfHeal:
+                      description: 'SelfHeal enables auto-syncing if  (default: false)'
                       type: boolean
                   type: object
               type: object
@@ -1045,9 +1046,8 @@ spec:
                           manifests
                         type: string
                       targetRevision:
-                        description: Environment is a ksonnet application environment
-                          name TargetRevision defines the commit, tag, or branch in
-                          which to sync the application to. If omitted, will sync
+                        description: TargetRevision defines the commit, tag, or branch
+                          in which to sync the application to. If omitted, will sync
                           to HEAD
                         type: string
                     required:
@@ -1281,10 +1281,9 @@ spec:
                                 application manifests
                               type: string
                             targetRevision:
-                              description: Environment is a ksonnet application environment
-                                name TargetRevision defines the commit, tag, or branch
-                                in which to sync the application to. If omitted, will
-                                sync to HEAD
+                              description: TargetRevision defines the commit, tag,
+                                or branch in which to sync the application to. If
+                                omitted, will sync to HEAD
                               type: string
                           required:
                           - repoURL
@@ -1540,10 +1539,9 @@ spec:
                             manifests
                           type: string
                         targetRevision:
-                          description: Environment is a ksonnet application environment
-                            name TargetRevision defines the commit, tag, or branch
-                            in which to sync the application to. If omitted, will
-                            sync to HEAD
+                          description: TargetRevision defines the commit, tag, or
+                            branch in which to sync the application to. If omitted,
+                            will sync to HEAD
                           type: string
                       required:
                       - repoURL
@@ -1780,10 +1778,9 @@ spec:
                             manifests
                           type: string
                         targetRevision:
-                          description: Environment is a ksonnet application environment
-                            name TargetRevision defines the commit, tag, or branch
-                            in which to sync the application to. If omitted, will
-                            sync to HEAD
+                          description: TargetRevision defines the commit, tag, or
+                            branch in which to sync the application to. If omitted,
+                            will sync to HEAD
                           type: string
                       required:
                       - repoURL
@@ -3189,24 +3186,10 @@ spec:
           initialDelaySeconds: 3
           periodSeconds: 30
         volumeMounts:
-        - mountPath: /shared
-          name: static-files
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
         - mountPath: /app/config/tls
           name: tls-certs
-      initContainers:
-      - command:
-        - cp
-        - -r
-        - /app
-        - /shared
-        image: argoproj/argocd-ui:latest
-        imagePullPolicy: Always
-        name: ui
-        volumeMounts:
-        - mountPath: /shared
-          name: static-files
       serviceAccountName: argocd-server
       volumes:
       - emptyDir: {}

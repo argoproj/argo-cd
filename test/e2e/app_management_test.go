@@ -64,6 +64,7 @@ func TestInvalidAppProject(t *testing.T) {
 		Path(guestbookPath).
 		Project("does-not-exist").
 		When().
+		IgnoreErrors().
 		Create().
 		Then().
 		Expect(Error("", "application references project does-not-exist which does not exist"))
@@ -94,6 +95,10 @@ func TestTrackAppStateAndSyncApp(t *testing.T) {
 		Create().
 		Sync().
 		Then().
+		Expect(Success(fmt.Sprintf("apps  Deployment  %s          guestbook-ui  OutOfSync  Missing", fixture.DeploymentNamespace()))).
+		Expect(Success(fmt.Sprintf("Service  %s          guestbook-ui  OutOfSync  Missing", fixture.DeploymentNamespace()))).
+		Expect(Success(fmt.Sprintf("Service     %s  guestbook-ui  Synced  Healthy        service/guestbook-ui created", fixture.DeploymentNamespace()))).
+		Expect(Success(fmt.Sprintf("apps   Deployment  %s  guestbook-ui  Synced  Healthy        deployment.apps/guestbook-ui created", fixture.DeploymentNamespace()))).
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(Event(EventReasonResourceUpdated, "sync")).
@@ -153,6 +158,7 @@ func TestComparisonFailsIfClusterNotAdded(t *testing.T) {
 		Path(guestbookPath).
 		DestServer("https://not-registered-cluster/api").
 		When().
+		IgnoreErrors().
 		Create().
 		Then().
 		Expect(DoesNotExist())
@@ -632,6 +638,7 @@ func TestSyncOptionPruneFalse(t *testing.T) {
 		When().
 		DeleteFile("pod-1.yaml").
 		Refresh(RefreshTypeHard).
+		IgnoreErrors().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -654,6 +661,7 @@ func TestSyncOptionValidateFalse(t *testing.T) {
 		Then().
 		Expect(Success("")).
 		When().
+		IgnoreErrors().
 		Sync().
 		Then().
 		// client error

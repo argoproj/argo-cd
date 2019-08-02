@@ -20,9 +20,16 @@ import (
 )
 
 const (
-	username      = "username"
-	password      = "password"
+	// The name of the key storing the username in the secret
+	username = "username"
+	// The name of the key storing the password in the secret
+	password = "password"
+	// The name of the key storing the SSH private in the secret
 	sshPrivateKey = "sshPrivateKey"
+	// The name of the key storing the TLS client cert data in the secret
+	tlsClientCertData = "tlsClientCertData"
+	// The name of the key storing the TLS client cert key in the secret
+	tlsClientCertKey = "tlsClientCertKey"
 )
 
 // ListRepoURLs returns list of repositories
@@ -64,8 +71,9 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 
 	repoInfo := settings.RepoCredentials{
 		URL:                   r.Repo,
-		InsecureIgnoreHostKey: (r.InsecureIgnoreHostKey || r.Insecure),
-		Insecure:              (r.InsecureIgnoreHostKey || r.Insecure),
+		InsecureIgnoreHostKey: r.IsInsecure(),
+		Insecure:              r.IsInsecure(),
+		EnableLFS:             r.EnableLFS,
 	}
 	err = db.updateSecrets(&repoInfo, r)
 	if err != nil {
@@ -123,11 +131,14 @@ func (db *db) credentialsToRepository(repoInfo settings.RepoCredentials) (*appsv
 		Repo:                  repoInfo.URL,
 		InsecureIgnoreHostKey: repoInfo.InsecureIgnoreHostKey,
 		Insecure:              repoInfo.Insecure,
+		EnableLFS:             repoInfo.EnableLFS,
 	}
 	err := db.unmarshalFromSecretsStr(map[*string]*apiv1.SecretKeySelector{
-		&repo.Username:      repoInfo.UsernameSecret,
-		&repo.Password:      repoInfo.PasswordSecret,
-		&repo.SSHPrivateKey: repoInfo.SSHPrivateKeySecret,
+		&repo.Username:          repoInfo.UsernameSecret,
+		&repo.Password:          repoInfo.PasswordSecret,
+		&repo.SSHPrivateKey:     repoInfo.SSHPrivateKeySecret,
+		&repo.TLSClientCertData: repoInfo.TLSClientCertDataSecret,
+		&repo.TLSClientCertKey:  repoInfo.TLSClientCertKeySecret,
 	}, make(map[string]*apiv1.Secret))
 
 	return repo, err
@@ -150,6 +161,12 @@ func (db *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 	if err != nil {
 		return nil, err
 	}
+
+	// Update boolean settings
+	repoInfo.InsecureIgnoreHostKey = r.IsInsecure()
+	repoInfo.Insecure = r.IsInsecure()
+	repoInfo.EnableLFS = r.EnableLFS
+
 	repos[index] = repoInfo
 	err = db.settingsMgr.SaveRepositories(repos)
 	if err != nil {
@@ -170,9 +187,11 @@ func (db *db) DeleteRepository(ctx context.Context, repoURL string) error {
 		return status.Errorf(codes.NotFound, "repo '%s' not found", repoURL)
 	}
 	err = db.updateSecrets(&repos[index], &appsv1.Repository{
-		SSHPrivateKey: "",
-		Password:      "",
-		Username:      "",
+		SSHPrivateKey:     "",
+		Password:          "",
+		Username:          "",
+		TLSClientCertData: "",
+		TLSClientCertKey:  "",
 	})
 	if err != nil {
 		return err
@@ -213,6 +232,8 @@ func (db *db) updateSecrets(repoInfo *settings.RepoCredentials, r *appsv1.Reposi
 	repoInfo.UsernameSecret = setSecretData(repoInfo.UsernameSecret, r.Username, username)
 	repoInfo.PasswordSecret = setSecretData(repoInfo.PasswordSecret, r.Password, password)
 	repoInfo.SSHPrivateKeySecret = setSecretData(repoInfo.SSHPrivateKeySecret, r.SSHPrivateKey, sshPrivateKey)
+	repoInfo.TLSClientCertDataSecret = setSecretData(repoInfo.TLSClientCertDataSecret, r.TLSClientCertData, tlsClientCertData)
+	repoInfo.TLSClientCertKeySecret = setSecretData(repoInfo.TLSClientCertKeySecret, r.TLSClientCertKey, tlsClientCertKey)
 	for k, v := range secretsData {
 		err := db.upsertSecret(k, v)
 		if err != nil {
@@ -243,7 +264,7 @@ func (db *db) upsertSecret(name string, data map[string][]byte) error {
 			}
 		}
 	} else {
-		for _, key := range []string{username, password, sshPrivateKey} {
+		for _, key := range []string{username, password, sshPrivateKey, tlsClientCertData, tlsClientCertKey} {
 			if secret.Data == nil {
 				secret.Data = make(map[string][]byte)
 			}

@@ -54,20 +54,28 @@ func NewPod() *unstructured.Unstructured {
 	return &un
 }
 
+// DEPRECATED
+// use `Hook(NewPod())` or similar instead
 func NewHook(hookType v1alpha1.HookType) *unstructured.Unstructured {
-	pod := NewPod()
-	pod.SetAnnotations(map[string]string{
-		"argocd.argoproj.io/hook": string(hookType),
-	})
-	return pod
+	return Hook(NewPod(), hookType)
 }
 
-func NewHelmHook(hookType v1alpha1.HookType) *unstructured.Unstructured {
-	pod := NewPod()
-	pod.SetAnnotations(map[string]string{
-		"helm.sh/hook": string(hookType),
-	})
-	return pod
+func Hook(obj *unstructured.Unstructured, hookType v1alpha1.HookType) *unstructured.Unstructured {
+	return Annotate(obj, "argocd.argoproj.io/hook", string(hookType))
+}
+
+func HelmHook(obj *unstructured.Unstructured, hookType string) *unstructured.Unstructured {
+	return Annotate(obj, "helm.sh/hook", hookType)
+}
+
+func Annotate(obj *unstructured.Unstructured, key, val string) *unstructured.Unstructured {
+	annotations := obj.GetAnnotations()
+	if annotations == nil {
+		annotations = map[string]string{}
+	}
+	annotations[key] = val
+	obj.SetAnnotations(annotations)
+	return obj
 }
 
 var ServiceManifest = []byte(`

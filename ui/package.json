@@ -5,7 +5,7 @@
   "scripts": {
     "start": "webpack-dev-server --config ./src/app/webpack.config.js --mode development",
     "docker": "./scripts/build_docker.sh",
-    "build": "yarn lint &&  rm -rf dist && webpack --config ./src/app/webpack.config.js",
+    "build": "rm -rf dist && webpack --config ./src/app/webpack.config.js",
     "lint": "tslint -p ./src/app",
     "test": "jest"
   },
@@ -42,7 +42,7 @@
     "git-url-parse": "^11.1.2",
     "html-webpack-plugin": "^3.2.0",
     "jest-junit": "^6.4.0",
-    "js-yaml": "^3.12.0",
+    "js-yaml": "^3.13.1",
     "jscs": "^3.0.7",
     "json-merge-patch": "^0.2.3",
     "jsondiffpatch": "^0.3.5",
