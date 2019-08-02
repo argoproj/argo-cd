@@ -177,10 +177,7 @@ message ApplicationSourceKustomize {
   // NamePrefix is a prefix appended to resources for kustomize apps
   optional string namePrefix = 1;
 
-  // ImageTags are kustomize 1.0 image tag overrides
-  repeated KustomizeImageTag imageTags = 2;
-
-  // Images are kustomize 2.0 image overrides
+  // Images are kustomize image overrides
   repeated string images = 3;
 
   // CommonLabels adds additional kustomize commonLabels
@@ -428,6 +425,7 @@ message KsonnetParameter {
   optional string value = 3;
 }
 
+<<<<<<< HEAD
 // KustomizeImageTag is a kustomize image tag
 message KustomizeImageTag {
   // Name is the name of the image (e.g. nginx)
@@ -443,6 +441,8 @@ message KustomizeOptions {
   optional string buildOptions = 1;
 }
 
+=======
+>>>>>>> master
 // Operation contains requested operation parameters.
 message Operation {
   optional SyncOperation sync = 1;

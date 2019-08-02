@@ -150,29 +150,6 @@ export const ApplicationParameters = (props: { application: models.Application, 
                 return { overrideIndex, original, metadata: { name, value } };
             }), ImageTagFieldEditor));
         }
-
-        const imageTags = props.details && props.details.kustomize && props.details.kustomize.imageTags || [];
-
-        if (imageTags.length > 0) {
-            const imagesByName = new Map<string, models.KustomizeImageTag>();
-            imageTags.forEach((img) => imagesByName.set(img.name, img));
-
-            const overridesByName = new Map<string, number>();
-            (source.kustomize && source.kustomize.imageTags || []).forEach((override, i) => overridesByName.set(override.name, i));
-
-            attributes = attributes.concat(getParamsEditableItems(app, 'IMAGE TAGS', 'spec.source.kustomize.imageTags', removedOverrides, setRemovedOverrides,
-                    distinct(imagesByName.keys(), overridesByName.keys()).map((name) => {
-                const param = imagesByName.get(name);
-                const original = param && param.value || '';
-                let overrideIndex = overridesByName.get(name);
-                if (overrideIndex === undefined) {
-                    overrideIndex = -1;
-                }
-                const value = overrideIndex > -1 && source.kustomize.imageTags[overrideIndex].value || original;
-                return { overrideIndex, original, metadata: { name, value } };
-            })));
-        }
-
     } else if (props.details.type === 'Helm' && props.details.helm) {
         attributes.push({
             title: 'VALUES FILES',
@@ -223,9 +200,6 @@ export const ApplicationParameters = (props: { application: models.Application, 
                 }
                 if (input.spec.source.ksonnet && input.spec.source.ksonnet.parameters) {
                     input.spec.source.ksonnet.parameters = input.spec.source.ksonnet.parameters.filter(isDefined);
-                }
-                if (input.spec.source.kustomize && input.spec.source.kustomize.imageTags) {
-                    input.spec.source.kustomize.imageTags = input.spec.source.kustomize.imageTags.filter(isDefined);
                 }
                 if (input.spec.source.kustomize && input.spec.source.kustomize.images) {
                     input.spec.source.kustomize.images = input.spec.source.kustomize.images.filter(isDefined);

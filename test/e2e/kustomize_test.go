@@ -144,6 +144,7 @@ func TestKustomizeDeclarativeInvalidApp(t *testing.T) {
 		Expect(Condition(ApplicationConditionComparisonError, "invalid-kustomize/does-not-exist.yaml: no such file or directory"))
 }
 
+<<<<<<< HEAD
 func TestKustomizeBuildOptionsLoadRestrictor(t *testing.T) {
 	out, err := fixture.Run("", "kustomize", "version")
 	if err != nil {
@@ -173,5 +174,19 @@ func TestKustomizeBuildOptionsLoadRestrictor(t *testing.T) {
 			errors.FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
 				"-n", fixture.ArgoCDNamespace,
 				"-p", `{ "data": { "kustomize.buildOptions": "" } }`))
+		})
+}
+
+// make sure we we can invoke the CLI to replace images
+func TestKustomizeImages(t *testing.T) {
+	Given(t).
+		Path("kustomize").
+		When().
+		Create().
+		// pass two flags to check the multi flag logic works
+		AppSet("--kustomize-image", "alpine:foo", "--kustomize-image", "alpine:bar").
+		Then().
+		And(func(app *Application) {
+			assert.Contains(t, app.Spec.Source.Kustomize.Images, KustomizeImage("alpine:bar"))
 		})
 }
