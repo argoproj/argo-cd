@@ -24,9 +24,8 @@ func TestCustomToolWithGitCreds(t *testing.T) {
 				},
 			},
 		).
-		CustomCACertAdded().
 		// add the private repo
-		HTTPSRepoURLAdded().
+		HTTPSInsecureRepoURLAdded().
 		RepoURLType(RepoURLTypeHTTPS).
 		Path("https-kustomize-base").
 		When().
