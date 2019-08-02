@@ -48,7 +48,6 @@ func TestKustomizeBuildWithOptions(t *testing.T) {
 func buildKustomizeSource(t *testing.T) (Kustomize, v1alpha1.ApplicationSourceKustomize) {
 	appPath, err := testDataDir()
 	assert.Nil(t, err)
-	namePrefix := "namePrefix-"
 	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "")
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		NamePrefix: "namePrefix-",
