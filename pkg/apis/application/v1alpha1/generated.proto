@@ -425,24 +425,12 @@ message KsonnetParameter {
   optional string value = 3;
 }
 
-<<<<<<< HEAD
-// KustomizeImageTag is a kustomize image tag
-message KustomizeImageTag {
-  // Name is the name of the image (e.g. nginx)
-  optional string name = 1;
-
-  // Value is the value for the new tag (e.g. 1.8.0)
-  optional string value = 2;
-}
-
 // KustomizeOptions are options for kustomize to use when building manifests
 message KustomizeOptions {
   // BuildOptions is a string of build parameters to use when calling `kustomize build`
   optional string buildOptions = 1;
 }
 
-=======
->>>>>>> master
 // Operation contains requested operation parameters.
 message Operation {
   optional SyncOperation sync = 1;
