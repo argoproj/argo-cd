@@ -140,3 +140,17 @@ func TestKustomizeDeclarativeInvalidApp(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
 		Expect(Condition(ApplicationConditionComparisonError, "invalid-kustomize/does-not-exist.yaml: no such file or directory"))
 }
+
+// make sure we we can invoke the CLI to replace images
+func TestKustomizeImages(t *testing.T) {
+	Given(t).
+		Path("kustomize").
+		When().
+		Create().
+		// pass two flags to check the multi flag logic works
+		AppSet("--kustomize-image", "alpine:foo", "--kustomize-image", "alpine:bar").
+		Then().
+		And(func(app *Application) {
+			assert.Contains(t, app.Spec.Source.Kustomize.Images, KustomizeImage("alpine:bar"))
+		})
+}

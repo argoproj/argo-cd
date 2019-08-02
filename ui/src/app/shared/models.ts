@@ -172,7 +172,7 @@ export interface ApplicationSourceDirectory {
 }
 
 export interface SyncPolicy {
-    automated?: { prune: boolean };
+    automated?: { prune: boolean;  selfHeal: boolean;  };
 }
 
 export interface Info {

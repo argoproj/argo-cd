@@ -36,7 +36,7 @@ func TestKustomizeBuild(t *testing.T) {
 	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "")
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		NamePrefix: namePrefix,
-		Images:     []string{"nginx:1.15.5"},
+		Images: v1alpha1.KustomizeImages{"nginx:1.15.5"},
 		CommonLabels: map[string]string{
 			"app.kubernetes.io/managed-by": "argo-cd",
 			"app.kubernetes.io/part-of":    "argo-cd-tests",
