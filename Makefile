@@ -175,10 +175,9 @@ start-e2e: cli
 	kubectl config set-context --current --namespace=argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
 	# set paths for locally managed ssh known hosts and tls certs data
-	export ARGOCD_SSH_DATA_PATH=/tmp/argo-e2e/app/config/ssh
-	export ARGOCD_TLS_DATA_PATH=/tmp/argo-e2e/app/config/tls
-
-	goreman start
+	ARGOCD_SSH_DATA_PATH=/tmp/argo-e2e/app/config/ssh \
+	ARGOCD_TLS_DATA_PATH=/tmp/argo-e2e/app/config/tls \
+		goreman start
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes
 .PHONY: clean-debug
