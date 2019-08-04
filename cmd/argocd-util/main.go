@@ -386,6 +386,12 @@ func NewExportCommand() *cobra.Command {
 			acdRBACConfigMap, err := acdClients.configMaps.Get(common.ArgoCDRBACConfigMapName, metav1.GetOptions{})
 			errors.CheckError(err)
 			export(writer, *acdRBACConfigMap)
+			acdKnownHostsConfigMap, err := acdClients.configMaps.Get(common.ArgoCDKnownHostsConfigMapName, metav1.GetOptions{})
+			errors.CheckError(err)
+			export(writer, *acdKnownHostsConfigMap)
+			acdTLSCertsConfigMap, err := acdClients.configMaps.Get(common.ArgoCDTLSCertsConfigMapName, metav1.GetOptions{})
+			errors.CheckError(err)
+			export(writer, *acdTLSCertsConfigMap)
 
 			referencedSecrets := getReferencedSecrets(*acdConfigMap)
 			secrets, err := acdClients.secrets.List(metav1.ListOptions{})
@@ -434,6 +440,12 @@ func getReferencedSecrets(un unstructured.Unstructured) map[string]bool {
 			}
 			if cred.UsernameSecret != nil {
 				referencedSecrets[cred.UsernameSecret.Name] = true
+			}
+			if cred.TLSClientCertDataSecret != nil {
+				referencedSecrets[cred.TLSClientCertDataSecret.Name] = true
+			}
+			if cred.TLSClientCertKeySecret != nil {
+				referencedSecrets[cred.TLSClientCertKeySecret.Name] = true
 			}
 		}
 	}
