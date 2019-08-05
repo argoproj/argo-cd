@@ -1775,6 +1775,9 @@
         "googleAnalytics": {
           "$ref": "#/definitions/clusterGoogleAnalyticsConfig"
         },
+        "kustomizeOptions": {
+          "$ref": "#/definitions/v1alpha1KustomizeOptions"
+        },
         "oidcConfig": {
           "$ref": "#/definitions/clusterOIDCConfig"
         },
@@ -1962,15 +1965,8 @@
       "type": "object",
       "title": "KustomizeAppSpec contains kustomize app name and path in source repo",
       "properties": {
-        "imageTags": {
-          "description": "imageTags is a list of available image tags. This is only populated for Kustomize 1.",
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1KustomizeImageTag"
-          }
-        },
         "images": {
-          "description": "images is a list of available images. This is only populated for Kustomize 2.",
+          "description": "images is a list of available images.",
           "type": "array",
           "items": {
             "type": "string"
@@ -2814,16 +2810,9 @@
             "type": "string"
           }
         },
-        "imageTags": {
-          "type": "array",
-          "title": "ImageTags are kustomize 1.0 image tag overrides",
-          "items": {
-            "$ref": "#/definitions/v1alpha1KustomizeImageTag"
-          }
-        },
         "images": {
           "type": "array",
-          "title": "Images are kustomize 2.0 image overrides",
+          "title": "Images are kustomize image overrides",
           "items": {
             "type": "string"
           }
@@ -3168,17 +3157,13 @@
         }
       }
     },
-    "v1alpha1KustomizeImageTag": {
+    "v1alpha1KustomizeOptions": {
       "type": "object",
-      "title": "KustomizeImageTag is a kustomize image tag",
+      "title": "KustomizeOptions are options for kustomize to use when building manifests",
       "properties": {
-        "name": {
+        "buildOptions": {
           "type": "string",
-          "title": "Name is the name of the image (e.g. nginx)"
-        },
-        "value": {
-          "type": "string",
-          "title": "Value is the value for the new tag (e.g. 1.8.0)"
+          "title": "BuildOptions is a string of build parameters to use when calling `kustomize build`"
         }
       }
     },
@@ -3304,26 +3289,26 @@
       "type": "object",
       "title": "A RepositoryCertificate is either SSH known hosts entry or TLS certificate",
       "properties": {
-        "certdata": {
+        "certData": {
           "type": "string",
           "format": "byte",
           "title": "Actual certificate data, protocol dependent"
         },
-        "certinfo": {
+        "certInfo": {
           "type": "string",
           "title": "Additional certificate info (e.g. SSH fingerprint, X509 CommonName)"
         },
-        "cipher": {
+        "certSubType": {
           "type": "string",
           "title": "The sub type of the cert, i.e. \"ssh-rsa\""
         },
-        "servername": {
-          "type": "string",
-          "title": "Name of the server the certificate is intended for"
-        },
-        "type": {
+        "certType": {
           "type": "string",
           "title": "Type of certificate - currently \"https\" or \"ssh\""
+        },
+        "serverName": {
+          "type": "string",
+          "title": "Name of the server the certificate is intended for"
         }
       }
     },

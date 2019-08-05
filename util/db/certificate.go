@@ -169,6 +169,11 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 	// Each request can contain multiple certificates of different types, so we
 	// make sure to handle each request accordingly.
 	for _, certificate := range certificates.Items {
+		// Ensure valid repo server name was given
+		if !certutil.IsValidHostname(certificate.ServerName, false) {
+			return nil, fmt.Errorf("Invalid hostname in request: %s", certificate.ServerName)
+		}
+
 		if certificate.CertType == "ssh" {
 			// Whether we have a new certificate entry
 			newEntry := true

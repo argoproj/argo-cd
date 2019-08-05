@@ -64,6 +64,8 @@ type ArgoCDSettings struct {
 	WebhookGogsSecret string `json:"webhookGogsSecret,omitempty"`
 	// Secrets holds all secrets in argocd-secret as a map[string]string
 	Secrets map[string]string `json:"secrets,omitempty"`
+	// KustomizeBuildOptions is a string of kustomize build parameters
+	KustomizeBuildOptions string
 	// Indicates if anonymous user is enabled or not
 	AnonymousUserEnabled bool
 }
@@ -163,6 +165,8 @@ const (
 	resourceInclusionsKey = "resource.inclusions"
 	// configManagementPluginsKey is the key to the list of config management plugins
 	configManagementPluginsKey = "configManagementPlugins"
+	// kustomizeBuildOptions is a string of kustomize build parameters
+	kustomizeBuildOptions = "kustomize.buildOptions"
 	// anonymousUserEnabledKey is the key which enables or disables anonymous user
 	anonymousUserEnabledKey = "users.anonymous.enabled"
 )
@@ -280,7 +284,7 @@ func (mgr *SettingsManager) GetConfigManagementPlugins() ([]v1alpha1.ConfigManag
 	return plugins, nil
 }
 
-// GetResouceOverrides loads Resource Overrides from argocd-cm ConfigMap
+// GetResourceOverrides loads Resource Overrides from argocd-cm ConfigMap
 func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.ResourceOverride, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -295,6 +299,20 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 	}
 
 	return resourceOverrides, nil
+}
+
+// GetKustomizeBuildOptions loads the kustomize build options from argocd-cm ConfigMap
+func (mgr *SettingsManager) GetKustomizeBuildOptions() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", err
+	}
+	value, ok := argoCDCM.Data[kustomizeBuildOptions]
+	if !ok {
+		return "", err
+	}
+
+	return value, nil
 }
 
 func (mgr *SettingsManager) GetHelmRepositories() ([]HelmRepoCredentials, error) {

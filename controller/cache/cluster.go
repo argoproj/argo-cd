@@ -87,14 +87,6 @@ func (c *clusterInfo) replaceResourceCache(gk schema.GroupKind, resourceVersion 
 
 func (c *clusterInfo) createObjInfo(un *unstructured.Unstructured, appInstanceLabel string) *node {
 	ownerRefs := un.GetOwnerReferences()
-	// Special case for endpoint. Remove after https://github.com/kubernetes/kubernetes/issues/28483 is fixed
-	if un.GroupVersionKind().Group == "" && un.GetKind() == kube.EndpointsKind && len(un.GetOwnerReferences()) == 0 {
-		ownerRefs = append(ownerRefs, metav1.OwnerReference{
-			Name:       un.GetName(),
-			Kind:       kube.ServiceKind,
-			APIVersion: "",
-		})
-	}
 	nodeInfo := &node{
 		resourceVersion: un.GetResourceVersion(),
 		ref:             kube.GetObjectRef(un),

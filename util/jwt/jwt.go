@@ -71,3 +71,29 @@ func GetIssuedAt(m jwtgo.MapClaims) (int64, error) {
 		return 0, fmt.Errorf("iat '%v' is not a number", iat)
 	}
 }
+
+func Claims(in interface{}) jwtgo.Claims {
+	claims, ok := in.(jwtgo.Claims)
+	if ok {
+		return claims
+	}
+	return nil
+}
+
+// IsMember returns whether or not the user's claims is a member of any of the groups
+func IsMember(claims jwtgo.Claims, groups []string) bool {
+	mapClaims, err := MapClaims(claims)
+	if err != nil {
+		return false
+	}
+	// TODO: groups is hard-wired but we should really be honoring the 'scopes' section in argocd-rbac-cm.
+	// O(n^2) loop
+	for _, userGroup := range GetScopeValues(mapClaims, []string{"groups"}) {
+		for _, group := range groups {
+			if userGroup == group {
+				return true
+			}
+		}
+	}
+	return false
+}

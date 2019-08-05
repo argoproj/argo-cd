@@ -325,6 +325,7 @@ func EnsureCleanState(t *testing.T) {
 		WebhookBitbucketUUID:         s.WebhookBitbucketUUID,
 		WebhookBitbucketServerSecret: s.WebhookBitbucketServerSecret,
 		WebhookGogsSecret:            s.WebhookGogsSecret,
+		KustomizeBuildOptions:        s.KustomizeBuildOptions,
 		Secrets:                      s.Secrets,
 	}))
 	SetResourceOverrides(make(map[string]v1alpha1.ResourceOverride))

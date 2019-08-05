@@ -3,11 +3,10 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
-	"regexp"
-
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"google.golang.org/grpc/codes"
@@ -168,28 +167,60 @@ func (h *ApplicationSourceHelm) IsZero() bool {
 	return h == nil || (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && h.Values == ""
 }
 
+type KustomizeImage string
+
+func (i KustomizeImage) delim() string {
+	for _, d := range []string{"=", ":", "@"} {
+		if strings.Contains(string(i), d) {
+			return d
+		}
+	}
+	return ":"
+}
+
+// if the image name matches (i.e. up to the first delimiter)
+func (i KustomizeImage) Match(j KustomizeImage) bool {
+	delim := j.delim()
+	if !strings.Contains(string(j), delim) {
+		return false
+	}
+	return strings.HasPrefix(string(i), strings.Split(string(j), delim)[0])
+}
+
+type KustomizeImages []KustomizeImage
+
+// find the image or -1
+func (images KustomizeImages) Find(image KustomizeImage) int {
+	for i, a := range images {
+		if a.Match(image) {
+			return i
+		}
+	}
+	return -1
+}
+
 // ApplicationSourceKustomize holds kustomize specific options
 type ApplicationSourceKustomize struct {
 	// NamePrefix is a prefix appended to resources for kustomize apps
 	NamePrefix string `json:"namePrefix,omitempty" protobuf:"bytes,1,opt,name=namePrefix"`
-	// ImageTags are kustomize 1.0 image tag overrides
-	ImageTags []KustomizeImageTag `json:"imageTags,omitempty" protobuf:"bytes,2,opt,name=imageTags"`
-	// Images are kustomize 2.0 image overrides
-	Images []string `json:"images,omitempty" protobuf:"bytes,3,opt,name=images"`
+	// Images are kustomize image overrides
+	Images KustomizeImages `json:"images,omitempty" protobuf:"bytes,3,opt,name=images"`
 	// CommonLabels adds additional kustomize commonLabels
 	CommonLabels map[string]string `json:"commonLabels,omitempty" protobuf:"bytes,4,opt,name=commonLabels"`
 }
 
-// KustomizeImageTag is a kustomize image tag
-type KustomizeImageTag struct {
-	// Name is the name of the image (e.g. nginx)
-	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-	// Value is the value for the new tag (e.g. 1.8.0)
-	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
+func (k *ApplicationSourceKustomize) IsZero() bool {
+	return k == nil || k.NamePrefix == "" && len(k.Images) == 0 && len(k.CommonLabels) == 0
 }
 
-func (k *ApplicationSourceKustomize) IsZero() bool {
-	return k == nil || k.NamePrefix == "" && len(k.ImageTags) == 0 && len(k.Images) == 0 && len(k.CommonLabels) == 0
+// either updates or adds the images
+func (k *ApplicationSourceKustomize) MergeImage(image KustomizeImage) {
+	i := k.Images.Find(image)
+	if i >= 0 {
+		k.Images[i] = image
+	} else {
+		k.Images = append(k.Images, image)
+	}
 }
 
 // JsonnetVar is a jsonnet variable
@@ -945,15 +976,15 @@ type RepositoryList struct {
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
 type RepositoryCertificate struct {
 	// Name of the server the certificate is intended for
-	ServerName string `json:"servername" protobuf:"bytes,1,opt,name=servername"`
+	ServerName string `json:"serverName" protobuf:"bytes,1,opt,name=serverName"`
 	// Type of certificate - currently "https" or "ssh"
-	CertType string `json:"type" protobuf:"bytes,2,opt,name=type"`
+	CertType string `json:"certType" protobuf:"bytes,2,opt,name=certType"`
 	// The sub type of the cert, i.e. "ssh-rsa"
-	CertSubType string `json:"cipher" protobuf:"bytes,3,opt,name=cipher"`
+	CertSubType string `json:"certSubType" protobuf:"bytes,3,opt,name=certSubType"`
 	// Actual certificate data, protocol dependent
-	CertData []byte `json:"certdata" protobuf:"bytes,4,opt,name=certdata"`
+	CertData []byte `json:"certData" protobuf:"bytes,4,opt,name=certData"`
 	// Additional certificate info (e.g. SSH fingerprint, X509 CommonName)
-	CertInfo string `json:"certinfo" protobuf:"bytes,5,opt,name=certinfo"`
+	CertInfo string `json:"certInfo" protobuf:"bytes,5,opt,name=certInfo"`
 }
 
 // RepositoryCertificateList is a collection of RepositoryCertificates
@@ -1257,6 +1288,12 @@ type ConfigManagementPlugin struct {
 	Name     string   `json:"name" protobuf:"bytes,1,name=name"`
 	Init     *Command `json:"init,omitempty" protobuf:"bytes,2,name=init"`
 	Generate Command  `json:"generate" protobuf:"bytes,3,name=generate"`
+}
+
+// KustomizeOptions are options for kustomize to use when building manifests
+type KustomizeOptions struct {
+	// BuildOptions is a string of build parameters to use when calling `kustomize build`
+	BuildOptions string `protobuf:"bytes,1,opt,name=buildOptions"`
 }
 
 // ProjectPoliciesString returns Casbin formated string of a project's policies for each role

@@ -67,7 +67,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                             </div>
                             <div className='row'>
                                 <div className='columns small-3'>Namespace:</div>
-                                <div className='columns small-9 wrap'>
+                                <div className='columns small-9'>
                                     {app.spec.destination.namespace}
                                 </div>
                             </div>

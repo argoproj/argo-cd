@@ -50,7 +50,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.JWTToken":                   schema_pkg_apis_application_v1alpha1_JWTToken(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.JsonnetVar":                 schema_pkg_apis_application_v1alpha1_JsonnetVar(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.KsonnetParameter":           schema_pkg_apis_application_v1alpha1_KsonnetParameter(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.KustomizeImageTag":          schema_pkg_apis_application_v1alpha1_KustomizeImageTag(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.KustomizeOptions":           schema_pkg_apis_application_v1alpha1_KustomizeOptions(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Operation":                  schema_pkg_apis_application_v1alpha1_Operation(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OperationState":             schema_pkg_apis_application_v1alpha1_OperationState(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectRole":                schema_pkg_apis_application_v1alpha1_ProjectRole(ref),
@@ -678,22 +678,9 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							Format:      "",
 						},
 					},
-					"imageTags": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ImageTags are kustomize 1.0 image tag overrides",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.KustomizeImageTag"),
-									},
-								},
-							},
-						},
-					},
 					"images": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Images are kustomize 2.0 image overrides",
+							Description: "Images are kustomize image overrides",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -723,8 +710,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 				},
 			},
 		},
-		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.KustomizeImageTag"},
 	}
 }
 
@@ -1577,28 +1562,22 @@ func schema_pkg_apis_application_v1alpha1_KsonnetParameter(ref common.ReferenceC
 	}
 }
 
-func schema_pkg_apis_application_v1alpha1_KustomizeImageTag(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_application_v1alpha1_KustomizeOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "KustomizeImageTag is a kustomize image tag",
+				Description: "KustomizeOptions are options for kustomize to use when building manifests",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"name": {
+					"BuildOptions": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Name is the name of the image (e.g. nginx)",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"value": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Value is the value for the new tag (e.g. 1.8.0)",
+							Description: "BuildOptions is a string of build parameters to use when calling `kustomize build`",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 				},
+				Required: []string{"BuildOptions"},
 			},
 		},
 	}
@@ -1841,35 +1820,35 @@ func schema_pkg_apis_application_v1alpha1_RepositoryCertificate(ref common.Refer
 				Description: "A RepositoryCertificate is either SSH known hosts entry or TLS certificate",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"servername": {
+					"serverName": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Name of the server the certificate is intended for",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
-					"type": {
+					"certType": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Type of certificate - currently \"https\" or \"ssh\"",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
-					"cipher": {
+					"certSubType": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The sub type of the cert, i.e. \"ssh-rsa\"",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
-					"certdata": {
+					"certData": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Actual certificate data, protocol dependent",
 							Type:        []string{"string"},
 							Format:      "byte",
 						},
 					},
-					"certinfo": {
+					"certInfo": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Additional certificate info (e.g. SSH fingerprint, X509 CommonName)",
 							Type:        []string{"string"},
@@ -1877,7 +1856,7 @@ func schema_pkg_apis_application_v1alpha1_RepositoryCertificate(ref common.Refer
 						},
 					},
 				},
-				Required: []string{"servername", "type", "cipher", "certdata", "certinfo"},
+				Required: []string{"serverName", "certType", "certSubType", "certData", "certInfo"},
 			},
 		},
 	}
