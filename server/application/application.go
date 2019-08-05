@@ -518,8 +518,12 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	done := make(chan bool)
 	go func() {
 		for next := range w.ResultChan() {
-			a := *next.Object.(*appv1.Application)
-			_ = sendIfPermitted(a, next.Type)
+			a, ok := next.Object.(*appv1.Application)
+			if ok {
+				_ = sendIfPermitted(*a, next.Type)
+			} else {
+				break
+			}
 		}
 		logCtx.Info("k8s application watch event channel closed")
 		close(done)
