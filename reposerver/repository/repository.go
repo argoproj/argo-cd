@@ -30,7 +30,7 @@ import (
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/config"
-	"github.com/argoproj/argo-cd/util/depot"
+	"github.com/argoproj/argo-cd/util/depot/client"
 	"github.com/argoproj/argo-cd/util/factory"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
@@ -358,7 +358,7 @@ func isNullList(obj *unstructured.Unstructured) bool {
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
-func checkoutRevision(client depot.Client, path, commitSHA string) (string, error) {
+func checkoutRevision(client client.Client, path, commitSHA string) (string, error) {
 	err := client.Init()
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "Failed to initialize repo: %v", err)
@@ -512,7 +512,7 @@ func pathExists(ss ...string) bool {
 
 // newClientResolveRevision is a helper to perform the common task of instantiating a client
 // and resolving a revision to a commit SHA
-func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, path, revision string) (depot.Client, string, error) {
+func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, path, revision string) (client.Client, string, error) {
 	client, err := s.clientFactory.NewClient(repo)
 	if err != nil {
 		return nil, "", err
@@ -686,7 +686,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 	return &res, nil
 }
 
-func (s *Service) getRevisionMetadata(repo *v1alpha1.Repository, path, revision string) (*depot.RevisionMetadata, error) {
+func (s *Service) getRevisionMetadata(repo *v1alpha1.Repository, path, revision string) (*client.RevisionMetadata, error) {
 	client, err := s.clientFactory.NewClient(repo)
 	if err != nil {
 		return nil, err

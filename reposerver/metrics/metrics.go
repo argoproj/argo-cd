@@ -7,7 +7,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/depot"
+	"github.com/argoproj/argo-cd/util/depot/client"
 	"github.com/argoproj/argo-cd/util/factory"
 )
 
@@ -55,7 +55,7 @@ func (m *MetricsServer) IncGitRequest(repo string, requestType GitRequestType) {
 	m.gitRequestCounter.WithLabelValues(repo, string(requestType)).Inc()
 }
 
-func (m *MetricsServer) NewClient(repo *v1alpha1.Repository) (depot.Client, error) {
+func (m *MetricsServer) NewClient(repo *v1alpha1.Repository) (client.Client, error) {
 	client, err := m.clientFactory.NewClient(repo)
 	if err != nil {
 		return nil, err

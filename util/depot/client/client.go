@@ -1,4 +1,4 @@
-package depot
+package client
 
 import (
 	"time"

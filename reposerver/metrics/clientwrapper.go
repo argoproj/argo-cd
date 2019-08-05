@@ -1,12 +1,12 @@
 package metrics
 
 import (
-	"github.com/argoproj/argo-cd/util/depot"
+	repoclient "github.com/argoproj/argo-cd/util/depot/client"
 )
 
 type clientWrapper struct {
 	repo          string
-	client        depot.Client
+	client        repoclient.Client
 	metricsServer *MetricsServer
 }
 
@@ -14,7 +14,7 @@ func (w *clientWrapper) Test() error {
 	return w.client.Test()
 }
 
-func wrapGitClient(repo string, metricsServer *MetricsServer, client depot.Client) depot.Client {
+func wrapGitClient(repo string, metricsServer *MetricsServer, client repoclient.Client) repoclient.Client {
 	return &clientWrapper{repo: repo, client: client, metricsServer: metricsServer}
 }
 
@@ -47,6 +47,6 @@ func (w *clientWrapper) Init() error {
 	return w.client.Init()
 }
 
-func (w *clientWrapper) RevisionMetadata(path, revision string) (*depot.RevisionMetadata, error) {
+func (w *clientWrapper) RevisionMetadata(path, revision string) (*repoclient.RevisionMetadata, error) {
 	return w.client.RevisionMetadata(path, revision)
 }

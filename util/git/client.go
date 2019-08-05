@@ -24,7 +24,7 @@ import (
 
 	certutil "github.com/argoproj/argo-cd/util/cert"
 	argoconfig "github.com/argoproj/argo-cd/util/config"
-	"github.com/argoproj/argo-cd/util/depot"
+	client2 "github.com/argoproj/argo-cd/util/depot/client"
 )
 
 // nativeGitClient implements Client interface using git CLI
@@ -41,10 +41,10 @@ type nativeGitClient struct {
 	enableLfs bool
 }
 
-func NewClient(rawRepoURL string, creds Creds, insecure, enableLfs bool) (depot.Client, error) {
+func NewClient(rawRepoURL string, creds Creds, insecure, enableLfs bool) (client2.Client, error) {
 	client := nativeGitClient{
 		repoURL:   rawRepoURL,
-		root:      depot.TempRepoPath(rawRepoURL),
+		root:      client2.TempRepoPath(rawRepoURL),
 		creds:     creds,
 		insecure:  insecure,
 		enableLfs: enableLfs,
@@ -361,7 +361,7 @@ func (m *nativeGitClient) Revision(_ string) (string, error) {
 }
 
 // returns the meta-data for the commit
-func (m *nativeGitClient) RevisionMetadata(_, revision string) (*depot.RevisionMetadata, error) {
+func (m *nativeGitClient) RevisionMetadata(_, revision string) (*client2.RevisionMetadata, error) {
 	out, err := m.runCmd("show", "-s", "--format=%an <%ae>|%at|%B", revision)
 	if err != nil {
 		return nil, err
@@ -380,7 +380,7 @@ func (m *nativeGitClient) RevisionMetadata(_, revision string) (*depot.RevisionM
 	}
 	tags := strings.Fields(out)
 
-	return &depot.RevisionMetadata{Author: author, Date: time.Unix(authorDateUnixTimestamp, 0), Tags: tags, Message: message}, nil
+	return &client2.RevisionMetadata{Author: author, Date: time.Unix(authorDateUnixTimestamp, 0), Tags: tags, Message: message}, nil
 }
 
 // runCmd is a convenience function to run a command in a given directory and return its output

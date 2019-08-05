@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 
+	client2 "github.com/argoproj/argo-cd/util/depot/client"
 	"github.com/argoproj/argo-cd/util/settings"
 
 	log "github.com/sirupsen/logrus"
@@ -22,7 +23,6 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/depot"
 	"github.com/argoproj/argo-cd/util/factory"
 	"github.com/argoproj/argo-cd/util/kustomize"
 	"github.com/argoproj/argo-cd/util/rbac"
@@ -63,7 +63,7 @@ func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.Conn
 		Status:     appsv1.ConnectionStatusSuccessful,
 		ModifiedAt: &now,
 	}
-	var client depot.Client
+	var client client2.Client
 	var err error
 	repo, err := s.db.GetRepository(ctx, url)
 	if err == nil {
