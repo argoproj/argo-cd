@@ -7,12 +7,12 @@ import (
 	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 
-	client2 "github.com/argoproj/argo-cd/util/depot/client"
+	repoclient "github.com/argoproj/argo-cd/util/repo/client"
 )
 
 var clientCache = cache.New(5*time.Minute, 5*time.Minute)
 
-func NewClient(url, name, username, password string, caData, certData, keyData []byte) (client2.Client, error) {
+func NewClient(url, name, username, password string, caData, certData, keyData []byte) (repoclient.Client, error) {
 
 	if name == "" {
 		return nil, errors.New("must name client")
@@ -21,9 +21,9 @@ func NewClient(url, name, username, password string, caData, certData, keyData [
 	cached, found := clientCache.Get(url)
 	if found {
 		log.WithFields(log.Fields{"url": url}).Debug("client cfg cache hit")
-		return cached.(client2.Client), nil
+		return cached.(repoclient.Client), nil
 	}
-	cmd, err := newCmd(client2.TempRepoPath(url))
+	cmd, err := newCmd(repoclient.TempRepoPath(url))
 	if err != nil {
 		return nil, err
 	}

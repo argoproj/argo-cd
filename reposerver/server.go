@@ -8,8 +8,8 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server/version"
 	"github.com/argoproj/argo-cd/util/cache"
-	"github.com/argoproj/argo-cd/util/factory"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
+	repofactory "github.com/argoproj/argo-cd/util/repo/factory"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -23,14 +23,14 @@ import (
 // ArgoCDRepoServer is the repo server implementation
 type ArgoCDRepoServer struct {
 	log              *log.Entry
-	clientFactory    factory.ClientFactory
+	clientFactory    repofactory.ClientFactory
 	cache            *cache.Cache
 	opts             []grpc.ServerOption
 	parallelismLimit int64
 }
 
 // NewServer returns a new instance of the Argo CD Repo server
-func NewServer(clientFactory factory.ClientFactory, cache *cache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, parallelismLimit int64) (*ArgoCDRepoServer, error) {
+func NewServer(clientFactory repofactory.ClientFactory, cache *cache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, parallelismLimit int64) (*ArgoCDRepoServer, error) {
 	// generate TLS cert
 	hosts := []string{
 		"localhost",

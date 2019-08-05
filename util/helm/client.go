@@ -15,7 +15,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 
-	client2 "github.com/argoproj/argo-cd/util/depot/client"
+	repoclient "github.com/argoproj/argo-cd/util/repo/client"
 )
 
 var indexCache = cache.New(5*time.Minute, 5*time.Minute)
@@ -79,7 +79,7 @@ func (c client) Revision(path string) (string, error) {
 	return entry.Version, err
 }
 
-func (c client) RevisionMetadata(path, revision string) (*client2.RevisionMetadata, error) {
+func (c client) RevisionMetadata(path, revision string) (*repoclient.RevisionMetadata, error) {
 
 	index, err := c.getIndex()
 	if err != nil {
@@ -88,7 +88,7 @@ func (c client) RevisionMetadata(path, revision string) (*client2.RevisionMetada
 
 	for _, entry := range index.Entries[path] {
 		if entry.Version == revision {
-			return &client2.RevisionMetadata{Date: entry.Created}, nil
+			return &repoclient.RevisionMetadata{Date: entry.Created}, nil
 		}
 	}
 

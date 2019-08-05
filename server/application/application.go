@@ -35,11 +35,11 @@ import (
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/diff"
-	"github.com/argoproj/argo-cd/util/factory"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/rbac"
+	repofactory "github.com/argoproj/argo-cd/util/repo/factory"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -55,7 +55,7 @@ type Server struct {
 	enf           *rbac.Enforcer
 	projectLock   *util.KeyLock
 	auditLogger   *argo.AuditLogger
-	clientFactory factory.ClientFactory
+	clientFactory repofactory.ClientFactory
 	settingsMgr   *settings.SettingsManager
 	cache         *cache.Cache
 }
@@ -85,7 +85,7 @@ func NewServer(
 		enf:           enf,
 		projectLock:   projectLock,
 		auditLogger:   argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
-		clientFactory: factory.NewFactory(),
+		clientFactory: repofactory.NewFactory(),
 		settingsMgr:   settingsMgr,
 	}
 }

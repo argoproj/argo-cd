@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	repoclient "github.com/argoproj/argo-cd/util/depot/client"
+	repoclient "github.com/argoproj/argo-cd/util/repo/client"
 )
 
 type clientWrapper struct {

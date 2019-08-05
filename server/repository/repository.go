@@ -7,9 +7,6 @@ import (
 	"path/filepath"
 	"reflect"
 
-	client2 "github.com/argoproj/argo-cd/util/depot/client"
-	"github.com/argoproj/argo-cd/util/settings"
-
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -23,9 +20,11 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/factory"
 	"github.com/argoproj/argo-cd/util/kustomize"
 	"github.com/argoproj/argo-cd/util/rbac"
+	repoclient "github.com/argoproj/argo-cd/util/repo/client"
+	repofactory "github.com/argoproj/argo-cd/util/repo/factory"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 // Server provides a Repository service
@@ -63,11 +62,11 @@ func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.Conn
 		Status:     appsv1.ConnectionStatusSuccessful,
 		ModifiedAt: &now,
 	}
-	var client client2.Client
+	var client repoclient.Client
 	var err error
 	repo, err := s.db.GetRepository(ctx, url)
 	if err == nil {
-		client, err = factory.NewFactory().NewClient(repo)
+		client, err = repofactory.NewFactory().NewClient(repo)
 	}
 	if client != nil && err == nil {
 		err = client.Test()
@@ -242,7 +241,7 @@ func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest)
 		return nil, err
 	}
 	r := q.Repo
-	_, err = factory.NewFactory().NewClient(q.Repo)
+	_, err = repofactory.NewFactory().NewClient(q.Repo)
 	if err != nil {
 		return nil, err
 	}
@@ -311,7 +310,7 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		TLSClientCertData: q.TlsClientCertData,
 		TLSClientCertKey:  q.TlsClientCertKey,
 	}
-	client, err := factory.NewFactory().NewClient(repo)
+	client, err := repofactory.NewFactory().NewClient(repo)
 	if err != nil {
 		return nil, err
 	}
