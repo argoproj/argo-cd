@@ -3,7 +3,6 @@ package e2e
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/errors"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
@@ -32,8 +31,8 @@ func TestDeletingAppStuckInSync(t *testing.T) {
 		When().
 		TerminateOp().
 		And(func() {
-			// force delete the resource
-			errors.FailOnErr(Run("", "kubectl", "-n", DeploymentNamespace(), "exec", "-i", "hook", "touch", "/tmp/done"))
+			// force delete the resource. don't fail if whole already deleted
+			_, _ = Run("", "kubectl", "-n", DeploymentNamespace(), "exec", "-i", "hook", "touch", "/tmp/done")
 		}).
 		Then().
 		// delete is successful
