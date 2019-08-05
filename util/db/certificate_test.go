@@ -371,6 +371,20 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 	assert.NotNil(t, certList)
 	assert.Equal(t, 1, len(certList.Items))
 
+	// Valid known hosts entry
+	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+		Items: []v1alpha1.RepositoryCertificate{
+			{
+				ServerName: "[foo.example.com]:2222",
+				CertType:   "ssh",
+				CertData:   []byte("ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDioSMcGxdVkHaQzRjP71nY4mgVHXjuZiYN9NBiUxNZ0DYGjTIENI3uV45XxrS6PQfoyekUlVlHK2jwpcPrqAg6rlAdMD5WIxzvCnFjCuPA6Ljk8p0ZmYbvriDcgtj+UfGEdyUTgxH2gch6KwTY0eAbLue15IuXtoNzpLxk29iGRi5ZXNAbSBjeB3hm2PKLa6LnDqdkvc+nqoYqn1Fvx7ZJIh0apBCJpOtHPON4rnl7QQvNg9pWulZ5GKcpYMRfTpvHyFTEyrsVT5GH38l9s355GqU7GxQ/i6Tj1D0MKrIB2WmdjOnujM/ELLsrkYspMhn8ZRpCphN/LTcrOWsb0AM69drvYlhc6cnNAtC4UXp0GUy1HsBiJCsUm9/1Gz23VLDRvWop8yE8+PE3Ho5eL7ad9wmOG0mSOYEqVvAstmd8vzbD6oRuY8qV8X3tt9ph2tMAve0Qbo0NN3c51c9OfdXtJaSyckjEjaK7zjnArnYfladZZVlf2Tv8FsV0sJmfSAE="),
+			},
+		},
+	}, false)
+	assert.Nil(t, err)
+	assert.NotNil(t, certList)
+	assert.Equal(t, 1, len(certList.Items))
+
 	// Invalid hostname
 	// Result: Error
 	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{

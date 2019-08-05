@@ -3,6 +3,7 @@ package db
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"golang.org/x/crypto/ssh"
@@ -177,6 +178,19 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 		// later on.
 		if certificate.CertType == "https" && !certutil.IsValidHostname(certificate.ServerName, false) {
 			return nil, fmt.Errorf("Invalid hostname in request: %s", certificate.ServerName)
+		} else if certificate.CertType == "ssh" {
+			// Matches "[hostname]:port" format
+			reExtract := regexp.MustCompile(`^\[(.*)\]\:[0-9]+$`)
+			matches := reExtract.FindStringSubmatch(certificate.ServerName)
+			var hostnameToCheck string
+			if len(matches) == 0 {
+				hostnameToCheck = certificate.ServerName
+			} else {
+				hostnameToCheck = matches[1]
+			}
+			if !certutil.IsValidHostname(hostnameToCheck, false) {
+				return nil, fmt.Errorf("Invalid hostname in request: %s", hostnameToCheck)
+			}
 		}
 
 		if certificate.CertType == "ssh" {
