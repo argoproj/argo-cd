@@ -165,7 +165,7 @@ func GetRepoCreds(repo *argoappv1.Repository) git.Creds {
 // * the path contains valid manifests
 // * there are parameters of only one app source type
 // * ksonnet: the specified environment exists
-func ValidateRepo(ctx context.Context, spec *argoappv1.ApplicationSpec, repoClientset apiclient.Clientset, db db.ArgoDB) ([]argoappv1.ApplicationCondition, argoappv1.ApplicationSourceType, error) {
+func ValidateRepo(ctx context.Context, spec *argoappv1.ApplicationSpec, repoClientset apiclient.Clientset, db db.ArgoDB, kustomizeOptions *argoappv1.KustomizeOptions) ([]argoappv1.ApplicationCondition, argoappv1.ApplicationSourceType, error) {
 	conditions := make([]argoappv1.ApplicationCondition, 0)
 
 	// Test the repo
@@ -231,7 +231,7 @@ func ValidateRepo(ctx context.Context, spec *argoappv1.ApplicationSpec, repoClie
 					conditions = append(conditions, helmConditions...)
 				}
 			case argoappv1.ApplicationSourceTypeDirectory, argoappv1.ApplicationSourceTypeKustomize:
-				mainDirConditions := verifyGenerateManifests(ctx, repoRes, argoappv1.Repositories{}, spec, repoClient)
+				mainDirConditions := verifyGenerateManifests(ctx, repoRes, argoappv1.Repositories{}, spec, repoClient, kustomizeOptions)
 				if len(mainDirConditions) > 0 {
 					conditions = append(conditions, mainDirConditions...)
 				}
@@ -389,7 +389,7 @@ func verifyHelmChart(ctx context.Context, repoRes *argoappv1.Repository, spec *a
 
 // verifyGenerateManifests verifies a repo path can generate manifests
 func verifyGenerateManifests(
-	ctx context.Context, repoRes *argoappv1.Repository, repos argoappv1.Repositories, spec *argoappv1.ApplicationSpec, repoClient apiclient.RepoServerServiceClient) []argoappv1.ApplicationCondition {
+	ctx context.Context, repoRes *argoappv1.Repository, repos argoappv1.Repositories, spec *argoappv1.ApplicationSpec, repoClient apiclient.RepoServerServiceClient, kustomizeOptions *argoappv1.KustomizeOptions) []argoappv1.ApplicationCondition {
 
 	var conditions []argoappv1.ApplicationCondition
 	if spec.Destination.Server == "" || spec.Destination.Namespace == "" {
@@ -408,6 +408,7 @@ func verifyGenerateManifests(
 		Revision:          spec.Source.TargetRevision,
 		Namespace:         spec.Destination.Namespace,
 		ApplicationSource: &spec.Source,
+		KustomizeOptions:  kustomizeOptions,
 	}
 	req.Repo.CopyCredentialsFrom(repoRes)
 

@@ -419,8 +419,12 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 			app.Spec.Project = appOpts.project
 		case "nameprefix":
 			setKustomizeOpt(&app.Spec.Source, &appOpts.namePrefix)
-		case "jsonnet-tlas":
-			setJsonnetOpt(&app.Spec.Source, appOpts.jsonnetTlaParameters)
+		case "kustomize-image":
+			setKustomizeImages(&app.Spec.Source, appOpts.kustomizeImages)
+		case "jsonnet-tla-str":
+			setJsonnetOpt(&app.Spec.Source, appOpts.jsonnetTlaStr, false)
+		case "jsonnet-tla-code":
+			setJsonnetOpt(&app.Spec.Source, appOpts.jsonnetTlaCode, true)
 		case "sync-policy":
 			switch appOpts.syncPolicy {
 			case "automated":
@@ -467,6 +471,17 @@ func setKustomizeOpt(src *argoappv1.ApplicationSource, namePrefix *string) {
 		src.Kustomize = nil
 	}
 }
+func setKustomizeImages(src *argoappv1.ApplicationSource, images []string) {
+	if src.Kustomize == nil {
+		src.Kustomize = &argoappv1.ApplicationSourceKustomize{}
+	}
+	for _, image := range images {
+		src.Kustomize.MergeImage(argoappv1.KustomizeImage(image))
+	}
+	if src.Kustomize.IsZero() {
+		src.Kustomize = nil
+	}
+}
 
 func setHelmOpt(src *argoappv1.ApplicationSource, valueFiles []string, releaseName *string) {
 	if src.Helm == nil {
@@ -483,7 +498,7 @@ func setHelmOpt(src *argoappv1.ApplicationSource, valueFiles []string, releaseNa
 	}
 }
 
-func setJsonnetOpt(src *argoappv1.ApplicationSource, tlaParameters []string) {
+func setJsonnetOpt(src *argoappv1.ApplicationSource, tlaParameters []string, code bool) {
 	if src.Directory == nil {
 		src.Directory = &argoappv1.ApplicationSourceDirectory{}
 	}
@@ -499,9 +514,15 @@ func setJsonnetOpt(src *argoappv1.ApplicationSource, tlaParameters []string) {
 			tlas[index] = argoappv1.JsonnetVar{
 				Name:  parts[0],
 				Value: parts[1],
-				Code:  true}
+				Code:  code}
 		}
-		src.Directory.Jsonnet.TLAs = tlas
+		existingTLAs := []argoappv1.JsonnetVar{}
+		for i := range src.Directory.Jsonnet.TLAs {
+			if src.Directory.Jsonnet.TLAs[i].Code != code {
+				existingTLAs = append(existingTLAs, src.Directory.Jsonnet.TLAs[i])
+			}
+		}
+		src.Directory.Jsonnet.TLAs = append(existingTLAs, tlas...)
 	}
 
 	if src.Directory.IsZero() {
@@ -526,7 +547,9 @@ type appOptions struct {
 	namePrefix             string
 	directoryRecurse       bool
 	configManagementPlugin string
-	jsonnetTlaParameters   []string
+	jsonnetTlaStr          []string
+	jsonnetTlaCode         []string
+	kustomizeImages        []string
 }
 
 func addAppFlags(command *cobra.Command, opts *appOptions) {
@@ -545,7 +568,9 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
 	command.Flags().BoolVar(&opts.directoryRecurse, "directory-recurse", false, "Recurse directory")
 	command.Flags().StringVar(&opts.configManagementPlugin, "config-management-plugin", "", "Config management plugin name")
-	command.Flags().StringArrayVar(&opts.jsonnetTlaParameters, "jsonnet-tlas", []string{}, "Jsonnet top level arguments")
+	command.Flags().StringArrayVar(&opts.jsonnetTlaStr, "jsonnet-tla-str", []string{}, "Jsonnet top level string arguments")
+	command.Flags().StringArrayVar(&opts.jsonnetTlaCode, "jsonnet-tla-code", []string{}, "Jsonnet top level code arguments")
+	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
 }
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
@@ -651,7 +676,7 @@ func liveObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstructu
 }
 
 func getLocalObjects(app *argoappv1.Application, local string, appLabelKey string) []*unstructured.Unstructured {
-	manifestStrings := getLocalObjectsString(app, local, appLabelKey)
+	manifestStrings := getLocalObjectsString(app, local, appLabelKey, nil)
 	objs := make([]*unstructured.Unstructured, len(manifestStrings))
 	for i := range manifestStrings {
 		obj := unstructured.Unstructured{}
@@ -662,12 +687,13 @@ func getLocalObjects(app *argoappv1.Application, local string, appLabelKey strin
 	return objs
 }
 
-func getLocalObjectsString(app *argoappv1.Application, local string, appLabelKey string) []string {
+func getLocalObjectsString(app *argoappv1.Application, local string, appLabelKey string, kustomizeOptions *argoappv1.KustomizeOptions) []string {
 	res, err := repository.GenerateManifests(filepath.Dir(local), filepath.Base(local), &repoapiclient.ManifestRequest{
 		ApplicationSource: &app.Spec.Source,
 		AppLabelKey:       appLabelKey,
 		AppLabelValue:     app.Name,
 		Namespace:         app.Spec.Destination.Namespace,
+		KustomizeOptions:  kustomizeOptions,
 	})
 	errors.CheckError(err)
 
@@ -1194,7 +1220,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 				util.Close(conn)
 
-				localObjsStrings = getLocalObjectsString(app, local, argoSettings.AppLabelKey)
+				localObjsStrings = getLocalObjectsString(app, local, argoSettings.AppLabelKey, argoSettings.KustomizeOptions)
 
 			}
 
