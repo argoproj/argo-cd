@@ -689,19 +689,28 @@ func (mgr *SettingsManager) SaveSSHKnownHostsData(ctx context.Context, knownHost
 		return err
 	}
 
-	// If we are running outside a K8S cluster, the ConfigMap mount will not
-	// automatically write out the SSH known hosts data. We need this mechanism
-	// for running E2E tests.
+	return mgr.ResyncInformers()
+}
+
+// If we are running outside a K8S cluster, the ConfigMap mount will not
+// automatically write out the SSH known hosts data. We need this mechanism
+// for running E2E tests.
+func (mgr *SettingsManager) SyncSSHKnownHostsData(ctx context.Context) {
 	if os.Getenv(common.EnvVarFakeInClusterConfig) == "true" {
+		certCM, err := mgr.GetConfigMapByName(common.ArgoCDKnownHostsConfigMapName)
+		if err != nil {
+			log.Errorf("Could not get ConfigMap %s: %v", common.ArgoCDKnownHostsConfigMapName, err)
+			return
+		}
+		knownHosts := certCM.Data["ssh_known_hosts"]
 		knownHostsPath := certutil.GetSSHKnownHostsDataPath()
-		err := ioutil.WriteFile(knownHostsPath, []byte(sshKnownHostsData), 0644)
+		log.Debugf("Writing known hosts data to %s", knownHostsPath)
+		err = ioutil.WriteFile(knownHostsPath, []byte(knownHosts), 0644)
 		// We don't return error, but let the user know through log
 		if err != nil {
 			log.Errorf("Could not write SSH known hosts data: %v", err)
 		}
 	}
-
-	return mgr.ResyncInformers()
 }
 
 func (mgr *SettingsManager) SaveTLSCertificateData(ctx context.Context, tlsCertificates map[string]string) error {
@@ -721,14 +730,26 @@ func (mgr *SettingsManager) SaveTLSCertificateData(ctx context.Context, tlsCerti
 		return err
 	}
 
-	// If we are running outside a K8S cluster, the ConfigMap mount will not
-	// automatically write out the TLS certificate data. We need this mechanism
-	// for running E2E tests.
-	//
-	// The paradigm here is, that we first remove all files in the TLS data
-	// directory (there should be only TLS certs in it), and then recreate each
-	// single cert that is still in the tlsCertificates data map.
+	return mgr.ResyncInformers()
+}
+
+// If we are running outside a K8S cluster, the ConfigMap mount will not
+// automatically write out the TLS certificate data. We need this mechanism
+// for running E2E tests.
+//
+// The paradigm here is, that we first remove all files in the TLS data
+// directory (there should be only TLS certs in it), and then recreate each
+// single cert that is still in the tlsCertificates data map.
+func (mgr *SettingsManager) SyncTLSCertificateData(ctx context.Context) {
 	if os.Getenv(common.EnvVarFakeInClusterConfig) == "true" {
+		certCM, err := mgr.GetConfigMapByName(common.ArgoCDTLSCertsConfigMapName)
+		if err != nil {
+			log.Errorf("Could not get ConfigMap %s: %v", common.ArgoCDTLSCertsConfigMapName, err)
+			return
+		}
+
+		tlsCertificates := certCM.Data
+
 		tlsDataPath := certutil.GetTLSCertificateDataPath()
 
 		// First throw way everything
@@ -756,8 +777,6 @@ func (mgr *SettingsManager) SaveTLSCertificateData(ctx context.Context, tlsCerti
 			}
 		}
 	}
-
-	return mgr.ResyncInformers()
 }
 
 // NewSettingsManager generates a new SettingsManager pointer and returns it

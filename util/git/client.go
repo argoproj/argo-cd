@@ -14,6 +14,7 @@ import (
 	argoexec "github.com/argoproj/pkg/exec"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/config"
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -22,6 +23,7 @@ import (
 	ssh2 "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 
+	"github.com/argoproj/argo-cd/common"
 	certutil "github.com/argoproj/argo-cd/util/cert"
 	argoconfig "github.com/argoproj/argo-cd/util/config"
 )
@@ -195,6 +197,16 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		auth := &ssh2.PublicKeys{User: sshUser, Signer: signer}
 		if creds.insecure {
 			auth.HostKeyCallback = ssh.InsecureIgnoreHostKey()
+		} else {
+			// If we are running outside K8s cluster, we possibly need another path
+			// for SSH known hosts data.
+			if os.Getenv(common.EnvVarFakeInClusterConfig) == "true" {
+				log.Debugf("Setting up known hosts callback from %s", certutil.GetSSHKnownHostsDataPath())
+				auth.HostKeyCallback, err = knownhosts.New(certutil.GetSSHKnownHostsDataPath())
+				if err != nil {
+					log.Errorf("Could not set-up SSH known hosts callback: %v", err)
+				}
+			}
 		}
 		return auth, nil
 	case HTTPSCreds:

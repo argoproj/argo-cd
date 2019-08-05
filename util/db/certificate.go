@@ -2,10 +2,13 @@ package db
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/common"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -169,8 +172,10 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 	// Each request can contain multiple certificates of different types, so we
 	// make sure to handle each request accordingly.
 	for _, certificate := range certificates.Items {
-		// Ensure valid repo server name was given
-		if !certutil.IsValidHostname(certificate.ServerName, false) {
+		// Ensure valid repo server name was given only for https certificates.
+		// For SSH known host entries, we let Go's ssh library do the validation
+		// later on.
+		if certificate.CertType == "https" && !certutil.IsValidHostname(certificate.ServerName, false) {
 			return nil, fmt.Errorf("Invalid hostname in request: %s", certificate.ServerName)
 		}
 
@@ -201,14 +206,18 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 			}
 
 			// Make sure that we received a valid public host key by parsing it
-			_, _, rawKeyData, _, _, err := ssh.ParseKnownHosts([]byte(fmt.Sprintf("%s %s %s", certificate.ServerName, certificate.CertSubType, certificate.CertData)))
+			_, hostnames, rawKeyData, _, _, err := ssh.ParseKnownHosts([]byte(fmt.Sprintf("%s %s %s", certificate.ServerName, certificate.CertSubType, certificate.CertData)))
 			if err != nil {
 				return nil, err
 			}
 
+			if len(hostnames) == 0 {
+				log.Errorf("Could not parse hostname for key from token %s", certificate.ServerName)
+			}
+
 			if newEntry {
 				sshKnownHostsList = append(sshKnownHostsList, &SSHKnownHostsEntry{
-					Host:    certificate.ServerName,
+					Host:    hostnames[0],
 					Data:    string(certificate.CertData),
 					SubType: certificate.CertSubType,
 				})
@@ -311,6 +320,12 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 		}
 	}
 
+	// Sync cert data if not running inside K8S cluster
+	if os.Getenv(common.EnvVarFakeInClusterConfig) == "true" {
+		db.settingsMgr.SyncSSHKnownHostsData(ctx)
+		db.settingsMgr.SyncTLSCertificateData(ctx)
+	}
+
 	return &appsv1.RepositoryCertificateList{Items: created}, nil
 }
 
@@ -394,6 +409,12 @@ func (db *db) RemoveRepoCertificates(ctx context.Context, selector *CertificateL
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	// Sync cert data if not running inside K8S cluster
+	if os.Getenv(common.EnvVarFakeInClusterConfig) == "true" {
+		db.settingsMgr.SyncSSHKnownHostsData(ctx)
+		db.settingsMgr.SyncTLSCertificateData(ctx)
 	}
 
 	return removed, nil

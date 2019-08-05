@@ -43,6 +43,11 @@ func (c *Context) CustomCACertAdded() *Context {
 	return c
 }
 
+func (c *Context) CustomSSHKnownHostsAdded() *Context {
+	certs.AddCustomSSHKnownHostsKeys()
+	return c
+}
+
 func (c *Context) HTTPSRepoURLAdded() *Context {
 	repos.AddHTTPSRepo(false)
 	return c
