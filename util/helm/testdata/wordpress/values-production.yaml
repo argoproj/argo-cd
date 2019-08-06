@@ -186,7 +186,7 @@ ingress:
     ## kubernetes.io/tls-acme: true
     ##
     ## For a full list of possible ingress annotations, please see
-    ## ref: https://github.com/kubernetes/ingress-nginx/blob/master/docs/annotations.md
+    ## ref: https://github.com/kubernetes/ingress-nginx/blob/master/docs/user-guide/nginx-configuration/annotations.md
     ##
     ## If tls is set to true,  annotation ingress.kubernetes.io/secure-backends: "true" will automatically be set
     annotations:
