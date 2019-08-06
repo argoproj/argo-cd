@@ -66,6 +66,30 @@ func TestDeclarativeHelmInvalidValuesFile(t *testing.T) {
 		Expect(Condition(ApplicationConditionComparisonError, "open does-not-exist-values.yaml: no such file or directory"))
 }
 
+func TestHelmValues(t *testing.T) {
+	Given(t).
+		Path("helm").
+		When().
+		Create().
+		AppSet("--values", "foo").
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, []string{"foo"}, app.Spec.Source.Helm.ValueFiles)
+		})
+}
+
+func TestHelmReleaseName(t *testing.T) {
+	Given(t).
+		Path("helm").
+		When().
+		Create().
+		AppSet("--release-name", "foo").
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, "foo", app.Spec.Source.Helm.ReleaseName)
+		})
+}
+
 func TestHelmSet(t *testing.T) {
 	Given(t).
 		Path("helm").
@@ -77,6 +101,7 @@ func TestHelmSet(t *testing.T) {
 			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "baz"}}, app.Spec.Source.Helm.Parameters)
 		})
 }
+
 func TestHelmSetString(t *testing.T) {
 	Given(t).
 		Path("helm").
