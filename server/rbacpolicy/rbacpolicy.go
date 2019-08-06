@@ -26,7 +26,7 @@ const (
 	ActionSync     = "sync"
 	ActionOverride = "override"
 
-	ActionActionType = "action/"
+	ActionActionType = "action"
 )
 
 var (
