@@ -1131,10 +1131,6 @@
 </pre></div>
 
 
-<div class="admonition note">
-<p class="admonition-title">Kustomize</p>
-<p>Since Argo CD supports Kustomize v1.0 and v3.0, you will need to install both versions in order for the unit tests to run. The Kustomize 1 unit test expects to find a <code>kustomize1</code> binary in the path.  You can use this <a href="https://github.com/argoproj/argo-cd/blob/master/Dockerfile#L66-L69">link</a> to find the Kustomize 1 currently used by Argo CD and modify the curl command to download the correct OS.</p>
-</div>
 <p>Set up environment variables (e.g. is <code>~/.bashrc</code>):</p>
 <div class="codehilite"><pre><span></span><span class="nb">export</span> <span class="nv">GOPATH</span><span class="o">=</span>~/go
 <span class="nb">export</span> <span class="nv">PATH</span><span class="o">=</span><span class="nv">$PATH</span>:<span class="nv">$GOPATH</span>/bin

@@ -1272,13 +1272,33 @@
 <h2 id="credentials">Credentials<a class="headerlink" href="#credentials" title="Permanent link">&para;</a></h2>
 <p>If application manifests are located in private repository then repository credentials have to be configured. Argo CD supports both HTTP and SSH Git credentials.</p>
 <h3 id="https-username-and-password-credential">HTTPS Username And Password Credential<a class="headerlink" href="#https-username-and-password-credential" title="Permanent link">&para;</a></h3>
-<p>Private repositories that require a username and password typically have a URL that start with "https://" rather than "git@" or "ssh://". </p>
+<p>Private repositories that require a username and password typically have a URL that start with <code>https://</code> rather than <code>git@</code> or <code>ssh://</code>. </p>
 <p>Credentials can be configured using Argo CD CLI:</p>
 <div class="codehilite"><pre><span></span>argocd repo add https://github.com/argoproj/argocd-example-apps --username &lt;username&gt; --password &lt;password&gt;
 </pre></div>
 
 
 <p>or UI:</p>
+<blockquote>
+<p>v1.2 or later</p>
+</blockquote>
+<ol>
+<li>
+<p>Navigate to <code>Settings/Repositories</code></p>
+<p><img alt="connect repo overview" src="../../assets/repo-add-overview.png" /></p>
+</li>
+<li>
+<p>Click <code>Connect Repo using HTTPS</code> button and enter credentials </p>
+<p><img alt="connect repo" src="../../assets/repo-add-https.png" /></p>
+<p><em>Note: username in screenshot is for illustration purposes only , we have no relationship to this GitHub account should it exists</em></p>
+</li>
+<li>
+<p>Click <code>Connect</code> to test the connection and have the repository added </p>
+</li>
+</ol>
+<blockquote>
+<p>earlier than v1.2</p>
+</blockquote>
 <ol>
 <li>Navigate to <code>Settings/Repositories</code></li>
 <li>Click <code>Connect Repo</code> button and enter HTTP credentials</li>
@@ -1291,7 +1311,11 @@
 <li><a href="https://docs.gitlab.com/ee/user/project/deploy_tokens/">Gitlab</a></li>
 <li><a href="https://confluence.atlassian.com/bitbucketserver/personal-access-tokens-939515499.html">Bitbucket</a></li>
 </ul>
-<p>Then, connect the repository using an empty string as a username and access token value as a password.</p>
+<p>Then, connect the repository using any non-empty string as username and the access token value as a password. </p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>For some services, you might have to specify your account name as the username instead of any string.</p>
+</div>
 <h3 id="tls-client-certificates-for-https-repositories">TLS Client Certificates for HTTPS repositories<a class="headerlink" href="#tls-client-certificates-for-https-repositories" title="Permanent link">&para;</a></h3>
 <blockquote>
 <p>v1.2 and later</p>
@@ -1302,12 +1326,47 @@
 
 
 <p>Of course, you can also use this in combination with the <code>--username</code> and <code>--password</code> switches, if your repository server should require this. The options <code>--tls-client-cert-path</code> and <code>--tls-client-cert-key-path</code> must always be specified together.</p>
+<p>Your TLS client certificate and corresponding key can also be configured using the UI, see instructions for adding Git repos using HTTPS.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Your client certificate and key data must be in PEM format, other formats (such as PKCS12) are not understood. Also make sure that your certificate's key is not password protected, otherwise it cannot be used by ArgoCD.</p>
 </div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When pasting TLS client certificate and key in the text areas in the web UI, make sure they contain no unintended line breaks or additional characters.</p>
+</div>
 <h3 id="ssh-private-key-credential">SSH Private Key Credential<a class="headerlink" href="#ssh-private-key-credential" title="Permanent link">&para;</a></h3>
-<p>Private repositories that require an SSH private key have a URL that typically start with "git@" or "ssh://" rather than "https://".  </p>
+<p>Private repositories that require an SSH private key have a URL that typically start with <code>git@</code> or <code>ssh://</code> rather than <code>https://</code>.  </p>
+<blockquote>
+<p>v1.2 or later</p>
+</blockquote>
+<p>You can configure your Git repository using HTTPS either using the CLI or the UI.</p>
+<p>Using the CLI:</p>
+<div class="codehilite"><pre><span></span>argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-key-path ~/.ssh/id_rsa
+</pre></div>
+
+
+<p>Using the UI:</p>
+<ol>
+<li>
+<p>Navigate to <code>Settings/Repositories</code></p>
+<p><img alt="connect repo overview" src="../../assets/repo-add-overview.png" /></p>
+</li>
+<li>
+<p>Click <code>Connect Repo using SSH</code> button, enter the URL and paste the SSH private key </p>
+<p><img alt="connect repo" src="../../assets/repo-add-ssh.png" /></p>
+</li>
+<li>
+<p>Click <code>Connect</code> to test the connection and have the repository added </p>
+</li>
+</ol>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When pasting SSH private key in the UI, make sure there are no unintended line breaks or additional characters in the text area</p>
+</div>
+<blockquote>
+<p>earlier than v1.2</p>
+</blockquote>
 <p>The Argo CD UI don't support configuring SSH credentials. The SSH credentials can only be configured using the Argo CD CLI:</p>
 <div class="codehilite"><pre><span></span>argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-key-path ~/.ssh/id_rsa
 </pre></div>

@@ -580,6 +580,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#kustomize-build-optionsparameters" title="kustomize build Options/Parameters" class="md-nav__link">
+    kustomize build Options/Parameters
+  </a>
+  
+</li>
+      
       
       
       
@@ -1019,6 +1026,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#kustomize-build-optionsparameters" title="kustomize build Options/Parameters" class="md-nav__link">
+    kustomize build Options/Parameters
+  </a>
+  
+</li>
+      
       
       
       
@@ -1039,16 +1053,10 @@
                 
                 
                 <h1 id="kustomize">Kustomize<a class="headerlink" href="#kustomize" title="Permanent link">&para;</a></h1>
-<div class="admonition warning kustomize 1 vs 3">
-<p class="admonition-title">Warning</p>
-<p>Argo CD supports both versions, and auto-detects then by looking for <code>apiVersion/kind</code> is <code>kustomize.yaml</code>. 
-You're probably using version 3 now, so make sure you you have those fields.</p>
-</div>
 <p>You have three configuration options for Kustomize:</p>
 <ul>
 <li><code>namePrefix</code> is a prefix appended to resources for Kustomize apps</li>
-<li><code>imageTags</code> is a list of Kustomize 1.0 image tag overrides</li>
-<li><code>images</code> is a list of Kustomize 3.0 image overrides</li>
+<li><code>images</code> is a list of Kustomize image overrides</li>
 </ul>
 <p>To use Kustomize with an overlay, point your path to the overlay.</p>
 <div class="admonition tip">
@@ -1059,6 +1067,16 @@ You're probably using version 3 now, so make sure you you have those fields.</p>
 <p>If you have remote bases that are either (a) HTTPS and need username/password (b) SSH and need SSH private key, then they'll inherit that from the app's repo. </p>
 <p>This will work if the remote bases uses the same credentials/private key. It will not work if they use different ones. For security reasons your app only ever knows about it's own repo (not other team's or users repos), and so you won't be able to access other private repo, even if Argo CD knows about them.</p>
 <p>Read more about <a href="../private-repositories/">private repos</a>.</p>
+<h2 id="kustomize-build-optionsparameters"><code>kustomize build</code> Options/Parameters<a class="headerlink" href="#kustomize-build-optionsparameters" title="Permanent link">&para;</a></h2>
+<p>To provide build options to <code>kustomize build</code> add a property to the ArgoCD CM under data:</p>
+<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+<span class="nt">data</span><span class="p">:</span>
+    <span class="nt">kustomize.buildOptions</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">--load_restrictor none</span>
+</pre></div>
                 
                   
                 

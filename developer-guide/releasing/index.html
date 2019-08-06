@@ -1058,29 +1058,6 @@
 </pre></div>
 
 
-<p>Prior to v1.1, the UI is in a separate repo.</p>
-<p>If not already created, create UI release branch:</p>
-<div class="codehilite"><pre><span></span><span class="nb">cd</span> argo-cd-ui
-git checkout -b <span class="nv">$BRANCH</span>
-</pre></div>
-
-
-<p>Tag and release UI:</p>
-<div class="codehilite"><pre><span></span>git checkout <span class="nv">$BRANCH</span>
-git tag <span class="nv">$VERSION</span>
-git push <span class="nv">$REPO</span> <span class="nv">$BRANCH</span> --tags
-git clean -fd
-<span class="nv">IMAGE_NAMESPACE</span><span class="o">=</span>argoproj <span class="nv">IMAGE_TAG</span><span class="o">=</span><span class="nv">$VERSION</span> <span class="nv">DOCKER_PUSH</span><span class="o">=</span><span class="nb">true</span> yarn docker
-</pre></div>
-
-
-<p>If not already created, create release branch:</p>
-<div class="codehilite"><pre><span></span><span class="nb">cd</span> argo-cd
-git checkout -b <span class="nv">$BRANCH</span>
-git push <span class="nv">$REPO</span> <span class="nv">$BRANCH</span>
-</pre></div>
-
-
 <p>Update <code>VERSION</code> and manifests with new version:</p>
 <div class="codehilite"><pre><span></span>git checkout <span class="nv">$BRANCH</span>
 <span class="nb">echo</span> <span class="si">${</span><span class="nv">VERSION</span><span class="p">:</span><span class="nv">1</span><span class="si">}</span> &gt; VERSION
