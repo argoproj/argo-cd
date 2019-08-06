@@ -1093,7 +1093,8 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		Version:      q.Version,
 		Group:        q.Group,
 	}
-	res, config, _, err := s.getAppResource(ctx, rbacpolicy.ActionOverride, resourceRequest)
+	actionRequest := rbacpolicy.ActionActionType + q.Action
+	res, config, _, err := s.getAppResource(ctx, actionRequest, resourceRequest)
 	if err != nil {
 		return nil, err
 	}
