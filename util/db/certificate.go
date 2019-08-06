@@ -2,7 +2,6 @@ package db
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 	"strings"
 
@@ -334,12 +333,6 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 		}
 	}
 
-	// Sync cert data if not running inside K8S cluster
-	if os.Getenv(common.EnvVarFakeInClusterConfig) == "true" {
-		db.settingsMgr.SyncSSHKnownHostsData(ctx)
-		db.settingsMgr.SyncTLSCertificateData(ctx)
-	}
-
 	return &appsv1.RepositoryCertificateList{Items: created}, nil
 }
 
@@ -423,12 +416,6 @@ func (db *db) RemoveRepoCertificates(ctx context.Context, selector *CertificateL
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	// Sync cert data if not running inside K8S cluster
-	if os.Getenv(common.EnvVarFakeInClusterConfig) == "true" {
-		db.settingsMgr.SyncSSHKnownHostsData(ctx)
-		db.settingsMgr.SyncTLSCertificateData(ctx)
 	}
 
 	return removed, nil

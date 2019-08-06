@@ -9,10 +9,9 @@ import (
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 )
 
-func TestCanAccessSSHRepo(t *testing.T) {
+func TestCanAccessInsecureSSHRepo(t *testing.T) {
 	Given(t).
-		CustomSSHKnownHostsAdded().
-		SSHRepoURLAdded().
+		SSHInsecureRepoURLAdded().
 		RepoURLType(fixture.RepoURLTypeSSH).
 		Path("config-map").
 		When().
@@ -22,9 +21,10 @@ func TestCanAccessSSHRepo(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded))
 }
 
-func TestCanAccessInsecureSSHRepo(t *testing.T) {
+func TestCanAccessSSHRepo(t *testing.T) {
 	Given(t).
-		SSHInsecureRepoURLAdded().
+		CustomSSHKnownHostsAdded().
+		SSHRepoURLAdded().
 		RepoURLType(fixture.RepoURLTypeSSH).
 		Path("config-map").
 		When().
