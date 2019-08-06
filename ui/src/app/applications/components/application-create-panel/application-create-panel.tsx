@@ -1,7 +1,7 @@
 import { Checkbox, DataLoader, DropDownMenu, FormField, Select } from 'argo-ui';
 import * as deepMerge from 'deepmerge';
 import * as React from 'react';
-import { FieldApi, Form, FormApi, FormField as ReactFormField, Text } from 'react-form';
+import {FieldApi, Form, FormApi, FormField as ReactFormField, Text, TextArea} from 'react-form';
 
 const jsonMergePatch = require('json-merge-patch');
 
@@ -219,11 +219,26 @@ export const ApplicationCreatePanel = (props: {
                                                             />
                                                         </div>
                                                     ) || type === 'Helm' && (
-                                                        <div className='argo-form-row'>
-                                                            <FormField formApi={api} label='Values Files' field='spec.source.helm.valueFiles' componentProps={{
-                                                                options: details.helm && details.helm.valueFiles,
-                                                                noTagsLabel: 'No values files selected',
-                                                            }} component={TagsInputField} />
+                                                        <div>
+                                                            <div className='argo-form-row'>
+                                                                <FormField formApi={api} label='Values Files'
+                                                                           field='spec.source.helm.valueFiles'
+                                                                           componentProps={{
+                                                                               options: details.helm && details.helm.valueFiles,
+                                                                               noTagsLabel: 'No values files selected',
+                                                                           }} component={TagsInputField}/>
+                                                            </div>
+                                                            <div className='argo-form-row'>
+                                                                <pre><FormField formApi={api} label='Values'
+                                                                       field='spec.source.helm.values'
+                                                                        component={TextArea}/></pre>
+                                                            </div>
+                                                            {details.helm && details.helm.values && (
+                                                                <div className='argo-form-row'>
+                                                                    <label>values.yaml</label>
+                                                                    <pre>{details.helm.values}</pre>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     ) || type === 'Plugin' && (
                                                         <div className='argo-form-row'>

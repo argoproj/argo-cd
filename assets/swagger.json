@@ -1893,6 +1893,9 @@
           "items": {
             "type": "string"
           }
+        },
+        "values": {
+          "type": "string"
         }
       }
     },

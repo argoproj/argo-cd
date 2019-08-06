@@ -677,6 +677,16 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 			return nil, err
 		}
 		defer h.Dispose()
+		valuesPath := filepath.Join(appPath, "values.yaml")
+		info, err := os.Stat(valuesPath)
+		log.WithFields(log.Fields{"info": info, "err": err}).Debug("values.yaml")
+		if err == nil && !info.IsDir() {
+			bytes, err := ioutil.ReadFile(valuesPath)
+			if err != nil {
+				return nil, err
+			}
+			res.Helm.Values = string(bytes)
+		}
 		params, err := h.GetParameters(valueFiles(q))
 		if err != nil {
 			return nil, err
