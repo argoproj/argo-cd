@@ -628,6 +628,36 @@ func TestApplicationSource_IsZero(t *testing.T) {
 	}
 }
 
+func TestApplicationSourceHelm_AddParameter(t *testing.T) {
+	src := ApplicationSourceHelm{}
+	t.Run("Add", func(t *testing.T) {
+		src.AddParameter(HelmParameter{Value: "bar"})
+		assert.ElementsMatch(t, []HelmParameter{{Value: "bar"}}, src.Parameters)
+
+	})
+	t.Run("Replace", func(t *testing.T) {
+		src.AddParameter(HelmParameter{Value: "baz"})
+		assert.ElementsMatch(t, []HelmParameter{{Value: "baz"}}, src.Parameters)
+	})
+}
+
+func TestNewHelmParameter(t *testing.T) {
+	t.Run("Invalid", func(t *testing.T) {
+		_, err := NewHelmParameter("garbage", false)
+		assert.EqualError(t, err, "Expected helm parameter of the form: param=value. Received: garbage")
+	})
+	t.Run("NonString", func(t *testing.T) {
+		p, err := NewHelmParameter("foo=bar", false)
+		assert.NoError(t, err)
+		assert.Equal(t, &HelmParameter{Name: "foo", Value: "bar"}, p)
+	})
+	t.Run("String", func(t *testing.T) {
+		p, err := NewHelmParameter("foo=bar", true)
+		assert.NoError(t, err)
+		assert.Equal(t, &HelmParameter{Name: "foo", Value: "bar", ForceString: true}, p)
+	})
+}
+
 func TestApplicationSourceHelm_IsZero(t *testing.T) {
 	tests := []struct {
 		name   string
