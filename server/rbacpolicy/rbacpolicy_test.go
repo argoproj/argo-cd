@@ -88,17 +88,17 @@ func TestEnforceActionActions(t *testing.T) {
 
 	// Alice has wild-card approval for all actions
 	claims := jwt.MapClaims{"sub": "alice"}
-	assert.True(t, enf.Enforce(claims, "applications", ActionActionType + "/resume", "my-proj/my-app"))
+	assert.True(t, enf.Enforce(claims, "applications", ActionActionType+"/resume", "my-proj/my-app"))
 	claims = jwt.MapClaims{"sub": "alice"}
-	assert.True(t, enf.Enforce(claims, "applications", ActionActionType + "/abort", "my-proj/my-app"))
+	assert.True(t, enf.Enforce(claims, "applications", ActionActionType+"/abort", "my-proj/my-app"))
 	// Bob only has approval for actions/resume
 	claims = jwt.MapClaims{"sub": "bob"}
-	assert.True(t, enf.Enforce(claims, "applications", ActionActionType + "/resume", "my-proj/my-app"))
+	assert.True(t, enf.Enforce(claims, "applications", ActionActionType+"/resume", "my-proj/my-app"))
 
 	// Bob does not have approval for actions/abort
 	claims = jwt.MapClaims{"sub": "bob"}
-	assert.False(t, enf.Enforce(claims, "applications", ActionActionType + "/abort", "my-proj/my-app"))
+	assert.False(t, enf.Enforce(claims, "applications", ActionActionType+"/abort", "my-proj/my-app"))
 	// Eve does not have approval for any actions
 	claims = jwt.MapClaims{"sub": "eve"}
-	assert.False(t, enf.Enforce(claims, "applications", ActionActionType + "/resume", "my-proj/my-app"))
+	assert.False(t, enf.Enforce(claims, "applications", ActionActionType+"/resume", "my-proj/my-app"))
 }
