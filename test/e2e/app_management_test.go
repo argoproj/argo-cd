@@ -472,48 +472,6 @@ func TestResourceAction(t *testing.T) {
 		})
 }
 
-func TestResourceActionRBAC(t *testing.T) {
-	Given(t).
-		Path(guestbookPath).
-		ResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {Actions: actionsConfig}}).
-		When().
-		Create().
-		Sync().
-		Then().
-		And(func(app *Application) {
-
-			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
-			assert.NoError(t, err)
-			defer util.Close(closer)
-
-			actions, err := client.ListResourceActions(context.Background(), &applicationpkg.ApplicationResourceRequest{
-				Name:         &app.Name,
-				Group:        "apps",
-				Kind:         "Deployment",
-				Version:      "v1",
-				Namespace:    fixture.DeploymentNamespace(),
-				ResourceName: "guestbook-ui",
-			})
-			assert.NoError(t, err)
-			assert.Equal(t, []ResourceAction{{Name: "sample"}}, actions.Actions)
-
-			_, err = client.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{Name: &app.Name,
-				Group:        "apps",
-				Kind:         "Deployment",
-				Version:      "v1",
-				Namespace:    fixture.DeploymentNamespace(),
-				ResourceName: "guestbook-ui",
-				Action:       "sample",
-			})
-			assert.NoError(t, err)
-
-			deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get("guestbook-ui", metav1.GetOptions{})
-			assert.NoError(t, err)
-
-			assert.Equal(t, "test", deployment.Labels["sample"])
-		})
-}
-
 func TestSyncResourceByLabel(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
