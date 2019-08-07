@@ -1,12 +1,11 @@
 package hook
 
 import (
-	"strings"
-
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/resource"
 )
 
 func IsHook(obj *unstructured.Unstructured) bool {
@@ -32,23 +31,28 @@ func Skip(obj *unstructured.Unstructured) bool {
 
 func Types(obj *unstructured.Unstructured) []v1alpha1.HookType {
 	var hookTypes []v1alpha1.HookType
-	for _, hookType := range types(obj) {
-		switch v1alpha1.HookType(hookType) {
+	for _, text := range types(obj) {
+		hookType := v1alpha1.HookType(text)
+		switch hookType {
 		case v1alpha1.HookTypePreSync, v1alpha1.HookTypeSync, v1alpha1.HookTypePostSync, v1alpha1.HookTypeSyncFail:
-			hookTypes = append(hookTypes, v1alpha1.HookType(hookType))
+			hookTypes = append(hookTypes, hookType)
 		}
 	}
 	return hookTypes
 }
 
-// returns a normalize list of strings
 func types(obj *unstructured.Unstructured) []string {
-	var hookTypes []string
-	for _, hookType := range strings.Split(obj.GetAnnotations()[common.AnnotationKeyHook], ",") {
-		trimmed := strings.TrimSpace(hookType)
-		if len(trimmed) > 0 {
-			hookTypes = append(hookTypes, trimmed)
+	return resource.GetAnnotationCSVs(obj, common.AnnotationKeyHook)
+}
+
+func DeletePolicies(hook *unstructured.Unstructured) []v1alpha1.HookDeletePolicy {
+	var policies []v1alpha1.HookDeletePolicy
+	for _, text := range resource.GetAnnotationCSVs(hook, common.AnnotationKeyHookDeletePolicy) {
+		policy := v1alpha1.HookDeletePolicy(text)
+		switch policy {
+		case v1alpha1.HookDeletePolicyBeforeHookCreation, v1alpha1.HookDeletePolicyHookSucceeded, v1alpha1.HookDeletePolicyHookFailed:
+			policies = append(policies, policy)
 		}
 	}
-	return hookTypes
+	return policies
 }

@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	fakedisco "k8s.io/client-go/discovery/fake"
+	"k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/rest"
 	testcore "k8s.io/client-go/testing"
 
@@ -74,6 +75,17 @@ func newTestSyncCtx(resources ...*v1.APIResourceList) *syncContext {
 	}
 	sc.kubectl = &kubetest.MockKubectlCmd{}
 	return &sc
+}
+
+func newManagedResource(live *unstructured.Unstructured) managedResource {
+	return managedResource{
+		Live:      live,
+		Group:     live.GroupVersionKind().Group,
+		Version:   live.GroupVersionKind().Version,
+		Kind:      live.GroupVersionKind().Kind,
+		Namespace: live.GetNamespace(),
+		Name:      live.GetName(),
+	}
 }
 
 func TestSyncNotPermittedNamespace(t *testing.T) {
@@ -550,6 +562,22 @@ func TestSyncFailureHookWithFailedSync(t *testing.T) {
 
 	assert.Equal(t, OperationFailed, syncCtx.opState.Phase)
 	assert.Len(t, syncCtx.syncRes.Resources, 2)
+}
+
+func TestBeforeHookCreation(t *testing.T) {
+	syncCtx := newTestSyncCtx()
+	syncCtx.syncOp.SyncStrategy.Apply = nil
+	hook := test.Annotate(test.Annotate(test.NewPod(), common.AnnotationKeyHook, "Sync"), common.AnnotationKeyHookDeletePolicy, "BeforeHookCreation")
+	hook.SetNamespace(test.FakeArgoCDNamespace)
+	syncCtx.compareResult = &comparisonResult{
+		managedResources: []managedResource{newManagedResource(hook)},
+		hooks:            []*unstructured.Unstructured{hook},
+	}
+	syncCtx.dynamicIf = fake.NewSimpleDynamicClient(runtime.NewScheme())
+
+	syncCtx.sync()
+	assert.Len(t, syncCtx.syncRes.Resources, 1)
+	assert.Equal(t, syncCtx.syncRes.Resources[0].Message, `failed to delete resource:  "my-pod" not found`)
 }
 
 func TestRunSyncFailHooksFailed(t *testing.T) {

@@ -94,8 +94,12 @@ func (t *syncTask) namespace() string {
 	return t.obj().GetNamespace()
 }
 
+func (t *syncTask) pending() bool {
+	return t.operationState == ""
+}
+
 func (t *syncTask) running() bool {
-	return t.operationState == v1alpha1.OperationRunning
+	return t.operationState.Running()
 }
 
 func (t *syncTask) completed() bool {
@@ -106,10 +110,33 @@ func (t *syncTask) successful() bool {
 	return t.operationState.Successful()
 }
 
+func (t *syncTask) failed() bool {
+	return t.operationState.Failed()
+}
+
 func (t *syncTask) hookType() v1alpha1.HookType {
 	if t.isHook() {
 		return v1alpha1.HookType(t.phase)
 	} else {
 		return ""
 	}
+}
+
+func (t *syncTask) hasHookDeletePolicy(policy v1alpha1.HookDeletePolicy) bool {
+	// cannot have a policy if it is not a hook, it is meaningless
+	if !t.isHook() {
+		return false
+	}
+	for _, p := range hook.DeletePolicies(t.obj()) {
+		if p == policy {
+			return true
+		}
+	}
+	return false
+}
+
+func (t *syncTask) needsDeleting() bool {
+	return t.liveObj != nil && (t.pending() && t.hasHookDeletePolicy(v1alpha1.HookDeletePolicyBeforeHookCreation) ||
+		t.successful() && t.hasHookDeletePolicy(v1alpha1.HookDeletePolicyHookSucceeded) ||
+		t.failed() && t.hasHookDeletePolicy(v1alpha1.HookDeletePolicyHookFailed))
 }
