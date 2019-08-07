@@ -252,6 +252,12 @@ func TokenizedDataToPublicKey(hostname string, subType string, rawKeyData string
 	return hostnames, keyData, nil
 }
 
+// Returns the requested pattern with all possible square brackets escaped
+func nonBracketedPattern(pattern string) string {
+	ret := strings.Replace(pattern, "[", `\[`, -1)
+	return strings.Replace(ret, "]", `\]`, -1)
+}
+
 // We do not use full fledged regular expression for matching the hostname.
 // Instead, we use a less expensive file system glob, which should be fully
 // sufficient for our use case.
@@ -260,7 +266,7 @@ func MatchHostName(hostname, pattern string) bool {
 	if pattern == "" {
 		return true
 	}
-	match, err := filepath.Match(pattern, hostname)
+	match, err := filepath.Match(nonBracketedPattern(pattern), hostname)
 	if err != nil {
 		return false
 	}
