@@ -35,6 +35,11 @@ func (n *node) resourceKey() kube.ResourceKey {
 }
 
 func (n *node) isParentOf(child *node) bool {
+	// Special case for endpoint. Remove after https://github.com/kubernetes/kubernetes/issues/28483 is fixed
+	if len(child.ownerRefs) == 0 && child.ref.APIVersion == "v1" && child.ref.Kind == kube.EndpointsKind && n.ref.APIVersion == "v1" && n.ref.Kind == kube.ServiceKind && n.ref.Name == child.ref.Name {
+		child.ownerRefs = []metav1.OwnerReference{{Name: n.ref.Name, Kind: n.ref.Kind, APIVersion: n.ref.APIVersion, UID: n.ref.UID}}
+	}
+
 	for _, ownerRef := range child.ownerRefs {
 		if n.ref.UID == ownerRef.UID {
 			return true

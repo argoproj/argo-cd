@@ -95,6 +95,10 @@ func TestTrackAppStateAndSyncApp(t *testing.T) {
 		Create().
 		Sync().
 		Then().
+		Expect(Success(fmt.Sprintf("apps  Deployment  %s          guestbook-ui  OutOfSync  Missing", fixture.DeploymentNamespace()))).
+		Expect(Success(fmt.Sprintf("Service  %s          guestbook-ui  OutOfSync  Missing", fixture.DeploymentNamespace()))).
+		Expect(Success(fmt.Sprintf("Service     %s  guestbook-ui  Synced  Healthy        service/guestbook-ui created", fixture.DeploymentNamespace()))).
+		Expect(Success(fmt.Sprintf("apps   Deployment  %s  guestbook-ui  Synced  Healthy        deployment.apps/guestbook-ui created", fixture.DeploymentNamespace()))).
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(Event(EventReasonResourceUpdated, "sync")).
@@ -160,24 +164,15 @@ func TestComparisonFailsIfClusterNotAdded(t *testing.T) {
 		Expect(DoesNotExist())
 }
 
-func TestArgoCDWaitEnsureAppIsNotCrashing(t *testing.T) {
+func TestCannotSetInvalidPath(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
 		Create().
-		Sync().
+		IgnoreErrors().
+		AppSet("--path", "garbage").
 		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(HealthStatusHealthy)).
-		And(func(app *Application) {
-			_, err := fixture.RunCli("app", "set", app.Name, "--path", "crashing-guestbook")
-			assert.NoError(t, err)
-		}).
-		When().
-		Sync().
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(HealthStatusDegraded))
+		Expect(Error("", "app path does not exist"))
 }
 
 func TestManipulateApplicationResources(t *testing.T) {

@@ -44,8 +44,8 @@ func TestJsonnetAppliedCorrectly(t *testing.T) {
 func TestJsonnetTlaParameterAppliedCorrectly(t *testing.T) {
 	Given(t).
 		Path("jsonnet-tla").
-		JsonnetTlaParameter("name=\"testing-tla\"").
-		JsonnetTlaParameter("replicas=3").
+		JsonnetTLAStrParameter("name=testing-tla").
+		JsonnetTLACodeParameter("replicas=3").
 		When().
 		Create().
 		Sync().

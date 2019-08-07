@@ -51,6 +51,9 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		AppLabelKey:        appInstanceLabelKey,
 		ResourceOverrides:  overrides,
 		StatusBadgeEnabled: argoCDSettings.StatusBadgeEnabled,
+		KustomizeOptions: &v1alpha1.KustomizeOptions{
+			BuildOptions: argoCDSettings.KustomizeBuildOptions,
+		},
 		GoogleAnalytics: &settingspkg.GoogleAnalyticsConfig{
 			TrackingID:     gaSettings.TrackingID,
 			AnonymizeUsers: gaSettings.AnonymizeUsers,

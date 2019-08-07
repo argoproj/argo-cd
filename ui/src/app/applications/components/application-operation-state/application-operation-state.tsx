@@ -91,12 +91,9 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                         <div className='argo-table-list__head'>
                             <div className='row'>
                                 <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>
-                                    API VERSION
-                                </div>
-                                <div className='columns large-1 show-for-large'>
                                     KIND
                                 </div>
-                                <div className='columns large-1 show-for-large'>
+                                <div className='columns large-2 show-for-large'>
                                     NAMESPACE
                                 </div>
                                 <div className='columns large-2 small-2'>
@@ -120,12 +117,9 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                                     <div className='application-operation-state__icons_container'>
                                         {resource.hookType && (<i title='Resource lifecycle hook' className='fa fa-anchor' />)}
                                    </div>
-                                   {resource.group ? resource.group + '/' + resource.version : resource.version}
+                                   {resource.group ? resource.group + '/' + resource.version : resource.version}/{resource.kind}
                                 </div>
-                                <div className='columns large-1 show-for-large'>
-                                    {resource.kind}
-                                </div>
-                                <div className='columns large-1 show-for-large'>
+                                <div className='columns large-2 show-for-large'>
                                     {resource.namespace}
                                 </div>
                                 <div className='columns large-2 small-2'>
@@ -138,8 +132,10 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                                 <div className='columns large-1 show-for-large'>
                                     {resource.hookType}
                                 </div>
-                                <div className='columns large-4 small-8 wrap'>
-                                    {resource.message}
+                                <div className='columns large-4 small-8'>
+                                    <div className='application-operation-state__message'>
+                                        {resource.message}
+                                    </div>
                                 </div>
                             </div>
                         </div>

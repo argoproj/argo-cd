@@ -55,14 +55,7 @@ RUN wget https://storage.googleapis.com/kubernetes-helm/helm-v${HELM_VERSION}-li
     mv /tmp/linux-amd64/helm /usr/local/bin/helm && \
     helm version --client
 
-# Install kustomize
-ENV KUSTOMIZE1_VERSION=1.0.11
-RUN curl -L -o /usr/local/bin/kustomize1 https://github.com/kubernetes-sigs/kustomize/releases/download/v${KUSTOMIZE1_VERSION}/kustomize_${KUSTOMIZE1_VERSION}_linux_amd64 && \
-    chmod +x /usr/local/bin/kustomize1 && \
-    kustomize1 version
-
-
-ENV KUSTOMIZE_VERSION=3.0.2
+ENV KUSTOMIZE_VERSION=3.1.0
 RUN curl -L -o /usr/local/bin/kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64 && \
     chmod +x /usr/local/bin/kustomize && \
     kustomize version
@@ -94,7 +87,6 @@ COPY hack/git-ask-pass.sh /usr/local/bin/git-ask-pass.sh
 COPY --from=builder /usr/local/bin/ks /usr/local/bin/ks
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
 COPY --from=builder /usr/local/bin/kubectl /usr/local/bin/kubectl
-COPY --from=builder /usr/local/bin/kustomize1 /usr/local/bin/kustomize1
 COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
 COPY --from=builder /usr/local/bin/aws-iam-authenticator /usr/local/bin/aws-iam-authenticator
 
@@ -111,6 +103,21 @@ ENV USER=argocd
 USER argocd
 WORKDIR /home/argocd
 
+####################################################################################################
+# Argo CD UI stage
+####################################################################################################
+FROM node:11.15.0 as argocd-ui
+
+WORKDIR /src
+ADD ["ui/package.json", "ui/yarn.lock", "./"]
+
+RUN yarn install
+
+ADD ["ui/", "."]
+
+ARG ARGO_VERSION=latest
+ENV ARGO_VERSION=$ARGO_VERSION
+RUN NODE_ENV='production' yarn build
 
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
@@ -142,3 +149,5 @@ RUN make cli server controller repo-server argocd-util && \
 ####################################################################################################
 FROM argocd-base
 COPY --from=argocd-build /go/src/github.com/argoproj/argo-cd/dist/argocd* /usr/local/bin/
+COPY --from=argocd-ui ./src/dist/app /shared/app
+

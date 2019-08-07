@@ -1,0 +1,26 @@
+@import 'node_modules/argo-ui/src/app/shared/styles/config';
+
+.applications-table {
+    &__revision {
+        background-color: $argo-color-gray-4;
+        border-radius: 5px;
+        position: absolute;
+        right: 5px;
+        padding: 0 2px;
+    }
+
+    .argo-table-list__row {
+        line-height: 26px;
+        padding-top: 4px;
+        padding-bottom: 4px;
+
+        .columns:last-child {
+            .argo-dropdown {
+                position: absolute;
+                right: 0;
+                top: 50%;
+                transform: translateY(-50%);
+            }
+        }
+    }
+}

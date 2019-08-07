@@ -19,7 +19,7 @@ data:
   ga.anonymizeusers: 'false'
 
   # A dex connector configuration (optional). See SSO configuration documentation:
-  # https://github.com/argoproj/argo-cd/blob/master/docs/sso.md
+  # https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/sso.md
   # https://github.com/dexidp/dex/tree/master/Documentation/connectors
   dex.config: |
     connectors:
@@ -123,6 +123,9 @@ data:
         command: [kasane, update]
       generate:
         command: [kasane, show]
+
+  # Build options/parameters to use with `kustomize build` (optional)
+  kustomize.buildOptions: --load_restrictor none
 
   # The metadata.label key name where Argo CD injects the app name as a tracking label (optional).
   # Tracking labels are used to determine which resources need to be deleted when pruning.

@@ -3,6 +3,7 @@ package e2e
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -63,4 +64,52 @@ func TestDeclarativeHelmInvalidValuesFile(t *testing.T) {
 		Expect(HealthIs(HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
 		Expect(Condition(ApplicationConditionComparisonError, "open does-not-exist-values.yaml: no such file or directory"))
+}
+
+func TestHelmValues(t *testing.T) {
+	Given(t).
+		Path("helm").
+		When().
+		Create().
+		AppSet("--values", "foo").
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, []string{"foo"}, app.Spec.Source.Helm.ValueFiles)
+		})
+}
+
+func TestHelmReleaseName(t *testing.T) {
+	Given(t).
+		Path("helm").
+		When().
+		Create().
+		AppSet("--release-name", "foo").
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, "foo", app.Spec.Source.Helm.ReleaseName)
+		})
+}
+
+func TestHelmSet(t *testing.T) {
+	Given(t).
+		Path("helm").
+		When().
+		Create().
+		AppSet("--helm-set", "foo=bar", "--helm-set", "foo=baz").
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "baz"}}, app.Spec.Source.Helm.Parameters)
+		})
+}
+
+func TestHelmSetString(t *testing.T) {
+	Given(t).
+		Path("helm").
+		When().
+		Create().
+		AppSet("--helm-set-string", "foo=bar", "--helm-set-string", "foo=baz").
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "baz", ForceString: true}}, app.Spec.Source.Helm.Parameters)
+		})
 }

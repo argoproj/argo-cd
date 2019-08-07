@@ -271,7 +271,7 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 // Print table of certificate info
 func printCertTable(certs []appsv1.RepositoryCertificate, sortOrder string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "HOSTNAME\tTYPE\tSUBTYPE\tFINGERPRINT/SUBJECT\n")
+	fmt.Fprintf(w, "HOSTNAME\tTYPE\tSUBTYPE\tINFO\n")
 
 	if sortOrder == "hostname" || sortOrder == "" {
 		sort.Slice(certs, func(i, j int) bool {
@@ -284,22 +284,7 @@ func printCertTable(certs []appsv1.RepositoryCertificate, sortOrder string) {
 	}
 
 	for _, c := range certs {
-		if c.CertType == "ssh" {
-			_, pubKey, err := certutil.TokenizedDataToPublicKey(c.ServerName, c.CertSubType, string(c.CertData))
-			errors.CheckError(err)
-			fmt.Fprintf(w, "%s\t%s\t%s\tSHA256:%s\n", c.ServerName, c.CertType, c.CertSubType, certutil.SSHFingerprintSHA256(pubKey))
-		} else if c.CertType == "https" {
-			x509Data, err := certutil.DecodePEMCertificateToX509(string(c.CertData))
-			var subject string
-			keyType := "-?-"
-			if err != nil {
-				subject = err.Error()
-			} else {
-				subject = x509Data.Subject.String()
-				keyType = x509Data.PublicKeyAlgorithm.String()
-			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", c.ServerName, c.CertType, strings.ToLower(keyType), subject)
-		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", c.ServerName, c.CertType, c.CertSubType, c.CertInfo)
 	}
 	_ = w.Flush()
 }
