@@ -12,7 +12,6 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -404,9 +403,13 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 		case "revision":
 			app.Spec.Source.TargetRevision = appOpts.revision
 		case "values":
-			setHelmOpt(&app.Spec.Source, appOpts.valuesFiles, nil)
+			setHelmOpt(&app.Spec.Source, helmOpts{valueFiles: appOpts.valuesFiles})
 		case "release-name":
-			setHelmOpt(&app.Spec.Source, nil, &appOpts.releaseName)
+			setHelmOpt(&app.Spec.Source, helmOpts{releaseName: appOpts.releaseName})
+		case "helm-set":
+			setHelmOpt(&app.Spec.Source, helmOpts{helmSets: appOpts.helmSets})
+		case "helm-set-string":
+			setHelmOpt(&app.Spec.Source, helmOpts{helmSetStrings: appOpts.helmSetStrings})
 		case "directory-recurse":
 			app.Spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: appOpts.directoryRecurse}
 		case "config-management-plugin":
@@ -483,15 +486,36 @@ func setKustomizeImages(src *argoappv1.ApplicationSource, images []string) {
 	}
 }
 
-func setHelmOpt(src *argoappv1.ApplicationSource, valueFiles []string, releaseName *string) {
+type helmOpts struct {
+	valueFiles     []string
+	releaseName    string
+	helmSets       []string
+	helmSetStrings []string
+}
+
+func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 	if src.Helm == nil {
 		src.Helm = &argoappv1.ApplicationSourceHelm{}
 	}
-	if valueFiles != nil {
-		src.Helm.ValueFiles = valueFiles
+	if len(opts.valueFiles) > 0 {
+		src.Helm.ValueFiles = opts.valueFiles
 	}
-	if releaseName != nil {
-		src.Helm.ReleaseName = *releaseName
+	if opts.releaseName != "" {
+		src.Helm.ReleaseName = opts.releaseName
+	}
+	for _, text := range opts.helmSets {
+		p, err := argoappv1.NewHelmParameter(text, false)
+		if err != nil {
+			log.Fatal(err)
+		}
+		src.Helm.AddParameter(*p)
+	}
+	for _, text := range opts.helmSetStrings {
+		p, err := argoappv1.NewHelmParameter(text, true)
+		if err != nil {
+			log.Fatal(err)
+		}
+		src.Helm.AddParameter(*p)
 	}
 	if src.Helm.IsZero() {
 		src.Helm = nil
@@ -541,6 +565,8 @@ type appOptions struct {
 	parameters             []string
 	valuesFiles            []string
 	releaseName            string
+	helmSets               []string
+	helmSetStrings         []string
 	project                string
 	syncPolicy             string
 	autoPrune              bool
@@ -562,6 +588,8 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringArrayVarP(&opts.parameters, "parameter", "p", []string{}, "set a parameter override (e.g. -p guestbook=image=example/guestbook:latest)")
 	command.Flags().StringArrayVar(&opts.valuesFiles, "values", []string{}, "Helm values file(s) to use")
 	command.Flags().StringVar(&opts.releaseName, "release-name", "", "Helm release-name")
+	command.Flags().StringArrayVar(&opts.helmSets, "helm-set", []string{}, "Helm set values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
+	command.Flags().StringArrayVar(&opts.helmSetStrings, "helm-set-string", []string{}, "Helm set STRING values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
 	command.Flags().StringVar(&opts.project, "project", "", "Application project name")
 	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: automated, none)")
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
@@ -631,7 +659,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 						}
 					}
 				}
-				setHelmOpt(&app.Spec.Source, specValueFiles, nil)
+				setHelmOpt(&app.Spec.Source, helmOpts{valueFiles: specValueFiles})
 				if !updated {
 					return
 				}
@@ -1566,27 +1594,13 @@ func setParameterOverrides(app *argoappv1.Application, parameters []string) {
 		if app.Spec.Source.Helm == nil {
 			app.Spec.Source.Helm = &argoappv1.ApplicationSourceHelm{}
 		}
-		re := regexp.MustCompile(`([^\\]),`)
-		for _, paramStr := range parameters {
-			parts := strings.SplitN(paramStr, "=", 2)
-			if len(parts) != 2 {
-				log.Fatalf("Expected helm parameter of the form: param=value. Received: %s", paramStr)
+		for _, p := range parameters {
+			newParam, err := argoappv1.NewHelmParameter(p, false)
+			if err != nil {
+				log.Error(err)
+				continue
 			}
-			newParam := argoappv1.HelmParameter{
-				Name:  parts[0],
-				Value: re.ReplaceAllString(parts[1], `$1\,`),
-			}
-			found := false
-			for i, cp := range app.Spec.Source.Helm.Parameters {
-				if cp.Name == newParam.Name {
-					found = true
-					app.Spec.Source.Helm.Parameters[i] = newParam
-					break
-				}
-			}
-			if !found {
-				app.Spec.Source.Helm.Parameters = append(app.Spec.Source.Helm.Parameters, newParam)
-			}
+			app.Spec.Source.Helm.AddParameter(*newParam)
 		}
 	default:
 		log.Fatalf("Parameters can only be set against Ksonnet or Helm applications")

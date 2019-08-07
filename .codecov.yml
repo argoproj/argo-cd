@@ -1,17 +1,18 @@
 ignore:
 - "**/*.pb.go"
 - "**/*.pb.gw.go"
+- "**/*generated.go"
 - "**/*_test.go"
-- "pkg/apis/.*"
+- "pkg/apis/client/.*"
 - "pkg/client/.*"
 - "test/.*"
 coverage:
   status:
-    # allow test coverage to drop by 1%, assume that it's typically due to CI problems
     patch:
       default:
-        enabled: no
-        if_not_found: success
+        # allow test coverage to drop by 10%, assume that it's typically due to CI problems
+        threshold: 10
     project:
       default:
+        # allow test coverage to drop by 1%, assume that it's typically due to CI problems
         threshold: 1

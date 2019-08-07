@@ -161,6 +161,34 @@ type HelmParameter struct {
 	ForceString bool `json:"forceString,omitempty" protobuf:"bytes,3,opt,name=forceString"`
 }
 
+var helmParameterRx = regexp.MustCompile(`([^\\]),`)
+
+func NewHelmParameter(text string, forceString bool) (*HelmParameter, error) {
+	parts := strings.SplitN(text, "=", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("Expected helm parameter of the form: param=value. Received: %s", text)
+	}
+	return &HelmParameter{
+		Name:        parts[0],
+		Value:       helmParameterRx.ReplaceAllString(parts[1], `$1\,`),
+		ForceString: forceString,
+	}, nil
+}
+
+func (in *ApplicationSourceHelm) AddParameter(p HelmParameter) {
+	found := false
+	for i, cp := range in.Parameters {
+		if cp.Name == p.Name {
+			found = true
+			in.Parameters[i] = p
+			break
+		}
+	}
+	if !found {
+		in.Parameters = append(in.Parameters, p)
+	}
+}
+
 func (h *ApplicationSourceHelm) IsZero() bool {
 	return h == nil || (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0
 }
