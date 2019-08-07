@@ -7,12 +7,16 @@ import (
 )
 
 func GetAnnotationCSVs(obj *unstructured.Unstructured, key string) []string {
-	var values []string
+	valuesToBool := make(map[string]bool)
 	for _, item := range strings.Split(obj.GetAnnotations()[key], ",") {
 		val := strings.TrimSpace(item)
 		if val != "" {
-			values = append(values, val)
+			valuesToBool[val] = true
 		}
+	}
+	var values []string
+	for val := range valuesToBool {
+		values = append(values, val)
 	}
 	return values
 }

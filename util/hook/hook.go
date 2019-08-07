@@ -31,21 +31,18 @@ func Skip(obj *unstructured.Unstructured) bool {
 }
 
 func Types(obj *unstructured.Unstructured) []v1alpha1.HookType {
-	typeToBool := make(map[v1alpha1.HookType]bool)
+	var types []v1alpha1.HookType
 	for _, text := range resource.GetAnnotationCSVs(obj, common.AnnotationKeyHook) {
-		hookType, ok := v1alpha1.NewHookType(text)
+		t, ok := v1alpha1.NewHookType(text)
 		if ok {
-			typeToBool[hookType] = true
+			types = append(types, t)
 		}
 	}
-	for _, t := range hook.Types(obj) {
-		typeToBool[t.HookType()] = true
-	}
-	// this ensures we can't get the hook type in the array twice, as this
-	// would ultimately result in running the hook twice
-	var types []v1alpha1.HookType
-	for t := range typeToBool {
-		types = append(types, t)
+	// we ignore
+	if len(types) == 0 {
+		for _, t := range hook.Types(obj) {
+			types = append(types, t.HookType())
+		}
 	}
 	return types
 }
