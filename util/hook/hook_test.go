@@ -80,6 +80,12 @@ func TestHelmHook(t *testing.T) {
 	assert.Equal(t, []HookType{HookTypePreSync}, Types(obj))
 }
 
+// we should ignore Helm hooks if we have an Argo CD hook
+func TestBothHooks(t *testing.T) {
+	obj := Annotate(example("Sync"), "helm.sh/hook", "pre-install")
+	assert.Equal(t, []HookType{HookTypeSync}, Types(obj))
+}
+
 func example(hook string) *unstructured.Unstructured {
 	return Annotate(NewPod(), "argocd.argoproj.io/hook", hook)
 }
