@@ -292,9 +292,9 @@ func Test_ListCertificate(t *testing.T) {
 		HostNamePattern: "*",
 		CertType:        "ssh",
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, len(certList.Items), Test_NumSSHKnownHostsExpected)
+	assert.Len(t, certList.Items, Test_NumSSHKnownHostsExpected)
 	for idx, entry := range certList.Items {
 		assert.Equal(t, entry.ServerName, Test_SSH_Hostname_Entries[idx])
 		assert.Equal(t, entry.CertSubType, Test_SSH_Subtypes[idx])
@@ -306,9 +306,9 @@ func Test_ListCertificate(t *testing.T) {
 		HostNamePattern: "*",
 		CertType:        "https",
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, len(certList.Items), Test_NumTLSCertificatesExpected)
+	assert.Len(t, certList.Items, Test_NumTLSCertificatesExpected)
 
 	// List all certificates using selector
 	// Expected: List of 10 entries
@@ -316,16 +316,16 @@ func Test_ListCertificate(t *testing.T) {
 		HostNamePattern: "*",
 		CertType:        "*",
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, len(certList.Items), Test_NumTLSCertificatesExpected+Test_NumSSHKnownHostsExpected)
+	assert.Len(t, certList.Items, Test_NumTLSCertificatesExpected+Test_NumSSHKnownHostsExpected)
 
 	// List all certificates using nil selector
 	// Expected: List of 10 entries
 	certList, err = db.ListRepoCertificates(context.Background(), nil)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, len(certList.Items), Test_NumTLSCertificatesExpected+Test_NumSSHKnownHostsExpected)
+	assert.Len(t, certList.Items, Test_NumTLSCertificatesExpected+Test_NumSSHKnownHostsExpected)
 
 	// List all certificates matching a host name pattern
 	// Expected: List of 4 entries, all with servername gitlab.com
@@ -333,9 +333,9 @@ func Test_ListCertificate(t *testing.T) {
 		HostNamePattern: "gitlab.com",
 		CertType:        "*",
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, 4, len(certList.Items))
+	assert.Len(t, certList.Items, 4)
 	for _, entry := range certList.Items {
 		assert.Equal(t, "gitlab.com", entry.ServerName)
 	}
@@ -345,9 +345,9 @@ func Test_ListCertificate(t *testing.T) {
 		HostNamePattern: "gitlab.com",
 		CertType:        "https",
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, 1, len(certList.Items))
+	assert.Len(t, certList.Items, 1)
 	assert.Equal(t, "gitlab.com", certList.Items[0].ServerName)
 	assert.Equal(t, "https", certList.Items[0].CertType)
 }
@@ -367,9 +367,23 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, 1, len(certList.Items))
+	assert.Len(t, certList.Items, 1)
+
+	// Valid known hosts entry
+	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+		Items: []v1alpha1.RepositoryCertificate{
+			{
+				ServerName: "[foo.example.com]:2222",
+				CertType:   "ssh",
+				CertData:   []byte("ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDioSMcGxdVkHaQzRjP71nY4mgVHXjuZiYN9NBiUxNZ0DYGjTIENI3uV45XxrS6PQfoyekUlVlHK2jwpcPrqAg6rlAdMD5WIxzvCnFjCuPA6Ljk8p0ZmYbvriDcgtj+UfGEdyUTgxH2gch6KwTY0eAbLue15IuXtoNzpLxk29iGRi5ZXNAbSBjeB3hm2PKLa6LnDqdkvc+nqoYqn1Fvx7ZJIh0apBCJpOtHPON4rnl7QQvNg9pWulZ5GKcpYMRfTpvHyFTEyrsVT5GH38l9s355GqU7GxQ/i6Tj1D0MKrIB2WmdjOnujM/ELLsrkYspMhn8ZRpCphN/LTcrOWsb0AM69drvYlhc6cnNAtC4UXp0GUy1HsBiJCsUm9/1Gz23VLDRvWop8yE8+PE3Ho5eL7ad9wmOG0mSOYEqVvAstmd8vzbD6oRuY8qV8X3tt9ph2tMAve0Qbo0NN3c51c9OfdXtJaSyckjEjaK7zjnArnYfladZZVlf2Tv8FsV0sJmfSAE="),
+			},
+		},
+	}, false)
+	assert.NoError(t, err)
+	assert.NotNil(t, certList)
+	assert.Len(t, certList.Items, 1)
 
 	// Invalid hostname
 	// Result: Error
@@ -382,7 +396,7 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Nil(t, certList)
 
 	// Check if it really was added
@@ -391,9 +405,9 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 		HostNamePattern: "foo.example.com",
 		CertType:        "ssh",
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, 1, len(certList.Items))
+	assert.Len(t, certList.Items, 1)
 
 	// Existing cert, same data, no upsert
 	// Result: no error, should return 0 added certificates
@@ -406,9 +420,9 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, 0, len(certList.Items))
+	assert.Len(t, certList.Items, 0)
 
 	// Existing cert, different data, no upsert
 	// Result: Error
@@ -421,7 +435,7 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Nil(t, certList)
 
 	// Existing cert, different data, upsert
@@ -434,9 +448,9 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 			},
 		},
 	}, true)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, 1, len(certList.Items))
+	assert.Len(t, certList.Items, 1)
 
 	// Invalid known hosts entry, case 1: key sub type missing
 	// Result: Error
@@ -449,7 +463,7 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Nil(t, certList)
 
 	// Invalid known hosts entry, case 2: invalid base64 data
@@ -463,7 +477,7 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Nil(t, certList)
 }
 
@@ -483,9 +497,9 @@ func Test_CreateTLSCertificates(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, 1, len(certList.Items))
+	assert.Len(t, certList.Items, 1)
 
 	// Invalid hostname
 	// Result: Error
@@ -498,7 +512,7 @@ func Test_CreateTLSCertificates(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Nil(t, certList)
 
 	// Check if it really was added
@@ -507,9 +521,9 @@ func Test_CreateTLSCertificates(t *testing.T) {
 		HostNamePattern: "foo.example.com",
 		CertType:        "https",
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, 1, len(certList.Items))
+	assert.Len(t, certList.Items, 1)
 
 	// Valid TLS certificates, multiple PEMs in data
 	// Expected: List of 2 entry
@@ -522,9 +536,9 @@ func Test_CreateTLSCertificates(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, 2, len(certList.Items))
+	assert.Len(t, certList.Items, 2)
 
 	// Check if it really was added
 	// Result: Return new certificate
@@ -532,9 +546,9 @@ func Test_CreateTLSCertificates(t *testing.T) {
 		HostNamePattern: "bar.example.com",
 		CertType:        "https",
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, 2, len(certList.Items))
+	assert.Len(t, certList.Items, 2)
 
 	// Valid TLS certificate, existing cert, same data, no upsert
 	// Expected: List of 0 entry
@@ -547,9 +561,9 @@ func Test_CreateTLSCertificates(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, 0, len(certList.Items))
+	assert.Len(t, certList.Items, 0)
 
 	// Valid TLS certificate, existing cert, different data, no upsert
 	// Expected: Error
@@ -562,7 +576,7 @@ func Test_CreateTLSCertificates(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Nil(t, certList)
 
 	// Valid TLS certificate, existing cert, different data, upsert
@@ -576,9 +590,9 @@ func Test_CreateTLSCertificates(t *testing.T) {
 			},
 		},
 	}, true)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, 2, len(certList.Items))
+	assert.Len(t, certList.Items, 2)
 
 	// Check if upsert was successful
 	// Expected: List of 2 entries, matching hostnames & cert types
@@ -586,9 +600,9 @@ func Test_CreateTLSCertificates(t *testing.T) {
 		HostNamePattern: "foo.example.com",
 		CertType:        "https",
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, 2, len(certList.Items))
+	assert.Len(t, certList.Items, 2)
 	for _, entry := range certList.Items {
 		assert.Equal(t, "foo.example.com", entry.ServerName)
 		assert.Equal(t, "https", entry.CertType)
@@ -605,7 +619,7 @@ func Test_CreateTLSCertificates(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Nil(t, certList)
 
 	// Valid PEM data, new cert, but invalid certificate
@@ -619,7 +633,7 @@ func Test_CreateTLSCertificates(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Nil(t, certList)
 
 	// Invalid PEM data, existing cert, upsert
@@ -633,7 +647,7 @@ func Test_CreateTLSCertificates(t *testing.T) {
 			},
 		},
 	}, true)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Nil(t, certList)
 
 	// Valid PEM data, existing cert, but invalid certificate, upsert
@@ -647,7 +661,7 @@ func Test_CreateTLSCertificates(t *testing.T) {
 			},
 		},
 	}, true)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Nil(t, certList)
 
 }
@@ -663,9 +677,9 @@ func Test_RemoveSSHKnownHosts(t *testing.T) {
 		HostNamePattern: "github.com",
 		CertType:        "ssh",
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, 1, len(certList.Items))
+	assert.Len(t, certList.Items, 1)
 
 	// Check whether entry was really removed
 	// Expected: List of 0 entries
@@ -673,9 +687,9 @@ func Test_RemoveSSHKnownHosts(t *testing.T) {
 		HostNamePattern: "github.com",
 		CertType:        "ssh",
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, 0, len(certList.Items))
+	assert.Len(t, certList.Items, 0)
 
 	// Remove single SSH known hosts entry by sub type
 	// Expected: List of 1 entry
@@ -683,9 +697,9 @@ func Test_RemoveSSHKnownHosts(t *testing.T) {
 		CertType:    "ssh",
 		CertSubType: "ssh-ed25519",
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, 1, len(certList.Items))
+	assert.Len(t, certList.Items, 1)
 
 	// Check whether entry was really removed
 	// Expected: List of 0 entries
@@ -693,27 +707,27 @@ func Test_RemoveSSHKnownHosts(t *testing.T) {
 		CertType:    "ssh",
 		CertSubType: "ssh-ed25519",
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, 0, len(certList.Items))
+	assert.Len(t, certList.Items, 0)
 
 	// Remove all remaining SSH known hosts entries
 	// Expected: List of 5 entry
 	certList, err = db.RemoveRepoCertificates(context.Background(), &CertificateListSelector{
 		CertType: "ssh",
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, 5, len(certList.Items))
+	assert.Len(t, certList.Items, 5)
 
 	// Check whether the entries were really removed
 	// Expected: List of 0 entries
 	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
 		CertType: "ssh",
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, 0, len(certList.Items))
+	assert.Len(t, certList.Items, 0)
 }
 
 func Test_RemoveTLSCertificates(t *testing.T) {
@@ -727,9 +741,9 @@ func Test_RemoveTLSCertificates(t *testing.T) {
 		HostNamePattern: "gitlab.com",
 		CertType:        "https",
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, 1, len(certList.Items))
+	assert.Len(t, certList.Items, 1)
 
 	// Check whether entry was really removed
 	// Expected: List of 0 entries
@@ -737,9 +751,9 @@ func Test_RemoveTLSCertificates(t *testing.T) {
 		HostNamePattern: "gitlab.com",
 		CertType:        "https",
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, 0, len(certList.Items))
+	assert.Len(t, certList.Items, 0)
 
 	// Remove all TLS certificate entry for hostname
 	// Expected: List of 2 entry
@@ -747,9 +761,9 @@ func Test_RemoveTLSCertificates(t *testing.T) {
 		HostNamePattern: "test.example.com",
 		CertType:        "https",
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, 2, len(certList.Items))
+	assert.Len(t, certList.Items, 2)
 
 	// Check whether entries were really removed
 	// Expected: List of 0 entries
@@ -757,8 +771,8 @@ func Test_RemoveTLSCertificates(t *testing.T) {
 		HostNamePattern: "test.example.com",
 		CertType:        "https",
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Equal(t, 0, len(certList.Items))
+	assert.Len(t, certList.Items, 0)
 
 }

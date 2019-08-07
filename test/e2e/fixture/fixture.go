@@ -40,7 +40,7 @@ const (
 	ArgoCDNamespace  = "argocd-e2e"
 
 	// ensure all repos are in one directory tree, so we can easily clean them up
-	tmpDir  = "/tmp/argo-e2e"
+	TmpDir  = "/tmp/argo-e2e"
 	repoDir = "testdata.git"
 
 	GuestbookPath = "guestbook"
@@ -127,7 +127,7 @@ func Name() string {
 }
 
 func repoDirectory() string {
-	return path.Join(tmpDir, repoDir)
+	return path.Join(TmpDir, repoDir)
 }
 
 func RepoURL(urlType RepoURLType) string {
@@ -336,7 +336,7 @@ func EnsureCleanState(t *testing.T) {
 	SetTLSCerts()
 
 	// remove tmp dir
-	CheckError(os.RemoveAll(tmpDir))
+	CheckError(os.RemoveAll(TmpDir))
 
 	// name based on test name
 	name = dnsFriendly(t.Name())
@@ -344,11 +344,11 @@ func EnsureCleanState(t *testing.T) {
 	id = name + "-" + strings.ToLower(rand.RandString(5))
 
 	// create tmp dir
-	FailOnErr(Run("", "mkdir", "-p", tmpDir))
+	FailOnErr(Run("", "mkdir", "-p", TmpDir))
 
 	// create TLS and SSH certificate directories
-	FailOnErr(Run("", "mkdir", "-p", tmpDir+"/app/config/tls"))
-	FailOnErr(Run("", "mkdir", "-p", tmpDir+"/app/config/ssh"))
+	FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/tls"))
+	FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/ssh"))
 
 	// set-up tmp repo, must have unique name
 	FailOnErr(Run("", "cp", "-Rf", "testdata", repoDirectory()))
