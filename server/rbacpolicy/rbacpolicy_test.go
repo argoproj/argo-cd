@@ -81,24 +81,24 @@ func TestEnforceActionActions(t *testing.T) {
 	projLister := test.NewFakeProjLister(newFakeProj())
 	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
 	enf.EnableLog(true)
-	_ = enf.SetBuiltinPolicy(fmt.Sprintf("p, alice, applications, %s/*, my-proj/*, allow", ActionActionType))
-	_ = enf.SetUserPolicy(fmt.Sprintf("p, bob, applications, %s/resume, my-proj/*, allow", ActionActionType))
+	_ = enf.SetBuiltinPolicy(fmt.Sprintf("p, alice, applications, %s/*, my-proj/*, allow", ActionAction))
+	_ = enf.SetUserPolicy(fmt.Sprintf("p, bob, applications, %s/resume, my-proj/*, allow", ActionAction))
 	rbacEnf := NewRBACPolicyEnforcer(enf, projLister)
 	enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
 
 	// Alice has wild-card approval for all actions
 	claims := jwt.MapClaims{"sub": "alice"}
-	assert.True(t, enf.Enforce(claims, "applications", ActionActionType+"/resume", "my-proj/my-app"))
+	assert.True(t, enf.Enforce(claims, "applications", ActionAction+"/resume", "my-proj/my-app"))
 	claims = jwt.MapClaims{"sub": "alice"}
-	assert.True(t, enf.Enforce(claims, "applications", ActionActionType+"/abort", "my-proj/my-app"))
+	assert.True(t, enf.Enforce(claims, "applications", ActionAction+"/abort", "my-proj/my-app"))
 	// Bob only has approval for actions/resume
 	claims = jwt.MapClaims{"sub": "bob"}
-	assert.True(t, enf.Enforce(claims, "applications", ActionActionType+"/resume", "my-proj/my-app"))
+	assert.True(t, enf.Enforce(claims, "applications", ActionAction+"/resume", "my-proj/my-app"))
 
 	// Bob does not have approval for actions/abort
 	claims = jwt.MapClaims{"sub": "bob"}
-	assert.False(t, enf.Enforce(claims, "applications", ActionActionType+"/abort", "my-proj/my-app"))
+	assert.False(t, enf.Enforce(claims, "applications", ActionAction+"/abort", "my-proj/my-app"))
 	// Eve does not have approval for any actions
 	claims = jwt.MapClaims{"sub": "eve"}
-	assert.False(t, enf.Enforce(claims, "applications", ActionActionType+"/resume", "my-proj/my-app"))
+	assert.False(t, enf.Enforce(claims, "applications", ActionAction+"/resume", "my-proj/my-app"))
 }

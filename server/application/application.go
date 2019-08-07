@@ -1093,7 +1093,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		Version:      q.Version,
 		Group:        q.Group,
 	}
-	actionRequest := fmt.Sprintf("%s/%s", rbacpolicy.ActionActionType, q.Action)
+	actionRequest := fmt.Sprintf("%s/%s", rbacpolicy.ActionAction, q.Action)
 	res, config, _, err := s.getAppResource(ctx, actionRequest, resourceRequest)
 	if err != nil {
 		return nil, err
