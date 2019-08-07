@@ -484,12 +484,13 @@ const (
 )
 
 func NewHookType(t string) (HookType, bool) {
-	hookType := HookType(t)
-	switch hookType {
-	case HookTypePreSync, HookTypeSync, HookTypePostSync, HookTypeSyncFail, HookTypeSkip:
-		return hookType, true
-	}
-	return hookType, false
+	return HookType(t),
+		t == string(HookTypePreSync) ||
+			t == string(HookTypeSync) ||
+			t == string(HookTypePostSync) ||
+			t == string(HookTypeSyncFail) ||
+			t == string(HookTypeSkip)
+
 }
 
 type HookDeletePolicy string
@@ -501,7 +502,10 @@ const (
 )
 
 func NewHookDeletePolicy(p string) (HookDeletePolicy, bool) {
-	return HookDeletePolicy(p), p == "HookSucceeded" || p == "HookFailed" || p == "BeforeHookCreation"
+	return HookDeletePolicy(p),
+		p == string(HookDeletePolicyHookSucceeded) ||
+			p == string(HookDeletePolicyHookFailed) ||
+			p == string(HookDeletePolicyBeforeHookCreation)
 }
 
 // data about a specific revision within a repo
