@@ -357,32 +357,59 @@ func Test_SSHFingerPrintSHA256FromString(t *testing.T) {
 }
 
 func Test_ServerNameWithoutPort(t *testing.T) {
-	hostNameList := []string{"localhost", "localhost:9443", "localhost:", "localhost:abc"}
-	for _, hostName := range hostNameList {
-		assert.Equal(t, "localhost", ServerNameWithoutPort(hostName))
+	hostNames := map[string]string{
+		"localhost":            "localhost",
+		"localhost:9443":       "localhost",
+		"localhost:":           "localhost",
+		"localhost:abc":        "localhost",
+		"localhost.:22":        "localhost.",
+		"foo.example.com:443":  "foo.example.com",
+		"foo.example.com.:443": "foo.example.com.",
+	}
+	for inp, res := range hostNames {
+		assert.Equal(t, res, ServerNameWithoutPort(inp))
 	}
 }
 
 func Test_ValidHostnames(t *testing.T) {
-	hostNameList := []string{"localhost", "localhost.localdomain", "foo.example.com", "argocd-server.svc.kubernetes.local"}
-	for idx, hostName := range hostNameList {
-		assert.Equal(t, true, IsValidHostname(hostName, false))
-		if idx != 0 {
-			assert.Equal(t, true, IsValidHostname(hostName, true))
-		} else {
-			assert.Equal(t, false, IsValidHostname(hostName, true))
-		}
+	hostNames := map[string]bool{
+		"localhost":                          true,
+		"localhost.localdomain":              true,
+		"foo.example.com":                    true,
+		"argocd-server.svc.kubernetes.local": true,
+		"localhost.":                         true,
+		"github.com.":                        true,
+		"localhost..":                        false,
+		"localhost..localdomain":             false,
+		".localhost":                         false,
+		"local_host":                         false,
+		"localhost.local_domain":             false,
+	}
+
+	for hostName, valid := range hostNames {
+		assert.Equal(t, valid, IsValidHostname(hostName, false))
 	}
 }
 
-func Test_InvalidHostnames(t *testing.T) {
-	hostNameList := []string{"localhost.a", "localhost.", "localhost..localdomain", ".foo.example.com", "argocd_server.svc.kubernetes.local"}
-	for idx, hostName := range hostNameList {
-		if idx == 0 {
-			assert.Equal(t, false, IsValidHostname(hostName, true))
-		} else {
-			assert.Equal(t, false, IsValidHostname(hostName, false))
-		}
+func Test_ValidFQDNs(t *testing.T) {
+	hostNames := map[string]bool{
+		"localhost":                          false,
+		"localhost.localdomain":              false,
+		"foo.example.com.":                   true,
+		"argocd-server.svc.kubernetes.local": false,
+		"localhost.":                         true,
+		"github.com.":                        true,
+		"localhost..":                        false,
+		"localhost..localdomain":             false,
+		"localhost..localdomain.":            false,
+		".localhost":                         false,
+		"local_host":                         false,
+		"localhost.local_domain":             false,
+		"localhost.local_domain.":            false,
+	}
+
+	for hostName, valid := range hostNames {
+		assert.Equal(t, valid, IsValidHostname(hostName, true))
 	}
 }
 
