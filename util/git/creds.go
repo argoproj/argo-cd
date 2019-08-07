@@ -9,7 +9,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/util"
 	certutil "github.com/argoproj/argo-cd/util/cert"
 )
@@ -174,12 +173,8 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 		// UserKnownHostsFile=/dev/null is therefore used so we write the new insecure host to /dev/null
 		args = append(args, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null")
 	} else {
-		// If we're running outside a cluster, we must set the known hosts file
-		// to the one managed by us, so that SSH uses the correct one.
-		if os.Getenv(common.EnvVarFakeInClusterConfig) == "true" {
-			knownHostsFile := certutil.GetSSHKnownHostsDataPath()
-			args = append(args, "-o", "StrictHostKeyChecking=yes", "-o", fmt.Sprintf("UserKnownHostsFile=%s", knownHostsFile))
-		}
+		knownHostsFile := certutil.GetSSHKnownHostsDataPath()
+		args = append(args, "-o", "StrictHostKeyChecking=yes", "-o", fmt.Sprintf("UserKnownHostsFile=%s", knownHostsFile))
 	}
 	env = append(env, []string{fmt.Sprintf("GIT_SSH_COMMAND=%s", strings.Join(args, " "))}...)
 	return sshPrivateKeyFile(file.Name()), env, nil
