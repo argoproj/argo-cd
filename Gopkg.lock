@@ -1646,6 +1646,7 @@
     "github.com/yuin/gopher-lua",
     "golang.org/x/crypto/bcrypt",
     "golang.org/x/crypto/ssh",
+    "golang.org/x/crypto/ssh/knownhosts",
     "golang.org/x/crypto/ssh/terminal",
     "golang.org/x/net/context",
     "golang.org/x/oauth2",

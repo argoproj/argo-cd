@@ -10,6 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/util"
+	certutil "github.com/argoproj/argo-cd/util/cert"
 )
 
 type Creds interface {
@@ -171,6 +172,9 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 		// StrictHostKeyChecking will add the host to the knownhosts file,  we don't want that - a security issue really,
 		// UserKnownHostsFile=/dev/null is therefore used so we write the new insecure host to /dev/null
 		args = append(args, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null")
+	} else {
+		knownHostsFile := certutil.GetSSHKnownHostsDataPath()
+		args = append(args, "-o", "StrictHostKeyChecking=yes", "-o", fmt.Sprintf("UserKnownHostsFile=%s", knownHostsFile))
 	}
 	env = append(env, []string{fmt.Sprintf("GIT_SSH_COMMAND=%s", strings.Join(args, " "))}...)
 	return sshPrivateKeyFile(file.Name()), env, nil
