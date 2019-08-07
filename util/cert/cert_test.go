@@ -385,3 +385,18 @@ func Test_InvalidHostnames(t *testing.T) {
 		}
 	}
 }
+
+func Test_EscapeBracketPattern(t *testing.T) {
+	// input: expected output
+	patternList := map[string]string{
+		"foo.bar":         "foo.bar",
+		"[foo.bar]":       `\[foo.bar\]`,
+		"foo[bar]baz":     `foo\[bar\]baz`,
+		`foo\[bar\]baz`:   `foo\\[bar\\]baz`,
+		"foo[[[bar]]]baz": `foo\[\[\[bar\]\]\]baz`,
+	}
+
+	for original, expected := range patternList {
+		assert.Equal(t, nonBracketedPattern(original), expected)
+	}
+}
