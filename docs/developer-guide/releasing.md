@@ -22,33 +22,6 @@ VERSION=v1.0.0-rc1
 VERSION=v1.0.2
 ```
 
-Prior to v1.1, the UI is in a separate repo.
-
-If not already created, create UI release branch:
-
-```bash
-cd argo-cd-ui
-git checkout -b $BRANCH
-```
-
-Tag and release UI:
-
-```bash
-git checkout $BRANCH
-git tag $VERSION
-git push $REPO $BRANCH --tags
-git clean -fd
-IMAGE_NAMESPACE=argoproj IMAGE_TAG=$VERSION DOCKER_PUSH=true yarn docker
-```
-
-If not already created, create release branch:
-
-```bash
-cd argo-cd
-git checkout -b $BRANCH
-git push $REPO $BRANCH
-```
-
 Update `VERSION` and manifests with new version:
 
 ```bash

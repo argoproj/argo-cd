@@ -16,22 +16,12 @@ spec:
         app.kubernetes.io/name: argocd-server
     spec:
       serviceAccountName: argocd-server
-      initContainers:
-      - name: ui
-        image: argoproj/argocd-ui:latest
-        imagePullPolicy: Always
-        command: [cp, -r, /app, /shared]
-        volumeMounts:
-        - mountPath: /shared
-          name: static-files
       containers:
       - name: argocd-server
         image: argoproj/argocd:latest
         imagePullPolicy: Always
         command: [argocd-server, --staticassets, /shared/app]
         volumeMounts:
-        - mountPath: /shared
-          name: static-files
         - name: ssh-known-hosts
           mountPath: /app/config/ssh
         - name: tls-certs

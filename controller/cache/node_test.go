@@ -30,3 +30,26 @@ func TestIsParentOfSameKindDifferentGroupAndUID(t *testing.T) {
 
 	assert.False(t, invalidParent.isParentOf(child))
 }
+
+func TestIsServiceParentOfEndPointWithTheSameName(t *testing.T) {
+	nonMatchingNameEndPoint := c.createObjInfo(strToUnstructured(`
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: not-matching-name
+  namespace: default
+`), "")
+
+	matchingNameEndPoint := c.createObjInfo(strToUnstructured(`
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: helm-guestbook
+  namespace: default
+`), "")
+
+	parent := c.createObjInfo(testService, "")
+
+	assert.True(t, parent.isParentOf(matchingNameEndPoint))
+	assert.False(t, parent.isParentOf(nonMatchingNameEndPoint))
+}

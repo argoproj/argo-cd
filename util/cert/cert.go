@@ -13,6 +13,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"golang.org/x/crypto/ssh"
@@ -62,6 +63,22 @@ const (
 	// Maximum number of certificates or known host entries in a stream
 	CertificateMaxEntriesPerStream = 256
 )
+
+// Regular expression that matches a valid hostname
+var validHostNameRegexp = regexp.MustCompile(`^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])(\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]))*$`)
+
+// Regular expression that matches a valid FQDN
+var validFQDNRegexp = regexp.MustCompile(`^([a-zA-Z0-9-]{0,62}[a-zA-Z0-9]\.)+[a-zA-Z]{2,63}$`)
+
+// Can be used to test whether a given string represents a valid hostname
+// If fqdn is true, given string must also be a FQDN representation.
+func IsValidHostname(hostname string, fqdn bool) bool {
+	if !fqdn {
+		return validHostNameRegexp.Match([]byte(hostname))
+	} else {
+		return validFQDNRegexp.Match([]byte(hostname))
+	}
+}
 
 // Get the configured path to where TLS certificates are stored on the local
 // filesystem. If ARGOCD_TLS_DATA_PATH environment is set, path is taken from
@@ -157,11 +174,12 @@ func ParseTLSCertificatesFromStream(stream io.Reader) ([]string, error) {
 	return certificateList, nil
 }
 
-// Parse TLS certificates from a multiline string
+// Parse SSH Known Hosts data from a multiline string
 func ParseSSHKnownHostsFromData(data string) ([]string, error) {
 	return ParseSSHKnownHostsFromStream(strings.NewReader(data))
 }
 
+// Parse SSH Known Hosts data from a file
 func ParseSSHKnownHostsFromPath(sourceFile string) ([]string, error) {
 	fileHandle, err := os.Open(sourceFile)
 	if err != nil {
@@ -234,6 +252,12 @@ func TokenizedDataToPublicKey(hostname string, subType string, rawKeyData string
 	return hostnames, keyData, nil
 }
 
+// Returns the requested pattern with all possible square brackets escaped
+func nonBracketedPattern(pattern string) string {
+	ret := strings.Replace(pattern, "[", `\[`, -1)
+	return strings.Replace(ret, "]", `\]`, -1)
+}
+
 // We do not use full fledged regular expression for matching the hostname.
 // Instead, we use a less expensive file system glob, which should be fully
 // sufficient for our use case.
@@ -242,11 +266,20 @@ func MatchHostName(hostname, pattern string) bool {
 	if pattern == "" {
 		return true
 	}
-	match, err := filepath.Match(pattern, hostname)
+	match, err := filepath.Match(nonBracketedPattern(pattern), hostname)
 	if err != nil {
 		return false
 	}
 	return match
+}
+
+// Convinience wrapper around SSHFingerprintSHA256
+func SSHFingerprintSHA256FromString(key string) string {
+	pubKey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(key))
+	if err != nil {
+		return ""
+	}
+	return SSHFingerprintSHA256(pubKey)
 }
 
 // base64 sha256 hash with the trailing equal sign removed

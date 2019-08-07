@@ -616,7 +616,7 @@ func TestApplicationSource_IsZero(t *testing.T) {
 		{"Path", &ApplicationSource{Path: "foo"}, false},
 		{"TargetRevision", &ApplicationSource{TargetRevision: "foo"}, false},
 		{"Helm", &ApplicationSource{Helm: &ApplicationSourceHelm{ReleaseName: "foo"}}, false},
-		{"Kustomize", &ApplicationSource{Kustomize: &ApplicationSourceKustomize{Images: []string{""}}}, false},
+		{"Kustomize", &ApplicationSource{Kustomize: &ApplicationSourceKustomize{Images: KustomizeImages{""}}}, false},
 		{"Helm", &ApplicationSource{Ksonnet: &ApplicationSourceKsonnet{Environment: "foo"}}, false},
 		{"Directory", &ApplicationSource{Directory: &ApplicationSourceDirectory{Recurse: true}}, false},
 		{"Plugin", &ApplicationSource{Plugin: &ApplicationSourcePlugin{Name: "foo"}}, false},
@@ -626,6 +626,36 @@ func TestApplicationSource_IsZero(t *testing.T) {
 			assert.Equal(t, tt.want, tt.source.IsZero())
 		})
 	}
+}
+
+func TestApplicationSourceHelm_AddParameter(t *testing.T) {
+	src := ApplicationSourceHelm{}
+	t.Run("Add", func(t *testing.T) {
+		src.AddParameter(HelmParameter{Value: "bar"})
+		assert.ElementsMatch(t, []HelmParameter{{Value: "bar"}}, src.Parameters)
+
+	})
+	t.Run("Replace", func(t *testing.T) {
+		src.AddParameter(HelmParameter{Value: "baz"})
+		assert.ElementsMatch(t, []HelmParameter{{Value: "baz"}}, src.Parameters)
+	})
+}
+
+func TestNewHelmParameter(t *testing.T) {
+	t.Run("Invalid", func(t *testing.T) {
+		_, err := NewHelmParameter("garbage", false)
+		assert.EqualError(t, err, "Expected helm parameter of the form: param=value. Received: garbage")
+	})
+	t.Run("NonString", func(t *testing.T) {
+		p, err := NewHelmParameter("foo=bar", false)
+		assert.NoError(t, err)
+		assert.Equal(t, &HelmParameter{Name: "foo", Value: "bar"}, p)
+	})
+	t.Run("String", func(t *testing.T) {
+		p, err := NewHelmParameter("foo=bar", true)
+		assert.NoError(t, err)
+		assert.Equal(t, &HelmParameter{Name: "foo", Value: "bar", ForceString: true}, p)
+	})
 }
 
 func TestApplicationSourceHelm_IsZero(t *testing.T) {
@@ -656,8 +686,7 @@ func TestApplicationSourceKustomize_IsZero(t *testing.T) {
 		{"Nil", nil, true},
 		{"Empty", &ApplicationSourceKustomize{}, true},
 		{"NamePrefix", &ApplicationSourceKustomize{NamePrefix: "foo"}, false},
-		{"ImageTags", &ApplicationSourceKustomize{ImageTags: []KustomizeImageTag{{}}}, false},
-		{"Images", &ApplicationSourceKustomize{Images: []string{""}}, false},
+		{"Images", &ApplicationSourceKustomize{Images: []KustomizeImage{""}}, false},
 		{"CommonLabels", &ApplicationSourceKustomize{CommonLabels: map[string]string{"": ""}}, false},
 	}
 	for _, tt := range tests {
@@ -790,4 +819,29 @@ func TestEnv_Environ(t *testing.T) {
 			assert.Equal(t, tt.want, tt.e.Environ())
 		})
 	}
+}
+
+func TestKustomizeImage_Match(t *testing.T) {
+	// no pefix
+	assert.False(t, KustomizeImage("foo=1").Match("bar=1"))
+	// mismatched delimiter
+	assert.False(t, KustomizeImage("foo=1").Match("bar:1"))
+	assert.False(t, KustomizeImage("foo:1").Match("bar=1"))
+	// matches
+	assert.True(t, KustomizeImage("foo=1").Match("foo=2"))
+	assert.True(t, KustomizeImage("foo:1").Match("foo:2"))
+	assert.True(t, KustomizeImage("foo@1").Match("foo@2"))
+}
+
+func TestApplicationSourceKustomize_MergeImage(t *testing.T) {
+	t.Run("Add", func(t *testing.T) {
+		k := ApplicationSourceKustomize{Images: KustomizeImages{}}
+		k.MergeImage("foo=1")
+		assert.Equal(t, KustomizeImages{"foo=1"}, k.Images)
+	})
+	t.Run("Replace", func(t *testing.T) {
+		k := ApplicationSourceKustomize{Images: KustomizeImages{"foo=1"}}
+		k.MergeImage("foo=2")
+		assert.Equal(t, KustomizeImages{"foo=2"}, k.Images)
+	})
 }

@@ -159,7 +159,6 @@ export interface ApplicationSourceHelm {
 
 export interface ApplicationSourceKustomize {
     namePrefix: string;
-    imageTags: KustomizeImageTag[];
     images: string[];
 }
 
@@ -173,7 +172,7 @@ export interface ApplicationSourceDirectory {
 }
 
 export interface SyncPolicy {
-    automated?: { prune: boolean };
+    automated?: { prune: boolean;  selfHeal: boolean;  };
 }
 
 export interface Info {
@@ -346,11 +345,11 @@ export interface ConnectionState {
 }
 
 export interface RepoCert {
-    servername: string;
-    type: string;
-    cipher: string;
-    certdata: string;
-    certinfo: string;
+    serverName: string;
+    certType: string;
+    certSubType: string;
+    certData: string;
+    certInfo: string;
 }
 
 export interface RepoCertList extends ItemsList<RepoCert> { }
@@ -417,14 +416,8 @@ export interface HelmAppSpec {
     parameters: HelmParameter[];
 }
 
-export interface KustomizeImageTag {
-    name: string;
-    value: string;
-}
-
 export interface KustomizeAppSpec {
     path: string;
-    imageTags?: KustomizeImageTag[];
     images?: string[];
 }
 

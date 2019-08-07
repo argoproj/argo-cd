@@ -339,9 +339,6 @@ export function getAppOverridesCount(app: appModels.Application) {
     if (app.spec.source.ksonnet && app.spec.source.ksonnet.parameters) {
         return app.spec.source.ksonnet.parameters.length;
     }
-    if (app.spec.source.kustomize && app.spec.source.kustomize.imageTags) {
-        return app.spec.source.kustomize.imageTags.length;
-    }
     if (app.spec.source.kustomize && app.spec.source.kustomize.images) {
         return app.spec.source.kustomize.images.length;
     }
@@ -349,4 +346,12 @@ export function getAppOverridesCount(app: appModels.Application) {
         return app.spec.source.helm.parameters.length;
     }
     return 0;
+}
+
+export function isAppRefreshing(app: appModels.Application) {
+    return !!(app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey]);
+}
+
+export function refreshLinkAttrs(app: appModels.Application) {
+    return { disabled: isAppRefreshing(app) };
 }

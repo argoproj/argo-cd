@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"reflect"
 
+	"github.com/argoproj/argo-cd/util/settings"
+
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -32,6 +34,7 @@ type Server struct {
 	repoClientset apiclient.Clientset
 	enf           *rbac.Enforcer
 	cache         *cache.Cache
+	settings      *settings.SettingsManager
 }
 
 // NewServer returns a new instance of the Repository service
@@ -40,12 +43,14 @@ func NewServer(
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
 	cache *cache.Cache,
+	settings *settings.SettingsManager,
 ) *Server {
 	return &Server{
 		db:            db,
 		repoClientset: repoClientset,
 		enf:           enf,
 		cache:         cache,
+		settings:      settings,
 	}
 }
 
@@ -217,6 +222,10 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if err != nil {
 		return nil, err
 	}
+	buildOptions, err := s.settings.GetKustomizeBuildOptions()
+	if err != nil {
+		return nil, err
+	}
 	return repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 		Repo:      repo,
 		Revision:  q.Revision,
@@ -224,6 +233,9 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		HelmRepos: helmRepos,
 		Helm:      q.Helm,
 		Ksonnet:   q.Ksonnet,
+		KustomizeOptions: &appsv1.KustomizeOptions{
+			BuildOptions: buildOptions,
+		},
 	})
 }
 

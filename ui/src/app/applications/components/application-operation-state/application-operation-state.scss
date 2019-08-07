@@ -8,4 +8,12 @@
         left: 15px;
         position: relative;
     }
+
+    &__message {
+        white-space: normal;
+        line-height: 16px;
+        display: inline-block;
+        vertical-align: middle;
+    }
+
 }

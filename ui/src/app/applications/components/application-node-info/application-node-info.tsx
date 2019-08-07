@@ -95,7 +95,7 @@ export const ApplicationNodeInfo = (props: {
 
             <div className='application-node-info__manifest'>
                 <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                {(pref) => <Tabs selectedTabKey={pref.appDetails.resourceView || 'manifest'} tabs={tabs}  onTabSelected={(selected) => {
+                {(pref) => <Tabs selectedTabKey={tabs.length > 1 && pref.appDetails.resourceView || 'manifest'} tabs={tabs}  onTabSelected={(selected) => {
                         services.viewPreferences.updatePreferences({ appDetails: { ...pref.appDetails, resourceView: selected as any } });
                 }} />}
                 </DataLoader>
