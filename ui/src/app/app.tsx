@@ -4,8 +4,8 @@ import { createBrowserHistory } from 'history';
 import * as jwtDecode from 'jwt-decode';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
+import { Button, Container, Link } from 'react-floating-action-button';
 import { Helmet } from 'react-helmet';
-import { Container, Button, Link } from 'react-floating-action-button'
 import { Redirect, Route, RouteComponentProps, Router, Switch } from 'react-router';
 
 import { services } from './shared/services';
@@ -167,9 +167,9 @@ export class App extends React.Component<{}, { popupProps: PopupProps, error: Er
                         </Switch>
                     </Router>
                     <Container>
-                        <Link href="https://argoproj.github.io/argo-cd/" tooltip="Docs" icon="fas fa-book"/>
-                        <Link href="https://argoproj.slack.com/messages/CASHNF6MS" tooltip="Chat" icon="fas fa-comment-alt"/>
-                        <Button rotate={true} tooltip="Help" icon="fas fa-question-circle"/>
+                        <Link href='https://argoproj.github.io/argo-cd/' tooltip='Docs' icon='fas fa-book'/>
+                        <Link href='https://argoproj.slack.com/messages/CASHNF6MS' tooltip='Chat' icon='fas fa-comment-alt'/>
+                        <Button rotate={true} tooltip='Help' icon='fas fa-question-circle'/>
                     </Container>
                 </Provider>
                 </PageContext.Provider>
