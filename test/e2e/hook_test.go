@@ -264,7 +264,8 @@ func TestHookDeletePolicyHookFailedHookExit1(t *testing.T) {
 }
 
 // make sure that we can run the hook twice
-func TestHookDeleteBeforeCreation(t *testing.T) {
+func
+TestHookDeleteBeforeCreation(t *testing.T) {
 	var creationTimestamp1 string
 	Given(t).
 		Path("hook").
@@ -299,6 +300,7 @@ func TestHookDeleteBeforeCreation(t *testing.T) {
 }
 
 func getCreationTimestamp() (string, error) {
+	FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "all"))
 	return Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "pod", "hook", "-o", "jsonpath={.metadata.creationTimestamp}")
 }
 
