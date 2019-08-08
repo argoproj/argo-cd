@@ -6854,6 +6854,13 @@ react-fast-compare@^2.0.2:
   resolved "https://registry.yarnpkg.com/react-fast-compare/-/react-fast-compare-2.0.4.tgz#e84b4d455b0fec113e0402c329352715196f81f9"
   integrity sha512-suNP+J1VU1MWFKcyt7RtjiSWUjvidmQSlqu+eHslq+342xCbGTYmC0mEhPCOHxlW0CywylOC1u2DFAT+bv4dBw==
 
+react-floating-action-button@^1.0.5:
+  version "1.0.5"
+  resolved "https://registry.yarnpkg.com/react-floating-action-button/-/react-floating-action-button-1.0.5.tgz#068b77a135272a4bd7b9aed971d2e598ffc299d0"
+  integrity sha512-r90Z0AisadYzBvQJ8qGAYkU+b4DtH7V1xO4OhoGYy+u+R4aytBY5rnmTfoTtjEyqIdMTyCDD5XOpngl1vcbkBg==
+  dependencies:
+    react "^16.8.3"
+
 react-form@2.16.0:
   version "2.16.0"
   resolved "https://registry.yarnpkg.com/react-form/-/react-form-2.16.0.tgz#db7c4d1145a0daa0056010c12bbc5a2f0d749f5f"
