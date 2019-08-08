@@ -506,7 +506,7 @@ func Test_CreateTLSCertificates(t *testing.T) {
 	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
-				ServerName: "foo.example.",
+				ServerName: "foo..example",
 				CertType:   "https",
 				CertData:   []byte(Test_TLSValidSingleCert),
 			},
