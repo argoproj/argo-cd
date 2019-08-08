@@ -274,6 +274,8 @@ func TestHookDeleteBeforeCreation(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusHealthy)).
 		And(func(_ *Application) {
 			var err error
 			creationTimestamp1, err = getCreationTimestamp()
@@ -286,6 +288,8 @@ func TestHookDeleteBeforeCreation(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusHealthy)).
 		And(func(_ *Application) {
 			creationTimestamp2, err := getCreationTimestamp()
 			CheckError(err)
