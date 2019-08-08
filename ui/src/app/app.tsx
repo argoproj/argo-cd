@@ -1,28 +1,37 @@
-import { Layout, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps } from 'argo-ui';
+import {
+    DataLoader,
+    Layout,
+    NavigationManager,
+    Notifications,
+    NotificationsManager,
+    PageContext,
+    Popup,
+    PopupManager,
+    PopupProps,
+} from 'argo-ui';
 import * as cookie from 'cookie';
-import { createBrowserHistory } from 'history';
+import {createBrowserHistory} from 'history';
 import * as jwtDecode from 'jwt-decode';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
-import { Button, Container, Link } from 'react-floating-action-button';
-import { Helmet } from 'react-helmet';
-import { Redirect, Route, RouteComponentProps, Router, Switch } from 'react-router';
+import {Button, Container, Link} from 'react-floating-action-button';
+import {Helmet} from 'react-helmet';
+import {Redirect, Route, RouteComponentProps, Router, Switch} from 'react-router';
 
-import { services } from './shared/services';
+import applications from './applications';
+import help from './help';
+import login from './login';
+import settings from './settings';
+import {Provider} from './shared/context';
+import {services} from './shared/services';
 import requests from './shared/services/requests';
-import { hashCode  } from './shared/utils';
+import {hashCode} from './shared/utils';
 
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
 const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
 export const history = createBrowserHistory({ basename: base });
 requests.setApiRoot(`${base}api/v1`);
-
-import applications from './applications';
-import help from './help';
-import login from './login';
-import settings from './settings';
-import { Provider } from './shared/context';
 
 const routes: {[path: string]: { component: React.ComponentType<RouteComponentProps<any>>, noLayout?: boolean } } = {
     '/login': { component: login.component as any, noLayout: true },
@@ -166,11 +175,13 @@ export class App extends React.Component<{}, { popupProps: PopupProps, error: Er
                             <Redirect path='*' to='/'/>
                         </Switch>
                     </Router>
-                    <Container>
-                        <Link href='https://argoproj.github.io/argo-cd/' tooltip='Docs' icon='fas fa-book'/>
-                        <Link href='https://argoproj.slack.com/messages/CASHNF6MS' tooltip='Chat' icon='fas fa-comment-alt'/>
-                        <Button rotate={true} tooltip='Help' icon='fas fa-question-circle'/>
-                    </Container>
+                    <DataLoader load={() => services.authService.settings()}>{(s) => (
+                        <Container>
+                            <Link href='https://argoproj.github.io/argo-cd/' tooltip='Docs' icon='fas fa-book'/>
+                            {s.help && s.help.chatUrl && <Link href={s.help.chatUrl} tooltip='Chat' icon='fas fa-comment-alt'/>}
+                            <Button tooltip='Help' icon='fas fa-question-circle'/>
+                        </Container>
+                    )}</DataLoader>
                 </Provider>
                 </PageContext.Provider>
                 <Notifications notifications={this.notificationsManager.notifications}/>

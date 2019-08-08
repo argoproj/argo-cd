@@ -14,6 +14,16 @@ import (
 )
 
 func TestGetRepositories(t *testing.T) {
+	data := map[string]string{
+		"repositories": "\n  - url: http://foo\n",
+	}
+	settingsManager := newSettingsManager(data)
+	filter, err := settingsManager.GetRepositories()
+	assert.NoError(t, err)
+	assert.Equal(t, []RepoCredentials{{URL: "http://foo"}}, filter)
+}
+
+func newSettingsManager(data map[string]string) *SettingsManager {
 	kubeClient := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
@@ -22,14 +32,10 @@ func TestGetRepositories(t *testing.T) {
 				"app.kubernetes.io/part-of": "argocd",
 			},
 		},
-		Data: map[string]string{
-			"repositories": "\n  - url: http://foo\n",
-		},
+		Data: data,
 	})
 	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
-	filter, err := settingsManager.GetRepositories()
-	assert.NoError(t, err)
-	assert.Equal(t, []RepoCredentials{{URL: "http://foo"}}, filter)
+	return settingsManager
 }
 
 func TestSaveRepositories(t *testing.T) {
@@ -51,40 +57,20 @@ func TestSaveRepositories(t *testing.T) {
 }
 
 func TestGetRepositoryCredentials(t *testing.T) {
-	kubeClient := fake.NewSimpleClientset(&v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDConfigMapName,
-			Namespace: "default",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
-		},
-		Data: map[string]string{
-			"repository.credentials": "\n  - url: http://foo\n",
-		},
-	})
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
-	filter, err := settingsManager.GetRepositoryCredentials()
+	data := map[string]string{
+		"repository.credentials": "\n  - url: http://foo\n",
+	}
+	filter, err := newSettingsManager(data).GetRepositoryCredentials()
 	assert.NoError(t, err)
 	assert.Equal(t, []RepoCredentials{{URL: "http://foo"}}, filter)
 }
 
 func TestGetResourceFilter(t *testing.T) {
-	kubeClient := fake.NewSimpleClientset(&v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDConfigMapName,
-			Namespace: "default",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
-		},
-		Data: map[string]string{
-			"resource.exclusions": "\n  - apiGroups: [\"group1\"]\n    kinds: [\"kind1\"]\n    clusters: [\"cluster1\"]\n",
-			"resource.inclusions": "\n  - apiGroups: [\"group2\"]\n    kinds: [\"kind2\"]\n    clusters: [\"cluster2\"]\n",
-		},
-	})
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
-	filter, err := settingsManager.GetResourcesFilter()
+	data := map[string]string{
+		"resource.exclusions": "\n  - apiGroups: [\"group1\"]\n    kinds: [\"kind1\"]\n    clusters: [\"cluster1\"]\n",
+		"resource.inclusions": "\n  - apiGroups: [\"group2\"]\n    kinds: [\"kind2\"]\n    clusters: [\"cluster2\"]\n",
+	}
+	filter, err := newSettingsManager(data).GetResourcesFilter()
 	assert.NoError(t, err)
 	assert.Equal(t, &ResourcesFilter{
 		ResourceExclusions: []FilteredResource{{APIGroups: []string{"group1"}, Kinds: []string{"kind1"}, Clusters: []string{"cluster1"}}},
@@ -93,25 +79,15 @@ func TestGetResourceFilter(t *testing.T) {
 }
 
 func TestGetConfigManagementPlugins(t *testing.T) {
-	kubeClient := fake.NewSimpleClientset(&v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDConfigMapName,
-			Namespace: "default",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
-		},
-		Data: map[string]string{
-			"configManagementPlugins": `
+	data := map[string]string{
+		"configManagementPlugins": `
       - name: kasane
         init:
           command: [kasane, update]
         generate:
           command: [kasane, show]`,
-		},
-	})
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
-	plugins, err := settingsManager.GetConfigManagementPlugins()
+	}
+	plugins, err := newSettingsManager(data).GetConfigManagementPlugins()
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, []v1alpha1.ConfigManagementPlugin{{
 		Name:     "kasane",
@@ -121,43 +97,23 @@ func TestGetConfigManagementPlugins(t *testing.T) {
 }
 
 func TestGetAppInstanceLabelKey(t *testing.T) {
-	kubeClient := fake.NewSimpleClientset(&v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDConfigMapName,
-			Namespace: "default",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
-		},
-		Data: map[string]string{
-			"application.instanceLabelKey": "testLabel",
-		},
-	})
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
-	label, err := settingsManager.GetAppInstanceLabelKey()
+	data := map[string]string{
+		"application.instanceLabelKey": "testLabel",
+	}
+	label, err := newSettingsManager(data).GetAppInstanceLabelKey()
 	assert.NoError(t, err)
 	assert.Equal(t, "testLabel", label)
 }
 
 func TestGetResourceOverrides(t *testing.T) {
-	kubeClient := fake.NewSimpleClientset(&v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDConfigMapName,
-			Namespace: "default",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
-		},
-		Data: map[string]string{
-			"resource.customizations": `
+	data := map[string]string{
+		"resource.customizations": `
     admissionregistration.k8s.io/MutatingWebhookConfiguration:
       ignoreDifferences: |
         jsonPointers:
         - /webhooks/0/clientConfig/caBundle`,
-		},
-	})
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
-	overrides, err := settingsManager.GetResourceOverrides()
+	}
+	overrides, err := newSettingsManager(data).GetResourceOverrides()
 	assert.NoError(t, err)
 
 	webHookOverrides := overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"]
@@ -169,41 +125,30 @@ func TestGetResourceOverrides(t *testing.T) {
 }
 
 func TestGetHelmRepositories(t *testing.T) {
-	kubeClient := fake.NewSimpleClientset(&v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDConfigMapName,
-			Namespace: "default",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
-		},
-		Data: map[string]string{
-			"helm.repositories": "\n  - url: http://foo\n",
-		},
-	})
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
-	helmRepositories, err := settingsManager.GetHelmRepositories()
+	data := map[string]string{
+		"helm.repositories": "\n  - url: http://foo\n",
+	}
+	helmRepositories, err := newSettingsManager(data).GetHelmRepositories()
 	assert.NoError(t, err)
 
 	assert.ElementsMatch(t, helmRepositories, []HelmRepoCredentials{{URL: "http://foo"}})
 }
 
 func TestGetGoogleAnalytics(t *testing.T) {
-	kubeClient := fake.NewSimpleClientset(&v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDConfigMapName,
-			Namespace: "default",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
-		},
-		Data: map[string]string{
-			"ga.trackingid": "123",
-		},
-	})
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
-	ga, err := settingsManager.GetGoogleAnalytics()
+	data := map[string]string{
+		"ga.trackingid": "123",
+	}
+	ga, err := newSettingsManager(data).GetGoogleAnalytics()
 	assert.NoError(t, err)
 	assert.Equal(t, "123", ga.TrackingID)
 	assert.Equal(t, true, ga.AnonymizeUsers)
+}
+
+func TestSettingsManager_GetHelp(t *testing.T) {
+	data := map[string]string{
+		"help.chatUrl": "foo",
+	}
+	h, err := newSettingsManager(data).GetHelp()
+	assert.NoError(t, err)
+	assert.Equal(t, "foo", h.ChatURL)
 }

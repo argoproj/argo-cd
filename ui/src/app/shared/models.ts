@@ -328,6 +328,9 @@ export interface AuthSettings {
     oidcConfig: {
         name: string;
     };
+    help: {
+        chatUrl: string;
+    };
 }
 
 export type ConnectionStatus = 'Unknown' | 'Successful' | 'Failed';
