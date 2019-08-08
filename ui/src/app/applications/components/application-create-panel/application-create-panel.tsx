@@ -219,7 +219,7 @@ export const ApplicationCreatePanel = (props: {
                                                             />
                                                         </div>
                                                     ) || type === 'Helm' && (
-                                                        <div>
+                                                        <React.Fragment>
                                                             <div className='argo-form-row'>
                                                                 <FormField formApi={api} label='Values Files'
                                                                            field='spec.source.helm.valueFiles'
@@ -239,7 +239,7 @@ export const ApplicationCreatePanel = (props: {
                                                                     <pre>{details.helm.values}</pre>
                                                                 </div>
                                                             )}
-                                                        </div>
+                                                        </React.Fragment>
                                                     ) || type === 'Plugin' && (
                                                         <div className='argo-form-row'>
                                                             <FormField formApi={api} label='Name' field='spec.source.plugin.name' component={Text} />
