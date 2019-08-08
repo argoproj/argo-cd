@@ -45,6 +45,8 @@ import (
 
 const (
 	updateOperationStateTimeout = 1 * time.Second
+	// orphanedIndex contains application which monitor orphaned resources by namespace
+	orphanedIndex = "orphaned"
 )
 
 type CompareWith int
@@ -123,14 +125,17 @@ func NewApplicationController(
 		settingsMgr:               settingsMgr,
 		selfHealTimeout:           selfHealTimeout,
 	}
-	appInformer, appLister := ctrl.newApplicationInformerAndLister()
+	appInformer, appLister, err := ctrl.newApplicationInformerAndLister()
+	if err != nil {
+		return nil, err
+	}
 	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, cache.Indexers{})
 	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
 	ctrl.metricsServer = metrics.NewMetricsServer(metricsAddr, appLister, func() error {
 		_, err := kubeClientset.Discovery().ServerVersion()
 		return err
 	})
-	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectlCmd, ctrl.metricsServer, ctrl.handleAppUpdated)
+	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectlCmd, ctrl.metricsServer, ctrl.handleObjectUpdated)
 	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectlCmd, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
@@ -150,23 +155,45 @@ func isSelfReferencedApp(app *appv1.Application, ref v1.ObjectReference) bool {
 		gvk.Kind == application.ApplicationKind
 }
 
-func (ctrl *ApplicationController) handleAppUpdated(appName string, isManagedResource bool, ref v1.ObjectReference) {
-	skipForceRefresh := false
+func (ctrl *ApplicationController) getAppProj(app *appv1.Application) (*appv1.AppProject, error) {
+	return argo.GetAppProject(&app.Spec, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace)
+}
 
-	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(ctrl.namespace + "/" + appName)
-	if app, ok := obj.(*appv1.Application); exists && err == nil && ok && isSelfReferencedApp(app, ref) {
-		// Don't force refresh app if related resource is application itself. This prevents infinite reconciliation loop.
-		skipForceRefresh = true
-	}
-
-	if !skipForceRefresh {
-		level := ComparisonWithNothing
-		if isManagedResource {
-			level = CompareWithRecent
+func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]bool, ref v1.ObjectReference) {
+	// if namespaced resource is not managed by any app it might be orphaned resource of some other apps
+	if len(managedByApp) == 0 && ref.Namespace != "" {
+		// retrieve applications which monitor orphaned resources in the same namespace and refresh them unless resource is blacklisted in app project
+		if objs, err := ctrl.appInformer.GetIndexer().ByIndex(orphanedIndex, ref.Namespace); err == nil {
+			for i := range objs {
+				app, ok := objs[i].(*appv1.Application)
+				if !ok {
+					continue
+				}
+				// Ignore resource unless it is permitted in the app project. If project is not permitted then it is not controlled by the user and there is no point showing the warning.
+				if proj, err := ctrl.getAppProj(app); err == nil && proj.IsResourcePermitted(metav1.GroupKind{Group: ref.GroupVersionKind().Group, Kind: ref.Kind}, true) {
+					managedByApp[app.Name] = false
+				}
+			}
 		}
-		ctrl.requestAppRefresh(appName, level)
 	}
-	ctrl.appRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, appName))
+	for appName, isManagedResource := range managedByApp {
+		skipForceRefresh := false
+
+		obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(ctrl.namespace + "/" + appName)
+		if app, ok := obj.(*appv1.Application); exists && err == nil && ok && isSelfReferencedApp(app, ref) {
+			// Don't force refresh app if related resource is application itself. This prevents infinite reconciliation loop.
+			skipForceRefresh = true
+		}
+
+		if !skipForceRefresh {
+			level := ComparisonWithNothing
+			if isManagedResource {
+				level = CompareWithRecent
+			}
+			ctrl.requestAppRefresh(appName, level)
+		}
+		ctrl.appRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, appName))
+	}
 }
 
 func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, comparisonResult *comparisonResult) (*appv1.ApplicationTree, error) {
@@ -188,8 +215,23 @@ func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, 
 func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managedResources []*appv1.ResourceDiff) (*appv1.ApplicationTree, error) {
 	nodes := make([]appv1.ResourceNode, 0)
 
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace)
+	if err != nil {
+		return nil, err
+	}
+	orphanedNodesMap := make(map[kube.ResourceKey]appv1.ResourceNode)
+	warnOrphaned := true
+	if proj.Spec.OrphanedResources != nil {
+		orphanedNodesMap, err = ctrl.stateCache.GetNamespaceTopLevelResources(a.Spec.Destination.Server, a.Spec.Destination.Namespace)
+		if err != nil {
+			return nil, err
+		}
+		warnOrphaned = proj.Spec.OrphanedResources.IsWarn()
+	}
+
 	for i := range managedResources {
 		managedResource := managedResources[i]
+		delete(orphanedNodesMap, kube.NewResourceKey(managedResource.Group, managedResource.Kind, managedResource.Namespace, managedResource.Name))
 		var live = &unstructured.Unstructured{}
 		err := json.Unmarshal([]byte(managedResource.LiveState), &live)
 		if err != nil {
@@ -212,16 +254,40 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 				},
 			})
 		} else {
-			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, live, func(child appv1.ResourceNode) {
+			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, kube.GetResourceKey(live), func(child appv1.ResourceNode, appName string) {
 				nodes = append(nodes, child)
 			})
 			if err != nil {
 				return nil, err
 			}
-
 		}
 	}
-	return &appv1.ApplicationTree{Nodes: nodes}, nil
+	orphanedNodes := make([]appv1.ResourceNode, 0)
+	for k := range orphanedNodesMap {
+		if k.Namespace != "" && proj.IsResourcePermitted(metav1.GroupKind{Group: k.Group, Kind: k.Kind}, true) {
+			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, k, func(child appv1.ResourceNode, appName string) {
+				belongToAnotherApp := false
+				if appName != "" {
+					if _, exists, err := ctrl.appInformer.GetIndexer().GetByKey(ctrl.namespace + "/" + appName); exists && err == nil {
+						belongToAnotherApp = true
+					}
+				}
+				if !belongToAnotherApp {
+					orphanedNodes = append(orphanedNodes, child)
+				}
+			})
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	if len(orphanedNodes) > 0 && warnOrphaned {
+		a.Status.SetConditions([]appv1.ApplicationCondition{{
+			Type:    appv1.ApplicationConditionOrphanedResourceWarning,
+			Message: fmt.Sprintf("Application has %d orphaned resources", len(orphanedNodes)),
+		}}, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionOrphanedResourceWarning: true})
+	}
+	return &appv1.ApplicationTree{Nodes: nodes, OrphanedNodes: orphanedNodes}, nil
 }
 
 func (ctrl *ApplicationController) managedResources(comparisonResult *comparisonResult) ([]*appv1.ResourceDiff, error) {
@@ -672,11 +738,10 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		}
 	}
 
-	conditions, hasErrors := ctrl.refreshAppConditions(app)
-	if hasErrors {
+	ctrl.refreshAppConditions(app)
+	if len(app.Status.GetErrorConditions()) > 0 {
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = appv1.HealthStatusUnknown
-		app.Status.Conditions = conditions
 		ctrl.persistAppStatus(origApp, &app.Status)
 		return
 	}
@@ -692,10 +757,10 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 	compareResult, err := ctrl.appStateManager.CompareAppState(app, revision, app.Spec.Source, refreshType == appv1.RefreshTypeHard, localManifests)
 	if err != nil {
-		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
+		app.Status.Conditions = append(app.Status.Conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
 	} else {
 		ctrl.normalizeApplication(origApp, app, compareResult.appSourceType)
-		conditions = append(conditions, compareResult.conditions...)
+		app.Status.Conditions = append(app.Status.Conditions, compareResult.conditions...)
 	}
 	tree, err := ctrl.setAppManagedResources(app, compareResult)
 	if err != nil {
@@ -706,7 +771,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	syncErrCond := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources)
 	if syncErrCond != nil {
-		conditions = append(conditions, *syncErrCond)
+		app.Status.Conditions = append(app.Status.Conditions, *syncErrCond)
 	}
 
 	app.Status.ObservedAt = &compareResult.reconciledAt
@@ -714,7 +779,6 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	app.Status.Sync = *compareResult.syncStatus
 	app.Status.Health = *compareResult.healthStatus
 	app.Status.Resources = compareResult.resources
-	app.Status.Conditions = conditions
 	app.Status.SourceType = compareResult.appSourceType
 	ctrl.persistAppStatus(origApp, &app.Status)
 	return
@@ -752,9 +816,9 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	return false, refreshType, compareWith
 }
 
-func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) ([]appv1.ApplicationCondition, bool) {
+func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) {
 	conditions := make([]appv1.ApplicationCondition, 0)
-	proj, err := argo.GetAppProject(&app.Spec, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace)
+	proj, err := ctrl.getAppProj(app)
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			conditions = append(conditions, appv1.ApplicationCondition{
@@ -778,9 +842,7 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 			conditions = append(conditions, specConditions...)
 		}
 	}
-
-	// List of condition types which have to be reevaluated by controller; all remaining conditions should stay as is.
-	reevaluateTypes := map[appv1.ApplicationConditionType]bool{
+	app.Status.SetConditions(conditions, map[appv1.ApplicationConditionType]bool{
 		appv1.ApplicationConditionInvalidSpecError:        true,
 		appv1.ApplicationConditionUnknownError:            true,
 		appv1.ApplicationConditionComparisonError:         true,
@@ -788,24 +850,7 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 		appv1.ApplicationConditionSyncError:               true,
 		appv1.ApplicationConditionRepeatedResourceWarning: true,
 		appv1.ApplicationConditionExcludedResourceWarning: true,
-	}
-	appConditions := make([]appv1.ApplicationCondition, 0)
-	for i := 0; i < len(app.Status.Conditions); i++ {
-		condition := app.Status.Conditions[i]
-		if _, ok := reevaluateTypes[condition.Type]; !ok {
-			appConditions = append(appConditions, condition)
-		}
-	}
-	hasErrors := false
-	for i := range conditions {
-		condition := conditions[i]
-		appConditions = append(appConditions, condition)
-		if condition.IsError() {
-			hasErrors = true
-		}
-
-	}
-	return appConditions, hasErrors
+	})
 }
 
 // normalizeApplication normalizes an application.spec and additionally persists updates if it changed
@@ -976,7 +1021,7 @@ func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application) (bool,
 	return retryAfter <= 0, retryAfter
 }
 
-func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.SharedIndexInformer, applisters.ApplicationLister) {
+func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.SharedIndexInformer, applisters.ApplicationLister, error) {
 	appInformerFactory := appinformers.NewFilteredSharedInformerFactory(
 		ctrl.applicationClientset,
 		ctrl.statusRefreshTimeout,
@@ -1020,7 +1065,24 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 			},
 		},
 	)
-	return informer, lister
+	err := informer.AddIndexers(cache.Indexers{
+		orphanedIndex: func(obj interface{}) (i []string, e error) {
+			app, ok := obj.(*appv1.Application)
+			if !ok {
+				return nil, nil
+			}
+
+			proj, err := ctrl.getAppProj(app)
+			if err != nil {
+				return nil, nil
+			}
+			if proj.Spec.OrphanedResources != nil {
+				return []string{app.Spec.Destination.Namespace}, nil
+			}
+			return nil, nil
+		},
+	})
+	return informer, lister, err
 }
 
 func isOperationInProgress(app *appv1.Application) bool {

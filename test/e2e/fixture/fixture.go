@@ -2,6 +2,7 @@ package fixture
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -10,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/pkg/errors"
 	jsonpatch "github.com/evanphx/json-patch"
@@ -291,6 +294,13 @@ func SetHelmRepoCredential(creds settings.HelmRepoCredentials) {
 	})
 }
 
+func SetProjectSpec(project string, spec v1alpha1.AppProjectSpec) {
+	data, err := json.Marshal(spec)
+	errors.CheckError(err)
+	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Patch(project, types.MergePatchType, []byte(fmt.Sprintf(`{ "spec": %s }`, string(data))))
+	errors.CheckError(err)
+}
+
 func EnsureCleanState(t *testing.T) {
 
 	start := time.Now()
@@ -333,6 +343,12 @@ func EnsureCleanState(t *testing.T) {
 	SetRepoCredentials()
 	SetRepos()
 	SetResourceFilter(settings.ResourcesFilter{})
+	SetProjectSpec("default", v1alpha1.AppProjectSpec{
+		OrphanedResources:        nil,
+		SourceRepos:              []string{"*"},
+		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
+		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
+	})
 	SetTLSCerts()
 
 	// remove tmp dir

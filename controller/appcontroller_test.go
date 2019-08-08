@@ -31,10 +31,16 @@ import (
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
+type namespacedResource struct {
+	argoappv1.ResourceNode
+	AppName string
+}
+
 type fakeData struct {
-	apps             []runtime.Object
-	manifestResponse *apiclient.ManifestResponse
-	managedLiveObjs  map[kube.ResourceKey]*unstructured.Unstructured
+	apps                []runtime.Object
+	manifestResponse    *apiclient.ManifestResponse
+	managedLiveObjs     map[kube.ResourceKey]*unstructured.Unstructured
+	namespacedResources map[kube.ResourceKey]namespacedResource
 }
 
 func newFakeController(data *fakeData) *ApplicationController {
@@ -90,14 +96,25 @@ func newFakeController(data *fakeData) *ApplicationController {
 	defer cancelProj()
 	cancelApp := test.StartInformer(ctrl.appInformer)
 	defer cancelApp()
-	// Mock out call to GetManagedLiveObjs if fake data supplied
-	if data.managedLiveObjs != nil {
-		mockStateCache := mockstatecache.LiveStateCache{}
-		mockStateCache.On("GetManagedLiveObjs", mock.Anything, mock.Anything).Return(data.managedLiveObjs, nil)
-		mockStateCache.On("IsNamespaced", mock.Anything, mock.Anything).Return(true, nil)
-		ctrl.stateCache = &mockStateCache
-		ctrl.appStateManager.(*appStateManager).liveStateCache = &mockStateCache
+	mockStateCache := mockstatecache.LiveStateCache{}
+	ctrl.appStateManager.(*appStateManager).liveStateCache = &mockStateCache
+	ctrl.stateCache = &mockStateCache
+	mockStateCache.On("IsNamespaced", mock.Anything, mock.Anything).Return(true, nil)
+	mockStateCache.On("GetManagedLiveObjs", mock.Anything, mock.Anything).Return(data.managedLiveObjs, nil)
+	response := make(map[kube.ResourceKey]argoappv1.ResourceNode)
+	for k, v := range data.namespacedResources {
+		response[k] = v.ResourceNode
 	}
+	mockStateCache.On("GetNamespaceTopLevelResources", mock.Anything, mock.Anything).Return(response, nil)
+	mockStateCache.On("IterateHierarchy", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		key := args[1].(kube.ResourceKey)
+		action := args[2].(func(child argoappv1.ResourceNode, appName string))
+		appName := ""
+		if res, ok := data.namespacedResources[key]; ok {
+			appName = res.AppName
+		}
+		action(argoappv1.ResourceNode{ResourceRef: argoappv1.ResourceRef{Group: key.Group, Namespace: key.Namespace, Name: key.Name}}, appName)
+	}).Return(nil)
 	return ctrl
 }
 
@@ -464,15 +481,42 @@ func TestHandleAppUpdated(t *testing.T) {
 	app.Spec.Destination.Server = common.KubernetesInternalAPIServerAddr
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 
-	ctrl.handleAppUpdated(app.Name, true, kube.GetObjectRef(kube.MustToUnstructured(app)))
+	ctrl.handleObjectUpdated(map[string]bool{app.Name: true}, kube.GetObjectRef(kube.MustToUnstructured(app)))
 	isRequested, level := ctrl.isRefreshRequested(app.Name)
 	assert.False(t, isRequested)
 	assert.Equal(t, ComparisonWithNothing, level)
 
-	ctrl.handleAppUpdated(app.Name, true, corev1.ObjectReference{UID: "test", Kind: kube.DeploymentKind, Name: "test", Namespace: "default"})
+	ctrl.handleObjectUpdated(map[string]bool{app.Name: true}, corev1.ObjectReference{UID: "test", Kind: kube.DeploymentKind, Name: "test", Namespace: "default"})
 	isRequested, level = ctrl.isRefreshRequested(app.Name)
 	assert.True(t, isRequested)
 	assert.Equal(t, CompareWithRecent, level)
+}
+
+func TestHandleOrphanedResourceUpdated(t *testing.T) {
+	app1 := newFakeApp()
+	app1.Name = "app1"
+	app1.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+	app1.Spec.Destination.Server = common.KubernetesInternalAPIServerAddr
+
+	app2 := newFakeApp()
+	app2.Name = "app2"
+	app2.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+	app2.Spec.Destination.Server = common.KubernetesInternalAPIServerAddr
+
+	proj := defaultProj.DeepCopy()
+	proj.Spec.OrphanedResources = &argoappv1.OrphanedResourcesMonitorSettings{}
+
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app1, app2, proj}})
+
+	ctrl.handleObjectUpdated(map[string]bool{}, corev1.ObjectReference{UID: "test", Kind: kube.DeploymentKind, Name: "test", Namespace: test.FakeArgoCDNamespace})
+
+	isRequested, level := ctrl.isRefreshRequested(app1.Name)
+	assert.True(t, isRequested)
+	assert.Equal(t, ComparisonWithNothing, level)
+
+	isRequested, level = ctrl.isRefreshRequested(app2.Name)
+	assert.True(t, isRequested)
+	assert.Equal(t, ComparisonWithNothing, level)
 }
 
 func TestSetOperationStateOnDeletedApp(t *testing.T) {

@@ -24,6 +24,7 @@ export interface ResourceTreeNode extends models.ResourceNode {
     hook?: boolean;
     root?: ResourceTreeNode;
     requiresPruning?: boolean;
+    orphaned?: boolean;
 }
 
 export interface ApplicationResourceTreeProps {
@@ -35,6 +36,7 @@ export interface ApplicationResourceTreeProps {
     onNodeClick?: (fullName: string) => any;
     nodeMenu?: (node: models.ResourceNode) => React.ReactNode;
     onClearFilter: () => any;
+    showOrphanedResources: boolean;
 }
 
 interface Line { x1: number; y1: number; x2: number; y2: number; }
@@ -166,7 +168,8 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
     const rootNode = !node.root;
     return (
         <div onClick={() => props.onNodeClick && props.onNodeClick(fullName)} className={classNames('application-resource-tree__node', {
-            active: fullName === props.selectedNodeFullName,
+            'active': fullName === props.selectedNodeFullName,
+            'application-resource-tree__node--orphaned': node.orphaned,
         })} style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
             {!appNode && <NodeUpdateAnimation resourceVersion={node.resourceVersion} />}
             <div className={classNames('application-resource-tree__node-kind-icon', {
@@ -243,7 +246,9 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     const statusByKey = new Map<string, models.ResourceStatus>();
     props.app.status.resources.forEach((res) => statusByKey.set(nodeKey(res), res));
     const nodeByKey = new Map<string, ResourceTreeNode>();
-    props.tree.nodes.forEach((node) => {
+    props.tree.nodes.map((node) => ({...node, orphaned: false}))
+            .concat((props.showOrphanedResources && props.tree.orphanedNodes || [])
+            .map((node) => ({...node, orphaned: true}))).forEach((node) => {
         const status = statusByKey.get(nodeKey(node));
         const resourceNode: ResourceTreeNode = {...node};
         if (status) {

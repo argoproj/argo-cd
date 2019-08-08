@@ -78,6 +78,11 @@ func (c *Context) SSHInsecureRepoURLAdded() *Context {
 	return c
 }
 
+func (c *Context) ProjectSpec(spec v1alpha1.AppProjectSpec) *Context {
+	fixture.SetProjectSpec(c.project, spec)
+	return c
+}
+
 func (c *Context) RepoURLType(urlType fixture.RepoURLType) *Context {
 	c.repoURLType = urlType
 	return c

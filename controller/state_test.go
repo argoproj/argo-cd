@@ -289,3 +289,55 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 
 	assert.Equal(t, compRes.healthStatus.Status, argoappv1.HealthStatusHealthy)
 }
+
+func TestSetManagedResourcesWithOrphanedResources(t *testing.T) {
+	proj := defaultProj.DeepCopy()
+	proj.Spec.OrphanedResources = &argoappv1.OrphanedResourcesMonitorSettings{}
+
+	app := newFakeApp()
+	ctrl := newFakeController(&fakeData{
+		apps: []runtime.Object{app, proj},
+		namespacedResources: map[kube.ResourceKey]namespacedResource{
+			kube.NewResourceKey("apps", kube.DeploymentKind, app.Namespace, "guestbook"): {
+				ResourceNode: argoappv1.ResourceNode{
+					ResourceRef: argoappv1.ResourceRef{Kind: kube.DeploymentKind, Name: "guestbook", Namespace: app.Namespace},
+				},
+				AppName: "",
+			},
+		},
+	})
+
+	tree, err := ctrl.setAppManagedResources(app, &comparisonResult{managedResources: make([]managedResource, 0)})
+
+	assert.NoError(t, err)
+	assert.Equal(t, len(tree.OrphanedNodes), 1)
+	assert.Equal(t, "guestbook", tree.OrphanedNodes[0].Name)
+	assert.Equal(t, app.Namespace, tree.OrphanedNodes[0].Namespace)
+}
+
+func TestSetManagedResourcesWithResourcesOfAnotherApp(t *testing.T) {
+	proj := defaultProj.DeepCopy()
+	proj.Spec.OrphanedResources = &argoappv1.OrphanedResourcesMonitorSettings{}
+
+	app1 := newFakeApp()
+	app1.Name = "app1"
+	app2 := newFakeApp()
+	app2.Name = "app2"
+
+	ctrl := newFakeController(&fakeData{
+		apps: []runtime.Object{app1, app2, proj},
+		namespacedResources: map[kube.ResourceKey]namespacedResource{
+			kube.NewResourceKey("apps", kube.DeploymentKind, app2.Namespace, "guestbook"): {
+				ResourceNode: argoappv1.ResourceNode{
+					ResourceRef: argoappv1.ResourceRef{Kind: kube.DeploymentKind, Name: "guestbook", Namespace: app2.Namespace},
+				},
+				AppName: "app2",
+			},
+		},
+	})
+
+	tree, err := ctrl.setAppManagedResources(app1, &comparisonResult{managedResources: make([]managedResource, 0)})
+
+	assert.NoError(t, err)
+	assert.Equal(t, len(tree.OrphanedNodes), 0)
+}
