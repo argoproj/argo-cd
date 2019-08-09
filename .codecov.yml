@@ -2,6 +2,7 @@ ignore:
 - "**/*.pb.go"
 - "**/*.pb.gw.go"
 - "**/*generated.go"
+- "**/*generated.deepcopy.go"
 - "**/*_test.go"
 - "pkg/apis/client/.*"
 - "pkg/client/.*"
