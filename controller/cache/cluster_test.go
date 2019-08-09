@@ -87,6 +87,7 @@ var (
     name: helm-guestbook
     namespace: default
     resourceVersion: "123"
+    uid: "4"
   spec:
     selector:
       app: guestbook
@@ -102,6 +103,7 @@ var (
   metadata:
     name: helm-guestbook
     namespace: default
+    uid: "4"
   spec:
     backend:
       serviceName: not-found-service
