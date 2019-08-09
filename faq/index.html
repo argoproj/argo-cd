@@ -987,6 +987,20 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#why-am-i-getting-rpc-error-code-unavailable-desc-transport-is-closing-when-using-the-cli" title="Why Am I Getting rpc error: code = Unavailable desc = transport is closing When Using The CLI?" class="md-nav__link">
+    Why Am I Getting rpc error: code = Unavailable desc = transport is closing When Using The CLI?
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-am-i-getting-x509-certificate-signed-by-unknown-authority-when-using-the-cli" title="Why Am I Getting x509: certificate signed by unknown authority When Using The CLI?" class="md-nav__link">
+    Why Am I Getting x509: certificate signed by unknown authority When Using The CLI?
+  </a>
+  
+</li>
+      
       
       
       
@@ -1129,6 +1143,20 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#why-am-i-getting-rpc-error-code-unavailable-desc-transport-is-closing-when-using-the-cli" title="Why Am I Getting rpc error: code = Unavailable desc = transport is closing When Using The CLI?" class="md-nav__link">
+    Why Am I Getting rpc error: code = Unavailable desc = transport is closing When Using The CLI?
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-am-i-getting-x509-certificate-signed-by-unknown-authority-when-using-the-cli" title="Why Am I Getting x509: certificate signed by unknown authority When Using The CLI?" class="md-nav__link">
+    Why Am I Getting x509: certificate signed by unknown authority When Using The CLI?
+  </a>
+  
+</li>
+      
       
       
       
@@ -1218,8 +1246,27 @@ argocd-util kubeconfig https://&lt;cluster-url&gt; /tmp/config --namespace argoc
 <h2 id="why-is-my-app-out-of-sync-even-after-syncing">Why Is My App Out Of Sync Even After Syncing?<a class="headerlink" href="#why-is-my-app-out-of-sync-even-after-syncing" title="Permanent link">&para;</a></h2>
 <p>Is some cases, the tool you use may conflict with Argo CD by adding the <code>app.kubernetes.io/instance</code> label. E.g. using Kustomize common labels feature.</p>
 <p>Argo CD automatically sets the <code>app.kubernetes.io/instance</code> label and uses it to determine which resources form the app. If the tool does this too, this causes confusion. You can change this label by setting the <code>application.instanceLabelKey</code> value in the <code>argocd-cm</code>.  We recommend that you use <code>argocd.argoproj.io/instance</code>. </p>
-<p>!!! note    When you make this change your applications will become out of sync and will need re-syncing.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When you make this change your applications will become out of sync and will need re-syncing.</p>
+</div>
 <p>See <a href="https://github.com/argoproj/argo-cd/issues/1482">#1482</a>.</p>
+<h2 id="why-am-i-getting-rpc-error-code-unavailable-desc-transport-is-closing-when-using-the-cli">Why Am I Getting <code>rpc error: code = Unavailable desc = transport is closing</code> When Using The CLI?<a class="headerlink" href="#why-am-i-getting-rpc-error-code-unavailable-desc-transport-is-closing-when-using-the-cli" title="Permanent link">&para;</a></h2>
+<p>Maybe you're behind a proxy that does not support HTTP 2? Try the <code>--grcp-web</code> flag.:</p>
+<div class="codehilite"><pre><span></span>argocd ... --grcp-web
+</pre></div>
+
+
+<h2 id="why-am-i-getting-x509-certificate-signed-by-unknown-authority-when-using-the-cli">Why Am I Getting <code>x509: certificate signed by unknown authority</code> When Using The CLI?<a class="headerlink" href="#why-am-i-getting-x509-certificate-signed-by-unknown-authority-when-using-the-cli" title="Permanent link">&para;</a></h2>
+<p>Your not running your server with correct certs.</p>
+<p>If you're not running in a production system (e.g. you're testing Argo CD out), try the <code>--insecure</code> flag:</p>
+<div class="codehilite"><pre><span></span>argocd ... --insecure
+</pre></div>
+
+
+<div class="admonition warning">
+<p class="admonition-title">Do not use <code>--insecure</code> in production</p>
+</div>
                 
                   
                 

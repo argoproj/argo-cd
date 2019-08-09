@@ -1105,7 +1105,7 @@ which cannot modify Argo CD settings.</p>
 
 <h2 id="anonymous-access">Anonymous Access<a class="headerlink" href="#anonymous-access" title="Permanent link">&para;</a></h2>
 <p>THe anonymous access to Argo CD can be enabled using <code>users.anonymous.enabled</code> field in <code>argocd-cm</code> (see <a href="../argocd-cm.yaml">./argocd-cm.yaml</a>).
-The anonymous users get default role permissions specified argocd-rbac-cm.yaml.</p>
+The anonymous users get default role permissions specified by <code>policy.default</code> in <code>argocd-rbac-cm.yaml. For read-only access you'll want</code>policy.default: role:readonly` as above</p>
                 
                   
                 
