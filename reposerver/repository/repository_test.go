@@ -90,14 +90,49 @@ func TestRecurseManifestsInDir(t *testing.T) {
 	assert.Equal(t, 2, len(res1.Manifests))
 }
 
+func TestPathRoot(t *testing.T) {
+	_, err := appPath("./testdata", "/")
+	assert.EqualError(t, err, "/: app path is absolute")
+}
+
+func TestPathAbsolute(t *testing.T) {
+	_, err := appPath("./testdata", "/etc/passwd")
+	assert.EqualError(t, err, "/etc/passwd: app path is absolute")
+}
+
+func TestPathDotDot(t *testing.T) {
+	_, err := appPath("./testdata", "..")
+	assert.EqualError(t, err, "..: app path outside repo")
+}
+
+func TestPathDotDotSlash(t *testing.T) {
+	_, err := appPath("./testdata", "../")
+	assert.EqualError(t, err, "../: app path outside repo")
+}
+
+func TestPathDot(t *testing.T) {
+	_, err := appPath("./testdata", ".")
+	assert.NoError(t, err)
+}
+
+func TestPathDotSlash(t *testing.T) {
+	_, err := appPath("./testdata", "./")
+	assert.NoError(t, err)
+}
+
 func TestNonExistentPath(t *testing.T) {
-	_, err := GenerateManifests("./testdata", "does-not-exist", nil)
+	_, err := appPath("./testdata", "does-not-exist")
 	assert.EqualError(t, err, "does-not-exist: app path does not exist")
 }
 
 func TestPathNotDir(t *testing.T) {
-	_, err := GenerateManifests("./testdata", "file.txt", nil)
+	_, err := appPath("./testdata", "file.txt")
 	assert.EqualError(t, err, "file.txt: app path is not a directory")
+}
+
+func TestGenerateManifests_NonExistentPath(t *testing.T) {
+	_, err := GenerateManifests("./testdata", "does-not-exist", nil)
+	assert.EqualError(t, err, "does-not-exist: app path does not exist")
 }
 
 func TestGenerateJsonnetManifestInDir(t *testing.T) {
