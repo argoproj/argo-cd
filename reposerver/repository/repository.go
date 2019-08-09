@@ -189,28 +189,33 @@ func (s *Service) GenerateManifest(c context.Context, q *apiclient.ManifestReque
 	return &res, nil
 }
 
-func checkPath(root, path string) error {
-	info, err := os.Stat(filepath.Join(root, path))
+func appPath(root, path string) (string, error) {
+	if filepath.IsAbs(path) {
+		return "", fmt.Errorf("%s: app path is absolute", path)
+	}
+	appPath := filepath.Join(root, path)
+	if !strings.HasPrefix(appPath, filepath.Clean(root)) {
+		return "", fmt.Errorf("%s: app path outside repo", path)
+	}
+	info, err := os.Stat(appPath)
 	if os.IsNotExist(err) {
-		return fmt.Errorf("%s: app path does not exist", path)
+		return "", fmt.Errorf("%s: app path does not exist", path)
 	}
 	if err != nil {
-		return err
+		return "", err
 	}
 	if !info.IsDir() {
-		return fmt.Errorf("%s: app path is not a directory", path)
+		return "", fmt.Errorf("%s: app path is not a directory", path)
 	}
-	return nil
+	return appPath, nil
 }
 
 // GenerateManifests generates manifests from a path
 func GenerateManifests(root, path string, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
-	err := checkPath(root, path)
+	appPath, err := appPath(root, path)
 	if err != nil {
 		return nil, err
 	}
-
-	appPath := filepath.Join(root, path)
 	var targetObjs []*unstructured.Unstructured
 	var dest *v1alpha1.ApplicationDestination
 
