@@ -106,7 +106,7 @@ argocd ... --grcp-web
 
 Your not running your server with correct certs.
 
-If you're not running in a production system (e.g. you're testing Argo CD out), try the `-insecure` flag:
+If you're not running in a production system (e.g. you're testing Argo CD out), try the `--insecure` flag:
 
 ```bash
 argocd ... --insecure
