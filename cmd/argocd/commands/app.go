@@ -772,7 +772,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		Short: shortDesc,
 		Long:  shortDesc + "\nUses 'diff' to render the difference. KUBECTL_EXTERNAL_DIFF environment variable can be used to select your own diff tool.\nReturns the following exit codes: 2 on general errors, 1 when a diff is found, and 0 when no diff is found",
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) == 0 {
+			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(2)
 			}
@@ -1241,7 +1241,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			var localObjsStrings []string
 			if local != "" {
 				app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
-
+				errors.CheckError(err)
 				if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
 					log.Fatal("Cannot use local sync when Automatic Sync Policy is enabled")
 				}
