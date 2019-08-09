@@ -14,6 +14,7 @@ import (
 	argoexec "github.com/argoproj/pkg/exec"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/config"
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -195,6 +196,13 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		auth := &ssh2.PublicKeys{User: sshUser, Signer: signer}
 		if creds.insecure {
 			auth.HostKeyCallback = ssh.InsecureIgnoreHostKey()
+		} else {
+			// Set up validation of SSH known hosts for using our ssh_known_hosts
+			// file.
+			auth.HostKeyCallback, err = knownhosts.New(certutil.GetSSHKnownHostsDataPath())
+			if err != nil {
+				log.Errorf("Could not set-up SSH known hosts callback: %v", err)
+			}
 		}
 		return auth, nil
 	case HTTPSCreds:

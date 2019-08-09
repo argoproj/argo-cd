@@ -534,9 +534,9 @@ func secretData(obj *unstructured.Unstructured) map[string]interface{} {
 }
 
 const (
-	replacement1 = "*********"
-	replacement2 = "**********"
-	replacement3 = "***********"
+	replacement1 = "+++++++++"
+	replacement2 = "++++++++++"
+	replacement3 = "+++++++++++"
 )
 
 func TestHideSecretDataSameKeysDifferentValues(t *testing.T) {

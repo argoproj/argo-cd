@@ -149,6 +149,8 @@ type ApplicationSourceHelm struct {
 	Parameters []HelmParameter `json:"parameters,omitempty" protobuf:"bytes,2,opt,name=parameters"`
 	// The Helm release name. If omitted it will use the application name
 	ReleaseName string `json:"releaseName,omitempty" protobuf:"bytes,3,opt,name=releaseName"`
+	// Values is Helm values, typically defined as a block
+	Values string `json:"values,omitempty" protobuf:"bytes,4,opt,name=values"`
 }
 
 // HelmParameter is a parameter to a helm template
@@ -190,7 +192,7 @@ func (in *ApplicationSourceHelm) AddParameter(p HelmParameter) {
 }
 
 func (h *ApplicationSourceHelm) IsZero() bool {
-	return h == nil || (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0
+	return h == nil || (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && h.Values == ""
 }
 
 type KustomizeImage string

@@ -73,7 +73,7 @@ class GroupWrapper extends React.Component<GroupProps, any> {
     public render() {
         return (
             <div className='row'>
-                <div className='columns small-4'>
+                <div className='columns small-11'>
                     {this.props.groupName}
                 </div>
                 <div className='columns small-1'>

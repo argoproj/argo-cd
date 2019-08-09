@@ -74,6 +74,19 @@ func (h *helm) Template(appName string, namespace string, opts *argoappv1.Applic
 		for _, valuesFile := range opts.ValueFiles {
 			args = append(args, "-f", valuesFile)
 		}
+		if opts.Values != "" {
+			file, err := ioutil.TempFile("", "values-*.yaml")
+			if err != nil {
+				return nil, err
+			}
+			p := file.Name()
+			defer func() { _ = os.RemoveAll(p) }()
+			err = ioutil.WriteFile(p, []byte(opts.Values), 0644)
+			if err != nil {
+				return nil, err
+			}
+			args = append(args, "-f", p)
+		}
 		for _, p := range opts.Parameters {
 			if p.ForceString {
 				args = append(args, "--set-string", fmt.Sprintf("%s=%s", p.Name, p.Value))

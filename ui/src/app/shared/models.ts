@@ -154,6 +154,7 @@ export interface ApplicationSource {
 
 export interface ApplicationSourceHelm {
     valueFiles: string[];
+    values?: string;
     parameters: HelmParameter[];
 }
 
@@ -413,6 +414,7 @@ export interface HelmAppSpec {
     name: string;
     path: string;
     valueFiles: string[];
+    values?: string;
     parameters: HelmParameter[];
 }
 

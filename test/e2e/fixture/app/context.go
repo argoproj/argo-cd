@@ -35,11 +35,16 @@ type Context struct {
 
 func Given(t *testing.T) *Context {
 	fixture.EnsureCleanState(t)
-	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, repoURLType: fixture.RepoURLTypeFile, name: fixture.Name(), timeout: 5, project: "default", prune: true}
+	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, repoURLType: fixture.RepoURLTypeFile, name: fixture.Name(), timeout: 10, project: "default", prune: true}
 }
 
 func (c *Context) CustomCACertAdded() *Context {
 	certs.AddCustomCACert()
+	return c
+}
+
+func (c *Context) CustomSSHKnownHostsAdded() *Context {
+	certs.AddCustomSSHKnownHostsKeys()
 	return c
 }
 
