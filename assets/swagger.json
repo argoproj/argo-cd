@@ -1893,6 +1893,9 @@
           "items": {
             "type": "string"
           }
+        },
+        "values": {
+          "type": "string"
         }
       }
     },
@@ -2755,6 +2758,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "values": {
+          "type": "string",
+          "title": "Values is Helm values, typically defined as a block"
         }
       }
     },

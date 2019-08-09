@@ -216,19 +216,20 @@ func TestGetAppDetailsHelm(t *testing.T) {
 	ctx := context.Background()
 
 	// verify default parameters are returned when not supplying values
-	{
+	t.Run("DefaultParameters", func(t *testing.T) {
 		res, err := serve.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 			Repo: &argoappv1.Repository{Repo: "https://github.com/fakeorg/fakerepo.git"},
 			Path: "redis",
 		})
 		assert.NoError(t, err)
 		assert.Equal(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
+		assert.Contains(t, res.Helm.Values, "registry: docker.io")
 		assert.Equal(t, argoappv1.HelmParameter{Name: "image.pullPolicy", Value: "Always"}, getHelmParameter("image.pullPolicy", res.Helm.Parameters))
 		assert.Equal(t, 49, len(res.Helm.Parameters))
-	}
+	})
 
 	// verify values specific parameters are returned when a values is specified
-	{
+	t.Run("SpecificParameters", func(t *testing.T) {
 		res, err := serve.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 			Repo: &argoappv1.Repository{Repo: "https://github.com/fakeorg/fakerepo.git"},
 			Path: "redis",
@@ -238,9 +239,10 @@ func TestGetAppDetailsHelm(t *testing.T) {
 		})
 		assert.NoError(t, err)
 		assert.Equal(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
+		assert.Contains(t, res.Helm.Values, "registry: docker.io")
 		assert.Equal(t, argoappv1.HelmParameter{Name: "image.pullPolicy", Value: "IfNotPresent"}, getHelmParameter("image.pullPolicy", res.Helm.Parameters))
 		assert.Equal(t, 49, len(res.Helm.Parameters))
-	}
+	})
 }
 
 func getHelmParameter(name string, params []*argoappv1.HelmParameter) argoappv1.HelmParameter {
