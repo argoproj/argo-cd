@@ -16,6 +16,11 @@ func TestTypes(t *testing.T) {
 	assert.Equal(t, []Type{PreUpgrade}, Types(Annotate(NewPod(), "helm.sh/hook", "pre-upgrade")))
 	assert.Equal(t, []Type{PostUpgrade}, Types(Annotate(NewPod(), "helm.sh/hook", "post-upgrade")))
 	assert.Equal(t, []Type{PostInstall}, Types(Annotate(NewPod(), "helm.sh/hook", "post-install")))
+	// we do not consider these supported hooks
+	assert.Nil(t, Types(Annotate(NewPod(), "helm.sh/hook", "pre-rollback")))
+	assert.Nil(t, Types(Annotate(NewPod(), "helm.sh/hook", "post-rollback")))
+	assert.Nil(t, Types(Annotate(NewPod(), "helm.sh/hook", "test-success")))
+	assert.Nil(t, Types(Annotate(NewPod(), "helm.sh/hook", "test-failure")))
 }
 
 func TestType_HookType(t *testing.T) {

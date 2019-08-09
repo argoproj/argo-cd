@@ -10,15 +10,11 @@ import (
 )
 
 func IsHook(obj *unstructured.Unstructured) bool {
-	for _, hookType := range Types(obj) {
-		switch hookType {
-		case v1alpha1.HookTypeSkip:
-			return !Skip(obj)
-		default:
-			return true
-		}
+	_, ok := obj.GetAnnotations()[common.AnnotationKeyHook]
+	if ok {
+		return !Skip(obj)
 	}
-	return false
+	return helmhook.IsHook(obj)
 }
 
 func Skip(obj *unstructured.Unstructured) bool {

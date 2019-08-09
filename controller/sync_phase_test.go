@@ -28,7 +28,7 @@ func TestSyncPhaseSkip(t *testing.T) {
 
 // garbage hooks are now treated as normal resources
 func TestSyncPhaseGarbage(t *testing.T) {
-	assert.Equal(t, []SyncPhase{SyncPhaseSync}, syncPhases(pod("Garbage")))
+	assert.Nil(t, syncPhases(pod("Garbage")))
 }
 
 func TestSyncPhasePost(t *testing.T) {

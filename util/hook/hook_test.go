@@ -42,7 +42,7 @@ func TestSkipHook(t *testing.T) {
 // know what phase you're a part of
 func TestGarbageHook(t *testing.T) {
 	obj := example("Garbage")
-	assert.False(t, IsHook(obj))
+	assert.True(t, IsHook(obj))
 	assert.False(t, Skip(obj))
 	assert.Nil(t, Types(obj))
 }
@@ -78,6 +78,13 @@ func TestHelmHook(t *testing.T) {
 	assert.True(t, IsHook(obj))
 	assert.False(t, Skip(obj))
 	assert.Equal(t, []HookType{HookTypePreSync}, Types(obj))
+}
+
+func TestGarbageHelmHook(t *testing.T) {
+	obj := Annotate(NewPod(), "helm.sh/hook", "garbage")
+	assert.True(t, IsHook(obj))
+	assert.False(t, Skip(obj))
+	assert.Nil(t, Types(obj))
 }
 
 // we should ignore Helm hooks if we have an Argo CD hook
