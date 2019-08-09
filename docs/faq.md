@@ -89,8 +89,7 @@ Is some cases, the tool you use may conflict with Argo CD by adding the `app.kub
 
 Argo CD automatically sets the `app.kubernetes.io/instance` label and uses it to determine which resources form the app. If the tool does this too, this causes confusion. You can change this label by setting the `application.instanceLabelKey` value in the `argocd-cm`.  We recommend that you use `argocd.argoproj.io/instance`. 
 
-!!! note    
-    When you make this change your applications will become out of sync and will need re-syncing.
+!!! note When you make this change your applications will become out of sync and will need re-syncing.
 
 See [#1482](https://github.com/argoproj/argo-cd/issues/1482).
 
