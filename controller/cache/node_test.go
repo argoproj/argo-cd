@@ -51,5 +51,6 @@ metadata:
 	parent := c.createObjInfo(testService, "")
 
 	assert.True(t, parent.isParentOf(matchingNameEndPoint))
+	assert.Equal(t, parent.ref.UID, matchingNameEndPoint.ownerRefs[0].UID)
 	assert.False(t, parent.isParentOf(nonMatchingNameEndPoint))
 }
