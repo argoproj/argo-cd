@@ -25,7 +25,7 @@ const (
 	ActionDelete   = "delete"
 	ActionSync     = "sync"
 	ActionOverride = "override"
-	ActionAction = "action"
+	ActionAction   = "action"
 )
 
 var (
