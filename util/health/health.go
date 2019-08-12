@@ -20,7 +20,7 @@ import (
 	hookutil "github.com/argoproj/argo-cd/util/hook"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/lua"
-	"github.com/argoproj/argo-cd/util/resource"
+	"github.com/argoproj/argo-cd/util/resource/ignore"
 )
 
 // SetApplicationHealth updates the health statuses of all resources performed in the comparison
@@ -59,7 +59,7 @@ func ignoreLiveObjectHealth(liveObj *unstructured.Unstructured, resHealth appv1.
 			// Don't allow resource hooks to affect health status
 			return true
 		}
-		if resource.Ignore(liveObj) {
+		if ignore.Ignore(liveObj) {
 			return true
 		}
 		gvk := liveObj.GroupVersionKind()

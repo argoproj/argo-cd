@@ -276,6 +276,8 @@ func TestHookDeleteBeforeCreation(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(HealthStatusHealthy)).
+		// the app will be in health+n-sync before this hook has run
+		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" })).
 		And(func(_ *Application) {
 			var err error
 			creationTimestamp1, err = getCreationTimestamp()
@@ -290,6 +292,7 @@ func TestHookDeleteBeforeCreation(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" })).
 		And(func(_ *Application) {
 			creationTimestamp2, err := getCreationTimestamp()
 			CheckError(err)
@@ -299,7 +302,6 @@ func TestHookDeleteBeforeCreation(t *testing.T) {
 }
 
 func getCreationTimestamp() (string, error) {
-	FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "all"))
 	return Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "pod", "hook", "-o", "jsonpath={.metadata.creationTimestamp}")
 }
 

@@ -24,12 +24,13 @@ func TestHasAnnotationOption(t *testing.T) {
 		{"Nil", args{test.NewPod(), "foo", "bar"}, nil, false},
 		{"Empty", args{example(""), "foo", "bar"}, nil, false},
 		{"Single", args{example("bar"), "foo", "bar"}, []string{"bar"}, true},
+		{"DeDup", args{example("bar,bar"), "foo", "bar"}, []string{"bar"}, true},
 		{"Double", args{example("bar,baz"), "foo", "baz"}, []string{"bar", "baz"}, true},
 		{"Spaces", args{example("bar "), "foo", "bar"}, []string{"bar"}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.wantVals, GetAnnotationCSVs(tt.args.obj, tt.args.key))
+			assert.ElementsMatch(t, tt.wantVals, GetAnnotationCSVs(tt.args.obj, tt.args.key))
 			assert.Equal(t, tt.want, HasAnnotationOption(tt.args.obj, tt.args.key, tt.args.val))
 		})
 	}
