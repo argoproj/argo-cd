@@ -722,7 +722,9 @@ func getLocalObjectsString(app *argoappv1.Application, local string, appLabelKey
 		AppLabelValue:     app.Name,
 		Namespace:         app.Spec.Destination.Namespace,
 		KustomizeOptions:  kustomizeOptions,
-	})
+	},
+		app.Status.Sync.Revision,
+	)
 	errors.CheckError(err)
 
 	return res.Manifests
