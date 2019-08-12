@@ -7,6 +7,7 @@ import (
 )
 
 func GetAnnotationCSVs(obj *unstructured.Unstructured, key string) []string {
+	// may for de-duping
 	valuesToBool := make(map[string]bool)
 	for _, item := range strings.Split(obj.GetAnnotations()[key], ",") {
 		val := strings.TrimSpace(item)

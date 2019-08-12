@@ -34,7 +34,7 @@ func Types(obj *unstructured.Unstructured) []v1alpha1.HookType {
 			types = append(types, t)
 		}
 	}
-	// we ignore
+	// we ignore Helm hooks if we have Argo hook
 	if len(types) == 0 {
 		for _, t := range helmhook.Types(obj) {
 			types = append(types, t.HookType())

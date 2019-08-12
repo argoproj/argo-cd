@@ -20,12 +20,14 @@ func NewDeletePolicy(p string) (DeletePolicy, bool) {
 	return DeletePolicy(p), p == string(BeforeHookCreation) || p == string(HookSucceeded) || p == string(HookFailed)
 }
 
+var hookDeletePolicies = map[DeletePolicy]v1alpha1.HookDeletePolicy{
+	BeforeHookCreation: v1alpha1.HookDeletePolicyBeforeHookCreation,
+	HookSucceeded:      v1alpha1.HookDeletePolicyHookSucceeded,
+	HookFailed:         v1alpha1.HookDeletePolicyHookFailed,
+}
+
 func (p DeletePolicy) DeletePolicy() v1alpha1.HookDeletePolicy {
-	return map[DeletePolicy]v1alpha1.HookDeletePolicy{
-		BeforeHookCreation: v1alpha1.HookDeletePolicyBeforeHookCreation,
-		HookSucceeded:      v1alpha1.HookDeletePolicyHookSucceeded,
-		HookFailed:         v1alpha1.HookDeletePolicyHookFailed,
-	}[p]
+	return hookDeletePolicies[p]
 }
 
 func DeletePolicies(obj *unstructured.Unstructured) []DeletePolicy {
