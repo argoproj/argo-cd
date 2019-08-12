@@ -24,9 +24,6 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
         const deployDate = new Date(history[history.length - 1].deployedAt);
         daysSinceLastSynchronized = Math.round(Math.abs((today.getTime() - deployDate.getTime()) / (24 * 60 * 60 * 1000)));
     }
-    const cntByCategory = (application.status.conditions || []).reduce(
-        (map, next) => map.set(utils.getConditionCategory(next), (map.get(utils.getConditionCategory(next)) || 0) + 1),
-        new Map<string, number>());
     let appOperationState = application.status.operationState;
     if (application.metadata.deletionTimestamp) {
         appOperationState = {
@@ -50,9 +47,22 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
         </Tooltip>
     );
 
+    const conditionLink = (category: string) => {
+        const conditions = (application.status.conditions || []).filter((c) => utils.getConditionCategory(c) === category);
+        const icon = category === 'info' ? 'fa fa-check-circle' : category === 'warning' ?  'fa fa-exclamation-circle' : 'fa fa-times';
+        switch (conditions.length) {
+            case 0:
+                return null;
+            case 1:
+                return <a className={category}><i className={icon}/> {conditions[0].message}</a>;
+            default:
+                return <a className={category}><i className={icon}/> {conditions[0].message} and {conditions.length - 1} other {category}s</a>;
+        }
+    };
+
     return (
         <div className='application-status-panel row'>
-            <div className='application-status-panel__item columns small-2'>
+            <div className='application-status-panel__item columns small-3'>
                 <div className='application-status-panel__item-value'>
                     <HealthStatusIcon state={application.status.health}/>&nbsp;
                     {application.status.health.status}
@@ -60,7 +70,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 </div>
                 <div className='application-status-panel__item-name'>{application.status.health.message}</div>
             </div>
-            <div className='application-status-panel__item columns small-4' style={{position: 'relative'}}>
+            <div className='application-status-panel__item columns small-3' style={{position: 'relative'}}>
                 <div className='application-status-panel__item-value'>
                     <ComparisonStatusIcon status={application.status.sync.status}/>&nbsp;
                     {application.status.sync.status}
@@ -74,7 +84,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 </div>
             </div>
             {appOperationState && (
-                <div className='application-status-panel__item columns small-4'>
+                <div className='application-status-panel__item columns small-3'>
                     <div
                         className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
                         <a onClick={() => showOperation && showOperation()}>{utils.getOperationType(application)}
@@ -99,14 +109,10 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 </div>
             )}
             {application.status.conditions && (
-                <div className={`application-status-panel__item columns small-2`}>
-                    <div className='application-status-panel__item-value'
-                         onClick={() => showConditions && showConditions()}>
-                        {cntByCategory.get('info') && <a className='info'>{cntByCategory.get('info')} Info</a>}
-                        {cntByCategory.get('warning') &&
-                        <a className='warning'>{cntByCategory.get('warning')} Warnings</a>}
-                        {cntByCategory.get('error') && <a className='error'>{cntByCategory.get('error')} Errors</a>}
-                    </div>
+                <div className={`application-status-panel__item columns small-3`} onClick={() => showConditions && showConditions()}>
+                    <div>{conditionLink( 'error')}</div>
+                    <div>{conditionLink('warning')}</div>
+                    <div>{conditionLink('info')}</div>
                 </div>
             )}
         </div>
