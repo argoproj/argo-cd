@@ -70,12 +70,12 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	q := apiclient.ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
-	res1, err := GenerateManifests("../../manifests", "base", &q)
+	res1, err := GenerateManifests("../../manifests", "base", &q, "2c94c18e8404a2466e8438cc5cb1edaa57d9da1")
 	assert.Nil(t, err)
 	assert.Equal(t, countOfManifests, len(res1.Manifests))
 
 	// this will test concatenated manifests to verify we split YAMLs correctly
-	res2, err := GenerateManifests("./testdata", "concatenated", &q)
+	res2, err := GenerateManifests("./testdata", "concatenated", &q, "2c94c18e8404a2466e8438cc5cb1edaa57d9da1")
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(res2.Manifests))
 }
@@ -85,7 +85,7 @@ func TestRecurseManifestsInDir(t *testing.T) {
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
 	q.ApplicationSource.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: true}
-	res1, err := GenerateManifests("./testdata", "recurse", &q)
+	res1, err := GenerateManifests("./testdata", "recurse", &q, "2c94c18e8404a2466e8438cc5cb1edaa57d9da1")
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res1.Manifests))
 }
@@ -131,7 +131,7 @@ func TestPathNotDir(t *testing.T) {
 }
 
 func TestGenerateManifests_NonExistentPath(t *testing.T) {
-	_, err := GenerateManifests("./testdata", "does-not-exist", nil)
+	_, err := GenerateManifests("./testdata", "does-not-exist", nil, "2c94c18e8404a2466e8438cc5cb1edaa57d9da1")
 	assert.EqualError(t, err, "does-not-exist: app path does not exist")
 }
 
@@ -146,7 +146,7 @@ func TestGenerateJsonnetManifestInDir(t *testing.T) {
 			},
 		},
 	}
-	res1, err := GenerateManifests("./testdata", "jsonnet", &q)
+	res1, err := GenerateManifests("./testdata", "jsonnet", &q, "2c94c18e8404a2466e8438cc5cb1edaa57d9da1")
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res1.Manifests))
 }
@@ -165,7 +165,7 @@ func TestGenerateHelmChartWithDependencies(t *testing.T) {
 	q := apiclient.ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
-	res1, err := GenerateManifests("../../util/helm/testdata", "wordpress", &q)
+	res1, err := GenerateManifests("../../util/helm/testdata", "wordpress", &q, "2c94c18e8404a2466e8438cc5cb1edaa57d9da1")
 	assert.Nil(t, err)
 	assert.Equal(t, 12, len(res1.Manifests))
 }
@@ -174,17 +174,17 @@ func TestGenerateNullList(t *testing.T) {
 	q := apiclient.ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
-	res1, err := GenerateManifests("./testdata", "null-list", &q)
+	res1, err := GenerateManifests("./testdata", "null-list", &q, "2c94c18e8404a2466e8438cc5cb1edaa57d9da1")
 	assert.Nil(t, err)
 	assert.Equal(t, len(res1.Manifests), 1)
 	assert.Contains(t, res1.Manifests[0], "prometheus-operator-operator")
 
-	res1, err = GenerateManifests("./testdata", "empty-list", &q)
+	res1, err = GenerateManifests("./testdata", "empty-list", &q, "2c94c18e8404a2466e8438cc5cb1edaa57d9da1")
 	assert.Nil(t, err)
 	assert.Equal(t, len(res1.Manifests), 1)
 	assert.Contains(t, res1.Manifests[0], "prometheus-operator-operator")
 
-	res2, err := GenerateManifests("./testdata", "weird-list", &q)
+	res2, err := GenerateManifests("./testdata", "weird-list", &q, "2c94c18e8404a2466e8438cc5cb1edaa57d9da1")
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res2.Manifests))
 }
@@ -222,7 +222,8 @@ func TestRunCustomTool(t *testing.T) {
 		Repo: &argoappv1.Repository{
 			Username: "foo", Password: "bar",
 		},
-	})
+	},
+		"2c94c18e8404a2466e8438cc5cb1edaa57d9da1")
 
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(res.Manifests))
@@ -241,7 +242,7 @@ func TestGenerateFromUTF16(t *testing.T) {
 	q := apiclient.ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
-	res1, err := GenerateManifests("./testdata", "utf-16", &q)
+	res1, err := GenerateManifests("./testdata", "utf-16", &q, "2c94c18e8404a2466e8438cc5cb1edaa57d9da1")
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res1.Manifests))
 }

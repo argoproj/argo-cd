@@ -14,7 +14,7 @@ import (
 	"github.com/TomOnTime/utfutil"
 	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/ghodss/yaml"
-	"github.com/google/go-jsonnet"
+	jsonnet "github.com/google/go-jsonnet"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
@@ -176,7 +176,7 @@ func (s *Service) GenerateManifest(c context.Context, q *apiclient.ManifestReque
 		return nil, err
 	}
 
-	genRes, err := GenerateManifests(gitClient.Root(), q.ApplicationSource.Path, q)
+	genRes, err := GenerateManifests(gitClient.Root(), q.ApplicationSource.Path, q, commitSHA)
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +211,7 @@ func appPath(root, path string) (string, error) {
 }
 
 // GenerateManifests generates manifests from a path
-func GenerateManifests(root, path string, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
+func GenerateManifests(root, path string, q *apiclient.ManifestRequest, commitSHA string) (*apiclient.ManifestResponse, error) {
 	appPath, err := appPath(root, path)
 	if err != nil {
 		return nil, err
@@ -235,7 +235,7 @@ func GenerateManifests(root, path string, q *apiclient.ManifestRequest) (*apicli
 			return nil, err
 		}
 		defer h.Dispose()
-		targetObjs, err = h.Template(q.AppLabelValue, q.Namespace, q.ApplicationSource.Helm)
+		targetObjs, err = h.Template(q.AppLabelValue, q.Namespace, q.ApplicationSource.Helm, commitSHA)
 		if err != nil {
 			if !helm.IsMissingDependencyErr(err) {
 				return nil, err
@@ -244,7 +244,7 @@ func GenerateManifests(root, path string, q *apiclient.ManifestRequest) (*apicli
 			if err != nil {
 				return nil, err
 			}
-			targetObjs, err = h.Template(q.AppLabelValue, q.Namespace, q.ApplicationSource.Helm)
+			targetObjs, err = h.Template(q.AppLabelValue, q.Namespace, q.ApplicationSource.Helm, commitSHA)
 			if err != nil {
 				return nil, err
 			}

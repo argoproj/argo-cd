@@ -8,6 +8,7 @@ metadata:
     chart: {{ template "minio.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
+    deployed-commit-hash: {{ .Values.argocd_revision }}
 spec:
   {{- if .Values.nasgateway.enabled }}
   replicas: {{ .Values.nasgateway.replicas }}

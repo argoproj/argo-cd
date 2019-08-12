@@ -25,7 +25,7 @@ import (
 // Helm provides wrapper functionality around the `helm` command.
 type Helm interface {
 	// Template returns a list of unstructured objects from a `helm template` command
-	Template(appName string, namespace string, opts *argoappv1.ApplicationSourceHelm) ([]*unstructured.Unstructured, error)
+	Template(appName string, namespace string, opts *argoappv1.ApplicationSourceHelm, commitSHA string) ([]*unstructured.Unstructured, error)
 	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
 	GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
@@ -56,7 +56,7 @@ func IsMissingDependencyErr(err error) bool {
 	return strings.Contains(err.Error(), "found in requirements.yaml, but missing in charts")
 }
 
-func (h *helm) Template(appName string, namespace string, opts *argoappv1.ApplicationSourceHelm) ([]*unstructured.Unstructured, error) {
+func (h *helm) Template(appName string, namespace string, opts *argoappv1.ApplicationSourceHelm, commitSHA string) ([]*unstructured.Unstructured, error) {
 	args := []string{
 		"template", ".",
 	}
@@ -94,6 +94,8 @@ func (h *helm) Template(appName string, namespace string, opts *argoappv1.Applic
 				args = append(args, "--set", fmt.Sprintf("%s=%s", p.Name, p.Value))
 			}
 		}
+
+		args = append(args, "--set", fmt.Sprintf("argocd_revision=%s", commitSHA))
 	}
 
 	if setReleaseName {

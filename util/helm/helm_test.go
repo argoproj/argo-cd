@@ -23,6 +23,7 @@ func findParameter(params []*argoappv1.HelmParameter, name string) *argoappv1.He
 }
 
 func TestHelmTemplateParams(t *testing.T) {
+	commitSHA := "2c94c18e8404a2466e8438cc5cb1edaa57d9da1"
 	h := NewHelmApp("./testdata/minio", []*argoappv1.HelmRepository{})
 	opts := argoappv1.ApplicationSourceHelm{
 		Parameters: []argoappv1.HelmParameter{
@@ -41,7 +42,7 @@ func TestHelmTemplateParams(t *testing.T) {
 			},
 		},
 	}
-	objs, err := h.Template("test", "", &opts)
+	objs, err := h.Template("test", "", &opts, commitSHA)
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(objs))
 
@@ -54,6 +55,12 @@ func TestHelmTemplateParams(t *testing.T) {
 			assert.Equal(t, int32(1234), svc.Spec.Ports[0].TargetPort.IntVal)
 			assert.Equal(t, "true", svc.ObjectMeta.Annotations["prometheus.io/scrape"])
 		}
+		if obj.GetKind() == "Deployment" && obj.GetName() == "test-minio" {
+			var dep appsv1.Deployment
+			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &dep)
+			assert.Nil(t, err)
+			assert.Equal(t, commitSHA, dep.ObjectMeta.Labels["deployed-commit-hash"])
+		}
 	}
 }
 
@@ -62,7 +69,7 @@ func TestHelmTemplateValues(t *testing.T) {
 	opts := argoappv1.ApplicationSourceHelm{
 		ValueFiles: []string{"values-production.yaml"},
 	}
-	objs, err := h.Template("test", "", &opts)
+	objs, err := h.Template("test", "", &opts, "2c94c18e8404a2466e8438cc5cb1edaa57d9da1")
 	assert.Nil(t, err)
 	assert.Equal(t, 8, len(objs))
 
@@ -81,7 +88,7 @@ func TestHelmTemplateValuesURL(t *testing.T) {
 	opts := argoappv1.ApplicationSourceHelm{
 		ValueFiles: []string{"https://raw.githubusercontent.com/argoproj/argo-cd/master/util/helm/testdata/redis/values-production.yaml"},
 	}
-	objs, err := h.Template("test", "", &opts)
+	objs, err := h.Template("test", "", &opts, "2c94c18e8404a2466e8438cc5cb1edaa57d9da1")
 	assert.Nil(t, err)
 	assert.Equal(t, 8, len(objs))
 	params, err := h.GetParameters(opts.ValueFiles)
@@ -122,11 +129,11 @@ func TestHelmDependencyBuild(t *testing.T) {
 	h.SetHome(helmHome)
 	err = h.Init()
 	assert.NoError(t, err)
-	_, err = h.Template("wordpress", "", nil)
+	_, err = h.Template("wordpress", "", nil, "2c94c18e8404a2466e8438cc5cb1edaa57d9da1")
 	assert.Error(t, err)
 	err = h.DependencyBuild()
 	assert.NoError(t, err)
-	_, err = h.Template("wordpress", "", nil)
+	_, err = h.Template("wordpress", "", nil, "2c94c18e8404a2466e8438cc5cb1edaa57d9da1")
 	assert.NoError(t, err)
 }
 
@@ -135,7 +142,7 @@ func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
 	opts := argoappv1.ApplicationSourceHelm{
 		ReleaseName: "my-release",
 	}
-	objs, err := h.Template("test", "", &opts)
+	objs, err := h.Template("test", "", &opts, "2c94c18e8404a2466e8438cc5cb1edaa57d9da1")
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(objs))
 
@@ -152,7 +159,7 @@ func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
 func TestHelmTemplateReleaseName(t *testing.T) {
 	h := NewHelmApp("./testdata/redis", []*argoappv1.HelmRepository{})
 	opts := argoappv1.ApplicationSourceHelm{}
-	objs, err := h.Template("test", "", &opts)
+	objs, err := h.Template("test", "", &opts, "2c94c18e8404a2466e8438cc5cb1edaa57d9da1")
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(objs))
 
@@ -193,7 +200,7 @@ func TestHelmValues(t *testing.T) {
   slaveCount: 2
 `,
 	}
-	objs, err := h.Template("test", "", &opts)
+	objs, err := h.Template("test", "", &opts, "2c94c18e8404a2466e8438cc5cb1edaa57d9da1")
 	assert.NoError(t, err)
 	for _, obj := range objs {
 		if obj.GetKind() == "Deployment" && obj.GetName() == "test-redis-slave" {
