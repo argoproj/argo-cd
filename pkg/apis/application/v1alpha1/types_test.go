@@ -469,6 +469,50 @@ func TestRepository_CopyCredentialsFrom(t *testing.T) {
 	}
 }
 
+func TestNewHookType(t *testing.T) {
+	t.Run("Garbage", func(t *testing.T) {
+		_, ok := NewHookType("Garbage")
+		assert.False(t, ok)
+	})
+	t.Run("PreSync", func(t *testing.T) {
+		hookType, ok := NewHookType("PreSync")
+		assert.True(t, ok)
+		assert.Equal(t, HookTypePreSync, hookType)
+	})
+	t.Run("Sync", func(t *testing.T) {
+		hookType, ok := NewHookType("Sync")
+		assert.True(t, ok)
+		assert.Equal(t, HookTypeSync, hookType)
+	})
+	t.Run("PostSync", func(t *testing.T) {
+		hookType, ok := NewHookType("PostSync")
+		assert.True(t, ok)
+		assert.Equal(t, HookTypePostSync, hookType)
+	})
+}
+
+func TestNewHookDeletePolicy(t *testing.T) {
+	t.Run("Garbage", func(t *testing.T) {
+		_, ok := NewHookDeletePolicy("Garbage")
+		assert.False(t, ok)
+	})
+	t.Run("HookSucceeded", func(t *testing.T) {
+		p, ok := NewHookDeletePolicy("HookSucceeded")
+		assert.True(t, ok)
+		assert.Equal(t, HookDeletePolicyHookSucceeded, p)
+	})
+	t.Run("HookFailed", func(t *testing.T) {
+		p, ok := NewHookDeletePolicy("HookFailed")
+		assert.True(t, ok)
+		assert.Equal(t, HookDeletePolicyHookFailed, p)
+	})
+	t.Run("BeforeHookCreation", func(t *testing.T) {
+		p, ok := NewHookDeletePolicy("BeforeHookCreation")
+		assert.True(t, ok)
+		assert.Equal(t, HookDeletePolicyBeforeHookCreation, p)
+	})
+}
+
 func TestSyncStrategy_Force(t *testing.T) {
 	type fields struct {
 		Apply *SyncStrategyApply
@@ -626,6 +670,36 @@ func TestApplicationSource_IsZero(t *testing.T) {
 			assert.Equal(t, tt.want, tt.source.IsZero())
 		})
 	}
+}
+
+func TestApplicationSourceHelm_AddParameter(t *testing.T) {
+	src := ApplicationSourceHelm{}
+	t.Run("Add", func(t *testing.T) {
+		src.AddParameter(HelmParameter{Value: "bar"})
+		assert.ElementsMatch(t, []HelmParameter{{Value: "bar"}}, src.Parameters)
+
+	})
+	t.Run("Replace", func(t *testing.T) {
+		src.AddParameter(HelmParameter{Value: "baz"})
+		assert.ElementsMatch(t, []HelmParameter{{Value: "baz"}}, src.Parameters)
+	})
+}
+
+func TestNewHelmParameter(t *testing.T) {
+	t.Run("Invalid", func(t *testing.T) {
+		_, err := NewHelmParameter("garbage", false)
+		assert.EqualError(t, err, "Expected helm parameter of the form: param=value. Received: garbage")
+	})
+	t.Run("NonString", func(t *testing.T) {
+		p, err := NewHelmParameter("foo=bar", false)
+		assert.NoError(t, err)
+		assert.Equal(t, &HelmParameter{Name: "foo", Value: "bar"}, p)
+	})
+	t.Run("String", func(t *testing.T) {
+		p, err := NewHelmParameter("foo=bar", true)
+		assert.NoError(t, err)
+		assert.Equal(t, &HelmParameter{Name: "foo", Value: "bar", ForceString: true}, p)
+	})
 }
 
 func TestApplicationSourceHelm_IsZero(t *testing.T) {

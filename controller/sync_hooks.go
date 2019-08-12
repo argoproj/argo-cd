@@ -2,7 +2,6 @@ package controller
 
 import (
 	"fmt"
-	"strings"
 
 	wfv1 "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
 	apiv1 "k8s.io/api/core/v1"
@@ -11,29 +10,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/kubernetes/pkg/apis/batch"
 
-	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
-
-// enforceHookDeletePolicy examines the hook deletion policy of a object and deletes it based on the status
-func enforceHookDeletePolicy(hook *unstructured.Unstructured, operation v1alpha1.OperationPhase) bool {
-
-	annotations := hook.GetAnnotations()
-	if annotations == nil {
-		return false
-	}
-	deletePolicies := strings.Split(annotations[common.AnnotationKeyHookDeletePolicy], ",")
-	for _, dp := range deletePolicies {
-		policy := v1alpha1.HookDeletePolicy(strings.TrimSpace(dp))
-		if policy == v1alpha1.HookDeletePolicyHookSucceeded && operation == v1alpha1.OperationSucceeded {
-			return true
-		}
-		if policy == v1alpha1.HookDeletePolicyHookFailed && operation == v1alpha1.OperationFailed {
-			return true
-		}
-	}
-	return false
-}
 
 // getOperationPhase returns a hook status from an _live_ unstructured object
 func getOperationPhase(hook *unstructured.Unstructured) (operation v1alpha1.OperationPhase, message string) {

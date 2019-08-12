@@ -152,6 +152,9 @@ message ApplicationSourceHelm {
 
   // The Helm release name. If omitted it will use the application name
   optional string releaseName = 3;
+
+  // Values is Helm values, typically defined as a block
+  optional string values = 4;
 }
 
 // ApplicationSourceJsonnet holds jsonnet specific options

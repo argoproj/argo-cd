@@ -47,6 +47,7 @@ func TestAutoSyncSelfHealEnabled(t *testing.T) {
 			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{SelfHeal: true}}
 		}).
 		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		When().
 		// app should be auto-synced once k8s change detected
@@ -55,12 +56,14 @@ func TestAutoSyncSelfHealEnabled(t *testing.T) {
 				"guestbook-ui", types.MergePatchType, []byte(`{"spec": {"revisionHistoryLimit": 0}}`)))
 		}).
 		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		When().
 		// app should be attempted to auto-synced once and marked with error after failed attempt detected
 		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": "badValue"}]`).
 		Refresh(RefreshTypeNormal).
 		Then().
+		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(Condition(ApplicationConditionSyncError, "Failed sync attempt"))
 }

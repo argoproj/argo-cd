@@ -10,6 +10,10 @@ GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
 PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run vendor/github.com/gobuffalo/packr/packr/main.go"; fi)
 
+define run-in-dev-tool
+    docker run --rm -it -u $(shell id -u) -e HOME=/home/user -v ${CURRENT_DIR}:/go/src/github.com/argoproj/argo-cd -w /go/src/github.com/argoproj/argo-cd argocd-dev-tools bash -c "GOPATH=/go $(1)"
+endef
+
 PATH:=$(PATH):$(PWD)/hack
 
 # docker image publishing options
@@ -66,11 +70,11 @@ clientgen:
 	./hack/update-codegen.sh
 
 .PHONY: codegen-local
-codegen-local: protogen clientgen openapigen manifests
+codegen-local: protogen clientgen openapigen manifests-local
 
 .PHONY: codegen
 codegen: dev-tools-image
-	docker run --rm -it -u $(shell id -u) -e HOME=/home/user -v ${CURRENT_DIR}:/go/src/github.com/argoproj/argo-cd -w /go/src/github.com/argoproj/argo-cd argocd-dev-tools bash -c "GOPATH=/go make codegen-local"
+	$(call run-in-dev-tool,make codegen-local)
 
 .PHONY: cli
 cli: clean-debug
@@ -92,9 +96,14 @@ argocd-util: clean-debug
 dev-tools-image:
 	docker build -t argocd-dev-tools ./hack -f ./hack/Dockerfile.dev-tools
 
-.PHONY: manifests
-manifests:
+.PHONY: manifests-local
+manifests-local:
 	./hack/update-manifests.sh
+
+.PHONY: manifests
+manifests: dev-tools-image
+	$(call run-in-dev-tool,make manifests-local IMAGE_TAG='${IMAGE_TAG}')
+
 
 # NOTE: we use packr to do the build instead of go, since we embed swagger files and policy.csv
 # files into the go binary

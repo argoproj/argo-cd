@@ -238,7 +238,7 @@ func (sc *syncContext) sync() {
 			sc.setResourceResult(task, "", operationState, message)
 
 			// maybe delete the hook
-			if enforceHookDeletePolicy(task.liveObj, task.operationState) {
+			if task.needsDeleting() {
 				err := sc.deleteResource(task)
 				if err != nil {
 					sc.setResourceResult(task, "", v1alpha1.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
@@ -680,6 +680,15 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) bool {
 			go func(t *syncTask) {
 				defer createWg.Done()
 				sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t}).Debug("applying")
+
+				if !dryRun && t.needsDeleting() {
+					err := sc.deleteResource(t)
+					if err != nil {
+						sc.setResourceResult(t, "", v1alpha1.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
+						return
+					}
+				}
+
 				result, message := sc.applyObject(t.targetObj, dryRun, sc.syncOp.SyncStrategy.Force())
 				if result == v1alpha1.ResultCodeSyncFailed {
 					successful = false

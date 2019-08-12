@@ -9,7 +9,7 @@ data:
   #   p, subject, resource, action, object, effect
   # Role definitions and bindings are in the form:
   #   g, subject, inherited-subject
-  # See https://github.com/argoproj/argo-cd/blob/master/docs/rbac.md for additional information.
+  # See https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/rbac.md for additional information.
   policy.csv: |
     # Grant all members of the group 'my-org:team-alpha; the ability to sync apps in 'my-project'
     p, my-org:team-alpha, applications, sync, my-project/*, allow

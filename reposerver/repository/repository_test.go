@@ -89,14 +89,49 @@ func TestRecurseManifestsInDir(t *testing.T) {
 	assert.Equal(t, 2, len(res1.Manifests))
 }
 
+func TestPathRoot(t *testing.T) {
+	_, err := appPath("./testdata", "/")
+	assert.EqualError(t, err, "/: app path is absolute")
+}
+
+func TestPathAbsolute(t *testing.T) {
+	_, err := appPath("./testdata", "/etc/passwd")
+	assert.EqualError(t, err, "/etc/passwd: app path is absolute")
+}
+
+func TestPathDotDot(t *testing.T) {
+	_, err := appPath("./testdata", "..")
+	assert.EqualError(t, err, "..: app path outside repo")
+}
+
+func TestPathDotDotSlash(t *testing.T) {
+	_, err := appPath("./testdata", "../")
+	assert.EqualError(t, err, "../: app path outside repo")
+}
+
+func TestPathDot(t *testing.T) {
+	_, err := appPath("./testdata", ".")
+	assert.NoError(t, err)
+}
+
+func TestPathDotSlash(t *testing.T) {
+	_, err := appPath("./testdata", "./")
+	assert.NoError(t, err)
+}
+
 func TestNonExistentPath(t *testing.T) {
-	_, err := GenerateManifests("./testdata", "does-not-exist", nil)
+	_, err := appPath("./testdata", "does-not-exist")
 	assert.EqualError(t, err, "does-not-exist: app path does not exist")
 }
 
 func TestPathNotDir(t *testing.T) {
-	_, err := GenerateManifests("./testdata", "file.txt", nil)
+	_, err := appPath("./testdata", "file.txt")
 	assert.EqualError(t, err, "file.txt: app path is not a directory")
+}
+
+func TestGenerateManifests_NonExistentPath(t *testing.T) {
+	_, err := GenerateManifests("./testdata", "does-not-exist", nil)
+	assert.EqualError(t, err, "does-not-exist: app path does not exist")
 }
 
 func TestGenerateJsonnetManifestInDir(t *testing.T) {
@@ -215,19 +250,20 @@ func TestGetAppDetailsHelm(t *testing.T) {
 	ctx := context.Background()
 
 	// verify default parameters are returned when not supplying values
-	{
+	t.Run("DefaultParameters", func(t *testing.T) {
 		res, err := serve.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 			Repo: &argoappv1.Repository{Repo: "https://github.com/fakeorg/fakerepo.git"},
 			Path: "redis",
 		})
 		assert.NoError(t, err)
 		assert.Equal(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
+		assert.Contains(t, res.Helm.Values, "registry: docker.io")
 		assert.Equal(t, argoappv1.HelmParameter{Name: "image.pullPolicy", Value: "Always"}, getHelmParameter("image.pullPolicy", res.Helm.Parameters))
 		assert.Equal(t, 49, len(res.Helm.Parameters))
-	}
+	})
 
 	// verify values specific parameters are returned when a values is specified
-	{
+	t.Run("SpecificParameters", func(t *testing.T) {
 		res, err := serve.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 			Repo: &argoappv1.Repository{Repo: "https://github.com/fakeorg/fakerepo.git"},
 			Path: "redis",
@@ -237,9 +273,10 @@ func TestGetAppDetailsHelm(t *testing.T) {
 		})
 		assert.NoError(t, err)
 		assert.Equal(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
+		assert.Contains(t, res.Helm.Values, "registry: docker.io")
 		assert.Equal(t, argoappv1.HelmParameter{Name: "image.pullPolicy", Value: "IfNotPresent"}, getHelmParameter("image.pullPolicy", res.Helm.Parameters))
 		assert.Equal(t, 49, len(res.Helm.Parameters))
-	}
+	})
 }
 
 func getHelmParameter(name string, params []*argoappv1.HelmParameter) argoappv1.HelmParameter {

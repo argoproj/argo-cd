@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
+	"os"
 	"path"
 	"regexp"
 	"sort"
@@ -52,13 +53,29 @@ func IsMissingDependencyErr(err error) bool {
 
 func (h *helm) Template(appName string, namespace string, opts *argoappv1.ApplicationSourceHelm) ([]*unstructured.Unstructured, error) {
 	templateOpts := templateOpts{
+		name:      appName,
+		namespace: namespace,
 		set:       map[string]string{},
 		setString: map[string]string{},
 	}
-	templateOpts.namespace = namespace
 	if opts != nil {
-		templateOpts.name = opts.ReleaseName
+		if opts.ReleaseName != "" {
+			templateOpts.name = opts.ReleaseName
+		}
 		templateOpts.values = opts.ValueFiles
+		if opts.Values != "" {
+			file, err := ioutil.TempFile("", "values-*.yaml")
+			if err != nil {
+				return nil, err
+			}
+			p := file.Name()
+			defer func() { _ = os.RemoveAll(p) }()
+			err = ioutil.WriteFile(p, []byte(opts.Values), 0644)
+			if err != nil {
+				return nil, err
+			}
+			templateOpts.values = append(templateOpts.values, p)
+		}
 		for _, p := range opts.Parameters {
 			if p.ForceString {
 				templateOpts.setString[p.Name] = p.Value

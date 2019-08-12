@@ -27,6 +27,7 @@ import (
 	hookutil "github.com/argoproj/argo-cd/util/hook"
 	kubeutil "github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/resource"
+	"github.com/argoproj/argo-cd/util/resource/ignore"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -149,7 +150,7 @@ func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, []*un
 		if err != nil {
 			return nil, nil, err
 		}
-		if resource.Ignore(obj) {
+		if ignore.Ignore(obj) {
 			continue
 		}
 		if hookutil.IsHook(obj) {
@@ -376,7 +377,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		}
 
 		diffResult := diffResults.Diffs[i]
-		if resState.Hook || resource.Ignore(obj) {
+		if resState.Hook || ignore.Ignore(obj) {
 			// For resource hooks, don't store sync status, and do not affect overall sync status
 		} else if diffResult.Modified || targetObj == nil || liveObj == nil {
 			// Set resource state to OutOfSync since one of the following is true:

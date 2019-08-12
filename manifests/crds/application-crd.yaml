@@ -488,6 +488,10 @@ spec:
                           items:
                             type: string
                           type: array
+                        values:
+                          description: Values is Helm values, typically defined as
+                            a block
+                          type: string
                       type: object
                     ksonnet:
                       description: Ksonnet holds ksonnet specific options
@@ -725,6 +729,9 @@ spec:
                       items:
                         type: string
                       type: array
+                    values:
+                      description: Values is Helm values, typically defined as a block
+                      type: string
                   type: object
                 ksonnet:
                   description: Ksonnet holds ksonnet specific options
@@ -931,6 +938,10 @@ spec:
                             items:
                               type: string
                             type: array
+                          values:
+                            description: Values is Helm values, typically defined
+                              as a block
+                            type: string
                         type: object
                       ksonnet:
                         description: Ksonnet holds ksonnet specific options
@@ -1150,6 +1161,10 @@ spec:
                                   items:
                                     type: string
                                   type: array
+                                values:
+                                  description: Values is Helm values, typically defined
+                                    as a block
+                                  type: string
                               type: object
                             ksonnet:
                               description: Ksonnet holds ksonnet specific options
@@ -1394,6 +1409,10 @@ spec:
                               items:
                                 type: string
                               type: array
+                            values:
+                              description: Values is Helm values, typically defined
+                                as a block
+                              type: string
                           type: object
                         ksonnet:
                           description: Ksonnet holds ksonnet specific options
@@ -1619,6 +1638,10 @@ spec:
                               items:
                                 type: string
                               type: array
+                            values:
+                              description: Values is Helm values, typically defined
+                                as a block
+                              type: string
                           type: object
                         ksonnet:
                           description: Ksonnet holds ksonnet specific options

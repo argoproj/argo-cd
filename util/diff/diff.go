@@ -387,7 +387,8 @@ func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstru
 	}
 
 	for k := range keys {
-		nextReplacement := "*********"
+		// we use "+" rather than the more common "*"
+		nextReplacement := "+++++++++"
 		valToReplacement := make(map[string]string)
 		for _, obj := range []*unstructured.Unstructured{target, live, orig} {
 			var data map[string]interface{}
@@ -409,7 +410,7 @@ func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstru
 			replacement, ok := valToReplacement[val]
 			if !ok {
 				replacement = nextReplacement
-				nextReplacement = nextReplacement + "*"
+				nextReplacement = nextReplacement + "+"
 				valToReplacement[val] = replacement
 			}
 			data[k] = replacement

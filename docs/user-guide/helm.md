@@ -48,12 +48,44 @@ source:
 
 ## Helm Hooks
 
-Helm hooks are equivalent in concept to [Argo CD resource hooks](resource_hooks.md). In helm, a hook
-is any normal kubernetes resource annotated with the `helm.sh/hook` annotation. When Argo CD deploys
-helm application which contains helm hooks, all helm hook resources are currently ignored during
-the `kubectl apply` of the manifests. There is an
-[open issue](https://github.com/argoproj/argo-cd/issues/355) to map Helm hooks to Argo CD's concept
-of Pre/Post/Sync hooks.
+> v1.3 or later
+
+Helm hooks are similar to [Argo CD resource hooks](resource_hooks.md). In Helm, a hook
+is any normal kubernetes resource annotated with the `helm.sh/hook` annotation. 
+
+Argo CD supports most Helm hooks by mapping the Helm annotations onto Argo CD's own hook annotations: 
+
+| Helm Annotation | Notes |
+|---|---|
+| `helm.sh/hook: crd-install` | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`. |
+| `helm.sh/hook: pre-delete` | Not supported. In Helm stable there are 3 cases used to clean up CRDs and 3 to clean-up jobs. |
+| `helm.sh/hook: pre-rollback` | Not supported. Never used in Helm stable. |
+| `helm.sh/hook: pre-install` | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`. |
+| `helm.sh/hook: pre-upgrade` | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`. |
+| `helm.sh/hook: post-upgrade` | Supported as equivalent to `argocd.argoproj.io/hook: PostSync`. |
+| `helm.sh/hook: post-install` | Supported as equivalent to `argocd.argoproj.io/hook: PostSync`. |
+| `helm.sh/hook: post-delete` | Not supported. Never used in Helm stable. |
+| `helm.sh/hook: post-rollback` | Not supported. Never used in Helm stable. |
+| `helm.sh/hook: test-success` | Not supported. No equivalent in Argo CD. |
+| `helm.sh/hook: test-failure` | Not supported. No equivalent in Argo CD. |
+| `helm.sh/hook-delete-policy` | Supported. See also `argocd.argoproj.io/hook-delete-policy`). |
+| `helm.sh/hook-delete-timeout` | No supported. Never used in Helm stable |
+| `helm.sh/hook-weight` | Supported as equivalent to `argocd.argoproj.io/sync-wave`. |
+
+Unsupported hooks are simply ignored. In Argo CD, hooks are created by using `kubectl apply`. This means that any 
+
+!!! warning "'install' vs 'upgrade' vs 'sync'"
+    Argo CD cannot know if it is running a first-time "install" or an "upgrade" - every operation is a "sync'. This means that, by default, apps that have `pre-install` and `pre-upgrade` will have those hooks run at the same time.
+
+### Hook Tips
+
+* Make your hook are idempotent. 
+* Annotate `crd-install` with `hook-weight: "-2"` to make sure it runs to success before any install or upgrade hooks.
+* Annotate  `pre-install` and `post-install` with `hook-weight: "-1"`. This will make sure it runs to success before any upgrade hooks.
+* Annotate `pre-upgrade` and `post-upgrade` with `hook-delete-policy: before-hook-creation` to make sure it runs on every sync.
+
+
+Read more about [Argo hooks](resource_hooks.md) and [Helm hooks](https://github.com/kubernetes/helm/blob/master/docs/charts_hooks.md). 
 
 ## Random Data
 
@@ -80,3 +112,4 @@ value, in the values.yaml such that the value is stable between each comparison.
 ```bash
 argocd app set redis -p password=abc123
 ```
+
