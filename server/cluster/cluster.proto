@@ -32,12 +32,12 @@ message ClusterUpdateRequest {
 service ClusterService {
 
 	// List returns list of clusters
-	rpc List(ClusterQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ClusterList) {
+	rpc ListClusters(ClusterQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ClusterList) {
 		option (google.api.http).get = "/api/v1/clusters";
 	}
 
 	// Create creates a cluster
-	rpc Create(ClusterCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
+	rpc CreateCluster(ClusterCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
 		option (google.api.http) = {
 			post: "/api/v1/clusters"
 			body: "cluster"
@@ -45,12 +45,12 @@ service ClusterService {
 	}
 
 	// Get returns a cluster by server address
-	rpc Get(ClusterQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
+	rpc GetCluster(ClusterQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
 		option (google.api.http).get = "/api/v1/clusters/{server}";
 	}
 
 	// Update updates a cluster
-	rpc Update(ClusterUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
+	rpc UpdateCluster(ClusterUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
 		option (google.api.http) = {
 			put: "/api/v1/clusters/{cluster.server}"
 			body: "cluster"
@@ -58,7 +58,7 @@ service ClusterService {
 	}
 
 	// Delete deletes a cluster
-	rpc Delete(ClusterQuery) returns (ClusterResponse) {
+	rpc DeleteCluster(ClusterQuery) returns (ClusterResponse) {
 		option (google.api.http).delete = "/api/v1/clusters/{server}";
 	}
 

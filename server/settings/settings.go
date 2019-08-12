@@ -22,7 +22,7 @@ func NewServer(mgr *settings.SettingsManager) *Server {
 }
 
 // Get returns Argo CD settings
-func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settingspkg.Settings, error) {
+func (s *Server) GetSettings(ctx context.Context, q *settingspkg.SettingsQuery) (*settingspkg.Settings, error) {
 	resourceOverrides, err := s.mgr.GetResourceOverrides()
 	if err != nil {
 		return nil, err

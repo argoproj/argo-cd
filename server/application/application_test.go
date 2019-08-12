@@ -198,7 +198,7 @@ func TestCreateApp(t *testing.T) {
 	createReq := application.ApplicationCreateRequest{
 		Application: *testApp,
 	}
-	app, err := appServer.Create(context.Background(), &createReq)
+	app, err := appServer.CreateApp(context.Background(), &createReq)
 	assert.Nil(t, err)
 	assert.Equal(t, app.Spec.Project, "default")
 }
@@ -207,7 +207,7 @@ func TestUpdateApp(t *testing.T) {
 	testApp := newTestApp()
 	appServer := newTestAppServer(testApp)
 	testApp.Spec.Project = ""
-	app, err := appServer.Update(context.Background(), &application.ApplicationUpdateRequest{
+	app, err := appServer.UpdateApp(context.Background(), &application.ApplicationUpdateRequest{
 		Application: testApp,
 	})
 	assert.Nil(t, err)
@@ -224,7 +224,7 @@ func TestUpdateAppSpec(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, "default", spec.Project)
-	app, err := appServer.Get(context.Background(), &application.ApplicationQuery{Name: &testApp.Name})
+	app, err := appServer.GetApp(context.Background(), &application.ApplicationQuery{Name: &testApp.Name})
 	assert.NoError(t, err)
 	assert.Equal(t, "default", app.Spec.Project)
 }
@@ -235,10 +235,10 @@ func TestDeleteApp(t *testing.T) {
 	createReq := application.ApplicationCreateRequest{
 		Application: *newTestApp(),
 	}
-	app, err := appServer.Create(ctx, &createReq)
+	app, err := appServer.CreateApp(ctx, &createReq)
 	assert.Nil(t, err)
 
-	app, err = appServer.Get(ctx, &application.ApplicationQuery{Name: &app.Name})
+	app, err = appServer.GetApp(ctx, &application.ApplicationQuery{Name: &app.Name})
 	assert.Nil(t, err)
 	assert.NotNil(t, app)
 
@@ -258,7 +258,7 @@ func TestDeleteApp(t *testing.T) {
 	appServer.appclientset = fakeAppCs
 
 	trueVar := true
-	_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, Cascade: &trueVar})
+	_, err = appServer.DeleteApp(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, Cascade: &trueVar})
 	assert.Nil(t, err)
 	assert.True(t, patched)
 	assert.True(t, deleted)
@@ -267,7 +267,7 @@ func TestDeleteApp(t *testing.T) {
 	falseVar := false
 	patched = false
 	deleted = false
-	_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, Cascade: &falseVar})
+	_, err = appServer.DeleteApp(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, Cascade: &falseVar})
 	assert.Nil(t, err)
 	assert.False(t, patched)
 	assert.True(t, deleted)
@@ -281,10 +281,10 @@ func TestSyncAndTerminate(t *testing.T) {
 	createReq := application.ApplicationCreateRequest{
 		Application: *testApp,
 	}
-	app, err := appServer.Create(ctx, &createReq)
+	app, err := appServer.CreateApp(ctx, &createReq)
 	assert.Nil(t, err)
 
-	app, err = appServer.Sync(ctx, &application.ApplicationSyncRequest{Name: &app.Name})
+	app, err = appServer.SyncApp(ctx, &application.ApplicationSyncRequest{Name: &app.Name})
 	assert.Nil(t, err)
 	assert.NotNil(t, app)
 	assert.NotNil(t, app.Operation)
@@ -308,7 +308,7 @@ func TestSyncAndTerminate(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, resp)
 
-	app, err = appServer.Get(ctx, &application.ApplicationQuery{Name: &app.Name})
+	app, err = appServer.GetApp(ctx, &application.ApplicationQuery{Name: &app.Name})
 	assert.Nil(t, err)
 	assert.NotNil(t, app)
 	assert.Equal(t, appsv1.OperationTerminating, app.Status.OperationState.Phase)
@@ -323,7 +323,7 @@ func TestRollbackApp(t *testing.T) {
 	}}
 	appServer := newTestAppServer(testApp)
 
-	updatedApp, err := appServer.Rollback(context.Background(), &application.ApplicationRollbackRequest{
+	updatedApp, err := appServer.RollbackApp(context.Background(), &application.ApplicationRollbackRequest{
 		Name: &testApp.Name,
 		ID:   1,
 	})
@@ -345,12 +345,12 @@ func TestUpdateAppProject(t *testing.T) {
 
 	// Verify normal update works (without changing project)
 	_ = appServer.enf.SetBuiltinPolicy(`p, admin, applications, update, default/test-app, allow`)
-	_, err := appServer.Update(ctx, &application.ApplicationUpdateRequest{Application: testApp})
+	_, err := appServer.UpdateApp(ctx, &application.ApplicationUpdateRequest{Application: testApp})
 	assert.NoError(t, err)
 
 	// Verify caller cannot update to another project
 	testApp.Spec.Project = "my-proj"
-	_, err = appServer.Update(ctx, &application.ApplicationUpdateRequest{Application: testApp})
+	_, err = appServer.UpdateApp(ctx, &application.ApplicationUpdateRequest{Application: testApp})
 	assert.Equal(t, status.Code(err), codes.PermissionDenied)
 
 	// Verify inability to change projects without create privileges in new project
@@ -358,7 +358,7 @@ func TestUpdateAppProject(t *testing.T) {
 p, admin, applications, update, default/test-app, allow
 p, admin, applications, update, my-proj/test-app, allow
 `)
-	_, err = appServer.Update(ctx, &application.ApplicationUpdateRequest{Application: testApp})
+	_, err = appServer.UpdateApp(ctx, &application.ApplicationUpdateRequest{Application: testApp})
 	assert.Equal(t, status.Code(err), codes.PermissionDenied)
 
 	// Verify inability to change projects without update privileges in new project
@@ -366,7 +366,7 @@ p, admin, applications, update, my-proj/test-app, allow
 p, admin, applications, update, default/test-app, allow
 p, admin, applications, create, my-proj/test-app, allow
 `)
-	_, err = appServer.Update(ctx, &application.ApplicationUpdateRequest{Application: testApp})
+	_, err = appServer.UpdateApp(ctx, &application.ApplicationUpdateRequest{Application: testApp})
 	assert.Equal(t, status.Code(err), codes.PermissionDenied)
 
 	// Verify inability to change projects without update privileges in old project
@@ -374,7 +374,7 @@ p, admin, applications, create, my-proj/test-app, allow
 p, admin, applications, create, my-proj/test-app, allow
 p, admin, applications, update, my-proj/test-app, allow
 `)
-	_, err = appServer.Update(ctx, &application.ApplicationUpdateRequest{Application: testApp})
+	_, err = appServer.UpdateApp(ctx, &application.ApplicationUpdateRequest{Application: testApp})
 	assert.Equal(t, status.Code(err), codes.PermissionDenied)
 
 	// Verify can update project with proper permissions
@@ -383,7 +383,7 @@ p, admin, applications, update, default/test-app, allow
 p, admin, applications, create, my-proj/test-app, allow
 p, admin, applications, update, my-proj/test-app, allow
 `)
-	updatedApp, err := appServer.Update(ctx, &application.ApplicationUpdateRequest{Application: testApp})
+	updatedApp, err := appServer.UpdateApp(ctx, &application.ApplicationUpdateRequest{Application: testApp})
 	assert.NoError(t, err)
 	assert.Equal(t, "my-proj", updatedApp.Spec.Project)
 }
@@ -395,15 +395,15 @@ func TestAppJsonPatch(t *testing.T) {
 	appServer := newTestAppServer(testApp)
 	appServer.enf.SetDefaultRole("")
 
-	app, err := appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: "garbage"})
+	app, err := appServer.PatchApp(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: "garbage"})
 	assert.Error(t, err)
 	assert.Nil(t, app)
 
-	app, err = appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: "[]"})
+	app, err = appServer.PatchApp(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: "[]"})
 	assert.NoError(t, err)
 	assert.NotNil(t, app)
 
-	app, err = appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: `[{"op": "replace", "path": "/spec/source/path", "value": "foo"}]`})
+	app, err = appServer.PatchApp(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: `[{"op": "replace", "path": "/spec/source/path", "value": "foo"}]`})
 	assert.NoError(t, err)
 	assert.Equal(t, "foo", app.Spec.Source.Path)
 }
@@ -415,7 +415,7 @@ func TestAppMergePatch(t *testing.T) {
 	appServer := newTestAppServer(testApp)
 	appServer.enf.SetDefaultRole("")
 
-	app, err := appServer.Patch(ctx, &application.ApplicationPatchRequest{
+	app, err := appServer.PatchApp(ctx, &application.ApplicationPatchRequest{
 		Name: &testApp.Name, Patch: `{"spec": { "source": { "path": "foo" } }}`, PatchType: "merge"})
 	assert.NoError(t, err)
 	assert.Equal(t, "foo", app.Spec.Source.Path)

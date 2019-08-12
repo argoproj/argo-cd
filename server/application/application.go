@@ -95,7 +95,7 @@ func appRBACName(app appv1.Application) string {
 }
 
 // List returns list of applications
-func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*appv1.ApplicationList, error) {
+func (s *Server) ListApps(ctx context.Context, q *application.ApplicationQuery) (*appv1.ApplicationList, error) {
 	appList, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(metav1.ListOptions{})
 	if err != nil {
 		return nil, err
@@ -116,7 +116,7 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 }
 
 // Create creates an application
-func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateRequest) (*appv1.Application, error) {
+func (s *Server) CreateApp(ctx context.Context, q *application.ApplicationCreateRequest) (*appv1.Application, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionCreate, appRBACName(q.Application)); err != nil {
 		return nil, err
 	}
@@ -224,7 +224,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 }
 
 // Get returns an application by name
-func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*appv1.Application, error) {
+func (s *Server) GetApp(ctx context.Context, q *application.ApplicationQuery) (*appv1.Application, error) {
 	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
 	a, err := appIf.Get(*q.Name, metav1.GetOptions{})
 	if err != nil {
@@ -299,7 +299,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 }
 
 // Update updates an application
-func (s *Server) Update(ctx context.Context, q *application.ApplicationUpdateRequest) (*appv1.Application, error) {
+func (s *Server) UpdateApp(ctx context.Context, q *application.ApplicationUpdateRequest) (*appv1.Application, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(*q.Application)); err != nil {
 		return nil, err
 	}
@@ -357,7 +357,7 @@ func (s *Server) UpdateSpec(ctx context.Context, q *application.ApplicationUpdat
 }
 
 // Patch patches an application
-func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchRequest) (*appv1.Application, error) {
+func (s *Server) PatchApp(ctx context.Context, q *application.ApplicationPatchRequest) (*appv1.Application, error) {
 
 	app, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 	if err != nil {
@@ -410,7 +410,7 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 }
 
 // Delete removes an application and all associated resources
-func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteRequest) (*application.ApplicationResponse, error) {
+func (s *Server) DeleteApp(ctx context.Context, q *application.ApplicationDeleteRequest) (*application.ApplicationResponse, error) {
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 	if err != nil && !apierr.IsNotFound(err) {
 		return nil, err
@@ -463,7 +463,7 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	return &application.ApplicationResponse{}, nil
 }
 
-func (s *Server) Watch(q *application.ApplicationQuery, ws application.ApplicationService_WatchServer) error {
+func (s *Server) WatchApp(q *application.ApplicationQuery, ws application.ApplicationService_WatchAppServer) error {
 	logCtx := log.NewEntry(log.New())
 	if q.Name != nil {
 		logCtx = logCtx.WithField("application", *q.Name)
@@ -868,7 +868,7 @@ func (s *Server) getApplicationDestination(name string) (string, string, error) 
 }
 
 // Sync syncs an application to its target state
-func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncRequest) (*appv1.Application, error) {
+func (s *Server) SyncApp(ctx context.Context, syncReq *application.ApplicationSyncRequest) (*appv1.Application, error) {
 	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
 	a, err := appIf.Get(*syncReq.Name, metav1.GetOptions{})
 	if err != nil {
@@ -920,7 +920,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	return a, err
 }
 
-func (s *Server) Rollback(ctx context.Context, rollbackReq *application.ApplicationRollbackRequest) (*appv1.Application, error) {
+func (s *Server) RollbackApp(ctx context.Context, rollbackReq *application.ApplicationRollbackRequest) (*appv1.Application, error) {
 	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
 	a, err := appIf.Get(*rollbackReq.Name, metav1.GetOptions{})
 	if err != nil {

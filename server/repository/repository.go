@@ -79,7 +79,7 @@ func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.Conn
 }
 
 // List returns list of repositories
-func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.RepositoryList, error) {
+func (s *Server) ListRepos(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.RepositoryList, error) {
 	urls, err := s.db.ListRepoURLs(ctx)
 	if err != nil {
 		return nil, err
@@ -173,7 +173,7 @@ func getKustomizationRes(ctx context.Context, repoClient apiclient.RepoServerSer
 }
 
 // ListApps returns list of apps in the repo
-func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (*repositorypkg.RepoAppsResponse, error) {
+func (s *Server) ListRepoApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (*repositorypkg.RepoAppsResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo); err != nil {
 		return nil, err
 	}
@@ -240,7 +240,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 }
 
 // Create creates a repository
-func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest) (*appsv1.Repository, error) {
+func (s *Server) CreateRepo(ctx context.Context, q *repositorypkg.RepoCreateRequest) (*appsv1.Repository, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, q.Repo.Repo); err != nil {
 		return nil, err
 	}
@@ -264,7 +264,7 @@ func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest)
 		if reflect.DeepEqual(existing, r) {
 			repo, err = existing, nil
 		} else if q.Upsert {
-			return s.Update(ctx, &repositorypkg.RepoUpdateRequest{Repo: r})
+			return s.UpdateRepo(ctx, &repositorypkg.RepoUpdateRequest{Repo: r})
 		} else {
 			return nil, status.Errorf(codes.InvalidArgument, "existing repository spec is different; use upsert flag to force update")
 		}
@@ -273,7 +273,7 @@ func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest)
 }
 
 // Update updates a repository
-func (s *Server) Update(ctx context.Context, q *repositorypkg.RepoUpdateRequest) (*appsv1.Repository, error) {
+func (s *Server) UpdateRepo(ctx context.Context, q *repositorypkg.RepoUpdateRequest) (*appsv1.Repository, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, q.Repo.Repo); err != nil {
 		return nil, err
 	}
@@ -282,7 +282,7 @@ func (s *Server) Update(ctx context.Context, q *repositorypkg.RepoUpdateRequest)
 }
 
 // Delete updates a repository
-func (s *Server) Delete(ctx context.Context, q *repositorypkg.RepoQuery) (*repositorypkg.RepoResponse, error) {
+func (s *Server) DeleteRepo(ctx context.Context, q *repositorypkg.RepoQuery) (*repositorypkg.RepoResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionDelete, q.Repo); err != nil {
 		return nil, err
 	}

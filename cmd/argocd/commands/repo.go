@@ -141,7 +141,7 @@ Add a HTTPS repository using username/password without verifying the server's TL
 				Repo:   &repo,
 				Upsert: upsert,
 			}
-			createdRepo, err := repoIf.Create(context.Background(), &repoCreateReq)
+			createdRepo, err := repoIf.CreateRepo(context.Background(), &repoCreateReq)
 			errors.CheckError(err)
 			fmt.Printf("repository '%s' added\n", createdRepo.Repo)
 		},
@@ -171,7 +171,7 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
 			defer util.Close(conn)
 			for _, repoURL := range args {
-				_, err := repoIf.Delete(context.Background(), &repositorypkg.RepoQuery{Repo: repoURL})
+				_, err := repoIf.DeleteRepo(context.Background(), &repositorypkg.RepoQuery{Repo: repoURL})
 				errors.CheckError(err)
 			}
 		},
@@ -213,7 +213,7 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
 			defer util.Close(conn)
-			repos, err := repoIf.List(context.Background(), &repositorypkg.RepoQuery{})
+			repos, err := repoIf.ListRepos(context.Background(), &repositorypkg.RepoQuery{})
 			errors.CheckError(err)
 			if output == "url" {
 				printRepoUrls(repos.Items)

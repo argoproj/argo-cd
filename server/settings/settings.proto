@@ -51,7 +51,7 @@ message OIDCConfig {
 service SettingsService {
 
     // Get returns Argo CD settings
-    rpc Get(SettingsQuery) returns (Settings) {
+    rpc GetSettings(SettingsQuery) returns (Settings) {
 		option (google.api.http).get = "/api/v1/settings";
 	}
 

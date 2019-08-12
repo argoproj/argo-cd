@@ -76,7 +76,7 @@ func TestProjectServer(t *testing.T) {
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.Destinations = nil
 
-		_, err := projectServer.Update(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
+		_, err := projectServer.UpdateProject(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
 
 		assert.Equal(t, status.Error(codes.PermissionDenied, "permission denied: clusters, update, https://server1"), err)
 	})
@@ -90,7 +90,7 @@ func TestProjectServer(t *testing.T) {
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.SourceRepos = nil
 
-		_, err := projectServer.Update(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
+		_, err := projectServer.UpdateProject(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
 
 		assert.Equal(t, status.Error(codes.PermissionDenied, "permission denied: repositories, update, https://github.com/argoproj/argo-cd.git"), err)
 	})
@@ -104,7 +104,7 @@ func TestProjectServer(t *testing.T) {
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.ClusterResourceWhitelist = []metav1.GroupKind{{}}
 
-		_, err := projectServer.Update(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
+		_, err := projectServer.UpdateProject(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
 
 		assert.Equal(t, status.Error(codes.PermissionDenied, "permission denied: clusters, update, https://server1"), err)
 	})
@@ -118,7 +118,7 @@ func TestProjectServer(t *testing.T) {
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.NamespaceResourceBlacklist = []metav1.GroupKind{{}}
 
-		_, err := projectServer.Update(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
+		_, err := projectServer.UpdateProject(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
 
 		assert.Equal(t, status.Error(codes.PermissionDenied, "permission denied: clusters, update, https://server1"), err)
 	})
@@ -136,7 +136,7 @@ func TestProjectServer(t *testing.T) {
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.Destinations = updatedProj.Spec.Destinations[1:]
 
-		_, err := projectServer.Update(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
+		_, err := projectServer.UpdateProject(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
 
 		assert.Nil(t, err)
 	})
@@ -152,7 +152,7 @@ func TestProjectServer(t *testing.T) {
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.Destinations = updatedProj.Spec.Destinations[1:]
 
-		_, err := projectServer.Update(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
+		_, err := projectServer.UpdateProject(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
 
 		assert.NotNil(t, err)
 		statusCode, _ := status.FromError(err)
@@ -170,7 +170,7 @@ func TestProjectServer(t *testing.T) {
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.SourceRepos = []string{}
 
-		_, err := projectServer.Update(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
+		_, err := projectServer.UpdateProject(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
 
 		assert.Nil(t, err)
 	})
@@ -186,7 +186,7 @@ func TestProjectServer(t *testing.T) {
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.SourceRepos = []string{}
 
-		_, err := projectServer.Update(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
+		_, err := projectServer.UpdateProject(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
 
 		assert.NotNil(t, err)
 		statusCode, _ := status.FromError(err)
@@ -206,7 +206,7 @@ func TestProjectServer(t *testing.T) {
 		updatedProj := proj.DeepCopy()
 		updatedProj.Spec.SourceRepos = []string{"https://github.com/argoproj/*"}
 
-		res, err := projectServer.Update(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
+		res, err := projectServer.UpdateProject(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
 
 		assert.NoError(t, err)
 		assert.ElementsMatch(t, res.Spec.SourceRepos, updatedProj.Spec.SourceRepos)
@@ -233,7 +233,7 @@ func TestProjectServer(t *testing.T) {
 			{Namespace: "org1-*", Server: "https://server1"},
 		}
 
-		res, err := projectServer.Update(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
+		res, err := projectServer.UpdateProject(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
 
 		assert.NoError(t, err)
 		assert.ElementsMatch(t, res.Spec.Destinations, updatedProj.Spec.Destinations)
@@ -242,7 +242,7 @@ func TestProjectServer(t *testing.T) {
 	t.Run("TestDeleteProjectSuccessful", func(t *testing.T) {
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj), enforcer, util.NewKeyLock(), nil)
 
-		_, err := projectServer.Delete(context.Background(), &project.ProjectQuery{Name: "test"})
+		_, err := projectServer.DeleteProject(context.Background(), &project.ProjectQuery{Name: "test"})
 
 		assert.Nil(t, err)
 	})
@@ -254,7 +254,7 @@ func TestProjectServer(t *testing.T) {
 		}
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&defaultProj), enforcer, util.NewKeyLock(), nil)
 
-		_, err := projectServer.Delete(context.Background(), &project.ProjectQuery{Name: defaultProj.Name})
+		_, err := projectServer.DeleteProject(context.Background(), &project.ProjectQuery{Name: defaultProj.Name})
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
 	})
@@ -267,7 +267,7 @@ func TestProjectServer(t *testing.T) {
 
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock(), nil)
 
-		_, err := projectServer.Delete(context.Background(), &project.ProjectQuery{Name: "test"})
+		_, err := projectServer.DeleteProject(context.Background(), &project.ProjectQuery{Name: "test"})
 
 		assert.NotNil(t, err)
 		statusCode, _ := status.FromError(err)
@@ -362,7 +362,7 @@ p, role:admin, projects, update, *, allow`)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr)
 		_, err := projectServer.DeleteToken(ctx, &project.ProjectTokenDeleteRequest{Project: projWithToken.Name, Role: tokenName, Iat: issuedAt})
 		assert.NoError(t, err)
-		projWithoutToken, err := projectServer.Get(context.Background(), &project.ProjectQuery{Name: projWithToken.Name})
+		projWithoutToken, err := projectServer.GetProject(context.Background(), &project.ProjectQuery{Name: projWithToken.Name})
 		assert.NoError(t, err)
 		assert.Len(t, projWithoutToken.Spec.Roles, 1)
 		assert.Len(t, projWithoutToken.Spec.Roles[0].JWTTokens, 1)
@@ -380,7 +380,7 @@ p, role:admin, projects, update, *, allow`)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr)
 		_, err := projectServer.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projWithToken.Name, Role: tokenName})
 		assert.Nil(t, err)
-		projWithTwoTokens, err := projectServer.Get(context.Background(), &project.ProjectQuery{Name: projWithToken.Name})
+		projWithTwoTokens, err := projectServer.GetProject(context.Background(), &project.ProjectQuery{Name: projWithToken.Name})
 		assert.Nil(t, err)
 		assert.Len(t, projWithTwoTokens.Spec.Roles, 1)
 		assert.Len(t, projWithTwoTokens.Spec.Roles[0].JWTTokens, 2)
@@ -394,7 +394,7 @@ p, role:admin, projects, update, *, allow`)
 
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(proj), enforcer, util.NewKeyLock(), nil)
 		request := &project.ProjectUpdateRequest{Project: proj}
-		updatedProj, err := projectServer.Update(context.Background(), request)
+		updatedProj, err := projectServer.UpdateProject(context.Background(), request)
 		assert.Nil(t, err)
 		assert.Equal(t, wildSouceRepo, updatedProj.Spec.SourceRepos[1])
 	})
@@ -413,7 +413,7 @@ p, role:admin, projects, update, *, allow`)
 
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
-		_, err := projectServer.Update(context.Background(), request)
+		_, err := projectServer.UpdateProject(context.Background(), request)
 		assert.Nil(t, err)
 		t.Log(projWithRole.Spec.Roles[0].Policies[0])
 		expectedPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, role.Name, action, projWithRole.Name, object, effect)
@@ -435,7 +435,7 @@ p, role:admin, projects, update, *, allow`)
 
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
-		_, err := projectServer.Update(context.Background(), request)
+		_, err := projectServer.UpdateProject(context.Background(), request)
 		expectedErr := fmt.Sprintf("rpc error: code = AlreadyExists desc = policy '%s' already exists for role '%s'", policy, roleName)
 		assert.EqualError(t, err, expectedErr)
 	})
@@ -455,7 +455,7 @@ p, role:admin, projects, update, *, allow`)
 
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
-		_, err := projectServer.Update(context.Background(), request)
+		_, err := projectServer.UpdateProject(context.Background(), request)
 		assert.Contains(t, err.Error(), "object must be of form 'test/*' or 'test/<APPNAME>'")
 	})
 
@@ -474,7 +474,7 @@ p, role:admin, projects, update, *, allow`)
 
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
-		_, err := projectServer.Update(context.Background(), request)
+		_, err := projectServer.UpdateProject(context.Background(), request)
 		assert.Contains(t, err.Error(), "policy subject must be: 'proj:test:testRole'")
 	})
 
@@ -493,7 +493,7 @@ p, role:admin, projects, update, *, allow`)
 
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
-		_, err := projectServer.Update(context.Background(), request)
+		_, err := projectServer.UpdateProject(context.Background(), request)
 		assert.Contains(t, err.Error(), "policy subject must be: 'proj:test:testRole'")
 	})
 
@@ -511,7 +511,7 @@ p, role:admin, projects, update, *, allow`)
 
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
-		_, err := projectServer.Update(context.Background(), request)
+		_, err := projectServer.UpdateProject(context.Background(), request)
 		assert.Contains(t, err.Error(), "effect must be: 'allow' or 'deny'")
 	})
 
@@ -530,7 +530,7 @@ p, role:admin, projects, update, *, allow`)
 
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
-		updateProj, err := projectServer.Update(context.Background(), request)
+		updateProj, err := projectServer.UpdateProject(context.Background(), request)
 		assert.Nil(t, err)
 		expectedPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, object, effect)
 		assert.Equal(t, expectedPolicy, updateProj.Spec.Roles[0].Policies[0])

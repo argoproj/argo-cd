@@ -28,11 +28,11 @@ var _ status.Status
 var _ = runtime.String
 var _ = utilities.NewDoubleArray
 
-func request_SettingsService_Get_0(ctx context.Context, marshaler runtime.Marshaler, client SettingsServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_SettingsService_GetSettings_0(ctx context.Context, marshaler runtime.Marshaler, client SettingsServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq SettingsQuery
 	var metadata runtime.ServerMetadata
 
-	msg, err := client.Get(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.GetSettings(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
@@ -75,7 +75,7 @@ func RegisterSettingsServiceHandler(ctx context.Context, mux *runtime.ServeMux, 
 // "SettingsServiceClient" to call the correct interceptors.
 func RegisterSettingsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux, client SettingsServiceClient) error {
 
-	mux.Handle("GET", pattern_SettingsService_Get_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_SettingsService_GetSettings_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
@@ -93,14 +93,14 @@ func RegisterSettingsServiceHandlerClient(ctx context.Context, mux *runtime.Serv
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_SettingsService_Get_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_SettingsService_GetSettings_0(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_SettingsService_Get_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_SettingsService_GetSettings_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -108,9 +108,9 @@ func RegisterSettingsServiceHandlerClient(ctx context.Context, mux *runtime.Serv
 }
 
 var (
-	pattern_SettingsService_Get_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "settings"}, ""))
+	pattern_SettingsService_GetSettings_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "settings"}, ""))
 )
 
 var (
-	forward_SettingsService_Get_0 = runtime.ForwardResponseMessage
+	forward_SettingsService_GetSettings_0 = runtime.ForwardResponseMessage
 )

@@ -67,7 +67,7 @@ service ProjectService {
   }
 
   // Create a new project.
-  rpc Create(ProjectCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject) {
+  rpc CreateProject(ProjectCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject) {
     option (google.api.http) = {
       post: "/api/v1/projects"
       body: "*"
@@ -75,17 +75,17 @@ service ProjectService {
   }
 
   // List returns list of projects
-  rpc List(ProjectQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProjectList) {
+  rpc ListProjects(ProjectQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProjectList) {
       option (google.api.http).get = "/api/v1/projects";
   }
 
   // Get returns a project by name
-  rpc Get(ProjectQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject) {
+  rpc GetProject(ProjectQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject) {
       option (google.api.http).get = "/api/v1/projects/{name}";
   }
 
   // Update updates a project
-  rpc Update(ProjectUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject) {
+  rpc UpdateProject(ProjectUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject) {
       option (google.api.http) = {
           put: "/api/v1/projects/{project.metadata.name}"
           body: "*"
@@ -93,7 +93,7 @@ service ProjectService {
   }
 
   // Delete deletes a project
-  rpc Delete(ProjectQuery) returns (EmptyResponse) {
+  rpc DeleteProject(ProjectQuery) returns (EmptyResponse) {
       option (google.api.http).delete = "/api/v1/projects/{name}";
   }
 

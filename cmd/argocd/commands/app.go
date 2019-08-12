@@ -146,7 +146,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				Application: app,
 				Upsert:      &upsert,
 			}
-			created, err := appIf.Create(context.Background(), &appCreateRequest)
+			created, err := appIf.CreateApp(context.Background(), &appCreateRequest)
 			errors.CheckError(err)
 			fmt.Printf("application '%s' created\n", created.ObjectMeta.Name)
 		},
@@ -198,7 +198,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appName := args[0]
-			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName, Refresh: getRefreshType(refresh, hardRefresh)})
+			app, err := appIf.GetApp(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName, Refresh: getRefreshType(refresh, hardRefresh)})
 			errors.CheckError(err)
 			switch output {
 			case "yaml":
@@ -369,7 +369,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			argocdClient := argocdclient.NewClientOrDie(clientOpts)
 			conn, appIf := argocdClient.NewApplicationClientOrDie()
 			defer util.Close(conn)
-			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
+			app, err := appIf.GetApp(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
 			visited := setAppOptions(c.Flags(), app, &appOpts)
 			if visited == 0 {
@@ -618,7 +618,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			appName := args[0]
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
+			app, err := appIf.GetApp(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
 
 			updated := false
@@ -781,7 +781,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			conn, appIf := clientset.NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appName := args[0]
-			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName, Refresh: getRefreshType(refresh, hardRefresh)})
+			app, err := appIf.GetApp(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName, Refresh: getRefreshType(refresh, hardRefresh)})
 			errors.CheckError(err)
 			resources, err := appIf.ManagedResources(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 			errors.CheckError(err)
@@ -795,7 +795,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			conn, settingsIf := clientset.NewSettingsClientOrDie()
 			defer util.Close(conn)
-			argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
+			argoSettings, err := settingsIf.GetSettings(context.Background(), &settingspkg.SettingsQuery{})
 			errors.CheckError(err)
 
 			if local != "" {
@@ -971,7 +971,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				if c.Flag("cascade").Changed {
 					appDeleteReq.Cascade = &cascade
 				}
-				_, err := appIf.Delete(context.Background(), &appDeleteReq)
+				_, err := appIf.DeleteApp(context.Background(), &appDeleteReq)
 				errors.CheckError(err)
 			}
 		},
@@ -1029,7 +1029,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		Run: func(c *cobra.Command, args []string) {
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			apps, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{})
+			apps, err := appIf.ListApps(context.Background(), &applicationpkg.ApplicationQuery{})
 			errors.CheckError(err)
 			if output == "name" {
 				printApplicationNames(apps.Items)
@@ -1240,7 +1240,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			var localObjsStrings []string
 			if local != "" {
-				app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
+				app, err := appIf.GetApp(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
 				errors.CheckError(err)
 				if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
 					log.Fatal("Cannot use local sync when Automatic Sync Policy is enabled")
@@ -1248,7 +1248,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 				errors.CheckError(err)
 				conn, settingsIf := acdClient.NewSettingsClientOrDie()
-				argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
+				argoSettings, err := settingsIf.GetSettings(context.Background(), &settingspkg.SettingsQuery{})
 				errors.CheckError(err)
 				util.Close(conn)
 
@@ -1275,7 +1275,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				log.Fatalf("Unknown sync strategy: '%s'", strategy)
 			}
 			ctx := context.Background()
-			_, err := appIf.Sync(ctx, &syncReq)
+			_, err := appIf.SyncApp(ctx, &syncReq)
 			errors.CheckError(err)
 
 			if !async {
@@ -1449,7 +1449,7 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 		if refresh {
 			conn, appClient := acdClient.NewApplicationClientOrDie()
 			refreshType := string(argoappv1.RefreshTypeNormal)
-			app, err = appClient.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName, Refresh: &refreshType})
+			app, err = appClient.GetApp(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName, Refresh: &refreshType})
 			errors.CheckError(err)
 			_ = conn.Close()
 		}
@@ -1482,7 +1482,7 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 	appEventCh := acdClient.WatchApplicationWithRetry(ctx, appName)
 	conn, appClient := acdClient.NewApplicationClientOrDie()
 	defer util.Close(conn)
-	app, err := appClient.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
+	app, err := appClient.GetApp(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
 	errors.CheckError(err)
 
 	for appEvent := range appEventCh {
@@ -1644,7 +1644,7 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appName := args[0]
-			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
+			app, err := appIf.GetApp(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
 			if output == "id" {
 				printApplicationHistoryIds(app.Status.History)
@@ -1678,7 +1678,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer util.Close(conn)
 			ctx := context.Background()
-			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
+			app, err := appIf.GetApp(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
 			var depInfo *argoappv1.RevisionHistory
 			for _, di := range app.Status.History {
@@ -1691,7 +1691,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 				log.Fatalf("Application '%s' does not have deployment id '%d' in history\n", app.ObjectMeta.Name, depID)
 			}
 
-			_, err = appIf.Rollback(ctx, &applicationpkg.ApplicationRollbackRequest{
+			_, err = appIf.RollbackApp(ctx, &applicationpkg.ApplicationRollbackRequest{
 				Name:  &appName,
 				ID:    int64(depID),
 				Prune: prune,
@@ -1829,7 +1829,7 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			appName := args[0]
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
+			app, err := appIf.GetApp(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
 			appData, err := json.Marshal(app.Spec)
 			errors.CheckError(err)
@@ -1879,7 +1879,7 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 
-			patchedApp, err := appIf.Patch(context.Background(), &applicationpkg.ApplicationPatchRequest{
+			patchedApp, err := appIf.PatchApp(context.Background(), &applicationpkg.ApplicationPatchRequest{
 				Name:      &appName,
 				Patch:     patch,
 				PatchType: patchType,

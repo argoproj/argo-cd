@@ -598,7 +598,7 @@ func TestPermissions(t *testing.T) {
 	defer util.Close(closer)
 
 	refresh := string(RefreshTypeNormal)
-	app, err := client.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName, Refresh: &refresh})
+	app, err := client.GetApp(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName, Refresh: &refresh})
 	assert.NoError(t, err)
 
 	destinationErrorExist := false

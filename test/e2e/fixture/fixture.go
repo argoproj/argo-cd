@@ -104,7 +104,7 @@ func init() {
 	CheckError(err)
 	defer util.Close(closer)
 
-	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: "admin", Password: adminPassword})
+	sessionResponse, err := client.CreateSession(context.Background(), &sessionpkg.SessionCreateRequest{Username: "admin", Password: adminPassword})
 	CheckError(err)
 
 	ArgoCDClientset, err = argocdclient.NewClient(&argocdclient.ClientOptions{

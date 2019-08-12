@@ -24,7 +24,7 @@ func NewServer(mgr *sessionmgr.SessionManager) *Server {
 
 // Create generates a JWT token signed by Argo CD intended for web/CLI logins of the admin user
 // using username/password
-func (s *Server) Create(ctx context.Context, q *session.SessionCreateRequest) (*session.SessionResponse, error) {
+func (s *Server) CreateSession(ctx context.Context, q *session.SessionCreateRequest) (*session.SessionResponse, error) {
 	if q.Token != "" {
 		return nil, status.Errorf(codes.Unauthenticated, "token-based session creation no longer supported. please upgrade argocd cli to v0.7+")
 	}
@@ -43,7 +43,7 @@ func (s *Server) Create(ctx context.Context, q *session.SessionCreateRequest) (*
 }
 
 // Delete an authentication cookie from the client.  This makes sense only for the Web client.
-func (s *Server) Delete(ctx context.Context, q *session.SessionDeleteRequest) (*session.SessionResponse, error) {
+func (s *Server) DeleteSession(ctx context.Context, q *session.SessionDeleteRequest) (*session.SessionResponse, error) {
 	return &session.SessionResponse{Token: ""}, nil
 }
 

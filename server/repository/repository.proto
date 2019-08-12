@@ -77,12 +77,12 @@ message RepoUpdateRequest {
 service RepositoryService {
 
 	// List returns list of repos
-	rpc List(RepoQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RepositoryList) {
+	rpc ListRepos(RepoQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RepositoryList) {
 		option (google.api.http).get = "/api/v1/repositories";
 	}
 
 	// ListApps returns list of apps in the repo
-	rpc ListApps(RepoAppsQuery) returns (RepoAppsResponse) {
+	rpc ListRepoApps(RepoAppsQuery) returns (RepoAppsResponse) {
 		option (google.api.http).get = "/api/v1/repositories/{repo}/apps";
 	}
 
@@ -92,7 +92,7 @@ service RepositoryService {
 	}
 
 	// Create creates a repo
-	rpc Create(RepoCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
+	rpc CreateRepo(RepoCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http) = {
 			post: "/api/v1/repositories"
 			body: "repo"
@@ -100,7 +100,7 @@ service RepositoryService {
 	}
 	
 	// Update updates a repo
-	rpc Update(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
+	rpc UpdateRepo(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http) = {
 			put: "/api/v1/repositories/{repo.repo}"
 			body: "repo"
@@ -108,7 +108,7 @@ service RepositoryService {
 	}
 
 	// Delete deletes a repo
-	rpc Delete(RepoQuery) returns (RepoResponse) {
+	rpc DeleteRepo(RepoQuery) returns (RepoResponse) {
 		option (google.api.http).delete = "/api/v1/repositories/{repo}";
 	}
 

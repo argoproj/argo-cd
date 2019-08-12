@@ -63,7 +63,7 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 				httpClient, err := acdClient.HTTPClient()
 				errors.CheckError(err)
 				ctx = oidc.ClientContext(ctx, httpClient)
-				acdSet, err := setIf.Get(ctx, &settingspkg.SettingsQuery{})
+				acdSet, err := setIf.GetSettings(ctx, &settingspkg.SettingsQuery{})
 				errors.CheckError(err)
 				oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
 				errors.CheckError(err)

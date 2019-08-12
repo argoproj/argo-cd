@@ -20,7 +20,7 @@ func TestAddRemovePublicRepo(t *testing.T) {
 	assert.Nil(t, err)
 	defer util.Close(conn)
 
-	repo, err := repoClient.List(context.Background(), &repositorypkg.RepoQuery{})
+	repo, err := repoClient.ListRepos(context.Background(), &repositorypkg.RepoQuery{})
 
 	assert.Nil(t, err)
 	exists := false
@@ -35,7 +35,7 @@ func TestAddRemovePublicRepo(t *testing.T) {
 	_, err = fixture.RunCli("repo", "rm", repoUrl)
 	assert.Nil(t, err)
 
-	repo, err = repoClient.List(context.Background(), &repositorypkg.RepoQuery{})
+	repo, err = repoClient.ListRepos(context.Background(), &repositorypkg.RepoQuery{})
 	assert.Nil(t, err)
 	exists = false
 	for i := range repo.Items {

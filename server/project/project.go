@@ -135,7 +135,7 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 }
 
 // Create a new project.
-func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*v1alpha1.AppProject, error) {
+func (s *Server) CreateProject(ctx context.Context, q *project.ProjectCreateRequest) (*v1alpha1.AppProject, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionCreate, q.Project.Name); err != nil {
 		return nil, err
 	}
@@ -152,7 +152,7 @@ func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*
 }
 
 // List returns list of projects
-func (s *Server) List(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.AppProjectList, error) {
+func (s *Server) ListProjects(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.AppProjectList, error) {
 	list, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).List(metav1.ListOptions{})
 	if list != nil {
 		newItems := make([]v1alpha1.AppProject, 0)
@@ -168,7 +168,7 @@ func (s *Server) List(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.A
 }
 
 // Get returns a project by name
-func (s *Server) Get(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.AppProject, error) {
+func (s *Server) GetProject(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.AppProject, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name); err != nil {
 		return nil, err
 	}
@@ -176,7 +176,7 @@ func (s *Server) Get(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.Ap
 }
 
 // Update updates a project
-func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*v1alpha1.AppProject, error) {
+func (s *Server) UpdateProject(ctx context.Context, q *project.ProjectUpdateRequest) (*v1alpha1.AppProject, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionUpdate, q.Project.Name); err != nil {
 		return nil, err
 	}
@@ -265,7 +265,7 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 }
 
 // Delete deletes a project
-func (s *Server) Delete(ctx context.Context, q *project.ProjectQuery) (*project.EmptyResponse, error) {
+func (s *Server) DeleteProject(ctx context.Context, q *project.ProjectQuery) (*project.EmptyResponse, error) {
 	if q.Name == common.DefaultAppProjectName {
 		return nil, status.Errorf(codes.InvalidArgument, "name '%s' is reserved and cannot be deleted", q.Name)
 	}

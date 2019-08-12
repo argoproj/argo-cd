@@ -62,10 +62,10 @@ func TestUpdatePassword(t *testing.T) {
 	assert.NoError(t, accountServer.sessionMgr.VerifyUsernamePassword("admin", "oldpassword"))
 	assert.Error(t, accountServer.sessionMgr.VerifyUsernamePassword("admin", "newpassword"))
 	// verify old password works
-	_, err = sessionServer.Create(ctx, &sessionpkg.SessionCreateRequest{Username: "admin", Password: "oldpassword"})
+	_, err = sessionServer.CreateSession(ctx, &sessionpkg.SessionCreateRequest{Username: "admin", Password: "oldpassword"})
 	assert.NoError(t, err)
 	// verify new password doesn't
-	_, err = sessionServer.Create(ctx, &sessionpkg.SessionCreateRequest{Username: "admin", Password: "newpassword"})
+	_, err = sessionServer.CreateSession(ctx, &sessionpkg.SessionCreateRequest{Username: "admin", Password: "newpassword"})
 	assert.Error(t, err)
 
 	// ensure password can be updated with valid password and immediately be used
@@ -80,9 +80,9 @@ func TestUpdatePassword(t *testing.T) {
 	assert.NoError(t, accountServer.sessionMgr.VerifyUsernamePassword("admin", "newpassword"))
 	assert.Error(t, accountServer.sessionMgr.VerifyUsernamePassword("admin", "oldpassword"))
 	// verify old password is invalid
-	_, err = sessionServer.Create(ctx, &sessionpkg.SessionCreateRequest{Username: "admin", Password: "oldpassword"})
+	_, err = sessionServer.CreateSession(ctx, &sessionpkg.SessionCreateRequest{Username: "admin", Password: "oldpassword"})
 	assert.Error(t, err)
 	// verify new password works
-	_, err = sessionServer.Create(ctx, &sessionpkg.SessionCreateRequest{Username: "admin", Password: "newpassword"})
+	_, err = sessionServer.CreateSession(ctx, &sessionpkg.SessionCreateRequest{Username: "admin", Password: "newpassword"})
 	assert.NoError(t, err)
 }

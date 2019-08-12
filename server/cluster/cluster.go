@@ -73,7 +73,7 @@ func (s *Server) getConnectionState(cluster appv1.Cluster, errorMessage string) 
 }
 
 // List returns list of clusters
-func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.ClusterList, error) {
+func (s *Server) ListClusters(ctx context.Context, q *cluster.ClusterQuery) (*appv1.ClusterList, error) {
 	clusterList, err := s.db.ListClusters(ctx)
 	if err != nil {
 		return nil, err
@@ -112,7 +112,7 @@ func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clus
 }
 
 // Create creates a cluster
-func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*appv1.Cluster, error) {
+func (s *Server) CreateCluster(ctx context.Context, q *cluster.ClusterCreateRequest) (*appv1.Cluster, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionCreate, q.Cluster.Server); err != nil {
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 		if reflect.DeepEqual(existing, c) {
 			clust, err = existing, nil
 		} else if q.Upsert {
-			return s.Update(ctx, &cluster.ClusterUpdateRequest{Cluster: c})
+			return s.UpdateCluster(ctx, &cluster.ClusterUpdateRequest{Cluster: c})
 		} else {
 			return nil, status.Errorf(codes.InvalidArgument, "existing cluster spec is different; use upsert flag to force update")
 		}
@@ -145,7 +145,7 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 }
 
 // Get returns a cluster from a query
-func (s *Server) Get(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Cluster, error) {
+func (s *Server) GetCluster(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Cluster, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionGet, q.Server); err != nil {
 		return nil, err
 	}
@@ -154,7 +154,7 @@ func (s *Server) Get(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clust
 }
 
 // Update updates a cluster
-func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*appv1.Cluster, error) {
+func (s *Server) UpdateCluster(ctx context.Context, q *cluster.ClusterUpdateRequest) (*appv1.Cluster, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, q.Cluster.Server); err != nil {
 		return nil, err
 	}
@@ -167,7 +167,7 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 }
 
 // Delete deletes a cluster by name
-func (s *Server) Delete(ctx context.Context, q *cluster.ClusterQuery) (*cluster.ClusterResponse, error) {
+func (s *Server) DeleteCluster(ctx context.Context, q *cluster.ClusterQuery) (*cluster.ClusterResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionDelete, q.Server); err != nil {
 		return nil, err
 	}

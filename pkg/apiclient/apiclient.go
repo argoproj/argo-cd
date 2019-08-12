@@ -305,7 +305,7 @@ func (c *client) redeemRefreshToken() (string, string, error) {
 		return "", "", err
 	}
 	ctx := oidc.ClientContext(context.Background(), httpClient)
-	acdSet, err := setIf.Get(ctx, &settingspkg.SettingsQuery{})
+	acdSet, err := setIf.GetSettings(ctx, &settingspkg.SettingsQuery{})
 	if err != nil {
 		return "", "", err
 	}
@@ -586,8 +586,8 @@ func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string) 
 		for !cancelled {
 			conn, appIf, err := c.NewApplicationClient()
 			if err == nil {
-				var wc applicationpkg.ApplicationService_WatchClient
-				wc, err = appIf.Watch(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
+				var wc applicationpkg.ApplicationService_WatchAppClient
+				wc, err = appIf.WatchApp(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
 				if err == nil {
 					for {
 						var appEvent *v1alpha1.ApplicationWatchEvent
