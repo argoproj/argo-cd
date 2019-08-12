@@ -741,12 +741,18 @@
     Usage
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#available-hooks" title="Available Hooks" class="md-nav__link">
-    Available Hooks
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#generate-name" title="Generate Name" class="md-nav__link">
+    Generate Name
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1052,12 +1058,18 @@
     Usage
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#available-hooks" title="Available Hooks" class="md-nav__link">
-    Available Hooks
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#generate-name" title="Generate Name" class="md-nav__link">
+    Generate Name
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1095,23 +1107,18 @@
                 
                 
                 <h1 id="resource-hooks">Resource Hooks<a class="headerlink" href="#resource-hooks" title="Permanent link">&para;</a></h1>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>Helm hooks are currently ignored. <a href="../helm/">Read more</a>.</p>
-</div>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<p>Synchronization can be configured using resource hooks. Hooks are ways to interject custom logic before, during,
+<p>Synchronization can be configured using resource hooks. Hooks are ways to run scripts before, during,
 and after a Sync operation. Some use cases for hooks are:</p>
 <ul>
 <li>Using a <code>PreSync</code> hook to perform a database schema migration before deploying a new version of the app.</li>
 <li>Using a <code>Sync</code> hook to orchestrate a complex deployment requiring more sophistication than the
-kubernetes rolling update strategy (e.g. a blue/green deployment).</li>
+Kubernetes rolling update strategy.</li>
 <li>Using a <code>PostSync</code> hook to run integration and health checks after a deployment.</li>
 <li>Using a <code>SyncFail</code> hook to run clean-up or finalizer logic if a Sync operation fails.</li>
 </ul>
 <h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
-<p>Hooks are simply kubernetes manifests annotated with the <code>argocd.argoproj.io/hook</code> annotation. To
-make use of hooks, simply add the annotation to any resource:</p>
+<p>Hooks are simply Kubernetes manifests annotated with <code>argocd.argoproj.io/hook</code>, e.g.:</p>
 <div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">batch/v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Job</span>
 <span class="nt">metadata</span><span class="p">:</span>
@@ -1121,12 +1128,11 @@ make use of hooks, simply add the annotation to any resource:</p>
 </pre></div>
 
 
-<p>During a Sync operation, Argo CD will create the resource during the appropriate stage of the
-deployment. Hooks can be any type of Kuberentes resource kind, but tend to be most useful as a Pod,
+<p>During a Sync operation, Argo CD will apply the resource during the appropriate phase of the
+deployment. Hooks can be any type of Kubernetes resource kind, but tend to be Pod,
 <a href="https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/">Job</a>
 or <a href="https://github.com/argoproj/argo">Argo Workflows</a>. Multiple hooks can be specified as a comma
 separated list.</p>
-<h2 id="available-hooks">Available Hooks<a class="headerlink" href="#available-hooks" title="Permanent link">&para;</a></h2>
 <p>The following hooks are defined:</p>
 <table>
 <thead>
@@ -1142,24 +1148,26 @@ separated list.</p>
 </tr>
 <tr>
 <td><code>Sync</code></td>
-<td>Executes after all <code>PreSync</code> hooks completed and were successful. Occurs in conjuction with the apply of the manifests.</td>
+<td>Executes after all <code>PreSync</code> hooks completed and were successful, at the same time as the apply of the manifests.</td>
 </tr>
 <tr>
 <td><code>Skip</code></td>
-<td>Indicates to Argo CD to skip the apply of the manifest. This is typically used in conjunction with a <code>Sync</code> hook which is presumably handling the deployment in an alternate way (e.g. blue-green deployment)</td>
+<td>Indicates to Argo CD to skip the apply of the manifest.</td>
 </tr>
 <tr>
 <td><code>PostSync</code></td>
-<td>Executes after all <code>Sync</code> hooks completed and were successful, a succcessful apply, and all resources in a <code>Healthy</code> state.</td>
+<td>Executes after all <code>Sync</code> hooks completed and were successful, a successful apply, and all resources in a <code>Healthy</code> state.</td>
 </tr>
 <tr>
 <td><code>SyncFail</code></td>
-<td>Executes if and only if any part of the Sync operation fails.</td>
+<td>Executes when the sync operation fails.</td>
 </tr>
 </tbody>
 </table>
+<h3 id="generate-name">Generate Name<a class="headerlink" href="#generate-name" title="Permanent link">&para;</a></h3>
+<p>Named hooks (i.e. ones with <code>/metadata/name</code>) will only be created once. If you want a hook to be re-created each time either use <code>BeforeHookCreation</code> policy (see below) or <code>/metadata/generaName</code>. </p>
 <h2 id="selective-sync">Selective Sync<a class="headerlink" href="#selective-sync" title="Permanent link">&para;</a></h2>
-<p>Hooks are run during <a href="../selective_sync/">selective sync</a>.</p>
+<p>Hooks are not run during <a href="../selective_sync/">selective sync</a>.</p>
 <h2 id="hook-deletion-policies">Hook Deletion Policies<a class="headerlink" href="#hook-deletion-policies" title="Permanent link">&para;</a></h2>
 <p>Hooks can be deleted in an automatic fashion using the annotation: <code>argocd.argoproj.io/hook-delete-policy</code>.</p>
 <div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">batch/v1</span>

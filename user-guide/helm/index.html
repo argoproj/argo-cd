@@ -611,6 +611,19 @@
     Helm Hooks
   </a>
   
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#hook-tips" title="Hook Tips" class="md-nav__link">
+    Hook Tips
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1066,6 +1079,19 @@
     Helm Hooks
   </a>
   
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#hook-tips" title="Hook Tips" class="md-nav__link">
+    Hook Tips
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1135,12 +1161,91 @@ you may want to override that  name, and it is possible with the <code>release-n
 <p>Please note that overriding the Helm release name might cause problems when the chart you are deploying is using the <code>app.kubernetes.io/instance</code> label. ArgoCD injects this label with the value of the Application name for tracking purposes. So when overriding the release name, the Application name will stop being equal to the release name. Because ArgoCD will overwrite the label with the Application name it might cause some selectors on the resources to stop working. In order to avoid this we can configure ArgoCD to use another label for tracking in the <a href="../../operator-manual/argocd-cm.yaml">ArgoCD configmap argocd-cm.yaml</a> - check the lines describing <code>application.instanceLabelKey</code>.</p>
 </div>
 <h2 id="helm-hooks">Helm Hooks<a class="headerlink" href="#helm-hooks" title="Permanent link">&para;</a></h2>
-<p>Helm hooks are equivalent in concept to <a href="../resource_hooks/">Argo CD resource hooks</a>. In helm, a hook
-is any normal kubernetes resource annotated with the <code>helm.sh/hook</code> annotation. When Argo CD deploys
-helm application which contains helm hooks, all helm hook resources are currently ignored during
-the <code>kubectl apply</code> of the manifests. There is an
-<a href="https://github.com/argoproj/argo-cd/issues/355">open issue</a> to map Helm hooks to Argo CD's concept
-of Pre/Post/Sync hooks.</p>
+<blockquote>
+<p>v1.3 or later</p>
+</blockquote>
+<p>Helm hooks are similar to <a href="../resource_hooks/">Argo CD resource hooks</a>. In Helm, a hook
+is any normal kubernetes resource annotated with the <code>helm.sh/hook</code> annotation. </p>
+<p>Argo CD supports most Helm hooks by mapping the Helm annotations onto Argo CD's own hook annotations: </p>
+<table>
+<thead>
+<tr>
+<th>Helm Annotation</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>helm.sh/hook: crd-install</code></td>
+<td>Supported as equivalent to <code>argocd.argoproj.io/hook: PreSync</code>.</td>
+</tr>
+<tr>
+<td><code>helm.sh/hook: pre-delete</code></td>
+<td>Not supported. In Helm stable there are 3 cases used to clean up CRDs and 3 to clean-up jobs.</td>
+</tr>
+<tr>
+<td><code>helm.sh/hook: pre-rollback</code></td>
+<td>Not supported. Never used in Helm stable.</td>
+</tr>
+<tr>
+<td><code>helm.sh/hook: pre-install</code></td>
+<td>Supported as equivalent to <code>argocd.argoproj.io/hook: PreSync</code>.</td>
+</tr>
+<tr>
+<td><code>helm.sh/hook: pre-upgrade</code></td>
+<td>Supported as equivalent to <code>argocd.argoproj.io/hook: PreSync</code>.</td>
+</tr>
+<tr>
+<td><code>helm.sh/hook: post-upgrade</code></td>
+<td>Supported as equivalent to <code>argocd.argoproj.io/hook: PostSync</code>.</td>
+</tr>
+<tr>
+<td><code>helm.sh/hook: post-install</code></td>
+<td>Supported as equivalent to <code>argocd.argoproj.io/hook: PostSync</code>.</td>
+</tr>
+<tr>
+<td><code>helm.sh/hook: post-delete</code></td>
+<td>Not supported. Never used in Helm stable.</td>
+</tr>
+<tr>
+<td><code>helm.sh/hook: post-rollback</code></td>
+<td>Not supported. Never used in Helm stable.</td>
+</tr>
+<tr>
+<td><code>helm.sh/hook: test-success</code></td>
+<td>Not supported. No equivalent in Argo CD.</td>
+</tr>
+<tr>
+<td><code>helm.sh/hook: test-failure</code></td>
+<td>Not supported. No equivalent in Argo CD.</td>
+</tr>
+<tr>
+<td><code>helm.sh/hook-delete-policy</code></td>
+<td>Supported. See also <code>argocd.argoproj.io/hook-delete-policy</code>).</td>
+</tr>
+<tr>
+<td><code>helm.sh/hook-delete-timeout</code></td>
+<td>No supported. Never used in Helm stable</td>
+</tr>
+<tr>
+<td><code>helm.sh/hook-weight</code></td>
+<td>Supported as equivalent to <code>argocd.argoproj.io/sync-wave</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Unsupported hooks are simply ignored. In Argo CD, hooks are created by using <code>kubectl apply</code>. This means that any </p>
+<div class="admonition warning">
+<p class="admonition-title">'install' vs 'upgrade' vs 'sync'</p>
+<p>Argo CD cannot know if it is running a first-time "install" or an "upgrade" - every operation is a "sync'. This means that, by default, apps that have <code>pre-install</code> and <code>pre-upgrade</code> will have those hooks run at the same time.</p>
+</div>
+<h3 id="hook-tips">Hook Tips<a class="headerlink" href="#hook-tips" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Make your hook are idempotent. </li>
+<li>Annotate <code>crd-install</code> with <code>hook-weight: "-2"</code> to make sure it runs to success before any install or upgrade hooks.</li>
+<li>Annotate  <code>pre-install</code> and <code>post-install</code> with <code>hook-weight: "-1"</code>. This will make sure it runs to success before any upgrade hooks.</li>
+<li>Annotate <code>pre-upgrade</code> and <code>post-upgrade</code> with <code>hook-delete-policy: before-hook-creation</code> to make sure it runs on every sync.</li>
+</ul>
+<p>Read more about <a href="../resource_hooks/">Argo hooks</a> and <a href="https://github.com/kubernetes/helm/blob/master/docs/charts_hooks.md">Helm hooks</a>. </p>
 <h2 id="random-data">Random Data<a class="headerlink" href="#random-data" title="Permanent link">&para;</a></h2>
 <p>Helm templating has the ability to generate random data during chart rendering via the
 <code>randAlphaNum</code> function. Many helm charts from the <a href="https://github.com/helm/charts">charts repository</a>
