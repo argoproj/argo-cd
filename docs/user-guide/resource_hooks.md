@@ -1,22 +1,18 @@
 # Resource Hooks
-
-!!! warning
-    Helm hooks are currently ignored. [Read more](helm.md).
-
 ## Overview
 
-Synchronization can be configured using resource hooks. Hooks are ways to interject custom logic before, during,
+Synchronization can be configured using resource hooks. Hooks are ways to run scripts before, during,
 and after a Sync operation. Some use cases for hooks are:
 
 * Using a `PreSync` hook to perform a database schema migration before deploying a new version of the app.
 * Using a `Sync` hook to orchestrate a complex deployment requiring more sophistication than the
-kubernetes rolling update strategy (e.g. a blue/green deployment).
+Kubernetes rolling update strategy.
 * Using a `PostSync` hook to run integration and health checks after a deployment.
 * Using a `SyncFail` hook to run clean-up or finalizer logic if a Sync operation fails.
 
 ## Usage
-Hooks are simply kubernetes manifests annotated with the `argocd.argoproj.io/hook` annotation. To
-make use of hooks, simply add the annotation to any resource:
+
+Hooks are simply Kubernetes manifests annotated with `argocd.argoproj.io/hook`, e.g.:
 
 ```yaml
 apiVersion: batch/v1
@@ -27,27 +23,29 @@ metadata:
     argocd.argoproj.io/hook: PreSync
 ```
 
-During a Sync operation, Argo CD will create the resource during the appropriate stage of the
-deployment. Hooks can be any type of Kuberentes resource kind, but tend to be most useful as a Pod,
+During a Sync operation, Argo CD will apply the resource during the appropriate phase of the
+deployment. Hooks can be any type of Kubernetes resource kind, but tend to be Pod,
 [Job](https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/)
 or [Argo Workflows](https://github.com/argoproj/argo). Multiple hooks can be specified as a comma
 separated list.
 
-## Available Hooks
 The following hooks are defined:
 
 | Hook | Description |
 |------|-------------|
 | `PreSync` | Executes prior to the apply of the manifests. |
-| `Sync`  | Executes after all `PreSync` hooks completed and were successful. Occurs in conjuction with the apply of the manifests. |
-| `Skip` | Indicates to Argo CD to skip the apply of the manifest. This is typically used in conjunction with a `Sync` hook which is presumably handling the deployment in an alternate way (e.g. blue-green deployment) |
-| `PostSync` | Executes after all `Sync` hooks completed and were successful, a succcessful apply, and all resources in a `Healthy` state. |
-| `SyncFail` | Executes if and only if any part of the Sync operation fails. |
+| `Sync`  | Executes after all `PreSync` hooks completed and were successful, at the same time as the apply of the manifests. |
+| `Skip` | Indicates to Argo CD to skip the apply of the manifest. |
+| `PostSync` | Executes after all `Sync` hooks completed and were successful, a successful apply, and all resources in a `Healthy` state. |
+| `SyncFail` | Executes when the sync operation fails. |
 
+### Generate Name
+
+Named hooks (i.e. ones with `/metadata/name`) will only be created once. If you want a hook to be re-created each time either use `BeforeHookCreation` policy (see below) or `/metadata/generaName`. 
 
 ## Selective Sync
 
-Hooks are run during [selective sync](selective_sync.md).
+Hooks are not run during [selective sync](selective_sync.md).
 
 ## Hook Deletion Policies
 
