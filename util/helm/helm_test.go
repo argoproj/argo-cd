@@ -189,7 +189,8 @@ func TestHelmArgCleaner(t *testing.T) {
 }
 
 func TestHelmValues(t *testing.T) {
-	h := NewHelmApp("./testdata/redis", []*argoappv1.HelmRepository{})
+	h, err := NewHelmApp("./testdata/redis", argoappv1.Repositories{})
+	assert.NoError(t, err)
 	opts := argoappv1.ApplicationSourceHelm{
 		ValueFiles: []string{"values-production.yaml"},
 		Values: `cluster:
