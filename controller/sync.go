@@ -184,7 +184,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		syncRes:             syncRes,
 		syncResources:       syncResources,
 		opState:             state,
-		log:                 log.WithFields(log.Fields{"application": app.Name, "syncId": rand.RandString(5)}}),
+		log:                 log.WithFields(log.Fields{"application": app.Name, "syncId": rand.RandString(5)}),
 	}
 
 	if state.Phase == v1alpha1.OperationTerminating {
