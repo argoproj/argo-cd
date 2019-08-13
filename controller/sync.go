@@ -172,7 +172,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 
 	atomic.AddUint64(&syncCounter, 1)
-	syncId := fmt.Sprintf("%05d-%s",syncCounter, rand.RandString(5))
+	syncId := fmt.Sprintf("%05d-%s", syncCounter, rand.RandString(5))
 	syncCtx := syncContext{
 		resourceOverrides:   resourceOverrides,
 		appName:             app.Name,
@@ -508,7 +508,7 @@ func (sc *syncContext) liveObj(obj *unstructured.Unstructured) *unstructured.Uns
 	for _, resource := range sc.compareResult.managedResources {
 		if resource.Group == obj.GroupVersionKind().Group &&
 			resource.Kind == obj.GetKind() &&
-		// cluster scoped objects will not have a namespace, even if the user has defined it
+			// cluster scoped objects will not have a namespace, even if the user has defined it
 			(resource.Namespace == "" || resource.Namespace == obj.GetNamespace()) &&
 			resource.Name == obj.GetName() {
 			return resource.Live
