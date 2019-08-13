@@ -631,7 +631,16 @@ func (sc *syncContext) deleteResource(task *syncTask) error {
 	resource := kube.ToGroupVersionResource(task.groupVersionKind().GroupVersion().String(), apiResource)
 	resIf := kube.ToResourceInterface(sc.dynamicIf, apiResource, resource, task.namespace())
 	propagationPolicy := metav1.DeletePropagationForeground
-	return resIf.Delete(task.name(), &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+	err = resIf.Delete(task.name(), &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+	if err != nil {
+		return err
+	}
+	// double-check the delete was successful
+	_, err = resIf.Get(task.name(), metav1.GetOptions{})
+	if !apierr.IsNotFound(err) {
+		return err
+	}
+	return nil
 }
 
 var operationPhases = map[v1alpha1.ResultCode]v1alpha1.OperationPhase{
