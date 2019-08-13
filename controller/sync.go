@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/pkg/rand"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -183,7 +184,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		syncRes:             syncRes,
 		syncResources:       syncResources,
 		opState:             state,
-		log:                 log.WithFields(log.Fields{"application": app.Name}),
+		log:                 log.WithFields(log.Fields{"application": app.Name, "syncId": rand.RandString(5)}}),
 	}
 
 	if state.Phase == v1alpha1.OperationTerminating {
@@ -684,6 +685,7 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) bool {
 				if !dryRun && t.needsDeleting() {
 					err := sc.deleteResource(t)
 					if err != nil {
+						successful = false
 						sc.setResourceResult(t, "", v1alpha1.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
 						return
 					}
