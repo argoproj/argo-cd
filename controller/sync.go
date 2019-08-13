@@ -192,13 +192,15 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		log:                 log.WithFields(log.Fields{"application": app.Name, "syncId": syncId}),
 	}
 
+	start := time.Now()
+
 	if state.Phase == v1alpha1.OperationTerminating {
 		syncCtx.terminate()
 	} else {
 		syncCtx.sync()
 	}
 
-	syncCtx.log.Info("sync/terminate complete")
+	syncCtx.log.WithField("duration", time.Since(start)).Info("sync/terminate complete")
 
 	if !syncOp.DryRun && !syncCtx.isSelectiveSync() && syncCtx.opState.Phase.Successful() {
 		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source)
