@@ -625,7 +625,7 @@ func (sc *syncContext) terminate() {
 }
 
 func (sc *syncContext) deleteResource(task *syncTask) error {
-	sc.log.WithFields(log.Fields{"task": task}).Debug("deleting task")
+	sc.log.WithFields(log.Fields{"task": task}).Debug("deleting resource")
 	apiResource, err := kube.ServerResourceForGroupVersionKind(sc.disco, task.groupVersionKind())
 	if err != nil {
 		return err
@@ -633,18 +633,7 @@ func (sc *syncContext) deleteResource(task *syncTask) error {
 	resource := kube.ToGroupVersionResource(task.groupVersionKind().GroupVersion().String(), apiResource)
 	resIf := kube.ToResourceInterface(sc.dynamicIf, apiResource, resource, task.namespace())
 	propagationPolicy := metav1.DeletePropagationForeground
-	err = resIf.Delete(task.name(), &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
-	if err != nil {
-		return err
-	}
-	sc.log.WithFields(log.Fields{"task": task}).Debug("double-checking deletion")
-	// double-check the delete was successful
-	_, err = resIf.Get(task.name(), metav1.GetOptions{})
-	if err != nil && !apierr.IsNotFound(err) {
-		sc.log.WithFields(log.Fields{"task": task, "err": err}).Error("deletion failed")
-		return err
-	}
-	return nil
+	return resIf.Delete(task.name(), &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 }
 
 var operationPhases = map[v1alpha1.ResultCode]v1alpha1.OperationPhase{
@@ -671,6 +660,7 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) bool {
 			createTasks = append(createTasks, task)
 		}
 	}
+	// prune first
 	{
 		var wg sync.WaitGroup
 		for _, task := range pruneTasks {
@@ -690,8 +680,8 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) bool {
 		wg.Wait()
 	}
 
-	// delete any resources that need deleting
-	{
+	// delete anything that need deleting
+	if successful {
 		var wg sync.WaitGroup
 		for _, task := range createTasks.Filter(func(t *syncTask) bool { return t.needsDeleting() }) {
 			wg.Add(1)
@@ -710,41 +700,43 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) bool {
 		}
 		wg.Wait()
 	}
-
-	processCreateTasks := func(tasks syncTasks) {
-		var createWg sync.WaitGroup
-		for _, task := range tasks {
-			if dryRun && task.skipDryRun {
-				continue
+	// finally create resources
+	if successful {
+		processCreateTasks := func(tasks syncTasks) {
+			var createWg sync.WaitGroup
+			for _, task := range tasks {
+				if dryRun && task.skipDryRun {
+					continue
+				}
+				createWg.Add(1)
+				go func(t *syncTask) {
+					defer createWg.Done()
+					sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t}).Debug("applying")
+					result, message := sc.applyObject(t.targetObj, dryRun, sc.syncOp.SyncStrategy.Force())
+					if result == v1alpha1.ResultCodeSyncFailed {
+						successful = false
+					}
+					if !dryRun || result == v1alpha1.ResultCodeSyncFailed {
+						sc.setResourceResult(t, result, operationPhases[result], message)
+					}
+				}(task)
 			}
-			createWg.Add(1)
-			go func(t *syncTask) {
-				defer createWg.Done()
-				sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t}).Debug("applying")
-				result, message := sc.applyObject(t.targetObj, dryRun, sc.syncOp.SyncStrategy.Force())
-				if result == v1alpha1.ResultCodeSyncFailed {
-					successful = false
-				}
-				if !dryRun || result == v1alpha1.ResultCodeSyncFailed {
-					sc.setResourceResult(t, result, operationPhases[result], message)
-				}
-			}(task)
+			createWg.Wait()
 		}
-		createWg.Wait()
-	}
 
-	var tasksGroup syncTasks
-	for _, task := range createTasks {
-		//Only wait if the type of the next task is different than the previous type
-		if len(tasksGroup) > 0 && tasksGroup[0].targetObj.GetKind() != task.kind() {
-			processCreateTasks(tasksGroup)
-			tasksGroup = syncTasks{task}
-		} else {
-			tasksGroup = append(tasksGroup, task)
+		var tasksGroup syncTasks
+		for _, task := range createTasks {
+			//Only wait if the type of the next task is different than the previous type
+			if len(tasksGroup) > 0 && tasksGroup[0].targetObj.GetKind() != task.kind() {
+				processCreateTasks(tasksGroup)
+				tasksGroup = syncTasks{task}
+			} else {
+				tasksGroup = append(tasksGroup, task)
+			}
 		}
-	}
-	if len(tasksGroup) > 0 {
-		processCreateTasks(tasksGroup)
+		if len(tasksGroup) > 0 {
+			processCreateTasks(tasksGroup)
+		}
 	}
 	return successful
 }
