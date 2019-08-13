@@ -7,9 +7,9 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
-	"github.com/argoproj/pkg/rand"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -29,12 +29,15 @@ import (
 	"github.com/argoproj/argo-cd/util/health"
 	"github.com/argoproj/argo-cd/util/hook"
 	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/rand"
 	"github.com/argoproj/argo-cd/util/resource"
 )
 
 const (
 	crdReadinessTimeout = time.Duration(3) * time.Second
 )
+
+var syncCounter uint64 = 0
 
 type syncContext struct {
 	resourceOverrides   map[string]v1alpha1.ResourceOverride
@@ -168,6 +171,8 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
+	atomic.AddUint64(&syncCounter, 1)
+	syncId := fmt.Sprintf("%05d-%s",syncCounter, rand.RandString(5))
 	syncCtx := syncContext{
 		resourceOverrides:   resourceOverrides,
 		appName:             app.Name,
@@ -184,7 +189,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		syncRes:             syncRes,
 		syncResources:       syncResources,
 		opState:             state,
-		log:                 log.WithFields(log.Fields{"application": app.Name, "syncId": rand.RandString(5)}),
+		log:                 log.WithFields(log.Fields{"application": app.Name, "syncId": syncId}),
 	}
 
 	if state.Phase == v1alpha1.OperationTerminating {
@@ -381,7 +386,7 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 
 	for _, resource := range sc.compareResult.managedResources {
 		if !sc.containsResource(resource) {
-			log.WithFields(log.Fields{"group": resource.Group, "kind": resource.Kind, "name": resource.Name}).
+			sc.log.WithFields(log.Fields{"group": resource.Group, "kind": resource.Kind, "name": resource.Name}).
 				Debug("skipping")
 			continue
 		}
@@ -390,7 +395,7 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 
 		// this creates garbage tasks
 		if hook.IsHook(obj) {
-			log.WithFields(log.Fields{"group": obj.GroupVersionKind().Group, "kind": obj.GetKind(), "namespace": obj.GetNamespace(), "name": obj.GetName()}).
+			sc.log.WithFields(log.Fields{"group": obj.GroupVersionKind().Group, "kind": obj.GetKind(), "namespace": obj.GetNamespace(), "name": obj.GetName()}).
 				Debug("skipping hook")
 			continue
 		}
@@ -503,7 +508,7 @@ func (sc *syncContext) liveObj(obj *unstructured.Unstructured) *unstructured.Uns
 	for _, resource := range sc.compareResult.managedResources {
 		if resource.Group == obj.GroupVersionKind().Group &&
 			resource.Kind == obj.GetKind() &&
-			// cluster scoped objects will not have a namespace, even if the user has defined it
+		// cluster scoped objects will not have a namespace, even if the user has defined it
 			(resource.Namespace == "" || resource.Namespace == obj.GetNamespace()) &&
 			resource.Name == obj.GetName() {
 			return resource.Live
