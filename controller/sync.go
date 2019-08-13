@@ -671,23 +671,45 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) bool {
 			createTasks = append(createTasks, task)
 		}
 	}
-
-	var wg sync.WaitGroup
-	for _, task := range pruneTasks {
-		wg.Add(1)
-		go func(t *syncTask) {
-			defer wg.Done()
-			sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t}).Debug("pruning")
-			result, message := sc.pruneObject(t.liveObj, sc.syncOp.Prune, dryRun)
-			if result == v1alpha1.ResultCodeSyncFailed {
-				successful = false
-			}
-			if !dryRun || result == v1alpha1.ResultCodeSyncFailed {
-				sc.setResourceResult(t, result, operationPhases[result], message)
-			}
-		}(task)
+	{
+		var wg sync.WaitGroup
+		for _, task := range pruneTasks {
+			wg.Add(1)
+			go func(t *syncTask) {
+				defer wg.Done()
+				sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t}).Debug("pruning")
+				result, message := sc.pruneObject(t.liveObj, sc.syncOp.Prune, dryRun)
+				if result == v1alpha1.ResultCodeSyncFailed {
+					successful = false
+				}
+				if !dryRun || result == v1alpha1.ResultCodeSyncFailed {
+					sc.setResourceResult(t, result, operationPhases[result], message)
+				}
+			}(task)
+		}
+		wg.Wait()
 	}
-	wg.Wait()
+
+	// delete any resources that need deleting
+	{
+		var wg sync.WaitGroup
+		for _, task := range createTasks.Filter(func(t *syncTask) bool { return t.needsDeleting() }) {
+			wg.Add(1)
+			go func(t *syncTask) {
+				defer wg.Done()
+				sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t}).Debug("deleting")
+				if !dryRun {
+					err := sc.deleteResource(t)
+					if err != nil {
+						successful = false
+						sc.setResourceResult(t, "", v1alpha1.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
+						return
+					}
+				}
+			}(task)
+		}
+		wg.Wait()
+	}
 
 	processCreateTasks := func(tasks syncTasks) {
 		var createWg sync.WaitGroup
@@ -698,14 +720,6 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) bool {
 			createWg.Add(1)
 			go func(t *syncTask) {
 				defer createWg.Done()
-				if !dryRun && t.needsDeleting() {
-					err := sc.deleteResource(t)
-					if err != nil {
-						successful = false
-						sc.setResourceResult(t, "", v1alpha1.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
-						return
-					}
-				}
 				sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t}).Debug("applying")
 				result, message := sc.applyObject(t.targetObj, dryRun, sc.syncOp.SyncStrategy.Force())
 				if result == v1alpha1.ResultCodeSyncFailed {
