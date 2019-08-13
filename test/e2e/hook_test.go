@@ -276,6 +276,7 @@ func TestHookDeleteBeforeCreation(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(ResourceResultNumbering(2)).
 		// the app will be in health+n-sync before this hook has run
 		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" })).
 		And(func(_ *Application) {
@@ -292,6 +293,7 @@ func TestHookDeleteBeforeCreation(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(ResourceResultNumbering(2)).
 		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" })).
 		And(func(_ *Application) {
 			creationTimestamp2, err := getCreationTimestamp()

@@ -635,9 +635,11 @@ func (sc *syncContext) deleteResource(task *syncTask) error {
 	if err != nil {
 		return err
 	}
+	sc.log.WithFields(log.Fields{"task": task}).Debug("double-checking deletion")
 	// double-check the delete was successful
 	_, err = resIf.Get(task.name(), metav1.GetOptions{})
-	if !apierr.IsNotFound(err) {
+	if err != nil && !apierr.IsNotFound(err) {
+		sc.log.WithFields(log.Fields{"task": task, "err": err}).Error("deletion failed")
 		return err
 	}
 	return nil
@@ -694,8 +696,6 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) bool {
 			createWg.Add(1)
 			go func(t *syncTask) {
 				defer createWg.Done()
-				sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t}).Debug("applying")
-
 				if !dryRun && t.needsDeleting() {
 					err := sc.deleteResource(t)
 					if err != nil {
@@ -704,7 +704,7 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) bool {
 						return
 					}
 				}
-
+				sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t}).Debug("applying")
 				result, message := sc.applyObject(t.targetObj, dryRun, sc.syncOp.SyncStrategy.Force())
 				if result == v1alpha1.ResultCodeSyncFailed {
 					successful = false
