@@ -2,13 +2,13 @@
 ## Overview
 
 Synchronization can be configured using resource hooks. Hooks are ways to run scripts before, during,
-and after a Sync operation. Some use cases for hooks are:
+and after a Sync operation. Hooks can also be run if a Sync operation fails at any point. Some use cases for hooks are:
 
 * Using a `PreSync` hook to perform a database schema migration before deploying a new version of the app.
 * Using a `Sync` hook to orchestrate a complex deployment requiring more sophistication than the
 Kubernetes rolling update strategy.
 * Using a `PostSync` hook to run integration and health checks after a deployment.
-* Using a `SyncFail` hook to run clean-up or finalizer logic if a Sync operation fails.
+* Using a `SyncFail` hook to run clean-up or finalizer logic if a Sync operation fails. _`SyncFail` hooks are only available starting in v1.2_
 
 ## Usage
 
@@ -37,7 +37,7 @@ The following hooks are defined:
 | `Sync`  | Executes after all `PreSync` hooks completed and were successful, at the same time as the apply of the manifests. |
 | `Skip` | Indicates to Argo CD to skip the apply of the manifest. |
 | `PostSync` | Executes after all `Sync` hooks completed and were successful, a successful apply, and all resources in a `Healthy` state. |
-| `SyncFail` | Executes when the sync operation fails. |
+| `SyncFail` | Executes when the sync operation fails. _Available starting in v1.2_ |
 
 ### Generate Name
 
