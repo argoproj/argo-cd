@@ -247,7 +247,10 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                 return syncApp && Observable.fromPromise(services.applications.get(syncApp)) || Observable.from([null]);
              }) }>
             {(app) => (
-                <ApplicationSyncPanel key='syncPanel' application={app} selectedResource={'all'} hide={() => ctx.navigation.goto('.', { syncApp: null })} />
+                <ApplicationSyncPanel key='syncPanel' application={app} selectedResource={'all'} hide={() => ctx.navigation.goto('.', { syncApp: null })}
+                update={(ignoreWarnings: boolean) => {
+                    // ignore
+                }}/>
             )}
             </DataLoader>
         )}

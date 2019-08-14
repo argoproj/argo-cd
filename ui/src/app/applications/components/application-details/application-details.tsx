@@ -40,7 +40,7 @@ const jsonMergePatch = require('json-merge-patch');
 
 require('./application-details.scss');
 
-export class ApplicationDetails extends React.Component<RouteComponentProps<{ name: string; }>, {page: number}> {
+export class ApplicationDetails extends React.Component<RouteComponentProps<{ name: string; }>, {page: number, ignoreWarnings: boolean}> {
 
     public static contextTypes = {
         apis: PropTypes.object,
@@ -50,7 +50,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
 
     constructor(props: RouteComponentProps<{ name: string; }>) {
         super(props);
-        this.state = { page: 0 };
+        this.state = { page: 0, ignoreWarnings: false };
     }
 
     private get showOperationState() {
@@ -179,6 +179,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                 <ApplicationStatusPanel application={application}
                                     showOperation={() => this.setOperationStatusVisible(true)}
                                     showConditions={() => this.setConditionsStatusVisible(true)}
+                                                        ignoreWarnings={this.state.ignoreWarnings}
                                 />
                             </div>
                             <div className='application-details__tree'>
@@ -283,6 +284,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                 application={application}
                                 hide={() => this.showDeploy(null)}
                                 selectedResource={syncResourceKey}
+                                update={(ignoreWarnings: boolean) => {
+                                    this.setState({
+                                        ignoreWarnings
+                                    });
+                                }}
                                 />
                             <SlidingPanel isShown={this.selectedRollbackDeploymentIndex > -1} onClose={() => this.setRollbackPanelVisible(-1)}>
                                 {this.selectedRollbackDeploymentIndex > -1 && <ApplicationDeploymentHistory

@@ -7,10 +7,11 @@ import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 import { ComparisonStatusIcon, nodeKey } from '../utils';
 
-export const ApplicationSyncPanel = ({application, selectedResource, hide}: {
+export const ApplicationSyncPanel = ({application, selectedResource, hide, update}: {
     application: models.Application,
     selectedResource: string,
     hide: () => any;
+    update: (ignoreWarnings: boolean) => void;
 }) => {
 
     const [form, setForm] = React.useState<FormApi>(null);
@@ -50,6 +51,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {
                             syncStrategy.apply = {};
                         }
                         try {
+                            update(params.ignoreWarnings);
                             await services.applications.sync(application.metadata.name, params.revision, params.prune, params.dryRun, syncStrategy, resources);
                             hide();
                         } catch (e) {
@@ -76,6 +78,8 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {
                                         <Checkbox id='prune-on-sync-checkbox' field='prune'/> <label htmlFor='prune-on-sync-checkbox'>Prune</label>
                                     </span> <span>
                                         <Checkbox id='dry-run-checkbox' field='dryRun'/> <label htmlFor='dry-run-checkbox'>Dry Run</label>
+                                    </span> <span>
+                                        <Checkbox id='ignore-warnings-checkbox' field='ignoreWarnings'/> <label htmlFor='ignore-warnings-checkbox'>Ignore Warnings</label>
                                     </span> <span>
                                         <Checkbox id='apply-only-checkbox' field='applyOnly'/> <label htmlFor='apply-only-checkbox'>Apply Only</label>
                                      </span>

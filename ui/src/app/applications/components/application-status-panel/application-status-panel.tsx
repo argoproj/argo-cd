@@ -13,9 +13,10 @@ interface Props {
     application: models.Application;
     showOperation?: () => any;
     showConditions?: () => any;
+    ignoreWarnings: boolean;
 }
 
-export const ApplicationStatusPanel = ({application, showOperation, showConditions}: Props) => {
+export const ApplicationStatusPanel = ({application, showOperation, showConditions, ignoreWarnings}: Props) => {
     const today = new Date();
 
     let daysSinceLastSynchronized = 0;
@@ -103,7 +104,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                     <div className='application-status-panel__item-value'
                          onClick={() => showConditions && showConditions()}>
                         {cntByCategory.get('info') && <a className='info'>{cntByCategory.get('info')} Info</a>}
-                        {cntByCategory.get('warning') &&
+                        {cntByCategory.get('warning') && !application.operation.ignoreWarnings &&
                         <a className='warning'>{cntByCategory.get('warning')} Warnings</a>}
                         {cntByCategory.get('error') && <a className='error'>{cntByCategory.get('error')} Errors</a>}
                     </div>
