@@ -104,7 +104,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                     <div className='application-status-panel__item-value'
                          onClick={() => showConditions && showConditions()}>
                         {cntByCategory.get('info') && <a className='info'>{cntByCategory.get('info')} Info</a>}
-                        {cntByCategory.get('warning') && !application.operation.ignoreWarnings &&
+                        {cntByCategory.get('warning') && !ignoreWarnings &&
                         <a className='warning'>{cntByCategory.get('warning')} Warnings</a>}
                         {cntByCategory.get('error') && <a className='error'>{cntByCategory.get('error')} Errors</a>}
                     </div>
