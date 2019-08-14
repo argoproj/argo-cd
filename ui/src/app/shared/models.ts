@@ -37,7 +37,6 @@ export interface RollbackOperation {
 export interface Operation {
     sync: SyncOperation;
     rollback: RollbackOperation;
-    ignoreWarnings: boolean;
 }
 
 export type OperationPhase = 'Running' | 'Error' | 'Failed' | 'Succeeded' | 'Terminating';
