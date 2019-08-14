@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"os"
 	"path"
 	"regexp"
@@ -57,6 +58,40 @@ func TestAppCreation(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Contains(t, output, fixture.Name())
 		})
+}
+
+func TestImmutableChange(t *testing.T) {
+	n := rand.Intn(254)
+	ip1 := fmt.Sprintf("10.96.10.%d", n)
+	ip2 := fmt.Sprintf("10.96.10.%d", n+1)
+	Given(t).
+		Path("service").
+		When().
+		Create().
+		PatchFile("service.yaml", fmt.Sprintf(`[{"op": "add", "path": "/spec/clusterIP", "value": "%s"}]`, ip1)).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusHealthy)).
+		When().
+		PatchFile("service.yaml", fmt.Sprintf(`[{"op": "add", "path": "/spec/clusterIP", "value": "%s"}]`, ip2)).
+		IgnoreErrors().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationFailed)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(ResourceResultNumbering(1)).
+		Expect(ResourceResultIs(ResourceResult{
+			Kind:      "Service",
+			Version:   "v1",
+			Namespace: fixture.DeploymentNamespace(),
+			Name:      "my-service",
+			SyncPhase: "Sync",
+			Status:    "SyncFailed",
+			HookPhase: "Failed",
+			Message:   fmt.Sprintf(`kubectl failed exit status 1: The Service "my-service" is invalid: spec.clusterIP: Invalid value: "%s": field is immutable`, ip2),
+		}))
 }
 
 func TestInvalidAppProject(t *testing.T) {
