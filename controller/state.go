@@ -140,7 +140,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	return targetObjs, hooks, manifestInfo, err
+	return targetObjs, hooks, manifestInfo, nil
 }
 
 func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, []*unstructured.Unstructured, error) {
