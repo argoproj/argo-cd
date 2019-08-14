@@ -286,7 +286,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                 selectedResource={syncResourceKey}
                                 update={(ignoreWarnings: boolean) => {
                                     this.setState({
-                                        ignoreWarnings
+                                        ignoreWarnings,
                                     });
                                 }}
                                 />
