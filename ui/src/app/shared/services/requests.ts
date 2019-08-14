@@ -28,6 +28,10 @@ const onError = new BehaviorSubject<superagent.ResponseError>(null);
 
 function initHandlers(req: superagent.Request) {
     req.on('error', (err) => onError.next(err));
+    const token = localStorage.getItem('token');
+    if (token !== null) {
+        req = req.auth(token, {type: 'bearer'});
+    }
     return req;
 }
 
