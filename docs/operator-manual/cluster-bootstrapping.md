@@ -79,4 +79,4 @@ argocd app create applications \
 
 In this example, I excluded auto-prune, as this would result in all applications being deleted if some accidentally deleted the *application of applications*.
 
-View [the example on Github](https://github.com/argoproj/argocd-example-apps/tree/master/applications).
+View [the example on Github](https://github.com/argoproj/argocd-example-apps/tree/master/apps).
