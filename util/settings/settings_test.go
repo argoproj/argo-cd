@@ -135,24 +135,6 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 	})
 }
 
-func kubeClient(data map[string]string) *fake.Clientset {
-	kubeClient := fake.NewSimpleClientset(&v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDConfigMapName,
-			Namespace: "default",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
-		},
-		Data: data,
-	})
-	return kubeClient
-}
-
-func settingsManager(kubeClient *fake.Clientset) *SettingsManager {
-	return NewSettingsManager(context.Background(), kubeClient, "default")
-}
-
 func TestGetHelmRepositories(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		"helm.repositories": "\n  - url: http://foo\n",
