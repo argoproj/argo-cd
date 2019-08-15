@@ -14,7 +14,6 @@ import {createBrowserHistory} from 'history';
 import * as jwtDecode from 'jwt-decode';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
-import {Button, Container, Link} from 'react-floating-action-button';
 import {Helmet} from 'react-helmet';
 import {Redirect, Route, RouteComponentProps, Router, Switch} from 'react-router';
 
@@ -176,11 +175,11 @@ export class App extends React.Component<{}, { popupProps: PopupProps, error: Er
                         </Switch>
                     </Router>
                     <DataLoader load={() => services.authService.settings()}>{(s) => (
-                        <Container>
-                            <Link href='https://argoproj.github.io/argo-cd/' tooltip='Docs' icon='fas fa-book'/>
-                            {s.help && s.help.chatUrl && <Link href={s.help.chatUrl} tooltip='Chat' icon='fas fa-comment-alt'/>}
-                            <Button tooltip='Help' icon='fas fa-question-circle'/>
-                        </Container>
+                        s.help && s.help.chatUrl && <div style={{position: 'fixed', right: 10, bottom: 10}}>
+                            <a href={s.help.chatUrl} className='argo-button argo-button--special'>
+                                <i className='fas fa-comment-alt'/> Chat now!
+                            </a>
+                        </div>
                     )}</DataLoader>
                 </Provider>
                 </PageContext.Provider>
