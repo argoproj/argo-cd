@@ -61,7 +61,7 @@ func TestAppCreation(t *testing.T) {
 }
 
 func TestImmutableChange(t *testing.T) {
-	text, err := fixture.Run(".", "kubectl", "get", "service", "-n", "kube-system", "kube-dns", "-o",  "jsonpath={.spec.clusterIP}")
+	text, err := fixture.Run(".", "kubectl", "get", "service", "-n", "kube-system", "kube-dns", "-o", "jsonpath={.spec.clusterIP}")
 	errors.CheckError(err)
 	parts := strings.Split(text, ".")
 	n := rand.Intn(254)
