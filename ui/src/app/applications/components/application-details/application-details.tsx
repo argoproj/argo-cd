@@ -118,8 +118,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                             { value: 'sync:OutOfSync', label: 'OutOfSync' },
                             { content: () => <span>Health</span> },
                             { value: 'health:Healthy', label: 'Healthy' },
-                            // Unhealthy includes 'Unknown', 'Progressing', 'Degraded' and 'Missing'
-                            { value: 'health:Unhealthy', label: 'Unhealthy' },
+                            { value: 'health:Progressing', label: 'Progressing' },
+                            { value: 'health:Degraded', label: 'Degraded' },
+                            { value: 'health:Missing', label: 'Missing' },
+                            { value: 'health:Unknown', label: 'Unknown' },
                             { content: (setSelection) => (
                                 <div>
                                     Kinds <a onClick={() => setSelection(noKindsFilter.concat(kinds.map((kind) => `kind:${kind}`)))}>all</a> / <a
