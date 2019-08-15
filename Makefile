@@ -181,7 +181,7 @@ start-e2e: cli
 	# check we can connect to Docker to start Redis
 	docker version
 	kubectl create ns argocd-e2e || true
-	kubectl config set-context --current --namespace=argocd-e2e
+	kubens argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
 	# set paths for locally managed ssh known hosts and tls certs data
 	ARGOCD_SSH_DATA_PATH=/tmp/argo-e2e/app/config/ssh \
@@ -202,6 +202,7 @@ start:
 	killall goreman || true
 	# check we can connect to Docker to start Redis
 	docker version
+	kubectl create ns argocd || true
 	kubens argocd
 	goreman start
 
