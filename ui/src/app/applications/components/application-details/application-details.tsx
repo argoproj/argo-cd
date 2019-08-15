@@ -354,12 +354,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     private filterTreeNode(node: ResourceTreeNode, filter: {kind: string[], health: string[], sync: string[]}): boolean {
         const syncStatuses = filter.sync.map((item) => item === 'OutOfSync' ? ['OutOfSync', 'Unknown'] : [item] ).reduce(
             (first, second) => first.concat(second), []);
-        const healthStatuses = filter.health.map((item) => item === 'Unhealthy' ? ['Unknown', 'Progressing', 'Degraded', 'Missing'] : [item] ).reduce(
-            (first, second) => first.concat(second), []);
 
         return (filter.kind.length === 0 || filter.kind.indexOf(node.kind) > -1) &&
                 (syncStatuses.length === 0 || node.root.hook ||  node.root.status && syncStatuses.indexOf(node.root.status) > -1) &&
-                (healthStatuses.length === 0 || node.root.hook || node.root.health && healthStatuses.indexOf(node.root.health.status) > -1);
+                (filter.health.length === 0 || node.root.hook || node.root.health && filter.health.indexOf(node.root.health.status) > -1);
     }
 
     private loadAppInfo(name: string): Observable<{application: appModels.Application, tree: appModels.ApplicationTree}> {
