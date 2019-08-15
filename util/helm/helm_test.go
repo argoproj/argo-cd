@@ -184,3 +184,23 @@ func TestHelmArgCleaner(t *testing.T) {
 	assert.Contains(t, argsToBeCleaned, `b\,a\,r`)
 
 }
+
+func TestHelmValues(t *testing.T) {
+	h := NewHelmApp("./testdata/redis", []*argoappv1.HelmRepository{})
+	opts := argoappv1.ApplicationSourceHelm{
+		ValueFiles: []string{"values-production.yaml"},
+		Values: `cluster:
+  slaveCount: 2
+`,
+	}
+	objs, err := h.Template("test", "", &opts)
+	assert.NoError(t, err)
+	for _, obj := range objs {
+		if obj.GetKind() == "Deployment" && obj.GetName() == "test-redis-slave" {
+			var dep appsv1.Deployment
+			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &dep)
+			assert.NoError(t, err)
+			assert.Equal(t, int32(2), *dep.Spec.Replicas)
+		}
+	}
+}
