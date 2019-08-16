@@ -647,24 +647,26 @@ func (sc *syncContext) getResourceIf(task *syncTask) (dynamic.ResourceInterface,
 // check the delete was successful, and fail the sync if not,
 // we allow 60s for this to complete
 func (sc *syncContext) waitForDeletion(task *syncTask) error {
-	var obj *unstructured.Unstructured
 	resIf, err := sc.getResourceIf(task)
 	if err != nil {
 		return err
 	}
-	for started := time.Now(); time.Since(started).Seconds() < 60 && obj == nil; {
+	var duration time.Duration = 1
+	for started := time.Now(); time.Since(started).Seconds() < 60; {
 		sc.log.WithFields(log.Fields{"task": task, "started": started, "now": time.Now()}).Debug("checking resource deleted")
 		var err error
-		obj, err = resIf.Get(task.name(), metav1.GetOptions{})
+		_, err = resIf.Get(task.name(), metav1.GetOptions{})
 		if err != nil {
+			if apierr.IsNotFound(err) {
+				return nil
+			}
 			return err
 		}
-		time.Sleep(10 * time.Second)
+		time.Sleep(duration * time.Second)
+		// wait 1s, then 2s, 4s, 8s, 16s, 32s
+		duration = 2 * duration
 	}
-	if obj != nil {
-		return fmt.Errorf("deletion of %v failed", task)
-	}
-	return nil
+	return fmt.Errorf("timout waiting for deletion of %v", task)
 }
 
 var operationPhases = map[v1alpha1.ResultCode]v1alpha1.OperationPhase{
