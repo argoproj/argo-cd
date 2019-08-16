@@ -1,4 +1,4 @@
-import { models } from 'argo-ui';
+import {models} from 'argo-ui';
 
 interface ItemsList<T> {
     /**
@@ -19,7 +19,10 @@ export interface ApplicationList extends ItemsList<Application> { }
 
 export interface SyncOperationResource { group: string; kind: string; name: string; }
 
-export interface SyncStrategy { apply: {} | null; hook: {} | null; }
+export interface SyncStrategy {
+    apply: { force?: boolean } | null;
+    hook: { force?: boolean } | null;
+}
 
 export interface SyncOperation {
     revision: string;
