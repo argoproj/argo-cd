@@ -28,6 +28,10 @@ func (a *Actions) IgnoreErrors() *Actions {
 	a.ignoreErrors = true
 	return a
 }
+func (a *Actions) DoNotIgnoreErrors() *Actions {
+	a.ignoreErrors = false
+	return a
+}
 
 func (a *Actions) PatchFile(file string, jsonPath string) *Actions {
 	fixture.Patch(a.context.path+"/"+file, jsonPath)
