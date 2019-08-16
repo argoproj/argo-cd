@@ -242,7 +242,8 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	cookie, err := httputil.MakeCookieMetadata(common.AuthCookieName, idTokenRAW, flags...)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("claims=%v, err=%v", claims, err), http.StatusInternalServerError)
+		claimsJSON, _ := json.Marshal(claims)
+		http.Error(w, fmt.Sprintf("claims=%s, err=%v", claimsJSON, err), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Set-Cookie", cookie)
