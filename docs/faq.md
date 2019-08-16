@@ -94,6 +94,19 @@ Argo CD automatically sets the `app.kubernetes.io/instance` label and uses it to
 
 See [#1482](https://github.com/argoproj/argo-cd/issues/1482).
 
+
+# How Do I Fix "invalid cookie, longer than max length 4093"?
+
+Argo CD uses a JWT as the auth token. You likely are part of many groups and have gone over the 4KB limit which is set for cookies.
+You can get the list of groups by opening "developer tools -> network"
+
+* Click log in
+* Find the call to `<argocd_instance>/auth/callback?code=<random_string>`
+
+Decode the token at https://jwt.io/. That will provide the list of teams that you can remove yourself from.
+
+See [#2165](https://github.com/argoproj/argo-cd/issues/2165).
+
 ## Why Am I Getting `rpc error: code = Unavailable desc = transport is closing` When Using The CLI?
 
 Maybe you're behind a proxy that does not support HTTP 2? Try the `--grcp-web` flag.:

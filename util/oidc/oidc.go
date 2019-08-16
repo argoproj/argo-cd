@@ -234,19 +234,20 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	if a.secureCookie {
 		flags = append(flags, "Secure")
 	}
-	cookie, err := httputil.MakeCookieMetadata(common.AuthCookieName, idTokenRAW, flags...)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("%v", err), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Set-Cookie", cookie)
-
 	var claims jwt.MapClaims
 	err = idToken.Claims(&claims)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	cookie, err := httputil.MakeCookieMetadata(common.AuthCookieName, idTokenRAW, flags...)
+	if err != nil {
+		claimsJSON, _ := json.Marshal(claims)
+		http.Error(w, fmt.Sprintf("claims=%s, err=%v", claimsJSON, err), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Set-Cookie", cookie)
+
 	claimsJSON, _ := json.Marshal(claims)
 	log.Infof("Web login successful. Claims: %s", claimsJSON)
 	if os.Getenv(common.EnvVarSSODebug) == "1" {
