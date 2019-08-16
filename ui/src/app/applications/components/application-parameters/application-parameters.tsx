@@ -1,6 +1,6 @@
 import { FormField, FormSelect, getNestedField } from 'argo-ui';
 import * as React from 'react';
-import { FieldApi, FormApi, FormField as ReactFormField, Text } from 'react-form';
+import { FieldApi, FormApi, FormField as ReactFormField, Text, TextArea } from 'react-form';
 
 import { CheckboxField, EditablePanel, EditablePanelItem, TagsInputField } from '../../../shared/components';
 import * as models from '../../../shared/models';
@@ -159,6 +159,21 @@ export const ApplicationParameters = (props: { application: models.Application, 
                     options: props.details.helm.valueFiles,
                     noTagsLabel: 'No values files selected',
                 }}/>
+            ),
+        });
+        attributes.push({
+            title: 'VALUES',
+            view: app.spec.source.helm && (<pre>{app.spec.source.helm.values}</pre>),
+            edit: (formApi: FormApi) => (
+                <div>
+                    <pre><FormField formApi={formApi} field='spec.source.helm.values' component={TextArea}/></pre>
+                    {props.details.helm.values && (
+                        <div>
+                            <label>values.yaml</label>
+                            <pre>{props.details.helm.values}</pre>
+                        </div>
+                    )}
+                </div>
             ),
         });
         const paramsByName = new Map<string, models.HelmParameter>();

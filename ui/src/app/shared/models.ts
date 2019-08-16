@@ -61,7 +61,7 @@ export interface OperationState {
     finishedAt: models.Time;
 }
 
-export type HookType = 'PreSync' | 'Sync' | 'PostSync' | 'Skip';
+export type HookType = 'PreSync' | 'Sync' | 'PostSync' | 'SyncFail' | 'Skip';
 
 export interface RevisionMetadata {
     author: string;
@@ -154,6 +154,7 @@ export interface ApplicationSource {
 
 export interface ApplicationSourceHelm {
     valueFiles: string[];
+    values?: string;
     parameters: HelmParameter[];
 }
 
@@ -416,6 +417,7 @@ export interface HelmAppSpec {
     name: string;
     path: string;
     valueFiles: string[];
+    values?: string;
     parameters: HelmParameter[];
 }
 

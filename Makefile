@@ -202,6 +202,7 @@ start:
 	killall goreman || true
 	# check we can connect to Docker to start Redis
 	docker version
+	kubectl create ns argocd || true
 	kubens argocd
 	goreman start
 

@@ -313,12 +313,7 @@ func (mgr *SettingsManager) GetKustomizeBuildOptions() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	value, ok := argoCDCM.Data[kustomizeBuildOptions]
-	if !ok {
-		return "", err
-	}
-
-	return value, nil
+	return argoCDCM.Data[kustomizeBuildOptions], nil
 }
 
 func (mgr *SettingsManager) GetHelmRepositories() ([]HelmRepoCredentials, error) {
