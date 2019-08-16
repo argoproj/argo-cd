@@ -637,11 +637,16 @@ func (sc *syncContext) deleteResource(task *syncTask) error {
 	if err != nil {
 		return err
 	}
-	// double-check the delete was successful, and fail the sync if not
+	// double-check the delete was successful, and fail the sync if not,
+	// we allow 60s for this to complete
 	sc.log.WithFields(log.Fields{"task": task}).Debug("checking resource deleted")
-	obj, err := resIf.Get(task.name(), metav1.GetOptions{})
-	if err != nil {
-		return err
+	var obj *unstructured.Unstructured
+	for start := time.Now(); time.Since(start).Seconds() < 60 && obj == nil; {
+		obj, err = resIf.Get(task.name(), metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		time.Sleep(10 * time.Second)
 	}
 	if obj != nil {
 		sc.log.WithFields(log.Fields{"task": task}).Error("deletion failed")
