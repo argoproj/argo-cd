@@ -331,6 +331,7 @@ export interface AuthSettings {
     };
     help: {
         chatUrl: string;
+        chatText: string;
     };
 }
 

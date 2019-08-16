@@ -177,9 +177,9 @@ export class App extends React.Component<{}, { popupProps: PopupProps, error: Er
                     <DataLoader load={() => services.authService.settings()}>{(s) => (
                         s.help && s.help.chatUrl && <div style={{position: 'fixed', right: 10, bottom: 10}}>
                             <a href={s.help.chatUrl} className='argo-button argo-button--special'>
-                                <i className='fas fa-comment-alt'/> Chat now!
+                                <i className='fas fa-comment-alt'/> {s.help.chatText}
                             </a>
-                        </div>
+                        </div> || null
                     )}</DataLoader>
                 </Provider>
                 </PageContext.Provider>

@@ -77,6 +77,8 @@ type GoogleAnalytics struct {
 type Help struct {
 	// the URL for getting chat help, this will typically be your Slack channel for support
 	ChatURL string `json:"chatUrl,omitempty"`
+	// the text for getting chat help, defaults to "Chat now!"
+	ChatText string `json:"chatText,omitempty"`
 }
 
 type OIDCConfig struct {
@@ -131,6 +133,8 @@ const (
 	gaTrackingID = "ga.trackingid"
 	// the URL for getting chat help, this will typically be your Slack channel for support
 	helpChatURL = "help.chatUrl"
+	// the text for getting chat help, defaults to "Chat now!"
+	helpChatText = "help.chatText"
 	// gaAnonymizeUsers specifies if user ids should be anonymized (hashed) before sending to Google Analytics. True unless value is set to 'false'
 	gaAnonymizeUsers = "ga.anonymizeusers"
 	// settingServerCertificate designates the key for the public cert used in TLS
@@ -399,7 +403,14 @@ func (mgr *SettingsManager) GetHelp() (*Help, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Help{ChatURL: argoCDCM.Data[helpChatURL]}, nil
+	chatText, ok := argoCDCM.Data[helpChatText]
+	if !ok {
+		chatText = "Chat now!"
+	}
+	return &Help{
+		ChatURL:  argoCDCM.Data[helpChatURL],
+		ChatText: chatText,
+	}, nil
 }
 
 // GetSettings retrieves settings from the ArgoCDConfigMap and secret.

@@ -1744,6 +1744,10 @@
       "type": "object",
       "title": "Help settings",
       "properties": {
+        "chatText": {
+          "type": "string",
+          "title": "the text for getting chat help, defaults to \"Chat now!\""
+        },
         "chatUrl": {
           "type": "string",
           "title": "the URL for getting chat help, this will typically be your Slack channel for support"
@@ -1894,6 +1898,7 @@
         },
         "parameters": {
           "type": "array",
+          "title": "the output of `helm inspect values`",
           "items": {
             "$ref": "#/definitions/v1alpha1HelmParameter"
           }
@@ -1908,7 +1913,8 @@
           }
         },
         "values": {
-          "type": "string"
+          "type": "string",
+          "title": "the contents of values.yaml"
         }
       }
     },

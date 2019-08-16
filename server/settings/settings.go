@@ -63,7 +63,8 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 			AnonymizeUsers: gaSettings.AnonymizeUsers,
 		},
 		Help: &settingspkg.Help{
-			ChatUrl: help.ChatURL,
+			ChatUrl:  help.ChatURL,
+			ChatText: help.ChatText,
 		},
 	}
 	if argoCDSettings.DexConfig != "" {
