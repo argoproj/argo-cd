@@ -50,10 +50,10 @@ source:
 
 > v1.3 or later
 
-Helm hooks are similar to [Argo CD resource hooks](resource_hooks.md). In Helm, a hook
-is any normal kubernetes resource annotated with the `helm.sh/hook` annotation. 
+Helm hooks are similar to [Argo CD hooks](resource_hooks.md). In Helm, a hook
+is any normal Kubernetes resource annotated with the `helm.sh/hook` annotation. 
 
-Argo CD supports most Helm hooks by mapping the Helm annotations onto Argo CD's own hook annotations: 
+Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Argo CD's own hook annotations: 
 
 | Helm Annotation | Notes |
 |---|---|
@@ -72,18 +72,17 @@ Argo CD supports most Helm hooks by mapping the Helm annotations onto Argo CD's 
 | `helm.sh/hook-delete-timeout` | No supported. Never used in Helm stable |
 | `helm.sh/hook-weight` | Supported as equivalent to `argocd.argoproj.io/sync-wave`. |
 
-Unsupported hooks are simply ignored. In Argo CD, hooks are created by using `kubectl apply`. This means that any 
+Unsupported hooks are ignored. In Argo CD, hooks are created by using `kubectl apply`, rather than `kubectl create`. This means that if the hook is named and already exists, it will not change unless you have annotated it with `before-hook-creation`.
 
 !!! warning "'install' vs 'upgrade' vs 'sync'"
     Argo CD cannot know if it is running a first-time "install" or an "upgrade" - every operation is a "sync'. This means that, by default, apps that have `pre-install` and `pre-upgrade` will have those hooks run at the same time.
 
 ### Hook Tips
 
-* Make your hook are idempotent. 
+* Make your hook idempotent. 
 * Annotate `crd-install` with `hook-weight: "-2"` to make sure it runs to success before any install or upgrade hooks.
 * Annotate  `pre-install` and `post-install` with `hook-weight: "-1"`. This will make sure it runs to success before any upgrade hooks.
 * Annotate `pre-upgrade` and `post-upgrade` with `hook-delete-policy: before-hook-creation` to make sure it runs on every sync.
-
 
 Read more about [Argo hooks](resource_hooks.md) and [Helm hooks](https://github.com/kubernetes/helm/blob/master/docs/charts_hooks.md). 
 
