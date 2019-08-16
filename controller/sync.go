@@ -37,7 +37,7 @@ const (
 	crdReadinessTimeout = time.Duration(3) * time.Second
 )
 
-var syncCounter uint64 = 0
+var syncIdPrefix uint64 = 0
 
 type syncContext struct {
 	resourceOverrides   map[string]v1alpha1.ResourceOverride
@@ -171,8 +171,8 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	atomic.AddUint64(&syncCounter, 1)
-	syncId := fmt.Sprintf("%05d-%s", syncCounter, rand.RandString(5))
+	atomic.AddUint64(&syncIdPrefix, 1)
+	syncId := fmt.Sprintf("%05d-%s", syncIdPrefix, rand.RandString(5))
 	syncCtx := syncContext{
 		resourceOverrides:   resourceOverrides,
 		appName:             app.Name,
