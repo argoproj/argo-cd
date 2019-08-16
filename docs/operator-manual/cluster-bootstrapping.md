@@ -1,12 +1,12 @@
 # Cluster Bootstrapping
 
-This guide for operators who have already installed Argo CD, and have a new cluster and are looking to install many applications in that cluster.
+This guide for operators who have already installed Argo CD, and have a new cluster and are looking to install many apps in that cluster.
 
-There's no one particular pattern to solve this problem, e.g. you could write a script to create your applications, or you could even manually create them. However, users of Argo CD tend to use the **application of applications pattern**.
+There's no one particular pattern to solve this problem, e.g. you could write a script to create your apps, or you could even manually create them. However, users of Argo CD tend to use the **app of apps pattern**.
 
-## Application Of Applications Pattern
+## App Of Apps Pattern
 
-[Declaratively](declarative-setup.md) specify one Argo CD application that consists only of other applications.
+[Declaratively](declarative-setup.md) specify one Argo CD app that consists only of other apps.
 
 ![Application of Applications](../assets/application-of-applications.png)
 
@@ -28,7 +28,7 @@ A typical layout of your Git repository for this might be:
 
 `Chart.yaml` is boiler-plate.
 
-`templates` contains one file for each application, roughly:
+`templates` contains one file for each child app, roughly:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -46,15 +46,17 @@ spec:
   source:
     path: guestbook
     repoURL: https://github.com/argoproj/argocd-example-apps
-    targetRevision: {{ .Values.spec.source.targetRevision }}
+    targetRevision: 08836bd970037ebcd14494831de4635bad961139
   syncPolicy:
     automated:
       prune: true
 ``` 
 
-In this example, I've set the sync policy to automated + prune, so that applications are automatically created, synced, and deleted when the manifest is changed, but you may wish to disable this. I've also added the finalizer, which will ensure that you applications are deleted correctly.
+The sync policy to automated + prune, so that child app is are automatically created, synced, and deleted when the manifest is changed, but you may wish to disable this. I've also added the finalizer, which will ensure that you apps are deleted correctly.
 
-As you probably want to override the cluster server and maybe the revision, these are templated values.
+Fix the revision to a specific Git commit SHA to make sure that, even if the child apps repo changes, the app will only change when the parent app change that revision. Alternatively, you can set it to HEAD or a branch name.
+
+As you probably want to override the cluster server, this is a templated values.
 
 `values.yaml` contains the default values:
 
@@ -62,21 +64,19 @@ As you probably want to override the cluster server and maybe the revision, thes
 spec:
   destination:
     server: https://kubernetes.default.svc
-  source:
-    targetRevision: HEAD
 ```
 
-Finally, you need to create your application, e.g.:
+Finally, you need to create your parent app, e.g.:
 
 ```bash
 argocd app create applications \
     --dest-namespace argocd \
     --dest-server https://kubernetes.default.svc \
     --repo https://github.com/argoproj/argocd-example-apps.git \
-    --path applications \
+    --path apps \
     --sync-policy automated 
 ```
 
-In this example, I excluded auto-prune, as this would result in all applications being deleted if some accidentally deleted the *application of applications*.
+In this example, I excluded auto-prune, as this would result in all apps being deleted if some accidentally deleted the *app of apps*.
 
-View [the example on Github](https://github.com/argoproj/argocd-example-apps/tree/master/applications).
+View [the example on Github](https://github.com/argoproj/argocd-example-apps/tree/master/apps).

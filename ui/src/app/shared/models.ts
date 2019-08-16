@@ -61,7 +61,7 @@ export interface OperationState {
     finishedAt: models.Time;
 }
 
-export type HookType = 'PreSync' | 'Sync' | 'PostSync' | 'Skip';
+export type HookType = 'PreSync' | 'Sync' | 'PostSync' | 'SyncFail' | 'Skip';
 
 export interface RevisionMetadata {
     author: string;

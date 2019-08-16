@@ -70,7 +70,9 @@ const config = {
         new MonacoWebpackPlugin(),
     ],
     devServer: {
-        historyApiFallback: true,
+        historyApiFallback: {
+            disableDotRule: true
+        },
         port: 4000,
         proxy: {
             '/api': proxyConf,

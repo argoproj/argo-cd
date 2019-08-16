@@ -7,7 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/test"
+	. "github.com/argoproj/argo-cd/test"
 )
 
 func TestNoHooks(t *testing.T) {
@@ -35,7 +35,7 @@ func TestSkipHook(t *testing.T) {
 	obj := example("Skip")
 	assert.False(t, IsHook(obj))
 	assert.True(t, Skip(obj))
-	assert.Nil(t, Types(obj))
+	assert.Equal(t, []HookType{HookTypeSkip}, Types(obj))
 }
 
 // we treat garbage as the user intended you to be a hook, but spelled it wrong, so you are a hook, but we don't
@@ -51,7 +51,11 @@ func TestTwoHooks(t *testing.T) {
 	obj := example("PreSync,PostSync")
 	assert.True(t, IsHook(obj))
 	assert.False(t, Skip(obj))
-	assert.Equal(t, []HookType{HookTypePreSync, HookTypePostSync}, Types(obj))
+	assert.ElementsMatch(t, []HookType{HookTypePreSync, HookTypePostSync}, Types(obj))
+}
+
+func TestDupHookTypes(t *testing.T) {
+	assert.Equal(t, []HookType{HookTypeSync}, Types(example("Sync,Sync")))
 }
 
 // horrible edge case
@@ -59,7 +63,7 @@ func TestSkipAndHook(t *testing.T) {
 	obj := example("Skip,PreSync,PostSync")
 	assert.True(t, IsHook(obj))
 	assert.False(t, Skip(obj))
-	assert.Equal(t, []HookType{HookTypePreSync, HookTypePostSync}, Types(obj))
+	assert.ElementsMatch(t, []HookType{HookTypeSkip, HookTypePreSync, HookTypePostSync}, Types(obj))
 }
 
 func TestGarbageAndHook(t *testing.T) {
@@ -69,14 +73,26 @@ func TestGarbageAndHook(t *testing.T) {
 	assert.Equal(t, []HookType{HookTypeSync}, Types(obj))
 }
 
-func example(hook string) *unstructured.Unstructured {
-	return test.Annotate(test.NewPod(), "argocd.argoproj.io/hook", hook)
+func TestHelmHook(t *testing.T) {
+	obj := Annotate(NewPod(), "helm.sh/hook", "pre-install")
+	assert.True(t, IsHook(obj))
+	assert.False(t, Skip(obj))
+	assert.Equal(t, []HookType{HookTypePreSync}, Types(obj))
 }
 
-func TestDeletePolicies(t *testing.T) {
-	assert.Nil(t, DeletePolicies(test.NewPod()))
-	assert.Nil(t, DeletePolicies(test.Annotate(test.NewPod(), "argocd.argoproj.io/hook-delete-policy", "garbage")))
-	assert.Equal(t, []HookDeletePolicy{HookDeletePolicyBeforeHookCreation}, DeletePolicies(test.Annotate(test.NewPod(), "argocd.argoproj.io/hook-delete-policy", "BeforeHookCreation")))
-	assert.Equal(t, []HookDeletePolicy{HookDeletePolicyHookSucceeded}, DeletePolicies(test.Annotate(test.NewPod(), "argocd.argoproj.io/hook-delete-policy", "HookSucceeded")))
-	assert.Equal(t, []HookDeletePolicy{HookDeletePolicyHookFailed}, DeletePolicies(test.Annotate(test.NewPod(), "argocd.argoproj.io/hook-delete-policy", "HookFailed")))
+func TestGarbageHelmHook(t *testing.T) {
+	obj := Annotate(NewPod(), "helm.sh/hook", "garbage")
+	assert.True(t, IsHook(obj))
+	assert.False(t, Skip(obj))
+	assert.Nil(t, Types(obj))
+}
+
+// we should ignore Helm hooks if we have an Argo CD hook
+func TestBothHooks(t *testing.T) {
+	obj := Annotate(example("Sync"), "helm.sh/hook", "pre-install")
+	assert.Equal(t, []HookType{HookTypeSync}, Types(obj))
+}
+
+func example(hook string) *unstructured.Unstructured {
+	return Annotate(NewPod(), "argocd.argoproj.io/hook", hook)
 }

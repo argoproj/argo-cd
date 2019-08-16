@@ -114,10 +114,6 @@ const (
 	AnnotationKeyManagedBy = "managed-by"
 	// AnnotationValueManagedByArgoCD is a 'managed-by' annotation value for resources managed by Argo CD
 	AnnotationValueManagedByArgoCD = "argocd.argoproj.io"
-	// AnnotationKeyHelmHook is the helm hook annotation
-	AnnotationKeyHelmHook = "helm.sh/hook"
-	// AnnotationValueHelmHookCRDInstall is a value of crd helm hook
-	AnnotationValueHelmHookCRDInstall = "crd-install"
 	// ResourcesFinalizerName the finalizer value which we inject to finalize deletion of an application
 	ResourcesFinalizerName = "resources-finalizer.argocd.argoproj.io"
 )

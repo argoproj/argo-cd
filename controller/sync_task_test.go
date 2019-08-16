@@ -59,3 +59,8 @@ func Test_syncTask_needsDeleting(t *testing.T) {
 	assert.True(t, (&syncTask{operationState: OperationSucceeded, liveObj: Annotate(Annotate(NewPod(), "argocd.argoproj.io/hook", "Sync"), "argocd.argoproj.io/hook-delete-policy", "HookSucceeded")}).needsDeleting())
 	assert.True(t, (&syncTask{operationState: OperationFailed, liveObj: Annotate(Annotate(NewPod(), "argocd.argoproj.io/hook", "Sync"), "argocd.argoproj.io/hook-delete-policy", "HookFailed")}).needsDeleting())
 }
+
+func Test_syncTask_wave(t *testing.T) {
+	assert.Equal(t, 0, (&syncTask{targetObj: NewPod()}).wave())
+	assert.Equal(t, 1, (&syncTask{targetObj: Annotate(NewPod(), "argocd.argoproj.io/sync-wave", "1")}).wave())
+}

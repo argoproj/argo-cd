@@ -2,14 +2,13 @@ package controller
 
 import (
 	"fmt"
-	"strconv"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/hook"
+	"github.com/argoproj/argo-cd/util/resource/syncwaves"
 )
 
 // syncTask holds the live and target object. At least one should be non-nil. A targetObj of nil
@@ -53,18 +52,7 @@ func (t *syncTask) obj() *unstructured.Unstructured {
 }
 
 func (t *syncTask) wave() int {
-
-	text := t.obj().GetAnnotations()[common.AnnotationSyncWave]
-	if text == "" {
-		return 0
-	}
-
-	val, err := strconv.Atoi(text)
-	if err != nil {
-		return 0
-	}
-
-	return val
+	return syncwaves.Wave(t.obj())
 }
 
 func (t *syncTask) isHook() bool {
