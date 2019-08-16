@@ -60,6 +60,7 @@ func TestAppCreation(t *testing.T) {
 		})
 }
 
+// demonstrate that we cannot use a standard sync
 func TestImmutableChange(t *testing.T) {
 	text, err := fixture.Run(".", "kubectl", "get", "service", "-n", "kube-system", "kube-dns", "-o", "jsonpath={.spec.clusterIP}")
 	errors.CheckError(err)
@@ -81,6 +82,7 @@ func TestImmutableChange(t *testing.T) {
 		PatchFile("service.yaml", fmt.Sprintf(`[{"op": "add", "path": "/spec/clusterIP", "value": "%s"}]`, ip2)).
 		IgnoreErrors().
 		Sync().
+		DoNotIgnoreErrors().
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
@@ -94,7 +96,16 @@ func TestImmutableChange(t *testing.T) {
 			Status:    "SyncFailed",
 			HookPhase: "Failed",
 			Message:   fmt.Sprintf(`kubectl failed exit status 1: The Service "my-service" is invalid: spec.clusterIP: Invalid value: "%s": field is immutable`, ip2),
-		}))
+		})).
+		// now we can do this will a force
+		Given().
+		Force().
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusHealthy))
 }
 
 func TestInvalidAppProject(t *testing.T) {
