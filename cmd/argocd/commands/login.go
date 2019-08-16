@@ -243,7 +243,7 @@ func oauth2Login(ctx context.Context, port int, oauth2conf *oauth2.Config, provi
 	fmt.Printf("Opening browser for authentication\n")
 
 	var url string
-	grantType := oidcutil.InferGrantType(oauth2conf, oidcConf)
+	grantType := oidcutil.InferGrantType(oidcConf)
 	switch grantType {
 	case oidcutil.GrantTypeAuthorizationCode:
 		url = oauth2conf.AuthCodeURL(stateNonce, oauth2.AccessTypeOffline)
