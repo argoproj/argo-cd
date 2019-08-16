@@ -60,10 +60,9 @@ func TestAppCreation(t *testing.T) {
 		})
 }
 
-// demonstrate that we cannot use a standard sync
+// demonstrate that we cannot use a standard sync when an immutable field is changed, we must use "force"
 func TestImmutableChange(t *testing.T) {
-	text, err := fixture.Run(".", "kubectl", "get", "service", "-n", "kube-system", "kube-dns", "-o", "jsonpath={.spec.clusterIP}")
-	errors.CheckError(err)
+	text := errors.FailOnErr(fixture.Run(".", "kubectl", "get", "service", "-n", "kube-system", "kube-dns", "-o", "jsonpath={.spec.clusterIP}")).(string)
 	parts := strings.Split(text, ".")
 	n := rand.Intn(254)
 	ip1 := fmt.Sprintf("%s.%s.10.%d", parts[0], parts[1], n)
