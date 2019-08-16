@@ -626,22 +626,35 @@ func (sc *syncContext) terminate() {
 
 func (sc *syncContext) deleteResource(task *syncTask) error {
 	sc.log.WithFields(log.Fields{"task": task}).Debug("deleting resource")
+	resIf, err := sc.getResourceIf(task)
+	if err != nil {
+		return err
+	}
+	propagationPolicy := metav1.DeletePropagationForeground
+	return resIf.Delete(task.name(), &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+}
+
+func (sc *syncContext) getResourceIf(task *syncTask) (dynamic.ResourceInterface, error) {
 	apiResource, err := kube.ServerResourceForGroupVersionKind(sc.disco, task.groupVersionKind())
 	if err != nil {
-		return err
+		return nil, err
 	}
-	resource := kube.ToGroupVersionResource(task.groupVersionKind().GroupVersion().String(), apiResource)
-	resIf := kube.ToResourceInterface(sc.dynamicIf, apiResource, resource, task.namespace())
-	propagationPolicy := metav1.DeletePropagationForeground
-	err = resIf.Delete(task.name(), &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+	res := kube.ToGroupVersionResource(task.groupVersionKind().GroupVersion().String(), apiResource)
+	resIf := kube.ToResourceInterface(sc.dynamicIf, apiResource, res, task.namespace())
+	return resIf, err
+}
+
+// check the delete was successful, and fail the sync if not,
+// we allow 60s for this to complete
+func (sc *syncContext) waitForDeletion(task *syncTask) error {
+	var obj *unstructured.Unstructured
+	resIf, err := sc.getResourceIf(task)
 	if err != nil {
 		return err
 	}
-	// double-check the delete was successful, and fail the sync if not,
-	// we allow 60s for this to complete
-	sc.log.WithFields(log.Fields{"task": task}).Debug("checking resource deleted")
-	var obj *unstructured.Unstructured
-	for start := time.Now(); time.Since(start).Seconds() < 60 && obj == nil; {
+	for started := time.Now(); time.Since(started).Seconds() < 60 && obj == nil; {
+		sc.log.WithFields(log.Fields{"task": task, "started": started, "now": time.Now()}).Debug("checking resource deleted")
+		var err error
 		obj, err = resIf.Get(task.name(), metav1.GetOptions{})
 		if err != nil {
 			return err
@@ -649,8 +662,7 @@ func (sc *syncContext) deleteResource(task *syncTask) error {
 		time.Sleep(10 * time.Second)
 	}
 	if obj != nil {
-		sc.log.WithFields(log.Fields{"task": task}).Error("deletion failed")
-		return err
+		return fmt.Errorf("deletion of %v failed", task)
 	}
 	return nil
 }
@@ -709,6 +721,9 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) bool {
 				sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t}).Debug("deleting")
 				if !dryRun {
 					err := sc.deleteResource(t)
+					if err == nil {
+						err = sc.waitForDeletion(t)
+					}
 					if err != nil {
 						successful = false
 						sc.setResourceResult(t, "", v1alpha1.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
