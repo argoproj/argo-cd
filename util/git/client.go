@@ -25,8 +25,33 @@ import (
 
 	certutil "github.com/argoproj/argo-cd/util/cert"
 	argoconfig "github.com/argoproj/argo-cd/util/config"
-	repoclient "github.com/argoproj/argo-cd/util/repo/client"
 )
+
+type RevisionMetadata struct {
+	Author  string
+	Date    time.Time
+	Tags    []string
+	Message string
+}
+
+// Client is a generic git client interface
+type Client interface {
+	Root() string
+	Init() error
+	Fetch() error
+	Checkout(revision string) error
+	LsRemote(revision string) (string, error)
+	LsFiles(path string) ([]string, error)
+	LsLargeFiles() ([]string, error)
+	CommitSHA() (string, error)
+	RevisionMetadata(revision string) (*RevisionMetadata, error)
+}
+
+// ClientFactory is a factory of Git Clients
+// Primarily used to support creation of mock git clients during unit testing
+type ClientFactory interface {
+	NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool) (Client, error)
+}
 
 // nativeGitClient implements Client interface using git CLI
 type nativeGitClient struct {
@@ -42,10 +67,16 @@ type nativeGitClient struct {
 	enableLfs bool
 }
 
-func NewClient(rawRepoURL string, creds Creds, insecure, enableLfs bool) (repoclient.Client, error) {
+type factory struct{}
+
+func NewFactory() ClientFactory {
+	return &factory{}
+}
+
+func (f *factory) NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool) (Client, error) {
 	client := nativeGitClient{
 		repoURL:   rawRepoURL,
-		root:      repoclient.TempRepoPath(rawRepoURL),
+		root:      path,
 		creds:     creds,
 		insecure:  insecure,
 		enableLfs: enableLfs,
@@ -185,47 +216,48 @@ func (m *nativeGitClient) Root() string {
 	return m.root
 }
 
+// Init initializes a local git repository and sets the remote origin
+func (m *nativeGitClient) Init() error {
+	_, err := git.PlainOpen(m.root)
+	if err == nil {
+		return nil
+	}
+	if err != git.ErrRepositoryNotExists {
+		return err
+	}
+	log.Infof("Initializing %s to %s", m.repoURL, m.root)
+	_, err = argoexec.RunCommand("rm", argoconfig.CmdOpts(), "-rf", m.root)
+	if err != nil {
+		return fmt.Errorf("unable to clean repo at %s: %v", m.root, err)
+	}
+	err = os.MkdirAll(m.root, 0755)
+	if err != nil {
+		return err
+	}
+	repo, err := git.PlainInit(m.root, false)
+	if err != nil {
+		return err
+	}
+	_, err = repo.CreateRemote(&config.RemoteConfig{
+		Name: git.DefaultRemoteName,
+		URLs: []string{m.repoURL},
+	})
+	return err
+}
+
 // Returns true if the repository is LFS enabled
 func (m *nativeGitClient) IsLFSEnabled() bool {
 	return m.enableLfs
 }
 
-// Init initializes a local git repository and sets the remote origin
-func (m *nativeGitClient) Init() error {
-	_, err := git.PlainOpen(m.root)
-	if err != nil {
-		if err != git.ErrRepositoryNotExists {
-			return err
-		}
-		log.Infof("Initializing %s to %s", m.repoURL, m.root)
-		_, err = argoexec.RunCommand("rm", argoconfig.CmdOpts(), "-rf", m.root)
-		if err != nil {
-			return fmt.Errorf("unable to clean repo at %s: %v", m.root, err)
-		}
-		err = os.MkdirAll(m.root, 0755)
-		if err != nil {
-			return err
-		}
-		repo, err := git.PlainInit(m.root, false)
-		if err != nil {
-			return err
-		}
-		_, err = repo.CreateRemote(&config.RemoteConfig{
-			Name: git.DefaultRemoteName,
-			URLs: []string{m.repoURL},
-		})
-		if err != nil {
-			return err
-		}
-	}
-	_, err = m.runCredentialedCmd("fetch", "origin", "--tags", "--force")
-	if m.IsLFSEnabled() {
+// Fetch fetches latest updates from origin
+func (m *nativeGitClient) Fetch() error {
+	_, err := m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
+	// When we have LFS support enabled, check for large files and fetch them too.
+	if err == nil && m.IsLFSEnabled() {
 		largeFiles, err := m.LsLargeFiles()
-		if err != nil {
-			return err
-		}
-		if len(largeFiles) > 0 {
-			_, err := m.runCredentialedCmd("lfs", "fetch", "--all")
+		if err == nil && len(largeFiles) > 0 {
+			_, err = m.runCredentialedCmd("git", "lfs", "fetch", "--all")
 			if err != nil {
 				return err
 			}
@@ -256,7 +288,7 @@ func (m *nativeGitClient) LsLargeFiles() ([]string, error) {
 }
 
 // Checkout checkout specified git sha
-func (m *nativeGitClient) Checkout(_, revision string) error {
+func (m *nativeGitClient) Checkout(revision string) error {
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
 	}
@@ -282,15 +314,12 @@ func (m *nativeGitClient) Checkout(_, revision string) error {
 	return nil
 }
 
-// ResolveRevision resolves the commit SHA of a specific branch, tag, or HEAD. If the supplied revision
+// LsRemote resolves the commit SHA of a specific branch, tag, or HEAD. If the supplied revision
 // does not resolve, and "looks" like a 7+ hexadecimal commit SHA, it return the revision string.
 // Otherwise, it returns an error indicating that the revision could not be resolved. This method
 // runs with in-memory storage and is safe to run concurrently, or to be run without a git
 // repository locally cloned.
-func (m *nativeGitClient) ResolveRevision(_, revision string) (string, error) {
-	if revision == "" {
-		revision = "HEAD"
-	}
+func (m *nativeGitClient) LsRemote(revision string) (string, error) {
 	if IsCommitSHA(revision) {
 		return revision, nil
 	}
@@ -313,6 +342,9 @@ func (m *nativeGitClient) ResolveRevision(_, revision string) (string, error) {
 	refs, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds)
 	if err != nil {
 		return "", err
+	}
+	if revision == "" {
+		revision = "HEAD"
 	}
 	// refToHash keeps a maps of remote refs to their hash
 	// (e.g. refs/heads/master -> a67038ae2e9cb9b9b16423702f98b41e36601001)
@@ -359,8 +391,8 @@ func (m *nativeGitClient) ResolveRevision(_, revision string) (string, error) {
 	return "", fmt.Errorf("Unable to resolve '%s' to a commit SHA", revision)
 }
 
-// Revision returns current commit sha from `git rev-parse HEAD`
-func (m *nativeGitClient) Revision(_ string) (string, error) {
+// CommitSHA returns current commit sha from `git rev-parse HEAD`
+func (m *nativeGitClient) CommitSHA() (string, error) {
 	out, err := m.runCmd("rev-parse", "HEAD")
 	if err != nil {
 		return "", err
@@ -369,7 +401,7 @@ func (m *nativeGitClient) Revision(_ string) (string, error) {
 }
 
 // returns the meta-data for the commit
-func (m *nativeGitClient) RevisionMetadata(_, revision string) (*repoclient.RevisionMetadata, error) {
+func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, error) {
 	out, err := m.runCmd("show", "-s", "--format=%an <%ae>|%at|%B", revision)
 	if err != nil {
 		return nil, err
@@ -388,7 +420,7 @@ func (m *nativeGitClient) RevisionMetadata(_, revision string) (*repoclient.Revi
 	}
 	tags := strings.Fields(out)
 
-	return &repoclient.RevisionMetadata{Author: author, Date: time.Unix(authorDateUnixTimestamp, 0), Tags: tags, Message: message}, nil
+	return &RevisionMetadata{author, time.Unix(authorDateUnixTimestamp, 0), tags, message}, nil
 }
 
 // runCmd is a convenience function to run a command in a given directory and return its output
@@ -398,8 +430,8 @@ func (m *nativeGitClient) runCmd(args ...string) (string, error) {
 }
 
 // runCredentialedCmd is a convenience function to run a git command with username/password credentials
-func (m *nativeGitClient) runCredentialedCmd(args ...string) (string, error) {
-	cmd := exec.Command("git", args...)
+func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) (string, error) {
+	cmd := exec.Command(command, args...)
 	closer, environ, err := m.creds.Environ()
 	if err != nil {
 		return "", err
@@ -441,10 +473,4 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 
 	log.Debug(strings.Join(cmd.Args, " "))
 	return argoexec.RunCommandExt(cmd, argoconfig.CmdOpts())
-}
-
-// TestRepo tests if a repo exists and is accessible with the given credentials
-func (m *nativeGitClient) Test() error {
-	_, err := m.ResolveRevision(".", "HEAD")
-	return err
 }
