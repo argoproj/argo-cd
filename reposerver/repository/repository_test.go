@@ -47,7 +47,7 @@ type fakeGitClientFactory struct {
 }
 
 func (f *fakeGitClientFactory) NewRepo(r *v1alpha1.Repository) (repo.Repo, error) {
-	mockClient := gitmocks.Client{}
+	mockClient := gitmocks.Repo{}
 	root := "./testdata"
 	if f.root != "" {
 		root = f.root

@@ -31,7 +31,7 @@ func (g *gitRepo) ResolveRevision(path, revision string) (string, error) {
 }
 
 func (g *gitRepo) LsFiles(path string) ([]string, error) {
-	return g.LsFiles(path)
+	return g.client.LsFiles(path)
 }
 
 func (g *gitRepo) Revision(path string) (string, error) {
