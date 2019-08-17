@@ -213,8 +213,8 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 // sync has performs the actual apply or hook based sync
 func (sc *syncContext) sync() {
 	sc.log.WithFields(log.Fields{"isSelectiveSync": sc.isSelectiveSync(), "skipHooks": sc.skipHooks(), "started": sc.started()}).Info("syncing")
-	tasks, successful := sc.getSyncTasks()
-	if !successful {
+	tasks, ok := sc.getSyncTasks()
+	if !ok {
 		sc.setOperationPhase(v1alpha1.OperationFailed, "one or more synchronization tasks are not valid")
 		return
 	}
@@ -229,7 +229,7 @@ func (sc *syncContext) sync() {
 	// the dry-run for this operation, is if the resource or hook list is empty.
 	if !sc.started() {
 		sc.log.Debug("dry-run")
-		if !sc.runTasks(tasks, true) {
+		if sc.runTasks(tasks, true) == failed {
 			sc.setOperationPhase(v1alpha1.OperationFailed, "one or more objects failed to apply (dry run)")
 			return
 		}
@@ -313,9 +313,11 @@ func (sc *syncContext) sync() {
 	sc.setOperationPhase(v1alpha1.OperationRunning, "one or more tasks are running")
 
 	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("wet-run")
-	if !sc.runTasks(tasks, false) {
+	runState := sc.runTasks(tasks, false)
+	switch runState {
+	case failed:
 		sc.setOperationFailed(syncFailTasks, "one or more objects failed to apply")
-	} else {
+	case successful:
 		if complete {
 			sc.setOperationPhase(v1alpha1.OperationSucceeded, "successfully synced (all tasks run)")
 		}
@@ -332,7 +334,7 @@ func (sc *syncContext) setOperationFailed(syncFailTasks syncTasks, message strin
 		// otherwise, we need to start the failure hooks, and then return without setting
 		// the phase, so we make sure we have at least one more sync
 		sc.log.WithFields(log.Fields{"syncFailTasks": syncFailTasks}).Debug("running sync fail tasks")
-		if !sc.runTasks(syncFailTasks, false) {
+		if sc.runTasks(syncFailTasks, false) == failed {
 			sc.setOperationPhase(v1alpha1.OperationFailed, message)
 		}
 	} else {
@@ -644,31 +646,6 @@ func (sc *syncContext) getResourceIf(task *syncTask) (dynamic.ResourceInterface,
 	return resIf, err
 }
 
-// check the delete was successful, and fail the sync if not,
-// we allow 60s for this to complete
-func (sc *syncContext) waitForDeletion(task *syncTask) error {
-	resIf, err := sc.getResourceIf(task)
-	if err != nil {
-		return err
-	}
-	var duration time.Duration = 1
-	for started := time.Now(); time.Since(started).Seconds() < 60; {
-		sc.log.WithFields(log.Fields{"task": task, "started": started, "now": time.Now()}).Debug("checking resource deleted")
-		var err error
-		_, err = resIf.Get(task.name(), metav1.GetOptions{})
-		if err != nil {
-			if apierr.IsNotFound(err) {
-				return nil
-			}
-			return err
-		}
-		time.Sleep(duration * time.Second)
-		// wait 1s, then 2s, 4s, 8s, 16s, 32s
-		duration = 2 * duration
-	}
-	return fmt.Errorf("timout waiting for deletion of %v", task)
-}
-
 var operationPhases = map[v1alpha1.ResultCode]v1alpha1.OperationPhase{
 	v1alpha1.ResultCodeSynced:       v1alpha1.OperationRunning,
 	v1alpha1.ResultCodeSyncFailed:   v1alpha1.OperationFailed,
@@ -676,13 +653,22 @@ var operationPhases = map[v1alpha1.ResultCode]v1alpha1.OperationPhase{
 	v1alpha1.ResultCodePruneSkipped: v1alpha1.OperationSucceeded,
 }
 
-func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) bool {
+// tri-state
+type runState = int
+
+const (
+	successful = iota
+	pending
+	failed
+)
+
+func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
 
 	dryRun = dryRun || sc.syncOp.DryRun
 
 	sc.log.WithFields(log.Fields{"numTasks": len(tasks), "dryRun": dryRun}).Debug("running tasks")
 
-	successful := true
+	runState := successful
 	var createTasks syncTasks
 	var pruneTasks syncTasks
 
@@ -703,7 +689,7 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) bool {
 				sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t}).Debug("pruning")
 				result, message := sc.pruneObject(t.liveObj, sc.syncOp.Prune, dryRun)
 				if result == v1alpha1.ResultCodeSyncFailed {
-					successful = false
+					runState = failed
 				}
 				if !dryRun || result == v1alpha1.ResultCodeSyncFailed {
 					sc.setResourceResult(t, result, operationPhases[result], message)
@@ -714,7 +700,10 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) bool {
 	}
 
 	// delete anything that need deleting
-	if successful {
+	if runState == successful && createTasks.Any(func(t *syncTask) bool { return t.needsDeleting() }) {
+		// if there is anything that needs deleting, we are at best now in pending and
+		// want to return and wait for sync to be invoked again
+		runState = pending
 		var wg sync.WaitGroup
 		for _, task := range createTasks.Filter(func(t *syncTask) bool { return t.needsDeleting() }) {
 			wg.Add(1)
@@ -723,11 +712,8 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) bool {
 				sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t}).Debug("deleting")
 				if !dryRun {
 					err := sc.deleteResource(t)
-					if err == nil {
-						err = sc.waitForDeletion(t)
-					}
 					if err != nil {
-						successful = false
+						runState = failed
 						sc.setResourceResult(t, "", v1alpha1.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
 						return
 					}
@@ -737,7 +723,7 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) bool {
 		wg.Wait()
 	}
 	// finally create resources
-	if successful {
+	if runState == successful {
 		processCreateTasks := func(tasks syncTasks) {
 			var createWg sync.WaitGroup
 			for _, task := range tasks {
@@ -750,7 +736,7 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) bool {
 					sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t}).Debug("applying")
 					result, message := sc.applyObject(t.targetObj, dryRun, sc.syncOp.SyncStrategy.Force())
 					if result == v1alpha1.ResultCodeSyncFailed {
-						successful = false
+						runState = failed
 					}
 					if !dryRun || result == v1alpha1.ResultCodeSyncFailed {
 						sc.setResourceResult(t, result, operationPhases[result], message)
@@ -774,7 +760,7 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) bool {
 			processCreateTasks(tasksGroup)
 		}
 	}
-	return successful
+	return runState
 }
 
 // setResourceResult sets a resource details in the SyncResult.Resources list
