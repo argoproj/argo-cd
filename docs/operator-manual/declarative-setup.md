@@ -54,10 +54,10 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
 ```
 
-### Application of Applications
+### App of Apps
 
-You can create an application that creates other applications, which in turn can create other applications. 
-This allows you to declaratively manage a group of applications that can be deployed and configured in concert.
+You can create an app that creates other apps, which in turn can create other apps. 
+This allows you to declaratively manage a group of app that can be deployed and configured in concert.
 
 See [cluster bootstrapping](cluster-bootstrapping.md).
 
