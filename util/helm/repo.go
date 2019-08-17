@@ -20,22 +20,22 @@ import (
 
 var indexCache = cache.New(5*time.Minute, 5*time.Minute)
 
-type client struct {
+type helmRepo struct {
 	cmd                           *cmd
 	url, name, username, password string
 	caData, certData, keyData     []byte
 }
 
-func (c client) Test() error {
+func (c helmRepo) Test() error {
 	_, err := c.cmd.init()
 	return err
 }
 
-func (c client) Root() string {
+func (c helmRepo) Root() string {
 	return c.cmd.workDir
 }
 
-func (c client) Init() error {
+func (c helmRepo) Init() error {
 	info, err := os.Stat(c.cmd.workDir)
 	if err != nil {
 		return err
@@ -46,7 +46,7 @@ func (c client) Init() error {
 	return err
 }
 
-func (c client) ResolveRevision(path, revision string) (string, error) {
+func (c helmRepo) ResolveRevision(path, revision string) (string, error) {
 	if revision != "" {
 		return revision, nil
 	}
@@ -65,7 +65,7 @@ func (c client) ResolveRevision(path, revision string) (string, error) {
 	return "", errors.New("failed to find chart " + path)
 }
 
-func (c client) Revision(path string) (string, error) {
+func (c helmRepo) Revision(path string) (string, error) {
 
 	chartName := strings.Split(path, "/")[0]
 	yamlFile, err := ioutil.ReadFile(filepath.Join(c.cmd.workDir, chartName, "Chart.yaml"))
@@ -79,7 +79,7 @@ func (c client) Revision(path string) (string, error) {
 	return entry.Version, err
 }
 
-func (c client) RevisionMetadata(path, revision string) (*repo.RevisionMetadata, error) {
+func (c helmRepo) RevisionMetadata(path, revision string) (*repo.RevisionMetadata, error) {
 
 	index, err := c.getIndex()
 	if err != nil {
@@ -104,7 +104,7 @@ type index struct {
 	Entries map[string][]entry
 }
 
-func (c client) getIndex() (*index, error) {
+func (c helmRepo) getIndex() (*index, error) {
 
 	cachedIndex, found := indexCache.Get(c.url)
 	if found {
@@ -135,7 +135,7 @@ func (c client) getIndex() (*index, error) {
 	return index, err
 }
 
-func (c client) LsFiles(path string) ([]string, error) {
+func (c helmRepo) LsFiles(path string) ([]string, error) {
 
 	matcher, err := glob.Compile(path)
 	if err != nil {
@@ -157,14 +157,14 @@ func (c client) LsFiles(path string) ([]string, error) {
 	return files, nil
 }
 
-func (c client) repoAdd() (string, error) {
+func (c helmRepo) repoAdd() (string, error) {
 	return c.cmd.repoAdd(c.name, c.url, repoAddOpts{
 		username: c.username, password: c.password,
 		caData: c.caData, certData: c.certData, keyData: c.keyData,
 	})
 }
 
-func (c client) Checkout(path string, resolvedRevision string) error {
+func (c helmRepo) Checkout(path string, resolvedRevision string) error {
 
 	if resolvedRevision == "" {
 		return fmt.Errorf("invalid resolved revision \"%s\", must be resolved", resolvedRevision)
@@ -181,7 +181,7 @@ func (c client) Checkout(path string, resolvedRevision string) error {
 	return err
 }
 
-func (c client) checkKnownChart(chartName string) error {
+func (c helmRepo) checkKnownChart(chartName string) error {
 	knownChart, err := c.isKnownChart(chartName)
 	if err != nil {
 		return err
@@ -192,7 +192,7 @@ func (c client) checkKnownChart(chartName string) error {
 	return nil
 }
 
-func (c client) isKnownChart(chartName string) (bool, error) {
+func (c helmRepo) isKnownChart(chartName string) (bool, error) {
 
 	index, err := c.getIndex()
 	if err != nil {

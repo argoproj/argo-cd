@@ -9,7 +9,7 @@ import (
 func TestRepoFactory(t *testing.T) {
 	t.Run("Unnamed", func(t *testing.T) {
 		_, err := NewRepo("http://0.0.0.0", "", "", "", nil, nil, nil)
-		assert.EqualError(t, err, "must name client")
+		assert.EqualError(t, err, "must name repo")
 	})
 
 	t.Run("GarbageRepo", func(t *testing.T) {

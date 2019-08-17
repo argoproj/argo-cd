@@ -15,7 +15,7 @@ var clientCache = cache.New(5*time.Minute, 5*time.Minute)
 func NewRepo(url, name, username, password string, caData, certData, keyData []byte) (repo.Repo, error) {
 
 	if name == "" {
-		return nil, errors.New("must name client")
+		return nil, errors.New("must name repo")
 	}
 
 	cached, found := clientCache.Get(url)
@@ -23,6 +23,7 @@ func NewRepo(url, name, username, password string, caData, certData, keyData []b
 		log.WithFields(log.Fields{"url": url}).Debug("client cfg cache hit")
 		return cached.(repo.Repo), nil
 	}
+
 	cmd, err := newCmd(repo.TempRepoPath(url))
 	if err != nil {
 		return nil, err
@@ -33,7 +34,7 @@ func NewRepo(url, name, username, password string, caData, certData, keyData []b
 		return nil, err
 	}
 
-	cfg := client{
+	cfg := helmRepo{
 		cmd:      cmd,
 		url:      url,
 		name:     name,
