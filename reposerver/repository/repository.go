@@ -35,8 +35,8 @@ import (
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"
-	repoclient "github.com/argoproj/argo-cd/util/repo/client"
-	repofactory "github.com/argoproj/argo-cd/util/repo/factory"
+	"github.com/argoproj/argo-cd/util/repo"
+	"github.com/argoproj/argo-cd/util/repofactory"
 	"github.com/argoproj/argo-cd/util/text"
 )
 
@@ -48,13 +48,13 @@ const (
 // Service implements ManifestService interface
 type Service struct {
 	repoLock                  *util.KeyLock
-	clientFactory             repofactory.ClientFactory
+	clientFactory             repofactory.RepoFactory
 	cache                     *cache.Cache
 	parallelismLimitSemaphore *semaphore.Weighted
 }
 
 // NewService returns a new instance of the Manifest service
-func NewService(clientFactory repofactory.ClientFactory, cache *cache.Cache, parallelismLimit int64) *Service {
+func NewService(clientFactory repofactory.RepoFactory, cache *cache.Cache, parallelismLimit int64) *Service {
 	var parallelismLimitSemaphore *semaphore.Weighted
 	if parallelismLimit > 0 {
 		parallelismLimitSemaphore = semaphore.NewWeighted(parallelismLimit)
@@ -363,7 +363,7 @@ func isNullList(obj *unstructured.Unstructured) bool {
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
-func checkoutRevision(client repoclient.Client, path, commitSHA string) (string, error) {
+func checkoutRevision(client repo.Repo, path, commitSHA string) (string, error) {
 	err := client.Init()
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "Failed to initialize repo: %v", err)
@@ -517,8 +517,8 @@ func pathExists(ss ...string) bool {
 
 // newClientResolveRevision is a helper to perform the common task of instantiating a client
 // and resolving a revision to a commit SHA
-func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, path, revision string) (repoclient.Client, string, error) {
-	client, err := s.clientFactory.NewClient(repo)
+func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, path, revision string) (repo.Repo, string, error) {
+	client, err := s.clientFactory.NewRepo(repo)
 	if err != nil {
 		return nil, "", err
 	}
@@ -700,8 +700,8 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 	return &res, nil
 }
 
-func (s *Service) getRevisionMetadata(repo *v1alpha1.Repository, path, revision string) (*repoclient.RevisionMetadata, error) {
-	client, err := s.clientFactory.NewClient(repo)
+func (s *Service) getRevisionMetadata(repo *v1alpha1.Repository, path, revision string) (*repo.RevisionMetadata, error) {
+	client, err := s.clientFactory.NewRepo(repo)
 	if err != nil {
 		return nil, err
 	}

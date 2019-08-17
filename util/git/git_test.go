@@ -174,7 +174,7 @@ func TestCustomHTTPClient(t *testing.T) {
 }
 
 func TestLsRemote(t *testing.T) {
-	clnt, err := NewClient("https://github.com/argoproj/argo-cd.git", NopCreds{}, false, false)
+	clnt, err := NewFactory().NewClient("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false)
 	assert.NoError(t, err)
 	xpass := []string{
 		"HEAD",
@@ -185,13 +185,13 @@ func TestLsRemote(t *testing.T) {
 		//"4e22a3c",
 	}
 	for _, revision := range xpass {
-		commitSHA, err := clnt.ResolveRevision(".", revision)
+		commitSHA, err := clnt.LsRemote(revision)
 		assert.NoError(t, err)
 		assert.True(t, IsCommitSHA(commitSHA))
 	}
 
 	// We do not resolve truncated git hashes and return the commit as-is if it appears to be a commit
-	commitSHA, err := clnt.ResolveRevision(".", "4e22a3c")
+	commitSHA, err := clnt.LsRemote("4e22a3c")
 	assert.NoError(t, err)
 	assert.False(t, IsCommitSHA(commitSHA))
 	assert.True(t, IsTruncatedCommitSHA(commitSHA))
@@ -201,7 +201,7 @@ func TestLsRemote(t *testing.T) {
 		"4e22a3", // too short (6 characters)
 	}
 	for _, revision := range xfail {
-		_, err := clnt.ResolveRevision(".", revision)
+		_, err := clnt.LsRemote(revision)
 		assert.Error(t, err)
 	}
 }
@@ -211,24 +211,33 @@ func TestLFSClient(t *testing.T) {
 
 	test.CIOnly(t)
 
-	client, err := NewClient("https://github.com/argoproj-labs/argocd-testrepo-lfs", NopCreds{}, false, true)
+	tempDir, err := ioutil.TempDir("", "git-client-lfs-test-")
+	assert.NoError(t, err)
+	if err == nil {
+		defer func() { _ = os.RemoveAll(tempDir) }()
+	}
+
+	client, err := NewFactory().NewClient("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true)
 	assert.NoError(t, err)
 
-	commitSHA, err := client.ResolveRevision(".", "HEAD")
+	commitSHA, err := client.LsRemote("HEAD")
 	assert.NoError(t, err)
 	assert.NotEqual(t, "", commitSHA)
 
 	err = client.Init()
 	assert.NoError(t, err)
 
-	err = client.Checkout(".", commitSHA)
+	err = client.Fetch()
 	assert.NoError(t, err)
 
-	largeFiles, err := client.(*nativeGitClient).LsLargeFiles()
+	err = client.Checkout(commitSHA)
 	assert.NoError(t, err)
-	assert.Len(t, largeFiles, 3)
 
-	fileHandle, err := os.Open(fmt.Sprintf("%s/test3.yaml", client.Root()))
+	largeFiles, err := client.LsLargeFiles()
+	assert.NoError(t, err)
+	assert.Equal(t, 3, len(largeFiles))
+
+	fileHandle, err := os.Open(fmt.Sprintf("%s/test3.yaml", tempDir))
 	assert.NoError(t, err)
 	if err == nil {
 		defer fileHandle.Close()
@@ -259,19 +268,33 @@ func TestNewFactory(t *testing.T) {
 	}
 	for _, tt := range tests {
 
-		client, err := NewClient(tt.args.url, NopCreds{}, tt.args.insecureIgnoreHostKey, false)
+		if tt.name == "PrivateSSHRepo" {
+			test.Flaky(t)
+		}
+
+		dirName, err := ioutil.TempDir("", "git-client-test-")
 		assert.NoError(t, err)
-		commitSHA, err := client.ResolveRevision(".", "")
+		defer func() { _ = os.RemoveAll(dirName) }()
+
+		client, err := NewFactory().NewClient(tt.args.url, dirName, NopCreds{}, tt.args.insecureIgnoreHostKey, false)
 		assert.NoError(t, err)
-		assert.NotEmpty(t, commitSHA)
+		commitSHA, err := client.LsRemote("HEAD")
+		assert.NoError(t, err)
 
 		err = client.Init()
 		assert.NoError(t, err)
 
-		err = client.Checkout(".", commitSHA)
+		err = client.Fetch()
 		assert.NoError(t, err)
 
-		revisionMetadata, err := client.RevisionMetadata(".", commitSHA)
+		// Do a second fetch to make sure we can treat `already up-to-date` error as not an error
+		err = client.Fetch()
+		assert.NoError(t, err)
+
+		err = client.Checkout(commitSHA)
+		assert.NoError(t, err)
+
+		revisionMetadata, err := client.RevisionMetadata(commitSHA)
 		assert.NoError(t, err)
 		assert.NotNil(t, revisionMetadata)
 		assert.Regexp(t, "^.*<.*>$", revisionMetadata.Author)
@@ -279,7 +302,7 @@ func TestNewFactory(t *testing.T) {
 		assert.NotEmpty(t, revisionMetadata.Date)
 		assert.NotEmpty(t, revisionMetadata.Message)
 
-		commitSHA2, err := client.Revision(".")
+		commitSHA2, err := client.CommitSHA()
 		assert.NoError(t, err)
 
 		assert.Equal(t, commitSHA, commitSHA2)

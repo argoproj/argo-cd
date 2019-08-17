@@ -22,8 +22,8 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/kustomize"
 	"github.com/argoproj/argo-cd/util/rbac"
-	repoclient "github.com/argoproj/argo-cd/util/repo/client"
-	repofactory "github.com/argoproj/argo-cd/util/repo/factory"
+	repo2 "github.com/argoproj/argo-cd/util/repo"
+	"github.com/argoproj/argo-cd/util/repofactory"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -62,11 +62,11 @@ func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.Conn
 		Status:     appsv1.ConnectionStatusSuccessful,
 		ModifiedAt: &now,
 	}
-	var client repoclient.Client
+	var client repo2.Repo
 	var err error
 	repo, err := s.db.GetRepository(ctx, url)
 	if err == nil {
-		client, err = repofactory.NewFactory().NewClient(repo)
+		client, err = repofactory.NewRepoFactory().NewRepo(repo)
 	}
 	if client != nil && err == nil {
 		err = client.Test()
@@ -241,7 +241,7 @@ func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest)
 		return nil, err
 	}
 	r := q.Repo
-	_, err = repofactory.NewFactory().NewClient(q.Repo)
+	_, err = repofactory.NewRepoFactory().NewRepo(q.Repo)
 	if err != nil {
 		return nil, err
 	}
@@ -310,7 +310,7 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		TLSClientCertData: q.TlsClientCertData,
 		TLSClientCertKey:  q.TlsClientCertKey,
 	}
-	client, err := repofactory.NewFactory().NewClient(repo)
+	client, err := repofactory.NewRepoFactory().NewRepo(repo)
 	if err != nil {
 		return nil, err
 	}

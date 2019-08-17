@@ -107,7 +107,7 @@ type client struct {
 	proxyUsersCount int
 }
 
-// NewClient creates a new API client from a set of config options.
+// NewRepo creates a new API client from a set of config options.
 func NewClient(opts *ClientOptions) (Client, error) {
 	var c client
 	localCfg, err := localconfig.ReadLocalConfig(opts.ConfigPath)

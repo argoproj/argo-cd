@@ -20,8 +20,8 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
-	repoclient "github.com/argoproj/argo-cd/util/repo/client"
-	gitmocks "github.com/argoproj/argo-cd/util/repo/client/mocks"
+	"github.com/argoproj/argo-cd/util/repo"
+	gitmocks "github.com/argoproj/argo-cd/util/repo/mocks"
 )
 
 func newMockRepoServerService(root string) *Service {
@@ -36,17 +36,17 @@ func newFakeGitClientFactory(root string) *fakeGitClientFactory {
 	return &fakeGitClientFactory{
 		root:             root,
 		revision:         "aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd",
-		revisionMetadata: &repoclient.RevisionMetadata{Author: "foo", Message: strings.Repeat("x", 99), Tags: []string{"bar"}},
+		revisionMetadata: &repo.RevisionMetadata{Author: "foo", Message: strings.Repeat("x", 99), Tags: []string{"bar"}},
 	}
 }
 
 type fakeGitClientFactory struct {
 	root             string
 	revision         string
-	revisionMetadata *repoclient.RevisionMetadata
+	revisionMetadata *repo.RevisionMetadata
 }
 
-func (f *fakeGitClientFactory) NewClient(r *v1alpha1.Repository) (repoclient.Client, error) {
+func (f *fakeGitClientFactory) NewRepo(r *v1alpha1.Repository) (repo.Repo, error) {
 	mockClient := gitmocks.Client{}
 	root := "./testdata"
 	if f.root != "" {

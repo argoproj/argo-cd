@@ -7,7 +7,7 @@ import (
 )
 
 func TestRepo(t *testing.T) {
-	repo, err := NewClient("https://kubernetes-charts.storage.googleapis.com", "test", "", "", nil, nil, nil)
+	repo, err := NewRepo("https://kubernetes-charts.storage.googleapis.com", "test", "", "", nil, nil, nil)
 	assert.NoError(t, err)
 
 	// TODO - this changes regularly

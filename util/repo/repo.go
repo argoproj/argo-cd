@@ -1,4 +1,4 @@
-package client
+package repo
 
 import (
 	"time"
@@ -11,8 +11,8 @@ type RevisionMetadata struct {
 	Message string
 }
 
-// Client is a generic repo client interface
-type Client interface {
+// Repo is a generic repo client interface
+type Repo interface {
 	// test to see we can connect to the repo, returning an error if we cannot
 	Test() error
 	// return a key suitable for use for locking this object

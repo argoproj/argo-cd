@@ -39,7 +39,7 @@ import (
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/rbac"
-	repofactory "github.com/argoproj/argo-cd/util/repo/factory"
+	"github.com/argoproj/argo-cd/util/repofactory"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -55,7 +55,7 @@ type Server struct {
 	enf           *rbac.Enforcer
 	projectLock   *util.KeyLock
 	auditLogger   *argo.AuditLogger
-	clientFactory repofactory.ClientFactory
+	clientFactory repofactory.RepoFactory
 	settingsMgr   *settings.SettingsManager
 	cache         *cache.Cache
 }
@@ -85,7 +85,7 @@ func NewServer(
 		enf:           enf,
 		projectLock:   projectLock,
 		auditLogger:   argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
-		clientFactory: repofactory.NewFactory(),
+		clientFactory: repofactory.NewRepoFactory(),
 		settingsMgr:   settingsMgr,
 	}
 }
@@ -985,7 +985,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	if err != nil {
 		return "", "", err
 	}
-	client, err := s.clientFactory.NewClient(repo)
+	client, err := s.clientFactory.NewRepo(repo)
 	if err != nil {
 		return "", "", err
 	}

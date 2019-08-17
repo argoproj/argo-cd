@@ -32,7 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"
-	repofactory "github.com/argoproj/argo-cd/util/repo/factory"
+	"github.com/argoproj/argo-cd/util/repofactory"
 )
 
 const (
@@ -180,7 +180,7 @@ func ValidateRepo(ctx context.Context, spec *argoappv1.ApplicationSpec, repoClie
 		return nil, "", err
 	}
 
-	client, err := repofactory.NewFactory().NewClient(repoRes)
+	client, err := repofactory.NewRepoFactory().NewRepo(repoRes)
 	if err == nil {
 		err = client.Test()
 	}

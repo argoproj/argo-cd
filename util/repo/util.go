@@ -1,4 +1,4 @@
-package client
+package repo
 
 import (
 	"os"
