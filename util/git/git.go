@@ -76,4 +76,3 @@ func IsSSHURL(url string) (bool, string) {
 func IsHTTPSURL(url string) bool {
 	return httpsURLRegex.MatchString(url)
 }
-

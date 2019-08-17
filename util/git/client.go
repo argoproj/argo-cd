@@ -320,9 +320,6 @@ func (m *nativeGitClient) Checkout(revision string) error {
 // runs with in-memory storage and is safe to run concurrently, or to be run without a git
 // repository locally cloned.
 func (m *nativeGitClient) LsRemote(revision string) (string, error) {
-	if revision == "" {
-		revision = "HEAD"
-	}
 	if IsCommitSHA(revision) {
 		return revision, nil
 	}
@@ -345,6 +342,9 @@ func (m *nativeGitClient) LsRemote(revision string) (string, error) {
 	refs, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds)
 	if err != nil {
 		return "", err
+	}
+	if revision == "" {
+		revision = "HEAD"
 	}
 	// refToHash keeps a maps of remote refs to their hash
 	// (e.g. refs/heads/master -> a67038ae2e9cb9b9b16423702f98b41e36601001)
