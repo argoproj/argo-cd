@@ -11,7 +11,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide, updat
     application: models.Application,
     selectedResource: string,
     hide: () => any;
-    update: (ignoreWarnings: boolean) => void;
+    updateIgnoreWarnings?: (ignoreWarnings: boolean) => void;
 }) => {
 
     const [form, setForm] = React.useState<FormApi>(null);
