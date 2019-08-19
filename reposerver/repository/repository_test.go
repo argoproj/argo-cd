@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -24,42 +25,42 @@ import (
 	gitmocks "github.com/argoproj/argo-cd/util/repo/mocks"
 )
 
-func newMockRepoServerService(root string) *Service {
+func newMockRepoServerService(root, path string) *Service {
 	return &Service{
-		repoLock:      util.NewKeyLock(),
-		clientFactory: newFakeGitClientFactory(root),
-		cache:         cache.NewCache(cache.NewInMemoryCache(time.Hour)),
+		repoLock:    util.NewKeyLock(),
+		repoFactory: newFakeFactory(root, path),
+		cache:       cache.NewCache(cache.NewInMemoryCache(time.Hour)),
 	}
 }
 
-func newFakeGitClientFactory(root string) *fakeGitClientFactory {
-	return &fakeGitClientFactory{
+func newFakeFactory(root, path string) *fakeFactory {
+	return &fakeFactory{
 		root:             root,
+		path:             path,
 		revision:         "aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd",
 		revisionMetadata: &repo.RevisionMetadata{Author: "foo", Message: strings.Repeat("x", 99), Tags: []string{"bar"}},
 	}
 }
 
-type fakeGitClientFactory struct {
+type fakeFactory struct {
 	root             string
+	path             string
 	revision         string
 	revisionMetadata *repo.RevisionMetadata
 }
 
-func (f *fakeGitClientFactory) NewRepo(r *v1alpha1.Repository) (repo.Repo, error) {
-	mockClient := gitmocks.Repo{}
+func (f *fakeFactory) NewRepo(repo *v1alpha1.Repository) (repo.Repo, error) {
+	r := gitmocks.Repo{}
 	root := "./testdata"
 	if f.root != "" {
 		root = f.root
 	}
-	mockClient.On("Root").Return(root)
-	mockClient.On("Init").Return(nil)
-	mockClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
-	mockClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(f.revision, nil)
-	mockClient.On("LsFiles", mock.Anything).Return([]string{}, nil)
-	mockClient.On("Revision", mock.Anything).Return(f.revision, nil)
-	mockClient.On("RevisionMetadata", mock.Anything, f.revision).Return(f.revisionMetadata, nil)
-	return &mockClient, nil
+	r.On("LockKey").Return(root)
+	r.On("GetApp", mock.Anything, mock.Anything).Return(filepath.Join(root, f.path), nil)
+	r.On("ResolveRevision", mock.Anything, mock.Anything).Return(f.revision, nil)
+	r.On("ListApps", mock.Anything).Return(map[string]string{}, "", nil)
+	r.On("RevisionMetadata", mock.Anything, f.revision).Return(f.revisionMetadata, nil)
+	return &r, nil
 }
 
 func TestGenerateYamlManifestInDir(t *testing.T) {
@@ -246,7 +247,7 @@ func TestGenerateFromUTF16(t *testing.T) {
 }
 
 func TestGetAppDetailsHelm(t *testing.T) {
-	serve := newMockRepoServerService("../../util/helm/testdata")
+	serve := newMockRepoServerService("../../util/helm/testdata", "redis")
 	ctx := context.Background()
 
 	// verify default parameters are returned when not supplying values
@@ -256,6 +257,8 @@ func TestGetAppDetailsHelm(t *testing.T) {
 			Path: "redis",
 		})
 		assert.NoError(t, err)
+		assert.Equal(t, "Helm", res.Type)
+		assert.NotNil(t, res.Helm)
 		assert.Equal(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
 		assert.Contains(t, res.Helm.Values, "registry: docker.io")
 		assert.Equal(t, argoappv1.HelmParameter{Name: "image.pullPolicy", Value: "Always"}, getHelmParameter("image.pullPolicy", res.Helm.Parameters))
@@ -272,6 +275,8 @@ func TestGetAppDetailsHelm(t *testing.T) {
 			},
 		})
 		assert.NoError(t, err)
+		assert.Equal(t, "Helm", res.Type)
+		assert.NotNil(t, res.Helm)
 		assert.Equal(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
 		assert.Contains(t, res.Helm.Values, "registry: docker.io")
 		assert.Equal(t, argoappv1.HelmParameter{Name: "image.pullPolicy", Value: "IfNotPresent"}, getHelmParameter("image.pullPolicy", res.Helm.Parameters))
@@ -289,7 +294,7 @@ func getHelmParameter(name string, params []*argoappv1.HelmParameter) argoappv1.
 }
 
 func TestGetAppDetailsKsonnet(t *testing.T) {
-	serve := newMockRepoServerService("../../test/e2e/testdata")
+	serve := newMockRepoServerService("../../test/e2e/testdata", "ksonnet")
 	ctx := context.Background()
 
 	res, err := serve.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
@@ -306,7 +311,7 @@ func TestGetAppDetailsKsonnet(t *testing.T) {
 }
 
 func TestGetAppDetailsKustomize(t *testing.T) {
-	serve := newMockRepoServerService("../../util/kustomize/testdata")
+	serve := newMockRepoServerService("../../util/kustomize/testdata", "kustomization_yaml")
 	ctx := context.Background()
 
 	res, err := serve.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
@@ -318,11 +323,11 @@ func TestGetAppDetailsKustomize(t *testing.T) {
 }
 
 func TestService_GetRevisionMetadata(t *testing.T) {
-	factory := newFakeGitClientFactory(".")
+	factory := newFakeFactory(".", "")
 	service := &Service{
-		repoLock:      util.NewKeyLock(),
-		clientFactory: factory,
-		cache:         cache.NewCache(cache.NewInMemoryCache(1 * time.Hour)),
+		repoLock:    util.NewKeyLock(),
+		repoFactory: factory,
+		cache:       cache.NewCache(cache.NewInMemoryCache(1 * time.Hour)),
 	}
 	type args struct {
 		q *apiclient.RepoServerRevisionMetadataRequest

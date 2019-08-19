@@ -10,7 +10,7 @@ import (
 	"github.com/argoproj/argo-cd/util/repo"
 )
 
-var clientCache = cache.New(5*time.Minute, 5*time.Minute)
+var repoCache = cache.New(5*time.Minute, 5*time.Minute)
 
 func NewRepo(url, name, username, password string, caData, certData, keyData []byte) (repo.Repo, error) {
 
@@ -18,9 +18,9 @@ func NewRepo(url, name, username, password string, caData, certData, keyData []b
 		return nil, errors.New("must name repo")
 	}
 
-	cached, found := clientCache.Get(url)
+	cached, found := repoCache.Get(url)
 	if found {
-		log.WithFields(log.Fields{"url": url}).Debug("client cfg cache hit")
+		log.WithFields(log.Fields{"url": url}).Debug("helm repo cache hit")
 		return cached.(repo.Repo), nil
 	}
 
@@ -34,7 +34,7 @@ func NewRepo(url, name, username, password string, caData, certData, keyData []b
 		return nil, err
 	}
 
-	cfg := helmRepo{
+	r := helmRepo{
 		cmd:      cmd,
 		url:      url,
 		name:     name,
@@ -45,19 +45,19 @@ func NewRepo(url, name, username, password string, caData, certData, keyData []b
 		keyData:  keyData,
 	}
 
-	_, err = cfg.getIndex()
+	_, err = r.getIndex()
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = cfg.repoAdd()
+	_, err = r.repoAdd()
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = cfg.cmd.repoUpdate()
+	_, err = r.cmd.repoUpdate()
 
-	clientCache.Set(url, cfg, cache.DefaultExpiration)
+	repoCache.Set(url, r, cache.DefaultExpiration)
 
-	return cfg, err
+	return r, err
 }

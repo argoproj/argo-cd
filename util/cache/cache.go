@@ -92,12 +92,12 @@ func repoConnectionStateKey(repo string) string {
 	return fmt.Sprintf("repo|%s|connection-state", repo)
 }
 
-func listDirKey(commitSHA string, path string) string {
-	return fmt.Sprintf("ldir|%s|%s", path, commitSHA)
+func listApps(revision, path string) string {
+	return fmt.Sprintf("ldir|%s|%s", path, revision)
 }
 
-func gitFileKey(commitSHA string, path string) string {
-	return fmt.Sprintf("gfile|%s|%s", path, commitSHA)
+func gitFileKey(revision string, path string) string {
+	return fmt.Sprintf("gfile|%s|%s", path, revision)
 }
 
 func oidcStateKey(key string) string {
@@ -175,14 +175,14 @@ func (c *Cache) GetRepoConnectionState(repo string) (appv1.ConnectionState, erro
 func (c *Cache) SetRepoConnectionState(repo string, state *appv1.ConnectionState) error {
 	return c.setItem(repoConnectionStateKey(repo), &state, connectionStatusCacheExpiration, state == nil)
 }
-func (c *Cache) GetGitListDir(commitSha string, path string) ([]string, error) {
-	res := make([]string, 0)
-	err := c.getItem(listDirKey(commitSha, path), &res)
+func (c *Cache) ListApps(revision, path string) (map[string]string, error) {
+	res := make(map[string]string)
+	err := c.getItem(listApps(revision, path), &res)
 	return res, err
 }
 
-func (c *Cache) SetListDir(commitSha string, path string, files []string) error {
-	return c.setItem(listDirKey(commitSha, path), files, repoCacheExpiration, files == nil)
+func (c *Cache) SetApps(revision, path string, apps map[string]string) error {
+	return c.setItem(listApps(revision, path), apps, repoCacheExpiration, apps == nil)
 }
 
 func (c *Cache) GetGitFile(commitSha string, path string) ([]byte, error) {

@@ -1712,7 +1712,7 @@ func printOperationResult(opState *argoappv1.OperationState) {
 	}
 	if opState.SyncResult != nil {
 		fmt.Printf(printOpFmtStr, "Operation:", "Sync")
-		fmt.Printf(printOpFmtStr, "Sync Revision:", opState.SyncResult.Revision)
+		fmt.Printf(printOpFmtStr, "Sync latestRevision:", opState.SyncResult.Revision)
 	}
 	fmt.Printf(printOpFmtStr, "Phase:", opState.Phase)
 	fmt.Printf(printOpFmtStr, "Start:", opState.StartedAt)

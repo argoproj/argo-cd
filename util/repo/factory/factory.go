@@ -1,29 +1,30 @@
-package repofactory
+package factory
 
 import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/app/disco"
 	"github.com/argoproj/argo-cd/util/creds"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/repo"
 )
 
-type RepoFactory interface {
+type Factory interface {
 	NewRepo(r *v1alpha1.Repository) (repo.Repo, error)
 }
 
-func NewRepoFactory() RepoFactory {
-	return &repoFactory{}
+func NewFactory() Factory {
+	return &factory{}
 }
 
-type repoFactory struct {
+type factory struct {
 }
 
-func (f *repoFactory) NewRepo(r *v1alpha1.Repository) (repo.Repo, error) {
+func (f *factory) NewRepo(r *v1alpha1.Repository) (repo.Repo, error) {
 	switch r.Type {
 	case "helm":
 		return helm.NewRepo(r.Repo, r.Name, r.Username, r.Password, []byte(r.TLSClientCAData), []byte(r.TLSClientCertData), []byte(r.TLSClientCertKey))
 	default:
-		return git.NewRepo(r.Repo, creds.GetRepoCreds(r), r.IsInsecure(), r.EnableLFS)
+		return git.NewRepo(r.Repo, creds.GetRepoCreds(r), r.IsInsecure(), r.EnableLFS, disco.Discover)
 	}
 }

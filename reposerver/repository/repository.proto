@@ -30,29 +30,16 @@ message ManifestResponse {
     string sourceType = 6;
 }
 
-// ListDirRequest requests a repository directory structure
-message ListDirRequest {
+// ListAppsRequest requests a repository directory structure
+message ListAppsRequest {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
     string revision = 2;
     string path = 3;
 }
 
-// FileList returns the contents of the repo of a ListDir request
-message FileList {
-    repeated string items = 1;
-}
-
-// GetFileRequest return
-message GetFileRequest {
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
-    string revision = 2;
-    string path = 3;
-}
-
-
-// GetFileResponse returns the contents of the file of a GetFile request
-message GetFileResponse {
-    bytes data = 1;
+// AppList returns the contents of the repo of a ListApps request
+message AppList {
+    map<string, string> apps = 1;
 }
 
 // RepoServerAppDetailsQuery contains query information for app details request
@@ -150,12 +137,8 @@ service RepoServerService {
     rpc GenerateManifest(ManifestRequest) returns (ManifestResponse) {
     }
 
-    // ListDir returns the file contents at the specified repo and path
-    rpc ListDir(ListDirRequest) returns (FileList) {
-    }
-
-    // GetFile returns the file contents at the specified repo and path
-    rpc GetFile(GetFileRequest) returns (GetFileResponse) {
+    // ListApps returns the file contents at the specified repo and path
+    rpc ListApps(ListAppsRequest) returns (AppList) {
     }
 
     // Generate manifest for application in specified repo name and revision

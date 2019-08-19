@@ -3,14 +3,11 @@ package helm
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/gobwas/glob"
 	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
@@ -26,27 +23,11 @@ type helmRepo struct {
 	caData, certData, keyData     []byte
 }
 
-func (c helmRepo) Test() error {
-	_, err := c.cmd.init()
-	return err
-}
-
-func (c helmRepo) Root() string {
+func (c helmRepo) LockKey() string {
 	return c.cmd.workDir
 }
 
-func (c helmRepo) Init() error {
-	info, err := os.Stat(c.cmd.workDir)
-	if err != nil {
-		return err
-	}
-	if !info.IsDir() {
-		_, err = c.cmd.init()
-	}
-	return err
-}
-
-func (c helmRepo) ResolveRevision(path, revision string) (string, error) {
+func (c helmRepo) ResolveRevision(app, revision string) (string, error) {
 	if revision != "" {
 		return revision, nil
 	}
@@ -57,42 +38,28 @@ func (c helmRepo) ResolveRevision(path, revision string) (string, error) {
 	}
 
 	for chartName := range index.Entries {
-		if chartName == path {
+		if chartName == app {
 			return index.Entries[chartName][0].Version, nil
 		}
 	}
 
-	return "", errors.New("failed to find chart " + path)
+	return "", errors.New("failed to find chart " + app)
 }
 
-func (c helmRepo) Revision(path string) (string, error) {
-
-	chartName := strings.Split(path, "/")[0]
-	yamlFile, err := ioutil.ReadFile(filepath.Join(c.cmd.workDir, chartName, "Chart.yaml"))
-	if err != nil {
-		return "", err
-	}
-
-	entry := &entry{}
-	err = yaml.Unmarshal(yamlFile, entry)
-
-	return entry.Version, err
-}
-
-func (c helmRepo) RevisionMetadata(path, revision string) (*repo.RevisionMetadata, error) {
+func (c helmRepo) RevisionMetadata(app, revision string) (*repo.RevisionMetadata, error) {
 
 	index, err := c.getIndex()
 	if err != nil {
 		return nil, err
 	}
 
-	for _, entry := range index.Entries[path] {
+	for _, entry := range index.Entries[app] {
 		if entry.Version == revision {
 			return &repo.RevisionMetadata{Date: entry.Created}, nil
 		}
 	}
 
-	return nil, fmt.Errorf("unknown chart \"%s/%s\"", path, revision)
+	return nil, fmt.Errorf("unknown chart \"%s/%s\"", app, revision)
 }
 
 type entry struct {
@@ -135,26 +102,16 @@ func (c helmRepo) getIndex() (*index, error) {
 	return index, err
 }
 
-func (c helmRepo) LsFiles(path string) ([]string, error) {
-
-	matcher, err := glob.Compile(path)
-	if err != nil {
-		return nil, err
-	}
+func (c helmRepo) ListApps(revision string) (map[string]string, string, error) {
 	index, err := c.getIndex()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-
-	var files []string
+	apps := make(map[string]string, len(index.Entries))
 	for chartName := range index.Entries {
-		file := filepath.Join(chartName, "Chart.yaml")
-		if matcher.Match(file) {
-			files = append(files, file)
-		}
+		apps[chartName] = "Helm"
 	}
-
-	return files, nil
+	return apps, revision, nil
 }
 
 func (c helmRepo) repoAdd() (string, error) {
@@ -164,21 +121,20 @@ func (c helmRepo) repoAdd() (string, error) {
 	})
 }
 
-func (c helmRepo) Checkout(path string, resolvedRevision string) error {
-
+func (c helmRepo) GetApp(app string, resolvedRevision string) (string, error) {
 	if resolvedRevision == "" {
-		return fmt.Errorf("invalid resolved revision \"%s\", must be resolved", resolvedRevision)
+		return "", fmt.Errorf("invalid resolved revision \"%s\", must be resolved", resolvedRevision)
 	}
 
-	chartName := strings.Split(path, "/")[0]
+	chartName := strings.Split(app, "/")[0]
 	err := c.checkKnownChart(chartName)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	_, err = c.cmd.fetch(c.name, chartName, fetchOpts{version: resolvedRevision, destination: "."})
 
-	return err
+	return filepath.Join(c.cmd.workDir, app), err
 }
 
 func (c helmRepo) checkKnownChart(chartName string) error {

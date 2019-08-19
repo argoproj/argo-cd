@@ -8,13 +8,13 @@ import (
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/repo"
-	"github.com/argoproj/argo-cd/util/repofactory"
+	"github.com/argoproj/argo-cd/util/repo/factory"
 )
 
 type MetricsServer struct {
 	handler           http.Handler
 	gitRequestCounter *prometheus.CounterVec
-	clientFactory     repofactory.RepoFactory
+	clientFactory     factory.Factory
 }
 
 type GitRequestType string
@@ -25,7 +25,7 @@ const (
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
-func NewMetricsServer(clientFactory repofactory.RepoFactory) *MetricsServer {
+func NewMetricsServer(clientFactory factory.Factory) *MetricsServer {
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
 	registry.MustRegister(prometheus.NewGoCollector())
@@ -60,5 +60,5 @@ func (m *MetricsServer) NewRepo(repo *v1alpha1.Repository) (repo.Repo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return wrapGitClient(repo.Repo, m, client), nil
+	return wrapRepo(repo.Repo, m, client), nil
 }

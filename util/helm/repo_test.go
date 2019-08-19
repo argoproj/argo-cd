@@ -13,10 +13,10 @@ func TestRepo(t *testing.T) {
 	// TODO - this changes regularly
 	const latestWordpressVersion = "5.8.0"
 
-	t.Run("LsFiles", func(t *testing.T) {
-		apps, err := repo.LsFiles("wordpress/*.yaml")
+	t.Run("List", func(t *testing.T) {
+		apps, _, err := repo.ListApps("")
 		assert.NoError(t, err)
-		assert.ElementsMatch(t, apps, []string{"wordpress/Chart.yaml"})
+		assert.Contains(t, apps, "wordpress")
 	})
 
 	t.Run("ResolveRevision", func(t *testing.T) {
@@ -33,26 +33,18 @@ func TestRepo(t *testing.T) {
 	})
 
 	t.Run("Checkout", func(t *testing.T) {
-		err := repo.Checkout("wordpress", latestWordpressVersion)
+		appPath, err := repo.GetApp("wordpress", latestWordpressVersion)
 		assert.NoError(t, err)
-
-		revision, err := repo.Revision("wordpress")
-		assert.NoError(t, err)
-		assert.Equal(t, latestWordpressVersion, revision)
-	})
-
-	t.Run("Checkout/File", func(t *testing.T) {
-		err := repo.Checkout("wordpress/Chart.yaml", latestWordpressVersion)
-		assert.NoError(t, err)
+		assert.NotEmpty(t, appPath)
 	})
 
 	t.Run("Checkout/UnresolvedRevision", func(t *testing.T) {
-		err = repo.Checkout("wordpress", "")
+		_, err := repo.GetApp("wordpress", "")
 		assert.EqualError(t, err, "invalid resolved revision \"\", must be resolved")
 	})
 
 	t.Run("Checkout/UnknownChart", func(t *testing.T) {
-		err = repo.Checkout("garbage", latestWordpressVersion)
+		_, err := repo.GetApp("garbage", latestWordpressVersion)
 		assert.EqualError(t, err, "unknown chart \"garbage\"")
 	})
 

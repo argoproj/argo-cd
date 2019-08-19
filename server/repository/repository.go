@@ -1,10 +1,7 @@
 package repository
 
 import (
-	"errors"
 	"fmt"
-	"path"
-	"path/filepath"
 	"reflect"
 
 	log "github.com/sirupsen/logrus"
@@ -20,10 +17,8 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/kustomize"
 	"github.com/argoproj/argo-cd/util/rbac"
-	repo2 "github.com/argoproj/argo-cd/util/repo"
-	"github.com/argoproj/argo-cd/util/repofactory"
+	"github.com/argoproj/argo-cd/util/repo/factory"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -62,14 +57,10 @@ func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.Conn
 		Status:     appsv1.ConnectionStatusSuccessful,
 		ModifiedAt: &now,
 	}
-	var client repo2.Repo
 	var err error
 	repo, err := s.db.GetRepository(ctx, url)
 	if err == nil {
-		client, err = repofactory.NewRepoFactory().NewRepo(repo)
-	}
-	if client != nil && err == nil {
-		err = client.Test()
+		_, err = factory.NewFactory().NewRepo(repo)
 	}
 	if err != nil {
 		connectionState.Status = appsv1.ConnectionStatusFailed
@@ -112,66 +103,7 @@ func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.
 	return &appsv1.RepositoryList{Items: items}, nil
 }
 
-func (s *Server) listAppsPaths(
-	ctx context.Context, repoClient apiclient.RepoServerServiceClient, repo *appsv1.Repository, revision string, subPath string) (map[string]appsv1.ApplicationSourceType, error) {
-
-	ksonnetRes, err := repoClient.ListDir(ctx, &apiclient.ListDirRequest{Repo: repo, Revision: revision, Path: path.Join(subPath, "*app.yaml")})
-	if err != nil {
-		return nil, err
-	}
-	componentRes, err := repoClient.ListDir(ctx, &apiclient.ListDirRequest{Repo: repo, Revision: revision, Path: path.Join(subPath, "*components/params.libsonnet")})
-	if err != nil {
-		return nil, err
-	}
-
-	helmRes, err := repoClient.ListDir(ctx, &apiclient.ListDirRequest{Repo: repo, Revision: revision, Path: path.Join(subPath, "*Chart.yaml")})
-	if err != nil {
-		return nil, err
-	}
-
-	kustomizationRes, err := getKustomizationRes(ctx, repoClient, repo, revision, subPath)
-	if err != nil {
-		return nil, err
-	}
-
-	componentDirs := make(map[string]interface{})
-	for _, i := range componentRes.Items {
-		d := filepath.Dir(filepath.Dir(i))
-		componentDirs[d] = struct{}{}
-	}
-
-	pathToType := make(map[string]appsv1.ApplicationSourceType)
-	for _, i := range ksonnetRes.Items {
-		d := filepath.Dir(i)
-		if _, ok := componentDirs[d]; ok {
-			pathToType[i] = appsv1.ApplicationSourceTypeKsonnet
-		}
-	}
-
-	for i := range helmRes.Items {
-		pathToType[helmRes.Items[i]] = appsv1.ApplicationSourceTypeHelm
-	}
-
-	for i := range kustomizationRes.Items {
-		pathToType[kustomizationRes.Items[i]] = appsv1.ApplicationSourceTypeKustomize
-	}
-	return pathToType, nil
-}
-
-func getKustomizationRes(ctx context.Context, repoClient apiclient.RepoServerServiceClient, repo *appsv1.Repository, revision string, subPath string) (*apiclient.FileList, error) {
-	for _, kustomization := range kustomize.KustomizationNames {
-		request := apiclient.ListDirRequest{Repo: repo, Revision: revision, Path: path.Join(subPath, "*"+kustomization)}
-		kustomizationRes, err := repoClient.ListDir(ctx, &request)
-		if err != nil {
-			return nil, err
-		} else {
-			return kustomizationRes, nil
-		}
-	}
-	return nil, errors.New("could not find kustomization")
-}
-
-// ListApps returns list of apps in the repo
+// List returns list of apps in the repo
 func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (*repositorypkg.RepoAppsResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo); err != nil {
 		return nil, err
@@ -188,14 +120,16 @@ func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (
 	}
 	defer util.Close(conn)
 
-	revision := q.Revision
-	paths, err := s.listAppsPaths(ctx, repoClient, repo, revision, "")
+	apps, err := repoClient.ListApps(ctx, &apiclient.ListAppsRequest{
+		Repo:     repo,
+		Revision: q.Revision,
+	})
 	if err != nil {
 		return nil, err
 	}
 	items := make([]*repositorypkg.AppInfo, 0)
-	for appFilePath, appType := range paths {
-		items = append(items, &repositorypkg.AppInfo{Path: path.Dir(appFilePath), Type: string(appType)})
+	for app, appType := range apps.Apps {
+		items = append(items, &repositorypkg.AppInfo{Path: app, Type: appType})
 	}
 	return &repositorypkg.RepoAppsResponse{Items: items}, nil
 }
@@ -241,7 +175,7 @@ func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest)
 		return nil, err
 	}
 	r := q.Repo
-	_, err = repofactory.NewRepoFactory().NewRepo(q.Repo)
+	_, err = factory.NewFactory().NewRepo(q.Repo)
 	if err != nil {
 		return nil, err
 	}
@@ -309,14 +243,11 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		Insecure:          q.Insecure,
 		TLSClientCertData: q.TlsClientCertData,
 		TLSClientCertKey:  q.TlsClientCertKey,
+		TLSClientCAData:   q.TlsClientCAData,
 	}
-	client, err := repofactory.NewRepoFactory().NewRepo(repo)
+	_, err := factory.NewFactory().NewRepo(repo)
 	if err != nil {
 		return nil, err
 	}
-	err = client.Test()
-	if err != nil {
-		return nil, err
-	}
-	return &repositorypkg.RepoResponse{}, client.Test()
+	return &repositorypkg.RepoResponse{}, nil
 }
