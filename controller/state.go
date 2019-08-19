@@ -9,6 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/cache"
 
@@ -52,7 +53,7 @@ func GetLiveObjs(res []managedResource) []*unstructured.Unstructured {
 }
 
 type ResourceInfoProvider interface {
-	IsNamespaced(server string, obj *unstructured.Unstructured) (bool, error)
+	IsNamespaced(server string, gk schema.GroupKind) (bool, error)
 }
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
@@ -173,7 +174,7 @@ func DeduplicateTargetObjects(
 	targetByKey := make(map[kubeutil.ResourceKey][]*unstructured.Unstructured)
 	for i := range objs {
 		obj := objs[i]
-		isNamespaced, err := infoProvider.IsNamespaced(server, obj)
+		isNamespaced, err := infoProvider.IsNamespaced(server, obj.GroupVersionKind().GroupKind())
 		if err != nil {
 			return objs, nil, err
 		}
@@ -327,7 +328,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	for i, obj := range targetObjs {
 		gvk := obj.GroupVersionKind()
 		ns := util.FirstNonEmpty(obj.GetNamespace(), app.Spec.Destination.Namespace)
-		if namespaced, err := m.liveStateCache.IsNamespaced(app.Spec.Destination.Server, obj); err == nil && !namespaced {
+		if namespaced, err := m.liveStateCache.IsNamespaced(app.Spec.Destination.Server, obj.GroupVersionKind().GroupKind()); err == nil && !namespaced {
 			ns = ""
 		}
 		key := kubeutil.NewResourceKey(gvk.Group, gvk.Kind, ns, obj.GetName())

@@ -1,4 +1,4 @@
-import {DropDownMenu, MenuItem, NotificationType, SlidingPanel, Tab, Tabs, TopBarFilter} from 'argo-ui';
+import {Checkbox as ArgoCheckbox, DropDownMenu, MenuItem, NotificationType, SlidingPanel, Tab, Tabs, TopBarFilter} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -98,6 +98,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                     if (params.get('view') != null) {
                         pref.view = params.get('view') as AppsDetailsViewType;
                     }
+                    if (params.get('orphaned') != null) {
+                        pref.orphanedResources = params.get('orphaned') === 'true';
+                    }
                     return {...items[0], pref};
                 })}>
 
@@ -185,6 +188,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                             </div>
                             <div className='application-details__tree'>
                                 {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
+                                {(tree.orphanedNodes || []).length > 0 && (
+                                    <div className='application-details__orphaned-filter'>
+                                        <ArgoCheckbox checked={!!pref.orphanedResources} id='orphanedFilter' onChange={(val) => {
+                                            this.appContext.apis.navigation.goto('.', { orphaned: val });
+                                            services.viewPreferences.updatePreferences({ appDetails: {...pref, orphanedResources: val} });
+                                        }}/> <label htmlFor='orphanedFilter'>SHOW ORPHANED</label>
+                                    </div>
+                                )}
                                 {(pref.view === 'tree' || pref.view === 'network') && (
                                     <ApplicationResourceTree
                                         nodeFilter={(node) => this.filterTreeNode(node, treeFilter)}
@@ -193,6 +204,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                         nodeMenu={(node) => this.renderResourceMenu(node, application)}
                                         tree={tree}
                                         app={application}
+                                        showOrphanedResources={pref.orphanedResources}
                                         useNetworkingHierarchy={pref.view === 'network'}
                                         onClearFilter={() => {
                                             this.appContext.apis.navigation.goto('.', { resource: '' } );
@@ -374,6 +386,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                 const app = appInfo.app;
                 const fallbackTree: appModels.ApplicationTree = {
                     nodes: app.status.resources.map((res) => ({...res, parentRefs: [], info: [], resourceVersion: '', uid: ''})),
+                    orphanedNodes: [],
                 };
                 const treeSource = new Observable<{ application: appModels.Application, tree: appModels.ApplicationTree }>((observer) => {
                     services.applications.resourceTree(app.metadata.name)
@@ -403,7 +416,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
 
     private groupAppNodesByKey(application: appModels.Application, tree: appModels.ApplicationTree) {
         const nodeByKey = new Map<string, appModels.ResourceDiff | appModels.ResourceNode | appModels.Application>();
-        tree.nodes.forEach((node) => nodeByKey.set(nodeKey(node), node));
+        tree.nodes.concat(tree.orphanedNodes || []).forEach((node) => nodeByKey.set(nodeKey(node), node));
         nodeByKey.set(nodeKey({group: 'argoproj.io', kind: application.kind, name: application.metadata.name, namespace: application.metadata.namespace}), application);
         return nodeByKey;
     }
@@ -550,7 +563,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         await AppUtils.deleteApplication(this.props.match.params.name, this.appContext.apis);
     }
 
-    private getResourceTabs(application: appModels.Application, node: ResourceTreeNode, state: appModels.State, events: appModels.Event[], tabs: Tab[]) {
+    private getResourceTabs(application: appModels.Application, node: appModels.ResourceNode, state: appModels.State, events: appModels.Event[], tabs: Tab[]) {
         if (state) {
             const numErrors = events.filter((event) => event.type !== 'Normal').reduce((total, event) => total + event.count, 0);
             tabs.push({

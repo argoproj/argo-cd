@@ -15,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
@@ -736,4 +737,36 @@ func TestExcludedResource(t *testing.T) {
 		Sync().
 		Then().
 		Expect(Condition(ApplicationConditionExcludedResourceWarning, "Resource apps/Deployment guestbook-ui is excluded in the settings"))
+}
+
+func TestOrphanedResource(t *testing.T) {
+	Given(t).
+		ProjectSpec(AppProjectSpec{
+			SourceRepos:       []string{"*"},
+			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true)},
+			NamespaceResourceBlacklist: []metav1.GroupKind{{
+				Kind: kube.ServiceAccountKind,
+			}},
+		}).
+		Path(guestbookPath).
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Len(t, app.Status.Conditions, 0)
+		}).
+		When().
+		And(func() {
+			errors.FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(&v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "orphaned-configmap",
+				},
+			}))
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(Condition(ApplicationConditionOrphanedResourceWarning, "Application has 1 orphaned resources"))
 }

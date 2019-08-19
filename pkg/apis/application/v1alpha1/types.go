@@ -680,6 +680,8 @@ const (
 	ApplicationConditionRepeatedResourceWarning = "RepeatedResourceWarning"
 	// ApplicationConditionExcludedResourceWarning indicates that application has resource which is configured to be excluded
 	ApplicationConditionExcludedResourceWarning = "ExcludedResourceWarning"
+	// ApplicationConditionOrphanedResourceWarning indicates that application has orphaned resources
+	ApplicationConditionOrphanedResourceWarning = "OrphanedResourceWarning"
 )
 
 // ApplicationCondition contains details about current application condition
@@ -739,7 +741,10 @@ type ResourceNetworkingInfo struct {
 
 // ApplicationTree holds nodes which belongs to the application
 type ApplicationTree struct {
+	// Nodes contains list of nodes which either directly managed by the application and children of directly managed nodes.
 	Nodes []ResourceNode `json:"nodes,omitempty" protobuf:"bytes,1,rep,name=nodes"`
+	// OrphanedNodes contains if or orphaned nodes: nodes which are not managed by the app but in the same namespace. List is populated only if orphaned resources enabled in app project.
+	OrphanedNodes []ResourceNode `json:"orphanedNodes,omitempty" protobuf:"bytes,2,rep,name=orphanedNodes"`
 }
 
 type ApplicationSummary struct {
@@ -750,7 +755,7 @@ type ApplicationSummary struct {
 }
 
 func (t *ApplicationTree) FindNode(group string, kind string, namespace string, name string) *ResourceNode {
-	for _, n := range t.Nodes {
+	for _, n := range append(t.Nodes, t.OrphanedNodes...) {
 		if n.Group == group && n.Kind == kind && n.Namespace == namespace && n.Name == name {
 			return &n
 		}
@@ -1280,6 +1285,16 @@ func (p *AppProject) normalizePolicy(policy string) string {
 	return normalizedPolicy
 }
 
+// OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring
+type OrphanedResourcesMonitorSettings struct {
+	// Warn indicates if warning condition should be created for apps which have orphaned resources
+	Warn *bool `json:"warn,omitempty" protobuf:"bytes,1,name=warn"`
+}
+
+func (s *OrphanedResourcesMonitorSettings) IsWarn() bool {
+	return s.Warn == nil || *s.Warn
+}
+
 // AppProjectSpec is the specification of an AppProject
 type AppProjectSpec struct {
 	// SourceRepos contains list of git repository URLs which can be used for deployment
@@ -1294,6 +1309,8 @@ type AppProjectSpec struct {
 	ClusterResourceWhitelist []metav1.GroupKind `json:"clusterResourceWhitelist,omitempty" protobuf:"bytes,5,opt,name=clusterResourceWhitelist"`
 	// NamespaceResourceBlacklist contains list of blacklisted namespace level resources
 	NamespaceResourceBlacklist []metav1.GroupKind `json:"namespaceResourceBlacklist,omitempty" protobuf:"bytes,6,opt,name=namespaceResourceBlacklist"`
+	// OrphanedResources specifies if controller should monitor orphaned resources of apps in this project
+	OrphanedResources *OrphanedResourcesMonitorSettings `json:"orphanedResources,omitempty" protobuf:"bytes,7,opt,name=orphanedResources"`
 }
 
 func (d AppProjectSpec) DestinationClusters() []string {
@@ -1403,6 +1420,21 @@ func (app *Application) SetCascadedDeletion(prune bool) {
 			app.Finalizers = append(app.Finalizers, common.ResourcesFinalizerName)
 		}
 	}
+}
+
+func (status *ApplicationStatus) SetConditions(conditions []ApplicationCondition, evaluatedTypes map[ApplicationConditionType]bool) {
+	appConditions := make([]ApplicationCondition, 0)
+	for i := 0; i < len(status.Conditions); i++ {
+		condition := status.Conditions[i]
+		if _, ok := evaluatedTypes[condition.Type]; !ok {
+			appConditions = append(appConditions, condition)
+		}
+	}
+	for i := range conditions {
+		condition := conditions[i]
+		appConditions = append(appConditions, condition)
+	}
+	status.Conditions = appConditions
 }
 
 // GetErrorConditions returns list of application error conditions

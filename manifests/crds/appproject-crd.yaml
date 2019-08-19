@@ -430,6 +430,15 @@ spec:
                 - kind
                 type: object
               type: array
+            orphanedResources:
+              description: OrphanedResources specifies if controller should monitor
+                orphaned resources of apps in this project
+              properties:
+                warn:
+                  description: Warn indicates if warning condition should be created
+                    for apps which have orphaned resources
+                  type: boolean
+              type: object
             roles:
               description: Roles are user defined RBAC roles associated with this
                 project

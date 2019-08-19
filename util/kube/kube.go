@@ -36,6 +36,7 @@ const (
 const (
 	SecretKind                   = "Secret"
 	ServiceKind                  = "Service"
+	ServiceAccountKind           = "ServiceAccount"
 	EndpointsKind                = "Endpoints"
 	DeploymentKind               = "Deployment"
 	ReplicaSetKind               = "ReplicaSet"

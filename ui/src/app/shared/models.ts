@@ -269,6 +269,7 @@ export interface ResourceNode extends ResourceRef {
 
 export interface ApplicationTree {
     nodes: ResourceNode[];
+    orphanedNodes: ResourceNode[];
 }
 
 export interface ResourceDiff {
