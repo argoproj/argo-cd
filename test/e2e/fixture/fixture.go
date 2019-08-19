@@ -2,7 +2,6 @@ package fixture
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -11,8 +10,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/pkg/errors"
 	jsonpatch "github.com/evanphx/json-patch"
@@ -295,9 +292,10 @@ func SetHelmRepoCredential(creds settings.HelmRepoCredentials) {
 }
 
 func SetProjectSpec(project string, spec v1alpha1.AppProjectSpec) {
-	data, err := json.Marshal(spec)
+	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Get(project, v1.GetOptions{})
 	errors.CheckError(err)
-	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Patch(project, types.MergePatchType, []byte(fmt.Sprintf(`{ "spec": %s }`, string(data))))
+	proj.Spec = spec
+	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Update(proj)
 	errors.CheckError(err)
 }
 

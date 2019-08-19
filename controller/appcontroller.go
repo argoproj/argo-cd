@@ -281,12 +281,14 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 			}
 		}
 	}
+	var conditions []appv1.ApplicationCondition
 	if len(orphanedNodes) > 0 && warnOrphaned {
-		a.Status.SetConditions([]appv1.ApplicationCondition{{
+		conditions = []appv1.ApplicationCondition{{
 			Type:    appv1.ApplicationConditionOrphanedResourceWarning,
 			Message: fmt.Sprintf("Application has %d orphaned resources", len(orphanedNodes)),
-		}}, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionOrphanedResourceWarning: true})
+		}}
 	}
+	a.Status.SetConditions(conditions, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionOrphanedResourceWarning: true})
 	return &appv1.ApplicationTree{Nodes: nodes, OrphanedNodes: orphanedNodes}, nil
 }
 
