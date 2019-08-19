@@ -18,7 +18,7 @@ PATH:=$(PATH):$(PWD)/hack
 
 # docker image publishing options
 DOCKER_PUSH?=false
-IMAGE_TAG?=latest
+IMAGE_TAG?=
 # perform static compilation
 STATIC_BUILD?=true
 # build development images
