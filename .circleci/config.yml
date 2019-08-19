@@ -118,15 +118,6 @@ commands:
             sudo cp /tmp/dl/kustomize_${VER} /usr/local/go/bin/kustomize
             sudo chmod +x /usr/local/go/bin/kustomize
             kustomize version
-      - run:
-          name: Install Git LFS plugin
-          command: |
-            set -x
-            curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
-            sleep 5
-            sudo killall -9 apt-get || true
-            sudo apt-get update
-            sudo apt-get install -y git-lfs openssh-client
       - save_cache:
           key: dl-v6
           paths:
