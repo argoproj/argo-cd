@@ -23,11 +23,21 @@ message Settings {
     bool statusBadgeEnabled = 6;
     GoogleAnalyticsConfig googleAnalytics = 7;
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 8;
+    // Help settings
+    Help help = 9;
 }
 
 message GoogleAnalyticsConfig {
     string trackingID = 1;
     bool anonymizeUsers = 2;
+}
+
+// Help settings
+message Help {
+    // the URL for getting chat help, this will typically be your Slack channel for support
+    string chatUrl = 1;
+    // the text for getting chat help, defaults to "Chat now!"
+    string chatText = 2;
 }
 
 message DexConfig {
