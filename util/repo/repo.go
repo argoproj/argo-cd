@@ -15,6 +15,8 @@ type RevisionMetadata struct {
 type Repo interface {
 	// return a key suitable for use for locking this object
 	LockKey() string
+	// init
+	Init() error
 	// list apps for an ambiguous revision,
 	ListApps(revision string) (apps map[string]string, resolvedRevision string, err error)
 	// convert an ambiguous revision (e.g. "", "master" or "HEAD") into a specific revision (e.g. "231345034boc" or "5.8.0")

@@ -74,13 +74,16 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	if err != nil {
 		return nil, err
 	}
+	s.repoLock.Lock(r.LockKey())
+	defer s.repoLock.Unlock(r.LockKey())
+	err = r.Init()
+	if err != nil {
+		return nil, err
+	}
 	if apps, err := s.cache.ListApps(q.Repo.Repo, q.Revision); err == nil {
 		log.Infof("cache hit: %s/%s", q.Repo.Repo, q.Revision)
 		return &apiclient.AppList{Apps: apps}, nil
 	}
-
-	s.repoLock.Lock(r.LockKey())
-	defer s.repoLock.Unlock(r.LockKey())
 	apps, resolvedRevision, err := r.ListApps(q.Revision)
 	if err != nil {
 		return nil, err
@@ -96,6 +99,12 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 
 func (s *Service) GenerateManifest(c context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
 	r, err := s.repoFactory.NewRepo(q.Repo)
+	if err != nil {
+		return nil, err
+	}
+	s.repoLock.Lock(r.LockKey())
+	defer s.repoLock.Unlock(r.LockKey())
+	err = r.Init()
 	if err != nil {
 		return nil, err
 	}
@@ -121,9 +130,6 @@ func (s *Service) GenerateManifest(c context.Context, q *apiclient.ManifestReque
 	if cached != nil {
 		return cached, nil
 	}
-
-	s.repoLock.Lock(r.LockKey())
-	defer s.repoLock.Unlock(r.LockKey())
 
 	cached = getCached()
 	if cached != nil {
@@ -421,12 +427,6 @@ func makeJsonnetVm(sourceJsonnet v1alpha1.ApplicationSourceJsonnet) *jsonnet.VM 
 	return vm
 }
 
-// newClientResolveRevision is a helper to perform the common task of instantiating a client
-// and resolving a revision to a commit SHA
-func (s *Service) newRepo(repo *v1alpha1.Repository) (repo.Repo, error) {
-	return s.repoFactory.NewRepo(repo)
-}
-
 func runCommand(command v1alpha1.Command, path string, env []string) (string, error) {
 	if len(command.Command) == 0 {
 		return "", fmt.Errorf("Command is empty")
@@ -475,7 +475,13 @@ func runConfigManagementPlugin(appPath string, q *apiclient.ManifestRequest, cre
 }
 
 func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error) {
-	r, err := s.newRepo(q.Repo)
+	r, err := s.repoFactory.NewRepo(q.Repo)
+	if err != nil {
+		return nil, err
+	}
+	s.repoLock.Lock(r.LockKey())
+	defer s.repoLock.Unlock(r.LockKey())
+	err = r.Init()
 	if err != nil {
 		return nil, err
 	}
@@ -501,8 +507,6 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 	if cached != nil {
 		return cached, nil
 	}
-	s.repoLock.Lock(r.LockKey())
-	defer s.repoLock.Unlock(r.LockKey())
 	cached = getCached()
 	if cached != nil {
 		return cached, nil
@@ -604,6 +608,10 @@ func (s *Service) getRevisionMetadata(repo *v1alpha1.Repository, app, revision s
 	}
 	s.repoLock.Lock(r.LockKey())
 	defer s.repoLock.Unlock(r.LockKey())
+	err = r.Init()
+	if err != nil {
+		return nil, err
+	}
 	return r.RevisionMetadata(app, revision)
 }
 

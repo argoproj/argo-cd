@@ -67,6 +67,5 @@ func NewRepo(url string, creds git.Creds, insecure, enableLfs bool, disco func(r
 	if err != nil {
 		return nil, err
 	}
-	r := &gitRepo{client, disco}
-	return r, r.Init()
+	return &gitRepo{client, disco}, nil
 }

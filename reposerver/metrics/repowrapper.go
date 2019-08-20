@@ -14,6 +14,10 @@ func wrapRepo(repo string, metricsServer *MetricsServer, client repo.Repo) repo.
 	return &repoWrapper{url: repo, repo: client, metricsServer: metricsServer}
 }
 
+func (w *repoWrapper) Init() error {
+	return w.repo.Init()
+}
+
 func (w *repoWrapper) LockKey() string {
 	return w.repo.LockKey()
 }
