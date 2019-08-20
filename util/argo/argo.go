@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
@@ -24,9 +23,7 @@ import (
 	applicationsv1 "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/cert"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/repo/factory"
 )
@@ -112,6 +109,7 @@ func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, na
 		}
 		app, ok := next.Object.(*argoappv1.Application)
 		if !ok {
+
 			return nil, fmt.Errorf("Application event object failed conversion: %v", next)
 		}
 		annotations := app.GetAnnotations()
@@ -123,37 +121,6 @@ func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, na
 		}
 	}
 	return nil, fmt.Errorf("application refresh deadline exceeded")
-}
-
-func getCAPath(repoURL string) string {
-	if git.IsHTTPSURL(repoURL) {
-		if parsedURL, err := url.Parse(repoURL); err == nil {
-			if caPath, err := cert.GetCertBundlePathForRepository(parsedURL.Host); err != nil {
-				return caPath
-			} else {
-				log.Warnf("Could not get cert bundle path for host '%s'", parsedURL.Host)
-			}
-		} else {
-			// We don't fail if we cannot parse the URL, but log a warning in that
-			// case. And we execute the command in a verbatim way.
-			log.Warnf("Could not parse repo URL '%s'", repoURL)
-		}
-	}
-	return ""
-}
-
-// TODO: Figure out the correct way to distinguish between SSH and HTTPS repos
-func GetRepoCreds(repo *argoappv1.Repository) git.Creds {
-	if repo == nil {
-		return git.NopCreds{}
-	}
-	if (repo.Username != "" && repo.Password != "") || (repo.TLSClientCertData != "" && repo.TLSClientCertKey != "") {
-		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure())
-	}
-	if repo.SSHPrivateKey != "" {
-		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure())
-	}
-	return git.NopCreds{}
 }
 
 // ValidateRepo validates the repository specified in application spec. Following is checked:
@@ -349,7 +316,7 @@ func ContainsSyncResource(name string, gvk schema.GroupVersionKind, rr []argoapp
 // NormalizeApplicationSpec will normalize an application spec to a preferred state. This is used
 // for migrating application objects which are using deprecated legacy fields into the new fields,
 // and defaulting fields in the spec (e.g. spec.project)
-func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec, sourceType argoappv1.ApplicationSourceType) *argoappv1.ApplicationSpec {
+func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.ApplicationSpec {
 	spec = spec.DeepCopy()
 	if spec.Project == "" {
 		spec.Project = common.DefaultAppProjectName

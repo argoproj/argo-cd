@@ -28,9 +28,9 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/app/disco"
-	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/config"
+	"github.com/argoproj/argo-cd/util/creds"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/ksonnet"
@@ -181,7 +181,7 @@ func GenerateManifests(root, path string, q *apiclient.ManifestRequest) (*apicli
 	var dest *v1alpha1.ApplicationDestination
 
 	appSourceType, err := GetAppSourceType(q.ApplicationSource, appPath)
-	creds := argo.GetRepoCreds(q.Repo)
+	creds := creds.GetRepoCreds(q.Repo)
 	repoURL := ""
 	if q.Repo != nil {
 		repoURL = q.Repo.Repo
@@ -607,7 +607,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		res.Helm.Parameters = params
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		res.Kustomize = &apiclient.KustomizeAppSpec{}
-		k := kustomize.NewKustomizeApp(appPath, argo.GetRepoCreds(q.Repo), q.Repo.Repo)
+		k := kustomize.NewKustomizeApp(appPath, creds.GetRepoCreds(q.Repo), q.Repo.Repo)
 		_, images, err := k.Build(nil, q.KustomizeOptions)
 		if err != nil {
 			return nil, err

@@ -694,7 +694,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if err != nil {
 		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
 	} else {
-		ctrl.normalizeApplication(origApp, app, compareResult.appSourceType)
+		ctrl.normalizeApplication(origApp, app)
 		conditions = append(conditions, compareResult.conditions...)
 	}
 	tree, err := ctrl.setAppManagedResources(app, compareResult)
@@ -809,9 +809,9 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 }
 
 // normalizeApplication normalizes an application.spec and additionally persists updates if it changed
-func (ctrl *ApplicationController) normalizeApplication(orig, app *appv1.Application, sourceType appv1.ApplicationSourceType) {
+func (ctrl *ApplicationController) normalizeApplication(orig, app *appv1.Application) {
 	logCtx := log.WithFields(log.Fields{"application": app.Name})
-	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec, sourceType)
+	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec)
 	patch, modified, err := diff.CreateTwoWayMergePatch(orig, app, appv1.Application{})
 	if err != nil {
 		logCtx.Errorf("error constructing app spec patch: %v", err)

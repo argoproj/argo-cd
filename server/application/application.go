@@ -573,7 +573,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	kustomizeOptions := appv1.KustomizeOptions{
 		BuildOptions: buildOptions,
 	}
-	conditions, appSourceType, err := argo.ValidateRepo(ctx, &app.Spec, s.repoClientset, s.db, &kustomizeOptions)
+	conditions, _, err := argo.ValidateRepo(ctx, &app.Spec, s.repoClientset, s.db, &kustomizeOptions)
 	if err != nil {
 		return err
 	}
@@ -589,7 +589,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		return status.Errorf(codes.InvalidArgument, "application spec is invalid: %s", argo.FormatAppConditions(conditions))
 	}
 
-	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec, appSourceType)
+	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec)
 	return nil
 }
 
