@@ -8,16 +8,20 @@ import (
 	"github.com/argoproj/argo-cd/util/kustomize"
 )
 
-func Discover(path string) (apps map[string]string, err error) {
-	err = filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+func Discover(root string) (map[string]string, error) {
+	apps := make(map[string]string)
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 		if info.IsDir() {
 			return nil
 		}
-		dir := filepath.Dir(info.Name())
-		base := filepath.Base(info.Name())
+		dir, err := filepath.Rel(root, filepath.Dir(path))
+		if err != nil {
+			return err
+		}
+		base := filepath.Base(path)
 		if base == "params.libsonnet" && strings.HasSuffix(dir, "components") {
 			apps[filepath.Dir(dir)] = "Ksonnet"
 		}
@@ -29,31 +33,17 @@ func Discover(path string) (apps map[string]string, err error) {
 		}
 		return nil
 	})
-	return
+	return apps, err
 }
 
-func AppType(path string) string {
-	if pathExists(path, "app.yaml") {
-		return "Ksonnet"
+func AppType(path string) (string, error) {
+	apps, err := Discover(path)
+	if err != nil {
+		return "", err
 	}
-	if pathExists(path, "Chart.yaml") {
-		return "Helm"
+	appType, ok := apps["."]
+	if ok {
+		return appType, nil
 	}
-	for _, f := range kustomize.KustomizationNames {
-		if pathExists(path, f) {
-			return "Kustomize"
-		}
-	}
-	return "Directory"
-}
-
-// pathExists reports whether the file or directory at the named concatenation of paths exists.
-func pathExists(ss ...string) bool {
-	name := filepath.Join(ss...)
-	if _, err := os.Stat(name); err != nil {
-		if os.IsNotExist(err) {
-			return false
-		}
-	}
-	return true
+	return "Directory", nil
 }

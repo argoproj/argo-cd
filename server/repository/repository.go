@@ -158,7 +158,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	return repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 		Repo:     repo,
 		Revision: q.Revision,
-		Path:     q.Path,
+		App:      q.Path,
 		Repos:    repos,
 		Helm:     q.Helm,
 		Ksonnet:  q.Ksonnet,

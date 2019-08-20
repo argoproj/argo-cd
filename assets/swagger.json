@@ -1874,7 +1874,7 @@
     },
     "repositoryHelmAppSpec": {
       "type": "object",
-      "title": "HelmAppSpec contains helm app name and path in source repo",
+      "title": "HelmAppSpec contains helm app name  in source repo",
       "properties": {
         "name": {
           "type": "string"
@@ -1885,9 +1885,6 @@
           "items": {
             "$ref": "#/definitions/v1alpha1HelmParameter"
           }
-        },
-        "path": {
-          "type": "string"
         },
         "valueFiles": {
           "type": "array",
@@ -1927,9 +1924,6 @@
           "items": {
             "$ref": "#/definitions/v1alpha1KsonnetParameter"
           }
-        },
-        "path": {
-          "type": "string"
         }
       }
     },
@@ -1946,10 +1940,6 @@
         "name": {
           "type": "string",
           "title": "Name is the user defined name of an environment"
-        },
-        "path": {
-          "description": "Path is the relative project path containing metadata for this environment.",
-          "type": "string"
         }
       }
     },
@@ -1968,7 +1958,7 @@
     },
     "repositoryKustomizeAppSpec": {
       "type": "object",
-      "title": "KustomizeAppSpec contains kustomize app name and path in source repo",
+      "title": "KustomizeAppSpec contains kustomize images",
       "properties": {
         "images": {
           "description": "images is a list of available images.",
@@ -1976,9 +1966,6 @@
           "items": {
             "type": "string"
           }
-        },
-        "path": {
-          "type": "string"
         }
       }
     },

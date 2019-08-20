@@ -285,7 +285,11 @@ func GetAppSourceType(source *v1alpha1.ApplicationSource, path string) (v1alpha1
 	if appSourceType != nil {
 		return *appSourceType, nil
 	}
-	return v1alpha1.ApplicationSourceType(disco.AppType(path)), nil
+	appType, err := disco.AppType(path)
+	if err != nil {
+		return "", err
+	}
+	return v1alpha1.ApplicationSourceType(appType), nil
 }
 
 // isNullList checks if the object is a "List" type where items is null instead of an empty list.
@@ -495,21 +499,21 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 	if err != nil {
 		return nil, err
 	}
-	resolvedRevision, err := r.ResolveRevision(q.Path, q.Revision)
+	resolvedRevision, err := r.ResolveRevision(q.App, q.Revision)
 	if err != nil {
 		return nil, err
 	}
 	getCached := func() *apiclient.RepoAppDetailsResponse {
 		var res apiclient.RepoAppDetailsResponse
-		err = s.cache.GetAppDetails(resolvedRevision, q.Path, valueFiles(q), &res)
+		err = s.cache.GetAppDetails(resolvedRevision, q.App, valueFiles(q), &res)
 		if err == nil {
-			log.Infof("manifest cache hit: %s/%s", resolvedRevision, q.Path)
+			log.Infof("manifest cache hit: %s/%s", resolvedRevision, q.App)
 			return &res
 		}
 		if err != cache.ErrCacheMiss {
-			log.Warnf("manifest cache error %s: %v", resolvedRevision, q.Path)
+			log.Warnf("manifest cache error %s: %v", resolvedRevision, q.App)
 		} else {
-			log.Infof("manifest cache miss: %s/%s", resolvedRevision, q.Path)
+			log.Infof("manifest cache miss: %s/%s", resolvedRevision, q.App)
 		}
 		return nil
 	}
@@ -524,7 +528,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		return cached, nil
 	}
 
-	appPath, err := r.GetApp(q.Path, resolvedRevision)
+	appPath, err := r.GetApp(q.App, resolvedRevision)
 	if err != nil {
 		return nil, err
 	}
@@ -565,7 +569,6 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		res.Ksonnet = &ksonnetAppSpec
 	case v1alpha1.ApplicationSourceTypeHelm:
 		res.Helm = &apiclient.HelmAppSpec{}
-		res.Helm.Path = q.Path
 		files, err := ioutil.ReadDir(appPath)
 		if err != nil {
 			return nil, err
@@ -604,7 +607,6 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		res.Helm.Parameters = params
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		res.Kustomize = &apiclient.KustomizeAppSpec{}
-		res.Kustomize.Path = q.Path
 		k := kustomize.NewKustomizeApp(appPath, argo.GetRepoCreds(q.Repo), q.Repo.Repo)
 		_, images, err := k.Build(nil, q.KustomizeOptions)
 		if err != nil {
@@ -615,35 +617,35 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 	return &res, nil
 }
 
-func (s *Service) getRevisionMetadata(repo *v1alpha1.Repository, path, revision string) (*repo.RevisionMetadata, error) {
+func (s *Service) getRevisionMetadata(repo *v1alpha1.Repository, app, revision string) (*repo.RevisionMetadata, error) {
 	r, err := s.repoFactory.NewRepo(repo)
 	if err != nil {
 		return nil, err
 	}
 	s.repoLock.Lock(r.LockKey())
 	defer s.repoLock.Unlock(r.LockKey())
-	return r.RevisionMetadata(path, revision)
+	return r.RevisionMetadata(app, revision)
 }
 
 func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
-	metadata, err := s.cache.GetRevisionMetadata(q.Repo.Repo, q.Path, q.Revision)
+	metadata, err := s.cache.GetRevisionMetadata(q.Repo.Repo, q.App, q.Revision)
 	if err == nil {
-		log.WithFields(log.Fields{"repoURL": q.Repo.Repo, "path": q.Path, "revision": q.Revision}).Debug("cache hit")
+		log.WithFields(log.Fields{"repoURL": q.Repo.Repo, "app": q.App, "revision": q.Revision}).Debug("cache hit")
 		return metadata, nil
 	}
 	if err == cache.ErrCacheMiss {
-		log.WithFields(log.Fields{"repoURL": q.Repo.Repo, "path": q.Path, "revision": q.Revision}).Debug("cache miss")
-		gitMetadata, err := s.getRevisionMetadata(q.Repo, q.Path, q.Revision)
+		log.WithFields(log.Fields{"repoURL": q.Repo.Repo, "app": q.App, "revision": q.Revision}).Debug("cache miss")
+		m, err := s.getRevisionMetadata(q.Repo, q.App, q.Revision)
 		if err != nil {
 			return nil, err
 		}
 		// discard anything after the first new line and then truncate to 64 chars
-		message := text.Trunc(strings.SplitN(gitMetadata.Message, "\n", 2)[0], 64)
-		metadata = &v1alpha1.RevisionMetadata{Author: gitMetadata.Author, Date: metav1.Time{Time: gitMetadata.Date}, Tags: gitMetadata.Tags, Message: message}
-		_ = s.cache.SetRevisionMetadata(q.Repo.Repo, q.Path, q.Revision, metadata)
+		message := text.Trunc(strings.SplitN(m.Message, "\n", 2)[0], 64)
+		metadata = &v1alpha1.RevisionMetadata{Author: m.Author, Date: metav1.Time{Time: m.Date}, Tags: m.Tags, Message: message}
+		_ = s.cache.SetRevisionMetadata(q.Repo.Repo, q.App, q.Revision, metadata)
 		return metadata, nil
 	}
-	log.WithFields(log.Fields{"repoURL": q.Repo.Repo, "revision": q.Revision, "err": err}).Debug("cache error")
+	log.WithFields(log.Fields{"repoURL": q.Repo.Repo, "app": q.App, "revision": q.Revision, "err": err}).Debug("cache error")
 	return nil, err
 }
 

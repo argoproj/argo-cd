@@ -206,10 +206,7 @@ func ValidateRepo(ctx context.Context, spec *argoappv1.ApplicationSpec, repoClie
 				if ok {
 					appSourceType = argoappv1.ApplicationSourceType(appType)
 				} else {
-					conditions = append(conditions, argoappv1.ApplicationCondition{
-						Type:    argoappv1.ApplicationConditionInvalidSpecError,
-						Message: "app not found",
-					})
+					appSourceType = argoappv1.ApplicationSourceTypeDirectory
 				}
 			}
 		}

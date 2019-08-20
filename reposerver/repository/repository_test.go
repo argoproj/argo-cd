@@ -254,7 +254,7 @@ func TestGetAppDetailsHelm(t *testing.T) {
 	t.Run("DefaultParameters", func(t *testing.T) {
 		res, err := serve.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 			Repo: &argoappv1.Repository{Repo: "https://github.com/fakeorg/fakerepo.git"},
-			Path: "redis",
+			App:  "redis",
 		})
 		assert.NoError(t, err)
 		assert.Equal(t, "Helm", res.Type)
@@ -269,7 +269,7 @@ func TestGetAppDetailsHelm(t *testing.T) {
 	t.Run("SpecificParameters", func(t *testing.T) {
 		res, err := serve.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 			Repo: &argoappv1.Repository{Repo: "https://github.com/fakeorg/fakerepo.git"},
-			Path: "redis",
+			App:  "redis",
 			Helm: &apiclient.HelmAppDetailsQuery{
 				ValueFiles: []string{"values-production.yaml"},
 			},
@@ -299,13 +299,12 @@ func TestGetAppDetailsKsonnet(t *testing.T) {
 
 	res, err := serve.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 		Repo: &argoappv1.Repository{Repo: "https://github.com/fakeorg/fakerepo.git"},
-		Path: "ksonnet",
+		App:  "ksonnet",
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, "https://kubernetes.default.svc", res.Ksonnet.Environments["prod"].Destination.Server)
 	assert.Equal(t, "prod", res.Ksonnet.Environments["prod"].Destination.Namespace)
 	assert.Equal(t, "v1.10.0", res.Ksonnet.Environments["prod"].K8SVersion)
-	assert.Equal(t, "prod", res.Ksonnet.Environments["prod"].Path)
 	assert.Equal(t, argoappv1.KsonnetParameter{Component: "guestbook-ui", Name: "command", Value: "null"}, *res.Ksonnet.Parameters[0])
 	assert.Equal(t, 7, len(res.Ksonnet.Parameters))
 }
@@ -316,14 +315,14 @@ func TestGetAppDetailsKustomize(t *testing.T) {
 
 	res, err := serve.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 		Repo: &argoappv1.Repository{Repo: "https://github.com/fakeorg/fakerepo.git"},
-		Path: "kustomization_yaml",
+		App:  "kustomization_yaml",
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"nginx:1.15.4", "k8s.gcr.io/nginx-slim:0.8"}, res.Kustomize.Images)
 }
 
 func TestService_GetRevisionMetadata(t *testing.T) {
-	factory := newFakeFactory(".", "")
+	factory := newFakeFactory(".", "empty-list")
 	service := &Service{
 		repoLock:    util.NewKeyLock(),
 		repoFactory: factory,
@@ -332,7 +331,7 @@ func TestService_GetRevisionMetadata(t *testing.T) {
 	type args struct {
 		q *apiclient.RepoServerRevisionMetadataRequest
 	}
-	q := &apiclient.RepoServerRevisionMetadataRequest{Repo: &argoappv1.Repository{}, Revision: factory.revision}
+	q := &apiclient.RepoServerRevisionMetadataRequest{Repo: &argoappv1.Repository{}, App: "empty-list", Revision: factory.revision}
 	metadata := &v1alpha1.RevisionMetadata{
 		Author:  factory.revisionMetadata.Author,
 		Message: strings.Repeat("x", 61) + "...",

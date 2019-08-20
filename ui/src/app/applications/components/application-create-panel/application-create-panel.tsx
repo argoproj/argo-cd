@@ -31,7 +31,7 @@ const DEFAULT_APP: Partial<models.Application> = {
         source: {
             path: '',
             repoURL: '',
-            targetRevision: 'latest',
+            targetRevision: '',
         },
         project: '',
     },
@@ -108,7 +108,6 @@ export const ApplicationCreatePanel = (props: {
                                 'metadata.name': !a.metadata.name && 'Application name is required',
                                 'spec.project': !a.spec.project && 'Project name is required',
                                 'spec.source.repoURL': !a.spec.source.repoURL && 'Repository URL is required',
-                                'spec.source.targetRevision': !a.spec.source.targetRevision && 'Revision is required',
                                 'spec.source.path': !a.spec.source.path && 'Path is required',
                                 'spec.destination.server': !a.spec.destination.server && 'Cluster is required',
                                 'spec.destination.namespace': !a.spec.destination.namespace && 'Namespace is required',

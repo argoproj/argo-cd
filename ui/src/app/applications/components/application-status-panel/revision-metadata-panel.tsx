@@ -14,13 +14,14 @@ export const RevisionMetadataPanel = (props: {
         >{(m: RevisionMetadata) => (
             <Tooltip content={(
                 <span>
-            <span>Authored by {m.author || 'unknown'} <Timestamp date={m.date}/></span><br/>
+                    {m.author && <React.Fragment>Authored by {m.author}</React.Fragment>}
+                    {m.date && <Timestamp date={m.date}/>}<br/>
                     {m.tags && (<span>Tags: {m.tags}<br/></span>)}
-                    <span>{m.message}</span>
-        </span>
+                    (m.message}
+                </span>
             )} placement='bottom' allowHTML={true}>
                 <div className='application-status-panel__item-name'>
-                    Authored by {m.author || 'unknown'}<br/>
+                    {m.author && <React.Fragment>Authored by {m.author}<br/></React.Fragment>}
                     {m.tags && <span>Tagged {m.tags.join(', ')}<br/></span>}
                     {m.message}
                 </div>

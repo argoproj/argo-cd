@@ -12,6 +12,8 @@ import {services} from '../../../shared/services';
 require('./repos-list.scss');
 
 interface NewSSHRepoParams {
+    type: string;
+    name: string;
     url: string;
     sshPrivateKey: string;
     insecure: boolean;
@@ -19,6 +21,8 @@ interface NewSSHRepoParams {
 }
 
 interface NewHTTPSRepoParams {
+    type: string;
+    name: string;
     url: string;
     username: string;
     password: string;
@@ -72,7 +76,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                             <div className='argo-table-list__row' key={repo.repo}>
                                                 <div className='row'>
                                                     <div className='columns small-5'>
-                                                        <i className='icon argo-icon-git'/> <Repo url={repo.repo}/>
+                                                        <i className={"icon argo-icon-" + repo.type}/> <Repo url={repo.repo}/>
                                                     </div>
                                                     <div className='columns small-2'>{repo.type}</div>
                                                     <div className='columns small-2'>{repo.name}</div>
@@ -120,7 +124,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                         </button>
                     </div>
                 )}>
-                    <h4>Connect Git repo using HTTPS</h4>
+                    <h4>Connect repo using HTTPS</h4>
                     <Form onSubmit={(params) => this.connectHTTPSRepo(params as NewHTTPSRepoParams)}
                           getApi={(api) => this.formApiHTTPS = api}
                           validateError={(params: NewHTTPSRepoParams) => ({
@@ -130,6 +134,13 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                           })}>
                         {(formApi) => (
                             <form onSubmit={formApi.submitForm} role='form' className='repos-list width-control'>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Type' field='type' component={Text}/>
+                                    Either empty, "git" or "helm".
+                                </div>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Name' field='name' component={Text}/>
+                                </div>
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Repository URL' field='url' component={Text}/>
                                 </div>
@@ -178,6 +189,9 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Type' field='type' component={Text}/>
                                     Either empty, "git" or "helm".
+                                </div>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Name' field='name' component={Text}/>
                                 </div>
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Repository URL' field='url' component={Text}/>
