@@ -29,6 +29,11 @@ func (a *Actions) IgnoreErrors() *Actions {
 	return a
 }
 
+func (a *Actions) DoNotIgnoreErrors() *Actions {
+	a.ignoreErrors = false
+	return a
+}
+
 func (a *Actions) PatchFile(file string, jsonPath string) *Actions {
 	fixture.Patch(a.context.path+"/"+file, jsonPath)
 	return a
@@ -180,6 +185,10 @@ func (a *Actions) Sync() *Actions {
 
 	if a.context.localPath != "" {
 		args = append(args, "--local", a.context.localPath)
+	}
+
+	if a.context.force {
+		args = append(args, "--force")
 	}
 
 	a.runCli(args...)
