@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 
 	argoexec "github.com/argoproj/pkg/exec"
@@ -17,9 +16,12 @@ type cmd struct {
 	workDir  string
 }
 
-func newCmd(workDir string) *cmd {
-	tmpDir := filepath.Join(workDir, ".helm")
-	return &cmd{workDir: workDir, helmHome: tmpDir}
+func newCmd(workDir string) (*cmd, error) {
+	tmpDir, err := ioutil.TempDir("", "helm")
+	if err != nil {
+		return nil, err
+	}
+	return &cmd{workDir: workDir, helmHome: tmpDir}, err
 }
 
 var redactor = func(text string) string {

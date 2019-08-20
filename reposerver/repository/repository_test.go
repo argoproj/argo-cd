@@ -56,6 +56,7 @@ func (f *fakeFactory) NewRepo(repo *v1alpha1.Repository) (repo.Repo, error) {
 		root = f.root
 	}
 	r.On("LockKey").Return(root)
+	r.On("Init").Return(nil)
 	r.On("GetApp", mock.Anything, mock.Anything).Return(filepath.Join(root, f.path), nil)
 	r.On("ResolveRevision", mock.Anything, mock.Anything).Return(f.revision, nil)
 	r.On("ListApps", mock.Anything).Return(map[string]string{}, "", nil)

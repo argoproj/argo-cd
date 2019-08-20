@@ -26,16 +26,19 @@ type Helm interface {
 	GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
 	DependencyBuild() error
-	// Init runs `helm Init --client-only`
+	// Init runs `helm init --client-only`
 	Init() error
 	// Dispose deletes temp resources
 	Dispose()
 }
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
-func NewHelmApp(workDir string, repos argoappv1.Repositories) Helm {
-	cmd := newCmd(workDir)
-	return &helm{repos: &repos, cmd: *cmd}
+func NewHelmApp(workDir string, repos argoappv1.Repositories) (Helm, error) {
+	cmd, err := newCmd(workDir)
+	if err != nil {
+		return nil, err
+	}
+	return &helm{repos: &repos, cmd: *cmd}, nil
 }
 
 type helm struct {

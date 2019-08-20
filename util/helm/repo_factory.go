@@ -24,9 +24,13 @@ func NewRepo(url, name, username, password string, caData, certData, keyData []b
 		return cached.(repo.Repo), nil
 	}
 
-	cmd := newCmd(repo.TempRepoPath(url))
-	_, err := cmd.init()
+	cmd, err := newCmd(repo.TempRepoPath(url))
 	if err != nil {
+		return nil, err
+	}
+	_, err = cmd.init()
+	if err != nil {
+		cmd.Close()
 		return nil, err
 	}
 
@@ -39,6 +43,11 @@ func NewRepo(url, name, username, password string, caData, certData, keyData []b
 		caData:   caData,
 		certData: certData,
 		keyData:  keyData,
+	}
+	err = r.Init()
+	if err != nil {
+		cmd.Close()
+		return nil, err
 	}
 	repoCache.Set(url, r, cache.DefaultExpiration)
 	return r, nil
