@@ -154,3 +154,24 @@ func TestGetGoogleAnalytics(t *testing.T) {
 	assert.Equal(t, "123", ga.TrackingID)
 	assert.Equal(t, true, ga.AnonymizeUsers)
 }
+
+func TestSettingsManager_GetHelp(t *testing.T) {
+	t.Run("Default", func(t *testing.T) {
+		_, settingsManager := fixtures(nil)
+		h, err := settingsManager.GetHelp()
+		assert.NoError(t, err)
+		assert.Empty(t, h.ChatURL)
+		assert.Equal(t, "Chat now!", h.ChatText)
+
+	})
+	t.Run("Set", func(t *testing.T) {
+		_, settingsManager := fixtures(map[string]string{
+			"help.chatUrl":  "foo",
+			"help.chatText": "bar",
+		})
+		h, err := settingsManager.GetHelp()
+		assert.NoError(t, err)
+		assert.Equal(t, "foo", h.ChatURL)
+		assert.Equal(t, "bar", h.ChatText)
+	})
+}
