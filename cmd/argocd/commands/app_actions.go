@@ -90,6 +90,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 		case "":
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			fmt.Fprintf(w, "RESOURCE\tACTION\n")
+			fmt.Println()
 			for key := range availableActions {
 				for i := range availableActions[key] {
 					action := availableActions[key][i]
