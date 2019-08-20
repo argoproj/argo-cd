@@ -18,7 +18,7 @@ func TestCannotAddAppFromPrivateRepoWithoutCfg(t *testing.T) {
 		IgnoreErrors().
 		Create().
 		Then().
-		Expect(Error("", "unable to access 'https://localhost:9443/argo-e2e/testdata.git/': SSL certificate problem"))
+		Expect(Error("", "unable to access"))
 }
 
 // make sure you cannot create an app from a private repo without set-up
@@ -31,7 +31,7 @@ func TestCannotAddAppFromClientCertRepoWithoutCfg(t *testing.T) {
 		IgnoreErrors().
 		Create().
 		Then().
-		Expect(Error("", "unable to access 'https://localhost:9444/argo-e2e/testdata.git/': SSL certificate problem: unable to get local issuer certificate"))
+		Expect(Error("", "unable to access"))
 }
 
 // make sure you can create an app from a private repo, if the repo is set-up in the CM
