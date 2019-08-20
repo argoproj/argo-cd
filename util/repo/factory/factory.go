@@ -4,7 +4,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/app/disco"
 	"github.com/argoproj/argo-cd/util/creds"
-	"github.com/argoproj/argo-cd/util/git"
+	repo2 "github.com/argoproj/argo-cd/util/git/repo"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/repo"
 )
@@ -25,6 +25,6 @@ func (f *factory) NewRepo(r *v1alpha1.Repository) (repo.Repo, error) {
 	case "helm":
 		return helm.NewRepo(r.Repo, r.Name, r.Username, r.Password, []byte(r.TLSClientCAData), []byte(r.TLSClientCertData), []byte(r.TLSClientCertKey))
 	default:
-		return git.NewRepo(r.Repo, creds.GetRepoCreds(r), r.IsInsecure(), r.EnableLFS, disco.Discover)
+		return repo2.NewRepo(r.Repo, creds.GetRepoCreds(r), r.IsInsecure(), r.EnableLFS, disco.Discover)
 	}
 }

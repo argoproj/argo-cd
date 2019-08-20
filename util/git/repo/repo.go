@@ -1,13 +1,13 @@
-package git
+package repo
 
 import (
-	"path/filepath"
-
+	"github.com/argoproj/argo-cd/util/app/path"
+	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/repo"
 )
 
 type gitRepo struct {
-	client Client
+	client git.Client
 	disco  func(root string) (map[string]string, error)
 }
 
@@ -20,7 +20,11 @@ func (g gitRepo) GetApp(app, resolvedRevision string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(g.client.Root(), app), nil
+	appPath, err := path.Path(g.client.Root(), app)
+	if err != nil {
+		return "", err
+	}
+	return appPath, nil
 }
 
 func (g gitRepo) ListApps(revision string) (map[string]string, string, error) {
@@ -50,8 +54,8 @@ func (g gitRepo) RevisionMetadata(_, revision string) (*repo.RevisionMetadata, e
 	return out, err
 }
 
-func NewRepo(url string, creds Creds, insecure, enableLfs bool, disco func(root string) (map[string]string, error)) (repo.Repo, error) {
-	client, err := NewFactory().NewClient(url, repo.TempRepoPath(url), creds, insecure, enableLfs)
+func NewRepo(url string, creds git.Creds, insecure, enableLfs bool, disco func(root string) (map[string]string, error)) (repo.Repo, error) {
+	client, err := git.NewFactory().NewClient(url, repo.TempRepoPath(url), creds, insecure, enableLfs)
 	if err != nil {
 		return nil, err
 	}

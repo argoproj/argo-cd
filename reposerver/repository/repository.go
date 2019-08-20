@@ -137,7 +137,12 @@ func (s *Service) GenerateManifest(c context.Context, q *apiclient.ManifestReque
 		}
 		defer s.parallelismLimitSemaphore.Release(1)
 	}
-	genRes, err := GenerateManifests(r.LockKey(), q.ApplicationSource.Path, q)
+
+	appPath, err := r.GetApp(q.ApplicationSource.Path, resolvedRevision)
+	if err != nil {
+		return nil, err
+	}
+	genRes, err := GenerateManifests(appPath, q)
 	if err != nil {
 		return nil, err
 	}
@@ -150,33 +155,8 @@ func (s *Service) GenerateManifest(c context.Context, q *apiclient.ManifestReque
 	return &res, nil
 }
 
-func appPath(root, path string) (string, error) {
-	if filepath.IsAbs(path) {
-		return "", fmt.Errorf("%s: app path is absolute", path)
-	}
-	appPath := filepath.Join(root, path)
-	if !strings.HasPrefix(appPath, filepath.Clean(root)) {
-		return "", fmt.Errorf("%s: app path outside repo", path)
-	}
-	info, err := os.Stat(appPath)
-	if os.IsNotExist(err) {
-		return "", fmt.Errorf("%s: app path does not exist", path)
-	}
-	if err != nil {
-		return "", err
-	}
-	if !info.IsDir() {
-		return "", fmt.Errorf("%s: app path is not a directory", path)
-	}
-	return appPath, nil
-}
-
 // GenerateManifests generates manifests from a path
-func GenerateManifests(root, path string, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
-	appPath, err := appPath(root, path)
-	if err != nil {
-		return nil, err
-	}
+func GenerateManifests(appPath string, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
 	var targetObjs []*unstructured.Unstructured
 	var dest *v1alpha1.ApplicationDestination
 
@@ -194,11 +174,11 @@ func GenerateManifests(root, path string, q *apiclient.ManifestRequest) (*apicli
 		if err != nil {
 			return nil, err
 		}
+		defer h.Dispose()
 		err = h.Init()
 		if err != nil {
 			return nil, err
 		}
-		defer h.Dispose()
 		targetObjs, err = h.Template(q.AppLabelValue, q.Namespace, q.ApplicationSource.Helm)
 		if err != nil {
 			if !helm.IsMissingDependencyErr(err) {

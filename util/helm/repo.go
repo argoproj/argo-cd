@@ -126,13 +126,12 @@ func (c helmRepo) GetApp(app string, resolvedRevision string) (string, error) {
 		return "", fmt.Errorf("invalid resolved revision \"%s\", must be resolved", resolvedRevision)
 	}
 
-	chartName := strings.Split(app, "/")[0]
-	err := c.checkKnownChart(chartName)
+	err := c.checkKnownChart(app)
 	if err != nil {
 		return "", err
 	}
 
-	_, err = c.cmd.fetch(c.name, chartName, fetchOpts{version: resolvedRevision, destination: "."})
+	_, err = c.cmd.fetch(c.name, app, fetchOpts{version: resolvedRevision, destination: "."})
 
 	return filepath.Join(c.cmd.workDir, app), err
 }
