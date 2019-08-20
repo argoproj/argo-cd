@@ -23,6 +23,19 @@ type helmRepo struct {
 	caData, certData, keyData     []byte
 }
 
+func (c helmRepo) Init() error {
+	_, err := c.getIndex()
+	if err != nil {
+		return err
+	}
+	_, err = c.repoAdd()
+	if err != nil {
+		return err
+	}
+	_, err = c.cmd.repoUpdate()
+	return err
+}
+
 func (c helmRepo) LockKey() string {
 	return c.cmd.workDir
 }

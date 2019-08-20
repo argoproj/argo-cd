@@ -44,20 +44,10 @@ func NewRepo(url, name, username, password string, caData, certData, keyData []b
 		certData: certData,
 		keyData:  keyData,
 	}
-
-	_, err = r.getIndex()
+	err = r.Init()
 	if err != nil {
 		return nil, err
 	}
-
-	_, err = r.repoAdd()
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = r.cmd.repoUpdate()
-
 	repoCache.Set(url, r, cache.DefaultExpiration)
-
-	return r, err
+	return r, nil
 }

@@ -26,7 +26,7 @@ type Helm interface {
 	GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
 	DependencyBuild() error
-	// Init runs `helm init --client-only`
+	// Init runs `helm Init --client-only`
 	Init() error
 	// Dispose deletes temp resources
 	Dispose()

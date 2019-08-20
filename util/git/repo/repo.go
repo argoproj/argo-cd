@@ -11,6 +11,14 @@ type gitRepo struct {
 	disco  func(root string) (map[string]string, error)
 }
 
+func (g gitRepo) Init() error {
+	err := g.client.Init()
+	if err != nil {
+		return err
+	}
+	return g.client.Fetch()
+}
+
 func (g gitRepo) LockKey() string {
 	return g.client.Root()
 }
@@ -59,13 +67,6 @@ func NewRepo(url string, creds git.Creds, insecure, enableLfs bool, disco func(r
 	if err != nil {
 		return nil, err
 	}
-	err = client.Init()
-	if err != nil {
-		return nil, err
-	}
-	err = client.Fetch()
-	if err != nil {
-		return nil, err
-	}
-	return &gitRepo{client, disco}, nil
+	r := &gitRepo{client, disco}
+	return r, r.Init()
 }

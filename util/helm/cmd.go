@@ -37,7 +37,7 @@ func (c cmd) run(args ...string) (string, error) {
 }
 
 func (c *cmd) init() (string, error) {
-	return c.run("init", "--client-only", "--skip-refresh")
+	return c.run("Init", "--client-only", "--skip-refresh")
 }
 
 type repoAddOpts struct {
