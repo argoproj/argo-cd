@@ -1,4 +1,4 @@
-package helm
+package repo
 
 import (
 	"errors"
@@ -7,6 +7,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/repo"
 )
 
@@ -24,11 +25,11 @@ func NewRepo(url, name, username, password string, caData, certData, keyData []b
 		return cached.(repo.Repo), nil
 	}
 
-	cmd, err := newCmd(repo.TempRepoPath(url))
+	cmd, err := helm.NewCmd(repo.TempRepoPath(url))
 	if err != nil {
 		return nil, err
 	}
-	_, err = cmd.init()
+	_, err = cmd.Init()
 	if err != nil {
 		cmd.Close()
 		return nil, err

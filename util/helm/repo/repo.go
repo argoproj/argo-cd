@@ -1,4 +1,4 @@
-package helm
+package repo
 
 import (
 	"errors"
@@ -12,13 +12,14 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 
+	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/repo"
 )
 
 var indexCache = cache.New(5*time.Minute, 5*time.Minute)
 
 type helmRepo struct {
-	cmd                           *cmd
+	cmd                           *helm.Cmd
 	url, name, username, password string
 	caData, certData, keyData     []byte
 }
@@ -32,12 +33,12 @@ func (c helmRepo) Init() error {
 	if err != nil {
 		return err
 	}
-	_, err = c.cmd.repoUpdate()
+	_, err = c.cmd.RepoUpdate()
 	return err
 }
 
 func (c helmRepo) LockKey() string {
-	return c.cmd.workDir
+	return c.cmd.WorkDir
 }
 
 func (c helmRepo) ResolveRevision(app, revision string) (string, error) {
@@ -128,9 +129,9 @@ func (c helmRepo) ListApps(revision string) (map[string]string, string, error) {
 }
 
 func (c helmRepo) repoAdd() (string, error) {
-	return c.cmd.repoAdd(c.name, c.url, repoAddOpts{
-		username: c.username, password: c.password,
-		caData: c.caData, certData: c.certData, keyData: c.keyData,
+	return c.cmd.RepoAdd(c.name, c.url, helm.RepoAddOpts{
+		Username: c.username, Password: c.password,
+		CertData: c.certData, KeyData: c.keyData, CAData: c.caData,
 	})
 }
 
@@ -144,9 +145,9 @@ func (c helmRepo) GetApp(app string, resolvedRevision string) (string, error) {
 		return "", err
 	}
 
-	_, err = c.cmd.fetch(c.name, app, fetchOpts{version: resolvedRevision, destination: "."})
+	_, err = c.cmd.Fetch(c.name, app, helm.FetchOpts{Version: resolvedRevision, Destination: "."})
 
-	return filepath.Join(c.cmd.workDir, app), err
+	return filepath.Join(c.cmd.WorkDir, app), err
 }
 
 func (c helmRepo) checkKnownChart(chartName string) error {

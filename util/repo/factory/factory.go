@@ -4,13 +4,14 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/app/disco"
 	"github.com/argoproj/argo-cd/util/creds"
-	repo2 "github.com/argoproj/argo-cd/util/git/repo"
-	"github.com/argoproj/argo-cd/util/helm"
+	gitrepo "github.com/argoproj/argo-cd/util/git/repo"
+	repo2 "github.com/argoproj/argo-cd/util/helm/repo"
 	"github.com/argoproj/argo-cd/util/repo"
+	"github.com/argoproj/argo-cd/util/repo/metrics"
 )
 
 type Factory interface {
-	NewRepo(r *v1alpha1.Repository) (repo.Repo, error)
+	NewRepo(r *v1alpha1.Repository, reporter metrics.Reporter) (repo.Repo, error)
 }
 
 func NewFactory() Factory {
@@ -20,11 +21,11 @@ func NewFactory() Factory {
 type factory struct {
 }
 
-func (f *factory) NewRepo(r *v1alpha1.Repository) (repo.Repo, error) {
+func (f *factory) NewRepo(r *v1alpha1.Repository, reporter metrics.Reporter) (repo.Repo, error) {
 	switch r.Type {
 	case "helm":
-		return helm.NewRepo(r.Repo, r.Name, r.Username, r.Password, []byte(r.TLSClientCAData), []byte(r.TLSClientCertData), []byte(r.TLSClientCertKey))
+		return repo2.NewRepo(r.Repo, r.Name, r.Username, r.Password, []byte(r.TLSClientCAData), []byte(r.TLSClientCertData), []byte(r.TLSClientCertKey))
 	default:
-		return repo2.NewRepo(r.Repo, creds.GetRepoCreds(r), r.IsInsecure(), r.EnableLFS, disco.Discover)
+		return gitrepo.NewRepo(r.Repo, creds.GetRepoCreds(r), r.IsInsecure(), r.EnableLFS, disco.Discover, reporter)
 	}
 }

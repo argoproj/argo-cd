@@ -9,6 +9,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/repo"
 	"github.com/argoproj/argo-cd/util/repo/factory"
+	"github.com/argoproj/argo-cd/util/repo/metrics"
 )
 
 type MetricsServer struct {
@@ -25,7 +26,7 @@ const (
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
-func NewMetricsServer(clientFactory factory.Factory) *MetricsServer {
+func NewMetricsServer(factory factory.Factory) *MetricsServer {
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
 	registry.MustRegister(prometheus.NewGoCollector())
@@ -40,7 +41,7 @@ func NewMetricsServer(clientFactory factory.Factory) *MetricsServer {
 	registry.MustRegister(gitRequestCounter)
 
 	return &MetricsServer{
-		clientFactory:     clientFactory,
+		clientFactory:     factory,
 		handler:           promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
 		gitRequestCounter: gitRequestCounter,
 	}
@@ -55,10 +56,15 @@ func (m *MetricsServer) IncGitRequest(repo string, requestType GitRequestType) {
 	m.gitRequestCounter.WithLabelValues(repo, string(requestType)).Inc()
 }
 
-func (m *MetricsServer) NewRepo(repo *v1alpha1.Repository) (repo.Repo, error) {
-	client, err := m.clientFactory.NewRepo(repo)
-	if err != nil {
-		return nil, err
+func (m *MetricsServer) Event(repo string, requestType string) {
+	switch requestType {
+	case "GitRequestTypeLsRemote":
+		m.IncGitRequest(repo, GitRequestTypeLsRemote)
+	case "GitRequestTypeFetch":
+		m.IncGitRequest(repo, GitRequestTypeFetch)
 	}
-	return wrapRepo(repo.Repo, m, client), nil
+}
+
+func (m *MetricsServer) NewRepo(repo *v1alpha1.Repository, _ metrics.Reporter) (repo.Repo, error) {
+	return m.clientFactory.NewRepo(repo, m)
 }

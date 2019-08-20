@@ -40,6 +40,7 @@ import (
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/repo/factory"
+	"github.com/argoproj/argo-cd/util/repo/metrics"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -985,7 +986,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	if err != nil {
 		return "", "", err
 	}
-	client, err := s.clientFactory.NewRepo(repo)
+	client, err := s.clientFactory.NewRepo(repo, metrics.NopReporter)
 	if err != nil {
 		return "", "", err
 	}

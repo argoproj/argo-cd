@@ -38,6 +38,7 @@ import (
 	"github.com/argoproj/argo-cd/util/kustomize"
 	"github.com/argoproj/argo-cd/util/repo"
 	"github.com/argoproj/argo-cd/util/repo/factory"
+	"github.com/argoproj/argo-cd/util/repo/metrics"
 	"github.com/argoproj/argo-cd/util/text"
 )
 
@@ -70,7 +71,7 @@ func NewService(repoFactory factory.Factory, cache *cache.Cache, parallelismLimi
 
 // ListDir lists the contents of a GitHub repo
 func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*apiclient.AppList, error) {
-	r, err := s.repoFactory.NewRepo(q.Repo)
+	r, err := s.repoFactory.NewRepo(q.Repo, metrics.NopReporter)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +99,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 }
 
 func (s *Service) GenerateManifest(c context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
-	r, err := s.repoFactory.NewRepo(q.Repo)
+	r, err := s.repoFactory.NewRepo(q.Repo, metrics.NopReporter)
 	if err != nil {
 		return nil, err
 	}
@@ -475,7 +476,7 @@ func runConfigManagementPlugin(appPath string, q *apiclient.ManifestRequest, cre
 }
 
 func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error) {
-	r, err := s.repoFactory.NewRepo(q.Repo)
+	r, err := s.repoFactory.NewRepo(q.Repo, metrics.NopReporter)
 	if err != nil {
 		return nil, err
 	}
@@ -602,7 +603,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 }
 
 func (s *Service) getRevisionMetadata(repo *v1alpha1.Repository, app, revision string) (*repo.RevisionMetadata, error) {
-	r, err := s.repoFactory.NewRepo(repo)
+	r, err := s.repoFactory.NewRepo(repo, metrics.NopReporter)
 	if err != nil {
 		return nil, err
 	}

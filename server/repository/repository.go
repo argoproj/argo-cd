@@ -19,6 +19,7 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/repo/factory"
+	"github.com/argoproj/argo-cd/util/repo/metrics"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -60,7 +61,7 @@ func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.Conn
 	var err error
 	repo, err := s.db.GetRepository(ctx, url)
 	if err == nil {
-		_, err = factory.NewFactory().NewRepo(repo)
+		_, err = factory.NewFactory().NewRepo(repo, metrics.NopReporter)
 	}
 	if err != nil {
 		connectionState.Status = appsv1.ConnectionStatusFailed
@@ -175,7 +176,7 @@ func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest)
 		return nil, err
 	}
 	r := q.Repo
-	_, err = factory.NewFactory().NewRepo(q.Repo)
+	_, err = factory.NewFactory().NewRepo(q.Repo, metrics.NopReporter)
 	if err != nil {
 		return nil, err
 	}
@@ -245,7 +246,7 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		TLSClientCertKey:  q.TlsClientCertKey,
 		TLSClientCAData:   q.TlsClientCAData,
 	}
-	_, err := factory.NewFactory().NewRepo(repo)
+	_, err := factory.NewFactory().NewRepo(repo, metrics.NopReporter)
 	if err != nil {
 		return nil, err
 	}

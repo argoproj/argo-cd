@@ -34,7 +34,7 @@ type Helm interface {
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
 func NewHelmApp(workDir string, repos argoappv1.Repositories) (Helm, error) {
-	cmd, err := newCmd(workDir)
+	cmd, err := NewCmd(workDir)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func NewHelmApp(workDir string, repos argoappv1.Repositories) (Helm, error) {
 }
 
 type helm struct {
-	cmd   cmd
+	cmd   Cmd
 	repos *argoappv1.Repositories
 }
 
@@ -102,12 +102,12 @@ func (h *helm) reposInitialized() bool {
 func (h *helm) DependencyBuild() error {
 	if !h.reposInitialized() {
 		for _, repo := range h.repos.Filter(func(r *argoappv1.Repository) bool { return r.Type == "helm" }) {
-			_, err := h.cmd.repoAdd(repo.Name, repo.Repo, repoAddOpts{
-				username: repo.Username,
-				password: repo.Password,
-				caData:   []byte(repo.TLSClientCAData),
-				certData: []byte(repo.TLSClientCertData),
-				keyData:  []byte(repo.TLSClientCertKey),
+			_, err := h.cmd.RepoAdd(repo.Name, repo.Repo, RepoAddOpts{
+				Username: repo.Username,
+				Password: repo.Password,
+				CAData:   []byte(repo.TLSClientCAData),
+				CertData: []byte(repo.TLSClientCertData),
+				KeyData:  []byte(repo.TLSClientCertKey),
 			})
 
 			if err != nil {
@@ -121,7 +121,7 @@ func (h *helm) DependencyBuild() error {
 }
 
 func (h *helm) Init() error {
-	_, err := h.cmd.init()
+	_, err := h.cmd.Init()
 	return err
 }
 
@@ -141,7 +141,7 @@ func (h *helm) GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, 
 		if err == nil && (parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
 			fileValues, err = config.ReadRemoteFile(file)
 		} else {
-			fileValues, err = ioutil.ReadFile(path.Join(h.cmd.workDir, file))
+			fileValues, err = ioutil.ReadFile(path.Join(h.cmd.WorkDir, file))
 		}
 		if err != nil {
 			return nil, fmt.Errorf("failed to read value file %s: %s", file, err)

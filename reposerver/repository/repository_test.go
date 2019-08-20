@@ -22,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/repo"
+	"github.com/argoproj/argo-cd/util/repo/metrics"
 	gitmocks "github.com/argoproj/argo-cd/util/repo/mocks"
 )
 
@@ -49,7 +50,7 @@ type fakeFactory struct {
 	revisionMetadata *repo.RevisionMetadata
 }
 
-func (f *fakeFactory) NewRepo(repo *v1alpha1.Repository) (repo.Repo, error) {
+func (f *fakeFactory) NewRepo(repo *v1alpha1.Repository, reporter metrics.Reporter) (repo.Repo, error) {
 	r := gitmocks.Repo{}
 	root := "./testdata"
 	if f.root != "" {

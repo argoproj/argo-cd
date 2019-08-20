@@ -4,6 +4,7 @@ import (
 	"github.com/argoproj/argo-cd/util/app/path"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/repo"
+	"github.com/argoproj/argo-cd/util/repo/metrics"
 )
 
 type gitRepo struct {
@@ -62,8 +63,8 @@ func (g gitRepo) RevisionMetadata(_, revision string) (*repo.RevisionMetadata, e
 	return out, err
 }
 
-func NewRepo(url string, creds git.Creds, insecure, enableLfs bool, disco func(root string) (map[string]string, error)) (repo.Repo, error) {
-	client, err := git.NewFactory().NewClient(url, repo.TempRepoPath(url), creds, insecure, enableLfs)
+func NewRepo(url string, creds git.Creds, insecure, enableLfs bool, disco func(root string) (map[string]string, error), reporter metrics.Reporter) (repo.Repo, error) {
+	client, err := git.NewFactory().NewClient(url, repo.TempRepoPath(url), creds, insecure, enableLfs, reporter)
 	if err != nil {
 		return nil, err
 	}

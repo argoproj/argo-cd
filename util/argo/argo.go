@@ -26,6 +26,7 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/repo/factory"
+	"github.com/argoproj/argo-cd/util/repo/metrics"
 )
 
 const (
@@ -149,7 +150,7 @@ func ValidateRepo(
 		return nil, "", err
 	}
 
-	r, err := factory.NewFactory().NewRepo(repoRes)
+	r, err := factory.NewFactory().NewRepo(repoRes, metrics.NopReporter)
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
