@@ -76,7 +76,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                             <div className='argo-table-list__row' key={repo.repo}>
                                                 <div className='row'>
                                                     <div className='columns small-5'>
-                                                        <i className={"icon argo-icon-" + repo.type}/> <Repo url={repo.repo}/>
+                                                        <i className={'icon argo-icon-' + repo.type}/> <Repo url={repo.repo}/>
                                                     </div>
                                                     <div className='columns small-2'>{repo.type}</div>
                                                     <div className='columns small-2'>{repo.name}</div>
