@@ -31,7 +31,7 @@ func TestCannotAddAppFromClientCertRepoWithoutCfg(t *testing.T) {
 		IgnoreErrors().
 		Create().
 		Then().
-		Expect(Error("", "repository not accessible"))
+		Expect(Error("", "unable to access 'https://localhost:9444/argo-e2e/testdata.git/': SSL certificate problem: unable to get local issuer certificate"))
 }
 
 // make sure you can create an app from a private repo, if the repo is set-up in the CM

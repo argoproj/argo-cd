@@ -188,14 +188,9 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		return nil, err
 	}
 
-	plugins, err := s.settingsMgr.GetConfigManagementPlugins()
+	plugins, err := s.plugins()
 	if err != nil {
 		return nil, err
-	}
-
-	tools := make([]*appv1.ConfigManagementPlugin, len(plugins))
-	for i := range plugins {
-		tools[i] = &plugins[i]
 	}
 	// If source is Kustomize add build options
 	buildOptions, err := s.settingsMgr.GetKustomizeBuildOptions()
@@ -214,7 +209,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		Namespace:         a.Spec.Destination.Namespace,
 		ApplicationSource: &a.Spec.Source,
 		Repos:             repos,
-		Plugins:           tools,
+		Plugins:           plugins,
 		KustomizeOptions:  &kustomizeOptions,
 	})
 	if err != nil {
@@ -573,7 +568,12 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	kustomizeOptions := appv1.KustomizeOptions{
 		BuildOptions: buildOptions,
 	}
-	conditions, _, err := argo.ValidateRepo(ctx, &app.Spec, s.repoClientset, s.db, &kustomizeOptions)
+	plugins, err := s.plugins()
+	if err != nil {
+		return err
+	}
+
+	conditions, _, err := argo.ValidateRepo(ctx, &app.Spec, s.repoClientset, s.db, &kustomizeOptions, plugins)
 	if err != nil {
 		return err
 	}
@@ -1151,4 +1151,16 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		return nil, err
 	}
 	return &application.ApplicationResponse{}, nil
+}
+
+func (s *Server) plugins() ([]*v1alpha1.ConfigManagementPlugin, error) {
+	plugins, err := s.settingsMgr.GetConfigManagementPlugins()
+	if err != nil {
+		return nil, err
+	}
+	tools := make([]*v1alpha1.ConfigManagementPlugin, len(plugins))
+	for i, plugin := range plugins {
+		tools[i] = &plugin
+	}
+	return tools, nil
 }

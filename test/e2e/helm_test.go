@@ -122,11 +122,12 @@ func TestHelmValues(t *testing.T) {
 	Given(t).
 		Path("helm").
 		When().
+		AddFile("foo.yml", "").
 		Create().
-		AppSet("--values", "foo").
+		AppSet("--values", "foo.yml").
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, []string{"foo"}, app.Spec.Source.Helm.ValueFiles)
+			assert.Equal(t, []string{"foo.yml"}, app.Spec.Source.Helm.ValueFiles)
 		})
 }
 

@@ -128,7 +128,13 @@ func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, na
 // * the path contains valid manifests
 // * there are parameters of only one app source type
 // * ksonnet: the specified environment exists
-func ValidateRepo(ctx context.Context, spec *argoappv1.ApplicationSpec, repoClientset apiclient.Clientset, db db.ArgoDB, kustomizeOptions *argoappv1.KustomizeOptions) ([]argoappv1.ApplicationCondition, argoappv1.ApplicationSourceType, error) {
+func ValidateRepo(
+	ctx context.Context,
+	spec *argoappv1.ApplicationSpec,
+	repoClientset apiclient.Clientset,
+	db db.ArgoDB, kustomizeOptions *argoappv1.KustomizeOptions,
+	plugins []*argoappv1.ConfigManagementPlugin,
+) ([]argoappv1.ApplicationCondition, argoappv1.ApplicationSourceType, error) {
 	conditions := make([]argoappv1.ApplicationCondition, 0)
 
 	// Test the repo
@@ -184,7 +190,7 @@ func ValidateRepo(ctx context.Context, spec *argoappv1.ApplicationSpec, repoClie
 				Message: fmt.Sprintf("Unable to determine app source type: %v", err),
 			})
 		} else {
-			mainDirConditions := verifyGenerateManifests(ctx, repoRes, argoappv1.Repositories{}, spec, repoClient, kustomizeOptions)
+			mainDirConditions := verifyGenerateManifests(ctx, repoRes, argoappv1.Repositories{}, spec, repoClient, kustomizeOptions, plugins)
 			conditions = append(conditions, mainDirConditions...)
 		}
 	}
@@ -241,7 +247,14 @@ func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.Ap
 
 // verifyGenerateManifests verifies a repo path can generate manifests
 func verifyGenerateManifests(
-	ctx context.Context, repoRes *argoappv1.Repository, repos argoappv1.Repositories, spec *argoappv1.ApplicationSpec, repoClient apiclient.RepoServerServiceClient, kustomizeOptions *argoappv1.KustomizeOptions) []argoappv1.ApplicationCondition {
+	ctx context.Context,
+	repoRes *argoappv1.Repository,
+	repos argoappv1.Repositories,
+	spec *argoappv1.ApplicationSpec,
+	repoClient apiclient.RepoServerServiceClient,
+	kustomizeOptions *argoappv1.KustomizeOptions,
+	plugins []*argoappv1.ConfigManagementPlugin,
+) []argoappv1.ApplicationCondition {
 
 	var conditions []argoappv1.ApplicationCondition
 	if spec.Destination.Server == "" || spec.Destination.Namespace == "" {
@@ -250,6 +263,7 @@ func verifyGenerateManifests(
 			Message: errDestinationMissing,
 		})
 	}
+
 	req := apiclient.ManifestRequest{
 		Repo: &argoappv1.Repository{
 			Repo: spec.Source.RepoURL,
@@ -260,6 +274,7 @@ func verifyGenerateManifests(
 		Revision:          spec.Source.TargetRevision,
 		Namespace:         spec.Destination.Namespace,
 		ApplicationSource: &spec.Source,
+		Plugins:           plugins,
 		KustomizeOptions:  kustomizeOptions,
 	}
 	req.Repo.CopyCredentialsFrom(repoRes)
