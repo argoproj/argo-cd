@@ -153,16 +153,16 @@ func newCluster(objs ...*unstructured.Unstructured) *clusterInfo {
 
 func newClusterExt(kubectl kube.Kubectl) *clusterInfo {
 	return &clusterInfo{
-		lock:         &sync.Mutex{},
-		nodes:        make(map[kube.ResourceKey]*node),
-		onAppUpdated: func(appName string, fullRefresh bool, reference corev1.ObjectReference) {},
-		kubectl:      kubectl,
-		nsIndex:      make(map[string]map[kube.ResourceKey]*node),
-		cluster:      &appv1.Cluster{},
-		syncTime:     nil,
-		syncLock:     &sync.Mutex{},
-		apisMeta:     make(map[schema.GroupKind]*apiMeta),
-		log:          log.WithField("cluster", "test"),
+		lock:            &sync.Mutex{},
+		nodes:           make(map[kube.ResourceKey]*node),
+		onObjectUpdated: func(managedByApp map[string]bool, reference corev1.ObjectReference) {},
+		kubectl:         kubectl,
+		nsIndex:         make(map[string]map[kube.ResourceKey]*node),
+		cluster:         &appv1.Cluster{},
+		syncTime:        nil,
+		syncLock:        &sync.Mutex{},
+		apisMeta:        make(map[schema.GroupKind]*apiMeta),
+		log:             log.WithField("cluster", "test"),
 		cacheSettingsSrc: func() *cacheSettings {
 			return &cacheSettings{AppInstanceLabelKey: common.LabelKeyAppInstance}
 		},
@@ -171,10 +171,41 @@ func newClusterExt(kubectl kube.Kubectl) *clusterInfo {
 
 func getChildren(cluster *clusterInfo, un *unstructured.Unstructured) []appv1.ResourceNode {
 	hierarchy := make([]appv1.ResourceNode, 0)
-	cluster.iterateHierarchy(un, func(child appv1.ResourceNode) {
+	cluster.iterateHierarchy(kube.GetResourceKey(un), func(child appv1.ResourceNode, app string) {
 		hierarchy = append(hierarchy, child)
 	})
 	return hierarchy[1:]
+}
+
+func TestGetNamespaceResources(t *testing.T) {
+	defaultNamespaceTopLevel1 := strToUnstructured(`
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata: {"name": "helm-guestbook1", "namespace": "default"}
+`)
+	defaultNamespaceTopLevel2 := strToUnstructured(`
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata: {"name": "helm-guestbook2", "namespace": "default"}
+`)
+	kubesystemNamespaceTopLevel2 := strToUnstructured(`
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata: {"name": "helm-guestbook3", "namespace": "kube-system"}
+`)
+
+	cluster := newCluster(defaultNamespaceTopLevel1, defaultNamespaceTopLevel2, kubesystemNamespaceTopLevel2)
+	err := cluster.ensureSynced()
+	assert.Nil(t, err)
+
+	resources := cluster.getNamespaceTopLevelResources("default")
+	assert.Len(t, resources, 2)
+	assert.Equal(t, resources[kube.GetResourceKey(defaultNamespaceTopLevel1)].Name, "helm-guestbook1")
+	assert.Equal(t, resources[kube.GetResourceKey(defaultNamespaceTopLevel2)].Name, "helm-guestbook2")
+
+	resources = cluster.getNamespaceTopLevelResources("kube-system")
+	assert.Len(t, resources, 1)
+	assert.Equal(t, resources[kube.GetResourceKey(kubesystemNamespaceTopLevel2)].Name, "helm-guestbook3")
 }
 
 func TestGetChildren(t *testing.T) {
@@ -372,8 +403,10 @@ func TestUpdateResourceTags(t *testing.T) {
 func TestUpdateAppResource(t *testing.T) {
 	updatesReceived := make([]string, 0)
 	cluster := newCluster(testPod, testRS, testDeploy)
-	cluster.onAppUpdated = func(appName string, fullRefresh bool, _ corev1.ObjectReference) {
-		updatesReceived = append(updatesReceived, fmt.Sprintf("%s: %v", appName, fullRefresh))
+	cluster.onObjectUpdated = func(managedByApp map[string]bool, _ corev1.ObjectReference) {
+		for appName, fullRefresh := range managedByApp {
+			updatesReceived = append(updatesReceived, fmt.Sprintf("%s: %v", appName, fullRefresh))
+		}
 	}
 
 	err := cluster.ensureSynced()

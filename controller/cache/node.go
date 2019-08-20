@@ -127,14 +127,14 @@ func (n *node) asResourceNode() appv1.ResourceNode {
 	}
 }
 
-func (n *node) iterateChildren(ns map[kube.ResourceKey]*node, parents map[kube.ResourceKey]bool, action func(child appv1.ResourceNode)) {
+func (n *node) iterateChildren(ns map[kube.ResourceKey]*node, parents map[kube.ResourceKey]bool, action func(child appv1.ResourceNode, appName string)) {
 	for childKey, child := range ns {
 		if n.isParentOf(ns[childKey]) {
 			if parents[childKey] {
 				key := n.resourceKey()
 				log.Warnf("Circular dependency detected. %s is child and parent of %s", childKey.String(), key.String())
 			} else {
-				action(child.asResourceNode())
+				action(child.asResourceNode(), child.getApp(ns))
 				child.iterateChildren(ns, newResourceKeySet(parents, n.resourceKey()), action)
 			}
 		}

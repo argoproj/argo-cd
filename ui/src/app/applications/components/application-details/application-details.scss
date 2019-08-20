@@ -25,6 +25,12 @@
         font-size: 0.8em;
         color: darken($argo-status-warning-color, 20%);
     }
+    &__orphaned-filter {
+        position: fixed;
+        top: 100px + 100px;
+        right: 60px;
+    }
+
     &__refreshing-label {
         position: fixed;
         top: 100px + 100px;

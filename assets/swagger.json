@@ -2604,6 +2604,9 @@
             "$ref": "#/definitions/v1GroupKind"
           }
         },
+        "orphanedResources": {
+          "$ref": "#/definitions/v1alpha1OrphanedResourcesMonitorSettings"
+        },
         "roles": {
           "type": "array",
           "title": "Roles are user defined RBAC roles associated with this project",
@@ -2932,6 +2935,14 @@
       "title": "ApplicationTree holds nodes which belongs to the application",
       "properties": {
         "nodes": {
+          "description": "Nodes contains list of nodes which either directly managed by the application and children of directly managed nodes.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceNode"
+          }
+        },
+        "orphanedNodes": {
+          "description": "OrphanedNodes contains if or orphaned nodes: nodes which are not managed by the app but in the same namespace. List is populated only if orphaned resources enabled in app project.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceNode"
@@ -3191,6 +3202,17 @@
         },
         "syncResult": {
           "$ref": "#/definitions/v1alpha1SyncOperationResult"
+        }
+      }
+    },
+    "v1alpha1OrphanedResourcesMonitorSettings": {
+      "type": "object",
+      "title": "OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring",
+      "properties": {
+        "warn": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "Warn indicates if warning condition should be created for apps which have orphaned resources"
         }
       }
     },

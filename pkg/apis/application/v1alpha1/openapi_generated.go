@@ -13,75 +13,77 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.AWSAuthConfig":              schema_pkg_apis_application_v1alpha1_AWSAuthConfig(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.AppProject":                 schema_pkg_apis_application_v1alpha1_AppProject(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.AppProjectList":             schema_pkg_apis_application_v1alpha1_AppProjectList(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.AppProjectSpec":             schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Application":                schema_pkg_apis_application_v1alpha1_Application(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationCondition":       schema_pkg_apis_application_v1alpha1_ApplicationCondition(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationDestination":     schema_pkg_apis_application_v1alpha1_ApplicationDestination(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationList":            schema_pkg_apis_application_v1alpha1_ApplicationList(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSource":          schema_pkg_apis_application_v1alpha1_ApplicationSource(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourceDirectory": schema_pkg_apis_application_v1alpha1_ApplicationSourceDirectory(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourceHelm":      schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourceJsonnet":   schema_pkg_apis_application_v1alpha1_ApplicationSourceJsonnet(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourceKsonnet":   schema_pkg_apis_application_v1alpha1_ApplicationSourceKsonnet(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourceKustomize": schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourcePlugin":    schema_pkg_apis_application_v1alpha1_ApplicationSourcePlugin(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSpec":            schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationStatus":          schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSummary":         schema_pkg_apis_application_v1alpha1_ApplicationSummary(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationTree":            schema_pkg_apis_application_v1alpha1_ApplicationTree(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationWatchEvent":      schema_pkg_apis_application_v1alpha1_ApplicationWatchEvent(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Cluster":                    schema_pkg_apis_application_v1alpha1_Cluster(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterConfig":              schema_pkg_apis_application_v1alpha1_ClusterConfig(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterList":                schema_pkg_apis_application_v1alpha1_ClusterList(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Command":                    schema_pkg_apis_application_v1alpha1_Command(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ComparedTo":                 schema_pkg_apis_application_v1alpha1_ComparedTo(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ComponentParameter":         schema_pkg_apis_application_v1alpha1_ComponentParameter(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConfigManagementPlugin":     schema_pkg_apis_application_v1alpha1_ConfigManagementPlugin(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConnectionState":            schema_pkg_apis_application_v1alpha1_ConnectionState(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.EnvEntry":                   schema_pkg_apis_application_v1alpha1_EnvEntry(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HealthStatus":               schema_pkg_apis_application_v1alpha1_HealthStatus(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HelmParameter":              schema_pkg_apis_application_v1alpha1_HelmParameter(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Info":                       schema_pkg_apis_application_v1alpha1_Info(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.InfoItem":                   schema_pkg_apis_application_v1alpha1_InfoItem(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.JWTToken":                   schema_pkg_apis_application_v1alpha1_JWTToken(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.JsonnetVar":                 schema_pkg_apis_application_v1alpha1_JsonnetVar(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.KsonnetParameter":           schema_pkg_apis_application_v1alpha1_KsonnetParameter(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.KustomizeOptions":           schema_pkg_apis_application_v1alpha1_KustomizeOptions(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Operation":                  schema_pkg_apis_application_v1alpha1_Operation(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OperationState":             schema_pkg_apis_application_v1alpha1_OperationState(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectRole":                schema_pkg_apis_application_v1alpha1_ProjectRole(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Repository":                 schema_pkg_apis_application_v1alpha1_Repository(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RepositoryCertificate":      schema_pkg_apis_application_v1alpha1_RepositoryCertificate(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RepositoryCertificateList":  schema_pkg_apis_application_v1alpha1_RepositoryCertificateList(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RepositoryList":             schema_pkg_apis_application_v1alpha1_RepositoryList(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceAction":             schema_pkg_apis_application_v1alpha1_ResourceAction(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceActionDefinition":   schema_pkg_apis_application_v1alpha1_ResourceActionDefinition(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceActionParam":        schema_pkg_apis_application_v1alpha1_ResourceActionParam(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceActions":            schema_pkg_apis_application_v1alpha1_ResourceActions(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceDiff":               schema_pkg_apis_application_v1alpha1_ResourceDiff(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceIgnoreDifferences":  schema_pkg_apis_application_v1alpha1_ResourceIgnoreDifferences(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceNetworkingInfo":     schema_pkg_apis_application_v1alpha1_ResourceNetworkingInfo(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceNode":               schema_pkg_apis_application_v1alpha1_ResourceNode(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceOverride":           schema_pkg_apis_application_v1alpha1_ResourceOverride(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceRef":                schema_pkg_apis_application_v1alpha1_ResourceRef(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceResult":             schema_pkg_apis_application_v1alpha1_ResourceResult(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceStatus":             schema_pkg_apis_application_v1alpha1_ResourceStatus(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionHistory":            schema_pkg_apis_application_v1alpha1_RevisionHistory(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionMetadata":           schema_pkg_apis_application_v1alpha1_RevisionMetadata(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperation":              schema_pkg_apis_application_v1alpha1_SyncOperation(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperationResource":      schema_pkg_apis_application_v1alpha1_SyncOperationResource(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperationResult":        schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncPolicy":                 schema_pkg_apis_application_v1alpha1_SyncPolicy(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncPolicyAutomated":        schema_pkg_apis_application_v1alpha1_SyncPolicyAutomated(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncStatus":                 schema_pkg_apis_application_v1alpha1_SyncStatus(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncStrategy":               schema_pkg_apis_application_v1alpha1_SyncStrategy(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncStrategyApply":          schema_pkg_apis_application_v1alpha1_SyncStrategyApply(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncStrategyHook":           schema_pkg_apis_application_v1alpha1_SyncStrategyHook(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.TLSClientConfig":            schema_pkg_apis_application_v1alpha1_TLSClientConfig(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.objectMeta":                 schema_pkg_apis_application_v1alpha1_objectMeta(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.AWSAuthConfig":                    schema_pkg_apis_application_v1alpha1_AWSAuthConfig(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.AppProject":                       schema_pkg_apis_application_v1alpha1_AppProject(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.AppProjectList":                   schema_pkg_apis_application_v1alpha1_AppProjectList(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.AppProjectSpec":                   schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Application":                      schema_pkg_apis_application_v1alpha1_Application(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationCondition":             schema_pkg_apis_application_v1alpha1_ApplicationCondition(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationDestination":           schema_pkg_apis_application_v1alpha1_ApplicationDestination(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationList":                  schema_pkg_apis_application_v1alpha1_ApplicationList(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSource":                schema_pkg_apis_application_v1alpha1_ApplicationSource(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourceDirectory":       schema_pkg_apis_application_v1alpha1_ApplicationSourceDirectory(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourceHelm":            schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourceJsonnet":         schema_pkg_apis_application_v1alpha1_ApplicationSourceJsonnet(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourceKsonnet":         schema_pkg_apis_application_v1alpha1_ApplicationSourceKsonnet(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourceKustomize":       schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourcePlugin":          schema_pkg_apis_application_v1alpha1_ApplicationSourcePlugin(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSpec":                  schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationStatus":                schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSummary":               schema_pkg_apis_application_v1alpha1_ApplicationSummary(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationTree":                  schema_pkg_apis_application_v1alpha1_ApplicationTree(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationWatchEvent":            schema_pkg_apis_application_v1alpha1_ApplicationWatchEvent(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Cluster":                          schema_pkg_apis_application_v1alpha1_Cluster(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterConfig":                    schema_pkg_apis_application_v1alpha1_ClusterConfig(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterList":                      schema_pkg_apis_application_v1alpha1_ClusterList(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Command":                          schema_pkg_apis_application_v1alpha1_Command(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ComparedTo":                       schema_pkg_apis_application_v1alpha1_ComparedTo(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ComponentParameter":               schema_pkg_apis_application_v1alpha1_ComponentParameter(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConfigManagementPlugin":           schema_pkg_apis_application_v1alpha1_ConfigManagementPlugin(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConnectionState":                  schema_pkg_apis_application_v1alpha1_ConnectionState(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.EnvEntry":                         schema_pkg_apis_application_v1alpha1_EnvEntry(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HealthStatus":                     schema_pkg_apis_application_v1alpha1_HealthStatus(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HelmParameter":                    schema_pkg_apis_application_v1alpha1_HelmParameter(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HelmRepository":                   schema_pkg_apis_application_v1alpha1_HelmRepository(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Info":                             schema_pkg_apis_application_v1alpha1_Info(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.InfoItem":                         schema_pkg_apis_application_v1alpha1_InfoItem(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.JWTToken":                         schema_pkg_apis_application_v1alpha1_JWTToken(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.JsonnetVar":                       schema_pkg_apis_application_v1alpha1_JsonnetVar(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.KsonnetParameter":                 schema_pkg_apis_application_v1alpha1_KsonnetParameter(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.KustomizeOptions":                 schema_pkg_apis_application_v1alpha1_KustomizeOptions(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Operation":                        schema_pkg_apis_application_v1alpha1_Operation(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OperationState":                   schema_pkg_apis_application_v1alpha1_OperationState(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings": schema_pkg_apis_application_v1alpha1_OrphanedResourcesMonitorSettings(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectRole":                      schema_pkg_apis_application_v1alpha1_ProjectRole(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Repository":                       schema_pkg_apis_application_v1alpha1_Repository(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RepositoryCertificate":            schema_pkg_apis_application_v1alpha1_RepositoryCertificate(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RepositoryCertificateList":        schema_pkg_apis_application_v1alpha1_RepositoryCertificateList(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RepositoryList":                   schema_pkg_apis_application_v1alpha1_RepositoryList(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceAction":                   schema_pkg_apis_application_v1alpha1_ResourceAction(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceActionDefinition":         schema_pkg_apis_application_v1alpha1_ResourceActionDefinition(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceActionParam":              schema_pkg_apis_application_v1alpha1_ResourceActionParam(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceActions":                  schema_pkg_apis_application_v1alpha1_ResourceActions(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceDiff":                     schema_pkg_apis_application_v1alpha1_ResourceDiff(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceIgnoreDifferences":        schema_pkg_apis_application_v1alpha1_ResourceIgnoreDifferences(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceNetworkingInfo":           schema_pkg_apis_application_v1alpha1_ResourceNetworkingInfo(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceNode":                     schema_pkg_apis_application_v1alpha1_ResourceNode(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceOverride":                 schema_pkg_apis_application_v1alpha1_ResourceOverride(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceRef":                      schema_pkg_apis_application_v1alpha1_ResourceRef(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceResult":                   schema_pkg_apis_application_v1alpha1_ResourceResult(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceStatus":                   schema_pkg_apis_application_v1alpha1_ResourceStatus(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionHistory":                  schema_pkg_apis_application_v1alpha1_RevisionHistory(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionMetadata":                 schema_pkg_apis_application_v1alpha1_RevisionMetadata(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperation":                    schema_pkg_apis_application_v1alpha1_SyncOperation(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperationResource":            schema_pkg_apis_application_v1alpha1_SyncOperationResource(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperationResult":              schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncPolicy":                       schema_pkg_apis_application_v1alpha1_SyncPolicy(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncPolicyAutomated":              schema_pkg_apis_application_v1alpha1_SyncPolicyAutomated(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncStatus":                       schema_pkg_apis_application_v1alpha1_SyncStatus(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncStrategy":                     schema_pkg_apis_application_v1alpha1_SyncStrategy(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncStrategyApply":                schema_pkg_apis_application_v1alpha1_SyncStrategyApply(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncStrategyHook":                 schema_pkg_apis_application_v1alpha1_SyncStrategyHook(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.TLSClientConfig":                  schema_pkg_apis_application_v1alpha1_TLSClientConfig(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.objectMeta":                       schema_pkg_apis_application_v1alpha1_objectMeta(ref),
 	}
 }
 
@@ -208,7 +210,7 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 				Properties: map[string]spec.Schema{
 					"sourceRepos": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SourceRepos contains list of repository URLs which can be used for deployment",
+							Description: "SourceRepos contains list of git repository URLs which can be used for deployment",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -279,11 +281,17 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 							},
 						},
 					},
+					"orphanedResources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "OrphanedResources specifies if controller should monitor orphaned resources of apps in this project",
+							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectRole", "k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectRole", "k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"},
 	}
 }
 
@@ -448,7 +456,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSource(ref common.Reference
 				Properties: map[string]spec.Schema{
 					"repoURL": {
 						SchemaProps: spec.SchemaProps{
-							Description: "RepoURL is the repository URL of the application manifests",
+							Description: "RepoURL is the git repository URL of the application manifests",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -948,7 +956,21 @@ func schema_pkg_apis_application_v1alpha1_ApplicationTree(ref common.ReferenceCa
 				Properties: map[string]spec.Schema{
 					"nodes": {
 						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
+							Description: "Nodes contains list of nodes which either directly managed by the application and children of directly managed nodes.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceNode"),
+									},
+								},
+							},
+						},
+					},
+					"orphanedNodes": {
+						SchemaProps: spec.SchemaProps{
+							Description: "OrphanedNodes contains if or orphaned nodes: nodes which are not managed by the app but in the same namespace. List is populated only if orphaned resources enabled in app project.",
+							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
@@ -1364,6 +1386,61 @@ func schema_pkg_apis_application_v1alpha1_HelmParameter(ref common.ReferenceCall
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_HelmRepository(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"url": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"caData": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "byte",
+						},
+					},
+					"certData": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "byte",
+						},
+					},
+					"keyData": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "byte",
+						},
+					},
+					"username": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"password": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"url", "name"},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_Info(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1601,6 +1678,26 @@ func schema_pkg_apis_application_v1alpha1_OperationState(ref common.ReferenceCal
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_OrphanedResourcesMonitorSettings(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"warn": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Warn indicates if warning condition should be created for apps which have orphaned resources",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_ProjectRole(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1676,7 +1773,7 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "Repository is a repository holding application configurations",
+				Description: "Repository is a Git repository holding application configurations",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"repo": {
@@ -1702,7 +1799,7 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 					},
 					"sshPrivateKey": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SSH private key data for authenticating at the repo server only for Git repos",
+							Description: "SSH private key data for authenticating at the repo server",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1715,7 +1812,7 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 					},
 					"insecureIgnoreHostKey": {
 						SchemaProps: spec.SchemaProps{
-							Description: "InsecureIgnoreHostKey should not be used anymore, Insecure is favoured only for Git repos",
+							Description: "InsecureIgnoreHostKey should not be used anymore, Insecure is favoured",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -1744,27 +1841,6 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 					"tlsClientCertKey": {
 						SchemaProps: spec.SchemaProps{
 							Description: "TLS client cert key for authenticating at the repo server",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"tlsClientCaData": {
-						SchemaProps: spec.SchemaProps{
-							Description: "only for Helm repos",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"type": {
-						SchemaProps: spec.SchemaProps{
-							Description: "type of the repo, maybe \"git or \"helm, \"git\" is assumed if empty or absent",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"name": {
-						SchemaProps: spec.SchemaProps{
-							Description: "only for Helm repos",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2635,7 +2711,7 @@ func schema_pkg_apis_application_v1alpha1_SyncOperation(ref common.ReferenceCall
 				Properties: map[string]spec.Schema{
 					"revision": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Revision is the revision in which to sync the application to. If omitted, will use the revision specified in app spec.",
+							Description: "Revision is the git revision in which to sync the application to. If omitted, will use the revision specified in app spec.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2755,7 +2831,7 @@ func schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref common.Referen
 					},
 					"revision": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Revision holds the revision of the sync",
+							Description: "Revision holds the git commit SHA of the sync",
 							Type:        []string{"string"},
 							Format:      "",
 						},
