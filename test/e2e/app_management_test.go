@@ -793,9 +793,6 @@ func TestOrphanedResource(t *testing.T) {
 			SourceRepos:       []string{"*"},
 			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
 			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true)},
-			NamespaceResourceBlacklist: []metav1.GroupKind{{
-				Kind: kube.ServiceAccountKind,
-			}},
 		}).
 		Path(guestbookPath).
 		When().
