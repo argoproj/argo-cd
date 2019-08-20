@@ -44,18 +44,15 @@ type HTTPSCreds struct {
 	clientCertData string
 	// Client certificate key to use
 	clientCertKey string
-	// Client CA key
-	clientCAData string
 }
 
-func NewHTTPSCreds(username, password, clientCertData, clientCertKey, clientCAData string, insecure bool) HTTPSCreds {
+func NewHTTPSCreds(username, password, clientCertData, clientCertKey string, insecure bool) HTTPSCreds {
 	return HTTPSCreds{
 		username,
 		password,
 		insecure,
 		clientCertData,
 		clientCertKey,
-		clientCAData,
 	}
 }
 

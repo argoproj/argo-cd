@@ -94,19 +94,19 @@ type RepoCredentials struct {
 	UsernameSecret *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
 	// Name of the secret storing the password used to access the repo
 	PasswordSecret *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
-	// Name of the secret storing the SSH private key used to access the repo
+	// Name of the secret storing the SSH private key used to access the repo. Git only
 	SSHPrivateKeySecret *apiv1.SecretKeySelector `json:"sshPrivateKeySecret,omitempty"`
 	// Whether to connect the repository in an insecure way (deprecated)
 	InsecureIgnoreHostKey bool `json:"insecureIgnoreHostKey,omitempty"`
 	// Whether to connect the repository in an insecure way
 	Insecure bool `json:"insecure,omitempty"`
-	// Whether the repo is git-lfs enabled
+	// Whether the repo is git-lfs enabled. Git only.
 	EnableLFS bool `json:"enableLfs,omitempty"`
 	// Name of the secret storing the TLS client cert data
 	TLSClientCertDataSecret *apiv1.SecretKeySelector `json:"tlsClientCertDataSecret,omitempty"`
 	// Name of the secret storing the TLS client cert's key data
 	TLSClientCertKeySecret *apiv1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
-	// The CA secret for TLS client cert
+	// The CA secret for TLS client cert. Helm only
 	TLSClientCASecret *apiv1.SecretKeySelector `json:"tlsClientCertCaSecret,omitempty"`
 }
 

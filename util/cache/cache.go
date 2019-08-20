@@ -96,10 +96,6 @@ func listApps(revision, path string) string {
 	return fmt.Sprintf("ldir|%s|%s", path, revision)
 }
 
-func gitFileKey(revision string, path string) string {
-	return fmt.Sprintf("gfile|%s|%s", path, revision)
-}
-
 func oidcStateKey(key string) string {
 	return fmt.Sprintf("oidc|%s", key)
 }
@@ -183,16 +179,6 @@ func (c *Cache) ListApps(revision, path string) (map[string]string, error) {
 
 func (c *Cache) SetApps(revision, path string, apps map[string]string) error {
 	return c.setItem(listApps(revision, path), apps, repoCacheExpiration, apps == nil)
-}
-
-func (c *Cache) GetGitFile(commitSha string, path string) ([]byte, error) {
-	res := make([]byte, 0)
-	err := c.getItem(gitFileKey(commitSha, path), &res)
-	return res, err
-}
-
-func (c *Cache) SetGitFile(commitSha string, path string, data []byte) error {
-	return c.setItem(gitFileKey(commitSha, path), data, repoCacheExpiration, data == nil)
 }
 
 func (c *Cache) GetManifests(commitSHA string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string, res interface{}) error {
