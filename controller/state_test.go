@@ -30,8 +30,7 @@ func TestCompareAppStateEmpty(t *testing.T) {
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
 	ctrl := newFakeController(&data)
-	compRes, err := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
-	assert.NoError(t, err)
+	compRes := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, 0, len(compRes.resources))
@@ -53,8 +52,7 @@ func TestCompareAppStateMissing(t *testing.T) {
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
 	ctrl := newFakeController(&data)
-	compRes, err := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
-	assert.NoError(t, err)
+	compRes := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
 	assert.Equal(t, 1, len(compRes.resources))
@@ -80,8 +78,7 @@ func TestCompareAppStateExtra(t *testing.T) {
 		},
 	}
 	ctrl := newFakeController(&data)
-	compRes, err := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
-	assert.NoError(t, err)
+	compRes := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
 	assert.Equal(t, 1, len(compRes.resources))
@@ -107,8 +104,7 @@ func TestCompareAppStateHook(t *testing.T) {
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
 	ctrl := newFakeController(&data)
-	compRes, err := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
-	assert.NoError(t, err)
+	compRes := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, 0, len(compRes.resources))
@@ -134,9 +130,8 @@ func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
 	}
 	ctrl := newFakeController(&data)
 
-	compRes, err := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
+	compRes := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
 
-	assert.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Len(t, compRes.resources, 0)
@@ -163,8 +158,8 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 		},
 	}
 	ctrl := newFakeController(&data)
-	compRes, err := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
-	assert.NoError(t, err)
+	compRes := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
+
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, 1, len(compRes.resources))
@@ -200,8 +195,8 @@ func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
 		},
 	}
 	ctrl := newFakeController(&data)
-	compRes, err := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
-	assert.NoError(t, err)
+	compRes := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
+
 	assert.NotNil(t, compRes)
 	assert.Contains(t, compRes.conditions, argoappv1.ApplicationCondition{
 		Message: "Resource /Pod/fake-dest-ns/my-pod appeared 2 times among application resources.",
@@ -251,8 +246,7 @@ func TestSetHealth(t *testing.T) {
 		},
 	})
 
-	compRes, err := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
-	assert.NoError(t, err)
+	compRes := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
 
 	assert.Equal(t, compRes.healthStatus.Status, argoappv1.HealthStatusHealthy)
 }
@@ -284,8 +278,7 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 		},
 	})
 
-	compRes, err := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
-	assert.NoError(t, err)
+	compRes := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
 
 	assert.Equal(t, compRes.healthStatus.Status, argoappv1.HealthStatusHealthy)
 }
@@ -340,4 +333,24 @@ func TestSetManagedResourcesWithResourcesOfAnotherApp(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, len(tree.OrphanedNodes), 0)
+}
+
+func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
+	proj := defaultProj.DeepCopy()
+	proj.Spec.OrphanedResources = &argoappv1.OrphanedResourcesMonitorSettings{}
+
+	app := newFakeApp()
+
+	ctrl := newFakeController(&fakeData{
+		apps: []runtime.Object{app, proj},
+		configMapData: map[string]string{
+			"resource.customizations": "invalid setting",
+		},
+	})
+
+	compRes := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
+
+	assert.Equal(t, argoappv1.HealthStatusUnknown, compRes.healthStatus.Status)
+	assert.Equal(t, argoappv1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
+	assert.NotNil(t, compRes.reconciledAt)
 }

@@ -757,13 +757,13 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if comparisonLevel == CompareWithRecent {
 		revision = app.Status.Sync.Revision
 	}
-	compareResult, err := ctrl.appStateManager.CompareAppState(app, revision, app.Spec.Source, refreshType == appv1.RefreshTypeHard, localManifests)
-	if err != nil {
-		app.Status.Conditions = append(app.Status.Conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
-	} else {
-		ctrl.normalizeApplication(origApp, app, compareResult.appSourceType)
-		app.Status.Conditions = append(app.Status.Conditions, compareResult.conditions...)
-	}
+
+	compareResult := ctrl.appStateManager.CompareAppState(app, revision, app.Spec.Source, refreshType == appv1.RefreshTypeHard, localManifests)
+
+	ctrl.normalizeApplication(origApp, app, compareResult.appSourceType)
+
+	app.Status.Conditions = append(app.Status.Conditions, compareResult.conditions...)
+
 	tree, err := ctrl.setAppManagedResources(app, compareResult)
 	if err != nil {
 		logCtx.Errorf("Failed to cache app resources: %v", err)

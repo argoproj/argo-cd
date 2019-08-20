@@ -101,12 +101,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		revision = syncOp.Revision
 	}
 
-	compareResult, err := m.CompareAppState(app, revision, source, false, syncOp.Manifests)
-	if err != nil {
-		state.Phase = v1alpha1.OperationError
-		state.Message = err.Error()
-		return
-	}
+	compareResult := m.CompareAppState(app, revision, source, false, syncOp.Manifests)
 
 	// If there are any error conditions, do not perform the operation
 	errConditions := make([]v1alpha1.ApplicationCondition, 0)
