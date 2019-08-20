@@ -35,6 +35,7 @@ type fakeData struct {
 	apps             []runtime.Object
 	manifestResponse *apiclient.ManifestResponse
 	managedLiveObjs  map[kube.ResourceKey]*unstructured.Unstructured
+	configMapData    map[string]string
 }
 
 func newFakeController(data *fakeData) *ApplicationController {
@@ -68,7 +69,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 				"app.kubernetes.io/part-of": "argocd",
 			},
 		},
-		Data: nil,
+		Data: data.configMapData,
 	}
 	kubeClient := fake.NewSimpleClientset(&clust, &cm, &secret)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
