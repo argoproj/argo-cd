@@ -176,10 +176,7 @@ func GenerateManifests(appPath string, q *apiclient.ManifestRequest) (*apiclient
 	case v1alpha1.ApplicationSourceTypeKsonnet:
 		targetObjs, dest, err = ksShow(q.AppLabelKey, appPath, q.ApplicationSource.Ksonnet)
 	case v1alpha1.ApplicationSourceTypeHelm:
-		h, err := helm.NewHelmApp(appPath, q.Repos)
-		if err != nil {
-			return nil, err
-		}
+		h := helm.NewHelmApp(appPath, q.Repos)
 		defer h.Dispose()
 		err = h.Init()
 		if err != nil {
@@ -566,15 +563,12 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 				res.Helm.ValueFiles = append(res.Helm.ValueFiles, fName)
 			}
 		}
-		h, err := helm.NewHelmApp(appPath, q.Repos)
-		if err != nil {
-			return nil, err
-		}
+		h := helm.NewHelmApp(appPath, q.Repos)
+		defer h.Dispose()
 		err = h.Init()
 		if err != nil {
 			return nil, err
 		}
-		defer h.Dispose()
 		valuesPath := filepath.Join(appPath, "values.yaml")
 		info, err := os.Stat(valuesPath)
 		if err == nil && !info.IsDir() {

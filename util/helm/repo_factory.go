@@ -24,12 +24,8 @@ func NewRepo(url, name, username, password string, caData, certData, keyData []b
 		return cached.(repo.Repo), nil
 	}
 
-	cmd, err := newCmd(repo.TempRepoPath(url))
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = cmd.init()
+	cmd := newCmd(repo.TempRepoPath(url))
+	_, err := cmd.init()
 	if err != nil {
 		return nil, err
 	}

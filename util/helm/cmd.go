@@ -17,9 +17,9 @@ type cmd struct {
 	workDir  string
 }
 
-func newCmd(workDir string) (*cmd, error) {
+func newCmd(workDir string) *cmd {
 	tmpDir := filepath.Join(workDir, ".helm")
-	return &cmd{workDir: workDir, helmHome: tmpDir}, nil
+	return &cmd{workDir: workDir, helmHome: tmpDir}
 }
 
 var redactor = func(text string) string {

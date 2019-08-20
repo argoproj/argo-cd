@@ -10,7 +10,7 @@ type Repo struct {
 	mock.Mock
 }
 
-// Checkout provides a mock function with given fields: app, resolvedRevision
+// GetApp provides a mock function with given fields: app, resolvedRevision
 func (_m *Repo) GetApp(app string, resolvedRevision string) (string, error) {
 	ret := _m.Called(app, resolvedRevision)
 
@@ -31,7 +31,21 @@ func (_m *Repo) GetApp(app string, resolvedRevision string) (string, error) {
 	return r0, r1
 }
 
-// List provides a mock function with given fields: revision
+// Init provides a mock function with given fields:
+func (_m *Repo) Init() error {
+	ret := _m.Called()
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func() error); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// ListApps provides a mock function with given fields: revision
 func (_m *Repo) ListApps(revision string) (map[string]string, string, error) {
 	ret := _m.Called(revision)
 

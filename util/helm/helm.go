@@ -33,12 +33,9 @@ type Helm interface {
 }
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
-func NewHelmApp(workDir string, repos argoappv1.Repositories) (Helm, error) {
-	cmd, err := newCmd(workDir)
-	if err != nil {
-		return nil, err
-	}
-	return &helm{repos: &repos, cmd: *cmd}, nil
+func NewHelmApp(workDir string, repos argoappv1.Repositories) Helm {
+	cmd := newCmd(workDir)
+	return &helm{repos: &repos, cmd: *cmd}
 }
 
 type helm struct {
