@@ -62,7 +62,7 @@ func Test_setMaintenanceWindows(t *testing.T) {
 		ap := v1alpha1.Application{}
 		ap.Spec.SyncPolicy = &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{}}
 		setMaintenanceWindows(&ap, windows)
-		assert.Equal(t, &v1alpha1.MaintenanceWindow{Schedule: &sched ,Duration: &dur }, ap.Spec.SyncPolicy.Automated.MaintenanceWindows[0])
+		assert.Equal(t, &v1alpha1.MaintenanceWindow{Schedule: &sched, Duration: &dur}, ap.Spec.SyncPolicy.Automated.MaintenanceWindows[0])
 	})
 	t.Run("MultipleWindows", func(t *testing.T) {
 		sched1 := "0 10 * * *"
@@ -73,7 +73,7 @@ func Test_setMaintenanceWindows(t *testing.T) {
 		ap := v1alpha1.Application{}
 		ap.Spec.SyncPolicy = &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{}}
 		setMaintenanceWindows(&ap, windows)
-		assert.Equal(t, &v1alpha1.MaintenanceWindow{Schedule: &sched1 ,Duration: &dur1 }, ap.Spec.SyncPolicy.Automated.MaintenanceWindows[0])
-		assert.Equal(t, &v1alpha1.MaintenanceWindow{Schedule: &sched2 ,Duration: &dur2 }, ap.Spec.SyncPolicy.Automated.MaintenanceWindows[1])
+		assert.Equal(t, &v1alpha1.MaintenanceWindow{Schedule: &sched1, Duration: &dur1}, ap.Spec.SyncPolicy.Automated.MaintenanceWindows[0])
+		assert.Equal(t, &v1alpha1.MaintenanceWindow{Schedule: &sched2, Duration: &dur2}, ap.Spec.SyncPolicy.Automated.MaintenanceWindows[1])
 	})
 }

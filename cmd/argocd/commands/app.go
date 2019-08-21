@@ -611,7 +611,6 @@ type appOptions struct {
 	jsonnetTlaCode         []string
 	kustomizeImages        []string
 	maintenanceWindows     string
-
 }
 
 func addAppFlags(command *cobra.Command, opts *appOptions) {
