@@ -597,7 +597,6 @@ type appOptions struct {
 	destNamespace          string
 	parameters             []string
 	valuesFiles            []string
-	maintenanceWindows     string
 	releaseName            string
 	helmSets               []string
 	helmSetStrings         []string
@@ -611,6 +610,8 @@ type appOptions struct {
 	jsonnetTlaStr          []string
 	jsonnetTlaCode         []string
 	kustomizeImages        []string
+	maintenanceWindows     string
+
 }
 
 func addAppFlags(command *cobra.Command, opts *appOptions) {
