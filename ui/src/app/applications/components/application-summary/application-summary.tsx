@@ -11,7 +11,6 @@ import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 
 import { ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage } from '../utils';
-import {MaintenanceWindow} from "../../../shared/models";
 
 const urlPattern = new RegExp('^(https?:\\/\\/)?((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|((\\d{1,3}\\.){3}\\d{1,3}))'
     + '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*(\\?[;&a-z\\d%_.~+=-]*)?(\\#[-a-z\\d_]*)?$', 'i');
@@ -100,7 +99,8 @@ export const ApplicationSummary = (props: {
         ) });
     }
 
-    async function setAutoSync(ctx: { popup: PopupApi }, confirmationTitle: string, confirmationText: string, prune: boolean, selfHeal: boolean, maintenanceWindows: MaintenanceWindow[]) {
+    async function setAutoSync(ctx: { popup: PopupApi }, confirmationTitle: string, confirmationText: string, prune: boolean, selfHeal: boolean,
+                               maintenanceWindows: models.MaintenanceWindow[]) {
         const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);
         if (confirmed) {
             const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
@@ -192,7 +192,8 @@ export const ApplicationSummary = (props: {
                                 <button className='argo-button argo-button--base' onClick={() => unsetAutoSync(ctx)}>Disable Auto-Sync</button>
                             ) || (
                                 <button className='argo-button argo-button--base' onClick={() => setAutoSync(
-                                    ctx, 'Enable Auto-Sync?', 'Are you sure you want to enable automated application synchronization?', false, false, app.spec.syncPolicy.automated.maintenanceWindows)
+                                    ctx, 'Enable Auto-Sync?', 'Are you sure you want to enable automated application synchronization?',
+                                    false, false, app.spec.syncPolicy.automated.maintenanceWindows)
                                 }>Enable Auto-Sync</button>
                             )}
                         </div>
@@ -242,7 +243,7 @@ export const ApplicationSummary = (props: {
                                     Maintenance Windows
                                 </div>
                                 <div className='columns small-9'>
-                                    {app.spec.syncPolicy.automated.maintenanceWindows.map(window => <p>{window.schedule} : {window.duration}</p>)}
+                                    {app.spec.syncPolicy.automated.maintenanceWindows.map((window) => <p key={window.schedule} > {window.schedule} : {window.duration}</p>)}
                                 </div>
                             </div>
                             )}
