@@ -819,6 +819,20 @@ spec:
                   description: Automated will keep an application synced to the target
                     revision
                   properties:
+                    maintenanceWindows:
+                      description: 'MaintenanceWindows disables auto-syncing during
+                        the configured time windows  (default: false)'
+                      items:
+                        properties:
+                          duration:
+                            description: Duration is the amount of time the maintenance
+                              window will be open
+                            type: string
+                          schedule:
+                            description: Schedule is the time the window will begin
+                            type: string
+                        type: object
+                      type: array
                     prune:
                       description: 'Prune will prune resources automatically as part
                         of automated sync (default: false)'

@@ -3200,6 +3200,20 @@
         }
       }
     },
+    "v1alpha1MaintenanceWindow": {
+      "type": "object",
+      "title": "MaintenanceWindow controls when automated syncs should be disabled",
+      "properties": {
+        "duration": {
+          "type": "string",
+          "title": "Duration is the amount of time the maintenance window will be open"
+        },
+        "schedule": {
+          "type": "string",
+          "title": "Schedule is the time the window will begin"
+        }
+      }
+    },
     "v1alpha1Operation": {
       "description": "Operation contains requested operation parameters.",
       "type": "object",
@@ -3788,6 +3802,13 @@
       "type": "object",
       "title": "SyncPolicyAutomated controls the behavior of an automated sync",
       "properties": {
+        "maintenanceWindows": {
+          "type": "array",
+          "title": "MaintenanceWindows disables auto-syncing during the configured time windows  (default: false)",
+          "items": {
+            "$ref": "#/definitions/v1alpha1MaintenanceWindow"
+          }
+        },
         "prune": {
           "type": "boolean",
           "format": "boolean",

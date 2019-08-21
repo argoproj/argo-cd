@@ -257,15 +257,22 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string) {
 	fmt.Printf(printOpFmtStr, "Path:", app.Spec.Source.Path)
 	printAppSourceDetails(&app.Spec.Source)
 	var syncPolicy string
+	var maintenanceWindows string
 	if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
 		syncPolicy = "Automated"
 		if app.Spec.SyncPolicy.Automated.Prune {
 			syncPolicy += " (Prune)"
 		}
+		if app.Spec.SyncPolicy.Automated.MaintenanceWindows != nil {
+			maintenanceWindows = formatMaintenanceWindows(*app)
+		} else {
+			maintenanceWindows = "<none>"
+		}
 	} else {
 		syncPolicy = "<none>"
 	}
 	fmt.Printf(printOpFmtStr, "Sync Policy:", syncPolicy)
+	fmt.Printf(printOpFmtStr, "Maintenance:", maintenanceWindows)
 	syncStatusStr := string(app.Status.Sync.Status)
 	switch app.Status.Sync.Status {
 	case argoappv1.SyncStatusCodeSynced:
@@ -447,6 +454,18 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 		}
 		app.Spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
 	}
+	if flags.Changed("self-heal") {
+		if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
+			log.Fatal("Cannot set --self-heal: application not configured with automatic sync")
+		}
+		app.Spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
+	}
+	if flags.Changed("maintenance-windows") {
+		if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
+			log.Fatal("Cannot set --maintenance-windows: application not configured with automatic sync")
+		}
+		setMaintenanceWindows(app, appOpts.maintenanceWindows)
+	}
 
 	return visited
 }
@@ -484,6 +503,20 @@ func setKustomizeImages(src *argoappv1.ApplicationSource, images []string) {
 	if src.Kustomize.IsZero() {
 		src.Kustomize = nil
 	}
+}
+
+func setMaintenanceWindows(app *argoappv1.Application, windows string) {
+	var maintenanceWindows []*argoappv1.MaintenanceWindow
+	wn := strings.Split(windows, ",")
+	for _, w := range wn {
+		cfg := strings.Split(w, ":")
+		window := argoappv1.MaintenanceWindow{
+			Schedule: &cfg[0],
+			Duration: &cfg[1],
+		}
+		maintenanceWindows = append(maintenanceWindows, &window)
+	}
+	app.Spec.SyncPolicy.Automated.MaintenanceWindows = maintenanceWindows
 }
 
 type helmOpts struct {
@@ -564,12 +597,14 @@ type appOptions struct {
 	destNamespace          string
 	parameters             []string
 	valuesFiles            []string
+	maintenanceWindows     string
 	releaseName            string
 	helmSets               []string
 	helmSetStrings         []string
 	project                string
 	syncPolicy             string
 	autoPrune              bool
+	selfHeal               bool
 	namePrefix             string
 	directoryRecurse       bool
 	configManagementPlugin string
@@ -593,12 +628,14 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringVar(&opts.project, "project", "", "Application project name")
 	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: automated, none)")
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
+	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing when sync is automated")
 	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
 	command.Flags().BoolVar(&opts.directoryRecurse, "directory-recurse", false, "Recurse directory")
 	command.Flags().StringVar(&opts.configManagementPlugin, "config-management-plugin", "", "Config management plugin name")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaStr, "jsonnet-tla-str", []string{}, "Jsonnet top level string arguments")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaCode, "jsonnet-tla-code", []string{}, "Jsonnet top level code arguments")
 	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
+	command.Flags().StringVar(&opts.maintenanceWindows, "maintenance-windows", "", "Times during which auto-sync will be disabled (can specify multiple or separate values with commas: '0 11 * * *:1h,30 23 * * *:1h')")
 }
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
@@ -992,8 +1029,8 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 	var fmtStr string
 	headers := []interface{}{"NAME", "CLUSTER", "NAMESPACE", "PROJECT", "STATUS", "HEALTH", "SYNCPOLICY", "CONDITIONS"}
 	if *output == "wide" {
-		fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
-		headers = append(headers, "REPO", "PATH", "TARGET")
+		fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
+		headers = append(headers, "REPO", "PATH", "TARGET", "MAINTENANCE")
 	} else {
 		fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
 	}
@@ -1010,7 +1047,7 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 			formatConditionsSummary(app),
 		}
 		if *output == "wide" {
-			vals = append(vals, app.Spec.Source.RepoURL, app.Spec.Source.Path, app.Spec.Source.TargetRevision)
+			vals = append(vals, app.Spec.Source.RepoURL, app.Spec.Source.Path, app.Spec.Source.TargetRevision, formatMaintenanceWindows(app))
 		}
 		fmt.Fprintf(w, fmtStr, vals...)
 	}
@@ -1050,6 +1087,26 @@ func formatSyncPolicy(app argoappv1.Application) string {
 		policy = policy + "-Prune"
 	}
 	return policy
+}
+
+func formatMaintenanceWindows(app argoappv1.Application) string {
+	if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
+		return "<none>"
+	}
+	var windows string
+	if app.Spec.SyncPolicy.Automated.MaintenanceWindows != nil {
+		noWindows := len(app.Spec.SyncPolicy.Automated.MaintenanceWindows)
+		for i, w := range app.Spec.SyncPolicy.Automated.MaintenanceWindows {
+			var window string
+			if i+1 < noWindows {
+				window = *w.Schedule + ":" + *w.Duration + ","
+			} else {
+				window = *w.Schedule + ":" + *w.Duration
+			}
+			windows += window
+		}
+	}
+	return windows
 }
 
 func formatConditionsSummary(app argoappv1.Application) string {

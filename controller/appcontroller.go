@@ -23,6 +23,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
+	"github.com/robfig/cron"
+
 	"github.com/argoproj/argo-cd/common"
 	statecache "github.com/argoproj/argo-cd/controller/cache"
 	"github.com/argoproj/argo-cd/controller/metrics"
@@ -940,6 +942,16 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		logCtx.Infof("Skipping auto-sync: deletion in progress")
 		return nil
 	}
+	// Check if there are any active maintenance windows and skip if true
+	if app.Spec.SyncPolicy.Automated.MaintenanceWindows != nil {
+		active, err := maintenanceWindowActive(app)
+		if err != nil {
+			logCtx.Warnf("Error getting maintenance windows: %v", err)
+		}
+		if active {
+			return nil
+		}
+	}
 	// Only perform auto-sync if we detect OutOfSync status. This is to prevent us from attempting
 	// a sync when application is already in a Synced or Unknown state
 	if syncStatus.Status != appv1.SyncStatusCodeOutOfSync {
@@ -1116,4 +1128,25 @@ func toggledAutomatedSync(old *appv1.Application, new *appv1.Application) bool {
 	}
 	// nothing changed
 	return false
+}
+
+func maintenanceWindowActive(app *appv1.Application) (bool, error) {
+	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+	for _, w := range app.Spec.SyncPolicy.Automated.MaintenanceWindows {
+		schedule, err := specParser.Parse(*w.Schedule)
+		if err != nil {
+			return false, err
+		}
+		duration, err := time.ParseDuration(*w.Duration)
+		if err != nil {
+			return false, err
+		}
+		now := time.Now()
+		nextWindow := schedule.Next(now.Add(-duration))
+		if nextWindow.Before(now) {
+			return true, nil
+		}
+	}
+	// No active maintenance windows
+	return false, nil
 }

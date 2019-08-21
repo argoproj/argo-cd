@@ -207,6 +207,36 @@ func TestAutoSync(t *testing.T) {
 	assert.False(t, app.Operation.Sync.Prune)
 }
 
+func TestMaintenanceWindows(t *testing.T) {
+	// Active window will always be true
+	{
+		app := newFakeApp()
+		sched := "* * * * *"
+		dur := "1m"
+		syncPol := &argoappv1.SyncPolicy{Automated: &argoappv1.SyncPolicyAutomated{}}
+		windows := []*argoappv1.MaintenanceWindow{{Schedule: &sched, Duration: &dur}}
+		syncPol.Automated.MaintenanceWindows = windows
+		app.Spec.SyncPolicy = syncPol
+		active, err := maintenanceWindowActive(app)
+		assert.NoError(t, err)
+		assert.True(t, active)
+	}
+
+	// Check that incorrectly formatted schedules fail
+	{
+		app := newFakeApp()
+		sched := "100 * * * *"
+		dur := "1m"
+		syncPol := &argoappv1.SyncPolicy{Automated: &argoappv1.SyncPolicyAutomated{}}
+		windows := []*argoappv1.MaintenanceWindow{{Schedule: &sched, Duration: &dur}}
+		syncPol.Automated.MaintenanceWindows = windows
+		app.Spec.SyncPolicy = syncPol
+		active, err := maintenanceWindowActive(app)
+		assert.Error(t, err)
+		assert.False(t, active)
+	}
+}
+
 func TestSkipAutoSync(t *testing.T) {
 	// Verify we skip when we previously synced to it in our most recent history
 	// Set current to 'aaaaa', desired to 'aaaa' and mark system OutOfSync
@@ -293,6 +323,27 @@ func TestSkipAutoSync(t *testing.T) {
 		}
 		cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{})
 		assert.NotNil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Nil(t, app.Operation)
+	}
+
+	// Verify we skip when there is an active maintenance window
+	{
+		app := newFakeApp()
+		sched := "* * * * *"
+		dur := "1m"
+		syncPol := &argoappv1.SyncPolicy{Automated: &argoappv1.SyncPolicyAutomated{}}
+		windows := []*argoappv1.MaintenanceWindow{{Schedule: &sched, Duration: &dur}}
+		syncPol.Automated.MaintenanceWindows = windows
+		app.Spec.SyncPolicy = syncPol
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+		syncStatus := argoappv1.SyncStatus{
+			Status:   argoappv1.SyncStatusCodeOutOfSync,
+			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		}
+		cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{})
+		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.Nil(t, app.Operation)

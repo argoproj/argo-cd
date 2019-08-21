@@ -437,6 +437,16 @@ type SyncPolicyAutomated struct {
 	Prune bool `json:"prune,omitempty" protobuf:"bytes,1,opt,name=prune"`
 	// SelfHeal enables auto-syncing if  (default: false)
 	SelfHeal bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
+	// MaintenanceWindows disables auto-syncing during the configured time windows  (default: false)
+	MaintenanceWindows []*MaintenanceWindow `json:"maintenanceWindows,omitempty" protobuf:"bytes,3,opt,name=maintenanceWindows"`
+}
+
+// MaintenanceWindow controls when automated syncs should be disabled
+type MaintenanceWindow struct {
+	// Schedule is the time the window will begin
+	Schedule *string `json:"schedule,omitempty" protobuf:"bytes,1,opt,name=schedule"`
+	// Duration is the amount of time the maintenance window will be open
+	Duration *string `json:"duration,omitempty" protobuf:"bytes,2,opt,name=duration"`
 }
 
 // SyncStrategy controls the manner in which a sync is performed

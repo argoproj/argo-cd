@@ -53,3 +53,27 @@ func Test_setHelmOpt(t *testing.T) {
 		assert.Equal(t, []v1alpha1.HelmParameter{{Name: "foo", Value: "bar", ForceString: true}}, src.Helm.Parameters)
 	})
 }
+
+func Test_setMaintenanceWindows(t *testing.T) {
+	t.Run("SingleWindow", func(t *testing.T) {
+		sched := "0 10 * * *"
+		dur := "1h"
+		windows := sched + ":" + dur
+		ap := v1alpha1.Application{}
+		ap.Spec.SyncPolicy = &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{}}
+		setMaintenanceWindows(&ap, windows)
+		assert.Equal(t, &v1alpha1.MaintenanceWindow{Schedule: &sched ,Duration: &dur }, ap.Spec.SyncPolicy.Automated.MaintenanceWindows[0])
+	})
+	t.Run("MultipleWindows", func(t *testing.T) {
+		sched1 := "0 10 * * *"
+		dur1 := "1h"
+		sched2 := "0 22 * * *"
+		dur2 := "1h"
+		windows := sched1 + ":" + dur1 + "," + sched2 + ":" + dur2
+		ap := v1alpha1.Application{}
+		ap.Spec.SyncPolicy = &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{}}
+		setMaintenanceWindows(&ap, windows)
+		assert.Equal(t, &v1alpha1.MaintenanceWindow{Schedule: &sched1 ,Duration: &dur1 }, ap.Spec.SyncPolicy.Automated.MaintenanceWindows[0])
+		assert.Equal(t, &v1alpha1.MaintenanceWindow{Schedule: &sched2 ,Duration: &dur2 }, ap.Spec.SyncPolicy.Automated.MaintenanceWindows[1])
+	})
+}

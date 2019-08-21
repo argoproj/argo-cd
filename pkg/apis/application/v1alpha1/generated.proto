@@ -441,6 +441,15 @@ message KustomizeOptions {
   optional string buildOptions = 1;
 }
 
+// MaintenanceWindow controls when automated syncs should be disabled
+message MaintenanceWindow {
+  // Schedule is the time the window will begin
+  optional string schedule = 1;
+
+  // Duration is the amount of time the maintenance window will be open
+  optional string duration = 2;
+}
+
 // Operation contains requested operation parameters.
 message Operation {
   optional SyncOperation sync = 1;
@@ -811,6 +820,9 @@ message SyncPolicyAutomated {
 
   // SelfHeal enables auto-syncing if  (default: false)
   optional bool selfHeal = 2;
+
+  // MaintenanceWindows disables auto-syncing during the configured time windows  (default: false)
+  repeated MaintenanceWindow maintenanceWindows = 3;
 }
 
 // SyncStatus is a comparison result of application spec and deployed application.
