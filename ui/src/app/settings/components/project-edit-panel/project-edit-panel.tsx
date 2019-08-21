@@ -2,7 +2,7 @@ import {FormField, FormSelect} from 'argo-ui';
 import * as React from 'react';
 import {Form, FormApi, Text} from 'react-form';
 
-import {AutocompleteField, clusterTitle, DataLoader} from '../../../shared/components';
+import {AutocompleteField, CheckboxField, clusterTitle, DataLoader} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {ProjectParams, services} from '../../../shared/services';
 
@@ -155,6 +155,15 @@ export const ProjectEditPanel = (props: {
                     <a onClick={() => api.setValue('namespaceResourceBlacklist', api.values.namespaceResourceBlacklist.concat({ group: '', kind: '' }))}>
                         blacklist new namespaced resource
                     </a>
+                </React.Fragment>
+
+                <React.Fragment>
+                    <h4>Orphaned Resource Monitoring</h4>
+                    <div>Enables monitoring of top level resources in the application target namespace</div>
+                    <FormField formApi={api} label='Enabled' field='orphanedResourcesEnabled' component={CheckboxField} />
+                    {api.values.orphanedResourcesEnabled && (
+                        <FormField formApi={api} label='Warn' field='orphanedResourcesWarn' component={CheckboxField} />
+                    )}
                 </React.Fragment>
             </form>
         )}

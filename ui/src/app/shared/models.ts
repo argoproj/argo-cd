@@ -499,6 +499,7 @@ export interface ProjectSpec {
     roles: ProjectRole[];
     clusterResourceWhitelist: GroupKind[];
     namespaceResourceBlacklist: GroupKind[];
+    orphanedResources?: { warn?: boolean };
 }
 
 export interface Project {
