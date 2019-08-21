@@ -134,6 +134,9 @@ kind: ConfigMap
 metadata:
   name: argocd-cm
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
 data:
   repositories: |
     - url: https://github.com/argoproj/my-private-repository
@@ -153,6 +156,9 @@ kind: ConfigMap
 metadata:
   name: argocd-cm
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
 data:
   repositories: |
     - url: git@github.com:argoproj/my-private-repository
@@ -177,6 +183,9 @@ kind: ConfigMap
 metadata:
   name: argocd-cm
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
 data:
   repositories: |
     - url: https://github.com/argoproj/private-repo
@@ -416,6 +425,9 @@ kind: ConfigMap
 metadata:
   name: argocd-cm
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
 data:
   helm.repositories: |
     - url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts
