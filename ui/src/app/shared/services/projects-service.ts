@@ -10,6 +10,8 @@ export interface ProjectParams {
     roles: models.ProjectRole[];
     clusterResourceWhitelist: models.GroupKind[];
     namespaceResourceBlacklist: models.GroupKind[];
+    orphanedResourcesEnabled: boolean;
+    orphanedResourcesWarn: boolean;
 }
 
 export interface CreateJWTTokenParams {
@@ -67,6 +69,7 @@ function paramsToProj(params: ProjectParams) {
             roles: params.roles,
             clusterResourceWhitelist: params.clusterResourceWhitelist,
             namespaceResourceBlacklist: params.namespaceResourceBlacklist,
+            orphanedResources: params.orphanedResourcesEnabled && { warn: !!params.orphanedResourcesWarn } || null,
         },
     };
 }
