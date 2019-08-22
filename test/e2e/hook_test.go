@@ -264,7 +264,7 @@ func TestHookDeletePolicyHookFailedHookExit1(t *testing.T) {
 }
 
 // make sure that we can run the hook twice
-func TestHookDeleteBeforeCreation(t *testing.T) {
+func TestHookBeforeHookCreation(t *testing.T) {
 	var creationTimestamp1 string
 	Given(t).
 		Path("hook").
@@ -276,6 +276,7 @@ func TestHookDeleteBeforeCreation(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(ResourceResultNumbering(2)).
 		// the app will be in health+n-sync before this hook has run
 		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" })).
 		And(func(_ *Application) {
@@ -292,6 +293,7 @@ func TestHookDeleteBeforeCreation(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(ResourceResultNumbering(2)).
 		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" })).
 		And(func(_ *Application) {
 			creationTimestamp2, err := getCreationTimestamp()
@@ -299,6 +301,26 @@ func TestHookDeleteBeforeCreation(t *testing.T) {
 			assert.NotEmpty(t, creationTimestamp2)
 			assert.NotEqual(t, creationTimestamp1, creationTimestamp2)
 		})
+}
+
+// edge-case where we are unable to delete the hook because it is still running
+func TestHookBeforeHookCreationFailure(t *testing.T) {
+	Given(t).
+		Timeout(1).
+		Path("hook").
+		When().
+		PatchFile("hook.yaml", `[
+	{"op": "add", "path": "/metadata/annotations/argocd.argoproj.io~1hook-delete-policy", "value": "BeforeHookCreation"},
+	{"op": "replace", "path": "/spec/containers/0/command", "value": ["sleep", "3"]}
+]`).
+		Create().
+		IgnoreErrors().
+		Sync().
+		DoNotIgnoreErrors().
+		TerminateOp().
+		Then().
+		Expect(OperationPhaseIs(OperationFailed)).
+		Expect(ResourceResultNumbering(2))
 }
 
 func getCreationTimestamp() (string, error) {
