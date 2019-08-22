@@ -257,16 +257,19 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string) {
 	fmt.Printf(printOpFmtStr, "Path:", app.Spec.Source.Path)
 	printAppSourceDetails(&app.Spec.Source)
 	var syncPolicy string
+	var maintenanceWindows string
 	if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
 		syncPolicy = "Automated"
 		if app.Spec.SyncPolicy.Automated.Prune {
 			syncPolicy += " (Prune)"
 		}
+		maintenanceWindows = app.Spec.SyncPolicy.Automated.MaintenanceWindows.String()
 	} else {
 		syncPolicy = "<none>"
+		maintenanceWindows = "<none>"
 	}
 	fmt.Printf(printOpFmtStr, "Sync Policy:", syncPolicy)
-	fmt.Printf(printOpFmtStr, "Maintenance:", app.Spec.SyncPolicy.Automated.MaintenanceWindows.String())
+	fmt.Printf(printOpFmtStr, "Maintenance:", maintenanceWindows)
 	syncStatusStr := string(app.Status.Sync.Status)
 	switch app.Status.Sync.Status {
 	case argoappv1.SyncStatusCodeSynced:
