@@ -940,6 +940,14 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		logCtx.Infof("Skipping auto-sync: deletion in progress")
 		return nil
 	}
+	// Check if there are any active maintenance windows and skip if true
+	active, err := app.Spec.SyncPolicy.Automated.MaintenanceWindows.Active()
+	if err != nil {
+		logCtx.Warnf("Error getting maintenance windows: %v", err)
+	}
+	if active {
+		return nil
+	}
 	// Only perform auto-sync if we detect OutOfSync status. This is to prevent us from attempting
 	// a sync when application is already in a Synced or Unknown state
 	if syncStatus.Status != appv1.SyncStatusCodeOutOfSync {
@@ -993,7 +1001,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	}
 
 	appIf := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
-	_, err := argo.SetAppOperation(appIf, app.Name, &op)
+	_, err = argo.SetAppOperation(appIf, app.Name, &op)
 	if err != nil {
 		logCtx.Errorf("Failed to initiate auto-sync to %s: %v", desiredCommitSHA, err)
 		return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}

@@ -266,6 +266,7 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string) {
 		syncPolicy = "<none>"
 	}
 	fmt.Printf(printOpFmtStr, "Sync Policy:", syncPolicy)
+	fmt.Printf(printOpFmtStr, "Maintenance:", app.Spec.SyncPolicy.Automated.MaintenanceWindows.String())
 	syncStatusStr := string(app.Status.Sync.Status)
 	switch app.Status.Sync.Status {
 	case argoappv1.SyncStatusCodeSynced:
@@ -447,6 +448,18 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 		}
 		app.Spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
 	}
+	if flags.Changed("self-heal") {
+		if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
+			log.Fatal("Cannot set --self-heal: application not configured with automatic sync")
+		}
+		app.Spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
+	}
+	if flags.Changed("maintenance-windows") {
+		if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
+			log.Fatal("Cannot set --maintenance-windows: application not configured with automatic sync")
+		}
+		app.Spec.SyncPolicy.Automated.AddMaintenanceWindows(appOpts.maintenanceWindows)
+	}
 
 	return visited
 }
@@ -570,12 +583,14 @@ type appOptions struct {
 	project                string
 	syncPolicy             string
 	autoPrune              bool
+	selfHeal               bool
 	namePrefix             string
 	directoryRecurse       bool
 	configManagementPlugin string
 	jsonnetTlaStr          []string
 	jsonnetTlaCode         []string
 	kustomizeImages        []string
+	maintenanceWindows     string
 }
 
 func addAppFlags(command *cobra.Command, opts *appOptions) {
@@ -593,12 +608,14 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringVar(&opts.project, "project", "", "Application project name")
 	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: automated, none)")
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
+	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing when sync is automated")
 	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
 	command.Flags().BoolVar(&opts.directoryRecurse, "directory-recurse", false, "Recurse directory")
 	command.Flags().StringVar(&opts.configManagementPlugin, "config-management-plugin", "", "Config management plugin name")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaStr, "jsonnet-tla-str", []string{}, "Jsonnet top level string arguments")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaCode, "jsonnet-tla-code", []string{}, "Jsonnet top level code arguments")
 	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
+	command.Flags().StringVar(&opts.maintenanceWindows, "maintenance-windows", "", "Times during which auto-sync will be disabled, quote and separate values with commas: '0 11 * * *:1h,30 23 * * *:1h')")
 }
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
@@ -992,8 +1009,8 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 	var fmtStr string
 	headers := []interface{}{"NAME", "CLUSTER", "NAMESPACE", "PROJECT", "STATUS", "HEALTH", "SYNCPOLICY", "CONDITIONS"}
 	if *output == "wide" {
-		fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
-		headers = append(headers, "REPO", "PATH", "TARGET")
+		fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
+		headers = append(headers, "REPO", "PATH", "TARGET", "MAINTENANCE")
 	} else {
 		fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
 	}
@@ -1010,7 +1027,7 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 			formatConditionsSummary(app),
 		}
 		if *output == "wide" {
-			vals = append(vals, app.Spec.Source.RepoURL, app.Spec.Source.Path, app.Spec.Source.TargetRevision)
+			vals = append(vals, app.Spec.Source.RepoURL, app.Spec.Source.Path, app.Spec.Source.TargetRevision, app.Spec.SyncPolicy.Automated.MaintenanceWindows.String())
 		}
 		fmt.Fprintf(w, fmtStr, vals...)
 	}

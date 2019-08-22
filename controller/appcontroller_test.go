@@ -297,6 +297,27 @@ func TestSkipAutoSync(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Nil(t, app.Operation)
 	}
+
+	// Verify we skip when there is an active maintenance window
+	{
+		app := newFakeApp()
+		sched := "* * * * *"
+		dur := "1m"
+		syncPol := &argoappv1.SyncPolicy{Automated: &argoappv1.SyncPolicyAutomated{}}
+		windows := []*argoappv1.MaintenanceWindow{{Schedule: &sched, Duration: &dur}}
+		syncPol.Automated.MaintenanceWindows = windows
+		app.Spec.SyncPolicy = syncPol
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+		syncStatus := argoappv1.SyncStatus{
+			Status:   argoappv1.SyncStatusCodeOutOfSync,
+			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		}
+		cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{})
+		assert.Nil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Nil(t, app.Operation)
+	}
 }
 
 // TestAutoSyncIndicateError verifies we skip auto-sync and return error condition if previous sync failed

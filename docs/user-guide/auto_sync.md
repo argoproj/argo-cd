@@ -40,6 +40,30 @@ spec:
       selfHeal: true
 ```
 
+## Maintenance Windows
+
+Maintenance windows are configurable windows of time where auto sync will not run. These are defined
+by a start time in cron format and a duration. These windows do not affect the running of a manual
+sync.
+
+
+```bash
+argocd app set --maintenance-windows '0 11 * * *:1h,30 23 * * *:1h'
+```
+
+Or by creating a maintenance windows list in the automated sync policy:
+
+```yaml
+spec:
+  syncPolicy:
+    automated:
+      maintenanceWindows:
+       - schedule: 0 11 * * *
+         duration: 1h
+       - schedule: 0 23 * * *
+         duration: 1h
+```
+
 ## Automated Sync Semantics
 
 * An automated sync will only be performed if the application is OutOfSync. Applications in a

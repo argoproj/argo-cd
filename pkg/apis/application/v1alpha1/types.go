@@ -21,6 +21,10 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
 
+	"time"
+
+	"github.com/robfig/cron"
+
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/rbac"
@@ -437,6 +441,83 @@ type SyncPolicyAutomated struct {
 	Prune bool `json:"prune,omitempty" protobuf:"bytes,1,opt,name=prune"`
 	// SelfHeal enables auto-syncing if  (default: false)
 	SelfHeal bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
+	// MaintenanceWindows disables auto-syncing during the configured time windows
+	MaintenanceWindows MaintenanceWindows `json:"maintenanceWindows,omitempty" protobuf:"bytes,3,opt,name=maintenanceWindows"`
+}
+
+type MaintenanceWindows []*MaintenanceWindow
+
+// MaintenanceWindow controls when automated syncs should be disabled
+type MaintenanceWindow struct {
+	// Schedule is the time the window will begin, specified in cron format
+	Schedule *string `json:"schedule,omitempty" protobuf:"bytes,1,opt,name=schedule"`
+	// Duration is the amount of time the maintenance window will be open
+	Duration *string `json:"duration,omitempty" protobuf:"bytes,2,opt,name=duration"`
+}
+
+func (m *MaintenanceWindows) Active() (bool, error) {
+	if m != nil {
+		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+		for _, w := range *m {
+			schedule, err := specParser.Parse(*w.Schedule)
+			if err != nil {
+				return false, err
+			}
+			duration, err := time.ParseDuration(*w.Duration)
+			if err != nil {
+				return false, err
+			}
+			now := time.Now()
+			nextWindow := schedule.Next(now.Add(-duration))
+			if nextWindow.Before(now) {
+				return true, nil
+			}
+		}
+	}
+	// No active maintenance windows
+	return false, nil
+}
+
+func (m *MaintenanceWindows) String() string {
+	if m == nil || len(*m) == 0 {
+		return "<none>"
+	}
+	var windows string
+	noWindows := len(*m)
+	for i, w := range *m {
+		var window string
+		if i+1 < noWindows {
+			window = *w.Schedule + ":" + *w.Duration + ","
+		} else {
+			window = *w.Schedule + ":" + *w.Duration
+		}
+		windows += window
+	}
+	return windows
+}
+
+func (s *SyncPolicyAutomated) AddMaintenanceWindows(windows string) {
+	if s.MaintenanceWindows == nil {
+		s.MaintenanceWindows = []*MaintenanceWindow{}
+	}
+	newWindows := strings.Split(windows, ",")
+	for _, w := range newWindows {
+		cfg := strings.Split(w, ":")
+		n := &MaintenanceWindow{
+			Schedule: &cfg[0],
+			Duration: &cfg[1],
+		}
+		exists := false
+		for _, e := range s.MaintenanceWindows {
+			if n == e {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			s.MaintenanceWindows = append(s.MaintenanceWindows, n)
+		}
+	}
 }
 
 // SyncStrategy controls the manner in which a sync is performed
