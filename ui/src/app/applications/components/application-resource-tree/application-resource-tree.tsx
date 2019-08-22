@@ -98,8 +98,8 @@ function filterGraph(app: models.Application, filteredIndicatorParent: string, g
     }
 }
 
-function compareNodes(first: models.ResourceNode, second: models.ResourceNode) {
-    return nodeKey(first).localeCompare(nodeKey(second));
+function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) {
+    return `${first.orphaned && '1' || '0'}/${nodeKey(first)}`.localeCompare(`${second.orphaned && '1' || '0'}/${nodeKey(second)}`);
 }
 
 function appNodeKey(app: models.Application) {
