@@ -257,22 +257,16 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string) {
 	fmt.Printf(printOpFmtStr, "Path:", app.Spec.Source.Path)
 	printAppSourceDetails(&app.Spec.Source)
 	var syncPolicy string
-	var maintenanceWindows string
 	if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
 		syncPolicy = "Automated"
 		if app.Spec.SyncPolicy.Automated.Prune {
 			syncPolicy += " (Prune)"
 		}
-		if app.Spec.SyncPolicy.Automated.MaintenanceWindows != nil {
-			maintenanceWindows = formatMaintenanceWindows(*app)
-		} else {
-			maintenanceWindows = "<none>"
-		}
 	} else {
 		syncPolicy = "<none>"
 	}
 	fmt.Printf(printOpFmtStr, "Sync Policy:", syncPolicy)
-	fmt.Printf(printOpFmtStr, "Maintenance:", maintenanceWindows)
+	fmt.Printf(printOpFmtStr, "Maintenance:", app.Spec.SyncPolicy.Automated.ListMaintenanceWindows())
 	syncStatusStr := string(app.Status.Sync.Status)
 	switch app.Status.Sync.Status {
 	case argoappv1.SyncStatusCodeSynced:
@@ -464,7 +458,7 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 		if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
 			log.Fatal("Cannot set --maintenance-windows: application not configured with automatic sync")
 		}
-		setMaintenanceWindows(app, appOpts.maintenanceWindows)
+		app.Spec.SyncPolicy.Automated.AddMaintenanceWindows(appOpts.maintenanceWindows)
 	}
 
 	return visited
@@ -503,20 +497,6 @@ func setKustomizeImages(src *argoappv1.ApplicationSource, images []string) {
 	if src.Kustomize.IsZero() {
 		src.Kustomize = nil
 	}
-}
-
-func setMaintenanceWindows(app *argoappv1.Application, windows string) {
-	var maintenanceWindows []*argoappv1.MaintenanceWindow
-	wn := strings.Split(windows, ",")
-	for _, w := range wn {
-		cfg := strings.Split(w, ":")
-		window := argoappv1.MaintenanceWindow{
-			Schedule: &cfg[0],
-			Duration: &cfg[1],
-		}
-		maintenanceWindows = append(maintenanceWindows, &window)
-	}
-	app.Spec.SyncPolicy.Automated.MaintenanceWindows = maintenanceWindows
 }
 
 type helmOpts struct {
@@ -1047,7 +1027,7 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 			formatConditionsSummary(app),
 		}
 		if *output == "wide" {
-			vals = append(vals, app.Spec.Source.RepoURL, app.Spec.Source.Path, app.Spec.Source.TargetRevision, formatMaintenanceWindows(app))
+			vals = append(vals, app.Spec.Source.RepoURL, app.Spec.Source.Path, app.Spec.Source.TargetRevision, app.Spec.SyncPolicy.Automated.ListMaintenanceWindows())
 		}
 		fmt.Fprintf(w, fmtStr, vals...)
 	}
@@ -1087,26 +1067,6 @@ func formatSyncPolicy(app argoappv1.Application) string {
 		policy = policy + "-Prune"
 	}
 	return policy
-}
-
-func formatMaintenanceWindows(app argoappv1.Application) string {
-	if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
-		return "<none>"
-	}
-	var windows string
-	if app.Spec.SyncPolicy.Automated.MaintenanceWindows != nil {
-		noWindows := len(app.Spec.SyncPolicy.Automated.MaintenanceWindows)
-		for i, w := range app.Spec.SyncPolicy.Automated.MaintenanceWindows {
-			var window string
-			if i+1 < noWindows {
-				window = *w.Schedule + ":" + *w.Duration + ","
-			} else {
-				window = *w.Schedule + ":" + *w.Duration
-			}
-			windows += window
-		}
-	}
-	return windows
 }
 
 func formatConditionsSummary(app argoappv1.Application) string {

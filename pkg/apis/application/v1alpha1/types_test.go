@@ -5,7 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"fmt"
 )
 
 func TestAppProject_IsSourcePermitted(t *testing.T) {
@@ -889,3 +890,96 @@ func TestApplicationSourceKustomize_MergeImage(t *testing.T) {
 		assert.Equal(t, KustomizeImages{"foo=2"}, k.Images)
 	})
 }
+
+func TestMaintenanceWindowActive(t *testing.T) {
+	// Active window will always be true
+	t.Run("AwaysTrue", func(t *testing.T) {
+		app := &Application{}
+		sched := "*	 * * * *"
+		dur := "1m"
+		syncPol := &SyncPolicy{Automated: &SyncPolicyAutomated{}}
+		windows := []*MaintenanceWindow{{Schedule: &sched, Duration: &dur}}
+		syncPol.Automated.MaintenanceWindows = windows
+		app.Spec.SyncPolicy = syncPol
+		active, err := app.Spec.SyncPolicy.Automated.MaintenanceWindowActive()
+		assert.NoError(t, err)
+		assert.True(t, active)
+	})
+	// Check that incorrectly formatted schedules fail
+	t.Run("FailIfIncorrectFormatting", func(t *testing.T) {
+		app := &Application{}
+		sched := "100 * * * *"
+		dur := "1m"
+		syncPol := &SyncPolicy{Automated: &SyncPolicyAutomated{}}
+		windows := []*MaintenanceWindow{{Schedule: &sched, Duration: &dur}}
+		syncPol.Automated.MaintenanceWindows = windows
+		app.Spec.SyncPolicy = syncPol
+		active, err := app.Spec.SyncPolicy.Automated.MaintenanceWindowActive()
+		assert.Error(t, err)
+		assert.False(t, active)
+	})
+}
+
+func TestAddMaintenanceWindows(t *testing.T) {
+	t.Run("SingleWindow", func(t *testing.T) {
+		sched := "0 10 * * *"
+		dur := "1h"
+		windows := sched + ":" + dur
+		app := &Application{
+			Spec: ApplicationSpec{SyncPolicy: &SyncPolicy{Automated: &SyncPolicyAutomated{},},},
+		}
+		app.Spec.SyncPolicy.Automated.AddMaintenanceWindows(windows)
+		assert.Equal(t, &MaintenanceWindow{Schedule: &sched, Duration: &dur}, app.Spec.SyncPolicy.Automated.MaintenanceWindows[0])
+	})
+	t.Run("MultipleWindows", func(t *testing.T) {
+		sched1 := "0 10 * * *"
+		dur1 := "1h"
+		sched2 := "0 22 * * *"
+		dur2 := "1h"
+		windows := sched1 + ":" + dur1 + "," + sched2 + ":" + dur2
+		app := &Application{
+			Spec: ApplicationSpec{SyncPolicy: &SyncPolicy{Automated: &SyncPolicyAutomated{},},},
+		}
+		app.Spec.SyncPolicy.Automated.AddMaintenanceWindows(windows)
+		assert.Equal(t, &MaintenanceWindow{Schedule: &sched1, Duration: &dur1}, app.Spec.SyncPolicy.Automated.MaintenanceWindows[0])
+		assert.Equal(t, &MaintenanceWindow{Schedule: &sched2, Duration: &dur2}, app.Spec.SyncPolicy.Automated.MaintenanceWindows[1])
+	})
+}
+
+func TestListMaintenanceWindows(t *testing.T) {
+	t.Run("<none>", func(t *testing.T) {
+		app := &Application{
+			Spec: ApplicationSpec{SyncPolicy: &SyncPolicy{Automated: &SyncPolicyAutomated{},},},
+		}
+		assert.Equal(t, "<none>", app.Spec.SyncPolicy.Automated.ListMaintenanceWindows())
+	})
+	t.Run("SingleWindow", func(t *testing.T) {
+		app := &Application{
+			Spec: ApplicationSpec{SyncPolicy: &SyncPolicy{Automated: &SyncPolicyAutomated{},},},
+		}
+		app.Spec.SyncPolicy.Automated.MaintenanceWindows = []*MaintenanceWindow{}
+		sched := "0 10 * * *"
+		dur := "1h"
+		n := &MaintenanceWindow{Schedule: &sched, Duration: &dur,}
+		fmt.Println(app.Spec.SyncPolicy.Automated.ListMaintenanceWindows())
+		app.Spec.SyncPolicy.Automated.MaintenanceWindows = append(app.Spec.SyncPolicy.Automated.MaintenanceWindows, n)
+		assert.Equal(t, sched + ":" + dur, app.Spec.SyncPolicy.Automated.ListMaintenanceWindows())
+	})
+	t.Run("MultipleWindows", func(t *testing.T) {
+		app := &Application{
+			Spec: ApplicationSpec{SyncPolicy: &SyncPolicy{Automated: &SyncPolicyAutomated{},},},
+		}
+		app.Spec.SyncPolicy.Automated.MaintenanceWindows = []*MaintenanceWindow{}
+		sched1 := "0 10 * * *"
+		dur1 := "1h"
+		sched2 := "0 22 * * *"
+		dur2 := "1h"
+		windows := sched1 + ":" + dur1 + "," + sched2 + ":" + dur2
+		n1 := &MaintenanceWindow{Schedule: &sched1, Duration: &dur1,}
+		n2 := &MaintenanceWindow{Schedule: &sched2, Duration: &dur2,}
+		app.Spec.SyncPolicy.Automated.MaintenanceWindows = append(app.Spec.SyncPolicy.Automated.MaintenanceWindows, n1, n2)
+		assert.Equal(t, windows, app.Spec.SyncPolicy.Automated.ListMaintenanceWindows())
+	})
+
+}
+
