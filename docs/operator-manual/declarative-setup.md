@@ -8,8 +8,8 @@ Argo CD applications, projects and settings can be defined declaratively using K
 | [`argocd-cm.yaml`](argocd-cm.yaml) | ConfigMap | General Argo CD configuration |
 | [`argocd-secret.yaml`](argocd-secret.yaml) | Secret | Password, Certificates, Signing Key |
 | [`argocd-rbac-cm.yaml`](argocd-rbac-cm.yaml) | ConfigMap | RBAC Configuration |
-| [`argocd-tls-certs-cm.yaml`](argocd-rbac-cm.yaml) | ConfigMap | Custom TLS certificates for connecting Git repositories via HTTPS (v1.2 and later) |
-| [`argocd-ssh-known-hosts-cm.yaml`](argocd-rbac-cm.yaml) | ConfigMap | SSH known hosts data for connecting Git repositories via SSH (v1.2 and later) |
+| [`argocd-tls-certs-cm.yaml`](argocd-tls-certs-cm.yaml) | ConfigMap | Custom TLS certificates for connecting Git repositories via HTTPS (v1.2 and later) |
+| [`argocd-ssh-known-hosts-cm.yaml`](argocd-ssh-known-hosts-cm.yaml) | ConfigMap | SSH known hosts data for connecting Git repositories via SSH (v1.2 and later) |
 | [`application.yaml`](application.yaml) | Application | Example application spec |
 | [`project.yaml`](project.yaml) | AppProject | Example project spec |
 
