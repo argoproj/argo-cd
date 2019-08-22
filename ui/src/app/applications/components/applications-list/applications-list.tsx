@@ -252,7 +252,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
             </DataLoader>
         )}
         </ObservableQuery>
-        <SlidingPanel isMiddle={true} isShown={!!appInput} onClose={() => ctx.navigation.goto('.', { new: null })} header={
+        <SlidingPanel isShown={!!appInput} onClose={() => ctx.navigation.goto('.', { new: null })} header={
             <div>
                 <button className='argo-button argo-button--base'
                         onClick={() => createApi && createApi.submitForm(null)}>
@@ -262,7 +262,9 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                 </button>
             </div>
         }>
-        {appInput && <ApplicationCreatePanel getFormApi={setCreateApi} createApp={ async (app) => {
+        {appInput && <ApplicationCreatePanel getFormApi={(api) => {
+            setCreateApi(api);
+        }} createApp={ async (app) => {
                 try {
                     await services.applications.create(app);
                     ctx.navigation.goto('.', { new: null });

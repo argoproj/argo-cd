@@ -21,6 +21,7 @@ export interface EditablePanelProps<T> {
     save?: (input: T) => Promise<any>;
     items: EditablePanelItem[];
     onModeSwitch?: () => any;
+    noReadonlyMode?: boolean;
 }
 
 interface EditablePanelState { edit: boolean; saving: boolean; }
@@ -33,7 +34,13 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
 
     constructor(props: EditablePanelProps<T>) {
         super(props);
-        this.state = { edit: false, saving: false };
+        this.state = { edit: !!props.noReadonlyMode, saving: false };
+    }
+
+    public UNSAFE_componentWillReceiveProps(nextProps: EditablePanelProps<T>) {
+        if (JSON.stringify(this.props.values) !== JSON.stringify(nextProps.values)) {
+            this.formApi.setAllValues(nextProps.values);
+        }
     }
 
     public render() {
@@ -41,7 +48,7 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
             <Consumer>{(ctx) => (
             <div className={classNames('white-box editable-panel', {'editable-panel--disabled': this.state.saving})}>
                 <div className='white-box__details'>
-                    {this.props.save && (
+                    {!this.props.noReadonlyMode && this.props.save && (
                         <div className='editable-panel__buttons'>
                             {!this.state.edit && (
                                 <button onClick={() => {
@@ -78,7 +85,11 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                         ))}
                         </React.Fragment>
                     ) || (
-                        <Form getApi={(api) => this.formApi = api} onSubmit={async (input) => {
+                        <Form getApi={(api) => this.formApi = api} formDidUpdate={async (form) => {
+                            if (this.props.noReadonlyMode && this.props.save) {
+                                await this.props.save(form.values as any);
+                            }
+                        }} onSubmit={async (input) => {
                             try {
                                 this.setState({ saving: true });
                                 await this.props.save(input as any);
