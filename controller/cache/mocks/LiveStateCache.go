@@ -5,6 +5,7 @@ package mocks
 import context "context"
 import kube "github.com/argoproj/argo-cd/util/kube"
 import mock "github.com/stretchr/testify/mock"
+import schema "k8s.io/apimachinery/pkg/runtime/schema"
 import unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 import v1alpha1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 
@@ -36,25 +37,22 @@ func (_m *LiveStateCache) GetManagedLiveObjs(a *v1alpha1.Application, targetObjs
 	return r0, r1
 }
 
-// Invalidate provides a mock function with given fields:
-func (_m *LiveStateCache) Invalidate() {
-	_m.Called()
-}
+// GetNamespaceTopLevelResources provides a mock function with given fields: server, namespace
+func (_m *LiveStateCache) GetNamespaceTopLevelResources(server string, namespace string) (map[kube.ResourceKey]v1alpha1.ResourceNode, error) {
+	ret := _m.Called(server, namespace)
 
-// IsNamespaced provides a mock function with given fields: server, obj
-func (_m *LiveStateCache) IsNamespaced(server string, obj *unstructured.Unstructured) (bool, error) {
-	ret := _m.Called(server, obj)
-
-	var r0 bool
-	if rf, ok := ret.Get(0).(func(string, *unstructured.Unstructured) bool); ok {
-		r0 = rf(server, obj)
+	var r0 map[kube.ResourceKey]v1alpha1.ResourceNode
+	if rf, ok := ret.Get(0).(func(string, string) map[kube.ResourceKey]v1alpha1.ResourceNode); ok {
+		r0 = rf(server, namespace)
 	} else {
-		r0 = ret.Get(0).(bool)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[kube.ResourceKey]v1alpha1.ResourceNode)
+		}
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, *unstructured.Unstructured) error); ok {
-		r1 = rf(server, obj)
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(server, namespace)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -62,13 +60,39 @@ func (_m *LiveStateCache) IsNamespaced(server string, obj *unstructured.Unstruct
 	return r0, r1
 }
 
-// IterateHierarchy provides a mock function with given fields: server, obj, action
-func (_m *LiveStateCache) IterateHierarchy(server string, obj *unstructured.Unstructured, action func(v1alpha1.ResourceNode)) error {
-	ret := _m.Called(server, obj, action)
+// Invalidate provides a mock function with given fields:
+func (_m *LiveStateCache) Invalidate() {
+	_m.Called()
+}
+
+// IsNamespaced provides a mock function with given fields: server, gk
+func (_m *LiveStateCache) IsNamespaced(server string, gk schema.GroupKind) (bool, error) {
+	ret := _m.Called(server, gk)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(string, schema.GroupKind) bool); ok {
+		r0 = rf(server, gk)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, schema.GroupKind) error); ok {
+		r1 = rf(server, gk)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// IterateHierarchy provides a mock function with given fields: server, key, action
+func (_m *LiveStateCache) IterateHierarchy(server string, key kube.ResourceKey, action func(v1alpha1.ResourceNode, string)) error {
+	ret := _m.Called(server, key, action)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *unstructured.Unstructured, func(v1alpha1.ResourceNode)) error); ok {
-		r0 = rf(server, obj, action)
+	if rf, ok := ret.Get(0).(func(string, kube.ResourceKey, func(v1alpha1.ResourceNode, string)) error); ok {
+		r0 = rf(server, key, action)
 	} else {
 		r0 = ret.Error(0)
 	}

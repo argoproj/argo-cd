@@ -149,6 +149,8 @@ type ApplicationSourceHelm struct {
 	Parameters []HelmParameter `json:"parameters,omitempty" protobuf:"bytes,2,opt,name=parameters"`
 	// The Helm release name. If omitted it will use the application name
 	ReleaseName string `json:"releaseName,omitempty" protobuf:"bytes,3,opt,name=releaseName"`
+	// Values is Helm values, typically defined as a block
+	Values string `json:"values,omitempty" protobuf:"bytes,4,opt,name=values"`
 }
 
 // HelmParameter is a parameter to a helm template
@@ -161,8 +163,36 @@ type HelmParameter struct {
 	ForceString bool `json:"forceString,omitempty" protobuf:"bytes,3,opt,name=forceString"`
 }
 
+var helmParameterRx = regexp.MustCompile(`([^\\]),`)
+
+func NewHelmParameter(text string, forceString bool) (*HelmParameter, error) {
+	parts := strings.SplitN(text, "=", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("Expected helm parameter of the form: param=value. Received: %s", text)
+	}
+	return &HelmParameter{
+		Name:        parts[0],
+		Value:       helmParameterRx.ReplaceAllString(parts[1], `$1\,`),
+		ForceString: forceString,
+	}, nil
+}
+
+func (in *ApplicationSourceHelm) AddParameter(p HelmParameter) {
+	found := false
+	for i, cp := range in.Parameters {
+		if cp.Name == p.Name {
+			found = true
+			in.Parameters[i] = p
+			break
+		}
+	}
+	if !found {
+		in.Parameters = append(in.Parameters, p)
+	}
+}
+
 func (h *ApplicationSourceHelm) IsZero() bool {
-	return h == nil || (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0
+	return h == nil || (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && h.Values == ""
 }
 
 type KustomizeImage string
@@ -362,8 +392,16 @@ func (os OperationPhase) Completed() bool {
 	return false
 }
 
+func (os OperationPhase) Running() bool {
+	return os == OperationRunning
+}
+
 func (os OperationPhase) Successful() bool {
 	return os == OperationSucceeded
+}
+
+func (os OperationPhase) Failed() bool {
+	return os == OperationFailed
 }
 
 // OperationState contains information about state of currently performing operation on application.
@@ -445,19 +483,32 @@ const (
 	HookTypePostSync HookType = "PostSync"
 	HookTypeSkip     HookType = "Skip"
 	HookTypeSyncFail HookType = "SyncFail"
-
-	// NOTE: we may consider adding SyncFail hook. With a SyncFail hook, finalizer-like logic could
-	// be implemented by specifying both PostSync,SyncFail in the hook annotation:
-	// (e.g.: argocd.argoproj.io/hook: PostSync,SyncFail)
-	//HookTypeSyncFail     HookType = "SyncFail"
 )
+
+func NewHookType(t string) (HookType, bool) {
+	return HookType(t),
+		t == string(HookTypePreSync) ||
+			t == string(HookTypeSync) ||
+			t == string(HookTypePostSync) ||
+			t == string(HookTypeSyncFail) ||
+			t == string(HookTypeSkip)
+
+}
 
 type HookDeletePolicy string
 
 const (
-	HookDeletePolicyHookSucceeded HookDeletePolicy = "HookSucceeded"
-	HookDeletePolicyHookFailed    HookDeletePolicy = "HookFailed"
+	HookDeletePolicyHookSucceeded      HookDeletePolicy = "HookSucceeded"
+	HookDeletePolicyHookFailed         HookDeletePolicy = "HookFailed"
+	HookDeletePolicyBeforeHookCreation HookDeletePolicy = "BeforeHookCreation"
 )
+
+func NewHookDeletePolicy(p string) (HookDeletePolicy, bool) {
+	return HookDeletePolicy(p),
+		p == string(HookDeletePolicyHookSucceeded) ||
+			p == string(HookDeletePolicyHookFailed) ||
+			p == string(HookDeletePolicyBeforeHookCreation)
+}
 
 // data about a specific revision within a repo
 type RevisionMetadata struct {
@@ -629,6 +680,8 @@ const (
 	ApplicationConditionRepeatedResourceWarning = "RepeatedResourceWarning"
 	// ApplicationConditionExcludedResourceWarning indicates that application has resource which is configured to be excluded
 	ApplicationConditionExcludedResourceWarning = "ExcludedResourceWarning"
+	// ApplicationConditionOrphanedResourceWarning indicates that application has orphaned resources
+	ApplicationConditionOrphanedResourceWarning = "OrphanedResourceWarning"
 )
 
 // ApplicationCondition contains details about current application condition
@@ -688,7 +741,10 @@ type ResourceNetworkingInfo struct {
 
 // ApplicationTree holds nodes which belongs to the application
 type ApplicationTree struct {
+	// Nodes contains list of nodes which either directly managed by the application and children of directly managed nodes.
 	Nodes []ResourceNode `json:"nodes,omitempty" protobuf:"bytes,1,rep,name=nodes"`
+	// OrphanedNodes contains if or orphaned nodes: nodes which are not managed by the app but in the same namespace. List is populated only if orphaned resources enabled in app project.
+	OrphanedNodes []ResourceNode `json:"orphanedNodes,omitempty" protobuf:"bytes,2,rep,name=orphanedNodes"`
 }
 
 type ApplicationSummary struct {
@@ -699,7 +755,7 @@ type ApplicationSummary struct {
 }
 
 func (t *ApplicationTree) FindNode(group string, kind string, namespace string, name string) *ResourceNode {
-	for _, n := range t.Nodes {
+	for _, n := range append(t.Nodes, t.OrphanedNodes...) {
 		if n.Group == group && n.Kind == kind && n.Namespace == namespace && n.Name == name {
 			return &n
 		}
@@ -1229,6 +1285,16 @@ func (p *AppProject) normalizePolicy(policy string) string {
 	return normalizedPolicy
 }
 
+// OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring
+type OrphanedResourcesMonitorSettings struct {
+	// Warn indicates if warning condition should be created for apps which have orphaned resources
+	Warn *bool `json:"warn,omitempty" protobuf:"bytes,1,name=warn"`
+}
+
+func (s *OrphanedResourcesMonitorSettings) IsWarn() bool {
+	return s.Warn == nil || *s.Warn
+}
+
 // AppProjectSpec is the specification of an AppProject
 type AppProjectSpec struct {
 	// SourceRepos contains list of git repository URLs which can be used for deployment
@@ -1243,6 +1309,8 @@ type AppProjectSpec struct {
 	ClusterResourceWhitelist []metav1.GroupKind `json:"clusterResourceWhitelist,omitempty" protobuf:"bytes,5,opt,name=clusterResourceWhitelist"`
 	// NamespaceResourceBlacklist contains list of blacklisted namespace level resources
 	NamespaceResourceBlacklist []metav1.GroupKind `json:"namespaceResourceBlacklist,omitempty" protobuf:"bytes,6,opt,name=namespaceResourceBlacklist"`
+	// OrphanedResources specifies if controller should monitor orphaned resources of apps in this project
+	OrphanedResources *OrphanedResourcesMonitorSettings `json:"orphanedResources,omitempty" protobuf:"bytes,7,opt,name=orphanedResources"`
 }
 
 func (d AppProjectSpec) DestinationClusters() []string {
@@ -1352,6 +1420,21 @@ func (app *Application) SetCascadedDeletion(prune bool) {
 			app.Finalizers = append(app.Finalizers, common.ResourcesFinalizerName)
 		}
 	}
+}
+
+func (status *ApplicationStatus) SetConditions(conditions []ApplicationCondition, evaluatedTypes map[ApplicationConditionType]bool) {
+	appConditions := make([]ApplicationCondition, 0)
+	for i := 0; i < len(status.Conditions); i++ {
+		condition := status.Conditions[i]
+		if _, ok := evaluatedTypes[condition.Type]; !ok {
+			appConditions = append(appConditions, condition)
+		}
+	}
+	for i := range conditions {
+		condition := conditions[i]
+		appConditions = append(appConditions, condition)
+	}
+	status.Conditions = appConditions
 }
 
 // GetErrorConditions returns list of application error conditions

@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"os"
 	"path"
 	"regexp"
@@ -15,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
@@ -57,6 +59,53 @@ func TestAppCreation(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Contains(t, output, fixture.Name())
 		})
+}
+
+// demonstrate that we cannot use a standard sync when an immutable field is changed, we must use "force"
+func TestImmutableChange(t *testing.T) {
+	text := errors.FailOnErr(fixture.Run(".", "kubectl", "get", "service", "-n", "kube-system", "kube-dns", "-o", "jsonpath={.spec.clusterIP}")).(string)
+	parts := strings.Split(text, ".")
+	n := rand.Intn(254)
+	ip1 := fmt.Sprintf("%s.%s.10.%d", parts[0], parts[1], n)
+	ip2 := fmt.Sprintf("%s.%s.10.%d", parts[0], parts[1], n+1)
+	Given(t).
+		Path("service").
+		When().
+		Create().
+		PatchFile("service.yaml", fmt.Sprintf(`[{"op": "add", "path": "/spec/clusterIP", "value": "%s"}]`, ip1)).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusHealthy)).
+		When().
+		PatchFile("service.yaml", fmt.Sprintf(`[{"op": "add", "path": "/spec/clusterIP", "value": "%s"}]`, ip2)).
+		IgnoreErrors().
+		Sync().
+		DoNotIgnoreErrors().
+		Then().
+		Expect(OperationPhaseIs(OperationFailed)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(ResourceResultNumbering(1)).
+		Expect(ResourceResultIs(ResourceResult{
+			Kind:      "Service",
+			Version:   "v1",
+			Namespace: fixture.DeploymentNamespace(),
+			Name:      "my-service",
+			SyncPhase: "Sync",
+			Status:    "SyncFailed",
+			HookPhase: "Failed",
+			Message:   fmt.Sprintf(`kubectl failed exit status 1: The Service "my-service" is invalid: spec.clusterIP: Invalid value: "%s": field is immutable`, ip2),
+		})).
+		// now we can do this will a force
+		Given().
+		Force().
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusHealthy))
 }
 
 func TestInvalidAppProject(t *testing.T) {
@@ -284,7 +333,7 @@ func TestAppWithSecrets(t *testing.T) {
 
 			diffOutput, err := fixture.RunCli("app", "diff", app.Name)
 			assert.Error(t, err)
-			assert.Contains(t, diffOutput, "username: '*********'")
+			assert.Contains(t, diffOutput, "username: +++++++++")
 
 			// local diff should ignore secrets
 			diffOutput, err = fixture.RunCli("app", "diff", app.Name, "--local", "testdata/secrets")
@@ -736,4 +785,46 @@ func TestExcludedResource(t *testing.T) {
 		Sync().
 		Then().
 		Expect(Condition(ApplicationConditionExcludedResourceWarning, "Resource apps/Deployment guestbook-ui is excluded in the settings"))
+}
+
+func TestOrphanedResource(t *testing.T) {
+	Given(t).
+		ProjectSpec(AppProjectSpec{
+			SourceRepos:       []string{"*"},
+			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true)},
+		}).
+		Path(guestbookPath).
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Len(t, app.Status.Conditions, 0)
+		}).
+		When().
+		And(func() {
+			errors.FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(&v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "orphaned-configmap",
+				},
+			}))
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(Condition(ApplicationConditionOrphanedResourceWarning, "Application has 1 orphaned resources")).
+		Given().
+		ProjectSpec(AppProjectSpec{
+			SourceRepos:       []string{"*"},
+			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			OrphanedResources: nil,
+		}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Len(t, app.Status.Conditions, 0)
+		})
 }

@@ -1740,6 +1740,20 @@
         }
       }
     },
+    "clusterHelp": {
+      "type": "object",
+      "title": "Help settings",
+      "properties": {
+        "chatText": {
+          "type": "string",
+          "title": "the text for getting chat help, defaults to \"Chat now!\""
+        },
+        "chatUrl": {
+          "type": "string",
+          "title": "the URL for getting chat help, this will typically be your Slack channel for support"
+        }
+      }
+    },
     "clusterOIDCConfig": {
       "type": "object",
       "properties": {
@@ -1774,6 +1788,9 @@
         },
         "googleAnalytics": {
           "$ref": "#/definitions/clusterGoogleAnalyticsConfig"
+        },
+        "help": {
+          "$ref": "#/definitions/clusterHelp"
         },
         "kustomizeOptions": {
           "$ref": "#/definitions/v1alpha1KustomizeOptions"
@@ -1881,6 +1898,7 @@
         },
         "parameters": {
           "type": "array",
+          "title": "the output of `helm inspect values`",
           "items": {
             "$ref": "#/definitions/v1alpha1HelmParameter"
           }
@@ -1893,6 +1911,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "values": {
+          "type": "string",
+          "title": "the contents of values.yaml"
         }
       }
     },
@@ -2612,6 +2634,9 @@
             "$ref": "#/definitions/v1GroupKind"
           }
         },
+        "orphanedResources": {
+          "$ref": "#/definitions/v1alpha1OrphanedResourcesMonitorSettings"
+        },
         "roles": {
           "type": "array",
           "title": "Roles are user defined RBAC roles associated with this project",
@@ -2755,6 +2780,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "values": {
+          "type": "string",
+          "title": "Values is Helm values, typically defined as a block"
         }
       }
     },
@@ -2936,6 +2965,14 @@
       "title": "ApplicationTree holds nodes which belongs to the application",
       "properties": {
         "nodes": {
+          "description": "Nodes contains list of nodes which either directly managed by the application and children of directly managed nodes.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceNode"
+          }
+        },
+        "orphanedNodes": {
+          "description": "OrphanedNodes contains if or orphaned nodes: nodes which are not managed by the app but in the same namespace. List is populated only if orphaned resources enabled in app project.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceNode"
@@ -3195,6 +3232,17 @@
         },
         "syncResult": {
           "$ref": "#/definitions/v1alpha1SyncOperationResult"
+        }
+      }
+    },
+    "v1alpha1OrphanedResourcesMonitorSettings": {
+      "type": "object",
+      "title": "OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring",
+      "properties": {
+        "warn": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "Warn indicates if warning condition should be created for apps which have orphaned resources"
         }
       }
     },

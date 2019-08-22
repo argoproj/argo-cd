@@ -660,6 +660,14 @@ func newAPIServerMetricsServer(port int) *http.Server {
 	}
 }
 
+func fileExists(filename string) bool {
+	info, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return !info.IsDir()
+}
+
 // newStaticAssetsHandler returns an HTTP handler to serve UI static assets
 func newStaticAssetsHandler(dir string, baseHRef string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -670,7 +678,7 @@ func newStaticAssetsHandler(dir string, baseHRef string) func(http.ResponseWrite
 				break
 			}
 		}
-		fileRequest := r.URL.Path != "/index.html" && strings.Contains(r.URL.Path, ".")
+		fileRequest := r.URL.Path != "/index.html" && fileExists(path.Join(dir, r.URL.Path))
 
 		// serve index.html for non file requests to support HTML5 History API
 		if acceptHTML && !fileRequest && (r.Method == "GET" || r.Method == "HEAD") {

@@ -65,10 +65,10 @@ const (
 )
 
 // Regular expression that matches a valid hostname
-var validHostNameRegexp = regexp.MustCompile(`^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])(\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]))*$`)
+var validHostNameRegexp = regexp.MustCompile(`^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])(\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]))*(\.){0,1}$`)
 
 // Regular expression that matches a valid FQDN
-var validFQDNRegexp = regexp.MustCompile(`^([a-zA-Z0-9-]{0,62}[a-zA-Z0-9]\.)+[a-zA-Z]{2,63}$`)
+var validFQDNRegexp = regexp.MustCompile(`^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])(\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]))*(\.){1}$`)
 
 // Can be used to test whether a given string represents a valid hostname
 // If fqdn is true, given string must also be a FQDN representation.
@@ -252,6 +252,12 @@ func TokenizedDataToPublicKey(hostname string, subType string, rawKeyData string
 	return hostnames, keyData, nil
 }
 
+// Returns the requested pattern with all possible square brackets escaped
+func nonBracketedPattern(pattern string) string {
+	ret := strings.Replace(pattern, "[", `\[`, -1)
+	return strings.Replace(ret, "]", `\]`, -1)
+}
+
 // We do not use full fledged regular expression for matching the hostname.
 // Instead, we use a less expensive file system glob, which should be fully
 // sufficient for our use case.
@@ -260,7 +266,7 @@ func MatchHostName(hostname, pattern string) bool {
 	if pattern == "" {
 		return true
 	}
-	match, err := filepath.Match(pattern, hostname)
+	match, err := filepath.Match(nonBracketedPattern(pattern), hostname)
 	if err != nil {
 		return false
 	}

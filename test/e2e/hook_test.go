@@ -3,10 +3,12 @@ package e2e
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 
+	. "github.com/argoproj/argo-cd/errors"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
@@ -259,6 +261,70 @@ func TestHookDeletePolicyHookFailedHookExit1(t *testing.T) {
 		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(ResourceResultNumbering(2)).
 		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "hook" }))
+}
+
+// make sure that we can run the hook twice
+func TestHookBeforeHookCreation(t *testing.T) {
+	var creationTimestamp1 string
+	Given(t).
+		Path("hook").
+		When().
+		PatchFile("hook.yaml", `[{"op": "add", "path": "/metadata/annotations/argocd.argoproj.io~1hook-delete-policy", "value": "BeforeHookCreation"}]`).
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(ResourceResultNumbering(2)).
+		// the app will be in health+n-sync before this hook has run
+		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" })).
+		And(func(_ *Application) {
+			var err error
+			creationTimestamp1, err = getCreationTimestamp()
+			CheckError(err)
+			assert.NotEmpty(t, creationTimestamp1)
+			// pause to ensure that timestamp will change
+			time.Sleep(2 * time.Second)
+		}).
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(ResourceResultNumbering(2)).
+		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" })).
+		And(func(_ *Application) {
+			creationTimestamp2, err := getCreationTimestamp()
+			CheckError(err)
+			assert.NotEmpty(t, creationTimestamp2)
+			assert.NotEqual(t, creationTimestamp1, creationTimestamp2)
+		})
+}
+
+// edge-case where we are unable to delete the hook because it is still running
+func TestHookBeforeHookCreationFailure(t *testing.T) {
+	Given(t).
+		Timeout(1).
+		Path("hook").
+		When().
+		PatchFile("hook.yaml", `[
+	{"op": "add", "path": "/metadata/annotations/argocd.argoproj.io~1hook-delete-policy", "value": "BeforeHookCreation"},
+	{"op": "replace", "path": "/spec/containers/0/command", "value": ["sleep", "3"]}
+]`).
+		Create().
+		IgnoreErrors().
+		Sync().
+		DoNotIgnoreErrors().
+		TerminateOp().
+		Then().
+		Expect(OperationPhaseIs(OperationFailed)).
+		Expect(ResourceResultNumbering(2))
+}
+
+func getCreationTimestamp() (string, error) {
+	return Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "pod", "hook", "-o", "jsonpath={.metadata.creationTimestamp}")
 }
 
 // make sure that we never create something annotated with Skip

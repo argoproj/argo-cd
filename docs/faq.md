@@ -38,11 +38,10 @@ can use a site like https://www.browserling.com/tools/bcrypt to generate a new h
 ```bash
 # bcrypt(Password1!)=$2a$10$hDj12Tw9xVmvybSahN1Y0.f9DZixxN8oybyA32Uy/eqWklFU4Mo8O
 kubectl -n argocd patch secret argocd-secret \
-  -p "{\"data\": \
-    {\
-      \"admin.password\": \"$(echo -n '$2a$10$hDj12Tw9xVmvybSahN1Y0.f9DZixxN8oybyA32Uy/eqWklFU4Mo8O' | base64)\", \
-      \"admin.passwordMtime\": \"$(date +%FT%T%Z | base64)\" \
-  }}"
+  -p '{"stringData": {
+    "admin.password": "$2a$10$hDj12Tw9xVmvybSahN1Y0.f9DZixxN8oybyA32Uy/eqWklFU4Mo8O",
+    "admin.passwordMtime": "'$(date +%FT%T%Z)'"
+  }}'
 ```
 
 Another option is to delete both the `admin.password` and `admin.passwordMtime` keys and restart argocd-server. This will set the password back to the pod name as per [the getting started guide](getting_started.md).
@@ -89,6 +88,40 @@ Is some cases, the tool you use may conflict with Argo CD by adding the `app.kub
 
 Argo CD automatically sets the `app.kubernetes.io/instance` label and uses it to determine which resources form the app. If the tool does this too, this causes confusion. You can change this label by setting the `application.instanceLabelKey` value in the `argocd-cm`.  We recommend that you use `argocd.argoproj.io/instance`. 
 
-!!! note    When you make this change your applications will become out of sync and will need re-syncing.
+!!! note 
+    When you make this change your applications will become out of sync and will need re-syncing.
 
 See [#1482](https://github.com/argoproj/argo-cd/issues/1482).
+
+
+# How Do I Fix "invalid cookie, longer than max length 4093"?
+
+Argo CD uses a JWT as the auth token. You likely are part of many groups and have gone over the 4KB limit which is set for cookies.
+You can get the list of groups by opening "developer tools -> network"
+
+* Click log in
+* Find the call to `<argocd_instance>/auth/callback?code=<random_string>`
+
+Decode the token at https://jwt.io/. That will provide the list of teams that you can remove yourself from.
+
+See [#2165](https://github.com/argoproj/argo-cd/issues/2165).
+
+## Why Am I Getting `rpc error: code = Unavailable desc = transport is closing` When Using The CLI?
+
+Maybe you're behind a proxy that does not support HTTP 2? Try the `--grcp-web` flag.:
+
+```bash
+argocd ... --grcp-web
+```
+
+## Why Am I Getting `x509: certificate signed by unknown authority` When Using The CLI?
+
+Your not running your server with correct certs.
+
+If you're not running in a production system (e.g. you're testing Argo CD out), try the `--insecure` flag:
+
+```bash
+argocd ... --insecure
+```
+
+!!! warning "Do not use `--insecure` in production"

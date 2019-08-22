@@ -77,6 +77,10 @@
             border-color: $argo-color-teal-6;
         }
 
+        &--orphaned {
+            background-color: lighten($argo-color-gray-4, 10%);
+        }
+
         &--load-balancer {
             cursor: default;
             background-color: $argo-color-teal-2;

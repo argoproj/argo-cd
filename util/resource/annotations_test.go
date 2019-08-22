@@ -3,6 +3,7 @@ package resource
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/test"
@@ -15,27 +16,26 @@ func TestHasAnnotationOption(t *testing.T) {
 		val string
 	}
 	tests := []struct {
-		name string
-		args args
-		want bool
+		name     string
+		args     args
+		wantVals []string
+		want     bool
 	}{
-		{"Nil", args{test.NewPod(), "foo", "bar"}, false},
-		{"Empty", args{example(""), "foo", "bar"}, false},
-		{"Single", args{example("bar"), "foo", "bar"}, true},
-		{"Double", args{example("bar,baz"), "foo", "baz"}, true},
-		{"Spaces", args{example("bar "), "foo", "bar"}, true},
+		{"Nil", args{test.NewPod(), "foo", "bar"}, nil, false},
+		{"Empty", args{example(""), "foo", "bar"}, nil, false},
+		{"Single", args{example("bar"), "foo", "bar"}, []string{"bar"}, true},
+		{"DeDup", args{example("bar,bar"), "foo", "bar"}, []string{"bar"}, true},
+		{"Double", args{example("bar,baz"), "foo", "baz"}, []string{"bar", "baz"}, true},
+		{"Spaces", args{example("bar "), "foo", "bar"}, []string{"bar"}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := HasAnnotationOption(tt.args.obj, tt.args.key, tt.args.val); got != tt.want {
-				t.Errorf("HasAnnotationOption() = %v, want %v", got, tt.want)
-			}
+			assert.ElementsMatch(t, tt.wantVals, GetAnnotationCSVs(tt.args.obj, tt.args.key))
+			assert.Equal(t, tt.want, HasAnnotationOption(tt.args.obj, tt.args.key, tt.args.val))
 		})
 	}
 }
 
 func example(val string) *unstructured.Unstructured {
-	obj := test.NewPod()
-	obj.SetAnnotations(map[string]string{"foo": val})
-	return obj
+	return test.Annotate(test.NewPod(), "foo", val)
 }

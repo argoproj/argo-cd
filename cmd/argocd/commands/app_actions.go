@@ -2,11 +2,13 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
 	"text/tabwriter"
 
+	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/errors"
@@ -38,6 +40,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 	var group string
 	var resourceName string
 	var all bool
+	var output string
 	var command = &cobra.Command{
 		Use:   "list APPNAME",
 		Short: "Lists available actions on a resource",
@@ -75,17 +78,28 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 		}
 		sort.Strings(keys)
 
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintf(w, "RESOURCE\tACTION\n")
-		fmt.Println()
-		for key := range availableActions {
-			for i := range availableActions[key] {
-				action := availableActions[key][i]
-				fmt.Fprintf(w, "%s\t%s\n", key, action.Name)
+		switch output {
+		case "yaml":
+			yamlBytes, err := yaml.Marshal(availableActions)
+			errors.CheckError(err)
+			fmt.Println(string(yamlBytes))
+		case "json":
+			jsonBytes, err := json.MarshalIndent(availableActions, "", "  ")
+			errors.CheckError(err)
+			fmt.Println(string(jsonBytes))
+		case "":
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			fmt.Fprintf(w, "RESOURCE\tACTION\n")
+			fmt.Println()
+			for key := range availableActions {
+				for i := range availableActions[key] {
+					action := availableActions[key][i]
+					fmt.Fprintf(w, "%s\t%s\n", key, action.Name)
 
+				}
 			}
+			_ = w.Flush()
 		}
-		_ = w.Flush()
 	}
 	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource")
 	command.Flags().StringVar(&kind, "kind", "", "Kind")
@@ -94,6 +108,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 	command.Flags().StringVar(&group, "group", "", "Group")
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to list actions on multiple matching resources")
+	command.Flags().StringVarP(&output, "out", "o", "", "Output format. One of: yaml, json")
 
 	return command
 }

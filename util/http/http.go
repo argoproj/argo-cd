@@ -18,8 +18,9 @@ func MakeCookieMetadata(key, value string, flags ...string) (string, error) {
 	header := strings.Join(components, "; ")
 
 	const maxLength = 4093
-	if len(header) > maxLength {
-		return "", fmt.Errorf("invalid cookie, longer than max length %v", maxLength)
+	headerLength := len(header)
+	if headerLength > maxLength {
+		return "", fmt.Errorf("invalid cookie, at %d long it is longer than the max length of %d", headerLength, maxLength)
 	}
 	return header, nil
 }

@@ -97,12 +97,13 @@ func ResourceResultNumbering(num int) Expectation {
 
 func ResourceResultIs(result ResourceResult) Expectation {
 	return func(c *Consequences) (state, string) {
-		for _, res := range c.app().Status.OperationState.SyncResult.Resources {
+		results := c.app().Status.OperationState.SyncResult.Resources
+		for _, res := range results {
 			if *res == result {
 				return succeeded, fmt.Sprintf("found resource result %v", result)
 			}
 		}
-		return pending, fmt.Sprintf("waiting for resource result %v", result)
+		return pending, fmt.Sprintf("waiting for resource result %v in %v", result, results)
 	}
 }
 

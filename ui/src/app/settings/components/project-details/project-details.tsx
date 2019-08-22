@@ -1,4 +1,4 @@
-import { NotificationsApi, NotificationType, SlidingPanel, Tabs } from 'argo-ui';
+import { NotificationsApi, NotificationType, SlidingPanel, Tabs, Tooltip } from 'argo-ui';
 import * as React from 'react';
 import { FormApi } from 'react-form';
 import { RouteComponentProps } from 'react-router';
@@ -14,6 +14,14 @@ import { ProjectRoleEditPanel } from '../project-role-edit-panel/project-role-ed
 
 interface ProjectDetailsState {
     token: string;
+}
+
+function helpTip(text: string) {
+    return (
+        <Tooltip content={text}>
+            <span style={{fontSize: 'smaller'}}> <i className='fa fa-question-circle'/></span>
+        </Tooltip>
+    );
 }
 
 export class ProjectDetails extends React.Component<RouteComponentProps<{ name: string; }>, ProjectDetailsState> {
@@ -87,6 +95,8 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                                         clusterResourceWhitelist: proj.spec.clusterResourceWhitelist || [],
                                         namespaceResourceBlacklist: proj.spec.namespaceResourceBlacklist || [],
                                         roles: proj.spec.roles || [],
+                                        orphanedResourcesEnabled: !!proj.spec.orphanedResources,
+                                        orphanedResourcesWarn: proj.spec.orphanedResources && (proj.spec.orphanedResources.warn === undefined || proj.spec.orphanedResources.warn),
                                         }} getApi={(api) => this.projectFormApi = api} submit={async (projParams) => {
                                             try {
                                                 await services.projects.update(projParams);
@@ -255,7 +265,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                 </div>
             </div>
 
-            <h4>Source repositories</h4>
+            <h4>Source repositories {helpTip('Git repositories where application manifests are permitted to be retrieved from')}</h4>
             {(proj.spec.sourceRepos || []).length > 0 && (
             <div className='argo-table-list'>
                 <div className='argo-table-list__head'>
@@ -274,7 +284,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                 ))}
             </div>) || <div className='white-box'><p>Project has no source repositories</p></div>}
 
-            <h4>Destinations</h4>
+            <h4>Destinations {helpTip('Cluster and namespaces where applications are permitted to be deployed to')}</h4>
             {(proj.spec.destinations || []).length > 0 && (
             <div className='argo-table-list'>
                 <div className='argo-table-list__head'>
@@ -297,7 +307,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                 ))}
             </div>) || <div className='white-box'><p>Project has no destinations</p></div>}
 
-            <h4>Whitelisted cluster resources</h4>
+            <h4>Whitelisted cluster resources {helpTip('Cluster-scoped K8s API Groups and Kinds which are permitted to be deployed')}</h4>
             {(proj.spec.clusterResourceWhitelist || []).length > 0 && (
             <div className='argo-table-list'>
                 <div className='argo-table-list__head'>
@@ -320,7 +330,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                 ))}
             </div>) || <div className='white-box'><p>No cluster-scoped resources are permitted to deploy</p></div>}
 
-            <h4>Blacklisted namespaced resources</h4>
+            <h4>Blacklisted namespaced resources {helpTip('Namespace-scoped K8s API Groups and Kinds which are prohibited from being deployed')}</h4>
             {(proj.spec.namespaceResourceBlacklist || []).length > 0 && (
             <div className='argo-table-list'>
                 <div className='argo-table-list__head'>
@@ -342,6 +352,25 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                     </div>
                 ))}
             </div>) || <div className='white-box'><p>All namespaced-scoped resources are permitted to deploy</p></div>}
+
+            <h4>Orphaned Resource Monitoring {helpTip('Enables monitoring of top level resources in the application target namespace')}</h4>
+
+            <div className='white-box'>
+                <div className='white-box__details'>
+                    {proj.spec.orphanedResources && (
+                        <div className='row white-box__details-row'>
+                            <div className='columns small-3'>
+                                WARN
+                            </div>
+                            <div className='columns small-9'>
+                                {(proj.spec.orphanedResources.warn === undefined || proj.spec.orphanedResources.warn) && 'enabled' || 'disabled'}
+                            </div>
+                        </div>
+                    ) || (
+                        <p>Orphan resources monitoring is disabled</p>
+                    )}
+                </div>
+            </div>
         </div>
         );
     }

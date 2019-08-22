@@ -1,11 +1,11 @@
-import { ErrorNotification, FormField, NotificationType, SlidingPanel } from 'argo-ui';
+import {ErrorNotification, FormField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
-import { Checkbox, Form, FormApi, Text } from 'react-form';
+import {Checkbox, Form, FormApi, Text} from 'react-form';
 
-import { Consumer } from '../../../shared/context';
+import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
-import { services } from '../../../shared/services';
-import { ComparisonStatusIcon, nodeKey } from '../utils';
+import {services} from '../../../shared/services';
+import {ComparisonStatusIcon, nodeKey} from '../utils';
 
 export const ApplicationSyncPanel = ({application, selectedResource, hide}: {
     application: models.Application,
@@ -47,7 +47,9 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {
                             resources = null;
                         }
                         if (params.applyOnly) {
-                            syncStrategy.apply = {};
+                            syncStrategy.apply = {force: params.force};
+                        } else {
+                            syncStrategy.hook = {force: params.force};
                         }
                         try {
                             await services.applications.sync(application.metadata.name, params.revision, params.prune, params.dryRun, syncStrategy, resources);
@@ -74,10 +76,15 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {
                                 <div>
                                     <span>
                                         <Checkbox id='prune-on-sync-checkbox' field='prune'/> <label htmlFor='prune-on-sync-checkbox'>Prune</label>
-                                    </span> <span>
+                                    </span>
+                                    <span>
                                         <Checkbox id='dry-run-checkbox' field='dryRun'/> <label htmlFor='dry-run-checkbox'>Dry Run</label>
-                                    </span> <span>
+                                    </span>
+                                    <span>
                                         <Checkbox id='apply-only-checkbox' field='applyOnly'/> <label htmlFor='apply-only-checkbox'>Apply Only</label>
+                                     </span>
+                                    <span>
+                                        <Checkbox id='force-checkbox' field='force'/> <label htmlFor='force-checkbox'>Force</label>
                                      </span>
                                 </div>
                                 <label>Synchronize resources:</label>
