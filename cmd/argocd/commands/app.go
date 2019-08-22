@@ -1010,6 +1010,7 @@ func printApplicationNames(apps []argoappv1.Application) {
 func printApplicationTable(apps []argoappv1.Application, output *string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	var fmtStr string
+	var maintenanceWindows string
 	headers := []interface{}{"NAME", "CLUSTER", "NAMESPACE", "PROJECT", "STATUS", "HEALTH", "SYNCPOLICY", "CONDITIONS"}
 	if *output == "wide" {
 		fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
@@ -1029,8 +1030,13 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 			formatSyncPolicy(app),
 			formatConditionsSummary(app),
 		}
+		if formatSyncPolicy(app) == "<none>" {
+			maintenanceWindows = "<none>"
+		} else {
+			maintenanceWindows = app.Spec.SyncPolicy.Automated.MaintenanceWindows.String()
+		}
 		if *output == "wide" {
-			vals = append(vals, app.Spec.Source.RepoURL, app.Spec.Source.Path, app.Spec.Source.TargetRevision, app.Spec.SyncPolicy.Automated.MaintenanceWindows.String())
+			vals = append(vals, app.Spec.Source.RepoURL, app.Spec.Source.Path, app.Spec.Source.TargetRevision, maintenanceWindows)
 		}
 		fmt.Fprintf(w, fmtStr, vals...)
 	}
