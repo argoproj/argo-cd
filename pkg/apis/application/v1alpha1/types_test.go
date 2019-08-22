@@ -962,7 +962,6 @@ func TestListMaintenanceWindows(t *testing.T) {
 		sched := "0 10 * * *"
 		dur := "1h"
 		n := &MaintenanceWindow{Schedule: &sched, Duration: &dur}
-		fmt.Println(app.Spec.SyncPolicy.Automated.MaintenanceWindows.String())
 		app.Spec.SyncPolicy.Automated.MaintenanceWindows = append(app.Spec.SyncPolicy.Automated.MaintenanceWindows, n)
 		assert.Equal(t, sched+":"+dur, app.Spec.SyncPolicy.Automated.MaintenanceWindows.String())
 	})
