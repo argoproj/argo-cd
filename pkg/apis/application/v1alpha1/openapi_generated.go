@@ -1845,6 +1845,20 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
+					"fetchRefspecs": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Refspecs to be used for fetching revisions from the remote repository",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"repo"},
 			},

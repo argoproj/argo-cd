@@ -173,8 +173,22 @@ func TestCustomHTTPClient(t *testing.T) {
 	}
 }
 
+func TestClientFactory(t *testing.T) {
+	newClient := func(fetchRefspecs ...string) error {
+		_, err := NewFactory().NewClient("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false, fetchRefspecs)
+		return err
+	}
+
+	assert.NoError(t, newClient("+refs/heads/*:refs/remotes/origin/*"))
+	assert.NoError(t, newClient("+refs/pull/*/head:refs/remotes/origin/pull-requests/*"))
+	assert.NoError(t, newClient("+refs/heads/*:refs/remotes/origin/*", "+refs/pull/*/head:refs/remotes/origin/pull-requests/*"))
+
+	assert.Error(t, newClient("+refs/heads/*:*"))
+	assert.Error(t, newClient("+refs/heads/master:origin/master"))
+}
+
 func TestLsRemote(t *testing.T) {
-	clnt, err := NewFactory().NewClient("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false)
+	clnt, err := NewFactory().NewClient("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false, nil)
 	assert.NoError(t, err)
 	xpass := []string{
 		"HEAD",
@@ -206,6 +220,50 @@ func TestLsRemote(t *testing.T) {
 	}
 }
 
+func TestLsRemoteWithFetchRefspec(t *testing.T) {
+	clnt, err := NewFactory().NewClient("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false, []string{"+refs/pull/*/head:refs/remotes/origin/pull-requests/*"})
+	assert.NoError(t, err)
+	if err != nil {
+		t.FailNow()
+	}
+
+	xpass := []string{
+		"pull-requests/1",
+		"pull-requests/2",
+		"pull-requests/3",
+		"v0.8.0",
+		"4e22a3cb21fa447ca362a05a505a69397c8a0d44",
+	}
+	for _, revision := range xpass {
+		t.Run(revision, func(t *testing.T) {
+			commitSHA, err := clnt.LsRemote(revision)
+			assert.NoError(t, err)
+			assert.True(t, IsCommitSHA(commitSHA))
+		})
+	}
+
+	// We do not resolve truncated git hashes and return the commit as-is if it appears to be a commit
+	commitSHA, err := clnt.LsRemote("4e22a3c")
+	assert.NoError(t, err)
+	assert.False(t, IsCommitSHA(commitSHA))
+	assert.True(t, IsTruncatedCommitSHA(commitSHA))
+
+	xfail := []string{
+		"HEAD",
+		"master",
+		"release-0.8",
+		"unresolvable",
+		"4e22a3", // too short (6 characters)
+	}
+	for _, revision := range xfail {
+		t.Run(revision, func(t *testing.T) {
+			_, err := clnt.LsRemote(revision)
+			assert.Error(t, err)
+			assert.Equal(t, fmt.Sprintf("Unable to resolve '%s' to a commit SHA", revision), err.Error())
+		})
+	}
+}
+
 // Running this test requires git-lfs to be installed on your machine.
 func TestLFSClient(t *testing.T) {
 
@@ -219,7 +277,7 @@ func TestLFSClient(t *testing.T) {
 		defer func() { _ = os.RemoveAll(tempDir) }()
 	}
 
-	client, err := NewFactory().NewClient("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true)
+	client, err := NewFactory().NewClient("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true, nil)
 	assert.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
@@ -278,7 +336,7 @@ func TestNewFactory(t *testing.T) {
 		assert.NoError(t, err)
 		defer func() { _ = os.RemoveAll(dirName) }()
 
-		client, err := NewFactory().NewClient(tt.args.url, dirName, NopCreds{}, tt.args.insecureIgnoreHostKey, false)
+		client, err := NewFactory().NewClient(tt.args.url, dirName, NopCreds{}, tt.args.insecureIgnoreHostKey, false, nil)
 		assert.NoError(t, err)
 		commitSHA, err := client.LsRemote("HEAD")
 		assert.NoError(t, err)

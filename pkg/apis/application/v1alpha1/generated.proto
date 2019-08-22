@@ -522,6 +522,9 @@ message Repository {
 
   // TLS client cert key for authenticating at the repo server
   optional string tlsClientCertKey = 10;
+
+  // Refspecs to be used for fetching revisions from the remote repository
+  repeated string fetchRefspecs = 11;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate

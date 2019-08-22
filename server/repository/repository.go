@@ -65,7 +65,7 @@ func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.Conn
 	}
 	repo, err := s.db.GetRepository(ctx, url)
 	if err == nil {
-		err = git.TestRepo(repo.Repo, argo.GetRepoCreds(repo), repo.IsInsecure(), repo.EnableLFS)
+		err = git.TestRepo(repo.Repo, argo.GetRepoCreds(repo), repo.IsInsecure(), repo.EnableLFS, repo.FetchRefspecs)
 	}
 	if err != nil {
 		connectionState.Status = appsv1.ConnectionStatusFailed
@@ -92,10 +92,11 @@ func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.
 				return nil, err
 			}
 			items = append(items, appsv1.Repository{
-				Repo:      url,
-				Username:  repo.Username,
-				Insecure:  repo.IsInsecure(),
-				EnableLFS: repo.EnableLFS,
+				Repo:          url,
+				Username:      repo.Username,
+				Insecure:      repo.IsInsecure(),
+				EnableLFS:     repo.EnableLFS,
+				FetchRefspecs: append([]string(nil), repo.FetchRefspecs...),
 			})
 		}
 	}
@@ -245,7 +246,7 @@ func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest)
 		return nil, err
 	}
 	r := q.Repo
-	err := git.TestRepo(r.Repo, argo.GetRepoCreds(r), r.IsInsecure(), r.EnableLFS)
+	err := git.TestRepo(r.Repo, argo.GetRepoCreds(r), r.IsInsecure(), r.EnableLFS, r.FetchRefspecs)
 	if err != nil {
 		return nil, err
 	}
@@ -311,7 +312,7 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		TLSClientCertData: q.TlsClientCertData,
 		TLSClientCertKey:  q.TlsClientCertKey,
 	}
-	err := git.TestRepo(q.Repo, argo.GetRepoCreds(repo), q.Insecure, false)
+	err := git.TestRepo(q.Repo, argo.GetRepoCreds(repo), q.Insecure, false, nil)
 	if err != nil {
 		return nil, err
 	}

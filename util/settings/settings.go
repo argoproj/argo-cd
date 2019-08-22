@@ -106,6 +106,8 @@ type RepoCredentials struct {
 	Insecure bool `json:"insecure,omitempty"`
 	// Whether the repo is git-lfs enabled
 	EnableLFS bool `json:"enableLfs,omitempty"`
+	// Refspecs to be used for fetching revisions from the remote repository
+	FetchRefspecs []string `json:"fetchRefspecs,omitempty"`
 	// Name of the secret storing the TLS client cert data
 	TLSClientCertDataSecret *apiv1.SecretKeySelector `json:"tlsClientCertDataSecret,omitempty"`
 	// Name of the secret storing the TLS client cert's key data

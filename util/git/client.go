@@ -12,6 +12,7 @@ import (
 	"time"
 
 	argoexec "github.com/argoproj/pkg/exec"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
@@ -50,7 +51,7 @@ type Client interface {
 // ClientFactory is a factory of Git Clients
 // Primarily used to support creation of mock git clients during unit testing
 type ClientFactory interface {
-	NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool) (Client, error)
+	NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool, fetchRefspecs []string) (Client, error)
 }
 
 // nativeGitClient implements Client interface using git CLI
@@ -65,6 +66,8 @@ type nativeGitClient struct {
 	insecure bool
 	// Whether the repository is LFS enabled
 	enableLfs bool
+	// Refspecs to be used for fetching revisions from the remote repository
+	fetchRefspecs []config.RefSpec
 }
 
 type factory struct{}
@@ -73,13 +76,31 @@ func NewFactory() ClientFactory {
 	return &factory{}
 }
 
-func (f *factory) NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool) (Client, error) {
+func (f *factory) NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool, fetchRefspecs []string) (Client, error) {
+
+	var specs []config.RefSpec
+	expectedPrefix := fmt.Sprintf("refs/remotes/%s/", git.DefaultRemoteName)
+	for _, refspec := range fetchRefspecs {
+		spec := config.RefSpec(refspec)
+		if err := spec.Validate(); err != nil {
+			return nil, errors.Wrapf(err, "invalid fetch refspec %q", refspec)
+		}
+
+		dstTest := spec.Dst(plumbing.ReferenceName(spec.Src()))
+		if !strings.HasPrefix(dstTest.String(), expectedPrefix) {
+			return nil, errors.Errorf("fetch refspec's destination doesn't start with %q: %q", expectedPrefix, refspec)
+		}
+
+		specs = append(specs, spec)
+	}
+
 	client := nativeGitClient{
-		repoURL:   rawRepoURL,
-		root:      path,
-		creds:     creds,
-		insecure:  insecure,
-		enableLfs: enableLfs,
+		repoURL:       rawRepoURL,
+		root:          path,
+		creds:         creds,
+		insecure:      insecure,
+		enableLfs:     enableLfs,
+		fetchRefspecs: specs,
 	}
 	return &client, nil
 }
@@ -239,8 +260,9 @@ func (m *nativeGitClient) Init() error {
 		return err
 	}
 	_, err = repo.CreateRemote(&config.RemoteConfig{
-		Name: git.DefaultRemoteName,
-		URLs: []string{m.repoURL},
+		Name:  git.DefaultRemoteName,
+		URLs:  []string{m.repoURL},
+		Fetch: m.fetchRefspecs,
 	})
 	return err
 }
@@ -328,8 +350,9 @@ func (m *nativeGitClient) LsRemote(revision string) (string, error) {
 		return "", err
 	}
 	remote, err := repo.CreateRemote(&config.RemoteConfig{
-		Name: git.DefaultRemoteName,
-		URLs: []string{m.repoURL},
+		Name:  git.DefaultRemoteName,
+		URLs:  []string{m.repoURL},
+		Fetch: m.fetchRefspecs,
 	})
 	if err != nil {
 		return "", err
@@ -353,17 +376,15 @@ func (m *nativeGitClient) LsRemote(revision string) (string, error) {
 	// symbolic reference (like HEAD), in which case we will resolve it from the refToHash map
 	refToResolve := ""
 	for _, ref := range refs {
-		refName := ref.Name().String()
-		if refName != "HEAD" && !strings.HasPrefix(refName, "refs/heads/") && !strings.HasPrefix(refName, "refs/tags/") {
-			// ignore things like 'refs/pull/' 'refs/reviewable'
+		shortRefName, ok := getShortRefName(remote, ref.Name())
+		if !ok {
+			// log.Debugf("ignoring ref %s", ref.Name().String())
 			continue
 		}
+
 		hash := ref.Hash().String()
-		if ref.Type() == plumbing.HashReference {
-			refToHash[refName] = hash
-		}
-		//log.Debugf("%s\t%s", hash, refName)
-		if ref.Name().Short() == revision {
+		// log.Debugf("checking %s\t%s\t%s", hash, ref.Name().String(), shortRefName)
+		if shortRefName == revision {
 			if ref.Type() == plumbing.HashReference {
 				log.Debugf("revision '%s' resolved to '%s'", revision, hash)
 				return hash, nil
@@ -371,6 +392,10 @@ func (m *nativeGitClient) LsRemote(revision string) (string, error) {
 			if ref.Type() == plumbing.SymbolicReference {
 				refToResolve = ref.Target().String()
 			}
+		}
+
+		if ref.Type() == plumbing.HashReference {
+			refToHash[ref.Name().String()] = hash
 		}
 	}
 	if refToResolve != "" {
@@ -389,6 +414,30 @@ func (m *nativeGitClient) LsRemote(revision string) (string, error) {
 	// If we get here, revision string had non hexadecimal characters (indicating its a branch, tag,
 	// or symbolic ref) and we were unable to resolve it to a commit SHA.
 	return "", fmt.Errorf("Unable to resolve '%s' to a commit SHA", revision)
+}
+
+func getShortRefName(remote *git.Remote, refName plumbing.ReferenceName) (string, bool) {
+	refNameString := refName.String()
+
+	if refNameString == "HEAD" {
+		return "HEAD", true
+	}
+
+	if strings.HasPrefix(refNameString, "refs/tags/") {
+		return refName.Short(), true
+	}
+
+	expectedPrefix := remote.Config().Name + "/"
+	for _, refspec := range remote.Config().Fetch {
+		if refspec.Match(refName) {
+			shortName := refspec.Dst(refName).Short()
+			if strings.HasPrefix(shortName, expectedPrefix) {
+				return shortName[len(expectedPrefix):], true
+			}
+		}
+	}
+
+	return "", false
 }
 
 // CommitSHA returns current commit sha from `git rev-parse HEAD`

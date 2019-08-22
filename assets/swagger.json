@@ -49,7 +49,7 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "ListMixin6",
+        "operationId": "ListMixin3",
         "parameters": [
           {
             "type": "string",
@@ -89,7 +89,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "CreateMixin6",
+        "operationId": "CreateMixin3",
         "parameters": [
           {
             "name": "body",
@@ -116,7 +116,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "UpdateMixin6",
+        "operationId": "UpdateMixin3",
         "parameters": [
           {
             "type": "string",
@@ -197,7 +197,7 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "GetMixin6",
+        "operationId": "GetMixin3",
         "parameters": [
           {
             "type": "string",
@@ -238,7 +238,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "DeleteMixin6",
+        "operationId": "DeleteMixin3",
         "parameters": [
           {
             "type": "string",
@@ -934,7 +934,7 @@
           "ClusterService"
         ],
         "summary": "Get returns a cluster by server address",
-        "operationId": "GetMixin1",
+        "operationId": "GetMixin2",
         "parameters": [
           {
             "type": "string",
@@ -1239,7 +1239,7 @@
           "RepositoryService"
         ],
         "summary": "List returns list of repos",
-        "operationId": "ListMixin2",
+        "operationId": "ListMixin7",
         "parameters": [
           {
             "type": "string",
@@ -1261,7 +1261,7 @@
           "RepositoryService"
         ],
         "summary": "Create creates a repo",
-        "operationId": "CreateMixin2",
+        "operationId": "CreateMixin7",
         "parameters": [
           {
             "name": "body",
@@ -1288,7 +1288,7 @@
           "RepositoryService"
         ],
         "summary": "Update updates a repo",
-        "operationId": "UpdateMixin2",
+        "operationId": "UpdateMixin7",
         "parameters": [
           {
             "type": "string",
@@ -1321,7 +1321,7 @@
           "RepositoryService"
         ],
         "summary": "Delete deletes a repo",
-        "operationId": "DeleteMixin2",
+        "operationId": "DeleteMixin7",
         "parameters": [
           {
             "type": "string",
@@ -1458,7 +1458,7 @@
           "SessionService"
         ],
         "summary": "Create a new JWT for authentication and set a cookie if using HTTP.",
-        "operationId": "CreateMixin8",
+        "operationId": "CreateMixin5",
         "parameters": [
           {
             "name": "body",
@@ -1483,7 +1483,7 @@
           "SessionService"
         ],
         "summary": "Delete an existing JWT cookie if using HTTP.",
-        "operationId": "DeleteMixin8",
+        "operationId": "DeleteMixin5",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -3292,6 +3292,13 @@
           "type": "boolean",
           "format": "boolean",
           "title": "Whether git-lfs support should be enabled for this repo"
+        },
+        "fetchRefspecs": {
+          "type": "array",
+          "title": "Refspecs to be used for fetching revisions from the remote repository",
+          "items": {
+            "type": "string"
+          }
         },
         "insecure": {
           "type": "boolean",

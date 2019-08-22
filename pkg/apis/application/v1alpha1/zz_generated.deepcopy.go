@@ -1068,6 +1068,11 @@ func (in *ProjectRole) DeepCopy() *ProjectRole {
 func (in *Repository) DeepCopyInto(out *Repository) {
 	*out = *in
 	in.ConnectionState.DeepCopyInto(&out.ConnectionState)
+	if in.FetchRefspecs != nil {
+		in, out := &in.FetchRefspecs, &out.FetchRefspecs
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

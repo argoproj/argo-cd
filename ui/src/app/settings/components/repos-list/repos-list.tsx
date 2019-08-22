@@ -4,7 +4,7 @@ import * as React from 'react';
 import {Form, FormApi, Text, TextArea} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 
-import {CheckboxField, ConnectionStateIcon, DataLoader, EmptyState, ErrorNotification, Page, Repo} from '../../../shared/components';
+import {CheckboxField, ConnectionStateIcon, DataLoader, EmptyState, ErrorNotification, Page, Repo, TagsInputField} from '../../../shared/components';
 import {AppContext} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -16,6 +16,7 @@ interface NewSSHRepoParams {
     sshPrivateKey: string;
     insecure: boolean;
     enableLfs: boolean;
+    fetchRefspecs: string[];
 }
 
 interface NewHTTPSRepoParams {
@@ -26,6 +27,7 @@ interface NewHTTPSRepoParams {
     tlsClientCertKey: string;
     insecure: boolean;
     enableLfs: boolean;
+    fetchRefspecs: string[];
 }
 
 export class ReposList extends React.Component<RouteComponentProps<any>> {
@@ -148,6 +150,10 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Enable LFS support' field='enableLfs' component={CheckboxField}/>
                                 </div>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Refspecs to be used for fetching revisions from the remote repository'
+                                               field='fetchRefspecs' component={TagsInputField}/>
+                                </div>
                             </form>
                         )}
                     </Form>
@@ -182,6 +188,10 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                 </div>
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Enable LFS support' field='enableLfs' component={CheckboxField}/>
+                                </div>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Refspecs to be used for fetching revisions from the remote repository'
+                                               field='fetchRefspecs' component={TagsInputField}/>
                                 </div>
                             </form>
                         )}

@@ -994,6 +994,8 @@ type Repository struct {
 	TLSClientCertData string `json:"tlsClientCertData,omitempty" protobuf:"bytes,9,opt,name=tlsClientCertData"`
 	// TLS client cert key for authenticating at the repo server
 	TLSClientCertKey string `json:"tlsClientCertKey,omitempty" protobuf:"bytes,10,opt,name=tlsClientCertKey"`
+	// Refspecs to be used for fetching revisions from the remote repository
+	FetchRefspecs []string `json:"fetchRefspecs,omitempty" protobuf:"bytes,11,opt,name=fetchRefspecs"`
 }
 
 func (repo *Repository) IsInsecure() bool {
@@ -1016,6 +1018,7 @@ func (m *Repository) CopyCredentialsFrom(source *Repository) {
 		m.InsecureIgnoreHostKey = source.InsecureIgnoreHostKey
 		m.Insecure = source.Insecure
 		m.EnableLFS = source.EnableLFS
+		m.FetchRefspecs = append([]string(nil), source.FetchRefspecs...)
 		m.TLSClientCertData = source.TLSClientCertData
 		m.TLSClientCertKey = source.TLSClientCertKey
 	}

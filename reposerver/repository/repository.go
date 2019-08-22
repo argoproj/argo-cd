@@ -535,7 +535,7 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 
 func (s *Service) newClient(repo *v1alpha1.Repository) (git.Client, error) {
 	appPath := tempRepoPath(git.NormalizeGitURL(repo.Repo))
-	return s.gitFactory.NewClient(repo.Repo, appPath, argo.GetRepoCreds(repo), repo.IsInsecure(), repo.EnableLFS)
+	return s.gitFactory.NewClient(repo.Repo, appPath, argo.GetRepoCreds(repo), repo.IsInsecure(), repo.EnableLFS, repo.FetchRefspecs)
 }
 
 func runCommand(command v1alpha1.Command, path string, env []string) (string, error) {

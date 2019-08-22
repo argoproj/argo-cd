@@ -6,16 +6,16 @@ export class RepositoriesService {
         return requests.get('/repositories').then((res) => res.body as models.RepositoryList).then((list) => list.items || []);
     }
 
-    public createHTTPS({url, username, password, tlsClientCertData, tlsClientCertKey, insecure, enableLfs}:
+    public createHTTPS({url, username, password, tlsClientCertData, tlsClientCertKey, insecure, enableLfs, fetchRefspecs}:
         {url: string, username: string, password: string, tlsClientCertData: string, tlsClientCertKey: string,
-            insecure: boolean, enableLfs: boolean}): Promise<models.Repository> {
-        return requests.post('/repositories').send({ repo: url, username, password, tlsClientCertData, tlsClientCertKey, insecure, enableLfs })
+            insecure: boolean, enableLfs: boolean, fetchRefspecs: string[]}): Promise<models.Repository> {
+        return requests.post('/repositories').send({ repo: url, username, password, tlsClientCertData, tlsClientCertKey, insecure, enableLfs, fetchRefspecs })
             .then((res) => res.body as models.Repository);
     }
 
-    public createSSH({url, sshPrivateKey, insecure, enableLfs}:
-        {url: string, sshPrivateKey: string, insecure: boolean, enableLfs: boolean}): Promise<models.Repository> {
-        return requests.post('/repositories').send({ repo: url, sshPrivateKey, insecure, enableLfs }).then((res) => res.body as models.Repository);
+    public createSSH({url, sshPrivateKey, insecure, enableLfs, fetchRefspecs}:
+        {url: string, sshPrivateKey: string, insecure: boolean, enableLfs: boolean, fetchRefspecs: string[]}): Promise<models.Repository> {
+        return requests.post('/repositories').send({ repo: url, sshPrivateKey, insecure, enableLfs, fetchRefspecs }).then((res) => res.body as models.Repository);
     }
 
     public delete(url: string): Promise<models.Repository> {

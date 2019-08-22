@@ -47,6 +47,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		tlsClientCertPath              string
 		tlsClientCertKeyPath           string
 		enableLfs                      bool
+		fetchRefspecs                  []string
 	)
 
 	// For better readability and easier formatting
@@ -112,6 +113,7 @@ Add a HTTPS repository using username/password without verifying the server's TL
 			repo.InsecureIgnoreHostKey = insecureIgnoreHostKey
 			repo.Insecure = insecureSkipServerVerification
 			repo.EnableLFS = enableLfs
+			repo.FetchRefspecs = append([]string(nil), fetchRefspecs...)
 
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
 			defer util.Close(conn)
@@ -154,6 +156,7 @@ Add a HTTPS repository using username/password without verifying the server's TL
 	command.Flags().BoolVar(&insecureIgnoreHostKey, "insecure-ignore-host-key", false, "disables SSH strict host key checking (deprecated, use --insecure-skip-server-validation instead)")
 	command.Flags().BoolVar(&insecureSkipServerVerification, "insecure-skip-server-verification", false, "disables server certificate and host key checks")
 	command.Flags().BoolVar(&enableLfs, "enable-lfs", false, "enable git-lfs (Large File Support) on this repository")
+	command.Flags().StringArrayVar(&fetchRefspecs, "fetch-refspec", nil, "Refspecs to be used for fetching revisions from the remote repository")
 	command.Flags().BoolVar(&upsert, "upsert", false, "Override an existing repository with the same name even if the spec differs")
 	return command
 }

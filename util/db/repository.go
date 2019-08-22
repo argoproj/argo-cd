@@ -58,22 +58,12 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 		return nil, status.Errorf(codes.AlreadyExists, "repository '%s' already exists", r.Repo)
 	}
 
-	data := make(map[string][]byte)
-	if r.Username != "" {
-		data[username] = []byte(r.Username)
-	}
-	if r.Password != "" {
-		data[password] = []byte(r.Password)
-	}
-	if r.SSHPrivateKey != "" {
-		data[sshPrivateKey] = []byte(r.SSHPrivateKey)
-	}
-
 	repoInfo := settings.RepoCredentials{
 		URL:                   r.Repo,
 		InsecureIgnoreHostKey: r.IsInsecure(),
 		Insecure:              r.IsInsecure(),
 		EnableLFS:             r.EnableLFS,
+		FetchRefspecs:         append([]string(nil), r.FetchRefspecs...),
 	}
 	err = db.updateSecrets(&repoInfo, r)
 	if err != nil {
@@ -113,13 +103,12 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 		if index >= 0 {
 
 			credential, err := db.credentialsToRepository(repoCredentials[index])
-
 			if err != nil {
 				return nil, err
-			} else {
-				log.WithFields(log.Fields{"repoURL": repo.Repo, "credUrl": credential.Repo}).Info("copying credentials")
-				repo.CopyCredentialsFrom(credential)
 			}
+
+			log.WithFields(log.Fields{"repoURL": repo.Repo, "credUrl": credential.Repo}).Info("copying credentials")
+			repo.CopyCredentialsFrom(credential)
 		}
 	}
 
@@ -132,7 +121,9 @@ func (db *db) credentialsToRepository(repoInfo settings.RepoCredentials) (*appsv
 		InsecureIgnoreHostKey: repoInfo.InsecureIgnoreHostKey,
 		Insecure:              repoInfo.Insecure,
 		EnableLFS:             repoInfo.EnableLFS,
+		FetchRefspecs:         append([]string(nil), repoInfo.FetchRefspecs...),
 	}
+
 	err := db.unmarshalFromSecretsStr(map[*string]*apiv1.SecretKeySelector{
 		&repo.Username:          repoInfo.UsernameSecret,
 		&repo.Password:          repoInfo.PasswordSecret,
@@ -166,6 +157,7 @@ func (db *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 	repoInfo.InsecureIgnoreHostKey = r.IsInsecure()
 	repoInfo.Insecure = r.IsInsecure()
 	repoInfo.EnableLFS = r.EnableLFS
+	repoInfo.FetchRefspecs = append([]string(nil), r.FetchRefspecs...)
 
 	repos[index] = repoInfo
 	err = db.settingsMgr.SaveRepositories(repos)
