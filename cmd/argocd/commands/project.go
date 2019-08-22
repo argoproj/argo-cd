@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strings"
 	"text/tabwriter"
@@ -24,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/git"
 )
 
@@ -120,32 +122,52 @@ func humanizeTimestamp(epoch int64) string {
 // NewProjectCreateCommand returns a new instance of an `argocd proj create` command
 func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		opts projectOpts
+		opts    projectOpts
+		fileURL string
+		upsert  bool
 	)
 	var command = &cobra.Command{
 		Use:   "create PROJECT",
 		Short: "Create a project",
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) == 0 {
-				c.HelpFunc()(c, args)
-				os.Exit(1)
-			}
-			projName := args[0]
-			proj := v1alpha1.AppProject{
-				ObjectMeta: v1.ObjectMeta{Name: projName},
-				Spec: v1alpha1.AppProjectSpec{
-					Description:       opts.description,
-					Destinations:      opts.GetDestinations(),
-					SourceRepos:       opts.sources,
-					OrphanedResources: getOrphanedResourcesSettings(c, opts),
-				},
-			}
+			var proj v1alpha1.AppProject
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
-
-			_, err := projIf.Create(context.Background(), &projectpkg.ProjectCreateRequest{Project: &proj})
+			if fileURL != "" {
+				parsedURL, err := url.ParseRequestURI(fileURL)
+				if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
+					err = config.UnmarshalLocalFile(fileURL, &proj)
+				} else {
+					err = config.UnmarshalRemoteFile(fileURL, &proj)
+				}
+				errors.CheckError(err)
+				if len(args) == 1 && args[0] != proj.Name {
+					log.Fatalf("project name '%s' does not match project spec metadata.name '%s'", args[0], proj.Name)
+				}
+			} else {
+				if len(args) == 0 {
+					c.HelpFunc()(c, args)
+					os.Exit(1)
+				}
+				projName := args[0]
+				proj = v1alpha1.AppProject{
+					ObjectMeta: v1.ObjectMeta{Name: projName},
+					Spec: v1alpha1.AppProjectSpec{
+						Description:  opts.description,
+						Destinations: opts.GetDestinations(),
+						SourceRepos:  opts.sources,
+					},
+				}
+			}
+			_, err := projIf.Create(context.Background(), &projectpkg.ProjectCreateRequest{Project: &proj, Upsert: upsert})
 			errors.CheckError(err)
 		},
+	}
+	command.Flags().BoolVar(&upsert, "upsert", false, "Allows to override a project with the same name even if supplied project spec is different from existing spec")
+	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the project")
+	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
+	if err != nil {
+		log.Fatal(err)
 	}
 	addProjFlags(command, &opts)
 	return command
