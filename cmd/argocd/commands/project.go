@@ -153,9 +153,10 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 				proj = v1alpha1.AppProject{
 					ObjectMeta: v1.ObjectMeta{Name: projName},
 					Spec: v1alpha1.AppProjectSpec{
-						Description:  opts.description,
-						Destinations: opts.GetDestinations(),
-						SourceRepos:  opts.sources,
+						Description:       opts.description,
+						Destinations:      opts.GetDestinations(),
+						SourceRepos:       opts.sources,
+						OrphanedResources: getOrphanedResourcesSettings(c, opts),
 					},
 				}
 			}
