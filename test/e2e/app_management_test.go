@@ -800,9 +800,7 @@ func TestOrphanedResource(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			assert.Len(t, app.Status.Conditions, 0)
-		}).
+		Expect(NoConditions()).
 		When().
 		And(func() {
 			errors.FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(&v1.ConfigMap{
@@ -824,7 +822,5 @@ func TestOrphanedResource(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			assert.Len(t, app.Status.Conditions, 0)
-		})
+		Expect(NoConditions())
 }
