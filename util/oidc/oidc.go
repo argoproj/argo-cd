@@ -175,7 +175,7 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	returnURL := r.FormValue("return_url")
 	stateNonce := a.generateAppState(returnURL)
-	grantType := InferGrantType(oauth2Config, oidcConf)
+	grantType := InferGrantType(oidcConf)
 	var url string
 	switch grantType {
 	case GrantTypeAuthorizationCode:
@@ -358,17 +358,16 @@ func OfflineAccess(scopes []string) bool {
 
 // InferGrantType infers the proper grant flow depending on the OAuth2 client config and OIDC configuration.
 // Returns either: "authorization_code" or "implicit"
-func InferGrantType(oauth2conf *oauth2.Config, oidcConf *OIDCConfiguration) string {
-	if oauth2conf.ClientSecret != "" {
-		// If we know the client secret, we are using the 'authorization_code' flow
-		return GrantTypeAuthorizationCode
+func InferGrantType(oidcConf *OIDCConfiguration) string {
+	// Check the supported response types. If the list contains the response type 'code',
+	// then grant type is 'authorization_code'. This is preferred over the implicit
+	// grant type since refresh tokens cannot be issued that way.
+	for _, supportedType := range oidcConf.ResponseTypesSupported {
+		if supportedType == ResponseTypeCode {
+			return GrantTypeAuthorizationCode
+		}
 	}
-	if len(oidcConf.ResponseTypesSupported) == 1 && oidcConf.ResponseTypesSupported[0] == ResponseTypeCode {
-		// If we don't have the secret, check the supported response types. If the list is a single
-		// response type of type 'code', then grant type is 'authorization_code'. This is the Dex
-		// case, which does not support implicit login flow (https://github.com/dexidp/dex/issues/1254)
-		return GrantTypeAuthorizationCode
-	}
-	// If we don't have the client secret (e.g. SPA app), we can assume to be implicit
+
+	// Assume implicit otherwise
 	return GrantTypeImplicit
 }
