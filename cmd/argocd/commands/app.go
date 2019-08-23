@@ -461,7 +461,10 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 		if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
 			log.Fatal("Cannot set --maintenance-windows: application not configured with automatic sync")
 		}
-		app.Spec.SyncPolicy.Automated.AddMaintenanceWindows(appOpts.maintenanceWindows)
+		err := app.Spec.SyncPolicy.Automated.AddMaintenanceWindows(appOpts.maintenanceWindows)
+		if err != nil {
+			log.Fatalf("Cannot set --maintenance-windows: %s", err)
+		}
 	}
 
 	return visited

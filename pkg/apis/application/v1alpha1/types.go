@@ -450,36 +450,30 @@ type MaintenanceWindows []*MaintenanceWindow
 // MaintenanceWindow controls when automated syncs should be disabled
 type MaintenanceWindow struct {
 	// Schedule is the time the window will begin, specified in cron format
-	Schedule *string `json:"schedule,omitempty" protobuf:"bytes,1,opt,name=schedule"`
+	Schedule string `json:"schedule,omitempty" protobuf:"bytes,1,opt,name=schedule"`
 	// Duration is the amount of time the maintenance window will be open
-	Duration *string `json:"duration,omitempty" protobuf:"bytes,2,opt,name=duration"`
+	Duration string `json:"duration,omitempty" protobuf:"bytes,2,opt,name=duration"`
 }
 
-func (m *MaintenanceWindows) Active() (bool, error) {
+func (m *MaintenanceWindows) Active() bool {
 	if m != nil {
 		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 		for _, w := range *m {
-			schedule, err := specParser.Parse(*w.Schedule)
-			if err != nil {
-				return false, err
-			}
-			duration, err := time.ParseDuration(*w.Duration)
-			if err != nil {
-				return false, err
-			}
+			schedule, _ := specParser.Parse(w.Schedule)
+			duration, _ := time.ParseDuration(w.Duration)
 			now := time.Now()
 			nextWindow := schedule.Next(now.Add(-duration))
 			if nextWindow.Before(now) {
-				return true, nil
+				return true
 			}
 		}
 	}
 	// No active maintenance windows
-	return false, nil
+	return false
 }
 
 func (m *MaintenanceWindows) String() string {
-	if m == nil || len(*m) == 0 {
+	if len(*m) == 0 {
 		return "<none>"
 	}
 	var windows string
@@ -487,25 +481,32 @@ func (m *MaintenanceWindows) String() string {
 	for i, w := range *m {
 		var window string
 		if i+1 < noWindows {
-			window = *w.Schedule + ":" + *w.Duration + ","
+			window = w.Schedule + ":" + w.Duration + ","
 		} else {
-			window = *w.Schedule + ":" + *w.Duration
+			window = w.Schedule + ":" + w.Duration
 		}
 		windows += window
 	}
 	return windows
 }
 
-func (s *SyncPolicyAutomated) AddMaintenanceWindows(windows string) {
+func (s *SyncPolicyAutomated) AddMaintenanceWindows(windows string) error {
 	if s.MaintenanceWindows == nil {
 		s.MaintenanceWindows = []*MaintenanceWindow{}
 	}
 	newWindows := strings.Split(windows, ",")
 	for _, w := range newWindows {
 		cfg := strings.Split(w, ":")
+		if len(cfg) != 2 {
+			return fmt.Errorf("error parsing config: '%s'", cfg)
+		}
 		n := &MaintenanceWindow{
-			Schedule: &cfg[0],
-			Duration: &cfg[1],
+			Schedule: cfg[0],
+			Duration: cfg[1],
+		}
+		err := n.Validate()
+		if err != nil {
+			return err
 		}
 		exists := false
 		for _, e := range s.MaintenanceWindows {
@@ -518,6 +519,20 @@ func (s *SyncPolicyAutomated) AddMaintenanceWindows(windows string) {
 			s.MaintenanceWindows = append(s.MaintenanceWindows, n)
 		}
 	}
+	return nil
+}
+
+func (m *MaintenanceWindow) Validate() error {
+	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+	_, err := specParser.Parse(m.Schedule)
+	if err != nil {
+		return fmt.Errorf("cannot parse schedule '%s': %s", m.Schedule, err)
+	}
+	_, err = time.ParseDuration(m.Duration)
+	if err != nil {
+		return fmt.Errorf("cannot parse duration '%s': %s", m.Duration, err)
+	}
+	return nil
 }
 
 // SyncStrategy controls the manner in which a sync is performed

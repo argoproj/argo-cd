@@ -943,10 +943,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		return nil
 	}
 	// Check if there are any active maintenance windows and skip if true
-	active, err := app.Spec.SyncPolicy.Automated.MaintenanceWindows.Active()
-	if err != nil {
-		logCtx.Warnf("Error getting maintenance windows: %v", err)
-	}
+	active := app.Spec.SyncPolicy.Automated.MaintenanceWindows.Active()
 	if active {
 		return nil
 	}
@@ -1003,7 +1000,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	}
 
 	appIf := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
-	_, err = argo.SetAppOperation(appIf, app.Name, &op)
+	_, err := argo.SetAppOperation(appIf, app.Name, &op)
 	if err != nil {
 		logCtx.Errorf("Failed to initiate auto-sync to %s: %v", desiredCommitSHA, err)
 		return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}

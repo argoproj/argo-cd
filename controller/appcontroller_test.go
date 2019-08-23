@@ -304,7 +304,7 @@ func TestSkipAutoSync(t *testing.T) {
 		sched := "* * * * *"
 		dur := "1m"
 		syncPol := &argoappv1.SyncPolicy{Automated: &argoappv1.SyncPolicyAutomated{}}
-		windows := []*argoappv1.MaintenanceWindow{{Schedule: &sched, Duration: &dur}}
+		windows := []*argoappv1.MaintenanceWindow{{Schedule: sched, Duration: dur}}
 		syncPol.Automated.MaintenanceWindows = windows
 		app.Spec.SyncPolicy = syncPol
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})

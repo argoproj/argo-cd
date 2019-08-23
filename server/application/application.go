@@ -565,6 +565,15 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		}
 	}
 
+	if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
+		for _, w := range app.Spec.SyncPolicy.Automated.MaintenanceWindows {
+			err := w.Validate()
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	buildOptions, err := s.settingsMgr.GetKustomizeBuildOptions()
 	if err != nil {
 		return err
