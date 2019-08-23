@@ -301,6 +301,7 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 	} else {
 		repo = &appsv1.Repository{Repo: r.Repo}
 		repo.CopyCredentialsFrom(r)
+		repo.CopySettingsFrom(r)
 	}
 
 	err = git.TestRepo(r.Repo, argo.GetRepoCreds(repo), r.IsInsecure(), r.EnableLFS)
