@@ -107,6 +107,7 @@ func TestUnmarshalReader(t *testing.T) {
 	data, err := json.Marshal(instance)
 	assert.NoError(t, err)
 	var reader io.Reader = bytes.NewReader(data)
-	UnmarshalReader(reader, &instance)
+	err = UnmarshalReader(reader, &instance)
+	assert.NoError(t, err)
 	assert.Equal(t, value, instance.value)
 }
