@@ -1771,6 +1771,12 @@
         "clientID": {
           "type": "string"
         },
+        "idTokenClaims": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/oidcClaim"
+          }
+        },
         "issuer": {
           "type": "string"
         },
@@ -1818,6 +1824,24 @@
         },
         "url": {
           "type": "string"
+        }
+      }
+    },
+    "oidcClaim": {
+      "type": "object",
+      "properties": {
+        "essential": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "value": {
+          "type": "string"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

@@ -175,3 +175,43 @@ func TestSettingsManager_GetHelp(t *testing.T) {
 		assert.Equal(t, "bar", h.ChatText)
 	})
 }
+
+func TestGetOIDCConfig(t *testing.T) {
+	kubeClient := fake.NewSimpleClientset(
+		&v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string]string{
+				"oidc.config": "\n  requestedIDTokenClaims: {\"groups\": {\"essential\": true}}\n",
+			},
+		},
+		&v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDSecretName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string][]byte{
+				"admin.password":   nil,
+				"server.secretkey": nil,
+			},
+		},
+	)
+	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settings, err := settingsManager.GetSettings()
+	assert.NoError(t, err)
+
+	oidcConfig := settings.OIDCConfig()
+	assert.NotNil(t, oidcConfig)
+
+	claim := oidcConfig.RequestedIDTokenClaims["groups"]
+	assert.NotNil(t, claim)
+	assert.Equal(t, true, claim.Essential)
+}

@@ -26,6 +26,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/server/settings/oidc"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/password"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
@@ -82,12 +83,13 @@ type Help struct {
 }
 
 type OIDCConfig struct {
-	Name            string   `json:"name,omitempty"`
-	Issuer          string   `json:"issuer,omitempty"`
-	ClientID        string   `json:"clientID,omitempty"`
-	ClientSecret    string   `json:"clientSecret,omitempty"`
-	CLIClientID     string   `json:"cliClientID,omitempty"`
-	RequestedScopes []string `json:"requestedScopes,omitempty"`
+	Name                   string                 `json:"name,omitempty"`
+	Issuer                 string                 `json:"issuer,omitempty"`
+	ClientID               string                 `json:"clientID,omitempty"`
+	ClientSecret           string                 `json:"clientSecret,omitempty"`
+	CLIClientID            string                 `json:"cliClientID,omitempty"`
+	RequestedScopes        []string               `json:"requestedScopes,omitempty"`
+	RequestedIDTokenClaims map[string]*oidc.Claim `json:"requestedIDTokenClaims,omitempty"`
 }
 
 // Credentials for accessing a Git repository
