@@ -577,7 +577,7 @@ func TestBeforeHookCreation(t *testing.T) {
 
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
-	assert.Equal(t, syncCtx.syncRes.Resources[0].Message, `failed to delete resource:  "my-pod" not found`)
+	assert.Empty(t, syncCtx.syncRes.Resources[0].Message)
 }
 
 func TestRunSyncFailHooksFailed(t *testing.T) {
