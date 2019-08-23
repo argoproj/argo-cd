@@ -3,6 +3,7 @@ package fixture
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -379,13 +380,17 @@ func EnsureCleanState(t *testing.T) {
 }
 
 func RunCli(args ...string) (string, error) {
+	return RunCliWithStdin(nil, args...)
+}
+
+func RunCliWithStdin(stdin *io.Reader, args ...string) (string, error) {
 	if plainText {
 		args = append(args, "--plaintext")
 	}
 
 	args = append(args, "--server", apiServerAddress, "--auth-token", token, "--insecure")
 
-	return Run("", "../../dist/argocd", args...)
+	return RunWithStdin(stdin, "", "../../dist/argocd", args...)
 }
 
 func Patch(path string, jsonPatch string) {

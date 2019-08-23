@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -131,9 +132,13 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 		Short: "Create a project",
 		Run: func(c *cobra.Command, args []string) {
 			var proj v1alpha1.AppProject
-			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
-			if fileURL != "" {
+			if fileURL == "-" {
+				reader := bufio.NewReader(os.Stdin)
+				err := config.UnmarshalReader(reader, &proj)
+				if err != nil {
+					log.Fatalf("unable to read manifest from stdin: %v", err)
+				}
+			} else if fileURL != "" {
 				parsedURL, err := url.ParseRequestURI(fileURL)
 				if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
 					err = config.UnmarshalLocalFile(fileURL, &proj)
@@ -160,6 +165,8 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 					},
 				}
 			}
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer util.Close(conn)
 			_, err := projIf.Create(context.Background(), &projectpkg.ProjectCreateRequest{Project: &proj, Upsert: upsert})
 			errors.CheckError(err)
 		},

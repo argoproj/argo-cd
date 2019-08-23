@@ -1,6 +1,9 @@
 package e2e
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
 	"strconv"
 	"strings"
 	"testing"
@@ -66,6 +69,20 @@ func TestProjectCreation(t *testing.T) {
 	assert.True(t, proj.Spec.OrphanedResources.IsWarn())
 
 	assertProjHasEvent(t, proj, "create", argo.EventReasonResourceCreated)
+
+	proj.Spec.Description = "Upserted description"
+	data, err := json.Marshal(proj)
+	assert.NoError(t, err)
+	var reader io.Reader = bytes.NewReader(data)
+
+	_, err = fixture.RunCliWithStdin(&reader, "proj", "create", projectName,
+		"-f", "-")
+	assert.Error(t, err)
+
+	_, err = fixture.RunCliWithStdin(&reader, "proj", "create", projectName,
+		"-f", "-", "--upsert")
+
+	assert.NoError(t, err)
 }
 
 func TestProjectDeletion(t *testing.T) {

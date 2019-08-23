@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -107,7 +108,13 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		Run: func(c *cobra.Command, args []string) {
 			var app argoappv1.Application
 			argocdClient := argocdclient.NewClientOrDie(clientOpts)
-			if fileURL != "" {
+			if fileURL == "-" {
+				reader := bufio.NewReader(os.Stdin)
+				err := config.UnmarshalReader(reader, &app)
+				if err != nil {
+					log.Fatalf("unable to read manifest from stdin: %v", err)
+				}
+			} else if fileURL != "" {
 				parsedURL, err := url.ParseRequestURI(fileURL)
 				if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
 					err = config.UnmarshalLocalFile(fileURL, &app)
