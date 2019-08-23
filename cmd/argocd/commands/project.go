@@ -133,12 +133,14 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 		Run: func(c *cobra.Command, args []string) {
 			var proj v1alpha1.AppProject
 			if fileURL == "-" {
+				// read stdin
 				reader := bufio.NewReader(os.Stdin)
 				err := config.UnmarshalReader(reader, &proj)
 				if err != nil {
 					log.Fatalf("unable to read manifest from stdin: %v", err)
 				}
 			} else if fileURL != "" {
+				// read uri
 				parsedURL, err := url.ParseRequestURI(fileURL)
 				if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
 					err = config.UnmarshalLocalFile(fileURL, &proj)
@@ -150,6 +152,7 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 					log.Fatalf("project name '%s' does not match project spec metadata.name '%s'", args[0], proj.Name)
 				}
 			} else {
+				// read arguments
 				if len(args) == 0 {
 					c.HelpFunc()(c, args)
 					os.Exit(1)
