@@ -655,6 +655,18 @@
 
 
   <li class="md-nav__item">
+    <a href="../orphaned-resources/" title="Orphaned Resources Monitoring" class="md-nav__link">
+      Orphaned Resources Monitoring
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../compare-options/" title="Compare Options" class="md-nav__link">
       Compare Options
     </a>
@@ -1109,13 +1121,13 @@
                 <h1 id="resource-hooks">Resource Hooks<a class="headerlink" href="#resource-hooks" title="Permanent link">&para;</a></h1>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
 <p>Synchronization can be configured using resource hooks. Hooks are ways to run scripts before, during,
-and after a Sync operation. Some use cases for hooks are:</p>
+and after a Sync operation. Hooks can also be run if a Sync operation fails at any point. Some use cases for hooks are:</p>
 <ul>
 <li>Using a <code>PreSync</code> hook to perform a database schema migration before deploying a new version of the app.</li>
 <li>Using a <code>Sync</code> hook to orchestrate a complex deployment requiring more sophistication than the
 Kubernetes rolling update strategy.</li>
 <li>Using a <code>PostSync</code> hook to run integration and health checks after a deployment.</li>
-<li>Using a <code>SyncFail</code> hook to run clean-up or finalizer logic if a Sync operation fails.</li>
+<li>Using a <code>SyncFail</code> hook to run clean-up or finalizer logic if a Sync operation fails. <em><code>SyncFail</code> hooks are only available starting in v1.2</em></li>
 </ul>
 <h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
 <p>Hooks are simply Kubernetes manifests annotated with <code>argocd.argoproj.io/hook</code>, e.g.:</p>
@@ -1160,7 +1172,7 @@ separated list.</p>
 </tr>
 <tr>
 <td><code>SyncFail</code></td>
-<td>Executes when the sync operation fails.</td>
+<td>Executes when the sync operation fails. <em>Available starting in v1.2</em></td>
 </tr>
 </tbody>
 </table>
@@ -1199,7 +1211,7 @@ separated list.</p>
 </tr>
 <tr>
 <td><code>BeforeHookCreation</code></td>
-<td>Any existing hook resource is deleted before the new one is created.</td>
+<td>Any existing hook resource is deleted before the new one is created (since v1.3).</td>
 </tr>
 </tbody>
 </table>

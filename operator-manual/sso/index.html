@@ -444,6 +444,19 @@
     Existing OIDC Provider
   </a>
   
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#requesting-additional-id-token-claims" title="Requesting additional ID token claims" class="md-nav__link">
+    Requesting additional ID token claims
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
       
@@ -717,6 +730,18 @@
   <li class="md-nav__item">
     <a href="../../user-guide/diffing/" title="Diffing Customization" class="md-nav__link">
       Diffing Customization
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/orphaned-resources/" title="Orphaned Resources Monitoring" class="md-nav__link">
+      Orphaned Resources Monitoring
     </a>
   </li>
 
@@ -1085,6 +1110,19 @@
     Existing OIDC Provider
   </a>
   
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#requesting-additional-id-token-claims" title="Requesting additional ID token claims" class="md-nav__link">
+    Requesting additional ID token claims
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
       
@@ -1201,11 +1239,45 @@ configuration to the <code>argocd-cm</code> ConfigMap under the <code>oidc.confi
     <span class="no">clientID: aaaabbbbccccddddeee</span>
     <span class="no">clientSecret: $oidc.okta.clientSecret</span>
 
+    <span class="no"># Optional set of OIDC scopes to request. If omitted, defaults to: [&quot;openid&quot;, &quot;profile&quot;, &quot;email&quot;, &quot;groups&quot;]</span>
+    <span class="no">requestedScopes: [&quot;openid&quot;, &quot;profile&quot;, &quot;email&quot;, &quot;groups&quot;]</span>
+
+    <span class="no"># Optional set of OIDC claims to request on the ID token.</span>
+    <span class="no">requestedIDTokenClaims: {&quot;groups&quot;: {&quot;essential&quot;: true}}</span>
+
     <span class="no"># Some OIDC providers require a separate clientID for different callback URLs.</span>
     <span class="no"># For example, if configuring Argo CD with self-hosted Dex, you will need a separate client ID</span>
     <span class="no"># for the &#39;localhost&#39; (CLI) client to Dex. This field is optional. If omitted, the CLI will</span>
     <span class="no"># use the same clientID as the Argo CD server</span>
     <span class="no">cliClientID: vvvvwwwwxxxxyyyyzzzz</span>
+</pre></div>
+
+
+<h3 id="requesting-additional-id-token-claims">Requesting additional ID token claims<a class="headerlink" href="#requesting-additional-id-token-claims" title="Permanent link">&para;</a></h3>
+<p>Not all OIDC providers support a special <code>groups</code> scope. E.g. Okta, OneLogin and Microsoft do support a special
+<code>groups</code> scope and will return group membership with the default <code>requestedScopes</code>.</p>
+<p>Other OIDC providers might be able to return a claim with group membership if explicitly requested to do so.
+Individual claims can be requested with <code>requestedIDTokenClaims</code>, see
+<a href="https://connect2id.com/products/server/docs/guides/requesting-openid-claims#claims-parameter">OpenID Connect Claims Parameter</a>
+for details. The Argo CD configuration for claims is as follows:</p>
+<div class="codehilite"><pre><span></span>  <span class="nt">oidc.config</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">requestedIDTokenClaims:</span>
+      <span class="no">email:</span>
+        <span class="no">essential: true</span>
+      <span class="no">groups:</span>
+        <span class="no">essential: true</span>
+        <span class="no">value: org:myorg</span>
+      <span class="no">acr:</span>
+        <span class="no">essential: true</span>
+        <span class="no">values:</span>
+        <span class="no">- urn:mace:incommon:iap:silver</span>
+        <span class="no">- urn:mace:incommon:iap:bronze</span>
+</pre></div>
+
+
+<p>For a simple case this can be:</p>
+<div class="codehilite"><pre><span></span>  <span class="nt">oidc.config</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">requestedIDTokenClaims: {&quot;groups&quot;: {&quot;essential&quot;: true}}</span>
 </pre></div>
                 
                   

@@ -36,7 +36,7 @@
     
     
       
-        <title>Selective Sync - Argo CD - Declarative GitOps CD for Kubernetes</title>
+        <title>Orphaned Resources Monitoring - Argo CD - Declarative GitOps CD for Kubernetes</title>
       
     
     
@@ -127,7 +127,7 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
     
-      <a href="#selective-sync" tabindex="1" class="md-skip">
+      <a href="#orphaned-resources-monitoring" tabindex="1" class="md-skip">
         Skip to content
       </a>
     
@@ -152,7 +152,7 @@
               Argo CD - Declarative GitOps CD for Kubernetes
             </span>
             <span class="md-header-nav__topic">
-              Selective Sync
+              Orphaned Resources Monitoring
             </span>
           
         </div>
@@ -653,11 +653,49 @@
           
           
 
+  
 
-  <li class="md-nav__item">
-    <a href="../orphaned-resources/" title="Orphaned Resources Monitoring" class="md-nav__link">
+
+  <li class="md-nav__item md-nav__item--active">
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    
+      
+    
+    
+      <label class="md-nav__link md-nav__link--active" for="__toc">
+        Orphaned Resources Monitoring
+      </label>
+    
+    <a href="./" title="Orphaned Resources Monitoring" class="md-nav__link md-nav__link--active">
       Orphaned Resources Monitoring
     </a>
+    
+      
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#exceptions" title="Exceptions" class="md-nav__link">
+    Exceptions
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
+    
   </li>
 
         
@@ -725,20 +763,11 @@
           
           
 
-  
 
-
-  <li class="md-nav__item md-nav__item--active">
-    
-    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
-    
-      
-    
-    
-    <a href="./" title="Selective Sync" class="md-nav__link md-nav__link--active">
+  <li class="md-nav__item">
+    <a href="../selective_sync/" title="Selective Sync" class="md-nav__link">
       Selective Sync
     </a>
-    
   </li>
 
         
@@ -992,6 +1021,22 @@
     
   
   
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#exceptions" title="Exceptions" class="md-nav__link">
+    Exceptions
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1002,16 +1047,22 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/user-guide/selective_sync.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/user-guide/orphaned-resources.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
-                <h1 id="selective-sync">Selective Sync<a class="headerlink" href="#selective-sync" title="Permanent link">&para;</a></h1>
-<p>A <em>selective sync</em> is one where only some resources are sync'd. You can choose which resources from the UI:</p>
-<p><img alt="selective sync" src="../../assets/selective-sync.png" /></p>
-<p>When doing so, bear in mind:</p>
+                <h1 id="orphaned-resources-monitoring">Orphaned Resources Monitoring<a class="headerlink" href="#orphaned-resources-monitoring" title="Permanent link">&para;</a></h1>
+<p>Orphaned Kubernetes resource is a top-level namespaced resource which does not belong to any Argo CD Application. The Orphaned Resources Monitoring feature allows detecting
+orphaned resources, generate a warning and inspect/remove resources using Argo CD UI.</p>
+<p>The Orphaned Resources monitoring is enabled in <a href="../projects/">Project</a> settings. Once the feature is enabled each project application which target namespace has orphaned resource
+will get a warning condition. The orphaned resources can be located using the application details page:</p>
+<p><img alt="orphaned resources" src="../../assets/orphaned-resources.png" /></p>
+<p>Before enabling feature you might consider disabling warning. In this case application users are going to see orphaned resources in the UI but application is won't get a warning condition.</p>
+<h2 id="exceptions">Exceptions<a class="headerlink" href="#exceptions" title="Permanent link">&para;</a></h2>
+<p>Not every resource in the Kuberenetes cluster is controlled by the end user. Following resources are never considered as orphaned:</p>
 <ul>
-<li>Your sync is not recorded in the history, and so rollback is not possible.</li>
-<li>Hooks are not run.</li>
+<li>Namespaced resources blacklisted in the project. Usually, such resources are managed by cluster administrators and not supposed to be modified by namespace user.</li>
+<li><code>ServiceAccount</code> with name <code>default</code> ( and corresponding auto-generated <code>ServiceAccountToken</code> ).</li>
+<li><code>Service</code> with name <code>kubernetes</code> in the <code>default</code> namespace.</li>
 </ul>
                 
                   
@@ -1033,7 +1084,7 @@
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
         
-          <a href="../resource_hooks/" title="Resource Hooks" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+          <a href="../diffing/" title="Diffing Customization" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
             <div class="md-flex__cell md-flex__cell--shrink">
               <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
             </div>
@@ -1042,19 +1093,19 @@
                 <span class="md-footer-nav__direction">
                   Previous
                 </span>
-                Resource Hooks
+                Diffing Customization
               </span>
             </div>
           </a>
         
         
-          <a href="../sync-waves/" title="Sync Phases and Waves" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+          <a href="../compare-options/" title="Compare Options" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
               <span class="md-flex__ellipsis">
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                Sync Phases and Waves
+                Compare Options
               </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink">

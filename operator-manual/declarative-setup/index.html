@@ -397,8 +397,8 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#application-of-applications" title="Application of Applications" class="md-nav__link">
-    Application of Applications
+  <a href="#app-of-apps" title="App of Apps" class="md-nav__link">
+    App of Apps
   </a>
   
 </li>
@@ -789,6 +789,18 @@
 
 
   <li class="md-nav__item">
+    <a href="../../user-guide/orphaned-resources/" title="Orphaned Resources Monitoring" class="md-nav__link">
+      Orphaned Resources Monitoring
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../../user-guide/compare-options/" title="Compare Options" class="md-nav__link">
       Compare Options
     </a>
@@ -1124,8 +1136,8 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#application-of-applications" title="Application of Applications" class="md-nav__link">
-    Application of Applications
+  <a href="#app-of-apps" title="App of Apps" class="md-nav__link">
+    App of Apps
   </a>
   
 </li>
@@ -1258,12 +1270,12 @@
 <td>RBAC Configuration</td>
 </tr>
 <tr>
-<td><a href="../argocd-rbac-cm.yaml"><code>argocd-tls-certs-cm.yaml</code></a></td>
+<td><a href="../argocd-tls-certs-cm.yaml"><code>argocd-tls-certs-cm.yaml</code></a></td>
 <td>ConfigMap</td>
 <td>Custom TLS certificates for connecting Git repositories via HTTPS (v1.2 and later)</td>
 </tr>
 <tr>
-<td><a href="../argocd-rbac-cm.yaml"><code>argocd-ssh-known-hosts-cm.yaml</code></a></td>
+<td><a href="../argocd-ssh-known-hosts-cm.yaml"><code>argocd-ssh-known-hosts-cm.yaml</code></a></td>
 <td>ConfigMap</td>
 <td>SSH known hosts data for connecting Git repositories via SSH (v1.2 and later)</td>
 </tr>
@@ -1319,9 +1331,9 @@ in an environment. It is defined by two key pieces of information:</p>
 </pre></div>
 
 
-<h3 id="application-of-applications">Application of Applications<a class="headerlink" href="#application-of-applications" title="Permanent link">&para;</a></h3>
-<p>You can create an application that creates other applications, which in turn can create other applications. 
-This allows you to declaratively manage a group of applications that can be deployed and configured in concert.</p>
+<h3 id="app-of-apps">App of Apps<a class="headerlink" href="#app-of-apps" title="Permanent link">&para;</a></h3>
+<p>You can create an app that creates other apps, which in turn can create other apps. 
+This allows you to declaratively manage a group of app that can be deployed and configured in concert.</p>
 <p>See <a href="../cluster-bootstrapping/">cluster bootstrapping</a>.</p>
 <h2 id="projects">Projects<a class="headerlink" href="#projects" title="Permanent link">&para;</a></h2>
 <p>The AppProject CRD is the Kubernetes resource object representing a logical grouping of applications.
@@ -1392,6 +1404,9 @@ definition as a Kubernetes manifest.</li>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
   <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+  <span class="nt">labels</span><span class="p">:</span>
+    <span class="nt">app.kubernetes.io/name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+    <span class="nt">app.kubernetes.io/part-of</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
 <span class="nt">data</span><span class="p">:</span>
   <span class="nt">repositories</span><span class="p">:</span> <span class="p p-Indicator">|</span>
     <span class="no">- url: https://github.com/argoproj/my-private-repository</span>
@@ -1410,6 +1425,9 @@ definition as a Kubernetes manifest.</li>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
   <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+  <span class="nt">labels</span><span class="p">:</span>
+    <span class="nt">app.kubernetes.io/name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+    <span class="nt">app.kubernetes.io/part-of</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
 <span class="nt">data</span><span class="p">:</span>
   <span class="nt">repositories</span><span class="p">:</span> <span class="p p-Indicator">|</span>
     <span class="no">- url: git@github.com:argoproj/my-private-repository</span>
@@ -1433,6 +1451,9 @@ definition as a Kubernetes manifest.</li>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
   <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+  <span class="nt">labels</span><span class="p">:</span>
+    <span class="nt">app.kubernetes.io/name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+    <span class="nt">app.kubernetes.io/part-of</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
 <span class="nt">data</span><span class="p">:</span>
   <span class="nt">repositories</span><span class="p">:</span> <span class="p p-Indicator">|</span>
     <span class="no">- url: https://github.com/argoproj/private-repo</span>
@@ -1657,6 +1678,9 @@ may need to configure access credentials and HTTPS settings using <code>username
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
   <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+  <span class="nt">labels</span><span class="p">:</span>
+    <span class="nt">app.kubernetes.io/name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+    <span class="nt">app.kubernetes.io/part-of</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
 <span class="nt">data</span><span class="p">:</span>
   <span class="nt">helm.repositories</span><span class="p">:</span> <span class="p p-Indicator">|</span>
     <span class="no">- url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts</span>

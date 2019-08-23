@@ -30,6 +30,10 @@ spec:
   - group: ''
     kind: NetworkPolicy
 
+  # Enables namespace orphaned resource monitoring.
+  orphanedResources:
+    warn: false
+
   roles:
   # A role which provides read-only access to all applications in the project
   - name: read-only

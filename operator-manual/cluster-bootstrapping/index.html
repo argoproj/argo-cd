@@ -442,8 +442,8 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#application-of-applications-pattern" title="Application Of Applications Pattern" class="md-nav__link">
-    Application Of Applications Pattern
+  <a href="#app-of-apps-pattern" title="App Of Apps Pattern" class="md-nav__link">
+    App Of Apps Pattern
   </a>
   
     <nav class="md-nav">
@@ -696,6 +696,18 @@
   <li class="md-nav__item">
     <a href="../../user-guide/diffing/" title="Diffing Customization" class="md-nav__link">
       Diffing Customization
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/orphaned-resources/" title="Orphaned Resources Monitoring" class="md-nav__link">
+      Orphaned Resources Monitoring
     </a>
   </li>
 
@@ -1026,8 +1038,8 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#application-of-applications-pattern" title="Application Of Applications Pattern" class="md-nav__link">
-    Application Of Applications Pattern
+  <a href="#app-of-apps-pattern" title="App Of Apps Pattern" class="md-nav__link">
+    App Of Apps Pattern
   </a>
   
     <nav class="md-nav">
@@ -1065,10 +1077,10 @@
                 
                 
                 <h1 id="cluster-bootstrapping">Cluster Bootstrapping<a class="headerlink" href="#cluster-bootstrapping" title="Permanent link">&para;</a></h1>
-<p>This guide for operators who have already installed Argo CD, and have a new cluster and are looking to install many applications in that cluster.</p>
-<p>There's no one particular pattern to solve this problem, e.g. you could write a script to create your applications, or you could even manually create them. However, users of Argo CD tend to use the <strong>application of applications pattern</strong>.</p>
-<h2 id="application-of-applications-pattern">Application Of Applications Pattern<a class="headerlink" href="#application-of-applications-pattern" title="Permanent link">&para;</a></h2>
-<p><a href="../declarative-setup/">Declaratively</a> specify one Argo CD application that consists only of other applications.</p>
+<p>This guide for operators who have already installed Argo CD, and have a new cluster and are looking to install many apps in that cluster.</p>
+<p>There's no one particular pattern to solve this problem, e.g. you could write a script to create your apps, or you could even manually create them. However, users of Argo CD tend to use the <strong>app of apps pattern</strong>.</p>
+<h2 id="app-of-apps-pattern">App Of Apps Pattern<a class="headerlink" href="#app-of-apps-pattern" title="Permanent link">&para;</a></h2>
+<p><a href="../declarative-setup/">Declaratively</a> specify one Argo CD app that consists only of other apps.</p>
 <p><img alt="Application of Applications" src="../../assets/application-of-applications.png" /></p>
 <h3 id="helm-example">Helm Example<a class="headerlink" href="#helm-example" title="Permanent link">&para;</a></h3>
 <p>This example shows how to use Helm to achieve this. You can, of course, use another tool if you like.</p>
@@ -1084,7 +1096,7 @@
 
 
 <p><code>Chart.yaml</code> is boiler-plate.</p>
-<p><code>templates</code> contains one file for each application, roughly:</p>
+<p><code>templates</code> contains one file for each child app, roughly:</p>
 <div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Application</span>
 <span class="nt">metadata</span><span class="p">:</span>
@@ -1100,36 +1112,35 @@
   <span class="nt">source</span><span class="p">:</span>
     <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
     <span class="nt">repoURL</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://github.com/argoproj/argocd-example-apps</span>
-    <span class="nt">targetRevision</span><span class="p">:</span> <span class="p p-Indicator">{{</span> <span class="nv">.Values.spec.source.targetRevision</span> <span class="p p-Indicator">}}</span>
+    <span class="nt">targetRevision</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">08836bd970037ebcd14494831de4635bad961139</span>
   <span class="nt">syncPolicy</span><span class="p">:</span>
     <span class="nt">automated</span><span class="p">:</span>
       <span class="nt">prune</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
 </pre></div>
 
 
-<p>In this example, I've set the sync policy to automated + prune, so that applications are automatically created, synced, and deleted when the manifest is changed, but you may wish to disable this. I've also added the finalizer, which will ensure that you applications are deleted correctly.</p>
-<p>As you probably want to override the cluster server and maybe the revision, these are templated values.</p>
+<p>The sync policy to automated + prune, so that child app is are automatically created, synced, and deleted when the manifest is changed, but you may wish to disable this. I've also added the finalizer, which will ensure that you apps are deleted correctly.</p>
+<p>Fix the revision to a specific Git commit SHA to make sure that, even if the child apps repo changes, the app will only change when the parent app change that revision. Alternatively, you can set it to HEAD or a branch name.</p>
+<p>As you probably want to override the cluster server, this is a templated values.</p>
 <p><code>values.yaml</code> contains the default values:</p>
 <div class="codehilite"><pre><span></span><span class="nt">spec</span><span class="p">:</span>
   <span class="nt">destination</span><span class="p">:</span>
     <span class="nt">server</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://kubernetes.default.svc</span>
-  <span class="nt">source</span><span class="p">:</span>
-    <span class="nt">targetRevision</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">HEAD</span>
 </pre></div>
 
 
-<p>Finally, you need to create your application, e.g.:</p>
+<p>Finally, you need to create your parent app, e.g.:</p>
 <div class="codehilite"><pre><span></span>argocd app create applications <span class="se">\</span>
     --dest-namespace argocd <span class="se">\</span>
     --dest-server https://kubernetes.default.svc <span class="se">\</span>
     --repo https://github.com/argoproj/argocd-example-apps.git <span class="se">\</span>
-    --path applications <span class="se">\</span>
+    --path apps <span class="se">\</span>
     --sync-policy automated 
 </pre></div>
 
 
-<p>In this example, I excluded auto-prune, as this would result in all applications being deleted if some accidentally deleted the <em>application of applications</em>.</p>
-<p>View <a href="https://github.com/argoproj/argocd-example-apps/tree/master/applications">the example on Github</a>.</p>
+<p>In this example, I excluded auto-prune, as this would result in all apps being deleted if some accidentally deleted the <em>app of apps</em>.</p>
+<p>View <a href="https://github.com/argoproj/argocd-example-apps/tree/master/apps">the example on Github</a>.</p>
                 
                   
                 

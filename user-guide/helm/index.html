@@ -734,6 +734,18 @@
 
 
   <li class="md-nav__item">
+    <a href="../orphaned-resources/" title="Orphaned Resources Monitoring" class="md-nav__link">
+      Orphaned Resources Monitoring
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../compare-options/" title="Compare Options" class="md-nav__link">
       Compare Options
     </a>
@@ -1164,9 +1176,9 @@ you may want to override that  name, and it is possible with the <code>release-n
 <blockquote>
 <p>v1.3 or later</p>
 </blockquote>
-<p>Helm hooks are similar to <a href="../resource_hooks/">Argo CD resource hooks</a>. In Helm, a hook
-is any normal kubernetes resource annotated with the <code>helm.sh/hook</code> annotation. </p>
-<p>Argo CD supports most Helm hooks by mapping the Helm annotations onto Argo CD's own hook annotations: </p>
+<p>Helm hooks are similar to <a href="../resource_hooks/">Argo CD hooks</a>. In Helm, a hook
+is any normal Kubernetes resource annotated with the <code>helm.sh/hook</code> annotation. </p>
+<p>Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Argo CD's own hook annotations: </p>
 <table>
 <thead>
 <tr>
@@ -1233,14 +1245,14 @@ is any normal kubernetes resource annotated with the <code>helm.sh/hook</code> a
 </tr>
 </tbody>
 </table>
-<p>Unsupported hooks are simply ignored. In Argo CD, hooks are created by using <code>kubectl apply</code>. This means that any </p>
+<p>Unsupported hooks are ignored. In Argo CD, hooks are created by using <code>kubectl apply</code>, rather than <code>kubectl create</code>. This means that if the hook is named and already exists, it will not change unless you have annotated it with <code>before-hook-creation</code>.</p>
 <div class="admonition warning">
 <p class="admonition-title">'install' vs 'upgrade' vs 'sync'</p>
 <p>Argo CD cannot know if it is running a first-time "install" or an "upgrade" - every operation is a "sync'. This means that, by default, apps that have <code>pre-install</code> and <code>pre-upgrade</code> will have those hooks run at the same time.</p>
 </div>
 <h3 id="hook-tips">Hook Tips<a class="headerlink" href="#hook-tips" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Make your hook are idempotent. </li>
+<li>Make your hook idempotent. </li>
 <li>Annotate <code>crd-install</code> with <code>hook-weight: "-2"</code> to make sure it runs to success before any install or upgrade hooks.</li>
 <li>Annotate  <code>pre-install</code> and <code>post-install</code> with <code>hook-weight: "-1"</code>. This will make sure it runs to success before any upgrade hooks.</li>
 <li>Annotate <code>pre-upgrade</code> and <code>post-upgrade</code> with <code>hook-delete-policy: before-hook-creation</code> to make sure it runs on every sync.</li>
