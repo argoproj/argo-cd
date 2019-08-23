@@ -3,7 +3,6 @@ package fixture
 import (
 	"context"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -380,10 +379,10 @@ func EnsureCleanState(t *testing.T) {
 }
 
 func RunCli(args ...string) (string, error) {
-	return RunCliWithStdin(nil, args...)
+	return RunCliWithStdin("", args...)
 }
 
-func RunCliWithStdin(stdin *io.Reader, args ...string) (string, error) {
+func RunCliWithStdin(stdin string, args ...string) (string, error) {
 	if plainText {
 		args = append(args, "--plaintext")
 	}

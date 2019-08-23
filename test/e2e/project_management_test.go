@@ -1,9 +1,7 @@
 package e2e
 
 import (
-	"bytes"
 	"encoding/json"
-	"io"
 	"strconv"
 	"strings"
 	"testing"
@@ -75,17 +73,16 @@ func TestProjectCreation(t *testing.T) {
 	proj.Spec.Description = newDescription
 	proj.ResourceVersion = ""
 	data, err := json.Marshal(proj)
+	stdinString := string(data)
 	assert.NoError(t, err)
 
 	// fail without upsert flag
-	var reader io.Reader = bytes.NewReader(data)
-	_, err = fixture.RunCliWithStdin(&reader, "proj", "create",
+	_, err = fixture.RunCliWithStdin(stdinString, "proj", "create",
 		"-f", "-")
 	assert.Error(t, err)
 
 	// succeed with the upsert flag
-	reader = bytes.NewReader(data)
-	_, err = fixture.RunCliWithStdin(&reader, "proj", "create",
+	_, err = fixture.RunCliWithStdin(stdinString, "proj", "create",
 		"-f", "-", "--upsert")
 	assert.NoError(t, err)
 	proj, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(projectName, metav1.GetOptions{})
