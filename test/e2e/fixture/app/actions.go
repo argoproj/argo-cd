@@ -35,21 +35,25 @@ func (a *Actions) DoNotIgnoreErrors() *Actions {
 }
 
 func (a *Actions) PatchFile(file string, jsonPath string) *Actions {
+	a.context.t.Helper()
 	fixture.Patch(a.context.path+"/"+file, jsonPath)
 	return a
 }
 
 func (a *Actions) DeleteFile(file string) *Actions {
+	a.context.t.Helper()
 	fixture.Delete(a.context.path + "/" + file)
 	return a
 }
 
 func (a *Actions) AddFile(fileName, fileContents string) *Actions {
+	a.context.t.Helper()
 	fixture.AddFile(a.context.path+"/"+fileName, fileContents)
 	return a
 }
 
 func (a *Actions) CreateFromFile(handler func(app *Application)) *Actions {
+	a.context.t.Helper()
 	app := &Application{
 		ObjectMeta: v1.ObjectMeta{
 			Name: a.context.name,
@@ -98,7 +102,7 @@ func (a *Actions) CreateFromFile(handler func(app *Application)) *Actions {
 }
 
 func (a *Actions) Create() *Actions {
-
+	a.context.t.Helper()
 	args := []string{
 		"app", "create", a.context.name,
 		"--repo", fixture.RepoURL(a.context.repoURLType),
@@ -139,10 +143,12 @@ func (a *Actions) Create() *Actions {
 }
 
 func (a *Actions) Declarative(filename string) *Actions {
+	a.context.t.Helper()
 	return a.DeclarativeWithCustomRepo(filename, fixture.RepoURL(a.context.repoURLType))
 }
 
 func (a *Actions) DeclarativeWithCustomRepo(filename string, repoURL string) *Actions {
+	a.context.t.Helper()
 	values := map[string]interface{}{
 		"ArgoCDNamespace":     fixture.ArgoCDNamespace,
 		"DeploymentNamespace": fixture.DeploymentNamespace(),
@@ -157,11 +163,13 @@ func (a *Actions) DeclarativeWithCustomRepo(filename string, repoURL string) *Ac
 }
 
 func (a *Actions) PatchApp(patch string) *Actions {
+	a.context.t.Helper()
 	a.runCli("app", "patch", a.context.name, "--patch", patch)
 	return a
 }
 
 func (a *Actions) AppSet(flags ...string) *Actions {
+	a.context.t.Helper()
 	args := []string{"app", "set", a.context.name}
 	args = append(args, flags...)
 	a.runCli(args...)
@@ -169,6 +177,7 @@ func (a *Actions) AppSet(flags ...string) *Actions {
 }
 
 func (a *Actions) Sync() *Actions {
+	a.context.t.Helper()
 	args := []string{"app", "sync", a.context.name, "--timeout", fmt.Sprintf("%v", a.context.timeout)}
 
 	if a.context.async {
@@ -197,12 +206,13 @@ func (a *Actions) Sync() *Actions {
 }
 
 func (a *Actions) TerminateOp() *Actions {
+	a.context.t.Helper()
 	a.runCli("app", "terminate-op", a.context.name)
 	return a
 }
 
 func (a *Actions) Refresh(refreshType RefreshType) *Actions {
-
+	a.context.t.Helper()
 	flag := map[RefreshType]string{
 		RefreshTypeNormal: "--refresh",
 		RefreshTypeHard:   "--hard-refresh",
@@ -214,25 +224,30 @@ func (a *Actions) Refresh(refreshType RefreshType) *Actions {
 }
 
 func (a *Actions) Delete(cascade bool) *Actions {
+	a.context.t.Helper()
 	a.runCli("app", "delete", a.context.name, fmt.Sprintf("--cascade=%v", cascade))
 	return a
 }
 
 func (a *Actions) And(block func()) *Actions {
+	a.context.t.Helper()
 	block()
 	return a
 }
 
 func (a *Actions) Then() *Consequences {
+	a.context.t.Helper()
 	return &Consequences{a.context, a}
 }
 
 func (a *Actions) runCli(args ...string) {
+	a.context.t.Helper()
 	a.lastOutput, a.lastError = fixture.RunCli(args...)
 	a.verifyAction()
 }
 
 func (a *Actions) verifyAction() {
+	a.context.t.Helper()
 	if !a.ignoreErrors {
 		a.Then().Expect(Success(""))
 	}

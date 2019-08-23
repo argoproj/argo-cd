@@ -44,7 +44,8 @@ func TestProjectCreation(t *testing.T) {
 		"--description", "Test description",
 		"-d", "https://192.168.99.100:8443,default",
 		"-d", "https://192.168.99.100:8443,service",
-		"-s", "https://github.com/argoproj/argo-cd.git")
+		"-s", "https://github.com/argoproj/argo-cd.git",
+		"--orphaned-resources")
 	assert.Nil(t, err)
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(projectName, metav1.GetOptions{})
@@ -60,6 +61,9 @@ func TestProjectCreation(t *testing.T) {
 
 	assert.Equal(t, 1, len(proj.Spec.SourceRepos))
 	assert.Equal(t, "https://github.com/argoproj/argo-cd.git", proj.Spec.SourceRepos[0])
+
+	assert.NotNil(t, proj.Spec.OrphanedResources)
+	assert.True(t, proj.Spec.OrphanedResources.IsWarn())
 
 	assertProjHasEvent(t, proj, "create", argo.EventReasonResourceCreated)
 }
@@ -89,7 +93,8 @@ func TestSetProject(t *testing.T) {
 	_, err = fixture.RunCli("proj", "set", projectName,
 		"--description", "updated description",
 		"-d", "https://192.168.99.100:8443,default",
-		"-d", "https://192.168.99.100:8443,service")
+		"-d", "https://192.168.99.100:8443,service",
+		"--orphaned-resources-warn=false")
 	assert.NoError(t, err)
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(projectName, metav1.GetOptions{})
@@ -102,6 +107,10 @@ func TestSetProject(t *testing.T) {
 
 	assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[1].Server)
 	assert.Equal(t, "service", proj.Spec.Destinations[1].Namespace)
+
+	assert.NotNil(t, proj.Spec.OrphanedResources)
+	assert.False(t, proj.Spec.OrphanedResources.IsWarn())
+
 	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
 }
 

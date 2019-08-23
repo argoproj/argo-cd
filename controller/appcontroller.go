@@ -753,8 +753,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		}
 	}
 
-	ctrl.refreshAppConditions(app)
-	if len(app.Status.GetErrorConditions()) > 0 {
+	hasErrors := ctrl.refreshAppConditions(app)
+	if hasErrors {
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = appv1.HealthStatusUnknown
 		ctrl.persistAppStatus(origApp, &app.Status)
@@ -786,7 +786,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	syncErrCond := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources)
 	if syncErrCond != nil {
-		app.Status.Conditions = append(app.Status.Conditions, *syncErrCond)
+		app.Status.SetConditions([]appv1.ApplicationCondition{*syncErrCond}, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true})
+	} else {
+		app.Status.SetConditions([]appv1.ApplicationCondition{}, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true})
 	}
 
 	app.Status.ObservedAt = &compareResult.reconciledAt
@@ -831,17 +833,17 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	return false, refreshType, compareWith
 }
 
-func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) {
-	conditions := make([]appv1.ApplicationCondition, 0)
+func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) bool {
+	errorConditions := make([]appv1.ApplicationCondition, 0)
 	proj, err := ctrl.getAppProj(app)
 	if err != nil {
 		if apierr.IsNotFound(err) {
-			conditions = append(conditions, appv1.ApplicationCondition{
+			errorConditions = append(errorConditions, appv1.ApplicationCondition{
 				Type:    appv1.ApplicationConditionInvalidSpecError,
 				Message: fmt.Sprintf("Application referencing project %s which does not exist", app.Spec.Project),
 			})
 		} else {
-			conditions = append(conditions, appv1.ApplicationCondition{
+			errorConditions = append(errorConditions, appv1.ApplicationCondition{
 				Type:    appv1.ApplicationConditionUnknownError,
 				Message: err.Error(),
 			})
@@ -849,23 +851,23 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 	} else {
 		specConditions, err := argo.ValidatePermissions(context.Background(), &app.Spec, proj, ctrl.db)
 		if err != nil {
-			conditions = append(conditions, appv1.ApplicationCondition{
+			errorConditions = append(errorConditions, appv1.ApplicationCondition{
 				Type:    appv1.ApplicationConditionUnknownError,
 				Message: err.Error(),
 			})
 		} else {
-			conditions = append(conditions, specConditions...)
+			errorConditions = append(errorConditions, specConditions...)
 		}
 	}
-	app.Status.SetConditions(conditions, map[appv1.ApplicationConditionType]bool{
+	app.Status.SetConditions(errorConditions, map[appv1.ApplicationConditionType]bool{
 		appv1.ApplicationConditionInvalidSpecError:        true,
 		appv1.ApplicationConditionUnknownError:            true,
 		appv1.ApplicationConditionComparisonError:         true,
 		appv1.ApplicationConditionSharedResourceWarning:   true,
-		appv1.ApplicationConditionSyncError:               true,
 		appv1.ApplicationConditionRepeatedResourceWarning: true,
 		appv1.ApplicationConditionExcludedResourceWarning: true,
 	})
+	return len(errorConditions) > 0
 }
 
 // normalizeApplication normalizes an application.spec and additionally persists updates if it changed

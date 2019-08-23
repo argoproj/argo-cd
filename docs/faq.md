@@ -38,11 +38,10 @@ can use a site like https://www.browserling.com/tools/bcrypt to generate a new h
 ```bash
 # bcrypt(Password1!)=$2a$10$hDj12Tw9xVmvybSahN1Y0.f9DZixxN8oybyA32Uy/eqWklFU4Mo8O
 kubectl -n argocd patch secret argocd-secret \
-  -p "{\"data\": \
-    {\
-      \"admin.password\": \"$(echo -n '$2a$10$hDj12Tw9xVmvybSahN1Y0.f9DZixxN8oybyA32Uy/eqWklFU4Mo8O' | base64)\", \
-      \"admin.passwordMtime\": \"$(date +%FT%T%Z | base64)\" \
-  }}"
+  -p '{"stringData": {
+    "admin.password": "$2a$10$hDj12Tw9xVmvybSahN1Y0.f9DZixxN8oybyA32Uy/eqWklFU4Mo8O",
+    "admin.passwordMtime": "'$(date +%FT%T%Z)'"
+  }}'
 ```
 
 Another option is to delete both the `admin.password` and `admin.passwordMtime` keys and restart argocd-server. This will set the password back to the pod name as per [the getting started guide](getting_started.md).
