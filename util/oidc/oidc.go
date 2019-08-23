@@ -21,6 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/dex"
 	httputil "github.com/argoproj/argo-cd/util/http"
+	"github.com/argoproj/argo-cd/util/jwt/cjwt"
 	"github.com/argoproj/argo-cd/util/rand"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -240,13 +241,21 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	cookie, err := httputil.MakeCookieMetadata(common.AuthCookieName, idTokenRAW, flags...)
-	if err != nil {
-		claimsJSON, _ := json.Marshal(claims)
-		http.Error(w, fmt.Sprintf("claims=%s, err=%v", claimsJSON, err), http.StatusInternalServerError)
-		return
+	if idTokenRAW != "" {
+		idTokenRAW, err = cjwt.CompactJWT(idTokenRAW)
+		if err != nil {
+			claimsJSON, _ := json.Marshal(claims)
+			http.Error(w, fmt.Sprintf("claims=%s, err=%v", claimsJSON, err), http.StatusInternalServerError)
+			return
+		}
+		cookie, err := httputil.MakeCookieMetadata(common.AuthCookieName, idTokenRAW, flags...)
+		if err != nil {
+			claimsJSON, _ := json.Marshal(claims)
+			http.Error(w, fmt.Sprintf("claims=%s, err=%v", claimsJSON, err), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Set-Cookie", cookie)
 	}
-	w.Header().Set("Set-Cookie", cookie)
 
 	claimsJSON, _ := json.Marshal(claims)
 	log.Infof("Web login successful. Claims: %s", claimsJSON)

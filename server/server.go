@@ -79,6 +79,7 @@ import (
 	"github.com/argoproj/argo-cd/util/healthz"
 	httputil "github.com/argoproj/argo-cd/util/http"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
+	"github.com/argoproj/argo-cd/util/jwt/cjwt"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/oidc"
 	"github.com/argoproj/argo-cd/util/rbac"
@@ -479,12 +480,18 @@ func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.Res
 		if !a.Insecure {
 			flags = append(flags, "Secure")
 		}
-		cookie, err := httputil.MakeCookieMetadata(common.AuthCookieName, sessionResp.Token, flags...)
-		if err != nil {
-			return err
+		token := sessionResp.Token
+		if token != "" {
+			token, err := cjwt.CompactJWT(token)
+			if err != nil {
+				return err
+			}
+			cookie, err := httputil.MakeCookieMetadata(common.AuthCookieName, token, flags...)
+			if err != nil {
+				return err
+			}
+			w.Header().Set("Set-Cookie", cookie)
 		}
-
-		w.Header().Set("Set-Cookie", cookie)
 	}
 	return nil
 }
@@ -758,7 +765,10 @@ func getToken(md metadata.MD) string {
 		request := http.Request{Header: header}
 		token, err := request.Cookie(common.AuthCookieName)
 		if err == nil {
-			return token.Value
+			value, err := cjwt.JWT(token.Value)
+			if err == nil {
+				return value
+			}
 		}
 	}
 	return ""
