@@ -70,19 +70,27 @@ func TestProjectCreation(t *testing.T) {
 
 	assertProjHasEvent(t, proj, "create", argo.EventReasonResourceCreated)
 
-	proj.Spec.Description = "Upserted description"
+	// create a manifest with the same name to upsert
+	newDescription := "Upserted description"
+	proj.Spec.Description = newDescription
+	proj.ResourceVersion = ""
 	data, err := json.Marshal(proj)
 	assert.NoError(t, err)
-	var reader io.Reader = bytes.NewReader(data)
 
-	_, err = fixture.RunCliWithStdin(&reader, "proj", "create", projectName,
+	// fail without upsert flag
+	var reader io.Reader = bytes.NewReader(data)
+	_, err = fixture.RunCliWithStdin(&reader, "proj", "create",
 		"-f", "-")
 	assert.Error(t, err)
 
-	_, err = fixture.RunCliWithStdin(&reader, "proj", "create", projectName,
+	// succeed with the upsert flag
+	reader = bytes.NewReader(data)
+	_, err = fixture.RunCliWithStdin(&reader, "proj", "create",
 		"-f", "-", "--upsert")
-
 	assert.NoError(t, err)
+	proj, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(projectName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, newDescription, proj.Spec.Description)
 }
 
 func TestProjectDeletion(t *testing.T) {
