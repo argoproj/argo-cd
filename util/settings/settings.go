@@ -363,6 +363,24 @@ func (mgr *SettingsManager) SaveRepositories(repos []RepoCredentials) error {
 	return err
 }
 
+func (mgr *SettingsManager) SaveRepositoryCredentials(repos []RepoCredentials) error {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return err
+	}
+	if len(repos) > 0 {
+		yamlStr, err := yaml.Marshal(repos)
+		if err != nil {
+			return err
+		}
+		argoCDCM.Data[repositoryCredentialsKey] = string(yamlStr)
+	} else {
+		delete(argoCDCM.Data, repositoryCredentialsKey)
+	}
+	_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(argoCDCM)
+	return err
+}
+
 func (mgr *SettingsManager) GetRepositoryCredentials() ([]RepoCredentials, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {

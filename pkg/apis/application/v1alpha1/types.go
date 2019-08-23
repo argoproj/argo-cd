@@ -989,30 +989,42 @@ type Repository struct {
 	TLSClientCertData string `json:"tlsClientCertData,omitempty" protobuf:"bytes,9,opt,name=tlsClientCertData"`
 	// TLS client cert key for authenticating at the repo server
 	TLSClientCertKey string `json:"tlsClientCertKey,omitempty" protobuf:"bytes,10,opt,name=tlsClientCertKey"`
+	// Whether credentials were inherited from a credential set
+	InheritedCreds bool `json:"inheritedCreds,omitempty" protobuf:"bytes,11,opt,name=inheritedCreds"`
 }
 
+// IsInsecure returns true if receiver has been configured to skip server verification
 func (repo *Repository) IsInsecure() bool {
 	return repo.InsecureIgnoreHostKey || repo.Insecure
 }
 
+// IsLFSEnabled returns true if LFS support is enabled on receiver
 func (repo *Repository) IsLFSEnabled() bool {
 	return repo.EnableLFS
 }
 
+// HasCredentials returns true when the receiver has been configured any credentials
 func (m *Repository) HasCredentials() bool {
-	return m.Username != "" || m.Password != "" || m.SSHPrivateKey != "" || m.InsecureIgnoreHostKey
+	return m.Username != "" || m.Password != "" || m.SSHPrivateKey != "" || m.TLSClientCertData != ""
 }
 
+// CopyCredentialsFrom copies all credentials from source to receiver
 func (m *Repository) CopyCredentialsFrom(source *Repository) {
 	if source != nil {
 		m.Username = source.Username
 		m.Password = source.Password
 		m.SSHPrivateKey = source.SSHPrivateKey
-		m.InsecureIgnoreHostKey = source.InsecureIgnoreHostKey
-		m.Insecure = source.Insecure
-		m.EnableLFS = source.EnableLFS
 		m.TLSClientCertData = source.TLSClientCertData
 		m.TLSClientCertKey = source.TLSClientCertKey
+	}
+}
+
+// CopySettingsFrom copies all repository settings from source to receiver
+func (m *Repository) CopySettingsFrom(source *Repository) {
+	if source != nil {
+		m.EnableLFS = source.EnableLFS
+		m.InsecureIgnoreHostKey = source.InsecureIgnoreHostKey
+		m.Insecure = source.Insecure
 	}
 }
 

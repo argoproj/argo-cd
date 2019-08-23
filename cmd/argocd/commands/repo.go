@@ -47,16 +47,19 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		tlsClientCertPath              string
 		tlsClientCertKeyPath           string
 		enableLfs                      bool
+		credsOnly                      bool
 	)
 
 	// For better readability and easier formatting
 	var repoAddExamples = `
-Add a SSH repository using a private key for authentication, ignoring the server's host key:",
-  $ argocd repo add git@git.example.com --insecure-ignore-host-key --ssh-private-key-path ~/id_rsa",
-Add a HTTPS repository using username/password and TLS client certificates:",
-  $ argocd repo add https://git.example.com --username git --password secret --tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key",
-Add a HTTPS repository using username/password without verifying the server's TLS certificate:",
-  $ argocd repo add https://git.example.com --username git --password secret --insecure-skip-server-verification",
+Add a SSH repository using a private key for authentication, ignoring the server's host key:
+  $ argocd repo add git@git.example.com/repos/repo --insecure-ignore-host-key --ssh-private-key-path ~/id_rsa
+Add a HTTPS repository using username/password and TLS client certificates:
+  $ argocd repo add https://git.example.com/repos/repo --username git --password secret --tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key
+Add a HTTPS repository using username/password without verifying the server's TLS certificate
+	$ argocd repo add https://git.example.com/repos/repo --username git --password secret --insecure-skip-server-verification
+Add credentials to use for all repositories under https://git.example.com/repos
+  $ argocd repo add https://git.example.com/repos/ --creds --username git --password secret
 `
 
 	var command = &cobra.Command{
@@ -71,6 +74,18 @@ Add a HTTPS repository using username/password without verifying the server's TL
 
 			// Repository URL
 			repo.Repo = args[0]
+
+			// If user specified --creds, error out on invalid parameters
+			if credsOnly {
+				if insecureIgnoreHostKey || insecureSkipServerVerification {
+					err := fmt.Errorf("--insecure-skip-server-verification and --insecure-ignore-host-key cannot be specified with --creds")
+					errors.CheckError(err)
+				}
+				if enableLfs {
+					err := fmt.Errorf("--enable-lfs cannot be specified with --creds")
+					errors.CheckError(err)
+				}
+			}
 
 			// Specifying ssh-private-key-path is only valid for SSH repositories
 			if sshPrivateKeyPath != "" {
@@ -108,10 +123,14 @@ Add a HTTPS repository using username/password without verifying the server's TL
 				}
 			}
 
-			// InsecureIgnoreHostKey is deprecated and only here for backwards compat
-			repo.InsecureIgnoreHostKey = insecureIgnoreHostKey
-			repo.Insecure = insecureSkipServerVerification
-			repo.EnableLFS = enableLfs
+			// Set repository connection properties only when creating repository, not
+			// when creating repository credentials.
+			if !credsOnly {
+				// InsecureIgnoreHostKey is deprecated and only here for backwards compat
+				repo.InsecureIgnoreHostKey = insecureIgnoreHostKey
+				repo.Insecure = insecureSkipServerVerification
+				repo.EnableLFS = enableLfs
+			}
 
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
 			defer util.Close(conn)
@@ -125,25 +144,38 @@ Add a HTTPS repository using username/password without verifying the server's TL
 			// We let the server check access to the repository before adding it. If
 			// it is a private repo, but we cannot access with with the credentials
 			// that were supplied, we bail out.
-			repoAccessReq := repositorypkg.RepoAccessQuery{
-				Repo:              repo.Repo,
-				Username:          repo.Username,
-				Password:          repo.Password,
-				SshPrivateKey:     repo.SSHPrivateKey,
-				TlsClientCertData: repo.TLSClientCertData,
-				TlsClientCertKey:  repo.TLSClientCertKey,
-				Insecure:          repo.IsInsecure(),
+			//
+			// Skip validation if we are just adding credentials template, chances
+			// are high that we do not have the given URL pointing to a valid Git
+			// repo anyway.
+			if !credsOnly {
+				repoAccessReq := repositorypkg.RepoAccessQuery{
+					Repo:              repo.Repo,
+					Username:          repo.Username,
+					Password:          repo.Password,
+					SshPrivateKey:     repo.SSHPrivateKey,
+					TlsClientCertData: repo.TLSClientCertData,
+					TlsClientCertKey:  repo.TLSClientCertKey,
+					Insecure:          repo.IsInsecure(),
+				}
+				_, err := repoIf.ValidateAccess(context.Background(), &repoAccessReq)
+				errors.CheckError(err)
 			}
-			_, err := repoIf.ValidateAccess(context.Background(), &repoAccessReq)
-			errors.CheckError(err)
 
 			repoCreateReq := repositorypkg.RepoCreateRequest{
 				Repo:   &repo,
 				Upsert: upsert,
 			}
-			createdRepo, err := repoIf.Create(context.Background(), &repoCreateReq)
-			errors.CheckError(err)
-			fmt.Printf("repository '%s' added\n", createdRepo.Repo)
+
+			if !credsOnly {
+				createdRepo, err := repoIf.CreateRepository(context.Background(), &repoCreateReq)
+				errors.CheckError(err)
+				fmt.Printf("repository '%s' added\n", createdRepo.Repo)
+			} else {
+				createdRepo, err := repoIf.CreateRepositoryCredentials(context.Background(), &repoCreateReq)
+				errors.CheckError(err)
+				fmt.Printf("repository credentials for '%s' added\n", createdRepo.Repo)
+			}
 		},
 	}
 	command.Flags().StringVar(&repo.Username, "username", "", "username to the repository")
@@ -155,11 +187,15 @@ Add a HTTPS repository using username/password without verifying the server's TL
 	command.Flags().BoolVar(&insecureSkipServerVerification, "insecure-skip-server-verification", false, "disables server certificate and host key checks")
 	command.Flags().BoolVar(&enableLfs, "enable-lfs", false, "enable git-lfs (Large File Support) on this repository")
 	command.Flags().BoolVar(&upsert, "upsert", false, "Override an existing repository with the same name even if the spec differs")
+	command.Flags().BoolVar(&credsOnly, "creds", false, "Add as repository credentials template, not as repository")
 	return command
 }
 
 // NewRepoRemoveCommand returns a new instance of an `argocd repo list` command
 func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		credsOnly bool
+	)
 	var command = &cobra.Command{
 		Use:   "rm REPO",
 		Short: "Remove git repository credentials",
@@ -171,11 +207,18 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
 			defer util.Close(conn)
 			for _, repoURL := range args {
-				_, err := repoIf.Delete(context.Background(), &repositorypkg.RepoQuery{Repo: repoURL})
-				errors.CheckError(err)
+				if credsOnly {
+					_, err := repoIf.DeleteRepositoryCredentials(context.Background(), &repositorypkg.RepoQuery{Repo: repoURL})
+					errors.CheckError(err)
+				} else {
+					_, err := repoIf.DeleteRepository(context.Background(), &repositorypkg.RepoQuery{Repo: repoURL})
+					errors.CheckError(err)
+
+				}
 			}
 		},
 	}
+	command.Flags().BoolVar(&credsOnly, "creds", false, "Delete repository credentials template instead of repository")
 	return command
 }
 
@@ -195,7 +238,20 @@ func printRepoTable(repos []appsv1.Repository) {
 	_ = w.Flush()
 }
 
-// Print list of repo urls
+// Print the repository credentials as table
+func printRepoCredsTable(repos []appsv1.Repository) {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintf(w, "URL_PATTERN\tUSERNAME\tSSH_CREDS\tTLS_CREDS\n")
+	for _, r := range repos {
+		if r.Username == "" {
+			r.Username = "-"
+		}
+		fmt.Fprintf(w, "%s\t%s\t%v\t%v\n", r.Repo, r.Username, r.SSHPrivateKey != "", r.TLSClientCertData != "")
+	}
+	_ = w.Flush()
+}
+
+// Print list of repo urls or url patterns for repository credentials
 func printRepoUrls(repos []appsv1.Repository) {
 	for _, r := range repos {
 		fmt.Println(r.Repo)
@@ -205,7 +261,9 @@ func printRepoUrls(repos []appsv1.Repository) {
 // NewRepoListCommand returns a new instance of an `argocd repo rm` command
 func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		output string
+		output       string
+		credsOnly    bool
+		forceRefresh bool
 	)
 	var command = &cobra.Command{
 		Use:   "list",
@@ -213,15 +271,27 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
 			defer util.Close(conn)
-			repos, err := repoIf.List(context.Background(), &repositorypkg.RepoQuery{})
-			errors.CheckError(err)
-			if output == "url" {
-				printRepoUrls(repos.Items)
+			if !credsOnly {
+				repos, err := repoIf.ListRepositories(context.Background(), &repositorypkg.RepoQuery{ForceRefresh: forceRefresh})
+				errors.CheckError(err)
+				if output == "url" {
+					printRepoUrls(repos.Items)
+				} else {
+					printRepoTable(repos.Items)
+				}
 			} else {
-				printRepoTable(repos.Items)
+				repos, err := repoIf.ListRepositoryCredentials(context.Background(), &repositorypkg.RepoQuery{})
+				errors.CheckError(err)
+				if output == "url" {
+					printRepoUrls(repos.Items)
+				} else {
+					printRepoCredsTable(repos.Items)
+				}
 			}
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|url")
+	command.Flags().BoolVar(&credsOnly, "creds", false, "List repository credentials templates instead of connected repositories")
+	command.Flags().BoolVar(&forceRefresh, "force-refresh", false, "Force a cache refresh on connection status")
 	return command
 }

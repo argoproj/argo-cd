@@ -295,6 +295,7 @@ func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, re
 		Path:     fmt.Sprintf("%s/*.yaml", spec.Source.Path),
 	}
 	req.Repo.CopyCredentialsFrom(repoRes)
+	req.Repo.CopySettingsFrom(repoRes)
 	getRes, err := repoClient.ListDir(ctx, &req)
 	if err != nil {
 		return "", err
@@ -331,6 +332,7 @@ func verifyAppYAML(ctx context.Context, repoRes *argoappv1.Repository, spec *arg
 		Path:     path.Join(spec.Source.Path, "app.yaml"),
 	}
 	req.Repo.CopyCredentialsFrom(repoRes)
+	req.Repo.CopySettingsFrom(repoRes)
 	getRes, err := repoClient.GetFile(ctx, &req)
 	if err != nil {
 		return fmt.Errorf("Unable to load app.yaml: %v", err)
@@ -375,6 +377,7 @@ func verifyHelmChart(ctx context.Context, repoRes *argoappv1.Repository, spec *a
 		Path:     path.Join(spec.Source.Path, "Chart.yaml"),
 	}
 	req.Repo.CopyCredentialsFrom(repoRes)
+	req.Repo.CopySettingsFrom(repoRes)
 	_, err := repoClient.GetFile(ctx, &req)
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
@@ -407,6 +410,7 @@ func verifyGenerateManifests(
 		KustomizeOptions:  kustomizeOptions,
 	}
 	req.Repo.CopyCredentialsFrom(repoRes)
+	req.Repo.CopySettingsFrom(repoRes)
 
 	// Only check whether we can access the application's path,
 	// and not whether it actually contains any manifests.

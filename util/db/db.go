@@ -32,8 +32,19 @@ type ArgoDB interface {
 	GetRepository(ctx context.Context, name string) (*appv1.Repository, error)
 	// UpdateRepository updates a repository
 	UpdateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
-	// DeleteRepository updates a repository
+	// DeleteRepository deletes a repository from config
 	DeleteRepository(ctx context.Context, name string) error
+
+	// ListRepoCredentials list all repo credential sets URL patterns
+	ListRepositoryCredentials(ctx context.Context) ([]string, error)
+	// GetRepoCredentials gets repo credentials for given URL
+	GetRepositoryCredentials(ctx context.Context, name string) (*appv1.Repository, error)
+	// CreateRepoCredentials creates a repository credential set
+	CreateRepositoryCredentials(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
+	// UpdateRepoCredentials updates a repository credential set
+	UpdateRepositoryCredentials(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
+	// DeleteRepoCredentials deletes a repository credential set from config
+	DeleteRepositoryCredentials(ctx context.Context, name string) error
 
 	// ListHelmRepoURLs lists configured helm repositories
 	ListHelmRepos(ctx context.Context) ([]*appv1.HelmRepository, error)

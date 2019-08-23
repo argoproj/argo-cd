@@ -49,7 +49,7 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "ListMixin1",
+        "operationId": "List",
         "parameters": [
           {
             "type": "string",
@@ -89,7 +89,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "CreateMixin1",
+        "operationId": "Create",
         "parameters": [
           {
             "name": "body",
@@ -116,7 +116,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "UpdateMixin1",
+        "operationId": "Update",
         "parameters": [
           {
             "type": "string",
@@ -238,7 +238,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "DeleteMixin1",
+        "operationId": "Delete",
         "parameters": [
           {
             "type": "string",
@@ -1238,12 +1238,20 @@
         "tags": [
           "RepositoryService"
         ],
-        "summary": "List returns list of repos",
-        "operationId": "List",
+        "summary": "ListRepositoryCredentials gets a list of all configured repository credential sets",
+        "operationId": "ListRepositoryCredentials",
         "parameters": [
           {
             "type": "string",
+            "description": "Repo URL for query.",
             "name": "repo",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "format": "boolean",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "name": "forceRefresh",
             "in": "query"
           }
         ],
@@ -1260,8 +1268,8 @@
         "tags": [
           "RepositoryService"
         ],
-        "summary": "Create creates a repo",
-        "operationId": "Create",
+        "summary": "CreateRepositoryCredentials creates a new repository credential set",
+        "operationId": "CreateRepositoryCredentials",
         "parameters": [
           {
             "name": "body",
@@ -1287,8 +1295,8 @@
         "tags": [
           "RepositoryService"
         ],
-        "summary": "Update updates a repo",
-        "operationId": "Update",
+        "summary": "UpdateRepositoryCredentials updates a repository credential set",
+        "operationId": "UpdateRepositoryCredentials",
         "parameters": [
           {
             "type": "string",
@@ -1320,8 +1328,8 @@
         "tags": [
           "RepositoryService"
         ],
-        "summary": "Delete deletes a repo",
-        "operationId": "Delete",
+        "summary": "DeleteRepositoryCredentials deletes a repository credential set from the configuration",
+        "operationId": "DeleteRepositoryCredentials",
         "parameters": [
           {
             "type": "string",
@@ -1881,6 +1889,7 @@
         },
         "parameters": {
           "type": "array",
+          "title": "the output of `helm inspect values`",
           "items": {
             "$ref": "#/definitions/v1alpha1HelmParameter"
           }
@@ -1895,7 +1904,8 @@
           }
         },
         "values": {
-          "type": "string"
+          "type": "string",
+          "title": "the contents of values.yaml"
         }
       }
     },
@@ -3251,6 +3261,11 @@
           "type": "boolean",
           "format": "boolean",
           "title": "Whether git-lfs support should be enabled for this repo"
+        },
+        "inheritedCreds": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "Whether credentials were inherited from a credential set"
         },
         "insecure": {
           "type": "boolean",

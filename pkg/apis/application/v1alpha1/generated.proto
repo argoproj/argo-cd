@@ -509,6 +509,9 @@ message Repository {
 
   // TLS client cert key for authenticating at the repo server
   optional string tlsClientCertKey = 10;
+
+  // Whether credentials were inherited from a credential set
+  optional bool inheritedCreds = 11;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
