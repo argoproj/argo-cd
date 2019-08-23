@@ -39,6 +39,10 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 	if err != nil {
 		return nil, err
 	}
+	help, err := s.mgr.GetHelp()
+	if err != nil {
+		return nil, err
+	}
 
 	overrides := make(map[string]*v1alpha1.ResourceOverride)
 	for k := range resourceOverrides {
@@ -57,6 +61,10 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		GoogleAnalytics: &settingspkg.GoogleAnalyticsConfig{
 			TrackingID:     gaSettings.TrackingID,
 			AnonymizeUsers: gaSettings.AnonymizeUsers,
+		},
+		Help: &settingspkg.Help{
+			ChatUrl:  help.ChatURL,
+			ChatText: help.ChatText,
 		},
 	}
 	if argoCDSettings.DexConfig != "" {

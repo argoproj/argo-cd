@@ -1,27 +1,36 @@
-import { Layout, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps } from 'argo-ui';
+import {
+    DataLoader,
+    Layout,
+    NavigationManager,
+    Notifications,
+    NotificationsManager,
+    PageContext,
+    Popup,
+    PopupManager,
+    PopupProps,
+} from 'argo-ui';
 import * as cookie from 'cookie';
-import { createBrowserHistory } from 'history';
+import {createBrowserHistory} from 'history';
 import * as jwtDecode from 'jwt-decode';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
-import { Helmet } from 'react-helmet';
-import { Redirect, Route, RouteComponentProps, Router, Switch } from 'react-router';
+import {Helmet} from 'react-helmet';
+import {Redirect, Route, RouteComponentProps, Router, Switch} from 'react-router';
 
-import { services } from './shared/services';
+import applications from './applications';
+import help from './help';
+import login from './login';
+import settings from './settings';
+import {Provider} from './shared/context';
+import {services} from './shared/services';
 import requests from './shared/services/requests';
-import { hashCode  } from './shared/utils';
+import {hashCode} from './shared/utils';
 
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
 const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
 export const history = createBrowserHistory({ basename: base });
 requests.setApiRoot(`${base}api/v1`);
-
-import applications from './applications';
-import help from './help';
-import login from './login';
-import settings from './settings';
-import { Provider } from './shared/context';
 
 const routes: {[path: string]: { component: React.ComponentType<RouteComponentProps<any>>, noLayout?: boolean } } = {
     '/login': { component: login.component as any, noLayout: true },
@@ -165,6 +174,13 @@ export class App extends React.Component<{}, { popupProps: PopupProps, error: Er
                             <Redirect path='*' to='/'/>
                         </Switch>
                     </Router>
+                    <DataLoader load={() => services.authService.settings()}>{(s) => (
+                        s.help && s.help.chatUrl && <div style={{position: 'fixed', right: 10, bottom: 10}}>
+                            <a href={s.help.chatUrl} className='argo-button argo-button--special'>
+                                <i className='fas fa-comment-alt'/> {s.help.chatText}
+                            </a>
+                        </div> || null
+                    )}</DataLoader>
                 </Provider>
                 </PageContext.Provider>
                 <Notifications notifications={this.notificationsManager.notifications}/>

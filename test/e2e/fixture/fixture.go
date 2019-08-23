@@ -291,6 +291,14 @@ func SetHelmRepoCredential(creds settings.HelmRepoCredentials) {
 	})
 }
 
+func SetProjectSpec(project string, spec v1alpha1.AppProjectSpec) {
+	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Get(project, v1.GetOptions{})
+	errors.CheckError(err)
+	proj.Spec = spec
+	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Update(proj)
+	errors.CheckError(err)
+}
+
 func EnsureCleanState(t *testing.T) {
 
 	start := time.Now()
@@ -333,6 +341,12 @@ func EnsureCleanState(t *testing.T) {
 	SetRepoCredentials()
 	SetRepos()
 	SetResourceFilter(settings.ResourcesFilter{})
+	SetProjectSpec("default", v1alpha1.AppProjectSpec{
+		OrphanedResources:        nil,
+		SourceRepos:              []string{"*"},
+		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
+		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
+	})
 	SetTLSCerts()
 
 	// remove tmp dir

@@ -54,3 +54,30 @@ metadata:
 	assert.Equal(t, parent.ref.UID, matchingNameEndPoint.ownerRefs[0].UID)
 	assert.False(t, parent.isParentOf(nonMatchingNameEndPoint))
 }
+
+func TestIsServiceAccoountParentOfSecret(t *testing.T) {
+	serviceAccount := c.createObjInfo(strToUnstructured(`
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: default
+  namespace: default
+  uid: '123'
+secrets:
+- name: default-token-123
+`), "")
+	tokenSecret := c.createObjInfo(strToUnstructured(`
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    kubernetes.io/service-account.name: default
+    kubernetes.io/service-account.uid: '123'
+  name: default-token-123
+  namespace: default
+  uid: '345'
+type: kubernetes.io/service-account-token
+`), "")
+
+	assert.True(t, serviceAccount.isParentOf(tokenSecret))
+}

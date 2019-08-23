@@ -31,6 +31,7 @@ type Context struct {
 	async                  bool
 	localPath              string
 	project                string
+	force                  bool
 }
 
 func Given(t *testing.T) *Context {
@@ -75,6 +76,11 @@ func (c *Context) SSHRepoURLAdded() *Context {
 
 func (c *Context) SSHInsecureRepoURLAdded() *Context {
 	repos.AddSSHRepo(true)
+	return c
+}
+
+func (c *Context) ProjectSpec(spec v1alpha1.AppProjectSpec) *Context {
+	fixture.SetProjectSpec(c.project, spec)
 	return c
 }
 
@@ -177,5 +183,10 @@ func (c *Context) LocalPath(localPath string) *Context {
 
 func (c *Context) Project(project string) *Context {
 	c.project = project
+	return c
+}
+
+func (c *Context) Force() *Context {
+	c.force = true
 	return c
 }

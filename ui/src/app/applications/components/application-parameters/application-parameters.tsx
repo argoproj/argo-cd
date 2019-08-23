@@ -27,7 +27,7 @@ function overridesFirst(first: { overrideIndex: number}, second: { overrideIndex
     return first.overrideIndex - second.overrideIndex;
 }
 
-function getParamsEditableItems<T extends { name: string, value: string }>(
+function getParamsEditableItems(
     app: models.Application,
     title: string,
     fieldsPath: string,
@@ -84,7 +84,13 @@ function getParamsEditableItems<T extends { name: string, value: string }>(
     }).map((item, i) => ({...item, before: i === 0 && <p style={{ marginTop: '1em' }}>{title}</p> || null }));
 }
 
-export const ApplicationParameters = (props: { application: models.Application, details: models.RepoAppDetails, save?: (application: models.Application) => Promise<any> }) => {
+export const ApplicationParameters = (props: {
+    application: models.Application,
+    details: models.RepoAppDetails,
+    save?: (application: models.Application) => Promise<any>,
+    noReadonlyMode?: boolean,
+}) => {
+
     const app = props.application;
     const source = props.application.spec.source;
     const [removedOverrides, setRemovedOverrides] = React.useState(new Array<boolean>());
@@ -222,6 +228,6 @@ export const ApplicationParameters = (props: { application: models.Application, 
                 await props.save(input);
                 setRemovedOverrides(new Array<boolean>());
             })}
-            values={app} title={props.details.type.toLocaleUpperCase()} items={attributes} />
+            values={app} title={props.details.type.toLocaleUpperCase()} items={attributes} noReadonlyMode={props.noReadonlyMode} />
     );
 };

@@ -3,6 +3,8 @@ package e2e
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-cd/errors"
@@ -65,5 +67,15 @@ func TestAutoSyncSelfHealEnabled(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(Condition(ApplicationConditionSyncError, "Failed sync attempt"))
+		Expect(Condition(ApplicationConditionSyncError, "Failed sync attempt")).
+		When().
+		// SyncError condition should be removed after successful sync
+		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 1}]`).
+		Refresh(RefreshTypeNormal).Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Len(t, app.Status.Conditions, 0)
+		})
+
 }

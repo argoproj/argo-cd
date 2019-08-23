@@ -27,18 +27,20 @@ type cacheSettings struct {
 }
 
 type LiveStateCache interface {
-	IsNamespaced(server string, obj *unstructured.Unstructured) (bool, error)
+	IsNamespaced(server string, gk schema.GroupKind) (bool, error)
 	// Executes give callback against resource specified by the key and all its children
-	IterateHierarchy(server string, obj *unstructured.Unstructured, action func(child appv1.ResourceNode)) error
+	IterateHierarchy(server string, key kube.ResourceKey, action func(child appv1.ResourceNode, appName string)) error
 	// Returns state of live nodes which correspond for target nodes of specified application.
 	GetManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)
+	// Returns all top level resources (resources without owner references) of a specified namespace
+	GetNamespaceTopLevelResources(server string, namespace string) (map[kube.ResourceKey]appv1.ResourceNode, error)
 	// Starts watching resources of each controlled cluster.
 	Run(ctx context.Context) error
 	// Invalidate invalidates the entire cluster state cache
 	Invalidate()
 }
 
-type AppUpdatedHandler = func(appName string, isManagedResource bool, ref v1.ObjectReference)
+type ObjectUpdatedHandler = func(managedByApp map[string]bool, ref v1.ObjectReference)
 
 func GetTargetObjKey(a *appv1.Application, un *unstructured.Unstructured, isNamespaced bool) kube.ResourceKey {
 	key := kube.GetResourceKey(un)
@@ -57,14 +59,14 @@ func NewLiveStateCache(
 	settingsMgr *settings.SettingsManager,
 	kubectl kube.Kubectl,
 	metricsServer *metrics.MetricsServer,
-	onAppUpdated AppUpdatedHandler) LiveStateCache {
+	onObjectUpdated ObjectUpdatedHandler) LiveStateCache {
 
 	return &liveStateCache{
 		appInformer:       appInformer,
 		db:                db,
 		clusters:          make(map[string]*clusterInfo),
 		lock:              &sync.Mutex{},
-		onAppUpdated:      onAppUpdated,
+		onObjectUpdated:   onObjectUpdated,
 		kubectl:           kubectl,
 		settingsMgr:       settingsMgr,
 		metricsServer:     metricsServer,
@@ -77,7 +79,7 @@ type liveStateCache struct {
 	clusters          map[string]*clusterInfo
 	lock              *sync.Mutex
 	appInformer       cache.SharedIndexInformer
-	onAppUpdated      AppUpdatedHandler
+	onObjectUpdated   ObjectUpdatedHandler
 	kubectl           kube.Kubectl
 	settingsMgr       *settings.SettingsManager
 	metricsServer     *metrics.MetricsServer
@@ -115,7 +117,7 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 			lock:             &sync.Mutex{},
 			nodes:            make(map[kube.ResourceKey]*node),
 			nsIndex:          make(map[string]map[kube.ResourceKey]*node),
-			onAppUpdated:     c.onAppUpdated,
+			onObjectUpdated:  c.onObjectUpdated,
 			kubectl:          c.kubectl,
 			cluster:          cluster,
 			syncTime:         nil,
@@ -153,21 +155,29 @@ func (c *liveStateCache) Invalidate() {
 	log.Info("live state cache invalidated")
 }
 
-func (c *liveStateCache) IsNamespaced(server string, obj *unstructured.Unstructured) (bool, error) {
+func (c *liveStateCache) IsNamespaced(server string, gk schema.GroupKind) (bool, error) {
 	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
 		return false, err
 	}
-	return clusterInfo.isNamespaced(obj), nil
+	return clusterInfo.isNamespaced(gk), nil
 }
 
-func (c *liveStateCache) IterateHierarchy(server string, obj *unstructured.Unstructured, action func(child appv1.ResourceNode)) error {
+func (c *liveStateCache) IterateHierarchy(server string, key kube.ResourceKey, action func(child appv1.ResourceNode, appName string)) error {
 	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
 		return err
 	}
-	clusterInfo.iterateHierarchy(obj, action)
+	clusterInfo.iterateHierarchy(key, action)
 	return nil
+}
+
+func (c *liveStateCache) GetNamespaceTopLevelResources(server string, namespace string) (map[kube.ResourceKey]appv1.ResourceNode, error) {
+	clusterInfo, err := c.getSyncedCluster(server)
+	if err != nil {
+		return nil, err
+	}
+	return clusterInfo.getNamespaceTopLevelResources(namespace), nil
 }
 
 func (c *liveStateCache) GetManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {

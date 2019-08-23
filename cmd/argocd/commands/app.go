@@ -734,9 +734,8 @@ type resourceInfoProvider struct {
 
 // Infer if obj is namespaced or not from corresponding live objects list. If corresponding live object has namespace then target object is also namespaced.
 // If live object is missing then it does not matter if target is namespaced or not.
-func (p *resourceInfoProvider) IsNamespaced(server string, obj *unstructured.Unstructured) (bool, error) {
-	key := kube.GetResourceKey(obj)
-	return p.namespacedByGk[key.GroupKind()], nil
+func (p *resourceInfoProvider) IsNamespaced(server string, gk schema.GroupKind) (bool, error) {
+	return p.namespacedByGk[gk], nil
 }
 
 func groupLocalObjs(localObs []*unstructured.Unstructured, liveObjs []*unstructured.Unstructured, appNamespace string) map[kube.ResourceKey]*unstructured.Unstructured {

@@ -9,6 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/cache"
 
@@ -52,12 +53,12 @@ func GetLiveObjs(res []managedResource) []*unstructured.Unstructured {
 }
 
 type ResourceInfoProvider interface {
-	IsNamespaced(server string, obj *unstructured.Unstructured) (bool, error)
+	IsNamespaced(server string, gk schema.GroupKind) (bool, error)
 }
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
-	CompareAppState(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, noCache bool, localObjects []string) (*comparisonResult, error)
+	CompareAppState(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, noCache bool, localObjects []string) *comparisonResult
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
 }
 
@@ -136,10 +137,11 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, nil, err
 	}
-
-	targetObjs, hooks, nil := unmarshalManifests(manifestInfo.Manifests)
+	targetObjs, hooks, err := unmarshalManifests(manifestInfo.Manifests)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 	return targetObjs, hooks, manifestInfo, nil
-
 }
 
 func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, []*unstructured.Unstructured, error) {
@@ -172,7 +174,7 @@ func DeduplicateTargetObjects(
 	targetByKey := make(map[kubeutil.ResourceKey][]*unstructured.Unstructured)
 	for i := range objs {
 		obj := objs[i]
-		isNamespaced, err := infoProvider.IsNamespaced(server, obj)
+		isNamespaced, err := infoProvider.IsNamespaced(server, obj.GroupVersionKind().GroupKind())
 		if err != nil {
 			return objs, nil, err
 		}
@@ -235,27 +237,47 @@ func dedupLiveResources(targetObjs []*unstructured.Unstructured, liveObjsByKey m
 	}
 }
 
-// CompareAppState compares application git state to the live app state, using the specified
-// revision and supplied source. If revision or overrides are empty, then compares against
-// revision and overrides in the app spec.
-func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, noCache bool, localManifests []string) (*comparisonResult, error) {
+func (m *appStateManager) getComparisonSettings(app *appv1.Application) (string, map[string]v1alpha1.ResourceOverride, diff.Normalizer, error) {
 	resourceOverrides, err := m.settingsMgr.GetResourceOverrides()
 	if err != nil {
-		return nil, err
+		return "", nil, nil, err
 	}
 	appLabelKey, err := m.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
-		return nil, err
+		return "", nil, nil, err
 	}
 	diffNormalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, resourceOverrides)
 	if err != nil {
-		return nil, err
+		return "", nil, nil, err
 	}
-	logCtx := log.WithField("application", app.Name)
-	logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", app.Spec.Destination.Server, app.Spec.Destination.Namespace)
-	observedAt := metav1.Now()
+	return appLabelKey, resourceOverrides, diffNormalizer, nil
+}
+
+// CompareAppState compares application git state to the live app state, using the specified
+// revision and supplied source. If revision or overrides are empty, then compares against
+// revision and overrides in the app spec.
+func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, noCache bool, localManifests []string) *comparisonResult {
+	reconciledAt := metav1.Now()
+	appLabelKey, resourceOverrides, diffNormalizer, err := m.getComparisonSettings(app)
+
+	// return unknown comparison result if basic comparison settings cannot be loaded
+	if err != nil {
+		return &comparisonResult{
+			reconciledAt: reconciledAt,
+			syncStatus: &v1alpha1.SyncStatus{
+				ComparedTo: appv1.ComparedTo{Source: source, Destination: app.Spec.Destination},
+				Status:     appv1.SyncStatusCodeUnknown,
+			},
+			healthStatus: &appv1.HealthStatus{Status: appv1.HealthStatusUnknown},
+		}
+	}
+
+	// do best effort loading live and target state to present as much information about app state as possible
 	failedToLoadObjs := false
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
+
+	logCtx := log.WithField("application", app.Name)
+	logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", app.Spec.Destination.Server, app.Spec.Destination.Namespace)
 
 	var targetObjs []*unstructured.Unstructured
 	var hooks []*unstructured.Unstructured
@@ -326,7 +348,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	for i, obj := range targetObjs {
 		gvk := obj.GroupVersionKind()
 		ns := util.FirstNonEmpty(obj.GetNamespace(), app.Spec.Destination.Namespace)
-		if namespaced, err := m.liveStateCache.IsNamespaced(app.Spec.Destination.Server, obj); err == nil && !namespaced {
+		if namespaced, err := m.liveStateCache.IsNamespaced(app.Spec.Destination.Server, obj.GroupVersionKind().GroupKind()); err == nil && !namespaced {
 			ns = ""
 		}
 		key := kubeutil.NewResourceKey(gvk.Group, gvk.Kind, ns, obj.GetName())
@@ -349,7 +371,9 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	// Do the actual comparison
 	diffResults, err := diff.DiffArray(targetObjs, managedLiveObj, diffNormalizer)
 	if err != nil {
-		return nil, err
+		diffResults = &diff.DiffResultList{}
+		failedToLoadObjs = true
+		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
 	}
 
 	syncCode := v1alpha1.SyncStatusCodeSynced
@@ -430,7 +454,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	}
 
 	compRes := comparisonResult{
-		reconciledAt:     observedAt,
+		reconciledAt:     reconciledAt,
 		syncStatus:       &syncStatus,
 		healthStatus:     healthStatus,
 		resources:        resourceSummaries,
@@ -442,7 +466,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	if manifestInfo != nil {
 		compRes.appSourceType = v1alpha1.ApplicationSourceType(manifestInfo.SourceType)
 	}
-	return &compRes, nil
+	return &compRes
 }
 
 func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource) error {

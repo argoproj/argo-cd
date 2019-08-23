@@ -41,6 +41,7 @@ func (c *Consequences) Expect(e Expectation) *Consequences {
 }
 
 func (c *Consequences) And(block func(app *Application)) *Consequences {
+	c.context.t.Helper()
 	block(c.app())
 	return c
 }

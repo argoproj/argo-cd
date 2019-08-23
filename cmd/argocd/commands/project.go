@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
@@ -27,9 +28,11 @@ import (
 )
 
 type projectOpts struct {
-	description  string
-	destinations []string
-	sources      []string
+	description              string
+	destinations             []string
+	sources                  []string
+	orphanedResourcesEnabled bool
+	orphanedResourcesWarn    bool
 }
 
 type policyOpts struct {
@@ -87,6 +90,20 @@ func addProjFlags(command *cobra.Command, opts *projectOpts) {
 	command.Flags().StringArrayVarP(&opts.destinations, "dest", "d", []string{},
 		"Permitted destination server and namespace (e.g. https://192.168.99.100:8443,default)")
 	command.Flags().StringArrayVarP(&opts.sources, "src", "s", []string{}, "Permitted git source repository URL")
+	command.Flags().BoolVar(&opts.orphanedResourcesEnabled, "orphaned-resources", false, "Enables orphaned resources monitoring")
+	command.Flags().BoolVar(&opts.orphanedResourcesWarn, "orphaned-resources-warn", false, "Specifies if applications should be a warning condition when orphaned resources detected")
+}
+
+func getOrphanedResourcesSettings(c *cobra.Command, opts projectOpts) *v1alpha1.OrphanedResourcesMonitorSettings {
+	warnChanged := c.Flag("orphaned-resources-warn").Changed
+	if opts.orphanedResourcesEnabled || warnChanged {
+		settings := v1alpha1.OrphanedResourcesMonitorSettings{}
+		if warnChanged {
+			settings.Warn = pointer.BoolPtr(opts.orphanedResourcesWarn)
+		}
+		return &settings
+	}
+	return nil
 }
 
 func addPolicyFlags(command *cobra.Command, opts *policyOpts) {
@@ -117,9 +134,10 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 			proj := v1alpha1.AppProject{
 				ObjectMeta: v1.ObjectMeta{Name: projName},
 				Spec: v1alpha1.AppProjectSpec{
-					Description:  opts.description,
-					Destinations: opts.GetDestinations(),
-					SourceRepos:  opts.sources,
+					Description:       opts.description,
+					Destinations:      opts.GetDestinations(),
+					SourceRepos:       opts.sources,
+					OrphanedResources: getOrphanedResourcesSettings(c, opts),
 				},
 			}
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
@@ -163,6 +181,8 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 					proj.Spec.Destinations = opts.GetDestinations()
 				case "src":
 					proj.Spec.SourceRepos = opts.sources
+				case "orphaned-resources", "orphaned-resources-warn":
+					proj.Spec.OrphanedResources = getOrphanedResourcesSettings(c, opts)
 				}
 			})
 			if visited == 0 {
@@ -453,7 +473,7 @@ func printProjectNames(projects []v1alpha1.AppProject) {
 // Print table of project info
 func printProjectTable(projects []v1alpha1.AppProject) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\n")
+	fmt.Fprintf(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\tORPHANED-RESOURCES\n")
 	for _, p := range projects {
 		printProjectLine(w, &p)
 	}
@@ -482,6 +502,13 @@ func NewProjectListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name")
 	return command
+}
+
+func formatOrphanedResources(p *v1alpha1.AppProject) string {
+	if p.Spec.OrphanedResources == nil {
+		return "disabled"
+	}
+	return fmt.Sprintf("enabled (warn=%v)", p.Spec.OrphanedResources.IsWarn())
 }
 
 func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
@@ -516,7 +543,7 @@ func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
 	default:
 		namespaceBlacklist = fmt.Sprintf("%d resources", len(p.Spec.NamespaceResourceBlacklist))
 	}
-	fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, destinations, sourceRepos, clusterWhitelist, namespaceBlacklist)
+	fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, formatOrphanedResources(p))
 }
 
 // NewProjectGetCommand returns a new instance of an `argocd proj get` command
@@ -577,6 +604,7 @@ func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			for i := 1; i < len(p.Spec.NamespaceResourceBlacklist); i++ {
 				fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s/%s", p.Spec.NamespaceResourceBlacklist[i].Group, p.Spec.NamespaceResourceBlacklist[i].Kind))
 			}
+			fmt.Printf(printProjFmtStr, "Orphaned Resources:", formatOrphanedResources(p))
 		},
 	}
 	return command
