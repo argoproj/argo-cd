@@ -106,9 +106,47 @@ data:
     clientID: aaaabbbbccccddddeee
     clientSecret: $oidc.okta.clientSecret
 
+    # Optional set of OIDC scopes to request. If omitted, defaults to: ["openid", "profile", "email", "groups"]
+    requestedScopes: ["openid", "profile", "email", "groups"]
+
+    # Optional set of OIDC claims to request on the ID token.
+    requestedIDTokenClaims: {"groups": {"essential": true}}
+
     # Some OIDC providers require a separate clientID for different callback URLs.
     # For example, if configuring Argo CD with self-hosted Dex, you will need a separate client ID
     # for the 'localhost' (CLI) client to Dex. This field is optional. If omitted, the CLI will
     # use the same clientID as the Argo CD server
     cliClientID: vvvvwwwwxxxxyyyyzzzz
+```
+
+### Requesting additional ID token claims
+
+Not all OIDC providers support a special `groups` scope. E.g. Okta, OneLogin and Microsoft do support a special
+`groups` scope and will return group membership with the default `requestedScopes`.
+
+Other OIDC providers might be able to return a claim with group membership if explicitly requested to do so.
+Individual claims can be requested with `requestedIDTokenClaims`, see
+[OpenID Connect Claims Parameter](https://connect2id.com/products/server/docs/guides/requesting-openid-claims#claims-parameter)
+for details. The Argo CD configuration for claims is as follows:
+
+```yaml
+  oidc.config: |
+    requestedIDTokenClaims:
+      email:
+        essential: true
+      groups:
+        essential: true
+        value: org:myorg
+      acr:
+        essential: true
+        values:
+        - urn:mace:incommon:iap:silver
+        - urn:mace:incommon:iap:bronze
+```
+
+For a simple case this can be:
+
+```yaml
+  oidc.config: |
+    requestedIDTokenClaims: {"groups": {"essential": true}}
 ```
