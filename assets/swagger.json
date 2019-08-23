@@ -49,7 +49,7 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "ListMixin6",
+        "operationId": "List",
         "parameters": [
           {
             "type": "string",
@@ -89,7 +89,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "CreateMixin6",
+        "operationId": "Create",
         "parameters": [
           {
             "name": "body",
@@ -116,7 +116,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "UpdateMixin6",
+        "operationId": "Update",
         "parameters": [
           {
             "type": "string",
@@ -197,7 +197,7 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "GetMixin6",
+        "operationId": "Get",
         "parameters": [
           {
             "type": "string",
@@ -238,7 +238,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "DeleteMixin6",
+        "operationId": "Delete",
         "parameters": [
           {
             "type": "string",
@@ -852,7 +852,7 @@
           "ClusterService"
         ],
         "summary": "List returns list of clusters",
-        "operationId": "List",
+        "operationId": "ListMixin3",
         "parameters": [
           {
             "type": "string",
@@ -874,7 +874,7 @@
           "ClusterService"
         ],
         "summary": "Create creates a cluster",
-        "operationId": "Create",
+        "operationId": "CreateMixin3",
         "parameters": [
           {
             "name": "body",
@@ -901,7 +901,7 @@
           "ClusterService"
         ],
         "summary": "Update updates a cluster",
-        "operationId": "Update",
+        "operationId": "UpdateMixin3",
         "parameters": [
           {
             "type": "string",
@@ -934,7 +934,7 @@
           "ClusterService"
         ],
         "summary": "Get returns a cluster by server address",
-        "operationId": "GetMixin1",
+        "operationId": "GetMixin3",
         "parameters": [
           {
             "type": "string",
@@ -957,7 +957,7 @@
           "ClusterService"
         ],
         "summary": "Delete deletes a cluster",
-        "operationId": "Delete",
+        "operationId": "DeleteMixin3",
         "parameters": [
           {
             "type": "string",
@@ -1238,8 +1238,8 @@
         "tags": [
           "RepositoryService"
         ],
-        "summary": "List returns list of repos",
-        "operationId": "ListMixin2",
+        "summary": "ListRepositoryCredentials gets a list of all configured repository credential sets",
+        "operationId": "ListRepositoryCredentials",
         "parameters": [
           {
             "type": "string",
@@ -1268,8 +1268,8 @@
         "tags": [
           "RepositoryService"
         ],
-        "summary": "Create creates a repo",
-        "operationId": "CreateMixin2",
+        "summary": "CreateRepositoryCredentials creates a new repository credential set",
+        "operationId": "CreateRepositoryCredentials",
         "parameters": [
           {
             "name": "body",
@@ -1295,8 +1295,8 @@
         "tags": [
           "RepositoryService"
         ],
-        "summary": "Update updates a repo",
-        "operationId": "UpdateMixin2",
+        "summary": "UpdateRepositoryCredentials updates a repository credential set",
+        "operationId": "UpdateRepositoryCredentials",
         "parameters": [
           {
             "type": "string",
@@ -1328,8 +1328,8 @@
         "tags": [
           "RepositoryService"
         ],
-        "summary": "Delete deletes a repo",
-        "operationId": "DeleteMixin2",
+        "summary": "DeleteRepositoryCredentials deletes a repository credential set from the configuration",
+        "operationId": "DeleteRepositoryCredentials",
         "parameters": [
           {
             "type": "string",
@@ -1508,7 +1508,7 @@
           "SettingsService"
         ],
         "summary": "Get returns Argo CD settings",
-        "operationId": "Get",
+        "operationId": "GetMixin5",
         "responses": {
           "200": {
             "description": "(empty)",
