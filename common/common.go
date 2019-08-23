@@ -75,6 +75,8 @@ const (
 	LoginEndpoint = "/auth/login"
 	// CallbackEndpoint is Argo CD's final callback endpoint we reach after OAuth 2.0 login flow has been completed
 	CallbackEndpoint = "/auth/callback"
+	// DexCallbackEndpoint is Argo CD's final callback endpoint when Dex is configured
+	DexCallbackEndpoint = "/api/dex/callback"
 	// ArgoCDClientAppName is name of the Oauth client app used when registering our web app to dex
 	ArgoCDClientAppName = "Argo CD"
 	// ArgoCDClientAppID is the Oauth client ID we will use when registering our app to dex
