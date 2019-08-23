@@ -85,7 +85,6 @@ message RepoUpdateRequest {
 service RepositoryService {
 
 	// List returns list of repos or repository credentials
-	// Please use either ListRepositories or ListRepositoryCredentials instead
 	rpc List(RepoQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RepositoryList) {
 		option (google.api.http).get = "/api/v1/repositories";
 		option deprecated = true;
@@ -111,8 +110,7 @@ service RepositoryService {
 		option (google.api.http).get = "/api/v1/repositories/{repo}/apps/{path}";
 	}
 
-	// DEPRECATED: Create creates a repo or a repo credential set
-	// Please use either CreateRepository or CreateRepositoryCredentials instead
+	// Create creates a repo or a repo credential set
 	rpc Create(RepoCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http) = {
 			post: "/api/v1/repositories"
@@ -137,7 +135,7 @@ service RepositoryService {
 		};
 	}
 
-	// DEPRECATED: Update updates a repo or repo credential set
+	// Update updates a repo or repo credential set
 	rpc Update(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http) = {
 			put: "/api/v1/repositories/{repo.repo}"

@@ -47,7 +47,7 @@ func (m *RepoAppsQuery) Reset()         { *m = RepoAppsQuery{} }
 func (m *RepoAppsQuery) String() string { return proto.CompactTextString(m) }
 func (*RepoAppsQuery) ProtoMessage()    {}
 func (*RepoAppsQuery) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_9b93979546ef431d, []int{0}
+	return fileDescriptor_repository_0227a62bfff88124, []int{0}
 }
 func (m *RepoAppsQuery) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -103,7 +103,7 @@ func (m *AppInfo) Reset()         { *m = AppInfo{} }
 func (m *AppInfo) String() string { return proto.CompactTextString(m) }
 func (*AppInfo) ProtoMessage()    {}
 func (*AppInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_9b93979546ef431d, []int{1}
+	return fileDescriptor_repository_0227a62bfff88124, []int{1}
 }
 func (m *AppInfo) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -162,7 +162,7 @@ func (m *RepoAppDetailsQuery) Reset()         { *m = RepoAppDetailsQuery{} }
 func (m *RepoAppDetailsQuery) String() string { return proto.CompactTextString(m) }
 func (*RepoAppDetailsQuery) ProtoMessage()    {}
 func (*RepoAppDetailsQuery) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_9b93979546ef431d, []int{2}
+	return fileDescriptor_repository_0227a62bfff88124, []int{2}
 }
 func (m *RepoAppDetailsQuery) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -238,7 +238,7 @@ func (m *RepoAppsResponse) Reset()         { *m = RepoAppsResponse{} }
 func (m *RepoAppsResponse) String() string { return proto.CompactTextString(m) }
 func (*RepoAppsResponse) ProtoMessage()    {}
 func (*RepoAppsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_9b93979546ef431d, []int{3}
+	return fileDescriptor_repository_0227a62bfff88124, []int{3}
 }
 func (m *RepoAppsResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -289,7 +289,7 @@ func (m *RepoQuery) Reset()         { *m = RepoQuery{} }
 func (m *RepoQuery) String() string { return proto.CompactTextString(m) }
 func (*RepoQuery) ProtoMessage()    {}
 func (*RepoQuery) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_9b93979546ef431d, []int{4}
+	return fileDescriptor_repository_0227a62bfff88124, []int{4}
 }
 func (m *RepoQuery) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -357,7 +357,7 @@ func (m *RepoAccessQuery) Reset()         { *m = RepoAccessQuery{} }
 func (m *RepoAccessQuery) String() string { return proto.CompactTextString(m) }
 func (*RepoAccessQuery) ProtoMessage()    {}
 func (*RepoAccessQuery) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_9b93979546ef431d, []int{5}
+	return fileDescriptor_repository_0227a62bfff88124, []int{5}
 }
 func (m *RepoAccessQuery) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -445,7 +445,7 @@ func (m *RepoResponse) Reset()         { *m = RepoResponse{} }
 func (m *RepoResponse) String() string { return proto.CompactTextString(m) }
 func (*RepoResponse) ProtoMessage()    {}
 func (*RepoResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_9b93979546ef431d, []int{6}
+	return fileDescriptor_repository_0227a62bfff88124, []int{6}
 }
 func (m *RepoResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -491,7 +491,7 @@ func (m *RepoCreateRequest) Reset()         { *m = RepoCreateRequest{} }
 func (m *RepoCreateRequest) String() string { return proto.CompactTextString(m) }
 func (*RepoCreateRequest) ProtoMessage()    {}
 func (*RepoCreateRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_9b93979546ef431d, []int{7}
+	return fileDescriptor_repository_0227a62bfff88124, []int{7}
 }
 func (m *RepoCreateRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -552,7 +552,7 @@ func (m *RepoUpdateRequest) Reset()         { *m = RepoUpdateRequest{} }
 func (m *RepoUpdateRequest) String() string { return proto.CompactTextString(m) }
 func (*RepoUpdateRequest) ProtoMessage()    {}
 func (*RepoUpdateRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_9b93979546ef431d, []int{8}
+	return fileDescriptor_repository_0227a62bfff88124, []int{8}
 }
 func (m *RepoUpdateRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -612,7 +612,6 @@ const _ = grpc.SupportPackageIsVersion4
 
 type RepositoryServiceClient interface {
 	// List returns list of repos or repository credentials
-	// Please use either ListRepositories or ListRepositoryCredentials instead
 	List(ctx context.Context, in *RepoQuery, opts ...grpc.CallOption) (*v1alpha1.RepositoryList, error)
 	// ListRepositories gets a list of all configured repositories
 	ListRepositories(ctx context.Context, in *RepoQuery, opts ...grpc.CallOption) (*v1alpha1.RepositoryList, error)
@@ -622,14 +621,13 @@ type RepositoryServiceClient interface {
 	ListApps(ctx context.Context, in *RepoAppsQuery, opts ...grpc.CallOption) (*RepoAppsResponse, error)
 	// GetAppDetails returns application details by given path
 	GetAppDetails(ctx context.Context, in *RepoAppDetailsQuery, opts ...grpc.CallOption) (*apiclient.RepoAppDetailsResponse, error)
-	// DEPRECATED: Create creates a repo or a repo credential set
-	// Please use either CreateRepository or CreateRepositoryCredentials instead
+	// Create creates a repo or a repo credential set
 	Create(ctx context.Context, in *RepoCreateRequest, opts ...grpc.CallOption) (*v1alpha1.Repository, error)
 	// CreateRepository creates a new repository configuration
 	CreateRepository(ctx context.Context, in *RepoCreateRequest, opts ...grpc.CallOption) (*v1alpha1.Repository, error)
 	// CreateRepositoryCredentials creates a new repository credential set
 	CreateRepositoryCredentials(ctx context.Context, in *RepoCreateRequest, opts ...grpc.CallOption) (*v1alpha1.Repository, error)
-	// DEPRECATED: Update updates a repo or repo credential set
+	// Update updates a repo or repo credential set
 	Update(ctx context.Context, in *RepoUpdateRequest, opts ...grpc.CallOption) (*v1alpha1.Repository, error)
 	// UpdateRepository updates a repository configuration
 	UpdateRepository(ctx context.Context, in *RepoUpdateRequest, opts ...grpc.CallOption) (*v1alpha1.Repository, error)
@@ -796,7 +794,6 @@ func (c *repositoryServiceClient) ValidateAccess(ctx context.Context, in *RepoAc
 
 type RepositoryServiceServer interface {
 	// List returns list of repos or repository credentials
-	// Please use either ListRepositories or ListRepositoryCredentials instead
 	List(context.Context, *RepoQuery) (*v1alpha1.RepositoryList, error)
 	// ListRepositories gets a list of all configured repositories
 	ListRepositories(context.Context, *RepoQuery) (*v1alpha1.RepositoryList, error)
@@ -806,14 +803,13 @@ type RepositoryServiceServer interface {
 	ListApps(context.Context, *RepoAppsQuery) (*RepoAppsResponse, error)
 	// GetAppDetails returns application details by given path
 	GetAppDetails(context.Context, *RepoAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error)
-	// DEPRECATED: Create creates a repo or a repo credential set
-	// Please use either CreateRepository or CreateRepositoryCredentials instead
+	// Create creates a repo or a repo credential set
 	Create(context.Context, *RepoCreateRequest) (*v1alpha1.Repository, error)
 	// CreateRepository creates a new repository configuration
 	CreateRepository(context.Context, *RepoCreateRequest) (*v1alpha1.Repository, error)
 	// CreateRepositoryCredentials creates a new repository credential set
 	CreateRepositoryCredentials(context.Context, *RepoCreateRequest) (*v1alpha1.Repository, error)
-	// DEPRECATED: Update updates a repo or repo credential set
+	// Update updates a repo or repo credential set
 	Update(context.Context, *RepoUpdateRequest) (*v1alpha1.Repository, error)
 	// UpdateRepository updates a repository configuration
 	UpdateRepository(context.Context, *RepoUpdateRequest) (*v1alpha1.Repository, error)
@@ -2944,10 +2940,10 @@ var (
 )
 
 func init() {
-	proto.RegisterFile("server/repository/repository.proto", fileDescriptor_repository_9b93979546ef431d)
+	proto.RegisterFile("server/repository/repository.proto", fileDescriptor_repository_0227a62bfff88124)
 }
 
-var fileDescriptor_repository_9b93979546ef431d = []byte{
+var fileDescriptor_repository_0227a62bfff88124 = []byte{
 	// 970 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x57, 0xcf, 0x6f, 0x1b, 0x45,
 	0x14, 0xd6, 0xa4, 0xa9, 0x93, 0x4c, 0x9a, 0xe2, 0x4e, 0x4b, 0xe5, 0xda, 0x6e, 0x12, 0x0d, 0x05,
