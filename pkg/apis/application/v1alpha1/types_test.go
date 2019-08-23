@@ -433,9 +433,14 @@ func TestRepository_HasCredentials(t *testing.T) {
 			want: true,
 		},
 		{
+			name: "TestHasTLSClientCertData",
+			repo: Repository{TLSClientCertData: "foo"},
+			want: true,
+		},
+		{
 			name: "TestHasInsecureHostKey",
 			repo: Repository{InsecureIgnoreHostKey: true},
-			want: true,
+			want: false,
 		},
 	}
 	for _, tt := range tests {
@@ -458,7 +463,9 @@ func TestRepository_CopyCredentialsFrom(t *testing.T) {
 		{"TestHasUsername", &Repository{Username: "foo"}, Repository{Username: "foo"}},
 		{"TestHasPassword", &Repository{Password: "foo"}, Repository{Password: "foo"}},
 		{"TestHasSSHPrivateKey", &Repository{SSHPrivateKey: "foo"}, Repository{SSHPrivateKey: "foo"}},
-		{"TestHasInsecureHostKey", &Repository{InsecureIgnoreHostKey: true}, Repository{InsecureIgnoreHostKey: true}},
+		{"TestHasTLSClientCertData", &Repository{TLSClientCertData: "foo"}, Repository{TLSClientCertData: "foo"}},
+		{"TestHasTLSClientCertKey", &Repository{TLSClientCertKey: "foo"}, Repository{TLSClientCertKey: "foo"}},
+		{"TestHasInsecureHostKey", &Repository{InsecureIgnoreHostKey: true}, Repository{}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

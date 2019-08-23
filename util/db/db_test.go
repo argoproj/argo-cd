@@ -151,7 +151,7 @@ func TestGetRepository(t *testing.T) {
 		{
 			name:    "TestSecuredRepo",
 			repoURL: "https://secured/repo",
-			want:    &v1alpha1.Repository{Repo: "https://secured/repo", Username: "test-username", Password: "test-password"},
+			want:    &v1alpha1.Repository{Repo: "https://secured/repo", Username: "test-username", Password: "test-password", InheritedCreds: true},
 		},
 	}
 	for _, tt := range tests {
