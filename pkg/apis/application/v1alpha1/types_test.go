@@ -476,6 +476,27 @@ func TestRepository_CopyCredentialsFrom(t *testing.T) {
 	}
 }
 
+func TestRepository_CopySettingsFrom(t *testing.T) {
+	tests := []struct {
+		name   string
+		source *Repository
+		want   Repository
+	}{
+		{"TestNil", nil, Repository{}},
+		{"TestHasRepo", &Repository{Repo: "foo"}, Repository{}},
+		{"TestHasEnableLFS", &Repository{EnableLFS: true}, Repository{EnableLFS: true}},
+		{"TestHasInsecure", &Repository{Insecure: true}, Repository{Insecure: true}},
+		{"TestHasInsecureIgnoreHostKey", &Repository{InsecureIgnoreHostKey: true}, Repository{InsecureIgnoreHostKey: true}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := Repository{}
+			repo.CopySettingsFrom(tt.source)
+			assert.Equal(t, tt.want, repo)
+		})
+	}
+}
+
 func TestNewHookType(t *testing.T) {
 	t.Run("Garbage", func(t *testing.T) {
 		_, ok := NewHookType("Garbage")
