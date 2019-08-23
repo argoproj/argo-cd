@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
@@ -72,15 +73,15 @@ func TestCreateRepoCredentials(t *testing.T) {
 	clientset := getClientset(nil)
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 
-	repo, err := db.CreateRepositoryCredentials(context.Background(), &v1alpha1.Repository{
+	creds, err := db.CreateRepositoryCredentials(context.Background(), &v1alpha1.Repository{
 		Repo:     "https://github.com/argoproj/",
 		Username: "test-username",
 		Password: "test-password",
 	})
 	assert.Nil(t, err)
-	assert.Equal(t, "https://github.com/argoproj/", repo.Repo)
+	assert.Equal(t, "https://github.com/argoproj/", creds.Repo)
 
-	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(repoURLToSecretName(repo.Repo), metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(repoURLToSecretName(creds.Repo), metav1.GetOptions{})
 	assert.Nil(t, err)
 
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
@@ -88,13 +89,17 @@ func TestCreateRepoCredentials(t *testing.T) {
 	assert.Equal(t, string(secret.Data[password]), "test-password")
 	assert.Nil(t, secret.Data[sshPrivateKey])
 
-	repo, err = db.CreateRepository(context.Background(), &v1alpha1.Repository{
+	created, err := db.CreateRepository(context.Background(), &v1alpha1.Repository{
 		Repo: "https://github.com/argoproj/argo-cd",
 	})
 	assert.Nil(t, err)
-	assert.Equal(t, "https://github.com/argoproj/argo-cd", repo.Repo)
+	assert.Equal(t, "https://github.com/argoproj/argo-cd", created.Repo)
 
-	repo, err = db.GetRepository(context.Background(), repo.Repo)
+	// There seems to be a race or some other hiccup in the fake K8s clientset used for this test.
+	// Just give it a little time to settle.
+	time.Sleep(1 * time.Second)
+
+	repo, err := db.GetRepository(context.Background(), created.Repo)
 	assert.NoError(t, err)
 	assert.Equal(t, "test-username", repo.Username)
 	assert.Equal(t, "test-password", repo.Password)
