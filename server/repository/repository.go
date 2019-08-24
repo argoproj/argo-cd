@@ -103,10 +103,11 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 				return nil, err
 			}
 			items = append(items, appsv1.Repository{
-				Repo:      url,
-				Username:  repo.Username,
-				Insecure:  repo.IsInsecure(),
-				EnableLFS: repo.EnableLFS,
+				Repo:           url,
+				Username:       repo.Username,
+				Insecure:       repo.IsInsecure(),
+				EnableLFS:      repo.EnableLFS,
+				InheritedCreds: repo.InheritedCreds,
 			})
 		}
 	}
@@ -331,6 +332,7 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 	return &appsv1.Repository{Repo: repo.Repo}, err
 }
 
+// CreateRepositoryCredentials creates a new credential set in the configuration
 func (s *Server) CreateRepositoryCredentials(ctx context.Context, q *repositorypkg.RepoCreateRequest) (*appsv1.Repository, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, q.Repo.Repo); err != nil {
 		return nil, err
