@@ -66,8 +66,8 @@ func TestImmutableChange(t *testing.T) {
 	text := errors.FailOnErr(fixture.Run(".", "kubectl", "get", "service", "-n", "kube-system", "kube-dns", "-o", "jsonpath={.spec.clusterIP}")).(string)
 	parts := strings.Split(text, ".")
 	n := rand.Intn(254)
-	ip1 := fmt.Sprintf("%s.%s.10.%d", parts[0], parts[1], n)
-	ip2 := fmt.Sprintf("%s.%s.10.%d", parts[0], parts[1], n+1)
+	ip1 := fmt.Sprintf("%s.%s.%s.%d", parts[0], parts[1], parts[2], n)
+	ip2 := fmt.Sprintf("%s.%s.%s.%d", parts[0], parts[1], parts[2], n+1)
 	Given(t).
 		Path("service").
 		When().
@@ -800,9 +800,7 @@ func TestOrphanedResource(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			assert.Len(t, app.Status.Conditions, 0)
-		}).
+		Expect(NoConditions()).
 		When().
 		And(func() {
 			errors.FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(&v1.ConfigMap{
@@ -824,7 +822,5 @@ func TestOrphanedResource(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			assert.Len(t, app.Status.Conditions, 0)
-		})
+		Expect(NoConditions())
 }

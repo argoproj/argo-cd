@@ -51,6 +51,8 @@ data:
     clientSecret: $oidc.okta.clientSecret
     # Optional set of OIDC scopes to request. If omitted, defaults to: ["openid", "profile", "email", "groups"]
     requestedScopes: ["openid", "profile", "email"]
+    # Optional set of OIDC claims to request on the ID token.
+    requestedIDTokenClaims: {"groups": {"essential": true}}
 
   # Git repositories configure Argo CD with (optional).
   # This list is updated when configuring/removing repos from the UI/CLI
