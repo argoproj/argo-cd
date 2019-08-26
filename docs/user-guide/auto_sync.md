@@ -44,7 +44,7 @@ spec:
 
 Maintenance windows are configurable windows of time where auto sync will not run. These are defined
 by a start time in cron format and a duration. These windows do not affect the running of a manual
-sync.
+sync. Maintenance windows can be configured by running:
 
 
 ```bash
