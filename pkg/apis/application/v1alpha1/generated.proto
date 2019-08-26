@@ -600,6 +600,8 @@ message ResourceDiff {
   optional string liveState = 6;
 
   optional string diff = 7;
+
+  optional bool hook = 8;
 }
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
