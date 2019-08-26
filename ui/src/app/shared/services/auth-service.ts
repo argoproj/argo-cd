@@ -1,7 +1,6 @@
-import { parse } from 'cookie';
-import * as jwt from 'jwt-decode';
+import * as cookie from 'cookie';
 
-import { AuthSettings } from '../models';
+import {AuthSettings} from '../models';
 import requests from './requests';
 
 export class AuthService {
@@ -9,10 +8,11 @@ export class AuthService {
         return requests.get('/settings').then((res) => res.body as AuthSettings);
     }
 
-    public getCurrentUserId(): string {
-        const cookies = parse(document.cookie);
-        const token = cookies['argocd.token'];
-        const user: any = token && jwt(token) || null;
-        return (user && (user.email || user.sub)) || '';
+    public loggedOut(): boolean {
+        return this.token() === null;
+    }
+
+    public token(): string {
+        return cookie.parse(document.cookie)['argocd.token'];
     }
 }

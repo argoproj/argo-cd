@@ -322,7 +322,6 @@ export interface AuthSettings {
     statusBadgeEnabled: boolean;
     googleAnalytics: {
         trackingID: string;
-        anonymizeUsers: boolean;
     };
     dexConfig: {
         connectors: {

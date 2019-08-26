@@ -18,7 +18,7 @@ export class Page extends React.Component<{ title: string, toolbar?: Toolbar | O
                 toolbar = toolbar || {};
                 toolbar.tools = [
                     toolbar.tools,
-                    services.authService.getCurrentUserId() ?
+                    services.authService.loggedOut() ?
                         <a key='logout' onClick={() => this.goToLogin(true)}>Logout</a> :
                         <a key='login' onClick={() => this.goToLogin(false)}>Login</a>,
                 ];

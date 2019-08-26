@@ -9,9 +9,7 @@ import {
     PopupManager,
     PopupProps,
 } from 'argo-ui';
-import * as cookie from 'cookie';
 import {createBrowserHistory} from 'history';
-import * as jwtDecode from 'jwt-decode';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Helmet} from 'react-helmet';
@@ -53,33 +51,13 @@ const navItems = [{
     iconClassName: 'argo-icon-docs',
 }];
 
-async function isExpiredSSO() {
-    try {
-        const token = cookie.parse(document.cookie)['argocd.token'];
-        if (token) {
-            const jwtToken = jwtDecode(token) as any;
-            if (jwtToken.iss && jwtToken.iss !== 'argocd') {
-                const authSettings = await services.authService.settings();
-                return (authSettings.dexConfig && authSettings.dexConfig.connectors || []).length > 0 || authSettings.oidcConfig;
-            }
-        }
-    } catch {
-        return false;
-    }
-    return false;
-}
-
 requests.onError.subscribe(async (err) => {
     if (err.status === 401) {
         if (!history.location.pathname.startsWith('/login')) {
             // Query for basehref and remove trailing /.
             // If basehref is the default `/` it will become an empty string.
             const basehref = document.querySelector('head > base').getAttribute('href').replace(/\/$/, '');
-            if (await isExpiredSSO()) {
-                window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
-            } else {
-                history.push(`${basehref}/login?return_url=${encodeURIComponent(location.href)}`);
-            }
+            window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
         }
     }
 });
@@ -108,22 +86,15 @@ export class App extends React.Component<{}, { popupProps: PopupProps, error: Er
 
     public async componentDidMount() {
         this.popupManager.popupProps.subscribe((popupProps) => this.setState({ popupProps }));
-        const gaSettings = await services.authService.settings().then((item) => item.googleAnalytics || {  trackingID: '', anonymizeUsers: true });
-        const { trackingID, anonymizeUsers } = gaSettings;
+        const gaSettings = await services.authService.settings().then((item) => item.googleAnalytics || {  trackingID: '' });
+        const { trackingID } = gaSettings;
         if (trackingID) {
             const ga = await import('react-ga');
             ga.initialize(trackingID);
-            let userId = '';
             const trackPageView = () => {
-                let nextUserId = services.authService.getCurrentUserId();
-                if (anonymizeUsers) {
-                   nextUserId = hashCode(nextUserId).toString();
-                }
-                if (nextUserId !== userId) {
-                    userId = nextUserId;
-                    ga.set({ userId });
-                }
-                ga.pageview(location.pathname + location.search);
+               const token = hashCode(services.authService.token()).toString();
+               ga.set({ userId: token });
+               ga.pageview(location.pathname + location.search);
             };
             trackPageView();
             history.listen(trackPageView);
