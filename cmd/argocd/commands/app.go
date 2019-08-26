@@ -1375,7 +1375,7 @@ func getResourceStates(app *argoappv1.Application, selectedResources []argoappv1
 			health := string(res.Status)
 			key := kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name)
 			if resource, ok := resourceByKey[key]; ok && res.HookType == "" {
-				health = argoappv1.HealthStatusUnknown
+				health = ""
 				if resource.Health != nil {
 					health = resource.Health.Status
 				}
@@ -1396,7 +1396,7 @@ func getResourceStates(app *argoappv1.Application, selectedResources []argoappv1
 	// print rest of resources which were not part of most recent operation
 	for _, resKey := range resKeys {
 		res := resourceByKey[resKey]
-		health := argoappv1.HealthStatusUnknown
+		health := ""
 		if res.Health != nil {
 			health = res.Health.Status
 		}
