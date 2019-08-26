@@ -696,9 +696,6 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
 
 	// delete anything that need deleting
 	if runState == successful && createTasks.Any(func(t *syncTask) bool { return t.needsDeleting() }) {
-		// if there is anything that needs deleting, we are at best now in pending and
-		// want to return and wait for sync to be invoked again
-		runState = pending
 		var wg sync.WaitGroup
 		for _, task := range createTasks.Filter(func(t *syncTask) bool { return t.needsDeleting() }) {
 			wg.Add(1)
@@ -708,9 +705,16 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
 				if !dryRun {
 					err := sc.deleteResource(t)
 					if err != nil {
-						runState = failed
-						sc.setResourceResult(t, "", v1alpha1.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
-						return
+						// it is possible to get a race condition here, such that the resource does not exist when
+						// delete is requested, we treat this as a nop
+						if !apierr.IsNotFound(err) {
+							runState = failed
+							sc.setResourceResult(t, "", v1alpha1.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
+						}
+					} else {
+						// if there is anything that needs deleting, we are at best now in pending and
+						// want to return and wait for sync to be invoked again
+						runState = pending
 					}
 				}
 			}(task)

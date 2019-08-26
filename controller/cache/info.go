@@ -126,14 +126,23 @@ func populateIngressInfo(un *unstructured.Unstructured, node *node) {
 						stringPort = fmt.Sprintf("%v", port)
 					}
 
+					var externalURL string
 					switch stringPort {
 					case "80", "http":
-						urlsSet[fmt.Sprintf("http://%s", host)] = true
+						externalURL = fmt.Sprintf("http://%s", host)
 					case "443", "https":
-						urlsSet[fmt.Sprintf("https://%s", host)] = true
+						externalURL = fmt.Sprintf("https://%s", host)
 					default:
-						urlsSet[fmt.Sprintf("http://%s:%s", host, stringPort)] = true
+						externalURL = fmt.Sprintf("http://%s:%s", host, stringPort)
 					}
+
+					subPath := ""
+					if nestedPath, ok, err := unstructured.NestedString(path, "path"); ok && err == nil {
+						subPath = nestedPath
+					}
+
+					externalURL += subPath
+					urlsSet[externalURL] = true
 				}
 			}
 		}
