@@ -1018,7 +1018,7 @@ func (m *Repository) CopyCredentialsFrom(source *Repository) {
 		m.InsecureIgnoreHostKey = source.InsecureIgnoreHostKey
 		m.Insecure = source.Insecure
 		m.EnableLFS = source.EnableLFS
-		m.FetchRefspecs = append([]string(nil), source.FetchRefspecs...)
+		m.FetchRefspecs = source.FetchRefspecs
 		m.TLSClientCertData = source.TLSClientCertData
 		m.TLSClientCertKey = source.TLSClientCertKey
 	}

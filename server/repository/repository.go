@@ -96,7 +96,7 @@ func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.
 				Username:      repo.Username,
 				Insecure:      repo.IsInsecure(),
 				EnableLFS:     repo.EnableLFS,
-				FetchRefspecs: append([]string(nil), repo.FetchRefspecs...),
+				FetchRefspecs: repo.FetchRefspecs,
 			})
 		}
 	}

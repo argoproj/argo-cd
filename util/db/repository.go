@@ -63,7 +63,7 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 		InsecureIgnoreHostKey: r.IsInsecure(),
 		Insecure:              r.IsInsecure(),
 		EnableLFS:             r.EnableLFS,
-		FetchRefspecs:         append([]string(nil), r.FetchRefspecs...),
+		FetchRefspecs:         r.FetchRefspecs,
 	}
 	err = db.updateSecrets(&repoInfo, r)
 	if err != nil {
@@ -121,7 +121,7 @@ func (db *db) credentialsToRepository(repoInfo settings.RepoCredentials) (*appsv
 		InsecureIgnoreHostKey: repoInfo.InsecureIgnoreHostKey,
 		Insecure:              repoInfo.Insecure,
 		EnableLFS:             repoInfo.EnableLFS,
-		FetchRefspecs:         append([]string(nil), repoInfo.FetchRefspecs...),
+		FetchRefspecs:         repoInfo.FetchRefspecs,
 	}
 
 	err := db.unmarshalFromSecretsStr(map[*string]*apiv1.SecretKeySelector{
@@ -157,7 +157,7 @@ func (db *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 	repoInfo.InsecureIgnoreHostKey = r.IsInsecure()
 	repoInfo.Insecure = r.IsInsecure()
 	repoInfo.EnableLFS = r.EnableLFS
-	repoInfo.FetchRefspecs = append([]string(nil), r.FetchRefspecs...)
+	repoInfo.FetchRefspecs = r.FetchRefspecs
 
 	repos[index] = repoInfo
 	err = db.settingsMgr.SaveRepositories(repos)

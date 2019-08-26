@@ -113,7 +113,7 @@ Add a HTTPS repository using username/password without verifying the server's TL
 			repo.InsecureIgnoreHostKey = insecureIgnoreHostKey
 			repo.Insecure = insecureSkipServerVerification
 			repo.EnableLFS = enableLfs
-			repo.FetchRefspecs = append([]string(nil), fetchRefspecs...)
+			repo.FetchRefspecs = fetchRefspecs
 
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
 			defer util.Close(conn)
