@@ -220,7 +220,7 @@ func (db *db) CreateRepositoryCredentials(ctx context.Context, r *appsv1.Reposit
 		return nil, err
 	}
 
-	index := getRepositoryCredentialIndex(repos, r.Repo)
+	index := getRepositoryIndex(repos, r.Repo)
 	if index > -1 {
 		return nil, status.Errorf(codes.AlreadyExists, "repository credentials for '%s' already exists", r.Repo)
 	}
@@ -424,15 +424,21 @@ func getRepositoryIndex(repos []settings.RepoCredentials, repoURL string) int {
 	return -1
 }
 
+// getRepositoryCredentialIndex returns the index of the best matching repository credential
+// configuration, i.e. the one with the longest match
 func getRepositoryCredentialIndex(repoCredentials []settings.RepoCredentials, repoURL string) int {
+	var max, idx int = 0, -1
 	repoURL = git.NormalizeGitURL(repoURL)
 	for i, cred := range repoCredentials {
 		credUrl := git.NormalizeGitURL(cred.URL)
 		if strings.HasPrefix(repoURL, credUrl) {
-			return i
+			if len(credUrl) > max {
+				max = len(credUrl)
+				idx = i
+			}
 		}
 	}
-	return -1
+	return idx
 }
 
 // repoURLToSecretName hashes repo URL to a secret name using a formula. This is used when
