@@ -33,10 +33,13 @@ export const ApplicationResourcesDiff = (props: ApplicationResourcesDiffProps) =
                 return {
                     a: live ? jsYaml.safeDump(live, {indent: 2}) : '',
                     b: target ? jsYaml.safeDump(target, {indent: 2}) : '',
+                    hook: state.hook,
                     // doubles as sort order
                     name: (state.group || '') + '/' + state.kind + '/' + state.namespace + '/' + state.name,
                 };
-            }).filter((i) => i.a !== i.b)
+            })
+                .filter((i) => !i.hook)
+                .filter((i) => i.a !== i.b)
                 .map((i) => {
                 const context = pref.appDetails.compactDiff ? 2 : Number.MAX_SAFE_INTEGER;
                 // react-diff-view, awesome as it is, does not accept unidiff format, you must add a git header section

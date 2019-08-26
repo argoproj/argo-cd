@@ -844,8 +844,10 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 
 			foundDiffs := false
-			for i := range items {
-				item := items[i]
+			for _, item := range items {
+				if item.target != nil && hook.IsHook(item.target) || item.live != nil && hook.IsHook(item.live) {
+					continue
+				}
 				overrides := make(map[string]argoappv1.ResourceOverride)
 				for k := range argoSettings.ResourceOverrides {
 					val := argoSettings.ResourceOverrides[k]
