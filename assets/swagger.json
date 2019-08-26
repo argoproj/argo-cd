@@ -1846,6 +1846,10 @@
       "properties": {
         "project": {
           "$ref": "#/definitions/v1alpha1AppProject"
+        },
+        "upsert": {
+          "type": "boolean",
+          "format": "boolean"
         }
       }
     },
