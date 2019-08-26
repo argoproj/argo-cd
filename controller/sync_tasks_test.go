@@ -369,14 +369,14 @@ func TestSyncNamespaceAgainstCRD(t *testing.T) {
 	assert.Equal(t, syncTasks{namespace, crd}, unsorted)
 }
 
-func Test_syncTasks_lastPhase(t *testing.T) {
+func Test_syncTasks_multiStep(t *testing.T) {
 	t.Run("Single", func(t *testing.T) {
 		tasks := syncTasks{{liveObj: Annotate(NewPod(), common.AnnotationSyncWave, "-1"), phase: SyncPhaseSync}}
 		assert.Equal(t, SyncPhaseSync, tasks.phase())
 		assert.Equal(t, -1, tasks.wave())
 		assert.Equal(t, SyncPhaseSync, tasks.lastPhase())
 		assert.Equal(t, -1, tasks.lastWave())
-		assert.False(t, tasks.manySteps())
+		assert.False(t, tasks.multiStep())
 	})
 	t.Run("Double", func(t *testing.T) {
 		tasks := syncTasks{
@@ -387,6 +387,6 @@ func Test_syncTasks_lastPhase(t *testing.T) {
 		assert.Equal(t, -1, tasks.wave())
 		assert.Equal(t, SyncPhasePostSync, tasks.lastPhase())
 		assert.Equal(t, 1, tasks.lastWave())
-		assert.True(t, tasks.manySteps())
+		assert.True(t, tasks.multiStep())
 	})
 }

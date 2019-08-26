@@ -180,6 +180,6 @@ func (s syncTasks) lastWave() int {
 	return 0
 }
 
-func (s syncTasks) manySteps() bool {
+func (s syncTasks) multiStep() bool {
 	return s.wave() != s.lastWave() || s.phase() != s.lastPhase()
 }
