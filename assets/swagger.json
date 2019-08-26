@@ -1233,7 +1233,7 @@
         }
       }
     },
-    "/api/v1/repositories": {
+    "/api/v1/repocreds": {
       "get": {
         "tags": [
           "RepositoryService"
@@ -1290,7 +1290,7 @@
         }
       }
     },
-    "/api/v1/repositories/{repo.repo}": {
+    "/api/v1/repocreds/{repo.repo}": {
       "put": {
         "tags": [
           "RepositoryService"
@@ -1323,13 +1323,128 @@
         }
       }
     },
-    "/api/v1/repositories/{repo}": {
+    "/api/v1/repocreds/{repo}": {
       "delete": {
         "tags": [
           "RepositoryService"
         ],
         "summary": "DeleteRepositoryCredentials deletes a repository credential set from the configuration",
         "operationId": "DeleteRepositoryCredentials",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "repo",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/repositoryRepoResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories": {
+      "get": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "ListRepositories gets a list of all configured repositories",
+        "operationId": "ListRepositories",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Repo URL for query.",
+            "name": "repo",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "format": "boolean",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "name": "forceRefresh",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepositoryList"
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "CreateRepository creates a new repository configuration",
+        "operationId": "CreateRepository",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories/{repo.repo}": {
+      "put": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "UpdateRepository updates a repository configuration",
+        "operationId": "UpdateRepository",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "repo.repo",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories/{repo}": {
+      "delete": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "DeleteRepository deletes a repository from the configuration",
+        "operationId": "DeleteRepository",
         "parameters": [
           {
             "type": "string",
@@ -1466,7 +1581,7 @@
           "SessionService"
         ],
         "summary": "Create a new JWT for authentication and set a cookie if using HTTP.",
-        "operationId": "CreateMixin8",
+        "operationId": "CreateMixin9",
         "parameters": [
           {
             "name": "body",
@@ -1491,7 +1606,7 @@
           "SessionService"
         ],
         "summary": "Delete an existing JWT cookie if using HTTP.",
-        "operationId": "DeleteMixin8",
+        "operationId": "DeleteMixin9",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -1508,7 +1623,7 @@
           "SettingsService"
         ],
         "summary": "Get returns Argo CD settings",
-        "operationId": "GetMixin5",
+        "operationId": "GetMixin6",
         "responses": {
           "200": {
             "description": "(empty)",
