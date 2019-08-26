@@ -1,4 +1,4 @@
-import {DropDownMenu, FormField, NotificationType, SlidingPanel} from 'argo-ui';
+import {DropDownMenu, FormField, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Form, FormApi, Text, TextArea} from 'react-form';
@@ -37,26 +37,41 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
 
     private formApiSSH: FormApi;
     private formApiHTTPS: FormApi;
-    private loader: DataLoader;
+    private credsTemplate: boolean;
+    private repoLoader: DataLoader;
+    private credsLoader: DataLoader;
 
     public render() {
+        const tooltip = (title: string) => (
+            <Tooltip content={title}>
+                <span style={{fontSize: 'smaller'}}> <i className='fa fa-question-circle help-tip'/></span>
+            </Tooltip>
+        );
         return (
             <Page title='Repositories' toolbar={{
                 breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Repositories'}],
                 actionMenu: {
-                    className: 'fa fa-plus',
                     items: [{
+                        iconClassName: 'fa fa-plus',
                         title: 'Connect Repo using SSH',
                         action: () => this.showConnectSSHRepo = true,
                     }, {
+                        iconClassName: 'fa fa-plus',
                         title: 'Connect Repo using HTTPS',
                         action: () => this.showConnectHTTPSRepo = true,
-                    }],
-                },
+                    },
+                    {
+                        iconClassName: 'fa fa-redo',
+                        title: 'Refresh list',
+                        action: () => {
+                            this.refreshRepoList();
+                        },
+                    },
+                ]},
             }}>
                 <div className='repos-list'>
                     <div className='argo-container'>
-                        <DataLoader load={() => services.repos.list()} ref={(loader) => this.loader = loader}>
+                        <DataLoader load={() => services.repos.list()} ref={(loader) => this.repoLoader = loader}>
                             {(repos: models.Repository[]) => (
                                 repos.length > 0 && (
                                     <div className='argo-table-list'>
@@ -105,11 +120,48 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                             )}
                         </DataLoader>
                     </div>
+                    <div className='argo-container'>
+                        <DataLoader load={() => services.repos.listCreds()} ref={(loader) => this.credsLoader = loader}>
+                            {(repos: models.Repository[]) => (
+                                repos.length > 0 && (
+                                    <div className='argo-table-list'>
+                                        <div className='argo-table-list__head'>
+                                            <div className='row'>
+                                                <div className='columns small-9'>TEMPLATE URL</div>
+                                                <div className='columns small-3'>CREDS</div>
+                                            </div>
+                                        </div>
+                                        {repos.map((repo) => (
+                                            <div className='argo-table-list__row' key={repo.repo}>
+                                                <div className='row'>
+                                                    <div className='columns small-9'>
+                                                        <i className='icon argo-icon-git'/> <Repo url={repo.repo}/>
+                                                    </div>
+                                                    <div className='columns small-3'>
+                                                        Credential template
+                                                       <DropDownMenu anchor={() => <button
+                                                            className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                            <i className='fa fa-ellipsis-v'/>
+                                                        </button>} items={[
+                                                        { title: 'Remove',
+                                                            action: () => this.removeRepoCreds(repo.repo),
+                                                        }]}/>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )
+                            )}
+                        </DataLoader>
+                    </div>
                 </div>
                 <SlidingPanel isShown={this.showConnectHTTPSRepo} onClose={() => this.showConnectHTTPSRepo = false} header={(
                     <div>
                         <button className='argo-button argo-button--base' onClick={() => this.formApiHTTPS.submitForm(null)}>
                             Connect
+                        </button> <button className='argo-button argo-button--base' onClick={() => { this.credsTemplate = true; this.formApiHTTPS.submitForm(null); }}>
+                            Save as credentials template
                         </button> <button onClick={() => this.showConnectHTTPSRepo = false}
                                 className='argo-button argo-button--base-o'>
                             Cancel
@@ -120,7 +172,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                     <Form onSubmit={(params) => this.connectHTTPSRepo(params as NewHTTPSRepoParams)}
                           getApi={(api) => this.formApiHTTPS = api}
                           validateError={(params: NewHTTPSRepoParams) => ({
-                              url: !params.url && 'Repo URL is required',
+                              url: (!params.url && 'Repo URL is required') || (this.credsTemplate && !this.isHTTPSUrl(params.url) && 'Not a valid HTTPS URL'),
                               password: !params.password && params.username && 'Password is required if username is given.',
                               tlsClientCertKey: !params.tlsClientCertKey && params.tlsClientCertData && 'TLS client cert key is required if TLS client cert is given.',
                           })}>
@@ -143,10 +195,12 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                     <FormField formApi={formApi} label='TLS client certificate key (optional)' field='tlsClientCertKey' component={TextArea}/>
                                 </div>
                                <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField}/>
+                                    <FormField formApi={formApi} label='Insecure: Skip server verification' field='insecure' component={CheckboxField}/>
+                                    {tooltip('This setting is ignored when creating as credential template.')}
                                 </div>
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Enable LFS support' field='enableLfs' component={CheckboxField}/>
+                                    {tooltip('This setting is ignored when creating as credential template.')}
                                 </div>
                             </form>
                         )}
@@ -156,6 +210,8 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                     <div>
                         <button className='argo-button argo-button--base' onClick={() => this.formApiSSH.submitForm(null)}>
                             Connect
+                        </button> <button className='argo-button argo-button--base' onClick={() => { this.credsTemplate = true; this.formApiSSH.submitForm(null); }}>
+                            Save as credentials template
                         </button> <button onClick={() => this.showConnectSSHRepo = false}
                                 className='argo-button argo-button--base-o'>
                             Cancel
@@ -179,9 +235,11 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                 </div>
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField}/>
+                                    {tooltip('This setting is ignored when creating as credential template.')}
                                 </div>
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Enable LFS support' field='enableLfs' component={CheckboxField}/>
+                                    {tooltip('This setting is ignored when creating as credential template.')}
                                 </div>
                             </form>
                         )}
@@ -191,7 +249,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
         );
     }
 
-    /*
+    // Whether url is a https url (simple version)
     private isHTTPSUrl(url: string) {
         if (url.match(/^https:\/\/.*$/gi)) {
             return true;
@@ -199,51 +257,101 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
             return false;
         }
     }
-    */
 
+    // Forces a reload of configured repositories, circumventing the cache
+    private async refreshRepoList() {
+        try {
+            await services.repos.listNoCache();
+            this.repoLoader.reload();
+            this.appContext.apis.notifications.show({
+                content: 'Successfully reloaded list of repositories',
+                type: NotificationType.Success,
+            });
+        } catch (e) {
+            this.appContext.apis.notifications.show({
+                content: <ErrorNotification title='Could not refresh list of repositories' e={e}/>,
+                type: NotificationType.Error,
+            });
+        }
+    }
+
+    // Empty all fields in SSH repository form
     private clearConnectSSHForm() {
+        this.credsTemplate = false;
         this.formApiSSH.resetAll();
     }
 
+    // Empty all fields in HTTPS repository form
     private clearConnectHTTPSForm() {
+        this.credsTemplate = false;
         this.formApiHTTPS.resetAll();
     }
 
+    // Connect a new repository or create a repository credentials for SSH repositories
     private async connectSSHRepo(params: NewSSHRepoParams) {
+        let errorMessage = '';
         try {
-            await services.repos.createSSH(params);
+            if (this.credsTemplate) {
+                errorMessage = 'Unable to create repository credentials';
+                await services.repos.createSSHCreds(params);
+                this.credsLoader.reload();
+            } else {
+                errorMessage = 'Unable to connect repository';
+                await services.repos.createSSH(params);
+                this.repoLoader.reload();
+            }
             this.showConnectSSHRepo = false;
-            this.loader.reload();
         } catch (e) {
             this.appContext.apis.notifications.show({
-                content: <ErrorNotification title='Unable to connect repository' e={e}/>,
+                content: <ErrorNotification title={errorMessage} e={e}/>,
                 type: NotificationType.Error,
             });
         }
     }
 
+    // Connect a new repository or create a repository credentials for HTTPS repositories
     private async connectHTTPSRepo(params: NewHTTPSRepoParams) {
+        let errorMessage = '';
         try {
-            await services.repos.createHTTPS(params);
+            if (this.credsTemplate) {
+                errorMessage = 'Unable to create repository credentials';
+                await services.repos.createHTTPSCreds(params);
+                this.credsLoader.reload();
+            } else {
+                errorMessage = 'Unable to connect repository';
+                await services.repos.createHTTPS(params);
+                this.repoLoader.reload();
+            }
             this.showConnectSSHRepo = false;
-            this.loader.reload();
         } catch (e) {
             this.appContext.apis.notifications.show({
-                content: <ErrorNotification title='Unable to connect repository' e={e}/>,
+                content: <ErrorNotification title={errorMessage} e={e}/>,
                 type: NotificationType.Error,
             });
         }
     }
 
+    // Remove a repository from the configuration
     private async disconnectRepo(repo: string) {
         const confirmed = await this.appContext.apis.popup.confirm(
             'Disconnect repository', `Are you sure you want to disconnect '${repo}'?`);
         if (confirmed) {
             await services.repos.delete(repo);
-            this.loader.reload();
+            this.repoLoader.reload();
         }
     }
 
+    // Remove repository credentials from the configuration
+    private async removeRepoCreds(url: string) {
+        const confirmed = await this.appContext.apis.popup.confirm(
+            'Remove repository credentials', `Are you sure you want to remove credentials for URL prefix '${url}'?`);
+        if (confirmed) {
+            await services.repos.deleteCreds(url);
+            this.credsLoader.reload();
+        }
+    }
+
+    // Whether to show the HTTPS repository connection dialogue on the page
     private get showConnectHTTPSRepo() {
         return new URLSearchParams(this.props.location.search).get('addHTTPSRepo') === 'true';
     }
@@ -253,6 +361,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
         this.appContext.router.history.push(`${this.props.match.url}?addHTTPSRepo=${val}`);
     }
 
+    // Whether to show the SSH repository connection dialogue on the page
     private get showConnectSSHRepo() {
         return new URLSearchParams(this.props.location.search).get('addSSHRepo') === 'true';
     }
