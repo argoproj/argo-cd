@@ -244,8 +244,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	if idTokenRAW != "" {
 		idTokenRAW, err = zjwt.ZJWT(idTokenRAW)
 		if err != nil {
-			claimsJSON, _ := json.Marshal(claims)
-			http.Error(w, fmt.Sprintf("claims=%s, err=%v", claimsJSON, err), http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		cookie, err := httputil.MakeCookieMetadata(common.AuthCookieName, idTokenRAW, flags...)
