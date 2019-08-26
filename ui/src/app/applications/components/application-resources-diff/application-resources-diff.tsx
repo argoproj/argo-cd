@@ -33,7 +33,7 @@ export const ApplicationResourcesDiff = (props: ApplicationResourcesDiffProps) =
                 return {
                     a: live ? jsYaml.safeDump(live, {indent: 2}) : '',
                     b: target ? jsYaml.safeDump(target, {indent: 2}) : '',
-                    hook: state.liveState.metadata.annotations['argocd.argoproj.io/hook'],
+                    hook: state.hook,
                     // doubles as sort order
                     name: (state.group || '') + '/' + state.kind + '/' + state.namespace + '/' + state.name,
                 };
