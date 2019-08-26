@@ -147,6 +147,10 @@ func RepoURL(urlType RepoURLType) string {
 	}
 }
 
+func RepoBaseURL(urlType RepoURLType) string {
+	return path.Base(RepoURL(urlType))
+}
+
 func DeploymentNamespace() string {
 	return dnsFriendly(fmt.Sprintf("argocd-e2e-%s", id))
 }
