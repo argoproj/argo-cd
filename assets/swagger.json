@@ -1233,121 +1233,6 @@
         }
       }
     },
-    "/api/v1/repocreds": {
-      "get": {
-        "tags": [
-          "RepositoryService"
-        ],
-        "summary": "ListRepositoryCredentials gets a list of all configured repository credential sets",
-        "operationId": "ListRepositoryCredentials",
-        "parameters": [
-          {
-            "type": "string",
-            "description": "Repo URL for query.",
-            "name": "repo",
-            "in": "query"
-          },
-          {
-            "type": "boolean",
-            "format": "boolean",
-            "description": "Whether to force a cache refresh on repo's connection state.",
-            "name": "forceRefresh",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "(empty)",
-            "schema": {
-              "$ref": "#/definitions/v1alpha1RepositoryList"
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "RepositoryService"
-        ],
-        "summary": "CreateRepositoryCredentials creates a new repository credential set",
-        "operationId": "CreateRepositoryCredentials",
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1alpha1Repository"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "(empty)",
-            "schema": {
-              "$ref": "#/definitions/v1alpha1Repository"
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/repocreds/{repo.repo}": {
-      "put": {
-        "tags": [
-          "RepositoryService"
-        ],
-        "summary": "UpdateRepositoryCredentials updates a repository credential set",
-        "operationId": "UpdateRepositoryCredentials",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "repo.repo",
-            "in": "path",
-            "required": true
-          },
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1alpha1Repository"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "(empty)",
-            "schema": {
-              "$ref": "#/definitions/v1alpha1Repository"
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/repocreds/{repo}": {
-      "delete": {
-        "tags": [
-          "RepositoryService"
-        ],
-        "summary": "DeleteRepositoryCredentials deletes a repository credential set from the configuration",
-        "operationId": "DeleteRepositoryCredentials",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "repo",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "(empty)",
-            "schema": {
-              "$ref": "#/definitions/repositoryRepoResponse"
-            }
-          }
-        }
-      }
-    },
     "/api/v1/repositories": {
       "get": {
         "tags": [
@@ -1405,6 +1290,63 @@
         }
       }
     },
+    "/api/v1/repositories/creds": {
+      "get": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "ListRepositoryCredentials gets a list of all configured repository credential sets",
+        "operationId": "ListRepositoryCredentials",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Repo URL for query.",
+            "name": "repo",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "format": "boolean",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "name": "forceRefresh",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepositoryList"
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "CreateRepositoryCredentials creates a new repository credential set",
+        "operationId": "CreateRepositoryCredentials",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/repositories/{repo.repo}": {
       "put": {
         "tags": [
@@ -1412,6 +1354,39 @@
         ],
         "summary": "UpdateRepository updates a repository configuration",
         "operationId": "UpdateRepository",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "repo.repo",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories/{repo.repo}/creds": {
+      "put": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "UpdateRepositoryCredentials updates a repository credential set",
+        "operationId": "UpdateRepositoryCredentials",
         "parameters": [
           {
             "type": "string",
@@ -1537,6 +1512,31 @@
             "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/repositoryRepoAppDetailsResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories/{repo}/creds": {
+      "delete": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "DeleteRepositoryCredentials deletes a repository credential set from the configuration",
+        "operationId": "DeleteRepositoryCredentials",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "repo",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/repositoryRepoResponse"
             }
           }
         }

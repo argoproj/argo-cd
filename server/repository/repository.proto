@@ -97,7 +97,7 @@ service RepositoryService {
 
 	// ListRepositoryCredentials gets a list of all configured repository credential sets
 	rpc ListRepositoryCredentials(RepoQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RepositoryList) {
-		option (google.api.http).get = "/api/v1/repocreds";
+		option (google.api.http).get = "/api/v1/repositories/creds";
 	}
 
 	// ListApps returns list of apps in the repo
@@ -130,7 +130,7 @@ service RepositoryService {
 	// CreateRepositoryCredentials creates a new repository credential set
 	rpc CreateRepositoryCredentials(RepoCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http) = {
-			post: "/api/v1/repocreds"
+			post: "/api/v1/repositories/creds"
 			body: "repo"
 		};
 	}
@@ -155,7 +155,7 @@ service RepositoryService {
 	// UpdateRepositoryCredentials updates a repository credential set
 	rpc UpdateRepositoryCredentials(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http) = {
-			put: "/api/v1/repocreds/{repo.repo}"
+			put: "/api/v1/repositories/{repo.repo}/creds"
 			body: "repo"
 		};
 	}
@@ -173,7 +173,7 @@ service RepositoryService {
 
 	// DeleteRepositoryCredentials deletes a repository credential set from the configuration
 	rpc DeleteRepositoryCredentials(RepoQuery) returns (RepoResponse) {
-		option (google.api.http).delete = "/api/v1/repocreds/{repo}";
+		option (google.api.http).delete = "/api/v1/repositories/{repo}/creds";
 	}
 
 	// ValidateAccess validates access to a repository with given parameters
