@@ -267,8 +267,11 @@ func (sc *syncContext) sync() {
 		}
 	}
 
-	// any running tasks, lets wait...
-	if tasks.multiStep() && tasks.Any(func(t *syncTask) bool { return t.running() }) {
+	// if (a) we are multi-step and we have any running tasks,
+	// or (b) there are any running hooks,
+	// then wait...
+	multiStep := tasks.multiStep()
+	if tasks.Any(func(t *syncTask) bool { return (multiStep || t.isHook()) && t.running() }) {
 		sc.setOperationPhase(v1alpha1.OperationRunning, "one or more tasks are running")
 		return
 	}
