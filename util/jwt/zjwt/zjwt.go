@@ -1,16 +1,13 @@
-// The package provides a way to create compact JWTs, "cJWT".
+// The package provides a way to create compact JWTs, "zJWT".
 //
-// cJWTs for JWT with a large payload can be 1/3 the size of the original.
-// This is achieved by compressing the payload before base 64 encoding it.
+// zJWTs for JWT with a large payload can be 1/3 the size of the original.
+// This is achieved by gzipping the payload before base 64 encoding it.
 //
-// cJWTs are only compact if they are smaller than the original JWTs.
-// as long as they are smaller than the cJWT representation.
+// zJWTs are only compact if they are smaller than the original JWTs.
+// as long as they are smaller than the zJWT representation.
 //
-// To help differentiate,
-// * JWT have 3 dots. cJWTs have 4 dots.
-// * cJWTs start with "cJWT/v1:"
-//
-package cjwt
+// To help differentiate, zJWTs start with "zJWT/v1:"
+package zjwt
 
 import (
 	"bytes"
@@ -22,10 +19,18 @@ import (
 )
 
 var encoding = base64.RawStdEncoding
-var magicNumber = "cJWT/v1:"
 
-// CompactJWT JWT to either a cJWT or return the original JWT, whichever is smaller.
-func CompactJWT(text string) (string, error) {
+// some magic text that is easy to search the Internet for and find your way to docs
+var magicNumber = "zJWT/v1:"
+
+// the smallest size JWT we'll compress, 3k chosen as cookies max out at 4k
+var minSize = 3000
+
+// ZJWT turns a JWT into either a zJWT or return the original JWT, whichever is smaller.
+func ZJWT(text string) (string, error) {
+	if len(text) < minSize {
+		return text, nil
+	}
 	parts := strings.SplitN(text, ".", 3)
 	if len(parts) != 3 {
 		return "", fmt.Errorf("JWT '%s' should have 3 dot-delimited parts", text)
@@ -52,26 +57,26 @@ func CompactJWT(text string) (string, error) {
 		return "", err
 	}
 	compressedPayload := encoding.EncodeToString(buf.Bytes())
-	cJWT := fmt.Sprintf("%s.%s.%s.%s", magicNumber, header, compressedPayload, signature)
-	if len(cJWT) < len(text) {
-		return cJWT, nil
+	zJWT := fmt.Sprintf("%s.%s.%s.%s", magicNumber, header, compressedPayload, signature)
+	if len(zJWT) < len(text) {
+		return zJWT, nil
 	} else {
 		return text, nil
 	}
 }
 
-// JWT expands either a cJWT or a JWT to a JWT.
+// JWT expands either a zJWT or a JWT to a JWT.
 func JWT(text string) (string, error) {
 	parts := strings.SplitN(text, ".", 4)
 	if len(parts) == 3 {
 		return text, nil
 	}
 	if len(parts) != 4 {
-		return "", fmt.Errorf("cJWT '%s' should have 4 dot-delimited parts", text)
+		return "", fmt.Errorf("zJWT '%s' should have 4 dot-delimited parts", text)
 	}
-	magic := parts[0]
-	if magic != magicNumber {
-		return "", fmt.Errorf("cJWT magic '%s' does not equal '%s'", magic, magicNumber)
+	part0 := parts[0]
+	if part0 != magicNumber {
+		return "", fmt.Errorf("the first part of the zJWT '%s' does not equal '%s'", part0, magicNumber)
 	}
 	header := parts[1]
 	payload := parts[2]
