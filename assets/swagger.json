@@ -49,7 +49,7 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "ListMixin7",
+        "operationId": "List",
         "parameters": [
           {
             "type": "string",
@@ -89,7 +89,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "CreateMixin7",
+        "operationId": "Create",
         "parameters": [
           {
             "name": "body",
@@ -116,7 +116,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "UpdateMixin7",
+        "operationId": "Update",
         "parameters": [
           {
             "type": "string",
@@ -197,7 +197,7 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "GetMixin7",
+        "operationId": "Get",
         "parameters": [
           {
             "type": "string",
@@ -238,7 +238,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "DeleteMixin7",
+        "operationId": "Delete",
         "parameters": [
           {
             "type": "string",
@@ -934,7 +934,7 @@
           "ClusterService"
         ],
         "summary": "Get returns a cluster by server address",
-        "operationId": "GetMixin2",
+        "operationId": "GetMixin3",
         "parameters": [
           {
             "type": "string",
@@ -1007,7 +1007,7 @@
           "ProjectService"
         ],
         "summary": "List returns list of projects",
-        "operationId": "ListMixin5",
+        "operationId": "ListMixin4",
         "parameters": [
           {
             "type": "string",
@@ -1029,7 +1029,7 @@
           "ProjectService"
         ],
         "summary": "Create a new project.",
-        "operationId": "CreateMixin5",
+        "operationId": "CreateMixin4",
         "parameters": [
           {
             "name": "body",
@@ -1056,7 +1056,7 @@
           "ProjectService"
         ],
         "summary": "Get returns a project by name",
-        "operationId": "GetMixin5",
+        "operationId": "GetMixin4",
         "parameters": [
           {
             "type": "string",
@@ -1079,7 +1079,7 @@
           "ProjectService"
         ],
         "summary": "Delete deletes a project",
-        "operationId": "DeleteMixin5",
+        "operationId": "DeleteMixin4",
         "parameters": [
           {
             "type": "string",
@@ -1129,7 +1129,7 @@
           "ProjectService"
         ],
         "summary": "Update updates a project",
-        "operationId": "UpdateMixin5",
+        "operationId": "UpdateMixin4",
         "parameters": [
           {
             "type": "string",
@@ -1238,8 +1238,8 @@
         "tags": [
           "RepositoryService"
         ],
-        "summary": "List returns list of repos",
-        "operationId": "ListMixin3",
+        "summary": "ListRepositories gets a list of all configured repositories",
+        "operationId": "ListRepositories",
         "parameters": [
           {
             "type": "string",
@@ -1268,8 +1268,65 @@
         "tags": [
           "RepositoryService"
         ],
-        "summary": "Create creates a repo",
-        "operationId": "CreateMixin3",
+        "summary": "CreateRepository creates a new repository configuration",
+        "operationId": "CreateRepository",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories/creds": {
+      "get": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "ListRepositoryCredentials gets a list of all configured repository credential sets",
+        "operationId": "ListRepositoryCredentials",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Repo URL for query.",
+            "name": "repo",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "format": "boolean",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "name": "forceRefresh",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepositoryList"
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "CreateRepositoryCredentials creates a new repository credential set",
+        "operationId": "CreateRepositoryCredentials",
         "parameters": [
           {
             "name": "body",
@@ -1295,8 +1352,41 @@
         "tags": [
           "RepositoryService"
         ],
-        "summary": "Update updates a repo",
-        "operationId": "UpdateMixin3",
+        "summary": "UpdateRepository updates a repository configuration",
+        "operationId": "UpdateRepository",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "repo.repo",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories/{repo.repo}/creds": {
+      "put": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "UpdateRepositoryCredentials updates a repository credential set",
+        "operationId": "UpdateRepositoryCredentials",
         "parameters": [
           {
             "type": "string",
@@ -1328,8 +1418,8 @@
         "tags": [
           "RepositoryService"
         ],
-        "summary": "Delete deletes a repo",
-        "operationId": "DeleteMixin3",
+        "summary": "DeleteRepository deletes a repository from the configuration",
+        "operationId": "DeleteRepository",
         "parameters": [
           {
             "type": "string",
