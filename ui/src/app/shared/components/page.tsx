@@ -1,10 +1,11 @@
-import { DataLoader, Page as ArgoPage, Toolbar, Utils } from 'argo-ui';
+import {DataLoader, Page as ArgoPage, Toolbar, Utils} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
-import { Observable } from 'rxjs';
+import {Observable} from 'rxjs';
+import {Session} from '../models';
+import {AppContext} from '../context';
+import {services} from '../services';
 
-import { AppContext } from '../context';
-import { services } from '../services';
 
 export class Page extends React.Component<{ title: string, toolbar?: Toolbar | Observable<Toolbar> }> {
     public static contextTypes = {
@@ -14,11 +15,12 @@ export class Page extends React.Component<{ title: string, toolbar?: Toolbar | O
 
     public render() {
         return (
-            <DataLoader input={new Date()} load={() => Utils.toObservable(this.props.toolbar).map((toolbar) => {
+            <DataLoader input={new Date()}
+                        load={() => Observable.zip(Utils.toObservable(this.props.toolbar), services.users.get()).map(([toolbar, account]: [Toolbar, Session]) => {
                 toolbar = toolbar || {};
                 toolbar.tools = [
                     toolbar.tools,
-                    services.authService.loggedOut() ?
+                    account.username ?
                         <a key='logout' onClick={() => this.goToLogin(true)}>Logout</a> :
                         <a key='login' onClick={() => this.goToLogin(false)}>Login</a>,
                 ];

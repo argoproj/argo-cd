@@ -12,6 +12,7 @@ import (
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/pkg/apiclient/account"
+	"github.com/argoproj/argo-cd/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/localconfig"
@@ -27,6 +28,7 @@ func NewAccountCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		},
 	}
 	command.AddCommand(NewAccountUpdatePasswordCommand(clientOpts))
+	command.AddCommand(NewAccountGetCommand(clientOpts))
 	return command
 }
 
@@ -91,5 +93,29 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 
 	command.Flags().StringVar(&currentPassword, "current-password", "", "current password you wish to change")
 	command.Flags().StringVar(&newPassword, "new-password", "", "new password you want to update to")
+	return command
+}
+
+func NewAccountGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "get",
+		Short: "Get account",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 0 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+
+			conn, client := argocdclient.NewClientOrDie(clientOpts).NewSessionClientOrDie()
+			defer util.Close(conn)
+
+			ctx := context.Background()
+			response, err := client.GetSession(ctx, &session.GetSessionRequest{})
+			errors.CheckError(err)
+
+			fmt.Printf("Username: %s\n", response.Username)
+			fmt.Printf("Groups: %v\n", response.Groups)
+		},
+	}
 	return command
 }

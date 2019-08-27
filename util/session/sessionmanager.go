@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -199,6 +199,7 @@ func (mgr *SessionManager) provider() (oidcutil.Provider, error) {
 
 // Username is a helper to extract a human readable username from a context
 func Username(ctx context.Context) string {
+	log.Debug("claims=%v", ctx.Value("claims"))
 	claims, ok := ctx.Value("claims").(jwt.Claims)
 	if !ok {
 		return ""
@@ -213,4 +214,17 @@ func Username(ctx context.Context) string {
 	default:
 		return jwtutil.GetField(mapClaims, "email")
 	}
+}
+
+func Groups(ctx context.Context) []string {
+	log.Debug("claims=%v", ctx.Value("claims"))
+	claims, ok := ctx.Value("claims").(jwt.Claims)
+	if !ok {
+		return nil
+	}
+	mapClaims, err := jwtutil.MapClaims(claims)
+	if err != nil {
+		return nil
+	}
+	return jwtutil.GetGroups(mapClaims)
 }

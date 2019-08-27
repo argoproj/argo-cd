@@ -18,6 +18,7 @@ import {Redirect, Route, RouteComponentProps, Router, Switch} from 'react-router
 import applications from './applications';
 import help from './help';
 import login from './login';
+import session from './session';
 import settings from './settings';
 import {Provider} from './shared/context';
 import {services} from './shared/services';
@@ -34,6 +35,7 @@ const routes: {[path: string]: { component: React.ComponentType<RouteComponentPr
     '/login': { component: login.component as any, noLayout: true },
     '/applications': { component: applications.component },
     '/settings': { component: settings.component },
+    '/session': { component: session.component },
     '/help': { component: help.component },
 };
 
@@ -45,6 +47,10 @@ const navItems = [{
     title: 'Manage your repositories, projects, settings',
     path: '/settings',
     iconClassName: 'argo-icon-settings',
+}, {
+    title: 'Manage your account',
+    path: '/session',
+    iconClassName: 'fa fa-user-circle',
 }, {
     title: 'Read the documentation, and get help and assistance.',
     path: '/help',
@@ -86,15 +92,23 @@ export class App extends React.Component<{}, { popupProps: PopupProps, error: Er
 
     public async componentDidMount() {
         this.popupManager.popupProps.subscribe((popupProps) => this.setState({ popupProps }));
-        const gaSettings = await services.authService.settings().then((item) => item.googleAnalytics || {  trackingID: '' });
-        const { trackingID } = gaSettings;
+        const gaSettings = await services.authService.settings().then((item) => item.googleAnalytics || {  trackingID: '', anonymizeUsers: true });
+        const session = await services.users.get();
+        const { trackingID, anonymizeUsers } = gaSettings;
         if (trackingID) {
             const ga = await import('react-ga');
             ga.initialize(trackingID);
+            let userId = '';
             const trackPageView = () => {
-               const token = hashCode(services.authService.token()).toString();
-               ga.set({ userId: token });
-               ga.pageview(location.pathname + location.search);
+                let nextUserId = session.username;
+                if (anonymizeUsers) {
+                   nextUserId = hashCode(nextUserId).toString();
+                }
+                if (nextUserId !== userId) {
+                    userId = nextUserId;
+                    ga.set({ userId });
+                }
+                ga.pageview(location.pathname + location.search);
             };
             trackPageView();
             history.listen(trackPageView);

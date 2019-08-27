@@ -1,4 +1,5 @@
 import requests from './requests';
+import {Session} from "../models";
 
 export class UserService {
     public login(username: string, password: string): Promise<{ token: string }> {
@@ -7,5 +8,9 @@ export class UserService {
 
     public logout(): Promise<boolean> {
         return requests.delete('/session').then((res) => true);
+    }
+
+    public get(): Promise<Session> {
+        return requests.get('/session').then((res) => res.body as Session);
     }
 }

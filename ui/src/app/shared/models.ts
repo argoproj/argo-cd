@@ -323,6 +323,7 @@ export interface AuthSettings {
     statusBadgeEnabled: boolean;
     googleAnalytics: {
         trackingID: string;
+        anonymizeUsers: boolean;
     };
     dexConfig: {
         connectors: {
@@ -337,6 +338,11 @@ export interface AuthSettings {
         chatUrl: string;
         chatText: string;
     };
+}
+
+export interface Session  {
+    username: string;
+    groups: string[];
 }
 
 export type ConnectionStatus = 'Unknown' | 'Successful' | 'Failed';
