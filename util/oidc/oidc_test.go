@@ -3,46 +3,65 @@ package oidc
 import (
 	"encoding/json"
 	"io/ioutil"
+	"net/url"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"golang.org/x/oauth2"
-)
 
-var (
-	spaOauth2Conf = &oauth2.Config{
-		ClientID: "spa-id",
-	}
+	"github.com/stretchr/testify/assert"
 
-	webOauth2Conf = &oauth2.Config{
-		ClientID:     "spa-id",
-		ClientSecret: "my-super-secret",
-	}
+	"github.com/argoproj/argo-cd/server/settings/oidc"
 )
 
 func TestInferGrantType(t *testing.T) {
-	var grantType string
-	dexRAW, err := ioutil.ReadFile("testdata/dex.json")
-	assert.NoError(t, err)
-	var dexConfig OIDCConfiguration
-	err = json.Unmarshal(dexRAW, &dexConfig)
-	assert.NoError(t, err)
-	grantType = InferGrantType(spaOauth2Conf, &dexConfig)
-	// Dex does not support implicit login flow (https://github.com/dexidp/dex/issues/1254)
-	assert.Equal(t, GrantTypeAuthorizationCode, grantType)
-	grantType = InferGrantType(webOauth2Conf, &dexConfig)
-	assert.Equal(t, GrantTypeAuthorizationCode, grantType)
+	for _, path := range []string{"dex", "okta", "auth0", "onelogin"} {
+		t.Run(path, func(t *testing.T) {
+			rawConfig, err := ioutil.ReadFile("testdata/" + path + ".json")
+			assert.NoError(t, err)
+			var config OIDCConfiguration
+			err = json.Unmarshal(rawConfig, &config)
+			assert.NoError(t, err)
+			grantType := InferGrantType(&config)
+			assert.Equal(t, GrantTypeAuthorizationCode, grantType)
 
-	testFiles := []string{"testdata/okta.json", "testdata/auth0.json", "testdata/onelogin.json"}
-	for _, path := range testFiles {
-		oktaRAW, err := ioutil.ReadFile(path)
-		assert.NoError(t, err)
-		var oktaConfig OIDCConfiguration
-		err = json.Unmarshal(oktaRAW, &oktaConfig)
-		assert.NoError(t, err)
-		grantType = InferGrantType(spaOauth2Conf, &oktaConfig)
-		assert.Equal(t, GrantTypeImplicit, grantType)
-		grantType = InferGrantType(webOauth2Conf, &oktaConfig)
-		assert.Equal(t, GrantTypeAuthorizationCode, grantType)
+			var noCodeResponseTypes []string
+			for _, supportedResponseType := range config.ResponseTypesSupported {
+				if supportedResponseType != ResponseTypeCode {
+					noCodeResponseTypes = append(noCodeResponseTypes, supportedResponseType)
+				}
+			}
+
+			config.ResponseTypesSupported = noCodeResponseTypes
+			grantType = InferGrantType(&config)
+			assert.Equal(t, GrantTypeImplicit, grantType)
+		})
 	}
+}
+
+func TestIDTokenClaims(t *testing.T) {
+	oauth2Config := &oauth2.Config{
+		ClientID:     "DUMMY_OIDC_PROVIDER",
+		ClientSecret: "0987654321",
+		Endpoint:     oauth2.Endpoint{AuthURL: "https://argocd-dev.onelogin.com/oidc/auth", TokenURL: "https://argocd-dev.onelogin.com/oidc/token"},
+		Scopes:       []string{"oidc", "profile", "groups"},
+		RedirectURL:  "https://argocd-dev.io/redirect_url",
+	}
+
+	var opts []oauth2.AuthCodeOption
+	requestedClaims := make(map[string]*oidc.Claim)
+
+	opts = AppendClaimsAuthenticationRequestParameter(opts, requestedClaims)
+	assert.Len(t, opts, 0)
+
+	requestedClaims["groups"] = &oidc.Claim{Essential: true}
+	opts = AppendClaimsAuthenticationRequestParameter(opts, requestedClaims)
+	assert.Len(t, opts, 1)
+
+	authCodeURL, err := url.Parse(oauth2Config.AuthCodeURL("TEST", opts...))
+	assert.NoError(t, err)
+
+	values, err := url.ParseQuery(authCodeURL.RawQuery)
+	assert.NoError(t, err)
+
+	assert.Equal(t, "{\"id_token\":{\"groups\":{\"essential\":true}}}", values.Get("claims"))
 }

@@ -1,7 +1,6 @@
 package oidc
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -9,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 	"time"
 
 	gooidc "github.com/coreos/go-oidc"
@@ -18,6 +16,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/server/settings/oidc"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/dex"
 	httputil "github.com/argoproj/argo-cd/util/http"
@@ -38,6 +37,10 @@ type OIDCConfiguration struct {
 	ScopesSupported        []string `json:"scopes_supported"`
 	ResponseTypesSupported []string `json:"response_types_supported"`
 	GrantTypesSupported    []string `json:"grant_types_supported,omitempty"`
+}
+
+type ClaimsRequest struct {
+	IDToken map[string]*oidc.Claim `json:"id_token"`
 }
 
 type ClientApp struct {
@@ -73,10 +76,14 @@ func GetScopesOrDefault(scopes []string) []string {
 // NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an
 // object which has HTTP handlers for handling the HTTP responses for login and callback
 func NewClientApp(settings *settings.ArgoCDSettings, cache *cache.Cache, dexServerAddr string) (*ClientApp, error) {
+	redirectURL, err := settings.RedirectURL()
+	if err != nil {
+		return nil, err
+	}
 	a := ClientApp{
 		clientID:     settings.OAuth2ClientID(),
 		clientSecret: settings.OAuth2ClientSecret(),
-		redirectURI:  settings.RedirectURL(),
+		redirectURI:  redirectURL,
 		issuerURL:    settings.IssuerURL(),
 		cache:        cache,
 	}
@@ -166,8 +173,10 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	scopes := make([]string, 0)
+	var opts []oauth2.AuthCodeOption
 	if config := a.settings.OIDCConfig(); config != nil {
 		scopes = config.RequestedScopes
+		opts = AppendClaimsAuthenticationRequestParameter(opts, config.RequestedIDTokenClaims)
 	}
 	oauth2Config, err := a.oauth2Config(GetScopesOrDefault(scopes))
 	if err != nil {
@@ -176,13 +185,13 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	returnURL := r.FormValue("return_url")
 	stateNonce := a.generateAppState(returnURL)
-	grantType := InferGrantType(oauth2Config, oidcConf)
+	grantType := InferGrantType(oidcConf)
 	var url string
 	switch grantType {
 	case GrantTypeAuthorizationCode:
-		url = oauth2Config.AuthCodeURL(stateNonce)
+		url = oauth2Config.AuthCodeURL(stateNonce, opts...)
 	case GrantTypeImplicit:
-		url = ImplicitFlowURL(oauth2Config, stateNonce)
+		url = ImplicitFlowURL(oauth2Config, stateNonce, opts...)
 	default:
 		http.Error(w, fmt.Sprintf("Unsupported grant type: %v", grantType), http.StatusInternalServerError)
 		return
@@ -311,40 +320,9 @@ func (a *ClientApp) handleImplicitFlow(w http.ResponseWriter, state string) {
 // ImplicitFlowURL is an adaptation of oauth2.Config::AuthCodeURL() which returns a URL
 // appropriate for an OAuth2 implicit login flow (as opposed to authorization code flow).
 func ImplicitFlowURL(c *oauth2.Config, state string, opts ...oauth2.AuthCodeOption) string {
-	var buf bytes.Buffer
-	buf.WriteString(c.Endpoint.AuthURL)
-	v := url.Values{
-		"response_type": {"id_token"},
-		"nonce":         {rand.RandString(10)},
-		"client_id":     {c.ClientID},
-		"redirect_uri":  condVal(c.RedirectURL),
-		"scope":         condVal(strings.Join(c.Scopes, " ")),
-		"state":         condVal(state),
-	}
-	for _, opt := range opts {
-		switch opt {
-		case oauth2.AccessTypeOnline:
-			v.Set("access_type", "online")
-		case oauth2.AccessTypeOffline:
-			v.Set("access_type", "offline")
-		case oauth2.ApprovalForce:
-			v.Set("approval_prompt", "force")
-		}
-	}
-	if strings.Contains(c.Endpoint.AuthURL, "?") {
-		buf.WriteByte('&')
-	} else {
-		buf.WriteByte('?')
-	}
-	buf.WriteString(v.Encode())
-	return buf.String()
-}
-
-func condVal(v string) []string {
-	if v == "" {
-		return nil
-	}
-	return []string{v}
+	opts = append(opts, oauth2.SetAuthURLParam("response_type", "id_token"))
+	opts = append(opts, oauth2.SetAuthURLParam("nonce", rand.RandString(10)))
+	return c.AuthCodeURL(state, opts...)
 }
 
 // OfflineAccess returns whether or not 'offline_access' is a supported scope
@@ -366,17 +344,40 @@ func OfflineAccess(scopes []string) bool {
 
 // InferGrantType infers the proper grant flow depending on the OAuth2 client config and OIDC configuration.
 // Returns either: "authorization_code" or "implicit"
-func InferGrantType(oauth2conf *oauth2.Config, oidcConf *OIDCConfiguration) string {
-	if oauth2conf.ClientSecret != "" {
-		// If we know the client secret, we are using the 'authorization_code' flow
-		return GrantTypeAuthorizationCode
+func InferGrantType(oidcConf *OIDCConfiguration) string {
+	// Check the supported response types. If the list contains the response type 'code',
+	// then grant type is 'authorization_code'. This is preferred over the implicit
+	// grant type since refresh tokens cannot be issued that way.
+	for _, supportedType := range oidcConf.ResponseTypesSupported {
+		if supportedType == ResponseTypeCode {
+			return GrantTypeAuthorizationCode
+		}
 	}
-	if len(oidcConf.ResponseTypesSupported) == 1 && oidcConf.ResponseTypesSupported[0] == ResponseTypeCode {
-		// If we don't have the secret, check the supported response types. If the list is a single
-		// response type of type 'code', then grant type is 'authorization_code'. This is the Dex
-		// case, which does not support implicit login flow (https://github.com/dexidp/dex/issues/1254)
-		return GrantTypeAuthorizationCode
-	}
-	// If we don't have the client secret (e.g. SPA app), we can assume to be implicit
+
+	// Assume implicit otherwise
 	return GrantTypeImplicit
+}
+
+// AppendClaimsAuthenticationRequestParameter appends a OIDC claims authentication request parameter
+// to `opts` with the `requestedClaims`
+func AppendClaimsAuthenticationRequestParameter(opts []oauth2.AuthCodeOption, requestedClaims map[string]*oidc.Claim) []oauth2.AuthCodeOption {
+	if len(requestedClaims) == 0 {
+		return opts
+	}
+	log.Infof("RequestedClaims: %s\n", requestedClaims)
+	claimsRequestParameter, err := createClaimsAuthenticationRequestParameter(requestedClaims)
+	if err != nil {
+		log.Errorf("Failed to create OIDC claims authentication request parameter from config: %s", err)
+		return opts
+	}
+	return append(opts, claimsRequestParameter)
+}
+
+func createClaimsAuthenticationRequestParameter(requestedClaims map[string]*oidc.Claim) (oauth2.AuthCodeOption, error) {
+	claimsRequest := ClaimsRequest{IDToken: requestedClaims}
+	claimsRequestRAW, err := json.Marshal(claimsRequest)
+	if err != nil {
+		return nil, err
+	}
+	return oauth2.SetAuthURLParam("claims", string(claimsRequestRAW)), nil
 }
