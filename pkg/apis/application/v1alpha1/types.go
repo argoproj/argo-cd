@@ -10,9 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/robfig/cron"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -25,6 +22,10 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
+
+	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/rbac"
 )
 
 // Application is a definition of Application resource.

@@ -279,7 +279,7 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string) {
 		maintenanceWindows = "<none>"
 	}
 	fmt.Printf(printOpFmtStr, "Sync Policy:", syncPolicy)
-	if syncPolicy !=  "<none>" {
+	if syncPolicy != "<none>" {
 		fmt.Printf(printOpFmtStr, "Maintenance Windows:", maintenanceWindows)
 	}
 	if maintenanceWindows != "<none>" {
