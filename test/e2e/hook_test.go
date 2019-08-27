@@ -47,6 +47,21 @@ func testHookSuccessful(t *testing.T, hookType HookType, podHookPhase OperationP
 		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook", Message: "pod/hook created", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
 }
 
+// make sure that that hooks do not appear in "argocd app diff"
+func TestHookDiff(t *testing.T) {
+	Given(t).
+		Path("hook").
+		When().
+		Create().
+		Then().
+		And(func(_ *Application) {
+			output, err := RunCli("app", "diff", Name())
+			assert.Error(t, err)
+			assert.Contains(t, output, "name: pod")
+			assert.NotContains(t, output, "name: hook")
+		})
+}
+
 // make sure that if pre-sync fails, we fail the app and we do not create the pod
 func TestPreSyncHookFailure(t *testing.T) {
 	Given(t).

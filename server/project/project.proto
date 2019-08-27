@@ -16,6 +16,7 @@ import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.prot
 // ProjectCreateRequest defines project creation parameters.
 message ProjectCreateRequest {
   github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject project = 1;
+  bool upsert = 2;
 }
 
 // ProjectTokenCreateRequest defines project token deletion parameters.

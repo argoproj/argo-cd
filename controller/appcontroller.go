@@ -314,6 +314,7 @@ func (ctrl *ApplicationController) managedResources(comparisonResult *comparison
 			Name:      res.Name,
 			Group:     res.Group,
 			Kind:      res.Kind,
+			Hook:      res.Hook,
 		}
 
 		target := res.Target

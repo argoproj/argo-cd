@@ -288,6 +288,7 @@ export interface ResourceDiff {
     targetState: State;
     liveState: State;
     diff: string;
+    hook: boolean;
 }
 
 export interface SyncStatus {
