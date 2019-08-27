@@ -75,10 +75,14 @@ func GetScopesOrDefault(scopes []string) []string {
 // NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an
 // object which has HTTP handlers for handling the HTTP responses for login and callback
 func NewClientApp(settings *settings.ArgoCDSettings, cache *cache.Cache, dexServerAddr string) (*ClientApp, error) {
+	redirectURL, err := settings.RedirectURL()
+	if err != nil {
+		return nil, err
+	}
 	a := ClientApp{
 		clientID:     settings.OAuth2ClientID(),
 		clientSecret: settings.OAuth2ClientSecret(),
-		redirectURI:  settings.RedirectURL(),
+		redirectURI:  redirectURL,
 		issuerURL:    settings.IssuerURL(),
 		cache:        cache,
 	}

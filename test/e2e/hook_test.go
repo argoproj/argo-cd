@@ -47,6 +47,21 @@ func testHookSuccessful(t *testing.T, hookType HookType, podHookPhase OperationP
 		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook", Message: "pod/hook created", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
 }
 
+// make sure that that hooks do not appear in "argocd app diff"
+func TestHookDiff(t *testing.T) {
+	Given(t).
+		Path("hook").
+		When().
+		Create().
+		Then().
+		And(func(_ *Application) {
+			output, err := RunCli("app", "diff", Name())
+			assert.Error(t, err)
+			assert.Contains(t, output, "name: pod")
+			assert.NotContains(t, output, "name: hook")
+		})
+}
+
 // make sure that if pre-sync fails, we fail the app and we do not create the pod
 func TestPreSyncHookFailure(t *testing.T) {
 	Given(t).
@@ -69,7 +84,7 @@ func TestPreSyncHookFailure(t *testing.T) {
 		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeOutOfSync))
 }
 
-// make sure that if pre-sync fails, we fail the app and we did create the pod
+// make sure that if sync fails, we fail the app and we did create the pod
 func TestSyncHookFailure(t *testing.T) {
 	Given(t).
 		Path("hook").
@@ -85,6 +100,19 @@ func TestSyncHookFailure(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(ResourceResultNumbering(2)).
 		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced))
+}
+
+// make sure that if the deployments fails, we still get success and synced
+func TestSyncHookResourceFailure(t *testing.T) {
+	Given(t).
+		Path("hook-and-deployment").
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusProgressing))
 }
 
 // make sure that if post-sync fails, we fail the app and we did not create the pod

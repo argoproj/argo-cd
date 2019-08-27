@@ -12,6 +12,7 @@ Argo CD is a declarative, GitOps continuous delivery tool for Kubernetes.
 ## Why Argo CD?
 
 Application definitions, configurations, and environments should be declarative and version controlled.
+
 Application deployment and lifecycle management should be automated, auditable, and easy to understand.
 
 
@@ -24,6 +25,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [Commonbond](https://commonbond.co/)
 1. [CyberAgent](https://www.cyberagent.co.jp/en/)
 1. [END.](https://www.endclothing.com/)
+1. [Future PLC](https://www.futureplc.com/)
 1. [GMETRI](https://gmetri.com/)
 1. [Intuit](https://www.intuit.com/)
 1. [KintoHub](https://www.kintohub.com/)

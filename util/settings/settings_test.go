@@ -215,3 +215,21 @@ func TestGetOIDCConfig(t *testing.T) {
 	assert.NotNil(t, claim)
 	assert.Equal(t, true, claim.Essential)
 }
+
+func TestRedirectURL(t *testing.T) {
+	cases := map[string][]string{
+		"https://localhost:4000":         {"https://localhost:4000/auth/callback", "https://localhost:4000/api/dex/callback"},
+		"https://localhost:4000/":        {"https://localhost:4000/auth/callback", "https://localhost:4000/api/dex/callback"},
+		"https://localhost:4000/argocd":  {"https://localhost:4000/argocd/auth/callback", "https://localhost:4000/argocd/api/dex/callback"},
+		"https://localhost:4000/argocd/": {"https://localhost:4000/argocd/auth/callback", "https://localhost:4000/argocd/api/dex/callback"},
+	}
+	for given, expected := range cases {
+		settings := ArgoCDSettings{URL: given}
+		redirectURL, err := settings.RedirectURL()
+		assert.NoError(t, err)
+		assert.Equal(t, expected[0], redirectURL)
+		dexRedirectURL, err := settings.DexRedirectURL()
+		assert.NoError(t, err)
+		assert.Equal(t, expected[1], dexRedirectURL)
+	}
+}
