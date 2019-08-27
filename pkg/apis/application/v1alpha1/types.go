@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -20,11 +21,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
-
-	"time"
-
 	"github.com/robfig/cron"
-
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/rbac"
@@ -453,6 +450,10 @@ type MaintenanceWindow struct {
 	Schedule string `json:"schedule,omitempty" protobuf:"bytes,1,opt,name=schedule"`
 	// Duration is the amount of time the maintenance window will be open
 	Duration string `json:"duration,omitempty" protobuf:"bytes,2,opt,name=duration"`
+}
+
+func (m *MaintenanceWindows) IsZero() bool {
+	return len(*m) == 0
 }
 
 func (m *MaintenanceWindows) Active() bool {

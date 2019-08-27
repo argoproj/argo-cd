@@ -269,7 +269,18 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string) {
 		maintenanceWindows = "<none>"
 	}
 	fmt.Printf(printOpFmtStr, "Sync Policy:", syncPolicy)
-	fmt.Printf(printOpFmtStr, "Maintenance:", maintenanceWindows)
+	if syncPolicy !=  "<none>" {
+		fmt.Printf(printOpFmtStr, "Maintenance Windows:", maintenanceWindows)
+	}
+	if maintenanceWindows != "<none>" {
+		var status string
+		if app.Spec.SyncPolicy.Automated.MaintenanceWindows.Active() {
+			status = "Active"
+		} else {
+			status = "Inactive"
+		}
+		fmt.Printf(printOpFmtStr, "Maintenance State:", status)
+	}
 	syncStatusStr := string(app.Status.Sync.Status)
 	switch app.Status.Sync.Status {
 	case argoappv1.SyncStatusCodeSynced:
@@ -461,9 +472,13 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 		if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
 			log.Fatal("Cannot set --maintenance-windows: application not configured with automatic sync")
 		}
-		err := app.Spec.SyncPolicy.Automated.AddMaintenanceWindows(appOpts.maintenanceWindows)
-		if err != nil {
-			log.Fatalf("Cannot set --maintenance-windows: %s", err)
+		if appOpts.maintenanceWindows == "none" {
+			app.Spec.SyncPolicy.Automated.MaintenanceWindows = nil
+		} else {
+			err := app.Spec.SyncPolicy.Automated.AddMaintenanceWindows(appOpts.maintenanceWindows)
+			if err != nil {
+				log.Fatalf("Cannot set --maintenance-windows: %s", err)
+			}
 		}
 	}
 
@@ -621,7 +636,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringArrayVar(&opts.jsonnetTlaStr, "jsonnet-tla-str", []string{}, "Jsonnet top level string arguments")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaCode, "jsonnet-tla-code", []string{}, "Jsonnet top level code arguments")
 	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
-	command.Flags().StringVar(&opts.maintenanceWindows, "maintenance-windows", "", "Times during which auto-sync will be disabled, quote and separate values with commas: '0 11 * * *:1h,30 23 * * *:1h')")
+	command.Flags().StringVar(&opts.maintenanceWindows, "maintenance-windows", "", "Times during which auto-sync will be disabled, quote and separate values with commas: '0 11 * * *:1h,30 23 * * *:1h', to remove all schedules set to 'none')")
 }
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
