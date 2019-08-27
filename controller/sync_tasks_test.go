@@ -8,7 +8,9 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	"github.com/argoproj/argo-cd/common"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/test"
 )
 
 func Test_syncTasks_kindOrder(t *testing.T) {
@@ -365,4 +367,26 @@ func TestSyncNamespaceAgainstCRD(t *testing.T) {
 	sort.Sort(unsorted)
 
 	assert.Equal(t, syncTasks{namespace, crd}, unsorted)
+}
+
+func Test_syncTasks_multiStep(t *testing.T) {
+	t.Run("Single", func(t *testing.T) {
+		tasks := syncTasks{{liveObj: Annotate(NewPod(), common.AnnotationSyncWave, "-1"), phase: SyncPhaseSync}}
+		assert.Equal(t, SyncPhaseSync, tasks.phase())
+		assert.Equal(t, -1, tasks.wave())
+		assert.Equal(t, SyncPhaseSync, tasks.lastPhase())
+		assert.Equal(t, -1, tasks.lastWave())
+		assert.False(t, tasks.multiStep())
+	})
+	t.Run("Double", func(t *testing.T) {
+		tasks := syncTasks{
+			{liveObj: Annotate(NewPod(), common.AnnotationSyncWave, "-1"), phase: SyncPhasePreSync},
+			{liveObj: Annotate(NewPod(), common.AnnotationSyncWave, "1"), phase: SyncPhasePostSync},
+		}
+		assert.Equal(t, SyncPhasePreSync, tasks.phase())
+		assert.Equal(t, -1, tasks.wave())
+		assert.Equal(t, SyncPhasePostSync, tasks.lastPhase())
+		assert.Equal(t, 1, tasks.lastWave())
+		assert.True(t, tasks.multiStep())
+	})
 }
