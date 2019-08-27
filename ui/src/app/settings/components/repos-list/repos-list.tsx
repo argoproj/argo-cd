@@ -127,7 +127,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                     <div className='argo-table-list'>
                                         <div className='argo-table-list__head'>
                                             <div className='row'>
-                                                <div className='columns small-9'>TEMPLATE URL</div>
+                                                <div className='columns small-9'>CREDENTIALS TEMPLATE URL</div>
                                                 <div className='columns small-3'>CREDS</div>
                                             </div>
                                         </div>
@@ -138,7 +138,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                                         <i className='icon argo-icon-git'/> <Repo url={repo.repo}/>
                                                     </div>
                                                     <div className='columns small-3'>
-                                                        Credential template
+                                                        -
                                                        <DropDownMenu anchor={() => <button
                                                             className='argo-button argo-button--light argo-button--lg argo-button--short'>
                                                             <i className='fa fa-ellipsis-v'/>
