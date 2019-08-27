@@ -409,7 +409,7 @@ func TestDuplicatedResources(t *testing.T) {
 }
 
 func TestConfigMap(t *testing.T) {
-	testEdgeCasesApplicationResources(t, "config-map", HealthStatusHealthy)
+	testEdgeCasesApplicationResources(t, "config-map", HealthStatusHealthy, "my-map  Synced                configmap/my-map created")
 }
 
 func TestFailedConversion(t *testing.T) {
@@ -421,15 +421,19 @@ func TestFailedConversion(t *testing.T) {
 	testEdgeCasesApplicationResources(t, "failed-conversion", HealthStatusProgressing)
 }
 
-func testEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode HealthStatusCode) {
-	Given(t).
+func testEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode HealthStatusCode, message ...string) {
+	expect := Given(t).
 		Path(appPath).
 		When().
 		Create().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+	for i := range message {
+		expect = expect.Expect(Success(message[i]))
+	}
+	expect.
 		Expect(HealthIs(statusCode)).
 		And(func(app *Application) {
 			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", path.Join("testdata", appPath))

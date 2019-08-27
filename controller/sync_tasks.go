@@ -165,3 +165,21 @@ func (s syncTasks) wave() int {
 	}
 	return 0
 }
+
+func (s syncTasks) lastPhase() v1alpha1.SyncPhase {
+	if len(s) > 0 {
+		return s[len(s)-1].phase
+	}
+	return ""
+}
+
+func (s syncTasks) lastWave() int {
+	if len(s) > 0 {
+		return s[len(s)-1].wave()
+	}
+	return 0
+}
+
+func (s syncTasks) multiStep() bool {
+	return s.wave() != s.lastWave() || s.phase() != s.lastPhase()
+}

@@ -84,7 +84,7 @@ func TestPreSyncHookFailure(t *testing.T) {
 		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeOutOfSync))
 }
 
-// make sure that if pre-sync fails, we fail the app and we did create the pod
+// make sure that if sync fails, we fail the app and we did create the pod
 func TestSyncHookFailure(t *testing.T) {
 	Given(t).
 		Path("hook").
@@ -100,6 +100,19 @@ func TestSyncHookFailure(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(ResourceResultNumbering(2)).
 		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced))
+}
+
+// make sure that if the deployments fails, we still get success and synced
+func TestSyncHookResourceFailure(t *testing.T) {
+	Given(t).
+		Path("hook-and-deployment").
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusProgressing))
 }
 
 // make sure that if post-sync fails, we fail the app and we did not create the pod
