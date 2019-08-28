@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"text/tabwriter"
 
 	"github.com/ghodss/yaml"
@@ -89,12 +90,12 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 			fmt.Println(string(jsonBytes))
 		case "":
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "RESOURCE\tACTION\n")
+			fmt.Fprintf(w, "RESOURCE\tACTION\tAVAILABLE\n")
 			fmt.Println()
 			for key := range availableActions {
 				for i := range availableActions[key] {
 					action := availableActions[key][i]
-					fmt.Fprintf(w, "%s\t%s\n", key, action.Name)
+					fmt.Fprintf(w, "%s\t%s\t%s\n", key, action.Name, strconv.FormatBool(action.Available))
 
 				}
 			}
@@ -103,8 +104,8 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 	}
 	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource")
 	command.Flags().StringVar(&kind, "kind", "", "Kind")
-	err := command.MarkFlagRequired("kind")
-	errors.CheckError(err)
+	//err := command.MarkFlagRequired("kind")
+	//errors.CheckError(err)
 	command.Flags().StringVar(&group, "group", "", "Group")
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to list actions on multiple matching resources")

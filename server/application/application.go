@@ -1063,7 +1063,10 @@ func (s *Server) getAvailableActions(resourceOverrides map[string]v1alpha1.Resou
 	luaVM := lua.VM{
 		ResourceOverrides: resourceOverrides,
 	}
+
+	log.Info("SIMON getAvailableActions")
 	discoveryScript, err := luaVM.GetResourceActionDiscovery(obj)
+	log.Info("SIMON GetResourceActionDiscovery done obj:", obj)
 	if err != nil {
 		return nil, err
 	}
