@@ -1727,6 +1727,7 @@
     "k8s.io/kubernetes/pkg/kubectl/scheme",
     "k8s.io/kubernetes/pkg/kubectl/util/term",
     "k8s.io/kubernetes/pkg/util/node",
+    "k8s.io/utils/pointer",
     "layeh.com/gopher-json",
   ]
   solver-name = "gps-cdcl"

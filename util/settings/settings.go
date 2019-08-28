@@ -7,7 +7,9 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"net/url"
 	"os"
+	"path"
 	"strings"
 	"sync"
 	"time"
@@ -26,6 +28,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/server/settings/oidc"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/password"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
@@ -82,12 +85,13 @@ type Help struct {
 }
 
 type OIDCConfig struct {
-	Name            string   `json:"name,omitempty"`
-	Issuer          string   `json:"issuer,omitempty"`
-	ClientID        string   `json:"clientID,omitempty"`
-	ClientSecret    string   `json:"clientSecret,omitempty"`
-	CLIClientID     string   `json:"cliClientID,omitempty"`
-	RequestedScopes []string `json:"requestedScopes,omitempty"`
+	Name                   string                 `json:"name,omitempty"`
+	Issuer                 string                 `json:"issuer,omitempty"`
+	ClientID               string                 `json:"clientID,omitempty"`
+	ClientSecret           string                 `json:"clientSecret,omitempty"`
+	CLIClientID            string                 `json:"cliClientID,omitempty"`
+	RequestedScopes        []string               `json:"requestedScopes,omitempty"`
+	RequestedIDTokenClaims map[string]*oidc.Claim `json:"requestedIDTokenClaims,omitempty"`
 }
 
 // Credentials for accessing a Git repository
@@ -833,8 +837,21 @@ func (a *ArgoCDSettings) OAuth2ClientSecret() string {
 	return ""
 }
 
-func (a *ArgoCDSettings) RedirectURL() string {
-	return a.URL + common.CallbackEndpoint
+func appendURLPath(inputURL string, inputPath string) (string, error) {
+	u, err := url.Parse(inputURL)
+	if err != nil {
+		return "", err
+	}
+	u.Path = path.Join(u.Path, inputPath)
+	return u.String(), nil
+}
+
+func (a *ArgoCDSettings) RedirectURL() (string, error) {
+	return appendURLPath(a.URL, common.CallbackEndpoint)
+}
+
+func (a *ArgoCDSettings) DexRedirectURL() (string, error) {
+	return appendURLPath(a.URL, common.DexCallbackEndpoint)
 }
 
 // DexOAuth2ClientSecret calculates an arbitrary, but predictable OAuth2 client secret string derived

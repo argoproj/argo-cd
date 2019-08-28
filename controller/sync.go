@@ -267,8 +267,11 @@ func (sc *syncContext) sync() {
 		}
 	}
 
-	// any running tasks, lets wait...
-	if tasks.Any(func(t *syncTask) bool { return t.running() }) {
+	// if (a) we are multi-step and we have any running tasks,
+	// or (b) there are any running hooks,
+	// then wait...
+	multiStep := tasks.multiStep()
+	if tasks.Any(func(t *syncTask) bool { return (multiStep || t.isHook()) && t.running() }) {
 		sc.setOperationPhase(v1alpha1.OperationRunning, "one or more tasks are running")
 		return
 	}
@@ -282,9 +285,9 @@ func (sc *syncContext) sync() {
 		return
 	}
 
-	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("filtering out completed tasks")
+	sc.log.WithFields(log.Fields{"tasks": tasks}).Debug("filtering out non-pending tasks")
 	// remove tasks that are completed, we can assume that there are no running tasks
-	tasks = tasks.Filter(func(t *syncTask) bool { return !t.completed() })
+	tasks = tasks.Filter(func(t *syncTask) bool { return t.pending() })
 
 	// If no sync tasks were generated (e.g., in case all application manifests have been removed),
 	// the sync operation is successful.
@@ -696,9 +699,6 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
 
 	// delete anything that need deleting
 	if runState == successful && createTasks.Any(func(t *syncTask) bool { return t.needsDeleting() }) {
-		// if there is anything that needs deleting, we are at best now in pending and
-		// want to return and wait for sync to be invoked again
-		runState = pending
 		var wg sync.WaitGroup
 		for _, task := range createTasks.Filter(func(t *syncTask) bool { return t.needsDeleting() }) {
 			wg.Add(1)
@@ -708,9 +708,16 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
 				if !dryRun {
 					err := sc.deleteResource(t)
 					if err != nil {
-						runState = failed
-						sc.setResourceResult(t, "", v1alpha1.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
-						return
+						// it is possible to get a race condition here, such that the resource does not exist when
+						// delete is requested, we treat this as a nop
+						if !apierr.IsNotFound(err) {
+							runState = failed
+							sc.setResourceResult(t, "", v1alpha1.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
+						}
+					} else {
+						// if there is anything that needs deleting, we are at best now in pending and
+						// want to return and wait for sync to be invoked again
+						runState = pending
 					}
 				}
 			}(task)

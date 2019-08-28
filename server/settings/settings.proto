@@ -9,6 +9,7 @@ package cluster;
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
+import "github.com/argoproj/argo-cd/server/settings/oidc/claims.proto";
 
 // SettingsQuery is a query for Argo CD settings
 message SettingsQuery {
@@ -55,6 +56,7 @@ message OIDCConfig {
     string clientID = 3 [(gogoproto.customname) = "ClientID"];
     string cliClientID = 4 [(gogoproto.customname) = "CLIClientID"];
     repeated string scopes = 5;
+    map<string, github.com.argoproj.argo_cd.server.settings.oidc.Claim> idTokenClaims = 6 [(gogoproto.customname) = "IDTokenClaims"];
 }
 
 // SettingsService
