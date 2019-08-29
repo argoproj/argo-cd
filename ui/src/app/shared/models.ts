@@ -537,3 +537,8 @@ export interface ResourceAction {
     name: string;
     params: ResourceActionParam[];
 }
+
+
+export interface MaintenanceState {
+    active: boolean;
+}

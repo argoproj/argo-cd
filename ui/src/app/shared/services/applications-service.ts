@@ -50,6 +50,10 @@ export class ApplicationsService {
         });
     }
 
+    public getMaintenanceWindowState(name: string): Promise<models.MaintenanceState> {
+        return requests.get(`/applications/${name}/maintenance`).query({name}).then((res) => res.body as models.MaintenanceState);
+    }
+
     public getManifest(name: string, revision: string): Promise<models.ManifestResponse> {
         return requests.get(`/applications/${name}/manifests`).query({name, revision}).then((res) => res.body as models.ManifestResponse);
     }
