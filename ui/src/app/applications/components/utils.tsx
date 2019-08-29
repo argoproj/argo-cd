@@ -129,6 +129,24 @@ export const ComparisonStatusIcon = ({status, resource, label}: { status: appMod
     return <React.Fragment><i title={title} className={className} style={{color}}/> {label && title}</React.Fragment>;
 };
 
+export const MaintenanceWindowStatusIcon = ({state}: { state: string}) => {
+    let className = 'fa fa-question-circle';
+    let color = COLORS.maintenance_state.unknown;
+    const title: string = state;
+
+    switch (state) {
+        case 'Active':
+            className = 'fa fa-check-circle';
+            color = COLORS.maintenance_state.active;
+            break;
+        case 'Inactive':
+            className = 'fa fa-check-circle';
+            color = COLORS.maintenance_state.inactive;
+            break;
+    }
+    return <React.Fragment><i title={title} className={className} style={{color}}/> {state}</React.Fragment>;
+};
+
 export function syncStatusMessage(app: appModels.Application) {
     let rev = app.spec.source.targetRevision || 'HEAD';
     if (app.status.sync.revision && (app.status.sync.revision.length >= 7 && !app.status.sync.revision.startsWith(app.spec.source.targetRevision))) {

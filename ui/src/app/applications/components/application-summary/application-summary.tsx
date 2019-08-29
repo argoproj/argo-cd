@@ -10,7 +10,7 @@ import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 
-import { ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage } from '../utils';
+import { ComparisonStatusIcon, HealthStatusIcon, MaintenanceWindowStatusIcon, syncStatusMessage } from '../utils';
 
 const urlPattern = new RegExp('^(https?:\\/\\/)?((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|((\\d{1,3}\\.){3}\\d{1,3}))'
     + '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*(\\?[;&a-z\\d%_.~+=-]*)?(\\#[-a-z\\d_]*)?$', 'i');
@@ -266,7 +266,7 @@ export const ApplicationSummary = (props: {
                                             Maintenance State
                                         </div>
                                         <div className='columns small-9'>
-                                            <span className='application-summary__label' key={data} > {data}</span>
+                                            <span><MaintenanceWindowStatusIcon state={data} /></span>
                                         </div>
                                     </div>
                                 }</DataLoader>
