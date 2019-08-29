@@ -45,6 +45,15 @@ message ApplicationManifestQuery {
 
 message ApplicationResponse {}
 
+message MaintenanceStateQuery {
+	required string name = 1;
+}
+
+message MaintenanceResponse {
+	required bool active = 1;
+}
+
+
 message ApplicationCreateRequest {
 	required github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application application = 1 [(gogoproto.nullable) = false];
 	optional bool upsert = 2;
@@ -209,6 +218,11 @@ service ApplicationService {
 	// GetManifests returns application manifests
 	rpc GetManifests(ApplicationManifestQuery) returns (repository.ManifestResponse) {
 		option (google.api.http).get = "/api/v1/applications/{name}/manifests";
+	}
+
+	// GetMaintenanceState returns true if there are any active maintenance windows
+	rpc GetMaintenanceState(MaintenanceStateQuery) returns (MaintenanceResponse) {
+		option (google.api.http).get = "/api/v1/applications/{name}/maintenance";
 	}
 
 	// Update updates an application

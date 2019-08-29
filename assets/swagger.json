@@ -328,6 +328,31 @@
         }
       }
     },
+    "/api/v1/applications/{name}/maintenance": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "GetMaintenanceState returns true if there are any active maintenance windows",
+        "operationId": "GetMaintenanceState",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/applicationMaintenanceResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/manifests": {
       "get": {
         "tags": [
@@ -1675,6 +1700,15 @@
         },
         "timeStamp": {
           "$ref": "#/definitions/v1Time"
+        }
+      }
+    },
+    "applicationMaintenanceResponse": {
+      "type": "object",
+      "properties": {
+        "active": {
+          "type": "boolean",
+          "format": "boolean"
         }
       }
     },

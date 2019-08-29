@@ -250,6 +250,24 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 	return a, nil
 }
 
+func (s *Server) GetMaintenanceState(ctx context.Context, q *application.MaintenanceStateQuery) (*application.MaintenanceResponse, error) {
+	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
+	a, err := appIf.Get(*q.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
+		return nil, err
+	}
+	aw := a.Spec.SyncPolicy.Automated.MaintenanceWindows.Active()
+
+	res := &application.MaintenanceResponse{
+		Active: &aw,
+	}
+
+	return res, nil
+}
+
 // ListResourceEvents returns a list of event resources
 func (s *Server) ListResourceEvents(ctx context.Context, q *application.ApplicationResourceEventsQuery) (*v1.EventList, error) {
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})

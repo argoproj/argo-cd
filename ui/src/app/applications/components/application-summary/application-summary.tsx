@@ -243,9 +243,38 @@ export const ApplicationSummary = (props: {
                                     Maintenance Windows
                                 </div>
                                 <div className='columns small-9'>
-                                    {app.spec.syncPolicy.automated.maintenanceWindows.map((window) => <p key={window.schedule} > {window.schedule} : {window.duration}</p>)}
+                                    {app.spec.syncPolicy.automated.maintenanceWindows.map((window) =>
+                                        <span className='application-summary__label' key={window.schedule} > {window.schedule} : {window.duration}</span>)}
                                 </div>
                             </div>
+                            )}
+                            {app.spec.syncPolicy.automated.maintenanceWindows && (
+                                <DataLoader noLoaderOnInputChange={true} input={app.spec.syncPolicy.automated.maintenanceWindows} load={async () => {
+                                    const maintenanceState = await services.applications.getMaintenanceWindowState(app.metadata.name).then(
+                                        result => {
+                                            if (result.active) {
+                                                return "Active"
+                                            } else {
+                                                return "Inactive"
+                                            }
+                                        });
+                                    return maintenanceState;
+
+                                }}>{(data) =>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-3'>
+                                            Maintenance State
+                                        </div>
+                                        <div className='columns small-9'>
+                                            <span className='application-summary__label' key={data} > {data}</span>
+                                        </div>
+                                    </div>
+                                    // <Tabs navTransparent={true} tabs={this.getResourceTabs(application, selectedNode, data.liveState, data.events, [
+                                    //     {title: 'SUMMARY', key: 'summary', content: (
+                                    //             <ApplicationNodeInfo application={application} live={data.liveState} controlled={data.controlledState} node={selectedNode}/>
+                                    //         ),
+                                    //     }])} selectedTabKey={tab} onTabSelected={(selected) => this.appContext.apis.navigation.goto('.', {tab: selected})}/>
+                                }</DataLoader>
                             )}
                         </React.Fragment>
                     )}
