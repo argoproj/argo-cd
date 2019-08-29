@@ -251,11 +251,11 @@ export const ApplicationSummary = (props: {
                             {app.spec.syncPolicy.automated.maintenanceWindows && (
                                 <DataLoader noLoaderOnInputChange={true} input={app.spec.syncPolicy.automated.maintenanceWindows} load={async () => {
                                     const maintenanceState = await services.applications.getMaintenanceWindowState(app.metadata.name).then(
-                                        result => {
+                                        (result) => {
                                             if (result.active) {
-                                                return "Active"
+                                                return 'Active';
                                             } else {
-                                                return "Inactive"
+                                                return 'Inactive';
                                             }
                                         });
                                     return maintenanceState;
