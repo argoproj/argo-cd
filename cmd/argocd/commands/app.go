@@ -279,18 +279,6 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string) {
 		maintenanceWindows = "<none>"
 	}
 	fmt.Printf(printOpFmtStr, "Sync Policy:", syncPolicy)
-	if syncPolicy != "<none>" {
-		fmt.Printf(printOpFmtStr, "Maintenance Windows:", maintenanceWindows)
-	}
-	if maintenanceWindows != "<none>" {
-		var status string
-		if app.Spec.SyncPolicy.Automated.MaintenanceWindows.Active() {
-			status = "Active"
-		} else {
-			status = "Inactive"
-		}
-		fmt.Printf(printOpFmtStr, "Maintenance State:", status)
-	}
 	syncStatusStr := string(app.Status.Sync.Status)
 	switch app.Status.Sync.Status {
 	case argoappv1.SyncStatusCodeSynced:
@@ -305,6 +293,18 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string) {
 	healthStr := app.Status.Health.Status
 	if app.Status.Health.Message != "" {
 		healthStr = fmt.Sprintf("%s (%s)", app.Status.Health.Status, app.Status.Health.Message)
+	}
+	if syncPolicy != "<none>" {
+		fmt.Printf(printOpFmtStr, "Maintenance Windows:", maintenanceWindows)
+	}
+	if maintenanceWindows != "<none>" {
+		var status string
+		if app.Spec.SyncPolicy.Automated.MaintenanceWindows.Active() {
+			status = "Active"
+		} else {
+			status = "Inactive"
+		}
+		fmt.Printf(printOpFmtStr, "Maintenance State:", status)
 	}
 	fmt.Printf(printOpFmtStr, "Health Status:", healthStr)
 }
