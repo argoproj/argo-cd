@@ -145,16 +145,16 @@ export const MaintenanceWindowSchedule = ({state, window}: { state: appModels.Ma
 export const MaintenanceWindowStatusIcon = ({state}: { state: appModels.MaintenanceState}) => {
     let className = 'fa fa-question-circle';
     let color = COLORS.maintenance_state.unknown;
-    let current = "Unknown"
+    let current = 'Unknown';
 
     if (state.active) {
         className = 'fa fa-check-circle';
         color = COLORS.maintenance_state.active;
-        current = "Active";
+        current = 'Active';
     } else {
         className = 'fa fa-check-circle';
         color = COLORS.maintenance_state.inactive;
-        current = "Inactive";
+        current = 'Inactive';
     }
     return <React.Fragment><i title={current} className={className} style={{color}}/> {current}</React.Fragment>;
 };

@@ -246,7 +246,8 @@ export const ApplicationSummary = (props: {
                                         </div>
                                         <div className='columns small-9'>
                                             {app.spec.syncPolicy.automated.maintenanceWindows.map((window) =>
-                                                <MaintenanceWindowSchedule state={data} window={window.schedule + ':' + window.duration}/>)}
+                                                <MaintenanceWindowSchedule key={window.schedule + ':' + window.duration}
+                                                                           state={data} window={window.schedule + ':' + window.duration}/>)}
                                         </div>
                                     </div>
                                 }</DataLoader>
