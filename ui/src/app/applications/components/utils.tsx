@@ -129,22 +129,34 @@ export const ComparisonStatusIcon = ({status, resource, label}: { status: appMod
     return <React.Fragment><i title={title} className={className} style={{color}}/> {label && title}</React.Fragment>;
 };
 
-export const MaintenanceWindowStatusIcon = ({state}: { state: string}) => {
+export const MaintenanceWindowSchedule = ({state, window}: { state: appModels.MaintenanceState, window: string}) => {
+    let className = 'application-summary__maintenance-schedule-inactive';
+
+    if (state.active) {
+        if (state.windows.includes(window)) {
+            className = 'application-summary__maintenance-schedule-active';
+        }
+    } else {
+        className = 'application-summary__maintenance-schedule-inactive';
+    }
+    return <span className={className} >{window}</span>;
+};
+
+export const MaintenanceWindowStatusIcon = ({state}: { state: appModels.MaintenanceState}) => {
     let className = 'fa fa-question-circle';
     let color = COLORS.maintenance_state.unknown;
-    const title: string = state;
+    let current = "Unknown"
 
-    switch (state) {
-        case 'Active':
-            className = 'fa fa-check-circle';
-            color = COLORS.maintenance_state.active;
-            break;
-        case 'Inactive':
-            className = 'fa fa-check-circle';
-            color = COLORS.maintenance_state.inactive;
-            break;
+    if (state.active) {
+        className = 'fa fa-check-circle';
+        color = COLORS.maintenance_state.active;
+        current = "Active";
+    } else {
+        className = 'fa fa-check-circle';
+        color = COLORS.maintenance_state.inactive;
+        current = "Inactive";
     }
-    return <React.Fragment><i title={title} className={className} style={{color}}/> {state}</React.Fragment>;
+    return <React.Fragment><i title={current} className={className} style={{color}}/> {current}</React.Fragment>;
 };
 
 export function syncStatusMessage(app: appModels.Application) {

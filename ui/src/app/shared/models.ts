@@ -540,4 +540,5 @@ export interface ResourceAction {
 
 export interface MaintenanceState {
     active: boolean;
+    windows: string[];
 }

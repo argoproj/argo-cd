@@ -931,7 +931,7 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 
 // autoSync will initiate a sync operation for an application configured with automated sync
 func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *appv1.SyncStatus, resources []appv1.ResourceStatus) *appv1.ApplicationCondition {
-	if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
+	if !app.Spec.SyncPolicy.IsAutomated() {
 		return nil
 	}
 	logCtx := log.WithFields(log.Fields{"application": app.Name})
@@ -944,7 +944,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		return nil
 	}
 	// Check if there are any active maintenance windows and skip if true
-	active := app.Spec.SyncPolicy.Automated.MaintenanceWindows.Active()
+	active, _ := app.Spec.SyncPolicy.Automated.MaintenanceWindows.Active()
 	if active {
 		logCtx.Infof("Skipping auto-sync: maintenance window active")
 		return nil

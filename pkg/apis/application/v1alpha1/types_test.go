@@ -890,7 +890,7 @@ func TestApplicationSourceKustomize_MergeImage(t *testing.T) {
 	})
 }
 
-func TestMaintenanceWindowActive(t *testing.T) {
+func TestMaintenanceWindows_Active(t *testing.T) {
 	// Active window will always be true
 	t.Run("AwaysTrue", func(t *testing.T) {
 		app := &Application{}
@@ -900,12 +900,13 @@ func TestMaintenanceWindowActive(t *testing.T) {
 		windows := []*MaintenanceWindow{{Schedule: sched, Duration: dur}}
 		syncPol.Automated.MaintenanceWindows = windows
 		app.Spec.SyncPolicy = syncPol
-		active := app.Spec.SyncPolicy.Automated.MaintenanceWindows.Active()
+		active, activeWindows := app.Spec.SyncPolicy.Automated.MaintenanceWindows.Active()
 		assert.True(t, active)
+		assert.Equal(t, sched+":"+dur, activeWindows[0])
 	})
 }
 
-func TestAddMaintenanceWindows(t *testing.T) {
+func TestSyncPolicyAutomated_AddMaintenanceWindows(t *testing.T) {
 	t.Run("IncompatibleSchedule", func(t *testing.T) {
 		sched := "100 10 * * *"
 		dur := "1h"
@@ -953,7 +954,7 @@ func TestAddMaintenanceWindows(t *testing.T) {
 	})
 }
 
-func TestMaintenanceWindowsString(t *testing.T) {
+func TestMaintenanceWindows_String(t *testing.T) {
 	t.Run("<none>", func(t *testing.T) {
 		app := &Application{
 			Spec: ApplicationSpec{SyncPolicy: &SyncPolicy{Automated: &SyncPolicyAutomated{}}},
@@ -987,4 +988,19 @@ func TestMaintenanceWindowsString(t *testing.T) {
 		assert.Equal(t, windows, app.Spec.SyncPolicy.Automated.MaintenanceWindows.String())
 	})
 
+}
+
+func TestSyncPolicy_IsAutomated(t *testing.T) {
+	t.Run("Automated", func(t *testing.T) {
+		app := &Application{
+			Spec: ApplicationSpec{SyncPolicy: &SyncPolicy{Automated: &SyncPolicyAutomated{}}},
+		}
+		assert.Equal(t, true, app.Spec.SyncPolicy.IsAutomated())
+	})
+	t.Run("NotAutomated", func(t *testing.T) {
+		app := &Application{
+			Spec: ApplicationSpec{},
+		}
+		assert.Equal(t, false, app.Spec.SyncPolicy.IsAutomated())
+	})
 }

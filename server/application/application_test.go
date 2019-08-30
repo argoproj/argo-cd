@@ -234,14 +234,14 @@ func TestUpdateAppNoMaintenanceWindows(t *testing.T) {
 	appServer := newTestAppServer(testApp)
 	testApp.Spec.Project = ""
 	testApp.Spec.SyncPolicy = &appsv1.SyncPolicy{Automated: &appsv1.SyncPolicyAutomated{}}
-	spec, err := appServer.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{
+	_, err := appServer.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{
 		Name: &testApp.Name,
 		Spec: testApp.Spec,
 	})
 	assert.NoError(t, err)
-	assert.Equal(t, "default", spec.Project)
-	_, err = appServer.Get(context.Background(), &application.ApplicationQuery{Name: &testApp.Name})
+	up, err := appServer.Get(context.Background(), &application.ApplicationQuery{Name: &testApp.Name})
 	assert.NoError(t, err)
+	assert.Equal(t, appsv1.MaintenanceWindows(nil), up.Spec.SyncPolicy.Automated.MaintenanceWindows)
 }
 
 func TestUpdateAppMaintenanceWindows(t *testing.T) {
@@ -259,8 +259,9 @@ func TestUpdateAppMaintenanceWindows(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, "default", spec.Project)
-	_, err = appServer.Get(context.Background(), &application.ApplicationQuery{Name: &testApp.Name})
+	up, err := appServer.Get(context.Background(), &application.ApplicationQuery{Name: &testApp.Name})
 	assert.NoError(t, err)
+	assert.Equal(t, &appsv1.MaintenanceWindow{Schedule: "* * * * *", Duration: "1h"}, up.Spec.SyncPolicy.Automated.MaintenanceWindows[0])
 }
 
 func TestDeleteApp(t *testing.T) {

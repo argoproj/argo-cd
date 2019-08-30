@@ -443,6 +443,10 @@ type SyncPolicyAutomated struct {
 	MaintenanceWindows MaintenanceWindows `json:"maintenanceWindows,omitempty" protobuf:"bytes,3,opt,name=maintenanceWindows"`
 }
 
+func (s *SyncPolicy) IsAutomated() bool {
+	return s != nil && s.Automated != nil
+}
+
 type MaintenanceWindows []*MaintenanceWindow
 
 // MaintenanceWindow controls when automated syncs should be disabled
@@ -457,8 +461,9 @@ func (m *MaintenanceWindows) IsZero() bool {
 	return len(*m) == 0
 }
 
-func (m *MaintenanceWindows) Active() bool {
+func (m *MaintenanceWindows) Active() (bool, []string) {
 	if m != nil {
+		var activeWindows []string
 		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 		for _, w := range *m {
 			schedule, _ := specParser.Parse(w.Schedule)
@@ -466,12 +471,16 @@ func (m *MaintenanceWindows) Active() bool {
 			now := time.Now()
 			nextWindow := schedule.Next(now.Add(-duration))
 			if nextWindow.Before(now) {
-				return true
+				activeWindows = append(activeWindows, w.Schedule+":"+w.Duration)
 			}
+		}
+
+		if len(activeWindows) > 0 {
+			return true, activeWindows
 		}
 	}
 	// No active maintenance windows
-	return false
+	return false, nil
 }
 
 func (m *MaintenanceWindows) String() string {

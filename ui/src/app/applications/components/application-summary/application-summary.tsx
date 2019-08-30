@@ -10,7 +10,7 @@ import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 
-import { ComparisonStatusIcon, HealthStatusIcon, MaintenanceWindowStatusIcon, syncStatusMessage } from '../utils';
+import { ComparisonStatusIcon, HealthStatusIcon, MaintenanceWindowSchedule, MaintenanceWindowStatusIcon, syncStatusMessage } from '../utils';
 
 const urlPattern = new RegExp('^(https?:\\/\\/)?((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|((\\d{1,3}\\.){3}\\d{1,3}))'
     + '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*(\\?[;&a-z\\d%_.~+=-]*)?(\\#[-a-z\\d_]*)?$', 'i');
@@ -193,12 +193,11 @@ export const ApplicationSummary = (props: {
                             ) || (
                                 <button className='argo-button argo-button--base' onClick={() => setAutoSync(
                                     ctx, 'Enable Auto-Sync?', 'Are you sure you want to enable automated application synchronization?',
-                                    false, false, app.spec.syncPolicy.automated.maintenanceWindows)
+                                    false, false, null)
                                 }>Enable Auto-Sync</button>
                             )}
                         </div>
                     </div>
-
                     {app.spec.syncPolicy && app.spec.syncPolicy.automated && (
                         <React.Fragment>
                             <div className='row white-box__details-row'>
@@ -238,28 +237,23 @@ export const ApplicationSummary = (props: {
                                 </div>
                             </div>
                             {app.spec.syncPolicy.automated.maintenanceWindows && (
-                            <div className='row white-box__details-row'>
-                                <div className='columns small-3'>
-                                    Maintenance Windows
-                                </div>
-                                <div className='columns small-9'>
-                                    {app.spec.syncPolicy.automated.maintenanceWindows.map((window) =>
-                                        <span className='application-summary__label' key={window.schedule} > {window.schedule} : {window.duration}</span>)}
-                                </div>
-                            </div>
+                                <DataLoader noLoaderOnInputChange={true} input={app.spec.syncPolicy.automated.maintenanceWindows} load={async () => {
+                                    return await services.applications.getMaintenanceWindowState(app.metadata.name);
+                                }}>{(data) =>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-3'>
+                                            Maintenance Windows
+                                        </div>
+                                        <div className='columns small-9'>
+                                            {app.spec.syncPolicy.automated.maintenanceWindows.map((window) =>
+                                                <MaintenanceWindowSchedule state={data} window={window.schedule + ':' + window.duration}/>)}
+                                        </div>
+                                    </div>
+                                }</DataLoader>
                             )}
                             {app.spec.syncPolicy.automated.maintenanceWindows && (
                                 <DataLoader noLoaderOnInputChange={true} input={app.spec.syncPolicy.automated.maintenanceWindows} load={async () => {
-                                    const maintenanceState = await services.applications.getMaintenanceWindowState(app.metadata.name).then(
-                                        (result) => {
-                                            if (result.active) {
-                                                return 'Active';
-                                            } else {
-                                                return 'Inactive';
-                                            }
-                                        });
-                                    return maintenanceState;
-
+                                    return await services.applications.getMaintenanceWindowState(app.metadata.name);
                                 }}>{(data) =>
                                     <div className='row white-box__details-row'>
                                         <div className='columns small-3'>

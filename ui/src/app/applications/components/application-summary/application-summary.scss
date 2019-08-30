@@ -15,6 +15,26 @@
         line-height: 14px;
     }
 
+    &__maintenance-schedule-active {
+        background-color: #18BE94;
+        color: white;
+        border-radius: 5px;
+        padding: 4px;
+        display: inline-block;
+        margin-right: 2px;
+        line-height: 14px;
+    }
+
+    &__maintenance-schedule-inactive {
+        background-color: $argo-color-gray-5;
+        color: white;
+        border-radius: 5px;
+        padding: 4px;
+        display: inline-block;
+        margin-right: 2px;
+        line-height: 14px;
+    }
+
     &__sort-icon {
         cursor: pointer;
         position: absolute;
