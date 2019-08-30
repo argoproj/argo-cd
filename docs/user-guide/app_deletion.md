@@ -1,10 +1,10 @@
 # App Deletion
 
-Apps can be deleted with or without a cascade option. A **cascade delete**, deletes the both app's and its resources, rather than only the app. 
+Apps can be deleted with or without a cascade option. A **cascade delete**, deletes both the app and its resources, rather than only the app. 
 
 ## Deletion Using `argocd`
 
-To perform an non-cascade delete:
+To perform a non-cascade delete:
 
 ```bash
 argocd app delete APPNAME
