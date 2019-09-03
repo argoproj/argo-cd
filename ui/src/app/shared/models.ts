@@ -341,6 +341,7 @@ export interface AuthSettings {
 }
 
 export interface Session  {
+    loggedIn: boolean;
     username: string;
     groups: string[];
 }

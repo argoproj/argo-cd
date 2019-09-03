@@ -25,6 +25,110 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
+// Get the current user's session info
+type GetSessionRequest struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *GetSessionRequest) Reset()         { *m = GetSessionRequest{} }
+func (m *GetSessionRequest) String() string { return proto.CompactTextString(m) }
+func (*GetSessionRequest) ProtoMessage()    {}
+func (*GetSessionRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_account_819dd77ec64929fa, []int{0}
+}
+func (m *GetSessionRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *GetSessionRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_GetSessionRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (dst *GetSessionRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetSessionRequest.Merge(dst, src)
+}
+func (m *GetSessionRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *GetSessionRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetSessionRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetSessionRequest proto.InternalMessageInfo
+
+// The current user's session info
+type GetSessionResponse struct {
+	LoggedIn             bool     `protobuf:"varint,1,opt,name=loggedIn,proto3" json:"loggedIn,omitempty"`
+	Username             string   `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
+	Groups               []string `protobuf:"bytes,3,rep,name=groups" json:"groups,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *GetSessionResponse) Reset()         { *m = GetSessionResponse{} }
+func (m *GetSessionResponse) String() string { return proto.CompactTextString(m) }
+func (*GetSessionResponse) ProtoMessage()    {}
+func (*GetSessionResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_account_819dd77ec64929fa, []int{1}
+}
+func (m *GetSessionResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *GetSessionResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_GetSessionResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (dst *GetSessionResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetSessionResponse.Merge(dst, src)
+}
+func (m *GetSessionResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *GetSessionResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetSessionResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetSessionResponse proto.InternalMessageInfo
+
+func (m *GetSessionResponse) GetLoggedIn() bool {
+	if m != nil {
+		return m.LoggedIn
+	}
+	return false
+}
+
+func (m *GetSessionResponse) GetUsername() string {
+	if m != nil {
+		return m.Username
+	}
+	return ""
+}
+
+func (m *GetSessionResponse) GetGroups() []string {
+	if m != nil {
+		return m.Groups
+	}
+	return nil
+}
+
 type UpdatePasswordRequest struct {
 	NewPassword          string   `protobuf:"bytes,1,opt,name=newPassword,proto3" json:"newPassword,omitempty"`
 	CurrentPassword      string   `protobuf:"bytes,2,opt,name=currentPassword,proto3" json:"currentPassword,omitempty"`
@@ -37,7 +141,7 @@ func (m *UpdatePasswordRequest) Reset()         { *m = UpdatePasswordRequest{} }
 func (m *UpdatePasswordRequest) String() string { return proto.CompactTextString(m) }
 func (*UpdatePasswordRequest) ProtoMessage()    {}
 func (*UpdatePasswordRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_account_8fa8d2c684642e77, []int{0}
+	return fileDescriptor_account_819dd77ec64929fa, []int{2}
 }
 func (m *UpdatePasswordRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -90,7 +194,7 @@ func (m *UpdatePasswordResponse) Reset()         { *m = UpdatePasswordResponse{}
 func (m *UpdatePasswordResponse) String() string { return proto.CompactTextString(m) }
 func (*UpdatePasswordResponse) ProtoMessage()    {}
 func (*UpdatePasswordResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_account_8fa8d2c684642e77, []int{1}
+	return fileDescriptor_account_819dd77ec64929fa, []int{3}
 }
 func (m *UpdatePasswordResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -120,6 +224,8 @@ func (m *UpdatePasswordResponse) XXX_DiscardUnknown() {
 var xxx_messageInfo_UpdatePasswordResponse proto.InternalMessageInfo
 
 func init() {
+	proto.RegisterType((*GetSessionRequest)(nil), "account.GetSessionRequest")
+	proto.RegisterType((*GetSessionResponse)(nil), "account.GetSessionResponse")
 	proto.RegisterType((*UpdatePasswordRequest)(nil), "account.UpdatePasswordRequest")
 	proto.RegisterType((*UpdatePasswordResponse)(nil), "account.UpdatePasswordResponse")
 }
@@ -135,6 +241,8 @@ const _ = grpc.SupportPackageIsVersion4
 // Client API for AccountService service
 
 type AccountServiceClient interface {
+	// Get the current session
+	GetSession(ctx context.Context, in *GetSessionRequest, opts ...grpc.CallOption) (*GetSessionResponse, error)
 	// UpdatePassword updates an account's password to a new value
 	UpdatePassword(ctx context.Context, in *UpdatePasswordRequest, opts ...grpc.CallOption) (*UpdatePasswordResponse, error)
 }
@@ -145,6 +253,15 @@ type accountServiceClient struct {
 
 func NewAccountServiceClient(cc *grpc.ClientConn) AccountServiceClient {
 	return &accountServiceClient{cc}
+}
+
+func (c *accountServiceClient) GetSession(ctx context.Context, in *GetSessionRequest, opts ...grpc.CallOption) (*GetSessionResponse, error) {
+	out := new(GetSessionResponse)
+	err := c.cc.Invoke(ctx, "/account.AccountService/GetSession", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *accountServiceClient) UpdatePassword(ctx context.Context, in *UpdatePasswordRequest, opts ...grpc.CallOption) (*UpdatePasswordResponse, error) {
@@ -159,12 +276,32 @@ func (c *accountServiceClient) UpdatePassword(ctx context.Context, in *UpdatePas
 // Server API for AccountService service
 
 type AccountServiceServer interface {
+	// Get the current session
+	GetSession(context.Context, *GetSessionRequest) (*GetSessionResponse, error)
 	// UpdatePassword updates an account's password to a new value
 	UpdatePassword(context.Context, *UpdatePasswordRequest) (*UpdatePasswordResponse, error)
 }
 
 func RegisterAccountServiceServer(s *grpc.Server, srv AccountServiceServer) {
 	s.RegisterService(&_AccountService_serviceDesc, srv)
+}
+
+func _AccountService_GetSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetSessionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AccountServiceServer).GetSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/account.AccountService/GetSession",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AccountServiceServer).GetSession(ctx, req.(*GetSessionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _AccountService_UpdatePassword_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -190,12 +327,89 @@ var _AccountService_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*AccountServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
+			MethodName: "GetSession",
+			Handler:    _AccountService_GetSession_Handler,
+		},
+		{
 			MethodName: "UpdatePassword",
 			Handler:    _AccountService_UpdatePassword_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "server/account/account.proto",
+}
+
+func (m *GetSessionRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *GetSessionRequest) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i += copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	return i, nil
+}
+
+func (m *GetSessionResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *GetSessionResponse) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.LoggedIn {
+		dAtA[i] = 0x8
+		i++
+		if m.LoggedIn {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i++
+	}
+	if len(m.Username) > 0 {
+		dAtA[i] = 0x12
+		i++
+		i = encodeVarintAccount(dAtA, i, uint64(len(m.Username)))
+		i += copy(dAtA[i:], m.Username)
+	}
+	if len(m.Groups) > 0 {
+		for _, s := range m.Groups {
+			dAtA[i] = 0x1a
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			dAtA[i] = uint8(l)
+			i++
+			i += copy(dAtA[i:], s)
+		}
+	}
+	if m.XXX_unrecognized != nil {
+		i += copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	return i, nil
 }
 
 func (m *UpdatePasswordRequest) Marshal() (dAtA []byte, err error) {
@@ -261,6 +475,37 @@ func encodeVarintAccount(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return offset + 1
 }
+func (m *GetSessionRequest) Size() (n int) {
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *GetSessionResponse) Size() (n int) {
+	var l int
+	_ = l
+	if m.LoggedIn {
+		n += 2
+	}
+	l = len(m.Username)
+	if l > 0 {
+		n += 1 + l + sovAccount(uint64(l))
+	}
+	if len(m.Groups) > 0 {
+		for _, s := range m.Groups {
+			l = len(s)
+			n += 1 + l + sovAccount(uint64(l))
+		}
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
 func (m *UpdatePasswordRequest) Size() (n int) {
 	var l int
 	_ = l
@@ -299,6 +544,186 @@ func sovAccount(x uint64) (n int) {
 }
 func sozAccount(x uint64) (n int) {
 	return sovAccount(uint64((x << 1) ^ uint64((int64(x) >> 63))))
+}
+func (m *GetSessionRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAccount
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: GetSessionRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: GetSessionRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAccount(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthAccount
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *GetSessionResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAccount
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: GetSessionResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: GetSessionResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LoggedIn", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAccount
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.LoggedIn = bool(v != 0)
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Username", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAccount
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAccount
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Username = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Groups", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAccount
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAccount
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Groups = append(m.Groups, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAccount(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthAccount
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
 }
 func (m *UpdatePasswordRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
@@ -566,27 +991,33 @@ var (
 )
 
 func init() {
-	proto.RegisterFile("server/account/account.proto", fileDescriptor_account_8fa8d2c684642e77)
+	proto.RegisterFile("server/account/account.proto", fileDescriptor_account_819dd77ec64929fa)
 }
 
-var fileDescriptor_account_8fa8d2c684642e77 = []byte{
-	// 277 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x92, 0x29, 0x4e, 0x2d, 0x2a,
-	0x4b, 0x2d, 0xd2, 0x4f, 0x4c, 0x4e, 0xce, 0x2f, 0xcd, 0x2b, 0x81, 0xd1, 0x7a, 0x05, 0x45, 0xf9,
-	0x25, 0xf9, 0x42, 0xec, 0x50, 0xae, 0x94, 0x48, 0x7a, 0x7e, 0x7a, 0x3e, 0x58, 0x4c, 0x1f, 0xc4,
-	0x82, 0x48, 0x4b, 0xc9, 0xa4, 0xe7, 0xe7, 0xa7, 0xe7, 0xa4, 0xea, 0x27, 0x16, 0x64, 0xea, 0x27,
-	0xe6, 0xe5, 0xe5, 0x97, 0x24, 0x96, 0x64, 0xe6, 0xe7, 0x15, 0x43, 0x64, 0x95, 0x92, 0xb9, 0x44,
-	0x43, 0x0b, 0x52, 0x12, 0x4b, 0x52, 0x03, 0x12, 0x8b, 0x8b, 0xcb, 0xf3, 0x8b, 0x52, 0x82, 0x52,
-	0x0b, 0x4b, 0x53, 0x8b, 0x4b, 0x84, 0x14, 0xb8, 0xb8, 0xf3, 0x52, 0xcb, 0x61, 0xa2, 0x12, 0x8c,
-	0x0a, 0x8c, 0x1a, 0x9c, 0x41, 0xc8, 0x42, 0x42, 0x1a, 0x5c, 0xfc, 0xc9, 0xa5, 0x45, 0x45, 0xa9,
-	0x79, 0x25, 0x70, 0x55, 0x4c, 0x60, 0x55, 0xe8, 0xc2, 0x4a, 0x12, 0x5c, 0x62, 0xe8, 0x96, 0x14,
-	0x17, 0xe4, 0xe7, 0x15, 0xa7, 0x1a, 0x75, 0x30, 0x72, 0xf1, 0x39, 0x42, 0x9c, 0x1f, 0x9c, 0x5a,
-	0x54, 0x96, 0x99, 0x9c, 0x2a, 0x54, 0xc6, 0xc5, 0x87, 0xaa, 0x58, 0x48, 0x4e, 0x0f, 0xe6, 0x61,
-	0xac, 0x4e, 0x95, 0x92, 0xc7, 0x29, 0x0f, 0xb1, 0x45, 0x49, 0xb9, 0xe9, 0xf2, 0x93, 0xc9, 0x4c,
-	0xb2, 0x52, 0x12, 0xe0, 0x40, 0x28, 0x33, 0x84, 0x07, 0x64, 0x01, 0x54, 0xa5, 0x15, 0xa3, 0x96,
-	0x93, 0xfd, 0x89, 0x47, 0x72, 0x8c, 0x17, 0x1e, 0xc9, 0x31, 0x3e, 0x78, 0x24, 0xc7, 0x18, 0x65,
-	0x98, 0x9e, 0x59, 0x92, 0x51, 0x9a, 0xa4, 0x97, 0x9c, 0x9f, 0xab, 0x9f, 0x58, 0x04, 0x0e, 0xd6,
-	0x2c, 0x30, 0x43, 0x37, 0x39, 0x45, 0xbf, 0x20, 0x3b, 0x1d, 0x64, 0x52, 0x72, 0x4e, 0x66, 0x2a,
-	0x22, 0x36, 0x92, 0xd8, 0xc0, 0x21, 0x6a, 0x0c, 0x08, 0x00, 0x00, 0xff, 0xff, 0x3d, 0x7e, 0x7f,
-	0xe8, 0xae, 0x01, 0x00, 0x00,
+var fileDescriptor_account_819dd77ec64929fa = []byte{
+	// 373 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x52, 0xc1, 0x4e, 0xe3, 0x30,
+	0x14, 0x94, 0x5b, 0xa9, 0xdb, 0x7a, 0xa5, 0xae, 0xd6, 0xbb, 0xdb, 0x0d, 0xa1, 0xa4, 0x51, 0xb8,
+	0x44, 0x48, 0x34, 0x2a, 0xdc, 0xb8, 0x20, 0xb8, 0x20, 0x6e, 0x28, 0x15, 0x17, 0x6e, 0xae, 0xf3,
+	0x30, 0x81, 0xd6, 0x0e, 0xb6, 0x93, 0xde, 0xf9, 0x05, 0x7e, 0x8a, 0x23, 0x12, 0x3f, 0x80, 0x2a,
+	0x3e, 0x80, 0x4f, 0x40, 0x4d, 0xd2, 0xb4, 0x94, 0x72, 0x8a, 0x67, 0xc6, 0x9a, 0xc9, 0x1b, 0x3f,
+	0xdc, 0xd5, 0xa0, 0x32, 0x50, 0x01, 0x65, 0x4c, 0xa6, 0xc2, 0x2c, 0xbe, 0xfd, 0x44, 0x49, 0x23,
+	0xc9, 0x8f, 0x12, 0xda, 0x7f, 0xb9, 0xe4, 0x32, 0xe7, 0x82, 0xf9, 0xa9, 0x90, 0xed, 0x2e, 0x97,
+	0x92, 0x8f, 0x21, 0xa0, 0x49, 0x1c, 0x50, 0x21, 0xa4, 0xa1, 0x26, 0x96, 0x42, 0x17, 0xaa, 0xf7,
+	0x07, 0xff, 0x3e, 0x03, 0x33, 0x04, 0xad, 0x63, 0x29, 0x42, 0xb8, 0x4f, 0x41, 0x1b, 0x2f, 0xc2,
+	0x64, 0x95, 0xd4, 0x89, 0x14, 0x1a, 0x88, 0x8d, 0x9b, 0x63, 0xc9, 0x39, 0x44, 0xe7, 0xc2, 0x42,
+	0x2e, 0xf2, 0x9b, 0x61, 0x85, 0xe7, 0x5a, 0xaa, 0x41, 0x09, 0x3a, 0x01, 0xab, 0xe6, 0x22, 0xbf,
+	0x15, 0x56, 0x98, 0x74, 0x70, 0x83, 0x2b, 0x99, 0x26, 0xda, 0xaa, 0xbb, 0x75, 0xbf, 0x15, 0x96,
+	0xc8, 0x63, 0xf8, 0xdf, 0x65, 0x12, 0x51, 0x03, 0x17, 0x54, 0xeb, 0xa9, 0x54, 0x51, 0x19, 0x4f,
+	0x5c, 0xfc, 0x53, 0xc0, 0x74, 0xc1, 0xe6, 0x59, 0xad, 0x70, 0x95, 0x22, 0x3e, 0xfe, 0xc5, 0x52,
+	0xa5, 0x40, 0x98, 0xea, 0x56, 0x91, 0xba, 0x4e, 0x7b, 0x16, 0xee, 0xac, 0x87, 0x14, 0xe3, 0x1c,
+	0xbc, 0x23, 0xdc, 0x3e, 0x29, 0x9a, 0x1b, 0x82, 0xca, 0x62, 0x06, 0xe4, 0x1a, 0xe3, 0xe5, 0xdc,
+	0xc4, 0xee, 0x2f, 0x7a, 0xfe, 0xd2, 0x90, 0xbd, 0xbd, 0x51, 0x2b, 0x9c, 0xbd, 0xde, 0xc3, 0xcb,
+	0xdb, 0x63, 0x6d, 0x8b, 0xfc, 0xcf, 0x3b, 0xcf, 0x06, 0xd5, 0xbb, 0xe9, 0xd2, 0x39, 0xc3, 0xed,
+	0xcf, 0x3f, 0x45, 0x9c, 0xca, 0x6f, 0x63, 0x25, 0x76, 0xef, 0x5b, 0xbd, 0xcc, 0xdc, 0xcd, 0x33,
+	0x77, 0x6c, 0x6b, 0x3d, 0x33, 0x29, 0x6f, 0x1e, 0xa1, 0xbd, 0xd3, 0xe3, 0xa7, 0x99, 0x83, 0x9e,
+	0x67, 0x0e, 0x7a, 0x9d, 0x39, 0xe8, 0x6a, 0xc0, 0x63, 0x73, 0x93, 0x8e, 0xfa, 0x4c, 0x4e, 0x02,
+	0xaa, 0xf2, 0xcd, 0xb9, 0xcd, 0x0f, 0xfb, 0x2c, 0x0a, 0x92, 0x3b, 0x3e, 0x77, 0x62, 0xe3, 0x18,
+	0x96, 0x0b, 0x37, 0x6a, 0xe4, 0x4b, 0x73, 0xf8, 0x11, 0x00, 0x00, 0xff, 0xff, 0xf3, 0x5f, 0x2d,
+	0xff, 0x91, 0x02, 0x00, 0x00,
 }

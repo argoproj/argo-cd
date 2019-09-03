@@ -1,7 +1,7 @@
 import * as React from 'react';
 
 import {DataLoader, Page} from '../../../shared/components';
-import {services} from "../../../shared/services";
+import {services} from '../../../shared/services';
 
 export const SessionOverview = () => (
     <Page title='Session' toolbar={{breadcrumbs: [{title: 'Session'}]}}>

@@ -43,6 +43,23 @@
         }
       }
     },
+    "/api/v1/account/session": {
+      "get": {
+        "tags": [
+          "AccountService"
+        ],
+        "summary": "Get the current session",
+        "operationId": "GetSession",
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/accountGetSessionResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications": {
       "get": {
         "tags": [
@@ -1587,6 +1604,25 @@
     }
   },
   "definitions": {
+    "accountGetSessionResponse": {
+      "type": "object",
+      "title": "The current user's session info",
+      "properties": {
+        "groups": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "loggedIn": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "username": {
+          "type": "string"
+        }
+      }
+    },
     "accountUpdatePasswordRequest": {
       "type": "object",
       "properties": {

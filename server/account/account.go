@@ -63,3 +63,8 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 	return &account.UpdatePasswordResponse{}, nil
 
 }
+
+func (s *Server) GetSession(ctx context.Context, q *account.GetSessionRequest) (*account.GetSessionResponse, error) {
+	log.WithField("ctx", ctx).Debug("GetSession")
+	return &account.GetSessionResponse{LoggedIn: session.LoggedIn(ctx), Username: session.Username(ctx), Groups: session.Groups(ctx)}, nil
+}

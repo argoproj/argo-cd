@@ -98,15 +98,10 @@ export class App extends React.Component<{}, { popupProps: PopupProps, error: Er
         if (trackingID) {
             const ga = await import('react-ga');
             ga.initialize(trackingID);
-            let userId = '';
             const trackPageView = () => {
-                let nextUserId = session.username;
-                if (anonymizeUsers) {
-                   nextUserId = hashCode(nextUserId).toString();
-                }
-                if (nextUserId !== userId) {
-                    userId = nextUserId;
-                    ga.set({ userId });
+                if (session.loggedIn) {
+                    const userId = !anonymizeUsers ? session.username : hashCode(session.username).toString();
+                    ga.set({userId});
                 }
                 ga.pageview(location.pathname + location.search);
             };

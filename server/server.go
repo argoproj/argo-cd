@@ -717,17 +717,22 @@ func mustRegisterGWHandler(register registerFunc, ctx context.Context, mux *runt
 // Authenticate checks for the presence of a valid token when accessing server-side resources.
 func (a *ArgoCDServer) authenticate(ctx context.Context) (context.Context, error) {
 	if a.DisableAuth {
+		log.Debug("auth disabled")
 		return ctx, nil
 	}
 	if claims, claimsErr := a.getClaims(ctx); claimsErr != nil {
+		log.Debugf("claims error %v", claimsErr)
 		argoCDSettings, err := a.settingsMgr.GetSettings()
 		if err != nil {
+			log.Debugf("cannot load settings due to %v", err)
 			return ctx, status.Errorf(codes.Internal, "unable to load settings: %v", err)
 		}
 		if !argoCDSettings.AnonymousUserEnabled {
+			log.Debug("not anon-user")
 			return ctx, claimsErr
 		}
 	} else {
+		log.Debug("adding claims")
 		// Add claims to the context to inspect for RBAC
 		ctx = context.WithValue(ctx, "claims", claims)
 	}
