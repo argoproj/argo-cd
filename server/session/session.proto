@@ -14,13 +14,6 @@ import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.prot
 // Get the current user's session info
 message GetSessionRequest {}
 
-// The current user's session info
-message GetSessionResponse {
-  string username = 1;
-  repeated string groups = 2;
-}
-
-
 // SessionCreateRequest is for logging in.
 message SessionCreateRequest {
   string username = 1;
@@ -38,13 +31,6 @@ message SessionResponse {
 
 // SessionService 
 service SessionService {
-
-  // Get the current session
-  rpc GetSession(GetSessionRequest) returns (GetSessionResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/session"
-    };
-  }
 
   // Create a new JWT for authentication and set a cookie if using HTTP.
   rpc Create(SessionCreateRequest) returns (SessionResponse) {

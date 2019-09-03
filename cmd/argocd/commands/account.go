@@ -2,17 +2,19 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"syscall"
 
+	"github.com/ghodss/yaml"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/pkg/apiclient/account"
-	"github.com/argoproj/argo-cd/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/localconfig"
@@ -97,6 +99,9 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 }
 
 func NewAccountGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		output string
+	)
 	var command = &cobra.Command{
 		Use:   "get",
 		Short: "Get account",
@@ -106,16 +111,31 @@ func NewAccountGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				os.Exit(1)
 			}
 
-			conn, client := argocdclient.NewClientOrDie(clientOpts).NewSessionClientOrDie()
+			conn, client := argocdclient.NewClientOrDie(clientOpts).NewAccountClientOrDie()
 			defer util.Close(conn)
 
 			ctx := context.Background()
-			response, err := client.GetSession(ctx, &session.GetSessionRequest{})
+			response, err := client.GetSession(ctx, &accountpkg.GetSessionRequest{})
 			errors.CheckError(err)
 
-			fmt.Printf("Username: %s\n", response.Username)
-			fmt.Printf("Groups: %v\n", response.Groups)
+			switch output {
+			case "yaml":
+				yamlBytes, err := yaml.Marshal(response)
+				errors.CheckError(err)
+				fmt.Println(string(yamlBytes))
+			case "json":
+				jsonBytes, err := json.MarshalIndent(response, "", "  ")
+				errors.CheckError(err)
+				fmt.Println(string(jsonBytes))
+			case "":
+				fmt.Printf("Logged In: %v\n", response.LoggedIn)
+				fmt.Printf("Username: %s\n", response.Username)
+				fmt.Printf("Groups: %v\n", response.Groups)
+			default:
+				log.Fatalf("Unknown output format: %s", output)
+			}
 		},
 	}
+	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: yaml, json")
 	return command
 }

@@ -203,7 +203,6 @@ func LoggedIn(ctx context.Context) bool {
 
 // Username is a helper to extract a human readable username from a context
 func Username(ctx context.Context) string {
-	log.Debug("claims=%v", ctx.Value("claims"))
 	claims, ok := ctx.Value("claims").(jwt.Claims)
 	if !ok {
 		return ""

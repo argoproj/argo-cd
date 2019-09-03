@@ -1470,21 +1470,6 @@
       }
     },
     "/api/v1/session": {
-      "get": {
-        "tags": [
-          "SessionService"
-        ],
-        "summary": "Get the current session",
-        "operationId": "GetSession",
-        "responses": {
-          "200": {
-            "description": "(empty)",
-            "schema": {
-              "$ref": "#/definitions/sessionGetSessionResponse"
-            }
-          }
-        }
-      },
       "post": {
         "tags": [
           "SessionService"
@@ -2136,21 +2121,6 @@
     },
     "repositoryRepoResponse": {
       "type": "object"
-    },
-    "sessionGetSessionResponse": {
-      "type": "object",
-      "title": "The current user's session info",
-      "properties": {
-        "groups": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "username": {
-          "type": "string"
-        }
-      }
     },
     "sessionSessionCreateRequest": {
       "description": "SessionCreateRequest is for logging in.",

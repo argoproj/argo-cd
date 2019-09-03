@@ -36,7 +36,7 @@ func (m *GetSessionRequest) Reset()         { *m = GetSessionRequest{} }
 func (m *GetSessionRequest) String() string { return proto.CompactTextString(m) }
 func (*GetSessionRequest) ProtoMessage()    {}
 func (*GetSessionRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_account_819dd77ec64929fa, []int{0}
+	return fileDescriptor_account_0822258cb3c5c655, []int{0}
 }
 func (m *GetSessionRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -79,7 +79,7 @@ func (m *GetSessionResponse) Reset()         { *m = GetSessionResponse{} }
 func (m *GetSessionResponse) String() string { return proto.CompactTextString(m) }
 func (*GetSessionResponse) ProtoMessage()    {}
 func (*GetSessionResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_account_819dd77ec64929fa, []int{1}
+	return fileDescriptor_account_0822258cb3c5c655, []int{1}
 }
 func (m *GetSessionResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -141,7 +141,7 @@ func (m *UpdatePasswordRequest) Reset()         { *m = UpdatePasswordRequest{} }
 func (m *UpdatePasswordRequest) String() string { return proto.CompactTextString(m) }
 func (*UpdatePasswordRequest) ProtoMessage()    {}
 func (*UpdatePasswordRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_account_819dd77ec64929fa, []int{2}
+	return fileDescriptor_account_0822258cb3c5c655, []int{2}
 }
 func (m *UpdatePasswordRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -194,7 +194,7 @@ func (m *UpdatePasswordResponse) Reset()         { *m = UpdatePasswordResponse{}
 func (m *UpdatePasswordResponse) String() string { return proto.CompactTextString(m) }
 func (*UpdatePasswordResponse) ProtoMessage()    {}
 func (*UpdatePasswordResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_account_819dd77ec64929fa, []int{3}
+	return fileDescriptor_account_0822258cb3c5c655, []int{3}
 }
 func (m *UpdatePasswordResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -991,10 +991,10 @@ var (
 )
 
 func init() {
-	proto.RegisterFile("server/account/account.proto", fileDescriptor_account_819dd77ec64929fa)
+	proto.RegisterFile("server/account/account.proto", fileDescriptor_account_0822258cb3c5c655)
 }
 
-var fileDescriptor_account_819dd77ec64929fa = []byte{
+var fileDescriptor_account_0822258cb3c5c655 = []byte{
 	// 373 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x52, 0xc1, 0x4e, 0xe3, 0x30,
 	0x14, 0x94, 0x5b, 0xa9, 0xdb, 0x7a, 0xa5, 0xae, 0xd6, 0xbb, 0xdb, 0x0d, 0xa1, 0xa4, 0x51, 0xb8,

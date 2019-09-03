@@ -54,7 +54,3 @@ func (s *Server) Delete(ctx context.Context, q *session.SessionDeleteRequest) (*
 func (s *Server) AuthFuncOverride(ctx context.Context, fullMethodName string) (context.Context, error) {
 	return ctx, nil
 }
-
-func (s *Server) GetSession(ctx context.Context, q *session.GetSessionRequest) (*session.GetSessionResponse, error) {
-	return &session.GetSessionResponse{Username: sessionmgr.Username(ctx), Groups: sessionmgr.Groups(ctx)}, nil
-}

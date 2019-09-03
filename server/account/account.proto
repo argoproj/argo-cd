@@ -31,9 +31,7 @@ service AccountService {
 
 	// Get the current session
 	rpc GetSession(GetSessionRequest) returns (GetSessionResponse) {
-		option (google.api.http) = {
-    	  get: "/api/v1/account/session"
-    	};
+		option (google.api.http).get = "/api/v1/account/session";
 	}
 
    	// UpdatePassword updates an account's password to a new value
