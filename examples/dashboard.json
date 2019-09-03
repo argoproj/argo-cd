@@ -138,6 +138,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
+      "datasource": "Prometheus",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -217,6 +218,7 @@
       "bars": false,
       "cacheTimeout": null,
       "dashLength": 10,
+      "datasource": "Prometheus",
       "dashes": false,
       "fill": 0,
       "gridPos": {
@@ -820,6 +822,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#299c46"
       ],
+      "datasource": "Prometheus",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -899,6 +902,7 @@
         "#F2495C",
         "#F2495C"
       ],
+      "datasource": "Prometheus",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -1067,6 +1071,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 5,
@@ -1158,6 +1163,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 5,
@@ -1246,6 +1252,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -1331,6 +1338,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -1424,6 +1432,7 @@
         "mode": "spectrum"
       },
       "dataFormat": "tsbuckets",
+      "datasource": "Prometheus",
       "gridPos": {
         "h": 9,
         "w": 24,
@@ -2783,6 +2792,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -2866,6 +2876,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 8,
