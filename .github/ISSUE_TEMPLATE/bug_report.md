@@ -24,7 +24,7 @@ If we cannot reproduce, we cannot fix! Steps to reproduce the behavior:
 
 Fork https://github.com/argoproj/argocd-example-apps and add an example that exhibits the bug.
 
-YOU'RE ISSUE IS MUCH MORE LIKELY TO GET LOOKED AT SOONER IF YOU DO THIS
+THIS IS THE BIGGEST THING YOU CAN DO TO GET YOUR ISSUE LOOKED AT QUICKLY
 
 **Expected behavior**
 
