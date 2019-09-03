@@ -1128,7 +1128,7 @@ Both protocols are exposed by the argocd-server service object on the following 
 <p>There are several ways how Ingress can be configured.</p>
 <h2 id="kubernetesingress-nginx"><a href="https://github.com/kubernetes/ingress-nginx">kubernetes/ingress-nginx</a><a class="headerlink" href="#kubernetesingress-nginx" title="Permanent link">&para;</a></h2>
 <h3 id="option-1-ssl-passthrough">Option 1: SSL-Passthrough<a class="headerlink" href="#option-1-ssl-passthrough" title="Permanent link">&para;</a></h3>
-<p>Because Argo CD serves multiple protocols (gRPC/HTTPS) on the same port (443), this provides a
+<p>Argo CD serves multiple protocols (gRPC/HTTPS) on the same port (443), this provides a
 challenge when attempting to define a single nginx ingress object and rule for the argocd-service,
 since the <code>nginx.ingress.kubernetes.io/backend-protocol</code> <a href="https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/#backend-protocol">annotation</a>
 accepts only a single value for the backend protocol (e.g. HTTP, HTTPS, GRPC, GRPCS).</p>
@@ -1225,20 +1225,20 @@ way would be to define two Ingress objects. One for HTTP/HTTPS, and the other fo
 </pre></div>
 
 
-<p>The obvious disadvantage to this approach is that this technique require two separate hostnames for
-the API server -- one for gRPC and the other for HTTP/HTTPS. However it allow TLS termination to
+<p>The obvious disadvantage to this approach is that this technique requires two separate hostnames for
+the API server -- one for gRPC and the other for HTTP/HTTPS. However it allows TLS termination to
 happen at the ingress controller.</p>
 <h2 id="aws-application-load-balancers-albs-and-classic-elb-http-mode">AWS Application Load Balancers (ALBs) And Classic ELB (HTTP Mode)<a class="headerlink" href="#aws-application-load-balancers-albs-and-classic-elb-http-mode" title="Permanent link">&para;</a></h2>
-<p>Neither ALBs and Classic ELB in HTTP mode, do not have full support for HTTP2/gRPC which is the
-protocol used by the <code>argocd</code> CLI. Thus, when using an AWS load balancer, either Classic ELB in
+<p>ALBs and Classic ELBs don't fully support HTTP2/gRPC, which is used by the <code>argocd</code> CLI.
+Thus, when using an AWS load balancer, either Classic ELB in
 passthrough mode is needed, or NLBs.</p>
 <div class="codehilite"><pre><span></span>$ argocd login &lt;host&gt;:&lt;port&gt; --grpc-web
 </pre></div>
 
 
 <h2 id="ui-base-path">UI Base Path<a class="headerlink" href="#ui-base-path" title="Permanent link">&para;</a></h2>
-<p>If Argo CD UI is available under non-root path (e.g. <code>/argo-cd</code> instead of <code>/</code>) then UI path should be configured in API server.
-To configure UI path add <code>--basehref</code> flag into <code>argocd-server</code> deployment command:</p>
+<p>If the Argo CD UI is available under a non-root path (e.g. <code>/argo-cd</code> instead of <code>/</code>) then the UI path should be configured in the API server.
+To configure the UI path add the <code>--basehref</code> flag into the <code>argocd-server</code> deployment command:</p>
 <div class="codehilite"><pre><span></span><span class="nt">spec</span><span class="p">:</span>
   <span class="nt">template</span><span class="p">:</span>
     <span class="nt">spec</span><span class="p">:</span>
@@ -1255,7 +1255,7 @@ To configure UI path add <code>--basehref</code> flag into <code>argocd-server</
 </pre></div>
 
 
-<p>NOTE: flag <code>--basehref</code> only changes UI base URL. API server keep using <code>/</code> path so you need to add URL rewrite rule to proxy config.
+<p>NOTE: The flag <code>--basehref</code> only changes the UI base URL. The API server will keep using the <code>/</code> path so you need to add a URL rewrite rule to the proxy config.
 Example nginx.conf with URL rewrite:</p>
 <div class="codehilite"><pre><span></span><span class="nt">worker_processes</span> <span class="nt">1</span><span class="o">;</span>
 
