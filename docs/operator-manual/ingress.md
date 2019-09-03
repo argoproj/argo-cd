@@ -12,7 +12,7 @@ There are several ways how Ingress can be configured.
 
 ### Option 1: SSL-Passthrough
 
-Because Argo CD serves multiple protocols (gRPC/HTTPS) on the same port (443), this provides a
+Argo CD serves multiple protocols (gRPC/HTTPS) on the same port (443), this provides a
 challenge when attempting to define a single nginx ingress object and rule for the argocd-service,
 since the `nginx.ingress.kubernetes.io/backend-protocol` [annotation](https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/#backend-protocol)
 accepts only a single value for the backend protocol (e.g. HTTP, HTTPS, GRPC, GRPCS).
@@ -115,15 +115,15 @@ spec:
         - --insecure
 ```
 
-The obvious disadvantage to this approach is that this technique require two separate hostnames for
-the API server -- one for gRPC and the other for HTTP/HTTPS. However it allow TLS termination to
+The obvious disadvantage to this approach is that this technique requires two separate hostnames for
+the API server -- one for gRPC and the other for HTTP/HTTPS. However it allows TLS termination to
 happen at the ingress controller.
 
 
 ## AWS Application Load Balancers (ALBs) And Classic ELB (HTTP Mode)
 
-Neither ALBs and Classic ELB in HTTP mode, do not have full support for HTTP2/gRPC which is the
-protocol used by the `argocd` CLI. Thus, when using an AWS load balancer, either Classic ELB in
+ALBs and Classic ELBs don't fully support HTTP2/gRPC, which is used by the `argocd` CLI.
+Thus, when using an AWS load balancer, either Classic ELB in
 passthrough mode is needed, or NLBs.
 
 ```shell
@@ -133,8 +133,8 @@ $ argocd login <host>:<port> --grpc-web
 
 ## UI Base Path
 
-If Argo CD UI is available under non-root path (e.g. `/argo-cd` instead of `/`) then UI path should be configured in API server.
-To configure UI path add `--basehref` flag into `argocd-server` deployment command:
+If the Argo CD UI is available under a non-root path (e.g. `/argo-cd` instead of `/`) then the UI path should be configured in the API server.
+To configure the UI path add the `--basehref` flag into the `argocd-server` deployment command:
 
 ```yaml
 spec:
@@ -152,7 +152,7 @@ spec:
         - /argo-cd
 ```
 
-NOTE: flag `--basehref` only changes UI base URL. API server keep using `/` path so you need to add URL rewrite rule to proxy config.
+NOTE: The flag `--basehref` only changes the UI base URL. The API server will keep using the `/` path so you need to add a URL rewrite rule to the proxy config.
 Example nginx.conf with URL rewrite:
 
 ```
