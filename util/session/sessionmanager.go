@@ -198,7 +198,7 @@ func (mgr *SessionManager) provider() (oidcutil.Provider, error) {
 }
 
 func LoggedIn(ctx context.Context) bool {
-	return Username(ctx) != ""
+	return Sub(ctx) != ""
 }
 
 // Username is a helper to extract a human readable username from a context

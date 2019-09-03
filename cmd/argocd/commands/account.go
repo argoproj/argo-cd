@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"syscall"
 
 	"github.com/ghodss/yaml"
@@ -130,7 +131,7 @@ func NewAccountGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			case "":
 				fmt.Printf("Logged In: %v\n", response.LoggedIn)
 				fmt.Printf("Username: %s\n", response.Username)
-				fmt.Printf("Groups: %v\n", response.Groups)
+				fmt.Printf("Groups: %v\n", strings.Join(response.Groups, ","))
 			default:
 				log.Fatalf("Unknown output format: %s", output)
 			}

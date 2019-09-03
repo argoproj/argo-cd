@@ -31,3 +31,8 @@ func TestIsMember(t *testing.T) {
 	assert.False(t, IsMember(jwt.MapClaims{"groups": []string{"my-group"}}, []string{""}))
 	assert.True(t, IsMember(jwt.MapClaims{"groups": []string{"my-group"}}, []string{"my-group"}))
 }
+
+func TestGetGroups(t *testing.T) {
+	assert.Empty(t, GetGroups(jwt.MapClaims{}))
+	assert.Equal(t, []string{"foo"}, GetGroups(jwt.MapClaims{"groups": []string{"foo"}}))
+}
