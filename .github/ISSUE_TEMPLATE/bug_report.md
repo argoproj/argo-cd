@@ -8,19 +8,30 @@ assignees: ''
 ---
 
 **Describe the bug**
+
 A clear and concise description of what the bug is.
 
 **To Reproduce**
+
 If we cannot reproduce, we cannot fix! Steps to reproduce the behavior:
+
 1. Go to '...'
 2. Click on '....'
 3. Scroll down to '....'
 4. See error
 
+**Example**
+
+Fork https://github.com/argoproj/argocd-example-apps and add an example that exhibits the bug.
+
+YOU'RE ISSUE IS MUCH MORE LIKELY TO GET LOOKED AT SOONER IF YOU DO THIS
+
 **Expected behavior**
+
 A clear and concise description of what you expected to happen.
 
 **Screenshots**
+
 If applicable, add screenshots to help explain your problem.
 
 **Version**
