@@ -103,8 +103,8 @@ func NewAccountGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		output string
 	)
 	var command = &cobra.Command{
-		Use:   "get",
-		Short: "Get account",
+		Use:   "get-user-info",
+		Short: "Get user info",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 0 {
 				c.HelpFunc()(c, args)
@@ -115,7 +115,7 @@ func NewAccountGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			defer util.Close(conn)
 
 			ctx := context.Background()
-			response, err := client.GetSession(ctx, &accountpkg.GetSessionRequest{})
+			response, err := client.GetUserInfo(ctx, &accountpkg.GetUserInfoRequest{})
 			errors.CheckError(err)
 
 			switch output {

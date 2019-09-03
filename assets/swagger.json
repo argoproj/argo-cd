@@ -43,18 +43,18 @@
         }
       }
     },
-    "/api/v1/account/session": {
+    "/api/v1/account/userinfo": {
       "get": {
         "tags": [
           "AccountService"
         ],
         "summary": "Get the current session",
-        "operationId": "GetSession",
+        "operationId": "GetUserInfo",
         "responses": {
           "200": {
             "description": "(empty)",
             "schema": {
-              "$ref": "#/definitions/accountGetSessionResponse"
+              "$ref": "#/definitions/accountGetUserInfoResponse"
             }
           }
         }
@@ -1589,7 +1589,7 @@
     }
   },
   "definitions": {
-    "accountGetSessionResponse": {
+    "accountGetUserInfoResponse": {
       "type": "object",
       "title": "The current user's session info",
       "properties": {

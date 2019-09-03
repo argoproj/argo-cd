@@ -340,7 +340,7 @@ export interface AuthSettings {
     };
 }
 
-export interface Session  {
+export interface UserInfo  {
     loggedIn: boolean;
     username: string;
     groups: string[];

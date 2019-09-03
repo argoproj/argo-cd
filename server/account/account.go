@@ -32,7 +32,7 @@ func NewServer(sessionMgr *session.SessionManager, settingsMgr *settings.Setting
 
 // UpdatePassword updates the password of the local admin superuser.
 func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRequest) (*account.UpdatePasswordResponse, error) {
-	username := session.Username(ctx)
+	username := session.Sub(ctx)
 	if username != common.ArgoCDAdminUsername {
 		return nil, status.Errorf(codes.InvalidArgument, "password can only be changed for local users, not user %q", username)
 	}
@@ -64,7 +64,6 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 
 }
 
-func (s *Server) GetSession(ctx context.Context, q *account.GetSessionRequest) (*account.GetSessionResponse, error) {
-	log.WithField("ctx", ctx).Debug("GetSession")
-	return &account.GetSessionResponse{LoggedIn: session.LoggedIn(ctx), Username: session.Username(ctx), Groups: session.Groups(ctx)}, nil
+func (s *Server) GetUserInfo(ctx context.Context, q *account.GetUserInfoRequest) (*account.GetUserInfoResponse, error) {
+	return &account.GetUserInfoResponse{LoggedIn: session.LoggedIn(ctx), Username: session.Username(ctx), Groups: session.Groups(ctx)}, nil
 }

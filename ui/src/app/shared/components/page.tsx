@@ -3,7 +3,7 @@ import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Observable} from 'rxjs';
 import {AppContext} from '../context';
-import {Session} from '../models';
+import {UserInfo} from '../models';
 import {services} from '../services';
 
 export class Page extends React.Component<{ title: string, toolbar?: Toolbar | Observable<Toolbar> }> {
@@ -15,7 +15,7 @@ export class Page extends React.Component<{ title: string, toolbar?: Toolbar | O
     public render() {
         return (
             <DataLoader input={new Date()}
-                        load={() => Observable.zip(Utils.toObservable(this.props.toolbar), services.users.get()).map(([toolbar, session]: [Toolbar, Session]) => {
+                        load={() => Observable.zip(Utils.toObservable(this.props.toolbar), services.users.get()).map(([toolbar, session]: [Toolbar, UserInfo]) => {
                 toolbar = toolbar || {};
                 toolbar.tools = [
                     toolbar.tools,

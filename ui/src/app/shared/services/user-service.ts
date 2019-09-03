@@ -1,4 +1,4 @@
-import {Session} from '../models';
+import {UserInfo} from '../models';
 import requests from './requests';
 
 export class UserService {
@@ -10,7 +10,7 @@ export class UserService {
         return requests.delete('/session').then((res) => true);
     }
 
-    public get(): Promise<Session> {
-        return requests.get('/account/session').then((res) => res.body as Session);
+    public get(): Promise<UserInfo> {
+        return requests.get('/account/userinfo').then((res) => res.body as UserInfo);
     }
 }

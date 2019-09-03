@@ -11,10 +11,10 @@ import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 
 // Get the current user's session info
-message GetSessionRequest {}
+message GetUserInfoRequest {}
 
 // The current user's session info
-message GetSessionResponse {
+message GetUserInfoResponse {
 	bool loggedIn = 1;
 	string username = 2;
 	repeated string groups = 3;
@@ -30,8 +30,8 @@ message UpdatePasswordResponse {}
 service AccountService {
 
 	// Get the current session
-	rpc GetSession(GetSessionRequest) returns (GetSessionResponse) {
-		option (google.api.http).get = "/api/v1/account/session";
+	rpc GetUserInfo(GetUserInfoRequest) returns (GetUserInfoResponse) {
+		option (google.api.http).get = "/api/v1/account/userinfo";
 	}
 
    	// UpdatePassword updates an account's password to a new value

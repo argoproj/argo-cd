@@ -18,12 +18,12 @@ import {Redirect, Route, RouteComponentProps, Router, Switch} from 'react-router
 import applications from './applications';
 import help from './help';
 import login from './login';
-import session from './session';
 import settings from './settings';
 import {Provider} from './shared/context';
 import {services} from './shared/services';
 import requests from './shared/services/requests';
 import {hashCode} from './shared/utils';
+import session from './user-info';
 
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
@@ -48,8 +48,8 @@ const navItems = [{
     path: '/settings',
     iconClassName: 'argo-icon-settings',
 }, {
-    title: 'Manage your account',
-    path: '/session',
+    title: 'User Info',
+    path: '/user-info',
     iconClassName: 'fa fa-user-circle',
 }, {
     title: 'Read the documentation, and get help and assistance.',
@@ -92,15 +92,14 @@ export class App extends React.Component<{}, { popupProps: PopupProps, error: Er
 
     public async componentDidMount() {
         this.popupManager.popupProps.subscribe((popupProps) => this.setState({ popupProps }));
-        const gaSettings = await services.authService.settings().then((item) => item.googleAnalytics || {  trackingID: '', anonymizeUsers: true });
-        const session = await services.users.get();
-        const { trackingID, anonymizeUsers } = gaSettings;
+        const { trackingID, anonymizeUsers } = await services.authService.settings().then((item) => item.googleAnalytics || {  trackingID: '', anonymizeUsers: true });
+        const {loggedIn, username} = await services.users.get();
         if (trackingID) {
             const ga = await import('react-ga');
             ga.initialize(trackingID);
             const trackPageView = () => {
-                if (session.loggedIn) {
-                    const userId = !anonymizeUsers ? session.username : hashCode(session.username).toString();
+                if (loggedIn) {
+                    const userId = !anonymizeUsers ? username : hashCode(username).toString();
                     ga.set({userId});
                 }
                 ga.pageview(location.pathname + location.search);

@@ -203,12 +203,8 @@ func LoggedIn(ctx context.Context) bool {
 
 // Username is a helper to extract a human readable username from a context
 func Username(ctx context.Context) string {
-	claims, ok := ctx.Value("claims").(jwt.Claims)
+	mapClaims, ok := mapClaims(ctx)
 	if !ok {
-		return ""
-	}
-	mapClaims, err := jwtutil.MapClaims(claims)
-	if err != nil {
 		return ""
 	}
 	switch jwtutil.GetField(mapClaims, "iss") {
@@ -219,14 +215,30 @@ func Username(ctx context.Context) string {
 	}
 }
 
+func Sub(ctx context.Context) string {
+	mapClaims, ok := mapClaims(ctx)
+	if !ok {
+		return ""
+	}
+	return jwtutil.GetField(mapClaims, "sub")
+}
+
 func Groups(ctx context.Context) []string {
-	claims, ok := ctx.Value("claims").(jwt.Claims)
+	mapClaims, ok := mapClaims(ctx)
 	if !ok {
 		return nil
 	}
+	return jwtutil.GetGroups(mapClaims)
+}
+
+func mapClaims(ctx context.Context) (jwt.MapClaims, bool) {
+	claims, ok := ctx.Value("claims").(jwt.Claims)
+	if !ok {
+		return nil, false
+	}
 	mapClaims, err := jwtutil.MapClaims(claims)
 	if err != nil {
-		return nil
+		return nil, false
 	}
-	return jwtutil.GetGroups(mapClaims)
+	return mapClaims, true
 }
