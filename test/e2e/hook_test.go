@@ -17,19 +17,19 @@ import (
 func TestPreSyncHookSuccessful(t *testing.T) {
 	// special-case that the pod remains in the running state, but we don't really care, because this is only used for
 	// determining overall operation status is a sync with >1 wave/phase
-	testHookSuccessful(t, HookTypePreSync, OperationRunning)
+	testHookSuccessful(t, HookTypePreSync)
 }
 
 func TestSyncHookSuccessful(t *testing.T) {
-	testHookSuccessful(t, HookTypeSync, OperationSucceeded)
+	testHookSuccessful(t, HookTypeSync)
 }
 
 func TestPostSyncHookSuccessful(t *testing.T) {
-	testHookSuccessful(t, HookTypePostSync, OperationSucceeded)
+	testHookSuccessful(t, HookTypePostSync)
 }
 
 // make sure we can run a standard sync hook
-func testHookSuccessful(t *testing.T, hookType HookType, podHookPhase OperationPhase) {
+func testHookSuccessful(t *testing.T, hookType HookType) {
 	Given(t).
 		Path("hook").
 		When().
