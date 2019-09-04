@@ -18,6 +18,7 @@ message UpdatePasswordRequest {
 message UpdatePasswordResponse {}
 
 service AccountService {
+
    	// UpdatePassword updates an account's password to a new value
 	rpc UpdatePassword(UpdatePasswordRequest) returns (UpdatePasswordResponse) {
 		option (google.api.http) = {

@@ -30,6 +30,7 @@ message ClusterUpdateRequest {
 
 // ClusterService 
 service ClusterService {
+
 	// List returns list of clusters
 	rpc List(ClusterQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ClusterList) {
 		option (google.api.http).get = "/api/v1/clusters";

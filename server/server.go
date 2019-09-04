@@ -416,7 +416,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	sensitiveMethods := map[string]bool{
 		"/cluster.ClusterService/Create":                true,
 		"/cluster.ClusterService/Update":                true,
-		"/userInfo.SessionService/Create":               true,
+		"/session.SessionService/Create":                true,
 		"/account.AccountService/UpdatePassword":        true,
 		"/repository.RepositoryService/Create":          true,
 		"/repository.RepositoryService/Update":          true,
@@ -746,7 +746,7 @@ func (a *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, error) {
 	}
 	claims, err := a.sessionMgr.VerifyToken(tokenString)
 	if err != nil {
-		return nil, status.Errorf(codes.Unauthenticated, "invalid userInfo: %v", err)
+		return nil, status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
 	return claims, nil
 }

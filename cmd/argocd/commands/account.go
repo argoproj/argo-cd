@@ -32,7 +32,7 @@ func NewAccountCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		},
 	}
 	command.AddCommand(NewAccountUpdatePasswordCommand(clientOpts))
-	command.AddCommand(NewAccountGetCommand(clientOpts))
+	command.AddCommand(NewAccountGetUserInfoCommand(clientOpts))
 	return command
 }
 
@@ -100,7 +100,7 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 	return command
 }
 
-func NewAccountGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		output string
 	)
