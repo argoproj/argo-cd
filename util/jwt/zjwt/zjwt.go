@@ -15,20 +15,27 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strings"
 )
 
 var encoding = base64.RawStdEncoding
 
 // some magic text that is easy to search the Internet for and find your way to docs
-var magicNumber = "zJWT/v1:"
+var magicNumber = "zJWT/v1"
+
+// when to use ZJWT
+// - "never" - never use it - good for it goes wrong
+// - "" - when better
+// - "always" - always use it - good for forcing this on for testing
+var featureFlag = os.Getenv("ARGOCD_ZJWT_FEATURE_FLAG")
 
 // the smallest size JWT we'll compress, 3k chosen as cookies max out at 4k
 var minSize = 3000
 
 // ZJWT turns a JWT into either a zJWT or return the original JWT, whichever is smaller.
 func ZJWT(text string) (string, error) {
-	if len(text) < minSize {
+	if featureFlag == "never" || featureFlag != "always" && len(text) < minSize {
 		return text, nil
 	}
 	parts := strings.SplitN(text, ".", 3)
@@ -58,7 +65,7 @@ func ZJWT(text string) (string, error) {
 	}
 	compressedPayload := encoding.EncodeToString(buf.Bytes())
 	zJWT := fmt.Sprintf("%s.%s.%s.%s", magicNumber, header, compressedPayload, signature)
-	if len(zJWT) < len(text) {
+	if featureFlag == "always" || len(zJWT) < len(text) {
 		return zJWT, nil
 	} else {
 		return text, nil

@@ -187,6 +187,7 @@ start-e2e: cli
 	ARGOCD_SSH_DATA_PATH=/tmp/argo-e2e/app/config/ssh \
 	ARGOCD_TLS_DATA_PATH=/tmp/argo-e2e/app/config/tls \
 	ARGOCD_E2E_DISABLE_AUTH=false \
+	ARGOCD_ZJWT_FEATURE_FLAG=always \
 		goreman start
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes
@@ -205,7 +206,8 @@ start:
 	docker version
 	kubectl create ns argocd || true
 	kubens argocd
-	goreman start
+	ARGOCD_ZJWT_FEATURE_FLAG=always \
+		goreman start
 
 .PHONY: pre-commit
 pre-commit: dep-ensure codegen build lint test
