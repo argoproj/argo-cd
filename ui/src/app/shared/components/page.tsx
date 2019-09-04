@@ -1,9 +1,9 @@
 import {DataLoader, Page as ArgoPage, Toolbar, Utils} from 'argo-ui';
+import { parse } from 'cookie';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Observable} from 'rxjs';
 import {AppContext} from '../context';
-import {UserInfo} from '../models';
 import {services} from '../services';
 
 export class Page extends React.Component<{ title: string, toolbar?: Toolbar | Observable<Toolbar> }> {
@@ -14,12 +14,11 @@ export class Page extends React.Component<{ title: string, toolbar?: Toolbar | O
 
     public render() {
         return (
-            <DataLoader input={new Date()}
-                        load={() => Observable.zip(Utils.toObservable(this.props.toolbar), services.users.get()).map(([toolbar, userInfo]: [Toolbar, UserInfo]) => {
+            <DataLoader input={new Date()} load={() => Utils.toObservable(this.props.toolbar).map((toolbar) => {
                 toolbar = toolbar || {};
                 toolbar.tools = [
                     toolbar.tools,
-                    userInfo.loggedIn ?
+                    parse(document.cookie)['argocd.token'] ?
                         <a key='logout' onClick={() => this.goToLogin(true)}>Logout</a> :
                         <a key='login' onClick={() => this.goToLogin(false)}>Login</a>,
                 ];
