@@ -1556,7 +1556,7 @@
     "/api/v1/userinfo": {
       "get": {
         "tags": [
-          "AccountService"
+          "ClusterService"
         ],
         "summary": "Get the current user's info",
         "operationId": "GetUserInfo",
@@ -1564,7 +1564,7 @@
           "200": {
             "description": "(empty)",
             "schema": {
-              "$ref": "#/definitions/accountGetUserInfoResponse"
+              "$ref": "#/definitions/clusterGetUserInfoResponse"
             }
           }
         }
@@ -1589,28 +1589,6 @@
     }
   },
   "definitions": {
-    "accountGetUserInfoResponse": {
-      "type": "object",
-      "title": "The current user's userInfo info",
-      "properties": {
-        "groups": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "iss": {
-          "type": "string"
-        },
-        "loggedIn": {
-          "type": "boolean",
-          "format": "boolean"
-        },
-        "username": {
-          "type": "string"
-        }
-      }
-    },
     "accountUpdatePasswordRequest": {
       "type": "object",
       "properties": {
@@ -1764,6 +1742,28 @@
           "items": {
             "$ref": "#/definitions/clusterConnector"
           }
+        }
+      }
+    },
+    "clusterGetUserInfoResponse": {
+      "type": "object",
+      "title": "The current user's userInfo info",
+      "properties": {
+        "groups": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "iss": {
+          "type": "string"
+        },
+        "loggedIn": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "username": {
+          "type": "string"
         }
       }
     },

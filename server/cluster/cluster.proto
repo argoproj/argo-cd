@@ -28,8 +28,23 @@ message ClusterUpdateRequest {
 	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster cluster = 1;
 }
 
+// Get the current user's userInfo info
+message GetUserInfoRequest {}
+
+// The current user's userInfo info
+message GetUserInfoResponse {
+	bool loggedIn = 1;
+	string username = 2;
+	string iss = 3;
+	repeated string groups = 4;
+}
+
 // ClusterService 
 service ClusterService {
+	// Get the current user's info
+	rpc GetUserInfo(GetUserInfoRequest) returns (GetUserInfoResponse) {
+		option (google.api.http).get = "/api/v1/userinfo";
+	}
 
 	// List returns list of clusters
 	rpc List(ClusterQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ClusterList) {

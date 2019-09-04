@@ -30,10 +30,6 @@ func NewServer(sessionMgr *session.SessionManager, settingsMgr *settings.Setting
 
 }
 
-func (s *Server) GetUserInfo(ctx context.Context, q *account.GetUserInfoRequest) (*account.GetUserInfoResponse, error) {
-	return &account.GetUserInfoResponse{LoggedIn: session.LoggedIn(ctx), Username: session.Username(ctx), Groups: session.Groups(ctx)}, nil
-}
-
 // UpdatePassword updates the password of the local admin superuser.
 func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRequest) (*account.UpdatePasswordResponse, error) {
 	sub := session.Sub(ctx)

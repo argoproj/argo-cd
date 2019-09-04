@@ -10,17 +10,6 @@ package account;
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 
-// Get the current user's userInfo info
-message GetUserInfoRequest {}
-
-// The current user's userInfo info
-message GetUserInfoResponse {
-	bool loggedIn = 1;
-	string username = 2;
-	string iss = 3;
-	repeated string groups = 4;
-}
-
 message UpdatePasswordRequest {
 	string newPassword = 1;
 	string currentPassword = 2;
@@ -29,12 +18,6 @@ message UpdatePasswordRequest {
 message UpdatePasswordResponse {}
 
 service AccountService {
-
-	// Get the current user's info
-	rpc GetUserInfo(GetUserInfoRequest) returns (GetUserInfoResponse) {
-		option (google.api.http).get = "/api/v1/userinfo";
-	}
-
    	// UpdatePassword updates an account's password to a new value
 	rpc UpdatePassword(UpdatePasswordRequest) returns (UpdatePasswordResponse) {
 		option (google.api.http) = {

@@ -12,6 +12,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/argoproj/argo-cd/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/pkg/apiclient/cluster"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
@@ -21,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
+	"github.com/argoproj/argo-cd/util/session"
 )
 
 // Server provides a Cluster service
@@ -232,4 +234,9 @@ func redact(clust *appv1.Cluster) *appv1.Cluster {
 	clust.Config.BearerToken = ""
 	clust.Config.TLSClientConfig.KeyData = nil
 	return clust
+}
+
+
+func (s *Server) GetUserInfo(ctx context.Context, q *account.GetUserInfoRequest) (*account.GetUserInfoResponse, error) {
+	return &account.GetUserInfoResponse{LoggedIn: session.LoggedIn(ctx), Username: session.Username(ctx), Iss: session.Iss(ctx), Groups: session.Groups(ctx)}, nil
 }
