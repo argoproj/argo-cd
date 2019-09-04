@@ -60,11 +60,9 @@ const navItems = [{
 async function isExpiredSSO() {
     try {
         const {loggedIn, iss} = await services.users.get();
-        if (loggedIn) {
-            if (iss && iss !== 'argocd') {
-                const authSettings = await services.authService.settings();
-                return (authSettings.dexConfig && authSettings.dexConfig.connectors || []).length > 0 || authSettings.oidcConfig;
-            }
+        if (loggedIn && iss !== 'argocd') {
+            const authSettings = await services.authService.settings();
+            return (authSettings.dexConfig && authSettings.dexConfig.connectors || []).length > 0 || authSettings.oidcConfig;
         }
     } catch {
         return false;
