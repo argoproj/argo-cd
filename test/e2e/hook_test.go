@@ -41,9 +41,7 @@ func testHookSuccessful(t *testing.T, hookType HookType, podHookPhase OperationP
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced)).
 		Expect(ResourceHealthIs("Pod", "pod", HealthStatusHealthy)).
-		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" })).
 		Expect(ResourceResultNumbering(2)).
-		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "pod", Status: ResultCodeSynced, Message: "pod/pod created", HookPhase: podHookPhase, SyncPhase: SyncPhaseSync})).
 		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook", Message: "pod/hook created", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
 }
 
