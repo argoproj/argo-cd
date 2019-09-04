@@ -55,6 +55,7 @@ func (s *Server) Delete(ctx context.Context, q *session.SessionDeleteRequest) (*
 // Since this service is generally invoked when the user has _no_ credentials, that would create a
 // chicken-and-egg situation if we didn't place this here to allow traffic to pass through.
 func (s *Server) AuthFuncOverride(ctx context.Context, fullMethodName string) (context.Context, error) {
+	// this authenticates the user, but ignores any error, so that we have claims populated
 	ctx, _ = s.authenticator.Authenticate(ctx)
 	return ctx, nil
 }
