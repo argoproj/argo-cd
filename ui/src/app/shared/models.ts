@@ -343,6 +343,7 @@ export interface AuthSettings {
 export interface UserInfo  {
     loggedIn: boolean;
     username: string;
+    iss: string;
     groups: string[];
 }
 

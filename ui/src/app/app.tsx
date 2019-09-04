@@ -23,7 +23,7 @@ import {Provider} from './shared/context';
 import {services} from './shared/services';
 import requests from './shared/services/requests';
 import {hashCode} from './shared/utils';
-import session from './user-info';
+import userInfo from './user-info';
 
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
@@ -35,7 +35,7 @@ const routes: {[path: string]: { component: React.ComponentType<RouteComponentPr
     '/login': { component: login.component as any, noLayout: true },
     '/applications': { component: applications.component },
     '/settings': { component: settings.component },
-    '/session': { component: session.component },
+    '/user-info': { component: userInfo.component },
     '/help': { component: help.component },
 };
 
@@ -57,13 +57,32 @@ const navItems = [{
     iconClassName: 'argo-icon-docs',
 }];
 
+async function isExpiredSSO() {
+    try {
+        const {loggedIn, iss} = await services.users.get();
+        if (loggedIn) {
+            if (iss && iss !== 'argocd') {
+                const authSettings = await services.authService.settings();
+                return (authSettings.dexConfig && authSettings.dexConfig.connectors || []).length > 0 || authSettings.oidcConfig;
+            }
+        }
+    } catch {
+        return false;
+    }
+    return false;
+}
+
 requests.onError.subscribe(async (err) => {
     if (err.status === 401) {
         if (!history.location.pathname.startsWith('/login')) {
             // Query for basehref and remove trailing /.
             // If basehref is the default `/` it will become an empty string.
             const basehref = document.querySelector('head > base').getAttribute('href').replace(/\/$/, '');
+            if (await isExpiredSSO()) {
             window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
+            } else {
+                history.push(`${basehref}/login?return_url=${encodeURIComponent(location.href)}`);
+            }
         }
     }
 });

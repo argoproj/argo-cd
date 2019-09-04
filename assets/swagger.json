@@ -43,23 +43,6 @@
         }
       }
     },
-    "/api/v1/account/userinfo": {
-      "get": {
-        "tags": [
-          "AccountService"
-        ],
-        "summary": "Get the current session",
-        "operationId": "GetUserInfo",
-        "responses": {
-          "200": {
-            "description": "(empty)",
-            "schema": {
-              "$ref": "#/definitions/accountGetUserInfoResponse"
-            }
-          }
-        }
-      }
-    },
     "/api/v1/applications": {
       "get": {
         "tags": [
@@ -1570,6 +1553,23 @@
         }
       }
     },
+    "/api/v1/userinfo": {
+      "get": {
+        "tags": [
+          "AccountService"
+        ],
+        "summary": "Get the current user's info",
+        "operationId": "GetUserInfo",
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/accountGetUserInfoResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/version": {
       "get": {
         "tags": [
@@ -1591,13 +1591,16 @@
   "definitions": {
     "accountGetUserInfoResponse": {
       "type": "object",
-      "title": "The current user's session info",
+      "title": "The current user's userInfo info",
       "properties": {
         "groups": {
           "type": "array",
           "items": {
             "type": "string"
           }
+        },
+        "iss": {
+          "type": "string"
         },
         "loggedIn": {
           "type": "boolean",

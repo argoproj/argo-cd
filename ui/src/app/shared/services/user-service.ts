@@ -11,6 +11,6 @@ export class UserService {
     }
 
     public get(): Promise<UserInfo> {
-        return requests.get('/account/userinfo').then((res) => res.body as UserInfo);
+        return requests.get('/userinfo').then((res) => res.body as UserInfo);
     }
 }

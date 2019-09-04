@@ -416,7 +416,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	sensitiveMethods := map[string]bool{
 		"/cluster.ClusterService/Create":                true,
 		"/cluster.ClusterService/Update":                true,
-		"/session.SessionService/Create":                true,
+		"/userInfo.SessionService/Create":               true,
 		"/account.AccountService/UpdatePassword":        true,
 		"/repository.RepositoryService/Create":          true,
 		"/repository.RepositoryService/Update":          true,
@@ -717,22 +717,17 @@ func mustRegisterGWHandler(register registerFunc, ctx context.Context, mux *runt
 // Authenticate checks for the presence of a valid token when accessing server-side resources.
 func (a *ArgoCDServer) authenticate(ctx context.Context) (context.Context, error) {
 	if a.DisableAuth {
-		log.Debug("auth disabled")
 		return ctx, nil
 	}
 	if claims, claimsErr := a.getClaims(ctx); claimsErr != nil {
-		log.Debugf("claims error %v", claimsErr)
 		argoCDSettings, err := a.settingsMgr.GetSettings()
 		if err != nil {
-			log.Debugf("cannot load settings due to %v", err)
 			return ctx, status.Errorf(codes.Internal, "unable to load settings: %v", err)
 		}
 		if !argoCDSettings.AnonymousUserEnabled {
-			log.Debug("not anon-user")
 			return ctx, claimsErr
 		}
 	} else {
-		log.Debug("adding claims")
 		// Add claims to the context to inspect for RBAC
 		ctx = context.WithValue(ctx, "claims", claims)
 	}
@@ -751,7 +746,7 @@ func (a *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, error) {
 	}
 	claims, err := a.sessionMgr.VerifyToken(tokenString)
 	if err != nil {
-		return nil, status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
+		return nil, status.Errorf(codes.Unauthenticated, "invalid userInfo: %v", err)
 	}
 	return claims, nil
 }

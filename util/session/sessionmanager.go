@@ -215,6 +215,14 @@ func Username(ctx context.Context) string {
 	}
 }
 
+func Iss(ctx context.Context) string {
+	mapClaims, ok := mapClaims(ctx)
+	if !ok {
+		return ""
+	}
+	return jwtutil.GetField(mapClaims, "iss")
+}
+
 func Sub(ctx context.Context) string {
 	mapClaims, ok := mapClaims(ctx)
 	if !ok {

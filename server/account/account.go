@@ -30,11 +30,15 @@ func NewServer(sessionMgr *session.SessionManager, settingsMgr *settings.Setting
 
 }
 
+func (s *Server) GetUserInfo(ctx context.Context, q *account.GetUserInfoRequest) (*account.GetUserInfoResponse, error) {
+	return &account.GetUserInfoResponse{LoggedIn: session.LoggedIn(ctx), Username: session.Username(ctx), Groups: session.Groups(ctx)}, nil
+}
+
 // UpdatePassword updates the password of the local admin superuser.
 func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRequest) (*account.UpdatePasswordResponse, error) {
-	username := session.Sub(ctx)
-	if username != common.ArgoCDAdminUsername {
-		return nil, status.Errorf(codes.InvalidArgument, "password can only be changed for local users, not user %q", username)
+	sub := session.Sub(ctx)
+	if sub != common.ArgoCDAdminUsername {
+		return nil, status.Errorf(codes.InvalidArgument, "password can only be changed for local users, not user %q", sub)
 	}
 
 	cdSettings, err := s.settingsMgr.GetSettings()
@@ -42,7 +46,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 		return nil, err
 	}
 
-	err = s.sessionMgr.VerifyUsernamePassword(username, q.CurrentPassword)
+	err = s.sessionMgr.VerifyUsernamePassword(sub, q.CurrentPassword)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "current password does not match")
 	}
@@ -59,11 +63,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 	if err != nil {
 		return nil, err
 	}
-	log.Infof("user '%s' updated password", username)
+	log.Infof("user '%s' updated password", sub)
 	return &account.UpdatePasswordResponse{}, nil
 
-}
-
-func (s *Server) GetUserInfo(ctx context.Context, q *account.GetUserInfoRequest) (*account.GetUserInfoResponse, error) {
-	return &account.GetUserInfoResponse{LoggedIn: session.LoggedIn(ctx), Username: session.Username(ctx), Groups: session.Groups(ctx)}, nil
 }

@@ -3,7 +3,7 @@ option go_package = "github.com/argoproj/argo-cd/pkg/apiclient/session";
 
 // Session Service
 //
-// Session Service API performs CRUD actions against session resources 
+// Session Service API performs CRUD actions against session resources
 package session;
 
 import "gogoproto/gogo.proto";
@@ -11,8 +11,6 @@ import "google/api/annotations.proto";
 import "k8s.io/api/core/v1/generated.proto";
 import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
 
-// Get the current user's session info
-message GetSessionRequest {}
 
 // SessionCreateRequest is for logging in.
 message SessionCreateRequest {

@@ -63,8 +63,12 @@ func TestSessionManager(t *testing.T) {
 }
 
 var loggedOutContext = context.Background()
-var loggedInContext = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"sub": "foo", "email": "bar", "groups": []string{"baz"}})
+var loggedInContext = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
 
+func TestIss(t *testing.T) {
+	assert.Empty(t, Iss(loggedOutContext))
+	assert.Equal(t, "qux", Iss(loggedInContext))
+}
 func TestLoggedIn(t *testing.T) {
 	assert.False(t, LoggedIn(loggedOutContext))
 	assert.True(t, LoggedIn(loggedInContext))
