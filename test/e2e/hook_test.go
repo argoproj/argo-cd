@@ -47,6 +47,21 @@ func testHookSuccessful(t *testing.T, hookType HookType, podHookPhase OperationP
 		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook", Message: "pod/hook created", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
 }
 
+// make sure that that hooks do not appear in "argocd app diff"
+func TestHookDiff(t *testing.T) {
+	Given(t).
+		Path("hook").
+		When().
+		Create().
+		Then().
+		And(func(_ *Application) {
+			output, err := RunCli("app", "diff", Name())
+			assert.Error(t, err)
+			assert.Contains(t, output, "name: pod")
+			assert.NotContains(t, output, "name: hook")
+		})
+}
+
 // make sure that if pre-sync fails, we fail the app and we do not create the pod
 func TestPreSyncHookFailure(t *testing.T) {
 	Given(t).
@@ -69,7 +84,7 @@ func TestPreSyncHookFailure(t *testing.T) {
 		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeOutOfSync))
 }
 
-// make sure that if pre-sync fails, we fail the app and we did create the pod
+// make sure that if sync fails, we fail the app and we did create the pod
 func TestSyncHookFailure(t *testing.T) {
 	Given(t).
 		Path("hook").
@@ -85,6 +100,19 @@ func TestSyncHookFailure(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(ResourceResultNumbering(2)).
 		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced))
+}
+
+// make sure that if the deployments fails, we still get success and synced
+func TestSyncHookResourceFailure(t *testing.T) {
+	Given(t).
+		Path("hook-and-deployment").
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusProgressing))
 }
 
 // make sure that if post-sync fails, we fail the app and we did not create the pod
@@ -264,7 +292,7 @@ func TestHookDeletePolicyHookFailedHookExit1(t *testing.T) {
 }
 
 // make sure that we can run the hook twice
-func TestHookDeleteBeforeCreation(t *testing.T) {
+func TestHookBeforeHookCreation(t *testing.T) {
 	var creationTimestamp1 string
 	Given(t).
 		Path("hook").
@@ -276,6 +304,7 @@ func TestHookDeleteBeforeCreation(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(ResourceResultNumbering(2)).
 		// the app will be in health+n-sync before this hook has run
 		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" })).
 		And(func(_ *Application) {
@@ -292,6 +321,7 @@ func TestHookDeleteBeforeCreation(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(ResourceResultNumbering(2)).
 		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" })).
 		And(func(_ *Application) {
 			creationTimestamp2, err := getCreationTimestamp()
@@ -299,6 +329,26 @@ func TestHookDeleteBeforeCreation(t *testing.T) {
 			assert.NotEmpty(t, creationTimestamp2)
 			assert.NotEqual(t, creationTimestamp1, creationTimestamp2)
 		})
+}
+
+// edge-case where we are unable to delete the hook because it is still running
+func TestHookBeforeHookCreationFailure(t *testing.T) {
+	Given(t).
+		Timeout(1).
+		Path("hook").
+		When().
+		PatchFile("hook.yaml", `[
+	{"op": "add", "path": "/metadata/annotations/argocd.argoproj.io~1hook-delete-policy", "value": "BeforeHookCreation"},
+	{"op": "replace", "path": "/spec/containers/0/command", "value": ["sleep", "3"]}
+]`).
+		Create().
+		IgnoreErrors().
+		Sync().
+		DoNotIgnoreErrors().
+		TerminateOp().
+		Then().
+		Expect(OperationPhaseIs(OperationFailed)).
+		Expect(ResourceResultNumbering(2))
 }
 
 func getCreationTimestamp() (string, error) {

@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -106,7 +107,15 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		Run: func(c *cobra.Command, args []string) {
 			var app argoappv1.Application
 			argocdClient := argocdclient.NewClientOrDie(clientOpts)
-			if fileURL != "" {
+			if fileURL == "-" {
+				// read stdin
+				reader := bufio.NewReader(os.Stdin)
+				err := config.UnmarshalReader(reader, &app)
+				if err != nil {
+					log.Fatalf("unable to read manifest from stdin: %v", err)
+				}
+			} else if fileURL != "" {
+				// read uri
 				parsedURL, err := url.ParseRequestURI(fileURL)
 				if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
 					err = config.UnmarshalLocalFile(fileURL, &app)
@@ -121,6 +130,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					log.Fatalf("--name argument '%s' does not match app spec metadata.name '%s'", appName, app.Name)
 				}
 			} else {
+				// read arguments
 				if len(args) == 1 {
 					if appName != "" && appName != args[0] {
 						log.Fatalf("--name argument '%s' does not match app name %s", appName, args[0])
@@ -870,8 +880,10 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 
 			foundDiffs := false
-			for i := range items {
-				item := items[i]
+			for _, item := range items {
+				if item.target != nil && hook.IsHook(item.target) || item.live != nil && hook.IsHook(item.live) {
+					continue
+				}
 				overrides := make(map[string]argoappv1.ResourceOverride)
 				for k := range argoSettings.ResourceOverrides {
 					val := argoSettings.ResourceOverrides[k]
@@ -1358,7 +1370,7 @@ func getResourceStates(app *argoappv1.Application, selectedResources []argoappv1
 			health := string(res.Status)
 			key := kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name)
 			if resource, ok := resourceByKey[key]; ok && res.HookType == "" {
-				health = argoappv1.HealthStatusUnknown
+				health = ""
 				if resource.Health != nil {
 					health = resource.Health.Status
 				}
@@ -1379,7 +1391,7 @@ func getResourceStates(app *argoappv1.Application, selectedResources []argoappv1
 	// print rest of resources which were not part of most recent operation
 	for _, resKey := range resKeys {
 		res := resourceByKey[resKey]
-		health := argoappv1.HealthStatusUnknown
+		health := ""
 		if res.Health != nil {
 			health = res.Health.Status
 		}

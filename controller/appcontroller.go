@@ -169,8 +169,10 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 				if !ok {
 					continue
 				}
-				// Ignore resource unless it is permitted in the app project. If project is not permitted then it is not controlled by the user and there is no point showing the warning.
-				if proj, err := ctrl.getAppProj(app); err == nil && proj.IsResourcePermitted(metav1.GroupKind{Group: ref.GroupVersionKind().Group, Kind: ref.Kind}, true) {
+				// exclude resource unless it is permitted in the app project. If project is not permitted then it is not controlled by the user and there is no point showing the warning.
+				if proj, err := ctrl.getAppProj(app); err == nil && proj.IsResourcePermitted(metav1.GroupKind{Group: ref.GroupVersionKind().Group, Kind: ref.Kind}, true) &&
+					!isKnownOrphanedResourceExclusion(kube.NewResourceKey(ref.GroupVersionKind().Group, ref.GroupVersionKind().Kind, ref.Namespace, ref.Name)) {
+
 					managedByApp[app.Name] = false
 				}
 			}
@@ -210,6 +212,17 @@ func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, 
 		return nil, err
 	}
 	return tree, ctrl.cache.SetAppManagedResources(a.Name, managedResources)
+}
+
+// returns true of given resources exist in the namespace by default and not managed by the user
+func isKnownOrphanedResourceExclusion(key kube.ResourceKey) bool {
+	if key.Namespace == "default" && key.Group == "" && key.Kind == kube.ServiceKind && key.Name == "kubernetes" {
+		return true
+	}
+	if key.Group == "" && key.Kind == kube.ServiceAccountKind && key.Name == "default" {
+		return true
+	}
+	return false
 }
 
 func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managedResources []*appv1.ResourceDiff) (*appv1.ApplicationTree, error) {
@@ -264,7 +277,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	}
 	orphanedNodes := make([]appv1.ResourceNode, 0)
 	for k := range orphanedNodesMap {
-		if k.Namespace != "" && proj.IsResourcePermitted(metav1.GroupKind{Group: k.Group, Kind: k.Kind}, true) {
+		if k.Namespace != "" && proj.IsResourcePermitted(metav1.GroupKind{Group: k.Group, Kind: k.Kind}, true) && !isKnownOrphanedResourceExclusion(k) {
 			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, k, func(child appv1.ResourceNode, appName string) {
 				belongToAnotherApp := false
 				if appName != "" {
@@ -301,6 +314,7 @@ func (ctrl *ApplicationController) managedResources(comparisonResult *comparison
 			Name:      res.Name,
 			Group:     res.Group,
 			Kind:      res.Kind,
+			Hook:      res.Hook,
 		}
 
 		target := res.Target
@@ -740,8 +754,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		}
 	}
 
-	ctrl.refreshAppConditions(app)
-	if len(app.Status.GetErrorConditions()) > 0 {
+	hasErrors := ctrl.refreshAppConditions(app)
+	if hasErrors {
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = appv1.HealthStatusUnknown
 		ctrl.persistAppStatus(origApp, &app.Status)
@@ -757,13 +771,13 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if comparisonLevel == CompareWithRecent {
 		revision = app.Status.Sync.Revision
 	}
-	compareResult, err := ctrl.appStateManager.CompareAppState(app, revision, app.Spec.Source, refreshType == appv1.RefreshTypeHard, localManifests)
-	if err != nil {
-		app.Status.Conditions = append(app.Status.Conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
-	} else {
-		ctrl.normalizeApplication(origApp, app)
-		app.Status.Conditions = append(app.Status.Conditions, compareResult.conditions...)
-	}
+
+	compareResult := ctrl.appStateManager.CompareAppState(app, revision, app.Spec.Source, refreshType == appv1.RefreshTypeHard, localManifests)
+
+	ctrl.normalizeApplication(origApp, app, compareResult.appSourceType)
+
+	app.Status.Conditions = append(app.Status.Conditions, compareResult.conditions...)
+
 	tree, err := ctrl.setAppManagedResources(app, compareResult)
 	if err != nil {
 		logCtx.Errorf("Failed to cache app resources: %v", err)
@@ -773,7 +787,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	syncErrCond := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources)
 	if syncErrCond != nil {
-		app.Status.Conditions = append(app.Status.Conditions, *syncErrCond)
+		app.Status.SetConditions([]appv1.ApplicationCondition{*syncErrCond}, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true})
+	} else {
+		app.Status.SetConditions([]appv1.ApplicationCondition{}, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true})
 	}
 
 	app.Status.ObservedAt = &compareResult.reconciledAt
@@ -818,17 +834,17 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	return false, refreshType, compareWith
 }
 
-func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) {
-	conditions := make([]appv1.ApplicationCondition, 0)
+func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) bool {
+	errorConditions := make([]appv1.ApplicationCondition, 0)
 	proj, err := ctrl.getAppProj(app)
 	if err != nil {
 		if apierr.IsNotFound(err) {
-			conditions = append(conditions, appv1.ApplicationCondition{
+			errorConditions = append(errorConditions, appv1.ApplicationCondition{
 				Type:    appv1.ApplicationConditionInvalidSpecError,
 				Message: fmt.Sprintf("Application referencing project %s which does not exist", app.Spec.Project),
 			})
 		} else {
-			conditions = append(conditions, appv1.ApplicationCondition{
+			errorConditions = append(errorConditions, appv1.ApplicationCondition{
 				Type:    appv1.ApplicationConditionUnknownError,
 				Message: err.Error(),
 			})
@@ -836,23 +852,23 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 	} else {
 		specConditions, err := argo.ValidatePermissions(context.Background(), &app.Spec, proj, ctrl.db)
 		if err != nil {
-			conditions = append(conditions, appv1.ApplicationCondition{
+			errorConditions = append(errorConditions, appv1.ApplicationCondition{
 				Type:    appv1.ApplicationConditionUnknownError,
 				Message: err.Error(),
 			})
 		} else {
-			conditions = append(conditions, specConditions...)
+			errorConditions = append(errorConditions, specConditions...)
 		}
 	}
-	app.Status.SetConditions(conditions, map[appv1.ApplicationConditionType]bool{
+	app.Status.SetConditions(errorConditions, map[appv1.ApplicationConditionType]bool{
 		appv1.ApplicationConditionInvalidSpecError:        true,
 		appv1.ApplicationConditionUnknownError:            true,
 		appv1.ApplicationConditionComparisonError:         true,
 		appv1.ApplicationConditionSharedResourceWarning:   true,
-		appv1.ApplicationConditionSyncError:               true,
 		appv1.ApplicationConditionRepeatedResourceWarning: true,
 		appv1.ApplicationConditionExcludedResourceWarning: true,
 	})
+	return len(errorConditions) > 0
 }
 
 // normalizeApplication normalizes an application.spec and additionally persists updates if it changed

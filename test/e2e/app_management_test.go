@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"os"
 	"path"
 	"regexp"
@@ -58,6 +59,53 @@ func TestAppCreation(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Contains(t, output, fixture.Name())
 		})
+}
+
+// demonstrate that we cannot use a standard sync when an immutable field is changed, we must use "force"
+func TestImmutableChange(t *testing.T) {
+	text := errors.FailOnErr(fixture.Run(".", "kubectl", "get", "service", "-n", "kube-system", "kube-dns", "-o", "jsonpath={.spec.clusterIP}")).(string)
+	parts := strings.Split(text, ".")
+	n := rand.Intn(254)
+	ip1 := fmt.Sprintf("%s.%s.%s.%d", parts[0], parts[1], parts[2], n)
+	ip2 := fmt.Sprintf("%s.%s.%s.%d", parts[0], parts[1], parts[2], n+1)
+	Given(t).
+		Path("service").
+		When().
+		Create().
+		PatchFile("service.yaml", fmt.Sprintf(`[{"op": "add", "path": "/spec/clusterIP", "value": "%s"}]`, ip1)).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusHealthy)).
+		When().
+		PatchFile("service.yaml", fmt.Sprintf(`[{"op": "add", "path": "/spec/clusterIP", "value": "%s"}]`, ip2)).
+		IgnoreErrors().
+		Sync().
+		DoNotIgnoreErrors().
+		Then().
+		Expect(OperationPhaseIs(OperationFailed)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(ResourceResultNumbering(1)).
+		Expect(ResourceResultIs(ResourceResult{
+			Kind:      "Service",
+			Version:   "v1",
+			Namespace: fixture.DeploymentNamespace(),
+			Name:      "my-service",
+			SyncPhase: "Sync",
+			Status:    "SyncFailed",
+			HookPhase: "Failed",
+			Message:   fmt.Sprintf(`kubectl failed exit status 1: The Service "my-service" is invalid: spec.clusterIP: Invalid value: "%s": field is immutable`, ip2),
+		})).
+		// now we can do this will a force
+		Given().
+		Force().
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusHealthy))
 }
 
 func TestInvalidAppProject(t *testing.T) {
@@ -361,7 +409,7 @@ func TestDuplicatedResources(t *testing.T) {
 }
 
 func TestConfigMap(t *testing.T) {
-	testEdgeCasesApplicationResources(t, "config-map", HealthStatusHealthy)
+	testEdgeCasesApplicationResources(t, "config-map", HealthStatusHealthy, "my-map  Synced                configmap/my-map created")
 }
 
 func TestFailedConversion(t *testing.T) {
@@ -373,15 +421,19 @@ func TestFailedConversion(t *testing.T) {
 	testEdgeCasesApplicationResources(t, "failed-conversion", HealthStatusProgressing)
 }
 
-func testEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode HealthStatusCode) {
-	Given(t).
+func testEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode HealthStatusCode, message ...string) {
+	expect := Given(t).
 		Path(appPath).
 		When().
 		Create().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+	for i := range message {
+		expect = expect.Expect(Success(message[i]))
+	}
+	expect.
 		Expect(HealthIs(statusCode)).
 		And(func(app *Application) {
 			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", path.Join("testdata", appPath))
@@ -744,9 +796,6 @@ func TestOrphanedResource(t *testing.T) {
 			SourceRepos:       []string{"*"},
 			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
 			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true)},
-			NamespaceResourceBlacklist: []metav1.GroupKind{{
-				Kind: kube.ServiceAccountKind,
-			}},
 		}).
 		Path(guestbookPath).
 		When().
@@ -754,9 +803,7 @@ func TestOrphanedResource(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			assert.Len(t, app.Status.Conditions, 0)
-		}).
+		Expect(NoConditions()).
 		When().
 		And(func() {
 			errors.FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(&v1.ConfigMap{
@@ -778,7 +825,5 @@ func TestOrphanedResource(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			assert.Len(t, app.Status.Conditions, 0)
-		})
+		Expect(NoConditions())
 }

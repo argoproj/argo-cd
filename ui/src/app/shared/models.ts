@@ -1,4 +1,4 @@
-import { models } from 'argo-ui';
+import {models} from 'argo-ui';
 
 interface ItemsList<T> {
     /**
@@ -19,7 +19,10 @@ export interface ApplicationList extends ItemsList<Application> { }
 
 export interface SyncOperationResource { group: string; kind: string; name: string; }
 
-export interface SyncStrategy { apply: {} | null; hook: {} | null; }
+export interface SyncStrategy {
+    apply: { force?: boolean } | null;
+    hook: { force?: boolean } | null;
+}
 
 export interface SyncOperation {
     revision: string;
@@ -280,6 +283,7 @@ export interface ResourceDiff {
     targetState: State;
     liveState: State;
     diff: string;
+    hook: boolean;
 }
 
 export interface SyncStatus {
@@ -329,6 +333,10 @@ export interface AuthSettings {
     };
     oidcConfig: {
         name: string;
+    };
+    help: {
+        chatUrl: string;
+        chatText: string;
     };
 }
 
@@ -494,6 +502,7 @@ export interface ProjectSpec {
     roles: ProjectRole[];
     clusterResourceWhitelist: GroupKind[];
     namespaceResourceBlacklist: GroupKind[];
+    orphanedResources?: { warn?: boolean };
 }
 
 export interface Project {

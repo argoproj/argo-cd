@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
@@ -145,6 +146,24 @@ func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*
 		return nil, err
 	}
 	res, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Create(q.Project)
+	if apierr.IsAlreadyExists(err) {
+		existing, getErr := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project.Name, metav1.GetOptions{})
+		if getErr != nil {
+			return nil, status.Errorf(codes.Internal, "unable to check existing project details: %v", getErr)
+		}
+		if q.GetUpsert() {
+			if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionUpdate, q.GetProject().Name); err != nil {
+				return nil, err
+			}
+			existing.Spec = q.GetProject().Spec
+			res, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(existing)
+		} else {
+			if !reflect.DeepEqual(existing.Spec, q.GetProject().Spec) {
+				return nil, status.Errorf(codes.InvalidArgument, "existing project spec is different, use upsert flag to force update")
+			}
+			return existing, nil
+		}
+	}
 	if err == nil {
 		s.logEvent(res, ctx, argo.EventReasonResourceCreated, "created project")
 	}

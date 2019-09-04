@@ -92,7 +92,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 				errors.CheckError(err)
 				oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
 				errors.CheckError(err)
-				tokenString, refreshToken = oauth2Login(ctx, ssoPort, oauth2conf, provider)
+				tokenString, refreshToken = oauth2Login(ctx, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider)
 			}
 
 			parser := &jwt.Parser{
@@ -154,7 +154,7 @@ func userDisplayName(claims jwt.MapClaims) string {
 
 // oauth2Login opens a browser, runs a temporary HTTP server to delegate OAuth2 login flow and
 // returns the JWT token and a refresh token (if supported)
-func oauth2Login(ctx context.Context, port int, oauth2conf *oauth2.Config, provider *oidc.Provider) (string, string) {
+func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCConfig, oauth2conf *oauth2.Config, provider *oidc.Provider) (string, string) {
 	oauth2conf.RedirectURL = fmt.Sprintf("http://localhost:%d/auth/callback", port)
 	oidcConf, err := oidcutil.ParseConfig(provider)
 	errors.CheckError(err)
@@ -243,12 +243,17 @@ func oauth2Login(ctx context.Context, port int, oauth2conf *oauth2.Config, provi
 	fmt.Printf("Opening browser for authentication\n")
 
 	var url string
-	grantType := oidcutil.InferGrantType(oauth2conf, oidcConf)
+	grantType := oidcutil.InferGrantType(oidcConf)
+	opts := []oauth2.AuthCodeOption{oauth2.AccessTypeOffline}
+	if claimsRequested := oidcSettings.GetIDTokenClaims(); claimsRequested != nil {
+		opts = oidcutil.AppendClaimsAuthenticationRequestParameter(opts, claimsRequested)
+	}
+
 	switch grantType {
 	case oidcutil.GrantTypeAuthorizationCode:
-		url = oauth2conf.AuthCodeURL(stateNonce, oauth2.AccessTypeOffline)
+		url = oauth2conf.AuthCodeURL(stateNonce, opts...)
 	case oidcutil.GrantTypeImplicit:
-		url = oidcutil.ImplicitFlowURL(oauth2conf, stateNonce, oauth2.AccessTypeOffline)
+		url = oidcutil.ImplicitFlowURL(oauth2conf, stateNonce, opts...)
 	default:
 		log.Fatalf("Unsupported grant type: %v", grantType)
 	}

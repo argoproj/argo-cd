@@ -39,6 +39,10 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 	if err != nil {
 		return nil, err
 	}
+	help, err := s.mgr.GetHelp()
+	if err != nil {
+		return nil, err
+	}
 
 	overrides := make(map[string]*v1alpha1.ResourceOverride)
 	for k := range resourceOverrides {
@@ -58,6 +62,10 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 			TrackingID:     gaSettings.TrackingID,
 			AnonymizeUsers: gaSettings.AnonymizeUsers,
 		},
+		Help: &settingspkg.Help{
+			ChatUrl:  help.ChatURL,
+			ChatText: help.ChatText,
+		},
 	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg settingspkg.DexConfig
@@ -73,6 +81,9 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 			ClientID:    oidcConfig.ClientID,
 			CLIClientID: oidcConfig.CLIClientID,
 			Scopes:      oidcConfig.RequestedScopes,
+		}
+		if len(argoCDSettings.OIDCConfig().RequestedIDTokenClaims) > 0 {
+			set.OIDCConfig.IDTokenClaims = argoCDSettings.OIDCConfig().RequestedIDTokenClaims
 		}
 	}
 	return &set, nil

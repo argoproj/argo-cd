@@ -144,3 +144,82 @@ func TestGetGoogleAnalytics(t *testing.T) {
 	assert.Equal(t, "123", ga.TrackingID)
 	assert.Equal(t, true, ga.AnonymizeUsers)
 }
+
+func TestSettingsManager_GetHelp(t *testing.T) {
+	t.Run("Default", func(t *testing.T) {
+		_, settingsManager := fixtures(nil)
+		h, err := settingsManager.GetHelp()
+		assert.NoError(t, err)
+		assert.Empty(t, h.ChatURL)
+		assert.Equal(t, "Chat now!", h.ChatText)
+
+	})
+	t.Run("Set", func(t *testing.T) {
+		_, settingsManager := fixtures(map[string]string{
+			"help.chatUrl":  "foo",
+			"help.chatText": "bar",
+		})
+		h, err := settingsManager.GetHelp()
+		assert.NoError(t, err)
+		assert.Equal(t, "foo", h.ChatURL)
+		assert.Equal(t, "bar", h.ChatText)
+	})
+}
+
+func TestGetOIDCConfig(t *testing.T) {
+	kubeClient := fake.NewSimpleClientset(
+		&v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string]string{
+				"oidc.config": "\n  requestedIDTokenClaims: {\"groups\": {\"essential\": true}}\n",
+			},
+		},
+		&v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDSecretName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string][]byte{
+				"admin.password":   nil,
+				"server.secretkey": nil,
+			},
+		},
+	)
+	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settings, err := settingsManager.GetSettings()
+	assert.NoError(t, err)
+
+	oidcConfig := settings.OIDCConfig()
+	assert.NotNil(t, oidcConfig)
+
+	claim := oidcConfig.RequestedIDTokenClaims["groups"]
+	assert.NotNil(t, claim)
+	assert.Equal(t, true, claim.Essential)
+}
+
+func TestRedirectURL(t *testing.T) {
+	cases := map[string][]string{
+		"https://localhost:4000":         {"https://localhost:4000/auth/callback", "https://localhost:4000/api/dex/callback"},
+		"https://localhost:4000/":        {"https://localhost:4000/auth/callback", "https://localhost:4000/api/dex/callback"},
+		"https://localhost:4000/argocd":  {"https://localhost:4000/argocd/auth/callback", "https://localhost:4000/argocd/api/dex/callback"},
+		"https://localhost:4000/argocd/": {"https://localhost:4000/argocd/auth/callback", "https://localhost:4000/argocd/api/dex/callback"},
+	}
+	for given, expected := range cases {
+		settings := ArgoCDSettings{URL: given}
+		redirectURL, err := settings.RedirectURL()
+		assert.NoError(t, err)
+		assert.Equal(t, expected[0], redirectURL)
+		dexRedirectURL, err := settings.DexRedirectURL()
+		assert.NoError(t, err)
+		assert.Equal(t, expected[1], dexRedirectURL)
+	}
+}

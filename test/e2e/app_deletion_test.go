@@ -16,13 +16,13 @@ func TestDeletingAppStuckInSync(t *testing.T) {
 		Path("hook").
 		When().
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command", "value": ["sh", "-c", "until ls /tmp/done; do sleep 0.1; done"]}]`).
+		PatchFile("pod.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-wave": "1"}}]`).
 		Create().
 		Sync().
 		Then().
 		// stuck in running state
 		Expect(OperationPhaseIs(OperationRunning)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(ResourceResultNumbering(2)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		When().
 		Delete(true).
 		Then().

@@ -1,5 +1,6 @@
 import { DropDownMenu, Tooltip } from 'argo-ui';
 import * as React from 'react';
+const GitUrlParse = require('git-url-parse');
 
 import { Cluster } from '../../../shared/components';
 import { Consumer } from '../../../shared/context';
@@ -10,7 +11,7 @@ import * as AppUtils from '../utils';
 require('./applications-table.scss');
 
 function shortRepo(repo: string) {
-    const url = new URL(repo);
+    const url = GitUrlParse(repo);
     return <Tooltip content={repo}><span>{url.pathname.slice(1)}</span></Tooltip>;
 }
 

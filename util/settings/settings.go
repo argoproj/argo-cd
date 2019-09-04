@@ -7,7 +7,9 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"net/url"
 	"os"
+	"path"
 	"strings"
 	"sync"
 	"time"
@@ -26,6 +28,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/server/settings/oidc"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/password"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
@@ -73,13 +76,22 @@ type GoogleAnalytics struct {
 	AnonymizeUsers bool   `json:"anonymizeUsers,omitempty"`
 }
 
+// Help settings
+type Help struct {
+	// the URL for getting chat help, this will typically be your Slack channel for support
+	ChatURL string `json:"chatUrl,omitempty"`
+	// the text for getting chat help, defaults to "Chat now!"
+	ChatText string `json:"chatText,omitempty"`
+}
+
 type OIDCConfig struct {
-	Name            string   `json:"name,omitempty"`
-	Issuer          string   `json:"issuer,omitempty"`
-	ClientID        string   `json:"clientID,omitempty"`
-	ClientSecret    string   `json:"clientSecret,omitempty"`
-	CLIClientID     string   `json:"cliClientID,omitempty"`
-	RequestedScopes []string `json:"requestedScopes,omitempty"`
+	Name                   string                 `json:"name,omitempty"`
+	Issuer                 string                 `json:"issuer,omitempty"`
+	ClientID               string                 `json:"clientID,omitempty"`
+	ClientSecret           string                 `json:"clientSecret,omitempty"`
+	CLIClientID            string                 `json:"cliClientID,omitempty"`
+	RequestedScopes        []string               `json:"requestedScopes,omitempty"`
+	RequestedIDTokenClaims map[string]*oidc.Claim `json:"requestedIDTokenClaims,omitempty"`
 }
 
 // Credentials for accessing a Git repository
@@ -119,6 +131,10 @@ const (
 	settingServerSignatureKey = "server.secretkey"
 	// gaTrackingID holds Google Analytics tracking id
 	gaTrackingID = "ga.trackingid"
+	// the URL for getting chat help, this will typically be your Slack channel for support
+	helpChatURL = "help.chatUrl"
+	// the text for getting chat help, defaults to "Chat now!"
+	helpChatText = "help.chatText"
 	// gaAnonymizeUsers specifies if user ids should be anonymized (hashed) before sending to Google Analytics. True unless value is set to 'false'
 	gaAnonymizeUsers = "ga.anonymizeusers"
 	// settingServerCertificate designates the key for the public cert used in TLS
@@ -361,6 +377,21 @@ func (mgr *SettingsManager) GetGoogleAnalytics() (*GoogleAnalytics, error) {
 	return &GoogleAnalytics{
 		TrackingID:     argoCDCM.Data[gaTrackingID],
 		AnonymizeUsers: argoCDCM.Data[gaAnonymizeUsers] != "false",
+	}, nil
+}
+
+func (mgr *SettingsManager) GetHelp() (*Help, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return nil, err
+	}
+	chatText, ok := argoCDCM.Data[helpChatText]
+	if !ok {
+		chatText = "Chat now!"
+	}
+	return &Help{
+		ChatURL:  argoCDCM.Data[helpChatURL],
+		ChatText: chatText,
 	}, nil
 }
 
@@ -784,8 +815,21 @@ func (a *ArgoCDSettings) OAuth2ClientSecret() string {
 	return ""
 }
 
-func (a *ArgoCDSettings) RedirectURL() string {
-	return a.URL + common.CallbackEndpoint
+func appendURLPath(inputURL string, inputPath string) (string, error) {
+	u, err := url.Parse(inputURL)
+	if err != nil {
+		return "", err
+	}
+	u.Path = path.Join(u.Path, inputPath)
+	return u.String(), nil
+}
+
+func (a *ArgoCDSettings) RedirectURL() (string, error) {
+	return appendURLPath(a.URL, common.CallbackEndpoint)
+}
+
+func (a *ArgoCDSettings) DexRedirectURL() (string, error) {
+	return appendURLPath(a.URL, common.DexCallbackEndpoint)
 }
 
 // DexOAuth2ClientSecret calculates an arbitrary, but predictable OAuth2 client secret string derived

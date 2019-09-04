@@ -13,8 +13,12 @@ func GenerateDexConfigYAML(settings *settings.ArgoCDSettings) ([]byte, error) {
 	if !settings.IsDexConfigured() {
 		return nil, nil
 	}
+	redirectURL, err := settings.RedirectURL()
+	if err != nil {
+		return nil, fmt.Errorf("failed to infer redirect url from config: %v", err)
+	}
 	var dexCfg map[string]interface{}
-	err := yaml.Unmarshal([]byte(settings.DexConfig), &dexCfg)
+	err = yaml.Unmarshal([]byte(settings.DexConfig), &dexCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal dex.config from configmap: %v", err)
 	}
@@ -37,7 +41,7 @@ func GenerateDexConfigYAML(settings *settings.ArgoCDSettings) ([]byte, error) {
 			"name":   common.ArgoCDClientAppName,
 			"secret": settings.DexOAuth2ClientSecret(),
 			"redirectURIs": []string{
-				settings.RedirectURL(),
+				redirectURL,
 			},
 		},
 		{
@@ -49,6 +53,11 @@ func GenerateDexConfigYAML(settings *settings.ArgoCDSettings) ([]byte, error) {
 			},
 		},
 	}
+
+	dexRedirectURL, err := settings.DexRedirectURL()
+	if err != nil {
+		return nil, err
+	}
 	connectors := dexCfg["connectors"].([]interface{})
 	for i, connectorIf := range connectors {
 		connector := connectorIf.(map[string]interface{})
@@ -57,7 +66,7 @@ func GenerateDexConfigYAML(settings *settings.ArgoCDSettings) ([]byte, error) {
 			continue
 		}
 		connectorCfg := connector["config"].(map[string]interface{})
-		connectorCfg["redirectURI"] = settings.URL + "/api/dex/callback"
+		connectorCfg["redirectURI"] = dexRedirectURL
 		connector["config"] = connectorCfg
 		connectors[i] = connector
 	}

@@ -842,6 +842,7 @@ type ResourceDiff struct {
 	TargetState string `json:"targetState,omitempty" protobuf:"bytes,5,opt,name=targetState"`
 	LiveState   string `json:"liveState,omitempty" protobuf:"bytes,6,opt,name=liveState"`
 	Diff        string `json:"diff,omitempty" protobuf:"bytes,7,opt,name=diff"`
+	Hook        bool   `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
 }
 
 // ConnectionStatus represents connection status
