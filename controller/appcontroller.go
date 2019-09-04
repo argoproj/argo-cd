@@ -774,7 +774,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	compareResult := ctrl.appStateManager.CompareAppState(app, revision, app.Spec.Source, refreshType == appv1.RefreshTypeHard, localManifests)
 
-	ctrl.normalizeApplication(origApp, app, compareResult.appSourceType)
+	ctrl.normalizeApplication(origApp, app)
 
 	app.Status.Conditions = append(app.Status.Conditions, compareResult.conditions...)
 
