@@ -131,9 +131,11 @@ func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra
 				fmt.Println(string(jsonBytes))
 			case "":
 				fmt.Printf("Logged In: %v\n", response.LoggedIn)
-				fmt.Printf("Username: %s\n", response.Username)
-				fmt.Printf("Issuer: %s\n", response.Iss)
-				fmt.Printf("Groups: %v\n", strings.Join(response.Groups, ","))
+				if response.LoggedIn {
+					fmt.Printf("Username: %s\n", response.Username)
+					fmt.Printf("Issuer: %s\n", response.Iss)
+					fmt.Printf("Groups: %v\n", strings.Join(response.Groups, ","))
+				}
 			default:
 				log.Fatalf("Unknown output format: %s", output)
 			}

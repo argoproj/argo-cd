@@ -186,6 +186,7 @@ start-e2e: cli
 	# set paths for locally managed ssh known hosts and tls certs data
 	ARGOCD_SSH_DATA_PATH=/tmp/argo-e2e/app/config/ssh \
 	ARGOCD_TLS_DATA_PATH=/tmp/argo-e2e/app/config/tls \
+	ARGOCD_E2E_DISABLE_AUTH=false \
 		goreman start
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes
