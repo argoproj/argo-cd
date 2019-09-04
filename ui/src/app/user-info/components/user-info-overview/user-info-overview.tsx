@@ -10,21 +10,21 @@ export const UserInfoOverview = () => (
         <div className='user-info'>
             <div className='argo-container'>
                 <div className='user-info-overview__panel white-box'>
-                    <DataLoader key='userInfo' load={() => services.users.get()}>{(userInfo) => (
+                    <DataLoader key='userInfo1' load={() => services.users.get()}>{(userInfo) => (
                         userInfo.loggedIn ? (
-                            <React.Fragment>
-                                <p>Username: {userInfo.username}</p>
-                                <p>Issuer: {userInfo.iss}</p>
-                                {userInfo.groups && (<React.Fragment><p>Groups:</p>
+                            <React.Fragment key='userInfo'>
+                                <p key='username'>Username: {userInfo.username}</p>
+                                <p key='iss'>Issuer: {userInfo.iss}</p>
+                                {userInfo.groups && (<React.Fragment  key='userInfo4'><p>Groups:</p>
                                     <ul>
                                         {userInfo.groups.map((group) => (
-                                            <li>{group}</li>
+                                            <li key={group}>{group}</li>
                                         ))}
                                     </ul>
                                 </React.Fragment>)}
                             </React.Fragment>
                         ) : (
-                            <p>You are not logged in</p>
+                            <p key='loggedOutMessage'>You are not logged in</p>
                         )
                     )}</DataLoader>
                 </div>
