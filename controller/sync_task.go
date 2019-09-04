@@ -94,6 +94,10 @@ func (t *syncTask) namespace() string {
 	return t.obj().GetNamespace()
 }
 
+func (t *syncTask) pending() bool {
+	return t.operationState == ""
+}
+
 func (t *syncTask) running() bool {
 	return t.operationState == v1alpha1.OperationRunning
 }
