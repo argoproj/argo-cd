@@ -242,7 +242,7 @@ func TestSkipAutoSync(t *testing.T) {
 	// Verify we skip when auto-sync is disabled
 	{
 		app := newFakeApp()
-		app.Spec.SyncPolicy = nil
+		app.Spec.SyncPolicy.Automated = nil
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 		syncStatus := argoappv1.SyncStatus{
 			Status:   argoappv1.SyncStatusCodeOutOfSync,
@@ -303,9 +303,9 @@ func TestSkipAutoSync(t *testing.T) {
 		app := newFakeApp()
 		sched := "* * * * *"
 		dur := "1m"
-		syncPol := &argoappv1.SyncPolicy{Automated: &argoappv1.SyncPolicyAutomated{}}
+		syncPol := &argoappv1.SyncPolicy{Automated: &argoappv1.SyncPolicyAutomated{}, Maintenance: &argoappv1.Maintenance{Enabled: true}}
 		windows := []*argoappv1.MaintenanceWindow{{Schedule: sched, Duration: dur}}
-		syncPol.Automated.MaintenanceWindows = windows
+		syncPol.Maintenance.Windows = windows
 		app.Spec.SyncPolicy = syncPol
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 		syncStatus := argoappv1.SyncStatus{

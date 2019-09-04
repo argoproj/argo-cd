@@ -99,21 +99,29 @@ export const ApplicationSummary = (props: {
         ) });
     }
 
-    async function setAutoSync(ctx: { popup: PopupApi }, confirmationTitle: string, confirmationText: string, prune: boolean, selfHeal: boolean,
-                               maintenanceWindows: models.MaintenanceWindow[]) {
+    async function setAutoSync(ctx: { popup: PopupApi }, confirmationTitle: string, confirmationText: string, prune: boolean, selfHeal: boolean) {
         const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);
         if (confirmed) {
             const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
-            updatedApp.spec.syncPolicy = { automated: { prune, selfHeal, maintenanceWindows} };
+            updatedApp.spec.syncPolicy = { automated: { prune, selfHeal}, maintenance: updatedApp.spec.syncPolicy.maintenance };
             props.updateApp(updatedApp);
         }
     }
 
-    async function unsetAutoSync(ctx: { popup: PopupApi }) {
+    async function  unsetAutoSync(ctx: { popup: PopupApi }) {
         const confirmed = await ctx.popup.confirm('Disable Auto-Sync?', 'Are you sure you want to disable automated application synchronization');
         if (confirmed) {
             const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
-            updatedApp.spec.syncPolicy = { automated: null };
+            updatedApp.spec.syncPolicy = { automated: null, maintenance: updatedApp.spec.syncPolicy.maintenance};
+            props.updateApp(updatedApp);
+        }
+    }
+
+    async function setMaintenance(ctx: { popup: PopupApi }, confirmationTitle: string, confirmationText: string, enabled: boolean) {
+        const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);
+        if (confirmed) {
+            const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
+            updatedApp.spec.syncPolicy.maintenance = { enabled, windows: updatedApp.spec.syncPolicy.maintenance.windows };
             props.updateApp(updatedApp);
         }
     }
@@ -183,9 +191,53 @@ export const ApplicationSummary = (props: {
             <div className='white-box'>
                 <div className='white-box__details'>
                     <p>Sync Policy</p>
+                    {app.spec.syncPolicy.maintenance && (
+                        <DataLoader noLoaderOnInputChange={true} input={app.spec.syncPolicy.maintenance} load={async () => {
+                            return await services.applications.getMaintenanceWindowState(app.metadata.name);
+                        }}>{(data) =>
+                            <React.Fragment>
+                                <div className='row white-box__details-row'>
+                                    <div className='columns small-3'>
+                                        Maintenance
+                                    </div>
+                                    <div className='columns small-9'>
+                                        {app.spec.syncPolicy.maintenance.enabled && (
+                                            <button className='argo-button argo-button--base' onClick={() => setMaintenance(
+                                                ctx, 'Disable Maintenance?', 'Are you sure you want to disable maintenance?',
+                                                false)
+                                            }>Disable</button>
+                                        ) || (
+                                            <button className='argo-button argo-button--base' onClick={() => setMaintenance(
+                                                ctx, 'Enable Maintenance?', 'Are you sure you want to enable maintenance?',
+                                                true)
+                                            }>Enable</button>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className='row white-box__details-row'>
+                                    <div className='columns small-3'>
+                                        Maintenance Windows
+                                    </div>
+                                    <div className='columns small-9'>
+                                        {app.spec.syncPolicy.maintenance.windows.map((window) =>
+                                            <MaintenanceWindowSchedule key={window.schedule + ':' + window.duration}
+                                                                       state={data} window={window.schedule + ':' + window.duration}/> || <span></span>)}
+                                    </div>
+                                </div>
+                                <div className='row white-box__details-row'>
+                                    <div className='columns small-3'>
+                                        Maintenance State
+                                    </div>
+                                    <div className='columns small-9'>
+                                        <span><MaintenanceWindowStatusIcon state={data} /></span>
+                                    </div>
+                                </div>
+                            </React.Fragment>
+                        }</DataLoader>
+                    )}
                     <div className='row white-box__details-row'>
                         <div className='columns small-3'>
-                            {app.spec.syncPolicy && app.spec.syncPolicy.automated && <span>Automated</span> || <span>None</span>}
+                            {app.spec.syncPolicy && app.spec.syncPolicy.automated && <span>Automated</span> || <span>Manual</span>}
                         </div>
                         <div className='columns small-9'>
                             {app.spec.syncPolicy && app.spec.syncPolicy.automated && (
@@ -193,7 +245,7 @@ export const ApplicationSummary = (props: {
                             ) || (
                                 <button className='argo-button argo-button--base' onClick={() => setAutoSync(
                                     ctx, 'Enable Auto-Sync?', 'Are you sure you want to enable automated application synchronization?',
-                                    false, false, null)
+                                    false, false)
                                 }>Enable Auto-Sync</button>
                             )}
                         </div>
@@ -208,12 +260,12 @@ export const ApplicationSummary = (props: {
                                     {app.spec.syncPolicy.automated.prune && (
                                         <button className='argo-button argo-button--base' onClick={() => setAutoSync(
                                             ctx, 'Disable Prune Resources?', 'Are you sure you want to disable resource pruning during automated application synchronization?',
-                                            false, app.spec.syncPolicy.automated.selfHeal, app.spec.syncPolicy.automated.maintenanceWindows)
+                                            false, app.spec.syncPolicy.automated.selfHeal)
                                         }>Disable</button>
                                     ) || (
                                         <button className='argo-button argo-button--base' onClick={() => setAutoSync(
                                             ctx, 'Enable Prune Resources?', 'Are you sure you want to enable resource pruning during automated application synchronization?',
-                                            true, app.spec.syncPolicy.automated.selfHeal, app.spec.syncPolicy.automated.maintenanceWindows)
+                                            true, app.spec.syncPolicy.automated.selfHeal)
                                         }>Enable</button>
                                     )}
                                 </div>
@@ -226,46 +278,16 @@ export const ApplicationSummary = (props: {
                                     {app.spec.syncPolicy.automated.selfHeal && (
                                         <button className='argo-button argo-button--base' onClick={() => setAutoSync(
                                             ctx, 'Disable Self Heal?', 'Are you sure you want to disable automated self healing?',
-                                            app.spec.syncPolicy.automated.prune, false, app.spec.syncPolicy.automated.maintenanceWindows)
+                                            app.spec.syncPolicy.automated.prune, false)
                                         }>Disable</button>
                                     ) || (
                                         <button className='argo-button argo-button--base' onClick={() => setAutoSync(
                                             ctx, 'Enable Self Heal?', 'Are you sure you want to enable automated self healing?',
-                                            app.spec.syncPolicy.automated.prune, true, app.spec.syncPolicy.automated.maintenanceWindows)
+                                            app.spec.syncPolicy.automated.prune, true)
                                         }>Enable</button>
                                     )}
                                 </div>
                             </div>
-                            {app.spec.syncPolicy.automated.maintenanceWindows && (
-                                <DataLoader noLoaderOnInputChange={true} input={app.spec.syncPolicy.automated.maintenanceWindows} load={async () => {
-                                    return await services.applications.getMaintenanceWindowState(app.metadata.name);
-                                }}>{(data) =>
-                                    <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>
-                                            Maintenance Windows
-                                        </div>
-                                        <div className='columns small-9'>
-                                            {app.spec.syncPolicy.automated.maintenanceWindows.map((window) =>
-                                                <MaintenanceWindowSchedule key={window.schedule + ':' + window.duration}
-                                                                           state={data} window={window.schedule + ':' + window.duration}/>)}
-                                        </div>
-                                    </div>
-                                }</DataLoader>
-                            )}
-                            {app.spec.syncPolicy.automated.maintenanceWindows && (
-                                <DataLoader noLoaderOnInputChange={true} input={app.spec.syncPolicy.automated.maintenanceWindows} load={async () => {
-                                    return await services.applications.getMaintenanceWindowState(app.metadata.name);
-                                }}>{(data) =>
-                                    <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>
-                                            Maintenance State
-                                        </div>
-                                        <div className='columns small-9'>
-                                            <span><MaintenanceWindowStatusIcon state={data} /></span>
-                                        </div>
-                                    </div>
-                                }</DataLoader>
-                            )}
                         </React.Fragment>
                     )}
                 </div>

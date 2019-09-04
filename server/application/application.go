@@ -259,11 +259,13 @@ func (s *Server) GetMaintenanceState(ctx context.Context, q *application.Mainten
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
 		return nil, err
 	}
-	active, activeWindows := a.Spec.SyncPolicy.Automated.MaintenanceWindows.Active()
+	active, activeWindows := a.Spec.SyncPolicy.Maintenance.ActiveWindows()
+	enabled := a.Spec.SyncPolicy.Maintenance.IsEnabled()
 
 	res := &application.MaintenanceResponse{
 		Active:  &active,
 		Windows: activeWindows,
+		Enabled: &enabled,
 	}
 
 	return res, nil
@@ -584,8 +586,8 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		}
 	}
 
-	if app.Spec.SyncPolicy.IsAutomated() {
-		for _, w := range app.Spec.SyncPolicy.Automated.MaintenanceWindows {
+	if app.Spec.SyncPolicy != nil && !app.Spec.SyncPolicy.Maintenance.ZeroWindows() {
+		for _, w := range app.Spec.SyncPolicy.Maintenance.Windows {
 			err := w.Validate()
 			if err != nil {
 				return err

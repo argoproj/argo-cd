@@ -267,6 +267,7 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string) {
 	fmt.Printf(printOpFmtStr, "Path:", app.Spec.Source.Path)
 	printAppSourceDetails(&app.Spec.Source)
 	var syncPolicy string
+	var maintenance string
 	var maintenanceWindows string
 	if app.Spec.SyncPolicy.IsAutomated() {
 		syncPolicy = "Automated"
@@ -276,11 +277,16 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string) {
 		if app.Spec.SyncPolicy.Automated.SelfHeal {
 			syncPolicy += " (Self-Heal)"
 		}
-		maintenanceWindows = app.Spec.SyncPolicy.Automated.MaintenanceWindows.String()
 	} else {
-		syncPolicy = "<none>"
-		maintenanceWindows = "<none>"
+		syncPolicy = "Manual"
 	}
+	if app.Spec.SyncPolicy.Maintenance.IsEnabled() {
+		maintenance = "Enabled"
+	} else {
+		maintenance = "Disabled"
+	}
+	maintenanceWindows = app.Spec.SyncPolicy.Maintenance.ListWindows()
+
 	fmt.Printf(printOpFmtStr, "Sync Policy:", syncPolicy)
 	syncStatusStr := string(app.Status.Sync.Status)
 	switch app.Status.Sync.Status {
@@ -293,12 +299,11 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string) {
 		syncStatusStr += fmt.Sprintf(" (%s)", app.Status.Sync.Revision[0:7])
 	}
 	fmt.Printf(printOpFmtStr, "Sync Status:", syncStatusStr)
-	if syncPolicy != "<none>" {
-		fmt.Printf(printOpFmtStr, "Maintenance Windows:", maintenanceWindows)
-	}
+	fmt.Printf(printOpFmtStr, "Maintenance:", maintenance)
+	fmt.Printf(printOpFmtStr, "Maintenance Windows:", maintenanceWindows)
 	if maintenanceWindows != "<none>" {
 		var status string
-		active, win := app.Spec.SyncPolicy.Automated.MaintenanceWindows.Active()
+		active, win := app.Spec.SyncPolicy.Maintenance.ActiveWindows()
 		if active {
 			status = "Active"
 		} else {
@@ -464,16 +469,36 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 		case "sync-policy":
 			switch appOpts.syncPolicy {
 			case "automated":
-				app.Spec.SyncPolicy = &argoappv1.SyncPolicy{
-					Automated: &argoappv1.SyncPolicyAutomated{},
+				if app.Spec.SyncPolicy == nil {
+					app.Spec.SyncPolicy = &argoappv1.SyncPolicy{Automated: &argoappv1.SyncPolicyAutomated{}}
+				} else {
+					app.Spec.SyncPolicy.Automated = &argoappv1.SyncPolicyAutomated{}
 				}
-			case "none":
-				app.Spec.SyncPolicy = nil
+			case "manual":
+				app.Spec.SyncPolicy.Automated = nil
 			default:
 				log.Fatalf("Invalid sync-policy: %s", appOpts.syncPolicy)
 			}
+		case "maintenance":
+			switch appOpts.maintenance {
+			case "enable":
+				if app.Spec.SyncPolicy.Maintenance == nil {
+					app.Spec.SyncPolicy.Maintenance = &argoappv1.Maintenance{Enabled: true}
+				} else {
+					app.Spec.SyncPolicy.Maintenance.Enabled = true
+				}
+			case "disable":
+				if app.Spec.SyncPolicy.Maintenance == nil {
+					app.Spec.SyncPolicy.Maintenance = &argoappv1.Maintenance{Enabled: false}
+				} else {
+					app.Spec.SyncPolicy.Maintenance.Enabled = false
+				}
+			default:
+				log.Fatalf("Invalid maintenance: %s", appOpts.maintenance)
+			}
 		}
 	})
+
 	if flags.Changed("auto-prune") {
 		if !app.Spec.SyncPolicy.IsAutomated() {
 			log.Fatal("Cannot set --auto-prune: application not configured with automatic sync")
@@ -486,17 +511,27 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 		}
 		app.Spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
 	}
+
 	if flags.Changed("maintenance-windows") {
-		if !app.Spec.SyncPolicy.IsAutomated() {
-			log.Fatal("Cannot set --maintenance-windows: application not configured with automatic sync")
-		}
 		if appOpts.maintenanceWindows == "none" {
-			app.Spec.SyncPolicy.Automated.MaintenanceWindows = nil
+			app.Spec.SyncPolicy.Maintenance.Windows = nil
+			app.Spec.SyncPolicy.Maintenance.Enabled = false
 		} else {
-			err := app.Spec.SyncPolicy.Automated.AddMaintenanceWindows(appOpts.maintenanceWindows)
+			if !app.Spec.SyncPolicy.Maintenance.IsEnabled() {
+				log.Fatalf("Cannot set --maintenance-windows: maintenance is not enabled")
+			}
+			err := app.Spec.SyncPolicy.AddMaintenanceWindows(appOpts.maintenanceWindows)
 			if err != nil {
 				log.Fatalf("Cannot set --maintenance-windows: %s", err)
 			}
+		}
+	}
+	if flags.Changed("maintenance") {
+		if app.Spec.SyncPolicy == nil {
+			log.Fatalf("Cannot set --maintenance: There is no sync-policy")
+		}
+		if app.Spec.SyncPolicy.Maintenance.ZeroWindows() {
+			log.Fatalf("Cannot set --maintenance: There are no configured windows")
 		}
 	}
 
@@ -630,6 +665,7 @@ type appOptions struct {
 	jsonnetTlaCode         []string
 	kustomizeImages        []string
 	maintenanceWindows     string
+	maintenance            string
 }
 
 func addAppFlags(command *cobra.Command, opts *appOptions) {
@@ -645,7 +681,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringArrayVar(&opts.helmSets, "helm-set", []string{}, "Helm set values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
 	command.Flags().StringArrayVar(&opts.helmSetStrings, "helm-set-string", []string{}, "Helm set STRING values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
 	command.Flags().StringVar(&opts.project, "project", "", "Application project name")
-	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: automated, none)")
+	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: automated, manual)")
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
 	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing when sync is automated")
 	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
@@ -654,7 +690,9 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringArrayVar(&opts.jsonnetTlaStr, "jsonnet-tla-str", []string{}, "Jsonnet top level string arguments")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaCode, "jsonnet-tla-code", []string{}, "Jsonnet top level code arguments")
 	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
-	command.Flags().StringVar(&opts.maintenanceWindows, "maintenance-windows", "", "Times during which auto-sync will be disabled, quote and separate values with commas: '0 11 * * *:1h,30 23 * * *:1h', to remove all schedules set to 'none')")
+	command.Flags().StringVar(&opts.maintenanceWindows, "maintenance-windows", "", "Times during which sync will be disabled, quote and separate values with commas: '0 11 * * *:1h,30 23 * * *:1h', to remove all schedules set to 'none'")
+	command.Flags().StringVar(&opts.maintenance, "maintenance", "", "Enable or disable maintenance windows (one of: automated, manual). Useful if a sync needs to be performed during a maintenance window")
+
 }
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
@@ -1068,11 +1106,7 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 			formatSyncPolicy(app),
 			formatConditionsSummary(app),
 		}
-		if formatSyncPolicy(app) == "<none>" {
-			maintenanceWindows = "<none>"
-		} else {
-			maintenanceWindows = app.Spec.SyncPolicy.Automated.MaintenanceWindows.String()
-		}
+		maintenanceWindows = app.Spec.SyncPolicy.Maintenance.ListWindows()
 		if *output == "wide" {
 			vals = append(vals, app.Spec.Source.RepoURL, app.Spec.Source.Path, app.Spec.Source.TargetRevision, maintenanceWindows)
 		}
@@ -1107,7 +1141,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 func formatSyncPolicy(app argoappv1.Application) string {
 	if !app.Spec.SyncPolicy.IsAutomated() {
-		return "<none>"
+		return "Manual"
 	}
 	policy := "Auto"
 	if app.Spec.SyncPolicy.Automated.Prune {

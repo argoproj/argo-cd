@@ -1710,6 +1710,10 @@
           "type": "boolean",
           "format": "boolean"
         },
+        "enabled": {
+          "type": "boolean",
+          "format": "boolean"
+        },
         "windows": {
           "type": "array",
           "items": {
@@ -3268,9 +3272,27 @@
         }
       }
     },
+    "v1alpha1Maintenance": {
+      "type": "object",
+      "title": "Maintenance controls when syncs can be run",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "Enabled will allow maintenance windows to run during their scheduled times (default: true)"
+        },
+        "windows": {
+          "type": "array",
+          "title": "Windows contains the schedules for when syncs should be disabled",
+          "items": {
+            "$ref": "#/definitions/v1alpha1MaintenanceWindow"
+          }
+        }
+      }
+    },
     "v1alpha1MaintenanceWindow": {
       "type": "object",
-      "title": "MaintenanceWindow controls when automated syncs should be disabled",
+      "title": "MaintenanceWindow contains the time and duration for a maintenance window",
       "properties": {
         "duration": {
           "type": "string",
@@ -3867,6 +3889,9 @@
       "properties": {
         "automated": {
           "$ref": "#/definitions/v1alpha1SyncPolicyAutomated"
+        },
+        "maintenance": {
+          "$ref": "#/definitions/v1alpha1Maintenance"
         }
       }
     },
@@ -3874,13 +3899,6 @@
       "type": "object",
       "title": "SyncPolicyAutomated controls the behavior of an automated sync",
       "properties": {
-        "maintenanceWindows": {
-          "type": "array",
-          "title": "MaintenanceWindows disables auto-syncing during the configured time windows",
-          "items": {
-            "$ref": "#/definitions/v1alpha1MaintenanceWindow"
-          }
-        },
         "prune": {
           "type": "boolean",
           "format": "boolean",

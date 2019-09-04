@@ -176,17 +176,23 @@ export interface ApplicationSourceDirectory {
 }
 
 export interface SyncPolicy {
-    automated?: { prune: boolean;  selfHeal: boolean; maintenanceWindows?: MaintenanceWindow[]; };
+    automated?: { prune: boolean;  selfHeal: boolean; };
+    maintenance?: Maintenance;
 }
 
-export interface Info {
-    name: string;
-    value: string;
+export interface Maintenance {
+    enabled?: boolean;
+    windows?: MaintenanceWindow[];
 }
 
 export interface MaintenanceWindow {
     schedule: string;
     duration: string;
+}
+
+export interface Info {
+    name: string;
+    value: string;
 }
 
 export interface ApplicationSpec {
@@ -541,4 +547,5 @@ export interface ResourceAction {
 export interface MaintenanceState {
     active: boolean;
     windows: string[];
+    enabled: boolean;
 }

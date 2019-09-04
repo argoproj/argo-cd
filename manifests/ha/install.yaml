@@ -820,9 +820,24 @@ spec:
                   description: Automated will keep an application synced to the target
                     revision
                   properties:
-                    maintenanceWindows:
-                      description: MaintenanceWindows disables auto-syncing during
-                        the configured time windows
+                    prune:
+                      description: 'Prune will prune resources automatically as part
+                        of automated sync (default: false)'
+                      type: boolean
+                    selfHeal:
+                      description: 'SelfHeal enables auto-syncing if  (default: false)'
+                      type: boolean
+                  type: object
+                maintenance:
+                  description: Maintenance controls when syncs can be run
+                  properties:
+                    enabled:
+                      description: 'Enabled will allow maintenance windows to run
+                        during their scheduled times (default: true)'
+                      type: boolean
+                    windows:
+                      description: Windows contains the schedules for when syncs should
+                        be disabled
                       items:
                         properties:
                           duration:
@@ -835,13 +850,8 @@ spec:
                             type: string
                         type: object
                       type: array
-                    prune:
-                      description: 'Prune will prune resources automatically as part
-                        of automated sync (default: false)'
-                      type: boolean
-                    selfHeal:
-                      description: 'SelfHeal enables auto-syncing if  (default: false)'
-                      type: boolean
+                  required:
+                  - enabled
                   type: object
               type: object
           required:

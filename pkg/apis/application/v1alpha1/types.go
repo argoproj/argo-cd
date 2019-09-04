@@ -431,6 +431,8 @@ type Info struct {
 type SyncPolicy struct {
 	// Automated will keep an application synced to the target revision
 	Automated *SyncPolicyAutomated `json:"automated,omitempty" protobuf:"bytes,1,opt,name=automated"`
+	// Maintenance controls when syncs can be run
+	Maintenance *Maintenance `json:"maintenance,omitempty" protobuf:"bytes,2,opt,name=maintenance"`
 }
 
 // SyncPolicyAutomated controls the behavior of an automated sync
@@ -439,17 +441,23 @@ type SyncPolicyAutomated struct {
 	Prune bool `json:"prune,omitempty" protobuf:"bytes,1,opt,name=prune"`
 	// SelfHeal enables auto-syncing if  (default: false)
 	SelfHeal bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
-	// MaintenanceWindows disables auto-syncing during the configured time windows
-	MaintenanceWindows MaintenanceWindows `json:"maintenanceWindows,omitempty" protobuf:"bytes,3,opt,name=maintenanceWindows"`
 }
 
 func (s *SyncPolicy) IsAutomated() bool {
 	return s != nil && s.Automated != nil
 }
 
+// Maintenance controls when syncs can be run
+type Maintenance struct {
+	// Enabled will allow maintenance windows to run during their scheduled times (default: true)
+	Enabled bool `json:"enabled,enabled" protobuf:"bytes,1,opt,name=enabled"`
+	// Windows contains the schedules for when syncs should be disabled
+	Windows MaintenanceWindows `json:"windows,omitempty" protobuf:"bytes,2,opt,name=windows"`
+}
+
 type MaintenanceWindows []*MaintenanceWindow
 
-// MaintenanceWindow controls when automated syncs should be disabled
+// MaintenanceWindow contains the time and duration for a maintenance window
 type MaintenanceWindow struct {
 	// Schedule is the time the window will begin, specified in cron format
 	Schedule string `json:"schedule,omitempty" protobuf:"bytes,1,opt,name=schedule"`
@@ -457,15 +465,22 @@ type MaintenanceWindow struct {
 	Duration string `json:"duration,omitempty" protobuf:"bytes,2,opt,name=duration"`
 }
 
-func (m *MaintenanceWindows) IsZero() bool {
-	return len(*m) == 0
+func (w *MaintenanceWindows) IsZero() bool {
+	return len(*w) == 0
 }
 
-func (m *MaintenanceWindows) Active() (bool, []string) {
+func (m *Maintenance) ZeroWindows() bool {
 	if m != nil {
+		return len(m.Windows) == 0
+	}
+	return true
+}
+
+func (m *Maintenance) ActiveWindows() (bool, []string) {
+	if m != nil && m.Windows != nil && m.IsEnabled() {
 		var activeWindows []string
 		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
-		for _, w := range *m {
+		for _, w := range m.Windows {
 			schedule, _ := specParser.Parse(w.Schedule)
 			duration, _ := time.ParseDuration(w.Duration)
 			now := time.Now()
@@ -483,27 +498,36 @@ func (m *MaintenanceWindows) Active() (bool, []string) {
 	return false, nil
 }
 
-func (m *MaintenanceWindows) String() string {
-	if len(*m) == 0 {
-		return "<none>"
-	}
-	var windows string
-	noWindows := len(*m)
-	for i, w := range *m {
-		var window string
-		if i+1 < noWindows {
-			window = w.Schedule + ":" + w.Duration + ","
-		} else {
-			window = w.Schedule + ":" + w.Duration
+func (m *Maintenance) ListWindows() string {
+	if m != nil {
+		var windows string
+		noWindows := len(m.Windows)
+		for i, w := range m.Windows {
+			var window string
+			if i+1 < noWindows {
+				window = w.Schedule + ":" + w.Duration + ","
+			} else {
+				window = w.Schedule + ":" + w.Duration
+			}
+			windows += window
 		}
-		windows += window
+		if len(windows) > 0 {
+			return windows
+		}
 	}
-	return windows
+	return "<none>"
 }
 
-func (s *SyncPolicyAutomated) AddMaintenanceWindows(windows string) error {
-	if s.MaintenanceWindows == nil {
-		s.MaintenanceWindows = []*MaintenanceWindow{}
+func (m *Maintenance) IsEnabled() bool {
+	if m != nil {
+		return m.Enabled
+	}
+	return false
+}
+
+func (p *SyncPolicy) AddMaintenanceWindows(windows string) error {
+	if p.Maintenance == nil {
+		p.Maintenance = &Maintenance{}
 	}
 	newWindows := strings.Split(windows, ",")
 	for _, w := range newWindows {
@@ -520,14 +544,14 @@ func (s *SyncPolicyAutomated) AddMaintenanceWindows(windows string) error {
 			return err
 		}
 		exists := false
-		for _, e := range s.MaintenanceWindows {
+		for _, e := range p.Maintenance.Windows {
 			if n == e {
 				exists = true
 				break
 			}
 		}
 		if !exists {
-			s.MaintenanceWindows = append(s.MaintenanceWindows, n)
+			p.Maintenance.Windows = append(p.Maintenance.Windows, n)
 		}
 	}
 	return nil

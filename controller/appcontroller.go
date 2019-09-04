@@ -944,9 +944,9 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		return nil
 	}
 	// Check if there are any active maintenance windows and skip if true
-	active, _ := app.Spec.SyncPolicy.Automated.MaintenanceWindows.Active()
+	active, win := app.Spec.SyncPolicy.Maintenance.ActiveWindows()
 	if active {
-		logCtx.Infof("Skipping auto-sync: maintenance window active")
+		logCtx.Infof("Skipping auto-sync: maintenance windows active %s", strings.Join(win, ","))
 		return nil
 	}
 	// Only perform auto-sync if we detect OutOfSync status. This is to prevent us from attempting

@@ -51,6 +51,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.JsonnetVar":                       schema_pkg_apis_application_v1alpha1_JsonnetVar(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.KsonnetParameter":                 schema_pkg_apis_application_v1alpha1_KsonnetParameter(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.KustomizeOptions":                 schema_pkg_apis_application_v1alpha1_KustomizeOptions(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Maintenance":                      schema_pkg_apis_application_v1alpha1_Maintenance(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.MaintenanceWindow":                schema_pkg_apis_application_v1alpha1_MaintenanceWindow(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Operation":                        schema_pkg_apis_application_v1alpha1_Operation(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OperationState":                   schema_pkg_apis_application_v1alpha1_OperationState(ref),
@@ -1605,11 +1606,47 @@ func schema_pkg_apis_application_v1alpha1_KustomizeOptions(ref common.ReferenceC
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_Maintenance(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Maintenance controls when syncs can be run",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled will allow maintenance windows to run during their scheduled times (default: true)",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"windows": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Windows contains the schedules for when syncs should be disabled",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.MaintenanceWindow"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"enabled"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.MaintenanceWindow"},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_MaintenanceWindow(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "MaintenanceWindow controls when automated syncs should be disabled",
+				Description: "MaintenanceWindow contains the time and duration for a maintenance window",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"schedule": {
@@ -2898,11 +2935,17 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicy(ref common.ReferenceCallbac
 							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncPolicyAutomated"),
 						},
 					},
+					"maintenance": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Maintenance controls when syncs can be run",
+							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Maintenance"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncPolicyAutomated"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Maintenance", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncPolicyAutomated"},
 	}
 }
 
@@ -2927,24 +2970,9 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicyAutomated(ref common.Referen
 							Format:      "",
 						},
 					},
-					"maintenanceWindows": {
-						SchemaProps: spec.SchemaProps{
-							Description: "MaintenanceWindows disables auto-syncing during the configured time windows",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.MaintenanceWindow"),
-									},
-								},
-							},
-						},
-					},
 				},
 			},
 		},
-		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.MaintenanceWindow"},
 	}
 }
 

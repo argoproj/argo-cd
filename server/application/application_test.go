@@ -180,6 +180,7 @@ spec:
   destination:
     namespace: ` + test.FakeDestNamespace + `
     server: https://cluster-api.com
+
 `
 
 func newTestApp() *appsv1.Application {
@@ -241,7 +242,7 @@ func TestUpdateAppNoMaintenanceWindows(t *testing.T) {
 	assert.NoError(t, err)
 	up, err := appServer.Get(context.Background(), &application.ApplicationQuery{Name: &testApp.Name})
 	assert.NoError(t, err)
-	assert.Equal(t, appsv1.MaintenanceWindows(nil), up.Spec.SyncPolicy.Automated.MaintenanceWindows)
+	assert.Equal(t, true, up.Spec.SyncPolicy.Maintenance.ZeroWindows())
 }
 
 func TestUpdateAppMaintenanceWindows(t *testing.T) {
@@ -251,8 +252,8 @@ func TestUpdateAppMaintenanceWindows(t *testing.T) {
 	var windows []*appsv1.MaintenanceWindow
 	window := &appsv1.MaintenanceWindow{Schedule: "* * * * *", Duration: "1h"}
 	windows = append(windows, window)
-	testApp.Spec.SyncPolicy = &appsv1.SyncPolicy{Automated: &appsv1.SyncPolicyAutomated{}}
-	testApp.Spec.SyncPolicy.Automated.MaintenanceWindows = windows
+	testApp.Spec.SyncPolicy = &appsv1.SyncPolicy{Maintenance: &appsv1.Maintenance{Enabled: true}}
+	testApp.Spec.SyncPolicy.Maintenance.Windows = windows
 	spec, err := appServer.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{
 		Name: &testApp.Name,
 		Spec: testApp.Spec,
@@ -261,7 +262,7 @@ func TestUpdateAppMaintenanceWindows(t *testing.T) {
 	assert.Equal(t, "default", spec.Project)
 	up, err := appServer.Get(context.Background(), &application.ApplicationQuery{Name: &testApp.Name})
 	assert.NoError(t, err)
-	assert.Equal(t, &appsv1.MaintenanceWindow{Schedule: "* * * * *", Duration: "1h"}, up.Spec.SyncPolicy.Automated.MaintenanceWindows[0])
+	assert.Equal(t, &appsv1.MaintenanceWindow{Schedule: "* * * * *", Duration: "1h"}, up.Spec.SyncPolicy.Maintenance.Windows[0])
 }
 
 func TestDeleteApp(t *testing.T) {
