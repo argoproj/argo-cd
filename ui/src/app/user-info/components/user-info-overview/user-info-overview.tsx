@@ -14,12 +14,14 @@ export const UserInfoOverview = () => (
                         userInfo.loggedIn ? (
                             <React.Fragment>
                                 <p>Username: {userInfo.username}</p>
-                                <p>Groups:</p>
-                                <ul>
-                                    {userInfo.groups.map((group) => (
-                                        <li>{group}</li>
-                                    ))}
-                                </ul>
+                                <p>Issuer: {userInfo.iss}</p>
+                                {userInfo.groups && (<React.Fragment><p>Groups:</p>
+                                    <ul>
+                                        {userInfo.groups.map((group) => (
+                                            <li>{group}</li>
+                                        ))}
+                                    </ul>
+                                </React.Fragment>)}
                             </React.Fragment>
                         ) : (
                             <p>You are not logged in</p>

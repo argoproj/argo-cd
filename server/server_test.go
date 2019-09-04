@@ -451,7 +451,7 @@ func TestAuthenticate(t *testing.T) {
 				ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs(apiclient.MetaDataTokenKey, token))
 			}
 
-			_, err := argocd.authenticate(ctx)
+			_, err := argocd.Authenticate(ctx)
 			if testData.errorMsg != "" {
 				assert.Errorf(t, err, testData.errorMsg)
 			} else {

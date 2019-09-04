@@ -16,6 +16,7 @@ import (
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/pkg/apiclient/account"
+	"github.com/argoproj/argo-cd/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/localconfig"
@@ -112,11 +113,11 @@ func NewAccountGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				os.Exit(1)
 			}
 
-			conn, client := argocdclient.NewClientOrDie(clientOpts).NewAccountClientOrDie()
+			conn, client := argocdclient.NewClientOrDie(clientOpts).NewSessionClientOrDie()
 			defer util.Close(conn)
 
 			ctx := context.Background()
-			response, err := client.GetUserInfo(ctx, &accountpkg.GetUserInfoRequest{})
+			response, err := client.GetUserInfo(ctx, &session.GetUserInfoRequest{})
 			errors.CheckError(err)
 
 			switch output {
@@ -131,6 +132,7 @@ func NewAccountGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			case "":
 				fmt.Printf("Logged In: %v\n", response.LoggedIn)
 				fmt.Printf("Username: %s\n", response.Username)
+				fmt.Printf("Issuer: %s\n", response.Iss)
 				fmt.Printf("Groups: %v\n", strings.Join(response.Groups, ","))
 			default:
 				log.Fatalf("Unknown output format: %s", output)

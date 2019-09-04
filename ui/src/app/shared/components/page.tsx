@@ -15,12 +15,12 @@ export class Page extends React.Component<{ title: string, toolbar?: Toolbar | O
     public render() {
         return (
             <DataLoader input={new Date()}
-                        load={() => Observable.zip(Utils.toObservable(this.props.toolbar), services.users.get()).map(([toolbar, session]: [Toolbar, UserInfo]) => {
+                        load={() => Observable.zip(Utils.toObservable(this.props.toolbar), services.users.get()).map(([toolbar, userInfo]: [Toolbar, UserInfo]) => {
                 toolbar = toolbar || {};
                 toolbar.tools = [
                     toolbar.tools,
-                    session.loggedIn ?
-                        <a key='logout' onClick={() => this.goToLogin(true)}>Logout {session.username}</a> :
+                    userInfo.loggedIn ?
+                        <a key='logout' onClick={() => this.goToLogin(true)}>Logout</a> :
                         <a key='login' onClick={() => this.goToLogin(false)}>Login</a>,
                 ];
                 return toolbar;

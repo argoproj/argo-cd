@@ -1556,7 +1556,7 @@
     "/api/v1/userinfo": {
       "get": {
         "tags": [
-          "ClusterService"
+          "SessionService"
         ],
         "summary": "Get the current user's info",
         "operationId": "GetUserInfo",
@@ -1564,7 +1564,7 @@
           "200": {
             "description": "(empty)",
             "schema": {
-              "$ref": "#/definitions/clusterGetUserInfoResponse"
+              "$ref": "#/definitions/sessionGetUserInfoResponse"
             }
           }
         }
@@ -1742,28 +1742,6 @@
           "items": {
             "$ref": "#/definitions/clusterConnector"
           }
-        }
-      }
-    },
-    "clusterGetUserInfoResponse": {
-      "type": "object",
-      "title": "The current user's userInfo info",
-      "properties": {
-        "groups": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "iss": {
-          "type": "string"
-        },
-        "loggedIn": {
-          "type": "boolean",
-          "format": "boolean"
-        },
-        "username": {
-          "type": "string"
         }
       }
     },
@@ -2124,6 +2102,28 @@
     },
     "repositoryRepoResponse": {
       "type": "object"
+    },
+    "sessionGetUserInfoResponse": {
+      "type": "object",
+      "title": "The current user's userInfo info",
+      "properties": {
+        "groups": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "iss": {
+          "type": "string"
+        },
+        "loggedIn": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "username": {
+          "type": "string"
+        }
+      }
     },
     "sessionSessionCreateRequest": {
       "description": "SessionCreateRequest is for logging in.",
