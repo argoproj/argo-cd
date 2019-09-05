@@ -2,7 +2,7 @@ package factory
 
 import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/app/disco"
+	"github.com/argoproj/argo-cd/util/app/discovery"
 	"github.com/argoproj/argo-cd/util/creds"
 	gitrepo "github.com/argoproj/argo-cd/util/git/repo"
 	repo2 "github.com/argoproj/argo-cd/util/helm/repo"
@@ -26,6 +26,6 @@ func (f *factory) NewRepo(r *v1alpha1.Repository, reporter metrics.Reporter) (re
 	case "helm":
 		return repo2.NewRepo(r.Repo, r.Name, r.Username, r.Password, []byte(r.TLSClientCAData), []byte(r.TLSClientCertData), []byte(r.TLSClientCertKey))
 	default:
-		return gitrepo.NewRepo(r.Repo, creds.GetRepoCreds(r), r.IsInsecure(), r.EnableLFS, disco.Discover, reporter)
+		return gitrepo.NewRepo(r.Repo, creds.GetRepoCreds(r), r.IsInsecure(), r.EnableLFS, discovery.Discover, reporter)
 	}
 }

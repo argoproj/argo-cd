@@ -27,7 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/app/disco"
+	"github.com/argoproj/argo-cd/util/app/discovery"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/creds"
@@ -272,7 +272,7 @@ func GetAppSourceType(source *v1alpha1.ApplicationSource, path string) (v1alpha1
 	if appSourceType != nil {
 		return *appSourceType, nil
 	}
-	appType, err := disco.AppType(path)
+	appType, err := discovery.AppType(path)
 	if err != nil {
 		return "", err
 	}

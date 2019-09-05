@@ -1,4 +1,4 @@
-package disco
+package discovery
 
 import (
 	"testing"
