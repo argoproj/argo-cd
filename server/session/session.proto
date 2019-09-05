@@ -44,7 +44,7 @@ service SessionService {
 
   // Get the current user's info
   rpc GetUserInfo (GetUserInfoRequest) returns (GetUserInfoResponse) {
-    option (google.api.http).get = "/api/v1/userinfo";
+    option (google.api.http).get = "/api/v1/session/userinfo";
   }
 
   // Create a new JWT for authentication and set a cookie if using HTTP.

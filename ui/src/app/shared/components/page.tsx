@@ -18,6 +18,7 @@ export class Page extends React.Component<{ title: string, toolbar?: Toolbar | O
                 toolbar = toolbar || {};
                 toolbar.tools = [
                     toolbar.tools,
+                    // this is a crummy check, as the token maybe expired, but it is better than flashing user interface
                     parse(document.cookie)['argocd.token'] ?
                         <a key='logout' onClick={() => this.goToLogin(true)}>Logout</a> :
                         <a key='login' onClick={() => this.goToLogin(false)}>Login</a>,

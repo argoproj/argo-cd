@@ -1494,6 +1494,23 @@
         }
       }
     },
+    "/api/v1/session/userinfo": {
+      "get": {
+        "tags": [
+          "SessionService"
+        ],
+        "summary": "Get the current user's info",
+        "operationId": "GetUserInfo",
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/sessionGetUserInfoResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings": {
       "get": {
         "tags": [
@@ -1548,23 +1565,6 @@
             "description": "(streaming responses)",
             "schema": {
               "$ref": "#/definitions/v1alpha1ApplicationWatchEvent"
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/userinfo": {
-      "get": {
-        "tags": [
-          "SessionService"
-        ],
-        "summary": "Get the current user's info",
-        "operationId": "GetUserInfo",
-        "responses": {
-          "200": {
-            "description": "(empty)",
-            "schema": {
-              "$ref": "#/definitions/sessionGetUserInfoResponse"
             }
           }
         }
