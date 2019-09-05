@@ -10,17 +10,25 @@ package certificate // import "github.com/argoproj/argo-cd/pkg/apiclient/certifi
 	resources.
 */
 
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import v1alpha1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-import _ "github.com/gogo/protobuf/gogoproto"
-import _ "google.golang.org/genproto/googleapis/api/annotations"
+import (
+	fmt "fmt"
 
-import context "golang.org/x/net/context"
-import grpc "google.golang.org/grpc"
+	proto "github.com/gogo/protobuf/proto"
 
-import io "io"
+	math "math"
+
+	v1alpha1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+
+	_ "github.com/gogo/protobuf/gogoproto"
+
+	_ "google.golang.org/genproto/googleapis/api/annotations"
+
+	context "golang.org/x/net/context"
+
+	grpc "google.golang.org/grpc"
+
+	io "io"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
