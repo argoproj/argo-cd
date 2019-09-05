@@ -32,7 +32,6 @@ const (
 	tlsClientCertKey = "tlsClientCertKey"
 )
 
-// CreateRepository creates a repository
 func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
 	repos, err := db.settingsMgr.GetRepositories()
 	if err != nil {
@@ -115,18 +114,18 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 }
 
 func (db *db) ListRepositories(ctx context.Context) ([]*appsv1.Repository, error) {
-	creds, err := db.settingsMgr.GetRepositories()
+	inRepos, err := db.settingsMgr.GetRepositories()
 	if err != nil {
 		return nil, err
 	}
 
 	var repos []*appsv1.Repository
-	for _, cred := range creds {
-		repo, err := db.GetRepository(ctx, cred.URL)
+	for _, inRepo := range inRepos {
+		r, err := db.GetRepository(ctx, inRepo.URL)
 		if err != nil {
 			return nil, err
 		}
-		repos = append(repos, repo)
+		repos = append(repos, r)
 
 	}
 	return repos, nil
