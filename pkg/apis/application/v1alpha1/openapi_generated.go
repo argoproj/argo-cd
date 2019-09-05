@@ -1634,7 +1634,6 @@ func schema_pkg_apis_application_v1alpha1_Maintenance(ref common.ReferenceCallba
 						},
 					},
 				},
-				Required: []string{"enabled"},
 			},
 		},
 		Dependencies: []string{

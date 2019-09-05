@@ -467,41 +467,9 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 		case "jsonnet-tla-code":
 			setJsonnetOpt(&app.Spec.Source, appOpts.jsonnetTlaCode, true)
 		case "sync-policy":
-			switch appOpts.syncPolicy {
-			case "automated":
-				if !app.Spec.SyncPolicy.Exists() {
-					app.Spec.SyncPolicy = &argoappv1.SyncPolicy{Automated: &argoappv1.SyncPolicyAutomated{}}
-				} else {
-					app.Spec.SyncPolicy.Automated = &argoappv1.SyncPolicyAutomated{}
-				}
-			case "manual":
-				if app.Spec.SyncPolicy.IsAutomated() {
-					app.Spec.SyncPolicy.Automated = nil
-				}
-			default:
-				log.Fatalf("Invalid sync-policy: %s", appOpts.syncPolicy)
-			}
+			setSyncPolicy(&app.Spec, appOpts.syncPolicy)
 		case "maintenance":
-			switch appOpts.maintenance {
-			case "enable":
-				if app.Spec.SyncPolicy.HasMaintenance() {
-					app.Spec.SyncPolicy.Maintenance.Enabled = true
-				} else {
-					if app.Spec.SyncPolicy.Exists() {
-						app.Spec.SyncPolicy.Maintenance = &argoappv1.Maintenance{Enabled: true}
-					} else {
-						app.Spec.SyncPolicy = &argoappv1.SyncPolicy{Maintenance: &argoappv1.Maintenance{Enabled: true}}
-					}
-				}
-			case "disable":
-				if app.Spec.SyncPolicy.Maintenance == nil {
-					app.Spec.SyncPolicy.Maintenance = &argoappv1.Maintenance{Enabled: false}
-				} else {
-					app.Spec.SyncPolicy.Maintenance.Enabled = false
-				}
-			default:
-				log.Fatalf("Invalid maintenance: %s", appOpts.maintenance)
-			}
+			setMaintenance(&app.Spec, appOpts.maintenance)
 		}
 	})
 
@@ -517,20 +485,8 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 		}
 		app.Spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
 	}
-
 	if flags.Changed("maintenance-windows") {
-		if appOpts.maintenanceWindows == "none" {
-			app.Spec.SyncPolicy.Maintenance.Windows = nil
-			app.Spec.SyncPolicy.Maintenance.Enabled = false
-		} else {
-			if !app.Spec.SyncPolicy.Maintenance.IsEnabled() {
-				log.Fatalf("Cannot set --maintenance-windows: maintenance is not enabled")
-			}
-			err := app.Spec.SyncPolicy.AddMaintenanceWindows(appOpts.maintenanceWindows)
-			if err != nil {
-				log.Fatalf("Cannot set --maintenance-windows: %s", err)
-			}
-		}
+		setMaintenanceWindows(&app.Spec, appOpts.maintenanceWindows)
 	}
 	if flags.Changed("maintenance") {
 		if !app.Spec.SyncPolicy.Exists() {
@@ -646,6 +602,61 @@ func setJsonnetOpt(src *argoappv1.ApplicationSource, tlaParameters []string, cod
 		src.Directory = nil
 	}
 
+}
+
+func setSyncPolicy(s *argoappv1.ApplicationSpec, p string) {
+	switch p {
+	case "automated":
+		if !s.SyncPolicy.Exists() {
+			s.SyncPolicy = &argoappv1.SyncPolicy{Automated: &argoappv1.SyncPolicyAutomated{}}
+		} else {
+			s.SyncPolicy.Automated = &argoappv1.SyncPolicyAutomated{}
+		}
+	case "manual":
+		if s.SyncPolicy.IsAutomated() {
+			s.SyncPolicy.Automated = nil
+		}
+	default:
+		log.Fatalf("Invalid sync-policy: %s", p)
+	}
+}
+
+func setMaintenance(s *argoappv1.ApplicationSpec, m string) {
+	switch m {
+	case "enable":
+		if s.SyncPolicy.HasMaintenance() {
+			s.SyncPolicy.Maintenance.Enabled = true
+		} else {
+			if s.SyncPolicy.Exists() {
+				s.SyncPolicy.Maintenance = &argoappv1.Maintenance{Enabled: true}
+			} else {
+				s.SyncPolicy = &argoappv1.SyncPolicy{Maintenance: &argoappv1.Maintenance{Enabled: true}}
+			}
+		}
+	case "disable":
+		if !s.SyncPolicy.HasMaintenance() {
+			s.SyncPolicy.Maintenance = &argoappv1.Maintenance{Enabled: false}
+		} else {
+			s.SyncPolicy.Maintenance.Enabled = false
+		}
+	default:
+		log.Fatalf("Invalid maintenance: %s", m)
+	}
+}
+
+func setMaintenanceWindows(s *argoappv1.ApplicationSpec, w string) {
+	if w == "none" {
+		s.SyncPolicy.Maintenance.Windows = nil
+		s.SyncPolicy.Maintenance.Enabled = false
+	} else {
+		if !s.SyncPolicy.Maintenance.IsEnabled() {
+			log.Fatalf("Cannot set --maintenance-windows: maintenance is not enabled")
+		}
+		err := s.SyncPolicy.AddMaintenanceWindows(w)
+		if err != nil {
+			log.Fatalf("Cannot set --maintenance-windows: %s", err)
+		}
+	}
 }
 
 type appOptions struct {

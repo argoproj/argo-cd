@@ -53,3 +53,43 @@ func Test_setHelmOpt(t *testing.T) {
 		assert.Equal(t, []v1alpha1.HelmParameter{{Name: "foo", Value: "bar", ForceString: true}}, src.Helm.Parameters)
 	})
 }
+
+func Test_setSyncPolicy(t *testing.T) {
+	t.Run("automated", func(t *testing.T) {
+		spec := &v1alpha1.ApplicationSpec{}
+		setSyncPolicy(spec, "automated")
+		assert.Equal(t, &v1alpha1.SyncPolicyAutomated{}, spec.SyncPolicy.Automated)
+	})
+}
+
+func Test_setMaintenance(t *testing.T) {
+	t.Run("enable", func(t *testing.T) {
+		spec := &v1alpha1.ApplicationSpec{}
+		setMaintenance(spec, "enable")
+		assert.True(t, spec.SyncPolicy.Maintenance.Enabled)
+	})
+	t.Run("disable", func(t *testing.T) {
+		spec := &v1alpha1.ApplicationSpec{SyncPolicy: &v1alpha1.SyncPolicy{
+			Maintenance: &v1alpha1.Maintenance{Enabled: true},
+		}}
+		setMaintenance(spec, "disable")
+		assert.False(t, spec.SyncPolicy.Maintenance.Enabled)
+	})
+}
+
+func Test_setMaintenanceWindows(t *testing.T) {
+	t.Run("single", func(t *testing.T) {
+		spec := &v1alpha1.ApplicationSpec{SyncPolicy: &v1alpha1.SyncPolicy{
+			Maintenance: &v1alpha1.Maintenance{Enabled: true}}}
+		setMaintenanceWindows(spec, "* * * * *:1h")
+		assert.Equal(t, "* * * * *", spec.SyncPolicy.Maintenance.Windows[0].Schedule)
+		assert.Equal(t, "1h", spec.SyncPolicy.Maintenance.Windows[0].Duration)
+	})
+	t.Run("multiple", func(t *testing.T) {
+		spec := &v1alpha1.ApplicationSpec{SyncPolicy: &v1alpha1.SyncPolicy{
+			Maintenance: &v1alpha1.Maintenance{Enabled: true}}}
+		setMaintenanceWindows(spec, "* * * * *:1h,1 1 1 1 1:1h")
+		assert.Equal(t, "* * * * *", spec.SyncPolicy.Maintenance.Windows[0].Schedule)
+		assert.Equal(t, "1h", spec.SyncPolicy.Maintenance.Windows[0].Duration)
+	})
+}

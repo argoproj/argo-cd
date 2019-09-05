@@ -850,8 +850,6 @@ spec:
                             type: string
                         type: object
                       type: array
-                  required:
-                  - enabled
                   type: object
               type: object
           required:
