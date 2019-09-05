@@ -1494,6 +1494,23 @@
         }
       }
     },
+    "/api/v1/session/userinfo": {
+      "get": {
+        "tags": [
+          "SessionService"
+        ],
+        "summary": "Get the current user's info",
+        "operationId": "GetUserInfo",
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/sessionGetUserInfoResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings": {
       "get": {
         "tags": [
@@ -2085,6 +2102,28 @@
     },
     "repositoryRepoResponse": {
       "type": "object"
+    },
+    "sessionGetUserInfoResponse": {
+      "type": "object",
+      "title": "The current user's userInfo info",
+      "properties": {
+        "groups": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "iss": {
+          "type": "string"
+        },
+        "loggedIn": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "username": {
+          "type": "string"
+        }
+      }
     },
     "sessionSessionCreateRequest": {
       "description": "SessionCreateRequest is for logging in.",

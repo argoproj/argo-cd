@@ -375,7 +375,7 @@ func EnsureCleanState(t *testing.T) {
 	FailOnErr(Run("", "kubectl", "create", "ns", DeploymentNamespace()))
 	FailOnErr(Run("", "kubectl", "label", "ns", DeploymentNamespace(), testingLabel+"=true"))
 
-	log.WithFields(log.Fields{"duration": time.Since(start), "name": name, "id": id}).Info("clean state")
+	log.WithFields(log.Fields{"duration": time.Since(start), "name": name, "id": id, "username": "admin", "password": "password"}).Info("clean state")
 }
 
 func RunCli(args ...string) (string, error) {

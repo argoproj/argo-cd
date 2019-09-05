@@ -9,27 +9,18 @@ package session // import "github.com/argoproj/argo-cd/pkg/apiclient/session"
 	Session Service API performs CRUD actions against session resources
 */
 
-import (
-	fmt "fmt"
+import proto "github.com/gogo/protobuf/proto"
+import fmt "fmt"
+import math "math"
+import _ "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+import _ "github.com/gogo/protobuf/gogoproto"
+import _ "google.golang.org/genproto/googleapis/api/annotations"
+import _ "k8s.io/api/core/v1"
 
-	proto "github.com/gogo/protobuf/proto"
+import context "golang.org/x/net/context"
+import grpc "google.golang.org/grpc"
 
-	math "math"
-
-	_ "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-
-	_ "github.com/gogo/protobuf/gogoproto"
-
-	_ "google.golang.org/genproto/googleapis/api/annotations"
-
-	_ "k8s.io/api/core/v1"
-
-	context "golang.org/x/net/context"
-
-	grpc "google.golang.org/grpc"
-
-	io "io"
-)
+import io "io"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -56,7 +47,7 @@ func (m *SessionCreateRequest) Reset()         { *m = SessionCreateRequest{} }
 func (m *SessionCreateRequest) String() string { return proto.CompactTextString(m) }
 func (*SessionCreateRequest) ProtoMessage()    {}
 func (*SessionCreateRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_session_8fc70660de77cae0, []int{0}
+	return fileDescriptor_session_7576be4936f004e2, []int{0}
 }
 func (m *SessionCreateRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -117,7 +108,7 @@ func (m *SessionDeleteRequest) Reset()         { *m = SessionDeleteRequest{} }
 func (m *SessionDeleteRequest) String() string { return proto.CompactTextString(m) }
 func (*SessionDeleteRequest) ProtoMessage()    {}
 func (*SessionDeleteRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_session_8fc70660de77cae0, []int{1}
+	return fileDescriptor_session_7576be4936f004e2, []int{1}
 }
 func (m *SessionDeleteRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -158,7 +149,7 @@ func (m *SessionResponse) Reset()         { *m = SessionResponse{} }
 func (m *SessionResponse) String() string { return proto.CompactTextString(m) }
 func (*SessionResponse) ProtoMessage()    {}
 func (*SessionResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_session_8fc70660de77cae0, []int{2}
+	return fileDescriptor_session_7576be4936f004e2, []int{2}
 }
 func (m *SessionResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -194,10 +185,124 @@ func (m *SessionResponse) GetToken() string {
 	return ""
 }
 
+// Get the current user's userInfo info
+type GetUserInfoRequest struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *GetUserInfoRequest) Reset()         { *m = GetUserInfoRequest{} }
+func (m *GetUserInfoRequest) String() string { return proto.CompactTextString(m) }
+func (*GetUserInfoRequest) ProtoMessage()    {}
+func (*GetUserInfoRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_session_7576be4936f004e2, []int{3}
+}
+func (m *GetUserInfoRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *GetUserInfoRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_GetUserInfoRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (dst *GetUserInfoRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetUserInfoRequest.Merge(dst, src)
+}
+func (m *GetUserInfoRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *GetUserInfoRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetUserInfoRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetUserInfoRequest proto.InternalMessageInfo
+
+// The current user's userInfo info
+type GetUserInfoResponse struct {
+	LoggedIn             bool     `protobuf:"varint,1,opt,name=loggedIn,proto3" json:"loggedIn,omitempty"`
+	Username             string   `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
+	Iss                  string   `protobuf:"bytes,3,opt,name=iss,proto3" json:"iss,omitempty"`
+	Groups               []string `protobuf:"bytes,4,rep,name=groups" json:"groups,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *GetUserInfoResponse) Reset()         { *m = GetUserInfoResponse{} }
+func (m *GetUserInfoResponse) String() string { return proto.CompactTextString(m) }
+func (*GetUserInfoResponse) ProtoMessage()    {}
+func (*GetUserInfoResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_session_7576be4936f004e2, []int{4}
+}
+func (m *GetUserInfoResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *GetUserInfoResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_GetUserInfoResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (dst *GetUserInfoResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetUserInfoResponse.Merge(dst, src)
+}
+func (m *GetUserInfoResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *GetUserInfoResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetUserInfoResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetUserInfoResponse proto.InternalMessageInfo
+
+func (m *GetUserInfoResponse) GetLoggedIn() bool {
+	if m != nil {
+		return m.LoggedIn
+	}
+	return false
+}
+
+func (m *GetUserInfoResponse) GetUsername() string {
+	if m != nil {
+		return m.Username
+	}
+	return ""
+}
+
+func (m *GetUserInfoResponse) GetIss() string {
+	if m != nil {
+		return m.Iss
+	}
+	return ""
+}
+
+func (m *GetUserInfoResponse) GetGroups() []string {
+	if m != nil {
+		return m.Groups
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterType((*SessionCreateRequest)(nil), "session.SessionCreateRequest")
 	proto.RegisterType((*SessionDeleteRequest)(nil), "session.SessionDeleteRequest")
 	proto.RegisterType((*SessionResponse)(nil), "session.SessionResponse")
+	proto.RegisterType((*GetUserInfoRequest)(nil), "session.GetUserInfoRequest")
+	proto.RegisterType((*GetUserInfoResponse)(nil), "session.GetUserInfoResponse")
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -211,6 +316,8 @@ const _ = grpc.SupportPackageIsVersion4
 // Client API for SessionService service
 
 type SessionServiceClient interface {
+	// Get the current user's info
+	GetUserInfo(ctx context.Context, in *GetUserInfoRequest, opts ...grpc.CallOption) (*GetUserInfoResponse, error)
 	// Create a new JWT for authentication and set a cookie if using HTTP.
 	Create(ctx context.Context, in *SessionCreateRequest, opts ...grpc.CallOption) (*SessionResponse, error)
 	// Delete an existing JWT cookie if using HTTP.
@@ -223,6 +330,15 @@ type sessionServiceClient struct {
 
 func NewSessionServiceClient(cc *grpc.ClientConn) SessionServiceClient {
 	return &sessionServiceClient{cc}
+}
+
+func (c *sessionServiceClient) GetUserInfo(ctx context.Context, in *GetUserInfoRequest, opts ...grpc.CallOption) (*GetUserInfoResponse, error) {
+	out := new(GetUserInfoResponse)
+	err := c.cc.Invoke(ctx, "/session.SessionService/GetUserInfo", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *sessionServiceClient) Create(ctx context.Context, in *SessionCreateRequest, opts ...grpc.CallOption) (*SessionResponse, error) {
@@ -246,6 +362,8 @@ func (c *sessionServiceClient) Delete(ctx context.Context, in *SessionDeleteRequ
 // Server API for SessionService service
 
 type SessionServiceServer interface {
+	// Get the current user's info
+	GetUserInfo(context.Context, *GetUserInfoRequest) (*GetUserInfoResponse, error)
 	// Create a new JWT for authentication and set a cookie if using HTTP.
 	Create(context.Context, *SessionCreateRequest) (*SessionResponse, error)
 	// Delete an existing JWT cookie if using HTTP.
@@ -254,6 +372,24 @@ type SessionServiceServer interface {
 
 func RegisterSessionServiceServer(s *grpc.Server, srv SessionServiceServer) {
 	s.RegisterService(&_SessionService_serviceDesc, srv)
+}
+
+func _SessionService_GetUserInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetUserInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SessionServiceServer).GetUserInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/session.SessionService/GetUserInfo",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SessionServiceServer).GetUserInfo(ctx, req.(*GetUserInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _SessionService_Create_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -296,6 +432,10 @@ var _SessionService_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "session.SessionService",
 	HandlerType: (*SessionServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GetUserInfo",
+			Handler:    _SessionService_GetUserInfo_Handler,
+		},
 		{
 			MethodName: "Create",
 			Handler:    _SessionService_Create_Handler,
@@ -396,6 +536,85 @@ func (m *SessionResponse) MarshalTo(dAtA []byte) (int, error) {
 	return i, nil
 }
 
+func (m *GetUserInfoRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *GetUserInfoRequest) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i += copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	return i, nil
+}
+
+func (m *GetUserInfoResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *GetUserInfoResponse) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.LoggedIn {
+		dAtA[i] = 0x8
+		i++
+		if m.LoggedIn {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i++
+	}
+	if len(m.Username) > 0 {
+		dAtA[i] = 0x12
+		i++
+		i = encodeVarintSession(dAtA, i, uint64(len(m.Username)))
+		i += copy(dAtA[i:], m.Username)
+	}
+	if len(m.Iss) > 0 {
+		dAtA[i] = 0x1a
+		i++
+		i = encodeVarintSession(dAtA, i, uint64(len(m.Iss)))
+		i += copy(dAtA[i:], m.Iss)
+	}
+	if len(m.Groups) > 0 {
+		for _, s := range m.Groups {
+			dAtA[i] = 0x22
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			dAtA[i] = uint8(l)
+			i++
+			i += copy(dAtA[i:], s)
+		}
+	}
+	if m.XXX_unrecognized != nil {
+		i += copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	return i, nil
+}
+
 func encodeVarintSession(dAtA []byte, offset int, v uint64) int {
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
@@ -441,6 +660,41 @@ func (m *SessionResponse) Size() (n int) {
 	l = len(m.Token)
 	if l > 0 {
 		n += 1 + l + sovSession(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *GetUserInfoRequest) Size() (n int) {
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *GetUserInfoResponse) Size() (n int) {
+	var l int
+	_ = l
+	if m.LoggedIn {
+		n += 2
+	}
+	l = len(m.Username)
+	if l > 0 {
+		n += 1 + l + sovSession(uint64(l))
+	}
+	l = len(m.Iss)
+	if l > 0 {
+		n += 1 + l + sovSession(uint64(l))
+	}
+	if len(m.Groups) > 0 {
+		for _, s := range m.Groups {
+			l = len(s)
+			n += 1 + l + sovSession(uint64(l))
+		}
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -730,6 +984,215 @@ func (m *SessionResponse) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+func (m *GetUserInfoRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowSession
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: GetUserInfoRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: GetUserInfoRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipSession(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthSession
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *GetUserInfoResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowSession
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: GetUserInfoResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: GetUserInfoResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LoggedIn", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.LoggedIn = bool(v != 0)
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Username", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthSession
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Username = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Iss", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthSession
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Iss = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Groups", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthSession
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Groups = append(m.Groups, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipSession(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthSession
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
 func skipSession(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
@@ -836,32 +1299,38 @@ var (
 )
 
 func init() {
-	proto.RegisterFile("server/session/session.proto", fileDescriptor_session_8fc70660de77cae0)
+	proto.RegisterFile("server/session/session.proto", fileDescriptor_session_7576be4936f004e2)
 }
 
-var fileDescriptor_session_8fc70660de77cae0 = []byte{
-	// 360 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x91, 0x4f, 0x4b, 0xe3, 0x40,
-	0x18, 0xc6, 0x99, 0x2e, 0xdb, 0xdd, 0x9d, 0xc3, 0x96, 0x0d, 0x61, 0x0d, 0xa1, 0x16, 0xc9, 0x45,
-	0x29, 0x98, 0x21, 0x7a, 0x11, 0x2f, 0x82, 0x7a, 0xf1, 0xda, 0xde, 0x0a, 0x1e, 0xa6, 0xc9, 0x4b,
-	0x3a, 0x36, 0x9d, 0x77, 0x9c, 0x99, 0xc6, 0xbb, 0x5f, 0xc1, 0x2f, 0x25, 0x78, 0x11, 0xfc, 0x02,
-	0x52, 0xfc, 0x20, 0xd2, 0x49, 0x52, 0xb5, 0x15, 0xf1, 0x94, 0x79, 0xe6, 0x99, 0xfc, 0x9e, 0xf7,
-	0x0f, 0xed, 0x1a, 0xd0, 0x25, 0x68, 0x66, 0xc0, 0x18, 0x81, 0xb2, 0xf9, 0xc6, 0x4a, 0xa3, 0x45,
-	0xef, 0x57, 0x2d, 0x43, 0x3f, 0xc7, 0x1c, 0xdd, 0x1d, 0x5b, 0x9e, 0x2a, 0x3b, 0xec, 0xe6, 0x88,
-	0x79, 0x01, 0x8c, 0x2b, 0xc1, 0xb8, 0x94, 0x68, 0xb9, 0x15, 0x28, 0x4d, 0xed, 0x46, 0xd3, 0x23,
-	0x13, 0x0b, 0x74, 0x6e, 0x8a, 0x1a, 0x58, 0x99, 0xb0, 0x1c, 0x24, 0x68, 0x6e, 0x21, 0xab, 0xdf,
-	0x5c, 0xe4, 0xc2, 0x4e, 0xe6, 0xe3, 0x38, 0xc5, 0x19, 0xe3, 0xda, 0x45, 0x5c, 0xb9, 0xc3, 0x7e,
-	0x9a, 0x31, 0x35, 0xcd, 0x97, 0x3f, 0x1b, 0xc6, 0x95, 0x2a, 0x44, 0xea, 0xe0, 0xac, 0x4c, 0x78,
-	0xa1, 0x26, 0x7c, 0x03, 0x15, 0x65, 0xd4, 0x1f, 0x56, 0xd5, 0x9e, 0x69, 0xe0, 0x16, 0x06, 0x70,
-	0x3d, 0x07, 0x63, 0xbd, 0x90, 0xfe, 0x9e, 0x1b, 0xd0, 0x92, 0xcf, 0x20, 0x20, 0x3b, 0x64, 0xef,
-	0xcf, 0x60, 0xa5, 0x97, 0x9e, 0xe2, 0xc6, 0xdc, 0xa0, 0xce, 0x82, 0x56, 0xe5, 0x35, 0xda, 0xf3,
-	0xe9, 0x4f, 0x8b, 0x53, 0x90, 0xc1, 0x0f, 0x67, 0x54, 0x22, 0xfa, 0xbf, 0x4a, 0x39, 0x87, 0x02,
-	0x56, 0x29, 0xd1, 0x2e, 0xed, 0xd4, 0xf7, 0x03, 0x30, 0x0a, 0xa5, 0x81, 0x37, 0x00, 0x79, 0x07,
-	0x38, 0x78, 0x20, 0xf4, 0x6f, 0xfd, 0x72, 0x08, 0xba, 0x14, 0x29, 0x78, 0x97, 0xb4, 0x5d, 0x95,
-	0xec, 0x6d, 0xc7, 0xcd, 0xfc, 0x3f, 0x6b, 0x25, 0x0c, 0xd6, 0xed, 0x26, 0x2b, 0x0a, 0x6f, 0x9f,
-	0x5e, 0xee, 0x5a, 0x7e, 0xd4, 0x71, 0xd3, 0x2e, 0x93, 0x66, 0x8f, 0xc7, 0xa4, 0xef, 0x8d, 0x68,
-	0xbb, 0xaa, 0x75, 0x13, 0xff, 0xa1, 0x87, 0x2f, 0xf0, 0x5b, 0x0e, 0xff, 0xaf, 0xbf, 0x8e, 0x3f,
-	0x3d, 0xb9, 0x5f, 0xf4, 0xc8, 0xe3, 0xa2, 0x47, 0x9e, 0x17, 0x3d, 0x32, 0x4a, 0xbe, 0xb1, 0xcd,
-	0xb4, 0x10, 0x20, 0x6d, 0x03, 0x18, 0xb7, 0xdd, 0xf2, 0x0e, 0x5f, 0x03, 0x00, 0x00, 0xff, 0xff,
-	0x65, 0x59, 0xd0, 0x9d, 0x88, 0x02, 0x00, 0x00,
+var fileDescriptor_session_7576be4936f004e2 = []byte{
+	// 453 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x92, 0xcf, 0x8e, 0xd3, 0x30,
+	0x10, 0xc6, 0x95, 0x16, 0x4a, 0xd7, 0x48, 0x2c, 0x98, 0x68, 0x89, 0x42, 0xa9, 0xaa, 0x5c, 0x58,
+	0xad, 0x44, 0xad, 0xc2, 0x05, 0x71, 0x41, 0x02, 0x24, 0xd4, 0x6b, 0x56, 0x5c, 0x56, 0xe2, 0xe0,
+	0x4d, 0x06, 0xaf, 0xb7, 0x59, 0x8f, 0xb1, 0xdd, 0xec, 0x9d, 0x57, 0xe0, 0x61, 0x78, 0x05, 0x8e,
+	0x48, 0xbc, 0x00, 0xaa, 0x78, 0x10, 0x14, 0xe7, 0x0f, 0xdb, 0xb4, 0x42, 0x9c, 0xe2, 0x99, 0x2f,
+	0xfe, 0x7d, 0x9f, 0x35, 0x43, 0x26, 0x16, 0x4c, 0x09, 0x86, 0x59, 0xb0, 0x56, 0xa2, 0x6a, 0xbf,
+	0x73, 0x6d, 0xd0, 0x21, 0xbd, 0xd3, 0x94, 0x71, 0x28, 0x50, 0xa0, 0xef, 0xb1, 0xea, 0x54, 0xcb,
+	0xf1, 0x44, 0x20, 0x8a, 0x02, 0x18, 0xd7, 0x92, 0x71, 0xa5, 0xd0, 0x71, 0x27, 0x51, 0xd9, 0x46,
+	0x4d, 0x56, 0x2f, 0xed, 0x5c, 0xa2, 0x57, 0x33, 0x34, 0xc0, 0xca, 0x05, 0x13, 0xa0, 0xc0, 0x70,
+	0x07, 0x79, 0xf3, 0xcf, 0x52, 0x48, 0x77, 0xb1, 0x3e, 0x9f, 0x67, 0x78, 0xc5, 0xb8, 0xf1, 0x16,
+	0x97, 0xfe, 0xf0, 0x2c, 0xcb, 0x99, 0x5e, 0x89, 0xea, 0xb2, 0x65, 0x5c, 0xeb, 0x42, 0x66, 0x1e,
+	0xce, 0xca, 0x05, 0x2f, 0xf4, 0x05, 0xdf, 0x41, 0x25, 0x39, 0x09, 0x4f, 0xeb, 0xb4, 0x6f, 0x0d,
+	0x70, 0x07, 0x29, 0x7c, 0x5e, 0x83, 0x75, 0x34, 0x26, 0xe3, 0xb5, 0x05, 0xa3, 0xf8, 0x15, 0x44,
+	0xc1, 0x2c, 0x38, 0x3e, 0x48, 0xbb, 0xba, 0xd2, 0x34, 0xb7, 0xf6, 0x1a, 0x4d, 0x1e, 0x0d, 0x6a,
+	0xad, 0xad, 0x69, 0x48, 0x6e, 0x3b, 0x5c, 0x81, 0x8a, 0x86, 0x5e, 0xa8, 0x8b, 0xe4, 0xa8, 0x73,
+	0x79, 0x07, 0x05, 0x74, 0x2e, 0xc9, 0x53, 0x72, 0xd8, 0xf4, 0x53, 0xb0, 0x1a, 0x95, 0x85, 0xbf,
+	0x80, 0xe0, 0x26, 0x20, 0x24, 0xf4, 0x3d, 0xb8, 0x0f, 0x16, 0xcc, 0x52, 0x7d, 0xc2, 0xf6, 0xfa,
+	0x35, 0x79, 0xb8, 0xd5, 0x6d, 0x10, 0x31, 0x19, 0x17, 0x28, 0x04, 0xe4, 0xcb, 0x9a, 0x32, 0x4e,
+	0xbb, 0x7a, 0xeb, 0x5d, 0x83, 0xde, 0xbb, 0xee, 0x93, 0xa1, 0xb4, 0xb6, 0x49, 0x5e, 0x1d, 0xe9,
+	0x11, 0x19, 0x09, 0x83, 0x6b, 0x6d, 0xa3, 0x5b, 0xb3, 0xe1, 0xf1, 0x41, 0xda, 0x54, 0xcf, 0xbf,
+	0x0d, 0xc8, 0xbd, 0x26, 0xf8, 0x29, 0x98, 0x52, 0x66, 0x40, 0x2f, 0xc9, 0xdd, 0x1b, 0x59, 0xe8,
+	0xe3, 0x79, 0xbb, 0x13, 0xbb, 0xb9, 0xe3, 0xc9, 0x7e, 0xb1, 0x8e, 0x9f, 0xcc, 0xbe, 0xfc, 0xfc,
+	0xfd, 0x75, 0x10, 0xd3, 0xc8, 0xef, 0x40, 0xb9, 0xe8, 0xb6, 0xac, 0x0a, 0x2a, 0x2b, 0xf8, 0x47,
+	0x32, 0xaa, 0xa7, 0x45, 0x9f, 0x74, 0xa4, 0x7d, 0x53, 0x8c, 0xa3, 0xbe, 0xdc, 0x99, 0xc4, 0xde,
+	0x24, 0x4c, 0x0e, 0x7b, 0x26, 0xaf, 0x82, 0x13, 0x7a, 0x46, 0x46, 0xf5, 0x98, 0x76, 0xf1, 0x5b,
+	0xe3, 0xfb, 0x07, 0xfe, 0x91, 0xc7, 0x3f, 0x38, 0xe9, 0xe3, 0xdf, 0xbc, 0xfe, 0xbe, 0x99, 0x06,
+	0x3f, 0x36, 0xd3, 0xe0, 0xd7, 0x66, 0x1a, 0x9c, 0x2d, 0xfe, 0x63, 0x91, 0xb3, 0x42, 0x82, 0x72,
+	0x2d, 0xe0, 0x7c, 0xe4, 0xf7, 0xf6, 0xc5, 0x9f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x8f, 0xb6, 0x16,
+	0x68, 0x83, 0x03, 0x00, 0x00,
 }
