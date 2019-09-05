@@ -94,7 +94,14 @@ func (f *factory) NewClient(rawRepoURL string, path string, creds Creds, insecur
 // - Otherwise (and on non-fatal errors), a default HTTP client is returned.
 func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client {
 	// Default HTTP client
-	var customHTTPClient *http.Client = &http.Client{}
+	var customHTTPClient *http.Client = &http.Client{
+		// 15 second timeout
+		Timeout: 15 * time.Second,
+		// don't follow redirect
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
 
 	// Callback function to return any configured client certificate
 	// We never return err, but an empty cert instead.
@@ -122,19 +129,11 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 	}
 
 	if insecure {
-		customHTTPClient = &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify:   true,
-					GetClientCertificate: clientCertFunc,
-				},
-			},
-			// 15 second timeout
-			Timeout: 15 * time.Second,
-
-			// don't follow redirect
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				return http.ErrUseLastResponse
+		customHTTPClient.Transport = &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify:   true,
+				GetClientCertificate: clientCertFunc,
 			},
 		}
 	} else {
@@ -147,33 +146,19 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 			return customHTTPClient
 		} else if len(serverCertificatePem) > 0 {
 			certPool := certutil.GetCertPoolFromPEMData(serverCertificatePem)
-			customHTTPClient = &http.Client{
-				Transport: &http.Transport{
-					TLSClientConfig: &tls.Config{
-						RootCAs:              certPool,
-						GetClientCertificate: clientCertFunc,
-					},
-				},
-				// 15 second timeout
-				Timeout: 15 * time.Second,
-				// don't follow redirect
-				CheckRedirect: func(req *http.Request, via []*http.Request) error {
-					return http.ErrUseLastResponse
+			customHTTPClient.Transport = &http.Transport{
+				Proxy: http.ProxyFromEnvironment,
+				TLSClientConfig: &tls.Config{
+					RootCAs:              certPool,
+					GetClientCertificate: clientCertFunc,
 				},
 			}
 		} else {
 			// else no custom certificate stored.
-			customHTTPClient = &http.Client{
-				Transport: &http.Transport{
-					TLSClientConfig: &tls.Config{
-						GetClientCertificate: clientCertFunc,
-					},
-				},
-				// 15 second timeout
-				Timeout: 15 * time.Second,
-				// don't follow redirect
-				CheckRedirect: func(req *http.Request, via []*http.Request) error {
-					return http.ErrUseLastResponse
+			customHTTPClient.Transport = &http.Transport{
+				Proxy: http.ProxyFromEnvironment,
+				TLSClientConfig: &tls.Config{
+					GetClientCertificate: clientCertFunc,
 				},
 			}
 		}
