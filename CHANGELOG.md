@@ -1,5 +1,106 @@
 # Changelog
 
+## v1.2.0 (2019-09-05)
+
+### New Features
+
+#### Server Certificate And Known Hosts Management
+
+The Server Certificate And Known Hosts Management feature makes it really easy to connect private Git repositories to Argo CD. Now Argo CD provides UI and CLI which
+enables managing certificates and known hosts which are used to access Git repositories. It is also possible to configure both hosts and certificates in a declarative manner using
+[argocd-ssh-known-hosts-cm](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/argocd-ssh-known-hosts-cm.yaml) and 
+[argocd-tls-certs-cm.yaml](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/argocd-tls-certs-cm.yaml) config maps.
+
+#### Self-Healing
+
+The existing Automatic Sync feature allows to automatically apply any new changes in Git to the target Kubernetes cluster. However, Automatic Sync does not cover the case when the
+application is out of sync due to the unexpected change in the target cluster. The Self-Healing feature fills this gap. With Self-Healing enabled Argo CD automatically pushes the desired state from Git into the cluster every time when state deviation is detected.
+
+**Anonymous access** - enable read-only access without authentication to anyone in your organization.
+
+Support for Git LFS enabled repositories - now you can store Helm charts as tar files and enable Git LFS in your repository.
+
+**Compact diff view** - compact diff summary of the whole application in a single view.
+
+**Badge for application status** - add badge with the health and sync status of your application into README.md of your deployment repo.
+
+**Allow configuring google analytics tracking** - use Google Analytics to check how many users are visiting UI or your Argo CD instance.
+
+#### Backward Incompatible Changes
+- Kustomize v1 support is removed. All kustomize charts are built using the same Kustomize version
+- Kustomize v2.0.3 upgraded to v3.1.0 . We've noticed one backward incompatible change: https://github.com/kubernetes-sigs/kustomize/issues/42 . Starting v2.1.0 namespace prefix feature works with CRD ( which might cause renaming of generated resource definitions)
+- Argo CD config maps must be annotated with `app.kubernetes.io/part-of: argocd` label. Make sure to apply updated `install.yaml` manifest in addition to changing image version.
+
+
+#### Enhancements
++ Adds a floating action button with help and chat links to every page.… (#2124)
++ Enhances cookie warning with actual length to help users fix their co… (#2134)
++ Added 'SyncFail' to possible HookTypes in UI (#2147)
++ Support for Git LFS enabled repositories (#1853)
++ Server certificate and known hosts management (#1514)
++ Client HTTPS certifcates for private git repositories (#1945)
++ Badge for application status (#1435)
++ Make the health check for APIService a built in (#1841)
++ Bitbucket Server and Gogs webhook providers (#1269)
++ Jsonnet TLA arguments in ArgoCD CLI (#1626)
++ Self Healing (#1736)
++ Compact diff view (#1831)
++ Allow Helm parameters to force ambiguously-typed values to be strings (#1846)
++ Support anonymous argocd access (#1620)
++ Allow configuring google analytics tracking (#738)
++ Bash autocompletion for argocd (#1798)
++ Additional commit metadata (#1219)
++ Displays targetRevision in app dashboards. (#1239)
++ Local path syncing (#839)
++ System level `kustomize build` options (#1789)
++ Adds support for `argocd app set` for Kustomize. (#1843)
++ Allow users to create tokens for projects where they have any role. (#1977)
++ Add Refresh button to applications table and card view (#1606)
++ Adds CLI support for adding and removing groups from project roles. (#1851)
++ Support dry run and hook vs. apply strategy during sync (#798)
++ UI should remember most recent selected tab on resource info panel (#2007)
++ Adds link to the project from the app summary page. (#1911)
++ Different icon for resources which require pruning (#1159)
+
+#### Bug Fixes
+
+- Do not panic if the type is not api.Status (an error scenario) (#2105)
+- Make sure endpoint is shown as a child of service (#2060)
+- Word-wraps app info in the table and list views. (#2004)
+- Project source/destination removal should consider wildcards (#1780)
+- Repo whitelisting in UI does not support wildcards (#2000)
+- Wait for CRD creation during sync process (#1940)
+- Added a button to select out of sync items in the sync panel (#1902)
+- Proper handling of an excluded resource in an application (#1621)
+- Stop repeating logs on stoped container (#1614)
+- Fix git repo url parsing on application list view (#2174)
+- Fix nil pointer dereference error during app reconciliation (#2146)
+- Fix history api fallback implementation to support app names with dots (#2114)
+- Fixes some code issues related to Kustomize build options. (#2146)
+- Adds checks around valid paths for apps (#2133)
+- Enpoint incorrectly considered top level managed resource (#2060)
+- Allow adding certs for hostnames ending on a dot (#2116)
+
+#### Other
+* Upgrade kustomize to v3.1.0 (#2068)
+* Remove support for Kustomize 1. (#1573)
+
+#### Contributors
+
+* [alexec](https://github.com/alexec)
+* [alexmt](https://github.com/alexmt)
+* [dmizelle](https://github.com/dmizelle)
+* [lcostea](https://github.com/lcostea)
+* [jutley](https://github.com/jutley)
+* [masa213f](https://github.com/masa213f)
+* [Rayyis](https://github.com/Rayyis)
+* [simster7](https://github.com/simster7)
+* [dthomson25](https://github.com/dthomson25)
+* [jannfis](https://github.com/jannfis)
+* [naynasiddharth](https://github.com/naynasiddharth)
+* [stgarf](https://github.com/stgarf)
+
+
 ## v1.1.2 (2019-07-30)
 - 'argocd app wait' should print correct sync status (#2049)
 - Check that TLS is enabled when registering DEX Handlers (#2047)
