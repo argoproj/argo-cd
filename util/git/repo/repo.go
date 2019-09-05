@@ -64,7 +64,11 @@ func (g gitRepo) RevisionMetadata(_, revision string) (*repo.RevisionMetadata, e
 }
 
 func NewRepo(url string, creds git.Creds, insecure, enableLfs bool, disco func(root string) (map[string]string, error), reporter metrics.Reporter) (repo.Repo, error) {
-	client, err := git.NewFactory().NewClient(url, repo.TempRepoPath(url), creds, insecure, enableLfs, reporter)
+	workDir, err := repo.WorkDir(url)
+	if err != nil {
+		return nil, err
+	}
+	client, err := git.NewFactory().NewClient(url, workDir, creds, insecure, enableLfs, reporter)
 	if err != nil {
 		return nil, err
 	}

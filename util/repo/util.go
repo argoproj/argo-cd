@@ -7,8 +7,11 @@ import (
 )
 
 // returns a formulated temporary directory location to clone a repository
-func TempRepoPath(repo string) string {
-	path := filepath.Join(os.TempDir(), strings.Replace(repo, "/", "_", -1))
-	_ = os.Mkdir(path, 0777)
-	return path
+func WorkDir(url string) (string, error) {
+	path := filepath.Join(os.TempDir(), strings.Replace(url, "/", "_", -1))
+	err := os.Mkdir(path, 0700)
+	if err != nil && !os.IsExist(err) {
+		return "", err
+	}
+	return path, nil
 }

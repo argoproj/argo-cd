@@ -25,7 +25,11 @@ func NewRepo(url, name, username, password string, caData, certData, keyData []b
 		return cached.(repo.Repo), nil
 	}
 
-	cmd, err := helm.NewCmd(repo.TempRepoPath(url))
+	workDir, err := repo.WorkDir(url)
+	if err != nil {
+		return nil, err
+	}
+	cmd, err := helm.NewCmd(workDir)
 	if err != nil {
 		return nil, err
 	}
