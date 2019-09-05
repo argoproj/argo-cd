@@ -3,7 +3,6 @@ package account
 import (
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apiclient/account"
-	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 	"github.com/argoproj/argo-cd/util/password"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
@@ -34,9 +32,9 @@ func NewServer(sessionMgr *session.SessionManager, settingsMgr *settings.Setting
 
 // UpdatePassword updates the password of the local admin superuser.
 func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRequest) (*account.UpdatePasswordResponse, error) {
-	username := getAuthenticatedUser(ctx)
-	if username != common.ArgoCDAdminUsername {
-		return nil, status.Errorf(codes.InvalidArgument, "password can only be changed for local users, not user %q", username)
+	sub := session.Sub(ctx)
+	if sub != common.ArgoCDAdminUsername {
+		return nil, status.Errorf(codes.InvalidArgument, "password can only be changed for local users, not user %q", sub)
 	}
 
 	cdSettings, err := s.settingsMgr.GetSettings()
@@ -44,7 +42,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 		return nil, err
 	}
 
-	err = s.sessionMgr.VerifyUsernamePassword(username, q.CurrentPassword)
+	err = s.sessionMgr.VerifyUsernamePassword(sub, q.CurrentPassword)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "current password does not match")
 	}
@@ -61,24 +59,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 	if err != nil {
 		return nil, err
 	}
-	log.Infof("user '%s' updated password", username)
+	log.Infof("user '%s' updated password", sub)
 	return &account.UpdatePasswordResponse{}, nil
 
-}
-
-// getAuthenticatedUser returns the currently authenticated user (via JWT 'sub' field)
-func getAuthenticatedUser(ctx context.Context) string {
-	claimsIf := ctx.Value("claims")
-	if claimsIf == nil {
-		return ""
-	}
-	claims, ok := claimsIf.(jwt.Claims)
-	if !ok {
-		return ""
-	}
-	mapClaims, err := jwtutil.MapClaims(claims)
-	if err != nil {
-		return ""
-	}
-	return jwtutil.GetField(mapClaims, "sub")
 }

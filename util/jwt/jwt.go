@@ -88,7 +88,7 @@ func IsMember(claims jwtgo.Claims, groups []string) bool {
 	}
 	// TODO: groups is hard-wired but we should really be honoring the 'scopes' section in argocd-rbac-cm.
 	// O(n^2) loop
-	for _, userGroup := range GetScopeValues(mapClaims, []string{"groups"}) {
+	for _, userGroup := range GetGroups(mapClaims) {
 		for _, group := range groups {
 			if userGroup == group {
 				return true
@@ -96,4 +96,8 @@ func IsMember(claims jwtgo.Claims, groups []string) bool {
 		}
 	}
 	return false
+}
+
+func GetGroups(mapClaims jwtgo.MapClaims) []string {
+	return GetScopeValues(mapClaims, []string{"groups"})
 }

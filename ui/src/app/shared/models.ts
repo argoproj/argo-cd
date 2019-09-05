@@ -340,6 +340,13 @@ export interface AuthSettings {
     };
 }
 
+export interface UserInfo  {
+    loggedIn: boolean;
+    username: string;
+    iss: string;
+    groups: string[];
+}
+
 export type ConnectionStatus = 'Unknown' | 'Successful' | 'Failed';
 
 export const ConnectionStatuses = {
