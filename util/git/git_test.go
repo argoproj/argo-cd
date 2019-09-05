@@ -13,7 +13,7 @@ import (
 	"github.com/argoproj/argo-cd/test/fixture/log"
 	"github.com/argoproj/argo-cd/test/fixture/path"
 	"github.com/argoproj/argo-cd/test/fixture/test"
-	"github.com/argoproj/argo-cd/util/repo/mocks"
+	"github.com/argoproj/argo-cd/util/repo/metrics/mocks"
 )
 
 func TestIsCommitSHA(t *testing.T) {

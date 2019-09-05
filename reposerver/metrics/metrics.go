@@ -15,7 +15,7 @@ import (
 type MetricsServer struct {
 	handler           http.Handler
 	gitRequestCounter *prometheus.CounterVec
-	clientFactory     factory.Factory
+	factory           factory.Factory
 }
 
 type GitRequestType string
@@ -41,7 +41,7 @@ func NewMetricsServer(factory factory.Factory) *MetricsServer {
 	registry.MustRegister(gitRequestCounter)
 
 	return &MetricsServer{
-		clientFactory:     factory,
+		factory:           factory,
 		handler:           promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
 		gitRequestCounter: gitRequestCounter,
 	}
@@ -66,5 +66,5 @@ func (m *MetricsServer) Event(repo string, requestType string) {
 }
 
 func (m *MetricsServer) NewRepo(repo *v1alpha1.Repository, _ metrics.Reporter) (repo.Repo, error) {
-	return m.clientFactory.NewRepo(repo, m)
+	return m.factory.NewRepo(repo, m)
 }
