@@ -1127,7 +1127,11 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 			formatSyncPolicy(app),
 			formatConditionsSummary(app),
 		}
-		maintenanceWindows = app.Spec.SyncPolicy.Maintenance.ListWindows()
+		if app.Spec.SyncPolicy.Exists() {
+			maintenanceWindows = app.Spec.SyncPolicy.Maintenance.ListWindows()
+		} else {
+			maintenanceWindows = "<none>"
+		}
 		if *output == "wide" {
 			vals = append(vals, app.Spec.Source.RepoURL, app.Spec.Source.Path, app.Spec.Source.TargetRevision, maintenanceWindows)
 		}
