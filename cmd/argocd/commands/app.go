@@ -280,12 +280,16 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string) {
 	} else {
 		syncPolicy = "Manual"
 	}
-	if app.Spec.SyncPolicy.Maintenance.IsEnabled() {
-		maintenance = "Enabled"
+	if app.Spec.SyncPolicy.Exists() {
+		if app.Spec.SyncPolicy.Maintenance.IsEnabled() {
+			maintenance = "Enabled"
+		} else {
+			maintenance = "Disabled"
+		}
+		maintenanceWindows = app.Spec.SyncPolicy.Maintenance.ListWindows()
 	} else {
-		maintenance = "Disabled"
+		maintenanceWindows = "<none>"
 	}
-	maintenanceWindows = app.Spec.SyncPolicy.Maintenance.ListWindows()
 
 	fmt.Printf(printOpFmtStr, "Sync Policy:", syncPolicy)
 	syncStatusStr := string(app.Status.Sync.Status)

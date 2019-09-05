@@ -103,7 +103,11 @@ export const ApplicationSummary = (props: {
         const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);
         if (confirmed) {
             const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
-            updatedApp.spec.syncPolicy = { automated: { prune, selfHeal}, maintenance: updatedApp.spec.syncPolicy.maintenance };
+            if (updatedApp.spec.syncPolicy) {
+                updatedApp.spec.syncPolicy = { automated: { prune, selfHeal }, maintenance: updatedApp.spec.syncPolicy.maintenance };
+            }else {
+                updatedApp.spec.syncPolicy = { automated: { prune, selfHeal } };
+            };
             props.updateApp(updatedApp);
         }
     }
@@ -191,7 +195,7 @@ export const ApplicationSummary = (props: {
             <div className='white-box'>
                 <div className='white-box__details'>
                     <p>Sync Policy</p>
-                    {app.spec.syncPolicy.maintenance && (
+                    {app.spec.syncPolicy && app.spec.syncPolicy.maintenance && (
                         <DataLoader noLoaderOnInputChange={true} input={app.spec.syncPolicy.maintenance} load={async () => {
                             return await services.applications.getMaintenanceWindowState(app.metadata.name);
                         }}>{(data) =>
