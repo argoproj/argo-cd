@@ -443,14 +443,22 @@ type SyncPolicyAutomated struct {
 	SelfHeal bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
 }
 
+func (s *SyncPolicy) Exists() bool {
+	return s != nil
+}
+
 func (s *SyncPolicy) IsAutomated() bool {
 	return s != nil && s.Automated != nil
+}
+
+func (s *SyncPolicy) HasMaintenance() bool {
+	return s != nil && s.Maintenance != nil
 }
 
 // Maintenance controls when syncs can be run
 type Maintenance struct {
 	// Enabled will allow maintenance windows to run during their scheduled times (default: true)
-	Enabled bool `json:"enabled,enabled" protobuf:"bytes,1,opt,name=enabled"`
+	Enabled bool `json:"enabled,omitempty" protobuf:"bytes,1,opt,name=enabled"`
 	// Windows contains the schedules for when syncs should be disabled
 	Windows MaintenanceWindows `json:"windows,omitempty" protobuf:"bytes,2,opt,name=windows"`
 }

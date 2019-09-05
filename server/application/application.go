@@ -260,12 +260,10 @@ func (s *Server) GetMaintenanceState(ctx context.Context, q *application.Mainten
 		return nil, err
 	}
 	active, activeWindows := a.Spec.SyncPolicy.Maintenance.ActiveWindows()
-	enabled := a.Spec.SyncPolicy.Maintenance.IsEnabled()
 
 	res := &application.MaintenanceResponse{
 		Active:  &active,
 		Windows: activeWindows,
-		Enabled: &enabled,
 	}
 
 	return res, nil
@@ -901,8 +899,16 @@ func (s *Server) getApplicationDestination(name string) (string, string, error) 
 func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncRequest) (*appv1.Application, error) {
 	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
 	a, err := appIf.Get(*syncReq.Name, metav1.GetOptions{})
+
 	if err != nil {
 		return nil, err
+	}
+	if a.Spec.SyncPolicy.Exists() {
+		active, _ := a.Spec.SyncPolicy.Maintenance.ActiveWindows()
+		if active {
+			s.logEvent(a, ctx, argo.EventReasonOperationCompleted, fmt.Sprint("Cannot sync: Maintenance Windows are active"))
+			return a, err
+		}
 	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionSync, appRBACName(*a)); err != nil {
 		return nil, err

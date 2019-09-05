@@ -181,7 +181,7 @@ export interface SyncPolicy {
 }
 
 export interface Maintenance {
-    enabled?: boolean;
+    enabled: boolean;
     windows?: MaintenanceWindow[];
 }
 
@@ -547,5 +547,4 @@ export interface ResourceAction {
 export interface MaintenanceState {
     active: boolean;
     windows: string[];
-    enabled: boolean;
 }

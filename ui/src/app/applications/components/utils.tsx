@@ -132,14 +132,12 @@ export const ComparisonStatusIcon = ({status, resource, label}: { status: appMod
 export const MaintenanceWindowSchedule = ({state, window}: { state: appModels.MaintenanceState, window: string}) => {
     let className = 'application-summary__maintenance-schedule-inactive';
 
-    if (state.enabled) {
-        if (state.active) {
-            if (state.windows.includes(window)) {
-                className = 'application-summary__maintenance-schedule-active';
-            }
-        } else {
-            className = 'application-summary__maintenance-schedule-inactive';
+    if (state.active) {
+        if (state.windows.includes(window)) {
+            className = 'application-summary__maintenance-schedule-active';
         }
+    } else {
+        className = 'application-summary__maintenance-schedule-inactive';
     }
     return <span className={className} >{window}</span>;
 };

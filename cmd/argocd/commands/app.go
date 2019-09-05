@@ -469,23 +469,29 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 		case "sync-policy":
 			switch appOpts.syncPolicy {
 			case "automated":
-				if app.Spec.SyncPolicy == nil {
+				if !app.Spec.SyncPolicy.Exists() {
 					app.Spec.SyncPolicy = &argoappv1.SyncPolicy{Automated: &argoappv1.SyncPolicyAutomated{}}
 				} else {
 					app.Spec.SyncPolicy.Automated = &argoappv1.SyncPolicyAutomated{}
 				}
 			case "manual":
-				app.Spec.SyncPolicy.Automated = nil
+				if app.Spec.SyncPolicy.IsAutomated() {
+					app.Spec.SyncPolicy.Automated = nil
+				}
 			default:
 				log.Fatalf("Invalid sync-policy: %s", appOpts.syncPolicy)
 			}
 		case "maintenance":
 			switch appOpts.maintenance {
 			case "enable":
-				if app.Spec.SyncPolicy.Maintenance == nil {
-					app.Spec.SyncPolicy.Maintenance = &argoappv1.Maintenance{Enabled: true}
-				} else {
+				if app.Spec.SyncPolicy.HasMaintenance() {
 					app.Spec.SyncPolicy.Maintenance.Enabled = true
+				} else {
+					if app.Spec.SyncPolicy.Exists() {
+						app.Spec.SyncPolicy.Maintenance = &argoappv1.Maintenance{Enabled: true}
+					} else {
+						app.Spec.SyncPolicy = &argoappv1.SyncPolicy{Maintenance: &argoappv1.Maintenance{Enabled: true}}
+					}
 				}
 			case "disable":
 				if app.Spec.SyncPolicy.Maintenance == nil {
@@ -527,7 +533,7 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 		}
 	}
 	if flags.Changed("maintenance") {
-		if app.Spec.SyncPolicy == nil {
+		if !app.Spec.SyncPolicy.Exists() {
 			log.Fatalf("Cannot set --maintenance: There is no sync-policy")
 		}
 		if app.Spec.SyncPolicy.Maintenance.ZeroWindows() {

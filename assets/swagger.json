@@ -1710,10 +1710,6 @@
           "type": "boolean",
           "format": "boolean"
         },
-        "enabled": {
-          "type": "boolean",
-          "format": "boolean"
-        },
         "windows": {
           "type": "array",
           "items": {

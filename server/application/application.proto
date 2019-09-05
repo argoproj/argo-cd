@@ -51,8 +51,7 @@ message MaintenanceStateQuery {
 
 message MaintenanceResponse {
 	required bool   active = 1;
-	required bool enabled = 2;
-	repeated string windows = 3;
+	repeated string windows = 2;
 }
 
 message ApplicationCreateRequest {

@@ -108,7 +108,7 @@ export const ApplicationSummary = (props: {
         }
     }
 
-    async function  unsetAutoSync(ctx: { popup: PopupApi }) {
+    async function unsetAutoSync(ctx: { popup: PopupApi }) {
         const confirmed = await ctx.popup.confirm('Disable Auto-Sync?', 'Are you sure you want to disable automated application synchronization');
         if (confirmed) {
             const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
@@ -219,9 +219,9 @@ export const ApplicationSummary = (props: {
                                         Maintenance Windows
                                     </div>
                                     <div className='columns small-9'>
-                                        {app.spec.syncPolicy.maintenance.windows.map((window) =>
+                                        {app.spec.syncPolicy.maintenance.windows === undefined || app.spec.syncPolicy.maintenance.windows.map((window) =>
                                             <MaintenanceWindowSchedule key={window.schedule + ':' + window.duration}
-                                                                       state={data} window={window.schedule + ':' + window.duration}/> || <span></span>)}
+                                                                       state={data} window={window.schedule + ':' + window.duration}/>)}
                                     </div>
                                 </div>
                                 <div className='row white-box__details-row'>
