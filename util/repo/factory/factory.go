@@ -5,7 +5,7 @@ import (
 	"github.com/argoproj/argo-cd/util/app/discovery"
 	"github.com/argoproj/argo-cd/util/creds"
 	gitrepo "github.com/argoproj/argo-cd/util/git/repo"
-	repo2 "github.com/argoproj/argo-cd/util/helm/repo"
+	helmrepo "github.com/argoproj/argo-cd/util/helm/repo"
 	"github.com/argoproj/argo-cd/util/repo"
 	"github.com/argoproj/argo-cd/util/repo/metrics"
 )
@@ -24,7 +24,7 @@ type factory struct {
 func (f *factory) NewRepo(r *v1alpha1.Repository, reporter metrics.Reporter) (repo.Repo, error) {
 	switch r.Type {
 	case "helm":
-		return repo2.NewRepo(r.Repo, r.Name, r.Username, r.Password, []byte(r.TLSClientCAData), []byte(r.TLSClientCertData), []byte(r.TLSClientCertKey))
+		return helmrepo.NewRepo(r.Repo, r.Name, r.Username, r.Password, []byte(r.TLSClientCAData), []byte(r.TLSClientCertData), []byte(r.TLSClientCertKey))
 	default:
 		return gitrepo.NewRepo(r.Repo, creds.GetRepoCreds(r), r.IsInsecure(), r.EnableLFS, discovery.Discover, reporter)
 	}
