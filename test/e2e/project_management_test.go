@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"encoding/json"
 	"strconv"
 	"strings"
 	"testing"
@@ -66,6 +67,27 @@ func TestProjectCreation(t *testing.T) {
 	assert.True(t, proj.Spec.OrphanedResources.IsWarn())
 
 	assertProjHasEvent(t, proj, "create", argo.EventReasonResourceCreated)
+
+	// create a manifest with the same name to upsert
+	newDescription := "Upserted description"
+	proj.Spec.Description = newDescription
+	proj.ResourceVersion = ""
+	data, err := json.Marshal(proj)
+	stdinString := string(data)
+	assert.NoError(t, err)
+
+	// fail without upsert flag
+	_, err = fixture.RunCliWithStdin(stdinString, "proj", "create",
+		"-f", "-")
+	assert.Error(t, err)
+
+	// succeed with the upsert flag
+	_, err = fixture.RunCliWithStdin(stdinString, "proj", "create",
+		"-f", "-", "--upsert")
+	assert.NoError(t, err)
+	proj, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(projectName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, newDescription, proj.Spec.Description)
 }
 
 func TestProjectDeletion(t *testing.T) {

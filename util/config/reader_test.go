@@ -1,12 +1,17 @@
 package config
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestUnmarshalLocalFile(t *testing.T) {
@@ -91,4 +96,18 @@ func TestUnmarshalRemoteFile(t *testing.T) {
 	if testStruct.Field1 != field1 || testStruct.Field2 != field2 {
 		t.Errorf("Test data did not match! Expected {%s %d} but got: %v", field1, field2, testStruct)
 	}
+}
+
+func TestUnmarshalReader(t *testing.T) {
+	type testStruct struct {
+		value string
+	}
+	value := "test-reader"
+	instance := testStruct{value}
+	data, err := json.Marshal(instance)
+	assert.NoError(t, err)
+	var reader io.Reader = bytes.NewReader(data)
+	err = UnmarshalReader(reader, &instance)
+	assert.NoError(t, err)
+	assert.Equal(t, value, instance.value)
 }

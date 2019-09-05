@@ -94,7 +94,7 @@ data:
   policy.default: ""
   policy.csv: |
     p, some-github-org:team1, applications, *, project-a/*, allow
-    p, some-github-org:team2, applications, *, project-a/*, allow
+    p, some-github-org:team2, applications, *, project-b/*, allow
 
     p, role:org-admin, repositories, get, *, allow
     p, role:org-admin, repositories, create, *, allow

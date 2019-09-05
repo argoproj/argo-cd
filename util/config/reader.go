@@ -2,11 +2,21 @@ package config
 
 import (
 	"encoding/json"
+	"io"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/ghodss/yaml"
 )
+
+// UnmarshalReader is used to read manifests from stdin
+func UnmarshalReader(reader io.Reader, obj interface{}) error {
+	data, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return err
+	}
+	return unmarshalObject(data, obj)
+}
 
 // unmarshalObject tries to convert a YAML or JSON byte array into the provided type.
 func unmarshalObject(data []byte, obj interface{}) error {
