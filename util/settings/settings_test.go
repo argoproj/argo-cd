@@ -233,3 +233,18 @@ func TestRedirectURL(t *testing.T) {
 		assert.Equal(t, expected[1], dexRedirectURL)
 	}
 }
+
+func TestTLSConfigServerName(t *testing.T) {
+	cases := map[string]string{
+		"https://localhost/":                "localhost",
+		"http://localhost":                  "localhost",
+		"https://test-server-name.com":      "test-server-name.com",
+		"https://test-server-name.com:8443": "test-server-name.com",
+		"https://test-server-name.co.uk":    "test-server-name.co.uk",
+	}
+	for given, expected := range cases {
+		settings := ArgoCDSettings{URL: given}
+		tlsConfig := settings.TLSConfig()
+		assert.Equal(t, expected, tlsConfig.ServerName)
+	}
+}

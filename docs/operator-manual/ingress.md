@@ -20,6 +20,9 @@ accepts only a single value for the backend protocol (e.g. HTTP, HTTPS, GRPC, GR
 In order to expose the Argo CD API server with a single ingress rule and hostname, the
 `nginx.ingress.kubernetes.io/ssl-passthrough` [annotation](https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/#ssl-passthrough)
 must be used to passthrough TLS connections and terminate TLS at the Argo CD API server.
+Additionally, SSL passthrough requires the use of SNI.
+The Argo CD API server will set the SNI hostname using the URL specified in the ConfigMap.
+As such, the hostname set in the Ingress resource must match the URL specified exactly for SSL passthrough to function correctly.
 
 ```yaml
 apiVersion: extensions/v1beta1

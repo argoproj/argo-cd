@@ -793,17 +793,29 @@ func (a *ArgoCDSettings) OIDCConfig() *OIDCConfig {
 
 // TLSConfig returns a tls.Config with the configured certificates
 func (a *ArgoCDSettings) TLSConfig() *tls.Config {
-	if a.Certificate == nil {
-		return nil
+	// TODO: Allow users to define custom root CAs
+	var certPool *x509.CertPool
+	if a.Certificate != nil {
+		certPool = x509.NewCertPool()
+		pemCertBytes, _ := tlsutil.EncodeX509KeyPair(*a.Certificate)
+		ok := certPool.AppendCertsFromPEM(pemCertBytes)
+		if !ok {
+			panic("bad certs")
+		}
+	} else {
+		// If RootCAs is nil, TLS uses the host's root CA set.
+		certPool = nil
 	}
-	certPool := x509.NewCertPool()
-	pemCertBytes, _ := tlsutil.EncodeX509KeyPair(*a.Certificate)
-	ok := certPool.AppendCertsFromPEM(pemCertBytes)
-	if !ok {
-		panic("bad certs")
+
+	// Parse the URL to get the hostname in order to enable SNI support
+	parsedURL, err := url.Parse(a.URL)
+	if err != nil {
+		panic("bad URL")
 	}
+
 	return &tls.Config{
-		RootCAs: certPool,
+		RootCAs:    certPool,
+		ServerName: parsedURL.Hostname(),
 	}
 }
 
