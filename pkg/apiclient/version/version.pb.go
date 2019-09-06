@@ -9,16 +9,23 @@ package version // import "github.com/argoproj/argo-cd/pkg/apiclient/version"
 	Version Service API returns the version of the API server.
 */
 
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import empty "github.com/golang/protobuf/ptypes/empty"
-import _ "google.golang.org/genproto/googleapis/api/annotations"
+import (
+	fmt "fmt"
 
-import context "golang.org/x/net/context"
-import grpc "google.golang.org/grpc"
+	proto "github.com/gogo/protobuf/proto"
 
-import io "io"
+	math "math"
+
+	empty "github.com/golang/protobuf/ptypes/empty"
+
+	_ "google.golang.org/genproto/googleapis/api/annotations"
+
+	context "golang.org/x/net/context"
+
+	grpc "google.golang.org/grpc"
+
+	io "io"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
