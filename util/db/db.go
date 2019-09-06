@@ -24,7 +24,7 @@ type ArgoDB interface {
 	// DeleteCluster deletes a cluster by name
 	DeleteCluster(ctx context.Context, name string) error
 
-	// ListRepositories lists configured repositories
+	// ListRepositories lists repositories
 	ListRepositories(ctx context.Context) ([]*appv1.Repository, error)
 	// CreateRepository creates a repository
 	CreateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
