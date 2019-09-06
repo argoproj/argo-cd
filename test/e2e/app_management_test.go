@@ -447,7 +447,7 @@ func TestKsonnetApp(t *testing.T) {
 		Path("ksonnet").
 		Env("prod").
 		Parameter("guestbook-ui=image=gcr.io/heptio-images/ks-guestbook-demo:0.1").
-		// TODO - discus with Alex M this change
+		DestServer("").
 		When().
 		Create().
 		Sync().

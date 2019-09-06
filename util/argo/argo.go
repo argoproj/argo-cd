@@ -135,19 +135,19 @@ func ValidateRepo(
 	repoClientset apiclient.Clientset,
 	db db.ArgoDB, kustomizeOptions *argoappv1.KustomizeOptions,
 	plugins []*argoappv1.ConfigManagementPlugin,
-) ([]argoappv1.ApplicationCondition, argoappv1.ApplicationSourceType, error) {
+) ([]argoappv1.ApplicationCondition, error) {
 	conditions := make([]argoappv1.ApplicationCondition, 0)
 
 	// Test the repo
 	conn, repoClient, err := repoClientset.NewRepoServerClient()
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	defer util.Close(conn)
 	repoAccessable := false
 	repoRes, err := db.GetRepository(ctx, spec.Source.RepoURL)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
 	r, err := factory.NewFactory().NewRepo(repoRes, metrics.NopReporter)
@@ -160,7 +160,6 @@ func ValidateRepo(
 		repoAccessable = true
 	}
 
-	var appSourceType argoappv1.ApplicationSourceType
 	// Verify only one source type is defined
 	explicitSourceType, err := spec.Source.ExplicitType()
 	if err != nil {
@@ -171,18 +170,8 @@ func ValidateRepo(
 	}
 
 	if repoAccessable {
-		if explicitSourceType != nil {
-			appSourceType = *explicitSourceType
-		} else {
-			apps, _, err := r.ListApps(spec.Source.TargetRevision)
-			if err == nil {
-				appType, ok := apps[spec.Source.Path]
-				if ok {
-					appSourceType = argoappv1.ApplicationSourceType(appType)
-				} else {
-					appSourceType = argoappv1.ApplicationSourceTypeDirectory
-				}
-			}
+		if explicitSourceType == nil {
+			_, _, err = r.ListApps(spec.Source.TargetRevision)
 		}
 
 		if err != nil {
@@ -195,7 +184,7 @@ func ValidateRepo(
 			conditions = append(conditions, mainDirConditions...)
 		}
 	}
-	return conditions, appSourceType, nil
+	return conditions, nil
 }
 
 // ValidatePermissions ensures that the referenced cluster has been added to Argo CD and the app source repo and destination namespace/cluster are permitted in app project
