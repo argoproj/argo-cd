@@ -33,6 +33,7 @@ func NewAccountCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	}
 	command.AddCommand(NewAccountUpdatePasswordCommand(clientOpts))
 	command.AddCommand(NewAccountGetUserInfoCommand(clientOpts))
+	command.AddCommand(NewAccountCanICommand(clientOpts))
 	return command
 }
 
@@ -143,4 +144,29 @@ func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	}
 	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: yaml, json")
 	return command
+}
+func NewAccountCanICommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	return &cobra.Command{
+		Use:   "can-i",
+		Short: "Can I",
+		Example: `
+# Can you sync an app?
+argocd account can-i sync app hello-app
+
+`,
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 0 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+
+			conn, client := argocdclient.NewClientOrDie(clientOpts).NewSessionClientOrDie()
+			defer util.Close(conn)
+
+			ctx := context.Background()
+			response, err := client.CanI(ctx, &session.CanIRequest{})
+			errors.CheckError(err)
+			fmt.Println(response.Value)
+		},
+	}
 }

@@ -63,3 +63,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 	return &account.UpdatePasswordResponse{}, nil
 
 }
+
+func (s *Server) CanI(ctx context.Context, q *account.CanIRequest) (*account.CanIResponse, error) {
+	return &account.CanIResponse{Value: "maybe"}, nil
+}

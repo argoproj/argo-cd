@@ -16,6 +16,42 @@
     "version": "version not set"
   },
   "paths": {
+    "/api/v1/account/can-i/{verb}/{type}/{url}": {
+      "get": {
+        "tags": [
+          "AccountService"
+        ],
+        "operationId": "Can",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "verb",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "type",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "url",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/accountCanIResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/account/password": {
       "put": {
         "tags": [
@@ -1589,6 +1625,14 @@
     }
   },
   "definitions": {
+    "accountCanIResponse": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "string"
+        }
+      }
+    },
     "accountUpdatePasswordRequest": {
       "type": "object",
       "properties": {
