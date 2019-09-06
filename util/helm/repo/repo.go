@@ -60,7 +60,7 @@ func (c helmRepo) ResolveRevision(app, revision string) (string, error) {
 	return "", errors.New("failed to find chart " + app)
 }
 
-func (c helmRepo) RevisionMetadata(app, revision string) (*repo.RevisionMetadata, error) {
+func (c helmRepo) RevisionMetadata(app, resolvedRevision string) (*repo.RevisionMetadata, error) {
 
 	index, err := c.getIndex()
 	if err != nil {
@@ -68,12 +68,12 @@ func (c helmRepo) RevisionMetadata(app, revision string) (*repo.RevisionMetadata
 	}
 
 	for _, entry := range index.Entries[app] {
-		if entry.Version == revision {
+		if entry.Version == resolvedRevision {
 			return &repo.RevisionMetadata{Date: entry.Created}, nil
 		}
 	}
 
-	return nil, fmt.Errorf("unknown chart \"%s/%s\"", app, revision)
+	return nil, fmt.Errorf("unknown chart \"%s/%s\"", app, resolvedRevision)
 }
 
 type entry struct {

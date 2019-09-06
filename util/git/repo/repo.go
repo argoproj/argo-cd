@@ -49,8 +49,8 @@ func (g gitRepo) ResolveRevision(path, revision string) (string, error) {
 	return g.client.LsRemote(revision)
 }
 
-func (g gitRepo) RevisionMetadata(_, revision string) (*repo.RevisionMetadata, error) {
-	metadata, err := g.client.RevisionMetadata(revision)
+func (g gitRepo) RevisionMetadata(_, resolvedRevision string) (*repo.RevisionMetadata, error) {
+	metadata, err := g.client.RevisionMetadata(resolvedRevision)
 	if err != nil {
 		return nil, err
 	}

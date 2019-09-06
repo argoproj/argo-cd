@@ -24,5 +24,5 @@ type Repo interface {
 	// checkout an app
 	GetApp(app, resolvedRevision string) (path string, err error)
 	// return the revision meta-data for the checked out code
-	RevisionMetadata(app, revision string) (*RevisionMetadata, error)
+	RevisionMetadata(app, resolvedRevision string) (*RevisionMetadata, error)
 }
