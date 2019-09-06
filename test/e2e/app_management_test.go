@@ -446,6 +446,7 @@ func TestKsonnetApp(t *testing.T) {
 	Given(t).
 		Path("ksonnet").
 		Env("prod").
+		// Null out dest server to verify that destination is inferred from ksonnet app
 		Parameter("guestbook-ui=image=gcr.io/heptio-images/ks-guestbook-demo:0.1").
 		DestServer("").
 		When().

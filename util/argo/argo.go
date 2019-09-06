@@ -138,8 +138,6 @@ func ValidateRepo(
 ) ([]argoappv1.ApplicationCondition, error) {
 	conditions := make([]argoappv1.ApplicationCondition, 0)
 
-	log.Debug("ALEX ValidateRepo")
-
 	// Test the repo
 	conn, repoClient, err := repoClientset.NewRepoServerClient()
 	if err != nil {
@@ -214,7 +212,6 @@ func ValidateRepo(
 }
 
 func enrichSpec(spec *argoappv1.ApplicationSpec, appDetails *apiclient.RepoAppDetailsResponse) {
-	log.Debug("enriching app")
 	if spec.Source.Ksonnet != nil && appDetails.Ksonnet != nil {
 		env, ok := appDetails.Ksonnet.Environments[spec.Source.Ksonnet.Environment]
 		if ok {
@@ -231,7 +228,6 @@ func enrichSpec(spec *argoappv1.ApplicationSpec, appDetails *apiclient.RepoAppDe
 
 // ValidatePermissions ensures that the referenced cluster has been added to Argo CD and the app source repo and destination namespace/cluster are permitted in app project
 func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, proj *argoappv1.AppProject, db db.ArgoDB) ([]argoappv1.ApplicationCondition, error) {
-	log.Debug("ALEX ValidatePermissions")
 	conditions := make([]argoappv1.ApplicationCondition, 0)
 	if spec.Source.RepoURL == "" || spec.Source.Path == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
@@ -288,7 +284,6 @@ func verifyGenerateManifests(
 	kustomizeOptions *argoappv1.KustomizeOptions,
 	plugins []*argoappv1.ConfigManagementPlugin,
 ) []argoappv1.ApplicationCondition {
-	log.Debug("ALEX verifyGenerateManifests")
 
 	var conditions []argoappv1.ApplicationCondition
 	if spec.Destination.Server == "" || spec.Destination.Namespace == "" {
