@@ -13,4 +13,8 @@ export class UserService {
     public get(): Promise<UserInfo> {
         return requests.get('/session/userinfo').then((res) => res.body as UserInfo);
     }
+
+    public canI(action: string, resource: string, subresource: string): Promise<{ value: string }> {
+        return requests.get(`/account/can-i/${resource}/${action}/${subresource}`).then((res) => ({value: res.body.value}));
+    }
 }
