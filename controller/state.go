@@ -122,7 +122,6 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	}
 	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 		Repo:              repo,
-		Repos:             repos,
 		Revision:          revision,
 		NoCache:           noCache,
 		AppLabelKey:       appLabelKey,

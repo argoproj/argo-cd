@@ -13,7 +13,7 @@ func Path(root, path string) (string, error) {
 	}
 	appPath := filepath.Join(root, path)
 	if !strings.HasPrefix(appPath, filepath.Clean(root)) {
-		return "", fmt.Errorf("%s: app path outside repo", path)
+		return "", fmt.Errorf("%s: app path outside root", path)
 	}
 	info, err := os.Stat(appPath)
 	if os.IsNotExist(err) {

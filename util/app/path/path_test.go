@@ -18,12 +18,12 @@ func TestPathAbsolute(t *testing.T) {
 
 func TestPathDotDot(t *testing.T) {
 	_, err := Path("./testdata", "..")
-	assert.EqualError(t, err, "..: app path outside repo")
+	assert.EqualError(t, err, "..: app path outside root")
 }
 
 func TestPathDotDotSlash(t *testing.T) {
 	_, err := Path("./testdata", "../")
-	assert.EqualError(t, err, "../: app path outside repo")
+	assert.EqualError(t, err, "../: app path outside root")
 }
 
 func TestPathDot(t *testing.T) {

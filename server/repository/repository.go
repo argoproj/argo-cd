@@ -104,7 +104,7 @@ func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.
 	return &appsv1.RepositoryList{Items: items}, nil
 }
 
-// List returns list of apps in the repo
+// ListApps returns list of apps in the repo
 func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (*repositorypkg.RepoAppsResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo); err != nil {
 		return nil, err
