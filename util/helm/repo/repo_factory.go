@@ -24,6 +24,7 @@ func NewRepo(url, name, username, password string, caData, certData, keyData []b
 		log.WithFields(log.Fields{"url": url}).Debug("helm repo cache hit")
 		return cached.(repo.Repo), nil
 	}
+	log.WithFields(log.Fields{"url": url}).Debug("helm repo cache miss")
 
 	workDir, err := repo.WorkDir(url)
 	if err != nil {
