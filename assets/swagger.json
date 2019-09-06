@@ -1936,7 +1936,7 @@
     },
     "repositoryHelmAppSpec": {
       "type": "object",
-      "title": "HelmAppSpec contains helm app name and path in source repo",
+      "title": "HelmAppSpec contains helm app name  in source repo",
       "properties": {
         "name": {
           "type": "string"
@@ -1947,9 +1947,6 @@
           "items": {
             "$ref": "#/definitions/v1alpha1HelmParameter"
           }
-        },
-        "path": {
-          "type": "string"
         },
         "valueFiles": {
           "type": "array",
@@ -1989,9 +1986,6 @@
           "items": {
             "$ref": "#/definitions/v1alpha1KsonnetParameter"
           }
-        },
-        "path": {
-          "type": "string"
         }
       }
     },
@@ -2008,10 +2002,6 @@
         "name": {
           "type": "string",
           "title": "Name is the user defined name of an environment"
-        },
-        "path": {
-          "description": "Path is the relative project path containing metadata for this environment.",
-          "type": "string"
         }
       }
     },
@@ -2030,7 +2020,7 @@
     },
     "repositoryKustomizeAppSpec": {
       "type": "object",
-      "title": "KustomizeAppSpec contains kustomize app name and path in source repo",
+      "title": "KustomizeAppSpec contains kustomize images",
       "properties": {
         "images": {
           "description": "images is a list of available images.",
@@ -2038,9 +2028,6 @@
           "items": {
             "type": "string"
           }
-        },
-        "path": {
-          "type": "string"
         }
       }
     },
@@ -2713,7 +2700,7 @@
         },
         "sourceRepos": {
           "type": "array",
-          "title": "SourceRepos contains list of git repository URLs which can be used for deployment",
+          "title": "SourceRepos contains list of repository URLs which can be used for deployment",
           "items": {
             "type": "string"
           }
@@ -2806,7 +2793,7 @@
         },
         "repoURL": {
           "type": "string",
-          "title": "RepoURL is the git repository URL of the application manifests"
+          "title": "RepoURL is the repository URL of the application manifests"
         },
         "targetRevision": {
           "type": "string",
@@ -3350,7 +3337,7 @@
     },
     "v1alpha1Repository": {
       "type": "object",
-      "title": "Repository is a Git repository holding application configurations",
+      "title": "Repository is a repository holding application configurations",
       "properties": {
         "connectionState": {
           "$ref": "#/definitions/v1alpha1ConnectionState"
@@ -3368,7 +3355,11 @@
         "insecureIgnoreHostKey": {
           "type": "boolean",
           "format": "boolean",
-          "title": "InsecureIgnoreHostKey should not be used anymore, Insecure is favoured"
+          "title": "InsecureIgnoreHostKey should not be used anymore, Insecure is favoured\nonly for Git repos"
+        },
+        "name": {
+          "type": "string",
+          "title": "only for Helm repos"
         },
         "password": {
           "type": "string",
@@ -3380,7 +3371,11 @@
         },
         "sshPrivateKey": {
           "type": "string",
-          "title": "SSH private key data for authenticating at the repo server"
+          "title": "SSH private key data for authenticating at the repo server\nonly for Git repos"
+        },
+        "tlsClientCaData": {
+          "type": "string",
+          "title": "only for Helm repos"
         },
         "tlsClientCertData": {
           "type": "string",
@@ -3389,6 +3384,10 @@
         "tlsClientCertKey": {
           "type": "string",
           "title": "TLS client cert key for authenticating at the repo server"
+        },
+        "type": {
+          "type": "string",
+          "title": "type of the repo, maybe \"git or \"helm, \"git\" is assumed if empty or absent"
         },
         "username": {
           "type": "string",
@@ -3800,7 +3799,7 @@
           }
         },
         "revision": {
-          "description": "Revision is the git revision in which to sync the application to.\nIf omitted, will use the revision specified in app spec.",
+          "description": "Revision is the revision in which to sync the application to.\nIf omitted, will use the revision specified in app spec.",
           "type": "string"
         },
         "source": {
@@ -3839,7 +3838,7 @@
         },
         "revision": {
           "type": "string",
-          "title": "Revision holds the git commit SHA of the sync"
+          "title": "Revision holds the revision of the sync"
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"

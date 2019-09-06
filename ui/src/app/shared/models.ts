@@ -67,10 +67,10 @@ export interface OperationState {
 export type HookType = 'PreSync' | 'Sync' | 'PostSync' | 'SyncFail' | 'Skip';
 
 export interface RevisionMetadata {
-    author: string;
+    author?: string;
     date: models.Time;
-    tags: string[];
-    message: string;
+    tags?: string[];
+    message?: string;
 }
 
 export interface SyncOperationResult {
@@ -373,6 +373,8 @@ export interface RepoCertList extends ItemsList<RepoCert> { }
 
 export interface Repository {
     repo: string;
+    type?: string;
+    name?: string;
     connectionState: ConnectionState;
 }
 

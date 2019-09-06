@@ -79,36 +79,6 @@ func (_m *RepoServerServiceClient) GetAppDetails(ctx context.Context, in *apicli
 	return r0, r1
 }
 
-// GetFile provides a mock function with given fields: ctx, in, opts
-func (_m *RepoServerServiceClient) GetFile(ctx context.Context, in *apiclient.GetFileRequest, opts ...grpc.CallOption) (*apiclient.GetFileResponse, error) {
-	_va := make([]interface{}, len(opts))
-	for _i := range opts {
-		_va[_i] = opts[_i]
-	}
-	var _ca []interface{}
-	_ca = append(_ca, ctx, in)
-	_ca = append(_ca, _va...)
-	ret := _m.Called(_ca...)
-
-	var r0 *apiclient.GetFileResponse
-	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.GetFileRequest, ...grpc.CallOption) *apiclient.GetFileResponse); ok {
-		r0 = rf(ctx, in, opts...)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*apiclient.GetFileResponse)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *apiclient.GetFileRequest, ...grpc.CallOption) error); ok {
-		r1 = rf(ctx, in, opts...)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetRevisionMetadata provides a mock function with given fields: ctx, in, opts
 func (_m *RepoServerServiceClient) GetRevisionMetadata(ctx context.Context, in *apiclient.RepoServerRevisionMetadataRequest, opts ...grpc.CallOption) (*v1alpha1.RevisionMetadata, error) {
 	_va := make([]interface{}, len(opts))
@@ -139,8 +109,8 @@ func (_m *RepoServerServiceClient) GetRevisionMetadata(ctx context.Context, in *
 	return r0, r1
 }
 
-// ListDir provides a mock function with given fields: ctx, in, opts
-func (_m *RepoServerServiceClient) ListDir(ctx context.Context, in *apiclient.ListDirRequest, opts ...grpc.CallOption) (*apiclient.FileList, error) {
+// ListApps provides a mock function with given fields: ctx, in, opts
+func (_m *RepoServerServiceClient) ListApps(ctx context.Context, in *apiclient.ListAppsRequest, opts ...grpc.CallOption) (*apiclient.AppList, error) {
 	_va := make([]interface{}, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
@@ -150,17 +120,17 @@ func (_m *RepoServerServiceClient) ListDir(ctx context.Context, in *apiclient.Li
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
 
-	var r0 *apiclient.FileList
-	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.ListDirRequest, ...grpc.CallOption) *apiclient.FileList); ok {
+	var r0 *apiclient.AppList
+	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.ListAppsRequest, ...grpc.CallOption) *apiclient.AppList); ok {
 		r0 = rf(ctx, in, opts...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*apiclient.FileList)
+			r0 = ret.Get(0).(*apiclient.AppList)
 		}
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *apiclient.ListDirRequest, ...grpc.CallOption) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *apiclient.ListAppsRequest, ...grpc.CallOption) error); ok {
 		r1 = rf(ctx, in, opts...)
 	} else {
 		r1 = ret.Error(1)

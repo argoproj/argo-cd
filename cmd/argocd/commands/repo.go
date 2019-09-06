@@ -23,7 +23,7 @@ import (
 func NewRepoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "repo",
-		Short: "Manage git repository connection parameters",
+		Short: "Manage repository connection parameters",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
@@ -127,6 +127,8 @@ Add a HTTPS repository using username/password without verifying the server's TL
 			// that were supplied, we bail out.
 			repoAccessReq := repositorypkg.RepoAccessQuery{
 				Repo:              repo.Repo,
+				Type:              repo.Type,
+				Name:              repo.Name,
 				Username:          repo.Username,
 				Password:          repo.Password,
 				SshPrivateKey:     repo.SSHPrivateKey,
@@ -146,6 +148,8 @@ Add a HTTPS repository using username/password without verifying the server's TL
 			fmt.Printf("repository '%s' added\n", createdRepo.Repo)
 		},
 	}
+	command.Flags().StringVar(&repo.Type, "type", "", "type of the repository, \"git\" or \"helm\"")
+	command.Flags().StringVar(&repo.Name, "name", "", "name of the repository")
 	command.Flags().StringVar(&repo.Username, "username", "", "username to the repository")
 	command.Flags().StringVar(&repo.Password, "password", "", "password to the repository")
 	command.Flags().StringVar(&sshPrivateKeyPath, "ssh-private-key-path", "", "path to the private ssh key (e.g. ~/.ssh/id_rsa)")
@@ -162,7 +166,7 @@ Add a HTTPS repository using username/password without verifying the server's TL
 func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "rm REPO",
-		Short: "Remove git repository credentials",
+		Short: "Remove repository credentials",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
@@ -180,9 +184,9 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 }
 
 // Print table of repo info
-func printRepoTable(repos []appsv1.Repository) {
+func printRepoTable(repos appsv1.Repositories) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "REPO\tINSECURE\tLFS\tUSER\tSTATUS\tMESSAGE\n")
+	_, _ = fmt.Fprintf(w, "TYPE\nNAME\nREPO\tINSECURE\tLFS\tUSER\tSTATUS\tMESSAGE\n")
 	for _, r := range repos {
 		var username string
 		if r.Username == "" {
@@ -190,13 +194,13 @@ func printRepoTable(repos []appsv1.Repository) {
 		} else {
 			username = r.Username
 		}
-		fmt.Fprintf(w, "%s\t%v\t%v\t%s\t%s\t%s\n", r.Repo, r.IsInsecure(), r.EnableLFS, username, r.ConnectionState.Status, r.ConnectionState.Message)
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%v\t%v\t%s\t%s\t%s\n", r.Type, r.Name, r.Repo, r.IsInsecure(), r.EnableLFS, username, r.ConnectionState.Status, r.ConnectionState.Message)
 	}
 	_ = w.Flush()
 }
 
 // Print list of repo urls
-func printRepoUrls(repos []appsv1.Repository) {
+func printRepoUrls(repos appsv1.Repositories) {
 	for _, r := range repos {
 		fmt.Println(r.Repo)
 	}

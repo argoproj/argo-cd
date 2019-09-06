@@ -5,19 +5,15 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
-	"os/exec"
 	"path"
 	"regexp"
 	"sort"
 	"strings"
 
-	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/ghodss/yaml"
-	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/kube"
 )
@@ -30,8 +26,6 @@ type Helm interface {
 	GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
 	DependencyBuild() error
-	// SetHome sets the helm home location (default "~/.helm")
-	SetHome(path string)
 	// Init runs `helm init --client-only`
 	Init() error
 	// Dispose deletes temp resources
@@ -39,16 +33,17 @@ type Helm interface {
 }
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
-func NewHelmApp(path string, helmRepos []*argoappv1.HelmRepository) Helm {
-	return &helm{path: path, helmRepos: helmRepos}
+func NewHelmApp(workDir string, repos argoappv1.Repositories) (Helm, error) {
+	cmd, err := NewCmd(workDir)
+	if err != nil {
+		return nil, err
+	}
+	return &helm{repos: &repos, cmd: *cmd}, nil
 }
 
 type helm struct {
-	path             string
-	home             string
-	helmRepos        []*argoappv1.HelmRepository
-	reposInitialized bool
-	tempDirs         []string
+	cmd   Cmd
+	repos *argoappv1.Repositories
 }
 
 // IsMissingDependencyErr tests if the error is related to a missing chart dependency
@@ -57,23 +52,17 @@ func IsMissingDependencyErr(err error) bool {
 }
 
 func (h *helm) Template(appName string, namespace string, opts *argoappv1.ApplicationSourceHelm) ([]*unstructured.Unstructured, error) {
-	args := []string{
-		"template", ".",
-	}
-
-	setReleaseName := true
-
-	if namespace != "" {
-		args = append(args, "--namespace", namespace)
+	templateOpts := templateOpts{
+		name:      appName,
+		namespace: namespace,
+		set:       map[string]string{},
+		setString: map[string]string{},
 	}
 	if opts != nil {
 		if opts.ReleaseName != "" {
-			args = append(args, "--name", opts.ReleaseName)
-			setReleaseName = false
+			templateOpts.name = opts.ReleaseName
 		}
-		for _, valuesFile := range opts.ValueFiles {
-			args = append(args, "-f", valuesFile)
-		}
+		templateOpts.values = opts.ValueFiles
 		if opts.Values != "" {
 			file, err := ioutil.TempFile("", "values-*.yaml")
 			if err != nil {
@@ -85,109 +74,63 @@ func (h *helm) Template(appName string, namespace string, opts *argoappv1.Applic
 			if err != nil {
 				return nil, err
 			}
-			args = append(args, "-f", p)
+			templateOpts.values = append(templateOpts.values, p)
 		}
 		for _, p := range opts.Parameters {
 			if p.ForceString {
-				args = append(args, "--set-string", fmt.Sprintf("%s=%s", p.Name, p.Value))
+				templateOpts.setString[p.Name] = p.Value
 			} else {
-				args = append(args, "--set", fmt.Sprintf("%s=%s", p.Name, p.Value))
+				templateOpts.set[p.Name] = p.Value
 			}
 		}
 	}
-
-	if setReleaseName {
-		args = append(args, "--name", appName)
+	if templateOpts.name == "" {
+		templateOpts.name = appName
 	}
 
-	out, err := h.helmCmd(args...)
+	out, err := h.cmd.template(".", templateOpts)
 	if err != nil {
 		return nil, err
 	}
 	return kube.SplitYAML(out)
 }
 
+func (h *helm) reposInitialized() bool {
+	return h.repos != nil
+}
+
 func (h *helm) DependencyBuild() error {
-	if !h.reposInitialized {
-		var files []*os.File
-		defer func() {
-			for i := range files {
-				util.DeleteFile(files[i].Name())
-			}
-		}()
-
-		for _, repo := range h.helmRepos {
-			args := []string{"repo", "add"}
-
-			for flag, data := range map[string][]byte{"--ca-file": repo.CAData, "--cert-file": repo.CertData, "--key-file": repo.KeyData} {
-				if repo.KeyData != nil {
-					f, err := ioutil.TempFile(util.TempDir, "")
-					if err != nil {
-						return fmt.Errorf("failed to generate temp file for %s: %v", flag, err)
-					}
-					files = append(files, f)
-					_, err = f.Write(data)
-					if err != nil {
-						return fmt.Errorf("failed to write temp file for %s: %v", flag, err)
-					}
-					_ = f.Close()
-					args = append(args, flag, f.Name())
-				}
-			}
-			if repo.Username != "" {
-				args = append(args, "--username", repo.Username)
-			}
-			if repo.Password != "" {
-				args = append(args, "--password", repo.Password)
-			}
-
-			_, err := h.helmCmdExt(append(args, repo.Name, repo.URL), func(log string) string {
-				if repo.Username != "" {
-					log = strings.Replace(log, fmt.Sprintf("--username %s", repo.Username), "--username ***", 1)
-				}
-				if repo.Password != "" {
-					log = strings.Replace(log, fmt.Sprintf("--password %s", repo.Password), "--password ***", 1)
-				}
-				return log
+	if !h.reposInitialized() {
+		for _, repo := range h.repos.Filter(func(r *argoappv1.Repository) bool { return r.Type == "helm" }) {
+			_, err := h.cmd.RepoAdd(repo.Name, repo.Repo, RepoAddOpts{
+				Username: repo.Username,
+				Password: repo.Password,
+				CAData:   []byte(repo.TLSClientCAData),
+				CertData: []byte(repo.TLSClientCertData),
+				KeyData:  []byte(repo.TLSClientCertKey),
 			})
+
 			if err != nil {
 				return err
 			}
 		}
+		h.repos = nil
 	}
-	_, err := h.helmCmd("dependency", "build")
+	_, err := h.cmd.dependencyBuild()
 	return err
 }
 
-func (h *helm) SetHome(home string) {
-	h.home = home
-}
-
 func (h *helm) Init() error {
-	if h.home == "" {
-		home, err := ioutil.TempDir("", "helm")
-		if err != nil {
-			return err
-		}
-		h.home = home
-		h.tempDirs = append(h.tempDirs, home)
-	}
-	_, err := h.helmCmd("init", "--client-only", "--skip-refresh")
+	_, err := h.cmd.Init()
 	return err
 }
 
 func (h *helm) Dispose() {
-	for i := range h.tempDirs {
-		err := os.RemoveAll(h.tempDirs[i])
-		if err != nil {
-			log.Warnf("Failed to delete temp directory %s", h.tempDirs[i])
-		}
-	}
-	h.tempDirs = []string{}
+	h.cmd.Close()
 }
 
 func (h *helm) GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, error) {
-	out, err := h.helmCmd("inspect", "values", ".")
+	out, err := h.cmd.inspectValues(".")
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +141,7 @@ func (h *helm) GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, 
 		if err == nil && (parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
 			fileValues, err = config.ReadRemoteFile(file)
 		} else {
-			fileValues, err = ioutil.ReadFile(path.Join(h.path, file))
+			fileValues, err = ioutil.ReadFile(path.Join(h.cmd.WorkDir, file))
 		}
 		if err != nil {
 			return nil, fmt.Errorf("failed to read value file %s: %s", file, err)
@@ -226,25 +169,6 @@ func (h *helm) GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, 
 		return params[i].Name < params[j].Name
 	})
 	return params, nil
-}
-
-func (h *helm) helmCmd(args ...string) (string, error) {
-	return h.helmCmdExt(args, argoexec.Unredacted)
-}
-
-func (h *helm) helmCmdExt(args []string, redactor func(string) string) (string, error) {
-	cleanHelmParameters(args)
-	cmd := exec.Command("helm", args...)
-	cmd.Env = os.Environ()
-	cmd.Dir = h.path
-	if h.home != "" {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("HELM_HOME=%s", h.home))
-	}
-
-	return argoexec.RunCommandExt(cmd, argoexec.CmdOpts{
-		Timeout:  config.CmdOpts().Timeout,
-		Redactor: redactor,
-	})
 }
 
 func flatVals(input map[string]interface{}, output map[string]string, prefixes ...string) {

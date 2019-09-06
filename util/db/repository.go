@@ -32,21 +32,6 @@ const (
 	tlsClientCertKey = "tlsClientCertKey"
 )
 
-// ListRepoURLs returns list of repositories
-func (db *db) ListRepoURLs(ctx context.Context) ([]string, error) {
-	repos, err := db.settingsMgr.GetRepositories()
-	if err != nil {
-		return nil, err
-	}
-
-	urls := make([]string, len(repos))
-	for i := range repos {
-		urls[i] = repos[i].URL
-	}
-	return urls, nil
-}
-
-// CreateRepository creates a repository
 func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
 	repos, err := db.settingsMgr.GetRepositories()
 	if err != nil {
@@ -71,6 +56,8 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 
 	repoInfo := settings.RepoCredentials{
 		URL:                   r.Repo,
+		Type:                  r.Type,
+		Name:                  r.Name,
 		InsecureIgnoreHostKey: r.IsInsecure(),
 		Insecure:              r.IsInsecure(),
 		EnableLFS:             r.EnableLFS,
@@ -126,9 +113,29 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 	return repo, err
 }
 
+func (db *db) ListRepositories(ctx context.Context) ([]*appsv1.Repository, error) {
+	inRepos, err := db.settingsMgr.GetRepositories()
+	if err != nil {
+		return nil, err
+	}
+
+	var repos []*appsv1.Repository
+	for _, inRepo := range inRepos {
+		r, err := db.GetRepository(ctx, inRepo.URL)
+		if err != nil {
+			return nil, err
+		}
+		repos = append(repos, r)
+
+	}
+	return repos, nil
+}
+
 func (db *db) credentialsToRepository(repoInfo settings.RepoCredentials) (*appsv1.Repository, error) {
 	repo := &appsv1.Repository{
 		Repo:                  repoInfo.URL,
+		Type:                  repoInfo.Type,
+		Name:                  repoInfo.Name,
 		InsecureIgnoreHostKey: repoInfo.InsecureIgnoreHostKey,
 		Insecure:              repoInfo.Insecure,
 		EnableLFS:             repoInfo.EnableLFS,
@@ -139,8 +146,8 @@ func (db *db) credentialsToRepository(repoInfo settings.RepoCredentials) (*appsv
 		&repo.SSHPrivateKey:     repoInfo.SSHPrivateKeySecret,
 		&repo.TLSClientCertData: repoInfo.TLSClientCertDataSecret,
 		&repo.TLSClientCertKey:  repoInfo.TLSClientCertKeySecret,
+		&repo.TLSClientCAData:   repoInfo.TLSClientCASecret,
 	}, make(map[string]*apiv1.Secret))
-
 	return repo, err
 }
 

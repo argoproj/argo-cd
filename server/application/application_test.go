@@ -61,28 +61,10 @@ func fakeCluster() *appsv1.Cluster {
 	}
 }
 
-func fakeFileResponse() *apiclient.GetFileResponse {
-	return &apiclient.GetFileResponse{
-		Data: []byte(`
-apiVersion: 0.1.0
-environments:
-  default:
-    destination:
-      namespace: default
-      server: https://cluster-api.com
-    k8sVersion: v1.10.0
-    path: minikube
-kind: ksonnet.io/app
-name: test-app
-version: 0.0.1
-`),
-	}
-}
-
-func fakeListDirResponse() *apiclient.FileList {
-	return &apiclient.FileList{
-		Items: []string{
-			"some/path/app.yaml",
+func fakeAppList() *apiclient.AppList {
+	return &apiclient.AppList{
+		Apps: map[string]string{
+			"some/path": "Ksonnet",
 		},
 	}
 }
@@ -115,9 +97,9 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 	errors.CheckError(err)
 
 	mockRepoServiceClient := mocks.RepoServerServiceClient{}
-	mockRepoServiceClient.On("GetFile", mock.Anything, mock.Anything).Return(fakeFileResponse(), nil)
-	mockRepoServiceClient.On("ListDir", mock.Anything, mock.Anything).Return(fakeListDirResponse(), nil)
+	mockRepoServiceClient.On("ListApps", mock.Anything, mock.Anything).Return(fakeAppList(), nil)
 	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&apiclient.ManifestResponse{}, nil)
+	mockRepoServiceClient.On("GetAppDetails", mock.Anything, mock.Anything).Return(&apiclient.RepoAppDetailsResponse{}, nil)
 
 	mockRepoClient := &mockrepo.Clientset{}
 	mockRepoClient.On("NewRepoServerClient").Return(&fakeCloser{}, &mockRepoServiceClient, nil)

@@ -93,7 +93,7 @@ func (e Env) Environ() []string {
 
 // ApplicationSource contains information about github repository, path within repository and target application environment.
 type ApplicationSource struct {
-	// RepoURL is the git repository URL of the application manifests
+	// RepoURL is the repository URL of the application manifests
 	RepoURL string `json:"repoURL" protobuf:"bytes,1,opt,name=repoURL"`
 	// Path is a directory path within the repository containing a
 	Path string `json:"path" protobuf:"bytes,2,opt,name=path"`
@@ -352,7 +352,7 @@ func (r SyncOperationResource) HasIdentity(name string, gvk schema.GroupVersionK
 
 // SyncOperation contains sync operation details.
 type SyncOperation struct {
-	// Revision is the git revision in which to sync the application to.
+	// Revision is the revision in which to sync the application to.
 	// If omitted, will use the revision specified in app spec.
 	Revision string `json:"revision,omitempty" protobuf:"bytes,1,opt,name=revision"`
 	// Prune deletes resources that are no longer tracked in git
@@ -515,23 +515,23 @@ type RevisionMetadata struct {
 	// who authored this revision,
 	// typically their name and email, e.g. "John Doe <john_doe@my-company.com>",
 	// but might not match this example
-	Author string `json:"author" protobuf:"bytes,1,opt,name=author"`
+	Author string `json:"author,omitempty" protobuf:"bytes,1,opt,name=author"`
 	// when the revision was authored
 	Date metav1.Time `json:"date" protobuf:"bytes,2,opt,name=date"`
 	// tags on the revision,
 	// note - tags can move from one revision to another
-	Tags []string `json:"tags" protobuf:"bytes,3,opt,name=tags"`
+	Tags []string `json:"tags,omitempty" protobuf:"bytes,3,opt,name=tags"`
 	// the message associated with the revision,
 	// probably the commit message,
 	// this is truncated to the first newline or 64 characters (which ever comes first)
-	Message string `json:"message" protobuf:"bytes,4,opt,name=message"`
+	Message string `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
 }
 
 // SyncOperationResult represent result of sync operation
 type SyncOperationResult struct {
 	// Resources holds the sync result of each individual resource
 	Resources ResourceResults `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
-	// Revision holds the git commit SHA of the sync
+	// Revision holds the revision of the sync
 	Revision string `json:"revision" protobuf:"bytes,2,opt,name=revision"`
 	// Source records the application source information of the sync, used for comparing auto-sync
 	Source ApplicationSource `json:"source,omitempty" protobuf:"bytes,3,opt,name=source"`
@@ -925,16 +925,6 @@ type TLSClientConfig struct {
 	CAData []byte `json:"caData,omitempty" protobuf:"bytes,5,opt,name=caData"`
 }
 
-type HelmRepository struct {
-	URL      string `json:"url" protobuf:"bytes,1,opt,name=url"`
-	Name     string `json:"name" protobuf:"bytes,2,opt,name=name"`
-	CAData   []byte `json:"caData,omitempty" protobuf:"bytes,3,opt,name=caData"`
-	CertData []byte `json:"certData,omitempty" protobuf:"bytes,4,opt,name=certData"`
-	KeyData  []byte `json:"keyData,omitempty" protobuf:"bytes,5,opt,name=keyData"`
-	Username string `json:"username,omitempty" protobuf:"bytes,6,opt,name=username"`
-	Password string `json:"password,omitempty" protobuf:"bytes,7,opt,name=password"`
-}
-
 // ResourceOverride holds configuration to customize resource diffing and health assessment
 type ResourceOverride struct {
 	HealthLua         string `json:"health.lua,omitempty" protobuf:"bytes,1,opt,name=healthLua"`
@@ -973,7 +963,7 @@ type ResourceActionParam struct {
 	Default string `json:"default,omitempty" protobuf:"bytes,4,opt,name=default"`
 }
 
-// Repository is a Git repository holding application configurations
+// Repository is a repository holding application configurations
 type Repository struct {
 	// URL of the repo
 	Repo string `json:"repo" protobuf:"bytes,1,opt,name=repo"`
@@ -982,10 +972,12 @@ type Repository struct {
 	// Password for authenticating at the repo server
 	Password string `json:"password,omitempty" protobuf:"bytes,3,opt,name=password"`
 	// SSH private key data for authenticating at the repo server
+	// only for Git repos
 	SSHPrivateKey string `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
 	// Current state of repository server connecting
 	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,5,opt,name=connectionState"`
 	// InsecureIgnoreHostKey should not be used anymore, Insecure is favoured
+	// only for Git repos
 	InsecureIgnoreHostKey bool `json:"insecureIgnoreHostKey,omitempty" protobuf:"bytes,6,opt,name=insecureIgnoreHostKey"`
 	// Whether the repo is insecure
 	Insecure bool `json:"insecure,omitempty" protobuf:"bytes,7,opt,name=insecure"`
@@ -995,6 +987,12 @@ type Repository struct {
 	TLSClientCertData string `json:"tlsClientCertData,omitempty" protobuf:"bytes,9,opt,name=tlsClientCertData"`
 	// TLS client cert key for authenticating at the repo server
 	TLSClientCertKey string `json:"tlsClientCertKey,omitempty" protobuf:"bytes,10,opt,name=tlsClientCertKey"`
+	// only for Helm repos
+	TLSClientCAData string `json:"tlsClientCaData,omitempty" protobuf:"bytes,11,opt,name=tlsClientCaData"`
+	// type of the repo, maybe "git or "helm, "git" is assumed if empty or absent
+	Type string `json:"type,omitempty" protobuf:"bytes,12,opt,name=type"`
+	// only for Helm repos
+	Name string `json:"name,omitempty" protobuf:"bytes,13,opt,name=name"`
 }
 
 func (repo *Repository) IsInsecure() bool {
@@ -1022,10 +1020,22 @@ func (m *Repository) CopyCredentialsFrom(source *Repository) {
 	}
 }
 
+type Repositories []*Repository
+
+func (r Repositories) Filter(predicate func(r *Repository) bool) Repositories {
+	var res Repositories
+	for _, repo := range r {
+		if predicate(repo) {
+			res = append(res, repo)
+		}
+	}
+	return res
+}
+
 // RepositoryList is a collection of Repositories.
 type RepositoryList struct {
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
-	Items           []Repository `json:"items" protobuf:"bytes,2,rep,name=items"`
+	Items           Repositories `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
@@ -1298,7 +1308,7 @@ func (s *OrphanedResourcesMonitorSettings) IsWarn() bool {
 
 // AppProjectSpec is the specification of an AppProject
 type AppProjectSpec struct {
-	// SourceRepos contains list of git repository URLs which can be used for deployment
+	// SourceRepos contains list of repository URLs which can be used for deployment
 	SourceRepos []string `json:"sourceRepos,omitempty" protobuf:"bytes,1,name=sourceRepos"`
 	// Destinations contains list of destinations available for deployment
 	Destinations []ApplicationDestination `json:"destinations,omitempty" protobuf:"bytes,2,name=destination"`
