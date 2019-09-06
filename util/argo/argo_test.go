@@ -17,6 +17,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/pkg/client/informers/externalversions/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/reposerver/apiclient"
 )
 
 func TestRefreshApp(t *testing.T) {
@@ -145,4 +146,42 @@ func TestValidatePermissionsEmptyDestination(t *testing.T) {
 	}, nil)
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, conditions, []argoappv1.ApplicationCondition{{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: "Destination server and/or namespace missing from app spec"}})
+}
+
+func Test_enrichSpec(t *testing.T) {
+	t.Run("Empty", func(t *testing.T) {
+		spec := &argoappv1.ApplicationSpec{}
+		enrichSpec(spec, &apiclient.RepoAppDetailsResponse{})
+		assert.Empty(t, spec.Destination.Server)
+		assert.Empty(t, spec.Destination.Namespace)
+	})
+	t.Run("Ksonnet", func(t *testing.T) {
+		spec := &argoappv1.ApplicationSpec{
+			Source: argoappv1.ApplicationSource{
+				Ksonnet: &argoappv1.ApplicationSourceKsonnet{
+					Environment: "qa",
+				},
+			},
+		}
+		response := &apiclient.RepoAppDetailsResponse{
+			Ksonnet: &apiclient.KsonnetAppSpec{
+				Environments: map[string]*apiclient.KsonnetEnvironment{
+					"prod": {
+						Destination: &apiclient.KsonnetEnvironmentDestination{
+							Server:    "my-server",
+							Namespace: "my-namespace",
+						},
+					},
+				},
+			},
+		}
+		enrichSpec(spec, response)
+		assert.Empty(t, spec.Destination.Server)
+		assert.Empty(t, spec.Destination.Namespace)
+
+		spec.Source.Ksonnet.Environment = "prod"
+		enrichSpec(spec, response)
+		assert.Equal(t, "my-server", spec.Destination.Server)
+		assert.Equal(t, "my-namespace", spec.Destination.Namespace)
+	})
 }

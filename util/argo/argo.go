@@ -110,7 +110,6 @@ func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, na
 		}
 		app, ok := next.Object.(*argoappv1.Application)
 		if !ok {
-
 			return nil, fmt.Errorf("Application event object failed conversion: %v", next)
 		}
 		annotations := app.GetAnnotations()
@@ -133,10 +132,13 @@ func ValidateRepo(
 	ctx context.Context,
 	spec *argoappv1.ApplicationSpec,
 	repoClientset apiclient.Clientset,
-	db db.ArgoDB, kustomizeOptions *argoappv1.KustomizeOptions,
+	db db.ArgoDB,
+	kustomizeOptions *argoappv1.KustomizeOptions,
 	plugins []*argoappv1.ConfigManagementPlugin,
 ) ([]argoappv1.ApplicationCondition, error) {
 	conditions := make([]argoappv1.ApplicationCondition, 0)
+
+	log.Debug("ALEX ValidateRepo")
 
 	// Test the repo
 	conn, repoClient, err := repoClientset.NewRepoServerClient()
@@ -144,51 +146,92 @@ func ValidateRepo(
 		return nil, err
 	}
 	defer util.Close(conn)
-	repoAccessable := false
-	repoRes, err := db.GetRepository(ctx, spec.Source.RepoURL)
+	repo, err := db.GetRepository(ctx, spec.Source.RepoURL)
 	if err != nil {
 		return nil, err
 	}
 
-	r, err := factory.NewFactory().NewRepo(repoRes, metrics.NopReporter)
+	repoAccessible := false
+	_, err = factory.NewFactory().NewRepo(repo, metrics.NopReporter)
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
 			Message: fmt.Sprintf("repository not accessible: %v", err),
 		})
 	} else {
-		repoAccessable = true
+		repoAccessible = true
 	}
 
 	// Verify only one source type is defined
-	explicitSourceType, err := spec.Source.ExplicitType()
+	_, err = spec.Source.ExplicitType()
+	if err != nil {
+		return nil, err
+	}
+
+	// is the repo inaccessible - abort now
+	if !repoAccessible {
+		return conditions, nil
+	}
+
+	// get the app details, and populate the Ksonnet stuff from it
+	repos, err := db.ListRepositories(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// can we actually read the app from the repo
+	var helm *apiclient.HelmAppDetailsQuery
+	if spec.Source.Helm != nil {
+		helm = &apiclient.HelmAppDetailsQuery{ValueFiles: spec.Source.Helm.ValueFiles}
+	}
+	var ksonnet *apiclient.KsonnetAppDetailsQuery
+	if spec.Source.Ksonnet != nil {
+		ksonnet = &apiclient.KsonnetAppDetailsQuery{Environment: spec.Source.Ksonnet.Environment}
+	}
+	appDetails, err := repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
+		Repo:             repo,
+		Revision:         spec.Source.TargetRevision,
+		App:              spec.Source.Path,
+		Repos:            repos,
+		Plugins:          plugins,
+		Helm:             helm,
+		Ksonnet:          ksonnet,
+		KustomizeOptions: kustomizeOptions,
+	})
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: fmt.Sprintf("Unable to determine app source type: %v", err),
+			Message: fmt.Sprintf("Unable to get app details: %v", err),
 		})
+		return conditions, nil
 	}
 
-	if repoAccessable {
-		if explicitSourceType == nil {
-			_, _, err = r.ListApps(spec.Source.TargetRevision)
-		}
+	enrichSpec(spec, appDetails)
 
-		if err != nil {
-			conditions = append(conditions, argoappv1.ApplicationCondition{
-				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("Unable to determine app source type: %v", err),
-			})
-		} else {
-			mainDirConditions := verifyGenerateManifests(ctx, repoRes, argoappv1.Repositories{}, spec, repoClient, kustomizeOptions, plugins)
-			conditions = append(conditions, mainDirConditions...)
-		}
-	}
+	conditions = append(conditions, verifyGenerateManifests(ctx, repo, repos, spec, repoClient, kustomizeOptions, plugins)...)
+
 	return conditions, nil
+}
+
+func enrichSpec(spec *argoappv1.ApplicationSpec, appDetails *apiclient.RepoAppDetailsResponse) {
+	log.Debug("enriching app")
+	if spec.Source.Ksonnet != nil && appDetails.Ksonnet != nil {
+		env, ok := appDetails.Ksonnet.Environments[spec.Source.Ksonnet.Environment]
+		if ok {
+			// If server and namespace are not supplied, pull it from the app.yaml
+			if spec.Destination.Server == "" {
+				spec.Destination.Server = env.Destination.Server
+			}
+			if spec.Destination.Namespace == "" {
+				spec.Destination.Namespace = env.Destination.Namespace
+			}
+		}
+	}
 }
 
 // ValidatePermissions ensures that the referenced cluster has been added to Argo CD and the app source repo and destination namespace/cluster are permitted in app project
 func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, proj *argoappv1.AppProject, db db.ArgoDB) ([]argoappv1.ApplicationCondition, error) {
+	log.Debug("ALEX ValidatePermissions")
 	conditions := make([]argoappv1.ApplicationCondition, 0)
 	if spec.Source.RepoURL == "" || spec.Source.Path == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
@@ -245,6 +288,7 @@ func verifyGenerateManifests(
 	kustomizeOptions *argoappv1.KustomizeOptions,
 	plugins []*argoappv1.ConfigManagementPlugin,
 ) []argoappv1.ApplicationCondition {
+	log.Debug("ALEX verifyGenerateManifests")
 
 	var conditions []argoappv1.ApplicationCondition
 	if spec.Destination.Server == "" || spec.Destination.Namespace == "" {
