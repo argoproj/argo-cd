@@ -17,6 +17,7 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/pkg/apiclient/session"
+	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/localconfig"
@@ -145,26 +146,39 @@ func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: yaml, json")
 	return command
 }
+
 func NewAccountCanICommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	return &cobra.Command{
-		Use:   "can-i",
+		Use:   "can-i ACTION RESOURCE SUBRESOURCE",
 		Short: "Can I",
-		Example: `
-# Can you sync an app?
-argocd account can-i sync app hello-app
+		Example: fmt.Sprintf(`
+# Can I sync any app?
+argocd account can-i sync applications '*'
 
-`,
+# Can I update a project?
+argocd account can-i update projects 'default'
+
+# Can I create a cluster?
+argocd account can-i create cluster '*'
+
+Actions: %v
+Resources: %v
+`, rbacpolicy.Resources, rbacpolicy.Actions),
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 0 {
+			if len(args) != 3 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 
-			conn, client := argocdclient.NewClientOrDie(clientOpts).NewSessionClientOrDie()
+			conn, client := argocdclient.NewClientOrDie(clientOpts).NewAccountClientOrDie()
 			defer util.Close(conn)
 
 			ctx := context.Background()
-			response, err := client.CanI(ctx, &session.CanIRequest{})
+			response, err := client.CanI(ctx, &accountpkg.CanIRequest{
+				Action:      args[0],
+				Resource:    args[1],
+				Subresource: args[2],
+			})
 			errors.CheckError(err)
 			fmt.Println(response.Value)
 		},

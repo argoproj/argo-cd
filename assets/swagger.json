@@ -16,28 +16,28 @@
     "version": "version not set"
   },
   "paths": {
-    "/api/v1/account/can-i/{verb}/{type}/{url}": {
+    "/api/v1/account/can-i/{resource}/{action}/{subresource}": {
       "get": {
         "tags": [
           "AccountService"
         ],
-        "operationId": "Can",
+        "operationId": "CanI",
         "parameters": [
           {
             "type": "string",
-            "name": "verb",
+            "name": "resource",
             "in": "path",
             "required": true
           },
           {
             "type": "string",
-            "name": "type",
+            "name": "action",
             "in": "path",
             "required": true
           },
           {
             "type": "string",
-            "name": "url",
+            "name": "subresource",
             "in": "path",
             "required": true
           }

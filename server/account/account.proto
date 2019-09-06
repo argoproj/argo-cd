@@ -18,9 +18,9 @@ message UpdatePasswordRequest {
 message UpdatePasswordResponse {}
 
 message CanIRequest {
-	string verb = 1;
-	string type = 2;
-	string url = 3;
+	string resource = 1;
+	string action = 2;
+	string subresource = 3;
 }
 
 message CanIResponse {
@@ -29,8 +29,8 @@ message CanIResponse {
 
 service AccountService {
 
-	rpc Can(CanIRequest) returns (CanIResponse) {
-		option (google.api.http).get = "/api/v1/account/can-i/{verb}/{type}/{url}";
+	rpc CanI(CanIRequest) returns (CanIResponse) {
+		option (google.api.http).get = "/api/v1/account/can-i/{resource}/{action}/{subresource}";
 	}
 
    	// UpdatePassword updates an account's password to a new value
