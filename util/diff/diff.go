@@ -1,6 +1,7 @@
 package diff
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -387,8 +388,7 @@ func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstru
 	}
 
 	for k := range keys {
-		// we use "+" rather than the more common "*"
-		nextReplacement := "+++++++++"
+		nextReplacement := "******"
 		valToReplacement := make(map[string]string)
 		for _, obj := range []*unstructured.Unstructured{target, live, orig} {
 			var data map[string]interface{}
@@ -410,10 +410,10 @@ func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstru
 			replacement, ok := valToReplacement[val]
 			if !ok {
 				replacement = nextReplacement
-				nextReplacement = nextReplacement + "+"
+				nextReplacement = nextReplacement + "*"
 				valToReplacement[val] = replacement
 			}
-			data[k] = replacement
+			data[k] = base64.StdEncoding.EncodeToString([]byte(replacement))
 			err := unstructured.SetNestedField(obj.Object, data, "data")
 			if err != nil {
 				return nil, nil, err
