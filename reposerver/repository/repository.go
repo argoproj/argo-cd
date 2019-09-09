@@ -81,17 +81,17 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	if err != nil {
 		return nil, err
 	}
-	if apps, err := s.cache.ListApps(q.Repo.Repo, q.Revision); err == nil {
-		log.Infof("cache hit: %s/%s", q.Repo.Repo, q.Revision)
-		return &apiclient.AppList{Apps: apps}, nil
-	}
 	apps, resolvedRevision, err := r.ListApps(q.Revision)
 	if err != nil {
 		return nil, err
 	}
+	if apps, err := s.cache.ListApps(q.Repo.Repo, resolvedRevision); err == nil {
+		log.Infof("cache hit: %s/%s", q.Repo.Repo, resolvedRevision)
+		return &apiclient.AppList{Apps: apps}, nil
+	}
 
 	res := apiclient.AppList{Apps: apps}
-	err = s.cache.SetApps(q.Repo.Repo, q.Revision, apps)
+	err = s.cache.SetApps(q.Repo.Repo, resolvedRevision, apps)
 	if err != nil {
 		log.Warnf("cache set error %s/%s: %v", q.Repo.Repo, resolvedRevision, err)
 	}
