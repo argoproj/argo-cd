@@ -10,14 +10,15 @@ export const RevisionMetadataRows = (props: {
 }) => {
     return (
         <DataLoader input={props}
-                    load={(input) => services.applications.revisionMetadata(input.applicationName, input.revision || 'HEAD')}
+                    load={(input) => services.applications.revisionMetadata(input.applicationName, input.revision || '')}
         >{(m: RevisionMetadata) => (
             <div>
+
                 <div className='row'>
                     <div className='columns small-3'>Authored by</div>
                     <div className='columns small-9'>
-                        {m.author}<br/>
-                        <Timestamp date={m.date}/>
+                        {m.author || 'unknown'}<br/>
+                        {m.date && <Timestamp date={m.date}/>}
                     </div>
                 </div>
                 {m.tags && (
@@ -26,10 +27,12 @@ export const RevisionMetadataRows = (props: {
                         <div className='columns small-9'>{m.tags.join(', ')}</div>
                     </div>
                 )}
-                <div className='row'>
-                    <div className='columns small-3'/>
-                    <div className='columns small-9'>{m.message}</div>
-                </div>
+                {m.message && (
+                    <div className='row'>
+                        <div className='columns small-3'/>
+                        <div className='columns small-9'>{m.message}</div>
+                    </div>
+                )}
             </div>
         )}</DataLoader>
     );

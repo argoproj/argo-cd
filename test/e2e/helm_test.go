@@ -7,8 +7,11 @@ import (
 	v1 "k8s.io/api/core/v1"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/test/fixture/testrepos"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 func TestHelmHooksAreCreated(t *testing.T) {
@@ -94,15 +97,37 @@ func TestDeclarativeHelmInvalidValuesFile(t *testing.T) {
 		Expect(Condition(ApplicationConditionComparisonError, "open does-not-exist-values.yaml: no such file or directory"))
 }
 
+func TestHelmRepo(t *testing.T) {
+	Given(t).
+		Repos(settings.RepoCredentials{
+			Type: "helm",
+			Name: "testrepo",
+			URL:  testrepos.HelmTestRepo,
+		}).
+		RepoURLType(fixture.RepoURLTypeHelm).
+		Path("helm").
+		Revision("1.0.0").
+		When().
+		Create().
+		Then().
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
 func TestHelmValues(t *testing.T) {
 	Given(t).
 		Path("helm").
 		When().
+		AddFile("foo.yml", "").
 		Create().
-		AppSet("--values", "foo").
+		AppSet("--values", "foo.yml").
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, []string{"foo"}, app.Spec.Source.Helm.ValueFiles)
+			assert.Equal(t, []string{"foo.yml"}, app.Spec.Source.Helm.ValueFiles)
 		})
 }
 

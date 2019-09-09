@@ -48,7 +48,7 @@ message AppProjectList {
 
 // AppProjectSpec is the specification of an AppProject
 message AppProjectSpec {
-  // SourceRepos contains list of git repository URLs which can be used for deployment
+  // SourceRepos contains list of repository URLs which can be used for deployment
   repeated string sourceRepos = 1;
 
   // Destinations contains list of destinations available for deployment
@@ -113,7 +113,7 @@ message ApplicationList {
 
 // ApplicationSource contains information about github repository, path within repository and target application environment.
 message ApplicationSource {
-  // RepoURL is the git repository URL of the application manifests
+  // RepoURL is the repository URL of the application manifests
   optional string repoURL = 1;
 
   // Path is a directory path within the repository containing a
@@ -379,22 +379,6 @@ message HelmParameter {
   optional bool forceString = 3;
 }
 
-message HelmRepository {
-  optional string url = 1;
-
-  optional string name = 2;
-
-  optional bytes caData = 3;
-
-  optional bytes certData = 4;
-
-  optional bytes keyData = 5;
-
-  optional string username = 6;
-
-  optional string password = 7;
-}
-
 message Info {
   optional string name = 1;
 
@@ -491,7 +475,7 @@ message ProjectRole {
   repeated string groups = 5;
 }
 
-// Repository is a Git repository holding application configurations
+// Repository is a repository holding application configurations
 message Repository {
   // URL of the repo
   optional string repo = 1;
@@ -503,12 +487,14 @@ message Repository {
   optional string password = 3;
 
   // SSH private key data for authenticating at the repo server
+  // only for Git repos
   optional string sshPrivateKey = 4;
 
   // Current state of repository server connecting
   optional ConnectionState connectionState = 5;
 
   // InsecureIgnoreHostKey should not be used anymore, Insecure is favoured
+  // only for Git repos
   optional bool insecureIgnoreHostKey = 6;
 
   // Whether the repo is insecure
@@ -522,6 +508,15 @@ message Repository {
 
   // TLS client cert key for authenticating at the repo server
   optional string tlsClientCertKey = 10;
+
+  // only for Helm repos
+  optional string tlsClientCaData = 11;
+
+  // type of the repo, maybe "git or "helm, "git" is assumed if empty or absent
+  optional string type = 12;
+
+  // only for Helm repos
+  optional string name = 13;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
@@ -755,7 +750,7 @@ message RevisionMetadata {
 
 // SyncOperation contains sync operation details.
 message SyncOperation {
-  // Revision is the git revision in which to sync the application to.
+  // Revision is the revision in which to sync the application to.
   // If omitted, will use the revision specified in app spec.
   optional string revision = 1;
 
@@ -793,7 +788,7 @@ message SyncOperationResult {
   // Resources holds the sync result of each individual resource
   repeated ResourceResult resources = 1;
 
-  // Revision holds the git commit SHA of the sync
+  // Revision holds the revision of the sync
   optional string revision = 2;
 
   // Source records the application source information of the sync, used for comparing auto-sync

@@ -25,6 +25,7 @@ import (
 
 	certutil "github.com/argoproj/argo-cd/util/cert"
 	argoconfig "github.com/argoproj/argo-cd/util/config"
+	"github.com/argoproj/argo-cd/util/repo/metrics"
 )
 
 type RevisionMetadata struct {
@@ -50,7 +51,7 @@ type Client interface {
 // ClientFactory is a factory of Git Clients
 // Primarily used to support creation of mock git clients during unit testing
 type ClientFactory interface {
-	NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool) (Client, error)
+	NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool, eventReporter metrics.Reporter) (Client, error)
 }
 
 // nativeGitClient implements Client interface using git CLI
@@ -65,6 +66,8 @@ type nativeGitClient struct {
 	insecure bool
 	// Whether the repository is LFS enabled
 	enableLfs bool
+	// metrics reporter
+	reporter metrics.Reporter
 }
 
 type factory struct{}
@@ -73,13 +76,14 @@ func NewFactory() ClientFactory {
 	return &factory{}
 }
 
-func (f *factory) NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool) (Client, error) {
+func (f *factory) NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool, reporter metrics.Reporter) (Client, error) {
 	client := nativeGitClient{
 		repoURL:   rawRepoURL,
 		root:      path,
 		creds:     creds,
 		insecure:  insecure,
 		enableLfs: enableLfs,
+		reporter:  reporter,
 	}
 	return &client, nil
 }
@@ -237,6 +241,7 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch() error {
+	m.reporter.Event(m.repoURL, "GitRequestTypeFetch")
 	_, err := m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if err == nil && m.IsLFSEnabled() {
@@ -323,6 +328,7 @@ func (m *nativeGitClient) LsRemote(revision string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	m.reporter.Event(m.repoURL, "GitRequestTypeLsRemote")
 	//refs, err := remote.List(&git.ListOptions{Auth: auth})
 	refs, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds)
 	if err != nil {

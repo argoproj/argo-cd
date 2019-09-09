@@ -398,22 +398,23 @@ func TestFuzzyEquivalence(t *testing.T) {
 
 func TestListHelmRepositories(t *testing.T) {
 	config := map[string]string{
-		"helm.repositories": `
+		"repositories": `
 - url: https://argoproj.github.io/argo-helm
   name: argo
+  type: helm
   usernameSecret:
     name: test-secret
     key: username
   passwordSecret:
     name: test-secret
     key: password
-  caSecret:
+  tlsClientCertCaSecret:
     name: test-secret
     key: ca
-  certSecret:
+  tlsClientCertDataSecret:
     name: test-secret
     key: cert
-  keySecret:
+  tlsClientCertKeySecret:
     name: test-secret
     key: key
 `}
@@ -432,13 +433,16 @@ func TestListHelmRepositories(t *testing.T) {
 	})
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 
-	repos, err := db.ListHelmRepos(context.Background())
+	repos, err := db.ListRepositories(context.Background())
 	assert.Nil(t, err)
-	assert.Equal(t, 1, len(repos))
+	assert.Len(t, repos, 1)
 	repo := repos[0]
+	assert.Equal(t, "https://argoproj.github.io/argo-helm", repo.Repo)
+	assert.Equal(t, "helm", repo.Type)
+	assert.Equal(t, "argo", repo.Name)
 	assert.Equal(t, "test-username", repo.Username)
 	assert.Equal(t, "test-password", repo.Password)
-	assert.Equal(t, []byte("test-ca"), repo.CAData)
-	assert.Equal(t, []byte("test-cert"), repo.CertData)
-	assert.Equal(t, []byte("test-key"), repo.KeyData)
+	assert.Equal(t, "test-ca", repo.TLSClientCAData)
+	assert.Equal(t, "test-cert", repo.TLSClientCertData)
+	assert.Equal(t, "test-key", repo.TLSClientCertKey)
 }

@@ -27,6 +27,7 @@ import (
 	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/test/fixture/testrepos"
 	"github.com/argoproj/argo-cd/util"
 	grpcutil "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/rand"
@@ -65,6 +66,7 @@ const (
 	RepoURLTypeHTTPS           = "https"
 	RepoURLTypeHTTPSClientCert = "https-cc"
 	RepoURLTypeSSH             = "ssh"
+	RepoURLTypeHelm            = "helm"
 	GitUsername                = "admin"
 	GitPassword                = "password"
 )
@@ -142,6 +144,8 @@ func RepoURL(urlType RepoURLType) string {
 	case RepoURLTypeHTTPSClientCert:
 		return "https://localhost:9444/argo-e2e/testdata.git"
 	// Default - file based Git repository
+	case RepoURLTypeHelm:
+		return testrepos.HelmTestRepo
 	default:
 		return fmt.Sprintf("file://%s", repoDirectory())
 	}
@@ -276,17 +280,6 @@ func SetTLSCerts() {
 func SetSSHKnownHosts() {
 	updateSSHKnownHostsConfigMap(func(cm *corev1.ConfigMap) error {
 		cm.Data = map[string]string{}
-		return nil
-	})
-}
-
-func SetHelmRepoCredential(creds settings.HelmRepoCredentials) {
-	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
-		yamlBytes, err := yaml.Marshal(creds)
-		if err != nil {
-			return err
-		}
-		cm.Data["helm.repositories"] = string(yamlBytes)
 		return nil
 	})
 }

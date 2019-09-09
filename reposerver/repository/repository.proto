@@ -17,7 +17,7 @@ message ManifestRequest {
     string appLabelValue = 5;
     string namespace = 8;
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSource applicationSource = 10;
-    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.HelmRepository helmRepos = 11;
+    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repos = 11;
     repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ConfigManagementPlugin plugins = 12;
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 13;
 }
@@ -30,37 +30,23 @@ message ManifestResponse {
     string sourceType = 6;
 }
 
-// ListDirRequest requests a repository directory structure
-message ListDirRequest {
+// ListAppsRequest requests a repository directory structure
+message ListAppsRequest {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
     string revision = 2;
-    string path = 3;
 }
 
-// FileList returns the contents of the repo of a ListDir request
-message FileList {
-    repeated string items = 1;
-}
-
-// GetFileRequest return
-message GetFileRequest {
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
-    string revision = 2;
-    string path = 3;
-}
-
-
-// GetFileResponse returns the contents of the file of a GetFile request
-message GetFileResponse {
-    bytes data = 1;
+// AppList returns the contents of the repo of a ListApps request
+message AppList {
+    map<string, string> apps = 1;
 }
 
 // RepoServerAppDetailsQuery contains query information for app details request
 message RepoServerAppDetailsQuery {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
 	string revision = 2;
-	string path = 3;
-    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.HelmRepository helmRepos = 4;
+	string app = 3;
+    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repos = 4;
     repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ConfigManagementPlugin plugins = 5;
     HelmAppDetailsQuery helm = 6;
     KsonnetAppDetailsQuery ksonnet = 7;
@@ -87,23 +73,23 @@ message RepoAppDetailsResponse {
 message RepoServerRevisionMetadataRequest {
     // the repo
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
+    // the app name
+    string app = 2;
     // the revision within the repo
-    string revision = 2;
+    string revision = 3;
 }
 
 // KsonnetAppSpec contains Ksonnet app response
 // This roughly reflects: ksonnet/ksonnet/metadata/app/schema.go
 message KsonnetAppSpec {
 	string name = 1;
-	string path = 2;
 	map<string, KsonnetEnvironment> environments = 3;
 	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.KsonnetParameter parameters = 4;
 }
 
-// HelmAppSpec contains helm app name and path in source repo
+// HelmAppSpec contains helm app name  in source repo
 message HelmAppSpec {
 	string name = 1;
-	string path = 2;
 	repeated string valueFiles = 3;
 	// the output of `helm inspect values`
 	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.HelmParameter parameters = 4;
@@ -111,9 +97,8 @@ message HelmAppSpec {
 	string values = 5;
 }
 
-// KustomizeAppSpec contains kustomize app name and path in source repo
+// KustomizeAppSpec contains kustomize images
 message KustomizeAppSpec {
-	string path = 1;
 	// images is a list of available images.
 	repeated string images = 3;
 }
@@ -123,8 +108,6 @@ message KsonnetEnvironment {
     string name = 1;
     // KubernetesVersion is the kubernetes version the targetted cluster is running on.
     string k8sVersion = 2;
-    // Path is the relative project path containing metadata for this environment.
-    string path = 3;
     // Destination stores the cluster address that this environment points to.
     KsonnetEnvironmentDestination destination = 4;
 }
@@ -148,12 +131,8 @@ service RepoServerService {
     rpc GenerateManifest(ManifestRequest) returns (ManifestResponse) {
     }
 
-    // ListDir returns the file contents at the specified repo and path
-    rpc ListDir(ListDirRequest) returns (FileList) {
-    }
-
-    // GetFile returns the file contents at the specified repo and path
-    rpc GetFile(GetFileRequest) returns (GetFileResponse) {
+    // ListApps returns a list of apps in the repo
+    rpc ListApps(ListAppsRequest) returns (AppList) {
     }
 
     // Generate manifest for application in specified repo name and revision

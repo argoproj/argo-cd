@@ -137,6 +137,10 @@ func (a *Actions) Create() *Actions {
 		args = append(args, "--config-management-plugin", a.context.configManagementPlugin)
 	}
 
+	if a.context.revision != "" {
+		args = append(args, "--revision", a.context.revision)
+	}
+
 	a.runCli(args...)
 
 	return a
