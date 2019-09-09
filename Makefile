@@ -173,7 +173,7 @@ cover:
 
 .PHONY: test-e2e
 test-e2e: cli
-	go test -v -timeout 10m ./test/e2e
+	go test -v -timeout 15m ./test/e2e
 
 .PHONY: start-e2e
 start-e2e: cli
