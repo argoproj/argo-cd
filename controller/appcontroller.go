@@ -12,6 +12,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sync/semaphore"
 	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -87,6 +88,7 @@ type ApplicationController struct {
 	refreshRequestedApps      map[string]CompareWith
 	refreshRequestedAppsMutex *sync.Mutex
 	metricsServer             *metrics.MetricsServer
+	kubectlSemaphore          *semaphore.Weighted
 }
 
 type ApplicationControllerConfig struct {
@@ -105,6 +107,7 @@ func NewApplicationController(
 	appResyncPeriod time.Duration,
 	selfHealTimeout time.Duration,
 	metricsPort int,
+	kubectlParallelismLimit int64,
 ) (*ApplicationController, error) {
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
 	kubectlCmd := kube.KubectlCmd{}
@@ -125,6 +128,10 @@ func NewApplicationController(
 		settingsMgr:               settingsMgr,
 		selfHealTimeout:           selfHealTimeout,
 	}
+	if kubectlParallelismLimit > 0 {
+		ctrl.kubectlSemaphore = semaphore.NewWeighted(kubectlParallelismLimit)
+	}
+	kubectlCmd.OnKubectlRun = ctrl.onKubectlRun
 	appInformer, appLister, err := ctrl.newApplicationInformerAndLister()
 	if err != nil {
 		return nil, err
@@ -135,6 +142,7 @@ func NewApplicationController(
 		_, err := kubeClientset.Discovery().ServerVersion()
 		return err
 	})
+
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectlCmd, ctrl.metricsServer, ctrl.handleObjectUpdated)
 	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectlCmd, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer)
 	ctrl.appInformer = appInformer
@@ -144,6 +152,23 @@ func NewApplicationController(
 	ctrl.stateCache = stateCache
 
 	return &ctrl, nil
+}
+
+func (ctrl *ApplicationController) onKubectlRun(command string) (util.Closer, error) {
+	ctrl.metricsServer.IncKubectlExec(command)
+	if ctrl.kubectlSemaphore != nil {
+		if err := ctrl.kubectlSemaphore.Acquire(context.Background(), 1); err != nil {
+			return nil, err
+		}
+		ctrl.metricsServer.IncKubectlExecPending(command)
+	}
+	return util.NewCloser(func() error {
+		if ctrl.kubectlSemaphore != nil {
+			ctrl.kubectlSemaphore.Release(1)
+			ctrl.metricsServer.DecKubectlExecPending(command)
+		}
+		return nil
+	}), nil
 }
 
 func isSelfReferencedApp(app *appv1.Application, ref v1.ObjectReference) bool {

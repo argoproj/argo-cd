@@ -33,7 +33,9 @@ type Kubectl interface {
 	GetAPIResources(config *rest.Config, resourceFilter ResourceFilter) ([]APIResourceInfo, error)
 }
 
-type KubectlCmd struct{}
+type KubectlCmd struct {
+	OnKubectlRun func(command string) (util.Closer, error)
+}
 
 type APIResourceInfo struct {
 	GroupKind schema.GroupKind
@@ -214,7 +216,7 @@ func (k KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstruc
 				return "", err
 			}
 		}
-		outReconcile, err := runKubectl(f.Name(), namespace, []string{"auth", "reconcile"}, manifestBytes, dryRun)
+		outReconcile, err := k.runKubectl(f.Name(), namespace, []string{"auth", "reconcile"}, manifestBytes, dryRun)
 		if err != nil {
 			return "", err
 		}
@@ -231,7 +233,7 @@ func (k KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstruc
 	if !validate {
 		applyArgs = append(applyArgs, "--validate=false")
 	}
-	outApply, err := runKubectl(f.Name(), namespace, applyArgs, manifestBytes, dryRun)
+	outApply, err := k.runKubectl(f.Name(), namespace, applyArgs, manifestBytes, dryRun)
 	if err != nil {
 		return "", err
 	}
@@ -251,7 +253,27 @@ func convertKubectlError(err error) error {
 	return fmt.Errorf(errorStr)
 }
 
-func runKubectl(kubeconfigPath string, namespace string, args []string, manifestBytes []byte, dryRun bool) (string, error) {
+func (k *KubectlCmd) processKubectlRun(args []string) (util.Closer, error) {
+	if k.OnKubectlRun != nil {
+		cmd := "unknown"
+		if len(args) > 0 {
+			cmd = args[0]
+		}
+		return k.OnKubectlRun(cmd)
+	}
+	return util.NewCloser(func() error {
+		return nil
+		// do nothing
+	}), nil
+}
+
+func (k *KubectlCmd) runKubectl(kubeconfigPath string, namespace string, args []string, manifestBytes []byte, dryRun bool) (string, error) {
+	closer, err := k.processKubectlRun(args)
+	if err != nil {
+		return "", err
+	}
+	defer util.Close(closer)
+
 	cmdArgs := append([]string{"--kubeconfig", kubeconfigPath, "-f", "-"}, args...)
 	if namespace != "" {
 		cmdArgs = append(cmdArgs, "-n", namespace)
@@ -304,6 +326,13 @@ func (k KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group strin
 		return nil, err
 	}
 	defer util.DeleteFile(f.Name())
+
+	closer, err := k.processKubectlRun([]string{"convert"})
+	if err != nil {
+		return nil, err
+	}
+	defer util.Close(closer)
+
 	outputVersion := fmt.Sprintf("%s/%s", group, version)
 	cmd := exec.Command("kubectl", "convert", "--output-version", outputVersion, "-o", "json", "--local=true", "-f", f.Name())
 	cmd.Stdin = bytes.NewReader(manifestBytes)
