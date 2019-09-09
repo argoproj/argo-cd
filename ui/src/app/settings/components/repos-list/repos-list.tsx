@@ -136,7 +136,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                         {(formApi) => (
                             <form onSubmit={formApi.submitForm} role='form' className='repos-list width-control'>
                                 <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Type' field='type' component={FormSelect} componentProps={{options: ["git", "helm"]}}/>
+                                    <FormField formApi={formApi} label='Type' field='type' component={FormSelect} componentProps={{options: ['git', 'helm']}}/>
                                 </div>
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Name (optional for Git)' field='name' component={Text}/>
