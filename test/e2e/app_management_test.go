@@ -333,7 +333,7 @@ func TestAppWithSecrets(t *testing.T) {
 
 			diffOutput, err := fixture.RunCli("app", "diff", app.Name)
 			assert.Error(t, err)
-			assert.Contains(t, diffOutput, "username: +++++++++")
+			assert.Contains(t, diffOutput, "username: KioqKioq")
 
 			// local diff should ignore secrets
 			diffOutput, err = fixture.RunCli("app", "diff", app.Name, "--local", "testdata/secrets")
