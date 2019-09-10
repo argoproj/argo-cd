@@ -215,11 +215,11 @@ func ValidateRepo(
 		})
 		return conditions, nil
 	}
-	kubeVersion, err := kubectl.GetServerVersion(cluster.RESTConfig())
+	cluster.ServerVersion, err = kubectl.GetServerVersion(cluster.RESTConfig())
 	if err != nil {
 		return nil, err
 	}
-	conditions = append(conditions, verifyGenerateManifests(ctx, repo, repos, spec, repoClient, kustomizeOptions, plugins, kubeVersion)...)
+	conditions = append(conditions, verifyGenerateManifests(ctx, repo, repos, spec, repoClient, kustomizeOptions, plugins, cluster.ServerVersion)...)
 
 	return conditions, nil
 }

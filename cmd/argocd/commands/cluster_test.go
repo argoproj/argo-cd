@@ -25,6 +25,7 @@ func Test_printClusterTable(t *testing.T) {
 				Message:    "my-message",
 				ModifiedAt: &metav1.Time{},
 			},
+			ServerVersion: "my-version",
 		},
 	})
 }

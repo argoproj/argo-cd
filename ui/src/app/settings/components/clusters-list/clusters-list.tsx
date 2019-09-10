@@ -17,8 +17,9 @@ export const ClustersList = () => (
                         <div className='argo-table-list__head'>
                             <div className='row'>
                                 <div className='columns small-3'>NAME</div>
-                                <div className='columns small-6'>URL</div>
-                                <div className='columns small-3'>CONNECTION STATUS</div>
+                                <div className='columns small-5'>URL</div>
+                                <div className='columns small-2'>VERSION</div>
+                                <div className='columns small-2'>CONNECTION STATUS</div>
                             </div>
                         </div>
                         {clusters.map((cluster) => (
@@ -27,10 +28,9 @@ export const ClustersList = () => (
                                     <div className='columns small-3'>
                                         <i className='icon argo-icon-hosts'/> {clusterName(cluster.name)}
                                     </div>
-                                    <div className='columns small-6'>
-                                        {cluster.server}
-                                    </div>
-                                    <div className='columns small-3'>
+                                    <div className='columns small-5'>{cluster.server}</div>
+                                    <div className='columns small-2'>{cluster.serverVersion}</div>
+                                    <div className='columns small-2'>
                                         <ConnectionStateIcon state={cluster.connectionState}/> {cluster.connectionState.status}
                                     </div>
                                 </div>

@@ -205,7 +205,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	if err != nil {
 		return nil, err
 	}
-	kubeVersion, err := s.kubectl.GetServerVersion(cluster.RESTConfig())
+	cluster.ServerVersion, err = s.kubectl.GetServerVersion(cluster.RESTConfig())
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +219,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		Repos:             repos,
 		Plugins:           plugins,
 		KustomizeOptions:  &kustomizeOptions,
-		KubeVersion:       kubeVersion,
+		KubeVersion:       cluster.ServerVersion,
 	})
 	if err != nil {
 		return nil, err
