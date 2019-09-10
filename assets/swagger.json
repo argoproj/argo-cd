@@ -3063,10 +3063,6 @@
         "server": {
           "type": "string",
           "title": "Server is the API server URL of the Kubernetes cluster"
-        },
-        "serverVersion": {
-          "type": "string",
-          "title": "The server version"
         }
       }
     },

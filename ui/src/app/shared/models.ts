@@ -384,7 +384,6 @@ export interface Cluster {
     name: string;
     server: string;
     connectionState: ConnectionState;
-    serverVersion: string;
 }
 
 export interface ClusterList extends ItemsList<Cluster> { }

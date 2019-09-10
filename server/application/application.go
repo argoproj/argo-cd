@@ -205,6 +205,10 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	if err != nil {
 		return nil, err
 	}
+	kubeVersion, err := s.kubectl.GetServerVersion(cluster.RESTConfig())
+	if err != nil {
+		return nil, err
+	}
 	manifestInfo, err := repoClient.GenerateManifest(ctx, &apiclient.ManifestRequest{
 		Repo:              repo,
 		Revision:          revision,
@@ -215,7 +219,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		Repos:             repos,
 		Plugins:           plugins,
 		KustomizeOptions:  &kustomizeOptions,
-		KubeVersion:       cluster.ServerVersion,
+		KubeVersion:       kubeVersion,
 	})
 	if err != nil {
 		return nil, err
@@ -578,7 +582,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		return err
 	}
 
-	conditions, err := argo.ValidateRepo(ctx, &app.Spec, s.repoClientset, s.db, &kustomizeOptions, plugins)
+	conditions, err := argo.ValidateRepo(ctx, &app.Spec, s.repoClientset, s.db, &kustomizeOptions, plugins, s.kubectl)
 	if err != nil {
 		return err
 	}

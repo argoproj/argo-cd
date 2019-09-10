@@ -135,6 +135,7 @@ func ValidateRepo(
 	db db.ArgoDB,
 	kustomizeOptions *argoappv1.KustomizeOptions,
 	plugins []*argoappv1.ConfigManagementPlugin,
+	kubectl kube.Kubectl,
 ) ([]argoappv1.ApplicationCondition, error) {
 	conditions := make([]argoappv1.ApplicationCondition, 0)
 
@@ -214,7 +215,11 @@ func ValidateRepo(
 		})
 		return conditions, nil
 	}
-	conditions = append(conditions, verifyGenerateManifests(ctx, repo, repos, spec, repoClient, kustomizeOptions, plugins, cluster.ServerVersion)...)
+	kubeVersion, err := kubectl.GetServerVersion(cluster.RESTConfig())
+	if err != nil {
+		return nil, err
+	}
+	conditions = append(conditions, verifyGenerateManifests(ctx, repo, repos, spec, repoClient, kustomizeOptions, plugins, kubeVersion)...)
 
 	return conditions, nil
 }

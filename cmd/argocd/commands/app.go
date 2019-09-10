@@ -1272,7 +1272,9 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: app.Spec.Destination.Server})
 				errors.CheckError(err)
 				util.Close(conn)
-				localObjsStrings = getLocalObjectsString(app, local, cluster.ServerVersion, argoSettings.AppLabelKey, argoSettings.KustomizeOptions)
+				kubectl := kube.KubectlCmd{}
+				kubeVersion := errors.FailOnErr(kubectl.GetServerVersion(cluster.RESTConfig())).(string)
+				localObjsStrings = getLocalObjectsString(app, local, kubeVersion, argoSettings.AppLabelKey, argoSettings.KustomizeOptions)
 			}
 
 			syncReq := applicationpkg.ApplicationSyncRequest{

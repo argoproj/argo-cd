@@ -102,7 +102,6 @@ func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clus
 		if clust.ConnectionState.Status == "" {
 			clust.ConnectionState = s.getConnectionState(clust, warningMessage)
 		}
-		clust.ServerVersion, _ = s.kubectl.GetServerVersion(clust.RESTConfig())
 		items[i] = *redact(&clust)
 		return nil
 	})
