@@ -55,3 +55,7 @@ func (k *MockKubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Un
 func (k *MockKubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error) {
 	return obj, nil
 }
+
+func (k *MockKubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
+	return "", nil
+}

@@ -186,7 +186,7 @@ func GenerateManifests(appPath string, q *apiclient.ManifestRequest) (*apiclient
 		if err != nil {
 			return nil, err
 		}
-		targetObjs, err = h.Template(q.AppLabelValue, q.Namespace, q.ApplicationSource.Helm)
+		targetObjs, err = h.Template(q.AppLabelValue, q.Namespace, q.KubeVersion, q.ApplicationSource.Helm)
 		if err != nil {
 			if !helm.IsMissingDependencyErr(err) {
 				return nil, err
@@ -195,7 +195,7 @@ func GenerateManifests(appPath string, q *apiclient.ManifestRequest) (*apiclient
 			if err != nil {
 				return nil, err
 			}
-			targetObjs, err = h.Template(q.AppLabelValue, q.Namespace, q.ApplicationSource.Helm)
+			targetObjs, err = h.Template(q.AppLabelValue, q.Namespace, q.KubeVersion, q.ApplicationSource.Helm)
 			if err != nil {
 				return nil, err
 			}

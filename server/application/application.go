@@ -201,7 +201,10 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	kustomizeOptions := appv1.KustomizeOptions{
 		BuildOptions: buildOptions,
 	}
-
+	cluster, err := s.db.GetCluster(context.Background(), a.Spec.Destination.Server)
+	if err != nil {
+		return nil, err
+	}
 	manifestInfo, err := repoClient.GenerateManifest(ctx, &apiclient.ManifestRequest{
 		Repo:              repo,
 		Revision:          revision,
@@ -212,6 +215,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		Repos:             repos,
 		Plugins:           plugins,
 		KustomizeOptions:  &kustomizeOptions,
+		KubeVersion:       cluster.ServerVersion,
 	})
 	if err != nil {
 		return nil, err

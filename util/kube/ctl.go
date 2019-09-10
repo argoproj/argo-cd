@@ -31,6 +31,7 @@ type Kubectl interface {
 	GetResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
 	PatchResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error)
 	GetAPIResources(config *rest.Config, resourceFilter ResourceFilter) ([]APIResourceInfo, error)
+	GetServerVersion(config *rest.Config) (string, error)
 }
 
 type KubectlCmd struct{}
@@ -322,4 +323,16 @@ func (k KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group strin
 		convertedObj.SetNamespace(obj.GetNamespace())
 	}
 	return &convertedObj, nil
+}
+
+func (k KubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
+	client, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return "", err
+	}
+	v, err := client.ServerVersion()
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s.%s", v.Major, v.Minor), nil
 }

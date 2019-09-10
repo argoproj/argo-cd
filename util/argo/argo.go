@@ -206,7 +206,15 @@ func ValidateRepo(
 
 	enrichSpec(spec, appDetails)
 
-	conditions = append(conditions, verifyGenerateManifests(ctx, repo, repos, spec, repoClient, kustomizeOptions, plugins)...)
+	cluster, err := db.GetCluster(context.Background(), spec.Destination.Server)
+	if err != nil {
+		conditions = append(conditions, argoappv1.ApplicationCondition{
+			Type:    argoappv1.ApplicationConditionInvalidSpecError,
+			Message: fmt.Sprintf("Unable to get cluster: %v", err),
+		})
+		return conditions, nil
+	}
+	conditions = append(conditions, verifyGenerateManifests(ctx, repo, repos, spec, repoClient, kustomizeOptions, plugins, cluster.ServerVersion)...)
 
 	return conditions, nil
 }
@@ -283,6 +291,7 @@ func verifyGenerateManifests(
 	repoClient apiclient.RepoServerServiceClient,
 	kustomizeOptions *argoappv1.KustomizeOptions,
 	plugins []*argoappv1.ConfigManagementPlugin,
+	kubeVersion string,
 ) []argoappv1.ApplicationCondition {
 
 	var conditions []argoappv1.ApplicationCondition
@@ -305,6 +314,7 @@ func verifyGenerateManifests(
 		ApplicationSource: &spec.Source,
 		Plugins:           plugins,
 		KustomizeOptions:  kustomizeOptions,
+		KubeVersion:       kubeVersion,
 	}
 	req.Repo.CopyCredentialsFrom(repoRes)
 
