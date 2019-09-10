@@ -753,8 +753,7 @@ func (a *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, error) {
 
 // getToken extracts the token from gRPC metadata or cookie headers
 func getToken(md metadata.MD) string {
-	// check the "t" metadata
-	log.Debugf("ALEX md=%v", md)
+	// check the "token" metadata
 	{
 		tokens, ok := md[apiclient.MetaDataTokenKey]
 		if ok && len(tokens) > 0 {
