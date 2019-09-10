@@ -774,7 +774,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	compareResult := ctrl.appStateManager.CompareAppState(app, revision, app.Spec.Source, refreshType == appv1.RefreshTypeHard, localManifests)
 
-	ctrl.normalizeApplication(origApp, app, compareResult.appSourceType)
+	ctrl.normalizeApplication(origApp, app)
 
 	app.Status.Conditions = append(app.Status.Conditions, compareResult.conditions...)
 
@@ -872,9 +872,9 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 }
 
 // normalizeApplication normalizes an application.spec and additionally persists updates if it changed
-func (ctrl *ApplicationController) normalizeApplication(orig, app *appv1.Application, sourceType appv1.ApplicationSourceType) {
+func (ctrl *ApplicationController) normalizeApplication(orig, app *appv1.Application) {
 	logCtx := log.WithFields(log.Fields{"application": app.Name})
-	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec, sourceType)
+	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec)
 	patch, modified, err := diff.CreateTwoWayMergePatch(orig, app, appv1.Application{})
 	if err != nil {
 		logCtx.Errorf("error constructing app spec patch: %v", err)

@@ -26,6 +26,7 @@ import (
 
 	certutil "github.com/argoproj/argo-cd/util/cert"
 	argoconfig "github.com/argoproj/argo-cd/util/config"
+	"github.com/argoproj/argo-cd/util/repo/metrics"
 )
 
 type RevisionMetadata struct {
@@ -51,7 +52,7 @@ type Client interface {
 // ClientFactory is a factory of Git Clients
 // Primarily used to support creation of mock git clients during unit testing
 type ClientFactory interface {
-	NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool, fetchRefspecs []string) (Client, error)
+	NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool, eventReporter metrics.Reporter, fetchRefspecs []string) (Client, error)
 }
 
 // nativeGitClient implements Client interface using git CLI
@@ -66,6 +67,8 @@ type nativeGitClient struct {
 	insecure bool
 	// Whether the repository is LFS enabled
 	enableLfs bool
+	// metrics reporter
+	reporter metrics.Reporter
 	// Refspecs to be used for fetching revisions from the remote repository
 	fetchRefspecs []config.RefSpec
 }
@@ -76,7 +79,7 @@ func NewFactory() ClientFactory {
 	return &factory{}
 }
 
-func (f *factory) NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool, fetchRefspecs []string) (Client, error) {
+func (f *factory) NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool, reporter metrics.Reporter, fetchRefspecs []string) (Client, error) {
 
 	var specs []config.RefSpec
 	expectedPrefix := fmt.Sprintf("refs/remotes/%s/", git.DefaultRemoteName)
@@ -100,6 +103,7 @@ func (f *factory) NewClient(rawRepoURL string, path string, creds Creds, insecur
 		creds:         creds,
 		insecure:      insecure,
 		enableLfs:     enableLfs,
+		reporter:      reporter,
 		fetchRefspecs: specs,
 	}
 	return &client, nil
@@ -115,7 +119,14 @@ func (f *factory) NewClient(rawRepoURL string, path string, creds Creds, insecur
 // - Otherwise (and on non-fatal errors), a default HTTP client is returned.
 func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client {
 	// Default HTTP client
-	var customHTTPClient *http.Client = &http.Client{}
+	var customHTTPClient *http.Client = &http.Client{
+		// 15 second timeout
+		Timeout: 15 * time.Second,
+		// don't follow redirect
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
 
 	// Callback function to return any configured client certificate
 	// We never return err, but an empty cert instead.
@@ -143,19 +154,11 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 	}
 
 	if insecure {
-		customHTTPClient = &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify:   true,
-					GetClientCertificate: clientCertFunc,
-				},
-			},
-			// 15 second timeout
-			Timeout: 15 * time.Second,
-
-			// don't follow redirect
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				return http.ErrUseLastResponse
+		customHTTPClient.Transport = &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify:   true,
+				GetClientCertificate: clientCertFunc,
 			},
 		}
 	} else {
@@ -168,33 +171,19 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 			return customHTTPClient
 		} else if len(serverCertificatePem) > 0 {
 			certPool := certutil.GetCertPoolFromPEMData(serverCertificatePem)
-			customHTTPClient = &http.Client{
-				Transport: &http.Transport{
-					TLSClientConfig: &tls.Config{
-						RootCAs:              certPool,
-						GetClientCertificate: clientCertFunc,
-					},
-				},
-				// 15 second timeout
-				Timeout: 15 * time.Second,
-				// don't follow redirect
-				CheckRedirect: func(req *http.Request, via []*http.Request) error {
-					return http.ErrUseLastResponse
+			customHTTPClient.Transport = &http.Transport{
+				Proxy: http.ProxyFromEnvironment,
+				TLSClientConfig: &tls.Config{
+					RootCAs:              certPool,
+					GetClientCertificate: clientCertFunc,
 				},
 			}
 		} else {
 			// else no custom certificate stored.
-			customHTTPClient = &http.Client{
-				Transport: &http.Transport{
-					TLSClientConfig: &tls.Config{
-						GetClientCertificate: clientCertFunc,
-					},
-				},
-				// 15 second timeout
-				Timeout: 15 * time.Second,
-				// don't follow redirect
-				CheckRedirect: func(req *http.Request, via []*http.Request) error {
-					return http.ErrUseLastResponse
+			customHTTPClient.Transport = &http.Transport{
+				Proxy: http.ProxyFromEnvironment,
+				TLSClientConfig: &tls.Config{
+					GetClientCertificate: clientCertFunc,
 				},
 			}
 		}
@@ -274,6 +263,7 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch() error {
+	m.reporter.Event(m.repoURL, "GitRequestTypeFetch")
 	_, err := m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if err == nil && m.IsLFSEnabled() {
@@ -361,6 +351,7 @@ func (m *nativeGitClient) LsRemote(revision string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	m.reporter.Event(m.repoURL, "GitRequestTypeLsRemote")
 	//refs, err := remote.List(&git.ListOptions{Auth: auth})
 	refs, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds)
 	if err != nil {

@@ -79,6 +79,7 @@ import (
 	"github.com/argoproj/argo-cd/util/healthz"
 	httputil "github.com/argoproj/argo-cd/util/http"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
+	"github.com/argoproj/argo-cd/util/jwt/zjwt"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/oidc"
 	"github.com/argoproj/argo-cd/util/rbac"
@@ -426,7 +427,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	sOpts = append(sOpts, grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
 		grpc_logrus.StreamServerInterceptor(a.log),
 		grpc_prometheus.StreamServerInterceptor,
-		grpc_auth.StreamServerInterceptor(a.authenticate),
+		grpc_auth.StreamServerInterceptor(a.Authenticate),
 		grpc_util.UserAgentStreamServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
 		grpc_util.PayloadStreamServerInterceptor(a.log, true, func(ctx netCtx.Context, fullMethodName string, servingObject interface{}) bool {
 			return !sensitiveMethods[fullMethodName]
@@ -438,7 +439,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		bug21955WorkaroundInterceptor,
 		grpc_logrus.UnaryServerInterceptor(a.log),
 		grpc_prometheus.UnaryServerInterceptor,
-		grpc_auth.UnaryServerInterceptor(a.authenticate),
+		grpc_auth.UnaryServerInterceptor(a.Authenticate),
 		grpc_util.UserAgentUnaryServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
 		grpc_util.PayloadUnaryServerInterceptor(a.log, true, func(ctx netCtx.Context, fullMethodName string, servingObject interface{}) bool {
 			return !sensitiveMethods[fullMethodName]
@@ -450,7 +451,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	db := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
 	clusterService := cluster.NewServer(db, a.enf, a.Cache)
 	repoService := repository.NewServer(a.RepoClientset, db, a.enf, a.Cache, a.settingsMgr)
-	sessionService := session.NewServer(a.sessionMgr)
+	sessionService := session.NewServer(a.sessionMgr, a)
 	projectLock := util.NewKeyLock()
 	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, a.Cache, kube.KubectlCmd{}, db, a.enf, projectLock, a.settingsMgr)
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr)
@@ -479,12 +480,18 @@ func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.Res
 		if !a.Insecure {
 			flags = append(flags, "Secure")
 		}
-		cookie, err := httputil.MakeCookieMetadata(common.AuthCookieName, sessionResp.Token, flags...)
-		if err != nil {
-			return err
+		token := sessionResp.Token
+		if token != "" {
+			token, err := zjwt.ZJWT(token)
+			if err != nil {
+				return err
+			}
+			cookie, err := httputil.MakeCookieMetadata(common.AuthCookieName, token, flags...)
+			if err != nil {
+				return err
+			}
+			w.Header().Set("Set-Cookie", cookie)
 		}
-
-		w.Header().Set("Set-Cookie", cookie)
 	}
 	return nil
 }
@@ -708,7 +715,7 @@ func mustRegisterGWHandler(register registerFunc, ctx context.Context, mux *runt
 }
 
 // Authenticate checks for the presence of a valid token when accessing server-side resources.
-func (a *ArgoCDServer) authenticate(ctx context.Context) (context.Context, error) {
+func (a *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error) {
 	if a.DisableAuth {
 		return ctx, nil
 	}
@@ -758,7 +765,10 @@ func getToken(md metadata.MD) string {
 		request := http.Request{Header: header}
 		token, err := request.Cookie(common.AuthCookieName)
 		if err == nil {
-			return token.Value
+			value, err := zjwt.JWT(token.Value)
+			if err == nil {
+				return value
+			}
 		}
 	}
 	return ""

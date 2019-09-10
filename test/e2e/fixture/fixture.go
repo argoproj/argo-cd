@@ -27,6 +27,7 @@ import (
 	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/test/fixture/testrepos"
 	"github.com/argoproj/argo-cd/util"
 	grpcutil "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/rand"
@@ -65,6 +66,7 @@ const (
 	RepoURLTypeHTTPS           = "https"
 	RepoURLTypeHTTPSClientCert = "https-cc"
 	RepoURLTypeSSH             = "ssh"
+	RepoURLTypeHelm            = "helm"
 	GitUsername                = "admin"
 	GitPassword                = "password"
 )
@@ -142,6 +144,8 @@ func RepoURL(urlType RepoURLType) string {
 	case RepoURLTypeHTTPSClientCert:
 		return "https://localhost:9444/argo-e2e/testdata.git"
 	// Default - file based Git repository
+	case RepoURLTypeHelm:
+		return testrepos.HelmTestRepo
 	default:
 		return fmt.Sprintf("file://%s", repoDirectory())
 	}
@@ -280,17 +284,6 @@ func SetSSHKnownHosts() {
 	})
 }
 
-func SetHelmRepoCredential(creds settings.HelmRepoCredentials) {
-	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
-		yamlBytes, err := yaml.Marshal(creds)
-		if err != nil {
-			return err
-		}
-		cm.Data["helm.repositories"] = string(yamlBytes)
-		return nil
-	})
-}
-
 func SetProjectSpec(project string, spec v1alpha1.AppProjectSpec) {
 	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Get(project, v1.GetOptions{})
 	errors.CheckError(err)
@@ -375,7 +368,7 @@ func EnsureCleanState(t *testing.T) {
 	FailOnErr(Run("", "kubectl", "create", "ns", DeploymentNamespace()))
 	FailOnErr(Run("", "kubectl", "label", "ns", DeploymentNamespace(), testingLabel+"=true"))
 
-	log.WithFields(log.Fields{"duration": time.Since(start), "name": name, "id": id}).Info("clean state")
+	log.WithFields(log.Fields{"duration": time.Since(start), "name": name, "id": id, "username": "admin", "password": "password"}).Info("clean state")
 }
 
 func RunCli(args ...string) (string, error) {

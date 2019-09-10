@@ -67,10 +67,10 @@ export interface OperationState {
 export type HookType = 'PreSync' | 'Sync' | 'PostSync' | 'SyncFail' | 'Skip';
 
 export interface RevisionMetadata {
-    author: string;
+    author?: string;
     date: models.Time;
-    tags: string[];
-    message: string;
+    tags?: string[];
+    message?: string;
 }
 
 export interface SyncOperationResult {
@@ -340,6 +340,13 @@ export interface AuthSettings {
     };
 }
 
+export interface UserInfo  {
+    loggedIn: boolean;
+    username: string;
+    iss: string;
+    groups: string[];
+}
+
 export type ConnectionStatus = 'Unknown' | 'Successful' | 'Failed';
 
 export const ConnectionStatuses = {
@@ -366,6 +373,8 @@ export interface RepoCertList extends ItemsList<RepoCert> { }
 
 export interface Repository {
     repo: string;
+    type?: string;
+    name?: string;
     connectionState: ConnectionState;
 }
 

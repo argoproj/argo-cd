@@ -1,17 +1,17 @@
-package session_test
+package session
 
 import (
 	"context"
 	"testing"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/util/password"
-	sessionutil "github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -43,7 +43,7 @@ func TestSessionManager(t *testing.T) {
 	})
 
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, "argocd")
-	mgr := sessionutil.NewSessionManager(settingsMgr, "")
+	mgr := NewSessionManager(settingsMgr, "")
 
 	token, err := mgr.Create(defaultSubject, 0)
 	if err != nil {
@@ -60,4 +60,31 @@ func TestSessionManager(t *testing.T) {
 	if subject != "argo" {
 		t.Errorf("Token claim subject \"%s\" does not match expected subject \"%s\".", subject, defaultSubject)
 	}
+}
+
+var loggedOutContext = context.Background()
+var loggedInContext = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
+
+func TestIss(t *testing.T) {
+	assert.Empty(t, Iss(loggedOutContext))
+	assert.Equal(t, "qux", Iss(loggedInContext))
+}
+func TestLoggedIn(t *testing.T) {
+	assert.False(t, LoggedIn(loggedOutContext))
+	assert.True(t, LoggedIn(loggedInContext))
+}
+
+func TestUsername(t *testing.T) {
+	assert.Empty(t, Username(loggedOutContext))
+	assert.Equal(t, "bar", Username(loggedInContext))
+}
+
+func TestSub(t *testing.T) {
+	assert.Empty(t, Sub(loggedOutContext))
+	assert.Equal(t, "foo", Sub(loggedInContext))
+}
+
+func TestGroups(t *testing.T) {
+	assert.Empty(t, Groups(loggedOutContext))
+	assert.Equal(t, []string{"baz"}, Groups(loggedInContext))
 }

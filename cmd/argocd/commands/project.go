@@ -92,7 +92,7 @@ func addProjFlags(command *cobra.Command, opts *projectOpts) {
 	command.Flags().StringVarP(&opts.description, "description", "", "", "Project description")
 	command.Flags().StringArrayVarP(&opts.destinations, "dest", "d", []string{},
 		"Permitted destination server and namespace (e.g. https://192.168.99.100:8443,default)")
-	command.Flags().StringArrayVarP(&opts.sources, "src", "s", []string{}, "Permitted git source repository URL")
+	command.Flags().StringArrayVarP(&opts.sources, "src", "s", []string{}, "Permitted source repository URL")
 	command.Flags().BoolVar(&opts.orphanedResourcesEnabled, "orphaned-resources", false, "Enables orphaned resources monitoring")
 	command.Flags().BoolVar(&opts.orphanedResourcesWarn, "orphaned-resources-warn", false, "Specifies if applications should be a warning condition when orphaned resources detected")
 }

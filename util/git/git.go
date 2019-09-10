@@ -76,13 +76,3 @@ func IsSSHURL(url string) (bool, string) {
 func IsHTTPSURL(url string) bool {
 	return httpsURLRegex.MatchString(url)
 }
-
-// TestRepo tests if a repo exists and is accessible with the given credentials
-func TestRepo(repo string, creds Creds, insecure bool, enableLfs bool, fetchRefspecs []string) error {
-	clnt, err := NewFactory().NewClient(repo, "", creds, insecure, enableLfs, fetchRefspecs)
-	if err != nil {
-		return err
-	}
-	_, err = clnt.LsRemote("HEAD")
-	return err
-}

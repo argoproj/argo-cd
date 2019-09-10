@@ -92,12 +92,8 @@ func repoConnectionStateKey(repo string) string {
 	return fmt.Sprintf("repo|%s|connection-state", repo)
 }
 
-func listDirKey(commitSHA string, path string) string {
-	return fmt.Sprintf("ldir|%s|%s", path, commitSHA)
-}
-
-func gitFileKey(commitSHA string, path string) string {
-	return fmt.Sprintf("gfile|%s|%s", path, commitSHA)
+func listApps(revision, path string) string {
+	return fmt.Sprintf("ldir|%s|%s", path, revision)
 }
 
 func oidcStateKey(key string) string {
@@ -118,8 +114,8 @@ func appDetailsCacheKey(commitSHA, path string, valueFiles []string) string {
 	return fmt.Sprintf("appdetails|%s|%s|%s", commitSHA, path, valuesStr)
 }
 
-func revisionMetadataKey(repoURL, revision string) string {
-	return fmt.Sprintf("revisionmetadata|%s|%s", repoURL, revision)
+func revisionMetadataKey(repoURL, path, revision string) string {
+	return fmt.Sprintf("revisionmetadata|%s|%s|%s", repoURL, path, revision)
 }
 
 func (c *Cache) setItem(key string, item interface{}, expiration time.Duration, delete bool) error {
@@ -175,24 +171,14 @@ func (c *Cache) GetRepoConnectionState(repo string) (appv1.ConnectionState, erro
 func (c *Cache) SetRepoConnectionState(repo string, state *appv1.ConnectionState) error {
 	return c.setItem(repoConnectionStateKey(repo), &state, connectionStatusCacheExpiration, state == nil)
 }
-func (c *Cache) GetGitListDir(commitSha string, path string) ([]string, error) {
-	res := make([]string, 0)
-	err := c.getItem(listDirKey(commitSha, path), &res)
+func (c *Cache) ListApps(revision, path string) (map[string]string, error) {
+	res := make(map[string]string)
+	err := c.getItem(listApps(revision, path), &res)
 	return res, err
 }
 
-func (c *Cache) SetListDir(commitSha string, path string, files []string) error {
-	return c.setItem(listDirKey(commitSha, path), files, repoCacheExpiration, files == nil)
-}
-
-func (c *Cache) GetGitFile(commitSha string, path string) ([]byte, error) {
-	res := make([]byte, 0)
-	err := c.getItem(gitFileKey(commitSha, path), &res)
-	return res, err
-}
-
-func (c *Cache) SetGitFile(commitSha string, path string, data []byte) error {
-	return c.setItem(gitFileKey(commitSha, path), data, repoCacheExpiration, data == nil)
+func (c *Cache) SetApps(revision, path string, apps map[string]string) error {
+	return c.setItem(listApps(revision, path), apps, repoCacheExpiration, apps == nil)
 }
 
 func (c *Cache) GetManifests(commitSHA string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string, res interface{}) error {
@@ -211,13 +197,13 @@ func (c *Cache) SetAppDetails(commitSHA, path string, valueFiles []string, res i
 	return c.setItem(appDetailsCacheKey(commitSHA, path, valueFiles), res, repoCacheExpiration, res == nil)
 }
 
-func (c *Cache) GetRevisionMetadata(repoURL, revision string) (*appv1.RevisionMetadata, error) {
+func (c *Cache) GetRevisionMetadata(repoURL, path, revision string) (*appv1.RevisionMetadata, error) {
 	item := &appv1.RevisionMetadata{}
-	return item, c.getItem(revisionMetadataKey(repoURL, revision), item)
+	return item, c.getItem(revisionMetadataKey(repoURL, path, revision), item)
 }
 
-func (c *Cache) SetRevisionMetadata(repoURL, revision string, item *appv1.RevisionMetadata) error {
-	return c.setItem(revisionMetadataKey(repoURL, revision), item, repoCacheExpiration, false)
+func (c *Cache) SetRevisionMetadata(repoURL, path, revision string, item *appv1.RevisionMetadata) error {
+	return c.setItem(revisionMetadataKey(repoURL, path, revision), item, repoCacheExpiration, false)
 }
 
 func (c *Cache) GetOIDCState(key string) (*OIDCState, error) {

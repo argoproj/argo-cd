@@ -2,6 +2,7 @@ package app
 
 import (
 	"testing"
+	"time"
 
 	. "github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -31,6 +32,7 @@ type Context struct {
 	async                  bool
 	localPath              string
 	project                string
+	revision               string
 	force                  bool
 }
 
@@ -94,6 +96,11 @@ func (c *Context) Path(path string) *Context {
 	return c
 }
 
+func (c *Context) Revision(revision string) *Context {
+	c.revision = revision
+	return c
+}
+
 func (c *Context) Timeout(timeout int) *Context {
 	c.timeout = timeout
 	return c
@@ -152,8 +159,8 @@ func (c *Context) ConfigManagementPlugin(plugin v1alpha1.ConfigManagementPlugin)
 	return c
 }
 
-func (c *Context) HelmRepoCredential(name, url string) *Context {
-	fixture.SetHelmRepoCredential(settings.HelmRepoCredentials{Name: name, URL: url})
+func (c *Context) Repos(repos ...settings.RepoCredentials) *Context {
+	fixture.SetRepos(repos...)
 	return c
 }
 
@@ -163,6 +170,8 @@ func (c *Context) And(block func()) *Context {
 }
 
 func (c *Context) When() *Actions {
+	// in case any settings have changed, pause for 1s, not great, but fine
+	time.Sleep(1 * time.Second)
 	return &Actions{context: c}
 }
 

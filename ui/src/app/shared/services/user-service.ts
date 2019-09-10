@@ -1,3 +1,4 @@
+import {UserInfo} from '../models';
 import requests from './requests';
 
 export class UserService {
@@ -7,5 +8,9 @@ export class UserService {
 
     public logout(): Promise<boolean> {
         return requests.delete('/session').then((res) => true);
+    }
+
+    public get(): Promise<UserInfo> {
+        return requests.get('/session/userinfo').then((res) => res.body as UserInfo);
     }
 }
