@@ -83,6 +83,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		time.Minute,
 		time.Minute,
 		common.DefaultPortArgoCDMetrics,
+		0,
 	)
 	if err != nil {
 		panic(err)
