@@ -46,6 +46,7 @@ func newCommand() *cobra.Command {
 		logLevel                 string
 		glogLevel                int
 		metricsPort              int
+		kubectlParallelismLimit  int64
 		cacheSrc                 func() (*cache.Cache, error)
 	)
 	var command = cobra.Command{
@@ -84,7 +85,8 @@ func newCommand() *cobra.Command {
 				cache,
 				resyncDuration,
 				time.Duration(selfHealTimeoutSeconds)*time.Second,
-				metricsPort)
+				metricsPort,
+				kubectlParallelismLimit)
 			errors.CheckError(err)
 
 			log.Infof("Application Controller (version: %s) starting (namespace: %s)", common.GetVersion(), namespace)
@@ -109,6 +111,7 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDMetrics, "Start metrics server on given port")
 	command.Flags().IntVar(&selfHealTimeoutSeconds, "self-heal-timeout-seconds", 5, "Specifies timeout between application self heal attempts")
+	command.Flags().Int64Var(&kubectlParallelismLimit, "kubectl-parallelism-limit", 0, "Number of allowed concurrent kubectl fork/execs.")
 
 	cacheSrc = cache.AddCacheFlagsToCmd(&command)
 	return &command
