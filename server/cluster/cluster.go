@@ -25,17 +25,19 @@ import (
 
 // Server provides a Cluster service
 type Server struct {
-	db    db.ArgoDB
-	enf   *rbac.Enforcer
-	cache *cache.Cache
+	db      db.ArgoDB
+	enf     *rbac.Enforcer
+	cache   *cache.Cache
+	kubectl kube.Kubectl
 }
 
 // NewServer returns a new instance of the Cluster service
-func NewServer(db db.ArgoDB, enf *rbac.Enforcer, cache *cache.Cache) *Server {
+func NewServer(db db.ArgoDB, enf *rbac.Enforcer, cache *cache.Cache, kubectl kube.Kubectl) *Server {
 	return &Server{
-		db:    db,
-		enf:   enf,
-		cache: cache,
+		db:      db,
+		enf:     enf,
+		cache:   cache,
+		kubectl: kubectl,
 	}
 }
 
@@ -100,6 +102,7 @@ func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clus
 		if clust.ConnectionState.Status == "" {
 			clust.ConnectionState = s.getConnectionState(clust, warningMessage)
 		}
+		clust.ServerVersion, _ = s.kubectl.GetServerVersion(clust.RESTConfig())
 		items[i] = *redact(&clust)
 		return nil
 	})
