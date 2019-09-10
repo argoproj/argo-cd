@@ -1157,7 +1157,7 @@
 
 <h2 id="building">Building<a class="headerlink" href="#building" title="Permanent link">&para;</a></h2>
 <p>Ensure dependencies are up to date first:</p>
-<div class="codehilite"><pre><span></span>make dep
+<div class="codehilite"><pre><span></span>dep ensure
 </pre></div>
 
 
@@ -1195,7 +1195,13 @@ kubectl -n argocd scale deployment.extensions/argocd-redis --replicas <span clas
 </pre></div>
 
 
-<p>Note: you'll need to use the https://localhost:6443 cluster now.</p>
+<p>Download Yarn dependencies and Compile:</p>
+<div class="codehilite"><pre><span></span>~/go/src/github.com/argoproj/argo-cd/ui 
+yarn install
+yarn build
+</pre></div>
+
+
 <p>Then start the services:</p>
 <div class="codehilite"><pre><span></span><span class="nb">cd</span> ~/go/src/github.com/argoproj/argo-cd
 make start
@@ -1203,12 +1209,11 @@ make start
 
 
 <p>You can now execute <code>argocd</code> command against your locally running ArgoCD by appending <code>--server localhost:8080 --plaintext --insecure</code>, e.g.:</p>
-<div class="codehilite"><pre><span></span>argocd app <span class="nb">set</span> guestbook --path guestbook --repo https://github.com/argoproj/argocd-example-apps.git --dest-server https://localhost:6443  --dest-namespace default --server localhost:8080 --plaintext --insecure
+<div class="codehilite"><pre><span></span>argocd app create guestbook --path guestbook --repo https://github.com/argoproj/argocd-example-apps.git --dest-server https://kubernetes.default.svc  --dest-namespace default --server localhost:8080 --plaintext --insecure
 </pre></div>
 
 
 <p>You can open the UI: http://localhost:8080</p>
-<p>Note: you'll need to use the https://kubernetes.default.svc cluster now.</p>
 <h2 id="running-local-containers">Running Local Containers<a class="headerlink" href="#running-local-containers" title="Permanent link">&para;</a></h2>
 <p>You may need to run containers locally, so here's how:</p>
 <p>Create login to Docker Hub, then login.</p>

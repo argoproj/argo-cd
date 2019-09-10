@@ -855,9 +855,38 @@
       
     
     
+      <label class="md-nav__link md-nav__link--active" for="__toc">
+        API Docs
+      </label>
+    
     <a href="./" title="API Docs" class="md-nav__link md-nav__link--active">
       API Docs
     </a>
+    
+      
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#authorization" title="Authorization" class="md-nav__link">
+    Authorization
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
     
   </li>
 
@@ -992,6 +1021,22 @@
     
   
   
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#authorization" title="Authorization" class="md-nav__link">
+    Authorization
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1006,7 +1051,21 @@
                 
                 
                 <h1 id="api-docs">API Docs<a class="headerlink" href="#api-docs" title="Permanent link">&para;</a></h1>
-<p>You can find Swagger docs but setting the path <code>/swagger-ui</code> to your Argo CD UI's. E.g. <a href="http://localhost:8080/swagger-ui">http://localhost:8080/swagger-ui</a>. </p>
+<p>You can find Swagger docs but setting the path <code>/swagger-ui</code> to your Argo CD UI's. E.g. <a href="http://localhost:8080/swagger-ui">http://localhost:8080/swagger-ui</a>.</p>
+<h2 id="authorization">Authorization<a class="headerlink" href="#authorization" title="Permanent link">&para;</a></h2>
+<p>You'll need to authorize your API using a bearer token. To get a token:</p>
+<div class="codehilite"><pre><span></span>$ curl <span class="nv">$ARGOCD_SERVER</span>/api/v1/session -d <span class="s1">$&#39;{&quot;username&quot;:&quot;admin&quot;,&quot;password&quot;:&quot;password&quot;}&#39;</span>
+<span class="o">{</span><span class="s2">&quot;token&quot;</span>:<span class="s2">&quot;eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE1Njc4MTIzODcsImlzcyI6ImFyZ29jZCIsIm5iZiI6MTU2NzgxMjM4Nywic3ViIjoiYWRtaW4ifQ.ejyTgFxLhuY9mOBtKhcnvobg3QZXJ4_RusN_KIdVwao&quot;</span><span class="o">}</span> 
+</pre></div>
+
+
+<p>Then pass using the HTTP <code>Authorization</code> header, prefixing with <code>Bearer</code>:</p>
+<div class="codehilite"><pre><span></span>$ $ curl <span class="nv">$ARGOCD_SERVER</span>/api/v1/applications -H <span class="s2">&quot;Authorization: Bearer </span><span class="nv">$ARGOCD_TOKEN</span><span class="s2">&quot;</span> 
+<span class="o">{</span><span class="s2">&quot;metadata&quot;</span>:<span class="o">{</span><span class="s2">&quot;selfLink&quot;</span>:<span class="s2">&quot;/apis/argoproj.io/v1alpha1/namespaces/argocd/applications&quot;</span>,<span class="s2">&quot;resourceVersion&quot;</span>:<span class="s2">&quot;37755&quot;</span><span class="o">}</span>,<span class="s2">&quot;items&quot;</span>:...<span class="o">}</span>
+</pre></div>
+
+
+<p>You sh</p>
                 
                   
                 

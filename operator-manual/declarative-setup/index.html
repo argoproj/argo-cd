@@ -1668,8 +1668,8 @@ definition as a Kubernetes manifest.</li>
 
 
 <h2 id="helm-chart-repositories">Helm Chart Repositories<a class="headerlink" href="#helm-chart-repositories" title="Permanent link">&para;</a></h2>
-<p>Non standard Helm Chart repositories have to be registered under the <code>helm.repositories</code> key in the
-<code>argocd-cm</code> ConfigMap. Each repository must have <code>url</code> and <code>name</code> fields. For private Helm repos you
+<p>Non standard Helm Chart repositories have to be registered under the <code>repositories</code> key in the
+<code>argocd-cm</code> ConfigMap. Each repository must have <code>url</code>, <code>type</code> and <code>name</code> fields. For private Helm repos you
 may need to configure access credentials and HTTPS settings using <code>usernameSecret</code>, <code>passwordSecret</code>,
 <code>caSecret</code>, <code>certSecret</code> and <code>keySecret</code> fields.</p>
 <p>Example:</p>
@@ -1682,10 +1682,12 @@ may need to configure access credentials and HTTPS settings using <code>username
     <span class="nt">app.kubernetes.io/name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
     <span class="nt">app.kubernetes.io/part-of</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
 <span class="nt">data</span><span class="p">:</span>
-  <span class="nt">helm.repositories</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-    <span class="no">- url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts</span>
+  <span class="nt">repositories</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">- type: helm</span>
+      <span class="no">url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts</span>
       <span class="no">name: istio.io</span>
-    <span class="no">- url: https://argoproj.github.io/argo-helm</span>
+    <span class="no">- type: helm</span>
+      <span class="no">url: https://argoproj.github.io/argo-helm</span>
       <span class="no">name: argo</span>
       <span class="no">usernameSecret:</span>
         <span class="no">name: my-secret</span>
