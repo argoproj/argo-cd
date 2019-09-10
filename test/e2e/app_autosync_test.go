@@ -71,6 +71,8 @@ func TestAutoSyncSelfHealEnabled(t *testing.T) {
 		When().
 		// SyncError condition should be removed after successful sync
 		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 1}]`).
+		// Trigger refresh twice to make sure controller notices previously failed sync attempt before expectation timeout expires
+		Refresh(RefreshTypeNormal).
 		Refresh(RefreshTypeNormal).Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).

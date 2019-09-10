@@ -43,14 +43,6 @@ func (noopCodec) String() string {
 	return "bytes"
 }
 
-type inlineCloser struct {
-	close func() error
-}
-
-func (c *inlineCloser) Close() error {
-	return c.close()
-}
-
 func toFrame(msg []byte) []byte {
 	frame := append([]byte{0, 0, 0, 0}, msg...)
 	binary.BigEndian.PutUint32(frame, uint32(len(msg)))
@@ -185,7 +177,7 @@ func (c *client) useGRPCProxy() (net.Addr, io.Closer, error) {
 	}
 	c.proxyUsersCount = c.proxyUsersCount + 1
 
-	return c.proxyListener.Addr(), &inlineCloser{close: func() error {
+	return c.proxyListener.Addr(), util.NewCloser(func() error {
 		c.proxyMutex.Lock()
 		defer c.proxyMutex.Unlock()
 		c.proxyUsersCount = c.proxyUsersCount - 1
@@ -196,5 +188,5 @@ func (c *client) useGRPCProxy() (net.Addr, io.Closer, error) {
 			return nil
 		}
 		return nil
-	}}, nil
+	}), nil
 }
