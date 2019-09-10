@@ -28,6 +28,7 @@ import (
 	"github.com/argoproj/argo-cd/test"
 	utilcache "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/kube/kubetest"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -79,6 +80,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 	}
 	kubeClient := fake.NewSimpleClientset(&clust, &cm, &secret)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
+	kubectl := &kubetest.MockKubectlCmd{}
 	ctrl, err := NewApplicationController(
 		test.FakeArgoCDNamespace,
 		settingsMgr,
@@ -86,6 +88,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		appclientset.NewSimpleClientset(data.apps...),
 		&mockRepoClientset,
 		utilcache.NewCache(utilcache.NewInMemoryCache(1*time.Hour)),
+		kubectl,
 		time.Minute,
 		time.Minute,
 		common.DefaultPortArgoCDMetrics,

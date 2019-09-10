@@ -181,7 +181,9 @@ func TestCreateApp(t *testing.T) {
 		Application: *testApp,
 	}
 	app, err := appServer.Create(context.Background(), &createReq)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
+	assert.NotNil(t, app)
+	assert.NotNil(t, app.Spec)
 	assert.Equal(t, app.Spec.Project, "default")
 }
 
