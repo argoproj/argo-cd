@@ -155,8 +155,15 @@ func (s *Server) Get(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clust
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionGet, q.Server); err != nil {
 		return nil, err
 	}
-	clust, err := s.db.GetCluster(ctx, q.Server)
-	return redact(clust), err
+	c, err := s.db.GetCluster(ctx, q.Server)
+	if err != nil {
+		return nil, err
+	}
+	c.ServerVersion, err = s.kubectl.GetServerVersion(c.RESTConfig())
+	if err != nil {
+		return nil, err
+	}
+	return redact(c), nil
 }
 
 // Update updates a cluster
