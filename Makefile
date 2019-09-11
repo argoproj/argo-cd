@@ -149,6 +149,10 @@ builder-image:
 	docker build  -t $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) --target builder .
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) ; fi
 
+.PHONY: dep
+dep:
+	dep ensure -v
+
 .PHONY: dep-ensure
 dep-ensure:
 	dep ensure -no-vendor
