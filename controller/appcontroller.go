@@ -788,7 +788,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 
 	var localManifests []string
-	if opState := app.Status.OperationState; opState != nil {
+	if opState := app.Status.OperationState; opState != nil && opState.Operation.Sync != nil {
 		localManifests = opState.Operation.Sync.Manifests
 	}
 

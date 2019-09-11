@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"net/url"
+	"reflect"
 	"strings"
 
 	"golang.org/x/net/context"
@@ -141,8 +142,12 @@ func (db *db) WatchClusters(ctx context.Context, callback func(*ClusterEvent)) e
 					next.Type = watch.Modified
 					cluster = &localCluster
 				} else if next.Type == watch.Added {
-					localCls = cluster
-					next.Type = watch.Modified
+					if !reflect.DeepEqual(localCls.Config, cluster.Config) {
+						localCls = cluster
+						next.Type = watch.Modified
+					} else {
+						continue
+					}
 				} else {
 					localCls = cluster
 				}
