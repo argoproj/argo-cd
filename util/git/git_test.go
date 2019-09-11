@@ -174,10 +174,10 @@ func TestCustomHTTPClient(t *testing.T) {
 	}
 }
 
-func TestClientFactory(t *testing.T) {
+func TestNewClient(t *testing.T) {
 	newClient := func(fetchRefspecs ...string) error {
 		reporter := &mocks.EventReporter{}
-		_, err := NewFactory().NewClient("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false, reporter, fetchRefspecs)
+		_, err := NewClient("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false, reporter, fetchRefspecs)
 		return err
 	}
 
@@ -192,7 +192,7 @@ func TestClientFactory(t *testing.T) {
 func TestLsRemote(t *testing.T) {
 	eventReporter := &mocks.EventReporter{}
 	eventReporter.On("Event", "https://github.com/argoproj/argo-cd.git", "GitRequestTypeLsRemote").Return()
-	clnt, err := NewFactory().NewClient("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false, eventReporter, nil)
+	clnt, err := NewClient("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false, eventReporter, nil)
 	assert.NoError(t, err)
 	xpass := []string{
 		"HEAD",
@@ -227,7 +227,7 @@ func TestLsRemote(t *testing.T) {
 func TestLsRemoteWithFetchRefspec(t *testing.T) {
 	eventReporter := &mocks.EventReporter{}
 	eventReporter.On("Event", "https://github.com/argoproj/argo-cd.git", "GitRequestTypeLsRemote").Return()
-	clnt, err := NewFactory().NewClient("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false, eventReporter, []string{"+refs/pull/*/head:refs/remotes/origin/pull-requests/*"})
+	clnt, err := NewClient("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false, eventReporter, []string{"+refs/pull/*/head:refs/remotes/origin/pull-requests/*"})
 	assert.NoError(t, err)
 	if err != nil {
 		t.FailNow()
@@ -283,7 +283,7 @@ func TestLFSClient(t *testing.T) {
 		defer func() { _ = os.RemoveAll(tempDir) }()
 	}
 
-	client, err := NewFactory().NewClient("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true, &mocks.EventReporter{}, nil)
+	client, err := NewClient("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true, &mocks.EventReporter{}, nil)
 	assert.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
@@ -345,7 +345,7 @@ func TestNewFactory(t *testing.T) {
 		metrics := &mocks.EventReporter{}
 		metrics.On("Event", tt.args.url, "GitRequestTypeLsRemote").Return()
 		metrics.On("Event", tt.args.url, "GitRequestTypeFetch").Return()
-		client, err := NewFactory().NewClient(tt.args.url, dirName, NopCreds{}, tt.args.insecureIgnoreHostKey, false, metrics, nil)
+		client, err := NewClient(tt.args.url, dirName, NopCreds{}, tt.args.insecureIgnoreHostKey, false, metrics, nil)
 		assert.NoError(t, err)
 		commitSHA, err := client.LsRemote("HEAD")
 		assert.NoError(t, err)

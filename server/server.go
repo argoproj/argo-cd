@@ -754,21 +754,37 @@ func (a *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, error) {
 // getToken extracts the token from gRPC metadata or cookie headers
 func getToken(md metadata.MD) string {
 	// check the "token" metadata
-	tokens, ok := md[apiclient.MetaDataTokenKey]
-	if ok && len(tokens) > 0 {
-		return tokens[0]
+	{
+		tokens, ok := md[apiclient.MetaDataTokenKey]
+		if ok && len(tokens) > 0 {
+			return tokens[0]
+		}
 	}
+
+	var tokens []string
+
+	// looks for the HTTP header `Authorization: Bearer ...`
+	for _, t := range md["authorization"] {
+		if strings.HasPrefix(t, "Bearer ") {
+			tokens = append(tokens, strings.TrimPrefix(t, "Bearer "))
+		}
+	}
+
 	// check the HTTP cookie
-	for _, cookieToken := range md["grpcgateway-cookie"] {
+	for _, t := range md["grpcgateway-cookie"] {
 		header := http.Header{}
-		header.Add("Cookie", cookieToken)
+		header.Add("Cookie", t)
 		request := http.Request{Header: header}
 		token, err := request.Cookie(common.AuthCookieName)
 		if err == nil {
-			value, err := zjwt.JWT(token.Value)
-			if err == nil {
-				return value
-			}
+			tokens = append(tokens, token.Value)
+		}
+	}
+
+	for _, t := range tokens {
+		value, err := zjwt.JWT(t)
+		if err == nil {
+			return value
 		}
 	}
 	return ""

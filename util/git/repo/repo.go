@@ -68,7 +68,7 @@ func NewRepo(url string, creds git.Creds, insecure, enableLfs bool, fetchRefspec
 	if err != nil {
 		return nil, err
 	}
-	client, err := git.NewFactory().NewClient(url, workDir, creds, insecure, enableLfs, reporter, fetchRefspecs)
+	client, err := git.NewClient(url, workDir, creds, insecure, enableLfs, reporter, fetchRefspecs)
 	if err != nil {
 		return nil, err
 	}
