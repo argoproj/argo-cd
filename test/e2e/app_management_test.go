@@ -321,7 +321,7 @@ func TestAppWithSecrets(t *testing.T) {
 			FailOnErr(KubeClientset.CoreV1().Secrets(DeploymentNamespace()).Patch(
 				"test-secret", types.JSONPatchType, []byte(`[
 	{"op": "remove", "path": "/data/username"},
-	{"op": "remove", "path": "/data/password"}
+	{"op": "add", "path": "/stringData", "value": {"password": "foo"}}
 ]`)))
 		}).
 		When().
@@ -329,9 +329,10 @@ func TestAppWithSecrets(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
-			diffOutput := FailOnErr(RunCli("app", "diff", app.Name)).(string)
-			assert.Contains(t, diffOutput, "username: +++++++++")
-			assert.Contains(t, diffOutput, "password: +++++++++")
+			diffOutput, err := RunCli("app", "diff", app.Name)
+			assert.Error(t, err)
+			assert.Contains(t, diffOutput, "username: ++++++++")
+			assert.Contains(t, diffOutput, "password: ++++++++++++")
 
 			// local diff should ignore secrets
 			diffOutput = FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/secrets")).(string)
@@ -339,7 +340,7 @@ func TestAppWithSecrets(t *testing.T) {
 
 			// ignore missing field and make sure diff shows no difference
 			app.Spec.IgnoreDifferences = []ResourceIgnoreDifferences{{
-				Kind: kube.SecretKind, JSONPointers: []string{"/data/username"},
+				Kind: kube.SecretKind, JSONPointers: []string{"/data/username", "/data/password"},
 			}}
 			FailOnErr(client.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: app.Spec}))
 		}).
