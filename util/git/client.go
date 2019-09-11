@@ -3,6 +3,7 @@ package git
 import (
 	"crypto/tls"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -23,6 +24,7 @@ import (
 	ssh2 "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 
+	"github.com/argoproj/argo-cd/common"
 	certutil "github.com/argoproj/argo-cd/util/cert"
 	argoconfig "github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/repo/metrics"
@@ -48,12 +50,6 @@ type Client interface {
 	RevisionMetadata(revision string) (*RevisionMetadata, error)
 }
 
-// ClientFactory is a factory of Git Clients
-// Primarily used to support creation of mock git clients during unit testing
-type ClientFactory interface {
-	NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool, eventReporter metrics.Reporter) (Client, error)
-}
-
 // nativeGitClient implements Client interface using git CLI
 type nativeGitClient struct {
 	// URL of the repository
@@ -70,13 +66,21 @@ type nativeGitClient struct {
 	reporter metrics.Reporter
 }
 
-type factory struct{}
+var (
+	maxAttemptsCount = 1
+)
 
-func NewFactory() ClientFactory {
-	return &factory{}
+func init() {
+	if countStr := os.Getenv(common.EnvGitAttemptsCount); countStr != "" {
+		if cnt, err := strconv.Atoi(countStr); err != nil {
+			panic(fmt.Sprintf("Invalid value in %s env variable: %v", common.EnvGitAttemptsCount, err))
+		} else {
+			maxAttemptsCount = int(math.Max(float64(cnt), 1))
+		}
+	}
 }
 
-func (f *factory) NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool, reporter metrics.Reporter) (Client, error) {
+func NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool, reporter metrics.Reporter) (Client, error) {
 	client := nativeGitClient{
 		repoURL:   rawRepoURL,
 		root:      path,
@@ -309,7 +313,16 @@ func (m *nativeGitClient) Checkout(revision string) error {
 // Otherwise, it returns an error indicating that the revision could not be resolved. This method
 // runs with in-memory storage and is safe to run concurrently, or to be run without a git
 // repository locally cloned.
-func (m *nativeGitClient) LsRemote(revision string) (string, error) {
+func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
+	for attempt := 0; attempt < maxAttemptsCount; attempt++ {
+		if res, err = m.lsRemote(revision); err == nil {
+			return
+		}
+	}
+	return
+}
+
+func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	if IsCommitSHA(revision) {
 		return revision, nil
 	}
