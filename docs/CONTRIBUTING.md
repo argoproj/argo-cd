@@ -45,7 +45,7 @@ cd ~/go/src/github.com/argoproj/argo-cd
 Ensure dependencies are up to date first:
 
 ```shell
-make dep
+dep ensure
 ```
 
 Build `cli`, `image`, and `argocd-util` as default targets by running make:
@@ -89,7 +89,13 @@ kubectl -n argocd scale deployment.extensions/argocd-server --replicas 0
 kubectl -n argocd scale deployment.extensions/argocd-redis --replicas 0
 ```
 
-Note: you'll need to use the https://localhost:6443 cluster now.
+Download Yarn dependencies and Compile:
+
+```bash
+~/go/src/github.com/argoproj/argo-cd/ui 
+yarn install
+yarn build
+```
 
 Then start the services:
 
@@ -101,12 +107,10 @@ make start
 You can now execute `argocd` command against your locally running ArgoCD by appending `--server localhost:8080 --plaintext --insecure`, e.g.:
 
 ```bash
-argocd app set guestbook --path guestbook --repo https://github.com/argoproj/argocd-example-apps.git --dest-server https://localhost:6443  --dest-namespace default --server localhost:8080 --plaintext --insecure
+argocd app create guestbook --path guestbook --repo https://github.com/argoproj/argocd-example-apps.git --dest-server https://kubernetes.default.svc  --dest-namespace default --server localhost:8080 --plaintext --insecure
 ```
 
 You can open the UI: http://localhost:8080
-
-Note: you'll need to use the https://kubernetes.default.svc cluster now.
 
 ## Running Local Containers
 
