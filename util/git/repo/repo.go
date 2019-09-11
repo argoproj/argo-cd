@@ -41,6 +41,10 @@ func (g gitRepo) ListApps(revision string) (map[string]string, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
+	err = g.client.Checkout(resolvedRevision)
+	if err != nil {
+		return nil, "", err
+	}
 	apps, err := g.disco(g.client.Root())
 	return apps, resolvedRevision, err
 }
