@@ -187,11 +187,11 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                         {(formApi) => (
                             <form onSubmit={formApi.submitForm} role='form' className='repos-list width-control'>
                                 <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Type' field='type' component={Text}/>
-                                    Either empty, "git" or "helm".
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Type' field='type' component={FormSelect} componentProps={{options: ['git', 'helm']}}/>
                                 </div>
                                 <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Name' field='name' component={Text}/>
+                                    <FormField formApi={formApi} label='Name (optional for Git)' field='name' component={Text}/>
                                 </div>
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Repository URL' field='url' component={Text}/>
@@ -203,7 +203,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                     <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField}/>
                                 </div>
                                 <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Enable LFS support' field='enableLfs' component={CheckboxField}/>
+                                    <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField}/>
                                 </div>
                             </form>
                         )}
