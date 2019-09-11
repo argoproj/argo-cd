@@ -7,6 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/rest"
 
+	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
@@ -58,4 +59,7 @@ func (k *MockKubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group,
 
 func (k *MockKubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
 	return "", nil
+}
+
+func (k *MockKubectlCmd) SetOnKubectlRun(onKubectlRun func(command string) (util.Closer, error)) {
 }
