@@ -1048,6 +1048,13 @@ func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) 
 							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConnectionState"),
 						},
 					},
+					"serverVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The server version",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"server", "name", "config"},
 			},

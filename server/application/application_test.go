@@ -31,7 +31,7 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/assets"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/kube/kubetest"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -137,7 +137,7 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 		fakeAppsClientset,
 		mockRepoClient,
 		nil,
-		kube.KubectlCmd{},
+		&kubetest.MockKubectlCmd{},
 		db,
 		enforcer,
 		util.NewKeyLock(),
@@ -181,7 +181,9 @@ func TestCreateApp(t *testing.T) {
 		Application: *testApp,
 	}
 	app, err := appServer.Create(context.Background(), &createReq)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
+	assert.NotNil(t, app)
+	assert.NotNil(t, app.Spec)
 	assert.Equal(t, app.Spec.Project, "default")
 }
 

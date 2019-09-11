@@ -23,6 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/argoproj/argo-cd/util/stats"
 )
@@ -76,6 +77,7 @@ func newCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
+			kubectl := kube.KubectlCmd{}
 			appController, err := controller.NewApplicationController(
 				namespace,
 				settingsMgr,
@@ -83,6 +85,7 @@ func newCommand() *cobra.Command {
 				appClient,
 				repoClientset,
 				cache,
+				kubectl,
 				resyncDuration,
 				time.Duration(selfHealTimeoutSeconds)*time.Second,
 				metricsPort,

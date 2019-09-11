@@ -134,11 +134,12 @@ func (c *Cmd) inspectValues(values string) (string, error) {
 }
 
 type templateOpts struct {
-	name      string
-	namespace string
-	set       map[string]string
-	setString map[string]string
-	values    []string
+	name        string
+	namespace   string
+	kubeVersion string
+	set         map[string]string
+	setString   map[string]string
+	values      []string
 }
 
 func (c *Cmd) template(chart string, opts templateOpts) (string, error) {
@@ -146,6 +147,9 @@ func (c *Cmd) template(chart string, opts templateOpts) (string, error) {
 
 	if opts.namespace != "" {
 		args = append(args, "--namespace", opts.namespace)
+	}
+	if opts.kubeVersion != "" {
+		args = append(args, "--kube-version", opts.kubeVersion)
 	}
 	for key, val := range opts.set {
 		args = append(args, "--set", key+"="+val)

@@ -104,18 +104,18 @@ func NewApplicationController(
 	applicationClientset appclientset.Interface,
 	repoClientset apiclient.Clientset,
 	argoCache *argocache.Cache,
+	kubectl kube.Kubectl,
 	appResyncPeriod time.Duration,
 	selfHealTimeout time.Duration,
 	metricsPort int,
 	kubectlParallelismLimit int64,
 ) (*ApplicationController, error) {
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
-	kubectlCmd := kube.KubectlCmd{}
 	ctrl := ApplicationController{
 		cache:                     argoCache,
 		namespace:                 namespace,
 		kubeClientset:             kubeClientset,
-		kubectl:                   kubectlCmd,
+		kubectl:                   kubectl,
 		applicationClientset:      applicationClientset,
 		repoClientset:             repoClientset,
 		appRefreshQueue:           workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
@@ -131,7 +131,7 @@ func NewApplicationController(
 	if kubectlParallelismLimit > 0 {
 		ctrl.kubectlSemaphore = semaphore.NewWeighted(kubectlParallelismLimit)
 	}
-	kubectlCmd.OnKubectlRun = ctrl.onKubectlRun
+	kubectl.SetOnKubectlRun(ctrl.onKubectlRun)
 	appInformer, appLister, err := ctrl.newApplicationInformerAndLister()
 	if err != nil {
 		return nil, err
@@ -142,9 +142,8 @@ func NewApplicationController(
 		_, err := kubeClientset.Discovery().ServerVersion()
 		return err
 	})
-
-	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectlCmd, ctrl.metricsServer, ctrl.handleObjectUpdated)
-	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectlCmd, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer)
+	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectl, ctrl.metricsServer, ctrl.handleObjectUpdated)
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
 	ctrl.projInformer = projInformer

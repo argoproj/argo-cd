@@ -870,6 +870,8 @@ type Cluster struct {
 	Config ClusterConfig `json:"config" protobuf:"bytes,3,opt,name=config"`
 	// ConnectionState contains information about cluster connection state
 	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,4,opt,name=connectionState"`
+	// The server version
+	ServerVersion string `json:"serverVersion,omitempty" protobuf:"bytes,5,opt,name=serverVersion"`
 }
 
 // ClusterList is a collection of Clusters.

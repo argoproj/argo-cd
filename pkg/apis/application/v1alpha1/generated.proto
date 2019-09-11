@@ -283,6 +283,9 @@ message Cluster {
 
   // ConnectionState contains information about cluster connection state
   optional ConnectionState connectionState = 4;
+
+  // The server version
+  optional string serverVersion = 5;
 }
 
 // ClusterConfig is the configuration attributes. This structure is subset of the go-client

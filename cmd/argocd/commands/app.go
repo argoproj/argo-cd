@@ -34,6 +34,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
+	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
 	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	repoapiclient "github.com/argoproj/argo-cd/reposerver/apiclient"
@@ -712,8 +713,8 @@ func liveObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstructu
 	return objs, nil
 }
 
-func getLocalObjects(app *argoappv1.Application, local string, appLabelKey string) []*unstructured.Unstructured {
-	manifestStrings := getLocalObjectsString(app, local, appLabelKey, nil)
+func getLocalObjects(app *argoappv1.Application, local, appLabelKey, kubeVersion string) []*unstructured.Unstructured {
+	manifestStrings := getLocalObjectsString(app, local, appLabelKey, kubeVersion, nil)
 	objs := make([]*unstructured.Unstructured, len(manifestStrings))
 	for i := range manifestStrings {
 		obj := unstructured.Unstructured{}
@@ -724,13 +725,14 @@ func getLocalObjects(app *argoappv1.Application, local string, appLabelKey strin
 	return objs
 }
 
-func getLocalObjectsString(app *argoappv1.Application, local string, appLabelKey string, kustomizeOptions *argoappv1.KustomizeOptions) []string {
+func getLocalObjectsString(app *argoappv1.Application, local, appLabelKey, kubeVersion string, kustomizeOptions *argoappv1.KustomizeOptions) []string {
 	res, err := repository.GenerateManifests(local, &repoapiclient.ManifestRequest{
 		ApplicationSource: &app.Spec.Source,
 		AppLabelKey:       appLabelKey,
 		AppLabelValue:     app.Name,
 		Namespace:         app.Spec.Destination.Namespace,
 		KustomizeOptions:  kustomizeOptions,
+		KubeVersion:       kubeVersion,
 	})
 	errors.CheckError(err)
 
@@ -807,7 +809,12 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			errors.CheckError(err)
 
 			if local != "" {
-				localObjs := groupLocalObjs(getLocalObjects(app, local, argoSettings.AppLabelKey), liveObjs, app.Spec.Destination.Namespace)
+				conn, clusterIf := clientset.NewClusterClientOrDie()
+				defer util.Close(conn)
+				cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: app.Spec.Destination.Server})
+				errors.CheckError(err)
+				util.Close(conn)
+				localObjs := groupLocalObjs(getLocalObjects(app, local, argoSettings.AppLabelKey, cluster.ServerVersion), liveObjs, app.Spec.Destination.Namespace)
 				for _, res := range resources.Items {
 					var live = &unstructured.Unstructured{}
 					err := json.Unmarshal([]byte(res.LiveState), &live)
@@ -1258,8 +1265,12 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 				util.Close(conn)
 
-				localObjsStrings = getLocalObjectsString(app, local, argoSettings.AppLabelKey, argoSettings.KustomizeOptions)
-
+				conn, clusterIf := acdClient.NewClusterClientOrDie()
+				defer util.Close(conn)
+				cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: app.Spec.Destination.Server})
+				errors.CheckError(err)
+				util.Close(conn)
+				localObjsStrings = getLocalObjectsString(app, local, cluster.ServerVersion, argoSettings.AppLabelKey, argoSettings.KustomizeOptions)
 			}
 
 			syncReq := applicationpkg.ApplicationSyncRequest{

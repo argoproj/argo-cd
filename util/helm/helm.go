@@ -21,7 +21,7 @@ import (
 // Helm provides wrapper functionality around the `helm` command.
 type Helm interface {
 	// Template returns a list of unstructured objects from a `helm template` command
-	Template(appName string, namespace string, opts *argoappv1.ApplicationSourceHelm) ([]*unstructured.Unstructured, error)
+	Template(appName, namespace, kubeVersion string, opts *argoappv1.ApplicationSourceHelm) ([]*unstructured.Unstructured, error)
 	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
 	GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
@@ -51,12 +51,13 @@ func IsMissingDependencyErr(err error) bool {
 	return strings.Contains(err.Error(), "found in requirements.yaml, but missing in charts")
 }
 
-func (h *helm) Template(appName string, namespace string, opts *argoappv1.ApplicationSourceHelm) ([]*unstructured.Unstructured, error) {
+func (h *helm) Template(appName, namespace, kubeVersion string, opts *argoappv1.ApplicationSourceHelm) ([]*unstructured.Unstructured, error) {
 	templateOpts := templateOpts{
-		name:      appName,
-		namespace: namespace,
-		set:       map[string]string{},
-		setString: map[string]string{},
+		name:        appName,
+		namespace:   namespace,
+		kubeVersion: kubeVersion,
+		set:         map[string]string{},
+		setString:   map[string]string{},
 	}
 	if opts != nil {
 		if opts.ReleaseName != "" {

@@ -33,6 +33,7 @@ async function getCluster(clusters: Promise<models.Cluster[]>, url: string): Pro
             connectionState: null,
             name: url,
             server: url,
+            serverVersion: null,
         };
     }
     return cluster;

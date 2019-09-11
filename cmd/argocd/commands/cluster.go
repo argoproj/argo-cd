@@ -232,9 +232,9 @@ func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 // Print table of cluster information
 func printClusterTable(clusters []argoappv1.Cluster) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "SERVER\tNAME\tSTATUS\tMESSAGE\n")
+	_, _ = fmt.Fprintf(w, "SERVER\tNAME\tVERSION\tSTATUS\tMESSAGE\n")
 	for _, c := range clusters {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", c.Server, c.Name, c.ConnectionState.Status, c.ConnectionState.Message)
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", c.Server, c.Name, c.ServerVersion, c.ConnectionState.Status, c.ConnectionState.Message)
 	}
 	_ = w.Flush()
 }

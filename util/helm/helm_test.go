@@ -41,7 +41,7 @@ func TestHelmTemplateParams(t *testing.T) {
 			},
 		},
 	}
-	objs, err := h.Template("test", "", &opts)
+	objs, err := h.Template("test", "", "", &opts)
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(objs))
 
@@ -63,7 +63,7 @@ func TestHelmTemplateValues(t *testing.T) {
 	opts := argoappv1.ApplicationSourceHelm{
 		ValueFiles: []string{"values-production.yaml"},
 	}
-	objs, err := h.Template("test", "", &opts)
+	objs, err := h.Template("test", "", "", &opts)
 	assert.Nil(t, err)
 	assert.Equal(t, 8, len(objs))
 
@@ -83,7 +83,7 @@ func TestHelmTemplateValuesURL(t *testing.T) {
 	opts := argoappv1.ApplicationSourceHelm{
 		ValueFiles: []string{"https://raw.githubusercontent.com/argoproj/argo-cd/master/util/helm/testdata/redis/values-production.yaml"},
 	}
-	objs, err := h.Template("test", "", &opts)
+	objs, err := h.Template("test", "", "", &opts)
 	assert.Nil(t, err)
 	assert.Equal(t, 8, len(objs))
 	params, err := h.GetParameters(opts.ValueFiles)
@@ -123,11 +123,11 @@ func TestHelmDependencyBuild(t *testing.T) {
 	assert.NoError(t, err)
 	err = h.Init()
 	assert.NoError(t, err)
-	_, err = h.Template("wordpress", "", nil)
+	_, err = h.Template("wordpress", "", "", nil)
 	assert.Error(t, err)
 	err = h.DependencyBuild()
 	assert.NoError(t, err)
-	_, err = h.Template("wordpress", "", nil)
+	_, err = h.Template("wordpress", "", "", nil)
 	assert.NoError(t, err)
 }
 
@@ -137,7 +137,7 @@ func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
 	opts := argoappv1.ApplicationSourceHelm{
 		ReleaseName: "my-release",
 	}
-	objs, err := h.Template("test", "", &opts)
+	objs, err := h.Template("test", "", "", &opts)
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(objs))
 
@@ -155,7 +155,7 @@ func TestHelmTemplateReleaseName(t *testing.T) {
 	h, err := NewHelmApp("./testdata/redis", argoappv1.Repositories{})
 	assert.NoError(t, err)
 	opts := argoappv1.ApplicationSourceHelm{}
-	objs, err := h.Template("test", "", &opts)
+	objs, err := h.Template("test", "", "", &opts)
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(objs))
 
@@ -197,7 +197,7 @@ func TestHelmValues(t *testing.T) {
   slaveCount: 2
 `,
 	}
-	objs, err := h.Template("test", "", &opts)
+	objs, err := h.Template("test", "", "", &opts)
 	assert.NoError(t, err)
 	for _, obj := range objs {
 		if obj.GetKind() == "Deployment" && obj.GetName() == "test-redis-slave" {

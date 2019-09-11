@@ -7,6 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/rest"
 
+	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
@@ -54,4 +55,11 @@ func (k *MockKubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Un
 // ConvertToVersion converts an unstructured object into the specified group/version
 func (k *MockKubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error) {
 	return obj, nil
+}
+
+func (k *MockKubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
+	return "", nil
+}
+
+func (k *MockKubectlCmd) SetOnKubectlRun(onKubectlRun func(command string) (util.Closer, error)) {
 }
