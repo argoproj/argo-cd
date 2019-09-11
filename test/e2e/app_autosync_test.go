@@ -57,12 +57,15 @@ func TestAutoSyncSelfHealEnabled(t *testing.T) {
 			errors.FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(
 				"guestbook-ui", types.MergePatchType, []byte(`{"spec": {"revisionHistoryLimit": 0}}`)))
 		}).
+		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		When().
 		// app should be attempted to auto-synced once and marked with error after failed attempt detected
 		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": "badValue"}]`).
+		// Trigger refresh twice to make sure controller notices previously failed sync attempt before expectation timeout expires
+		Refresh(RefreshTypeNormal).
 		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
@@ -71,9 +74,10 @@ func TestAutoSyncSelfHealEnabled(t *testing.T) {
 		When().
 		// SyncError condition should be removed after successful sync
 		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 1}]`).
-		// Trigger refresh twice to make sure controller notices previously failed sync attempt before expectation timeout expires
+		// Trigger refresh twice to make sure controller notices successful attempt and removes condition
 		Refresh(RefreshTypeNormal).
-		Refresh(RefreshTypeNormal).Then().
+		Refresh(RefreshTypeNormal).
+		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
