@@ -3,7 +3,6 @@ package e2e
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"os"
 	"path"
 	"regexp"
@@ -58,53 +57,6 @@ func TestAppCreation(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Contains(t, output, Name())
 		})
-}
-
-// demonstrate that we cannot use a standard sync when an immutable field is changed, we must use "force"
-func TestImmutableChange(t *testing.T) {
-	text := FailOnErr(Run(".", "kubectl", "get", "service", "-n", "kube-system", "kube-dns", "-o", "jsonpath={.spec.clusterIP}")).(string)
-	parts := strings.Split(text, ".")
-	n := rand.Intn(254)
-	ip1 := fmt.Sprintf("%s.%s.%s.%d", parts[0], parts[1], parts[2], n)
-	ip2 := fmt.Sprintf("%s.%s.%s.%d", parts[0], parts[1], parts[2], n+1)
-	Given(t).
-		Path("service").
-		When().
-		Create().
-		PatchFile("service.yaml", fmt.Sprintf(`[{"op": "add", "path": "/spec/clusterIP", "value": "%s"}]`, ip1)).
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(HealthStatusHealthy)).
-		When().
-		PatchFile("service.yaml", fmt.Sprintf(`[{"op": "add", "path": "/spec/clusterIP", "value": "%s"}]`, ip2)).
-		IgnoreErrors().
-		Sync().
-		DoNotIgnoreErrors().
-		Then().
-		Expect(OperationPhaseIs(OperationFailed)).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(ResourceResultNumbering(1)).
-		Expect(ResourceResultIs(ResourceResult{
-			Kind:      "Service",
-			Version:   "v1",
-			Namespace: DeploymentNamespace(),
-			Name:      "my-service",
-			SyncPhase: "Sync",
-			Status:    "SyncFailed",
-			HookPhase: "Failed",
-			Message:   fmt.Sprintf(`kubectl failed exit status 1: The Service "my-service" is invalid: spec.clusterIP: Invalid value: "%s": field is immutable`, ip2),
-		})).
-		// now we can do this will a force
-		Given().
-		Force().
-		When().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(HealthStatusHealthy))
 }
 
 func TestInvalidAppProject(t *testing.T) {
@@ -779,42 +731,4 @@ func TestExcludedResource(t *testing.T) {
 		Sync().
 		Then().
 		Expect(Condition(ApplicationConditionExcludedResourceWarning, "Resource apps/Deployment guestbook-ui is excluded in the settings"))
-}
-
-func TestOrphanedResource(t *testing.T) {
-	Given(t).
-		ProjectSpec(AppProjectSpec{
-			SourceRepos:       []string{"*"},
-			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true)},
-		}).
-		Path(guestbookPath).
-		When().
-		Create().
-		Sync().
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(NoConditions()).
-		When().
-		And(func() {
-			FailOnErr(KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Create(&v1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "orphaned-configmap",
-				},
-			}))
-		}).
-		Refresh(RefreshTypeNormal).
-		Then().
-		Expect(Condition(ApplicationConditionOrphanedResourceWarning, "Application has 1 orphaned resources")).
-		Given().
-		ProjectSpec(AppProjectSpec{
-			SourceRepos:       []string{"*"},
-			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: nil,
-		}).
-		When().
-		Refresh(RefreshTypeNormal).
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(NoConditions())
 }
