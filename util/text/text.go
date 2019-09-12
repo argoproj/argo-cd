@@ -11,5 +11,5 @@ func Trunc(message string, n int) string {
 }
 
 func SemVer(s string) string {
-	return strings.ReplaceAll(s, "+", "", )
+	return strings.ReplaceAll(s, "+", "")
 }
