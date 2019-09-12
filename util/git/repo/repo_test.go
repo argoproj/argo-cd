@@ -25,39 +25,39 @@ func fixtures() (*GitRepo, git.Client, map[string]string) {
 	return r, client, apps
 }
 
-func Test_gitRepo_LockKey(t *testing.T) {
+func Test_GitRepo_LockKey(t *testing.T) {
 	r, c, _ := fixtures()
 	assert.Equal(t, c.Root(), r.LockKey())
 }
 
-func Test_gitRepo_GetApp(t *testing.T) {
+func Test_GitRepo_GetApp(t *testing.T) {
 	r, _, _ := fixtures()
 	_, err := r.GetApp("/", "")
 	assert.EqualError(t, err, "/: app path is absolute")
 }
 
-func Test_gitRepo_ResolveRevision(t *testing.T) {
+func Test_GitRepo_ResolveRevision(t *testing.T) {
 	r, _, _ := fixtures()
 	resolvedRevision, err := r.ResolveRevision("")
 	assert.NoError(t, err)
 	assert.Equal(t, "1.0.0", resolvedRevision)
 }
 
-func Test_gitRepo_ListApps(t *testing.T) {
+func Test_GitRepo_ListApps(t *testing.T) {
 	r, _, apps := fixtures()
 	listedApps, err := r.ListApps("")
 	assert.NoError(t, err)
 	assert.Equal(t, apps, listedApps)
 }
 
-func Test_gitRepo_ResolveAppRevision(t *testing.T) {
+func Test_GitRepo_ResolveAppRevision(t *testing.T) {
 	r, _, _ := fixtures()
 	resolvedRevision, err := r.ResolveAppRevision(".", "")
 	assert.NoError(t, err)
 	assert.Equal(t, "1.0.0", resolvedRevision)
 }
 
-func Test_gitRepo_RevisionMetadata(t *testing.T) {
+func Test_GitRepo_RevisionMetadata(t *testing.T) {
 	r, _, _ := fixtures()
 	m, err := r.RevisionMetadata(".", "")
 	assert.NoError(t, err)
