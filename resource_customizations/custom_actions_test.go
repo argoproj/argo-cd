@@ -7,10 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/bouk/monkey"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
-	"github.com/yudai/gojsondiff/formatter"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/errors"
@@ -75,20 +76,28 @@ func TestLuaResourceActionsScript(t *testing.T) {
 			testName := fmt.Sprintf("actions/%s/%s", test.Action, test.InputPath)
 			t.Run(testName, func(t *testing.T) {
 				vm := lua.VM{
-					UseOpenLibs: true,
+					// Uncomment the following line if you need to use lua libraries debugging
+					// purposes. Otherwise, leave this false to ensure tests reflect the same
+					// privileges that API server has.
+					//UseOpenLibs: true,
 				}
 				obj := getObj(filepath.Join(dir, test.InputPath))
 				action, err := vm.GetResourceAction(obj, test.Action)
 				errors.CheckError(err)
+
+				// freeze time so that lua test has predictable time output (will return 0001-01-01T00:00:00Z)
+				patch := monkey.Patch(time.Now, func() time.Time { return time.Time{} })
 				result, err := vm.ExecuteResourceAction(obj, action.ActionLua)
+				patch.Unpatch()
+
 				errors.CheckError(err)
 				expectedObj := getObj(filepath.Join(dir, test.ExpectedOutputPath))
-				// Ideally, we would use a assert.Equal to detect the difference, but the Lua VM returns a object with float64 instead of the originial int32.  As a result, the assert.Equal is never true despite that the change has been applied.
+				// Ideally, we would use a assert.Equal to detect the difference, but the Lua VM returns a object with float64 instead of the original int32.  As a result, the assert.Equal is never true despite that the change has been applied.
 				diffResult := diff.Diff(expectedObj, result, testNormalizer{})
 				if diffResult.Modified {
-					output, err := diffResult.ASCIIFormat(expectedObj, formatter.AsciiFormatterConfig{})
+					t.Error("Output does not match input:")
+					err = diff.PrintDiff(test.Action, expectedObj, result)
 					errors.CheckError(err)
-					assert.Fail(t, "Output does not match input:", output)
 				}
 			})
 		}
