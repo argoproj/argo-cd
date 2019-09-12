@@ -36,17 +36,17 @@ func (g gitRepo) GetApp(app, resolvedRevision string) (string, error) {
 	return appPath, nil
 }
 
-func (g gitRepo) ListApps(revision string) (map[string]string, string, error) {
-	resolvedRevision, err := g.client.LsRemote(revision)
+func (g gitRepo) ResolveRevision(revision string) (resolvedRevision string, err error) {
+	return g.client.LsRemote(revision)
+}
+
+func (g gitRepo) ListApps(resolvedRevision string) (map[string]string, error) {
+	err := g.client.Checkout(resolvedRevision)
 	if err != nil {
-		return nil, "", err
-	}
-	err = g.client.Checkout(resolvedRevision)
-	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	apps, err := g.disco(g.client.Root())
-	return apps, resolvedRevision, err
+	return apps, err
 }
 
 func (g gitRepo) ResolveAppRevision(path, revision string) (string, error) {

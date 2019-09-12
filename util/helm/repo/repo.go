@@ -116,16 +116,20 @@ func (c helmRepo) getIndex() (*index, error) {
 	return index, err
 }
 
-func (c helmRepo) ListApps(revision string) (map[string]string, string, error) {
+func (c helmRepo) ResolveRevision(revision string) (resolvedRevision string, err error) {
+	return revision, err
+}
+
+func (c helmRepo) ListApps(_ string) (map[string]string, error) {
 	index, err := c.getIndex()
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	apps := make(map[string]string, len(index.Entries))
 	for chartName := range index.Entries {
 		apps[chartName] = "Helm"
 	}
-	return apps, revision, nil
+	return apps, nil
 }
 
 func (c helmRepo) repoAdd() (string, error) {

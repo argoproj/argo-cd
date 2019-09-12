@@ -36,15 +36,21 @@ func Test_gitRepo_GetApp(t *testing.T) {
 	assert.EqualError(t, err, "/: app path is absolute")
 }
 
-func Test_gitRepo_ListApps(t *testing.T) {
-	r, _, apps := fixtures()
-	listedApps, resolvedRevision, err := r.ListApps("")
+func Test_gitRepo_ResolveRevision(t *testing.T) {
+	r, _, _ := fixtures()
+	resolvedRevision, err := r.ResolveRevision("")
 	assert.NoError(t, err)
 	assert.Equal(t, "1.0.0", resolvedRevision)
+}
+
+func Test_gitRepo_ListApps(t *testing.T) {
+	r, _, apps := fixtures()
+	listedApps, err := r.ListApps("")
+	assert.NoError(t, err)
 	assert.Equal(t, apps, listedApps)
 }
 
-func Test_gitRepo_ResolveRevision(t *testing.T) {
+func Test_gitRepo_ResolveAppRevision(t *testing.T) {
 	r, _, _ := fixtures()
 	resolvedRevision, err := r.ResolveAppRevision(".", "")
 	assert.NoError(t, err)

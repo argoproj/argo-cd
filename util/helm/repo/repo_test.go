@@ -14,9 +14,15 @@ func TestRepo(t *testing.T) {
 	const latestWordpressVersion = "5.8.0"
 
 	t.Run("List", func(t *testing.T) {
-		apps, _, err := repo.ListApps("")
+		apps, err := repo.ListApps("")
 		assert.NoError(t, err)
 		assert.Contains(t, apps, "wordpress")
+	})
+
+	t.Run("ResolveRevision", func(t *testing.T) {
+		resolvedRevision, err := repo.ResolveRevision("")
+		assert.NoError(t, err)
+		assert.Empty(t, resolvedRevision)
 	})
 
 	t.Run("ResolveAppRevision", func(t *testing.T) {
