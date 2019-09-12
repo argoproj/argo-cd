@@ -197,7 +197,7 @@ func TestHelmValues(t *testing.T) {
   slaveCount: 2
 `,
 	}
-	objs, err := h.Template("test", "", "", &opts)
+	objs, err := h.Template("test", "", "1.4+", &opts)
 	assert.NoError(t, err)
 	for _, obj := range objs {
 		if obj.GetKind() == "Deployment" && obj.GetName() == "test-redis-slave" {

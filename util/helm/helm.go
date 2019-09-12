@@ -16,6 +16,7 @@ import (
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/text"
 )
 
 // Helm provides wrapper functionality around the `helm` command.
@@ -55,7 +56,7 @@ func (h *helm) Template(appName, namespace, kubeVersion string, opts *argoappv1.
 	templateOpts := templateOpts{
 		name:        appName,
 		namespace:   namespace,
-		kubeVersion: kubeVersion,
+		kubeVersion: text.SemVer(kubeVersion),
 		set:         map[string]string{},
 		setString:   map[string]string{},
 	}
