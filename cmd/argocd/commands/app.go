@@ -457,6 +457,12 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 		}
 		app.Spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
 	}
+	if flags.Changed("self-heal") {
+		if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
+			log.Fatal("Cannot set --self-helf: application not configured with automatic sync")
+		}
+		app.Spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
+	}
 
 	return visited
 }
@@ -580,6 +586,7 @@ type appOptions struct {
 	project                string
 	syncPolicy             string
 	autoPrune              bool
+	selfHeal               bool
 	namePrefix             string
 	directoryRecurse       bool
 	configManagementPlugin string
@@ -603,6 +610,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringVar(&opts.project, "project", "", "Application project name")
 	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: automated, none)")
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
+	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing when sync is automated")
 	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
 	command.Flags().BoolVar(&opts.directoryRecurse, "directory-recurse", false, "Recurse directory")
 	command.Flags().StringVar(&opts.configManagementPlugin, "config-management-plugin", "", "Config management plugin name")
