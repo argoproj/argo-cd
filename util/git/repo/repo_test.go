@@ -11,7 +11,7 @@ import (
 	"github.com/argoproj/argo-cd/util/repo"
 )
 
-func fixtures() (*gitRepo, git.Client, map[string]string) {
+func fixtures() (*GitRepo, git.Client, map[string]string) {
 	client := &mocks.Client{}
 	client.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 	client.On("Root").Return("./testdata")
@@ -19,7 +19,7 @@ func fixtures() (*gitRepo, git.Client, map[string]string) {
 	m := &git.RevisionMetadata{}
 	client.On("RevisionMetadata", mock.Anything).Return(m, nil)
 	apps := make(map[string]string)
-	r := &gitRepo{client, func(root string) (map[string]string, error) {
+	r := &GitRepo{client, func(root string) (map[string]string, error) {
 		return apps, nil
 	}}
 	return r, client, apps

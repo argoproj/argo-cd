@@ -32,6 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/creds"
 	"github.com/argoproj/argo-cd/util/git"
+	gitrepo "github.com/argoproj/argo-cd/util/git/repo"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
@@ -81,9 +82,13 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	if err != nil {
 		return nil, err
 	}
-	resolvedRevision, err := r.ResolveRevision(q.Revision)
-	if err != nil {
-		return nil, err
+	resolvedRevision := ""
+	switch rImpl := r.(type) {
+		case gitrepo.GitRepo:
+			resolvedRevision, err = rImpl.ResolveRevision(q.Revision)
+			if err != nil {
+				return nil, err
+			}
 	}
 	if apps, err := s.cache.ListApps(q.Repo.Repo, resolvedRevision); err == nil {
 		log.Infof("cache hit: %s/%s", q.Repo.Repo, q.Revision)

@@ -116,10 +116,6 @@ func (c helmRepo) getIndex() (*index, error) {
 	return index, err
 }
 
-func (c helmRepo) ResolveRevision(revision string) (resolvedRevision string, err error) {
-	return revision, err
-}
-
 func (c helmRepo) ListApps(_ string) (map[string]string, error) {
 	index, err := c.getIndex()
 	if err != nil {
