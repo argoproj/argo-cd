@@ -49,7 +49,7 @@ func (g gitRepo) ListApps(revision string) (map[string]string, string, error) {
 	return apps, resolvedRevision, err
 }
 
-func (g gitRepo) ResolveRevision(path, revision string) (string, error) {
+func (g gitRepo) ResolveAppRevision(path, revision string) (string, error) {
 	return g.client.LsRemote(revision)
 }
 

@@ -92,8 +92,8 @@ func (_m *Repo) LockKey() string {
 	return r0
 }
 
-// ResolveRevision provides a mock function with given fields: app, revision
-func (_m *Repo) ResolveRevision(app string, revision string) (string, error) {
+// ResolveAppRevision provides a mock function with given fields: app, revision
+func (_m *Repo) ResolveAppRevision(app string, revision string) (string, error) {
 	ret := _m.Called(app, revision)
 
 	var r0 string

@@ -19,15 +19,15 @@ func TestRepo(t *testing.T) {
 		assert.Contains(t, apps, "wordpress")
 	})
 
-	t.Run("ResolveRevision", func(t *testing.T) {
+	t.Run("ResolveAppRevision", func(t *testing.T) {
 		unresolvedRevision := ""
-		resolvedRevision, err := repo.ResolveRevision("wordpress", unresolvedRevision)
+		resolvedRevision, err := repo.ResolveAppRevision("wordpress", unresolvedRevision)
 		assert.NoError(t, err)
 		assert.NotEqual(t, unresolvedRevision, resolvedRevision)
 	})
 
-	t.Run("ResolveRevision/Latest", func(t *testing.T) {
-		resolvedRevision, err := repo.ResolveRevision("wordpress", latestWordpressVersion)
+	t.Run("ResolveAppRevision/Latest", func(t *testing.T) {
+		resolvedRevision, err := repo.ResolveAppRevision("wordpress", latestWordpressVersion)
 		assert.NoError(t, err)
 		assert.Equal(t, latestWordpressVersion, resolvedRevision)
 	})

@@ -998,7 +998,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	if err != nil {
 		return "", "", err
 	}
-	commitSHA, err := client.ResolveRevision(app.Spec.Source.Path, ambiguousRevision)
+	commitSHA, err := client.ResolveAppRevision(app.Spec.Source.Path, ambiguousRevision)
 	if err != nil {
 		return "", "", err
 	}

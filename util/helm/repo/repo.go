@@ -41,7 +41,7 @@ func (c helmRepo) LockKey() string {
 	return c.cmd.WorkDir
 }
 
-func (c helmRepo) ResolveRevision(app, revision string) (string, error) {
+func (c helmRepo) ResolveAppRevision(app, revision string) (string, error) {
 	if revision != "" {
 		return revision, nil
 	}

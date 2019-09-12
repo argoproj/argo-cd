@@ -46,7 +46,7 @@ func Test_gitRepo_ListApps(t *testing.T) {
 
 func Test_gitRepo_ResolveRevision(t *testing.T) {
 	r, _, _ := fixtures()
-	resolvedRevision, err := r.ResolveRevision(".", "")
+	resolvedRevision, err := r.ResolveAppRevision(".", "")
 	assert.NoError(t, err)
 	assert.Equal(t, "1.0.0", resolvedRevision)
 }

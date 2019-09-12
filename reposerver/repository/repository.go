@@ -109,7 +109,7 @@ func (s *Service) GenerateManifest(c context.Context, q *apiclient.ManifestReque
 	if err != nil {
 		return nil, err
 	}
-	resolvedRevision, err := r.ResolveRevision(q.ApplicationSource.Path, q.Revision)
+	resolvedRevision, err := r.ResolveAppRevision(q.ApplicationSource.Path, q.Revision)
 	getCached := func() *apiclient.ManifestResponse {
 		var res apiclient.ManifestResponse
 		if !q.NoCache {
@@ -486,7 +486,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 	if err != nil {
 		return nil, err
 	}
-	resolvedRevision, err := r.ResolveRevision(q.App, q.Revision)
+	resolvedRevision, err := r.ResolveAppRevision(q.App, q.Revision)
 	if err != nil {
 		return nil, err
 	}
