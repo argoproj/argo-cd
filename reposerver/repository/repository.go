@@ -84,11 +84,11 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	}
 	resolvedRevision := ""
 	switch rImpl := r.(type) {
-		case gitrepo.GitRepo:
-			resolvedRevision, err = rImpl.ResolveRevision(q.Revision)
-			if err != nil {
-				return nil, err
-			}
+	case gitrepo.GitRepo:
+		resolvedRevision, err = rImpl.ResolveRevision(q.Revision)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if apps, err := s.cache.ListApps(q.Repo.Repo, resolvedRevision); err == nil {
 		log.Infof("cache hit: %s/%s", q.Repo.Repo, q.Revision)
