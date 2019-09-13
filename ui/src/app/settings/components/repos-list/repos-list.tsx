@@ -66,20 +66,26 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                     <div className='argo-table-list'>
                                         <div className='argo-table-list__head'>
                                             <div className='row'>
-                                                <div className='columns small-5'>REPOSITORY</div>
-                                                <div className='columns small-2'>TYPE</div>
+                                                <div className='columns small-1'/>
+                                                <div className='columns small-1'>TYPE</div>
                                                 <div className='columns small-2'>NAME</div>
+                                                <div className='columns small-5'>REPOSITORY</div>
                                                 <div className='columns small-3'>CONNECTION STATUS</div>
                                             </div>
                                         </div>
                                         {repos.map((repo) => (
                                             <div className='argo-table-list__row' key={repo.repo}>
                                                 <div className='row'>
-                                                    <div className='columns small-5'>
-                                                        <i className={'icon argo-icon-' + repo.type}/> <Repo url={repo.repo}/>
+                                                    <div className='columns small-1'>
+                                                        <i className={'icon argo-icon-' + (repo.type || 'git')}/>
                                                     </div>
-                                                    <div className='columns small-2'>{repo.type}</div>
+                                                    <div className='columns small-1'>
+                                                        {repo.type || 'git'}
+                                                    </div>
                                                     <div className='columns small-2'>{repo.name}</div>
+                                                    <div className='columns small-5'>
+                                                        <Repo url={repo.repo}/>
+                                                    </div>
                                                     <div className='columns small-3'>
                                                         <ConnectionStateIcon
                                                             state={repo.connectionState}/> {repo.connectionState.status}
@@ -182,7 +188,6 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                           getApi={(api) => this.formApiSSH = api}
                           validateError={(params: NewSSHRepoParams) => ({
                               url: !params.url && 'Repo URL is required',
-                              sshPrivateKey: !params.sshPrivateKey && 'SSH private key data is required for connecting SSH repositories',
                           })}>
                         {(formApi) => (
                             <form onSubmit={formApi.submitForm} role='form' className='repos-list width-control'>
