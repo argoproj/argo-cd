@@ -175,12 +175,22 @@ func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest)
 	if err != nil {
 		return nil, err
 	}
-	r := q.Repo
-	_, err = factory.NewFactory().NewRepo(q.Repo, metrics.NopReporter)
-	if err != nil {
-		return nil, err
+
+	// check we can connect to the repo, copying any existing creds
+	{
+		repo := q.Repo.DeepCopy()
+		creds, err := s.db.GetRepository(ctx, repo.Repo)
+		if err != nil {
+			return nil, err
+		}
+		repo.CopyCredentialsFrom(creds)
+		_, err = factory.NewFactory().NewRepo(q.Repo, metrics.NopReporter)
+		if err != nil {
+			return nil, err
+		}
 	}
 
+	r := q.Repo
 	r.ConnectionState = appsv1.ConnectionState{Status: appsv1.ConnectionStatusSuccessful}
 	repo, err := s.db.CreateRepository(ctx, r)
 	if status.Convert(err).Code() == codes.AlreadyExists {
