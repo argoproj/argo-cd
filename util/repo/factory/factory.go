@@ -21,6 +21,27 @@ func NewFactory() Factory {
 type factory struct {
 }
 
+func Detect(r *v1alpha1.Repository, reporter metrics.Reporter) (string, error) {
+	if r.Type != "" {
+		return r.Type, nil
+	}
+	helmRepo, err := helmrepo.NewRepo(r.Repo, r.Name, r.Username, r.Password, []byte(r.TLSClientCAData), []byte(r.TLSClientCertData), []byte(r.TLSClientCertKey))
+	if err == nil {
+		err := helmRepo.Init()
+		if err == nil {
+			return "helm", nil
+		}
+	}
+	gitRepo, err := gitrepo.NewRepo(r.Repo, creds.GetRepoCreds(r), r.IsInsecure(), r.EnableLFS, discovery.Discover, reporter)
+	if err == nil {
+		err := gitRepo.Init()
+		if err == nil {
+			return "git", nil
+		}
+	}
+	return "", err
+}
+
 func (f *factory) NewRepo(r *v1alpha1.Repository, reporter metrics.Reporter) (repo.Repo, error) {
 	switch r.Type {
 	case "helm":
