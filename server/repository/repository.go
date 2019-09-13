@@ -192,16 +192,16 @@ func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest)
 
 	r := q.Repo
 	r.ConnectionState = appsv1.ConnectionState{Status: appsv1.ConnectionStatusSuccessful}
-	repo, err := s.db.CreateRepository(ctx, q.Repo)
+	repo, err := s.db.CreateRepository(ctx, r)
 	if status.Convert(err).Code() == codes.AlreadyExists {
 		// act idempotent if existing spec matches new spec
-		existing, getErr := s.db.GetRepository(ctx, q.Repo.Repo)
+		existing, getErr := s.db.GetRepository(ctx, r.Repo)
 		if getErr != nil {
 			return nil, status.Errorf(codes.Internal, "unable to check existing repository details: %v", getErr)
 		}
 
 		// repository ConnectionState may differ, so make consistent before testing
-		existing.ConnectionState = q.Repo.ConnectionState
+		existing.ConnectionState = r.ConnectionState
 		if reflect.DeepEqual(existing, r) {
 			repo, err = existing, nil
 		} else if q.Upsert {
