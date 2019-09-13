@@ -145,7 +145,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                     <FormField formApi={formApi} label='Type' field='type' component={FormSelect} componentProps={{options: ['git', 'helm']}}/>
                                 </div>
                                 <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Name (optional for Git)' field='name' component={Text}/>
+                                    <FormField formApi={formApi} label='Name (mandatory for Helm)' field='name' component={Text}/>
                                 </div>
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Repository URL' field='url' component={Text}/>
@@ -195,7 +195,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                     <FormField formApi={formApi} label='Type' field='type' component={FormSelect} componentProps={{options: ['git', 'helm']}}/>
                                 </div>
                                 <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Name (optional for Git)' field='name' component={Text}/>
+                                    <FormField formApi={formApi} label='Name (mandatory for Helm)' field='name' component={Text}/>
                                 </div>
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Repository URL' field='url' component={Text}/>
