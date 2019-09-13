@@ -186,7 +186,7 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 // Print table of repo info
 func printRepoTable(repos appsv1.Repositories) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(w, "TYPE\nNAME\nREPO\tINSECURE\tLFS\tUSER\tSTATUS\tMESSAGE\n")
+	_, _ = fmt.Fprintf(w, "TYPE\tNAME\tREPO\tINSECURE\tLFS\tUSER\tSTATUS\tMESSAGE\n")
 	for _, r := range repos {
 		var username string
 		if r.Username == "" {
