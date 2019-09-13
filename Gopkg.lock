@@ -90,6 +90,14 @@
   revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
 
 [[projects]]
+  digest = "1:a6ee710e45210bafe11f2f28963571be2ac8809f9a7b675a6d2c02302a1ce1a9"
+  name = "github.com/bouk/monkey"
+  packages = ["."]
+  pruneopts = ""
+  revision = "5df1f207ff77e025801505ae4d903133a0b4353f"
+  version = "v1.0.0"
+
+[[projects]]
   digest = "1:e04162bd6a6d4950541bae744c968108e14913b1cebccf29f7650b573f44adb3"
   name = "github.com/casbin/casbin"
   packages = [
@@ -1589,6 +1597,7 @@
     "github.com/argoproj/pkg/errors",
     "github.com/argoproj/pkg/exec",
     "github.com/argoproj/pkg/time",
+    "github.com/bouk/monkey",
     "github.com/casbin/casbin",
     "github.com/casbin/casbin/model",
     "github.com/casbin/casbin/persist",
