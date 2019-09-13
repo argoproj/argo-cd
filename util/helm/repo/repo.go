@@ -1,7 +1,6 @@
 package repo
 
 import (
-	"errors"
 	"fmt"
 	"path/filepath"
 
@@ -16,7 +15,7 @@ type helmRepo struct {
 }
 
 func (c helmRepo) Init() error {
-	_, err := Index(c.url)
+	_, err := c.index()
 	if err != nil {
 		return err
 	}
@@ -37,38 +36,28 @@ func (c helmRepo) ResolveRevision(app, revision string) (string, error) {
 		return revision, nil
 	}
 
-	index, err := Index(c.url)
+	index, err := c.index()
 	if err != nil {
 		return "", err
 	}
 
-	for chartName := range index.Entries {
-		if chartName == app {
-			return index.Entries[chartName][0].Version, nil
-		}
-	}
-
-	return "", errors.New("failed to find chart " + app)
+	return index.latest(app)
 }
 
 func (c helmRepo) RevisionMetadata(app, resolvedRevision string) (*repo.RevisionMetadata, error) {
-
-	index, err := Index(c.url)
+	index, err := c.index()
 	if err != nil {
 		return nil, err
 	}
-
-	for _, entry := range index.Entries[app] {
-		if entry.Version == resolvedRevision {
-			return &repo.RevisionMetadata{Date: entry.Created}, nil
-		}
+	entry, err := index.entry(app, resolvedRevision)
+	if err != nil {
+		return nil, err
 	}
-
-	return nil, fmt.Errorf("unknown chart \"%s/%s\"", app, resolvedRevision)
+	return &repo.RevisionMetadata{Date: entry.Created}, nil
 }
 
 func (c helmRepo) ListApps(revision string) (map[string]string, string, error) {
-	index, err := Index(c.url)
+	index, err := c.index()
 	if err != nil {
 		return nil, "", err
 	}
@@ -102,22 +91,16 @@ func (c helmRepo) GetApp(app string, resolvedRevision string) (string, error) {
 }
 
 func (c helmRepo) checkKnownChart(chartName string) error {
-	knownChart, err := c.isKnownChart(chartName)
+	index, err := c.index()
 	if err != nil {
 		return err
 	}
-	if !knownChart {
+	if !index.contains(chartName) {
 		return fmt.Errorf("unknown chart \"%s\"", chartName)
 	}
 	return nil
 }
 
-func (c helmRepo) isKnownChart(chartName string) (bool, error) {
-
-	index, err := Index(c.url)
-	if err != nil {
-		return false, err
-	}
-
-	return index.contains(chartName), nil
+func (c helmRepo) index() (*index, error) {
+	return Index(c.url, c.username, c.password)
 }

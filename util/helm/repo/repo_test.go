@@ -9,6 +9,8 @@ import (
 func TestRepo(t *testing.T) {
 	repo, err := NewRepo("https://kubernetes-charts.storage.googleapis.com", "test", "", "", nil, nil, nil)
 	assert.NoError(t, err)
+	err = repo.Init()
+	assert.NoError(t, err)
 
 	// TODO - this changes regularly
 	const latestWordpressVersion = "5.8.0"
@@ -32,7 +34,7 @@ func TestRepo(t *testing.T) {
 		assert.Equal(t, latestWordpressVersion, resolvedRevision)
 	})
 
-	t.Run("Checkout", func(t *testing.T) {
+	t.Run("GetApp", func(t *testing.T) {
 		appPath, err := repo.GetApp("wordpress", latestWordpressVersion)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, appPath)

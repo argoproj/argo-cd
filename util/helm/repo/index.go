@@ -1,7 +1,9 @@
 package repo
 
 import (
+	"encoding/base64"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -21,7 +23,7 @@ type index struct {
 	Entries map[string][]entry
 }
 
-func Index(url string) (*index, error) {
+func Index(url, username, password string) (*index, error) {
 
 	cachedIndex, found := indexCache.Get(url)
 	if found {
@@ -32,7 +34,16 @@ func Index(url string) (*index, error) {
 
 	start := time.Now()
 
-	resp, err := http.Get(url + "/index.yaml")
+	req, err := http.NewRequest("GET", url+"/index.yaml", nil)
+	if err != nil {
+		return nil, err
+	}
+	if username != "" {
+		// only basic supported
+		token := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", username, password)))
+		req.Header.Add("Authorization", fmt.Sprintf("Basic %s", token))
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -55,4 +66,22 @@ func Index(url string) (*index, error) {
 func (i *index) contains(chartName string) bool {
 	_, ok := i.Entries[chartName]
 	return ok
+}
+
+func (i *index) entry(app, version string) (*entry, error) {
+	for _, entry := range i.Entries[app] {
+		if entry.Version == version {
+			return &entry, nil
+		}
+	}
+	return nil, fmt.Errorf("unknown chart \"%s/%s\"", app, version)
+}
+
+func (i *index) latest(app string) (string, error) {
+	for chartName := range i.Entries {
+		if chartName == app {
+			return i.Entries[chartName][0].Version, nil
+		}
+	}
+	return "", errors.New("failed to find chart " + app)
 }

@@ -96,6 +96,7 @@ func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.
 	}
 	err = util.RunAllAsync(len(items), func(i int) error {
 		items[i].ConnectionState = s.getConnectionState(ctx, items[i].Repo)
+		_ = factory.DetectType(items[i], metrics.NopReporter)
 		return nil
 	})
 	if err != nil {
@@ -176,6 +177,7 @@ func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest)
 		return nil, err
 	}
 
+	detectedType := ""
 	// check we can connect to the repo, copying any existing creds
 	{
 		repo := q.Repo.DeepCopy()
@@ -188,9 +190,16 @@ func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest)
 		if err != nil {
 			return nil, err
 		}
+
+		err = factory.DetectType(repo, metrics.NopReporter)
+		if err != nil {
+			return nil, err
+		}
+		detectedType = repo.Type
 	}
 
 	r := q.Repo
+	r.Type = detectedType
 	r.ConnectionState = appsv1.ConnectionState{Status: appsv1.ConnectionStatusSuccessful}
 	repo, err := s.db.CreateRepository(ctx, r)
 	if status.Convert(err).Code() == codes.AlreadyExists {
