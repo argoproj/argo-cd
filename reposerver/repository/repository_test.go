@@ -23,24 +23,27 @@ import (
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/repo"
 	"github.com/argoproj/argo-cd/util/repo/metrics"
-	gitmocks "github.com/argoproj/argo-cd/util/repo/mocks"
+	repomocks "github.com/argoproj/argo-cd/util/repo/mocks"
 )
 
-func newMockRepoServerService(root, path string) *Service {
-	return &Service{
-		repoLock:    util.NewKeyLock(),
-		repoFactory: newFakeFactory(root, path),
-		cache:       cache.NewCache(cache.NewInMemoryCache(time.Hour)),
-	}
+type fixtures struct {
+	*fakeFactory
+	*Service
 }
 
-func newFakeFactory(root, path string) *fakeFactory {
-	return &fakeFactory{
+func newFixtures(root, path string) *fixtures {
+	factory := &fakeFactory{
 		root:             root,
 		path:             path,
 		revision:         "aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd",
 		revisionMetadata: &repo.RevisionMetadata{Author: "foo", Message: strings.Repeat("x", 99), Tags: []string{"bar"}},
 	}
+	service := &Service{
+		repoLock:    util.NewKeyLock(),
+		repoFactory: factory,
+		cache:       cache.NewCache(cache.NewInMemoryCache(1 * time.Hour)),
+	}
+	return &fixtures{factory, service}
 }
 
 type fakeFactory struct {
@@ -51,7 +54,7 @@ type fakeFactory struct {
 }
 
 func (f *fakeFactory) NewRepo(repo *v1alpha1.Repository, reporter metrics.Reporter) (repo.Repo, error) {
-	r := gitmocks.Repo{}
+	r := repomocks.Repo{}
 	root := "./testdata"
 	if f.root != "" {
 		root = f.root
@@ -59,8 +62,8 @@ func (f *fakeFactory) NewRepo(repo *v1alpha1.Repository, reporter metrics.Report
 	r.On("LockKey").Return(root)
 	r.On("Init").Return(nil)
 	r.On("GetApp", mock.Anything, mock.Anything).Return(filepath.Join(root, f.path), nil)
-	r.On("ResolveRevision", mock.Anything, mock.Anything).Return(f.revision, nil)
-	r.On("ListApps", mock.Anything).Return(map[string]string{}, "", nil)
+	r.On("ResolveAppRevision", mock.Anything, mock.Anything).Return(f.revision, nil)
+	r.On("ListApps", mock.Anything).Return(map[string]string{}, nil)
 	r.On("RevisionMetadata", mock.Anything, f.revision).Return(f.revisionMetadata, nil)
 	return &r, nil
 }
@@ -80,6 +83,18 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	res2, err := GenerateManifests("./testdata/concatenated", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(res2.Manifests))
+}
+
+func TestService_ListApps(t *testing.T) {
+	fixtures := newFixtures(".", "empty-list")
+	apps, err := fixtures.Service.ListApps(context.Background(), &apiclient.ListAppsRequest{
+		Repo:     &argoappv1.Repository{Repo: "my-repo"},
+		Revision: "my-revision",
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, &apiclient.AppList{
+		Apps: map[string]string{},
+	}, apps)
 }
 
 func TestRecurseManifestsInDir(t *testing.T) {
@@ -204,7 +219,7 @@ func TestGenerateFromUTF16(t *testing.T) {
 }
 
 func TestGetAppDetailsHelm(t *testing.T) {
-	serve := newMockRepoServerService("../../util/helm/testdata", "redis")
+	serve := newFixtures("../../util/helm/testdata", "redis").Service
 	ctx := context.Background()
 
 	// verify default parameters are returned when not supplying values
@@ -251,7 +266,7 @@ func getHelmParameter(name string, params []*argoappv1.HelmParameter) argoappv1.
 }
 
 func TestGetAppDetailsKsonnet(t *testing.T) {
-	serve := newMockRepoServerService("../../test/e2e/testdata", "ksonnet")
+	serve := newFixtures("../../test/e2e/testdata", "ksonnet").Service
 	ctx := context.Background()
 
 	res, err := serve.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
@@ -267,7 +282,7 @@ func TestGetAppDetailsKsonnet(t *testing.T) {
 }
 
 func TestGetAppDetailsKustomize(t *testing.T) {
-	serve := newMockRepoServerService("../../util/kustomize/testdata", "kustomization_yaml")
+	serve := newFixtures("../../util/kustomize/testdata", "kustomization_yaml").Service
 	ctx := context.Background()
 
 	res, err := serve.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
@@ -279,20 +294,15 @@ func TestGetAppDetailsKustomize(t *testing.T) {
 }
 
 func TestService_GetRevisionMetadata(t *testing.T) {
-	factory := newFakeFactory(".", "empty-list")
-	service := &Service{
-		repoLock:    util.NewKeyLock(),
-		repoFactory: factory,
-		cache:       cache.NewCache(cache.NewInMemoryCache(1 * time.Hour)),
-	}
+	fixtures := newFixtures(".", "empty-list")
 	type args struct {
 		q *apiclient.RepoServerRevisionMetadataRequest
 	}
-	q := &apiclient.RepoServerRevisionMetadataRequest{Repo: &argoappv1.Repository{}, App: "empty-list", Revision: factory.revision}
+	q := &apiclient.RepoServerRevisionMetadataRequest{Repo: &argoappv1.Repository{}, App: "empty-list", Revision: fixtures.fakeFactory.revision}
 	metadata := &v1alpha1.RevisionMetadata{
-		Author:  factory.revisionMetadata.Author,
+		Author:  fixtures.fakeFactory.revisionMetadata.Author,
 		Message: strings.Repeat("x", 61) + "...",
-		Tags:    factory.revisionMetadata.Tags,
+		Tags:    fixtures.fakeFactory.revisionMetadata.Tags,
 	}
 	tests := []struct {
 		name    string
@@ -305,7 +315,7 @@ func TestService_GetRevisionMetadata(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := service.GetRevisionMetadata(context.Background(), tt.args.q)
+			got, err := fixtures.Service.GetRevisionMetadata(context.Background(), tt.args.q)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Service.GetRevisionMetadata() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -7,12 +7,12 @@ import (
 	"github.com/argoproj/argo-cd/util/repo/metrics"
 )
 
-type gitRepo struct {
+type GitRepo struct {
 	client git.Client
 	disco  func(root string) (map[string]string, error)
 }
 
-func (g gitRepo) Init() error {
+func (g GitRepo) Init() error {
 	err := g.client.Init()
 	if err != nil {
 		return err
@@ -20,11 +20,11 @@ func (g gitRepo) Init() error {
 	return g.client.Fetch()
 }
 
-func (g gitRepo) LockKey() string {
+func (g GitRepo) LockKey() string {
 	return g.client.Root()
 }
 
-func (g gitRepo) GetApp(app, resolvedRevision string) (string, error) {
+func (g GitRepo) GetApp(app, resolvedRevision string) (string, error) {
 	err := g.client.Checkout(resolvedRevision)
 	if err != nil {
 		return "", err
@@ -36,24 +36,25 @@ func (g gitRepo) GetApp(app, resolvedRevision string) (string, error) {
 	return appPath, nil
 }
 
-func (g gitRepo) ListApps(revision string) (map[string]string, string, error) {
-	resolvedRevision, err := g.client.LsRemote(revision)
-	if err != nil {
-		return nil, "", err
-	}
-	err = g.client.Checkout(resolvedRevision)
-	if err != nil {
-		return nil, "", err
-	}
-	apps, err := g.disco(g.client.Root())
-	return apps, resolvedRevision, err
-}
-
-func (g gitRepo) ResolveRevision(path, revision string) (string, error) {
+// convert an ambiguous revision (e.g. "", "master" or "HEAD") into a specific revision (e.g. "231345034boc" or "5.8.0")
+func (g GitRepo) ResolveRevision(revision string) (resolvedRevision string, err error) {
 	return g.client.LsRemote(revision)
 }
 
-func (g gitRepo) RevisionMetadata(_, resolvedRevision string) (*repo.RevisionMetadata, error) {
+func (g GitRepo) ListApps(resolvedRevision string) (map[string]string, error) {
+	err := g.client.Checkout(resolvedRevision)
+	if err != nil {
+		return nil, err
+	}
+	apps, err := g.disco(g.client.Root())
+	return apps, err
+}
+
+func (g GitRepo) ResolveAppRevision(path, revision string) (string, error) {
+	return g.client.LsRemote(revision)
+}
+
+func (g GitRepo) RevisionMetadata(_, resolvedRevision string) (*repo.RevisionMetadata, error) {
 	metadata, err := g.client.RevisionMetadata(resolvedRevision)
 	if err != nil {
 		return nil, err
@@ -76,5 +77,5 @@ func NewRepo(url string, creds git.Creds, insecure, enableLfs bool, disco func(r
 	if err != nil {
 		return nil, err
 	}
-	return &gitRepo{client, disco}, nil
+	return &GitRepo{client, disco}, nil
 }
