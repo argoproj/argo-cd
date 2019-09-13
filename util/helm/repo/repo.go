@@ -9,7 +9,6 @@ import (
 	"github.com/argoproj/argo-cd/util/repo"
 )
 
-
 type helmRepo struct {
 	cmd                           *helm.Cmd
 	url, name, username, password string
