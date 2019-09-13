@@ -35,13 +35,13 @@ func osTime(L *lua.LState) int {
 		L.Push(lua.LNumber(time.Now().Unix()))
 	} else {
 		tbl := L.CheckTable(1)
-		sec := getIntField(L, tbl, "sec", 0)
-		min := getIntField(L, tbl, "min", 0)
-		hour := getIntField(L, tbl, "hour", 12)
-		day := getIntField(L, tbl, "day", -1)
-		month := getIntField(L, tbl, "month", -1)
-		year := getIntField(L, tbl, "year", -1)
-		isdst := getBoolField(L, tbl, "isdst", false)
+		sec := getIntField(tbl, "sec", 0)
+		min := getIntField(tbl, "min", 0)
+		hour := getIntField(tbl, "hour", 12)
+		day := getIntField(tbl, "day", -1)
+		month := getIntField(tbl, "month", -1)
+		year := getIntField(tbl, "year", -1)
+		isdst := getBoolField(tbl, "isdst", false)
 		t := time.Date(year, time.Month(month), day, hour, min, sec, 0, time.Local)
 		// TODO dst
 		if false {
@@ -52,7 +52,7 @@ func osTime(L *lua.LState) int {
 	return 1
 }
 
-func getIntField(L *lua.LState, tb *lua.LTable, key string, v int) int {
+func getIntField(tb *lua.LTable, key string, v int) int {
 	ret := tb.RawGetString(key)
 	if ln, ok := ret.(lua.LNumber); ok {
 		return int(ln)
@@ -60,7 +60,7 @@ func getIntField(L *lua.LState, tb *lua.LTable, key string, v int) int {
 	return v
 }
 
-func getBoolField(L *lua.LState, tb *lua.LTable, key string, v bool) bool {
+func getBoolField(tb *lua.LTable, key string, v bool) bool {
 	ret := tb.RawGetString(key)
 	if lb, ok := ret.(lua.LBool); ok {
 		return bool(lb)
