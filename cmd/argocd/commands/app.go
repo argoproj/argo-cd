@@ -6,11 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/url"
 	"os"
-	"os/exec"
-	"path"
 	"reflect"
 	"sort"
 	"strconv"
@@ -19,7 +16,6 @@ import (
 	"time"
 
 	"github.com/ghodss/yaml"
-	"github.com/google/shlex"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -922,7 +918,8 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					}
 
 					foundDiffs = true
-					printDiff(item.key.Name, target, live)
+					err = diff.PrintDiff(item.key.Name, target, live)
+					errors.CheckError(err)
 				}
 			}
 			if foundDiffs {
@@ -935,43 +932,6 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&hardRefresh, "hard-refresh", false, "Refresh application data as well as target manifests cache")
 	command.Flags().StringVar(&local, "local", "", "Compare live app to a local ksonnet app")
 	return command
-}
-
-func printDiff(name string, live *unstructured.Unstructured, target *unstructured.Unstructured) {
-	tempDir, err := ioutil.TempDir("", "argocd-diff")
-	errors.CheckError(err)
-
-	targetFile := path.Join(tempDir, name)
-	targetData := []byte("")
-	if target != nil {
-		targetData, err = yaml.Marshal(target)
-		errors.CheckError(err)
-	}
-	err = ioutil.WriteFile(targetFile, targetData, 0644)
-	errors.CheckError(err)
-
-	liveFile := path.Join(tempDir, fmt.Sprintf("%s-live.yaml", name))
-	liveData := []byte("")
-	if live != nil {
-		liveData, err = yaml.Marshal(live)
-		errors.CheckError(err)
-	}
-	err = ioutil.WriteFile(liveFile, liveData, 0644)
-	errors.CheckError(err)
-
-	cmdBinary := "diff"
-	var args []string
-	if envDiff := os.Getenv("KUBECTL_EXTERNAL_DIFF"); envDiff != "" {
-		parts, err := shlex.Split(envDiff)
-		errors.CheckError(err)
-		cmdBinary = parts[0]
-		args = parts[1:]
-	}
-
-	cmd := exec.Command(cmdBinary, append(args, liveFile, targetFile)...)
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
-	_ = cmd.Run()
 }
 
 // NewApplicationDeleteCommand returns a new instance of an `argocd app delete` command

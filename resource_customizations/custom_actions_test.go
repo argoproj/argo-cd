@@ -7,13 +7,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/bouk/monkey"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
-	"github.com/yudai/gojsondiff/formatter"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/errors"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/lua"
@@ -47,14 +47,14 @@ func TestLuaResourceActionsScript(t *testing.T) {
 		if !strings.Contains(path, "action_test.yaml") {
 			return nil
 		}
-		errors.CheckError(err)
+		assert.NoError(t, err)
 		dir := filepath.Dir(path)
 		//TODO: Change to path
 		yamlBytes, err := ioutil.ReadFile(dir + "/action_test.yaml")
-		errors.CheckError(err)
+		assert.NoError(t, err)
 		var resourceTest ActionTestStructure
 		err = yaml.Unmarshal(yamlBytes, &resourceTest)
-		errors.CheckError(err)
+		assert.NoError(t, err)
 		for i := range resourceTest.DiscoveryTests {
 			test := resourceTest.DiscoveryTests[i]
 			testName := fmt.Sprintf("discovery/%s", test.InputPath)
@@ -64,9 +64,9 @@ func TestLuaResourceActionsScript(t *testing.T) {
 				}
 				obj := getObj(filepath.Join(dir, test.InputPath))
 				discoveryLua, err := vm.GetResourceActionDiscovery(obj)
-				errors.CheckError(err)
+				assert.NoError(t, err)
 				result, err := vm.ExecuteResourceActionDiscovery(obj, discoveryLua)
-				errors.CheckError(err)
+				assert.NoError(t, err)
 				assert.Equal(t, test.Result, result)
 			})
 		}
@@ -75,20 +75,28 @@ func TestLuaResourceActionsScript(t *testing.T) {
 			testName := fmt.Sprintf("actions/%s/%s", test.Action, test.InputPath)
 			t.Run(testName, func(t *testing.T) {
 				vm := lua.VM{
-					UseOpenLibs: true,
+					// Uncomment the following line if you need to use lua libraries debugging
+					// purposes. Otherwise, leave this false to ensure tests reflect the same
+					// privileges that API server has.
+					//UseOpenLibs: true,
 				}
 				obj := getObj(filepath.Join(dir, test.InputPath))
 				action, err := vm.GetResourceAction(obj, test.Action)
-				errors.CheckError(err)
+				assert.NoError(t, err)
+
+				// freeze time so that lua test has predictable time output (will return 0001-01-01T00:00:00Z)
+				patch := monkey.Patch(time.Now, func() time.Time { return time.Time{} })
 				result, err := vm.ExecuteResourceAction(obj, action.ActionLua)
-				errors.CheckError(err)
+				patch.Unpatch()
+
+				assert.NoError(t, err)
 				expectedObj := getObj(filepath.Join(dir, test.ExpectedOutputPath))
-				// Ideally, we would use a assert.Equal to detect the difference, but the Lua VM returns a object with float64 instead of the originial int32.  As a result, the assert.Equal is never true despite that the change has been applied.
+				// Ideally, we would use a assert.Equal to detect the difference, but the Lua VM returns a object with float64 instead of the original int32.  As a result, the assert.Equal is never true despite that the change has been applied.
 				diffResult := diff.Diff(expectedObj, result, testNormalizer{})
 				if diffResult.Modified {
-					output, err := diffResult.ASCIIFormat(expectedObj, formatter.AsciiFormatterConfig{})
-					errors.CheckError(err)
-					assert.Fail(t, "Output does not match input:", output)
+					t.Error("Output does not match input:")
+					err = diff.PrintDiff(test.Action, expectedObj, result)
+					assert.NoError(t, err)
 				}
 			})
 		}
