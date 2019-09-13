@@ -188,7 +188,6 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                           getApi={(api) => this.formApiSSH = api}
                           validateError={(params: NewSSHRepoParams) => ({
                               url: !params.url && 'Repo URL is required',
-                              sshPrivateKey: !params.sshPrivateKey && 'SSH private key data is required for connecting SSH repositories',
                           })}>
                         {(formApi) => (
                             <form onSubmit={formApi.submitForm} role='form' className='repos-list width-control'>
