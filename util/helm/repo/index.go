@@ -63,25 +63,25 @@ func Index(url, username, password string) (*index, error) {
 	return index, err
 }
 
-func (i *index) contains(chartName string) bool {
-	_, ok := i.Entries[chartName]
+func (i *index) contains(chart string) bool {
+	_, ok := i.Entries[chart]
 	return ok
 }
 
-func (i *index) entry(app, version string) (*entry, error) {
-	for _, entry := range i.Entries[app] {
+func (i *index) entry(chart, version string) (*entry, error) {
+	for _, entry := range i.Entries[chart] {
 		if entry.Version == version {
 			return &entry, nil
 		}
 	}
-	return nil, fmt.Errorf("unknown chart \"%s/%s\"", app, version)
+	return nil, fmt.Errorf("unknown chart \"%s/%s\"", chart, version)
 }
 
-func (i *index) latest(app string) (string, error) {
+func (i *index) latest(chart string) (string, error) {
 	for chartName := range i.Entries {
-		if chartName == app {
+		if chartName == chart {
 			return i.Entries[chartName][0].Version, nil
 		}
 	}
-	return "", errors.New("failed to find chart " + app)
+	return "", fmt.Errorf("failed to find chart %s", chart)
 }
