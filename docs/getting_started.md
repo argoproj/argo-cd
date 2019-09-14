@@ -25,7 +25,7 @@ kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole=c
 
 ## 2. Download Argo CD CLI
 
-Download the latest Argo CD version from [https://github.com/argoproj/argo-cd/releases/latest].
+Download the latest Argo CD version from [https://github.com/argoproj/argo-cd/releases/latest](https://github.com/argoproj/argo-cd/releases/latest).
 
 Also available in Mac Homebrew:
 
@@ -110,7 +110,7 @@ service account token to perform its management tasks (i.e. deploy/monitoring).
 ## 6. Create An Application From A Git Repository
 
 An example repository containing a guestbook application is available at
-https://github.com/argoproj/argocd-example-apps.git to demonstrate how Argo CD works.
+[https://github.com/argoproj/argocd-example-apps.git](https://github.com/argoproj/argocd-example-apps.git) to demonstrate how Argo CD works.
 
 ### Creating Apps Via CLI
 
@@ -125,7 +125,7 @@ argocd app create guestbook \
 ### Creating Apps Via UI
 
 Open a browser to the Argo CD external UI, and login using the credentials, IP/hostname set in step 4.
-Connect the https://github.com/argoproj/argocd-example-apps.git repo to Argo CD:
+Connect the [https://github.com/argoproj/argocd-example-apps.git](https://github.com/argoproj/argocd-example-apps.git) repo to Argo CD:
 
 ![connect repo](assets/connect_repo.png)
 
