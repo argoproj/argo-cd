@@ -92,8 +92,8 @@ func repoConnectionStateKey(repo string) string {
 	return fmt.Sprintf("repo|%s|connection-state", repo)
 }
 
-func listApps(revision, path string) string {
-	return fmt.Sprintf("ldir|%s|%s", path, revision)
+func listApps(repoURL, revision string) string {
+	return fmt.Sprintf("ldir|%s|%s", repoURL, revision)
 }
 
 func oidcStateKey(key string) string {
@@ -171,14 +171,14 @@ func (c *Cache) GetRepoConnectionState(repo string) (appv1.ConnectionState, erro
 func (c *Cache) SetRepoConnectionState(repo string, state *appv1.ConnectionState) error {
 	return c.setItem(repoConnectionStateKey(repo), &state, connectionStatusCacheExpiration, state == nil)
 }
-func (c *Cache) ListApps(revision, path string) (map[string]string, error) {
+func (c *Cache) ListApps(repoUrl, revision string) (map[string]string, error) {
 	res := make(map[string]string)
-	err := c.getItem(listApps(revision, path), &res)
+	err := c.getItem(listApps(repoUrl, revision), &res)
 	return res, err
 }
 
-func (c *Cache) SetApps(revision, path string, apps map[string]string) error {
-	return c.setItem(listApps(revision, path), apps, repoCacheExpiration, apps == nil)
+func (c *Cache) SetApps(repoUrl, revision string, apps map[string]string) error {
+	return c.setItem(listApps(repoUrl, revision), apps, repoCacheExpiration, apps == nil)
 }
 
 func (c *Cache) GetManifests(commitSHA string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string, res interface{}) error {

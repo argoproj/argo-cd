@@ -32,6 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/creds"
 	"github.com/argoproj/argo-cd/util/git"
+	gitrepo "github.com/argoproj/argo-cd/util/git/repo"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
@@ -81,17 +82,25 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	if err != nil {
 		return nil, err
 	}
-	if apps, err := s.cache.ListApps(q.Repo.Repo, q.Revision); err == nil {
+	resolvedRevision := ""
+	switch rImpl := r.(type) {
+	case gitrepo.GitRepo:
+		resolvedRevision, err = rImpl.ResolveRevision(q.Revision)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if apps, err := s.cache.ListApps(q.Repo.Repo, resolvedRevision); err == nil {
 		log.Infof("cache hit: %s/%s", q.Repo.Repo, q.Revision)
 		return &apiclient.AppList{Apps: apps}, nil
 	}
-	apps, resolvedRevision, err := r.ListApps(q.Revision)
+	apps, err := r.ListApps(resolvedRevision)
 	if err != nil {
 		return nil, err
 	}
 
 	res := apiclient.AppList{Apps: apps}
-	err = s.cache.SetApps(q.Repo.Repo, q.Revision, apps)
+	err = s.cache.SetApps(q.Repo.Repo, resolvedRevision, apps)
 	if err != nil {
 		log.Warnf("cache set error %s/%s: %v", q.Repo.Repo, resolvedRevision, err)
 	}
@@ -109,7 +118,7 @@ func (s *Service) GenerateManifest(c context.Context, q *apiclient.ManifestReque
 	if err != nil {
 		return nil, err
 	}
-	resolvedRevision, err := r.ResolveRevision(q.ApplicationSource.Path, q.Revision)
+	resolvedRevision, err := r.ResolveAppRevision(q.ApplicationSource.Path, q.Revision)
 	getCached := func() *apiclient.ManifestResponse {
 		var res apiclient.ManifestResponse
 		if !q.NoCache {
@@ -486,7 +495,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 	if err != nil {
 		return nil, err
 	}
-	resolvedRevision, err := r.ResolveRevision(q.App, q.Revision)
+	resolvedRevision, err := r.ResolveAppRevision(q.App, q.Revision)
 	if err != nil {
 		return nil, err
 	}
