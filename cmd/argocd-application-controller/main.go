@@ -114,7 +114,7 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDMetrics, "Start metrics server on given port")
 	command.Flags().IntVar(&selfHealTimeoutSeconds, "self-heal-timeout-seconds", 5, "Specifies timeout between application self heal attempts")
-	command.Flags().Int64Var(&kubectlParallelismLimit, "kubectl-parallelism-limit", 0, "Number of allowed concurrent kubectl fork/execs.")
+	command.Flags().Int64Var(&kubectlParallelismLimit, "kubectl-parallelism-limit", 20, "Number of allowed concurrent kubectl fork/execs. Any value less the 1 means no limit.")
 
 	cacheSrc = cache.AddCacheFlagsToCmd(&command)
 	return &command
