@@ -8,8 +8,8 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server/version"
 	"github.com/argoproj/argo-cd/util/cache"
-	"github.com/argoproj/argo-cd/util/git"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
+	"github.com/argoproj/argo-cd/util/repo/factory"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -23,14 +23,14 @@ import (
 // ArgoCDRepoServer is the repo server implementation
 type ArgoCDRepoServer struct {
 	log              *log.Entry
-	gitFactory       git.ClientFactory
+	clientFactory    factory.Factory
 	cache            *cache.Cache
 	opts             []grpc.ServerOption
 	parallelismLimit int64
 }
 
 // NewServer returns a new instance of the Argo CD Repo server
-func NewServer(gitFactory git.ClientFactory, cache *cache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, parallelismLimit int64) (*ArgoCDRepoServer, error) {
+func NewServer(clientFactory factory.Factory, cache *cache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, parallelismLimit int64) (*ArgoCDRepoServer, error) {
 	// generate TLS cert
 	hosts := []string{
 		"localhost",
@@ -55,7 +55,7 @@ func NewServer(gitFactory git.ClientFactory, cache *cache.Cache, tlsConfCustomiz
 
 	return &ArgoCDRepoServer{
 		log:              serverLog,
-		gitFactory:       gitFactory,
+		clientFactory:    clientFactory,
 		cache:            cache,
 		parallelismLimit: parallelismLimit,
 		opts: []grpc.ServerOption{
@@ -70,7 +70,7 @@ func NewServer(gitFactory git.ClientFactory, cache *cache.Cache, tlsConfCustomiz
 func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 	server := grpc.NewServer(a.opts...)
 	versionpkg.RegisterVersionServiceServer(server, &version.Server{})
-	manifestService := repository.NewService(a.gitFactory, a.cache, a.parallelismLimit)
+	manifestService := repository.NewService(a.clientFactory, a.cache, a.parallelismLimit)
 	apiclient.RegisterRepoServerServiceServer(server, manifestService)
 
 	// Register reflection service on gRPC server.

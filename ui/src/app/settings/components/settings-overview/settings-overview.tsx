@@ -7,7 +7,7 @@ import { AppContext } from '../../../shared/context';
 require('./settings-overview.scss');
 
 const settings = [{
-    title: 'Repositories', description: 'Configure connected Git repositories', path: './repos',
+    title: 'Repositories', description: 'Configure connected repositories', path: './repos',
 }, {
     title: 'Certificates', description: 'Configure certificates for connecting Git repositories', path: './certs',
 }, {

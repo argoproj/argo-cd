@@ -451,7 +451,7 @@ func TestAuthenticate(t *testing.T) {
 				ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs(apiclient.MetaDataTokenKey, token))
 			}
 
-			_, err := argocd.authenticate(ctx)
+			_, err := argocd.Authenticate(ctx)
 			if testData.errorMsg != "" {
 				assert.Errorf(t, err, testData.errorMsg)
 			} else {
@@ -460,4 +460,22 @@ func TestAuthenticate(t *testing.T) {
 
 		})
 	}
+}
+
+func Test_getToken(t *testing.T) {
+	token := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+	t.Run("Empty", func(t *testing.T) {
+		assert.Empty(t, getToken(metadata.New(map[string]string{})))
+	})
+	t.Run("Token", func(t *testing.T) {
+		assert.Equal(t, token, getToken(metadata.New(map[string]string{"token": token})))
+	})
+	t.Run("Authorisation", func(t *testing.T) {
+		assert.Empty(t, getToken(metadata.New(map[string]string{"authorization": "Bearer invalid"})))
+		assert.Equal(t, token, getToken(metadata.New(map[string]string{"authorization": "Bearer " + token})))
+	})
+	t.Run("Cookie", func(t *testing.T) {
+		assert.Empty(t, getToken(metadata.New(map[string]string{"grpcgateway-cookie": "argocd.token=invalid"})))
+		assert.Equal(t, token, getToken(metadata.New(map[string]string{"grpcgateway-cookie": "argocd.token=" + token})))
+	})
 }

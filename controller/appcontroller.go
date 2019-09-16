@@ -12,6 +12,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sync/semaphore"
 	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -87,6 +88,7 @@ type ApplicationController struct {
 	refreshRequestedApps      map[string]CompareWith
 	refreshRequestedAppsMutex *sync.Mutex
 	metricsServer             *metrics.MetricsServer
+	kubectlSemaphore          *semaphore.Weighted
 }
 
 type ApplicationControllerConfig struct {
@@ -102,17 +104,18 @@ func NewApplicationController(
 	applicationClientset appclientset.Interface,
 	repoClientset apiclient.Clientset,
 	argoCache *argocache.Cache,
+	kubectl kube.Kubectl,
 	appResyncPeriod time.Duration,
 	selfHealTimeout time.Duration,
 	metricsPort int,
+	kubectlParallelismLimit int64,
 ) (*ApplicationController, error) {
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
-	kubectlCmd := kube.KubectlCmd{}
 	ctrl := ApplicationController{
 		cache:                     argoCache,
 		namespace:                 namespace,
 		kubeClientset:             kubeClientset,
-		kubectl:                   kubectlCmd,
+		kubectl:                   kubectl,
 		applicationClientset:      applicationClientset,
 		repoClientset:             repoClientset,
 		appRefreshQueue:           workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
@@ -125,6 +128,10 @@ func NewApplicationController(
 		settingsMgr:               settingsMgr,
 		selfHealTimeout:           selfHealTimeout,
 	}
+	if kubectlParallelismLimit > 0 {
+		ctrl.kubectlSemaphore = semaphore.NewWeighted(kubectlParallelismLimit)
+	}
+	kubectl.SetOnKubectlRun(ctrl.onKubectlRun)
 	appInformer, appLister, err := ctrl.newApplicationInformerAndLister()
 	if err != nil {
 		return nil, err
@@ -135,8 +142,8 @@ func NewApplicationController(
 		_, err := kubeClientset.Discovery().ServerVersion()
 		return err
 	})
-	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectlCmd, ctrl.metricsServer, ctrl.handleObjectUpdated)
-	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectlCmd, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer)
+	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectl, ctrl.metricsServer, ctrl.handleObjectUpdated)
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
 	ctrl.projInformer = projInformer
@@ -144,6 +151,23 @@ func NewApplicationController(
 	ctrl.stateCache = stateCache
 
 	return &ctrl, nil
+}
+
+func (ctrl *ApplicationController) onKubectlRun(command string) (util.Closer, error) {
+	ctrl.metricsServer.IncKubectlExec(command)
+	if ctrl.kubectlSemaphore != nil {
+		if err := ctrl.kubectlSemaphore.Acquire(context.Background(), 1); err != nil {
+			return nil, err
+		}
+		ctrl.metricsServer.IncKubectlExecPending(command)
+	}
+	return util.NewCloser(func() error {
+		if ctrl.kubectlSemaphore != nil {
+			ctrl.kubectlSemaphore.Release(1)
+			ctrl.metricsServer.DecKubectlExecPending(command)
+		}
+		return nil
+	}), nil
 }
 
 func isSelfReferencedApp(app *appv1.Application, ref v1.ObjectReference) bool {
@@ -763,7 +787,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 
 	var localManifests []string
-	if opState := app.Status.OperationState; opState != nil {
+	if opState := app.Status.OperationState; opState != nil && opState.Operation.Sync != nil {
 		localManifests = opState.Operation.Sync.Manifests
 	}
 
@@ -774,7 +798,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	compareResult := ctrl.appStateManager.CompareAppState(app, revision, app.Spec.Source, refreshType == appv1.RefreshTypeHard, localManifests)
 
-	ctrl.normalizeApplication(origApp, app, compareResult.appSourceType)
+	ctrl.normalizeApplication(origApp, app)
 
 	app.Status.Conditions = append(app.Status.Conditions, compareResult.conditions...)
 
@@ -872,9 +896,9 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 }
 
 // normalizeApplication normalizes an application.spec and additionally persists updates if it changed
-func (ctrl *ApplicationController) normalizeApplication(orig, app *appv1.Application, sourceType appv1.ApplicationSourceType) {
+func (ctrl *ApplicationController) normalizeApplication(orig, app *appv1.Application) {
 	logCtx := log.WithFields(log.Fields{"application": app.Name})
-	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec, sourceType)
+	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec)
 	patch, modified, err := diff.CreateTwoWayMergePatch(orig, app, appv1.Application{})
 	if err != nil {
 		logCtx.Errorf("error constructing app spec patch: %v", err)

@@ -19,12 +19,12 @@ import (
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
+	. "github.com/argoproj/argo-cd/errors"
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 	"github.com/argoproj/argo-cd/util"
 	. "github.com/argoproj/argo-cd/util/argo"
@@ -46,24 +46,24 @@ func TestAppCreation(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
-			assert.Equal(t, fixture.Name(), app.Name)
-			assert.Equal(t, fixture.RepoURL(fixture.RepoURLTypeFile), app.Spec.Source.RepoURL)
+			assert.Equal(t, Name(), app.Name)
+			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.Source.RepoURL)
 			assert.Equal(t, guestbookPath, app.Spec.Source.Path)
-			assert.Equal(t, fixture.DeploymentNamespace(), app.Spec.Destination.Namespace)
+			assert.Equal(t, DeploymentNamespace(), app.Spec.Destination.Namespace)
 			assert.Equal(t, common.KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
 		}).
 		Expect(Event(EventReasonResourceCreated, "create")).
 		And(func(_ *Application) {
 			// app should be listed
-			output, err := fixture.RunCli("app", "list")
+			output, err := RunCli("app", "list")
 			assert.NoError(t, err)
-			assert.Contains(t, output, fixture.Name())
+			assert.Contains(t, output, Name())
 		})
 }
 
 // demonstrate that we cannot use a standard sync when an immutable field is changed, we must use "force"
 func TestImmutableChange(t *testing.T) {
-	text := errors.FailOnErr(fixture.Run(".", "kubectl", "get", "service", "-n", "kube-system", "kube-dns", "-o", "jsonpath={.spec.clusterIP}")).(string)
+	text := FailOnErr(Run(".", "kubectl", "get", "service", "-n", "kube-system", "kube-dns", "-o", "jsonpath={.spec.clusterIP}")).(string)
 	parts := strings.Split(text, ".")
 	n := rand.Intn(254)
 	ip1 := fmt.Sprintf("%s.%s.%s.%d", parts[0], parts[1], parts[2], n)
@@ -90,7 +90,7 @@ func TestImmutableChange(t *testing.T) {
 		Expect(ResourceResultIs(ResourceResult{
 			Kind:      "Service",
 			Version:   "v1",
-			Namespace: fixture.DeploymentNamespace(),
+			Namespace: DeploymentNamespace(),
 			Name:      "my-service",
 			SyncPhase: "Sync",
 			Status:    "SyncFailed",
@@ -132,9 +132,9 @@ func TestAppDeletion(t *testing.T) {
 		Expect(DoesNotExist()).
 		Expect(Event(EventReasonResourceDeleted, "delete"))
 
-	output, err := fixture.RunCli("app", "list")
+	output, err := RunCli("app", "list")
 	assert.NoError(t, err)
-	assert.NotContains(t, output, fixture.Name())
+	assert.NotContains(t, output, Name())
 }
 
 func TestTrackAppStateAndSyncApp(t *testing.T) {
@@ -144,10 +144,10 @@ func TestTrackAppStateAndSyncApp(t *testing.T) {
 		Create().
 		Sync().
 		Then().
-		Expect(Success(fmt.Sprintf("apps  Deployment  %s          guestbook-ui  OutOfSync  Missing", fixture.DeploymentNamespace()))).
-		Expect(Success(fmt.Sprintf("Service  %s          guestbook-ui  OutOfSync  Missing", fixture.DeploymentNamespace()))).
-		Expect(Success(fmt.Sprintf("Service     %s  guestbook-ui  Synced  Healthy        service/guestbook-ui created", fixture.DeploymentNamespace()))).
-		Expect(Success(fmt.Sprintf("apps   Deployment  %s  guestbook-ui  Synced  Healthy        deployment.apps/guestbook-ui created", fixture.DeploymentNamespace()))).
+		Expect(Success(fmt.Sprintf("apps  Deployment  %s          guestbook-ui  OutOfSync  Missing", DeploymentNamespace()))).
+		Expect(Success(fmt.Sprintf("Service  %s          guestbook-ui  OutOfSync  Missing", DeploymentNamespace()))).
+		Expect(Success(fmt.Sprintf("Service     %s  guestbook-ui  Synced  Healthy        service/guestbook-ui created", DeploymentNamespace()))).
+		Expect(Success(fmt.Sprintf("apps   Deployment  %s  guestbook-ui  Synced  Healthy        deployment.apps/guestbook-ui created", DeploymentNamespace()))).
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(Event(EventReasonResourceUpdated, "sync")).
@@ -183,11 +183,11 @@ func TestAppRollbackSuccessful(t *testing.T) {
 			patch, _, err := diff.CreateTwoWayMergePatch(app, appWithHistory, &Application{})
 			assert.NoError(t, err)
 
-			app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Patch(app.Name, types.MergePatchType, patch)
+			app, err = AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Patch(app.Name, types.MergePatchType, patch)
 			assert.NoError(t, err)
 
 			// sync app and make sure it reaches InSync state
-			_, err = fixture.RunCli("app", "rollback", app.Name, "1")
+			_, err = RunCli("app", "rollback", app.Name, "1")
 			assert.NoError(t, err)
 
 		}).
@@ -233,7 +233,7 @@ func TestManipulateApplicationResources(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			manifests, err := fixture.RunCli("app", "manifests", app.Name, "--source", "live")
+			manifests, err := RunCli("app", "manifests", app.Name, "--source", "live")
 			assert.NoError(t, err)
 			resources, err := kube.SplitYAML(manifests)
 			assert.NoError(t, err)
@@ -250,7 +250,7 @@ func TestManipulateApplicationResources(t *testing.T) {
 
 			deployment := resources[index]
 
-			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+			closer, client, err := ArgoCDClientset.NewApplicationClient()
 			assert.NoError(t, err)
 			defer util.Close(closer)
 
@@ -292,7 +292,7 @@ func assetSecretDataHidden(t *testing.T, manifest string) {
 }
 
 func TestAppWithSecrets(t *testing.T) {
-	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+	closer, client, err := ArgoCDClientset.NewApplicationClient()
 	assert.NoError(t, err)
 	defer util.Close(closer)
 
@@ -304,49 +304,45 @@ func TestAppWithSecrets(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			res, err := client.GetResource(context.Background(), &applicationpkg.ApplicationResourceRequest{
+			res := FailOnErr(client.GetResource(context.Background(), &applicationpkg.ApplicationResourceRequest{
 				Namespace:    app.Spec.Destination.Namespace,
 				Kind:         kube.SecretKind,
 				Group:        "",
 				Name:         &app.Name,
 				Version:      "v1",
 				ResourceName: "test-secret",
-			})
-			assert.NoError(t, err)
-
+			})).(*applicationpkg.ApplicationResourceResponse)
 			assetSecretDataHidden(t, res.Manifest)
 
-			diffOutput, err := fixture.RunCli("app", "diff", app.Name)
-			assert.NoError(t, err)
+			diffOutput := FailOnErr(RunCli("app", "diff", app.Name)).(string)
 			assert.Empty(t, diffOutput)
 
 			// patch secret and make sure app is out of sync and diff detects the change
-			_, err = fixture.KubeClientset.CoreV1().Secrets(fixture.DeploymentNamespace()).Patch(
-				"test-secret", types.JSONPatchType, []byte(`[{"op": "remove", "path": "/data/username"}]`))
-			assert.NoError(t, err)
+			FailOnErr(KubeClientset.CoreV1().Secrets(DeploymentNamespace()).Patch(
+				"test-secret", types.JSONPatchType, []byte(`[
+	{"op": "remove", "path": "/data/username"},
+	{"op": "add", "path": "/stringData", "value": {"password": "foo"}}
+]`)))
 		}).
 		When().
 		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
-
-			diffOutput, err := fixture.RunCli("app", "diff", app.Name)
+			diffOutput, err := RunCli("app", "diff", app.Name)
 			assert.Error(t, err)
-			assert.Contains(t, diffOutput, "username: +++++++++")
+			assert.Contains(t, diffOutput, "username: ++++++++")
+			assert.Contains(t, diffOutput, "password: ++++++++++++")
 
 			// local diff should ignore secrets
-			diffOutput, err = fixture.RunCli("app", "diff", app.Name, "--local", "testdata/secrets")
-			assert.NoError(t, err)
+			diffOutput = FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/secrets")).(string)
 			assert.Empty(t, diffOutput)
 
 			// ignore missing field and make sure diff shows no difference
 			app.Spec.IgnoreDifferences = []ResourceIgnoreDifferences{{
-				Kind: kube.SecretKind, JSONPointers: []string{"/data/username"},
+				Kind: kube.SecretKind, JSONPointers: []string{"/data/username", "/data/password"},
 			}}
-			_, err = client.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: app.Spec})
-
-			assert.NoError(t, err)
+			FailOnErr(client.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: app.Spec}))
 		}).
 		When().
 		Refresh(RefreshTypeNormal).
@@ -354,8 +350,7 @@ func TestAppWithSecrets(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			diffOutput, err := fixture.RunCli("app", "diff", app.Name)
-			assert.NoError(t, err)
+			diffOutput := FailOnErr(RunCli("app", "diff", app.Name)).(string)
 			assert.Empty(t, diffOutput)
 		})
 }
@@ -370,7 +365,7 @@ func TestResourceDiffing(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			// Patch deployment
-			_, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(
+			_, err := KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Patch(
 				"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "test" }]`))
 			assert.NoError(t, err)
 		}).
@@ -379,9 +374,9 @@ func TestResourceDiffing(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
-			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
+			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
 			assert.Error(t, err)
-			assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", fixture.DeploymentNamespace()))
+			assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", DeploymentNamespace()))
 		}).
 		Given().
 		ResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {IgnoreDifferences: ` jsonPointers: ["/spec/template/spec/containers/0/image"]`}}).
@@ -390,7 +385,7 @@ func TestResourceDiffing(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
+			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
 			assert.NoError(t, err)
 			assert.Empty(t, diffOutput)
 		})
@@ -415,7 +410,7 @@ func TestConfigMap(t *testing.T) {
 func TestFailedConversion(t *testing.T) {
 
 	defer func() {
-		errors.FailOnErr(fixture.Run("", "kubectl", "delete", "apiservice", "v1beta1.metrics.k8s.io"))
+		FailOnErr(Run("", "kubectl", "delete", "apiservice", "v1beta1.metrics.k8s.io"))
 	}()
 
 	testEdgeCasesApplicationResources(t, "failed-conversion", HealthStatusProgressing)
@@ -436,7 +431,7 @@ func testEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode 
 	expect.
 		Expect(HealthIs(statusCode)).
 		And(func(app *Application) {
-			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", path.Join("testdata", appPath))
+			diffOutput, err := RunCli("app", "diff", app.Name, "--local", path.Join("testdata", appPath))
 			assert.Empty(t, diffOutput)
 			assert.NoError(t, err)
 		})
@@ -454,7 +449,7 @@ func TestKsonnetApp(t *testing.T) {
 		Sync().
 		Then().
 		And(func(app *Application) {
-			closer, client, err := fixture.ArgoCDClientset.NewRepoClient()
+			closer, client, err := ArgoCDClientset.NewRepoClient()
 			assert.NoError(t, err)
 			defer util.Close(closer)
 
@@ -493,7 +488,7 @@ func TestResourceAction(t *testing.T) {
 		Then().
 		And(func(app *Application) {
 
-			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+			closer, client, err := ArgoCDClientset.NewApplicationClient()
 			assert.NoError(t, err)
 			defer util.Close(closer)
 
@@ -502,7 +497,7 @@ func TestResourceAction(t *testing.T) {
 				Group:        "apps",
 				Kind:         "Deployment",
 				Version:      "v1",
-				Namespace:    fixture.DeploymentNamespace(),
+				Namespace:    DeploymentNamespace(),
 				ResourceName: "guestbook-ui",
 			})
 			assert.NoError(t, err)
@@ -512,13 +507,13 @@ func TestResourceAction(t *testing.T) {
 				Group:        "apps",
 				Kind:         "Deployment",
 				Version:      "v1",
-				Namespace:    fixture.DeploymentNamespace(),
+				Namespace:    DeploymentNamespace(),
 				ResourceName: "guestbook-ui",
 				Action:       "sample",
 			})
 			assert.NoError(t, err)
 
-			deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get("guestbook-ui", metav1.GetOptions{})
+			deployment, err := KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Get("guestbook-ui", metav1.GetOptions{})
 			assert.NoError(t, err)
 
 			assert.Equal(t, "test", deployment.Labels["sample"])
@@ -533,11 +528,11 @@ func TestSyncResourceByLabel(t *testing.T) {
 		Sync().
 		Then().
 		And(func(app *Application) {
-			_, _ = fixture.RunCli("app", "sync", app.Name, "--label", fmt.Sprintf("app.kubernetes.io/instance=%s", app.Name))
+			_, _ = RunCli("app", "sync", app.Name, "--label", fmt.Sprintf("app.kubernetes.io/instance=%s", app.Name))
 		}).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			_, err := fixture.RunCli("app", "sync", app.Name, "--label", "this-label=does-not-exist")
+			_, err := RunCli("app", "sync", app.Name, "--label", "this-label=does-not-exist")
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "level=fatal")
 		})
@@ -551,7 +546,7 @@ func TestLocalManifestSync(t *testing.T) {
 		Sync().
 		Then().
 		And(func(app *Application) {
-			res, _ := fixture.RunCli("app", "manifests", app.Name)
+			res, _ := RunCli("app", "manifests", app.Name)
 			assert.Contains(t, res, "containerPort: 80")
 			assert.Contains(t, res, "image: gcr.io/heptio-images/ks-guestbook-demo:0.2")
 		}).
@@ -562,7 +557,7 @@ func TestLocalManifestSync(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			res, _ := fixture.RunCli("app", "manifests", app.Name)
+			res, _ := RunCli("app", "manifests", app.Name)
 			assert.Contains(t, res, "containerPort: 81")
 			assert.Contains(t, res, "image: gcr.io/heptio-images/ks-guestbook-demo:0.3")
 		}).
@@ -573,7 +568,7 @@ func TestLocalManifestSync(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			res, _ := fixture.RunCli("app", "manifests", app.Name)
+			res, _ := RunCli("app", "manifests", app.Name)
 			assert.Contains(t, res, "containerPort: 80")
 			assert.Contains(t, res, "image: gcr.io/heptio-images/ks-guestbook-demo:0.2")
 		})
@@ -587,10 +582,10 @@ func TestNoLocalSyncWithAutosyncEnabled(t *testing.T) {
 		Sync().
 		Then().
 		And(func(app *Application) {
-			_, err := fixture.RunCli("app", "set", app.Name, "--sync-policy", "automated")
+			_, err := RunCli("app", "set", app.Name, "--sync-policy", "automated")
 			assert.NoError(t, err)
 
-			_, err = fixture.RunCli("app", "sync", app.Name, "--local", guestbookPathLocal)
+			_, err = RunCli("app", "sync", app.Name, "--local", guestbookPathLocal)
 			assert.Error(t, err)
 		})
 }
@@ -609,44 +604,44 @@ func TestSyncAsync(t *testing.T) {
 }
 
 func TestPermissions(t *testing.T) {
-	fixture.EnsureCleanState(t)
-	appName := fixture.Name()
-	_, err := fixture.RunCli("proj", "create", "test")
+	EnsureCleanState(t)
+	appName := Name()
+	_, err := RunCli("proj", "create", "test")
 	assert.NoError(t, err)
 
 	// make sure app cannot be created without permissions in project
-	_, err = fixture.RunCli("app", "create", appName, "--repo", fixture.RepoURL(fixture.RepoURLTypeFile),
-		"--path", guestbookPath, "--project", "test", "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
+	_, err = RunCli("app", "create", appName, "--repo", RepoURL(RepoURLTypeFile),
+		"--path", guestbookPath, "--project", "test", "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", DeploymentNamespace())
 	assert.Error(t, err)
-	sourceError := fmt.Sprintf("application repo %s is not permitted in project 'test'", fixture.RepoURL(fixture.RepoURLTypeFile))
-	destinationError := fmt.Sprintf("application destination {%s %s} is not permitted in project 'test'", common.KubernetesInternalAPIServerAddr, fixture.DeploymentNamespace())
+	sourceError := fmt.Sprintf("application repo %s is not permitted in project 'test'", RepoURL(RepoURLTypeFile))
+	destinationError := fmt.Sprintf("application destination {%s %s} is not permitted in project 'test'", common.KubernetesInternalAPIServerAddr, DeploymentNamespace())
 
 	assert.Contains(t, err.Error(), sourceError)
 	assert.Contains(t, err.Error(), destinationError)
 
-	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get("test", metav1.GetOptions{})
+	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Get("test", metav1.GetOptions{})
 	assert.NoError(t, err)
 
 	proj.Spec.Destinations = []ApplicationDestination{{Server: "*", Namespace: "*"}}
 	proj.Spec.SourceRepos = []string{"*"}
-	proj, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Update(proj)
+	proj, err = AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Update(proj)
 	assert.NoError(t, err)
 
 	// make sure controller report permissions issues in conditions
-	_, err = fixture.RunCli("app", "create", appName, "--repo", fixture.RepoURL(fixture.RepoURLTypeFile),
-		"--path", guestbookPath, "--project", "test", "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
+	_, err = RunCli("app", "create", appName, "--repo", RepoURL(RepoURLTypeFile),
+		"--path", guestbookPath, "--project", "test", "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", DeploymentNamespace())
 	assert.NoError(t, err)
 	defer func() {
-		err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Delete(appName, &metav1.DeleteOptions{})
+		err = AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Delete(appName, &metav1.DeleteOptions{})
 		assert.NoError(t, err)
 	}()
 
 	proj.Spec.Destinations = []ApplicationDestination{}
 	proj.Spec.SourceRepos = []string{}
-	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Update(proj)
+	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Update(proj)
 	assert.NoError(t, err)
 	time.Sleep(1 * time.Second)
-	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+	closer, client, err := ArgoCDClientset.NewApplicationClient()
 	assert.NoError(t, err)
 	defer util.Close(closer)
 
@@ -750,7 +745,7 @@ func TestSelfManagedApps(t *testing.T) {
 	Given(t).
 		Path("self-managed-app").
 		When().
-		PatchFile("resources.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/spec/source/repoURL", "value": "%s"}]`, fixture.RepoURL(fixture.RepoURLTypeFile))).
+		PatchFile("resources.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/spec/source/repoURL", "value": "%s"}]`, RepoURL(RepoURLTypeFile))).
 		Create().
 		Sync().
 		Then().
@@ -762,7 +757,7 @@ func TestSelfManagedApps(t *testing.T) {
 
 			reconciledCount := 0
 			var lastReconciledAt *metav1.Time
-			for event := range fixture.ArgoCDClientset.WatchApplicationWithRetry(ctx, a.Name) {
+			for event := range ArgoCDClientset.WatchApplicationWithRetry(ctx, a.Name) {
 				reconciledAt := event.Application.Status.ReconciledAt
 				if reconciledAt == nil {
 					reconciledAt = &metav1.Time{}
@@ -807,7 +802,7 @@ func TestOrphanedResource(t *testing.T) {
 		Expect(NoConditions()).
 		When().
 		And(func() {
-			errors.FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(&v1.ConfigMap{
+			FailOnErr(KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Create(&v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "orphaned-configmap",
 				},

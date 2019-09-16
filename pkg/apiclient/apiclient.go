@@ -36,6 +36,7 @@ import (
 	versionpkg "github.com/argoproj/argo-cd/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/localconfig"
 	oidcutil "github.com/argoproj/argo-cd/util/oidc"
@@ -387,7 +388,7 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 	}
 	conn, e := grpc_util.BlockingDial(context.Background(), network, serverAddr, creds, dialOpts...)
 	closers = append(closers, conn)
-	return conn, &inlineCloser{close: func() error {
+	return conn, util.NewCloser(func() error {
 		var firstErr error
 		for i := range closers {
 			err := closers[i].Close()
@@ -396,7 +397,7 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 			}
 		}
 		return firstErr
-	}}, e
+	}), e
 }
 
 func (c *client) tlsConfig() (*tls.Config, error) {

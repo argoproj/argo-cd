@@ -98,32 +98,28 @@ type OIDCConfig struct {
 type RepoCredentials struct {
 	// The URL to the repository
 	URL string `json:"url,omitempty"`
+	// the type of the repo, "git" or "helm", assumed to be "git" if empty or absent
+	Type string `json:"type,omitempty"`
+	// helm only
+	Name string `json:"name,omitempty"`
 	// Name of the secret storing the username used to access the repo
 	UsernameSecret *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
 	// Name of the secret storing the password used to access the repo
 	PasswordSecret *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
-	// Name of the secret storing the SSH private key used to access the repo
+	// Name of the secret storing the SSH private key used to access the repo. Git only
 	SSHPrivateKeySecret *apiv1.SecretKeySelector `json:"sshPrivateKeySecret,omitempty"`
 	// Whether to connect the repository in an insecure way (deprecated)
 	InsecureIgnoreHostKey bool `json:"insecureIgnoreHostKey,omitempty"`
 	// Whether to connect the repository in an insecure way
 	Insecure bool `json:"insecure,omitempty"`
-	// Whether the repo is git-lfs enabled
+	// Whether the repo is git-lfs enabled. Git only.
 	EnableLFS bool `json:"enableLfs,omitempty"`
 	// Name of the secret storing the TLS client cert data
 	TLSClientCertDataSecret *apiv1.SecretKeySelector `json:"tlsClientCertDataSecret,omitempty"`
 	// Name of the secret storing the TLS client cert's key data
 	TLSClientCertKeySecret *apiv1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
-}
-
-type HelmRepoCredentials struct {
-	URL            string                   `json:"url,omitempty"`
-	Name           string                   `json:"name,omitempty"`
-	UsernameSecret *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
-	PasswordSecret *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
-	CASecret       *apiv1.SecretKeySelector `json:"caSecret,omitempty"`
-	CertSecret     *apiv1.SecretKeySelector `json:"certSecret,omitempty"`
-	KeySecret      *apiv1.SecretKeySelector `json:"keySecret,omitempty"`
+	// The CA secret for TLS client cert. Helm only
+	TLSClientCASecret *apiv1.SecretKeySelector `json:"tlsClientCertCaSecret,omitempty"`
 }
 
 const (
@@ -151,8 +147,6 @@ const (
 	repositoriesKey = "repositories"
 	// repositoryCredentialsKey designates the key where ArgoCDs repositories credentials list is set
 	repositoryCredentialsKey = "repository.credentials"
-	// helmRepositoriesKey designates the key where list of helm repositories is set
-	helmRepositoriesKey = "helm.repositories"
 	// settingDexConfigKey designates the key for the dex config
 	settingDexConfigKey = "dex.config"
 	// settingsOIDCConfigKey designates the key for OIDC config
@@ -322,22 +316,6 @@ func (mgr *SettingsManager) GetKustomizeBuildOptions() (string, error) {
 		return "", err
 	}
 	return argoCDCM.Data[kustomizeBuildOptions], nil
-}
-
-func (mgr *SettingsManager) GetHelmRepositories() ([]HelmRepoCredentials, error) {
-	argoCDCM, err := mgr.getConfigMap()
-	if err != nil {
-		return nil, err
-	}
-	helmRepositories := make([]HelmRepoCredentials, 0)
-	helmRepositoriesStr := argoCDCM.Data[helmRepositoriesKey]
-	if helmRepositoriesStr != "" {
-		err := yaml.Unmarshal([]byte(helmRepositoriesStr), &helmRepositories)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return helmRepositories, nil
 }
 
 func (mgr *SettingsManager) GetRepositories() ([]RepoCredentials, error) {

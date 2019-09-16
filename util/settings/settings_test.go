@@ -135,16 +135,6 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 	})
 }
 
-func TestGetHelmRepositories(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
-		"helm.repositories": "\n  - url: http://foo\n",
-	})
-	helmRepositories, err := settingsManager.GetHelmRepositories()
-	assert.NoError(t, err)
-
-	assert.ElementsMatch(t, helmRepositories, []HelmRepoCredentials{{URL: "http://foo"}})
-}
-
 func TestGetGoogleAnalytics(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		"ga.trackingid": "123",

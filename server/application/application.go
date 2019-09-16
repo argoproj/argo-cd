@@ -40,6 +40,8 @@ import (
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/rbac"
+	"github.com/argoproj/argo-cd/util/repo/factory"
+	"github.com/argoproj/argo-cd/util/repo/metrics"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -55,7 +57,7 @@ type Server struct {
 	enf           *rbac.Enforcer
 	projectLock   *util.KeyLock
 	auditLogger   *argo.AuditLogger
-	gitFactory    git.ClientFactory
+	clientFactory factory.Factory
 	settingsMgr   *settings.SettingsManager
 	cache         *cache.Cache
 }
@@ -85,7 +87,7 @@ func NewServer(
 		enf:           enf,
 		projectLock:   projectLock,
 		auditLogger:   argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
-		gitFactory:    git.NewFactory(),
+		clientFactory: factory.NewFactory(),
 		settingsMgr:   settingsMgr,
 	}
 }
@@ -183,19 +185,14 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	if err != nil {
 		return nil, err
 	}
-	helmRepos, err := s.db.ListHelmRepos(ctx)
+	repos, err := s.db.ListRepositories(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	plugins, err := s.settingsMgr.GetConfigManagementPlugins()
+	plugins, err := s.plugins()
 	if err != nil {
 		return nil, err
-	}
-
-	tools := make([]*appv1.ConfigManagementPlugin, len(plugins))
-	for i := range plugins {
-		tools[i] = &plugins[i]
 	}
 	// If source is Kustomize add build options
 	buildOptions, err := s.settingsMgr.GetKustomizeBuildOptions()
@@ -205,7 +202,14 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	kustomizeOptions := appv1.KustomizeOptions{
 		BuildOptions: buildOptions,
 	}
-
+	cluster, err := s.db.GetCluster(context.Background(), a.Spec.Destination.Server)
+	if err != nil {
+		return nil, err
+	}
+	cluster.ServerVersion, err = s.kubectl.GetServerVersion(cluster.RESTConfig())
+	if err != nil {
+		return nil, err
+	}
 	manifestInfo, err := repoClient.GenerateManifest(ctx, &apiclient.ManifestRequest{
 		Repo:              repo,
 		Revision:          revision,
@@ -213,9 +217,10 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		AppLabelValue:     a.Name,
 		Namespace:         a.Spec.Destination.Namespace,
 		ApplicationSource: &a.Spec.Source,
-		HelmRepos:         helmRepos,
-		Plugins:           tools,
+		Repos:             repos,
+		Plugins:           plugins,
 		KustomizeOptions:  &kustomizeOptions,
+		KubeVersion:       cluster.ServerVersion,
 	})
 	if err != nil {
 		return nil, err
@@ -573,7 +578,12 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	kustomizeOptions := appv1.KustomizeOptions{
 		BuildOptions: buildOptions,
 	}
-	conditions, appSourceType, err := argo.ValidateRepo(ctx, &app.Spec, s.repoClientset, s.db, &kustomizeOptions)
+	plugins, err := s.plugins()
+	if err != nil {
+		return err
+	}
+
+	conditions, err := argo.ValidateRepo(ctx, &app.Spec, s.repoClientset, s.db, &kustomizeOptions, plugins, s.kubectl)
 	if err != nil {
 		return err
 	}
@@ -589,7 +599,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		return status.Errorf(codes.InvalidArgument, "application spec is invalid: %s", argo.FormatAppConditions(conditions))
 	}
 
-	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec, appSourceType)
+	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec)
 	return nil
 }
 
@@ -760,7 +770,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 		return nil, err
 	}
 	defer util.Close(conn)
-	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{Repo: repo, Revision: q.GetRevision()})
+	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{Repo: repo, App: a.Spec.Source.Path, Revision: q.GetRevision()})
 }
 
 func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQuery) (*application.ManagedResourcesResponse, error) {
@@ -970,8 +980,8 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 	return a, err
 }
 
-// resolveRevision resolves the git revision specified either in the sync request, or the
-// application source, into a concrete commit SHA that will be used for a sync operation.
+// resolveRevision resolves the revision specified either in the sync request, or the
+// application source, into a concrete revision that will be used for a sync operation.
 func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, syncReq *application.ApplicationSyncRequest) (string, string, error) {
 	ambiguousRevision := syncReq.Revision
 	if ambiguousRevision == "" {
@@ -985,11 +995,11 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	if err != nil {
 		return "", "", err
 	}
-	gitClient, err := s.gitFactory.NewClient(repo.Repo, "", argoutil.GetRepoCreds(repo), repo.IsInsecure(), repo.IsLFSEnabled())
+	client, err := s.clientFactory.NewRepo(repo, metrics.NopReporter)
 	if err != nil {
 		return "", "", err
 	}
-	commitSHA, err := gitClient.LsRemote(ambiguousRevision)
+	commitSHA, err := client.ResolveAppRevision(app.Spec.Source.Path, ambiguousRevision)
 	if err != nil {
 		return "", "", err
 	}
@@ -1148,4 +1158,16 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		return nil, err
 	}
 	return &application.ApplicationResponse{}, nil
+}
+
+func (s *Server) plugins() ([]*v1alpha1.ConfigManagementPlugin, error) {
+	plugins, err := s.settingsMgr.GetConfigManagementPlugins()
+	if err != nil {
+		return nil, err
+	}
+	tools := make([]*v1alpha1.ConfigManagementPlugin, len(plugins))
+	for i, plugin := range plugins {
+		tools[i] = &plugin
+	}
+	return tools, nil
 }

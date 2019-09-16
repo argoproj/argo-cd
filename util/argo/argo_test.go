@@ -17,6 +17,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/pkg/client/informers/externalversions/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/reposerver/apiclient"
 )
 
 func TestRefreshApp(t *testing.T) {
@@ -109,27 +110,27 @@ func TestContainsSyncResource(t *testing.T) {
 func TestNilOutZerValueAppSources(t *testing.T) {
 	var spec *argoappv1.ApplicationSpec
 	{
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NamePrefix: "foo"}}}, argoappv1.ApplicationSourceTypeKustomize)
+		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NamePrefix: "foo"}}})
 		assert.NotNil(t, spec.Source.Kustomize)
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NamePrefix: ""}}}, argoappv1.ApplicationSourceTypeKustomize)
+		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NamePrefix: ""}}})
 		assert.Nil(t, spec.Source.Kustomize)
 	}
 	{
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{"values.yaml"}}}}, argoappv1.ApplicationSourceTypeHelm)
+		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{"values.yaml"}}}})
 		assert.NotNil(t, spec.Source.Helm)
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{}}}}, argoappv1.ApplicationSourceTypeHelm)
+		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{}}}})
 		assert.Nil(t, spec.Source.Helm)
 	}
 	{
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Ksonnet: &argoappv1.ApplicationSourceKsonnet{Environment: "foo"}}}, argoappv1.ApplicationSourceTypeKsonnet)
+		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Ksonnet: &argoappv1.ApplicationSourceKsonnet{Environment: "foo"}}})
 		assert.NotNil(t, spec.Source.Ksonnet)
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Ksonnet: &argoappv1.ApplicationSourceKsonnet{Environment: ""}}}, argoappv1.ApplicationSourceTypeKsonnet)
+		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Ksonnet: &argoappv1.ApplicationSourceKsonnet{Environment: ""}}})
 		assert.Nil(t, spec.Source.Ksonnet)
 	}
 	{
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}}, argoappv1.ApplicationSourceTypeDirectory)
+		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}})
 		assert.NotNil(t, spec.Source.Directory)
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Directory: &argoappv1.ApplicationSourceDirectory{Recurse: false}}}, argoappv1.ApplicationSourceTypeDirectory)
+		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Directory: &argoappv1.ApplicationSourceDirectory{Recurse: false}}})
 		assert.Nil(t, spec.Source.Directory)
 	}
 }
@@ -145,4 +146,42 @@ func TestValidatePermissionsEmptyDestination(t *testing.T) {
 	}, nil)
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, conditions, []argoappv1.ApplicationCondition{{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: "Destination server and/or namespace missing from app spec"}})
+}
+
+func Test_enrichSpec(t *testing.T) {
+	t.Run("Empty", func(t *testing.T) {
+		spec := &argoappv1.ApplicationSpec{}
+		enrichSpec(spec, &apiclient.RepoAppDetailsResponse{})
+		assert.Empty(t, spec.Destination.Server)
+		assert.Empty(t, spec.Destination.Namespace)
+	})
+	t.Run("Ksonnet", func(t *testing.T) {
+		spec := &argoappv1.ApplicationSpec{
+			Source: argoappv1.ApplicationSource{
+				Ksonnet: &argoappv1.ApplicationSourceKsonnet{
+					Environment: "qa",
+				},
+			},
+		}
+		response := &apiclient.RepoAppDetailsResponse{
+			Ksonnet: &apiclient.KsonnetAppSpec{
+				Environments: map[string]*apiclient.KsonnetEnvironment{
+					"prod": {
+						Destination: &apiclient.KsonnetEnvironmentDestination{
+							Server:    "my-server",
+							Namespace: "my-namespace",
+						},
+					},
+				},
+			},
+		}
+		enrichSpec(spec, response)
+		assert.Empty(t, spec.Destination.Server)
+		assert.Empty(t, spec.Destination.Namespace)
+
+		spec.Source.Ksonnet.Environment = "prod"
+		enrichSpec(spec, response)
+		assert.Equal(t, "my-server", spec.Destination.Server)
+		assert.Equal(t, "my-namespace", spec.Destination.Namespace)
+	})
 }

@@ -18,9 +18,11 @@ import (
 
 type MetricsServer struct {
 	*http.Server
-	syncCounter        *prometheus.CounterVec
-	k8sRequestCounter  *prometheus.CounterVec
-	reconcileHistogram *prometheus.HistogramVec
+	syncCounter             *prometheus.CounterVec
+	k8sRequestCounter       *prometheus.CounterVec
+	kubectlExecCounter      *prometheus.CounterVec
+	kubectlExecPendingGauge *prometheus.GaugeVec
+	reconcileHistogram      *prometheus.HistogramVec
 }
 
 const (
@@ -76,6 +78,16 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, health
 		append(descAppDefaultLabels, "phase"),
 	)
 	appRegistry.MustRegister(syncCounter)
+	kubectlExecCounter := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "argocd_kubectl_exec_total",
+		Help: "Number of kubectl executions",
+	}, []string{"command"})
+	appRegistry.MustRegister(kubectlExecCounter)
+	kubectlExecPendingGauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "argocd_kubectl_exec_pending",
+		Help: "Number of pending kubectl executions",
+	}, []string{"command"})
+	appRegistry.MustRegister(kubectlExecPendingGauge)
 	k8sRequestCounter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "argocd_app_k8s_request_total",
@@ -102,9 +114,11 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, health
 			Addr:    addr,
 			Handler: mux,
 		},
-		syncCounter:        syncCounter,
-		k8sRequestCounter:  k8sRequestCounter,
-		reconcileHistogram: reconcileHistogram,
+		syncCounter:             syncCounter,
+		k8sRequestCounter:       k8sRequestCounter,
+		reconcileHistogram:      reconcileHistogram,
+		kubectlExecCounter:      kubectlExecCounter,
+		kubectlExecPendingGauge: kubectlExecPendingGauge,
 	}
 }
 
@@ -124,6 +138,18 @@ func (m *MetricsServer) IncKubernetesRequest(app *argoappv1.Application, statusC
 // IncReconcile increments the reconcile counter for an application
 func (m *MetricsServer) IncReconcile(app *argoappv1.Application, duration time.Duration) {
 	m.reconcileHistogram.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject()).Observe(duration.Seconds())
+}
+
+func (m *MetricsServer) IncKubectlExec(command string) {
+	m.kubectlExecCounter.WithLabelValues(command).Inc()
+}
+
+func (m *MetricsServer) IncKubectlExecPending(command string) {
+	m.kubectlExecPendingGauge.WithLabelValues(command).Inc()
+}
+
+func (m *MetricsServer) DecKubectlExecPending(command string) {
+	m.kubectlExecPendingGauge.WithLabelValues(command).Dec()
 }
 
 type appCollector struct {
