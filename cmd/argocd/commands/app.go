@@ -1937,16 +1937,9 @@ func filterResources(command *cobra.Command, resources []*argoappv1.ResourceDiff
 	if len(filteredObjects) == 0 {
 		log.Fatal("No matching resource found")
 	}
-	//if len(filteredObjects) > 1 && !all {
-	//	log.Fatal("Multiple resources match inputs. Use the --all flag to patch multiple resources")
-	//}
-	//firstGroup := filteredObjects[0].GroupVersionKind().Group
-	//for i := range filteredObjects {
-	//	obj := filteredObjects[i]
-	//	if obj.GroupVersionKind().Group != firstGroup {
-	//		log.Fatal("Multiple groups found in objects to patch. Specify which group to patch with --group flag")
-	//	}
-	//}
+	if len(filteredObjects) > 1 && !all {
+		log.Fatal("Multiple resources match inputs. Use the --all flag to patch multiple resources")
+	}
 	return filteredObjects
 }
 
