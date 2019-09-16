@@ -71,7 +71,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 				Kind:         gvk.Kind,
 			})
 			errors.CheckError(err)
-			availableActions[gvk.Group + "\t" + gvk.Kind + "\t" + obj.GetName()] = availActionsForResource.Actions
+			availableActions[gvk.Group+"\t"+gvk.Kind+"\t"+obj.GetName()] = availActionsForResource.Actions
 		}
 
 		var keys []string
@@ -79,7 +79,6 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 			keys = append(keys, key)
 		}
 		sort.Strings(keys)
-
 
 		switch output {
 		case "yaml":
