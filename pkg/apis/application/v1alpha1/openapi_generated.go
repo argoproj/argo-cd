@@ -1994,7 +1994,20 @@ func schema_pkg_apis_application_v1alpha1_ResourceAction(ref common.ReferenceCal
 							},
 						},
 					},
+					"Available": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"Test": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 				},
+				Required: []string{"Available", "Test"},
 			},
 		},
 		Dependencies: []string{

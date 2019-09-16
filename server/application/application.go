@@ -1058,6 +1058,7 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 	if err != nil {
 		return nil, err
 	}
+	
 	return &application.ResourceActionsListResponse{Actions: availableActions}, nil
 }
 

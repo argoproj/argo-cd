@@ -73,7 +73,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 			fmt.Println("SIMON GetResourceActionDiscovery obj.GetName():", obj.GetName())
 			fmt.Println("SIMON GetResourceActionDiscovery availActionsForResource:", availActionsForResource)
 			fmt.Println("SIMON GetResourceActionDiscovery availActionsForResource.Actions:", availActionsForResource.Actions)
-			availableActions[gvk.Kind + obj.GetName()] = availActionsForResource.Actions
+			availableActions[gvk.Kind + " " + obj.GetName()] = availActionsForResource.Actions
 		}
 
 		fmt.Println("SIMON GetResourceActionDiscovery availableActions:", availableActions)
