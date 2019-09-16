@@ -205,7 +205,6 @@ func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scri
 		}
 		availableActions := make([]appv1.ResourceAction, 0)
 		if noAvailableActions(jsonBytes) {
-			fmt.Println("SIMON No actions")
 			return availableActions, nil
 		}
 		availableActionsMap := make(map[string]interface{})
