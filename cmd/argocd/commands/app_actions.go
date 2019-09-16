@@ -70,10 +70,11 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 				Kind:         gvk.Kind,
 			})
 			errors.CheckError(err)
+			fmt.Println("SIMON", gvk.Group, gvk.Kind)
 			fmt.Println("SIMON GetResourceActionDiscovery obj.GetName():", obj.GetName())
 			fmt.Println("SIMON GetResourceActionDiscovery availActionsForResource:", availActionsForResource)
 			fmt.Println("SIMON GetResourceActionDiscovery availActionsForResource.Actions:", availActionsForResource.Actions)
-			availableActions[gvk.Kind + " " + obj.GetName()] = availActionsForResource.Actions
+			availableActions[gvk.Group + "\t" + gvk.Kind + "\t" + obj.GetName()] = availActionsForResource.Actions
 		}
 
 		fmt.Println("SIMON GetResourceActionDiscovery availableActions:", availableActions)
@@ -96,7 +97,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 			fmt.Println(string(jsonBytes))
 		case "":
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "RESOURCE\tACTION\tAVAILABLE\n")
+			fmt.Fprintf(w, "GROUP\tKIND\tNAME\tACTION\tAVAILABLE\n")
 			fmt.Println()
 			for key := range availableActions {
 				for i := range availableActions[key] {

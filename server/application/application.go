@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"reflect"
 	"strings"
 	"time"
@@ -1052,26 +1053,22 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 		return nil, err
 	}
 
-	availableActions, err := s.getAvailableActions(resourceOverrides, obj, "")
+	availableActions, err := s.getAvailableActions(resourceOverrides, obj, res.GroupKindVersion(), "")
 	log.Info("SIMON GetResourceActionDiscovery err:", err)
 	log.Info("SIMON GetResourceActionDiscovery availableActions3:", availableActions)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &application.ResourceActionsListResponse{Actions: availableActions}, nil
 }
 
-func (s *Server) getAvailableActions(resourceOverrides map[string]v1alpha1.ResourceOverride, obj *unstructured.Unstructured, filterAction string) ([]appv1.ResourceAction, error) {
+func (s *Server) getAvailableActions(resourceOverrides map[string]appv1.ResourceOverride, obj *unstructured.Unstructured, gvk schema.GroupVersionKind, filterAction string) ([]appv1.ResourceAction, error) {
 	luaVM := lua.VM{
 		ResourceOverrides: resourceOverrides,
 	}
 
-	log.Info("SIMON getAvailableActions")
 	discoveryScript, err := luaVM.GetResourceActionDiscovery(obj)
-	log.Info("SIMON GetResourceActionDiscovery done obj:", obj)
-	log.Info("SIMON GetResourceActionDiscovery discoveryScript:", discoveryScript)
-	log.Info("SIMON GetResourceActionDiscovery err:", err)
 	if err != nil {
 		return nil, err
 	}
@@ -1079,18 +1076,16 @@ func (s *Server) getAvailableActions(resourceOverrides map[string]v1alpha1.Resou
 		return []appv1.ResourceAction{}, nil
 	}
 	availableActions, err := luaVM.ExecuteResourceActionDiscovery(obj, discoveryScript)
-	log.Info("SIMON GetResourceActionDiscovery availableActions:", availableActions)
-	log.Info("SIMON GetResourceActionDiscovery err2 :", err)
 	if err != nil {
 		return nil, err
 	}
 	for i := range availableActions {
 		action := availableActions[i]
+		availableActions[i].Name = gvk.Group + "/" + gvk.Kind + ":" + action.Name
 		if action.Name == filterAction {
 			return []appv1.ResourceAction{action}, nil
 		}
 	}
-	log.Info("SIMON GetResourceActionDiscovery availableActions2:", availableActions)
 	return availableActions, nil
 
 }
@@ -1118,7 +1113,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 	if err != nil {
 		return nil, err
 	}
-	filteredAvailableActions, err := s.getAvailableActions(resourceOverrides, liveObj, q.Action)
+	filteredAvailableActions, err := s.getAvailableActions(resourceOverrides, liveObj, res.GroupKindVersion(), q.Action)
 	if err != nil {
 		return nil, err
 	}

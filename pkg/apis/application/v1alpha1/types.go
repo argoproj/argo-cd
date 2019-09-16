@@ -965,7 +965,6 @@ type ResourceAction struct {
 	Name      string                `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
 	Params    []ResourceActionParam `json:"params,omitempty" protobuf:"bytes,2,rep,name=params"`
 	Available bool                  `protobuf:"varint,3,opt,name=available"`
-	Test      string                `protobuf:"bytes,4,opt,name=test"`
 }
 
 type ResourceActionParam struct {
