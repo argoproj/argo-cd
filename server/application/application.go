@@ -1053,6 +1053,8 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 	}
 
 	availableActions, err := s.getAvailableActions(resourceOverrides, obj, "")
+	log.Info("SIMON GetResourceActionDiscovery err:", err)
+	log.Info("SIMON GetResourceActionDiscovery availableActions3:", availableActions)
 	if err != nil {
 		return nil, err
 	}
@@ -1067,6 +1069,8 @@ func (s *Server) getAvailableActions(resourceOverrides map[string]v1alpha1.Resou
 	log.Info("SIMON getAvailableActions")
 	discoveryScript, err := luaVM.GetResourceActionDiscovery(obj)
 	log.Info("SIMON GetResourceActionDiscovery done obj:", obj)
+	log.Info("SIMON GetResourceActionDiscovery discoveryScript:", discoveryScript)
+	log.Info("SIMON GetResourceActionDiscovery err:", err)
 	if err != nil {
 		return nil, err
 	}
@@ -1074,6 +1078,8 @@ func (s *Server) getAvailableActions(resourceOverrides map[string]v1alpha1.Resou
 		return []appv1.ResourceAction{}, nil
 	}
 	availableActions, err := luaVM.ExecuteResourceActionDiscovery(obj, discoveryScript)
+	log.Info("SIMON GetResourceActionDiscovery availableActions:", availableActions)
+	log.Info("SIMON GetResourceActionDiscovery err2 :", err)
 	if err != nil {
 		return nil, err
 	}
@@ -1083,6 +1089,7 @@ func (s *Server) getAvailableActions(resourceOverrides map[string]v1alpha1.Resou
 			return []appv1.ResourceAction{action}, nil
 		}
 	}
+	log.Info("SIMON GetResourceActionDiscovery availableActions2:", availableActions)
 	return availableActions, nil
 
 }

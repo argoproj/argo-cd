@@ -70,14 +70,20 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 				Kind:         gvk.Kind,
 			})
 			errors.CheckError(err)
-			availableActions[obj.GetName()] = availActionsForResource.Actions
+			fmt.Println("SIMON GetResourceActionDiscovery obj.GetName():", obj.GetName())
+			fmt.Println("SIMON GetResourceActionDiscovery availActionsForResource:", availActionsForResource)
+			fmt.Println("SIMON GetResourceActionDiscovery availActionsForResource.Actions:", availActionsForResource.Actions)
+			availableActions[gvk.Kind + obj.GetName()] = availActionsForResource.Actions
 		}
 
+		fmt.Println("SIMON GetResourceActionDiscovery availableActions:", availableActions)
 		var keys []string
 		for key := range availableActions {
 			keys = append(keys, key)
 		}
 		sort.Strings(keys)
+
+		fmt.Println("SIMON GetResourceActionDiscovery availableActions:", availableActions)
 
 		switch output {
 		case "yaml":
