@@ -1019,10 +1019,10 @@ func (m *Repository) CopyCredentialsFrom(source *Repository) {
 		m.InsecureIgnoreHostKey = m.InsecureIgnoreHostKey || source.InsecureIgnoreHostKey
 		m.Insecure = m.Insecure || source.Insecure
 		m.EnableLFS = m.EnableLFS || source.EnableLFS
-		if m.TLSClientCertData != "" {
+		if m.TLSClientCertData == "" {
 			m.TLSClientCertData = source.TLSClientCertData
 		}
-		if m.TLSClientCertKey != "" {
+		if m.TLSClientCertKey == "" {
 			m.TLSClientCertKey = source.TLSClientCertKey
 		}
 	}

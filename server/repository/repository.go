@@ -186,16 +186,15 @@ func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest)
 			return nil, err
 		}
 		repo.CopyCredentialsFrom(creds)
-		_, err = factory.NewFactory().NewRepo(q.Repo, metrics.NopReporter)
-		if err != nil {
-			return nil, err
-		}
-
 		err = factory.DetectType(repo, metrics.NopReporter)
 		if err != nil {
 			return nil, err
 		}
 		detectedType = repo.Type
+		_, err = factory.NewFactory().NewRepo(repo, metrics.NopReporter)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	r := q.Repo
@@ -265,7 +264,16 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		TLSClientCertKey:  q.TlsClientCertKey,
 		TLSClientCAData:   q.TlsClientCAData,
 	}
-	_, err := factory.NewFactory().NewRepo(repo, metrics.NopReporter)
+	creds, err := s.db.GetRepository(ctx, q.Repo)
+	if err != nil {
+		return nil, err
+	}
+	repo.CopyCredentialsFrom(creds)
+	err = factory.DetectType(repo, metrics.NopReporter)
+	if err != nil {
+		return nil, err
+	}
+	_, err = factory.NewFactory().NewRepo(repo, metrics.NopReporter)
 	if err != nil {
 		return nil, err
 	}
