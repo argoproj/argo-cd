@@ -2000,14 +2000,8 @@ func schema_pkg_apis_application_v1alpha1_ResourceAction(ref common.ReferenceCal
 							Format: "",
 						},
 					},
-					"Test": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
 				},
-				Required: []string{"Available", "Test"},
+				Required: []string{"Available"},
 			},
 		},
 		Dependencies: []string{

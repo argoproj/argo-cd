@@ -3430,9 +3430,6 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceActionParam"
           }
-        },
-        "test": {
-          "type": "string"
         }
       }
     },

@@ -70,21 +70,15 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 				Kind:         gvk.Kind,
 			})
 			errors.CheckError(err)
-			fmt.Println("SIMON", gvk.Group, gvk.Kind)
-			fmt.Println("SIMON GetResourceActionDiscovery obj.GetName():", obj.GetName())
-			fmt.Println("SIMON GetResourceActionDiscovery availActionsForResource:", availActionsForResource)
-			fmt.Println("SIMON GetResourceActionDiscovery availActionsForResource.Actions:", availActionsForResource.Actions)
 			availableActions[gvk.Group + "\t" + gvk.Kind + "\t" + obj.GetName()] = availActionsForResource.Actions
 		}
 
-		fmt.Println("SIMON GetResourceActionDiscovery availableActions:", availableActions)
 		var keys []string
 		for key := range availableActions {
 			keys = append(keys, key)
 		}
 		sort.Strings(keys)
 
-		fmt.Println("SIMON GetResourceActionDiscovery availableActions:", availableActions)
 
 		switch output {
 		case "yaml":
@@ -111,8 +105,6 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 	}
 	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource")
 	command.Flags().StringVar(&kind, "kind", "", "Kind")
-	//err := command.MarkFlagRequired("kind")
-	//errors.CheckError(err)
 	command.Flags().StringVar(&group, "group", "", "Group")
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to list actions on multiple matching resources")
