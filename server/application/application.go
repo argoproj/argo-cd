@@ -1054,8 +1054,6 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 	}
 
 	availableActions, err := s.getAvailableActions(resourceOverrides, obj, res.GroupKindVersion(), "")
-	log.Info("SIMON GetResourceActionDiscovery err:", err)
-	log.Info("SIMON GetResourceActionDiscovery availableActions3:", availableActions)
 	if err != nil {
 		return nil, err
 	}

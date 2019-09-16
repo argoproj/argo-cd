@@ -124,10 +124,6 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	}
 
 	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource")
-	//command.Flags().StringVar(&kind, "kind", "", "Kind")
-	//err := command.MarkFlagRequired("kind")
-	//errors.CheckError(err)
-	//command.Flags().StringVar(&group, "group", "", "Group")
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to run the action on multiple matching resources")
 
