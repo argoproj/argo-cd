@@ -405,48 +405,6 @@ func TestAppProjectSpec_DestinationClusters(t *testing.T) {
 	}
 }
 
-func TestRepository_HasCredentials(t *testing.T) {
-
-	tests := []struct {
-		name string
-		repo Repository
-		want bool
-	}{
-		{
-			name: "TestHasRepo",
-			repo: Repository{Repo: "foo"},
-			want: false,
-		},
-		{
-			name: "TestHasUsername",
-			repo: Repository{Username: "foo"},
-			want: true,
-		},
-		{
-			name: "TestHasPassword",
-			repo: Repository{Password: "foo"},
-			want: true,
-		},
-		{
-			name: "TestHasSSHPrivateKey",
-			repo: Repository{SSHPrivateKey: "foo"},
-			want: true,
-		},
-		{
-			name: "TestHasInsecureHostKey",
-			repo: Repository{InsecureIgnoreHostKey: true},
-			want: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.repo.HasCredentials(); got != tt.want {
-				t.Errorf("Repository.HasCredentials() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestRepository_CopyCredentialsFrom(t *testing.T) {
 	tests := []struct {
 		name   string
