@@ -1545,7 +1545,7 @@
 
 [[projects]]
   branch = "release-1.14"
-  digest = "1:78aa6079e011ece0d28513c7fe1bd64284fa9eb5d671760803a839ffdf0e9e38"
+  digest = "1:2125f7261c97a281d4d96bdb3a23a36fe77df26ce5a1ce12c67c6261f03e6ba5"
   name = "k8s.io/kubernetes"
   packages = [
     "pkg/api/v1/pod",
@@ -1559,7 +1559,7 @@
     "pkg/util/node",
   ]
   pruneopts = ""
-  revision = "2d20b5759406ded89f8b25cf085ff4733b144ba5"
+  revision = "8fca2ec50a6133511b771a11559e24191b1aa2b4"
 
 [[projects]]
   branch = "master"
