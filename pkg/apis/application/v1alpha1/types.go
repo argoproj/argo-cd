@@ -1025,6 +1025,9 @@ func (m *Repository) CopyCredentialsFrom(source *Repository) {
 		if m.TLSClientCertKey == "" {
 			m.TLSClientCertKey = source.TLSClientCertKey
 		}
+		if m.TLSClientCAData == "" {
+			m.TLSClientCAData = source.TLSClientCAData
+		}
 	}
 }
 

@@ -408,21 +408,36 @@ func TestAppProjectSpec_DestinationClusters(t *testing.T) {
 func TestRepository_CopyCredentialsFrom(t *testing.T) {
 	tests := []struct {
 		name   string
+		repo   *Repository
 		source *Repository
 		want   Repository
 	}{
-		{"TestNil", nil, Repository{}},
-		{"TestHasRepo", &Repository{Repo: "foo"}, Repository{}},
-		{"TestHasUsername", &Repository{Username: "foo"}, Repository{Username: "foo"}},
-		{"TestHasPassword", &Repository{Password: "foo"}, Repository{Password: "foo"}},
-		{"TestHasSSHPrivateKey", &Repository{SSHPrivateKey: "foo"}, Repository{SSHPrivateKey: "foo"}},
-		{"TestHasInsecureHostKey", &Repository{InsecureIgnoreHostKey: true}, Repository{InsecureIgnoreHostKey: true}},
+		{"Username", &Repository{Username: "foo"}, &Repository{}, Repository{Username: "foo"}},
+		{"Password", &Repository{Password: "foo"}, &Repository{}, Repository{Password: "foo"}},
+		{"SSHPrivateKey", &Repository{SSHPrivateKey: "foo"}, &Repository{}, Repository{SSHPrivateKey: "foo"}},
+		{"InsecureHostKey", &Repository{InsecureIgnoreHostKey: true}, &Repository{}, Repository{InsecureIgnoreHostKey: true}},
+		{"Insecure", &Repository{Insecure: true}, &Repository{}, Repository{Insecure: true}},
+		{"EnableLFS", &Repository{EnableLFS: true}, &Repository{}, Repository{EnableLFS: true}},
+		{"TLSClientCAData", &Repository{TLSClientCAData: "foo"}, &Repository{}, Repository{TLSClientCAData: "foo"}},
+		{"TLSClientCertData", &Repository{TLSClientCertData: "foo"}, &Repository{}, Repository{TLSClientCertData: "foo"}},
+		{"TLSClientCertKey", &Repository{TLSClientCertKey: "foo"}, &Repository{}, Repository{TLSClientCertKey: "foo"}},
+		{"SourceNil", &Repository{}, nil, Repository{}},
+
+		{"SourceUsername", &Repository{}, &Repository{Username: "foo"}, Repository{Username: "foo"}},
+		{"SourcePassword", &Repository{}, &Repository{Password: "foo"}, Repository{Password: "foo"}},
+		{"SourceSSHPrivateKey", &Repository{}, &Repository{SSHPrivateKey: "foo"}, Repository{SSHPrivateKey: "foo"}},
+		{"SourceInsecureHostKey", &Repository{}, &Repository{InsecureIgnoreHostKey: true}, Repository{InsecureIgnoreHostKey: true}},
+		{"SourceInsecure", &Repository{}, &Repository{Insecure: true}, Repository{Insecure: true}},
+		{"SourceEnableLFS", &Repository{}, &Repository{EnableLFS: true}, Repository{EnableLFS: true}},
+		{"SourceTLSClientCAData", &Repository{}, &Repository{TLSClientCAData: "foo"}, Repository{TLSClientCAData: "foo"}},
+		{"SourceTLSClientCertData", &Repository{}, &Repository{TLSClientCertData: "foo"}, Repository{TLSClientCertData: "foo"}},
+		{"SourceTLSClientCertKey", &Repository{}, &Repository{TLSClientCertKey: "foo"}, Repository{TLSClientCertKey: "foo"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := Repository{}
-			repo.CopyCredentialsFrom(tt.source)
-			assert.Equal(t, tt.want, repo)
+			r := tt.repo.DeepCopy()
+			r.CopyCredentialsFrom(tt.source)
+			assert.Equal(t, tt.want, *r)
 		})
 	}
 }
