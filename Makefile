@@ -128,8 +128,10 @@ ifeq ($(DEV_IMAGE), true)
 # The "dev" image builds the binaries from the users desktop environment (instead of in Docker)
 # which speeds up builds. Dockerfile.dev needs to be copied into dist to perform the build, since
 # the dist directory is under .dockerignore.
+IMAGE_TAG="dev-$(shell git describe --always --dirty)"
 image: packr
 	docker build -t argocd-base --target argocd-base .
+	docker build -t argocd-ui --target argocd-ui .
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 dist/packr build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-server ./cmd/argocd-server
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 dist/packr build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-application-controller ./cmd/argocd-application-controller
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 dist/packr build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-repo-server ./cmd/argocd-repo-server
