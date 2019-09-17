@@ -1355,7 +1355,7 @@
 
 [[projects]]
   branch = "release-11.0"
-  digest = "1:794140b3ac07405646ea3d4a57e1f6155186e672aed8aa0c996779381cd92fe6"
+  digest = "1:d77899845faaec7b101fdf7c30bcaede6f17dad11818c8ab336fbfb88192e662"
   name = "k8s.io/client-go"
   packages = [
     "discovery",
@@ -1474,7 +1474,7 @@
     "util/workqueue",
   ]
   pruneopts = ""
-  revision = "11646d1007e006f6f24995cb905c68bc62901c81"
+  revision = "6d55c1b1f1ca8ad83d572bbc3ca55ba5526d9d71"
 
 [[projects]]
   branch = "release-1.14"
