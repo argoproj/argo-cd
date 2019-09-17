@@ -1478,7 +1478,7 @@
 
 [[projects]]
   branch = "release-1.14"
-  digest = "1:742ce70d2c6de0f02b5331a25d4d549f55de6b214af22044455fd6e6b451cad9"
+  digest = "1:0ca40cba3558ea765d0e7fa91ebd32d661909d5c331c49c2a271af66f0b5604d"
   name = "k8s.io/code-generator"
   packages = [
     "cmd/go-to-protobuf",
@@ -1487,7 +1487,7 @@
     "third_party/forked/golang/reflect",
   ]
   pruneopts = ""
-  revision = "50b561225d70b3eb79a1faafd3dfe7b1a62cbe73"
+  revision = "6c2a4329ac290d921e8616cad41635c87dbb1518"
 
 [[projects]]
   branch = "master"
