@@ -1303,7 +1303,7 @@
 
 [[projects]]
   branch = "release-1.14"
-  digest = "1:a802c91b189a31200cfb66744441fe62dac961ec7c5c58c47716570de7da195c"
+  digest = "1:e950967cea228c597ebaf1205bd4045f6d43db85fce18f7b8915e2e0c49bde21"
   name = "k8s.io/apimachinery"
   packages = [
     "pkg/api/equality",
@@ -1355,7 +1355,7 @@
     "third_party/forked/golang/reflect",
   ]
   pruneopts = ""
-  revision = "6a84e37a896db9780c75367af8d2ed2bb944022e"
+  revision = "a9f1d8a9c10182d101acf19b5145c3d4e9299adb"
 
 [[projects]]
   branch = "release-11.0"
