@@ -1,12 +1,12 @@
 package version
 
 import (
-	"fmt"
+	"github.com/golang/protobuf/ptypes/empty"
+	"golang.org/x/net/context"
+
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"
-	"github.com/golang/protobuf/ptypes/empty"
-	"golang.org/x/net/context"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apiclient/version"
@@ -34,20 +34,19 @@ func (s *Server) Version(context.Context, *empty.Empty) (*version.VersionMessage
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("SIMON Kustomize version", kustomizeVersion, helmVersion, kubectlVersion)
 	return &version.VersionMessage{
-		Version:        vers.Version,
-		BuildDate:      vers.BuildDate,
-		GitCommit:      vers.GitCommit,
-		GitTag:         vers.GitTag,
-		GitTreeState:   vers.GitTreeState,
-		GoVersion:      vers.GoVersion,
-		Compiler:       vers.Compiler,
-		Platform:       vers.Platform,
-		KsonnetVersion: ksonnetVersion,
+		Version:          vers.Version,
+		BuildDate:        vers.BuildDate,
+		GitCommit:        vers.GitCommit,
+		GitTag:           vers.GitTag,
+		GitTreeState:     vers.GitTreeState,
+		GoVersion:        vers.GoVersion,
+		Compiler:         vers.Compiler,
+		Platform:         vers.Platform,
+		KsonnetVersion:   ksonnetVersion,
 		KustomizeVersion: kustomizeVersion,
-		HelmVersion: helmVersion,
-		KubectlVersion: kubectlVersion,
+		HelmVersion:      helmVersion,
+		KubectlVersion:   kubectlVersion,
 	}, nil
 }
 

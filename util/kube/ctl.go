@@ -314,7 +314,7 @@ func Version() (string, error) {
 	cmd := exec.Command("kubectl", "version", "--client")
 	out, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
 	if err != nil {
-		return "", errors.New(fmt.Sprintf("could not get kubectl version: %s", err))
+		return "", fmt.Errorf("could not get kubectl version: %s", err)
 	}
 	re := regexp.MustCompile(`GitVersion:"([a-zA-Z0-9\.]+)"`)
 	matches := re.FindStringSubmatch(out)

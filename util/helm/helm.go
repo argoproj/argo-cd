@@ -15,11 +15,12 @@ import (
 	"github.com/ghodss/yaml"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	argoexec "github.com/argoproj/pkg/exec"
+
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/text"
-	argoexec "github.com/argoproj/pkg/exec"
 )
 
 // Helm provides wrapper functionality around the `helm` command.
@@ -140,7 +141,7 @@ func Version() (string, error) {
 		Redactor: redactor,
 	})
 	if err != nil {
-		return "", errors.New(fmt.Sprintf("could not get helm version: %s", err))
+		return "", fmt.Errorf("could not get helm version: %s", err)
 	}
 	re := regexp.MustCompile(`SemVer:"([a-zA-Z0-9\.]+)"`)
 	matches := re.FindStringSubmatch(out)

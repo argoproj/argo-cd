@@ -9,22 +9,33 @@ package application // import "github.com/argoproj/argo-cd/pkg/apiclient/applica
 	Application Service API performs CRUD actions against application resources
 */
 
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import v1alpha1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-import apiclient "github.com/argoproj/argo-cd/reposerver/apiclient"
-import _ "github.com/gogo/protobuf/gogoproto"
-import _ "google.golang.org/genproto/googleapis/api/annotations"
-import v11 "k8s.io/api/core/v1"
-import v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+import (
+	fmt "fmt"
 
-import context "golang.org/x/net/context"
-import grpc "google.golang.org/grpc"
+	proto "github.com/gogo/protobuf/proto"
 
-import github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
+	math "math"
 
-import io "io"
+	v1alpha1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+
+	apiclient "github.com/argoproj/argo-cd/reposerver/apiclient"
+
+	_ "github.com/gogo/protobuf/gogoproto"
+
+	_ "google.golang.org/genproto/googleapis/api/annotations"
+
+	v11 "k8s.io/api/core/v1"
+
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	context "golang.org/x/net/context"
+
+	grpc "google.golang.org/grpc"
+
+	github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
+
+	io "io"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
