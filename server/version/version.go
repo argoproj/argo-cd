@@ -45,6 +45,9 @@ func (s *Server) Version(context.Context, *empty.Empty) (*version.VersionMessage
 		Compiler:       vers.Compiler,
 		Platform:       vers.Platform,
 		KsonnetVersion: ksonnetVersion,
+		KustomizeVersion: kustomizeVersion,
+		HelmVersion: helmVersion,
+		KubectlVersion: kubectlVersion,
 	}, nil
 }
 
