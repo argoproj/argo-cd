@@ -3,9 +3,11 @@ package kube
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	argoexec "github.com/argoproj/pkg/exec"
@@ -306,6 +308,20 @@ func (k *KubectlCmd) runKubectl(kubeconfigPath string, namespace string, args []
 		return "", convertKubectlError(err)
 	}
 	return out, nil
+}
+
+func Version() (string, error) {
+	cmd := exec.Command("kubectl", "version", "--client")
+	out, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
+	if err != nil {
+		return "", errors.New(fmt.Sprintf("could not get kubectl version: %s", err))
+	}
+	re := regexp.MustCompile(`GitVersion:"([a-zA-Z0-9\.]+)"`)
+	matches := re.FindStringSubmatch(out)
+	if len(matches) != 2 {
+		return "", errors.New("could not get kubectl version")
+	}
+	return matches[1], nil
 }
 
 // ConvertToVersion converts an unstructured object into the specified group/version

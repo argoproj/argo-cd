@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -169,6 +170,20 @@ func IsKustomization(path string) bool {
 		}
 	}
 	return false
+}
+
+func KustomizeVersion() (string, error) {
+	cmd := exec.Command("kustomize", "version")
+	out, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
+	if err != nil {
+		return "", errors.New(fmt.Sprintf("could not get kustomize version: %s", err))
+	}
+	re := regexp.MustCompile(`KustomizeVersion:([a-zA-Z0-9\.]+)`)
+	matches := re.FindStringSubmatch(out)
+	if len(matches) != 2 {
+		return "", errors.New("could not get kustomize version")
+	}
+	return matches[1], nil
 }
 
 func getImageParameters(objs []*unstructured.Unstructured) []Image {
