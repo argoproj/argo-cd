@@ -1,22 +1,12 @@
 package repo
 
 import (
-	"errors"
 	"fmt"
-	"net/http"
 	"path/filepath"
-	"strings"
-	"time"
-
-	"github.com/patrickmn/go-cache"
-	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
 
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/repo"
 )
-
-var indexCache = cache.New(5*time.Minute, 5*time.Minute)
 
 type helmRepo struct {
 	cmd                           *helm.Cmd
@@ -25,7 +15,7 @@ type helmRepo struct {
 }
 
 func (c helmRepo) Init() error {
-	_, err := c.getIndex()
+	_, err := c.index()
 	if err != nil {
 		return err
 	}
@@ -46,78 +36,28 @@ func (c helmRepo) ResolveAppRevision(app, revision string) (string, error) {
 		return revision, nil
 	}
 
-	index, err := c.getIndex()
+	index, err := c.index()
 	if err != nil {
 		return "", err
 	}
 
-	for chartName := range index.Entries {
-		if chartName == app {
-			return index.Entries[chartName][0].Version, nil
-		}
-	}
-
-	return "", errors.New("failed to find chart " + app)
+	return index.latest(app)
 }
 
 func (c helmRepo) RevisionMetadata(app, resolvedRevision string) (*repo.RevisionMetadata, error) {
-
-	index, err := c.getIndex()
+	index, err := c.index()
 	if err != nil {
 		return nil, err
 	}
-
-	for _, entry := range index.Entries[app] {
-		if entry.Version == resolvedRevision {
-			return &repo.RevisionMetadata{Date: entry.Created}, nil
-		}
-	}
-
-	return nil, fmt.Errorf("unknown chart \"%s/%s\"", app, resolvedRevision)
-}
-
-type entry struct {
-	Version string
-	Created time.Time
-}
-
-type index struct {
-	Entries map[string][]entry
-}
-
-func (c helmRepo) getIndex() (*index, error) {
-
-	cachedIndex, found := indexCache.Get(c.url)
-	if found {
-		log.WithFields(log.Fields{"url": c.url}).Debug("index cache hit")
-		i := cachedIndex.(index)
-		return &i, nil
-	}
-
-	start := time.Now()
-
-	resp, err := http.Get(strings.TrimSuffix(c.url, "/") + "/index.yaml")
+	entry, err := index.entry(app, resolvedRevision)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != 200 {
-		return nil, errors.New("failed to get index: " + resp.Status)
-	}
-
-	index := &index{}
-	err = yaml.NewDecoder(resp.Body).Decode(index)
-
-	log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took to get index")
-
-	indexCache.Set(c.url, *index, cache.DefaultExpiration)
-
-	return index, err
+	return &repo.RevisionMetadata{Date: entry.Created}, nil
 }
 
 func (c helmRepo) ListApps(_ string) (map[string]string, error) {
-	index, err := c.getIndex()
+	index, err := c.index()
 	if err != nil {
 		return nil, err
 	}
@@ -151,24 +91,16 @@ func (c helmRepo) GetApp(app string, resolvedRevision string) (string, error) {
 }
 
 func (c helmRepo) checkKnownChart(chartName string) error {
-	knownChart, err := c.isKnownChart(chartName)
+	index, err := c.index()
 	if err != nil {
 		return err
 	}
-	if !knownChart {
+	if !index.contains(chartName) {
 		return fmt.Errorf("unknown chart \"%s\"", chartName)
 	}
 	return nil
 }
 
-func (c helmRepo) isKnownChart(chartName string) (bool, error) {
-
-	index, err := c.getIndex()
-	if err != nil {
-		return false, err
-	}
-
-	_, ok := index.Entries[chartName]
-
-	return ok, nil
+func (c helmRepo) index() (*index, error) {
+	return Index(c.url, c.username, c.password)
 }

@@ -1005,20 +1005,29 @@ func (repo *Repository) IsLFSEnabled() bool {
 	return repo.EnableLFS
 }
 
-func (m *Repository) HasCredentials() bool {
-	return m.Username != "" || m.Password != "" || m.SSHPrivateKey != "" || m.InsecureIgnoreHostKey
-}
-
 func (m *Repository) CopyCredentialsFrom(source *Repository) {
 	if source != nil {
-		m.Username = source.Username
-		m.Password = source.Password
-		m.SSHPrivateKey = source.SSHPrivateKey
-		m.InsecureIgnoreHostKey = source.InsecureIgnoreHostKey
-		m.Insecure = source.Insecure
-		m.EnableLFS = source.EnableLFS
-		m.TLSClientCertData = source.TLSClientCertData
-		m.TLSClientCertKey = source.TLSClientCertKey
+		if m.Username == "" {
+			m.Username = source.Username
+		}
+		if m.Password == "" {
+			m.Password = source.Password
+		}
+		if m.SSHPrivateKey == "" {
+			m.SSHPrivateKey = source.SSHPrivateKey
+		}
+		m.InsecureIgnoreHostKey = m.InsecureIgnoreHostKey || source.InsecureIgnoreHostKey
+		m.Insecure = m.Insecure || source.Insecure
+		m.EnableLFS = m.EnableLFS || source.EnableLFS
+		if m.TLSClientCertData == "" {
+			m.TLSClientCertData = source.TLSClientCertData
+		}
+		if m.TLSClientCertKey == "" {
+			m.TLSClientCertKey = source.TLSClientCertKey
+		}
+		if m.TLSClientCAData == "" {
+			m.TLSClientCAData = source.TLSClientCAData
+		}
 	}
 }
 

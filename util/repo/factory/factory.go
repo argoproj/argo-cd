@@ -24,8 +24,16 @@ type factory struct {
 func (f *factory) NewRepo(r *v1alpha1.Repository, reporter metrics.Reporter) (repo.Repo, error) {
 	switch r.Type {
 	case "helm":
-		return helmrepo.NewRepo(r.Repo, r.Name, r.Username, r.Password, []byte(r.TLSClientCAData), []byte(r.TLSClientCertData), []byte(r.TLSClientCertKey))
+		return helmRepo(r)
 	default:
-		return gitrepo.NewRepo(r.Repo, creds.GetRepoCreds(r), r.IsInsecure(), r.EnableLFS, discovery.Discover, reporter)
+		return gitRepo(r, reporter)
 	}
+}
+
+func gitRepo(r *v1alpha1.Repository, reporter metrics.Reporter) (repo.Repo, error) {
+	return gitrepo.NewRepo(r.Repo, creds.GetRepoCreds(r), r.IsInsecure(), r.EnableLFS, discovery.Discover, reporter)
+}
+
+func helmRepo(r *v1alpha1.Repository) (repo.Repo, error) {
+	return helmrepo.NewRepo(r.Repo, r.Name, r.Username, r.Password, []byte(r.TLSClientCAData), []byte(r.TLSClientCertData), []byte(r.TLSClientCertKey))
 }
