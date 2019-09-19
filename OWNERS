@@ -1,8 +1,12 @@
 owners:
+- alexec
 - alexmt
 - jessesuen
 
+reviewers:
+- jannfis
+
 approvers:
-- alexc
+- alexec
 - alexmt
 - jessesuen
