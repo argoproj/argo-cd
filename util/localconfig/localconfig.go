@@ -234,11 +234,15 @@ func (l *LocalConfig) IsEmpty() bool {
 
 // DefaultConfigDir returns the local configuration path for settings such as cached authentication tokens.
 func DefaultConfigDir() (string, error) {
-	usr, err := user.Current()
-	if err != nil {
-		return "", err
+	homeDir := os.Getenv("HOME")
+	if homeDir == "" {
+		usr, err := user.Current()
+		if err != nil {
+			return "", err
+		}
+		homeDir = usr.HomeDir
 	}
-	return path.Join(usr.HomeDir, ".argocd"), nil
+	return path.Join(homeDir, ".argocd"), nil
 }
 
 // DefaultLocalConfigPath returns the local configuration path for settings such as cached authentication tokens.
