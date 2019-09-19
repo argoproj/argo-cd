@@ -159,11 +159,15 @@ dep:
 dep-ensure:
 	dep ensure -no-vendor
 
-.PHONY: lint
-lint:
+.PHONY: lint-local
+lint-local: build
 	# golangci-lint does not do a good job of formatting imports
 	goimports -local github.com/argoproj/argo-cd -w `find . ! -path './vendor/*' ! -path './pkg/client/*' -type f -name '*.go'`
 	GOGC=$(LINT_GOGC) golangci-lint run --fix --verbose --concurrency $(LINT_CONCURRENCY) --deadline $(LINT_DEADLINE)
+
+.PHONY: lint
+lint: dev-tools-image
+	$(call run-in-dev-tool,make lint-local LINT_CONCURRENCY=$(LINT_CONCURRENCY) LINT_DEADLINE=$(LINT_DEADLINE) LINT_GOGC=$(LINT_GOGC))
 
 .PHONY: build
 build:
