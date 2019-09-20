@@ -77,11 +77,9 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                             <div className='argo-table-list__row' key={repo.repo}>
                                                 <div className='row'>
                                                     <div className='columns small-1'>
-                                                        <i className={'icon argo-icon-' + (repo.type || 'git')}/>
+                                                        <i className={'icon argo-icon-' + (repo.type)}/>
                                                     </div>
-                                                    <div className='columns small-1'>
-                                                        {repo.type || 'git'}
-                                                    </div>
+                                                    <div className='columns small-1'>{repo.type}</div>
                                                     <div className='columns small-2'>{repo.name}</div>
                                                     <div className='columns small-5'>
                                                         <Repo url={repo.repo}/>
@@ -145,7 +143,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                     <FormField formApi={formApi} label='Type' field='type' component={FormSelect} componentProps={{options: ['git', 'helm']}}/>
                                 </div>
                                 <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Name (optional for Git)' field='name' component={Text}/>
+                                    <FormField formApi={formApi} label='Name (mandatory for Helm)' field='name' component={Text}/>
                                 </div>
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Repository URL' field='url' component={Text}/>
@@ -186,6 +184,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                     <h4>Connect repo using SSH</h4>
                     <Form onSubmit={(params) => this.connectSSHRepo(params as NewSSHRepoParams)}
                           getApi={(api) => this.formApiSSH = api}
+                          defaultValues={{type: 'git'}}
                           validateError={(params: NewSSHRepoParams) => ({
                               url: !params.url && 'Repo URL is required',
                           })}>
@@ -195,7 +194,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                     <FormField formApi={formApi} label='Type' field='type' component={FormSelect} componentProps={{options: ['git', 'helm']}}/>
                                 </div>
                                 <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Name (optional for Git)' field='name' component={Text}/>
+                                    <FormField formApi={formApi} label='Name (mandatory for Helm)' field='name' component={Text}/>
                                 </div>
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Repository URL' field='url' component={Text}/>

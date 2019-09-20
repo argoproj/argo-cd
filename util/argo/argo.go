@@ -130,13 +130,14 @@ func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, na
 // * ksonnet: the specified environment exists
 func ValidateRepo(
 	ctx context.Context,
-	spec *argoappv1.ApplicationSpec,
+	app *argoappv1.Application,
 	repoClientset apiclient.Clientset,
 	db db.ArgoDB,
 	kustomizeOptions *argoappv1.KustomizeOptions,
 	plugins []*argoappv1.ConfigManagementPlugin,
 	kubectl kube.Kubectl,
 ) ([]argoappv1.ApplicationCondition, error) {
+	spec := &app.Spec
 	conditions := make([]argoappv1.ApplicationCondition, 0)
 
 	// Test the repo
@@ -219,7 +220,7 @@ func ValidateRepo(
 	if err != nil {
 		return nil, err
 	}
-	conditions = append(conditions, verifyGenerateManifests(ctx, repo, repos, spec, repoClient, kustomizeOptions, plugins, cluster.ServerVersion)...)
+	conditions = append(conditions, verifyGenerateManifests(ctx, repo, repos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion)...)
 
 	return conditions, nil
 }
@@ -292,13 +293,13 @@ func verifyGenerateManifests(
 	ctx context.Context,
 	repoRes *argoappv1.Repository,
 	repos argoappv1.Repositories,
-	spec *argoappv1.ApplicationSpec,
+	app *argoappv1.Application,
 	repoClient apiclient.RepoServerServiceClient,
 	kustomizeOptions *argoappv1.KustomizeOptions,
 	plugins []*argoappv1.ConfigManagementPlugin,
 	kubeVersion string,
 ) []argoappv1.ApplicationCondition {
-
+	spec := &app.Spec
 	var conditions []argoappv1.ApplicationCondition
 	if spec.Destination.Server == "" || spec.Destination.Namespace == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
@@ -315,6 +316,7 @@ func verifyGenerateManifests(
 		},
 		Repos:             repos,
 		Revision:          spec.Source.TargetRevision,
+		AppLabelValue:     app.Name,
 		Namespace:         spec.Destination.Namespace,
 		ApplicationSource: &spec.Source,
 		Plugins:           plugins,
