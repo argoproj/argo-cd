@@ -23,7 +23,7 @@ func TestDetect(t *testing.T) {
 		assert.Equal(t, "my-type", r.Type)
 	})
 	t.Run("Helm", func(t *testing.T) {
-		r := &v1alpha1.Repository{Repo: "https://kubernetes-charts.storage.googleapis.com", Name: "stable"}
+		r := &v1alpha1.Repository{Repo: "https://kubernetes-charts.storage.googleapis.com"}
 		err := DetectType(r, metrics.NopReporter)
 		assert.NoError(t, err)
 		assert.Equal(t, "helm", r.Type)

@@ -993,7 +993,7 @@ type Repository struct {
 	TLSClientCAData string `json:"tlsClientCaData,omitempty" protobuf:"bytes,11,opt,name=tlsClientCaData"`
 	// type of the repo, maybe "git or "helm, "git" is assumed if empty or absent
 	Type string `json:"type,omitempty" protobuf:"bytes,12,opt,name=type"`
-	// only for Helm repos
+	// a unique name for the repo
 	Name string `json:"name,omitempty" protobuf:"bytes,13,opt,name=name"`
 }
 

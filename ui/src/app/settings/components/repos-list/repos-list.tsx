@@ -133,6 +133,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                           getApi={(api) => this.formApiHTTPS = api}
                           defaultValues={{type: 'git'}}
                           validateError={(params: NewHTTPSRepoParams) => ({
+                              type: !params.type && 'Type is required',
                               url: !params.url && 'Repo URL is required',
                               password: !params.password && params.username && 'Password is required if username is given.',
                               tlsClientCertKey: !params.tlsClientCertKey && params.tlsClientCertData && 'TLS client cert key is required if TLS client cert is given.',
@@ -143,7 +144,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                     <FormField formApi={formApi} label='Type' field='type' component={FormSelect} componentProps={{options: ['git', 'helm']}}/>
                                 </div>
                                 <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Name (mandatory for Helm)' field='name' component={Text}/>
+                                    <FormField formApi={formApi} label='Name' field='name' component={Text}/>
                                 </div>
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Repository URL' field='url' component={Text}/>
@@ -186,6 +187,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                           getApi={(api) => this.formApiSSH = api}
                           defaultValues={{type: 'git'}}
                           validateError={(params: NewSSHRepoParams) => ({
+                              type: !params.type && 'Type is required',
                               url: !params.url && 'Repo URL is required',
                           })}>
                         {(formApi) => (
@@ -194,7 +196,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                     <FormField formApi={formApi} label='Type' field='type' component={FormSelect} componentProps={{options: ['git', 'helm']}}/>
                                 </div>
                                 <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Name (mandatory for Helm)' field='name' component={Text}/>
+                                    <FormField formApi={formApi} label='Name' field='name' component={Text}/>
                                 </div>
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Repository URL' field='url' component={Text}/>

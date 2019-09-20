@@ -85,7 +85,7 @@ func (c helmRepo) GetApp(app string, resolvedRevision string) (string, error) {
 		return "", err
 	}
 
-	_, err = c.cmd.Fetch(c.name, app, helm.FetchOpts{Version: resolvedRevision, Destination: "."})
+	_, err = c.cmd.Fetch(c.url, app, helm.FetchOpts{Version: resolvedRevision, Destination: "."})
 
 	return filepath.Join(c.cmd.WorkDir, app), err
 }
