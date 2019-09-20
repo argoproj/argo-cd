@@ -69,11 +69,11 @@ func Version() (string, error) {
 	if len(parts) != 2 {
 		return "", fmt.Errorf("unexpected version string format: %s", ksonnetVersionStr)
 	}
-	version := parts[1]
+	version := strings.TrimSpace(parts[1])
 	if version[0] != 'v' {
 		version = "v" + version
 	}
-	return strings.TrimSpace(version), nil
+	return version, nil
 }
 
 type ksonnetApp struct {

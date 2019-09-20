@@ -2,10 +2,10 @@ package helm
 
 import (
 	"os"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/tools/internal/semver"
 	appsv1 "k8s.io/api/apps/v1"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -213,5 +213,7 @@ func TestHelmValues(t *testing.T) {
 func TestVersion(t *testing.T) {
 	ver, err := Version()
 	assert.NoError(t, err)
-	assert.True(t, semver.IsValid(ver))
+	SemverRegexValidation := `^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$`
+	re := regexp.MustCompile(SemverRegexValidation)
+	assert.True(t, re.MatchString(ver))
 }

@@ -22,7 +22,7 @@ func (s *Server) Version(context.Context, *empty.Empty) (*version.VersionMessage
 	if err != nil {
 		return nil, err
 	}
-	kustomizeVersion, err := kustomize.KustomizeVersion()
+	kustomizeVersion, err := kustomize.Version()
 	if err != nil {
 		return nil, err
 	}
