@@ -321,7 +321,11 @@ func Version() (string, error) {
 	if len(matches) != 2 {
 		return "", errors.New("could not get kubectl version")
 	}
-	return matches[1], nil
+	version := matches[1]
+	if version[0] != 'v' {
+		version = "v" + version
+	}
+	return strings.TrimSpace(version), nil
 }
 
 // ConvertToVersion converts an unstructured object into the specified group/version

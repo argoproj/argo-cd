@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/tools/internal/semver"
 	appsv1 "k8s.io/api/apps/v1"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -207,4 +208,10 @@ func TestHelmValues(t *testing.T) {
 			assert.Equal(t, int32(2), *dep.Spec.Replicas)
 		}
 	}
+}
+
+func TestVersion(t *testing.T) {
+	ver, err := Version()
+	assert.NoError(t, err)
+	assert.True(t, semver.IsValid(ver))
 }

@@ -172,7 +172,7 @@ func IsKustomization(path string) bool {
 	return false
 }
 
-func KustomizeVersion() (string, error) {
+func Version() (string, error) {
 	cmd := exec.Command("kustomize", "version")
 	out, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
 	if err != nil {
@@ -183,7 +183,11 @@ func KustomizeVersion() (string, error) {
 	if len(matches) != 2 {
 		return "", errors.New("could not get kustomize version")
 	}
-	return matches[1], nil
+	version := matches[1]
+	if version[0] != 'v' {
+		version = "v" + version
+	}
+	return  strings.TrimSpace(version), nil
 }
 
 func getImageParameters(objs []*unstructured.Unstructured) []Image {

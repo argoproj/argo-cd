@@ -97,3 +97,10 @@ func TestParseKustomizeBuildOptions(t *testing.T) {
 	built := parseKustomizeBuildOptions("guestbook", "-v 6 --logtostderr")
 	assert.Equal(t, []string{"build", "guestbook", "-v", "6", "--logtostderr"}, built)
 }
+
+
+func TestVersion(t *testing.T) {
+	ver, err := Version()
+	assert.NoError(t, err)
+	assert.True(t, semver.IsValid(ver))
+}

@@ -18,7 +18,7 @@ type Server struct{}
 // Version returns the version of the API server
 func (s *Server) Version(context.Context, *empty.Empty) (*version.VersionMessage, error) {
 	vers := common.GetVersion()
-	ksonnetVersion, err := ksutil.KsonnetVersion()
+	ksonnetVersion, err := ksutil.Version()
 	if err != nil {
 		return nil, err
 	}

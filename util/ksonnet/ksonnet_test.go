@@ -44,3 +44,9 @@ func TestShow(t *testing.T) {
 		log.Infof("%v", string(jsonBytes))
 	}
 }
+
+func TestVersion(t *testing.T) {
+	ver, err := Version()
+	assert.NoError(t, err)
+	assert.True(t, semver.IsValid(ver))
+}

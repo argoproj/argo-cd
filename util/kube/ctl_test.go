@@ -64,3 +64,9 @@ func TestRunKubectl(t *testing.T) {
 	assert.True(t, callbackExecuted)
 	assert.True(t, closerExecuted)
 }
+
+func TestVersion(t *testing.T) {
+	ver, err := Version()
+	assert.NoError(t, err)
+	assert.True(t, semver.IsValid(ver))
+}
