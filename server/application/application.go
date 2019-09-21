@@ -1090,7 +1090,7 @@ func (s *Server) getAvailableActions(resourceOverrides map[string]appv1.Resource
 	}
 	for i := range availableActions {
 		action := availableActions[i]
-		availableActions[i].Name = gvk.Group + "/" + gvk.Kind + ":" + action.Name
+		availableActions[i].Name = gvk.Group + "/" + gvk.Kind + "/" + action.Name
 		if action.Name == filterAction {
 			return []appv1.ResourceAction{action}, nil
 		}

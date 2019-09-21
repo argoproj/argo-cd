@@ -116,6 +116,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var namespace string
 	var resourceName string
+	var kindArg string
 	var all bool
 	var command = &cobra.Command{
 		Use:   "run APPNAME ACTION",
@@ -124,6 +125,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 
 	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource")
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
+	command.Flags().StringVar(&kindArg, "kind", "", "Kind")
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to run the action on multiple matching resources")
 
 	command.Run = func(c *cobra.Command, args []string) {
@@ -133,12 +135,36 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 		}
 		appName := args[0]
 		actionName := args[1]
+
 		conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 		defer util.Close(conn)
 		ctx := context.Background()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
-		group, kind, actionNameOnly := parseActionName(actionName)
+
+		var group string
+		var kind string
+		var actionNameOnly string
+		// Backwards comparability for running resume actions
+		if actionName == "resume" && kindArg == "Rollout" {
+			group = "argoproj.io"
+			kind = "Rollout"
+			actionNameOnly = "resume"
+			commandTail := ""
+			if resourceName != "" {
+				commandTail += " --resource-name " + resourceName
+			}
+			if namespace != "" {
+				commandTail += " --namespace " + namespace
+			}
+			if all {
+				commandTail += " --all"
+			}
+			fmt.Printf("\nWarning: \"resume\" action has been deprecated. Please run the action as\n\n\targocd app run %s argoproj.io/Rollout/resume%s\n\n", appName, commandTail)
+		} else {
+			group, kind, actionNameOnly = parseActionName(actionName)
+		}
+
 		filteredObjects := filterResources(command, resources.Items, group, kind, namespace, resourceName, all)
 		for i := range filteredObjects {
 			obj := filteredObjects[i]
@@ -159,14 +185,9 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 }
 
 func parseActionName(action string) (string, string, string) {
-	actionNameSplit := strings.Split(action, ":")
-	if len(actionNameSplit) != 2 {
+	actionSplit := strings.Split(action, "/")
+	if len(actionSplit) != 3 {
 		log.Fatal("Action name is malformed")
 	}
-	actionName := actionNameSplit[1]
-	groupKindSplit := strings.Split(actionNameSplit[0], "/")
-	if len(groupKindSplit) != 2 {
-		log.Fatal("Action name is malformed")
-	}
-	return groupKindSplit[0], groupKindSplit[1], actionName
+	return actionSplit[0], actionSplit[1], actionSplit[2]
 }
