@@ -107,6 +107,9 @@ message ApplicationDestination {
 
   // Namespace overrides the environment namespace value in the ksonnet app.yaml
   optional string namespace = 2;
+
+  // Name of the destination cluster which can be used instead of server (url) field
+  optional string name = 3;
 }
 
 // ApplicationList is list of Application resources
@@ -325,6 +328,15 @@ message ClusterList {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   repeated Cluster items = 2;
+}
+
+// ClusterQuery is used to find a cluster, we can use either Server or Name
+message ClusterQuery {
+  // Server is the API server URL of the Kubernetes cluster
+  optional string server = 1;
+
+  // Name of the Kubernetes cluster
+  optional string name = 2;
 }
 
 // Command holds binary path and arguments list

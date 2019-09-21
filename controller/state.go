@@ -53,7 +53,7 @@ func GetLiveObjs(res []managedResource) []*unstructured.Unstructured {
 }
 
 type ResourceInfoProvider interface {
-	IsNamespaced(server string, gk schema.GroupKind) (bool, error)
+	IsNamespaced(q *appv1.ClusterQuery, gk schema.GroupKind) (bool, error)
 }
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
@@ -183,7 +183,7 @@ func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, []*un
 }
 
 func DeduplicateTargetObjects(
-	server string,
+	q *appv1.ClusterQuery,
 	namespace string,
 	objs []*unstructured.Unstructured,
 	infoProvider ResourceInfoProvider,
@@ -192,7 +192,7 @@ func DeduplicateTargetObjects(
 	targetByKey := make(map[kubeutil.ResourceKey][]*unstructured.Unstructured)
 	for i := range objs {
 		obj := objs[i]
-		isNamespaced, err := infoProvider.IsNamespaced(server, obj.GroupVersionKind().GroupKind())
+		isNamespaced, err := infoProvider.IsNamespaced(q, obj.GroupVersionKind().GroupKind())
 		if err != nil {
 			return objs, nil, err
 		}
@@ -320,8 +320,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		}
 		manifestInfo = nil
 	}
-
-	targetObjs, dedupConditions, err := DeduplicateTargetObjects(app.Spec.Destination.Server, app.Spec.Destination.Namespace, targetObjs, m.liveStateCache)
+	q := &appv1.ClusterQuery{
+		Server: app.Spec.Destination.Server,
+		Name:   app.Spec.Destination.Name,
+	}
+	targetObjs, dedupConditions, err := DeduplicateTargetObjects(q, app.Spec.Destination.Namespace, targetObjs, m.liveStateCache)
 	if err != nil {
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 	}
@@ -371,7 +374,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	for i, obj := range targetObjs {
 		gvk := obj.GroupVersionKind()
 		ns := util.FirstNonEmpty(obj.GetNamespace(), app.Spec.Destination.Namespace)
-		if namespaced, err := m.liveStateCache.IsNamespaced(app.Spec.Destination.Server, obj.GroupVersionKind().GroupKind()); err == nil && !namespaced {
+		if namespaced, err := m.liveStateCache.IsNamespaced(&appv1.ClusterQuery{Server: app.Spec.Destination.Server, Name: app.Spec.Destination.Name}, obj.GroupVersionKind().GroupKind()); err == nil && !namespaced {
 			ns = ""
 		}
 		key := kubeutil.NewResourceKey(gvk.Group, gvk.Kind, ns, obj.GetName())

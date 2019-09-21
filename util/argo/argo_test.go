@@ -147,7 +147,7 @@ func TestValidatePermissionsEmptyDestination(t *testing.T) {
 	}, &argoappv1.AppProject{
 		Spec: argoappv1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
-			Destinations: []argoappv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			Destinations: []argoappv1.ApplicationDestination{{Server: "*", Name: "*", Namespace: "*"}},
 		},
 	}, nil)
 	assert.NoError(t, err)

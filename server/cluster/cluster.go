@@ -132,7 +132,10 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 	clust, err := s.db.CreateCluster(ctx, c)
 	if status.Convert(err).Code() == codes.AlreadyExists {
 		// act idempotent if existing spec matches new spec
-		existing, getErr := s.db.GetCluster(ctx, c.Server)
+		existing, getErr := s.db.GetCluster(ctx, &appv1.ClusterQuery{
+			Server: c.Server,
+			Name:   c.Name,
+		})
 		if getErr != nil {
 			return nil, status.Errorf(codes.Internal, "unable to check existing cluster details: %v", getErr)
 		}
@@ -155,7 +158,7 @@ func (s *Server) Get(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clust
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionGet, q.Server); err != nil {
 		return nil, err
 	}
-	c, err := s.db.GetCluster(ctx, q.Server)
+	c, err := s.db.GetCluster(ctx, q)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +198,10 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 	}
 	logCtx := log.WithField("cluster", q.Server)
 	logCtx.Info("Rotating auth")
-	clust, err := s.db.GetCluster(ctx, q.Server)
+	clust, err := s.db.GetCluster(ctx, &appv1.ClusterQuery{
+		Server: q.Server,
+		Name:   "",
+	})
 	if err != nil {
 		return nil, err
 	}

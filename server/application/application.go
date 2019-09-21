@@ -600,12 +600,15 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	return nil
 }
 
-func (s *Server) getApplicationClusterConfig(applicationName string) (*rest.Config, error) {
-	server, _, err := s.getApplicationDestination(applicationName)
+func (s *Server) getApplicationClusterConfig(applicationName string) (*rest.Config, string, error) {
+	server, _, name, err := s.getApplicationDestination(applicationName)
 	if err != nil {
 		return nil, err
 	}
-	clst, err := s.db.GetCluster(context.Background(), server)
+	clst, err := s.db.GetCluster(context.Background(), &appv1.ClusterQuery{
+		Server: server,
+		Name:   name,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -896,13 +899,13 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	return nil
 }
 
-func (s *Server) getApplicationDestination(name string) (string, string, error) {
+func (s *Server) getApplicationDestination(name string) (string, string, string, error) {
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(name, metav1.GetOptions{})
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
-	server, namespace := a.Spec.Destination.Server, a.Spec.Destination.Namespace
-	return server, namespace, nil
+	server, namespace, name := a.Spec.Destination.Server, a.Spec.Destination.Namespace, a.Spec.Destination.Name
+	return server, namespace, name, nil
 }
 
 // Sync syncs an application to its target state

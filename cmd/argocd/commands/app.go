@@ -503,7 +503,7 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		case "config-management-plugin":
 			spec.Source.Plugin = &argoappv1.ApplicationSourcePlugin{Name: appOpts.configManagementPlugin}
 		case "dest-server":
-			spec.Destination.Server = appOpts.destServer
+			setApplicationDestination(&app.Spec.Destination, appOpts.destServer)
 		case "dest-namespace":
 			spec.Destination.Namespace = appOpts.destNamespace
 		case "project":
@@ -549,6 +549,21 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 	}
 
 	return visited
+}
+
+func setApplicationDestination(dest *argoappv1.ApplicationDestination, cluster string) {
+	if isClusterURL(cluster) {
+		dest.Server = cluster
+	} else {
+		dest.Name = cluster
+	}
+}
+
+func isClusterURL(cluster string) bool {
+	if strings.HasPrefix(cluster, "http://") || strings.HasPrefix(cluster, "https://") {
+		return true
+	}
+	return false
 }
 
 func setKsonnetOpt(src *argoappv1.ApplicationSource, env *string) {
@@ -667,6 +682,7 @@ type appOptions struct {
 	env                    string
 	revision               string
 	destServer             string
+	destName               string
 	destNamespace          string
 	parameters             []string
 	valuesFiles            []string
@@ -694,7 +710,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringVar(&opts.chart, "helm-chart", "", "Helm Chart name")
 	command.Flags().StringVar(&opts.env, "env", "", "Application environment to monitor")
 	command.Flags().StringVar(&opts.revision, "revision", "", "The tracking source branch, tag, or commit the application will sync to")
-	command.Flags().StringVar(&opts.destServer, "dest-server", "", "K8s cluster URL (e.g. https://kubernetes.default.svc)")
+	command.Flags().StringVar(&opts.destServer, "dest-server", "", "K8s cluster URL or name (e.g. https://kubernetes.default.svc)")
 	command.Flags().StringVar(&opts.destNamespace, "dest-namespace", "", "K8s target namespace (overrides the namespace specified in the ksonnet app.yaml)")
 	command.Flags().StringArrayVarP(&opts.parameters, "parameter", "p", []string{}, "set a parameter override (e.g. -p guestbook=image=example/guestbook:latest)")
 	command.Flags().StringArrayVar(&opts.valuesFiles, "values", []string{}, "Helm values file(s) to use")
@@ -851,7 +867,7 @@ type resourceInfoProvider struct {
 
 // Infer if obj is namespaced or not from corresponding live objects list. If corresponding live object has namespace then target object is also namespaced.
 // If live object is missing then it does not matter if target is namespaced or not.
-func (p *resourceInfoProvider) IsNamespaced(server string, gk schema.GroupKind) (bool, error) {
+func (p *resourceInfoProvider) IsNamespaced(q *argoappv1.ClusterQuery, gk schema.GroupKind) (bool, error) {
 	return p.namespacedByGk[gk], nil
 }
 
@@ -863,7 +879,7 @@ func groupLocalObjs(localObs []*unstructured.Unstructured, liveObjs []*unstructu
 			namespacedByGk[schema.GroupKind{Group: key.Group, Kind: key.Kind}] = key.Namespace != ""
 		}
 	}
-	localObs, _, err := controller.DeduplicateTargetObjects("", appNamespace, localObs, &resourceInfoProvider{namespacedByGk: namespacedByGk})
+	localObs, _, err := controller.DeduplicateTargetObjects(&argoappv1.ClusterQuery{Server: "", Name: ""}, appNamespace, localObs, &resourceInfoProvider{namespacedByGk: namespacedByGk})
 	errors.CheckError(err)
 	objByKey := make(map[kube.ResourceKey]*unstructured.Unstructured)
 	for i := range localObs {

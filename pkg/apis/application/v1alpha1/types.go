@@ -353,6 +353,8 @@ type ApplicationDestination struct {
 	Server string `json:"server,omitempty" protobuf:"bytes,1,opt,name=server"`
 	// Namespace overrides the environment namespace value in the ksonnet app.yaml
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
+	// Name of the destination cluster which can be used instead of server (url) field
+	Name string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
 }
 
 // ApplicationStatus contains information about application sync, health status
@@ -913,6 +915,14 @@ type Cluster struct {
 	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,4,opt,name=connectionState"`
 	// The server version
 	ServerVersion string `json:"serverVersion,omitempty" protobuf:"bytes,5,opt,name=serverVersion"`
+}
+
+// ClusterQuery is used to find a cluster, we can use either Server or Name
+type ClusterQuery struct {
+	// Server is the API server URL of the Kubernetes cluster
+	Server string `json:"server" protobuf:"bytes,1,opt,name=server"`
+	// Name of the Kubernetes cluster
+	Name string `json:"name" protobuf:"bytes,2,opt,name=name"`
 }
 
 // ClusterList is a collection of Clusters.
@@ -2032,7 +2042,7 @@ func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 // IsDestinationPermitted validates if the provided application's destination is one of the allowed destinations for the project
 func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
 	for _, item := range proj.Spec.Destinations {
-		if globMatch(item.Server, dst.Server) && globMatch(item.Namespace, dst.Namespace) {
+		if globMatch(item.Server, dst.Server) && globMatch(item.Name, dst.Name) && globMatch(item.Namespace, dst.Namespace) {
 			return true
 		}
 	}

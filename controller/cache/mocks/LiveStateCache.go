@@ -45,12 +45,13 @@ func (_m *LiveStateCache) GetManagedLiveObjs(a *v1alpha1.Application, targetObjs
 }
 
 // GetNamespaceTopLevelResources provides a mock function with given fields: server, namespace
-func (_m *LiveStateCache) GetNamespaceTopLevelResources(server string, namespace string) (map[kube.ResourceKey]v1alpha1.ResourceNode, error) {
-	ret := _m.Called(server, namespace)
+func (_m *LiveStateCache) GetNamespaceTopLevelResources(q *v1alpha1.ClusterQuery, namespace string) (map[kube.ResourceKey]v1alpha1.ResourceNode, error) {
+	key := getClusterKey(q)
+	ret := _m.Called(key, namespace)
 
 	var r0 map[kube.ResourceKey]v1alpha1.ResourceNode
 	if rf, ok := ret.Get(0).(func(string, string) map[kube.ResourceKey]v1alpha1.ResourceNode); ok {
-		r0 = rf(server, namespace)
+		r0 = rf(key, namespace)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[kube.ResourceKey]v1alpha1.ResourceNode)
@@ -59,7 +60,7 @@ func (_m *LiveStateCache) GetNamespaceTopLevelResources(server string, namespace
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string, string) error); ok {
-		r1 = rf(server, namespace)
+		r1 = rf(key, namespace)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -73,19 +74,20 @@ func (_m *LiveStateCache) Invalidate() {
 }
 
 // IsNamespaced provides a mock function with given fields: server, gk
-func (_m *LiveStateCache) IsNamespaced(server string, gk schema.GroupKind) (bool, error) {
-	ret := _m.Called(server, gk)
+func (_m *LiveStateCache) IsNamespaced(q *v1alpha1.ClusterQuery, gk schema.GroupKind) (bool, error) {
+	key := getClusterKey(q)
+	ret := _m.Called(key, gk)
 
 	var r0 bool
 	if rf, ok := ret.Get(0).(func(string, schema.GroupKind) bool); ok {
-		r0 = rf(server, gk)
+		r0 = rf(key, gk)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string, schema.GroupKind) error); ok {
-		r1 = rf(server, gk)
+		r1 = rf(key, gk)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -94,12 +96,13 @@ func (_m *LiveStateCache) IsNamespaced(server string, gk schema.GroupKind) (bool
 }
 
 // IterateHierarchy provides a mock function with given fields: server, key, action
-func (_m *LiveStateCache) IterateHierarchy(server string, key kube.ResourceKey, action func(v1alpha1.ResourceNode, string)) error {
-	ret := _m.Called(server, key, action)
+func (_m *LiveStateCache) IterateHierarchy(q *v1alpha1.ClusterQuery, key kube.ResourceKey, action func(v1alpha1.ResourceNode, string)) error {
+	cKey := getClusterKey(q)
+	ret := _m.Called(cKey, key, action)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, kube.ResourceKey, func(v1alpha1.ResourceNode, string)) error); ok {
-		r0 = rf(server, key, action)
+		r0 = rf(cKey, key, action)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -119,4 +122,12 @@ func (_m *LiveStateCache) Run(ctx context.Context) error {
 	}
 
 	return r0
+}
+
+func getClusterKey(q *v1alpha1.ClusterQuery) string {
+	key := q.Server
+	if key == "" {
+		key = q.Name
+	}
+	return key
 }

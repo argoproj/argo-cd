@@ -260,7 +260,11 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	orphanedNodesMap := make(map[kube.ResourceKey]appv1.ResourceNode)
 	warnOrphaned := true
 	if proj.Spec.OrphanedResources != nil {
-		orphanedNodesMap, err = ctrl.stateCache.GetNamespaceTopLevelResources(a.Spec.Destination.Server, a.Spec.Destination.Namespace)
+		q := &appv1.ClusterQuery{
+			Server: a.Spec.Destination.Server,
+			Name:   a.Spec.Destination.Name,
+		}
+		orphanedNodesMap, err = ctrl.stateCache.GetNamespaceTopLevelResources(q, a.Spec.Destination.Namespace)
 		if err != nil {
 			return nil, err
 		}
@@ -292,7 +296,11 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 				},
 			})
 		} else {
-			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, kube.GetResourceKey(live), func(child appv1.ResourceNode, appName string) {
+			q := &appv1.ClusterQuery{
+				Server: a.Spec.Destination.Server,
+				Name:   a.Spec.Destination.Name,
+			}
+			err := ctrl.stateCache.IterateHierarchy(q, kube.GetResourceKey(live), func(child appv1.ResourceNode, appName string) {
 				nodes = append(nodes, child)
 			})
 			if err != nil {
@@ -303,7 +311,11 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	orphanedNodes := make([]appv1.ResourceNode, 0)
 	for k := range orphanedNodesMap {
 		if k.Namespace != "" && proj.IsResourcePermitted(metav1.GroupKind{Group: k.Group, Kind: k.Kind}, true) && !isKnownOrphanedResourceExclusion(k) {
-			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, k, func(child appv1.ResourceNode, appName string) {
+			q := &appv1.ClusterQuery{
+				Server: a.Spec.Destination.Server,
+				Name:   a.Spec.Destination.Name,
+			}
+			err := ctrl.stateCache.IterateHierarchy(q, k, func(child appv1.ResourceNode, appName string) {
 				belongToAnotherApp := false
 				if appName != "" {
 					if _, exists, err := ctrl.appInformer.GetIndexer().GetByKey(ctrl.namespace + "/" + appName); exists && err == nil {
@@ -504,7 +516,10 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		}
 	}
 
-	cluster, err := ctrl.db.GetCluster(context.Background(), app.Spec.Destination.Server)
+	cluster, err := ctrl.db.GetCluster(context.Background(), &appv1.ClusterQuery{
+		Server: app.Spec.Destination.Server,
+		Name:   app.Spec.Destination.Name,
+	})
 	if err != nil {
 		return err
 	}

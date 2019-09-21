@@ -122,7 +122,10 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	// what we should be syncing to when resuming operations.
 	syncRes.Revision = compareResult.syncStatus.Revision
 
-	clst, err := m.db.GetCluster(context.Background(), app.Spec.Destination.Server)
+	clst, err := m.db.GetCluster(context.Background(), &v1alpha1.ClusterQuery{
+		Server: app.Spec.Destination.Server,
+		Name:   app.Spec.Destination.Name,
+	})
 	if err != nil {
 		state.Phase = v1alpha1.OperationError
 		state.Message = err.Error()

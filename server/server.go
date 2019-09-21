@@ -155,7 +155,7 @@ func initializeDefaultProject(opts ArgoCDServerOpts) error {
 		ObjectMeta: metav1.ObjectMeta{Name: common.DefaultAppProjectName, Namespace: opts.Namespace},
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:              []string{"*"},
-			Destinations:             []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			Destinations:             []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*", Name: "*"}},
 			ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
 		},
 	}

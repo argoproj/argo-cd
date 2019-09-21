@@ -27,13 +27,13 @@ type cacheSettings struct {
 }
 
 type LiveStateCache interface {
-	IsNamespaced(server string, gk schema.GroupKind) (bool, error)
+	IsNamespaced(q *appv1.ClusterQuery, gk schema.GroupKind) (bool, error)
 	// Executes give callback against resource specified by the key and all its children
-	IterateHierarchy(server string, key kube.ResourceKey, action func(child appv1.ResourceNode, appName string)) error
+	IterateHierarchy(q *appv1.ClusterQuery, key kube.ResourceKey, action func(child appv1.ResourceNode, appName string)) error
 	// Returns state of live nodes which correspond for target nodes of specified application.
 	GetManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)
 	// Returns all top level resources (resources without owner references) of a specified namespace
-	GetNamespaceTopLevelResources(server string, namespace string) (map[kube.ResourceKey]appv1.ResourceNode, error)
+	GetNamespaceTopLevelResources(q *appv1.ClusterQuery, namespace string) (map[kube.ResourceKey]appv1.ResourceNode, error)
 	// Starts watching resources of each controlled cluster.
 	Run(ctx context.Context) error
 	// Invalidate invalidates the entire cluster state cache
@@ -103,12 +103,14 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 	return &cacheSettings{AppInstanceLabelKey: appInstanceLabelKey, ResourceOverrides: resourceOverrides, ResourcesFilter: resourcesFilter}, nil
 }
 
-func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
+func (c *liveStateCache) getCluster(q *appv1.ClusterQuery) (*clusterInfo, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	info, ok := c.clusters[server]
+
+	key := getClusterKey(q)
+	info, ok := c.clusters[key]
 	if !ok {
-		cluster, err := c.db.GetCluster(context.Background(), server)
+		cluster, err := c.db.GetCluster(context.Background(), q)
 		if err != nil {
 			return nil, err
 		}
@@ -126,13 +128,13 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 			cacheSettingsSrc: c.getCacheSettings,
 		}
 
-		c.clusters[cluster.Server] = info
+		c.clusters[key] = info
 	}
 	return info, nil
 }
 
-func (c *liveStateCache) getSyncedCluster(server string) (*clusterInfo, error) {
-	info, err := c.getCluster(server)
+func (c *liveStateCache) getSyncedCluster(q *appv1.ClusterQuery) (*clusterInfo, error) {
+	info, err := c.getCluster(q)
 	if err != nil {
 		return nil, err
 	}
@@ -155,16 +157,17 @@ func (c *liveStateCache) Invalidate() {
 	log.Info("live state cache invalidated")
 }
 
-func (c *liveStateCache) IsNamespaced(server string, gk schema.GroupKind) (bool, error) {
-	clusterInfo, err := c.getSyncedCluster(server)
+//TODO: need to update all the functions with server only
+func (c *liveStateCache) IsNamespaced(q *appv1.ClusterQuery, gk schema.GroupKind) (bool, error) {
+	clusterInfo, err := c.getSyncedCluster(q)
 	if err != nil {
 		return false, err
 	}
 	return clusterInfo.isNamespaced(gk), nil
 }
 
-func (c *liveStateCache) IterateHierarchy(server string, key kube.ResourceKey, action func(child appv1.ResourceNode, appName string)) error {
-	clusterInfo, err := c.getSyncedCluster(server)
+func (c *liveStateCache) IterateHierarchy(q *appv1.ClusterQuery, key kube.ResourceKey, action func(child appv1.ResourceNode, appName string)) error {
+	clusterInfo, err := c.getSyncedCluster(q)
 	if err != nil {
 		return err
 	}
@@ -172,8 +175,8 @@ func (c *liveStateCache) IterateHierarchy(server string, key kube.ResourceKey, a
 	return nil
 }
 
-func (c *liveStateCache) GetNamespaceTopLevelResources(server string, namespace string) (map[kube.ResourceKey]appv1.ResourceNode, error) {
-	clusterInfo, err := c.getSyncedCluster(server)
+func (c *liveStateCache) GetNamespaceTopLevelResources(q *appv1.ClusterQuery, namespace string) (map[kube.ResourceKey]appv1.ResourceNode, error) {
+	clusterInfo, err := c.getSyncedCluster(q)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +184,7 @@ func (c *liveStateCache) GetNamespaceTopLevelResources(server string, namespace 
 }
 
 func (c *liveStateCache) GetManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
-	clusterInfo, err := c.getSyncedCluster(a.Spec.Destination.Server)
+	clusterInfo, err := c.getSyncedCluster(&appv1.ClusterQuery{Server: a.Spec.Destination.Server, Name: a.Spec.Destination.Name})
 	if err != nil {
 		return nil, err
 	}
@@ -250,9 +253,11 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 		clusterEventCallback := func(event *db.ClusterEvent) {
 			c.lock.Lock()
 			defer c.lock.Unlock()
+
 			if cluster, ok := c.clusters[event.Cluster.Server]; ok {
 				if event.Type == watch.Deleted {
 					cluster.invalidate()
+					//TODO: recalculate cluster key
 					delete(c.clusters, event.Cluster.Server)
 				} else if event.Type == watch.Modified {
 					cluster.cluster = event.Cluster
@@ -261,7 +266,7 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 			} else if event.Type == watch.Added && isClusterHasApps(c.appInformer.GetStore().List(), event.Cluster) {
 				go func() {
 					// warm up cache for cluster with apps
-					_, _ = c.getSyncedCluster(event.Cluster.Server)
+					_, _ = c.getSyncedCluster(&appv1.ClusterQuery{Server: event.Cluster.Server, Name: event.Cluster.Name})
 				}()
 			}
 		}
@@ -272,4 +277,12 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 
 	<-ctx.Done()
 	return nil
+}
+
+func getClusterKey(q *appv1.ClusterQuery) string {
+	key := q.Server
+	if key == "" {
+		key = q.Name
+	}
+	return key
 }

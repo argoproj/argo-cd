@@ -36,6 +36,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Cluster":                          schema_pkg_apis_application_v1alpha1_Cluster(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterConfig":                    schema_pkg_apis_application_v1alpha1_ClusterConfig(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterList":                      schema_pkg_apis_application_v1alpha1_ClusterList(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterQuery":                     schema_pkg_apis_application_v1alpha1_ClusterQuery(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Command":                          schema_pkg_apis_application_v1alpha1_Command(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ComparedTo":                       schema_pkg_apis_application_v1alpha1_ComparedTo(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ComponentParameter":               schema_pkg_apis_application_v1alpha1_ComponentParameter(ref),
@@ -413,6 +414,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationDestination(ref common.Refe
 					"namespace": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Namespace overrides the environment namespace value in the ksonnet app.yaml",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of the destination cluster which can be used instead of server (url) field",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1180,6 +1188,34 @@ func schema_pkg_apis_application_v1alpha1_ClusterList(ref common.ReferenceCallba
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Cluster", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ClusterQuery(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ClusterQuery is used to find a cluster, we can use either Server or Name",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"server": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Server is the API server URL of the Kubernetes cluster",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of the Kubernetes cluster",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"server", "name"},
+			},
+		},
 	}
 }
 

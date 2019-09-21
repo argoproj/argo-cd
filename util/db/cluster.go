@@ -120,7 +120,10 @@ func (db *db) WatchClusters(ctx context.Context, callback func(*ClusterEvent)) e
 		return err
 	}
 
-	localCls, err := db.GetCluster(ctx, common.KubernetesInternalAPIServerAddr)
+	localCls, err := db.GetCluster(ctx, &appv1.ClusterQuery{
+		Server: common.KubernetesInternalAPIServerAddr,
+		Name:   "",
+	})
 	if err != nil {
 		return err
 	}
@@ -168,25 +171,27 @@ func (db *db) WatchClusters(ctx context.Context, callback func(*ClusterEvent)) e
 	return nil
 }
 
-func (db *db) getClusterSecret(server string) (*apiv1.Secret, error) {
+func (db *db) getClusterSecret(server string, name string) (*apiv1.Secret, error) {
 	clusterSecrets, err := db.listClusterSecrets()
 	if err != nil {
 		return nil, err
 	}
 	for _, clusterSecret := range clusterSecrets {
-		if secretToCluster(clusterSecret).Server == server {
+		c := secretToCluster(clusterSecret)
+		if (c.Server == server && server != "") || (c.Name == name && name != "") {
 			return clusterSecret, nil
 		}
+
 	}
 	return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
 
 }
 
 // GetCluster returns a cluster from a query
-func (db *db) GetCluster(ctx context.Context, server string) (*appv1.Cluster, error) {
-	clusterSecret, err := db.getClusterSecret(server)
+func (db *db) GetCluster(ctx context.Context, query *appv1.ClusterQuery) (*appv1.Cluster, error) {
+	clusterSecret, err := db.getClusterSecret(query.Server, query.Name)
 	if err != nil {
-		if errorStatus, ok := status.FromError(err); ok && errorStatus.Code() == codes.NotFound && server == common.KubernetesInternalAPIServerAddr {
+		if errorStatus, ok := status.FromError(err); ok && errorStatus.Code() == codes.NotFound && query.Server == common.KubernetesInternalAPIServerAddr {
 			return &localCluster, nil
 		} else {
 			return nil, err
@@ -197,7 +202,7 @@ func (db *db) GetCluster(ctx context.Context, server string) (*appv1.Cluster, er
 
 // UpdateCluster updates a cluster
 func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error) {
-	clusterSecret, err := db.getClusterSecret(c.Server)
+	clusterSecret, err := db.getClusterSecret(c.Server, c.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -210,8 +215,8 @@ func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 }
 
 // Delete deletes a cluster by name
-func (db *db) DeleteCluster(ctx context.Context, server string) error {
-	secret, err := db.getClusterSecret(server)
+func (db *db) DeleteCluster(ctx context.Context, name string) error {
+	secret, err := db.getClusterSecret(name, "")
 	if err != nil {
 		if errorStatus, ok := status.FromError(err); ok && errorStatus.Code() == codes.NotFound {
 			return nil

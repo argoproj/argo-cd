@@ -296,8 +296,8 @@ func TestUpdateRepositoryWithManagedSecrets(t *testing.T) {
 }
 
 func TestGetClusterSuccessful(t *testing.T) {
-	server := "my-cluster"
-	name := "my-name"
+	clusterURL := "https://mycluster"
+	clusterName := "myAwesomeCluster"
 	clientset := getClientset(nil, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
@@ -306,25 +306,66 @@ func TestGetClusterSuccessful(t *testing.T) {
 			},
 		},
 		Data: map[string][]byte{
-			"server": []byte(server),
-			"name":   []byte(name),
+			"server": []byte(clusterURL),
+			"name":   []byte(clusterName),
 			"config": []byte("{}"),
 		},
 	})
 
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
-	cluster, err := db.GetCluster(context.Background(), server)
-	assert.NoError(t, err)
-	assert.Equal(t, server, cluster.Server)
-	assert.Equal(t, name, cluster.Name)
+
+	clusterByURL, err := db.GetCluster(context.Background(), &v1alpha1.ClusterQuery{Server: clusterURL, Name: ""})
+	assert.Equal(t, clusterURL, clusterByURL.Server)
+	assert.Equal(t, clusterName, clusterByURL.Name)
+	assert.Nil(t, err)
+
+	clusterByName, err := db.GetCluster(context.Background(), &v1alpha1.ClusterQuery{Server: "", Name: clusterName})
+	assert.Equal(t, clusterURL, clusterByName.Server)
+	assert.Equal(t, clusterName, clusterByName.Name)
+	assert.Nil(t, err)
+
+	cluster, err := db.GetCluster(context.Background(), &v1alpha1.ClusterQuery{Server: clusterURL, Name: clusterName})
+	assert.Equal(t, clusterURL, cluster.Server)
+	assert.Equal(t, clusterName, cluster.Name)
+	assert.Nil(t, err)
+}
+
+func TestGetClusterSuccessfulOldSecretsWithoutName(t *testing.T) {
+	clusterURL := "https://mycluster"
+	clusterName := "myAwesomeCluster"
+	clientset := getClientset(nil, &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mycluster-443",
+			Namespace: testNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"server": []byte(clusterURL),
+			"config": []byte("{}"),
+		},
+	})
+
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+
+	clusterByURL, err := db.GetCluster(context.Background(), &v1alpha1.ClusterQuery{Server: clusterURL, Name: ""})
+	assert.Equal(t, clusterURL, clusterByURL.Server)
+	assert.Nil(t, err)
+
+	cluster, err := db.GetCluster(context.Background(), &v1alpha1.ClusterQuery{Server: clusterURL, Name: clusterName})
+	assert.Equal(t, clusterURL, cluster.Server)
+	assert.Nil(t, err)
 }
 
 func TestGetNonExistingCluster(t *testing.T) {
-	server := "https://mycluster"
+	clusterURL := "https://mycluster"
+	clusterName := "myAwesomeCluster"
 	clientset := getClientset(nil)
 
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
-	_, err := db.GetCluster(context.Background(), server)
+
+	_, err := db.GetCluster(context.Background(), &v1alpha1.ClusterQuery{Server: clusterURL, Name: clusterName})
 	assert.NotNil(t, err)
 	status, ok := status.FromError(err)
 	assert.True(t, ok)
@@ -332,19 +373,22 @@ func TestGetNonExistingCluster(t *testing.T) {
 }
 
 func TestCreateClusterSuccessful(t *testing.T) {
-	server := "https://mycluster"
+	clusterURL := "https://mycluster"
+	clusterName := "myAwesomeCluster"
 	clientset := getClientset(nil)
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 
 	_, err := db.CreateCluster(context.Background(), &v1alpha1.Cluster{
-		Server: server,
+		Server: clusterURL,
+		Name:   clusterName,
 	})
 	assert.Nil(t, err)
 
 	secret, err := clientset.CoreV1().Secrets(testNamespace).Get("cluster-mycluster-3274446258", metav1.GetOptions{})
 	assert.Nil(t, err)
 
-	assert.Equal(t, server, string(secret.Data["server"]))
+	assert.Equal(t, clusterURL, string(secret.Data["server"]))
+	assert.Equal(t, clusterName, string(secret.Data["name"]))
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
 }
 
