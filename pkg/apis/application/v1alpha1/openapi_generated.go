@@ -1966,14 +1966,13 @@ func schema_pkg_apis_application_v1alpha1_ResourceAction(ref common.ReferenceCal
 							},
 						},
 					},
-					"Available": {
+					"available": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"boolean"},
 							Format: "",
 						},
 					},
 				},
-				Required: []string{"Available"},
 			},
 		},
 		Dependencies: []string{
