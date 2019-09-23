@@ -97,7 +97,6 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 		creds, err := db.GetRepositoryCredentials(ctx, repoURL)
 		if err == nil {
 			if creds != nil {
-				log.WithFields(log.Fields{"repoURL": repo.Repo, "credUrl": creds.Repo}).Info("copying credentials")
 				repo.CopyCredentialsFrom(creds)
 				repo.InheritedCreds = true
 			}
@@ -330,23 +329,23 @@ func (db *db) DeleteRepositoryCredentials(ctx context.Context, name string) erro
 	return db.settingsMgr.SaveRepositoryCredentials(repos)
 }
 
-func (db *db) credentialsToRepository(repoInfo settings.RepoCredentials) (*appsv1.Repository, error) {
-	repo := &appsv1.Repository{
-		Repo:                  repoInfo.URL,
-		InsecureIgnoreHostKey: repoInfo.InsecureIgnoreHostKey,
-		Insecure:              repoInfo.Insecure,
-		EnableLFS:             repoInfo.EnableLFS,
-	}
-	err := db.unmarshalFromSecretsStr(map[*string]*apiv1.SecretKeySelector{
-		&repo.Username:          repoInfo.UsernameSecret,
-		&repo.Password:          repoInfo.PasswordSecret,
-		&repo.SSHPrivateKey:     repoInfo.SSHPrivateKeySecret,
-		&repo.TLSClientCertData: repoInfo.TLSClientCertDataSecret,
-		&repo.TLSClientCertKey:  repoInfo.TLSClientCertKeySecret,
-	}, make(map[string]*apiv1.Secret))
+// func (db *db) credentialsToRepository(repoInfo settings.RepoCredentials) (*appsv1.Repository, error) {
+// 	repo := &appsv1.Repository{
+// 		Repo:                  repoInfo.URL,
+// 		InsecureIgnoreHostKey: repoInfo.InsecureIgnoreHostKey,
+// 		Insecure:              repoInfo.Insecure,
+// 		EnableLFS:             repoInfo.EnableLFS,
+// 	}
+// 	err := db.unmarshalFromSecretsStr(map[*string]*apiv1.SecretKeySelector{
+// 		&repo.Username:          repoInfo.UsernameSecret,
+// 		&repo.Password:          repoInfo.PasswordSecret,
+// 		&repo.SSHPrivateKey:     repoInfo.SSHPrivateKeySecret,
+// 		&repo.TLSClientCertData: repoInfo.TLSClientCertDataSecret,
+// 		&repo.TLSClientCertKey:  repoInfo.TLSClientCertKeySecret,
+// 	}, make(map[string]*apiv1.Secret))
 
-	return repo, err
-}
+// 	return repo, err
+// }
 
 func (db *db) updateSecrets(repoInfo *settings.RepoCredentials, r *appsv1.Repository) error {
 	secretsData := make(map[string]map[string][]byte)

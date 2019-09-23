@@ -122,14 +122,14 @@ func (s *Server) ListRepositoryCredentials(ctx context.Context, q *repositorypkg
 	if err != nil {
 		return nil, err
 	}
-	items := make([]appsv1.Repository, 0)
+	items := appsv1.Repositories{}
 	for _, url := range urls {
 		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, url) {
 			repo, err := s.db.GetRepositoryCredentials(ctx, url)
 			if err != nil {
 				return nil, err
 			}
-			items = append(items, appsv1.Repository{
+			items = append(items, &appsv1.Repository{
 				Repo:      url,
 				Username:  repo.Username,
 				Insecure:  false,
@@ -216,29 +216,9 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, q.Repo.Repo); err != nil {
 		return nil, err
 	}
-	r := q.Repo
 
 	var repo *appsv1.Repository
 	var err error
-
-	// If repository create request does not carry any credentials, check if there
-	// is a credential set configured for requested repository URL and use it for
-	// checking the access.
-	if !r.HasCredentials() {
-		repo, err = s.db.GetRepositoryCredentials(ctx, r.Repo)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		repo = &appsv1.Repository{Repo: r.Repo}
-		repo.CopyCredentialsFrom(r)
-		repo.CopySettingsFrom(r)
-	}
-
-	err = git.TestRepo(r.Repo, argo.GetRepoCreds(repo), r.IsInsecure(), r.EnableLFS)
-	if err != nil {
-		return nil, err
-	}
 
 	detectedType := ""
 	// check we can connect to the repo, copying any existing creds
@@ -386,29 +366,20 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 	}
 
 	var repoCreds *appsv1.Repository
-	var creds git.Creds
 	var err error
 
-	// If repo does not have credentials
+	// If repo does not have credentials, check if there are credentials stored
+	// for it and if yes, copy them
 	if !repo.HasCredentials() {
 		repoCreds, err = s.db.GetRepositoryCredentials(ctx, q.Repo)
 		if err != nil {
 			return nil, err
 		}
-		if repoCreds == nil {
-			creds = nil
-		} else {
-			creds = argo.GetRepoCreds(repoCreds)
+		if repoCreds != nil {
+			repo.CopyCredentialsFrom(repoCreds)
 		}
-	} else {
-		creds = argo.GetRepoCreds(repo)
 	}
 
-	err = git.TestRepo(q.Repo, creds, q.Insecure, false)
-	if err != nil {
-		return nil, err
-	}
-	repo.CopyCredentialsFrom(creds)
 	err = factory.DetectType(repo, metrics.NopReporter)
 	if err != nil {
 		return nil, err

@@ -46,9 +46,6 @@ type ArgoDB interface {
 	// DeleteRepoCredentials deletes a repository credential set from config
 	DeleteRepositoryCredentials(ctx context.Context, name string) error
 
-	// ListHelmRepoURLs lists configured helm repositories
-	ListHelmRepos(ctx context.Context) ([]*appv1.HelmRepository, error)
-
 	// ListRepoCerticifates lists all configured certificates
 	ListRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appv1.RepositoryCertificateList, error)
 	// CreateRepoCertificate creates a new certificate entry

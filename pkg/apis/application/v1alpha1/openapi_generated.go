@@ -1817,6 +1817,13 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
+					"inheritedCreds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Whether credentials were inherited from a credential set",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"repo"},
 			},
