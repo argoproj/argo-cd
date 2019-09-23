@@ -8,10 +8,10 @@ import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
 
 export const ICON_CLASS_BY_KIND = {
-    application: 'argo-ResourceIcon-application',
-    deployment: 'argo-ResourceIcon-deployment',
-    pod: 'argo-ResourceIcon-docker',
-    service: 'argo-ResourceIcon-hosts',
+    application: 'argo-icon-application',
+    deployment: 'argo-icon-deployment',
+    pod: 'argo-icon-docker',
+    service: 'argo-icon-hosts',
 } as any;
 
 export interface NodeId {
