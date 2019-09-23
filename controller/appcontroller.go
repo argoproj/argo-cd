@@ -836,9 +836,13 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	compareWith := CompareWithLatest
 	refreshType := appv1.RefreshTypeNormal
 	expired := app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
-	if requestedType, ok := app.IsRefreshRequested(); ok {
-		refreshType = requestedType
-		reason = fmt.Sprintf("%s refresh requested", refreshType)
+	if requestedType, ok := app.IsRefreshRequested(); ok || expired {
+		if ok {
+			refreshType = requestedType
+			reason = fmt.Sprintf("%s refresh requested", refreshType)
+		} else if expired {
+			reason = fmt.Sprintf("comparison expired. reconciledAt: %v, expiry: %v", app.Status.ReconciledAt, statusRefreshTimeout)
+		}
 	} else if requested, level := ctrl.isRefreshRequested(app.Name); requested {
 		compareWith = level
 		reason = fmt.Sprintf("controller refresh requested")
@@ -848,8 +852,6 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 		reason = "spec.source differs"
 	} else if !app.Spec.Destination.Equals(app.Status.Sync.ComparedTo.Destination) {
 		reason = "spec.destination differs"
-	} else if expired {
-		reason = fmt.Sprintf("comparison expired. reconciledAt: %v, expiry: %v", app.Status.ReconciledAt, statusRefreshTimeout)
 	}
 	if reason != "" {
 		logCtx.Infof("Refreshing app status (%s), level (%d)", reason, compareWith)
