@@ -170,21 +170,28 @@ func TestHelmTemplateReleaseName(t *testing.T) {
 }
 
 func TestHelmArgCleaner(t *testing.T) {
-	cleanArgs := []string{`--these-args`, `are-clean`, `--foo`, `bar`}
-	argsToBeCleaned := make([]string, len(cleanArgs))
+	cleanArgs := []argoappv1.HelmParameter{
+		{Name: "app", Value: `val`, ForceString: true},
+		{Name: "foo", Value: `bar`, ForceString: false},
+	}
+	argsToBeCleaned := make([]argoappv1.HelmParameter, len(cleanArgs))
 	copy(argsToBeCleaned, cleanArgs)
 
 	cleanHelmParameters(argsToBeCleaned)
-	assert.Equal(t, cleanArgs, argsToBeCleaned)
+	assert.EqualValues(t, cleanArgs, argsToBeCleaned)
 
-	dirtyArgs := []string{`--these-args`, `are-not, clean`, `--foo`, `b\,a,r`}
-	argsToBeCleaned = make([]string, len(dirtyArgs))
+	dirtyArgs := []argoappv1.HelmParameter{
+		{Name: "app", Value: `val`, ForceString: true},
+		{Name: "test", Value: `not, clean`, ForceString: false},
+		{Name: "foo", Value: `a\,b,c`, ForceString: true},
+	}
+	argsToBeCleaned = make([]argoappv1.HelmParameter, len(dirtyArgs))
 	copy(argsToBeCleaned, dirtyArgs)
 
 	cleanHelmParameters(argsToBeCleaned)
-	assert.NotEqual(t, cleanArgs, argsToBeCleaned)
-	assert.Contains(t, argsToBeCleaned, `are-not\, clean`)
-	assert.Contains(t, argsToBeCleaned, `b\,a\,r`)
+	assert.False(t, assert.ObjectsAreEqualValues(cleanArgs, argsToBeCleaned))
+	assert.Contains(t, argsToBeCleaned, argoappv1.HelmParameter{Name: "test", Value: `not\, clean`, ForceString: false})
+	assert.Contains(t, argsToBeCleaned, argoappv1.HelmParameter{Name: "foo", Value: `a\,b\,c`, ForceString: true})
 
 }
 
