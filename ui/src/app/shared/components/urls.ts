@@ -1,7 +1,7 @@
 const GitUrlParse = require('git-url-parse');
 
 function supportedSource(source: string): boolean {
-    return ['github.com', 'gitlab.com', 'bitbucket.org'].indexOf(source) >= 0;
+    return source.startsWith('github') || ['gitlab.com', 'bitbucket.org'].indexOf(source) >= 0;
 }
 
 function protocol(proto: string): string {

@@ -16,6 +16,15 @@ test('github.com', () => {
         'https://github.com/argoproj/argo-cd/commit/024dee09f543ce7bb5af7ca50260504d89dfda94');
 });
 
+// for enterprise github installations
+test('github.my-enterprise.com', () => {
+    testExample(
+        'https://github.my-enterprise.com/my-org/my-repo.git',
+        'git@github.my-enterprise.com:my-org/my-repo.git',
+        'a06f2be80a4da89abb8ced904beab75b3ec6db0e',
+        'https://github.my-enterprise.com/my-org',
+        'https://github.my-enterprise.com/my-org/my-repo/commit/a06f2be80a4da89abb8ced904beab75b3ec6db0e');
+});
 
 test('gitlab.com', () => {
     testExample(
