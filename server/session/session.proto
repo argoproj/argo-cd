@@ -3,7 +3,7 @@ option go_package = "github.com/argoproj/argo-cd/pkg/apiclient/session";
 
 // Session Service
 //
-// Session Service API performs CRUD actions against session resources 
+// Session Service API performs CRUD actions against session resources
 package session;
 
 import "gogoproto/gogo.proto";
@@ -27,8 +27,25 @@ message SessionResponse {
   string token = 1;
 }
 
+// Get the current user's userInfo info
+message GetUserInfoRequest {
+}
+
+// The current user's userInfo info
+message GetUserInfoResponse {
+  bool loggedIn = 1;
+  string username = 2;
+  string iss = 3;
+  repeated string groups = 4;
+}
+
 // SessionService 
 service SessionService {
+
+  // Get the current user's info
+  rpc GetUserInfo (GetUserInfoRequest) returns (GetUserInfoResponse) {
+    option (google.api.http).get = "/api/v1/session/userinfo";
+  }
 
   // Create a new JWT for authentication and set a cookie if using HTTP.
   rpc Create(SessionCreateRequest) returns (SessionResponse) {

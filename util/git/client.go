@@ -3,6 +3,7 @@ package git
 import (
 	"crypto/tls"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -23,8 +24,10 @@ import (
 	ssh2 "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 
+	"github.com/argoproj/argo-cd/common"
 	certutil "github.com/argoproj/argo-cd/util/cert"
 	argoconfig "github.com/argoproj/argo-cd/util/config"
+	"github.com/argoproj/argo-cd/util/repo/metrics"
 )
 
 type RevisionMetadata struct {
@@ -47,12 +50,6 @@ type Client interface {
 	RevisionMetadata(revision string) (*RevisionMetadata, error)
 }
 
-// ClientFactory is a factory of Git Clients
-// Primarily used to support creation of mock git clients during unit testing
-type ClientFactory interface {
-	NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool) (Client, error)
-}
-
 // nativeGitClient implements Client interface using git CLI
 type nativeGitClient struct {
 	// URL of the repository
@@ -65,21 +62,32 @@ type nativeGitClient struct {
 	insecure bool
 	// Whether the repository is LFS enabled
 	enableLfs bool
+	// metrics reporter
+	reporter metrics.Reporter
 }
 
-type factory struct{}
+var (
+	maxAttemptsCount = 1
+)
 
-func NewFactory() ClientFactory {
-	return &factory{}
+func init() {
+	if countStr := os.Getenv(common.EnvGitAttemptsCount); countStr != "" {
+		if cnt, err := strconv.Atoi(countStr); err != nil {
+			panic(fmt.Sprintf("Invalid value in %s env variable: %v", common.EnvGitAttemptsCount, err))
+		} else {
+			maxAttemptsCount = int(math.Max(float64(cnt), 1))
+		}
+	}
 }
 
-func (f *factory) NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool) (Client, error) {
+func NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool, reporter metrics.Reporter) (Client, error) {
 	client := nativeGitClient{
 		repoURL:   rawRepoURL,
 		root:      path,
 		creds:     creds,
 		insecure:  insecure,
 		enableLfs: enableLfs,
+		reporter:  reporter,
 	}
 	return &client, nil
 }
@@ -94,7 +102,14 @@ func (f *factory) NewClient(rawRepoURL string, path string, creds Creds, insecur
 // - Otherwise (and on non-fatal errors), a default HTTP client is returned.
 func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client {
 	// Default HTTP client
-	var customHTTPClient *http.Client = &http.Client{}
+	var customHTTPClient *http.Client = &http.Client{
+		// 15 second timeout
+		Timeout: 15 * time.Second,
+		// don't follow redirect
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
 
 	// Callback function to return any configured client certificate
 	// We never return err, but an empty cert instead.
@@ -122,19 +137,11 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 	}
 
 	if insecure {
-		customHTTPClient = &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify:   true,
-					GetClientCertificate: clientCertFunc,
-				},
-			},
-			// 15 second timeout
-			Timeout: 15 * time.Second,
-
-			// don't follow redirect
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				return http.ErrUseLastResponse
+		customHTTPClient.Transport = &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify:   true,
+				GetClientCertificate: clientCertFunc,
 			},
 		}
 	} else {
@@ -147,33 +154,19 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 			return customHTTPClient
 		} else if len(serverCertificatePem) > 0 {
 			certPool := certutil.GetCertPoolFromPEMData(serverCertificatePem)
-			customHTTPClient = &http.Client{
-				Transport: &http.Transport{
-					TLSClientConfig: &tls.Config{
-						RootCAs:              certPool,
-						GetClientCertificate: clientCertFunc,
-					},
-				},
-				// 15 second timeout
-				Timeout: 15 * time.Second,
-				// don't follow redirect
-				CheckRedirect: func(req *http.Request, via []*http.Request) error {
-					return http.ErrUseLastResponse
+			customHTTPClient.Transport = &http.Transport{
+				Proxy: http.ProxyFromEnvironment,
+				TLSClientConfig: &tls.Config{
+					RootCAs:              certPool,
+					GetClientCertificate: clientCertFunc,
 				},
 			}
 		} else {
 			// else no custom certificate stored.
-			customHTTPClient = &http.Client{
-				Transport: &http.Transport{
-					TLSClientConfig: &tls.Config{
-						GetClientCertificate: clientCertFunc,
-					},
-				},
-				// 15 second timeout
-				Timeout: 15 * time.Second,
-				// don't follow redirect
-				CheckRedirect: func(req *http.Request, via []*http.Request) error {
-					return http.ErrUseLastResponse
+			customHTTPClient.Transport = &http.Transport{
+				Proxy: http.ProxyFromEnvironment,
+				TLSClientConfig: &tls.Config{
+					GetClientCertificate: clientCertFunc,
 				},
 			}
 		}
@@ -252,6 +245,7 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch() error {
+	m.reporter.Event(m.repoURL, "GitRequestTypeFetch")
 	_, err := m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if err == nil && m.IsLFSEnabled() {
@@ -319,7 +313,16 @@ func (m *nativeGitClient) Checkout(revision string) error {
 // Otherwise, it returns an error indicating that the revision could not be resolved. This method
 // runs with in-memory storage and is safe to run concurrently, or to be run without a git
 // repository locally cloned.
-func (m *nativeGitClient) LsRemote(revision string) (string, error) {
+func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
+	for attempt := 0; attempt < maxAttemptsCount; attempt++ {
+		if res, err = m.lsRemote(revision); err == nil {
+			return
+		}
+	}
+	return
+}
+
+func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	if IsCommitSHA(revision) {
 		return revision, nil
 	}
@@ -338,6 +341,7 @@ func (m *nativeGitClient) LsRemote(revision string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	m.reporter.Event(m.repoURL, "GitRequestTypeLsRemote")
 	//refs, err := remote.List(&git.ListOptions{Auth: auth})
 	refs, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds)
 	if err != nil {

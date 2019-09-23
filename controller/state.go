@@ -88,7 +88,7 @@ type appStateManager struct {
 }
 
 func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
-	helmRepos, err := m.db.ListHelmRepos(context.Background())
+	repos, err := m.db.ListRepositories(context.Background())
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -120,9 +120,17 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	cluster, err := m.db.GetCluster(context.Background(), app.Spec.Destination.Server)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	cluster.ServerVersion, err = m.kubectl.GetServerVersion(cluster.RESTConfig())
+	if err != nil {
+		return nil, nil, nil, err
+	}
 	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 		Repo:              repo,
-		HelmRepos:         helmRepos,
+		Repos:             repos,
 		Revision:          revision,
 		NoCache:           noCache,
 		AppLabelKey:       appLabelKey,
@@ -133,6 +141,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		KustomizeOptions: &appv1.KustomizeOptions{
 			BuildOptions: buildOptions,
 		},
+		KubeVersion: cluster.ServerVersion,
 	})
 	if err != nil {
 		return nil, nil, nil, err

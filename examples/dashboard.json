@@ -108,7 +108,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "time() - max(process_start_time_seconds{job=\"argocd-server-metrics\",namespace=~\"$namespace\"})",
+          "expr": "time() - max(process_start_time_seconds{job=\"argocd-server-metrics\",namespace=~\"$namespace\",project=~\"$project\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -138,6 +138,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
+      "datasource": "Prometheus",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -217,6 +218,7 @@
       "bars": false,
       "cacheTimeout": null,
       "dashLength": 10,
+      "datasource": "Prometheus",
       "dashes": false,
       "fill": 0,
       "gridPos": {
@@ -378,7 +380,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(argocd_app_health_status{health_status=\"Healthy\",namespace=~\"$namespace\"} == 1)",
+          "expr": "sum(argocd_app_health_status{health_status=\"Healthy\",namespace=~\"$namespace\",project=~\"$project\"} == 1)",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -539,7 +541,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(argocd_app_health_status{health_status=\"Suspended\",namespace=~\"$namespace\"})",
+          "expr": "sum(argocd_app_health_status{health_status=\"Suspended\",namespace=~\"$namespace\",project=~\"$project\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -619,7 +621,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(argocd_app_health_status{health_status=\"Degraded\",namespace=~\"$namespace\"})",
+          "expr": "sum(argocd_app_health_status{health_status=\"Degraded\",namespace=~\"$namespace\",project=~\"$project\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -699,7 +701,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(argocd_app_health_status{health_status=\"Missing\",namespace=~\"$namespace\"})",
+          "expr": "sum(argocd_app_health_status{health_status=\"Missing\",namespace=~\"$namespace\",project=~\"$project\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -779,7 +781,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(argocd_app_health_status{health_status=\"Unknown\",namespace=~\"$namespace\"})",
+          "expr": "sum(argocd_app_health_status{health_status=\"Unknown\",namespace=~\"$namespace\",project=~\"$project\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -820,6 +822,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#299c46"
       ],
+      "datasource": "Prometheus",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -871,7 +874,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(argocd_app_sync_status{sync_status=\"Synced\",namespace=~\"$namespace\"})",
+          "expr": "sum(argocd_app_sync_status{sync_status=\"Synced\",namespace=~\"$namespace\",project=~\"$project\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -899,6 +902,7 @@
         "#F2495C",
         "#F2495C"
       ],
+      "datasource": "Prometheus",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -950,7 +954,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(argocd_app_sync_status{sync_status=\"OutOfSync\",namespace=~\"$namespace\"})",
+          "expr": "sum(argocd_app_sync_status{sync_status=\"OutOfSync\",namespace=~\"$namespace\",project=~\"$project\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -1030,7 +1034,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(argocd_app_sync_status{sync_status=\"Unknown\",namespace=~\"$namespace\"})",
+          "expr": "sum(argocd_app_sync_status{sync_status=\"Unknown\",namespace=~\"$namespace\",project=~\"$project\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -1067,6 +1071,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 5,
@@ -1158,6 +1163,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 5,
@@ -1192,7 +1198,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(changes(argocd_app_sync_total{namespace=~\"$namespace\",phase=~\"Error|Failed\"}[5m])) by (namespace, phase)",
+          "expr": "sum(changes(argocd_app_sync_total{namespace=~\"$namespace\",phase=~\"Error|Failed\",project=~\"$project\"}[5m])) by (namespace, phase, project)",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{namespace}} {{phase}}",
@@ -1246,6 +1252,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -1278,7 +1285,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(increase(argocd_app_reconcile_count{namespace=~\"$namespace\"}[10m])) by (namespace)",
+          "expr": "sum(increase(argocd_app_reconcile_count{namespace=~\"$namespace\", project=~\"$project\"}[10m])) by (namespace, project)",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{namespace}}",
@@ -1331,6 +1338,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -1363,7 +1371,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(increase(argocd_app_k8s_request_total{namespace=~\"$namespace\"}[5m])) by (namespace)",
+          "expr": "sum(increase(argocd_app_k8s_request_total{namespace=~\"$namespace\",project=~\"$project\"}[5m])) by (namespace, project)",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{namespace}}",
@@ -1424,6 +1432,7 @@
         "mode": "spectrum"
       },
       "dataFormat": "tsbuckets",
+      "datasource": "Prometheus",
       "gridPos": {
         "h": 9,
         "w": 24,
@@ -1441,7 +1450,7 @@
       "reverseYBuckets": false,
       "targets": [
         {
-          "expr": "sum(increase(argocd_app_reconcile_bucket{namespace=~\"$namespace\"}[10m])) by (le)",
+          "expr": "sum(increase(argocd_app_reconcile_bucket{namespace=~\"$namespace\",project=~\"$project\"}[10m])) by (le)",
           "format": "heatmap",
           "intervalFactor": 5,
           "legendFormat": "{{le}}",
@@ -2783,6 +2792,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -2866,6 +2876,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -2975,6 +2986,33 @@
         "tagsQuery": "",
         "type": "query",
         "useTags": false
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": "Prometheus",
+        "definition": "label_values(argocd_app_health_status, project)",
+        "hide": 0,
+        "includeAll": true,
+        "label": null,
+        "multi": true,
+        "name": "project",
+        "options": [],
+        "query": "label_values(argocd_app_health_status, project)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tags": [],
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
       }
     ]
   },
@@ -3010,5 +3048,5 @@
   "timezone": "",
   "title": "ArgoCD",
   "uid": "BjWwX3jik",
-  "version": 4
+  "version": 5
 }

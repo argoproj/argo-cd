@@ -130,7 +130,7 @@ export const ComparisonStatusIcon = ({status, resource, label}: { status: appMod
 };
 
 export function syncStatusMessage(app: appModels.Application) {
-    let rev = app.spec.source.targetRevision || 'HEAD';
+    let rev = app.spec.source.targetRevision || 'latest';
     if (app.status.sync.revision && (app.status.sync.revision.length >= 7 && !app.status.sync.revision.startsWith(app.spec.source.targetRevision))) {
         rev += ' (' + app.status.sync.revision.substr(0, 7) + ')';
     }
@@ -138,12 +138,12 @@ export function syncStatusMessage(app: appModels.Application) {
         case appModels.SyncStatuses.Synced:
             return (
                 <span>To <Revision repoUrl={app.spec.source.repoURL}
-                                   revision={app.spec.source.targetRevision || 'HEAD'}>{rev}</Revision> </span>
+                                   revision={app.spec.source.targetRevision || 'latest'}>{rev}</Revision> </span>
             );
         case appModels.SyncStatuses.OutOfSync:
             return (
                 <span>From <Revision repoUrl={app.spec.source.repoURL}
-                                     revision={app.spec.source.targetRevision || 'HEAD'}>{rev}</Revision> </span>
+                                     revision={app.spec.source.targetRevision || 'latest'}>{rev}</Revision> </span>
             );
         default:
             return <span>{rev}</span>;

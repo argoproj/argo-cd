@@ -44,5 +44,5 @@ data:
 
 ## Anonymous Access
 
-THe anonymous access to Argo CD can be enabled using `users.anonymous.enabled` field in `argocd-cm` (see [./argocd-cm.yaml](argocd-cm.yaml)).
+The anonymous access to Argo CD can be enabled using `users.anonymous.enabled` field in `argocd-cm` (see [./argocd-cm.yaml](argocd-cm.yaml)).
 The anonymous users get default role permissions specified by `policy.default` in `argocd-rbac-cm.yaml. For read-only access you'll want `policy.default: role:readonly` as above

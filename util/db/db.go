@@ -24,12 +24,12 @@ type ArgoDB interface {
 	// DeleteCluster deletes a cluster by name
 	DeleteCluster(ctx context.Context, name string) error
 
-	// ListRepoURLs lists repositories
-	ListRepoURLs(ctx context.Context) ([]string, error)
+	// ListRepositories lists repositories
+	ListRepositories(ctx context.Context) ([]*appv1.Repository, error)
 	// CreateRepository creates a repository
 	CreateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
 	// GetRepository returns a repository by URL
-	GetRepository(ctx context.Context, name string) (*appv1.Repository, error)
+	GetRepository(ctx context.Context, url string) (*appv1.Repository, error)
 	// UpdateRepository updates a repository
 	UpdateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
 	// DeleteRepository deletes a repository from config
@@ -99,19 +99,6 @@ func (db *db) unmarshalFromSecretsStr(secrets map[*string]*v1.SecretKeySelector,
 				return err
 			}
 			*dst = string(secret.Data[src.Key])
-		}
-	}
-	return nil
-}
-
-func (db *db) unmarshalFromSecretsBytes(secrets map[*[]byte]*v1.SecretKeySelector, cache map[string]*v1.Secret) error {
-	for dst, src := range secrets {
-		if src != nil {
-			secret, err := db.getSecret(src.Name, cache)
-			if err != nil {
-				return err
-			}
-			*dst = secret.Data[src.Key]
 		}
 	}
 	return nil

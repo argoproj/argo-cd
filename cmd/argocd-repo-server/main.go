@@ -7,17 +7,16 @@ import (
 	"os"
 	"time"
 
-	"github.com/argoproj/argo-cd/reposerver/metrics"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/reposerver"
+	"github.com/argoproj/argo-cd/reposerver/metrics"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/repo/factory"
 	"github.com/argoproj/argo-cd/util/stats"
 	"github.com/argoproj/argo-cd/util/tls"
 )
@@ -48,7 +47,7 @@ func newCommand() *cobra.Command {
 			cache, err := cacheSrc()
 			errors.CheckError(err)
 
-			metricsServer := metrics.NewMetricsServer(git.NewFactory())
+			metricsServer := metrics.NewMetricsServer(factory.NewFactory())
 			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, parallelismLimit)
 			errors.CheckError(err)
 

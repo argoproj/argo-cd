@@ -54,6 +54,8 @@ func TestHandlerFeatureIsEnabled(t *testing.T) {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
+	assert.Equal(t, "private, no-store", rr.Header().Get("Cache-Control"))
+
 	response := rr.Body.String()
 	assert.Equal(t, success, leftPathColorPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, success, rightPathColorPattern.FindStringSubmatch(response)[1])
@@ -73,6 +75,8 @@ func TestHandlerFeatureIsDisabled(t *testing.T) {
 
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, "private, no-store", rr.Header().Get("Cache-Control"))
 
 	response := rr.Body.String()
 	assert.Equal(t, unknown, leftPathColorPattern.FindStringSubmatch(response)[1])

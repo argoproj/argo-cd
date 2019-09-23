@@ -121,6 +121,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	badge = replaceFirstGroupSubMatch(rightText1Pattern, badge, rightText)
 	badge = replaceFirstGroupSubMatch(rightText2Pattern, badge, rightText)
 	w.Header().Set("Content-Type", "image/svg+xml")
+
+	//Ask cache's to not cache the contents in order prevent the badge from becoming stale
+	w.Header().Set("Cache-Control", "private, no-store")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(badge))
 }

@@ -12,14 +12,17 @@ import (
 
 // Server provides a Session service
 type Server struct {
-	mgr *sessionmgr.SessionManager
+	mgr           *sessionmgr.SessionManager
+	authenticator Authenticator
+}
+
+type Authenticator interface {
+	Authenticate(ctx context.Context) (context.Context, error)
 }
 
 // NewServer returns a new instance of the Session service
-func NewServer(mgr *sessionmgr.SessionManager) *Server {
-	return &Server{
-		mgr: mgr,
-	}
+func NewServer(mgr *sessionmgr.SessionManager, authenticator Authenticator) *Server {
+	return &Server{mgr, authenticator}
 }
 
 // Create generates a JWT token signed by Argo CD intended for web/CLI logins of the admin user
@@ -52,5 +55,16 @@ func (s *Server) Delete(ctx context.Context, q *session.SessionDeleteRequest) (*
 // Since this service is generally invoked when the user has _no_ credentials, that would create a
 // chicken-and-egg situation if we didn't place this here to allow traffic to pass through.
 func (s *Server) AuthFuncOverride(ctx context.Context, fullMethodName string) (context.Context, error) {
+	// this authenticates the user, but ignores any error, so that we have claims populated
+	ctx, _ = s.authenticator.Authenticate(ctx)
 	return ctx, nil
+}
+
+func (s *Server) GetUserInfo(ctx context.Context, q *session.GetUserInfoRequest) (*session.GetUserInfoResponse, error) {
+	return &session.GetUserInfoResponse{
+		LoggedIn: sessionmgr.LoggedIn(ctx),
+		Username: sessionmgr.Username(ctx),
+		Iss:      sessionmgr.Iss(ctx),
+		Groups:   sessionmgr.Groups(ctx),
+	}, nil
 }

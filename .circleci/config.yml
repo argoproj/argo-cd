@@ -71,7 +71,14 @@ commands:
           command: mkdir -p /tmp/dl
       - restore_cache:
           keys:
-            - dl-v6
+            - dl-v7
+      - run:
+          name: Install Kubectl v1.14.0
+          command: |
+            set -x
+            [ -e /tmp/dl/kubectl ] || curl -sLf -C - -o /tmp/dl/kubectl https://storage.googleapis.com/kubernetes-release/release/v1.14.0/bin/linux/amd64/kubectl
+            sudo cp /tmp/dl/kubectl /usr/local/bin/kubectl
+            sudo chmod +x /usr/local/bin/kubectl
       - run:
           name: Install Kubectx v0.6.3
           command: |
@@ -119,7 +126,7 @@ commands:
             sudo chmod +x /usr/local/go/bin/kustomize
             kustomize version
       - save_cache:
-          key: dl-v6
+          key: dl-v7
           paths:
             - /tmp/dl
   save_go_cache:
@@ -167,7 +174,7 @@ jobs:
           name: Lint code
           # use GOGC to limit memory usage in exchange for CPU usage, https://github.com/golangci/golangci-lint#memory-usage-of-golangci-lint
           # we have 8GB RAM, 2CPUs https://circleci.com/docs/2.0/executor-types/#using-machine
-          command: LINT_GOGC=20 LINT_CONCURRENCY=1 LINT_DEADLINE=3m0s make lint
+          command: LINT_GOGC=20 LINT_CONCURRENCY=1 LINT_DEADLINE=4m0s make lint
       - run:
           name: Check nothing has changed
           command: |
@@ -208,14 +215,13 @@ jobs:
           name: Create namespace
           command: |
             set -x
+            cat /etc/rancher/k3s/k3s.yaml | sed "s/localhost/`hostname`/" | tee ~/.kube/config
+            echo "127.0.0.1 `hostname`" | sudo tee -a /etc/hosts
             kubectl create ns argocd-e2e
             kubens argocd-e2e
             # install the certificates (not 100% sure we need this)
             sudo cp /var/lib/rancher/k3s/server/tls/token-ca.crt /usr/local/share/ca-certificates/k3s.crt
             sudo update-ca-certificates
-            # create the kubecfg, again - not sure we need this
-            cat /etc/rancher/k3s/k3s.yaml | sed "s/localhost/`hostname`/" | tee ~/.kube/config
-            echo "127.0.0.1 `hostname`" | sudo tee -a /etc/hosts
       - run:
           name: Apply manifests
           command: kustomize build test/manifests/base | kubectl apply -f -
@@ -240,6 +246,7 @@ jobs:
             ARGOCD_FAKE_IN_CLUSTER: "true"
             ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
             ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
+            ARGOCD_ZJWT_FEATURE_FLAG: "always"
       - run:
           name: Start Test Git
           command: |

@@ -23,6 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/argoproj/argo-cd/util/stats"
 )
@@ -46,6 +47,7 @@ func newCommand() *cobra.Command {
 		logLevel                 string
 		glogLevel                int
 		metricsPort              int
+		kubectlParallelismLimit  int64
 		cacheSrc                 func() (*cache.Cache, error)
 	)
 	var command = cobra.Command{
@@ -75,6 +77,7 @@ func newCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
+			kubectl := kube.KubectlCmd{}
 			appController, err := controller.NewApplicationController(
 				namespace,
 				settingsMgr,
@@ -82,9 +85,11 @@ func newCommand() *cobra.Command {
 				appClient,
 				repoClientset,
 				cache,
+				kubectl,
 				resyncDuration,
 				time.Duration(selfHealTimeoutSeconds)*time.Second,
-				metricsPort)
+				metricsPort,
+				kubectlParallelismLimit)
 			errors.CheckError(err)
 
 			log.Infof("Application Controller (version: %s) starting (namespace: %s)", common.GetVersion(), namespace)
@@ -109,6 +114,7 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDMetrics, "Start metrics server on given port")
 	command.Flags().IntVar(&selfHealTimeoutSeconds, "self-heal-timeout-seconds", 5, "Specifies timeout between application self heal attempts")
+	command.Flags().Int64Var(&kubectlParallelismLimit, "kubectl-parallelism-limit", 20, "Number of allowed concurrent kubectl fork/execs. Any value less the 1 means no limit.")
 
 	cacheSrc = cache.AddCacheFlagsToCmd(&command)
 	return &command

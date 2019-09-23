@@ -45,7 +45,7 @@ func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState,
 		SkipOpenLibs: !vm.UseOpenLibs,
 	})
 	defer l.Close()
-	// Opens table library to allow access to functions to manulate tables
+	// Opens table library to allow access to functions to manipulate tables
 	for _, pair := range []struct {
 		n string
 		f lua.LGFunction
@@ -53,6 +53,8 @@ func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState,
 		{lua.LoadLibName, lua.OpenPackage},
 		{lua.BaseLibName, lua.OpenBase},
 		{lua.TabLibName, lua.OpenTable},
+		// load our 'safe' version of the os library
+		{lua.OsLibName, OpenSafeOs},
 	} {
 		if err := l.CallByParam(lua.P{
 			Fn:      l.NewFunction(pair.f),
@@ -62,6 +64,8 @@ func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState,
 			panic(err)
 		}
 	}
+	// preload our 'safe' version of the os library. Allows the 'local os = require("os")' to work
+	l.PreloadModule(lua.OsLibName, SafeOsLoader)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()

@@ -1,4 +1,4 @@
-import {DropDownMenu, FormField, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
+import {DropDownMenu, FormField, FormSelect, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Form, FormApi, Text, TextArea} from 'react-form';
@@ -12,6 +12,8 @@ import {services} from '../../../shared/services';
 require('./repos-list.scss');
 
 interface NewSSHRepoParams {
+    type: string;
+    name: string;
     url: string;
     sshPrivateKey: string;
     insecure: boolean;
@@ -19,6 +21,8 @@ interface NewSSHRepoParams {
 }
 
 interface NewHTTPSRepoParams {
+    type: string;
+    name: string;
     url: string;
     username: string;
     password: string;
@@ -77,15 +81,23 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                     <div className='argo-table-list'>
                                         <div className='argo-table-list__head'>
                                             <div className='row'>
-                                                <div className='columns small-9'>REPOSITORY</div>
+                                                <div className='columns small-1'/>
+                                                <div className='columns small-1'>TYPE</div>
+                                                <div className='columns small-2'>NAME</div>
+                                                <div className='columns small-5'>REPOSITORY</div>
                                                 <div className='columns small-3'>CONNECTION STATUS</div>
                                             </div>
                                         </div>
                                         {repos.map((repo) => (
                                             <div className='argo-table-list__row' key={repo.repo}>
                                                 <div className='row'>
-                                                    <div className='columns small-9'>
-                                                        <i className='icon argo-icon-git'/> <Repo url={repo.repo}/>
+                                                    <div className='columns small-1'>
+                                                        <i className={'icon argo-icon-' + (repo.type)}/>
+                                                    </div>
+                                                    <div className='columns small-1'>{repo.type}</div>
+                                                    <div className='columns small-2'>{repo.name}</div>
+                                                    <div className='columns small-5'>
+                                                        <Repo url={repo.repo}/>
                                                     </div>
                                                     <div className='columns small-3'>
                                                         <ConnectionStateIcon
@@ -168,9 +180,10 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                         </button>
                     </div>
                 )}>
-                    <h4>Connect Git repo using HTTPS</h4>
+                    <h4>Connect repo using HTTPS</h4>
                     <Form onSubmit={(params) => this.connectHTTPSRepo(params as NewHTTPSRepoParams)}
                           getApi={(api) => this.formApiHTTPS = api}
+                          defaultValues={{type: 'git'}}
                           validateError={(params: NewHTTPSRepoParams) => ({
                               url: (!params.url && 'Repo URL is required') || (this.credsTemplate && !this.isHTTPSUrl(params.url) && 'Not a valid HTTPS URL'),
                               password: !params.password && params.username && 'Password is required if username is given.',
@@ -178,6 +191,12 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                           })}>
                         {(formApi) => (
                             <form onSubmit={formApi.submitForm} role='form' className='repos-list width-control'>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Type' field='type' component={FormSelect} componentProps={{options: ['git', 'helm']}}/>
+                                </div>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Name (mandatory for Helm)' field='name' component={Text}/>
+                                </div>
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Repository URL' field='url' component={Text}/>
                                 </div>
@@ -199,7 +218,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                     {tooltip('This setting is ignored when creating as credential template.')}
                                 </div>
                                 <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Enable LFS support' field='enableLfs' component={CheckboxField}/>
+                                    <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField}/>
                                     {tooltip('This setting is ignored when creating as credential template.')}
                                 </div>
                             </form>
@@ -218,15 +237,21 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                         </button>
                     </div>
                 )}>
-                    <h4>Connect Git repo using SSH</h4>
+                    <h4>Connect repo using SSH</h4>
                     <Form onSubmit={(params) => this.connectSSHRepo(params as NewSSHRepoParams)}
                           getApi={(api) => this.formApiSSH = api}
+                          defaultValues={{type: 'git'}}
                           validateError={(params: NewSSHRepoParams) => ({
                               url: !params.url && 'Repo URL is required',
-                              sshPrivateKey: !params.sshPrivateKey && 'SSH private key data is required for connecting SSH repositories',
                           })}>
                         {(formApi) => (
                             <form onSubmit={formApi.submitForm} role='form' className='repos-list width-control'>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Type' field='type' component={FormSelect} componentProps={{options: ['git', 'helm']}}/>
+                                </div>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Name (mandatory for Helm)' field='name' component={Text}/>
+                                </div>
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Repository URL' field='url' component={Text}/>
                                 </div>
@@ -238,7 +263,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                     {tooltip('This setting is ignored when creating as credential template.')}
                                 </div>
                                 <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Enable LFS support' field='enableLfs' component={CheckboxField}/>
+                                    <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField}/>
                                     {tooltip('This setting is ignored when creating as credential template.')}
                                 </div>
                             </form>

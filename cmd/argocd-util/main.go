@@ -447,27 +447,8 @@ func getReferencedSecrets(un unstructured.Unstructured) map[string]bool {
 			if cred.TLSClientCertKeySecret != nil {
 				referencedSecrets[cred.TLSClientCertKeySecret.Name] = true
 			}
-		}
-	}
-	if helmReposRAW, ok := cm.Data["helm.repositories"]; ok {
-		helmRepoCreds := make([]settings.HelmRepoCredentials, 0)
-		err := yaml.Unmarshal([]byte(helmReposRAW), &helmRepoCreds)
-		errors.CheckError(err)
-		for _, cred := range helmRepoCreds {
-			if cred.CASecret != nil {
-				referencedSecrets[cred.CASecret.Name] = true
-			}
-			if cred.CertSecret != nil {
-				referencedSecrets[cred.CertSecret.Name] = true
-			}
-			if cred.KeySecret != nil {
-				referencedSecrets[cred.KeySecret.Name] = true
-			}
-			if cred.UsernameSecret != nil {
-				referencedSecrets[cred.UsernameSecret.Name] = true
-			}
-			if cred.PasswordSecret != nil {
-				referencedSecrets[cred.PasswordSecret.Name] = true
+			if cred.TLSClientCASecret != nil {
+				referencedSecrets[cred.TLSClientCASecret.Name] = true
 			}
 		}
 	}

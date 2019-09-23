@@ -133,6 +133,8 @@ const (
 	EnvVarSSHDataPath = "ARGOCD_SSH_DATA_PATH"
 	// Overrides the location where TLS certificate for repo access data is stored
 	EnvVarTLSDataPath = "ARGOCD_TLS_DATA_PATH"
+	// Specifies number of git remote operations attempts count
+	EnvGitAttemptsCount = "ARGOCD_GIT_ATTEMPTS_COUNT"
 )
 
 const (

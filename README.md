@@ -30,6 +30,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [Intuit](https://www.intuit.com/)
 1. [KintoHub](https://www.kintohub.com/)
 1. [KompiTech GmbH](https://www.kompitech.com/)
+1. [Lytt](https://www.lytt.co/)
 1. [Mambu](https://www.mambu.com/) 
 1. [Mirantis](https://mirantis.com/)
 1. [OpenSaaS Studio](https://opensaas.studio)
@@ -40,6 +41,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [tZERO](https://www.tzero.com/)
 1. [Ticketmaster](https://ticketmaster.com)
 1. [Yieldlab](https://www.yieldlab.de/)
+1. [UBIO](https://ub.io/)
 1. [Volvo Cars](https://www.volvocars.com/)
 
 ## Documentation

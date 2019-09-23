@@ -9,9 +9,7 @@ import {
     PopupManager,
     PopupProps,
 } from 'argo-ui';
-import * as cookie from 'cookie';
 import {createBrowserHistory} from 'history';
-import * as jwtDecode from 'jwt-decode';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Helmet} from 'react-helmet';
@@ -25,6 +23,7 @@ import {Provider} from './shared/context';
 import {services} from './shared/services';
 import requests from './shared/services/requests';
 import {hashCode} from './shared/utils';
+import userInfo from './user-info';
 
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
@@ -36,6 +35,7 @@ const routes: {[path: string]: { component: React.ComponentType<RouteComponentPr
     '/login': { component: login.component as any, noLayout: true },
     '/applications': { component: applications.component },
     '/settings': { component: settings.component },
+    '/user-info': { component: userInfo.component },
     '/help': { component: help.component },
 };
 
@@ -48,6 +48,10 @@ const navItems = [{
     path: '/settings',
     iconClassName: 'argo-icon-settings',
 }, {
+    title: 'User Info',
+    path: '/user-info',
+    iconClassName: 'fa fa-user-circle',
+}, {
     title: 'Read the documentation, and get help and assistance.',
     path: '/help',
     iconClassName: 'argo-icon-docs',
@@ -55,13 +59,10 @@ const navItems = [{
 
 async function isExpiredSSO() {
     try {
-        const token = cookie.parse(document.cookie)['argocd.token'];
-        if (token) {
-            const jwtToken = jwtDecode(token) as any;
-            if (jwtToken.iss && jwtToken.iss !== 'argocd') {
-                const authSettings = await services.authService.settings();
-                return (authSettings.dexConfig && authSettings.dexConfig.connectors || []).length > 0 || authSettings.oidcConfig;
-            }
+        const {loggedIn, iss} = await services.users.get();
+        if (loggedIn && iss !== 'argocd') {
+            const authSettings = await services.authService.settings();
+            return (authSettings.dexConfig && authSettings.dexConfig.connectors || []).length > 0 || authSettings.oidcConfig;
         }
     } catch {
         return false;
@@ -108,20 +109,15 @@ export class App extends React.Component<{}, { popupProps: PopupProps, error: Er
 
     public async componentDidMount() {
         this.popupManager.popupProps.subscribe((popupProps) => this.setState({ popupProps }));
-        const gaSettings = await services.authService.settings().then((item) => item.googleAnalytics || {  trackingID: '', anonymizeUsers: true });
-        const { trackingID, anonymizeUsers } = gaSettings;
+        const { trackingID, anonymizeUsers } = await services.authService.settings().then((item) => item.googleAnalytics || {  trackingID: '', anonymizeUsers: true });
+        const {loggedIn, username} = await services.users.get();
         if (trackingID) {
             const ga = await import('react-ga');
             ga.initialize(trackingID);
-            let userId = '';
             const trackPageView = () => {
-                let nextUserId = services.authService.getCurrentUserId();
-                if (anonymizeUsers) {
-                   nextUserId = hashCode(nextUserId).toString();
-                }
-                if (nextUserId !== userId) {
-                    userId = nextUserId;
-                    ga.set({ userId });
+                if (loggedIn) {
+                    const userId = !anonymizeUsers ? username : hashCode(username).toString();
+                    ga.set({userId});
                 }
                 ga.pageview(location.pathname + location.search);
             };
