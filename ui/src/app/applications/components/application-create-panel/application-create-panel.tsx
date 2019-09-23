@@ -153,7 +153,7 @@ export const ApplicationCreatePanel = (props: {
                                                         new Array<string>()
                                                     }>
                                             {(apps: string[]) => (
-                                                <FormField formApi={api} label='Path' field='spec.source.path' component={AutocompleteField} componentProps={{
+                                                <FormField formApi={api} label='Git Path/Helm Chart' field='spec.source.path' component={AutocompleteField} componentProps={{
                                                     items: apps, filterSuggestions: true,
                                                 }}/>
                                             )}
