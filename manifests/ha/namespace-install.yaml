@@ -613,6 +613,10 @@ spec:
               description: Destination overrides the kubernetes server and namespace
                 defined in the environment ksonnet app.yaml
               properties:
+                name:
+                  description: Name of the destination cluster which can be used instead
+                    of server (url) field
+                  type: string
                 namespace:
                   description: Namespace overrides the environment namespace value
                     in the ksonnet app.yaml
@@ -1587,6 +1591,10 @@ spec:
                   properties:
                     destination:
                       properties:
+                        name:
+                          description: Name of the destination cluster which can be
+                            used instead of server (url) field
+                          type: string
                         namespace:
                           description: Namespace overrides the environment namespace
                             value in the ksonnet app.yaml
@@ -2189,6 +2197,10 @@ spec:
                 deployment
               items:
                 properties:
+                  name:
+                    description: Name of the destination cluster which can be used
+                      instead of server (url) field
+                    type: string
                   namespace:
                     description: Namespace overrides the environment namespace value
                       in the ksonnet app.yaml
