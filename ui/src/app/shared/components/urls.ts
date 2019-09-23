@@ -1,7 +1,9 @@
+import {GitUrl} from 'git-url-parse';
+
 const GitUrlParse = require('git-url-parse');
 
-function supportedSource(source: string): boolean {
-    return ['github.com', 'gitlab.com', 'bitbucket.org'].indexOf(source) >= 0;
+function supportedSource(parsed: GitUrl): boolean {
+    return parsed.resource.startsWith('github') || ['gitlab.com', 'bitbucket.org'].indexOf(parsed.source) >= 0;
 }
 
 function protocol(proto: string): string {
@@ -11,7 +13,7 @@ function protocol(proto: string): string {
 export function repoUrl(url: string): string {
     const parsed = GitUrlParse(url);
 
-    if (!supportedSource(parsed.source)) {
+    if (!supportedSource(parsed)) {
         return null;
     }
 
@@ -22,7 +24,7 @@ export function revisionUrl(url: string, revision: string): string {
 
     const parsed = GitUrlParse(url);
 
-    if (!supportedSource(parsed.source)) {
+    if (!supportedSource(parsed)) {
         return null;
     }
 
