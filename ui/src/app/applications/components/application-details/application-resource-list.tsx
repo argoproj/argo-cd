@@ -2,7 +2,7 @@ import { DropDown } from 'argo-ui';
 import * as React from 'react';
 
 import * as models from '../../../shared/models';
-import { ComparisonStatusIcon, HealthStatusIcon, ICON_CLASS_BY_KIND, nodeKey } from '../utils';
+import { ComparisonStatusIcon, HealthStatusIcon, nodeKey, ResourceIcon } from '../utils';
 
 export const ApplicationResourceList = ({ resources, onNodeClick, nodeMenu }: {
     resources: models.ResourceStatus[],
@@ -22,7 +22,7 @@ export const ApplicationResourceList = ({ resources, onNodeClick, nodeMenu }: {
             <div key={nodeKey(res)} className='argo-table-list__row' onClick={() => onNodeClick(nodeKey(res))}>
                 <div className='row'>
                     <div className='columns small-3 xxxlarge-3'>
-                        <i className={ICON_CLASS_BY_KIND[res.kind.toLocaleLowerCase()] || 'fa fa-cogs'}/> <span>{res.name}</span>
+                        {ResourceIcon(res.kind, true)}
                     </div>
                     <div className='columns small-3 xxxlarge-4'>{[res.group, res.kind].filter((item) => !!item).join('/')}</div>
                     <div className='columns small-4 xxxlarge-4'>{res.namespace}</div>

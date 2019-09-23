@@ -42,11 +42,11 @@ const routes: {[path: string]: { component: React.ComponentType<RouteComponentPr
 const navItems = [{
     title: 'Manage your applications, and diagnose health problems.',
     path: '/applications',
-    iconClassName: 'argo-icon-application',
+    iconClassName: 'argo-ResourceIcon-application',
 }, {
     title: 'Manage your repositories, projects, settings',
     path: '/settings',
-    iconClassName: 'argo-icon-settings',
+    iconClassName: 'argo-ResourceIcon-settings',
 }, {
     title: 'User Info',
     path: '/user-info',
@@ -54,7 +54,7 @@ const navItems = [{
 }, {
     title: 'Read the documentation, and get help and assistance.',
     path: '/help',
-    iconClassName: 'argo-icon-docs',
+    iconClassName: 'argo-ResourceIcon-docs',
 }];
 
 async function isExpiredSSO() {

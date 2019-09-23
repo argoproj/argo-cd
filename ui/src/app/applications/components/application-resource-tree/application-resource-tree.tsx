@@ -7,7 +7,7 @@ import * as models from '../../../shared/models';
 
 import {EmptyState} from '../../../shared/components';
 import {ApplicationURLs} from '../application-urls';
-import {ComparisonStatusIcon, getAppOverridesCount, HealthStatusIcon, icon, isAppNode, NodeId, nodeKey} from '../utils';
+import {ComparisonStatusIcon, getAppOverridesCount, HealthStatusIcon, isAppNode, NodeId, nodeKey, ResourceIcon} from '../utils';
 import {NodeUpdateAnimation} from './node-update-animation';
 
 function treeNodeKey(node: NodeId & { uid?: string }) {
@@ -174,7 +174,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
             <div className={classNames('application-resource-tree__node-kind-icon', {
                 'application-resource-tree__node-kind-icon--big': rootNode,
             })}>
-                {icon(node.kind, rootNode)}
+                {ResourceIcon(node.kind, rootNode)}
             </div>
             <div className='application-resource-tree__node-content'>
                 <span className='application-resource-tree__node-title'>{node.name}</span>

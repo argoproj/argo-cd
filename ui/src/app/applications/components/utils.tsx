@@ -2,17 +2,16 @@ import * as React from 'react';
 import {ReactFragment} from 'react';
 
 import {Checkbox, NotificationsApi, NotificationType} from 'argo-ui';
-import {COLORS, ErrorNotification} from '../../shared/components';
-import {Revision} from '../../shared/components';
+import {COLORS, ErrorNotification, Revision} from '../../shared/components';
 import {ContextApis} from '../../shared/context';
 import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
 
 export const ICON_CLASS_BY_KIND = {
-    application: 'argo-icon-application',
-    deployment: 'argo-icon-deployment',
-    pod: 'argo-icon-docker',
-    service: 'argo-icon-hosts',
+    application: 'argo-ResourceIcon-application',
+    deployment: 'argo-ResourceIcon-deployment',
+    pod: 'argo-ResourceIcon-docker',
+    service: 'argo-ResourceIcon-hosts',
 } as any;
 
 export interface NodeId {
@@ -54,20 +53,21 @@ const imgNameByKind = new Map<string, string>([
     ['StatefulSet', 'sts'],
     ['Service', 'svc'],
     ['User', 'user'],
-    ['Volume', 'vol']
+    ['Volume', 'vol'],
 ]);
 
-export function icon(kind: string, rootNode: boolean = false): ReactFragment {
+export function ResourceIcon(kind: string, small: boolean = false): ReactFragment {
     const img = imgNameByKind.get(kind);
     if (img !== undefined) {
-        return <img src={'assets/images/resources/' + img + '.svg'} alt={kind}
-                    style={{width: !rootNode && '50%',}}/>
+        return (
+            <img src={'assets/images/resources/' + img + '.svg'} alt={kind} style={{width: !small && '50%'}}/>
+        );
     }
     const className = ICON_CLASS_BY_KIND[kind.toLocaleLowerCase()];
     if (className !== undefined) {
-        return <i title={kind} className={`icon ${className}`}/>
+        return <i title={kind} className={`icon ${className}`}/>;
     }
-    return <i title={kind} className='icon fa fa-cogs'/>
+    return <i title={kind} className='icon fa fa-cogs'/>;
 }
 
 export function nodeKey(node: NodeId) {
