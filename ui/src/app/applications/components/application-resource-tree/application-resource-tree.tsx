@@ -1,14 +1,14 @@
-import { DropDown } from 'argo-ui';
+import {DropDown} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
 
 import * as models from '../../../shared/models';
 
-import { EmptyState } from '../../../shared/components';
-import { ApplicationURLs } from '../application-urls';
-import { ComparisonStatusIcon, getAppOverridesCount, HealthStatusIcon, ICON_CLASS_BY_KIND, isAppNode, NodeId, nodeKey } from '../utils';
-import { NodeUpdateAnimation } from './node-update-animation';
+import {EmptyState} from '../../../shared/components';
+import {ApplicationURLs} from '../application-urls';
+import {ComparisonStatusIcon, getAppOverridesCount, HealthStatusIcon, icon, isAppNode, NodeId, nodeKey} from '../utils';
+import {NodeUpdateAnimation} from './node-update-animation';
 
 function treeNodeKey(node: NodeId & { uid?: string }) {
     return node.uid || nodeKey(node);
@@ -163,7 +163,6 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
         comparisonStatus = node.status;
         healthState = node.health;
     }
-    const kindIcon = ICON_CLASS_BY_KIND[node.kind.toLocaleLowerCase()] || 'fa fa-cogs';
     const appNode = isAppNode(node);
     const rootNode = !node.root;
     return (
@@ -175,7 +174,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
             <div className={classNames('application-resource-tree__node-kind-icon', {
                 'application-resource-tree__node-kind-icon--big': rootNode,
             })}>
-                <i title={node.kind} className={`icon ${kindIcon}`} />
+                {icon(node.kind, rootNode)}
             </div>
             <div className='application-resource-tree__node-content'>
                 <span className='application-resource-tree__node-title'>{node.name}</span>
