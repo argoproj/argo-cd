@@ -13,26 +13,43 @@ import (
 	ksutil "github.com/argoproj/argo-cd/util/ksonnet"
 )
 
-type Server struct{}
+type Server struct {
+	ksonnetVersion   string
+	kustomizeVersion string
+	helmVersion      string
+	kubectlVersion   string
+}
 
 // Version returns the version of the API server
 func (s *Server) Version(context.Context, *empty.Empty) (*version.VersionMessage, error) {
 	vers := common.GetVersion()
-	ksonnetVersion, err := ksutil.Version()
-	if err != nil {
-		return nil, err
+	if s.ksonnetVersion == "" {
+		ksonnetVersion, err := ksutil.Version()
+		if err != nil {
+			return nil, err
+		}
+		s.ksonnetVersion = ksonnetVersion
 	}
-	kustomizeVersion, err := kustomize.Version()
-	if err != nil {
-		return nil, err
+	if s.kustomizeVersion == "" {
+		kustomizeVersion, err := kustomize.Version()
+		if err != nil {
+			return nil, err
+		}
+		s.kustomizeVersion = kustomizeVersion
 	}
-	helmVersion, err := helm.Version()
-	if err != nil {
-		return nil, err
+	if s.helmVersion == "" {
+		helmVersion, err := helm.Version()
+		if err != nil {
+			return nil, err
+		}
+		s.helmVersion = helmVersion
 	}
-	kubectlVersion, err := kube.Version()
-	if err != nil {
-		return nil, err
+	if s.kubectlVersion == "" {
+		kubectlVersion, err := kube.Version()
+		if err != nil {
+			return nil, err
+		}
+		s.kubectlVersion = kubectlVersion
 	}
 	return &version.VersionMessage{
 		Version:          vers.Version,
@@ -43,10 +60,10 @@ func (s *Server) Version(context.Context, *empty.Empty) (*version.VersionMessage
 		GoVersion:        vers.GoVersion,
 		Compiler:         vers.Compiler,
 		Platform:         vers.Platform,
-		KsonnetVersion:   ksonnetVersion,
-		KustomizeVersion: kustomizeVersion,
-		HelmVersion:      helmVersion,
-		KubectlVersion:   kubectlVersion,
+		KsonnetVersion:   s.ksonnetVersion,
+		KustomizeVersion: s.kustomizeVersion,
+		HelmVersion:      s.helmVersion,
+		KubectlVersion:   s.kubectlVersion,
 	}, nil
 }
 
