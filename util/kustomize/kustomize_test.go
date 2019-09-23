@@ -99,7 +99,6 @@ func TestParseKustomizeBuildOptions(t *testing.T) {
 	assert.Equal(t, []string{"build", "guestbook", "-v", "6", "--logtostderr"}, built)
 }
 
-
 func TestVersion(t *testing.T) {
 	ver, err := Version()
 	assert.NoError(t, err)

@@ -187,7 +187,7 @@ func Version() (string, error) {
 	if version[0] != 'v' {
 		version = "v" + version
 	}
-	return  strings.TrimSpace(version), nil
+	return strings.TrimSpace(version), nil
 }
 
 func getImageParameters(objs []*unstructured.Unstructured) []Image {
