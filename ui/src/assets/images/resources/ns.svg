@@ -9,12 +9,12 @@
    xmlns="http://www.w3.org/2000/svg"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="18.035334mm"
-   height="17.500378mm"
-   viewBox="0 0 18.035334 17.500378"
+   width="8.0735893mm"
+   height="7.0900793mm"
+   viewBox="0 0 8.0735895 7.0900794"
    version="1.1"
    id="svg13826"
-   inkscape:version="0.91 r13725"
+   inkscape:version="0.92.2 5c3e80d, 2017-08-06"
    sodipodi:docname="ns.svg">
   <defs
      id="defs13820" />
@@ -26,13 +26,13 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="8"
-     inkscape:cx="-2.090004"
-     inkscape:cy="23.752239"
+     inkscape:cx="-20.915348"
+     inkscape:cy="4.0792349"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
      showgrid="false"
-     inkscape:window-width="1440"
-     inkscape:window-height="775"
+     inkscape:window-width="480"
+     inkscape:window-height="449"
      inkscape:window-x="0"
      inkscape:window-y="1"
      inkscape:window-maximized="1"
@@ -56,13 +56,13 @@
      inkscape:label="Calque 1"
      inkscape:groupmode="layer"
      id="layer1"
-     transform="translate(-0.99262638,-1.174181)">
+     transform="translate(-5.9734986,-6.3793304)">
     <rect
        y="6.5793304"
        x="6.1734986"
        height="6.6900792"
        width="7.6735892"
        id="rect8790"
-       style="opacity:1;fill:none;fill-opacity:1;fill-rule:nonzero;stroke:#8FA4B1;stroke-width:0.40000001;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:0.80000001, 0.4;stroke-dashoffset:3.44000006;stroke-opacity:1" />
+       style="opacity:1;fill:none;fill-opacity:1;fill-rule:nonzero;stroke:#8fa4b1;stroke-width:0.40000001;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:0.80000001, 0.4;stroke-dashoffset:3.44000006;stroke-opacity:1" />
   </g>
 </svg>

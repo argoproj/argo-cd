@@ -9,12 +9,12 @@
    xmlns="http://www.w3.org/2000/svg"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="18.035334mm"
-   height="17.500378mm"
-   viewBox="0 0 18.035334 17.500378"
+   width="10.004894mm"
+   height="7.821548mm"
+   viewBox="0 0 10.004894 7.8215481"
    version="1.1"
    id="svg13826"
-   inkscape:version="0.91 r13725"
+   inkscape:version="0.92.2 5c3e80d, 2017-08-06"
    sodipodi:docname="limits.svg">
   <defs
      id="defs13820" />
@@ -26,13 +26,13 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="8"
-     inkscape:cx="-2.090004"
-     inkscape:cy="23.752239"
+     inkscape:cx="-17.265638"
+     inkscape:cy="5.4615383"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
      showgrid="false"
-     inkscape:window-width="1440"
-     inkscape:window-height="775"
+     inkscape:window-width="480"
+     inkscape:window-height="449"
      inkscape:window-x="0"
      inkscape:window-y="1"
      inkscape:window-maximized="1"
@@ -56,7 +56,7 @@
      inkscape:label="Calque 1"
      inkscape:groupmode="layer"
      id="layer1"
-     transform="translate(-0.99262638,-1.174181)">
+     transform="translate(-5.0078461,-6.0135959)">
     <g
        id="g3340"
        transform="translate(0.02183415,0.63370129)">
@@ -66,9 +66,9 @@
          height="7.2795482"
          width="9.4547119"
          id="rect9295"
-         style="opacity:1;fill:#8FA4B1;fill-opacity:0;fill-rule:nonzero;stroke:#8FA4B1;stroke-width:0.542;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:1.62599997, 1.62599997;stroke-dashoffset:3.42543983;stroke-opacity:1" />
+         style="opacity:1;fill:#8fa4b1;fill-opacity:0;fill-rule:nonzero;stroke:#8fa4b1;stroke-width:0.542;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:1.62599997, 1.62599997;stroke-dashoffset:3.42543983;stroke-opacity:1" />
       <rect
-         style="opacity:1;fill:#8FA4B1;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:0.36448628;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:1.09345879, 1.09345879;stroke-dashoffset:4.67399311;stroke-opacity:1"
+         style="opacity:1;fill:#8fa4b1;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:0.36448628;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:1.09345879, 1.09345879;stroke-dashoffset:4.67399311;stroke-opacity:1"
          id="rect9297"
          width="5.6623526"
          height="5.4923801"

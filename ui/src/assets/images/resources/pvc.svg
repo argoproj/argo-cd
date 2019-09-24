@@ -9,12 +9,12 @@
    xmlns="http://www.w3.org/2000/svg"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="18.035334mm"
-   height="17.500378mm"
-   viewBox="0 0 18.035334 17.500378"
+   width="9.7874994mm"
+   height="5.8208327mm"
+   viewBox="0 0 9.7874996 5.8208328"
    version="1.1"
    id="svg13826"
-   inkscape:version="0.91 r13725"
+   inkscape:version="0.92.2 5c3e80d, 2017-08-06"
    sodipodi:docname="pvc.svg">
   <defs
      id="defs13820" />
@@ -26,13 +26,13 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="11.313708"
-     inkscape:cx="7.8215027"
-     inkscape:cy="25.692001"
+     inkscape:cx="-7.7649564"
+     inkscape:cy="3.6204205"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
      showgrid="false"
-     inkscape:window-width="1440"
-     inkscape:window-height="775"
+     inkscape:window-width="480"
+     inkscape:window-height="449"
      inkscape:window-x="0"
      inkscape:window-y="1"
      inkscape:window-maximized="1"
@@ -56,11 +56,11 @@
      inkscape:label="Calque 1"
      inkscape:groupmode="layer"
      id="layer1"
-     transform="translate(-0.99262638,-1.174181)">
+     transform="translate(-5.1165437,-7.0139534)">
     <path
        id="path1134"
-       d="m 14.63946,8.4031737 0,0 c 0,0.6211207 -2.07255,1.1246391 -4.62916,1.1246391 -2.5566224,0 -4.629173,-0.5035184 -4.629173,-1.1246391 l 0,0 c 0,-0.621119 2.0725506,-1.124637 4.629173,-1.124637 2.55661,0 4.62916,0.503518 4.62916,1.124637 l 0,3.0423913 c 0,0.62112 -2.07255,1.124638 -4.62916,1.124638 -2.5566224,0 -4.629173,-0.503518 -4.629173,-1.124638 l 0,-3.0423913"
+       d="m 14.63946,8.4031737 v 0 c 0,0.6211207 -2.07255,1.1246391 -4.62916,1.1246391 -2.5566224,0 -4.629173,-0.5035184 -4.629173,-1.1246391 v 0 c 0,-0.621119 2.0725506,-1.124637 4.629173,-1.124637 2.55661,0 4.62916,0.503518 4.62916,1.124637 v 3.0423913 c 0,0.62112 -2.07255,1.124638 -4.62916,1.124638 -2.5566224,0 -4.629173,-0.503518 -4.629173,-1.124638 V 8.4031737"
        inkscape:connector-curvature="0"
-       style="fill:none;fill-rule:evenodd;stroke:#8FA4B1;stroke-width:0.52916664;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:2.11666669, 0.52916668;stroke-dashoffset:0;stroke-opacity:1" />
+       style="fill:none;fill-rule:evenodd;stroke:#8fa4b1;stroke-width:0.52916664;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:2.11666669, 0.52916668;stroke-dashoffset:0;stroke-opacity:1" />
   </g>
 </svg>

@@ -9,12 +9,12 @@
    xmlns="http://www.w3.org/2000/svg"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="18.035334mm"
-   height="17.500378mm"
-   viewBox="0 0 18.035334 17.500378"
+   width="10.439379mm"
+   height="10.379048mm"
+   viewBox="0 0 10.439379 10.379049"
    version="1.1"
    id="svg13826"
-   inkscape:version="0.91 r13725"
+   inkscape:version="0.92.2 5c3e80d, 2017-08-06"
    sodipodi:docname="cronjob.svg">
   <defs
      id="defs13820" />
@@ -26,13 +26,13 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="8"
-     inkscape:cx="-2.090004"
-     inkscape:cy="23.752239"
+     inkscape:cx="-16.444565"
+     inkscape:cy="10.294609"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
      showgrid="false"
-     inkscape:window-width="1440"
-     inkscape:window-height="771"
+     inkscape:window-width="480"
+     inkscape:window-height="449"
      inkscape:window-x="106"
      inkscape:window-y="92"
      inkscape:window-maximized="0"
@@ -56,7 +56,7 @@
      inkscape:label="Calque 1"
      inkscape:groupmode="layer"
      id="layer1"
-     transform="translate(-0.99262638,-1.174181)">
+     transform="translate(-4.7906039,-4.7348459)">
     <g
        id="g3340"
        transform="translate(-0.57788824,0.77481116)">
@@ -64,14 +64,14 @@
          sodipodi:nodetypes="cccccccsccccccccccccccccccccccscc"
          inkscape:connector-curvature="0"
          id="rect9061"
-         d="m 11.672502,3.9600347 0,2.142506 2.20296,0 0,-2.142506 z m 0,3.08405 0,0.5462191 c 0.2587,-0.06122 0.52685,-0.09715 0.80357,-0.09715 0.49701,0 0.96978,0.106323 1.39939,0.2945548 l 0,-0.7436239 z m -6.2838598,0.03307 0,2.1425051 2.20297,0 0,-2.1425051 z m 3.1419301,0 0,2.1425051 0.9281098,0 C 9.7689722,8.6993308 10.208272,8.2650438 10.733542,7.9623709 l 0,-0.8852163 z m -3.1620802,3.1171223 0,2.142506 2.2029701,0 0,-2.142506 z m 3.1517501,0 0,2.142506 0.7064101,0 c -0.16935,-0.410763 -0.26458,-0.859621 -0.26458,-1.329635 0,-0.28008 0.0371,-0.551296 0.0997,-0.812871 z"
-         style="opacity:1;fill:#8FA4B1;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:0.70899999;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:1.418, 1.418;stroke-dashoffset:23.0452919;stroke-opacity:1" />
+         d="m 11.672502,3.9600347 v 2.142506 h 2.20296 v -2.142506 z m 0,3.08405 v 0.5462191 c 0.2587,-0.06122 0.52685,-0.09715 0.80357,-0.09715 0.49701,0 0.96978,0.106323 1.39939,0.2945548 V 7.0440847 Z m -6.2838598,0.03307 v 2.1425051 h 2.20297 V 7.0771547 Z m 3.1419301,0 V 9.2196598 H 9.4586821 C 9.7689722,8.6993308 10.208272,8.2650438 10.733542,7.9623709 V 7.0771546 Z M 5.3684921,10.194277 v 2.142506 h 2.2029701 v -2.142506 z m 3.1517501,0 v 2.142506 h 0.7064101 c -0.16935,-0.410763 -0.26458,-0.859621 -0.26458,-1.329635 0,-0.28008 0.0371,-0.551296 0.0997,-0.812871 z"
+         style="opacity:1;fill:#8fa4b1;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:0.70899999;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:1.418, 1.418;stroke-dashoffset:23.0452919;stroke-opacity:1" />
       <path
          id="path9087"
-         d="m 12.608072,7.9394728 c -1.7599,0 -3.1997998,1.439912 -3.1997998,3.1998052 0,1.759893 1.4398998,3.199805 3.1997998,3.199805 1.75989,0 3.199799,-1.439912 3.199799,-3.199805 0,-1.7598932 -1.439909,-3.1998052 -3.199799,-3.1998052 z m 1.34392,4.5437232 -1.6639,-1.023938 0,-1.9198832 0.47997,0 0,1.6639002 1.43992,0.863947 z"
+         d="m 12.608072,7.9394728 c -1.7599,0 -3.1997998,1.439912 -3.1997998,3.1998052 0,1.759893 1.4398998,3.199805 3.1997998,3.199805 1.75989,0 3.199799,-1.439912 3.199799,-3.199805 0,-1.7598932 -1.439909,-3.1998052 -3.199799,-3.1998052 z m 1.34392,4.5437232 -1.6639,-1.023938 V 9.5393748 h 0.47997 v 1.6639002 l 1.43992,0.863947 z"
          clip-path="url(#b)"
          inkscape:connector-curvature="0"
-         style="fill:#8FA4B1;fill-opacity:1;stroke-width:0.31998053" />
+         style="fill:#8fa4b1;fill-opacity:1;stroke-width:0.31998053" />
     </g>
   </g>
 </svg>
