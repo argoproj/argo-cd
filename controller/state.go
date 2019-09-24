@@ -129,7 +129,12 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	cluster, err := m.db.GetCluster(context.Background(), app.Spec.Destination.Server)
+
+	q := &appv1.ClusterQuery{
+		Name:   app.Spec.Destination.Name,
+		Server: app.Spec.Destination.Server,
+	}
+	cluster, err := m.db.GetCluster(context.Background(), q)
 	if err != nil {
 		return nil, nil, nil, err
 	}

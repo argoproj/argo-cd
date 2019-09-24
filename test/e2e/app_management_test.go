@@ -633,7 +633,7 @@ func TestPermissions(t *testing.T) {
 		"--path", guestbookPath, "--project", "test", "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", DeploymentNamespace())
 	assert.Error(t, err)
 	sourceError := fmt.Sprintf("application repo %s is not permitted in project 'test'", RepoURL(RepoURLTypeFile))
-	destinationError := fmt.Sprintf("application destination {%s %s} is not permitted in project 'test'", common.KubernetesInternalAPIServerAddr, DeploymentNamespace())
+	destinationError := fmt.Sprintf("application destination {%s %s } is not permitted in project 'test'", common.KubernetesInternalAPIServerAddr, DeploymentNamespace())
 
 	assert.Contains(t, err.Error(), sourceError)
 	assert.Contains(t, err.Error(), destinationError)

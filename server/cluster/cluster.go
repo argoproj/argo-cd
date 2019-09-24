@@ -158,7 +158,7 @@ func (s *Server) Get(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clust
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionGet, q.Server); err != nil {
 		return nil, err
 	}
-	c, err := s.db.GetCluster(ctx, q)
+	c, err := s.db.GetCluster(ctx, &appv1.ClusterQuery{Name: "", Server: q.Server})
 	if err != nil {
 		return nil, err
 	}

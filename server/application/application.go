@@ -199,7 +199,12 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	kustomizeOptions := appv1.KustomizeOptions{
 		BuildOptions: buildOptions,
 	}
-	cluster, err := s.db.GetCluster(context.Background(), a.Spec.Destination.Server)
+
+	cq := &appv1.ClusterQuery{
+		Name:   a.Spec.Destination.Name,
+		Server: a.Spec.Destination.Server,
+	}
+	cluster, err := s.db.GetCluster(context.Background(), cq)
 	if err != nil {
 		return nil, err
 	}
