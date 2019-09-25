@@ -2174,7 +2174,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceIgnoreDifferences(ref common.R
 						},
 					},
 				},
-				Required: []string{"group", "kind", "jsonPointers"},
+				Required: []string{"kind", "jsonPointers"},
 			},
 		},
 	}
