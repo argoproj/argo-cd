@@ -16,12 +16,13 @@ import (
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/text"
 )
 
 // Helm provides wrapper functionality around the `helm` command.
 type Helm interface {
 	// Template returns a list of unstructured objects from a `helm template` command
-	Template(appName string, namespace string, opts *argoappv1.ApplicationSourceHelm) ([]*unstructured.Unstructured, error)
+	Template(appName, namespace, kubeVersion string, opts *argoappv1.ApplicationSourceHelm) ([]*unstructured.Unstructured, error)
 	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
 	GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
@@ -51,12 +52,13 @@ func IsMissingDependencyErr(err error) bool {
 	return strings.Contains(err.Error(), "found in requirements.yaml, but missing in charts")
 }
 
-func (h *helm) Template(appName string, namespace string, opts *argoappv1.ApplicationSourceHelm) ([]*unstructured.Unstructured, error) {
+func (h *helm) Template(appName, namespace, kubeVersion string, opts *argoappv1.ApplicationSourceHelm) ([]*unstructured.Unstructured, error) {
 	templateOpts := templateOpts{
-		name:      appName,
-		namespace: namespace,
-		set:       map[string]string{},
-		setString: map[string]string{},
+		name:        appName,
+		namespace:   namespace,
+		kubeVersion: text.SemVer(kubeVersion),
+		set:         map[string]string{},
+		setString:   map[string]string{},
 	}
 	if opts != nil {
 		if opts.ReleaseName != "" {
@@ -76,6 +78,7 @@ func (h *helm) Template(appName string, namespace string, opts *argoappv1.Applic
 			}
 			templateOpts.values = append(templateOpts.values, p)
 		}
+		cleanHelmParameters(opts.Parameters)
 		for _, p := range opts.Parameters {
 			if p.ForceString {
 				templateOpts.setString[p.Name] = p.Value
@@ -181,9 +184,13 @@ func flatVals(input map[string]interface{}, output map[string]string, prefixes .
 	}
 }
 
-func cleanHelmParameters(params []string) {
+func cleanHelmParameters(params []argoappv1.HelmParameter) {
 	re := regexp.MustCompile(`([^\\]),`)
 	for i, param := range params {
-		params[i] = re.ReplaceAllString(param, `$1\,`)
+		params[i] = argoappv1.HelmParameter{
+			Name:        param.Name,
+			Value:       re.ReplaceAllString(param.Value, `$1\,`),
+			ForceString: param.ForceString,
+		}
 	}
 }

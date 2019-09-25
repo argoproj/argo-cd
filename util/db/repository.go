@@ -5,7 +5,6 @@ import (
 	"hash/fnv"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -85,16 +84,12 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 		}
 	}
 
-	if !repo.HasCredentials() {
-		index := getRepositoryCredentialIndex(repoCredentials, repoURL)
-		if index >= 0 {
-
-			credential, err := db.credentialsToRepository(repoCredentials[index])
-			if err != nil {
-				return nil, err
-			}
-
-			log.WithFields(log.Fields{"repoURL": repo.Repo, "credUrl": credential.Repo}).Info("copying credentials")
+	index = getRepositoryCredentialIndex(repoCredentials, repoURL)
+	if index >= 0 {
+		credential, err := db.credentialsToRepository(repoCredentials[index])
+		if err != nil {
+			return nil, err
+		} else {
 			repo.CopyCredentialsFrom(credential)
 		}
 	}

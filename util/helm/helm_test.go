@@ -41,7 +41,7 @@ func TestHelmTemplateParams(t *testing.T) {
 			},
 		},
 	}
-	objs, err := h.Template("test", "", &opts)
+	objs, err := h.Template("test", "", "", &opts)
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(objs))
 
@@ -63,7 +63,7 @@ func TestHelmTemplateValues(t *testing.T) {
 	opts := argoappv1.ApplicationSourceHelm{
 		ValueFiles: []string{"values-production.yaml"},
 	}
-	objs, err := h.Template("test", "", &opts)
+	objs, err := h.Template("test", "", "", &opts)
 	assert.Nil(t, err)
 	assert.Equal(t, 8, len(objs))
 
@@ -83,7 +83,7 @@ func TestHelmTemplateValuesURL(t *testing.T) {
 	opts := argoappv1.ApplicationSourceHelm{
 		ValueFiles: []string{"https://raw.githubusercontent.com/argoproj/argo-cd/master/util/helm/testdata/redis/values-production.yaml"},
 	}
-	objs, err := h.Template("test", "", &opts)
+	objs, err := h.Template("test", "", "", &opts)
 	assert.Nil(t, err)
 	assert.Equal(t, 8, len(objs))
 	params, err := h.GetParameters(opts.ValueFiles)
@@ -123,11 +123,11 @@ func TestHelmDependencyBuild(t *testing.T) {
 	assert.NoError(t, err)
 	err = h.Init()
 	assert.NoError(t, err)
-	_, err = h.Template("wordpress", "", nil)
+	_, err = h.Template("wordpress", "", "", nil)
 	assert.Error(t, err)
 	err = h.DependencyBuild()
 	assert.NoError(t, err)
-	_, err = h.Template("wordpress", "", nil)
+	_, err = h.Template("wordpress", "", "", nil)
 	assert.NoError(t, err)
 }
 
@@ -137,7 +137,7 @@ func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
 	opts := argoappv1.ApplicationSourceHelm{
 		ReleaseName: "my-release",
 	}
-	objs, err := h.Template("test", "", &opts)
+	objs, err := h.Template("test", "", "", &opts)
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(objs))
 
@@ -155,7 +155,7 @@ func TestHelmTemplateReleaseName(t *testing.T) {
 	h, err := NewHelmApp("./testdata/redis", argoappv1.Repositories{})
 	assert.NoError(t, err)
 	opts := argoappv1.ApplicationSourceHelm{}
-	objs, err := h.Template("test", "", &opts)
+	objs, err := h.Template("test", "", "", &opts)
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(objs))
 
@@ -170,21 +170,28 @@ func TestHelmTemplateReleaseName(t *testing.T) {
 }
 
 func TestHelmArgCleaner(t *testing.T) {
-	cleanArgs := []string{`--these-args`, `are-clean`, `--foo`, `bar`}
-	argsToBeCleaned := make([]string, len(cleanArgs))
+	cleanArgs := []argoappv1.HelmParameter{
+		{Name: "app", Value: `val`, ForceString: true},
+		{Name: "foo", Value: `bar`, ForceString: false},
+	}
+	argsToBeCleaned := make([]argoappv1.HelmParameter, len(cleanArgs))
 	copy(argsToBeCleaned, cleanArgs)
 
 	cleanHelmParameters(argsToBeCleaned)
-	assert.Equal(t, cleanArgs, argsToBeCleaned)
+	assert.EqualValues(t, cleanArgs, argsToBeCleaned)
 
-	dirtyArgs := []string{`--these-args`, `are-not, clean`, `--foo`, `b\,a,r`}
-	argsToBeCleaned = make([]string, len(dirtyArgs))
+	dirtyArgs := []argoappv1.HelmParameter{
+		{Name: "app", Value: `val`, ForceString: true},
+		{Name: "test", Value: `not, clean`, ForceString: false},
+		{Name: "foo", Value: `a\,b,c`, ForceString: true},
+	}
+	argsToBeCleaned = make([]argoappv1.HelmParameter, len(dirtyArgs))
 	copy(argsToBeCleaned, dirtyArgs)
 
 	cleanHelmParameters(argsToBeCleaned)
-	assert.NotEqual(t, cleanArgs, argsToBeCleaned)
-	assert.Contains(t, argsToBeCleaned, `are-not\, clean`)
-	assert.Contains(t, argsToBeCleaned, `b\,a\,r`)
+	assert.False(t, assert.ObjectsAreEqualValues(cleanArgs, argsToBeCleaned))
+	assert.Contains(t, argsToBeCleaned, argoappv1.HelmParameter{Name: "test", Value: `not\, clean`, ForceString: false})
+	assert.Contains(t, argsToBeCleaned, argoappv1.HelmParameter{Name: "foo", Value: `a\,b\,c`, ForceString: true})
 
 }
 
@@ -197,7 +204,7 @@ func TestHelmValues(t *testing.T) {
   slaveCount: 2
 `,
 	}
-	objs, err := h.Template("test", "", &opts)
+	objs, err := h.Template("test", "", "1.4+", &opts)
 	assert.NoError(t, err)
 	for _, obj := range objs {
 		if obj.GetKind() == "Deployment" && obj.GetName() == "test-redis-slave" {

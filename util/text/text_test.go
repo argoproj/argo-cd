@@ -2,6 +2,8 @@ package text
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestTrunc(t *testing.T) {
@@ -25,4 +27,9 @@ func TestTrunc(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSemVer(t *testing.T) {
+	assert.Equal(t, "1.4", SemVer("1.4"))
+	assert.Equal(t, "1.4", SemVer("1.4+"))
 }

@@ -97,6 +97,7 @@ func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.
 	}
 	err = util.RunAllAsync(len(items), func(i int) error {
 		items[i].ConnectionState = s.getConnectionState(ctx, items[i].Repo)
+		_ = factory.DetectType(items[i], metrics.NopReporter)
 		return nil
 	})
 	if err != nil {
@@ -176,12 +177,29 @@ func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest)
 	if err != nil {
 		return nil, err
 	}
-	r := q.Repo
-	_, err = factory.NewFactory().NewRepo(q.Repo, metrics.NopReporter)
-	if err != nil {
-		return nil, err
+
+	detectedType := ""
+	// check we can connect to the repo, copying any existing creds
+	{
+		repo := q.Repo.DeepCopy()
+		creds, err := s.db.GetRepository(ctx, repo.Repo)
+		if err != nil {
+			return nil, err
+		}
+		repo.CopyCredentialsFrom(creds)
+		err = factory.DetectType(repo, metrics.NopReporter)
+		if err != nil {
+			return nil, err
+		}
+		detectedType = repo.Type
+		_, err = factory.NewFactory().NewRepo(repo, metrics.NopReporter)
+		if err != nil {
+			return nil, err
+		}
 	}
 
+	r := q.Repo
+	r.Type = detectedType
 	r.ConnectionState = appsv1.ConnectionState{Status: appsv1.ConnectionStatusSuccessful}
 	repo, err := s.db.CreateRepository(ctx, r)
 	if status.Convert(err).Code() == codes.AlreadyExists {
@@ -247,7 +265,16 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		TLSClientCertKey:  q.TlsClientCertKey,
 		TLSClientCAData:   q.TlsClientCAData,
 	}
-	_, err := factory.NewFactory().NewRepo(repo, metrics.NopReporter)
+	creds, err := s.db.GetRepository(ctx, q.Repo)
+	if err != nil {
+		return nil, err
+	}
+	repo.CopyCredentialsFrom(creds)
+	err = factory.DetectType(repo, metrics.NopReporter)
+	if err != nil {
+		return nil, err
+	}
+	_, err = factory.NewFactory().NewRepo(repo, metrics.NopReporter)
 	if err != nil {
 		return nil, err
 	}

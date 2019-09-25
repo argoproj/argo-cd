@@ -32,10 +32,11 @@ func TestCompareAppStateEmpty(t *testing.T) {
 	ctrl := newFakeController(&data)
 	compRes := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
 	assert.NotNil(t, compRes)
+	assert.NotNil(t, compRes.syncStatus)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-	assert.Equal(t, 0, len(compRes.resources))
-	assert.Equal(t, 0, len(compRes.managedResources))
-	assert.Equal(t, 0, len(compRes.conditions))
+	assert.Len(t, compRes.resources, 0)
+	assert.Len(t, compRes.managedResources, 0)
+	assert.Len(t, compRes.conditions, 0)
 }
 
 // TestCompareAppStateMissing tests when there is a manifest defined in the repo which doesn't exist in live
@@ -54,10 +55,11 @@ func TestCompareAppStateMissing(t *testing.T) {
 	ctrl := newFakeController(&data)
 	compRes := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
 	assert.NotNil(t, compRes)
+	assert.NotNil(t, compRes.syncStatus)
 	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
-	assert.Equal(t, 1, len(compRes.resources))
-	assert.Equal(t, 1, len(compRes.managedResources))
-	assert.Equal(t, 0, len(compRes.conditions))
+	assert.Len(t, compRes.resources, 1)
+	assert.Len(t, compRes.managedResources, 1)
+	assert.Len(t, compRes.conditions, 0)
 }
 
 // TestCompareAppStateExtra tests when there is an extra object in live but not defined in git

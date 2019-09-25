@@ -57,7 +57,7 @@ type ApplicationSpec struct {
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
 type ResourceIgnoreDifferences struct {
-	Group        string   `json:"group" protobuf:"bytes,1,opt,name=group"`
+	Group        string   `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
 	Kind         string   `json:"kind" protobuf:"bytes,2,opt,name=kind"`
 	Name         string   `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
 	Namespace    string   `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
@@ -870,6 +870,8 @@ type Cluster struct {
 	Config ClusterConfig `json:"config" protobuf:"bytes,3,opt,name=config"`
 	// ConnectionState contains information about cluster connection state
 	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,4,opt,name=connectionState"`
+	// The server version
+	ServerVersion string `json:"serverVersion,omitempty" protobuf:"bytes,5,opt,name=serverVersion"`
 }
 
 // ClusterList is a collection of Clusters.
@@ -1006,21 +1008,29 @@ func (repo *Repository) IsLFSEnabled() bool {
 	return repo.EnableLFS
 }
 
-func (m *Repository) HasCredentials() bool {
-	return m.Username != "" || m.Password != "" || m.SSHPrivateKey != "" || m.InsecureIgnoreHostKey
-}
-
 func (m *Repository) CopyCredentialsFrom(source *Repository) {
 	if source != nil {
-		m.Username = source.Username
-		m.Password = source.Password
-		m.SSHPrivateKey = source.SSHPrivateKey
-		m.InsecureIgnoreHostKey = source.InsecureIgnoreHostKey
-		m.Insecure = source.Insecure
-		m.EnableLFS = source.EnableLFS
-		m.FetchRefspecs = source.FetchRefspecs
-		m.TLSClientCertData = source.TLSClientCertData
-		m.TLSClientCertKey = source.TLSClientCertKey
+		if m.Username == "" {
+			m.Username = source.Username
+		}
+		if m.Password == "" {
+			m.Password = source.Password
+		}
+		if m.SSHPrivateKey == "" {
+			m.SSHPrivateKey = source.SSHPrivateKey
+		}
+		m.InsecureIgnoreHostKey = m.InsecureIgnoreHostKey || source.InsecureIgnoreHostKey
+		m.Insecure = m.Insecure || source.Insecure
+		m.EnableLFS = m.EnableLFS || source.EnableLFS
+		if m.TLSClientCertData == "" {
+			m.TLSClientCertData = source.TLSClientCertData
+		}
+		if m.TLSClientCertKey == "" {
+			m.TLSClientCertKey = source.TLSClientCertKey
+		}
+		if m.TLSClientCAData == "" {
+			m.TLSClientCAData = source.TLSClientCAData
+		}
 	}
 }
 

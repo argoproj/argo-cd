@@ -104,18 +104,18 @@ func NewApplicationController(
 	applicationClientset appclientset.Interface,
 	repoClientset apiclient.Clientset,
 	argoCache *argocache.Cache,
+	kubectl kube.Kubectl,
 	appResyncPeriod time.Duration,
 	selfHealTimeout time.Duration,
 	metricsPort int,
 	kubectlParallelismLimit int64,
 ) (*ApplicationController, error) {
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
-	kubectlCmd := kube.KubectlCmd{}
 	ctrl := ApplicationController{
 		cache:                     argoCache,
 		namespace:                 namespace,
 		kubeClientset:             kubeClientset,
-		kubectl:                   kubectlCmd,
+		kubectl:                   kubectl,
 		applicationClientset:      applicationClientset,
 		repoClientset:             repoClientset,
 		appRefreshQueue:           workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
@@ -131,7 +131,7 @@ func NewApplicationController(
 	if kubectlParallelismLimit > 0 {
 		ctrl.kubectlSemaphore = semaphore.NewWeighted(kubectlParallelismLimit)
 	}
-	kubectlCmd.OnKubectlRun = ctrl.onKubectlRun
+	kubectl.SetOnKubectlRun(ctrl.onKubectlRun)
 	appInformer, appLister, err := ctrl.newApplicationInformerAndLister()
 	if err != nil {
 		return nil, err
@@ -142,9 +142,8 @@ func NewApplicationController(
 		_, err := kubeClientset.Discovery().ServerVersion()
 		return err
 	})
-
-	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectlCmd, ctrl.metricsServer, ctrl.handleObjectUpdated)
-	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectlCmd, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer)
+	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectl, ctrl.metricsServer, ctrl.handleObjectUpdated)
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
 	ctrl.projInformer = projInformer
@@ -788,7 +787,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 
 	var localManifests []string
-	if opState := app.Status.OperationState; opState != nil {
+	if opState := app.Status.OperationState; opState != nil && opState.Operation.Sync != nil {
 		localManifests = opState.Operation.Sync.Manifests
 	}
 
@@ -837,9 +836,13 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	compareWith := CompareWithLatest
 	refreshType := appv1.RefreshTypeNormal
 	expired := app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
-	if requestedType, ok := app.IsRefreshRequested(); ok {
-		refreshType = requestedType
-		reason = fmt.Sprintf("%s refresh requested", refreshType)
+	if requestedType, ok := app.IsRefreshRequested(); ok || expired {
+		if ok {
+			refreshType = requestedType
+			reason = fmt.Sprintf("%s refresh requested", refreshType)
+		} else if expired {
+			reason = fmt.Sprintf("comparison expired. reconciledAt: %v, expiry: %v", app.Status.ReconciledAt, statusRefreshTimeout)
+		}
 	} else if requested, level := ctrl.isRefreshRequested(app.Name); requested {
 		compareWith = level
 		reason = fmt.Sprintf("controller refresh requested")
@@ -849,8 +852,6 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 		reason = "spec.source differs"
 	} else if !app.Spec.Destination.Equals(app.Status.Sync.ComparedTo.Destination) {
 		reason = "spec.destination differs"
-	} else if expired {
-		reason = fmt.Sprintf("comparison expired. reconciledAt: %v, expiry: %v", app.Status.ReconciledAt, statusRefreshTimeout)
 	}
 	if reason != "" {
 		logCtx.Infof("Refreshing app status (%s), level (%d)", reason, compareWith)

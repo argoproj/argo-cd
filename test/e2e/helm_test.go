@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 
+	. "github.com/argoproj/argo-cd/errors"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 	"github.com/argoproj/argo-cd/test/fixture/testrepos"
@@ -104,7 +104,7 @@ func TestHelmRepo(t *testing.T) {
 			Name: "testrepo",
 			URL:  testrepos.HelmTestRepo,
 		}).
-		RepoURLType(fixture.RepoURLTypeHelm).
+		RepoURLType(RepoURLTypeHelm).
 		Path("helm").
 		Revision("1.0.0").
 		When().
@@ -164,5 +164,22 @@ func TestHelmSetString(t *testing.T) {
 		Then().
 		And(func(app *Application) {
 			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "baz", ForceString: true}}, app.Spec.Source.Helm.Parameters)
+		})
+}
+
+// make sure kube-version gets passed down to resources
+func TestKubeVersion(t *testing.T) {
+	Given(t).
+		Path("helm-kube-version").
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			kubeVersion := FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map",
+				"-o", "jsonpath={.data.kubeVersion}")).(string)
+			// Capabiliets.KubeVersion defaults to 1.9.0, we assume here you are running a later version
+			assert.Equal(t, GetVersions().ServerVersion.Format("v%s.%s.0"), kubeVersion)
 		})
 }

@@ -69,7 +69,7 @@ export const ApplicationSummary = (props: {
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.targetRevision' component={Text}/>,
         },
         {
-            title: 'PATH',
+            title: 'GIT PATH/HELM CHART',
             view: app.spec.source.path,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.path' component={Text}/>,
         },

@@ -634,7 +634,6 @@ spec:
                   namespace:
                     type: string
                 required:
-                - group
                 - kind
                 - jsonPointers
                 type: object

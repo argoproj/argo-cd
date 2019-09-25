@@ -6,11 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/url"
 	"os"
-	"os/exec"
-	"path"
 	"reflect"
 	"sort"
 	"strconv"
@@ -19,7 +16,6 @@ import (
 	"time"
 
 	"github.com/ghodss/yaml"
-	"github.com/google/shlex"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -34,6 +30,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
+	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
 	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	repoapiclient "github.com/argoproj/argo-cd/reposerver/apiclient"
@@ -456,6 +453,12 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 		}
 		app.Spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
 	}
+	if flags.Changed("self-heal") {
+		if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
+			log.Fatal("Cannot set --self-helf: application not configured with automatic sync")
+		}
+		app.Spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
+	}
 
 	return visited
 }
@@ -579,6 +582,7 @@ type appOptions struct {
 	project                string
 	syncPolicy             string
 	autoPrune              bool
+	selfHeal               bool
 	namePrefix             string
 	directoryRecurse       bool
 	configManagementPlugin string
@@ -602,6 +606,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringVar(&opts.project, "project", "", "Application project name")
 	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: automated, none)")
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
+	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing when sync is automated")
 	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
 	command.Flags().BoolVar(&opts.directoryRecurse, "directory-recurse", false, "Recurse directory")
 	command.Flags().StringVar(&opts.configManagementPlugin, "config-management-plugin", "", "Config management plugin name")
@@ -712,8 +717,8 @@ func liveObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstructu
 	return objs, nil
 }
 
-func getLocalObjects(app *argoappv1.Application, local string, appLabelKey string) []*unstructured.Unstructured {
-	manifestStrings := getLocalObjectsString(app, local, appLabelKey, nil)
+func getLocalObjects(app *argoappv1.Application, local, appLabelKey, kubeVersion string) []*unstructured.Unstructured {
+	manifestStrings := getLocalObjectsString(app, local, appLabelKey, kubeVersion, nil)
 	objs := make([]*unstructured.Unstructured, len(manifestStrings))
 	for i := range manifestStrings {
 		obj := unstructured.Unstructured{}
@@ -724,13 +729,14 @@ func getLocalObjects(app *argoappv1.Application, local string, appLabelKey strin
 	return objs
 }
 
-func getLocalObjectsString(app *argoappv1.Application, local string, appLabelKey string, kustomizeOptions *argoappv1.KustomizeOptions) []string {
+func getLocalObjectsString(app *argoappv1.Application, local, appLabelKey, kubeVersion string, kustomizeOptions *argoappv1.KustomizeOptions) []string {
 	res, err := repository.GenerateManifests(local, &repoapiclient.ManifestRequest{
 		ApplicationSource: &app.Spec.Source,
 		AppLabelKey:       appLabelKey,
 		AppLabelValue:     app.Name,
 		Namespace:         app.Spec.Destination.Namespace,
 		KustomizeOptions:  kustomizeOptions,
+		KubeVersion:       kubeVersion,
 	})
 	errors.CheckError(err)
 
@@ -807,7 +813,12 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			errors.CheckError(err)
 
 			if local != "" {
-				localObjs := groupLocalObjs(getLocalObjects(app, local, argoSettings.AppLabelKey), liveObjs, app.Spec.Destination.Namespace)
+				conn, clusterIf := clientset.NewClusterClientOrDie()
+				defer util.Close(conn)
+				cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: app.Spec.Destination.Server})
+				errors.CheckError(err)
+				util.Close(conn)
+				localObjs := groupLocalObjs(getLocalObjects(app, local, argoSettings.AppLabelKey, cluster.ServerVersion), liveObjs, app.Spec.Destination.Namespace)
 				for _, res := range resources.Items {
 					var live = &unstructured.Unstructured{}
 					err := json.Unmarshal([]byte(res.LiveState), &live)
@@ -907,7 +918,8 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					}
 
 					foundDiffs = true
-					printDiff(item.key.Name, target, live)
+					err = diff.PrintDiff(item.key.Name, target, live)
+					errors.CheckError(err)
 				}
 			}
 			if foundDiffs {
@@ -920,43 +932,6 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&hardRefresh, "hard-refresh", false, "Refresh application data as well as target manifests cache")
 	command.Flags().StringVar(&local, "local", "", "Compare live app to a local ksonnet app")
 	return command
-}
-
-func printDiff(name string, live *unstructured.Unstructured, target *unstructured.Unstructured) {
-	tempDir, err := ioutil.TempDir("", "argocd-diff")
-	errors.CheckError(err)
-
-	targetFile := path.Join(tempDir, name)
-	targetData := []byte("")
-	if target != nil {
-		targetData, err = yaml.Marshal(target)
-		errors.CheckError(err)
-	}
-	err = ioutil.WriteFile(targetFile, targetData, 0644)
-	errors.CheckError(err)
-
-	liveFile := path.Join(tempDir, fmt.Sprintf("%s-live.yaml", name))
-	liveData := []byte("")
-	if live != nil {
-		liveData, err = yaml.Marshal(live)
-		errors.CheckError(err)
-	}
-	err = ioutil.WriteFile(liveFile, liveData, 0644)
-	errors.CheckError(err)
-
-	cmdBinary := "diff"
-	var args []string
-	if envDiff := os.Getenv("KUBECTL_EXTERNAL_DIFF"); envDiff != "" {
-		parts, err := shlex.Split(envDiff)
-		errors.CheckError(err)
-		cmdBinary = parts[0]
-		args = parts[1:]
-	}
-
-	cmd := exec.Command(cmdBinary, append(args, liveFile, targetFile)...)
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
-	_ = cmd.Run()
 }
 
 // NewApplicationDeleteCommand returns a new instance of an `argocd app delete` command
@@ -1258,8 +1233,12 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 				util.Close(conn)
 
-				localObjsStrings = getLocalObjectsString(app, local, argoSettings.AppLabelKey, argoSettings.KustomizeOptions)
-
+				conn, clusterIf := acdClient.NewClusterClientOrDie()
+				defer util.Close(conn)
+				cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: app.Spec.Destination.Server})
+				errors.CheckError(err)
+				util.Close(conn)
+				localObjsStrings = getLocalObjectsString(app, local, cluster.ServerVersion, argoSettings.AppLabelKey, argoSettings.KustomizeOptions)
 			}
 
 			syncReq := applicationpkg.ApplicationSyncRequest{

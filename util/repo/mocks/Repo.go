@@ -48,34 +48,27 @@ func (_m *Repo) Init() error {
 	return r0
 }
 
-// ListApps provides a mock function with given fields: revision
-func (_m *Repo) ListApps(revision string) (map[string]string, string, error) {
-	ret := _m.Called(revision)
+// ListApps provides a mock function with given fields: resolvedRevision
+func (_m *Repo) ListApps(resolvedRevision string) (map[string]string, error) {
+	ret := _m.Called(resolvedRevision)
 
 	var r0 map[string]string
 	if rf, ok := ret.Get(0).(func(string) map[string]string); ok {
-		r0 = rf(revision)
+		r0 = rf(resolvedRevision)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[string]string)
 		}
 	}
 
-	var r1 string
-	if rf, ok := ret.Get(1).(func(string) string); ok {
-		r1 = rf(revision)
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(resolvedRevision)
 	} else {
-		r1 = ret.Get(1).(string)
+		r1 = ret.Error(1)
 	}
 
-	var r2 error
-	if rf, ok := ret.Get(2).(func(string) error); ok {
-		r2 = rf(revision)
-	} else {
-		r2 = ret.Error(2)
-	}
-
-	return r0, r1, r2
+	return r0, r1
 }
 
 // LockKey provides a mock function with given fields:
@@ -92,8 +85,8 @@ func (_m *Repo) LockKey() string {
 	return r0
 }
 
-// ResolveRevision provides a mock function with given fields: app, revision
-func (_m *Repo) ResolveRevision(app string, revision string) (string, error) {
+// ResolveAppRevision provides a mock function with given fields: app, revision
+func (_m *Repo) ResolveAppRevision(app string, revision string) (string, error) {
 	ret := _m.Called(app, revision)
 
 	var r0 string
@@ -106,6 +99,27 @@ func (_m *Repo) ResolveRevision(app string, revision string) (string, error) {
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string, string) error); ok {
 		r1 = rf(app, revision)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ResolveRevision provides a mock function with given fields: revision
+func (_m *Repo) ResolveRevision(revision string) (string, error) {
+	ret := _m.Called(revision)
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(string) string); ok {
+		r0 = rf(revision)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(revision)
 	} else {
 		r1 = ret.Error(1)
 	}
