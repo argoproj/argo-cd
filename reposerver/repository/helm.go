@@ -90,12 +90,14 @@ func (s *Service) checkoutChart(repo *v1alpha1.Repository, chartName string, ver
 			return "", nil, err
 		}
 
+		// download chart tar file into persistent helm repository directory
 		_, err = helmCmd.Fetch(
-			repo.Repo, chartName, helm.FetchOpts{Version: version, Ca: repo.TLSClientCAData, Cert: repo.TLSClientCertKey, Username: repo.Username, Password: repo.Password})
+			repo.Repo, chartName, helm.FetchOpts{Version: version, CAData: repo.TLSClientCAData, CertData: repo.TLSClientCertData, CertKey: repo.TLSClientCertKey, Username: repo.Username, Password: repo.Password})
 		if err != nil {
 			return "", nil, err
 		}
 	}
+	// untar helm chart into throw away temp directory which should be deleted as soon as no longer needed
 	tempDir, err := ioutil.TempDir("", "")
 	if err != nil {
 		return "", nil, err

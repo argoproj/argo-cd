@@ -404,7 +404,7 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 			app.Spec.Source.RepoURL = appOpts.repoURL
 		case "path":
 			app.Spec.Source.Path = appOpts.appPath
-		case "chart":
+		case "helm-chart":
 			app.Spec.Source.Chart = appOpts.chart
 		case "env":
 			setKsonnetOpt(&app.Spec.Source, &appOpts.env)
@@ -597,7 +597,7 @@ type appOptions struct {
 func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringVar(&opts.repoURL, "repo", "", "Repository URL, ignored if a file is set")
 	command.Flags().StringVar(&opts.appPath, "path", "", "Path in repository to the app directory, ignored if a file is set")
-	command.Flags().StringVar(&opts.chart, "chart", "", "Chart is a Helm Chart name")
+	command.Flags().StringVar(&opts.chart, "helm-chart", "", "Helm Chart name")
 	command.Flags().StringVar(&opts.env, "env", "", "Application environment to monitor")
 	command.Flags().StringVar(&opts.revision, "revision", "", "The tracking source branch, tag, or commit the application will sync to")
 	command.Flags().StringVar(&opts.destServer, "dest-server", "", "K8s cluster URL (overrides the server URL specified in the ksonnet app.yaml)")

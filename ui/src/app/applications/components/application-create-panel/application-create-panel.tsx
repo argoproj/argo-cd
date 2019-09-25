@@ -192,19 +192,20 @@ export const ApplicationCreatePanel = (props: {
                                             {(charts: models.HelmChart[]) => {
                                                 const selectedChart = charts.find((chart) => chart.name === api.getFormState().values.spec.source.chart);
                                                 return (
-                                                <div className='row argo-form-row'>
-                                                    <div className='columns small-10'>
-                                                        <FormField formApi={api} label='Chart' field='spec.source.chart' component={AutocompleteField} componentProps={{
-                                                            items: charts.map((chart) => chart.name), filterSuggestions: true,
-                                                        }}/>
+                                                    <div className='row argo-form-row'>
+                                                        <div className='columns small-10'>
+                                                            <FormField formApi={api} label='Chart' field='spec.source.chart' component={AutocompleteField} componentProps={{
+                                                                items: charts.map((chart) => chart.name), filterSuggestions: true,
+                                                            }}/>
+                                                        </div>
+                                                        <div className='columns small-2'>
+                                                            <FormField formApi={api} field='spec.source.targetRevision' component={AutocompleteField} componentProps={{
+                                                                items: selectedChart && selectedChart.versions || [],
+                                                            }}/>
+                                                        </div>
                                                     </div>
-                                                    <div className='columns small-2'>
-                                                        <FormField formApi={api} field='spec.source.targetRevision' component={AutocompleteField} componentProps={{
-                                                            items: selectedChart && selectedChart.versions || [],
-                                                        }}/>
-                                                    </div>
-                                                </div>
-                                            )}}
+                                                );
+                                            }}
                                         </DataLoader>
                                         )}
                                     </div>
