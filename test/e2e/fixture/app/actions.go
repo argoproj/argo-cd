@@ -115,7 +115,7 @@ func (a *Actions) Create() *Actions {
 	}
 
 	if a.context.chart != "" {
-		args = append(args, "--chart", a.context.chart)
+		args = append(args, "--helm-chart", a.context.chart)
 	}
 
 	if a.context.env != "" {

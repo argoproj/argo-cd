@@ -47,8 +47,7 @@ message RepoServerAppDetailsQuery {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSource source = 2;
     repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repos = 3;
-    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ConfigManagementPlugin plugins = 4;
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 5;
+    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 4;
 }
 
 // RepoAppDetailsResponse application details

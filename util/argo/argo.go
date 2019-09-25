@@ -219,7 +219,6 @@ func ValidateRepo(
 		Repo:             repo,
 		Source:           &spec.Source,
 		Repos:            repos,
-		Plugins:          plugins,
 		KustomizeOptions: kustomizeOptions,
 	})
 	if err != nil {
