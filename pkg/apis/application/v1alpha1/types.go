@@ -95,8 +95,8 @@ func (e Env) Environ() []string {
 type ApplicationSource struct {
 	// RepoURL is the repository URL of the application manifests
 	RepoURL string `json:"repoURL" protobuf:"bytes,1,opt,name=repoURL"`
-	// Path is a directory path within the repository containing a
-	Path string `json:"path" protobuf:"bytes,2,opt,name=path"`
+	// Path is a directory path within the Git repository
+	Path string `json:"path,omitempty" protobuf:"bytes,2,opt,name=path"`
 	// TargetRevision defines the commit, tag, or branch in which to sync the application to.
 	// If omitted, will sync to HEAD
 	TargetRevision string `json:"targetRevision,omitempty" protobuf:"bytes,4,opt,name=targetRevision"`
@@ -110,6 +110,12 @@ type ApplicationSource struct {
 	Directory *ApplicationSourceDirectory `json:"directory,omitempty" protobuf:"bytes,10,opt,name=directory"`
 	// ConfigManagementPlugin holds config management plugin specific options
 	Plugin *ApplicationSourcePlugin `json:"plugin,omitempty" protobuf:"bytes,11,opt,name=plugin"`
+	// Chart is a Helm chart name
+	Chart string `json:"chart,omitempty" protobuf:"bytes,12,opt,name=chart"`
+}
+
+func (a *ApplicationSource) IsHelm() bool {
+	return a.Chart != ""
 }
 
 func (a *ApplicationSource) IsZero() bool {

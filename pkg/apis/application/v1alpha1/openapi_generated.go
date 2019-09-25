@@ -462,7 +462,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSource(ref common.Reference
 					},
 					"path": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Path is a directory path within the repository containing a",
+							Description: "Path is a directory path within the Git repository",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -504,8 +504,15 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSource(ref common.Reference
 							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourcePlugin"),
 						},
 					},
+					"chart": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Chart is a Helm chart name",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
-				Required: []string{"repoURL", "path"},
+				Required: []string{"repoURL"},
 			},
 		},
 		Dependencies: []string{

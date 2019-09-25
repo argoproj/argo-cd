@@ -111,17 +111,51 @@ func (c *Cmd) RepoUpdate() (string, error) {
 }
 
 type FetchOpts struct {
-	Version, Destination string
+	Version  string
+	Ca       string
+	Cert     string
+	Password string
+	Username string
 }
 
 func (c *Cmd) Fetch(repo, chartName string, opts FetchOpts) (string, error) {
-	args := []string{"fetch", "--untar", "--untardir", opts.Destination}
+	args := []string{"fetch"}
 
 	if opts.Version != "" {
 		args = append(args, "--version", opts.Version)
 	}
+	if opts.Username != "" {
+		args = append(args, "--username", opts.Username)
+	}
+	if opts.Password != "" {
+		args = append(args, "--password", opts.Password)
+	}
+	if opts.Ca != "" {
+		file, err := ioutil.TempFile("", "")
+		if err != nil {
+			return "", err
+		}
+		defer func() { _ = os.RemoveAll(file.Name()) }()
+		err = ioutil.WriteFile(file.Name(), []byte(opts.Ca), 0644)
+		if err != nil {
+			return "", err
+		}
+		args = append(args, "--ca-file", file.Name())
+	}
+	if opts.Cert != "" {
+		file, err := ioutil.TempFile("", "")
+		if err != nil {
+			return "", err
+		}
+		defer func() { _ = os.RemoveAll(file.Name()) }()
+		err = ioutil.WriteFile(file.Name(), []byte(opts.Cert), 0644)
+		if err != nil {
+			return "", err
+		}
+		args = append(args, "--cert-file", file.Name())
+	}
 
-	args = append(args, repo+"/"+chartName)
+	args = append(args, "--repo", repo, chartName)
 	return c.run(args...)
 }
 

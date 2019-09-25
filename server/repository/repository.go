@@ -15,11 +15,10 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/rbac"
-	"github.com/argoproj/argo-cd/util/repo/factory"
-	"github.com/argoproj/argo-cd/util/repo/metrics"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -61,7 +60,7 @@ func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.Conn
 	var err error
 	repo, err := s.db.GetRepository(ctx, url)
 	if err == nil {
-		_, err = factory.NewFactory().NewRepo(repo, metrics.NopReporter)
+		err = argo.TestRepo(repo)
 	}
 	if err != nil {
 		connectionState.Status = appsv1.ConnectionStatusFailed
@@ -96,7 +95,6 @@ func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.
 	}
 	err = util.RunAllAsync(len(items), func(i int) error {
 		items[i].ConnectionState = s.getConnectionState(ctx, items[i].Repo)
-		_ = factory.DetectType(items[i], metrics.NopReporter)
 		return nil
 	})
 	if err != nil {
@@ -137,10 +135,10 @@ func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (
 }
 
 func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Source.RepoURL); err != nil {
 		return nil, err
 	}
-	repo, err := s.db.GetRepository(ctx, q.Repo)
+	repo, err := s.db.GetRepository(ctx, q.Source.RepoURL)
 	if err != nil {
 		return nil, err
 	}
@@ -158,16 +156,29 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		return nil, err
 	}
 	return repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
-		Repo:     repo,
-		Revision: q.Revision,
-		App:      q.Path,
-		Repos:    repos,
-		Helm:     q.Helm,
-		Ksonnet:  q.Ksonnet,
+		Repo:   repo,
+		Source: q.Source,
+		Repos:  repos,
 		KustomizeOptions: &appsv1.KustomizeOptions{
 			BuildOptions: buildOptions,
 		},
 	})
+}
+
+func (s *Server) GetHelmCharts(ctx context.Context, q *repositorypkg.RepoQuery) (*apiclient.HelmChartsResponse, error) {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo); err != nil {
+		return nil, err
+	}
+	repo, err := s.db.GetRepository(ctx, q.Repo)
+	if err != nil {
+		return nil, err
+	}
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return nil, err
+	}
+	defer util.Close(conn)
+	return repoClient.GetHelmCharts(ctx, &apiclient.HelmChartsRequest{Repo: repo})
 }
 
 // Create creates a repository
@@ -177,7 +188,6 @@ func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest)
 		return nil, err
 	}
 
-	detectedType := ""
 	// check we can connect to the repo, copying any existing creds
 	{
 		repo := q.Repo.DeepCopy()
@@ -186,19 +196,13 @@ func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest)
 			return nil, err
 		}
 		repo.CopyCredentialsFrom(creds)
-		err = factory.DetectType(repo, metrics.NopReporter)
-		if err != nil {
-			return nil, err
-		}
-		detectedType = repo.Type
-		_, err = factory.NewFactory().NewRepo(repo, metrics.NopReporter)
+		err = argo.TestRepo(repo)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	r := q.Repo
-	r.Type = detectedType
 	r.ConnectionState = appsv1.ConnectionState{Status: appsv1.ConnectionStatusSuccessful}
 	repo, err := s.db.CreateRepository(ctx, r)
 	if status.Convert(err).Code() == codes.AlreadyExists {
@@ -269,11 +273,7 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		return nil, err
 	}
 	repo.CopyCredentialsFrom(creds)
-	err = factory.DetectType(repo, metrics.NopReporter)
-	if err != nil {
-		return nil, err
-	}
-	_, err = factory.NewFactory().NewRepo(repo, metrics.NopReporter)
+	err = argo.TestRepo(repo)
 	if err != nil {
 		return nil, err
 	}

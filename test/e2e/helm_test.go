@@ -105,7 +105,7 @@ func TestHelmRepo(t *testing.T) {
 			URL:  testrepos.HelmTestRepo,
 		}).
 		RepoURLType(RepoURLTypeHelm).
-		Path("helm").
+		Chart("helm").
 		Revision("1.0.0").
 		When().
 		Create().
