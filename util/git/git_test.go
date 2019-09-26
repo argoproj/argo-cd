@@ -13,7 +13,6 @@ import (
 	"github.com/argoproj/argo-cd/test/fixture/log"
 	"github.com/argoproj/argo-cd/test/fixture/path"
 	"github.com/argoproj/argo-cd/test/fixture/test"
-	"github.com/argoproj/argo-cd/util/repo/metrics/mocks"
 )
 
 func TestIsCommitSHA(t *testing.T) {
@@ -175,9 +174,7 @@ func TestCustomHTTPClient(t *testing.T) {
 }
 
 func TestLsRemote(t *testing.T) {
-	eventReporter := &mocks.EventReporter{}
-	eventReporter.On("Event", "https://github.com/argoproj/argo-cd.git", "GitRequestTypeLsRemote").Return()
-	clnt, err := NewClient("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false, eventReporter)
+	clnt, err := NewClient("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false)
 	assert.NoError(t, err)
 	xpass := []string{
 		"HEAD",
@@ -222,7 +219,7 @@ func TestLFSClient(t *testing.T) {
 		defer func() { _ = os.RemoveAll(tempDir) }()
 	}
 
-	client, err := NewClient("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true, &mocks.EventReporter{})
+	client, err := NewClient("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true)
 	assert.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
@@ -281,10 +278,7 @@ func TestNewFactory(t *testing.T) {
 		assert.NoError(t, err)
 		defer func() { _ = os.RemoveAll(dirName) }()
 
-		metrics := &mocks.EventReporter{}
-		metrics.On("Event", tt.args.url, "GitRequestTypeLsRemote").Return()
-		metrics.On("Event", tt.args.url, "GitRequestTypeFetch").Return()
-		client, err := NewClient(tt.args.url, dirName, NopCreds{}, tt.args.insecureIgnoreHostKey, false, metrics)
+		client, err := NewClient(tt.args.url, dirName, NopCreds{}, tt.args.insecureIgnoreHostKey, false)
 		assert.NoError(t, err)
 		commitSHA, err := client.LsRemote("HEAD")
 		assert.NoError(t, err)

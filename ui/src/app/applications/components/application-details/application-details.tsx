@@ -262,13 +262,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                         title: 'SUMMARY', key: 'summary', content: <ApplicationSummary app={application} updateApp={(app) => this.updateApp(app)}/>,
                                     }, {
                                         title: 'PARAMETERS', key: 'parameters', content: (
-                                            <DataLoader key='appDetails' input={{
-                                                repoURL: application.spec.source.repoURL,
-                                                path: application.spec.source.path,
-                                                targetRevision: application.spec.source.targetRevision,
-                                                details: { helm: application.spec.source.helm },
-                                            }} load={(src) =>
-                                                services.repos.appDetails(src.repoURL, src.path, src.targetRevision, src.details)
+                                            <DataLoader key='appDetails' input={application.spec.source} load={(src) => services.repos.appDetails(src)
                                                 .catch(() => ({ type: 'Directory' as appModels.AppSourceType, path: application.spec.source.path }))}>
                                             {(details: appModels.RepoAppDetails) => <ApplicationParameters
                                                     save={(app) => this.updateApp(app)} application={application} details={details} />}

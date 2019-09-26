@@ -68,7 +68,7 @@ func TestDeclarativeInvalidRepoURL(t *testing.T) {
 		Expect(Success("")).
 		Expect(HealthIs(HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
-		Expect(Condition(ApplicationConditionComparisonError, "repository 'http://github.com/' not found")).
+		Expect(Condition(ApplicationConditionComparisonError, "repository not found")).
 		When().
 		Delete(false).
 		Then().
