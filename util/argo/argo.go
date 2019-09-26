@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -23,10 +24,11 @@ import (
 	applicationsv1 "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/cert"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/repo/factory"
-	"github.com/argoproj/argo-cd/util/repo/metrics"
 )
 
 const (
@@ -123,6 +125,39 @@ func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, na
 	return nil, fmt.Errorf("application refresh deadline exceeded")
 }
 
+func TestRepoWithKnownType(repo *argoappv1.Repository, isHelm bool) error {
+	repo = repo.DeepCopy()
+	if isHelm {
+		repo.Type = "helm"
+	} else {
+		repo.Type = "git"
+	}
+	return TestRepo(repo)
+}
+
+func TestRepo(repo *argoappv1.Repository) error {
+	checks := map[string]func() error{
+		"git": func() error {
+			return git.TestRepo(repo.Repo, GetRepoCreds(repo), repo.IsInsecure(), repo.IsLFSEnabled())
+		},
+		"helm": func() error {
+			_, err := helm.GetIndex(repo.Repo, repo.Username, repo.Password)
+			return err
+		},
+	}
+	if check, ok := checks[repo.Type]; ok {
+		return check()
+	}
+	var err error
+	for _, check := range checks {
+		err = check()
+		if err == nil {
+			return nil
+		}
+	}
+	return err
+}
+
 // ValidateRepo validates the repository specified in application spec. Following is checked:
 // * the repository is accessible
 // * the path contains valid manifests
@@ -152,7 +187,7 @@ func ValidateRepo(
 	}
 
 	repoAccessible := false
-	_, err = factory.NewFactory().NewRepo(repo, metrics.NopReporter)
+	err = TestRepoWithKnownType(repo, app.Spec.Source.IsHelm())
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
@@ -180,22 +215,10 @@ func ValidateRepo(
 	}
 
 	// can we actually read the app from the repo
-	var helm *apiclient.HelmAppDetailsQuery
-	if spec.Source.Helm != nil {
-		helm = &apiclient.HelmAppDetailsQuery{ValueFiles: spec.Source.Helm.ValueFiles}
-	}
-	var ksonnet *apiclient.KsonnetAppDetailsQuery
-	if spec.Source.Ksonnet != nil {
-		ksonnet = &apiclient.KsonnetAppDetailsQuery{Environment: spec.Source.Ksonnet.Environment}
-	}
 	appDetails, err := repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 		Repo:             repo,
-		Revision:         spec.Source.TargetRevision,
-		App:              spec.Source.Path,
+		Source:           &spec.Source,
 		Repos:            repos,
-		Plugins:          plugins,
-		Helm:             helm,
-		Ksonnet:          ksonnet,
 		KustomizeOptions: kustomizeOptions,
 	})
 	if err != nil {
@@ -243,10 +266,10 @@ func enrichSpec(spec *argoappv1.ApplicationSpec, appDetails *apiclient.RepoAppDe
 // ValidatePermissions ensures that the referenced cluster has been added to Argo CD and the app source repo and destination namespace/cluster are permitted in app project
 func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, proj *argoappv1.AppProject, db db.ArgoDB) ([]argoappv1.ApplicationCondition, error) {
 	conditions := make([]argoappv1.ApplicationCondition, 0)
-	if spec.Source.RepoURL == "" || spec.Source.Path == "" {
+	if spec.Source.RepoURL == "" || (spec.Source.Path == "" && spec.Source.Chart == "") {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: "spec.source.repoURL and spec.source.path are required",
+			Message: "spec.source.repoURL and spec.source.path either spec.source.chart are required",
 		})
 		return conditions, nil
 	}
@@ -399,4 +422,34 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 		spec.Source.Directory = nil
 	}
 	return spec
+}
+
+func GetRepoCreds(repo *argoappv1.Repository) git.Creds {
+	if repo == nil {
+		return git.NopCreds{}
+	}
+	if repo.Username != "" && repo.Password != "" {
+		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.TLSClientCertData, repo.TLSClientCertKey, repo.TLSClientCAData, repo.IsInsecure())
+	}
+	if repo.SSHPrivateKey != "" {
+		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure())
+	}
+	return git.NopCreds{}
+}
+
+func getCAPath(repoURL string) string {
+	if git.IsHTTPSURL(repoURL) {
+		if parsedURL, err := url.Parse(repoURL); err == nil {
+			if caPath, err := cert.GetCertBundlePathForRepository(parsedURL.Host); err != nil {
+				return caPath
+			} else {
+				log.Warnf("Could not get cert bundle path for host '%s'", parsedURL.Host)
+			}
+		} else {
+			// We don't fail if we cannot parse the URL, but log a warning in that
+			// case. And we execute the command in a verbatim way.
+			log.Warnf("Could not parse repo URL '%s'", repoURL)
+		}
+	}
+	return ""
 }

@@ -142,9 +142,11 @@ export interface ApplicationSource {
     repoURL: string;
 
     /**
-     * Path is a directory path within repository which contains ksonnet project.
+     * Path is a directory path within repository which
      */
-    path: string;
+    path?: string;
+
+    chart?: string;
 
     helm?: ApplicationSourceHelm;
 
@@ -406,6 +408,11 @@ export interface KsonnetAppSpec {
     path: string;
     environments: { [key: string]: KsonnetEnvironment; };
     parameters: KsonnetParameter[];
+}
+
+export interface HelmChart {
+    name: string;
+    versions: string[];
 }
 
 export type AppSourceType = 'Helm' | 'Kustomize' | 'Ksonnet' | 'Directory' | 'Plugin';

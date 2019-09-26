@@ -45,21 +45,9 @@ message AppList {
 // RepoServerAppDetailsQuery contains query information for app details request
 message RepoServerAppDetailsQuery {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
-	string revision = 2;
-	string app = 3;
-    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repos = 4;
-    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ConfigManagementPlugin plugins = 5;
-    HelmAppDetailsQuery helm = 6;
-    KsonnetAppDetailsQuery ksonnet = 7;
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 8;
-}
-
-message HelmAppDetailsQuery {
-	repeated string valueFiles = 1;
-}
-
-message KsonnetAppDetailsQuery {
-    string environment = 1;
+    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSource source = 2;
+    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repos = 3;
+    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 4;
 }
 
 // RepoAppDetailsResponse application details
@@ -74,10 +62,8 @@ message RepoAppDetailsResponse {
 message RepoServerRevisionMetadataRequest {
     // the repo
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
-    // the app name
-    string app = 2;
     // the revision within the repo
-    string revision = 3;
+    string revision = 2;
 }
 
 // KsonnetAppSpec contains Ksonnet app response
@@ -122,7 +108,20 @@ message KsonnetEnvironmentDestination {
 
 // DirectoryAppSpec contains directory
 message DirectoryAppSpec {
+}
 
+
+message HelmChartsRequest {
+    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
+}
+
+message HelmChart {
+    string name = 1;
+    repeated string versions = 2;
+}
+
+message HelmChartsResponse {
+    repeated HelmChart items = 1;
 }
 
 // ManifestService
@@ -142,5 +141,9 @@ service RepoServerService {
 
     // Get the meta-data (author, date, tags, message) for a specific revision of the repo
     rpc GetRevisionMetadata(RepoServerRevisionMetadataRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RevisionMetadata) {
+    }
+
+    // GetHelmCharts returns list of helm charts in the specified repository
+    rpc GetHelmCharts(HelmChartsRequest) returns (HelmChartsResponse) {
     }
 }

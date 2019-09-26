@@ -39,8 +39,6 @@ import (
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/rbac"
-	"github.com/argoproj/argo-cd/util/repo/factory"
-	"github.com/argoproj/argo-cd/util/repo/metrics"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -56,7 +54,6 @@ type Server struct {
 	enf           *rbac.Enforcer
 	projectLock   *util.KeyLock
 	auditLogger   *argo.AuditLogger
-	clientFactory factory.Factory
 	settingsMgr   *settings.SettingsManager
 	cache         *cache.Cache
 }
@@ -86,7 +83,6 @@ func NewServer(
 		enf:           enf,
 		projectLock:   projectLock,
 		auditLogger:   argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
-		clientFactory: factory.NewFactory(),
 		settingsMgr:   settingsMgr,
 	}
 }
@@ -769,7 +765,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 		return nil, err
 	}
 	defer util.Close(conn)
-	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{Repo: repo, App: a.Spec.Source.Path, Revision: q.GetRevision()})
+	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{Repo: repo, Revision: q.GetRevision()})
 }
 
 func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQuery) (*application.ManagedResourcesResponse, error) {
@@ -904,14 +900,17 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		}
 	}
 
-	commitSHA, displayRevision, err := s.resolveRevision(ctx, a, syncReq)
-	if err != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, err.Error())
+	revision := a.Spec.Source.TargetRevision
+	displayRevision := revision
+	if !a.Spec.Source.IsHelm() {
+		revision, displayRevision, err = s.resolveRevision(ctx, a, syncReq)
+		if err != nil {
+			return nil, status.Errorf(codes.FailedPrecondition, err.Error())
+		}
 	}
-
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
-			Revision:     commitSHA,
+			Revision:     revision,
 			Prune:        syncReq.Prune,
 			DryRun:       syncReq.DryRun,
 			SyncStrategy: syncReq.Strategy,
@@ -994,11 +993,11 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	if err != nil {
 		return "", "", err
 	}
-	client, err := s.clientFactory.NewRepo(repo, metrics.NopReporter)
+	gitClient, err := git.NewClient(repo.Repo, "", argoutil.GetRepoCreds(repo), repo.IsInsecure(), repo.IsLFSEnabled())
 	if err != nil {
 		return "", "", err
 	}
-	commitSHA, err := client.ResolveAppRevision(app.Spec.Source.Path, ambiguousRevision)
+	commitSHA, err := gitClient.LsRemote(ambiguousRevision)
 	if err != nil {
 		return "", "", err
 	}
