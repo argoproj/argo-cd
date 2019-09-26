@@ -1,18 +1,10 @@
 import * as React from 'react';
 
 import {Checkbox, NotificationsApi, NotificationType} from 'argo-ui';
-import {COLORS, ErrorNotification} from '../../shared/components';
-import {Revision} from '../../shared/components/revision';
+import {COLORS, ErrorNotification, Revision} from '../../shared/components';
 import {ContextApis} from '../../shared/context';
 import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
-
-export const ICON_CLASS_BY_KIND = {
-    application: 'argo-icon-application',
-    deployment: 'argo-icon-deployment',
-    pod: 'argo-icon-docker',
-    service: 'argo-icon-hosts',
-} as any;
 
 export interface NodeId {
     kind: string;
