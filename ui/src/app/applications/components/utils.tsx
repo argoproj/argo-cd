@@ -6,13 +6,6 @@ import {ContextApis} from '../../shared/context';
 import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
 
-export const ICON_CLASS_BY_KIND = {
-    application: 'argo-icon-application',
-    deployment: 'argo-icon-deployment',
-    pod: 'argo-icon-docker',
-    service: 'argo-icon-hosts',
-} as any;
-
 export interface NodeId {
     kind: string;
     namespace: string;
