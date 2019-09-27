@@ -231,7 +231,6 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 	var repo *appsv1.Repository
 	var err error
 
-	detectedType := ""
 	// check we can connect to the repo, copying any existing creds
 	{
 		repo := q.Repo.DeepCopy()
@@ -384,7 +383,6 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 			repo.CopyCredentialsFrom(repoCreds)
 		}
 	}
-	repo.CopyCredentialsFrom(creds)
 	err = argo.TestRepo(repo)
 	if err != nil {
 		return nil, err
