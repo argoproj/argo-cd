@@ -23,7 +23,6 @@ import (
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 	"github.com/argoproj/argo-cd/util"
@@ -454,10 +453,7 @@ func TestKsonnetApp(t *testing.T) {
 			defer util.Close(closer)
 
 			details, err := client.GetAppDetails(context.Background(), &repositorypkg.RepoAppDetailsQuery{
-				Path:     app.Spec.Source.Path,
-				Repo:     app.Spec.Source.RepoURL,
-				Revision: app.Spec.Source.TargetRevision,
-				Ksonnet:  &apiclient.KsonnetAppDetailsQuery{Environment: "prod"},
+				Source: &app.Spec.Source,
 			})
 			assert.NoError(t, err)
 

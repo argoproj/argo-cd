@@ -843,16 +843,11 @@ func bug21955WorkaroundInterceptor(ctx context.Context, req interface{}, _ *grpc
 		}
 		rk.Repo = repo
 	} else if rdq, ok := req.(*repositorypkg.RepoAppDetailsQuery); ok {
-		repo, err := url.QueryUnescape(rdq.Repo)
+		repo, err := url.QueryUnescape(rdq.Source.RepoURL)
 		if err != nil {
 			return nil, err
 		}
-		path, err := url.QueryUnescape(rdq.Path)
-		if err != nil {
-			return nil, err
-		}
-		rdq.Repo = repo
-		rdq.Path = path
+		rdq.Source.RepoURL = repo
 	} else if ru, ok := req.(*repositorypkg.RepoUpdateRequest); ok {
 		repo, err := url.QueryUnescape(ru.Repo.Repo)
 		if err != nil {

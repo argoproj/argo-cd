@@ -27,7 +27,6 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	certutil "github.com/argoproj/argo-cd/util/cert"
 	argoconfig "github.com/argoproj/argo-cd/util/config"
-	"github.com/argoproj/argo-cd/util/repo/metrics"
 )
 
 type RevisionMetadata struct {
@@ -62,8 +61,6 @@ type nativeGitClient struct {
 	insecure bool
 	// Whether the repository is LFS enabled
 	enableLfs bool
-	// metrics reporter
-	reporter metrics.Reporter
 }
 
 var (
@@ -80,14 +77,13 @@ func init() {
 	}
 }
 
-func NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool, reporter metrics.Reporter) (Client, error) {
+func NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool) (Client, error) {
 	client := nativeGitClient{
 		repoURL:   rawRepoURL,
 		root:      path,
 		creds:     creds,
 		insecure:  insecure,
 		enableLfs: enableLfs,
-		reporter:  reporter,
 	}
 	return &client, nil
 }
@@ -102,7 +98,7 @@ func NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enabl
 // - Otherwise (and on non-fatal errors), a default HTTP client is returned.
 func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client {
 	// Default HTTP client
-	var customHTTPClient *http.Client = &http.Client{
+	var customHTTPClient = &http.Client{
 		// 15 second timeout
 		Timeout: 15 * time.Second,
 		// don't follow redirect
@@ -245,7 +241,6 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch() error {
-	m.reporter.Event(m.repoURL, "GitRequestTypeFetch")
 	_, err := m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if err == nil && m.IsLFSEnabled() {
@@ -341,7 +336,6 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	m.reporter.Event(m.repoURL, "GitRequestTypeLsRemote")
 	//refs, err := remote.List(&git.ListOptions{Auth: auth})
 	refs, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds)
 	if err != nil {

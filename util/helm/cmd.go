@@ -2,10 +2,13 @@ package helm
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"regexp"
+
+	"github.com/argoproj/argo-cd/util"
 
 	argoexec "github.com/argoproj/pkg/exec"
 )
@@ -111,17 +114,67 @@ func (c *Cmd) RepoUpdate() (string, error) {
 }
 
 type FetchOpts struct {
-	Version, Destination string
+	Version  string
+	CAData   string
+	CertData string
+	CertKey  string
+	Password string
+	Username string
+}
+
+func writeToTmp(data string) (string, io.Closer, error) {
+	file, err := ioutil.TempFile("", "")
+	if err != nil {
+		return "", nil, err
+	}
+	err = ioutil.WriteFile(file.Name(), []byte(data), 0644)
+	if err != nil {
+		_ = os.RemoveAll(file.Name())
+		return "", nil, err
+	}
+	return file.Name(), util.NewCloser(func() error {
+		return os.RemoveAll(file.Name())
+	}), nil
 }
 
 func (c *Cmd) Fetch(repo, chartName string, opts FetchOpts) (string, error) {
-	args := []string{"fetch", "--untar", "--untardir", opts.Destination}
+	args := []string{"fetch"}
 
 	if opts.Version != "" {
 		args = append(args, "--version", opts.Version)
 	}
+	if opts.Username != "" {
+		args = append(args, "--username", opts.Username)
+	}
+	if opts.Password != "" {
+		args = append(args, "--password", opts.Password)
+	}
+	if opts.CAData != "" {
+		filePath, closer, err := writeToTmp(opts.CAData)
+		if err != nil {
+			return "", err
+		}
+		defer util.Close(closer)
+		args = append(args, "--ca-file", filePath)
+	}
+	if opts.CertData != "" {
+		filePath, closer, err := writeToTmp(opts.CertData)
+		if err != nil {
+			return "", err
+		}
+		defer util.Close(closer)
+		args = append(args, "--cert-file", filePath)
+	}
+	if opts.CertKey != "" {
+		filePath, closer, err := writeToTmp(opts.CertKey)
+		if err != nil {
+			return "", err
+		}
+		defer util.Close(closer)
+		args = append(args, "--key-file", filePath)
+	}
 
-	args = append(args, repo+"/"+chartName)
+	args = append(args, "--repo", repo, chartName)
 	return c.run(args...)
 }
 

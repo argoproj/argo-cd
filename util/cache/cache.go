@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/go-redis/redis"
@@ -100,22 +99,26 @@ func oidcStateKey(key string) string {
 	return fmt.Sprintf("oidc|%s", key)
 }
 
-func manifestCacheKey(commitSHA string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string) string {
+func appSourceKey(appSrc *appv1.ApplicationSource) uint32 {
 	appSrc = appSrc.DeepCopy()
-	appSrc.RepoURL = ""        // superceded by commitSHA
-	appSrc.TargetRevision = "" // superceded by commitSHA
+	if !appSrc.IsHelm() {
+		appSrc.RepoURL = ""        // superceded by commitSHA
+		appSrc.TargetRevision = "" // superceded by commitSHA
+	}
 	appSrcStr, _ := json.Marshal(appSrc)
-	fnva := hash.FNVa(string(appSrcStr))
-	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", appLabelKey, appLabelValue, commitSHA, namespace, fnva)
+	return hash.FNVa(string(appSrcStr))
 }
 
-func appDetailsCacheKey(commitSHA, path string, valueFiles []string) string {
-	valuesStr := strings.Join(valueFiles, ",")
-	return fmt.Sprintf("appdetails|%s|%s|%s", commitSHA, path, valuesStr)
+func manifestCacheKey(commitSHA string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string) string {
+	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", appLabelKey, appLabelValue, commitSHA, namespace, appSourceKey(appSrc))
 }
 
-func revisionMetadataKey(repoURL, path, revision string) string {
-	return fmt.Sprintf("revisionmetadata|%s|%s|%s", repoURL, path, revision)
+func appDetailsCacheKey(commitSHA string, appSrc *appv1.ApplicationSource) string {
+	return fmt.Sprintf("appdetails|%s|%d", commitSHA, appSourceKey(appSrc))
+}
+
+func revisionMetadataKey(repoURL, revision string) string {
+	return fmt.Sprintf("revisionmetadata|%s|%s", repoURL, revision)
 }
 
 func (c *Cache) setItem(key string, item interface{}, expiration time.Duration, delete bool) error {
@@ -189,21 +192,21 @@ func (c *Cache) SetManifests(commitSHA string, appSrc *appv1.ApplicationSource, 
 	return c.setItem(manifestCacheKey(commitSHA, appSrc, namespace, appLabelKey, appLabelValue), res, repoCacheExpiration, res == nil)
 }
 
-func (c *Cache) GetAppDetails(commitSHA, path string, valueFiles []string, res interface{}) error {
-	return c.getItem(appDetailsCacheKey(commitSHA, path, valueFiles), res)
+func (c *Cache) GetAppDetails(commitSHA string, appSrc *appv1.ApplicationSource, res interface{}) error {
+	return c.getItem(appDetailsCacheKey(commitSHA, appSrc), res)
 }
 
-func (c *Cache) SetAppDetails(commitSHA, path string, valueFiles []string, res interface{}) error {
-	return c.setItem(appDetailsCacheKey(commitSHA, path, valueFiles), res, repoCacheExpiration, res == nil)
+func (c *Cache) SetAppDetails(commitSHA string, appSrc *appv1.ApplicationSource, res interface{}) error {
+	return c.setItem(appDetailsCacheKey(commitSHA, appSrc), res, repoCacheExpiration, res == nil)
 }
 
-func (c *Cache) GetRevisionMetadata(repoURL, path, revision string) (*appv1.RevisionMetadata, error) {
+func (c *Cache) GetRevisionMetadata(repoURL, revision string) (*appv1.RevisionMetadata, error) {
 	item := &appv1.RevisionMetadata{}
-	return item, c.getItem(revisionMetadataKey(repoURL, path, revision), item)
+	return item, c.getItem(revisionMetadataKey(repoURL, revision), item)
 }
 
-func (c *Cache) SetRevisionMetadata(repoURL, path, revision string, item *appv1.RevisionMetadata) error {
-	return c.setItem(revisionMetadataKey(repoURL, path, revision), item, repoCacheExpiration, false)
+func (c *Cache) SetRevisionMetadata(repoURL, revision string, item *appv1.RevisionMetadata) error {
+	return c.setItem(revisionMetadataKey(repoURL, revision), item, repoCacheExpiration, false)
 }
 
 func (c *Cache) GetOIDCState(key string) (*OIDCState, error) {

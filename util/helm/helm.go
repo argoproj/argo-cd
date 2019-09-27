@@ -78,6 +78,7 @@ func (h *helm) Template(appName, namespace, kubeVersion string, opts *argoappv1.
 			}
 			templateOpts.values = append(templateOpts.values, p)
 		}
+		cleanHelmParameters(opts.Parameters)
 		for _, p := range opts.Parameters {
 			if p.ForceString {
 				templateOpts.setString[p.Name] = p.Value
@@ -183,9 +184,13 @@ func flatVals(input map[string]interface{}, output map[string]string, prefixes .
 	}
 }
 
-func cleanHelmParameters(params []string) {
+func cleanHelmParameters(params []argoappv1.HelmParameter) {
 	re := regexp.MustCompile(`([^\\]),`)
 	for i, param := range params {
-		params[i] = re.ReplaceAllString(param, `$1\,`)
+		params[i] = argoappv1.HelmParameter{
+			Name:        param.Name,
+			Value:       re.ReplaceAllString(param.Value, `$1\,`),
+			ForceString: param.ForceString,
+		}
 	}
 }

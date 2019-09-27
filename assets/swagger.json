@@ -1468,62 +1468,12 @@
         }
       }
     },
-    "/api/v1/repositories/{repo}/apps/{path}": {
+    "/api/v1/repositories/{repo}/helmcharts": {
       "get": {
         "tags": [
           "RepositoryService"
         ],
-        "summary": "GetAppDetails returns application details by given path",
-        "operationId": "GetAppDetails",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "repo",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "name": "path",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "name": "revision",
-            "in": "query"
-          },
-          {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "name": "helm.valueFiles",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "ksonnet.environment",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "(empty)",
-            "schema": {
-              "$ref": "#/definitions/repositoryRepoAppDetailsResponse"
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/repositories/{repo}/creds": {
-      "delete": {
-        "tags": [
-          "RepositoryService"
-        ],
-        "summary": "DeleteRepositoryCredentials deletes a repository credential set from the configuration",
-        "operationId": "DeleteRepositoryCredentials",
+        "operationId": "GetHelmCharts",
         "parameters": [
           {
             "type": "string",
@@ -1536,7 +1486,7 @@
           "200": {
             "description": "(empty)",
             "schema": {
-              "$ref": "#/definitions/repositoryRepoResponse"
+              "$ref": "#/definitions/repositoryHelmChartsResponse"
             }
           }
         }
@@ -1570,6 +1520,39 @@
             "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/repositoryRepoResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories/{source.repoURL}/appdetails": {
+      "post": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "GetAppDetails returns application details by given path",
+        "operationId": "GetAppDetails",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "source.repoURL",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/repositoryRepoAppDetailsQuery"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/repositoryRepoAppDetailsResponse"
             }
           }
         }
@@ -2046,17 +2029,6 @@
       "type": "object",
       "title": "DirectoryAppSpec contains directory"
     },
-    "repositoryHelmAppDetailsQuery": {
-      "type": "object",
-      "properties": {
-        "valueFiles": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      }
-    },
     "repositoryHelmAppSpec": {
       "type": "object",
       "title": "HelmAppSpec contains helm app name  in source repo",
@@ -2083,11 +2055,28 @@
         }
       }
     },
-    "repositoryKsonnetAppDetailsQuery": {
+    "repositoryHelmChart": {
       "type": "object",
       "properties": {
-        "environment": {
+        "name": {
           "type": "string"
+        },
+        "versions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "repositoryHelmChartsResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/repositoryHelmChart"
+          }
         }
       }
     },
@@ -2174,6 +2163,15 @@
         },
         "sourceType": {
           "type": "string"
+        }
+      }
+    },
+    "repositoryRepoAppDetailsQuery": {
+      "type": "object",
+      "title": "RepoAppDetailsQuery contains query information for app details request",
+      "properties": {
+        "source": {
+          "$ref": "#/definitions/v1alpha1ApplicationSource"
         }
       }
     },
@@ -2895,6 +2893,10 @@
       "description": "ApplicationSource contains information about github repository, path within repository and target application environment.",
       "type": "object",
       "properties": {
+        "chart": {
+          "type": "string",
+          "title": "Chart is a Helm chart name"
+        },
         "directory": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceDirectory"
         },
@@ -2909,7 +2911,7 @@
         },
         "path": {
           "type": "string",
-          "title": "Path is a directory path within the repository containing a"
+          "title": "Path is a directory path within the Git repository"
         },
         "plugin": {
           "$ref": "#/definitions/v1alpha1ApplicationSourcePlugin"

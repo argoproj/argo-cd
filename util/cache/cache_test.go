@@ -20,12 +20,13 @@ func newFixtures() *fixtures {
 func TestCacheRevisionMetadata(t *testing.T) {
 	cache := newFixtures().Cache
 	// cache miss
-	_, err := cache.GetRevisionMetadata("", "", "")
+	_, err := cache.GetRevisionMetadata("", "")
 	assert.Equal(t, ErrCacheMiss, err)
 	// cache hit
-	err = cache.SetRevisionMetadata("foo", "bar", "baz", &v1alpha1.RevisionMetadata{Message: "foo"})
+	err = cache.SetRevisionMetadata("foo", "baz", &v1alpha1.RevisionMetadata{Message: "foo"})
 	assert.NoError(t, err)
-	metadata, err := cache.GetRevisionMetadata("foo", "bar", "baz")
+	metadata, err := cache.GetRevisionMetadata("foo", "baz")
+
 	assert.NoError(t, err)
 	assert.Equal(t, &v1alpha1.RevisionMetadata{Message: "foo"}, metadata)
 }
