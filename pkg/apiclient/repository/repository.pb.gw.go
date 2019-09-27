@@ -145,6 +145,10 @@ func request_RepositoryService_GetAppDetails_0(ctx context.Context, marshaler ru
 
 }
 
+var (
+	filter_RepositoryService_GetHelmCharts_0 = &utilities.DoubleArray{Encoding: map[string]int{"repo": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
+)
+
 func request_RepositoryService_GetHelmCharts_0(ctx context.Context, marshaler runtime.Marshaler, client RepositoryServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq RepoQuery
 	var metadata runtime.ServerMetadata
@@ -165,6 +169,10 @@ func request_RepositoryService_GetHelmCharts_0(ctx context.Context, marshaler ru
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "repo", err)
+	}
+
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_RepositoryService_GetHelmCharts_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	msg, err := client.GetHelmCharts(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))

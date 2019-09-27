@@ -1468,6 +1468,31 @@
         }
       }
     },
+    "/api/v1/repositories/{repo}/creds": {
+      "delete": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "DeleteRepositoryCredentials deletes a repository credential set from the configuration",
+        "operationId": "DeleteRepositoryCredentials",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "repo",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/repositoryRepoResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/repositories/{repo}/helmcharts": {
       "get": {
         "tags": [
@@ -1480,6 +1505,13 @@
             "name": "repo",
             "in": "path",
             "required": true
+          },
+          {
+            "type": "boolean",
+            "format": "boolean",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "name": "forceRefresh",
+            "in": "query"
           }
         ],
         "responses": {
