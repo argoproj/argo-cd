@@ -512,7 +512,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSource(ref common.Reference
 						},
 					},
 				},
-				Required: []string{"repoURL"},
+				Required: []string{"repoURL", "path"},
 			},
 		},
 		Dependencies: []string{

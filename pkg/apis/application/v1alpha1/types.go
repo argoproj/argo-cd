@@ -96,7 +96,7 @@ type ApplicationSource struct {
 	// RepoURL is the repository URL of the application manifests
 	RepoURL string `json:"repoURL" protobuf:"bytes,1,opt,name=repoURL"`
 	// Path is a directory path within the Git repository
-	Path string `json:"path,omitempty" protobuf:"bytes,2,opt,name=path"`
+	Path string `json:"path" protobuf:"bytes,2,opt,name=path"`
 	// TargetRevision defines the commit, tag, or branch in which to sync the application to.
 	// If omitted, will sync to HEAD
 	TargetRevision string `json:"targetRevision,omitempty" protobuf:"bytes,4,opt,name=targetRevision"`
