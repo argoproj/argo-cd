@@ -59,7 +59,7 @@ func AddHTTPSRepoClientCert(insecure bool) {
 // AddHTTPSRepoCredentialsUserPass adds E2E username/password credentials for HTTPS repos to context
 func AddHTTPSCredentialsUserPass() {
 	var repoURLType fixture.RepoURLType = fixture.RepoURLTypeHTTPS
-	args := []string{"repo", "add", fixture.RepoURL(repoURLType), "--creds", "--username", fixture.GitUsername, "--password", fixture.GitPassword}
+	args := []string{"repocreds", "add", fixture.RepoURL(repoURLType), "--username", fixture.GitUsername, "--password", fixture.GitPassword}
 	errors.FailOnErr(fixture.RunCli(args...))
 }
 
@@ -70,9 +70,8 @@ func AddHTTPSCredentialsTLSClientCert() {
 	keyPath, err := filepath.Abs("../fixture/certs/argocd-test-client.key")
 	errors.CheckError(err)
 	args := []string{
-		"repo",
+		"repocreds",
 		"add",
-		"--creds",
 		fixture.RepoBaseURL(fixture.RepoURLTypeHTTPSClientCert),
 		"--username", fixture.GitUsername,
 		"--password", fixture.GitPassword,
@@ -87,6 +86,6 @@ func AddSSHCredentials() {
 	keyPath, err := filepath.Abs("../fixture/testrepos/id_rsa")
 	errors.CheckError(err)
 	var repoURLType fixture.RepoURLType = fixture.RepoURLTypeSSH
-	args := []string{"repo", "add", fixture.RepoBaseURL(repoURLType), "--creds", "--ssh-private-key-path", keyPath}
+	args := []string{"repocreds", "add", fixture.RepoBaseURL(repoURLType), "--ssh-private-key-path", keyPath}
 	errors.FailOnErr(fixture.RunCli(args...))
 }
