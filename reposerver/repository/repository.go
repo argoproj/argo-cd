@@ -30,7 +30,6 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/app/discovery"
 	argopath "github.com/argoproj/argo-cd/util/app/path"
-	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/git"
@@ -52,6 +51,8 @@ type Service struct {
 	cache                     *cache.Cache
 	parallelismLimitSemaphore *semaphore.Weighted
 	metricsServer             *metrics.MetricsServer
+	newGitClient              func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool) (git.Client, error)
+	newHelmClient             func(repoURL string, creds helm.Creds) helm.Client
 }
 
 // NewService returns a new instance of the Manifest service
@@ -60,11 +61,16 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, parall
 	if parallelismLimit > 0 {
 		parallelismLimitSemaphore = semaphore.NewWeighted(parallelismLimit)
 	}
+	repoLock := util.NewKeyLock()
 	return &Service{
 		parallelismLimitSemaphore: parallelismLimitSemaphore,
-		repoLock:                  util.NewKeyLock(),
+		repoLock:                  repoLock,
 		cache:                     cache,
 		metricsServer:             metricsServer,
+		newGitClient:              git.NewClient,
+		newHelmClient: func(repoURL string, creds helm.Creds) helm.Client {
+			return helm.NewClientWithLock(repoURL, creds, repoLock)
+		},
 	}
 }
 
@@ -97,6 +103,11 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	return &res, nil
 }
 
+type operationSettings struct {
+	sem     *semaphore.Weighted
+	noCache bool
+}
+
 // runRepoOperation downloads either git folder or helm chart and executes specified operation
 func (s *Service) runRepoOperation(
 	c context.Context,
@@ -104,7 +115,7 @@ func (s *Service) runRepoOperation(
 	source *v1alpha1.ApplicationSource,
 	getCached func(revision string) bool,
 	operation func(appPath string, revision string) error,
-	sem *semaphore.Weighted) error {
+	settings operationSettings) error {
 
 	var gitClient git.Client
 	var err error
@@ -116,20 +127,27 @@ func (s *Service) runRepoOperation(
 		}
 	}
 
-	if getCached(revision) {
+	if !settings.noCache && getCached(revision) {
 		return nil
 	}
 
-	if sem != nil {
-		err = sem.Acquire(c, 1)
+	if settings.sem != nil {
+		err = settings.sem.Acquire(c, 1)
 		if err != nil {
 			return err
 		}
-		defer sem.Release(1)
+		defer settings.sem.Release(1)
 	}
 
 	if source.IsHelm() {
-		chartPath, closer, err := s.checkoutChart(repo, source.Chart, revision)
+		helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds())
+		if settings.noCache {
+			err = helmClient.CleanChartCache(source.Chart, revision)
+			if err != nil {
+				return err
+			}
+		}
+		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision)
 		if err != nil {
 			return err
 		}
@@ -139,7 +157,7 @@ func (s *Service) runRepoOperation(
 	s.repoLock.Lock(gitClient.Root())
 	defer s.repoLock.Unlock(gitClient.Root())
 
-	if getCached(revision) {
+	if !settings.noCache && getCached(revision) {
 		return nil
 	}
 
@@ -182,8 +200,83 @@ func (s *Service) GenerateManifest(c context.Context, q *apiclient.ManifestReque
 			log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), revision, err)
 		}
 		return nil
-	}, s.parallelismLimitSemaphore)
+	}, operationSettings{sem: s.parallelismLimitSemaphore, noCache: q.NoCache})
 	return res, err
+}
+
+func getHelmRepos(repositories []*v1alpha1.Repository) []helm.HelmRepository {
+	repos := make([]helm.HelmRepository, 0)
+	for _, repo := range repositories {
+		if repo.Type == "helm" {
+			repos = append(repos, helm.HelmRepository{Name: repo.Name, Repo: repo.Repo, Creds: repo.GetHelmCreds()})
+		}
+	}
+	return repos
+}
+
+func helmTemplate(appPath string, q *apiclient.ManifestRequest) ([]*unstructured.Unstructured, error) {
+	templateOpts := &helm.TemplateOpts{
+		Name:        q.AppLabelValue,
+		Namespace:   q.Namespace,
+		KubeVersion: text.SemVer(q.KubeVersion),
+		Set:         map[string]string{},
+		SetString:   map[string]string{},
+	}
+	appHelm := q.ApplicationSource.Helm
+	if appHelm != nil {
+		if appHelm.ReleaseName != "" {
+			templateOpts.Name = appHelm.ReleaseName
+		}
+		templateOpts.Values = appHelm.ValueFiles
+		if appHelm.Values != "" {
+			file, err := ioutil.TempFile("", "values-*.yaml")
+			if err != nil {
+				return nil, err
+			}
+			p := file.Name()
+			defer func() { _ = os.RemoveAll(p) }()
+			err = ioutil.WriteFile(p, []byte(appHelm.Values), 0644)
+			if err != nil {
+				return nil, err
+			}
+			templateOpts.Values = append(templateOpts.Values, p)
+		}
+		for _, p := range appHelm.Parameters {
+			if p.ForceString {
+				templateOpts.SetString[p.Name] = p.Value
+			} else {
+				templateOpts.Set[p.Name] = p.Value
+			}
+		}
+	}
+	if templateOpts.Name == "" {
+		templateOpts.Name = q.AppLabelValue
+	}
+
+	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos))
+	if err != nil {
+		return nil, err
+	}
+	defer h.Dispose()
+	err = h.Init()
+	if err != nil {
+		return nil, err
+	}
+	out, err := h.Template(templateOpts)
+	if err != nil {
+		if !helm.IsMissingDependencyErr(err) {
+			return nil, err
+		}
+		err = h.DependencyBuild()
+		if err != nil {
+			return nil, err
+		}
+		out, err = h.Template(templateOpts)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return kube.SplitYAML(out)
 }
 
 // GenerateManifests generates manifests from a path
@@ -192,7 +285,6 @@ func GenerateManifests(appPath string, q *apiclient.ManifestRequest) (*apiclient
 	var dest *v1alpha1.ApplicationDestination
 
 	appSourceType, err := GetAppSourceType(q.ApplicationSource, appPath)
-	creds := argo.GetRepoCreds(q.Repo)
 	repoURL := ""
 	if q.Repo != nil {
 		repoURL = q.Repo.Repo
@@ -201,34 +293,12 @@ func GenerateManifests(appPath string, q *apiclient.ManifestRequest) (*apiclient
 	case v1alpha1.ApplicationSourceTypeKsonnet:
 		targetObjs, dest, err = ksShow(q.AppLabelKey, appPath, q.ApplicationSource.Ksonnet)
 	case v1alpha1.ApplicationSourceTypeHelm:
-		h, err := helm.NewHelmApp(appPath, q.Repos)
-		if err != nil {
-			return nil, err
-		}
-		defer h.Dispose()
-		err = h.Init()
-		if err != nil {
-			return nil, err
-		}
-		targetObjs, err = h.Template(q.AppLabelValue, q.Namespace, q.KubeVersion, q.ApplicationSource.Helm)
-		if err != nil {
-			if !helm.IsMissingDependencyErr(err) {
-				return nil, err
-			}
-			err = h.DependencyBuild()
-			if err != nil {
-				return nil, err
-			}
-			targetObjs, err = h.Template(q.AppLabelValue, q.Namespace, q.KubeVersion, q.ApplicationSource.Helm)
-			if err != nil {
-				return nil, err
-			}
-		}
+		targetObjs, err = helmTemplate(appPath, q)
 	case v1alpha1.ApplicationSourceTypeKustomize:
-		k := kustomize.NewKustomizeApp(appPath, creds, repoURL)
+		k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), repoURL)
 		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions)
 	case v1alpha1.ApplicationSourceTypePlugin:
-		targetObjs, err = runConfigManagementPlugin(appPath, q, creds)
+		targetObjs, err = runConfigManagementPlugin(appPath, q, q.Repo.GetGitCreds())
 	case v1alpha1.ApplicationSourceTypeDirectory:
 		var directory *v1alpha1.ApplicationSourceDirectory
 		if directory = q.ApplicationSource.Directory; directory == nil {
@@ -564,7 +634,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 					res.Helm.ValueFiles = append(res.Helm.ValueFiles, fName)
 				}
 			}
-			h, err := helm.NewHelmApp(appPath, q.Repos)
+			h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos))
 			if err != nil {
 				return err
 			}
@@ -586,10 +656,15 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 			if err != nil {
 				return err
 			}
-			res.Helm.Parameters = params
+			for k, v := range params {
+				res.Helm.Parameters = append(res.Helm.Parameters, &v1alpha1.HelmParameter{
+					Name:  k,
+					Value: v,
+				})
+			}
 		case v1alpha1.ApplicationSourceTypeKustomize:
 			res.Kustomize = &apiclient.KustomizeAppSpec{}
-			k := kustomize.NewKustomizeApp(appPath, argo.GetRepoCreds(q.Repo), q.Repo.Repo)
+			k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), q.Repo.Repo)
 			_, images, err := k.Build(nil, q.KustomizeOptions)
 			if err != nil {
 				return err
@@ -598,7 +673,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		}
 		_ = s.cache.SetAppDetails(revision, q.Source, res)
 		return nil
-	}, nil)
+	}, operationSettings{})
 
 	return &res, err
 }
@@ -643,14 +718,8 @@ func valueFiles(q *apiclient.RepoServerAppDetailsQuery) []string {
 	return q.Source.Helm.ValueFiles
 }
 
-// tempRepoPath returns a formulated temporary directory location to clone a repository
-func tempRepoPath(repo string) string {
-	return filepath.Join(os.TempDir(), strings.Replace(repo, "/", "_", -1))
-}
-
 func (s *Service) newClient(repo *v1alpha1.Repository) (git.Client, error) {
-	appPath := tempRepoPath(git.NormalizeGitURL(repo.Repo))
-	gitClient, err := git.NewClient(repo.Repo, appPath, argo.GetRepoCreds(repo), repo.IsInsecure(), repo.EnableLFS)
+	gitClient, err := s.newGitClient(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.EnableLFS)
 	if err != nil {
 		return nil, err
 	}
@@ -687,4 +756,22 @@ func checkoutRevision(gitClient git.Client, commitSHA string) (string, error) {
 		return "", status.Errorf(codes.Internal, "Failed to checkout %s: %v", commitSHA, err)
 	}
 	return gitClient.CommitSHA()
+}
+
+func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequest) (*apiclient.HelmChartsResponse, error) {
+	index, err := s.newHelmClient(q.Repo.Repo, q.Repo.GetHelmCreds()).GetIndex()
+	if err != nil {
+		return nil, err
+	}
+	res := apiclient.HelmChartsResponse{}
+	for chartName, entries := range index.Entries {
+		chart := apiclient.HelmChart{
+			Name: chartName,
+		}
+		for _, entry := range entries {
+			chart.Versions = append(chart.Versions, entry.Version)
+		}
+		res.Items = append(res.Items, &chart)
+	}
+	return &res, nil
 }

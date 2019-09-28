@@ -79,7 +79,7 @@ func IsHTTPSURL(url string) bool {
 
 // TestRepo tests if a repo exists and is accessible with the given credentials
 func TestRepo(repo string, creds Creds, insecure bool, enableLfs bool) error {
-	clnt, err := NewClient(repo, "", creds, insecure, enableLfs)
+	clnt, err := NewClient(repo, creds, insecure, enableLfs)
 	if err != nil {
 		return err
 	}

@@ -45,12 +45,7 @@ func (c *Cmd) Init() (string, error) {
 	return c.run("init", "--client-only", "--skip-refresh")
 }
 
-type RepoAddOpts struct {
-	Username, Password        string
-	CAData, CertData, KeyData []byte
-}
-
-func (c *Cmd) RepoAdd(name, url string, opts RepoAddOpts) (string, error) {
+func (c *Cmd) RepoAdd(name, url string, opts Creds) (string, error) {
 
 	tmp, err := ioutil.TempDir("", "helm")
 	if err != nil {
@@ -113,21 +108,12 @@ func (c *Cmd) RepoUpdate() (string, error) {
 	return c.run("repo", "update")
 }
 
-type FetchOpts struct {
-	Version  string
-	CAData   string
-	CertData string
-	CertKey  string
-	Password string
-	Username string
-}
-
-func writeToTmp(data string) (string, io.Closer, error) {
+func writeToTmp(data []byte) (string, io.Closer, error) {
 	file, err := ioutil.TempFile("", "")
 	if err != nil {
 		return "", nil, err
 	}
-	err = ioutil.WriteFile(file.Name(), []byte(data), 0644)
+	err = ioutil.WriteFile(file.Name(), data, 0644)
 	if err != nil {
 		_ = os.RemoveAll(file.Name())
 		return "", nil, err
@@ -137,11 +123,11 @@ func writeToTmp(data string) (string, io.Closer, error) {
 	}), nil
 }
 
-func (c *Cmd) Fetch(repo, chartName string, opts FetchOpts) (string, error) {
+func (c *Cmd) Fetch(repo, chartName string, version string, opts Creds) (string, error) {
 	args := []string{"fetch"}
 
-	if opts.Version != "" {
-		args = append(args, "--version", opts.Version)
+	if version != "" {
+		args = append(args, "--version", version)
 	}
 	if opts.Username != "" {
 		args = append(args, "--username", opts.Username)
@@ -149,7 +135,7 @@ func (c *Cmd) Fetch(repo, chartName string, opts FetchOpts) (string, error) {
 	if opts.Password != "" {
 		args = append(args, "--password", opts.Password)
 	}
-	if opts.CAData != "" {
+	if len(opts.CAData) > 0 {
 		filePath, closer, err := writeToTmp(opts.CAData)
 		if err != nil {
 			return "", err
@@ -157,7 +143,7 @@ func (c *Cmd) Fetch(repo, chartName string, opts FetchOpts) (string, error) {
 		defer util.Close(closer)
 		args = append(args, "--ca-file", filePath)
 	}
-	if opts.CertData != "" {
+	if len(opts.CertData) > 0 {
 		filePath, closer, err := writeToTmp(opts.CertData)
 		if err != nil {
 			return "", err
@@ -165,8 +151,8 @@ func (c *Cmd) Fetch(repo, chartName string, opts FetchOpts) (string, error) {
 		defer util.Close(closer)
 		args = append(args, "--cert-file", filePath)
 	}
-	if opts.CertKey != "" {
-		filePath, closer, err := writeToTmp(opts.CertKey)
+	if len(opts.KeyData) > 0 {
+		filePath, closer, err := writeToTmp(opts.KeyData)
 		if err != nil {
 			return "", err
 		}
@@ -186,31 +172,39 @@ func (c *Cmd) inspectValues(values string) (string, error) {
 	return c.run("inspect", "values", values)
 }
 
-type templateOpts struct {
-	name        string
-	namespace   string
-	kubeVersion string
-	set         map[string]string
-	setString   map[string]string
-	values      []string
+type TemplateOpts struct {
+	Name        string
+	Namespace   string
+	KubeVersion string
+	Set         map[string]string
+	SetString   map[string]string
+	Values      []string
 }
 
-func (c *Cmd) template(chart string, opts templateOpts) (string, error) {
-	args := []string{"template", chart, "--name", opts.name}
+var (
+	re = regexp.MustCompile(`([^\\]),`)
+)
 
-	if opts.namespace != "" {
-		args = append(args, "--namespace", opts.namespace)
+func cleanSetParameters(val string) string {
+	return re.ReplaceAllString(val, `$1\,`)
+}
+
+func (c *Cmd) template(chart string, opts *TemplateOpts) (string, error) {
+	args := []string{"template", chart, "--name", opts.Name}
+
+	if opts.Namespace != "" {
+		args = append(args, "--namespace", opts.Namespace)
 	}
-	if opts.kubeVersion != "" {
-		args = append(args, "--kube-version", opts.kubeVersion)
+	if opts.KubeVersion != "" {
+		args = append(args, "--kube-version", opts.KubeVersion)
 	}
-	for key, val := range opts.set {
-		args = append(args, "--set", key+"="+val)
+	for key, val := range opts.Set {
+		args = append(args, "--set", key+"="+cleanSetParameters(val))
 	}
-	for key, val := range opts.setString {
-		args = append(args, "--set-string", key+"="+val)
+	for key, val := range opts.SetString {
+		args = append(args, "--set-string", key+"="+cleanSetParameters(val))
 	}
-	for _, val := range opts.values {
+	for _, val := range opts.Values {
 		args = append(args, "--values", val)
 	}
 

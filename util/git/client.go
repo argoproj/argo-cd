@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -77,10 +78,15 @@ func init() {
 	}
 }
 
-func NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool) (Client, error) {
+func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool) (Client, error) {
+	root := filepath.Join(os.TempDir(), strings.Replace(NormalizeGitURL(rawRepoURL), "/", "_", -1))
+	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs)
+}
+
+func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool) (Client, error) {
 	client := nativeGitClient{
 		repoURL:   rawRepoURL,
-		root:      path,
+		root:      root,
 		creds:     creds,
 		insecure:  insecure,
 		enableLfs: enableLfs,
