@@ -416,6 +416,48 @@ spec:
                     type: string
                 type: object
               type: array
+            maintenance:
+              description: Maintenance controls when syncs can be run for apps in
+                this project
+              properties:
+                enabled:
+                  description: Enabled will allow maintenance windows to be active
+                    during their scheduled times
+                  type: boolean
+                windows:
+                  description: Windows contains the schedules for when syncs should
+                    be disabled
+                  items:
+                    properties:
+                      applications:
+                        description: Applications contains a list of applications
+                          that the window will apply to
+                        items:
+                          type: string
+                        type: array
+                      clusters:
+                        description: Clusters contains a list of clusters that the
+                          window will apply to
+                        items:
+                          type: string
+                        type: array
+                      duration:
+                        description: Duration is the amount of time the maintenance
+                          window will be open
+                        type: string
+                      namespaces:
+                        description: Namespaces contains a list of namespaces that
+                          the window will apply to
+                        items:
+                          type: string
+                        type: array
+                      schedule:
+                        description: Schedule is the time the window will begin, specified
+                          in cron format
+                        type: string
+                    type: object
+                  type: array
+              type: object
             namespaceResourceBlacklist:
               description: NamespaceResourceBlacklist contains list of blacklisted
                 namespace level resources

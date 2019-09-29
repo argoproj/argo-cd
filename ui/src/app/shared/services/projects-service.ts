@@ -30,6 +30,12 @@ export interface JWTTokenResponse {
     token: string;
 }
 
+export interface ProjectMaintenanceParams {
+    projName: string;
+    window: models.ProjectMaintenanceWindow;
+    deleteWindow: boolean;
+}
+
 export interface ProjectRoleParams {
     projName: string;
     roleName: string;
@@ -95,6 +101,37 @@ export class ProjectsService {
         const proj = await this.get(params.name);
         const update = paramsToProj(params);
         return requests.put(`/projects/${params.name}`).send({project: {...proj, spec: update.spec }}).then((res) => res.body as models.Project);
+    }
+
+    public getMaintenanceWindowState(name: string): Promise<models.MaintenanceState> {
+        return requests.get(`/projects/${name}/maintenance`).query({name}).then((res) => res.body as models.MaintenanceState);
+    }
+
+    public async updateWindow(params: ProjectMaintenanceParams): Promise<models.Project> {
+        const proj = await this.get(params.projName);
+        const updatedSpec = proj.spec;
+        let windowExists = false;
+        if (proj.spec.maintenance === undefined) {
+            const m = {enabled: true, windows: []} as models.ProjectMaintenance;
+            updatedSpec.maintenance = m;
+        } else if (updatedSpec.maintenance.windows === undefined) {
+            updatedSpec.maintenance.windows = [];
+        } else {
+            for (let i = 0; i < proj.spec.maintenance.windows.length; i++) {
+                if (proj.spec.maintenance.windows[i].schedule === params.window.schedule && proj.spec.maintenance.windows[i].duration === params.window.duration) {
+                    windowExists = true;
+                    if (params.deleteWindow) {
+                        updatedSpec.maintenance.windows.splice(i, 1);
+                        break;
+                    }
+                    updatedSpec.maintenance.windows[i] = params.window;
+                }
+            }
+        }
+        if (!windowExists) {
+            updatedSpec.maintenance.windows = updatedSpec.maintenance.windows.concat(params.window);
+        }
+        return requests.put(`/projects/${params.projName}`).send({project: {...proj, spec: updatedSpec }}).then((res) => res.body as models.Project);
     }
 
     public async updateRole(params: ProjectRoleParams): Promise<models.Project> {

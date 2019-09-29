@@ -518,6 +518,20 @@ export interface ProjectSpec {
     clusterResourceWhitelist: GroupKind[];
     namespaceResourceBlacklist: GroupKind[];
     orphanedResources?: { warn?: boolean };
+    maintenance?: ProjectMaintenance;
+}
+
+export interface ProjectMaintenance {
+    enabled?: boolean;
+    windows: ProjectMaintenanceWindow[];
+}
+
+export interface ProjectMaintenanceWindow {
+    schedule: string;
+    duration: string;
+    applications: string[];
+    namespaces: string[];
+    clusters: string[];
 }
 
 export interface Project {
@@ -548,4 +562,12 @@ export interface ResourceActionParam {
 export interface ResourceAction {
     name: string;
     params: ResourceActionParam[];
+}
+
+export interface MaintenanceState {
+    windows: ProjectMaintenanceWindow[];
+}
+
+export interface ApplicationMaintenanceState {
+    windows: string[];
 }

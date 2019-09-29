@@ -328,6 +328,31 @@
         }
       }
     },
+    "/api/v1/applications/{name}/maintenance": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Get returns an application by name",
+        "operationId": "GetApplicationMaintenanceState",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationMaintenanceResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/manifests": {
       "get": {
         "tags": [
@@ -1123,6 +1148,31 @@
         }
       }
     },
+    "/api/v1/projects/{name}/maintenance": {
+      "get": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "GetMaintenanceState returns true if there are any active maintenance windows",
+        "operationId": "GetMaintenanceState",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/projectMaintenanceResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{project.metadata.name}": {
       "put": {
         "tags": [
@@ -1611,6 +1661,17 @@
     "accountUpdatePasswordResponse": {
       "type": "object"
     },
+    "applicationApplicationMaintenanceResponse": {
+      "type": "object",
+      "properties": {
+        "windows": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "applicationApplicationPatchRequest": {
       "type": "object",
       "title": "ApplicationPatchRequest is a request to patch an application",
@@ -1864,6 +1925,17 @@
     },
     "projectEmptyResponse": {
       "type": "object"
+    },
+    "projectMaintenanceResponse": {
+      "type": "object",
+      "properties": {
+        "windows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ProjectMaintenanceWindow"
+          }
+        }
+      }
     },
     "projectProjectCreateRequest": {
       "description": "ProjectCreateRequest defines project creation parameters.",
@@ -2704,6 +2776,9 @@
             "$ref": "#/definitions/v1alpha1ApplicationDestination"
           }
         },
+        "maintenance": {
+          "$ref": "#/definitions/v1alpha1ProjectMaintenance"
+        },
         "namespaceResourceBlacklist": {
           "type": "array",
           "title": "NamespaceResourceBlacklist contains list of blacklisted namespace level resources",
@@ -3328,6 +3403,59 @@
           "type": "boolean",
           "format": "boolean",
           "title": "Warn indicates if warning condition should be created for apps which have orphaned resources"
+        }
+      }
+    },
+    "v1alpha1ProjectMaintenance": {
+      "type": "object",
+      "title": "Project Maintenance controls when syncs can be run for apps in a project",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "Enabled will allow maintenance windows to be active during their scheduled times"
+        },
+        "windows": {
+          "type": "array",
+          "title": "Windows contains the schedules for when syncs should be disabled",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ProjectMaintenanceWindow"
+          }
+        }
+      }
+    },
+    "v1alpha1ProjectMaintenanceWindow": {
+      "type": "object",
+      "title": "MaintenanceWindow contains the time, duration and attributes that are used to assign the windows to apps",
+      "properties": {
+        "applications": {
+          "type": "array",
+          "title": "Applications contains a list of applications that the window will apply to",
+          "items": {
+            "type": "string"
+          }
+        },
+        "clusters": {
+          "type": "array",
+          "title": "Clusters contains a list of clusters that the window will apply to",
+          "items": {
+            "type": "string"
+          }
+        },
+        "duration": {
+          "type": "string",
+          "title": "Duration is the amount of time the maintenance window will be open"
+        },
+        "namespaces": {
+          "type": "array",
+          "title": "Namespaces contains a list of namespaces that the window will apply to",
+          "items": {
+            "type": "string"
+          }
+        },
+        "schedule": {
+          "type": "string",
+          "title": "Schedule is the time the window will begin, specified in cron format"
         }
       }
     },
