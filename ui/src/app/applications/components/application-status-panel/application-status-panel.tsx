@@ -1,13 +1,13 @@
 import {Tooltip} from 'argo-ui';
 import * as React from 'react';
+import {DataLoader} from '../../../shared/components';
 import {Revision} from '../../../shared/components/revision';
 import {Timestamp} from '../../../shared/components/timestamp';
-import {DataLoader} from '../../../shared/components';
 import * as models from '../../../shared/models';
+import {services} from '../../../shared/services';
 import * as utils from '../utils';
 import {ApplicationMaintenanceWindowStatusIcon, ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
-import {services} from '../../../shared/services';
 
 require('./application-status-panel.scss');
 
@@ -118,7 +118,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                             <ApplicationMaintenanceWindowStatusIcon state={data}/>
                             {tooltip('If there is currently an active maintenance window for this application.')}
                         </div>
-                        {data.windows === undefined || data.windows.map((w) => <div><span>{w}</span></div>)}
+                        {data.windows === undefined || data.windows.map((w) => <div key={w}><span>{w}</span></div>)}
                     </div>
                 </React.Fragment>
             }</DataLoader>

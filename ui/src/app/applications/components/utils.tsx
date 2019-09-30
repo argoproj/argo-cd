@@ -377,7 +377,7 @@ export const MaintenanceWindowStatusIcon = ({state, window}: { state: appModels.
 export const ApplicationMaintenanceWindowStatusIcon = ({state}: { state: appModels.ApplicationMaintenanceState }) => {
     let className = 'fa fa-question-circle';
     let color = COLORS.maintenance_state.unknown;
-    let current = 'Maintenance';
+    const name = 'Maintenance';
 
     if (state.windows !== undefined && state.windows.length > 0) {
         className = 'fa fa-stop-circle';
@@ -386,5 +386,5 @@ export const ApplicationMaintenanceWindowStatusIcon = ({state}: { state: appMode
         className = 'fa fa-stop-circle';
         color = COLORS.maintenance_state.inactive;
     }
-    return <React.Fragment><i title={current} className={className} style={{color}}/> {current}</React.Fragment>;
+    return <React.Fragment><i title={name} className={className} style={{color}}/>{name}</React.Fragment>;
 };
