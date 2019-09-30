@@ -6,7 +6,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/common"
-	helmhook "github.com/argoproj/argo-cd/util/helm/hook"
+	helmhook "github.com/argoproj/argo-cd/util/hook/helm"
 )
 
 func Wave(obj *unstructured.Unstructured) int {

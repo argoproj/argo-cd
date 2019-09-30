@@ -174,7 +174,7 @@ func TestCustomHTTPClient(t *testing.T) {
 }
 
 func TestLsRemote(t *testing.T) {
-	clnt, err := NewClient("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false)
+	clnt, err := NewClientExt("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false)
 	assert.NoError(t, err)
 	xpass := []string{
 		"HEAD",
@@ -219,7 +219,7 @@ func TestLFSClient(t *testing.T) {
 		defer func() { _ = os.RemoveAll(tempDir) }()
 	}
 
-	client, err := NewClient("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true)
+	client, err := NewClientExt("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true)
 	assert.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
@@ -278,7 +278,7 @@ func TestNewFactory(t *testing.T) {
 		assert.NoError(t, err)
 		defer func() { _ = os.RemoveAll(dirName) }()
 
-		client, err := NewClient(tt.args.url, dirName, NopCreds{}, tt.args.insecureIgnoreHostKey, false)
+		client, err := NewClientExt(tt.args.url, dirName, NopCreds{}, tt.args.insecureIgnoreHostKey, false)
 		assert.NoError(t, err)
 		commitSHA, err := client.LsRemote("HEAD")
 		assert.NoError(t, err)

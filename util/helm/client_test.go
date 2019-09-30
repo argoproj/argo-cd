@@ -8,16 +8,19 @@ import (
 
 func TestIndex(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
-		_, err := GetIndex("", "", "")
+		_, err := NewClient("", Creds{}).GetIndex()
 		assert.Error(t, err)
 	})
 	t.Run("Stable", func(t *testing.T) {
-		index, err := GetIndex("https://kubernetes-charts.storage.googleapis.com", "", "")
+		index, err := NewClient("https://kubernetes-charts.storage.googleapis.com", Creds{}).GetIndex()
 		assert.NoError(t, err)
 		assert.NotNil(t, index)
 	})
 	t.Run("BasicAuth", func(t *testing.T) {
-		index, err := GetIndex("https://kubernetes-charts.storage.googleapis.com", "my-username", "my-password")
+		index, err := NewClient("https://kubernetes-charts.storage.googleapis.com", Creds{
+			Username: "my-password",
+			Password: "my-username",
+		}).GetIndex()
 		assert.NoError(t, err)
 		assert.NotNil(t, index)
 	})
