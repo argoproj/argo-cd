@@ -58,16 +58,9 @@ export const ApplicationDeploymentHistory = ({
                             </div>
                         </div>
                         <RevisionMetadataRows applicationName={app.metadata.name}
-                                              revision={recentDeployments[index].revision}/>
+                                              source={{ ...recentDeployments[index].source, targetRevision: recentDeployments[index].revision }}/>
                         {selectedRollbackDeploymentIndex === index ? (
-                                <DataLoader input={{
-                                    ...recentDeployments[index].source,
-                                    targetRevision: recentDeployments[index].revision,
-                                }}
-                                            load={(src) => services.repos.appDetails(src.repoURL, src.path, src.targetRevision, {
-                                                helm: src.helm,
-                                                ksonnet: src.ksonnet,
-                                            })}>
+                                <DataLoader input={recentDeployments[index].source} load={(src) => services.repos.appDetails(src)}>
                                     {(details: models.RepoAppDetails) => (
                                         <div>
                                             <ApplicationParameters application={{

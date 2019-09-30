@@ -27,11 +27,7 @@ message AppInfo {
 
 // RepoAppDetailsQuery contains query information for app details request
 message RepoAppDetailsQuery {
-	string repo = 1;
-	string revision = 2;
-	string path = 3;
-	repository.HelmAppDetailsQuery helm = 4;
-	repository.KsonnetAppDetailsQuery ksonnet = 5;
+	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSource source = 1;
 }
 
 // RepoAppsResponse contains applications of specified repository
@@ -78,6 +74,7 @@ message RepoUpdateRequest {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
 }
 
+
 // RepositoryService 
 service RepositoryService {
 
@@ -93,7 +90,14 @@ service RepositoryService {
 
 	// GetAppDetails returns application details by given path
 	rpc GetAppDetails(RepoAppDetailsQuery) returns (repository.RepoAppDetailsResponse) {
-		option (google.api.http).get = "/api/v1/repositories/{repo}/apps/{path}";
+		option (google.api.http) = {
+			post: "/api/v1/repositories/{source.repoURL}/appdetails"
+			body: "*"
+		};
+	}
+
+	rpc GetHelmCharts(RepoQuery) returns (repository.HelmChartsResponse) {
+		option (google.api.http).get = "/api/v1/repositories/{repo}/helmcharts";
 	}
 
 	// Create creates a repo
@@ -124,5 +128,4 @@ service RepositoryService {
 			body: "repo"
 		};
 	}
-
 }

@@ -421,6 +421,9 @@ spec:
                     This is typically set in a Rollback operation and nil during a
                     Sync operation
                   properties:
+                    chart:
+                      description: Chart is a Helm chart name
+                      type: string
                     directory:
                       description: Directory holds path/directory specific options
                       properties:
@@ -537,8 +540,7 @@ spec:
                           type: string
                       type: object
                     path:
-                      description: Path is a directory path within the repository
-                        containing a
+                      description: Path is a directory path within the Git repository
                       type: string
                     plugin:
                       description: ConfigManagementPlugin holds config management
@@ -572,7 +574,6 @@ spec:
                       type: string
                   required:
                   - repoURL
-                  - path
                   type: object
                 syncStrategy:
                   description: SyncStrategy describes how to perform the sync
@@ -661,6 +662,9 @@ spec:
               description: Source is a reference to the location ksonnet application
                 definition
               properties:
+                chart:
+                  description: Chart is a Helm chart name
+                  type: string
                 directory:
                   description: Directory holds path/directory specific options
                   properties:
@@ -776,8 +780,7 @@ spec:
                       type: string
                   type: object
                 path:
-                  description: Path is a directory path within the repository containing
-                    a
+                  description: Path is a directory path within the Git repository
                   type: string
                 plugin:
                   description: ConfigManagementPlugin holds config management plugin
@@ -809,7 +812,6 @@ spec:
                   type: string
               required:
               - repoURL
-              - path
               type: object
             syncPolicy:
               description: SyncPolicy controls when a sync will be performed
@@ -869,6 +871,9 @@ spec:
                     type: string
                   source:
                     properties:
+                      chart:
+                        description: Chart is a Helm chart name
+                        type: string
                       directory:
                         description: Directory holds path/directory specific options
                         properties:
@@ -986,8 +991,7 @@ spec:
                             type: string
                         type: object
                       path:
-                        description: Path is a directory path within the repository
-                          containing a
+                        description: Path is a directory path within the Git repository
                         type: string
                       plugin:
                         description: ConfigManagementPlugin holds config management
@@ -1021,7 +1025,6 @@ spec:
                         type: string
                     required:
                     - repoURL
-                    - path
                     type: object
                 required:
                 - revision
@@ -1086,6 +1089,9 @@ spec:
                             in the application. This is typically set in a Rollback
                             operation and nil during a Sync operation
                           properties:
+                            chart:
+                              description: Chart is a Helm chart name
+                              type: string
                             directory:
                               description: Directory holds path/directory specific
                                 options
@@ -1210,8 +1216,8 @@ spec:
                                   type: string
                               type: object
                             path:
-                              description: Path is a directory path within the repository
-                                containing a
+                              description: Path is a directory path within the Git
+                                repository
                               type: string
                             plugin:
                               description: ConfigManagementPlugin holds config management
@@ -1245,7 +1251,6 @@ spec:
                               type: string
                           required:
                           - repoURL
-                          - path
                           type: object
                         syncStrategy:
                           description: SyncStrategy describes how to perform the sync
@@ -1338,6 +1343,9 @@ spec:
                       description: Source records the application source information
                         of the sync, used for comparing auto-sync
                       properties:
+                        chart:
+                          description: Chart is a Helm chart name
+                          type: string
                         directory:
                           description: Directory holds path/directory specific options
                           properties:
@@ -1458,8 +1466,7 @@ spec:
                               type: string
                           type: object
                         path:
-                          description: Path is a directory path within the repository
-                            containing a
+                          description: Path is a directory path within the Git repository
                           type: string
                         plugin:
                           description: ConfigManagementPlugin holds config management
@@ -1493,7 +1500,6 @@ spec:
                           type: string
                       required:
                       - repoURL
-                      - path
                       type: object
                   required:
                   - revision
@@ -1567,6 +1573,9 @@ spec:
                       type: object
                     source:
                       properties:
+                        chart:
+                          description: Chart is a Helm chart name
+                          type: string
                         directory:
                           description: Directory holds path/directory specific options
                           properties:
@@ -1687,8 +1696,7 @@ spec:
                               type: string
                           type: object
                         path:
-                          description: Path is a directory path within the repository
-                            containing a
+                          description: Path is a directory path within the Git repository
                           type: string
                         plugin:
                           description: ConfigManagementPlugin holds config management
@@ -1722,7 +1730,6 @@ spec:
                           type: string
                       required:
                       - repoURL
-                      - path
                       type: object
                   required:
                   - source

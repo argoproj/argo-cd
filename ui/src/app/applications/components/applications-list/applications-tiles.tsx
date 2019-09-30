@@ -58,7 +58,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                 <div className='columns small-9'>{app.spec.source.targetRevision || 'latest'}</div>
                             </div>
                             <div className='row'>
-                                <div className='columns small-3'>Git Path/Helm Chart:</div>
+                                <div className='columns small-3'>Path:</div>
                                 <div className='columns small-9'>{app.spec.source.path}</div>
                             </div>
                             <div className='row'>

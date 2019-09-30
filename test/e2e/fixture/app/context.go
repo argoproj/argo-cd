@@ -16,6 +16,7 @@ import (
 type Context struct {
 	t           *testing.T
 	path        string
+	chart       string
 	repoURLType fixture.RepoURLType
 	// seconds
 	timeout                int
@@ -93,6 +94,11 @@ func (c *Context) RepoURLType(urlType fixture.RepoURLType) *Context {
 
 func (c *Context) Path(path string) *Context {
 	c.path = path
+	return c
+}
+
+func (c *Context) Chart(chart string) *Context {
+	c.chart = chart
 	return c
 }
 

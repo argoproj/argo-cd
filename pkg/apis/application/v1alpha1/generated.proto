@@ -116,7 +116,7 @@ message ApplicationSource {
   // RepoURL is the repository URL of the application manifests
   optional string repoURL = 1;
 
-  // Path is a directory path within the repository containing a
+  // Path is a directory path within the Git repository
   optional string path = 2;
 
   // TargetRevision defines the commit, tag, or branch in which to sync the application to.
@@ -137,6 +137,9 @@ message ApplicationSource {
 
   // ConfigManagementPlugin holds config management plugin specific options
   optional ApplicationSourcePlugin plugin = 11;
+
+  // Chart is a Helm chart name
+  optional string chart = 12;
 }
 
 message ApplicationSourceDirectory {

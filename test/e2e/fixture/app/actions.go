@@ -106,9 +106,16 @@ func (a *Actions) Create() *Actions {
 	args := []string{
 		"app", "create", a.context.name,
 		"--repo", fixture.RepoURL(a.context.repoURLType),
-		"--path", a.context.path,
 		"--dest-server", a.context.destServer,
 		"--dest-namespace", fixture.DeploymentNamespace(),
+	}
+
+	if a.context.path != "" {
+		args = append(args, "--path", a.context.path)
+	}
+
+	if a.context.chart != "" {
+		args = append(args, "--helm-chart", a.context.chart)
 	}
 
 	if a.context.env != "" {
