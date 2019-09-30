@@ -942,6 +942,10 @@ func TestProjectMaintenance_ActiveWindows(t *testing.T) {
 		proj.Spec.Maintenance.Windows = append(proj.Spec.Maintenance.Windows, window2)
 		assert.Equal(t, 2, len(proj.Spec.Maintenance.ActiveWindows()))
 	})
+	t.Run("None", func(t *testing.T) {
+		proj.Spec.Maintenance.Windows = ProjectMaintenanceWindows{}
+		assert.Equal(t, 0, len(proj.Spec.Maintenance.ActiveWindows()))
+	})
 
 }
 
@@ -1053,3 +1057,20 @@ func newTestApp() *Application {
 	}
 	return a
 }
+
+func TestAppProjectSpec_AddMaintenance(t *testing.T) {
+	proj := newTestProject()
+	t.Run("AddMaintenance", func(t *testing.T) {
+		proj.Spec.AddMaintenance()
+		assert.NotNil(t, proj.Spec.Maintenance)
+	})
+}
+
+func TestProjectMaintenanceWindow_Active(t *testing.T) {
+	window := &ProjectMaintenanceWindow{Schedule: "* * * * *", Duration: "1h"}
+	t.Run("ActiveWindow", func(t *testing.T) {
+		window.Active()
+		assert.True(t, window.Active())
+	})
+}
+

@@ -1185,7 +1185,6 @@ func (p *AppProject) ValidateProject() error {
 				return err
 			}
 			if len(window.Applications) == 0 && len(window.Namespaces) == 0 && len(window.Clusters) == 0 {
-				fmt.Println(window)
 				return status.Errorf(codes.OutOfRange, "window '%s':'%s' requires one of application, cluster or namespace", window.Schedule, window.Duration)
 			}
 			existingWindows[window.Schedule] = window.Duration
