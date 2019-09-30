@@ -198,7 +198,7 @@ func printRepoTable(repos appsv1.Repositories) {
 	_, _ = fmt.Fprintf(w, "TYPE\tNAME\tREPO\tINSECURE\tLFS\tCREDS\tSTATUS\tMESSAGE\n")
 	for _, r := range repos {
 		var hasCreds string
-		if r.Username == "" {
+		if !r.HasCredentials() {
 			hasCreds = "false"
 		} else {
 			if r.InheritedCreds {
