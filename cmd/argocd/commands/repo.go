@@ -220,8 +220,8 @@ func printRepoUrls(repos appsv1.Repositories) {
 // NewRepoListCommand returns a new instance of an `argocd repo rm` command
 func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		output       string
-		forceRefresh bool
+		output  string
+		refresh string
 	)
 	var command = &cobra.Command{
 		Use:   "list",
@@ -229,6 +229,14 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
 			defer util.Close(conn)
+			forceRefresh := false
+			switch refresh {
+			case "":
+			case "hard":
+				forceRefresh = true
+			default:
+				fmt.Printf("--refresh must be empty or 'hard'")
+			}
 			repos, err := repoIf.ListRepositories(context.Background(), &repositorypkg.RepoQuery{ForceRefresh: forceRefresh})
 			errors.CheckError(err)
 			if output == "url" {
@@ -239,6 +247,6 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|url")
-	command.Flags().BoolVar(&forceRefresh, "force-refresh", false, "Force a cache refresh on connection status")
+	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status")
 	return command
 }
