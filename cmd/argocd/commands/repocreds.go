@@ -39,14 +39,11 @@ func NewRepoCredsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 // NewRepoCredsAddCommand returns a new instance of an `argocd repo add` command
 func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		repo                           appsv1.Repository
-		upsert                         bool
-		sshPrivateKeyPath              string
-		insecureIgnoreHostKey          bool
-		insecureSkipServerVerification bool
-		tlsClientCertPath              string
-		tlsClientCertKeyPath           string
-		enableLfs                      bool
+		repo                 appsv1.Repository
+		upsert               bool
+		sshPrivateKeyPath    string
+		tlsClientCertPath    string
+		tlsClientCertKeyPath string
 	)
 
 	// For better readability and easier formatting
