@@ -1205,6 +1205,11 @@ kubectl -n argocd patch secret argocd-secret <span class="se">\</span>
 uses only internally available Helm repositories. Even if the chart uses only dependencies from internal repos Helm might decide to refresh <code>stable</code> repo. As workaround override
 <code>stable</code> repo URL in <code>argocd-cm</code> config map:</p>
 <div class="codehilite"><pre><span></span><span class="nt">data</span><span class="p">:</span>
+  <span class="c1"># v1.2 or earlier use `helm.repositories`</span>
+  <span class="nt">helm.repositories</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">- url: http://&lt;internal-helm-repo-host&gt;:8080</span>
+      <span class="no">name: stable</span>
+  <span class="c1"># v1.3 or later use `repositories` with `type: helm`</span>
   <span class="nt">repositories</span><span class="p">:</span> <span class="p p-Indicator">|</span>
     <span class="no">- type: helm</span>
       <span class="no">url: http://&lt;internal-helm-repo-host&gt;:8080</span>

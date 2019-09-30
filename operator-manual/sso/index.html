@@ -1222,7 +1222,11 @@ inputted into the Argo CD configmap.</p>
 <p>NOTES:</p>
 <ul>
 <li>Any values which start with '$' will look to a key in argocd-secret of the same name (minus the $),
-  to obtain the actual value. This allows you to store the <code>clientSecret</code> as a kubernetes secret.</li>
+  to obtain the actual value. This allows you to store the <code>clientSecret</code> as a kubernetes secret.<ul>
+<li>If you are editing the secret using <code>kubectl edit secret</code> remember that the <code>data</code> field expects a base64 encoded value (<code>echo -n "&lt;CLIENT_SECRET&gt;" | base64</code>).</li>
+<li>The error: <em>Failed to authenticate: github: get user: github: get URL Get https://api.github.com/user: oauth2: token expired and refresh token is not set</em> can be attributed to the secret value not being interpreted correctly by dex (e.g. incorrect client secret value).</li>
+</ul>
+</li>
 <li>There is no need to set <code>redirectURI</code> in the <code>connectors.config</code> as shown in the dex documentation.
   Argo CD will automatically use the correct <code>redirectURI</code> for any OAuth2 connectors, to match the
   correct external callback URL (e.g. https://argocd.example.com/api/dex/callback)</li>

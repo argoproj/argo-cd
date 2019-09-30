@@ -1682,6 +1682,11 @@ may need to configure access credentials and HTTPS settings using <code>username
     <span class="nt">app.kubernetes.io/name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
     <span class="nt">app.kubernetes.io/part-of</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
 <span class="nt">data</span><span class="p">:</span>
+  <span class="c1"># v1.2 or earlier use `helm.repositories`</span>
+  <span class="nt">helm.repositories</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">- url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts</span>
+      <span class="no">name: istio.io</span>
+  <span class="c1"># v1.3 or later use `repositories` with `type: helm`</span>
   <span class="nt">repositories</span><span class="p">:</span> <span class="p p-Indicator">|</span>
     <span class="no">- type: helm</span>
       <span class="no">url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts</span>

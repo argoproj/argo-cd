@@ -1059,8 +1059,22 @@
 </pre></div>
 
 
+<blockquote>
+<p>&lt;=v1.2</p>
+</blockquote>
+<p>Then pass using the HTTP <code>SetCookie</code> header, prefixing with <code>argocd.token</code>:</p>
+<div class="codehilite"><pre><span></span>$ curl <span class="nv">$ARGOCD_SERVER</span>/api/v1/applications --cookie <span class="s2">&quot;argocd.token=</span><span class="nv">$ARGOCD_TOKEN</span><span class="s2">&quot;</span> 
+<span class="o">{</span><span class="s2">&quot;metadata&quot;</span>:<span class="o">{</span><span class="s2">&quot;selfLink&quot;</span>:<span class="s2">&quot;/apis/argoproj.io/v1alpha1/namespaces/argocd/applications&quot;</span>,<span class="s2">&quot;resourceVersion&quot;</span>:<span class="s2">&quot;37755&quot;</span><span class="o">}</span>,<span class="s2">&quot;items&quot;</span>:...<span class="o">}</span>
+</pre></div>
+
+
+<blockquote>
+<blockquote>
+<p>v1.3</p>
+</blockquote>
+</blockquote>
 <p>Then pass using the HTTP <code>Authorization</code> header, prefixing with <code>Bearer</code>:</p>
-<div class="codehilite"><pre><span></span>$ $ curl <span class="nv">$ARGOCD_SERVER</span>/api/v1/applications -H <span class="s2">&quot;Authorization: Bearer </span><span class="nv">$ARGOCD_TOKEN</span><span class="s2">&quot;</span> 
+<div class="codehilite"><pre><span></span>$ curl <span class="nv">$ARGOCD_SERVER</span>/api/v1/applications -H <span class="s2">&quot;Authorization: Bearer </span><span class="nv">$ARGOCD_TOKEN</span><span class="s2">&quot;</span> 
 <span class="o">{</span><span class="s2">&quot;metadata&quot;</span>:<span class="o">{</span><span class="s2">&quot;selfLink&quot;</span>:<span class="s2">&quot;/apis/argoproj.io/v1alpha1/namespaces/argocd/applications&quot;</span>,<span class="s2">&quot;resourceVersion&quot;</span>:<span class="s2">&quot;37755&quot;</span><span class="o">}</span>,<span class="s2">&quot;items&quot;</span>:...<span class="o">}</span>
 </pre></div>
 

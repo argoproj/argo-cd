@@ -458,6 +458,40 @@
     Scaling Up
   </a>
   
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#argocd-repo-server" title="argocd-repo-server" class="md-nav__link">
+    argocd-repo-server
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#argocd-application-controller" title="argocd-application-controller" class="md-nav__link">
+    argocd-application-controller
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#argocd-server" title="argocd-server" class="md-nav__link">
+    argocd-server
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#argocd-dex-server-argocd-redis" title="argocd-dex-server, argocd-redis" class="md-nav__link">
+    argocd-dex-server, argocd-redis
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
       
@@ -1029,6 +1063,40 @@
     Scaling Up
   </a>
   
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#argocd-repo-server" title="argocd-repo-server" class="md-nav__link">
+    argocd-repo-server
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#argocd-application-controller" title="argocd-application-controller" class="md-nav__link">
+    argocd-application-controller
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#argocd-server" title="argocd-server" class="md-nav__link">
+    argocd-server
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#argocd-dex-server-argocd-redis" title="argocd-dex-server, argocd-redis" class="md-nav__link">
+    argocd-dex-server, argocd-redis
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
       
@@ -1059,12 +1127,67 @@
 <p>The HA installation will require at least three different nodes due to pod anti-affinity roles in the specs.</p>
 </div>
 <h2 id="scaling-up">Scaling Up<a class="headerlink" href="#scaling-up" title="Permanent link">&para;</a></h2>
-<p>You might scale up some Argo CD services in the following circumstances:</p>
+<h3 id="argocd-repo-server">argocd-repo-server<a class="headerlink" href="#argocd-repo-server" title="Permanent link">&para;</a></h3>
+<p><strong>settings:</strong></p>
+<p>The <code>argocd-repo-server</code> is responsible for cloning Git repository, keeping it up to date and generating manifests using the appropriate tool.</p>
 <ul>
-<li>The <code>argocd-repo-server</code> can scale up when there is too much contention on a single git repo (e.g. many apps defined in a single git repo).</li>
-<li>The <code>argocd-server</code> can scale up to support more front-end load.</li>
+<li>
+<p><code>argocd-repo-server</code> fork/exec config management tool to generate manifests. The fork can fail due to lack of memory and limit on the number of OS threads.
+The <code>--parallelismlimit</code> flag controls how many manifests generations are running concurrently and allows avoiding OOM kills.</p>
+</li>
+<li>
+<p>one instance of <code>argocd-repo-server</code> executes only one operation on one Git repo concurrently. Increase the number of <code>argocd-repo-server</code> replica count if you have a lot of
+applications in the same repository.</p>
+</li>
+<li>
+<p><code>argocd-repo-server</code> clones repository into <code>/tmp</code> ( of path specified in <code>TMPDIR</code> env variable ). Pod might run out of disk space if have too many repository
+or repositories has a lot of files. To avoid this problem mount persistent volume.</p>
+</li>
+<li>
+<p><code>argocd-repo-server</code> <code>git ls-remote</code> to resolve ambiguous revision such as <code>HEAD</code>, branch or tag name. This operation is happening pretty frequently
+and might fail. To avoid failed syncs use <code>ARGOCD_GIT_ATTEMPTS_COUNT</code> environment variable to retry failed requests.</p>
+</li>
 </ul>
-<p>All other services should run with their pre-determined number of replicas. The <code>argocd-application-controller</code> must not be increased because multiple controllers will fight. The <code>argocd-dex-server</code> uses an in-memory database, and two or more instances would have inconsistent data. <code>argocd-redis</code> is pre-configured with the understanding of only three total redis servers/sentinels.</p>
+<p><strong>metrics:</strong></p>
+<ul>
+<li><code>argocd_git_request_total</code> - Number of git requests. The metric provides two tags: <code>repo</code> - Git repo URL; <code>request_type</code> - <code>ls-remote</code> or <code>fetch</code>.</li>
+</ul>
+<h3 id="argocd-application-controller">argocd-application-controller<a class="headerlink" href="#argocd-application-controller" title="Permanent link">&para;</a></h3>
+<p><strong>settings:</strong></p>
+<p>The <code>argocd-application-controller</code> uses <code>argocd-repo-server</code> to get generated manifests and Kubernetes API server to get actual cluster state.</p>
+<ul>
+<li>
+<p>controller uses two separate queues to process application reconciliation (milliseconds) and app syncing (seconds). Number of queue processors for each queue is controlled by
+<code>--status-processors</code> (20 by default) and <code>--operation-processors</code> (10 by default) flags. Increase number of processors if your Argo CD instance manages too many applications.
+For 1000 application we use 50 for <code>--status-processors</code> and 25 for <code>--operation-processors</code></p>
+</li>
+<li>
+<p>The manifest generation typically takes the most time during reconciliation. The duration of manifest generation is limited to make sure controller refresh queue does not overflow.
+The app reconciliation fails with <code>Context deadline exceeded</code> error if manifest generating taking too much time. As workaround increase value of <code>--repo-server-timeout-seconds</code> and
+consider scaling up <code>argocd-repo-server</code> deployment.</p>
+</li>
+<li>
+<p>controller uses <code>kubectl</code> fork/exec to push changes into the cluster and to convert resource from preferred version into user specified version
+(e.g. Deployment <code>apps/v1</code> into <code>extensions/v1beta1</code>). Same as config management tool <code>kubectl</code> fork/exec might cause pod OOM kill. Use <code>--kubectl-parallelism-limit</code> flag to limit
+number of allowed concurrent kubectl fork/execs.</p>
+</li>
+<li>
+<p>controller uses Kubernetes watch APIs to maintain lightweight Kubernetes cluster cache. This allows to avoid querying Kubernetes during app reconciliation and significantly improve
+performance. For performance reasons controller monitors and caches only preferred the version of a resource. During reconciliation, the controller might have to convert cached resource from
+preferred version into a version of the resource stored in Git. If <code>kubectl convert</code> fails because conversion is not supported than controller fallback to Kubernetes API query which slows down
+reconciliation. In this case advice user-preferred resource version in Git.</p>
+</li>
+</ul>
+<p><strong>metrics</strong></p>
+<ul>
+<li><code>argocd_app_reconcile</code> - reports application reconciliation duration. Can be used to build reconciliation duration heat map to get high-level reconciliation performance picture.</li>
+<li><code>argocd_app_k8s_request_total</code> - number of k8s requests per application. The number of fallback Kubernetes API queries - useful to identify which application has a resource with
+non-preferred version and causes performance issues.</li>
+</ul>
+<h3 id="argocd-server">argocd-server<a class="headerlink" href="#argocd-server" title="Permanent link">&para;</a></h3>
+<p>The <code>argocd-server</code> is stateless and probably least likely to cause issues. You might consider increasing number of replicas to 3 or more to ensure there is no downtime during upgrades.</p>
+<h3 id="argocd-dex-server-argocd-redis">argocd-dex-server, argocd-redis<a class="headerlink" href="#argocd-dex-server-argocd-redis" title="Permanent link">&para;</a></h3>
+<p>The <code>argocd-dex-server</code> uses an in-memory database, and two or more instances would have inconsistent data. <code>argocd-redis</code> is pre-configured with the understanding of only three total redis servers/sentinels.</p>
                 
                   
                 
