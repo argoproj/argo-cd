@@ -57,8 +57,6 @@ Add a HTTPS repository using username/password and TLS client certificates:
   $ argocd repo add https://git.example.com/repos/repo --username git --password secret --tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key
 Add a HTTPS repository using username/password without verifying the server's TLS certificate
 	$ argocd repo add https://git.example.com/repos/repo --username git --password secret --insecure-skip-server-verification
-Add credentials to use for all repositories under https://git.example.com/repos
-  $ argocd repo add https://git.example.com/repos/ --creds --username git --password secret
 `
 
 	var command = &cobra.Command{

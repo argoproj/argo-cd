@@ -50,21 +50,17 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 	)
 
 	// For better readability and easier formatting
-	var repoAddExamples = `
-Add a SSH repository using a private key for authentication, ignoring the server's host key:
-  $ argocd repo add git@git.example.com/repos/repo --insecure-ignore-host-key --ssh-private-key-path ~/id_rsa
-Add a HTTPS repository using username/password and TLS client certificates:
-  $ argocd repo add https://git.example.com/repos/repo --username git --password secret --tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key
-Add a HTTPS repository using username/password without verifying the server's TLS certificate
-	$ argocd repo add https://git.example.com/repos/repo --username git --password secret --insecure-skip-server-verification
-Add credentials to use for all repositories under https://git.example.com/repos
-  $ argocd repo add https://git.example.com/repos/ --creds --username git --password secret
+	var repocredsAddExamples = `
+Add credentials with user/pass authentication to use for all repositories under https://git.example.com/repos
+  $ argocd repocreds add https://git.example.com/repos/ --username git --password secret
+Add credentials with SSH private key authentication to use for all repositories under https://git.example.com/repos
+  $ argocd repocreds add https://git.example.com/repos/ --ssh-private-key-path ~/.ssh/id_rsa
 `
 
 	var command = &cobra.Command{
 		Use:     "add REPOURL",
 		Short:   "Add git repository connection parameters",
-		Example: repoAddExamples,
+		Example: repocredsAddExamples,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
@@ -73,15 +69,6 @@ Add credentials to use for all repositories under https://git.example.com/repos
 
 			// Repository URL
 			repo.Repo = args[0]
-
-			if insecureIgnoreHostKey || insecureSkipServerVerification {
-				err := fmt.Errorf("--insecure-skip-server-verification and --insecure-ignore-host-key cannot be specified with --creds")
-				errors.CheckError(err)
-			}
-			if enableLfs {
-				err := fmt.Errorf("--enable-lfs cannot be specified with --creds")
-				errors.CheckError(err)
-			}
 
 			// Specifying ssh-private-key-path is only valid for SSH repositories
 			if sshPrivateKeyPath != "" {
