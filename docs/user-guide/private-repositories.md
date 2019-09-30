@@ -119,7 +119,7 @@ You can also set up credentials to serve as templates for connecting repositorie
 
 To set up a credential template using the Web UI, simply fill in all relevant credential information in the __Connect repo using SSH__ or __Connect repo using HTTPS__ dialogues (as described above), but select __Save as credential template__ instead of __Connect__ to save the credential template. Be sure to only enter the prefix URL (i.e. `https://github.com/argoproj`) instead of the complete repository URL (i.e. `https://github.com/argoproj/argocd-example-apps`) in the field __Repository URL__
 
-To manage credential templates using the CLI, use the `--creds` modifier to the sub-commands of `argocd repo`, for example `argocd repo add --creds https://github.com/argoproj --username youruser --password yourpass` would setup a credential template for the URL prefix `https://github.com/argoproj` using the specified username/password combination. The `--creds` modifier can also be used for the `argocd repo list` and `argocd repo rm` commands, respectively.
+To manage credential templates using the CLI, use the `repocreds` sub-command, for example `argocd repocreds add https://github.com/argoproj --username youruser --password yourpass` would setup a credential template for the URL prefix `https://github.com/argoproj` using the specified username/password combination. Similar to the `repo` sub-command, you can also list and remove repository credentials using the `argocd repocreds list` and `argocd repocreds rm` commands, respectively.
 
 In order for ArgoCD to use a credential template for any given repository, the following conditions must be met:
 
@@ -127,7 +127,7 @@ In order for ArgoCD to use a credential template for any given repository, the f
 * The URL configured for a credential template (e.g. `https://github.com/argoproj`) must match as prefix for the repository URL (e.g. `https://github.com/argoproj/argocd-example-apps`). 
 
 !!! note
-    Repositories can be added using CLI or Web UI without specifying credentials only after a matching credential has been set up
+    Repositories that require authentication can be added using CLI or Web UI without specifying credentials only after a matching repository credential has been set up
 
 !!! note
     Matching credential template URL prefixes is done on a _best match_ effort, so the longest (best) match will take precedence. The order of definition is not important, as opposed to pre v1.4 configuration.
@@ -140,7 +140,7 @@ $ argocd repo add https://docker-build/repos/argocd-example-apps
 FATA[0000] rpc error: code = Unknown desc = authentication required 
 
 # Setup a credential template for all repos under https://docker-build/repos
-$ argocd repo add --creds https://docker-build/repos --username test --password test
+$ argocd repocreds add https://docker-build/repos --username test --password test
 repository credentials for 'https://docker-build/repos' added
 
 # Repeat first step, add repo without specifying credentials
