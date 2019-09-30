@@ -1,6 +1,8 @@
 package helm
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -13,11 +15,10 @@ import (
 	"strings"
 	"time"
 
+	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
-
-	argoexec "github.com/argoproj/pkg/exec"
 
 	"github.com/argoproj/argo-cd/util"
 )
@@ -39,7 +40,7 @@ type Index struct {
 type Creds struct {
 	Username string
 	Password string
-	CAData   []byte
+	CAPath   string
 	CertData []byte
 	KeyData  []byte
 }
@@ -168,11 +169,18 @@ func (c *nativeHelmChart) GetIndex() (*Index, error) {
 	if err != nil {
 		return nil, err
 	}
-	if c.creds.Username != "" {
+	if c.creds.Username != "" || c.creds.Password != "" {
 		// only basic supported
 		req.SetBasicAuth(c.creds.Username, c.creds.Password)
 	}
-	resp, err := http.DefaultClient.Do(req)
+
+	tlsConf, err := newTLSConfig(c.creds)
+	if err != nil {
+		return nil, err
+	}
+	tr := &http.Transport{TLSClientConfig: tlsConf}
+	client := http.Client{Transport: tr}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -190,6 +198,32 @@ func (c *nativeHelmChart) GetIndex() (*Index, error) {
 	indexCache.Set(c.repoURL, *index, cache.DefaultExpiration)
 
 	return index, err
+}
+
+func newTLSConfig(creds Creds) (*tls.Config, error) {
+	tlsConfig := &tls.Config{InsecureSkipVerify: false}
+
+	if creds.CAPath != "" {
+		caData, err := ioutil.ReadFile(creds.CAPath)
+		if err != nil {
+			return nil, err
+		}
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM(caData)
+		tlsConfig.RootCAs = caCertPool
+	}
+
+	// If a client cert & key is provided then configure TLS config accordingly.
+	if len(creds.CertData) > 0 && len(creds.KeyData) > 0 {
+		cert, err := tls.X509KeyPair(creds.CertData, creds.KeyData)
+		if err != nil {
+			return nil, err
+		}
+		tlsConfig.Certificates = []tls.Certificate{cert}
+	}
+	tlsConfig.BuildNameToCertificate()
+
+	return tlsConfig, nil
 }
 
 func (c *nativeHelmChart) getChartPath(chart string, version string) string {

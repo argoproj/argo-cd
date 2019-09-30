@@ -3404,10 +3404,6 @@
           "type": "string",
           "title": "SSH private key data for authenticating at the repo server\nonly for Git repos"
         },
-        "tlsClientCaData": {
-          "type": "string",
-          "title": "only for Helm repos"
-        },
         "tlsClientCertData": {
           "type": "string",
           "title": "TLS client cert data for authenticating at the repo server"

@@ -118,8 +118,6 @@ type RepoCredentials struct {
 	TLSClientCertDataSecret *apiv1.SecretKeySelector `json:"tlsClientCertDataSecret,omitempty"`
 	// Name of the secret storing the TLS client cert's key data
 	TLSClientCertKeySecret *apiv1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
-	// The CA secret for TLS client cert. Helm only
-	TLSClientCASecret *apiv1.SecretKeySelector `json:"tlsClientCertCaSecret,omitempty"`
 }
 
 const (

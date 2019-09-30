@@ -56,8 +56,7 @@ message RepoAccessQuery {
 	string tlsClientCertData = 6;
 	// TLS client cert key for accessing HTTPS repository
 	string tlsClientCertKey = 7;
-	// TLS client CA data for accessing HTTPS repository
-	string tlsClientCAData = 8;
+	// The type of the repo
 	string type = 9;
 	// The name of the repo
 	string name = 10;

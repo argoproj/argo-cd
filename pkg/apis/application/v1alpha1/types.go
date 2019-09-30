@@ -999,12 +999,10 @@ type Repository struct {
 	TLSClientCertData string `json:"tlsClientCertData,omitempty" protobuf:"bytes,9,opt,name=tlsClientCertData"`
 	// TLS client cert key for authenticating at the repo server
 	TLSClientCertKey string `json:"tlsClientCertKey,omitempty" protobuf:"bytes,10,opt,name=tlsClientCertKey"`
-	// only for Helm repos
-	TLSClientCAData string `json:"tlsClientCaData,omitempty" protobuf:"bytes,11,opt,name=tlsClientCaData"`
 	// type of the repo, maybe "git or "helm, "git" is assumed if empty or absent
-	Type string `json:"type,omitempty" protobuf:"bytes,12,opt,name=type"`
+	Type string `json:"type,omitempty" protobuf:"bytes,11,opt,name=type"`
 	// only for Helm repos
-	Name string `json:"name,omitempty" protobuf:"bytes,13,opt,name=name"`
+	Name string `json:"name,omitempty" protobuf:"bytes,12,opt,name=name"`
 }
 
 func (repo *Repository) IsInsecure() bool {
@@ -1035,9 +1033,6 @@ func (repo *Repository) CopyCredentialsFrom(source *Repository) {
 		if repo.TLSClientCertKey == "" {
 			repo.TLSClientCertKey = source.TLSClientCertKey
 		}
-		if repo.TLSClientCAData == "" {
-			repo.TLSClientCAData = source.TLSClientCAData
-		}
 	}
 }
 
@@ -1046,7 +1041,7 @@ func (repo *Repository) GetGitCreds() git.Creds {
 		return git.NopCreds{}
 	}
 	if repo.Username != "" && repo.Password != "" {
-		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.TLSClientCertData, repo.TLSClientCertKey, repo.TLSClientCAData, repo.IsInsecure())
+		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure())
 	}
 	if repo.SSHPrivateKey != "" {
 		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure())
@@ -1058,7 +1053,7 @@ func (repo *Repository) GetHelmCreds() helm.Creds {
 	return helm.Creds{
 		Username: repo.Username,
 		Password: repo.Password,
-		CAData:   []byte(repo.TLSClientCAData),
+		CAPath:   getCAPath(repo.Repo),
 		CertData: []byte(repo.TLSClientCertData),
 		KeyData:  []byte(repo.TLSClientCertKey),
 	}
@@ -1067,7 +1062,7 @@ func (repo *Repository) GetHelmCreds() helm.Creds {
 func getCAPath(repoURL string) string {
 	if git.IsHTTPSURL(repoURL) {
 		if parsedURL, err := url.Parse(repoURL); err == nil {
-			if caPath, err := cert.GetCertBundlePathForRepository(parsedURL.Host); err != nil {
+			if caPath, err := cert.GetCertBundlePathForRepository(parsedURL.Host); err == nil {
 				return caPath
 			} else {
 				log.Warnf("Could not get cert bundle path for host '%s'", parsedURL.Host)

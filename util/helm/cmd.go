@@ -56,23 +56,15 @@ func (c *Cmd) RepoAdd(name, url string, opts Creds) (string, error) {
 	args := []string{"repo", "add"}
 
 	if opts.Username != "" {
-		args = append([]string{"--username", opts.Username}, args...)
+		args = append(args, "--username", opts.Username)
 	}
 
 	if opts.Password != "" {
-		args = append([]string{"--password", opts.Password}, args...)
+		args = append(args, "--password", opts.Password)
 	}
 
-	if len(opts.CAData) > 0 {
-		caFile, err := ioutil.TempFile("", "helm")
-		if err != nil {
-			return "", err
-		}
-		_, err = caFile.Write(opts.CAData)
-		if err != nil {
-			return "", err
-		}
-		args = append([]string{"--ca-file", caFile.Name()}, args...)
+	if opts.CAPath != "" {
+		args = append(args, "--ca-file", opts.CAPath)
 	}
 
 	if len(opts.CertData) > 0 {
@@ -84,7 +76,7 @@ func (c *Cmd) RepoAdd(name, url string, opts Creds) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		args = append([]string{"--cert-file", certFile.Name()}, args...)
+		args = append(args, "--cert-file", certFile.Name())
 	}
 
 	if len(opts.KeyData) > 0 {
@@ -96,7 +88,7 @@ func (c *Cmd) RepoAdd(name, url string, opts Creds) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		args = append([]string{"--key-file", keyFile.Name()}, args...)
+		args = append(args, "--key-file", keyFile.Name())
 	}
 
 	args = append(args, name, url)
@@ -135,13 +127,8 @@ func (c *Cmd) Fetch(repo, chartName string, version string, opts Creds) (string,
 	if opts.Password != "" {
 		args = append(args, "--password", opts.Password)
 	}
-	if len(opts.CAData) > 0 {
-		filePath, closer, err := writeToTmp(opts.CAData)
-		if err != nil {
-			return "", err
-		}
-		defer util.Close(closer)
-		args = append(args, "--ca-file", filePath)
+	if opts.CAPath != "" {
+		args = append(args, "--ca-file", opts.CAPath)
 	}
 	if len(opts.CertData) > 0 {
 		filePath, closer, err := writeToTmp(opts.CertData)

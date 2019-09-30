@@ -10,8 +10,6 @@ import (
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
-	"github.com/argoproj/argo-cd/test/fixture/testrepos"
-	"github.com/argoproj/argo-cd/util/settings"
 )
 
 func TestHelmHooksAreCreated(t *testing.T) {
@@ -99,11 +97,8 @@ func TestDeclarativeHelmInvalidValuesFile(t *testing.T) {
 
 func TestHelmRepo(t *testing.T) {
 	Given(t).
-		Repos(settings.RepoCredentials{
-			Type: "helm",
-			Name: "testrepo",
-			URL:  testrepos.HelmTestRepo,
-		}).
+		CustomCACertAdded().
+		HelmRepoAdded().
 		RepoURLType(RepoURLTypeHelm).
 		Chart("helm").
 		Revision("1.0.0").
