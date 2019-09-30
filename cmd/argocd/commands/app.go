@@ -211,6 +211,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			pConn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(pConn)
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: app.Spec.Project})
+			errors.CheckError(err)
 
 			active := proj.Spec.Maintenance.ActiveWindows()
 			_, win := active.Match(app)

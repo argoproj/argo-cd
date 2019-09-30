@@ -809,10 +809,24 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		app.Status.Summary = tree.GetSummary()
 	}
 
-	syncErrCond := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources)
-	if syncErrCond != nil {
-		app.Status.SetConditions([]appv1.ApplicationCondition{*syncErrCond}, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true})
+	var sErr bool
+	project, err := ctrl.getAppProj(app)
+	if err != nil {
+		logCtx.Infof("Could not lookup project for %s in order to check maintenance state", app.Name)
 	} else {
+		active := project.Spec.Maintenance.ActiveWindows()
+		match, _ := active.Match(app)
+		if match {
+			logCtx.Infof("Maintenance window active, skipping sync")
+		} else {
+			syncErrCond := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources)
+			if syncErrCond != nil {
+				sErr = true
+				app.Status.SetConditions([]appv1.ApplicationCondition{*syncErrCond}, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true})
+			}
+		}
+	}
+	if !sErr {
 		app.Status.SetConditions([]appv1.ApplicationCondition{}, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true})
 	}
 
@@ -970,19 +984,6 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		return nil
 	}
 
-	//// Only perform sync if there are no active maintenance windows
-	project, err := ctrl.getAppProj(app)
-	if err != nil {
-		logCtx.Infof("Could not lookup project")
-		return nil
-	}
-	active := project.Spec.Maintenance.ActiveWindows()
-	match, _ := active.Match(app)
-	if match {
-		logCtx.Infof("Maintenance window active")
-		return nil
-	}
-
 	// Only perform auto-sync if we detect OutOfSync status. This is to prevent us from attempting
 	// a sync when application is already in a Synced or Unknown state
 	if syncStatus.Status != appv1.SyncStatusCodeOutOfSync {
@@ -1036,7 +1037,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	}
 
 	appIf := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
-	_, err = argo.SetAppOperation(appIf, app.Name, &op)
+	_, err := argo.SetAppOperation(appIf, app.Name, &op)
 	if err != nil {
 		logCtx.Errorf("Failed to initiate auto-sync to %s: %v", desiredCommitSHA, err)
 		return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}

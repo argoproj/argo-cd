@@ -8,7 +8,9 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"time"
 
+	"github.com/robfig/cron"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"gopkg.in/yaml.v2"
@@ -20,10 +22,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
-
-	"time"
-
-	"github.com/robfig/cron"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/util/git"
