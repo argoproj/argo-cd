@@ -122,6 +122,16 @@ argocd app create guestbook \
   --dest-namespace default
 ~~~
 
+When using external clusters `--dest-name` flag can be used to specify the destination cluster name and it can replace `--dest-server`.
+
+~~~bash
+argocd app create guestbook \
+  --repo https://github.com/argoproj/argocd-example-apps.git \
+  --path guestbook \
+  --dest-name docker-for-desktop \
+  --dest-namespace default
+~~~
+
 ### Creating Apps Via UI
 
 Open a browser to the Argo CD external UI, and login using the credentials, IP/hostname set in step 4.

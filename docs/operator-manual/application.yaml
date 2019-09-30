@@ -64,11 +64,11 @@ spec:
         - name: FOO
           value: bar
 
-  # Destination cluster and namespace to deploy the application
+  # Destination cluster, name and namespace to deploy the application (for external cluster you can use either server or name)
   destination:
     server: https://kubernetes.default.svc
     namespace: guestbook
-
+    name: minikube
   # Sync policy
   syncPolicy:
     automated:

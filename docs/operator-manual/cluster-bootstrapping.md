@@ -53,7 +53,7 @@ The sync policy to automated + prune, so that child app is are automatically cre
 
 Fix the revision to a specific Git commit SHA to make sure that, even if the child apps repo changes, the app will only change when the parent app change that revision. Alternatively, you can set it to HEAD or a branch name.
 
-As you probably want to override the cluster server, this is a templated values.
+As you probably want to override the cluster server, this is a templated values. Please note that instead of server you can also use the name field.
 
 `values.yaml` contains the default values:
 
