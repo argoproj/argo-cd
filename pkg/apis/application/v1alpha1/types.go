@@ -1062,6 +1062,7 @@ func (m *Repository) CopySettingsFrom(source *Repository) {
 		m.EnableLFS = source.EnableLFS
 		m.InsecureIgnoreHostKey = source.InsecureIgnoreHostKey
 		m.Insecure = source.Insecure
+		m.InheritedCreds = source.InheritedCreds
 	}
 }
 

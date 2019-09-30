@@ -239,6 +239,7 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 			return nil, err
 		}
 		repo.CopyCredentialsFrom(creds)
+		repo.CopySettingsFrom(creds)
 		err = argo.TestRepo(repo)
 		if err != nil {
 			return nil, err
