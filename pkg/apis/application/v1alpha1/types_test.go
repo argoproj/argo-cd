@@ -1073,4 +1073,3 @@ func TestProjectMaintenanceWindow_Active(t *testing.T) {
 		assert.True(t, window.Active())
 	})
 }
-
