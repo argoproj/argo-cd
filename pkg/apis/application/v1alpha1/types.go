@@ -1032,9 +1032,6 @@ func (m *Repository) CopyCredentialsFrom(source *Repository) {
 		if m.SSHPrivateKey == "" {
 			m.SSHPrivateKey = source.SSHPrivateKey
 		}
-		m.InsecureIgnoreHostKey = m.InsecureIgnoreHostKey || source.InsecureIgnoreHostKey
-		m.Insecure = m.Insecure || source.Insecure
-		m.EnableLFS = m.EnableLFS || source.EnableLFS
 		if m.TLSClientCertData == "" {
 			m.TLSClientCertData = source.TLSClientCertData
 		}
