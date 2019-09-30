@@ -235,7 +235,8 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			case "hard":
 				forceRefresh = true
 			default:
-				fmt.Printf("--refresh must be empty or 'hard'")
+				err := fmt.Errorf("--refresh must be one of: 'hard'")
+				errors.CheckError(err)
 			}
 			repos, err := repoIf.ListRepositories(context.Background(), &repositorypkg.RepoQuery{ForceRefresh: forceRefresh})
 			errors.CheckError(err)
