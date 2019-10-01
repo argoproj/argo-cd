@@ -520,6 +520,9 @@ message Repository {
 
   // only for Helm repos
   optional string name = 12;
+
+  // Whether credentials were inherited from a credential set
+  optional bool inheritedCreds = 13;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
