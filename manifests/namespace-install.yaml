@@ -2731,6 +2731,7 @@ spec:
       automountServiceAccountToken: false
       containers:
       - command:
+        - uid_entrypoint.sh
         - argocd-repo-server
         - --redis
         - argocd-redis:6379
