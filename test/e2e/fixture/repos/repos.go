@@ -56,6 +56,25 @@ func AddHTTPSRepoClientCert(insecure bool) {
 	errors.FailOnErr(fixture.RunCli(args...))
 }
 
+func AddHelmRepo() {
+	certPath, err := filepath.Abs("../fixture/certs/argocd-test-client.crt")
+	errors.CheckError(err)
+	keyPath, err := filepath.Abs("../fixture/certs/argocd-test-client.key")
+	errors.CheckError(err)
+
+	args := []string{
+		"repo",
+		"add",
+		fixture.RepoURL(fixture.RepoURLTypeHelm),
+		"--username", fixture.GitUsername,
+		"--password", fixture.GitPassword,
+		"--tls-client-cert-path", certPath,
+		"--tls-client-cert-key-path", keyPath,
+		"--type", "helm",
+	}
+	errors.FailOnErr(fixture.RunCli(args...))
+}
+
 // AddHTTPSRepoCredentialsUserPass adds E2E username/password credentials for HTTPS repos to context
 func AddHTTPSCredentialsUserPass() {
 	var repoURLType fixture.RepoURLType = fixture.RepoURLTypeHTTPS

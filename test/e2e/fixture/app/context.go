@@ -97,6 +97,11 @@ func (c *Context) SSHCredentialsAdded() *Context {
 	return c
 }
 
+func (c *Context) HelmRepoAdded() *Context {
+	repos.AddHelmRepo()
+	return c
+}
+
 func (c *Context) ProjectSpec(spec v1alpha1.AppProjectSpec) *Context {
 	fixture.SetProjectSpec(c.project, spec)
 	return c
@@ -177,11 +182,6 @@ func (c *Context) ResourceFilter(filter settings.ResourcesFilter) *Context {
 func (c *Context) ConfigManagementPlugin(plugin v1alpha1.ConfigManagementPlugin) *Context {
 	fixture.SetConfigManagementPlugins(plugin)
 	c.configManagementPlugin = plugin.Name
-	return c
-}
-
-func (c *Context) Repos(repos ...settings.RepoCredentials) *Context {
-	fixture.SetRepos(repos...)
 	return c
 }
 

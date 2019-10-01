@@ -4,27 +4,26 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
-	"os"
 	"path"
-	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/ghodss/yaml"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/config"
-	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/text"
 )
+
+type HelmRepository struct {
+	Creds
+	Name string
+	Repo string
+}
 
 // Helm provides wrapper functionality around the `helm` command.
 type Helm interface {
 	// Template returns a list of unstructured objects from a `helm template` command
-	Template(appName, namespace, kubeVersion string, opts *argoappv1.ApplicationSourceHelm) ([]*unstructured.Unstructured, error)
+	Template(opts *TemplateOpts) (string, error)
 	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
-	GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, error)
+	GetParameters(valuesFiles []string) (map[string]string, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
 	DependencyBuild() error
 	// Init runs `helm init --client-only`
@@ -34,17 +33,17 @@ type Helm interface {
 }
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
-func NewHelmApp(workDir string, repos argoappv1.Repositories) (Helm, error) {
+func NewHelmApp(workDir string, repos []HelmRepository) (Helm, error) {
 	cmd, err := NewCmd(workDir)
 	if err != nil {
 		return nil, err
 	}
-	return &helm{repos: &repos, cmd: *cmd}, nil
+	return &helm{repos: repos, cmd: *cmd}, nil
 }
 
 type helm struct {
 	cmd   Cmd
-	repos *argoappv1.Repositories
+	repos []HelmRepository
 }
 
 // IsMissingDependencyErr tests if the error is related to a missing chart dependency
@@ -52,50 +51,12 @@ func IsMissingDependencyErr(err error) bool {
 	return strings.Contains(err.Error(), "found in requirements.yaml, but missing in charts")
 }
 
-func (h *helm) Template(appName, namespace, kubeVersion string, opts *argoappv1.ApplicationSourceHelm) ([]*unstructured.Unstructured, error) {
-	templateOpts := templateOpts{
-		name:        appName,
-		namespace:   namespace,
-		kubeVersion: text.SemVer(kubeVersion),
-		set:         map[string]string{},
-		setString:   map[string]string{},
-	}
-	if opts != nil {
-		if opts.ReleaseName != "" {
-			templateOpts.name = opts.ReleaseName
-		}
-		templateOpts.values = opts.ValueFiles
-		if opts.Values != "" {
-			file, err := ioutil.TempFile("", "values-*.yaml")
-			if err != nil {
-				return nil, err
-			}
-			p := file.Name()
-			defer func() { _ = os.RemoveAll(p) }()
-			err = ioutil.WriteFile(p, []byte(opts.Values), 0644)
-			if err != nil {
-				return nil, err
-			}
-			templateOpts.values = append(templateOpts.values, p)
-		}
-		cleanHelmParameters(opts.Parameters)
-		for _, p := range opts.Parameters {
-			if p.ForceString {
-				templateOpts.setString[p.Name] = p.Value
-			} else {
-				templateOpts.set[p.Name] = p.Value
-			}
-		}
-	}
-	if templateOpts.name == "" {
-		templateOpts.name = appName
-	}
-
+func (h *helm) Template(templateOpts *TemplateOpts) (string, error) {
 	out, err := h.cmd.template(".", templateOpts)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return kube.SplitYAML(out)
+	return out, nil
 }
 
 func (h *helm) reposInitialized() bool {
@@ -104,14 +65,8 @@ func (h *helm) reposInitialized() bool {
 
 func (h *helm) DependencyBuild() error {
 	if !h.reposInitialized() {
-		for _, repo := range h.repos.Filter(func(r *argoappv1.Repository) bool { return r.Type == "helm" }) {
-			_, err := h.cmd.RepoAdd(repo.Name, repo.Repo, RepoAddOpts{
-				Username: repo.Username,
-				Password: repo.Password,
-				CAData:   []byte(repo.TLSClientCAData),
-				CertData: []byte(repo.TLSClientCertData),
-				KeyData:  []byte(repo.TLSClientCertKey),
-			})
+		for _, repo := range h.repos {
+			_, err := h.cmd.RepoAdd(repo.Name, repo.Repo, repo.Creds)
 
 			if err != nil {
 				return err
@@ -132,7 +87,7 @@ func (h *helm) Dispose() {
 	h.cmd.Close()
 }
 
-func (h *helm) GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, error) {
+func (h *helm) GetParameters(valuesFiles []string) (map[string]string, error) {
 	out, err := h.cmd.inspectValues(".")
 	if err != nil {
 		return nil, err
@@ -161,17 +116,7 @@ func (h *helm) GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, 
 		flatVals(values, output)
 	}
 
-	params := make([]*argoappv1.HelmParameter, 0)
-	for key, val := range output {
-		params = append(params, &argoappv1.HelmParameter{
-			Name:  key,
-			Value: val,
-		})
-	}
-	sort.Slice(params, func(i, j int) bool {
-		return params[i].Name < params[j].Name
-	})
-	return params, nil
+	return output, nil
 }
 
 func flatVals(input map[string]interface{}, output map[string]string, prefixes ...string) {
@@ -180,17 +125,6 @@ func flatVals(input map[string]interface{}, output map[string]string, prefixes .
 			flatVals(subMap, output, append(prefixes, fmt.Sprintf("%v", key))...)
 		} else {
 			output[strings.Join(append(prefixes, fmt.Sprintf("%v", key)), ".")] = fmt.Sprintf("%v", val)
-		}
-	}
-}
-
-func cleanHelmParameters(params []argoappv1.HelmParameter) {
-	re := regexp.MustCompile(`([^\\]),`)
-	for i, param := range params {
-		params[i] = argoappv1.HelmParameter{
-			Name:        param.Name,
-			Value:       re.ReplaceAllString(param.Value, `$1\,`),
-			ForceString: param.ForceString,
 		}
 	}
 }

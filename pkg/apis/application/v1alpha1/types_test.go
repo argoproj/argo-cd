@@ -547,7 +547,6 @@ func TestRepository_CopyCredentialsFrom(t *testing.T) {
 		{"InsecureHostKey", &Repository{InsecureIgnoreHostKey: true}, &Repository{}, Repository{InsecureIgnoreHostKey: true}},
 		{"Insecure", &Repository{Insecure: true}, &Repository{}, Repository{Insecure: true}},
 		{"EnableLFS", &Repository{EnableLFS: true}, &Repository{}, Repository{EnableLFS: true}},
-		{"TLSClientCAData", &Repository{TLSClientCAData: "foo"}, &Repository{}, Repository{TLSClientCAData: "foo"}},
 		{"TLSClientCertData", &Repository{TLSClientCertData: "foo"}, &Repository{}, Repository{TLSClientCertData: "foo"}},
 		{"TLSClientCertKey", &Repository{TLSClientCertKey: "foo"}, &Repository{}, Repository{TLSClientCertKey: "foo"}},
 		{"SourceNil", &Repository{}, nil, Repository{}},
@@ -558,7 +557,6 @@ func TestRepository_CopyCredentialsFrom(t *testing.T) {
 		{"SourceInsecureHostKey", &Repository{}, &Repository{InsecureIgnoreHostKey: true}, Repository{InsecureIgnoreHostKey: false}},
 		{"SourceInsecure", &Repository{}, &Repository{Insecure: true}, Repository{Insecure: false}},
 		{"SourceEnableLFS", &Repository{}, &Repository{EnableLFS: true}, Repository{EnableLFS: false}},
-		{"SourceTLSClientCAData", &Repository{}, &Repository{TLSClientCAData: "foo"}, Repository{TLSClientCAData: "foo"}},
 		{"SourceTLSClientCertData", &Repository{}, &Repository{TLSClientCertData: "foo"}, Repository{TLSClientCertData: "foo"}},
 		{"SourceTLSClientCertKey", &Repository{}, &Repository{TLSClientCertKey: "foo"}, Repository{TLSClientCertKey: "foo"}},
 	}

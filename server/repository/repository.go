@@ -367,7 +367,6 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		Insecure:          q.Insecure,
 		TLSClientCertData: q.TlsClientCertData,
 		TLSClientCertKey:  q.TlsClientCertKey,
-		TLSClientCAData:   q.TlsClientCAData,
 	}
 
 	var repoCreds *appsv1.Repository
