@@ -1033,6 +1033,10 @@ func TestProjectMaintenanceWindow_Update(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, []string{"cluster1"}, e.Clusters)
 	})
+	t.Run("MissingConfig", func(t *testing.T) {
+		err := e.Update([]string{}, []string{}, []string{})
+		assert.EqualError(t, err, "cannot update window: require one of application, namespace or cluster")
+	})
 }
 
 func newTestProjectWithMaintenance(w bool) *AppProject {
