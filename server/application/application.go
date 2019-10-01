@@ -880,6 +880,20 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	if err != nil {
 		return nil, err
 	}
+
+	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(a.Spec.GetProject(), metav1.GetOptions{})
+	if err != nil {
+		if apierr.IsNotFound(err) {
+			return a, status.Errorf(codes.InvalidArgument, "application references project %s which does not exist", a.Spec.Project)
+		}
+		return a, err
+	}
+	active := proj.Spec.Maintenance.ActiveWindows()
+	match, _ := active.Match(a)
+	if match {
+		s.logEvent(a, ctx, argo.EventReasonOperationCompleted, fmt.Sprint("Cannot sync: Maintenance Windows are active"))
+		return a, err
+	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionSync, appRBACName(*a)); err != nil {
 		return nil, err
 	}
@@ -1171,4 +1185,40 @@ func (s *Server) plugins() ([]*v1alpha1.ConfigManagementPlugin, error) {
 		tools[i] = &plugin
 	}
 	return tools, nil
+}
+
+func (s *Server) GetApplicationMaintenanceState(ctx context.Context, q *application.ApplicationMaintenanceQuery) (*application.ApplicationMaintenanceResponse, error) {
+	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
+	a, err := appIf.Get(*q.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
+		return nil, err
+	}
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, a.Spec.Project); err != nil {
+		return nil, err
+	}
+
+	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(a.Spec.Project, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	active := proj.Spec.Maintenance.ActiveWindows()
+	_, pWindows := active.Match(a)
+
+	var windows []string
+	for _, win := range pWindows {
+		w := win.Schedule + ":" + win.Duration
+		windows = append(windows, w)
+	}
+
+	res := &application.ApplicationMaintenanceResponse{
+		Windows: windows,
+	}
+
+	return res, nil
 }

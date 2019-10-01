@@ -53,6 +53,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Operation":                        schema_pkg_apis_application_v1alpha1_Operation(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OperationState":                   schema_pkg_apis_application_v1alpha1_OperationState(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings": schema_pkg_apis_application_v1alpha1_OrphanedResourcesMonitorSettings(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectMaintenance":               schema_pkg_apis_application_v1alpha1_ProjectMaintenance(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectMaintenanceWindow":         schema_pkg_apis_application_v1alpha1_ProjectMaintenanceWindow(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectRole":                      schema_pkg_apis_application_v1alpha1_ProjectRole(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Repository":                       schema_pkg_apis_application_v1alpha1_Repository(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RepositoryCertificate":            schema_pkg_apis_application_v1alpha1_RepositoryCertificate(ref),
@@ -286,11 +288,17 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings"),
 						},
 					},
+					"maintenance": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Maintenance controls when syncs can be run for apps in this project",
+							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectMaintenance"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectRole", "k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectMaintenance", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectRole", "k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"},
 	}
 }
 
@@ -1648,6 +1656,110 @@ func schema_pkg_apis_application_v1alpha1_OrphanedResourcesMonitorSettings(ref c
 							Description: "Warn indicates if warning condition should be created for apps which have orphaned resources",
 							Type:        []string{"boolean"},
 							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ProjectMaintenance(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Project Maintenance controls when syncs can be run for apps in a project",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled will allow maintenance windows to be active during their scheduled times",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"windows": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Windows contains the schedules for when syncs should be disabled",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectMaintenanceWindow"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectMaintenanceWindow"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ProjectMaintenanceWindow(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MaintenanceWindow contains the time, duration and attributes that are used to assign the windows to apps",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"schedule": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Schedule is the time the window will begin, specified in cron format",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"duration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Duration is the amount of time the maintenance window will be open",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"applications": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Applications contains a list of applications that the window will apply to",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
+					"namespaces": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Namespaces contains a list of namespaces that the window will apply to",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
+					"clusters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Clusters contains a list of clusters that the window will apply to",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
 						},
 					},
 				},

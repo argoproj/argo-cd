@@ -860,3 +860,218 @@ func TestApplicationSourceKustomize_MergeImage(t *testing.T) {
 		assert.Equal(t, KustomizeImages{"foo=2"}, k.Images)
 	})
 }
+
+func TestProjectMaintenance_AddWindow(t *testing.T) {
+	proj := newTestProjectWithMaintenance(true)
+	tests := []struct {
+		name string
+		p    *AppProject
+		s    string
+		d    string
+		a    []string
+		n    []string
+		c    []string
+		want string
+	}{
+		{"MissingConfig", proj, "", "", []string{}, []string{}, []string{}, "error"},
+		{"BadSchedule", proj, "* * *", "1h", []string{"app1"}, []string{}, []string{}, "error"},
+		{"BadDuration", proj, "* * * * *", "11", []string{"app1"}, []string{}, []string{}, "error"},
+		{"WorkingApplication", proj, "1 * * * *", "1h", []string{"app1"}, []string{}, []string{}, "noError"},
+		{"WorkingNamespace", proj, "2 * * * *", "1h", []string{}, []string{"prod"}, []string{}, "noError"},
+		{"WorkingCluster", proj, "3 * * * *", "1h", []string{}, []string{}, []string{"cluster"}, "noError"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.p.Spec.Maintenance.AddWindow(tt.s, tt.d, tt.a, tt.n, tt.c)
+			switch tt.want {
+			case "error":
+				assert.Error(t, tt.p.ValidateProject())
+				assert.NoError(t, tt.p.Spec.Maintenance.DeleteWindow(tt.s, tt.d))
+			case "noError":
+				assert.NoError(t, tt.p.ValidateProject())
+				assert.NoError(t, tt.p.Spec.Maintenance.DeleteWindow(tt.s, tt.d))
+			}
+		})
+
+	}
+}
+
+func TestProjectMaintenance_DeleteWindow(t *testing.T) {
+	proj := newTestProjectWithMaintenance(true)
+	window1 := &ProjectMaintenanceWindow{Schedule: "* * * * *", Duration: "1h"}
+	proj.Spec.Maintenance.Windows = append(proj.Spec.Maintenance.Windows, window1)
+	window2 := &ProjectMaintenanceWindow{Schedule: "1 * * * *", Duration: "2h"}
+	proj.Spec.Maintenance.Windows = append(proj.Spec.Maintenance.Windows, window2)
+	t.Run("CannotFind", func(t *testing.T) {
+		err := proj.Spec.Maintenance.DeleteWindow("* * * *", "1h")
+		assert.Error(t, err)
+		assert.Equal(t, len(proj.Spec.Maintenance.Windows), 2)
+	})
+	t.Run("Delete", func(t *testing.T) {
+		err := proj.Spec.Maintenance.DeleteWindow("* * * * *", "1h")
+		assert.NoError(t, err)
+		assert.Equal(t, len(proj.Spec.Maintenance.Windows), 1)
+	})
+}
+
+func TestProjectMaintenance_HasWindows(t *testing.T) {
+	t.Run("True", func(t *testing.T) {
+		proj := newTestProjectWithMaintenance(true)
+		window := &ProjectMaintenanceWindow{Schedule: "* * * * *", Duration: "1h"}
+		proj.Spec.Maintenance.Windows = append(proj.Spec.Maintenance.Windows, window)
+		assert.True(t, proj.Spec.Maintenance.HasWindows())
+	})
+	t.Run("False", func(t *testing.T) {
+		proj := newTestProjectWithMaintenance(true)
+		assert.False(t, proj.Spec.Maintenance.HasWindows())
+	})
+}
+
+func TestProjectMaintenance_ActiveWindows(t *testing.T) {
+	proj := newTestProjectWithMaintenance(false)
+	window := &ProjectMaintenanceWindow{Schedule: "* * * * *", Duration: "1h"}
+	proj.Spec.Maintenance.Windows = append(proj.Spec.Maintenance.Windows, window)
+	t.Run("SingleActive", func(t *testing.T) {
+		windows := proj.Spec.Maintenance.ActiveWindows()
+		assert.Equal(t, 1, len(windows))
+	})
+	t.Run("MultipleActive", func(t *testing.T) {
+		window2 := &ProjectMaintenanceWindow{Schedule: "* * * * *", Duration: "2h"}
+		proj.Spec.Maintenance.Windows = append(proj.Spec.Maintenance.Windows, window2)
+		assert.Equal(t, 2, len(proj.Spec.Maintenance.ActiveWindows()))
+	})
+	t.Run("None", func(t *testing.T) {
+		proj.Spec.Maintenance.Windows = ProjectMaintenanceWindows{}
+		assert.Equal(t, 0, len(proj.Spec.Maintenance.ActiveWindows()))
+	})
+
+}
+
+func TestProjectMaintenanceWindows_Match(t *testing.T) {
+	proj := newTestProjectWithMaintenance(false)
+	window := &ProjectMaintenanceWindow{Schedule: "* * * * *", Duration: "1h"}
+	proj.Spec.Maintenance.Windows = append(proj.Spec.Maintenance.Windows, window)
+	app := newTestApp()
+	t.Run("MatchNamespace", func(t *testing.T) {
+		proj.Spec.Maintenance.Windows[0].Namespaces = []string{"default"}
+		match, windows := proj.Spec.Maintenance.Windows.Match(app)
+		assert.True(t, match)
+		assert.Equal(t, 1, len(windows))
+		proj.Spec.Maintenance.Windows[0].Namespaces = nil
+	})
+	t.Run("MatchCluster", func(t *testing.T) {
+		proj.Spec.Maintenance.Windows[0].Clusters = []string{"cluster1"}
+		match, windows := proj.Spec.Maintenance.Windows.Match(app)
+		assert.True(t, match)
+		assert.Equal(t, 1, len(windows))
+		proj.Spec.Maintenance.Windows[0].Clusters = nil
+	})
+	t.Run("MatchAppName", func(t *testing.T) {
+		proj.Spec.Maintenance.Windows[0].Applications = []string{"test-app"}
+		match, windows := proj.Spec.Maintenance.Windows.Match(app)
+		assert.True(t, match)
+		assert.Equal(t, 1, len(windows))
+		proj.Spec.Maintenance.Windows[0].Applications = nil
+	})
+	t.Run("MatchWildcardAppName", func(t *testing.T) {
+		proj.Spec.Maintenance.Windows[0].Applications = []string{"test-*"}
+		match, windows := proj.Spec.Maintenance.Windows.Match(app)
+		assert.True(t, match)
+		assert.Equal(t, 1, len(windows))
+		proj.Spec.Maintenance.Windows[0].Applications = nil
+	})
+	t.Run("NoMatch", func(t *testing.T) {
+		match, windows := proj.Spec.Maintenance.Windows.Match(app)
+		assert.False(t, match)
+		assert.Equal(t, 0, len(windows))
+	})
+}
+
+func TestProjectMaintenanceWindows_Active_Match(t *testing.T) {
+	proj := newTestProjectWithMaintenance(false)
+	window := &ProjectMaintenanceWindow{Schedule: "* * * * *", Duration: "1h"}
+	proj.Spec.Maintenance.Windows = append(proj.Spec.Maintenance.Windows, window)
+	app := newTestApp()
+	t.Run("MatchNamespace", func(t *testing.T) {
+		proj.Spec.Maintenance.Windows[0].Namespaces = []string{"default"}
+		active := proj.Spec.Maintenance.ActiveWindows()
+		match, windows := active.Match(app)
+		assert.True(t, match)
+		assert.Equal(t, 1, len(windows))
+		proj.Spec.Maintenance.Windows[0].Namespaces = nil
+	})
+}
+
+func TestProjectMaintenance_IsEnabled(t *testing.T) {
+	t.Run("True", func(t *testing.T) {
+		proj := newTestProjectWithMaintenance(true)
+		assert.True(t, proj.Spec.Maintenance.IsEnabled())
+	})
+	t.Run("False", func(t *testing.T) {
+		proj := newTestProjectWithMaintenance(false)
+		proj.Spec.Maintenance.Enabled = false
+		assert.False(t, proj.Spec.Maintenance.IsEnabled())
+	})
+}
+
+func TestProjectMaintenanceWindow_Update(t *testing.T) {
+	e := ProjectMaintenanceWindow{Schedule: "* * * * *", Duration: "1h", Applications: []string{"app1"}}
+	t.Run("AddApplication", func(t *testing.T) {
+		err := e.Update([]string{"app1", "app2"}, []string{}, []string{})
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"app1", "app2"}, e.Applications)
+	})
+	t.Run("AddNamespace", func(t *testing.T) {
+		err := e.Update([]string{}, []string{"namespace1"}, []string{})
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"namespace1"}, e.Namespaces)
+	})
+	t.Run("AddCluster", func(t *testing.T) {
+		err := e.Update([]string{}, []string{}, []string{"cluster1"})
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"cluster1"}, e.Clusters)
+	})
+	t.Run("MissingConfig", func(t *testing.T) {
+		err := e.Update([]string{}, []string{}, []string{})
+		assert.EqualError(t, err, "cannot update window: require one of application, namespace or cluster")
+	})
+}
+
+func newTestProjectWithMaintenance(w bool) *AppProject {
+	p := &AppProject{
+		ObjectMeta: v1.ObjectMeta{Name: "my-proj"},
+		Spec:       AppProjectSpec{Maintenance: &ProjectMaintenance{Enabled: true}}}
+	if w {
+		p.Spec.Maintenance.Windows = ProjectMaintenanceWindows{}
+	}
+	return p
+}
+
+func newTestApp() *Application {
+	a := &Application{
+		ObjectMeta: v1.ObjectMeta{Name: "test-app"},
+		Spec: ApplicationSpec{
+			Destination: ApplicationDestination{
+				Namespace: "default",
+				Server:    "cluster1",
+			},
+		},
+	}
+	return a
+}
+
+func TestAppProjectSpec_AddMaintenance(t *testing.T) {
+	proj := newTestProject()
+	t.Run("AddMaintenance", func(t *testing.T) {
+		proj.Spec.AddMaintenance()
+		assert.NotNil(t, proj.Spec.Maintenance)
+	})
+}
+
+func TestProjectMaintenanceWindow_Active(t *testing.T) {
+	window := &ProjectMaintenanceWindow{Schedule: "* * * * *", Duration: "1h"}
+	t.Run("ActiveWindow", func(t *testing.T) {
+		window.Active()
+		assert.True(t, window.Active())
+	})
+}

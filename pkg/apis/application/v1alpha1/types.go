@@ -9,7 +9,9 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"time"
 
+	"github.com/robfig/cron"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -1200,6 +1202,24 @@ func (p *AppProject) ValidateProject() error {
 		}
 		roleNames[role.Name] = true
 	}
+
+	if p.Spec.HasMaintenance() && p.Spec.Maintenance.HasWindows() {
+		existingWindows := make(map[string]string)
+		for _, window := range p.Spec.Maintenance.Windows {
+			if existingWindows[window.Schedule] == window.Duration {
+				return status.Errorf(codes.AlreadyExists, "window '%s':'%s' already exists, update or edit", window.Schedule, window.Duration)
+			}
+			err := window.Validate()
+			if err != nil {
+				return err
+			}
+			if len(window.Applications) == 0 && len(window.Namespaces) == 0 && len(window.Clusters) == 0 {
+				return status.Errorf(codes.OutOfRange, "window '%s':'%s' requires one of application, cluster or namespace", window.Schedule, window.Duration)
+			}
+			existingWindows[window.Schedule] = window.Duration
+		}
+	}
+
 	if err := p.validatePolicySyntax(); err != nil {
 		return err
 	}
@@ -1368,6 +1388,190 @@ type AppProjectSpec struct {
 	NamespaceResourceBlacklist []metav1.GroupKind `json:"namespaceResourceBlacklist,omitempty" protobuf:"bytes,6,opt,name=namespaceResourceBlacklist"`
 	// OrphanedResources specifies if controller should monitor orphaned resources of apps in this project
 	OrphanedResources *OrphanedResourcesMonitorSettings `json:"orphanedResources,omitempty" protobuf:"bytes,7,opt,name=orphanedResources"`
+	// Maintenance controls when syncs can be run for apps in this project
+	Maintenance *ProjectMaintenance `json:"maintenance,omitempty" protobuf:"bytes,8,opt,name=maintenance"`
+}
+
+func (s *AppProjectSpec) AddMaintenance() {
+	if s.Maintenance == nil {
+		s.Maintenance = &ProjectMaintenance{
+			Enabled: true,
+			Windows: ProjectMaintenanceWindows{},
+		}
+	}
+}
+
+func (m *AppProjectSpec) HasMaintenance() bool {
+	return m.Maintenance != nil
+}
+
+// Project Maintenance controls when syncs can be run for apps in a project
+type ProjectMaintenance struct {
+	// Enabled will allow maintenance windows to be active during their scheduled times
+	Enabled bool `json:"enabled,omitempty" protobuf:"bytes,1,opt,name=enabled"`
+	// Windows contains the schedules for when syncs should be disabled
+	Windows ProjectMaintenanceWindows `json:"windows,omitempty" protobuf:"bytes,2,opt,name=windows"`
+}
+
+func (m *ProjectMaintenance) IsEnabled() bool {
+	return m != nil && m.Enabled
+}
+
+// MaintenanceWindows is a collection of maintenance windows in the project
+type ProjectMaintenanceWindows []*ProjectMaintenanceWindow
+
+// MaintenanceWindow contains the time, duration and attributes that are used to assign the windows to apps
+type ProjectMaintenanceWindow struct {
+	// Schedule is the time the window will begin, specified in cron format
+	Schedule string `json:"schedule,omitempty" protobuf:"bytes,1,opt,name=schedule"`
+	// Duration is the amount of time the maintenance window will be open
+	Duration string `json:"duration,omitempty" protobuf:"bytes,2,opt,name=duration"`
+	// Applications contains a list of applications that the window will apply to
+	Applications []string `json:"applications,omitempty" protobuf:"bytes,3,opt,name=applications"`
+	// Namespaces contains a list of namespaces that the window will apply to
+	Namespaces []string `json:"namespaces,omitempty" protobuf:"bytes,4,opt,name=namespaces"`
+	// Clusters contains a list of clusters that the window will apply to
+	Clusters []string `json:"clusters,omitempty" protobuf:"bytes,5,opt,name=clusters"`
+}
+
+func (m *ProjectMaintenance) HasWindows() bool {
+	return m != nil && len(m.Windows) > 0
+}
+
+func (m *ProjectMaintenance) ActiveWindows() ProjectMaintenanceWindows {
+	if m != nil && len(m.Windows) > 0 && m.IsEnabled() {
+		var activeWindows ProjectMaintenanceWindows
+		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+		for _, w := range m.Windows {
+			schedule, _ := specParser.Parse(w.Schedule)
+			duration, _ := time.ParseDuration(w.Duration)
+			now := time.Now()
+			nextWindow := schedule.Next(now.Add(-duration))
+			if nextWindow.Before(now) {
+				activeWindows = append(activeWindows, w)
+			}
+		}
+		if len(activeWindows) > 0 {
+			return activeWindows
+		}
+	}
+	return nil
+}
+
+func (m *ProjectMaintenance) AddWindow(s string, d string, a []string, n []string, c []string) {
+	window := &ProjectMaintenanceWindow{
+		Schedule: s,
+		Duration: d,
+	}
+
+	if len(a) > 0 {
+		window.Applications = a
+	}
+	if len(n) > 0 {
+		window.Namespaces = n
+	}
+	if len(c) > 0 {
+		window.Clusters = c
+	}
+
+	m.Windows = append(m.Windows, window)
+
+}
+
+func (m *ProjectMaintenance) DeleteWindow(s string, d string) error {
+	var exists bool
+	for i, w := range m.Windows {
+		if w.Matches(s, d) {
+			exists = true
+			m.Windows = append(m.Windows[:i], m.Windows[i+1:]...)
+			break
+		}
+	}
+	if !exists {
+		return fmt.Errorf("window not found")
+	}
+	return nil
+}
+
+func (w *ProjectMaintenanceWindows) Match(app *Application) (bool, ProjectMaintenanceWindows) {
+	if w != nil && len(*w) != 0 {
+		var matchingWindows ProjectMaintenanceWindows
+		for _, w := range *w {
+			if len(w.Applications) > 0 {
+				for _, a := range w.Applications {
+					if globMatch(a, app.Name) {
+						matchingWindows = append(matchingWindows, w)
+						break
+					}
+				}
+			}
+			if len(w.Clusters) > 0 {
+				for _, c := range w.Clusters {
+					if globMatch(c, app.Spec.Destination.Server) {
+						matchingWindows = append(matchingWindows, w)
+						break
+					}
+				}
+			}
+			if len(w.Namespaces) > 0 {
+				for _, n := range w.Namespaces {
+					if globMatch(n, app.Spec.Destination.Namespace) {
+						matchingWindows = append(matchingWindows, w)
+						break
+					}
+				}
+			}
+		}
+		if len(matchingWindows) > 0 {
+			return true, matchingWindows
+		}
+	}
+	// No active maintenance windows
+	return false, nil
+}
+
+func (w ProjectMaintenanceWindow) Active() bool {
+	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+	schedule, _ := specParser.Parse(w.Schedule)
+	duration, _ := time.ParseDuration(w.Duration)
+	now := time.Now()
+	nextWindow := schedule.Next(now.Add(-duration))
+	return nextWindow.Before(now)
+}
+
+func (w *ProjectMaintenanceWindow) Update(a []string, n []string, c []string) error {
+	if len(a) == 0 && len(n) == 0 && len(c) == 0 {
+		return fmt.Errorf("cannot update window: require one of application, namespace or cluster")
+	}
+
+	if len(a) > 0 {
+		w.Applications = a
+	}
+	if len(n) > 0 {
+		w.Namespaces = n
+	}
+	if len(c) > 0 {
+		w.Clusters = c
+	}
+
+	return nil
+}
+
+func (w *ProjectMaintenanceWindow) Matches(s string, d string) bool {
+	return w.Schedule == s && w.Duration == d
+}
+
+func (w *ProjectMaintenanceWindow) Validate() error {
+	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+	_, err := specParser.Parse(w.Schedule)
+	if err != nil {
+		return fmt.Errorf("cannot parse schedule '%s': %s", w.Schedule, err)
+	}
+	_, err = time.ParseDuration(w.Duration)
+	if err != nil {
+		return fmt.Errorf("cannot parse duration '%s': %s", w.Duration, err)
+	}
+	return nil
 }
 
 func (d AppProjectSpec) DestinationClusters() []string {

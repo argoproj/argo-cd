@@ -32,7 +32,7 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
         public render() {
             return (
                 <div>
-                    <p>Are you sure you want to delete the application "{appName}"?</p>
+                    <p>Are you sure you want to delete the application '{appName}'?</p>
                     <p><Checkbox checked={this.state.cascade}
                                  onChange={(val) => this.setState({cascade: val})}/> Cascade</p>
                 </div>
@@ -295,7 +295,7 @@ export function getPodStateReason(pod: appModels.State): { message: string; reas
             }
         }
 
-        // change pod status back to "Running" if there is at least one container still reporting as "Running" status
+        // change pod status back to 'Running' if there is at least one container still reporting as 'Running' status
         if (reason === 'Completed' && hasRunning) {
             reason = 'Running';
             message = '';
@@ -347,3 +347,44 @@ export function isAppRefreshing(app: appModels.Application) {
 export function refreshLinkAttrs(app: appModels.Application) {
     return { disabled: isAppRefreshing(app) };
 }
+
+export const MaintenanceWindowStatusIcon = ({state, window}: { state: appModels.MaintenanceState, window: appModels.ProjectMaintenanceWindow }) => {
+    let className = 'fa fa-question-circle';
+    let color = COLORS.maintenance_state.unknown;
+    let current = 'Unknown';
+
+    if (state.windows === undefined ) {
+        className = 'fa fa-stop-circle';
+        color = COLORS.maintenance_state.inactive;
+        current = 'Inactive';
+    } else {
+        for (const w of state.windows) {
+            if (w.schedule === window.schedule && w.duration === window.duration) {
+                className = 'fa fa-stop-circle';
+                color = COLORS.maintenance_state.active;
+                current = 'Active';
+                break;
+            } else {
+                className = 'fa fa-stop-circle';
+                color = COLORS.maintenance_state.inactive;
+                current = 'Inactive';
+            }
+        }
+    }
+    return <React.Fragment><i title={current} className={className} style={{color}}/> {current}</React.Fragment>;
+};
+
+export const ApplicationMaintenanceWindowStatusIcon = ({state}: { state: appModels.ApplicationMaintenanceState }) => {
+    let className = 'fa fa-question-circle';
+    let color = COLORS.maintenance_state.unknown;
+    const name = 'Maintenance';
+
+    if (state.windows !== undefined && state.windows.length > 0) {
+        className = 'fa fa-stop-circle';
+        color = COLORS.maintenance_state.active;
+    } else {
+        className = 'fa fa-stop-circle';
+        color = COLORS.maintenance_state.inactive;
+    }
+    return <React.Fragment><i title={name} className={className} style={{color}}/>{name}</React.Fragment>;
+};
