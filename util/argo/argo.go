@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
@@ -24,7 +23,6 @@ import (
 	applicationsv1 "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/cert"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
@@ -138,10 +136,10 @@ func TestRepoWithKnownType(repo *argoappv1.Repository, isHelm bool) error {
 func TestRepo(repo *argoappv1.Repository) error {
 	checks := map[string]func() error{
 		"git": func() error {
-			return git.TestRepo(repo.Repo, GetRepoCreds(repo), repo.IsInsecure(), repo.IsLFSEnabled())
+			return git.TestRepo(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled())
 		},
 		"helm": func() error {
-			_, err := helm.GetIndex(repo.Repo, repo.Username, repo.Password)
+			_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds()).GetIndex()
 			return err
 		},
 	}
@@ -422,34 +420,4 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 		spec.Source.Directory = nil
 	}
 	return spec
-}
-
-func GetRepoCreds(repo *argoappv1.Repository) git.Creds {
-	if repo == nil {
-		return git.NopCreds{}
-	}
-	if repo.Username != "" && repo.Password != "" {
-		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.TLSClientCertData, repo.TLSClientCertKey, repo.TLSClientCAData, repo.IsInsecure())
-	}
-	if repo.SSHPrivateKey != "" {
-		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure())
-	}
-	return git.NopCreds{}
-}
-
-func getCAPath(repoURL string) string {
-	if git.IsHTTPSURL(repoURL) {
-		if parsedURL, err := url.Parse(repoURL); err == nil {
-			if caPath, err := cert.GetCertBundlePathForRepository(parsedURL.Host); err != nil {
-				return caPath
-			} else {
-				log.Warnf("Could not get cert bundle path for host '%s'", parsedURL.Host)
-			}
-		} else {
-			// We don't fail if we cannot parse the URL, but log a warning in that
-			// case. And we execute the command in a verbatim way.
-			log.Warnf("Could not parse repo URL '%s'", repoURL)
-		}
-	}
-	return ""
 }

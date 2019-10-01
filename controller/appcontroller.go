@@ -752,7 +752,13 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	defer func() {
 		reconcileDuration := time.Since(startTime)
 		ctrl.metricsServer.IncReconcile(origApp, reconcileDuration)
-		logCtx := log.WithFields(log.Fields{"application": origApp.Name, "time_ms": reconcileDuration.Seconds() * 1e3, "level": comparisonLevel})
+		logCtx := log.WithFields(log.Fields{
+			"application":    origApp.Name,
+			"time_ms":        reconcileDuration.Seconds() * 1e3,
+			"level":          comparisonLevel,
+			"dest-server":    origApp.Spec.Destination.Server,
+			"dest-namespace": origApp.Spec.Destination.Namespace,
+		})
 		logCtx.Info("Reconciliation completed")
 	}()
 

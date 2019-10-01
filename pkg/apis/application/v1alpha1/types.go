@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/robfig/cron"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"gopkg.in/yaml.v2"
@@ -24,7 +26,9 @@ import (
 	"k8s.io/client-go/tools/clientcmd/api"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/util/cert"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/rbac"
 )
 
@@ -997,12 +1001,10 @@ type Repository struct {
 	TLSClientCertData string `json:"tlsClientCertData,omitempty" protobuf:"bytes,9,opt,name=tlsClientCertData"`
 	// TLS client cert key for authenticating at the repo server
 	TLSClientCertKey string `json:"tlsClientCertKey,omitempty" protobuf:"bytes,10,opt,name=tlsClientCertKey"`
-	// only for Helm repos
-	TLSClientCAData string `json:"tlsClientCaData,omitempty" protobuf:"bytes,11,opt,name=tlsClientCaData"`
 	// type of the repo, maybe "git or "helm, "git" is assumed if empty or absent
-	Type string `json:"type,omitempty" protobuf:"bytes,12,opt,name=type"`
+	Type string `json:"type,omitempty" protobuf:"bytes,11,opt,name=type"`
 	// only for Helm repos
-	Name string `json:"name,omitempty" protobuf:"bytes,13,opt,name=name"`
+	Name string `json:"name,omitempty" protobuf:"bytes,12,opt,name=name"`
 }
 
 func (repo *Repository) IsInsecure() bool {
@@ -1013,43 +1015,70 @@ func (repo *Repository) IsLFSEnabled() bool {
 	return repo.EnableLFS
 }
 
-func (m *Repository) CopyCredentialsFrom(source *Repository) {
+func (repo *Repository) CopyCredentialsFrom(source *Repository) {
 	if source != nil {
-		if m.Username == "" {
-			m.Username = source.Username
+		if repo.Username == "" {
+			repo.Username = source.Username
 		}
-		if m.Password == "" {
-			m.Password = source.Password
+		if repo.Password == "" {
+			repo.Password = source.Password
 		}
-		if m.SSHPrivateKey == "" {
-			m.SSHPrivateKey = source.SSHPrivateKey
+		if repo.SSHPrivateKey == "" {
+			repo.SSHPrivateKey = source.SSHPrivateKey
 		}
-		m.InsecureIgnoreHostKey = m.InsecureIgnoreHostKey || source.InsecureIgnoreHostKey
-		m.Insecure = m.Insecure || source.Insecure
-		m.EnableLFS = m.EnableLFS || source.EnableLFS
-		if m.TLSClientCertData == "" {
-			m.TLSClientCertData = source.TLSClientCertData
+		repo.InsecureIgnoreHostKey = repo.InsecureIgnoreHostKey || source.InsecureIgnoreHostKey
+		repo.Insecure = repo.Insecure || source.Insecure
+		repo.EnableLFS = repo.EnableLFS || source.EnableLFS
+		if repo.TLSClientCertData == "" {
+			repo.TLSClientCertData = source.TLSClientCertData
 		}
-		if m.TLSClientCertKey == "" {
-			m.TLSClientCertKey = source.TLSClientCertKey
-		}
-		if m.TLSClientCAData == "" {
-			m.TLSClientCAData = source.TLSClientCAData
+		if repo.TLSClientCertKey == "" {
+			repo.TLSClientCertKey = source.TLSClientCertKey
 		}
 	}
+}
+
+func (repo *Repository) GetGitCreds() git.Creds {
+	if repo == nil {
+		return git.NopCreds{}
+	}
+	if repo.Username != "" && repo.Password != "" {
+		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure())
+	}
+	if repo.SSHPrivateKey != "" {
+		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure())
+	}
+	return git.NopCreds{}
+}
+
+func (repo *Repository) GetHelmCreds() helm.Creds {
+	return helm.Creds{
+		Username: repo.Username,
+		Password: repo.Password,
+		CAPath:   getCAPath(repo.Repo),
+		CertData: []byte(repo.TLSClientCertData),
+		KeyData:  []byte(repo.TLSClientCertKey),
+	}
+}
+
+func getCAPath(repoURL string) string {
+	if git.IsHTTPSURL(repoURL) {
+		if parsedURL, err := url.Parse(repoURL); err == nil {
+			if caPath, err := cert.GetCertBundlePathForRepository(parsedURL.Host); err == nil {
+				return caPath
+			} else {
+				log.Warnf("Could not get cert bundle path for host '%s'", parsedURL.Host)
+			}
+		} else {
+			// We don't fail if we cannot parse the URL, but log a warning in that
+			// case. And we execute the command in a verbatim way.
+			log.Warnf("Could not parse repo URL '%s'", repoURL)
+		}
+	}
+	return ""
 }
 
 type Repositories []*Repository
-
-func (r Repositories) Filter(predicate func(r *Repository) bool) Repositories {
-	var res Repositories
-	for _, repo := range r {
-		if predicate(repo) {
-			res = append(res, repo)
-		}
-	}
-	return res
-}
 
 // RepositoryList is a collection of Repositories.
 type RepositoryList struct {

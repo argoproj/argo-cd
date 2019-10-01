@@ -429,6 +429,11 @@ metadata:
     app.kubernetes.io/name: argocd-cm
     app.kubernetes.io/part-of: argocd
 data:
+  # v1.2 or earlier use `helm.repositories`
+  helm.repositories: |
+    - url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts
+      name: istio.io
+  # v1.3 or later use `repositories` with `type: helm`
   repositories: |
     - type: helm
       url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts
