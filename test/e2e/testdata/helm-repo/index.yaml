@@ -3,5 +3,5 @@ entries:
   helm:
     - created: 2019-07-08T23:26:50.723856689Z
       urls:
-        - https://github.com/argoproj/argo-cd/blob/master/test/e2e/testdata/helm-1.0.0.tgz?raw=true
+        - http://localhost:9080/argo-e2e/testdata.git/helm-repo/helm-1.0.0.tgz
       version: 1.0.0
