@@ -515,14 +515,11 @@ message Repository {
   // TLS client cert key for authenticating at the repo server
   optional string tlsClientCertKey = 10;
 
-  // only for Helm repos
-  optional string tlsClientCaData = 11;
-
   // type of the repo, maybe "git or "helm, "git" is assumed if empty or absent
-  optional string type = 12;
+  optional string type = 11;
 
   // only for Helm repos
-  optional string name = 13;
+  optional string name = 12;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate

@@ -447,9 +447,6 @@ func getReferencedSecrets(un unstructured.Unstructured) map[string]bool {
 			if cred.TLSClientCertKeySecret != nil {
 				referencedSecrets[cred.TLSClientCertKeySecret.Name] = true
 			}
-			if cred.TLSClientCASecret != nil {
-				referencedSecrets[cred.TLSClientCASecret.Name] = true
-			}
 		}
 	}
 	return referencedSecrets
