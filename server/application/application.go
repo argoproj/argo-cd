@@ -180,7 +180,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	if err != nil {
 		return nil, err
 	}
-	repos, err := s.db.ListRepositories(ctx)
+	helmRepos, err := s.db.ListHelmRepositories(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +212,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		AppLabelValue:     a.Name,
 		Namespace:         a.Spec.Destination.Namespace,
 		ApplicationSource: &a.Spec.Source,
-		Repos:             repos,
+		Repos:             helmRepos,
 		Plugins:           plugins,
 		KustomizeOptions:  &kustomizeOptions,
 		KubeVersion:       cluster.ServerVersion,

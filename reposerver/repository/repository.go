@@ -207,9 +207,7 @@ func (s *Service) GenerateManifest(c context.Context, q *apiclient.ManifestReque
 func getHelmRepos(repositories []*v1alpha1.Repository) []helm.HelmRepository {
 	repos := make([]helm.HelmRepository, 0)
 	for _, repo := range repositories {
-		if repo.Type == "helm" {
-			repos = append(repos, helm.HelmRepository{Name: repo.Name, Repo: repo.Repo, Creds: repo.GetHelmCreds()})
-		}
+		repos = append(repos, helm.HelmRepository{Name: repo.Name, Repo: repo.Repo, Creds: repo.GetHelmCreds()})
 	}
 	return repos
 }

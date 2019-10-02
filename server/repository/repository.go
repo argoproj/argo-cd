@@ -147,7 +147,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		return nil, err
 	}
 	defer util.Close(conn)
-	repos, err := s.db.ListRepositories(ctx)
+	helmRepos, err := s.db.ListHelmRepositories(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +158,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	return repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 		Repo:   repo,
 		Source: q.Source,
-		Repos:  repos,
+		Repos:  helmRepos,
 		KustomizeOptions: &appsv1.KustomizeOptions{
 			BuildOptions: buildOptions,
 		},

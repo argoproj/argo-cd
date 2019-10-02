@@ -59,21 +59,15 @@ func (h *helm) Template(templateOpts *TemplateOpts) (string, error) {
 	return out, nil
 }
 
-func (h *helm) reposInitialized() bool {
-	return h.repos != nil
-}
-
 func (h *helm) DependencyBuild() error {
-	if !h.reposInitialized() {
-		for _, repo := range h.repos {
-			_, err := h.cmd.RepoAdd(repo.Name, repo.Repo, repo.Creds)
+	for _, repo := range h.repos {
+		_, err := h.cmd.RepoAdd(repo.Name, repo.Repo, repo.Creds)
 
-			if err != nil {
-				return err
-			}
+		if err != nil {
+			return err
 		}
-		h.repos = nil
 	}
+	h.repos = nil
 	_, err := h.cmd.dependencyBuild()
 	return err
 }
