@@ -340,3 +340,21 @@ func (s *Server) logEvent(a *v1alpha1.AppProject, ctx context.Context, reason st
 	message := fmt.Sprintf("%s %s", user, action)
 	s.auditLogger.LogAppProjEvent(a, eventInfo, message)
 }
+
+func (s *Server) GetMaintenanceState(ctx context.Context, q *project.MaintenanceStateQuery) (*project.MaintenanceResponse, error) {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name); err != nil {
+		return nil, err
+	}
+	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Name, metav1.GetOptions{})
+
+	if err != nil {
+		return nil, err
+	}
+	active := proj.Spec.Maintenance.ActiveWindows()
+
+	res := &project.MaintenanceResponse{
+		Windows: active,
+	}
+
+	return res, nil
+}

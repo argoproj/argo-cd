@@ -535,6 +535,49 @@ p, role:admin, projects, update, *, allow`)
 		expectedPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, object, effect)
 		assert.Equal(t, expectedPolicy, updateProj.Spec.Roles[0].Policies[0])
 	})
+
+	t.Run("TestGetMaintenanceStateActive", func(t *testing.T) {
+		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		projectWithMaintenance := existingProj.DeepCopy()
+		projectWithMaintenance.Spec.AddMaintenance()
+		win := &v1alpha1.ProjectMaintenanceWindow{Schedule: "* * * * *", Duration: "1h"}
+		projectWithMaintenance.Spec.Maintenance.Windows = append(projectWithMaintenance.Spec.Maintenance.Windows, win)
+
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithMaintenance), enforcer, util.NewKeyLock(), sessionMgr)
+		res, err := projectServer.GetMaintenanceState(ctx, &project.MaintenanceStateQuery{Name: projectWithMaintenance.Name})
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(res.Windows))
+	})
+
+	t.Run("TestGetMaintenanceStateCannotGetProjectDetails", func(t *testing.T) {
+		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		projectWithMaintenance := existingProj.DeepCopy()
+		projectWithMaintenance.Spec.AddMaintenance()
+		win := &v1alpha1.ProjectMaintenanceWindow{Schedule: "* * * * *", Duration: "1h"}
+		projectWithMaintenance.Spec.Maintenance.Windows = append(projectWithMaintenance.Spec.Maintenance.Windows, win)
+
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithMaintenance), enforcer, util.NewKeyLock(), sessionMgr)
+		res, err := projectServer.GetMaintenanceState(ctx, &project.MaintenanceStateQuery{Name: "incorrect"})
+		assert.Contains(t, err.Error(), "not found")
+		assert.Nil(t, res)
+	})
+
+	t.Run("TestGetMaintenanceStateDenied", func(t *testing.T) {
+		enforcer = newEnforcer(kubeclientset)
+		_ = enforcer.SetBuiltinPolicy(`p, *, *, *, *, deny`)
+		enforcer.SetClaimsEnforcerFunc(nil)
+		ctx := context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"my-group"}})
+
+		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		projectWithMaintenance := existingProj.DeepCopy()
+		projectWithMaintenance.Spec.AddMaintenance()
+		win := &v1alpha1.ProjectMaintenanceWindow{Schedule: "* * * * *", Duration: "1h"}
+		projectWithMaintenance.Spec.Maintenance.Windows = append(projectWithMaintenance.Spec.Maintenance.Windows, win)
+
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithMaintenance), enforcer, util.NewKeyLock(), sessionMgr)
+		_, err := projectServer.GetMaintenanceState(ctx, &project.MaintenanceStateQuery{Name: projectWithMaintenance.Name})
+		assert.EqualError(t, err, "rpc error: code = PermissionDenied desc = permission denied: projects, get, test")
+	})
 }
 
 func newEnforcer(kubeclientset *fake.Clientset) *rbac.Enforcer {

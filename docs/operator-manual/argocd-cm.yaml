@@ -124,6 +124,27 @@ data:
         hs.status = "Progressing"
         hs.message = "Waiting for certificate"
         return hs
+    apps/Deployment:
+      # List of Lua Scripts to introduce custom actions
+      actions: |
+        # Lua Script to indicate which custom actions are available on the resource
+        discovery.lua: |
+          actions = {}
+          actions["restart"] = {}
+          return actions
+        definitions:
+          - name: restart
+            # Lua Script to modify the obj
+            action.lua: |
+              local os = require("os")
+              if obj.spec.template.metadata == nil then
+                  obj.spec.template.metadata = {}
+              end
+              if obj.spec.template.metadata.annotations == nil then
+                  obj.spec.template.metadata.annotations = {}
+              end
+              obj.spec.template.metadata.annotations["kubectl.kubernetes.io/restartedAt"] = os.date("!%Y-%m-%dT%XZ")
+              return obj
 
   # Configuration to completely ignore entire classes of resource group/kinds (optional).
   # Excluding high-volume resources improves performance and memory usage, and reduces load and 

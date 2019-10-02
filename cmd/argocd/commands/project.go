@@ -85,6 +85,7 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.AddCommand(NewProjectDenyClusterResourceCommand(clientOpts))
 	command.AddCommand(NewProjectAllowNamespaceResourceCommand(clientOpts))
 	command.AddCommand(NewProjectDenyNamespaceResourceCommand(clientOpts))
+	command.AddCommand(NewProjectMaintenanceCommand(clientOpts))
 	return command
 }
 

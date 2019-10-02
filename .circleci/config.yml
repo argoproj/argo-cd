@@ -60,10 +60,8 @@ commands:
           name: Install Go deps
           command: |
             set -x
-            go get github.com/golangci/golangci-lint/cmd/golangci-lint
             go get github.com/jstemmer/go-junit-report
             go get github.com/mattn/goreman
-            go get golang.org/x/tools/cmd/goimports
   install_tools:
     steps:
       - run:

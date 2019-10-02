@@ -408,9 +408,6 @@ func TestListHelmRepositories(t *testing.T) {
   passwordSecret:
     name: test-secret
     key: password
-  tlsClientCertCaSecret:
-    name: test-secret
-    key: ca
   tlsClientCertDataSecret:
     name: test-secret
     key: cert
@@ -442,7 +439,6 @@ func TestListHelmRepositories(t *testing.T) {
 	assert.Equal(t, "argo", repo.Name)
 	assert.Equal(t, "test-username", repo.Username)
 	assert.Equal(t, "test-password", repo.Password)
-	assert.Equal(t, "test-ca", repo.TLSClientCAData)
 	assert.Equal(t, "test-cert", repo.TLSClientCertData)
 	assert.Equal(t, "test-key", repo.TLSClientCertKey)
 }

@@ -142,9 +142,11 @@ export interface ApplicationSource {
     repoURL: string;
 
     /**
-     * Path is a directory path within repository which contains ksonnet project.
+     * Path is a directory path within repository which
      */
-    path: string;
+    path?: string;
+
+    chart?: string;
 
     helm?: ApplicationSourceHelm;
 
@@ -408,6 +410,11 @@ export interface KsonnetAppSpec {
     parameters: KsonnetParameter[];
 }
 
+export interface HelmChart {
+    name: string;
+    versions: string[];
+}
+
 export type AppSourceType = 'Helm' | 'Kustomize' | 'Ksonnet' | 'Directory' | 'Plugin';
 
 export interface RepoAppDetails {
@@ -511,6 +518,20 @@ export interface ProjectSpec {
     clusterResourceWhitelist: GroupKind[];
     namespaceResourceBlacklist: GroupKind[];
     orphanedResources?: { warn?: boolean };
+    maintenance?: ProjectMaintenance;
+}
+
+export interface ProjectMaintenance {
+    enabled?: boolean;
+    windows: ProjectMaintenanceWindow[];
+}
+
+export interface ProjectMaintenanceWindow {
+    schedule: string;
+    duration: string;
+    applications: string[];
+    namespaces: string[];
+    clusters: string[];
 }
 
 export interface Project {
@@ -541,4 +562,12 @@ export interface ResourceActionParam {
 export interface ResourceAction {
     name: string;
     params: ResourceActionParam[];
+}
+
+export interface MaintenanceState {
+    windows: ProjectMaintenanceWindow[];
+}
+
+export interface ApplicationMaintenanceState {
+    windows: string[];
 }
