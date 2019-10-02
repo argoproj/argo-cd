@@ -154,6 +154,8 @@ export interface ApplicationSource {
 
     ksonnet?: ApplicationSourceKsonnet;
 
+    plugin?: ApplicationSourcePlugin;
+
     directory?: ApplicationSourceDirectory;
 }
 
@@ -171,6 +173,10 @@ export interface ApplicationSourceKustomize {
 export interface ApplicationSourceKsonnet {
     environment: string;
     parameters: KsonnetParameter[];
+}
+
+export interface ApplicationSourcePlugin {
+    name: string;
 }
 
 export interface ApplicationSourceDirectory {

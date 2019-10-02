@@ -199,6 +199,14 @@ export const ApplicationParameters = (props: {
             const value = overrideIndex > -1 && source.helm.parameters[overrideIndex].value || original;
             return { overrideIndex, original, metadata: { name, value } };
         })));
+    } else if (props.details.type === 'Plugin' && app.spec.source.plugin) {
+        attributes.push({
+            title: 'NAME',
+            view: app.spec.source.plugin.name,
+            edit: (formApi: FormApi) => (
+                <FormField formApi={formApi} field='spec.source.plugin.name' component={Text}/>
+            ),
+        });
     } else if (props.details.type === 'Directory') {
         attributes.push({
             title: 'DIRECTORY RECURSE',
