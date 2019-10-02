@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.2.3 (2019-10-1)
+* Make argo-cd docker images openshift friendly (#2362) (@duboisf)
+* Add dest-server and dest-namespace field to reconciliation logs (#2354)
+- Stop loggin /repository.RepositoryService/ValidateAccess parameters (#2386)
+
+## v1.2.2 (2019-09-26)
++ Resource action equivalent to `kubectl rollout restart` (#2177)
+- Badge response does not contain cache-control header (#2317) (@greenstatic)
+- Make sure the controller uses the latest git version if app reconciliation result expired (#2339)
+
+## v1.2.1 (2019-09-12)
++ Support limiting number of concurrent kubectl fork/execs (#2022)
++ Add --self-heal flag to argocd cli (#2296)
+- Fix degraded proxy support for http(s) git repository (#2243)
+- Fix nil pointer dereference in application controller (#2290)
+
 ## v1.2.0 (2019-09-05)
 
 ### New Features

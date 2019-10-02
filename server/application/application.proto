@@ -158,9 +158,16 @@ message OperationTerminateRequest {
 	required string name = 1;
 }
 
-message OperationTerminateResponse {
+message ApplicationMaintenanceQuery {
+	required string name = 1;
 }
 
+message ApplicationMaintenanceResponse {
+	repeated string windows = 1;
+}
+
+message OperationTerminateResponse {
+}
 
 message ResourcesQuery {
 	required string applicationName = 1 [(gogoproto.nullable) = true];
@@ -199,6 +206,11 @@ service ApplicationService {
 	// Get returns an application by name
 	rpc Get(ApplicationQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http).get = "/api/v1/applications/{name}";
+	}
+
+	// Get returns an application by name
+	rpc GetApplicationMaintenanceState(ApplicationMaintenanceQuery) returns (ApplicationMaintenanceResponse) {
+		option (google.api.http).get = "/api/v1/applications/{name}/maintenance";
 	}
 
 	// Get the meta-data (author, date, tags, message) for a specific revision of the application

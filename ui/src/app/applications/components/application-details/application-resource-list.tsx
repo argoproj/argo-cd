@@ -2,7 +2,8 @@ import { DropDown } from 'argo-ui';
 import * as React from 'react';
 
 import * as models from '../../../shared/models';
-import { ComparisonStatusIcon, HealthStatusIcon, ICON_CLASS_BY_KIND, nodeKey } from '../utils';
+import {ResourceIcon} from '../resource-icon';
+import { ComparisonStatusIcon, HealthStatusIcon, nodeKey } from '../utils';
 
 export const ApplicationResourceList = ({ resources, onNodeClick, nodeMenu }: {
     resources: models.ResourceStatus[],
@@ -12,21 +13,21 @@ export const ApplicationResourceList = ({ resources, onNodeClick, nodeMenu }: {
     <div className='argo-table-list argo-table-list--clickable'>
         <div className='argo-table-list__head'>
             <div className='row'>
-                <div className='columns small-3 xxxlarge-3'>NAME</div>
+                <div className='columns small-1 xxxlarge-1'/>
+                <div className='columns small-2 xxxlarge-2'>NAME</div>
                 <div className='columns small-3 xxxlarge-4'>GROUP/KIND</div>
-                <div className='columns small-4 xxxlarge-4'>NAMESPACE</div>
-                <div className='columns small-2 xxxlarge-1'>STATUS</div>
+                <div className='columns small-3 xxxlarge-3'>NAMESPACE</div>
+                <div className='columns small-2 xxxlarge-2'>STATUS</div>
             </div>
         </div>
         {resources.sort((first, second) => nodeKey(first).localeCompare(nodeKey(second))).map((res) => (
             <div key={nodeKey(res)} className='argo-table-list__row' onClick={() => onNodeClick(nodeKey(res))}>
                 <div className='row'>
-                    <div className='columns small-3 xxxlarge-3'>
-                        <i className={ICON_CLASS_BY_KIND[res.kind.toLocaleLowerCase()] || 'fa fa-cogs'}/> <span>{res.name}</span>
-                    </div>
+                    <div className='columns small-1 xxxlarge-1'><ResourceIcon kind={res.kind}/></div>
+                    <div className='columns small-2 xxxlarge-2'>{res.name}</div>
                     <div className='columns small-3 xxxlarge-4'>{[res.group, res.kind].filter((item) => !!item).join('/')}</div>
-                    <div className='columns small-4 xxxlarge-4'>{res.namespace}</div>
-                    <div className='columns small-2 xxxlarge-1'>
+                    <div className='columns small-3 xxxlarge-3'>{res.namespace}</div>
+                    <div className='columns small-2 xxxlarge-2'>
                         {res.health && <React.Fragment><HealthStatusIcon state={res.health}/> {res.health.status} &nbsp;</React.Fragment>}
                         {res.status && <ComparisonStatusIcon status={res.status} resource={res} label={true}/>}
                         {res.hook && (<i title='Resource lifecycle hook' className='fa fa-anchor' />)}

@@ -54,6 +54,11 @@ uses only internally available Helm repositories. Even if the chart uses only de
 
 ```yaml
 data:
+  # v1.2 or earlier use `helm.repositories`
+  helm.repositories: |
+    - url: http://<internal-helm-repo-host>:8080
+      name: stable
+  # v1.3 or later use `repositories` with `type: helm`
   repositories: |
     - type: helm
       url: http://<internal-helm-repo-host>:8080

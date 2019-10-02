@@ -3,113 +3,115 @@ package repository
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
-	"os"
+	"path"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/argoproj/pkg/exec"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	v1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/reposerver/metrics"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
-	"github.com/argoproj/argo-cd/util/repo"
-	"github.com/argoproj/argo-cd/util/repo/metrics"
-	repomocks "github.com/argoproj/argo-cd/util/repo/mocks"
+	argocache "github.com/argoproj/argo-cd/util/cache"
+	"github.com/argoproj/argo-cd/util/git"
+	gitmocks "github.com/argoproj/argo-cd/util/git/mocks"
+	"github.com/argoproj/argo-cd/util/helm"
+	helmmocks "github.com/argoproj/argo-cd/util/helm/mocks"
 )
 
-type fixtures struct {
-	*fakeFactory
-	*Service
+func newServiceWithMocks(root string) (*Service, *gitmocks.Client, *helmmocks.Client) {
+	service := NewService(metrics.NewMetricsServer(), argocache.NewCache(cache.NewInMemoryCache(time.Duration(1)*time.Second)), 1)
+	helmClient := &helmmocks.Client{}
+	gitClient := &gitmocks.Client{}
+	root, err := filepath.Abs(root)
+	if err != nil {
+		panic(err)
+	}
+	gitClient.On("Init").Return(nil)
+	gitClient.On("Fetch").Return(nil)
+	gitClient.On("Checkout", mock.Anything).Return(nil)
+	gitClient.On("LsRemote", mock.Anything).Return(mock.Anything, nil)
+	gitClient.On("CommitSHA").Return(mock.Anything, nil)
+	gitClient.On("Root").Return(root)
+
+	helmClient.On("ExtractChart", mock.Anything, mock.Anything).Return(func(chart string, version string) string {
+		return path.Join(root, chart)
+	}, util.NewCloser(func() error {
+		return nil
+	}), nil)
+
+	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool) (client git.Client, e error) {
+		return gitClient, nil
+	}
+	service.newHelmClient = func(repoURL string, creds helm.Creds) helm.Client {
+		return helmClient
+	}
+	return service, gitClient, helmClient
 }
 
-func newFixtures(root, path string) *fixtures {
-	factory := &fakeFactory{
-		root:             root,
-		path:             path,
-		revision:         "aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd",
-		revisionMetadata: &repo.RevisionMetadata{Author: "foo", Message: strings.Repeat("x", 99), Tags: []string{"bar"}},
-	}
-	service := &Service{
-		repoLock:    util.NewKeyLock(),
-		repoFactory: factory,
-		cache:       cache.NewCache(cache.NewInMemoryCache(1 * time.Hour)),
-	}
-	return &fixtures{factory, service}
-}
-
-type fakeFactory struct {
-	root             string
-	path             string
-	revision         string
-	revisionMetadata *repo.RevisionMetadata
-}
-
-func (f *fakeFactory) NewRepo(repo *v1alpha1.Repository, reporter metrics.Reporter) (repo.Repo, error) {
-	r := repomocks.Repo{}
-	root := "./testdata"
-	if f.root != "" {
-		root = f.root
-	}
-	r.On("LockKey").Return(root)
-	r.On("Init").Return(nil)
-	r.On("GetApp", mock.Anything, mock.Anything).Return(filepath.Join(root, f.path), nil)
-	r.On("ResolveAppRevision", mock.Anything, mock.Anything).Return(f.revision, nil)
-	r.On("ListApps", mock.Anything).Return(map[string]string{}, nil)
-	r.On("RevisionMetadata", mock.Anything, f.revision).Return(f.revisionMetadata, nil)
-	return &r, nil
+func newService(root string) *Service {
+	service, _, _ := newServiceWithMocks(root)
+	return service
 }
 
 func TestGenerateYamlManifestInDir(t *testing.T) {
-	// update this value if we add/remove manifests
-	const countOfManifests = 25
+	service := newService("../..")
 
-	q := apiclient.ManifestRequest{
-		ApplicationSource: &argoappv1.ApplicationSource{},
+	for srcType, src := range map[string]argoappv1.ApplicationSource{
+		"Git":  {Path: "manifests/base"},
+		"Helm": {Chart: "manifests/base"},
+	} {
+		t.Run(srcType, func(t *testing.T) {
+			q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
+
+			// update this value if we add/remove manifests
+			const countOfManifests = 25
+
+			res1, err := service.GenerateManifest(context.Background(), &q)
+
+			assert.Nil(t, err)
+			assert.Equal(t, countOfManifests, len(res1.Manifests))
+
+			// this will test concatenated manifests to verify we split YAMLs correctly
+			res2, err := GenerateManifests("./testdata/concatenated", &q)
+			assert.Nil(t, err)
+			assert.Equal(t, 3, len(res2.Manifests))
+		})
 	}
-	res1, err := GenerateManifests("../../manifests/base", &q)
-	assert.Nil(t, err)
-	assert.Equal(t, countOfManifests, len(res1.Manifests))
-
-	// this will test concatenated manifests to verify we split YAMLs correctly
-	res2, err := GenerateManifests("./testdata/concatenated", &q)
-	assert.Nil(t, err)
-	assert.Equal(t, 3, len(res2.Manifests))
-}
-
-func TestService_ListApps(t *testing.T) {
-	fixtures := newFixtures(".", "empty-list")
-	apps, err := fixtures.Service.ListApps(context.Background(), &apiclient.ListAppsRequest{
-		Repo:     &argoappv1.Repository{Repo: "my-repo"},
-		Revision: "my-revision",
-	})
-	assert.NoError(t, err)
-	assert.Equal(t, &apiclient.AppList{
-		Apps: map[string]string{},
-	}, apps)
 }
 
 func TestRecurseManifestsInDir(t *testing.T) {
-	q := apiclient.ManifestRequest{
-		ApplicationSource: &argoappv1.ApplicationSource{},
+	service := newService(".")
+
+	for srcType, src := range map[string]argoappv1.ApplicationSource{
+		"Git":  {Path: "./testdata/recurse", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}},
+		"Helm": {Chart: "./testdata/recurse", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}},
+	} {
+		t.Run(srcType, func(t *testing.T) {
+			q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
+
+			res1, err := service.GenerateManifest(context.Background(), &q)
+			assert.Nil(t, err)
+			assert.Equal(t, 2, len(res1.Manifests))
+		})
 	}
-	q.ApplicationSource.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: true}
-	res1, err := GenerateManifests("./testdata/recurse", &q)
-	assert.Nil(t, err)
-	assert.Equal(t, 2, len(res1.Manifests))
 }
 
 func TestGenerateJsonnetManifestInDir(t *testing.T) {
+	service := newService(".")
+
 	q := apiclient.ManifestRequest{
+		Repo: &argoappv1.Repository{},
 		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: "./testdata/jsonnet",
 			Directory: &argoappv1.ApplicationSourceDirectory{
 				Jsonnet: argoappv1.ApplicationSourceJsonnet{
 					ExtVars: []argoappv1.JsonnetVar{{Name: "extVarString", Value: "extVarString"}, {Name: "extVarCode", Value: "\"extVarCode\"", Code: true}},
@@ -118,47 +120,104 @@ func TestGenerateJsonnetManifestInDir(t *testing.T) {
 			},
 		},
 	}
-	res1, err := GenerateManifests("./testdata/jsonnet", &q)
+	res1, err := service.GenerateManifest(context.Background(), &q)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res1.Manifests))
 }
 
-func TestGenerateHelmChartWithDependencies(t *testing.T) {
-	helmHome, err := ioutil.TempDir("", "")
-	assert.NoError(t, err)
-	os.Setenv("HELM_HOME", helmHome)
-	_, err = exec.RunCommand("helm", exec.CmdOpts{}, "init", "--client-only", "--skip-refresh")
-	assert.NoError(t, err)
-	defer func() {
-		_ = os.RemoveAll(helmHome)
-		_ = os.RemoveAll("../../util/helm/testdata/wordpress/charts")
-		os.Unsetenv("HELM_HOME")
-	}()
+func TestGenerateKsonnetManifest(t *testing.T) {
+	service := newService("../..")
+
 	q := apiclient.ManifestRequest{
-		ApplicationSource: &argoappv1.ApplicationSource{},
+		Repo: &argoappv1.Repository{},
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: "./test/e2e/testdata/ksonnet",
+			Ksonnet: &argoappv1.ApplicationSourceKsonnet{
+				Environment: "dev",
+			},
+		},
 	}
-	res1, err := GenerateManifests("../../util/helm/testdata/wordpress", &q)
+	res, err := service.GenerateManifest(context.Background(), &q)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(res.Manifests))
+	assert.Equal(t, "dev", res.Namespace)
+	assert.Equal(t, "https://kubernetes.default.svc", res.Server)
+}
+
+func TestGenerateHelmChartWithDependencies(t *testing.T) {
+	service := newService("../..")
+
+	q := apiclient.ManifestRequest{
+		Repo: &argoappv1.Repository{},
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: "./util/helm/testdata/wordpress",
+		},
+	}
+	res1, err := service.GenerateManifest(context.Background(), &q)
 	assert.Nil(t, err)
 	assert.Len(t, res1.Manifests, 12)
 }
 
-func TestGenerateNullList(t *testing.T) {
-	q := apiclient.ManifestRequest{
-		ApplicationSource: &argoappv1.ApplicationSource{},
+func TestGenerateHelmWithValues(t *testing.T) {
+	service := newService("../..")
+
+	res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		Repo:          &argoappv1.Repository{},
+		AppLabelValue: "test",
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: "./util/helm/testdata/redis",
+			Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"values-production.yaml"},
+				Values:     `cluster: {slaveCount: 2}`,
+			},
+		},
+	})
+
+	assert.NoError(t, err)
+
+	replicasVerified := false
+	for _, src := range res.Manifests {
+		obj := unstructured.Unstructured{}
+		err = json.Unmarshal([]byte(src), &obj)
+		assert.NoError(t, err)
+
+		if obj.GetKind() == "Deployment" && obj.GetName() == "test-redis-slave" {
+			var dep v1.Deployment
+			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &dep)
+			assert.NoError(t, err)
+			assert.Equal(t, int32(2), *dep.Spec.Replicas)
+			replicasVerified = true
+		}
 	}
-	res1, err := GenerateManifests("./testdata/null-list", &q)
+	assert.True(t, replicasVerified)
+
+}
+
+func TestGenerateNullList(t *testing.T) {
+	service := newService(".")
+
+	res1, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		Repo:              &argoappv1.Repository{},
+		ApplicationSource: &argoappv1.ApplicationSource{Path: "./testdata/null-list"},
+	})
 	assert.Nil(t, err)
 	assert.Equal(t, len(res1.Manifests), 1)
 	assert.Contains(t, res1.Manifests[0], "prometheus-operator-operator")
 
-	res1, err = GenerateManifests("./testdata/empty-list", &q)
+	res1, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		Repo:              &argoappv1.Repository{},
+		ApplicationSource: &argoappv1.ApplicationSource{Path: "./testdata/empty-list"},
+	})
 	assert.Nil(t, err)
 	assert.Equal(t, len(res1.Manifests), 1)
 	assert.Contains(t, res1.Manifests[0], "prometheus-operator-operator")
 
-	res2, err := GenerateManifests("./testdata/weird-list", &q)
+	res1, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		Repo:              &argoappv1.Repository{},
+		ApplicationSource: &argoappv1.ApplicationSource{Path: "./testdata/weird-list"},
+	})
 	assert.Nil(t, err)
-	assert.Equal(t, 2, len(res2.Manifests))
+	assert.Equal(t, 2, len(res1.Manifests))
 }
 
 func TestIdentifyAppSourceTypeByAppDirWithKustomizations(t *testing.T) {
@@ -176,7 +235,9 @@ func TestIdentifyAppSourceTypeByAppDirWithKustomizations(t *testing.T) {
 }
 
 func TestRunCustomTool(t *testing.T) {
-	res, err := GenerateManifests(".", &apiclient.ManifestRequest{
+	service := newService(".")
+
+	res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 		AppLabelValue: "test-app",
 		Namespace:     "test-namespace",
 		ApplicationSource: &argoappv1.ApplicationSource{
@@ -218,111 +279,109 @@ func TestGenerateFromUTF16(t *testing.T) {
 	assert.Equal(t, 2, len(res1.Manifests))
 }
 
-func TestGetAppDetailsHelm(t *testing.T) {
-	serve := newFixtures("../../util/helm/testdata", "redis").Service
-	ctx := context.Background()
+func TestListApps(t *testing.T) {
+	service := newService("./testdata")
 
-	// verify default parameters are returned when not supplying values
-	t.Run("DefaultParameters", func(t *testing.T) {
-		res, err := serve.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
-			Repo: &argoappv1.Repository{Repo: "https://github.com/fakeorg/fakerepo.git"},
-			App:  "redis",
-		})
-		assert.NoError(t, err)
-		assert.Equal(t, "Helm", res.Type)
-		assert.NotNil(t, res.Helm)
-		assert.Equal(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
-		assert.Contains(t, res.Helm.Values, "registry: docker.io")
-		assert.Equal(t, argoappv1.HelmParameter{Name: "image.pullPolicy", Value: "Always"}, getHelmParameter("image.pullPolicy", res.Helm.Parameters))
-		assert.Equal(t, 49, len(res.Helm.Parameters))
-	})
-
-	// verify values specific parameters are returned when a values is specified
-	t.Run("SpecificParameters", func(t *testing.T) {
-		res, err := serve.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
-			Repo: &argoappv1.Repository{Repo: "https://github.com/fakeorg/fakerepo.git"},
-			App:  "redis",
-			Helm: &apiclient.HelmAppDetailsQuery{
-				ValueFiles: []string{"values-production.yaml"},
-			},
-		})
-		assert.NoError(t, err)
-		assert.Equal(t, "Helm", res.Type)
-		assert.NotNil(t, res.Helm)
-		assert.Equal(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
-		assert.Contains(t, res.Helm.Values, "registry: docker.io")
-		assert.Equal(t, argoappv1.HelmParameter{Name: "image.pullPolicy", Value: "IfNotPresent"}, getHelmParameter("image.pullPolicy", res.Helm.Parameters))
-		assert.Equal(t, 49, len(res.Helm.Parameters))
-	})
-}
-
-func getHelmParameter(name string, params []*argoappv1.HelmParameter) argoappv1.HelmParameter {
-	for _, p := range params {
-		if name == p.Name {
-			return *p
-		}
-	}
-	panic(name + " not in params")
-}
-
-func TestGetAppDetailsKsonnet(t *testing.T) {
-	serve := newFixtures("../../test/e2e/testdata", "ksonnet").Service
-	ctx := context.Background()
-
-	res, err := serve.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
-		Repo: &argoappv1.Repository{Repo: "https://github.com/fakeorg/fakerepo.git"},
-		App:  "ksonnet",
-	})
+	res, err := service.ListApps(context.Background(), &apiclient.ListAppsRequest{Repo: &argoappv1.Repository{}})
 	assert.NoError(t, err)
-	assert.Equal(t, "https://kubernetes.default.svc", res.Ksonnet.Environments["prod"].Destination.Server)
-	assert.Equal(t, "prod", res.Ksonnet.Environments["prod"].Destination.Namespace)
-	assert.Equal(t, "v1.10.0", res.Ksonnet.Environments["prod"].K8SVersion)
-	assert.Equal(t, argoappv1.KsonnetParameter{Component: "guestbook-ui", Name: "command", Value: "null"}, *res.Ksonnet.Parameters[0])
-	assert.Equal(t, 7, len(res.Ksonnet.Parameters))
+
+	expectedApps := map[string]string{
+		"Kustomization":      "Kustomize",
+		"invalid-helm":       "Helm",
+		"invalid-kustomize":  "Kustomize",
+		"kustomization_yaml": "Kustomize",
+		"kustomization_yml":  "Kustomize",
+	}
+	assert.Equal(t, expectedApps, res.Apps)
+}
+
+func TestGetAppDetailsHelm(t *testing.T) {
+	service := newService("../..")
+
+	res, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+		Repo: &argoappv1.Repository{},
+		Source: &argoappv1.ApplicationSource{
+			Path: "./util/helm/testdata/wordpress",
+		},
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, res.Helm)
+
+	assert.Equal(t, "Helm", res.Type)
+	assert.EqualValues(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
 }
 
 func TestGetAppDetailsKustomize(t *testing.T) {
-	serve := newFixtures("../../util/kustomize/testdata", "kustomization_yaml").Service
-	ctx := context.Background()
+	service := newService("../..")
 
-	res, err := serve.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
-		Repo: &argoappv1.Repository{Repo: "https://github.com/fakeorg/fakerepo.git"},
-		App:  "kustomization_yaml",
+	res, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+		Repo: &argoappv1.Repository{},
+		Source: &argoappv1.ApplicationSource{
+			Path: "./util/kustomize/testdata/kustomization_yaml",
+		},
 	})
+
 	assert.NoError(t, err)
-	assert.Equal(t, []string{"nginx:1.15.4", "k8s.gcr.io/nginx-slim:0.8"}, res.Kustomize.Images)
+
+	assert.Equal(t, "Kustomize", res.Type)
+	assert.NotNil(t, res.Kustomize)
+	assert.EqualValues(t, []string{"nginx:1.15.4", "k8s.gcr.io/nginx-slim:0.8"}, res.Kustomize.Images)
 }
 
-func TestService_GetRevisionMetadata(t *testing.T) {
-	fixtures := newFixtures(".", "empty-list")
-	type args struct {
-		q *apiclient.RepoServerRevisionMetadataRequest
-	}
-	q := &apiclient.RepoServerRevisionMetadataRequest{Repo: &argoappv1.Repository{}, App: "empty-list", Revision: fixtures.fakeFactory.revision}
-	metadata := &v1alpha1.RevisionMetadata{
-		Author:  fixtures.fakeFactory.revisionMetadata.Author,
-		Message: strings.Repeat("x", 61) + "...",
-		Tags:    fixtures.fakeFactory.revisionMetadata.Tags,
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    *v1alpha1.RevisionMetadata
-		wantErr bool
-	}{
-		{"CacheMiss", args{q: q}, metadata, false},
-		{"CacheHit", args{q: q}, metadata, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := fixtures.Service.GetRevisionMetadata(context.Background(), tt.args.q)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Service.GetRevisionMetadata() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Service.GetRevisionMetadata() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+func TestGetAppDetailsKsonnet(t *testing.T) {
+	service := newService("../..")
+
+	res, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+		Repo: &argoappv1.Repository{},
+		Source: &argoappv1.ApplicationSource{
+			Path: "./test/e2e/testdata/ksonnet",
+		},
+	})
+
+	assert.NoError(t, err)
+
+	assert.Equal(t, "Ksonnet", res.Type)
+	assert.NotNil(t, res.Ksonnet)
+	assert.Equal(t, "guestbook", res.Ksonnet.Name)
+	assert.Len(t, res.Ksonnet.Environments, 3)
+}
+
+func TestGetHelmCharts(t *testing.T) {
+	service, _, helmClient := newServiceWithMocks("../..")
+	helmClient.On("GetIndex").Return(&helm.Index{Entries: map[string][]helm.Entry{
+		"mychart": {{Version: "v1"}, {Version: "v2"}},
+	}}, nil)
+
+	res, err := service.GetHelmCharts(context.Background(), &apiclient.HelmChartsRequest{Repo: &argoappv1.Repository{}})
+	assert.NoError(t, err)
+	assert.Len(t, res.Items, 1)
+
+	item := res.Items[0]
+	assert.Equal(t, "mychart", item.Name)
+	assert.EqualValues(t, []string{"v1", "v2"}, item.Versions)
+}
+
+func TestGetRevisionMetadata(t *testing.T) {
+	service, gitClient, _ := newServiceWithMocks("../..")
+	now := time.Now()
+
+	gitClient.On("RevisionMetadata", mock.Anything).Return(&git.RevisionMetadata{
+		Message: strings.Repeat("a", 100) + "\n" + "second line",
+		Author:  "author",
+		Date:    now,
+		Tags:    []string{"tag1", "tag2"},
+	}, nil)
+
+	res, err := service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:     &argoappv1.Repository{},
+		Revision: "123",
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, strings.Repeat("a", 61)+"...", res.Message)
+	assert.Equal(t, now, res.Date.Time)
+	assert.Equal(t, "author", res.Author)
+	assert.EqualValues(t, []string{"tag1", "tag2"}, res.Tags)
+
 }

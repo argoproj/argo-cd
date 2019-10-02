@@ -10,7 +10,13 @@ import { CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services
 
 import { ProjectEditPanel } from '../project-edit-panel/project-edit-panel';
 import { ProjectEvents } from '../project-events/project-events';
+
+import { ProjectMaintenanceEditPanel } from '../project-maintenance-edit-panel/project-maintenance-edit-panel';
 import { ProjectRoleEditPanel } from '../project-role-edit-panel/project-role-edit-panel';
+
+import { ProjectMaintenanceParams } from '../../../shared/services/projects-service';
+
+import { MaintenanceWindowStatusIcon } from '../../../applications/components/utils';
 
 interface ProjectDetailsState {
     token: string;
@@ -27,6 +33,7 @@ function helpTip(text: string) {
 export class ProjectDetails extends React.Component<RouteComponentProps<{ name: string; }>, ProjectDetailsState> {
     private projectFormApi: FormApi;
     private projectRoleFormApi: FormApi;
+    private projectMaintenanceFormApi: FormApi;
     private loader: DataLoader;
 
     constructor(props: RouteComponentProps<{ name: string; }>) {
@@ -41,8 +48,9 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
             <Page title='Projects' toolbar={{
                 breadcrumbs: [{title: 'Settings', path: '/settings' }, {title: 'Projects', path: '/settings/projects'}, {title: this.props.match.params.name}],
                 actionMenu: {items: [
-                    { title: 'Add Role', iconClassName: 'fa fa-plus', action: () => ctx.navigation.goto('.', {newRole: true})},
                     { title: 'Edit', iconClassName: 'fa fa-pencil-alt', action: () => ctx.navigation.goto('.', {edit: true}) },
+                    { title: 'Add Role', iconClassName: 'fa fa-plus', action: () => ctx.navigation.goto('.', {newRole: true})},
+                    { title: 'Add Maintenance Window', iconClassName: 'fa fa-plus', action: () => ctx.navigation.goto('.', {newWindow: true})},
                     { title: 'Delete', iconClassName: 'fa fa-times-circle', action: async () => {
                         const confirmed = await ctx.popup.confirm('Delete project', 'Are you sure you want to delete project?');
                         if (confirmed) {
@@ -72,6 +80,10 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                                     key: 'roles',
                                     title: 'Roles',
                                     content: this.rolesTab(proj, ctx),
+                                }, {
+                                    key: 'maintenance',
+                                    title: 'Maintenance',
+                                    content: this.maintenanceTab(proj, ctx),
                                 }, {
                                     key: 'events',
                                     title: 'Events',
@@ -173,6 +185,63 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                                         hideJWTToken={() => this.setState({token: ''})}
                                     />}
                                 </SlidingPanel>
+                                <SlidingPanel isMiddle={true} isShown={params.get('editWindow') !== null || params.get('newWindow') !== null}
+                                              onClose={() => {
+                                                  this.setState({token: ''});
+                                                  ctx.navigation.goto('.', {editWindow: null, newWindow: null});
+                                              }} header={(
+                                    <div>
+                                        <button onClick={() => {
+                                            this.setState({token: ''});
+                                            ctx.navigation.goto('.', {editWindow: null, newWindow: null});
+                                        }} className='argo-button argo-button--base-o'>
+                                            Cancel
+                                        </button> <button onClick={() => this.projectMaintenanceFormApi.submitForm(null)} className='argo-button argo-button--base'>
+                                        {params.get('newWindow') != null ? 'Create' : 'Update'}
+                                    </button> {params.get('newWindow') === null ? (
+                                        <button onClick={async () => {
+                                            const confirmed = await ctx.popup.confirm('Delete maintenance window', 'Are you sure you want to delete maintenance window?');
+                                            if (confirmed) {
+                                                try {
+                                                    this.projectMaintenanceFormApi.setValue('deleteWindow', true);
+                                                    this.projectMaintenanceFormApi.submitForm(null);
+                                                    ctx.navigation.goto('.', {editWindow: null});
+                                                } catch (e) {
+                                                    ctx.notifications.show({
+                                                        content: <ErrorNotification title='Unable to delete maintenance window' e={e}/>,
+                                                        type: NotificationType.Error,
+                                                    });
+                                                }
+                                            }
+                                        }} className='argo-button argo-button--base'>
+                                            Delete
+                                        </button>
+                                    ) : null}
+                                    </div>
+                                )}>
+                                    {(params.get('editWindow') !== null || params.get('newWindow') === 'true') && <ProjectMaintenanceEditPanel
+                                        nameReadonly={params.get('newWindow') === null ? true : false}
+                                        defaultParams={{
+                                            newWindow: (params.get('newWindow') === null ) ? false : true,
+                                            projName: proj.metadata.name,
+                                            window: (params.get('newWindow') === null && proj.spec.maintenance.windows !== undefined) ?
+                                                proj.spec.maintenance.windows.find((x) => params.get('editWindow') === x.schedule + ':' + x.duration)
+                                                : undefined,
+                                        }}
+                                        getApi={(api: FormApi) => this.projectMaintenanceFormApi = api} submit={async (projMaintenanceParams: ProjectMaintenanceParams) => {
+                                        try {
+                                            await services.projects.updateWindow(projMaintenanceParams);
+                                            ctx.navigation.goto('.', {editWindow: null, newWindow: null});
+                                            this.loader.reload();
+                                        } catch (e) {
+                                            ctx.notifications.show({
+                                                content: <ErrorNotification title='Unable to edit project' e={e}/>,
+                                                type: NotificationType.Error,
+                                            });
+                                        }
+                                    }}
+                                    />}
+                                </SlidingPanel>
                             </div>
                         )}
                         </Query>
@@ -241,6 +310,52 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                             </div>
                         ))}
                 </div>) || <div className='white-box'><p>Project has no roles</p></div>}
+            </div>
+        );
+    }
+
+    private maintenanceTab(proj: Project, ctx: any) {
+        return (
+            <div className='argo-container'>
+                {(proj.spec.maintenance && proj.spec.maintenance.windows || []).length > 0 && (
+                    <DataLoader noLoaderOnInputChange={true} input={proj.spec.maintenance.windows} load={async () => {
+                            return await services.projects.getMaintenanceWindowState(proj.metadata.name);
+                        }}>{(data) =>
+                            <div className='argo-table-list argo-table-list--clickable'>
+                                <div className='argo-table-list__head'>
+                                    <div className='row'>
+                                        <div className='columns small-1.5'>STATUS</div>
+                                        <div className='columns small-1.5'>WINDOW</div>
+                                        <div className='columns small-3'>APPLICATIONS</div>
+                                        <div className='columns small-3'>NAMESPACES</div>
+                                        <div className='columns small-3'>CLUSTERS</div>
+                                    </div>
+                                </div>
+                                {(proj.spec.maintenance.windows || []).map((window) => (
+                                    <div className='argo-table-list__row' key={`${window.schedule}:${window.duration}`}
+                                         onClick={() => ctx.navigation.goto(`.`, {editWindow: window.schedule + ':' + window.duration})}>
+                                        <div className='row'>
+                                            <div className='columns small-1.1'>
+                                                <span><MaintenanceWindowStatusIcon state={data} window={window}/></span>
+                                            </div>
+                                            <div className='columns small-1.9'>
+                                                {window.schedule}:{window.duration}
+                                            </div>
+                                            <div className='columns small-3'>
+                                                {(window.applications || ['-']).join(',')}
+                                            </div>
+                                            <div className='columns small-3'>
+                                                {(window.namespaces || ['-']).join(',')}
+                                            </div>
+                                            <div className='columns small-3'>
+                                                {(window.clusters || ['-']).join(',')}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                                </div>
+                    }</DataLoader>
+                ) || <div className='white-box'><p>Project has no maintenance windows</p></div>}
             </div>
         );
     }

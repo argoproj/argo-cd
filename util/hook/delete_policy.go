@@ -5,7 +5,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	helmhook "github.com/argoproj/argo-cd/util/helm/hook"
+	helmhook "github.com/argoproj/argo-cd/util/hook/helm"
 	"github.com/argoproj/argo-cd/util/resource"
 )
 

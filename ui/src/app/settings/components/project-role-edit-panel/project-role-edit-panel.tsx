@@ -57,7 +57,8 @@ export const ProjectRoleEditPanel = (props: ProjectRoleEditPanelProps) => {
                         <ProjectRolePoliciesEdit
                             projName={api.values.projName}
                             roleName={api.values.roleName}
-                            formApi={api} policies={api.values.policies}
+                            formApi={api}
+                            policies={api.values.policies}
                             newRole={props.defaultParams.newRole}/>
                         <ProjectRoleGroupsEdit
                             projName={api.values.projName}

@@ -8,7 +8,6 @@ import (
 
 	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/test/fixture/testrepos"
 	"github.com/argoproj/argo-cd/util"
 )
 
@@ -49,7 +48,7 @@ func TestAddRemovePublicRepo(t *testing.T) {
 }
 
 func TestAddRemoveHelmRepo(t *testing.T) {
-	_, err := fixture.RunCli("repo", "add", testrepos.HelmTestRepo, "--name", "testrepo", "--type", "helm")
+	_, err := fixture.RunCli("repo", "add", fixture.RepoURL(fixture.RepoURLTypeHelm), "--name", "testrepo", "--type", "helm")
 	assert.NoError(t, err)
 
 	conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
@@ -61,21 +60,21 @@ func TestAddRemoveHelmRepo(t *testing.T) {
 	assert.NoError(t, err)
 	exists := false
 	for i := range repo.Items {
-		if repo.Items[i].Repo == testrepos.HelmTestRepo {
+		if repo.Items[i].Repo == fixture.RepoURL(fixture.RepoURLTypeHelm) {
 			exists = true
 			break
 		}
 	}
 	assert.True(t, exists)
 
-	_, err = fixture.RunCli("repo", "rm", testrepos.HelmTestRepo)
+	_, err = fixture.RunCli("repo", "rm", fixture.RepoURL(fixture.RepoURLTypeHelm))
 	assert.NoError(t, err)
 
 	repo, err = repoClient.List(context.Background(), &repositorypkg.RepoQuery{})
 	assert.NoError(t, err)
 	exists = false
 	for i := range repo.Items {
-		if repo.Items[i].Repo == testrepos.HelmTestRepo {
+		if repo.Items[i].Repo == fixture.RepoURL(fixture.RepoURLTypeHelm) {
 			exists = true
 			break
 		}

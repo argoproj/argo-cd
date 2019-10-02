@@ -39,8 +39,6 @@ import (
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/rbac"
-	"github.com/argoproj/argo-cd/util/repo/factory"
-	"github.com/argoproj/argo-cd/util/repo/metrics"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -56,7 +54,6 @@ type Server struct {
 	enf           *rbac.Enforcer
 	projectLock   *util.KeyLock
 	auditLogger   *argo.AuditLogger
-	clientFactory factory.Factory
 	settingsMgr   *settings.SettingsManager
 	cache         *cache.Cache
 }
@@ -86,7 +83,6 @@ func NewServer(
 		enf:           enf,
 		projectLock:   projectLock,
 		auditLogger:   argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
-		clientFactory: factory.NewFactory(),
 		settingsMgr:   settingsMgr,
 	}
 }
@@ -769,7 +765,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 		return nil, err
 	}
 	defer util.Close(conn)
-	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{Repo: repo, App: a.Spec.Source.Path, Revision: q.GetRevision()})
+	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{Repo: repo, Revision: q.GetRevision()})
 }
 
 func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQuery) (*application.ManagedResourcesResponse, error) {
@@ -884,6 +880,20 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	if err != nil {
 		return nil, err
 	}
+
+	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(a.Spec.GetProject(), metav1.GetOptions{})
+	if err != nil {
+		if apierr.IsNotFound(err) {
+			return a, status.Errorf(codes.InvalidArgument, "application references project %s which does not exist", a.Spec.Project)
+		}
+		return a, err
+	}
+	active := proj.Spec.Maintenance.ActiveWindows()
+	match, _ := active.Match(a)
+	if match {
+		s.logEvent(a, ctx, argo.EventReasonOperationCompleted, fmt.Sprint("Cannot sync: Maintenance Windows are active"))
+		return a, err
+	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionSync, appRBACName(*a)); err != nil {
 		return nil, err
 	}
@@ -904,14 +914,17 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		}
 	}
 
-	commitSHA, displayRevision, err := s.resolveRevision(ctx, a, syncReq)
-	if err != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, err.Error())
+	revision := a.Spec.Source.TargetRevision
+	displayRevision := revision
+	if !a.Spec.Source.IsHelm() {
+		revision, displayRevision, err = s.resolveRevision(ctx, a, syncReq)
+		if err != nil {
+			return nil, status.Errorf(codes.FailedPrecondition, err.Error())
+		}
 	}
-
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
-			Revision:     commitSHA,
+			Revision:     revision,
 			Prune:        syncReq.Prune,
 			DryRun:       syncReq.DryRun,
 			SyncStrategy: syncReq.Strategy,
@@ -994,11 +1007,11 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	if err != nil {
 		return "", "", err
 	}
-	client, err := s.clientFactory.NewRepo(repo, metrics.NopReporter)
+	gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled())
 	if err != nil {
 		return "", "", err
 	}
-	commitSHA, err := client.ResolveAppRevision(app.Spec.Source.Path, ambiguousRevision)
+	commitSHA, err := gitClient.LsRemote(ambiguousRevision)
 	if err != nil {
 		return "", "", err
 	}
@@ -1172,4 +1185,40 @@ func (s *Server) plugins() ([]*v1alpha1.ConfigManagementPlugin, error) {
 		tools[i] = &plugin
 	}
 	return tools, nil
+}
+
+func (s *Server) GetApplicationMaintenanceState(ctx context.Context, q *application.ApplicationMaintenanceQuery) (*application.ApplicationMaintenanceResponse, error) {
+	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
+	a, err := appIf.Get(*q.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
+		return nil, err
+	}
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, a.Spec.Project); err != nil {
+		return nil, err
+	}
+
+	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(a.Spec.Project, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	active := proj.Spec.Maintenance.ActiveWindows()
+	_, pWindows := active.Match(a)
+
+	var windows []string
+	for _, win := range pWindows {
+		w := win.Schedule + ":" + win.Duration
+		windows = append(windows, w)
+	}
+
+	res := &application.ApplicationMaintenanceResponse{
+		Windows: windows,
+	}
+
+	return res, nil
 }
