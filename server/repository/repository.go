@@ -234,12 +234,13 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 	// check we can connect to the repo, copying any existing creds
 	{
 		repo := q.Repo.DeepCopy()
-		creds, err := s.db.GetRepository(ctx, repo.Repo)
-		if err != nil {
-			return nil, err
+		if !repo.HasCredentials() {
+			creds, err := s.db.GetRepositoryCredentials(ctx, repo.Repo)
+			if err != nil {
+				return nil, err
+			}
+			repo.CopyCredentialsFrom(creds)
 		}
-		repo.CopyCredentialsFrom(creds)
-		repo.CopySettingsFrom(creds)
 		err = argo.TestRepo(repo)
 		if err != nil {
 			return nil, err
