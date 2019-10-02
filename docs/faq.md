@@ -99,6 +99,14 @@ Argo CD automatically sets the `app.kubernetes.io/instance` label and uses it to
 
 See [#1482](https://github.com/argoproj/argo-cd/issues/1482).
 
+## Why Are My Resource Limits Out Of Sync?
+
+Kubernetes normalizes resource limits when they are applied, and then Argo CD compares the version in your generated manifests to the normalized one is Kubernetes - they won't match. 
+
+E.g. '0.1' is normalized to '100m'
+E.g. '3072Mi' is normalized to '3Gi'
+
+See [#1615](https://github.com/argoproj/argo-cd/issues/1615)
 
 # How Do I Fix "invalid cookie, longer than max length 4093"?
 
