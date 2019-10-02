@@ -199,10 +199,10 @@ export const ApplicationParameters = (props: {
             const value = overrideIndex > -1 && source.helm.parameters[overrideIndex].value || original;
             return { overrideIndex, original, metadata: { name, value } };
         })));
-    } else if (props.details.type === 'Plugin' && app.spec.source.plugin) {
+    } else if (props.details.type === 'Plugin') {
         attributes.push({
             title: 'NAME',
-            view: app.spec.source.plugin.name,
+            view: app.spec.source.plugin && app.spec.source.plugin.name,
             edit: (formApi: FormApi) => (
                 <FormField formApi={formApi} field='spec.source.plugin.name' component={Text}/>
             ),

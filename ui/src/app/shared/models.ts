@@ -429,6 +429,7 @@ export interface RepoAppDetails {
     ksonnet?: KsonnetAppSpec;
     helm?: HelmAppSpec;
     kustomize?: KustomizeAppSpec;
+    plugin?: PluginAppSpec;
     directory?: {};
 }
 
@@ -453,6 +454,10 @@ export interface HelmAppSpec {
 export interface KustomizeAppSpec {
     path: string;
     images?: string[];
+}
+
+export interface PluginAppSpec {
+    name: string;
 }
 
 export interface ObjectReference {

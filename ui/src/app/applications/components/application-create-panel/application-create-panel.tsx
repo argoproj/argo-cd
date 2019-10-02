@@ -258,7 +258,10 @@ export const ApplicationCreatePanel = (props: {
                                                 case 'Ksonnet':
                                                     details = {type, path: details.path, ksonnet: { name: '', path: '', environments: {}, parameters: []} };
                                                     break;
-                                                // Directory or Plugin
+                                                case 'Plugin':
+                                                    details = {type, path: details.path, plugin: { name: ''} };
+                                                    break;
+                                                // Directory
                                                 default:
                                                     details = {type, path: details.path, directory: {} };
                                                     break;
