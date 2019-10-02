@@ -1,7 +1,8 @@
 import {Tooltip} from 'argo-ui';
 import * as React from 'react';
 import {DataLoader} from '../../../shared/components';
-import {Revision} from '../../../shared/components/revision';
+import {Revision} from '../../../shared/components';
+import {FTU} from '../../../shared/components/first-time-use';
 import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -122,6 +123,18 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                     </div>
                 </React.Fragment>
             }</DataLoader>
+            <FTU key='app-ftu'>
+                    <h4>Welcome to the app page</h4>
+                    <div style={{textAlign: 'center'}}>
+                        <iframe width='560' height='315'
+                                src='https://www.youtube-nocookie.com/embed/bLy1hOa5sTE'
+                                frameBorder='0'
+                                allow='accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture'
+                                allowFullScreen={true}/>
+                        <p>As this is the first time you're using this page, we've created this 3m long video to help
+                            become an ninja is troubleshooting and debugging your Argo CD app.</p>
+                    </div>
+            </FTU>
         </div>
     );
 };
