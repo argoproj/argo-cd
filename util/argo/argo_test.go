@@ -7,9 +7,11 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes/fake"
 	testcore "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 
@@ -207,5 +209,286 @@ func Test_enrichSpec(t *testing.T) {
 		enrichSpec(spec, response)
 		assert.Equal(t, "my-server", spec.Destination.Server)
 		assert.Equal(t, "my-namespace", spec.Destination.Namespace)
+	})
+}
+
+func createHelmApplicationSpec() *argoappv1.ApplicationSpec {
+	return &argoappv1.ApplicationSpec{
+		Source: argoappv1.ApplicationSource{
+			Helm: &argoappv1.ApplicationSourceHelm{},
+		},
+	}
+}
+
+func TestResolveHelmValues(t *testing.T) {
+	t.Run("Non Helm Application", func(t *testing.T) {
+		const testNamespace = "argocd"
+
+		spec := &argoappv1.ApplicationSpec{
+			Source: argoappv1.ApplicationSource{
+				Path:    "foobar",
+				RepoURL: "https://test.com",
+			},
+		}
+
+		kubeclientset := fake.NewSimpleClientset()
+
+		value, err := ResolveHelmValues(kubeclientset, testNamespace, spec)
+		assert.Nil(t, err)
+		assert.Equal(t, "{}\n", value)
+	})
+
+	t.Run("No additional secrets/configmaps", func(t *testing.T) {
+		const testNamespace = "argocd"
+
+		spec := createHelmApplicationSpec()
+
+		kubeclientset := fake.NewSimpleClientset()
+
+		value, err := ResolveHelmValues(kubeclientset, testNamespace, spec)
+		assert.Nil(t, err)
+		assert.Equal(t, "{}\n", value)
+	})
+
+	t.Run("Single ConfigMap", func(t *testing.T) {
+		const testNamespace = "argocd"
+		spec := createHelmApplicationSpec()
+		spec.Source.Helm.ValuesFrom = append(spec.Source.Helm.ValuesFrom, argoappv1.ValuesFromSource{
+			ConfigMapKeyRef: &argoappv1.ConfigMapKeySelector{
+				Name: "additional-helm-values",
+			},
+		})
+
+		kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: testNamespace,
+				Name:      "additional-helm-values",
+			},
+			Data: map[string]string{
+				"values.yaml": "baz: 'quux'\n",
+			},
+		})
+
+		value, err := ResolveHelmValues(kubeclientset, testNamespace, spec)
+		assert.Nil(t, err)
+		assert.Equal(t, "baz: quux\n", value)
+	})
+
+	t.Run("Alternate Key", func(t *testing.T) {
+		const testNamespace = "argocd"
+		spec := createHelmApplicationSpec()
+		spec.Source.Helm.ValuesFrom = append(spec.Source.Helm.ValuesFrom, argoappv1.ValuesFromSource{
+			ConfigMapKeyRef: &argoappv1.ConfigMapKeySelector{
+				Name: "additional-helm-values",
+				Key:  "other.yaml",
+			},
+		})
+
+		kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: testNamespace,
+				Name:      "additional-helm-values",
+			},
+			Data: map[string]string{
+				"other.yaml": "baz: 'quux'\n",
+			},
+		})
+
+		value, err := ResolveHelmValues(kubeclientset, testNamespace, spec)
+		assert.Nil(t, err)
+		assert.Equal(t, "baz: quux\n", value)
+	})
+
+	t.Run("Multiple ConfigMap", func(t *testing.T) {
+		const testNamespace = "argocd"
+		spec := createHelmApplicationSpec()
+
+		spec.Source.Helm.ValuesFrom = append(spec.Source.Helm.ValuesFrom, argoappv1.ValuesFromSource{
+			ConfigMapKeyRef: &argoappv1.ConfigMapKeySelector{
+				Name: "additional-helm-values",
+			},
+		}, argoappv1.ValuesFromSource{
+			ConfigMapKeyRef: &argoappv1.ConfigMapKeySelector{
+				Name: "more-additional-helm-values",
+			},
+		})
+
+		kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: testNamespace,
+				Name:      "additional-helm-values",
+			},
+			Data: map[string]string{
+				"values.yaml": "baz: quux",
+			},
+		}, &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: testNamespace,
+				Name:      "more-additional-helm-values",
+			},
+			Data: map[string]string{
+				"values.yaml": "test: data\n",
+			},
+		})
+
+		values, err := ResolveHelmValues(kubeclientset, testNamespace, spec)
+		assert.Nil(t, err)
+		assert.Equal(t, "baz: quux\ntest: data\n", values)
+	})
+
+	t.Run("Optional ConfigMap", func(t *testing.T) {
+		const testNamespace = "argocd"
+		spec := createHelmApplicationSpec()
+
+		spec.Source.Helm.ValuesFrom = append(spec.Source.Helm.ValuesFrom, argoappv1.ValuesFromSource{
+			ConfigMapKeyRef: &argoappv1.ConfigMapKeySelector{
+				Name:     "additional-helm-values",
+				Optional: true,
+			},
+		})
+
+		kubeclientset := fake.NewSimpleClientset()
+
+		values, err := ResolveHelmValues(kubeclientset, testNamespace, spec)
+		assert.Nil(t, err)
+		assert.Equal(t, "{}\n", values)
+	})
+
+	t.Run("Required ConfigMap", func(t *testing.T) {
+		const testNamespace = "argocd"
+		spec := createHelmApplicationSpec()
+
+		spec.Source.Helm.ValuesFrom = append(spec.Source.Helm.ValuesFrom, argoappv1.ValuesFromSource{
+			ConfigMapKeyRef: &argoappv1.ConfigMapKeySelector{
+				Name: "additional-helm-values",
+			},
+		})
+
+		kubeclientset := fake.NewSimpleClientset()
+
+		_, err := ResolveHelmValues(kubeclientset, testNamespace, spec)
+		assert.Error(t, err)
+	})
+
+	t.Run("Single Secret", func(t *testing.T) {
+		const testNamespace = "argocd"
+		spec := createHelmApplicationSpec()
+
+		spec.Source.Helm.ValuesFrom = append(spec.Source.Helm.ValuesFrom, argoappv1.ValuesFromSource{
+			SecretKeyRef: &argoappv1.SecretKeySelector{
+				Name: "additional-helm-values",
+			},
+		})
+
+		kubeclientset := fake.NewSimpleClientset(&v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "additional-helm-values",
+				Namespace: testNamespace,
+			},
+			Data: map[string][]byte{
+				"values.yaml": []byte("baz: 'quux'\n"),
+			},
+		})
+
+		values, err := ResolveHelmValues(kubeclientset, testNamespace, spec)
+		assert.Nil(t, err)
+		assert.Equal(t, "baz: quux\n", values)
+	})
+
+	t.Run("Alternate Key Secret", func(t *testing.T) {
+		const testNamespace = "argocd"
+		spec := createHelmApplicationSpec()
+
+		spec.Source.Helm.ValuesFrom = append(spec.Source.Helm.ValuesFrom, argoappv1.ValuesFromSource{
+			SecretKeyRef: &argoappv1.SecretKeySelector{
+				Name: "additional-helm-values",
+				Key:  "alternate.yaml",
+			},
+		})
+
+		kubeclientset := fake.NewSimpleClientset(&v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "additional-helm-values",
+				Namespace: testNamespace,
+			},
+			Data: map[string][]byte{
+				"alternate.yaml": []byte("baz: 'quux'\n"),
+			},
+		})
+
+		values, err := ResolveHelmValues(kubeclientset, testNamespace, spec)
+		assert.Nil(t, err)
+		assert.Equal(t, "baz: quux\n", values)
+	})
+
+	t.Run("Multiple Secret", func(t *testing.T) {
+		const testNamespace = "argocd"
+		spec := createHelmApplicationSpec()
+
+		spec.Source.Helm.ValuesFrom = append(spec.Source.Helm.ValuesFrom, argoappv1.ValuesFromSource{
+			SecretKeyRef: &argoappv1.SecretKeySelector{
+				Name: "additional-helm-values",
+			},
+		}, argoappv1.ValuesFromSource{
+			SecretKeyRef: &argoappv1.SecretKeySelector{
+				Name: "more-additional-helm-values",
+			},
+		})
+
+		kubeclientset := fake.NewSimpleClientset(&v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: testNamespace,
+				Name:      "additional-helm-values",
+			},
+			Data: map[string][]byte{
+				"values.yaml": []byte("baz: 'quux'\n"),
+			},
+		}, &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: testNamespace,
+				Name:      "more-additional-helm-values",
+			},
+			Data: map[string][]byte{
+				"values.yaml": []byte("test: data\n"),
+			},
+		})
+
+		values, err := ResolveHelmValues(kubeclientset, testNamespace, spec)
+		assert.Nil(t, err)
+		assert.Equal(t, "baz: quux\ntest: data\n", values)
+	})
+
+	t.Run("Optional Secret", func(t *testing.T) {
+		const testNamespace = "argocd"
+		spec := createHelmApplicationSpec()
+
+		spec.Source.Helm.ValuesFrom = append(spec.Source.Helm.ValuesFrom, argoappv1.ValuesFromSource{
+			SecretKeyRef: &argoappv1.SecretKeySelector{
+				Name:     "additional-helm-values",
+				Optional: true,
+			},
+		})
+
+		kubeclientset := fake.NewSimpleClientset()
+
+		values, err := ResolveHelmValues(kubeclientset, testNamespace, spec)
+		assert.Nil(t, err)
+		assert.Equal(t, "{}\n", values)
+	})
+
+	t.Run("Required Secret", func(t *testing.T) {
+		const testNamespace = "argocd"
+		spec := createHelmApplicationSpec()
+
+		spec.Source.Helm.ValuesFrom = append(spec.Source.Helm.ValuesFrom, argoappv1.ValuesFromSource{
+			SecretKeyRef: &argoappv1.SecretKeySelector{
+				Name: "additional-helm-values",
+			},
+		})
+
+		kubeclientset := fake.NewSimpleClientset()
+
+		_, err := ResolveHelmValues(kubeclientset, testNamespace, spec)
+		assert.Error(t, err)
 	})
 }

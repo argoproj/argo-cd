@@ -496,6 +496,45 @@ spec:
                           description: Values is Helm values, typically defined as
                             a block
                           type: string
+                        valuesFrom:
+                          description: ValuesFrom are other sources such as configmaps
+                            and secrets to source values from
+                          items:
+                            properties:
+                              configMapKeyRef:
+                                description: Selects a key of a ConfigMap.
+                                properties:
+                                  key:
+                                    description: The key to select.
+                                    type: string
+                                  name:
+                                    description: The ConfigMap to select from.
+                                    type: string
+                                  optional:
+                                    description: Specify whether the ConfigMap/Secret
+                                      must be defined
+                                    type: boolean
+                                required:
+                                - name
+                                type: object
+                              secretKeyRef:
+                                description: Selects a key of a Secret.
+                                properties:
+                                  key:
+                                    description: The key to select.
+                                    type: string
+                                  name:
+                                    description: The ConfigMap to select from.
+                                    type: string
+                                  optional:
+                                    description: Specify whether the ConfigMap/Secret
+                                      must be defined
+                                    type: boolean
+                                required:
+                                - name
+                                type: object
+                            type: object
+                          type: array
                       type: object
                     ksonnet:
                       description: Ksonnet holds ksonnet specific options
@@ -740,6 +779,45 @@ spec:
                     values:
                       description: Values is Helm values, typically defined as a block
                       type: string
+                    valuesFrom:
+                      description: ValuesFrom are other sources such as configmaps
+                        and secrets to source values from
+                      items:
+                        properties:
+                          configMapKeyRef:
+                            description: Selects a key of a ConfigMap.
+                            properties:
+                              key:
+                                description: The key to select.
+                                type: string
+                              name:
+                                description: The ConfigMap to select from.
+                                type: string
+                              optional:
+                                description: Specify whether the ConfigMap/Secret
+                                  must be defined
+                                type: boolean
+                            required:
+                            - name
+                            type: object
+                          secretKeyRef:
+                            description: Selects a key of a Secret.
+                            properties:
+                              key:
+                                description: The key to select.
+                                type: string
+                              name:
+                                description: The ConfigMap to select from.
+                                type: string
+                              optional:
+                                description: Specify whether the ConfigMap/Secret
+                                  must be defined
+                                type: boolean
+                            required:
+                            - name
+                            type: object
+                        type: object
+                      type: array
                   type: object
                 ksonnet:
                   description: Ksonnet holds ksonnet specific options
@@ -960,6 +1038,45 @@ spec:
                             description: Values is Helm values, typically defined
                               as a block
                             type: string
+                          valuesFrom:
+                            description: ValuesFrom are other sources such as configmaps
+                              and secrets to source values from
+                            items:
+                              properties:
+                                configMapKeyRef:
+                                  description: Selects a key of a ConfigMap.
+                                  properties:
+                                    key:
+                                      description: The key to select.
+                                      type: string
+                                    name:
+                                      description: The ConfigMap to select from.
+                                      type: string
+                                    optional:
+                                      description: Specify whether the ConfigMap/Secret
+                                        must be defined
+                                      type: boolean
+                                  required:
+                                  - name
+                                  type: object
+                                secretKeyRef:
+                                  description: Selects a key of a Secret.
+                                  properties:
+                                    key:
+                                      description: The key to select.
+                                      type: string
+                                    name:
+                                      description: The ConfigMap to select from.
+                                      type: string
+                                    optional:
+                                      description: Specify whether the ConfigMap/Secret
+                                        must be defined
+                                      type: boolean
+                                  required:
+                                  - name
+                                  type: object
+                              type: object
+                            type: array
                         type: object
                       ksonnet:
                         description: Ksonnet holds ksonnet specific options
@@ -1188,6 +1305,45 @@ spec:
                                   description: Values is Helm values, typically defined
                                     as a block
                                   type: string
+                                valuesFrom:
+                                  description: ValuesFrom are other sources such as
+                                    configmaps and secrets to source values from
+                                  items:
+                                    properties:
+                                      configMapKeyRef:
+                                        description: Selects a key of a ConfigMap.
+                                        properties:
+                                          key:
+                                            description: The key to select.
+                                            type: string
+                                          name:
+                                            description: The ConfigMap to select from.
+                                            type: string
+                                          optional:
+                                            description: Specify whether the ConfigMap/Secret
+                                              must be defined
+                                            type: boolean
+                                        required:
+                                        - name
+                                        type: object
+                                      secretKeyRef:
+                                        description: Selects a key of a Secret.
+                                        properties:
+                                          key:
+                                            description: The key to select.
+                                            type: string
+                                          name:
+                                            description: The ConfigMap to select from.
+                                            type: string
+                                          optional:
+                                            description: Specify whether the ConfigMap/Secret
+                                              must be defined
+                                            type: boolean
+                                        required:
+                                        - name
+                                        type: object
+                                    type: object
+                                  type: array
                               type: object
                             ksonnet:
                               description: Ksonnet holds ksonnet specific options
@@ -1442,6 +1598,45 @@ spec:
                               description: Values is Helm values, typically defined
                                 as a block
                               type: string
+                            valuesFrom:
+                              description: ValuesFrom are other sources such as configmaps
+                                and secrets to source values from
+                              items:
+                                properties:
+                                  configMapKeyRef:
+                                    description: Selects a key of a ConfigMap.
+                                    properties:
+                                      key:
+                                        description: The key to select.
+                                        type: string
+                                      name:
+                                        description: The ConfigMap to select from.
+                                        type: string
+                                      optional:
+                                        description: Specify whether the ConfigMap/Secret
+                                          must be defined
+                                        type: boolean
+                                    required:
+                                    - name
+                                    type: object
+                                  secretKeyRef:
+                                    description: Selects a key of a Secret.
+                                    properties:
+                                      key:
+                                        description: The key to select.
+                                        type: string
+                                      name:
+                                        description: The ConfigMap to select from.
+                                        type: string
+                                      optional:
+                                        description: Specify whether the ConfigMap/Secret
+                                          must be defined
+                                        type: boolean
+                                    required:
+                                    - name
+                                    type: object
+                                type: object
+                              type: array
                           type: object
                         ksonnet:
                           description: Ksonnet holds ksonnet specific options
@@ -1676,6 +1871,45 @@ spec:
                               description: Values is Helm values, typically defined
                                 as a block
                               type: string
+                            valuesFrom:
+                              description: ValuesFrom are other sources such as configmaps
+                                and secrets to source values from
+                              items:
+                                properties:
+                                  configMapKeyRef:
+                                    description: Selects a key of a ConfigMap.
+                                    properties:
+                                      key:
+                                        description: The key to select.
+                                        type: string
+                                      name:
+                                        description: The ConfigMap to select from.
+                                        type: string
+                                      optional:
+                                        description: Specify whether the ConfigMap/Secret
+                                          must be defined
+                                        type: boolean
+                                    required:
+                                    - name
+                                    type: object
+                                  secretKeyRef:
+                                    description: Selects a key of a Secret.
+                                    properties:
+                                      key:
+                                        description: The key to select.
+                                        type: string
+                                      name:
+                                        description: The ConfigMap to select from.
+                                        type: string
+                                      optional:
+                                        description: Specify whether the ConfigMap/Secret
+                                          must be defined
+                                        type: boolean
+                                    required:
+                                    - name
+                                    type: object
+                                type: object
+                              type: array
                           type: object
                         ksonnet:
                           description: Ksonnet holds ksonnet specific options

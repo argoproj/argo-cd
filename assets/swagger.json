@@ -1969,6 +1969,44 @@
         }
       }
     },
+    "applicationv1alpha1ConfigMapKeySelector": {
+      "type": "object",
+      "title": "ConfigMapKeySelector is structurally is similar to the ConfigMapKeySelector available in\nKubernetes, however our key is defined as optional since we default to `values.yaml`",
+      "properties": {
+        "key": {
+          "type": "string",
+          "title": "The key to select.\n+optional"
+        },
+        "name": {
+          "description": "The ConfigMap to select from.",
+          "type": "string"
+        },
+        "optional": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "Specify whether the ConfigMap/Secret must be defined\n+optional"
+        }
+      }
+    },
+    "applicationv1alpha1SecretKeySelector": {
+      "type": "object",
+      "title": "SecretKeySelector is structurally is similar to the ConfigMapKeySelector/SecretKeySelector available in\nKubernetes, however our key is defined as optional since we default to `values.yaml`",
+      "properties": {
+        "key": {
+          "type": "string",
+          "title": "The key to select.\n+optional"
+        },
+        "name": {
+          "description": "The ConfigMap to select from.",
+          "type": "string"
+        },
+        "optional": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "Specify whether the ConfigMap/Secret must be defined\n+optional"
+        }
+      }
+    },
     "clusterClusterResponse": {
       "type": "object"
     },
@@ -3147,6 +3185,13 @@
         "values": {
           "type": "string",
           "title": "Values is Helm values, typically defined as a block"
+        },
+        "valuesFrom": {
+          "type": "array",
+          "title": "ValuesFrom are other sources such as configmaps and secrets to source values from\n+optional",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ValuesFromSource"
+          }
         }
       }
     },
@@ -4355,6 +4400,18 @@
         "serverName": {
           "description": "ServerName is passed to the server for SNI and is used in the client to check server\ncertificates against. If ServerName is empty, the hostname used to contact the\nserver is used.",
           "type": "string"
+        }
+      }
+    },
+    "v1alpha1ValuesFromSource": {
+      "description": "ValuesFromSource represents a source of values.\nOnly one of its fields may be set.",
+      "type": "object",
+      "properties": {
+        "configMapKeyRef": {
+          "$ref": "#/definitions/applicationv1alpha1ConfigMapKeySelector"
+        },
+        "secretKeyRef": {
+          "$ref": "#/definitions/applicationv1alpha1SecretKeySelector"
         }
       }
     },

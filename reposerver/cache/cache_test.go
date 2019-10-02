@@ -67,31 +67,38 @@ func TestCache_GetManifests(t *testing.T) {
 	cache := newFixtures().Cache
 	// cache miss
 	value := &apiclient.ManifestResponse{}
-	err := cache.GetManifests("my-revision", &ApplicationSource{}, "my-namespace", "my-app-label-key", "my-app-label-value", value)
+	err := cache.GetManifests("my-revision", &ApplicationSource{}, "my-namespace", "my-app-label-key", "my-app-label-value", "", value)
 	assert.Equal(t, ErrCacheMiss, err)
 	// populate cache
 	res := &apiclient.ManifestResponse{SourceType: "my-source-type"}
-	err = cache.SetManifests("my-revision", &ApplicationSource{}, "my-namespace", "my-app-label-key", "my-app-label-value", res)
+	err = cache.SetManifests("my-revision", &ApplicationSource{}, "my-namespace", "my-app-label-key", "my-app-label-value", "", res)
+	assert.NoError(t, err)
+	res = &apiclient.ManifestResponse{SourceType: "helm"}
+	err = cache.SetManifests("my-revision", &ApplicationSource{}, "my-namespace", "helm-app-label-key", "helm-app-label-value", "helm-additional-values", res)
 	assert.NoError(t, err)
 	// cache miss
-	err = cache.GetManifests("other-revision", &ApplicationSource{}, "my-namespace", "my-app-label-key", "my-app-label-value", value)
+	err = cache.GetManifests("other-revision", &ApplicationSource{}, "my-namespace", "my-app-label-key", "my-app-label-value", "", value)
 	assert.Equal(t, ErrCacheMiss, err)
 	// cache miss
-	err = cache.GetManifests("my-revision", &ApplicationSource{Path: "other-path"}, "my-namespace", "my-app-label-key", "my-app-label-value", value)
+	err = cache.GetManifests("my-revision", &ApplicationSource{Path: "other-path"}, "my-namespace", "my-app-label-key", "my-app-label-value", "", value)
 	assert.Equal(t, ErrCacheMiss, err)
 	// cache miss
-	err = cache.GetManifests("my-revision", &ApplicationSource{}, "other-namespace", "my-app-label-key", "my-app-label-value", value)
+	err = cache.GetManifests("my-revision", &ApplicationSource{}, "other-namespace", "my-app-label-key", "my-app-label-value", "", value)
 	assert.Equal(t, ErrCacheMiss, err)
 	// cache miss
-	err = cache.GetManifests("my-revision", &ApplicationSource{}, "my-namespace", "other-app-label-key", "my-app-label-value", value)
+	err = cache.GetManifests("my-revision", &ApplicationSource{}, "my-namespace", "other-app-label-key", "my-app-label-value", "", value)
 	assert.Equal(t, ErrCacheMiss, err)
 	// cache miss
-	err = cache.GetManifests("my-revision", &ApplicationSource{}, "my-namespace", "my-app-label-key", "other-app-label-value", value)
+	err = cache.GetManifests("my-revision", &ApplicationSource{}, "my-namespace", "my-app-label-key", "other-app-label-value", "", value)
 	assert.Equal(t, ErrCacheMiss, err)
 	// cache hit
-	err = cache.GetManifests("my-revision", &ApplicationSource{}, "my-namespace", "my-app-label-key", "my-app-label-value", value)
+	err = cache.GetManifests("my-revision", &ApplicationSource{}, "my-namespace", "my-app-label-key", "my-app-label-value", "", value)
 	assert.NoError(t, err)
 	assert.Equal(t, &apiclient.ManifestResponse{SourceType: "my-source-type"}, value)
+	// cache hit
+	err = cache.GetManifests("my-revision", &ApplicationSource{}, "my-namespace", "helm-app-label-key", "helm-app-label-value", "helm-additional-values", value)
+	assert.NoError(t, err)
+	assert.Equal(t, &apiclient.ManifestResponse{SourceType: "helm"}, value)
 }
 
 func TestCache_GetAppDetails(t *testing.T) {

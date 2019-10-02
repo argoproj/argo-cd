@@ -321,6 +321,8 @@ func EnsureCleanState(t *testing.T) {
 	// kubectl delete secrets -l e2e.argoproj.io=true
 	CheckError(KubeClientset.CoreV1().Secrets(ArgoCDNamespace).DeleteCollection(
 		&v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: testingLabel + "=true"}))
+	CheckError(KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).DeleteCollection(
+		&v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: testingLabel + "=true"}))
 
 	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", testingLabel+"=true", "--field-selector", "status.phase=Active", "--wait=false"))
 	FailOnErr(Run("", "kubectl", "delete", "crd", "-l", testingLabel+"=true", "--wait=false"))

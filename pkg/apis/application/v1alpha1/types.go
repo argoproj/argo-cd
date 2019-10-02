@@ -98,6 +98,43 @@ func (e Env) Environ() []string {
 	return environ
 }
 
+// ConfigMapKeySelector is structurally is similar to the ConfigMapKeySelector available in
+// Kubernetes, however our key is defined as optional since we default to `values.yaml`
+type ConfigMapKeySelector struct {
+	// The ConfigMap to select from.
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	// The key to select.
+	// +optional
+	Key string `json:"key,omitempty" protobuf:"bytes,2,opt,name=key"`
+	// Specify whether the ConfigMap/Secret must be defined
+	// +optional
+	Optional bool `json:"optional,omitempty" protobuf:"bytes,3,opt,name=optional"`
+}
+
+// SecretKeySelector is structurally is similar to the ConfigMapKeySelector/SecretKeySelector available in
+// Kubernetes, however our key is defined as optional since we default to `values.yaml`
+type SecretKeySelector struct {
+	// The ConfigMap to select from.
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	// The key to select.
+	// +optional
+	Key string `json:"key,omitempty" protobuf:"bytes,2,opt,name=key"`
+	// Specify whether the ConfigMap/Secret must be defined
+	// +optional
+	Optional bool `json:"optional,omitempty" protobuf:"bytes,3,opt,name=optional"`
+}
+
+// ValuesFromSource represents a source of values.
+// Only one of its fields may be set.
+type ValuesFromSource struct {
+	// Selects a key of a ConfigMap.
+	// +optional
+	ConfigMapKeyRef *ConfigMapKeySelector `json:"configMapKeyRef,omitempty" protobuf:"bytes,1,opt,name=configMapKeyRef"`
+	// Selects a key of a Secret.
+	// +optional
+	SecretKeyRef *SecretKeySelector `json:"secretKeyRef,omitempty" protobuf:"bytes,2,opt,name=secretKeyRef"`
+}
+
 // ApplicationSource contains information about github repository, path within repository and target application environment.
 type ApplicationSource struct {
 	// RepoURL is the repository URL of the application manifests
@@ -164,6 +201,9 @@ type ApplicationSourceHelm struct {
 	ReleaseName string `json:"releaseName,omitempty" protobuf:"bytes,3,opt,name=releaseName"`
 	// Values is Helm values, typically defined as a block
 	Values string `json:"values,omitempty" protobuf:"bytes,4,opt,name=values"`
+	// ValuesFrom are other sources such as configmaps and secrets to source values from
+	// +optional
+	ValuesFrom []ValuesFromSource `json:"valuesFrom,omitempty" protobuf:"bytes,5,opt,name=valuesFrom"`
 }
 
 // HelmParameter is a parameter to a helm template
@@ -205,7 +245,7 @@ func (in *ApplicationSourceHelm) AddParameter(p HelmParameter) {
 }
 
 func (h *ApplicationSourceHelm) IsZero() bool {
-	return h == nil || (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && h.Values == ""
+	return h == nil || (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && h.Values == "" && len(h.ValuesFrom) == 0
 }
 
 type KustomizeImage string

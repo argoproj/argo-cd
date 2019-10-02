@@ -76,6 +76,60 @@ func TestDeclarativeHelm(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
+func TestDeclarativeHelmValuesFromConfigMapMissing(t *testing.T) {
+	Given(t).
+		Path("helm").
+		When().
+		Declarative("helm-values-from/app-values-from-cm.yaml").
+		IgnoreErrors().
+		Sync().
+		DoNotIgnoreErrors().
+		Then().
+		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
+		Expect(Condition(ApplicationConditionComparisonError, "configmaps \"my-config-map\" not found"))
+}
+
+func TestDeclarativeHelmValuesFromConfigMap(t *testing.T) {
+	Given(t).
+		Path("helm").
+		When().
+		Declarative("helm-values-from/cm.yaml").
+		Declarative("helm-values-from/app-values-from-cm.yaml").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
+func TestDeclarativeHelmValuesFromSecretMissing(t *testing.T) {
+	Given(t).
+		Path("helm").
+		When().
+		Declarative("helm-values-from/app-values-from-secret.yaml").
+		IgnoreErrors().
+		Sync().
+		DoNotIgnoreErrors().
+		Then().
+		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
+		Expect(Condition(ApplicationConditionComparisonError, "secrets \"my-secret\" not found"))
+}
+
+func TestDeclarativeHelmValuesFromSecret(t *testing.T) {
+	Given(t).
+		Path("helm").
+		When().
+		Declarative("helm-values-from/secret.yaml").
+		Declarative("helm-values-from/app-values-from-secret.yaml").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
 func TestDeclarativeHelmInvalidValuesFile(t *testing.T) {
 	Given(t).
 		Path("helm").

@@ -63,16 +63,16 @@ func (c *Cache) SetApps(repoUrl, revision string, apps map[string]string) error 
 	return c.cache.SetItem(listApps(repoUrl, revision), apps, c.repoCacheExpiration, apps == nil)
 }
 
-func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string) string {
-	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", appLabelKey, appLabelValue, revision, namespace, appSourceKey(appSrc))
+func manifestCacheKey(commitSHA string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string, additionalHelmValues string) string {
+	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d|%d", appLabelKey, appLabelValue, commitSHA, namespace, appSourceKey(appSrc), hash.FNVa(additionalHelmValues))
 }
 
-func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string, res interface{}) error {
-	return c.cache.GetItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appLabelValue), res)
+func (c *Cache) GetManifests(commitSHA string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string, additionalHelmValues string, res interface{}) error {
+	return c.cache.GetItem(manifestCacheKey(commitSHA, appSrc, namespace, appLabelKey, appLabelValue, additionalHelmValues), res)
 }
 
-func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string, res interface{}) error {
-	return c.cache.SetItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appLabelValue), res, c.repoCacheExpiration, res == nil)
+func (c *Cache) SetManifests(commitSHA string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string, additionalHelmValues string, res interface{}) error {
+	return c.cache.SetItem(manifestCacheKey(commitSHA, appSrc, namespace, appLabelKey, appLabelValue, additionalHelmValues), res, c.repoCacheExpiration, res == nil)
 }
 
 func appDetailsCacheKey(revision string, appSrc *appv1.ApplicationSource) string {

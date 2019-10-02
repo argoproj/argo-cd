@@ -3,4 +3,4 @@ kind: ConfigMap
 metadata:
   name: my-map
 data:
-  foo: bar
+  foo: {{ .Values.foo }}

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-config-map
+  namespace: argocd-e2e
+  labels:
+    e2e.argoproj.io: "true"
+data:
+  values.yaml: |-
+    foo: bar

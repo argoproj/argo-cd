@@ -176,7 +176,7 @@ func (s *Service) GenerateManifest(c context.Context, q *apiclient.ManifestReque
 	var res *apiclient.ManifestResponse
 
 	getCached := func(revision string) bool {
-		err := s.cache.GetManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
+		err := s.cache.GetManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, q.AdditionalHelmValues, &res)
 		if err == nil {
 			log.Infof("manifest cache hit: %s/%s", q.ApplicationSource.String(), revision)
 			return true
@@ -195,7 +195,7 @@ func (s *Service) GenerateManifest(c context.Context, q *apiclient.ManifestReque
 			return err
 		}
 		res.Revision = revision
-		err = s.cache.SetManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
+		err = s.cache.SetManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, q.AdditionalHelmValues, &res)
 		if err != nil {
 			log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), revision, err)
 		}
@@ -225,20 +225,26 @@ func helmTemplate(appPath string, q *apiclient.ManifestRequest) ([]*unstructured
 		if appHelm.ReleaseName != "" {
 			templateOpts.Name = appHelm.ReleaseName
 		}
+
+		additionalValueSources := []string{appHelm.Values, q.AdditionalHelmValues}
 		templateOpts.Values = appHelm.ValueFiles
-		if appHelm.Values != "" {
-			file, err := ioutil.TempFile(appPath, "values-*.yaml")
-			if err != nil {
-				return nil, err
+
+		for _, v := range additionalValueSources {
+			if v != "" {
+				file, err := ioutil.TempFile(appPath, "values-*.yaml")
+				if err != nil {
+					return nil, err
+				}
+				p := file.Name()
+				defer func() { _ = os.RemoveAll(p) }()
+				err = ioutil.WriteFile(p, []byte(v), 0644)
+				if err != nil {
+					return nil, err
+				}
+				templateOpts.Values = append(templateOpts.Values, p)
 			}
-			p := file.Name()
-			defer func() { _ = os.RemoveAll(p) }()
-			err = ioutil.WriteFile(p, []byte(appHelm.Values), 0644)
-			if err != nil {
-				return nil, err
-			}
-			templateOpts.Values = append(templateOpts.Values, p)
 		}
+
 		for _, p := range appHelm.Parameters {
 			if p.ForceString {
 				templateOpts.SetString[p.Name] = p.Value

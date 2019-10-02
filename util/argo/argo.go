@@ -16,6 +16,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
+
+	"github.com/ghodss/yaml"
 
 	"github.com/argoproj/argo-cd/common"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -427,4 +430,113 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 		spec.Source.Directory = nil
 	}
 	return spec
+}
+
+// ResolveHelmValues takes in an application source and returns a `values.yaml` like string containing the combined values
+// of the specified configmaps/secrets, that way the repo server does not need RBAC privs to read them.
+func ResolveHelmValues(kubeclientset kubernetes.Interface, ns string, h *argoappv1.ApplicationSpec) (string, error) {
+	result := make(map[string]interface{})
+
+	if h.Source.Helm != nil {
+		for _, v := range h.Source.Helm.ValuesFrom {
+			var valueFile map[string]interface{}
+
+			switch {
+			case v.ConfigMapKeyRef != nil:
+				cm := v.ConfigMapKeyRef
+				name := cm.Name
+				key := cm.Key
+
+				if key == "" {
+					key = "values.yaml"
+				}
+				optional := cm.Optional
+
+				configMap, err := kubeclientset.CoreV1().ConfigMaps(ns).Get(name, metav1.GetOptions{})
+				if err != nil {
+					if apierr.IsNotFound(err) && optional {
+						continue
+					}
+					return "", err
+				}
+				d, ok := configMap.Data[key]
+				if !ok {
+					if optional {
+						continue
+					}
+					return "", fmt.Errorf("could not find key %v in ConfigMap %s/%s", key, ns, name)
+				}
+
+				if err := yaml.Unmarshal([]byte(d), &valueFile); err != nil {
+					if optional {
+						continue
+					}
+					return "", fmt.Errorf("unable to yaml.Unmarshal %v from %s in ConfigMap %s/%s", d, key, ns, name)
+				}
+
+			case v.SecretKeyRef != nil:
+				s := v.SecretKeyRef
+				name := s.Name
+				key := s.Key
+				if key == "" {
+					key = "values.yaml"
+				}
+				optional := s.Optional
+				secret, err := kubeclientset.CoreV1().Secrets(ns).Get(name, metav1.GetOptions{})
+				if err != nil {
+					if apierr.IsNotFound(err) && optional {
+						continue
+					}
+					return "", err
+				}
+				d, ok := secret.Data[key]
+				if !ok {
+					if optional {
+						continue
+					}
+					return "", fmt.Errorf("could not find key %s in Secret %s/%s", key, ns, name)
+				}
+				if err := yaml.Unmarshal(d, &valueFile); err != nil {
+					return "", fmt.Errorf("unable to yaml.Unmarshal %v from %s in Secret %s/%s", d, key, ns, name)
+				}
+			}
+
+			result = mergeValues(result, valueFile)
+		}
+	}
+
+	bytes, err := yaml.Marshal(result)
+
+	if err != nil {
+		return "", err
+	}
+
+	return string(bytes), nil
+}
+
+// Sourced from https://github.com/fluxcd/helm-operator/blob/6962c1da658829e9b67eed885626679e36545206/integrations/helm/release/release.go
+func mergeValues(dest, src map[string]interface{}) map[string]interface{} {
+	for k, v := range src {
+		// If the key doesn't exist already, then just set the key to that value
+		if _, exists := dest[k]; !exists {
+			dest[k] = v
+			continue
+		}
+		nextMap, ok := v.(map[string]interface{})
+		// If it isn't another map, overwrite the value
+		if !ok {
+			dest[k] = v
+			continue
+		}
+		// Edge case: If the key exists in the destination, but isn't a map
+		destMap, isMap := dest[k].(map[string]interface{})
+		// If the source map has a map for this key, prefer it
+		if !isMap {
+			dest[k] = v
+			continue
+		}
+		// If we got to this point, it is a map in both, so merge them
+		dest[k] = mergeValues(destMap, nextMap)
+	}
+	return dest
 }
