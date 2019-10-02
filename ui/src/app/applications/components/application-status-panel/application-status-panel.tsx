@@ -115,8 +115,8 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 <React.Fragment>
                     <div className='application-status-panel__item columns small-2' style={{position: 'relative'}}>
                         <div className='application-status-panel__item-value'>
-                            <ApplicationMaintenanceWindowStatusIcon state={data}/>
-                            {tooltip('If there is currently an active maintenance window for this application.')}
+                            <ApplicationMaintenanceWindowStatusIcon state={data} project={application.spec.project}/>
+                            {tooltip('If there is currently an active maintenance window for this app. If there is, all syncs with be prevented.')}
                         </div>
                         {data.windows === undefined || data.windows.map((w) => <div key={w}><span>{w}</span></div>)}
                     </div>

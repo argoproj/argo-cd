@@ -47,11 +47,11 @@ export const ProjectMaintenanceEditPanel = (props: ProjectMaintenanceEditPanelPr
             {(api) => (
                 <form onSubmit={api.submitForm} role='form' className='width-control'>
                     <div className='argo-form-row'>
-                        <FormField formApi={api} label='Schedule'
+                        <FormField formApi={api} label='Schedule (in crontab format, e.g. "0 8 * * *" would be 8am daily)'
                                componentProps={{ readOnly: props.nameReadonly}} field='window.schedule' component={Text}/>
                     </div>
                     <div className='argo-form-row'>
-                         <FormField formApi={api} label='Duration'
+                         <FormField formApi={api} label='Duration (e.g. "30m" or "1h")'
                                componentProps={{ readOnly: props.nameReadonly}} field='window.duration' component={Text}/>
                     </div>
                     <ProjectMaintenanceWindowsApplicationsEdit
