@@ -36,10 +36,10 @@ To change the password, edit the `argocd-secret` secret and update the `admin.pa
 can use a site like https://www.browserling.com/tools/bcrypt to generate a new hash. For example:
 
 ```bash
-# bcrypt(Password1!)=$2a$10$hDj12Tw9xVmvybSahN1Y0.f9DZixxN8oybyA32Uy/eqWklFU4Mo8O
+# bcrypt(password)=$2a$10$rRyBsGSHK6.uc8fntPwVIuLVHgsAhAX7TcdrqW/RADU0uh7CaChLa
 kubectl -n argocd patch secret argocd-secret \
   -p '{"stringData": {
-    "admin.password": "$2a$10$hDj12Tw9xVmvybSahN1Y0.f9DZixxN8oybyA32Uy/eqWklFU4Mo8O",
+    "admin.password": "$2a$10$rRyBsGSHK6.uc8fntPwVIuLVHgsAhAX7TcdrqW/RADU0uh7CaChLa",
     "admin.passwordMtime": "'$(date +%FT%T%Z)'"
   }}'
 ```
