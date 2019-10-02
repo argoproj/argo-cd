@@ -500,10 +500,12 @@
       
       
 
+  
 
-  <li class="md-nav__item md-nav__item--nested">
+
+  <li class="md-nav__item md-nav__item--active md-nav__item--nested">
     
-      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-6" type="checkbox" id="nav-6">
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-6" type="checkbox" id="nav-6" checked>
     
     <label class="md-nav__link" for="nav-6">
       User Guide
@@ -740,6 +742,27 @@
     <a href="../sync-waves/" title="Sync Phases and Waves" class="md-nav__link">
       Sync Phases and Waves
     </a>
+  </li>
+
+        
+          
+          
+          
+
+  
+
+
+  <li class="md-nav__item md-nav__item--active">
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    
+      
+    
+    
+    <a href="./" title="Maintenance Windows" class="md-nav__link md-nav__link--active">
+      Maintenance Windows
+    </a>
+    
   </li>
 
         
@@ -998,12 +1021,15 @@
 <p>Maintenance windows are configurable windows of time where syncs will blocked. These are defined
 by a start time in cron format and a duration along with one or more of either applications, namespaces 
 and clusters. Wildcards are supported. These windows affect the running of all syncs, automated and manual.</p>
-<p>Schedules can be create using the cli</p>
-<div class="codehilite"><pre><span></span>argocd proj maintenance add-window projectName --schedule <span class="s2">&quot;* * * * *&quot;</span> --duration 1h --applications <span class="s2">&quot;*&quot;</span> 
+<p>Schedules can be create using the CLI:</p>
+<div class="codehilite"><pre><span></span>argocd proj maintenance add-window projectName <span class="se">\</span>
+    --schedule <span class="s2">&quot;* * * * *&quot;</span> <span class="se">\</span>
+    --duration 1h <span class="se">\</span>
+    --applications <span class="s2">&quot;*&quot;</span> 
 </pre></div>
 
 
-<p>Alternatively, they can be created directly in the AppProject manifest. </p>
+<p>Alternatively, they can be created directly in the <code>AppProject</code> manifest:</p>
 <div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AppProject</span>
 <span class="nt">metadata</span><span class="p">:</span>
@@ -1015,7 +1041,7 @@ and clusters. Wildcards are supported. These windows affect the running of all s
     <span class="p p-Indicator">-</span> <span class="nt">schedule</span><span class="p">:</span> <span class="s">&#39;10</span><span class="nv"> </span><span class="s">1</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">*&#39;</span>
       <span class="nt">duration</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1h</span>
       <span class="nt">applications</span><span class="p">:</span>
-      <span class="p p-Indicator">-</span> <span class="nv">*-prod</span>
+      <span class="p p-Indicator">-</span> <span class="s">&#39;*-prod&#39;</span>
     <span class="p p-Indicator">-</span> <span class="nt">schedule</span><span class="p">:</span> <span class="s">&#39;0</span><span class="nv"> </span><span class="s">22</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">*&#39;</span>
       <span class="nt">duration</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1h</span>
       <span class="nt">namespaces</span><span class="p">:</span>
@@ -1029,17 +1055,19 @@ and clusters. Wildcards are supported. These windows affect the running of all s
 
 
 <p>In order to perform a sync during a maintenance window, maintenance will need to be disabled. This can be performed
-using the cli, ui or directly in the AppProject manifest</p>
-<p><code>bash
- argocd proj maintenance disable projectName</code></p>
-<p>Windows can be listed using the cli or viewed in the ui</p>
-<div class="codehilite"><pre><span></span> proj maintenance list-windows projectName
+using the CLI, UI or directly in the <code>AppProject</code> manifest:</p>
+<div class="codehilite"><pre><span></span>argocd proj maintenance disable projectName
+</pre></div>
+
+
+<p>Windows can be listed using the CLI or viewed in the UI:</p>
+<div class="codehilite"><pre><span></span>argocd proj maintenance list-windows projectName
 </pre></div>
 
 
 <div class="codehilite"><pre><span></span> SCHEDULE    DURATION  APPLICATIONS    NAMESPACES  CLUSTERS  STATUS
- 10 1 * * *  1h        test            -                     Inactive
- 1 10 * * *  2h        app1,app2,app3  -           -         Inactive
+ <span class="m">10</span> <span class="m">1</span> * * *  1h        <span class="nb">test</span>            -                     Inactive
+ <span class="m">1</span> <span class="m">10</span> * * *  2h        app1,app2,app3  -           -         Inactive
  * * * * *   1h                        default     -         Active
 </pre></div>
                 
@@ -1058,6 +1086,41 @@ using the cli, ui or directly in the AppProject manifest</p>
       
         
 <footer class="md-footer">
+  
+    <div class="md-footer-nav">
+      <nav class="md-footer-nav__inner md-grid">
+        
+          <a href="../sync-waves/" title="Sync Phases and Waves" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+            <div class="md-flex__cell md-flex__cell--shrink">
+              <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
+            </div>
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+              <span class="md-flex__ellipsis">
+                <span class="md-footer-nav__direction">
+                  Previous
+                </span>
+                Sync Phases and Waves
+              </span>
+            </div>
+          </a>
+        
+        
+          <a href="../ci_automation/" title="Automation from CI Pipelines" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+              <span class="md-flex__ellipsis">
+                <span class="md-footer-nav__direction">
+                  Next
+                </span>
+                Automation from CI Pipelines
+              </span>
+            </div>
+            <div class="md-flex__cell md-flex__cell--shrink">
+              <i class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
+            </div>
+          </a>
+        
+      </nav>
+    </div>
   
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">
