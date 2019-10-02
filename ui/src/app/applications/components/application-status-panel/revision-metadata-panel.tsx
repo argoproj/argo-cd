@@ -20,7 +20,7 @@ export const RevisionMetadataPanel = (props: {
                     load={(input) => services.applications.revisionMetadata(input.applicationName, props.source.targetRevision || '')}
         >{(m: RevisionMetadata) => (
             <div className='application-status-panel__item-name'>
-                {m.author && <React.Fragment>Authored by {m.author} </React.Fragment>}
+                {m.author && <React.Fragment>By {m.author} </React.Fragment>}
                 {m.date && <React.Fragment><Moment fromNow={true}>{m.date}</Moment><br/></React.Fragment>}
                 {m.tags && <React.Fragment>Tagged {m.tags.join(', ')}<br/></React.Fragment>}
                 {m.message}
