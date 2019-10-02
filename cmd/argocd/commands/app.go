@@ -31,6 +31,7 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
+	projectpkg "github.com/argoproj/argo-cd/pkg/apiclient/project"
 	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	repoapiclient "github.com/argoproj/argo-cd/reposerver/apiclient"
@@ -206,6 +207,15 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			appName := args[0]
 			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName, Refresh: getRefreshType(refresh, hardRefresh)})
 			errors.CheckError(err)
+
+			pConn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer util.Close(pConn)
+			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: app.Spec.Project})
+			errors.CheckError(err)
+
+			active := proj.Spec.Maintenance.ActiveWindows()
+			_, win := active.Match(app)
+
 			switch output {
 			case "yaml":
 				yamlBytes, err := yaml.Marshal(app)
@@ -217,7 +227,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				fmt.Println(string(jsonBytes))
 			case "":
 				aURL := appURL(acdClient, app.Name)
-				printAppSummaryTable(app, aURL)
+				printAppSummaryTable(app, aURL, win)
 
 				if len(app.Status.Conditions) > 0 {
 					fmt.Println()
@@ -252,7 +262,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	return command
 }
 
-func printAppSummaryTable(app *argoappv1.Application, appURL string) {
+func printAppSummaryTable(app *argoappv1.Application, appURL string, windows argoappv1.ProjectMaintenanceWindows) {
 	fmt.Printf(printOpFmtStr, "Name:", app.Name)
 	fmt.Printf(printOpFmtStr, "Project:", app.Spec.GetProject())
 	fmt.Printf(printOpFmtStr, "Server:", app.Spec.Destination.Server)
@@ -263,6 +273,17 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string) {
 	fmt.Printf(printOpFmtStr, "Path:", app.Spec.Source.Path)
 	printAppSourceDetails(&app.Spec.Source)
 	var syncPolicy string
+	if len(windows) > 0 {
+		var wds []string
+		status := "Active"
+		for _, w := range windows {
+			s := w.Schedule + ":" + w.Duration
+			wds = append(wds, s)
+		}
+		fmt.Printf(printOpFmtStr, "Maintenance:", status)
+		fmt.Printf(printOpFmtStr, "Active Windows:", strings.Join(wds, ","))
+	}
+
 	if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
 		syncPolicy = "Automated"
 		if app.Spec.SyncPolicy.Automated.Prune {
@@ -1444,7 +1465,7 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 		}
 
 		fmt.Println()
-		printAppSummaryTable(app, appURL(acdClient, appName))
+		printAppSummaryTable(app, appURL(acdClient, appName), nil)
 		fmt.Println()
 		if watchOperation {
 			printOperationResult(app.Status.OperationState)

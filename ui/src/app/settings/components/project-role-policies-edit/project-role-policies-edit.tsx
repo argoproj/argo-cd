@@ -95,7 +95,7 @@ class PolicyWrapper extends React.Component<PolicyProps, any> {
                             {this.props.availableApps !== undefined && this.props.availableApps.length > 0 && this.props.availableApps.map((app) => (
                                 <option key={app.metadata.name}>{this.props.projName}/{app.metadata.name}</option>
                             ))}
-                            <option key='wildcard'>{this.props.projName}/*</option>
+                            <option key='wildcard'>{this.props.projName}</option>
                         </datalist>
                         <input className='argo-field' list='object' value={this.getObject()} onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                             this.setObject(e.target.value);

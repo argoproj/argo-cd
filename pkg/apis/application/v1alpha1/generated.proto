@@ -68,6 +68,9 @@ message AppProjectSpec {
 
   // OrphanedResources specifies if controller should monitor orphaned resources of apps in this project
   optional OrphanedResourcesMonitorSettings orphanedResources = 7;
+
+  // Maintenance controls when syncs can be run for apps in this project
+  optional ProjectMaintenance maintenance = 8;
 }
 
 // Application is a definition of Application resource.
@@ -461,6 +464,33 @@ message OperationState {
 message OrphanedResourcesMonitorSettings {
   // Warn indicates if warning condition should be created for apps which have orphaned resources
   optional bool warn = 1;
+}
+
+// Project Maintenance controls when syncs can be run for apps in a project
+message ProjectMaintenance {
+  // Enabled will allow maintenance windows to be active during their scheduled times
+  optional bool enabled = 1;
+
+  // Windows contains the schedules for when syncs should be disabled
+  repeated ProjectMaintenanceWindow windows = 2;
+}
+
+// MaintenanceWindow contains the time, duration and attributes that are used to assign the windows to apps
+message ProjectMaintenanceWindow {
+  // Schedule is the time the window will begin, specified in cron format
+  optional string schedule = 1;
+
+  // Duration is the amount of time the maintenance window will be open
+  optional string duration = 2;
+
+  // Applications contains a list of applications that the window will apply to
+  repeated string applications = 3;
+
+  // Namespaces contains a list of namespaces that the window will apply to
+  repeated string namespaces = 4;
+
+  // Clusters contains a list of clusters that the window will apply to
+  repeated string clusters = 5;
 }
 
 // ProjectRole represents a role that has access to a project

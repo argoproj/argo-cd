@@ -1,10 +1,12 @@
 import {Tooltip} from 'argo-ui';
 import * as React from 'react';
+import {DataLoader} from '../../../shared/components';
 import {Revision} from '../../../shared/components/revision';
 import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
+import {services} from '../../../shared/services';
 import * as utils from '../utils';
-import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage} from '../utils';
+import {ApplicationMaintenanceWindowStatusIcon, ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
 
 require('./application-status-panel.scss');
@@ -60,7 +62,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 </div>
                 <div className='application-status-panel__item-name'>{application.status.health.message}</div>
             </div>
-            <div className='application-status-panel__item columns small-4' style={{position: 'relative'}}>
+            <div className='application-status-panel__item columns small-2' style={{position: 'relative'}}>
                 <div className='application-status-panel__item-value'>
                     <ComparisonStatusIcon status={application.status.sync.status}/>&nbsp;
                     {application.status.sync.status}
@@ -72,7 +74,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 </div>
             </div>
             {appOperationState && (
-                <div className='application-status-panel__item columns small-4'>
+                <div className='application-status-panel__item columns small-4 '>
                     <div
                         className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
                         <a onClick={() => showOperation && showOperation()}>{utils.getOperationType(application)}
@@ -107,6 +109,19 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                     </div>
                 </div>
             )}
+            <DataLoader noLoaderOnInputChange={true} input={application} load={async () => {
+                return await services.applications.getApplicationMaintenanceWindowState(application.metadata.name);
+            }}>{(data) =>
+                <React.Fragment>
+                    <div className='application-status-panel__item columns small-2' style={{position: 'relative'}}>
+                        <div className='application-status-panel__item-value'>
+                            <ApplicationMaintenanceWindowStatusIcon state={data}/>
+                            {tooltip('If there is currently an active maintenance window for this application.')}
+                        </div>
+                        {data.windows === undefined || data.windows.map((w) => <div key={w}><span>{w}</span></div>)}
+                    </div>
+                </React.Fragment>
+            }</DataLoader>
         </div>
     );
 };

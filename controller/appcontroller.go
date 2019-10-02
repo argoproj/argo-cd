@@ -815,10 +815,24 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		app.Status.Summary = tree.GetSummary()
 	}
 
-	syncErrCond := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources)
-	if syncErrCond != nil {
-		app.Status.SetConditions([]appv1.ApplicationCondition{*syncErrCond}, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true})
+	var sErr bool
+	project, err := ctrl.getAppProj(app)
+	if err != nil {
+		logCtx.Infof("Could not lookup project for %s in order to check maintenance state", app.Name)
 	} else {
+		active := project.Spec.Maintenance.ActiveWindows()
+		match, _ := active.Match(app)
+		if match {
+			logCtx.Infof("Maintenance window active, skipping sync")
+		} else {
+			syncErrCond := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources)
+			if syncErrCond != nil {
+				sErr = true
+				app.Status.SetConditions([]appv1.ApplicationCondition{*syncErrCond}, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true})
+			}
+		}
+	}
+	if !sErr {
 		app.Status.SetConditions([]appv1.ApplicationCondition{}, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true})
 	}
 
@@ -975,6 +989,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		logCtx.Infof("Skipping auto-sync: deletion in progress")
 		return nil
 	}
+
 	// Only perform auto-sync if we detect OutOfSync status. This is to prevent us from attempting
 	// a sync when application is already in a Synced or Unknown state
 	if syncStatus.Status != appv1.SyncStatusCodeOutOfSync {
