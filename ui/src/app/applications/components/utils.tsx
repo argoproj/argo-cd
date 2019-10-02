@@ -374,17 +374,16 @@ export const MaintenanceWindowStatusIcon = ({state, window}: { state: appModels.
     return <React.Fragment><i title={current} className={className} style={{color}}/> {current}</React.Fragment>;
 };
 
-export const ApplicationMaintenanceWindowStatusIcon = ({state}: { state: appModels.ApplicationMaintenanceState }) => {
-    let className = 'fa fa-question-circle';
-    let color = COLORS.maintenance_state.unknown;
-    const name = 'Maintenance';
-
-    if (state.windows !== undefined && state.windows.length > 0) {
+export const ApplicationMaintenanceWindowStatusIcon = ({project, state}: { project: string, state: appModels.ApplicationMaintenanceState }) => {
+    let className = 'fa fa-stop-circle';
+    if (state.windows === undefined ) {
         className = 'fa fa-stop-circle';
-        color = COLORS.maintenance_state.active;
-    } else {
+    } else if (state.windows.length > 0) {
         className = 'fa fa-stop-circle';
-        color = COLORS.maintenance_state.inactive;
     }
-    return <React.Fragment><i title={name} className={className} style={{color}}/>{name}</React.Fragment>;
+    return (
+        <a href={`/settings/projects/${project}?tab=maintenance`} className={state.windows ? 'warning' : ''}>
+            <i className={className}/> Maintenance
+        </a>
+    );
 };
