@@ -134,25 +134,20 @@ COPY --from=builder /usr/local/bin/packr /usr/local/bin/packr
 
 # A dummy directory is created under $GOPATH/src/dummy so we are able to use dep
 # to install all the packages of our dep lock file
-COPY Gopkg.toml ${GOPATH}/src/dummy/Gopkg.toml
-COPY Gopkg.lock ${GOPATH}/src/dummy/Gopkg.lock
+WORKDIR /src/argo-cd
+COPY go.mod go.sum ./
 
-RUN cd ${GOPATH}/src/dummy && \
-    dep ensure -vendor-only && \
-    mv vendor/* ${GOPATH}/src/ && \
-    rmdir vendor
+RUN go mod download
 
 # Perform the build
-WORKDIR /go/src/github.com/argoproj/argo-cd
 COPY . .
 RUN make cli server controller repo-server argocd-util && \
     make CLI_NAME=argocd-darwin-amd64 GOOS=darwin cli
-
 
 ####################################################################################################
 # Final image
 ####################################################################################################
 FROM argocd-base
-COPY --from=argocd-build /go/src/github.com/argoproj/argo-cd/dist/argocd* /usr/local/bin/
+COPY --from=argocd-build /src/argo-cd/dist/argocd* /usr/local/bin/
 COPY --from=argocd-ui ./src/dist/app /shared/app
 
