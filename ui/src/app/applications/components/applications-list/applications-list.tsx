@@ -110,9 +110,10 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const query = new URLSearchParams(props.location.search);
     const appInput = tryJsonParse(query.get('new'));
     const [createApi, setCreateApi] = React.useState(null);
+    const clusters = React.useMemo(() => services.clusters.list(), []);
 
     return (
-<ClusterCtx.Provider value={services.clusters.list()}>
+<ClusterCtx.Provider value={clusters}>
 <Consumer>{
 (ctx) => (
     <Page title='Applications' toolbar={services.viewPreferences.getPreferences().map((pref) => ({
