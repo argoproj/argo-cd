@@ -1080,6 +1080,17 @@ func getCAPath(repoURL string) string {
 
 type Repositories []*Repository
 
+func (r Repositories) Filter(predicate func(r *Repository) bool) Repositories {
+	var res Repositories
+	for i := range r {
+		repo := r[i]
+		if predicate(repo) {
+			res = append(res, repo)
+		}
+	}
+	return res
+}
+
 // RepositoryList is a collection of Repositories.
 type RepositoryList struct {
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`

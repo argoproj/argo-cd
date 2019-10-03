@@ -61,11 +61,8 @@ func (db *db) ListHelmRepositories(ctx context.Context) ([]*v1alpha1.Repository,
 	if err != nil {
 		return nil, err
 	}
-	for i := range repos {
-		repo := repos[i]
-		if repo.Type == "helm" && repo.Name != "" {
-			result = append(result, repo)
-		}
-	}
+	result = append(result, v1alpha1.Repositories(repos).Filter(func(r *v1alpha1.Repository) bool {
+		return r.Type == "helm" && r.Name != ""
+	})...)
 	return result, nil
 }
