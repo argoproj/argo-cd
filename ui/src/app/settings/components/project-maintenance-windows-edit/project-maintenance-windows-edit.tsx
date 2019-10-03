@@ -11,7 +11,7 @@ interface ProjectMaintenanceWindowsProps {
 export const ProjectMaintenanceWindowsApplicationsEdit = (props: ProjectMaintenanceWindowsProps) => (
     <React.Fragment>
         <h4>Applications</h4>
-        <div>Manage applications assigned to this window</div>
+        <div>Manage applications assigned to this window ("*" for any)</div>
         <div className='argo-table-list__row'>
             {(props.window.applications || []).map((a, i) => (
                 <Attribute key={i} field={['window.applications', i]}
@@ -35,7 +35,7 @@ export const ProjectMaintenanceWindowsApplicationsEdit = (props: ProjectMaintena
 export const ProjectMaintenanceWindowsNamespaceEdit = (props: ProjectMaintenanceWindowsProps) => (
     <React.Fragment>
         <h4>Namespaces</h4>
-        <div>Manage namespaces assigned to this window</div>
+        <div>Manage namespaces assigned to this window ("*" for any)</div>
         <div className='argo-table-list__row'>
             {(props.window.namespaces || []).map((n, i) => (
                 <Attribute key={i} field={['window.namespaces', i]}
@@ -58,8 +58,8 @@ export const ProjectMaintenanceWindowsNamespaceEdit = (props: ProjectMaintenance
 
 export const ProjectMaintenanceWindowsClusterEdit = (props: ProjectMaintenanceWindowsProps) => (
     <React.Fragment>
-        <h4>Namespaces</h4>
-        <div>Manage namespaces assigned to this window</div>
+        <h4>Clusters</h4>
+        <div>Manage clusters assigned to this window ("*" for any)</div>
         <div className='argo-table-list__row'>
             {(props.window.clusters || []).map((c, i) => (
                 <Attribute key={i} field={['window.clusters', i]}
