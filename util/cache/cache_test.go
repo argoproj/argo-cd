@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
 type fixtures struct {
@@ -23,12 +23,12 @@ func TestCacheRevisionMetadata(t *testing.T) {
 	_, err := cache.GetRevisionMetadata("", "")
 	assert.Equal(t, ErrCacheMiss, err)
 	// cache hit
-	err = cache.SetRevisionMetadata("foo", "baz", &v1alpha1.RevisionMetadata{Message: "foo"})
+	err = cache.SetRevisionMetadata("foo", "baz", &RevisionMetadata{Message: "foo"})
 	assert.NoError(t, err)
 	metadata, err := cache.GetRevisionMetadata("foo", "baz")
 
 	assert.NoError(t, err)
-	assert.Equal(t, &v1alpha1.RevisionMetadata{Message: "foo"}, metadata)
+	assert.Equal(t, &RevisionMetadata{Message: "foo"}, metadata)
 }
 
 func TestCache_Apps(t *testing.T) {
@@ -50,9 +50,22 @@ func TestCache_AppManagedResources(t *testing.T) {
 	_, err := cache.GetAppManagedResources("my-appname")
 	assert.Equal(t, ErrCacheMiss, err)
 	// cache hit
-	err = cache.SetAppManagedResources("my-appname", []*v1alpha1.ResourceDiff{{Name: "my-name"}})
+	err = cache.SetAppManagedResources("my-appname", []*ResourceDiff{{Name: "my-name"}})
 	assert.NoError(t, err)
 	diffs, err := cache.GetAppManagedResources("my-appname")
 	assert.NoError(t, err)
-	assert.Equal(t, []*v1alpha1.ResourceDiff{{Name: "my-name"}}, diffs)
+	assert.Equal(t, []*ResourceDiff{{Name: "my-name"}}, diffs)
+}
+
+func TestCache_AppResourcesTree(t *testing.T) {
+	cache := newFixtures().Cache
+	// cache miss
+	_, err := cache.GetAppResourcesTree("my-appname")
+	assert.Equal(t, ErrCacheMiss, err)
+	// cache hit
+	err = cache.SetAppResourcesTree("my-appname", &ApplicationTree{Nodes: []ResourceNode{{}}})
+	assert.NoError(t, err)
+	tree, err := cache.GetAppResourcesTree("my-appname")
+	assert.NoError(t, err)
+	assert.Equal(t, &ApplicationTree{Nodes: []ResourceNode{{}}}, tree)
 }
