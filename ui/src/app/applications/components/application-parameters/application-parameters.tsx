@@ -3,6 +3,7 @@ import * as React from 'react';
 import { FieldApi, FormApi, FormField as ReactFormField, Text, TextArea } from 'react-form';
 
 import { CheckboxField, EditablePanel, EditablePanelItem, TagsInputField } from '../../../shared/components';
+import {ArrayInputField} from '../../../shared/components/array-input/array-input';
 import * as models from '../../../shared/models';
 import { ImageTagFieldEditor } from './kustomize';
 import * as kustomize from './kustomize-image';
@@ -207,12 +208,13 @@ export const ApplicationParameters = (props: {
                 <FormField formApi={formApi} field='spec.source.plugin.name' component={Text}/>
             ),
         });
-        (app.spec.source.plugin.env || []).forEach(item => {
-            attributes.push({
-                title: item.name,
-                view: item.value
-            });
-        })
+        attributes.push({
+            title: 'ENV',
+            view: app.spec.source.plugin && (app.spec.source.plugin.env || []).map((i) => `${i.name}=${i.value}`).join(', '),
+            edit: (formApi: FormApi) => (
+                <FormField field='spec.source.plugin.env' formApi={formApi} component={ArrayInputField}/>
+            ),
+        });
     } else if (props.details.type === 'Directory') {
         attributes.push({
             title: 'DIRECTORY RECURSE',
