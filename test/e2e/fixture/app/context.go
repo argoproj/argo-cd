@@ -16,6 +16,7 @@ import (
 type Context struct {
 	t           *testing.T
 	path        string
+	chart       string
 	repoURLType fixture.RepoURLType
 	// seconds
 	timeout                int
@@ -71,6 +72,11 @@ func (c *Context) HTTPSRepoURLWithClientCertAdded() *Context {
 	return c
 }
 
+func (c *Context) HelmRepoAdded() *Context {
+	repos.AddHelmRepo()
+	return c
+}
+
 func (c *Context) SSHRepoURLAdded() *Context {
 	repos.AddSSHRepo(false)
 	return c
@@ -93,6 +99,11 @@ func (c *Context) RepoURLType(urlType fixture.RepoURLType) *Context {
 
 func (c *Context) Path(path string) *Context {
 	c.path = path
+	return c
+}
+
+func (c *Context) Chart(chart string) *Context {
+	c.chart = chart
 	return c
 }
 
@@ -156,11 +167,6 @@ func (c *Context) ResourceFilter(filter settings.ResourcesFilter) *Context {
 func (c *Context) ConfigManagementPlugin(plugin v1alpha1.ConfigManagementPlugin) *Context {
 	fixture.SetConfigManagementPlugins(plugin)
 	c.configManagementPlugin = plugin.Name
-	return c
-}
-
-func (c *Context) Repos(repos ...settings.RepoCredentials) *Context {
-	fixture.SetRepos(repos...)
 	return c
 }
 

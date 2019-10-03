@@ -23,6 +23,7 @@ spec:
       containers:
       - name: argocd-repo-server
         command:
+        - uid_entrypoint.sh
         - argocd-repo-server
         - --sentinel
         - argocd-redis-ha-announce-0:26379
