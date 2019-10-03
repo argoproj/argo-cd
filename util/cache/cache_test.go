@@ -17,7 +17,7 @@ func newFixtures() *fixtures {
 	return &fixtures{NewCache(NewInMemoryCache(1 * time.Hour))}
 }
 
-func TestCacheRevisionMetadata(t *testing.T) {
+func TestCache_RevisionMetadata(t *testing.T) {
 	cache := newFixtures().Cache
 	// cache miss
 	_, err := cache.GetRevisionMetadata("", "")
@@ -25,10 +25,9 @@ func TestCacheRevisionMetadata(t *testing.T) {
 	// cache hit
 	err = cache.SetRevisionMetadata("foo", "baz", &RevisionMetadata{Message: "foo"})
 	assert.NoError(t, err)
-	metadata, err := cache.GetRevisionMetadata("foo", "baz")
-
+	value, err := cache.GetRevisionMetadata("foo", "baz")
 	assert.NoError(t, err)
-	assert.Equal(t, &RevisionMetadata{Message: "foo"}, metadata)
+	assert.Equal(t, &RevisionMetadata{Message: "foo"}, value)
 }
 
 func TestCache_Apps(t *testing.T) {
@@ -39,9 +38,9 @@ func TestCache_Apps(t *testing.T) {
 	// cache hit
 	err = cache.SetApps("my-repo-url", "my-revision", map[string]string{"foo": "bar"})
 	assert.NoError(t, err)
-	apps, err := cache.ListApps("my-repo-url", "my-revision")
+	value, err := cache.ListApps("my-repo-url", "my-revision")
 	assert.NoError(t, err)
-	assert.Equal(t, map[string]string{"foo": "bar"}, apps)
+	assert.Equal(t, map[string]string{"foo": "bar"}, value)
 }
 
 func TestCache_AppManagedResources(t *testing.T) {
@@ -52,9 +51,9 @@ func TestCache_AppManagedResources(t *testing.T) {
 	// cache hit
 	err = cache.SetAppManagedResources("my-appname", []*ResourceDiff{{Name: "my-name"}})
 	assert.NoError(t, err)
-	diffs, err := cache.GetAppManagedResources("my-appname")
+	value, err := cache.GetAppManagedResources("my-appname")
 	assert.NoError(t, err)
-	assert.Equal(t, []*ResourceDiff{{Name: "my-name"}}, diffs)
+	assert.Equal(t, []*ResourceDiff{{Name: "my-name"}}, value)
 }
 
 func TestCache_AppResourcesTree(t *testing.T) {
@@ -65,7 +64,20 @@ func TestCache_AppResourcesTree(t *testing.T) {
 	// cache hit
 	err = cache.SetAppResourcesTree("my-appname", &ApplicationTree{Nodes: []ResourceNode{{}}})
 	assert.NoError(t, err)
-	tree, err := cache.GetAppResourcesTree("my-appname")
+	value, err := cache.GetAppResourcesTree("my-appname")
 	assert.NoError(t, err)
-	assert.Equal(t, &ApplicationTree{Nodes: []ResourceNode{{}}}, tree)
+	assert.Equal(t, &ApplicationTree{Nodes: []ResourceNode{{}}}, value)
+}
+
+func TestCache_ClusterConnectionState(t *testing.T) {
+	cache := newFixtures().Cache
+	// cache miss
+	_, err := cache.GetClusterConnectionState("my-server")
+	assert.Equal(t, ErrCacheMiss, err)
+	// cache hit
+	err = cache.SetClusterConnectionState("my-server", &ConnectionState{Status: "my-state"})
+	assert.NoError(t, err)
+	value, err := cache.GetClusterConnectionState("my-server")
+	assert.NoError(t, err)
+	assert.Equal(t, ConnectionState{Status: "my-state"}, value)
 }
