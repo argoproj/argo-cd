@@ -1,5 +1,24 @@
 import * as React from 'react';
 import * as ReactForm from 'react-form';
+/*
+    This provide a way to may a form field to an array of items. It allows you to
+
+    * Add a new (maybe duplicate) item.
+    * Replace an item.
+    * Remove an item.
+
+    E.g.
+    env:
+    - name: FOO
+      value: bar
+    - name: BAZ
+      value: qux
+    # A name/value array has can have dup items
+    - name: FOO
+      value: bar
+
+    It does not allow re-ordering of elements (maybe in a v2).
+ */
 
 class Item {
     public name: string;
@@ -51,8 +70,8 @@ class ArrayInput extends React.Component<Props, State> {
             <div className='argo-field' style={{border: 0}}>
                 <React.Fragment key='existing'>
                     {(this.props.getValue() || []).map((i) => (
-                        <div key={`item-${i.name}`}>
-                            <input value={i.name} disabled={true}/>
+                        <div key={`item-${i.name}-${i.value}`}>
+                            <input value={i.name}/>
                             =
                             <input value={i.value} onChange={replaceValue(i.name, i.value)}/>
 
