@@ -89,3 +89,27 @@ patchesJson6902:
     kind: Service
     name: argocd-redis-ha
   path: overlays/service-selector.yaml
+
+
+vars:
+- name: ARGOCD_REDIS_HA_ANNOUNCE_0_SERVICE
+  objref:
+    kind: Service
+    name: argocd-redis-ha-announce-0
+    apiVersion: v1
+  fieldref:
+    fieldpath: metadata.name
+- name: ARGOCD_REDIS_HA_ANNOUNCE_1_SERVICE
+  objref:
+    kind: Service
+    name: argocd-redis-ha-announce-1
+    apiVersion: v1
+  fieldref:
+    fieldpath: metadata.name
+- name: ARGOCD_REDIS_HA_ANNOUNCE_2_SERVICE
+  objref:
+    kind: Service
+    name: argocd-redis-ha-announce-2
+    apiVersion: v1
+  fieldref:
+    fieldpath: metadata.name
