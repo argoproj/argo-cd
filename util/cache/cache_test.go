@@ -81,3 +81,16 @@ func TestCache_ClusterConnectionState(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, ConnectionState{Status: "my-state"}, value)
 }
+
+func TestCache_RepoConnectionState(t *testing.T) {
+	cache := newFixtures().Cache
+	// cache miss
+	_, err := cache.GetRepoConnectionState("my-repo")
+	assert.Equal(t, ErrCacheMiss, err)
+	// cache hit
+	err = cache.SetRepoConnectionState("my-repo", &ConnectionState{Status: "my-state"})
+	assert.NoError(t, err)
+	value, err := cache.GetRepoConnectionState("my-repo")
+	assert.NoError(t, err)
+	assert.Equal(t, ConnectionState{Status: "my-state"}, value)
+}
