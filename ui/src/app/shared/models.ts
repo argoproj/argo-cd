@@ -332,6 +332,11 @@ export interface LogEntry {
     timeStamp: models.Time;
 }
 
+// describes plugin settings
+export interface Plugin {
+    name: string;
+}
+
 export interface AuthSettings {
     url: string;
     statusBadgeEnabled: boolean;
@@ -352,6 +357,7 @@ export interface AuthSettings {
         chatUrl: string;
         chatText: string;
     };
+    plugins: Plugin[];
 }
 
 export interface UserInfo  {
