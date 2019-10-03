@@ -43,3 +43,16 @@ func TestCache_Apps(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]string{"foo": "bar"}, apps)
 }
+
+func TestCache_AppManagedResources(t *testing.T) {
+	cache := newFixtures().Cache
+	// cache miss
+	_, err := cache.GetAppManagedResources("my-appname")
+	assert.Equal(t, ErrCacheMiss, err)
+	// cache hit
+	err = cache.SetAppManagedResources("my-appname", []*v1alpha1.ResourceDiff{{Name: "my-name"}})
+	assert.NoError(t, err)
+	diffs, err := cache.GetAppManagedResources("my-appname")
+	assert.NoError(t, err)
+	assert.Equal(t, []*v1alpha1.ResourceDiff{{Name: "my-name"}}, diffs)
+}
