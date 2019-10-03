@@ -56,6 +56,8 @@ performance. For performance reasons controller monitors and caches only preferr
 preferred version into a version of the resource stored in Git. If `kubectl convert` fails because conversion is not supported than controller fallback to Kubernetes API query which slows down
 reconciliation. In this case advice user-preferred resource version in Git.
 
+* The controller polls Git every 3m by default. You can increase this period using `--app-resync` to reduce polling.
+
 **metrics**
 
 * `argocd_app_reconcile` - reports application reconciliation duration. Can be used to build reconciliation duration heat map to get high-level reconciliation performance picture.

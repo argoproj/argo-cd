@@ -110,6 +110,7 @@ func NewApplicationController(
 	metricsPort int,
 	kubectlParallelismLimit int64,
 ) (*ApplicationController, error) {
+	log.Infof("appResyncPeriod=%v", appResyncPeriod)
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
 	ctrl := ApplicationController{
 		cache:                     argoCache,
