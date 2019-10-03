@@ -64,6 +64,23 @@ const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi, className:
     );
 });
 
+function normalizeAppSource(app: models.Application, type: string): boolean {
+    const repoType = app.spec.source.hasOwnProperty('chart') && 'helm' || 'git';
+    if (repoType !== type) {
+        if (type === 'git') {
+            app.spec.source.path = app.spec.source.chart;
+            delete(app.spec.source.chart);
+            app.spec.source.targetRevision = 'HEAD';
+        } else {
+            app.spec.source.chart = app.spec.source.path;
+            delete(app.spec.source.path);
+            app.spec.source.targetRevision = '';
+        }
+        return true;
+    }
+    return false;
+}
+
 export const ApplicationCreatePanel = (props: {
     app: models.Application,
     onAppChanged: (app: models.Application) => any;
@@ -92,10 +109,15 @@ export const ApplicationCreatePanel = (props: {
                     .map((cluster) => ({label: clusterTitle(cluster), value: cluster.server}))
                     .sort((first, second) => first.label.localeCompare(second.label)),
                 ),
-                services.repos.list().then((repos) => repos.map((repo) => repo.repo).sort()),
-            ]).then(([projects, clusters, repos]) => ({projects, clusters, repos}))}>
-            {({projects, clusters, repos}) => {
+                services.repos.list(),
+            ]).then(([projects, clusters, reposInfo]) => ({projects, clusters, reposInfo}))}>
+            {({projects, clusters, reposInfo}) => {
+                const repos = reposInfo.map((info) => info.repo).sort();
                 const app = deepMerge(DEFAULT_APP, props.app || {});
+                const repoInfo = reposInfo.find((info) => info.repo === app.spec.source.repoURL);
+                if (repoInfo) {
+                    normalizeAppSource(app, repoInfo.type || 'git');
+                }
                 return (
                     <div className='application-create-panel'>
                         {yamlMode && (
@@ -139,26 +161,31 @@ export const ApplicationCreatePanel = (props: {
                                 const sourcePanel = () => (
                                     <div className='white-box'>
                                         <p>SOURCE</p>
-                                        <DropDownMenu anchor={() => (<p>{repoType.toUpperCase()} <i className='fa fa-caret-down'/></p>)} items={['git', 'helm'].map(
-                                            (type: 'git' | 'helm') => ({ title: type.toUpperCase(), action: () => {
-                                                if (repoType !== type) {
-                                                    const updatedApp = api.getFormState().values as models.Application;
-                                                    if (type === 'git') {
-                                                        updatedApp.spec.source.path = updatedApp.spec.source.chart;
-                                                        delete(updatedApp.spec.source.chart);
-                                                        updatedApp.spec.source.targetRevision = 'HEAD';
-                                                    } else {
-                                                        updatedApp.spec.source.chart = updatedApp.spec.source.path;
-                                                        delete(updatedApp.spec.source.path);
-                                                        updatedApp.spec.source.targetRevision = '';
-                                                    }
-                                                    api.setAllValues(updatedApp);
-                                                }
-                                            }}))}
-                                        />
-                                        <div className='argo-form-row'>
-                                            <FormField formApi={api}
-                                                label='Repository URL' field='spec.source.repoURL' component={AutocompleteField} componentProps={{items: repos}}/>
+                                        <div className='row argo-form-row'>
+                                            <div className='columns small-11'>
+                                                <FormField formApi={api}
+                                                    label='Repository URL' field='spec.source.repoURL' component={AutocompleteField} componentProps={{items: repos}}/>
+                                            </div>
+                                            <div className='columns small-1'>
+                                                <div style={{paddingTop: '1.5em'}}>
+                                                {repoInfo && (
+                                                    <React.Fragment>
+                                                        <span>{(repoInfo.type || 'git').toUpperCase()}</span> <i className='fa fa-check'/>
+                                                    </React.Fragment>
+                                                ) || (
+                                                    <DropDownMenu anchor={() => (<p>{repoType.toUpperCase()} <i className='fa fa-caret-down'/></p>)} items={['git', 'helm'].map(
+                                                        (type: 'git' | 'helm') => ({ title: type.toUpperCase(), action: () => {
+                                                            if (repoType !== type) {
+                                                                const updatedApp = api.getFormState().values as models.Application;
+                                                                if (normalizeAppSource(updatedApp, type)) {
+                                                                    api.setAllValues(updatedApp);
+                                                                }
+                                                            }
+                                                        }}))}
+                                                    />
+                                                )}
+                                                </div>
+                                            </div>
                                         </div>
                                         {repoType === 'git' && (
                                         <React.Fragment>
@@ -193,12 +220,12 @@ export const ApplicationCreatePanel = (props: {
                                                 const selectedChart = charts.find((chart) => chart.name === api.getFormState().values.spec.source.chart);
                                                 return (
                                                     <div className='row argo-form-row'>
-                                                        <div className='columns small-10'>
+                                                        <div className='columns small-11'>
                                                             <FormField formApi={api} label='Chart' field='spec.source.chart' component={AutocompleteField} componentProps={{
                                                                 items: charts.map((chart) => chart.name), filterSuggestions: true,
                                                             }}/>
                                                         </div>
-                                                        <div className='columns small-2'>
+                                                        <div className='columns small-1'>
                                                             <FormField formApi={api} field='spec.source.targetRevision' component={AutocompleteField} componentProps={{
                                                                 items: selectedChart && selectedChart.versions || [],
                                                             }}/>
@@ -233,7 +260,7 @@ export const ApplicationCreatePanel = (props: {
                                             targetRevision: app.spec.source.targetRevision,
                                         }}
                                         load={async (src) => {
-                                            if (src.repoURL && (src.path || src.chart )) {
+                                            if (src.repoURL && src.targetRevision && (src.path || src.chart)) {
                                                 return services.repos.appDetails(src).catch(() => ({
                                                     type: 'Directory',
                                                     details: {},
