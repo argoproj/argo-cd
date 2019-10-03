@@ -70,32 +70,36 @@ class ArrayInput extends React.Component<Props, State> {
         const setValue = (value: string) => {
             this.setState((s) => ({items: s.items, newItem: {name: s.newItem.name, value}}));
         };
-        return <div className='argo-field' style={{border: 0}}>
-            <div>
-                {this.state.items.map((i, j) => (
-                    <div key={`item-${j}`}>
-                        <input value={this.state.items[j].name}
-                               onChange={(e) => replaceItem({name: e.target.value, value: i.value}, j)}/>
-                        =
-                        <input value={this.state.items[j].value}
-                               onChange={(e) => replaceItem({name: i.name, value: e.target.value}, j)}/>
-                        <button onClick={() => removeItem(j)}>
-                            <i className='fa fa-times'/>
-                        </button>
-                    </div>
-                ))}
-            </div>
-            <div>
-                <input placeholder='Name' value={this.state.newItem.name} onChange={(e) => setName(e.target.value)}/>
-                =
-                <input placeholder='Value' value={this.state.newItem.value} onChange={(e) => setValue(e.target.value)}/>
+        return (
+            <div className='argo-field' style={{border: 0}}>
+                <div>
+                    {this.state.items.map((i, j) => (
+                        <div key={`item-${j}`}>
+                            <input value={this.state.items[j].name}
+                                   onChange={(e) => replaceItem({name: e.target.value, value: i.value}, j)}/>
+                            =
+                            <input value={this.state.items[j].value}
+                                   onChange={(e) => replaceItem({name: i.name, value: e.target.value}, j)}/>
+                            <button onClick={() => removeItem(j)}>
+                                <i className='fa fa-times'/>
+                            </button>
+                        </div>
+                    ))}
+                </div>
+                <div>
+                    <input placeholder='Name' value={this.state.newItem.name}
+                           onChange={(e) => setName(e.target.value)}/>
+                    =
+                    <input placeholder='Value' value={this.state.newItem.value}
+                           onChange={(e) => setValue(e.target.value)}/>
 
-                <button disabled={this.state.newItem.name === '' || this.state.newItem.value === ''}
-                        onClick={() => addItem(this.state.newItem)}>
-                    <i className='fa fa-plus'/>
-                </button>
+                    <button disabled={this.state.newItem.name === '' || this.state.newItem.value === ''}
+                            onClick={() => addItem(this.state.newItem)}>
+                        <i className='fa fa-plus'/>
+                    </button>
+                </div>
             </div>
-        </div>;
+        );
     }
 }
 
