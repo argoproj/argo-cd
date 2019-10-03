@@ -109,12 +109,12 @@ func appSourceKey(appSrc *appv1.ApplicationSource) uint32 {
 	return hash.FNVa(string(appSrcStr))
 }
 
-func manifestCacheKey(commitSHA string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string) string {
-	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", appLabelKey, appLabelValue, commitSHA, namespace, appSourceKey(appSrc))
+func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string) string {
+	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", appLabelKey, appLabelValue, revision, namespace, appSourceKey(appSrc))
 }
 
-func appDetailsCacheKey(commitSHA string, appSrc *appv1.ApplicationSource) string {
-	return fmt.Sprintf("appdetails|%s|%d", commitSHA, appSourceKey(appSrc))
+func appDetailsCacheKey(revision string, appSrc *appv1.ApplicationSource) string {
+	return fmt.Sprintf("appdetails|%s|%d", revision, appSourceKey(appSrc))
 }
 
 func revisionMetadataKey(repoURL, revision string) string {
@@ -184,20 +184,20 @@ func (c *Cache) SetApps(repoUrl, revision string, apps map[string]string) error 
 	return c.setItem(listApps(repoUrl, revision), apps, repoCacheExpiration, apps == nil)
 }
 
-func (c *Cache) GetManifests(commitSHA string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string, res interface{}) error {
-	return c.getItem(manifestCacheKey(commitSHA, appSrc, namespace, appLabelKey, appLabelValue), res)
+func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string, res interface{}) error {
+	return c.getItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appLabelValue), res)
 }
 
-func (c *Cache) SetManifests(commitSHA string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string, res interface{}) error {
-	return c.setItem(manifestCacheKey(commitSHA, appSrc, namespace, appLabelKey, appLabelValue), res, repoCacheExpiration, res == nil)
+func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string, res interface{}) error {
+	return c.setItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appLabelValue), res, repoCacheExpiration, res == nil)
 }
 
-func (c *Cache) GetAppDetails(commitSHA string, appSrc *appv1.ApplicationSource, res interface{}) error {
-	return c.getItem(appDetailsCacheKey(commitSHA, appSrc), res)
+func (c *Cache) GetAppDetails(revision string, appSrc *appv1.ApplicationSource, res interface{}) error {
+	return c.getItem(appDetailsCacheKey(revision, appSrc), res)
 }
 
-func (c *Cache) SetAppDetails(commitSHA string, appSrc *appv1.ApplicationSource, res interface{}) error {
-	return c.setItem(appDetailsCacheKey(commitSHA, appSrc), res, repoCacheExpiration, res == nil)
+func (c *Cache) SetAppDetails(revision string, appSrc *appv1.ApplicationSource, res interface{}) error {
+	return c.setItem(appDetailsCacheKey(revision, appSrc), res, repoCacheExpiration, res == nil)
 }
 
 func (c *Cache) GetRevisionMetadata(repoURL, revision string) (*appv1.RevisionMetadata, error) {
