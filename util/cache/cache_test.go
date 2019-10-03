@@ -140,7 +140,7 @@ func TestCache_GetManifests(t *testing.T) {
 	err = cache.GetManifests("other-revision", &ApplicationSource{}, "my-namespace", "my-app-label-key", "my-app-label-value", value)
 	assert.Equal(t, ErrCacheMiss, err)
 	// cache miss
-	err = cache.GetManifests("my-revision", &ApplicationSource{Path:"other-path"}, "my-namespace", "my-app-label-key", "my-app-label-value", value)
+	err = cache.GetManifests("my-revision", &ApplicationSource{Path: "other-path"}, "my-namespace", "my-app-label-key", "my-app-label-value", value)
 	assert.Equal(t, ErrCacheMiss, err)
 	// cache miss
 	err = cache.GetManifests("my-revision", &ApplicationSource{}, "other-namespace", "my-app-label-key", "my-app-label-value", value)
@@ -176,4 +176,21 @@ func TestCache_GetAppDetails(t *testing.T) {
 	err = cache.GetAppDetails("my-revision", &ApplicationSource{}, value)
 	assert.NoError(t, err)
 	assert.Equal(t, &apiclient.RepoAppDetailsResponse{Type: "my-type"}, value)
+}
+
+func TestCache_GetOIDCState(t *testing.T) {
+	cache := newFixtures().Cache
+	// cache miss
+	_, err := cache.GetOIDCState("my-key")
+	assert.Equal(t, ErrCacheMiss, err)
+	// populate cache
+	err = cache.SetOIDCState("my-key", &OIDCState{ReturnURL: "my-return-url"})
+	assert.NoError(t, err)
+	//cache miss
+	_, err = cache.GetOIDCState("other-key")
+	assert.Equal(t, ErrCacheMiss, err)
+	// cache hit
+	value, err := cache.GetOIDCState("my-key")
+	assert.NoError(t, err)
+	assert.Equal(t, &OIDCState{ReturnURL: "my-return-url"}, value)
 }
