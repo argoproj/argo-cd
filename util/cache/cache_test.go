@@ -110,3 +110,18 @@ func TestCache_GetManifests(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, &apiclient.ManifestResponse{SourceType: "my-source-type"}, value)
 }
+
+func TestCache_GetAppDetails(t *testing.T) {
+	cache := newFixtures().Cache
+	// cache miss
+	value := &apiclient.RepoAppDetailsResponse{}
+	err := cache.GetAppDetails("my-revision", &ApplicationSource{}, value)
+	assert.Equal(t, ErrCacheMiss, err)
+	// cache hit
+	res := &apiclient.RepoAppDetailsResponse{Type: "my-type"}
+	err = cache.SetAppDetails("my-revision", &ApplicationSource{}, res)
+	assert.NoError(t, err)
+	err = cache.GetAppDetails("my-revision", &ApplicationSource{}, value)
+	assert.NoError(t, err)
+	assert.Equal(t, &apiclient.RepoAppDetailsResponse{Type: "my-type"}, value)
+}
