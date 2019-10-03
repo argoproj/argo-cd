@@ -43,6 +43,8 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [Yieldlab](https://www.yieldlab.de/)
 1. [UBIO](https://ub.io/)
 1. [Volvo Cars](https://www.volvocars.com/)
+1. [Fave](https://myfave.com)
+1. [127Labs](https://127labs.com/)
 
 ## Documentation
 
