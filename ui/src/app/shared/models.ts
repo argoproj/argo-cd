@@ -175,8 +175,14 @@ export interface ApplicationSourceKsonnet {
     parameters: KsonnetParameter[];
 }
 
+export interface PluginEnv {
+    name: string;
+    value: string;
+}
+
 export interface ApplicationSourcePlugin {
     name: string;
+    env: PluginEnv[];
 }
 
 export interface ApplicationSourceDirectory {
@@ -458,6 +464,7 @@ export interface KustomizeAppSpec {
 
 export interface PluginAppSpec {
     name: string;
+    env: PluginEnv[];
 }
 
 export interface ObjectReference {

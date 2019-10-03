@@ -207,6 +207,12 @@ export const ApplicationParameters = (props: {
                 <FormField formApi={formApi} field='spec.source.plugin.name' component={Text}/>
             ),
         });
+        (app.spec.source.plugin.env || []).forEach(item => {
+            attributes.push({
+                title: item.name,
+                view: item.value
+            });
+        })
     } else if (props.details.type === 'Directory') {
         attributes.push({
             title: 'DIRECTORY RECURSE',
