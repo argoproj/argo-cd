@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -15,7 +16,13 @@ type fixtures struct {
 }
 
 func newFixtures() *fixtures {
-	return &fixtures{NewCache(NewInMemoryCache(1 * time.Hour))}
+	return &fixtures{NewCache(
+		NewInMemoryCache(1*time.Hour),
+		1*time.Minute,
+		1*time.Minute,
+		1*time.Minute,
+		1*time.Minute,
+	)}
 }
 
 func TestCache_GetRevisionMetadata(t *testing.T) {
@@ -193,4 +200,14 @@ func TestCache_GetOIDCState(t *testing.T) {
 	value, err := cache.GetOIDCState("my-key")
 	assert.NoError(t, err)
 	assert.Equal(t, &OIDCState{ReturnURL: "my-return-url"}, value)
+}
+
+func TestAddCacheFlagsToCmd(t *testing.T) {
+	cache, err := AddCacheFlagsToCmd(&cobra.Command{})()
+	assert.NoError(t, err)
+	assert.Equal(t, 24*time.Hour, cache.client.(*redisCache).expiration)
+	assert.Equal(t, 1*time.Hour, cache.connectionStatusCacheExpiration)
+	assert.Equal(t, 1*time.Hour, cache.appStateCacheExpiration)
+	assert.Equal(t, 24*time.Hour, cache.repoCacheExpiration)
+	assert.Equal(t, 3*time.Minute, cache.oidcCacheExpiration)
 }

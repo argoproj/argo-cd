@@ -15,12 +15,6 @@ import (
 )
 
 const (
-	defaultCacheExpiration          = 24 * time.Hour
-	connectionStatusCacheExpiration = 1 * time.Hour
-	appStateCacheExpiration         = 1 * time.Hour
-	repoCacheExpiration             = 24 * time.Hour
-	oidcCacheExpiration             = 3 * time.Minute
-
 	// envRedisPassword is a env variable name which stores redis password
 	envRedisPassword = "REDIS_PASSWORD"
 )
@@ -31,8 +25,20 @@ type OIDCState struct {
 }
 
 // NewCache creates new instance of Cache
-func NewCache(cacheClient CacheClient) *Cache {
-	return &Cache{client: cacheClient}
+func NewCache(
+	cacheClient CacheClient,
+	connectionStatusCacheExpiration time.Duration,
+	appStateCacheExpiration time.Duration,
+	repoCacheExpiration time.Duration,
+	oidcCacheExpiration time.Duration,
+) *Cache {
+	return &Cache{
+		client:                          cacheClient,
+		connectionStatusCacheExpiration: connectionStatusCacheExpiration,
+		appStateCacheExpiration:         appStateCacheExpiration,
+		repoCacheExpiration:             repoCacheExpiration,
+		oidcCacheExpiration:             oidcCacheExpiration,
+	}
 }
 
 // AddCacheFlagsToCmd adds flags which control caching to the specified command
@@ -41,11 +47,21 @@ func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
 	sentinelAddresses := make([]string, 0)
 	sentinelMaster := ""
 	redisDB := 0
+	var defaultCacheExpiration time.Duration
+	var connectionStatusCacheExpiration time.Duration
+	var appStateCacheExpiration time.Duration
+	var repoCacheExpiration time.Duration
+	var oidcCacheExpiration time.Duration
 
 	cmd.Flags().StringVar(&redisAddress, "redis", "", "Redis server hostname and port (e.g. argocd-redis:6379). ")
 	cmd.Flags().IntVar(&redisDB, "redisdb", 0, "Redis database.")
 	cmd.Flags().StringArrayVar(&sentinelAddresses, "sentinel", []string{}, "Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). ")
 	cmd.Flags().StringVar(&sentinelMaster, "sentinelmaster", "master", "Redis sentinel master group name.")
+	cmd.Flags().DurationVar(&defaultCacheExpiration, "default-cache-expiration", 24*time.Hour, "Cache expiration default")
+	cmd.Flags().DurationVar(&connectionStatusCacheExpiration, "connection-status-cache-expiration", 1*time.Hour, "Cache expiration for cluster/repo connection status")
+	cmd.Flags().DurationVar(&appStateCacheExpiration, "app-state-cache-expiration", 1*time.Hour, "Cache expiration for app state")
+	cmd.Flags().DurationVar(&repoCacheExpiration, "repo-cache-expiration", 24*time.Hour, "Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data")
+	cmd.Flags().DurationVar(&oidcCacheExpiration, "oidc-cache-expiration", 3*time.Minute, "Cache expiration for OIDC state")
 	return func() (*Cache, error) {
 		password := os.Getenv(envRedisPassword)
 		if len(sentinelAddresses) > 0 {
@@ -55,7 +71,13 @@ func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
 				DB:            redisDB,
 				Password:      password,
 			})
-			return NewCache(NewRedisCache(client, defaultCacheExpiration)), nil
+			return NewCache(
+				NewRedisCache(client, defaultCacheExpiration),
+				connectionStatusCacheExpiration,
+				appStateCacheExpiration,
+				repoCacheExpiration,
+				oidcCacheExpiration,
+			), nil
 		}
 
 		if redisAddress == "" {
@@ -66,13 +88,24 @@ func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
 			Password: password,
 			DB:       redisDB,
 		})
-		return NewCache(NewRedisCache(client, defaultCacheExpiration)), nil
+		return NewCache(
+			NewRedisCache(client, defaultCacheExpiration),
+			connectionStatusCacheExpiration,
+			appStateCacheExpiration,
+			repoCacheExpiration,
+			oidcCacheExpiration,
+		), nil
 	}
 }
 
 // Cache provides strongly types methods to store and retrieve values from shared cache
 type Cache struct {
-	client CacheClient
+	client                          CacheClient
+	manifestCacheExpiration         time.Duration
+	appStateCacheExpiration         time.Duration
+	connectionStatusCacheExpiration time.Duration
+	repoCacheExpiration             time.Duration
+	oidcCacheExpiration             time.Duration
 }
 
 func appManagedResourcesKey(appName string) string {
@@ -142,7 +175,7 @@ func (c *Cache) GetAppManagedResources(appName string) ([]*appv1.ResourceDiff, e
 }
 
 func (c *Cache) SetAppManagedResources(appName string, managedResources []*appv1.ResourceDiff) error {
-	return c.setItem(appManagedResourcesKey(appName), managedResources, appStateCacheExpiration, managedResources == nil)
+	return c.setItem(appManagedResourcesKey(appName), managedResources, c.appStateCacheExpiration, managedResources == nil)
 }
 
 func (c *Cache) GetAppResourcesTree(appName string) (*appv1.ApplicationTree, error) {
@@ -152,7 +185,7 @@ func (c *Cache) GetAppResourcesTree(appName string) (*appv1.ApplicationTree, err
 }
 
 func (c *Cache) SetAppResourcesTree(appName string, resourcesTree *appv1.ApplicationTree) error {
-	return c.setItem(appResourcesTreeKey(appName), resourcesTree, appStateCacheExpiration, resourcesTree == nil)
+	return c.setItem(appResourcesTreeKey(appName), resourcesTree, c.appStateCacheExpiration, resourcesTree == nil)
 }
 
 func (c *Cache) GetClusterConnectionState(server string) (appv1.ConnectionState, error) {
@@ -162,7 +195,7 @@ func (c *Cache) GetClusterConnectionState(server string) (appv1.ConnectionState,
 }
 
 func (c *Cache) SetClusterConnectionState(server string, state *appv1.ConnectionState) error {
-	return c.setItem(clusterConnectionStateKey(server), &state, connectionStatusCacheExpiration, state == nil)
+	return c.setItem(clusterConnectionStateKey(server), &state, c.connectionStatusCacheExpiration, state == nil)
 }
 
 func (c *Cache) GetRepoConnectionState(repo string) (appv1.ConnectionState, error) {
@@ -172,7 +205,7 @@ func (c *Cache) GetRepoConnectionState(repo string) (appv1.ConnectionState, erro
 }
 
 func (c *Cache) SetRepoConnectionState(repo string, state *appv1.ConnectionState) error {
-	return c.setItem(repoConnectionStateKey(repo), &state, connectionStatusCacheExpiration, state == nil)
+	return c.setItem(repoConnectionStateKey(repo), &state, c.connectionStatusCacheExpiration, state == nil)
 }
 func (c *Cache) ListApps(repoUrl, revision string) (map[string]string, error) {
 	res := make(map[string]string)
@@ -181,7 +214,7 @@ func (c *Cache) ListApps(repoUrl, revision string) (map[string]string, error) {
 }
 
 func (c *Cache) SetApps(repoUrl, revision string, apps map[string]string) error {
-	return c.setItem(listApps(repoUrl, revision), apps, repoCacheExpiration, apps == nil)
+	return c.setItem(listApps(repoUrl, revision), apps, c.repoCacheExpiration, apps == nil)
 }
 
 func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string, res interface{}) error {
@@ -189,7 +222,7 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, n
 }
 
 func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string, res interface{}) error {
-	return c.setItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appLabelValue), res, repoCacheExpiration, res == nil)
+	return c.setItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appLabelValue), res, c.repoCacheExpiration, res == nil)
 }
 
 func (c *Cache) GetAppDetails(revision string, appSrc *appv1.ApplicationSource, res interface{}) error {
@@ -197,7 +230,7 @@ func (c *Cache) GetAppDetails(revision string, appSrc *appv1.ApplicationSource, 
 }
 
 func (c *Cache) SetAppDetails(revision string, appSrc *appv1.ApplicationSource, res interface{}) error {
-	return c.setItem(appDetailsCacheKey(revision, appSrc), res, repoCacheExpiration, res == nil)
+	return c.setItem(appDetailsCacheKey(revision, appSrc), res, c.repoCacheExpiration, res == nil)
 }
 
 func (c *Cache) GetRevisionMetadata(repoURL, revision string) (*appv1.RevisionMetadata, error) {
@@ -206,7 +239,7 @@ func (c *Cache) GetRevisionMetadata(repoURL, revision string) (*appv1.RevisionMe
 }
 
 func (c *Cache) SetRevisionMetadata(repoURL, revision string, item *appv1.RevisionMetadata) error {
-	return c.setItem(revisionMetadataKey(repoURL, revision), item, repoCacheExpiration, false)
+	return c.setItem(revisionMetadataKey(repoURL, revision), item, c.repoCacheExpiration, false)
 }
 
 func (c *Cache) GetOIDCState(key string) (*OIDCState, error) {
@@ -216,5 +249,5 @@ func (c *Cache) GetOIDCState(key string) (*OIDCState, error) {
 }
 
 func (c *Cache) SetOIDCState(key string, state *OIDCState) error {
-	return c.setItem(oidcStateKey(key), state, oidcCacheExpiration, state == nil)
+	return c.setItem(oidcStateKey(key), state, c.oidcCacheExpiration, state == nil)
 }
