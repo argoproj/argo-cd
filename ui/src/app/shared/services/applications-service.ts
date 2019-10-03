@@ -36,7 +36,7 @@ export class ApplicationsService {
     }
 
     public revisionMetadata(name: string, revision: string): Promise<models.RevisionMetadata> {
-        return requests.get(`/applications/${name}/revisions/${revision}/metadata`)
+        return requests.get(`/applications/${name}/revisions/${revision || 'HEAD'}/metadata`)
             .then((res) => res.body as models.RevisionMetadata);
     }
 
