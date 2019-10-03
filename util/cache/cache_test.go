@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/reposerver/apiclient"
 )
 
 type fixtures struct {
@@ -17,7 +18,7 @@ func newFixtures() *fixtures {
 	return &fixtures{NewCache(NewInMemoryCache(1 * time.Hour))}
 }
 
-func TestCache_RevisionMetadata(t *testing.T) {
+func TestCache_GetRevisionMetadata(t *testing.T) {
 	cache := newFixtures().Cache
 	// cache miss
 	_, err := cache.GetRevisionMetadata("", "")
@@ -30,7 +31,7 @@ func TestCache_RevisionMetadata(t *testing.T) {
 	assert.Equal(t, &RevisionMetadata{Message: "foo"}, value)
 }
 
-func TestCache_Apps(t *testing.T) {
+func TestCache_ListApps(t *testing.T) {
 	cache := newFixtures().Cache
 	// cach miss
 	_, err := cache.ListApps("my-repo-url", "my-revision")
@@ -43,7 +44,7 @@ func TestCache_Apps(t *testing.T) {
 	assert.Equal(t, map[string]string{"foo": "bar"}, value)
 }
 
-func TestCache_AppManagedResources(t *testing.T) {
+func TestCache_GetAppManagedResources(t *testing.T) {
 	cache := newFixtures().Cache
 	// cache miss
 	_, err := cache.GetAppManagedResources("my-appname")
@@ -56,7 +57,7 @@ func TestCache_AppManagedResources(t *testing.T) {
 	assert.Equal(t, []*ResourceDiff{{Name: "my-name"}}, value)
 }
 
-func TestCache_AppResourcesTree(t *testing.T) {
+func TestCache_GetAppResourcesTree(t *testing.T) {
 	cache := newFixtures().Cache
 	// cache miss
 	_, err := cache.GetAppResourcesTree("my-appname")
@@ -69,7 +70,7 @@ func TestCache_AppResourcesTree(t *testing.T) {
 	assert.Equal(t, &ApplicationTree{Nodes: []ResourceNode{{}}}, value)
 }
 
-func TestCache_ClusterConnectionState(t *testing.T) {
+func TestCache_GetClusterConnectionState(t *testing.T) {
 	cache := newFixtures().Cache
 	// cache miss
 	_, err := cache.GetClusterConnectionState("my-server")
@@ -82,7 +83,7 @@ func TestCache_ClusterConnectionState(t *testing.T) {
 	assert.Equal(t, ConnectionState{Status: "my-state"}, value)
 }
 
-func TestCache_RepoConnectionState(t *testing.T) {
+func TestCache_GetRepoConnectionState(t *testing.T) {
 	cache := newFixtures().Cache
 	// cache miss
 	_, err := cache.GetRepoConnectionState("my-repo")
@@ -93,4 +94,19 @@ func TestCache_RepoConnectionState(t *testing.T) {
 	value, err := cache.GetRepoConnectionState("my-repo")
 	assert.NoError(t, err)
 	assert.Equal(t, ConnectionState{Status: "my-state"}, value)
+}
+
+func TestCache_GetManifests(t *testing.T) {
+	cache := newFixtures().Cache
+	// cache miss
+	value := &apiclient.ManifestResponse{}
+	err := cache.GetManifests("my-revision", &ApplicationSource{}, "my-namespace", "my-app-label-key", "my-app-label-value", value)
+	assert.Equal(t, ErrCacheMiss, err)
+	// cache hit
+	res := &apiclient.ManifestResponse{SourceType: "my-source-type"}
+	err = cache.SetManifests("my-revision", &ApplicationSource{}, "my-namespace", "my-app-label-key", "my-app-label-value", res)
+	assert.NoError(t, err)
+	err = cache.GetManifests("my-revision", &ApplicationSource{}, "my-namespace", "my-app-label-key", "my-app-label-value", value)
+	assert.NoError(t, err)
+	assert.Equal(t, &apiclient.ManifestResponse{SourceType: "my-source-type"}, value)
 }
