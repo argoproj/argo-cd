@@ -55,18 +55,19 @@ class ArrayInput extends React.Component<Props, State> {
                             <input value={i.name} disabled={true}/>
                             =
                             <input value={i.value} onChange={replaceValue(i.name, i.value)}/>
-                            <button className='argo-button argo-button--base' onClick={removeItem(i.name, i.value)}>
+
+                            <button onClick={removeItem(i.name, i.value)}>
                                 <i className='fa fa-times'/>
                             </button>
                         </div>
                     ))}
                 </React.Fragment>
-                <div key='item-new'>
-                    <input placeholder='Name' onChange={(e) => setName(e.target.value)}/>
+                <div>
+                    <input placeholder='Name' value={this.state.name} onChange={(e) => setName(e.target.value)}/>
                     =
-                    <input placeholder='Value' onChange={(e) => setValue(e.target.value)}/>
-                    <button className='argo-button argo-button--base' onClick={addItem}
-                            disabled={this.state.name === '' || this.state.value === ''}>
+                    <input placeholder='Value' value={this.state.value} onChange={(e) => setValue(e.target.value)}/>
+
+                    <button disabled={this.state.name === '' || this.state.value === ''} onClick={() => addItem()}>
                         <i className='fa fa-plus'/>
                     </button>
                 </div>

@@ -210,7 +210,7 @@ export const ApplicationParameters = (props: {
         });
         attributes.push({
             title: 'ENV',
-            view: app.spec.source.plugin && (app.spec.source.plugin.env || []).map((i) => `${i.name}=${i.value}`).join(', '),
+            view: app.spec.source.plugin && (app.spec.source.plugin.env || []).map((i) => `${i.name}='${i.value}'`).join(' '),
             edit: (formApi: FormApi) => (
                 <FormField field='spec.source.plugin.env' formApi={formApi} component={ArrayInputField}/>
             ),
