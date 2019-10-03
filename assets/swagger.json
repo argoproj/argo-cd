@@ -1869,6 +1869,16 @@
         }
       }
     },
+    "clusterPlugin": {
+      "type": "object",
+      "title": "Plugin settings",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "the name of the plugin, e.g. \"kasane\""
+        }
+      }
+    },
     "clusterSettings": {
       "type": "object",
       "properties": {
@@ -1889,6 +1899,12 @@
         },
         "oidcConfig": {
           "$ref": "#/definitions/clusterOIDCConfig"
+        },
+        "plugins": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/clusterPlugin"
+          }
         },
         "resourceOverrides": {
           "type": "object",

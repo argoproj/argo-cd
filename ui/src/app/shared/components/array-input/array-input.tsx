@@ -1,5 +1,6 @@
 import * as React from 'react';
 import * as ReactForm from 'react-form';
+
 /*
     This provide a way to may a form field to an array of items. It allows you to
 
@@ -13,7 +14,7 @@ import * as ReactForm from 'react-form';
       value: bar
     - name: BAZ
       value: qux
-    # A name/value array has can have dup items
+    # You can have dup items
     - name: FOO
       value: bar
 
@@ -26,76 +27,79 @@ class Item {
 }
 
 class Props {
-    public setValue: (value: Item[]) => void;
-    public getValue: () => Item[];
+    public items: Item[];
+    public onChange: (items: Item[]) => void;
 }
 
 class State {
-    public name: string;
-    public value: string;
+    public items: Item[];
+    public newItem: Item;
 }
 
 class ArrayInput extends React.Component<Props, State> {
     constructor(props: Readonly<Props>) {
         super(props);
-        this.state = {name: '', value: ''};
+        this.state = {newItem: {name: '', value: ''}, items: props.items};
     }
 
     public render() {
-        // replace the existing value
-        const replaceValue = (name: string, value: string) => (e: any) => {
-            this.props.setValue((this.props.getValue() || []).map((i) => ({
-                name: i.name,
-                value: i.name === name && i.value === value ? e.target.value : i.value,
-            })));
+        const addItem = (i: Item) => {
+            this.setState((s) => {
+                s.items.push(i);
+                this.props.onChange(s.items);
+                return {items: s.items, newItem: {name: '', value: ''}};
+            });
         };
-        const removeItem = (name: string, value: string) => () => {
-            this.props.setValue((this.props.getValue() || []).filter((i) => i.name !== name || i.value !== value));
+        const replaceItem = (i: Item, j: number) => {
+            this.setState((s) => {
+                s.items[j] = i;
+                this.props.onChange(s.items);
+                return s;
+            });
         };
-        const addItem = () => {
-            const prevValue = this.props.getValue() || [];
-            prevValue.push({name: this.state.name, value: this.state.value});
-            this.props.setValue(prevValue);
-            this.setState({name: '', value: ''});
+        const removeItem = (j: number) => {
+            this.setState((s) => {
+                s.items.splice(j, 1);
+                this.props.onChange(s.items);
+                return s;
+            });
         };
-
         const setName = (name: string) => {
-            this.setState((s) => ({name, value: s && s.value}));
+            this.setState((s) => ({items: s.items, newItem: {name, value: s.newItem.value}}));
         };
         const setValue = (value: string) => {
-            this.setState((s) => ({name: s && s.name, value}));
+            this.setState((s) => ({items: s.items, newItem: {name: s.newItem.name, value}}));
         };
-
-        return (
-            <div className='argo-field' style={{border: 0}}>
-                <React.Fragment key='existing'>
-                    {(this.props.getValue() || []).map((i) => (
-                        <div key={`item-${i.name}-${i.value}`}>
-                            <input value={i.name}/>
-                            =
-                            <input value={i.value} onChange={replaceValue(i.name, i.value)}/>
-
-                            <button onClick={removeItem(i.name, i.value)}>
-                                <i className='fa fa-times'/>
-                            </button>
-                        </div>
-                    ))}
-                </React.Fragment>
-                <div>
-                    <input placeholder='Name' value={this.state.name} onChange={(e) => setName(e.target.value)}/>
-                    =
-                    <input placeholder='Value' value={this.state.value} onChange={(e) => setValue(e.target.value)}/>
-
-                    <button disabled={this.state.name === '' || this.state.value === ''} onClick={() => addItem()}>
-                        <i className='fa fa-plus'/>
-                    </button>
-                </div>
+        return <div className='argo-field' style={{border: 0}}>
+            <div>
+                {this.state.items.map((i, j) => (
+                    <div key={`item-${j}`}>
+                        <input value={this.state.items[j].name}
+                               onChange={(e) => replaceItem({name: e.target.value, value: i.value}, j)}/>
+                        =
+                        <input value={this.state.items[j].value}
+                               onChange={(e) => replaceItem({name: i.name, value: e.target.value}, j)}/>
+                        <button onClick={() => removeItem(j)}>
+                            <i className='fa fa-times'/>
+                        </button>
+                    </div>
+                ))}
             </div>
-        );
+            <div>
+                <input placeholder='Name' value={this.state.newItem.name} onChange={(e) => setName(e.target.value)}/>
+                =
+                <input placeholder='Value' value={this.state.newItem.value} onChange={(e) => setValue(e.target.value)}/>
+
+                <button disabled={this.state.newItem.name === '' || this.state.newItem.value === ''}
+                        onClick={() => addItem(this.state.newItem)}>
+                    <i className='fa fa-plus'/>
+                </button>
+            </div>
+        </div>;
     }
 }
 
 export const ArrayInputField = ReactForm.FormField((props: { fieldApi: ReactForm.FieldApi }) => {
     const {fieldApi: {getValue, setValue}} = props;
-    return <ArrayInput getValue={getValue} setValue={setValue}/>;
+    return <ArrayInput items={getValue() || []} onChange={setValue}/>;
 });
