@@ -94,6 +94,16 @@ type OIDCConfig struct {
 	RequestedIDTokenClaims map[string]*oidc.Claim `json:"requestedIDTokenClaims,omitempty"`
 }
 
+// DEPRECATED. Helm repository credentials are now managed using RepoCredentials
+type HelmRepoCredentials struct {
+	URL            string                   `json:"url,omitempty"`
+	Name           string                   `json:"name,omitempty"`
+	UsernameSecret *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
+	PasswordSecret *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
+	CertSecret     *apiv1.SecretKeySelector `json:"certSecret,omitempty"`
+	KeySecret      *apiv1.SecretKeySelector `json:"keySecret,omitempty"`
+}
+
 // Credentials for accessing a Git repository
 type RepoCredentials struct {
 	// The URL to the repository
@@ -145,6 +155,8 @@ const (
 	repositoriesKey = "repositories"
 	// repositoryCredentialsKey designates the key where ArgoCDs repositories credentials list is set
 	repositoryCredentialsKey = "repository.credentials"
+	// helmRepositoriesKey designates the key where list of helm repositories is set
+	helmRepositoriesKey = "helm.repositories"
 	// settingDexConfigKey designates the key for the dex config
 	settingDexConfigKey = "dex.config"
 	// settingsOIDCConfigKey designates the key for OIDC config
@@ -314,6 +326,23 @@ func (mgr *SettingsManager) GetKustomizeBuildOptions() (string, error) {
 		return "", err
 	}
 	return argoCDCM.Data[kustomizeBuildOptions], nil
+}
+
+// DEPRECATED. Helm repository credentials are now managed using RepoCredentials
+func (mgr *SettingsManager) GetHelmRepositories() ([]HelmRepoCredentials, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return nil, err
+	}
+	helmRepositories := make([]HelmRepoCredentials, 0)
+	helmRepositoriesStr := argoCDCM.Data[helmRepositoriesKey]
+	if helmRepositoriesStr != "" {
+		err := yaml.Unmarshal([]byte(helmRepositoriesStr), &helmRepositories)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return helmRepositories, nil
 }
 
 func (mgr *SettingsManager) GetRepositories() ([]RepoCredentials, error) {

@@ -206,17 +206,16 @@ func ValidateRepo(
 		return conditions, nil
 	}
 
-	// get the app details, and populate the Ksonnet stuff from it
-	repos, err := db.ListRepositories(ctx)
+	helmRepos, err := db.ListHelmRepositories(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// can we actually read the app from the repo
+	// get the app details, and populate the Ksonnet stuff from it
 	appDetails, err := repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 		Repo:             repo,
 		Source:           &spec.Source,
-		Repos:            repos,
+		Repos:            helmRepos,
 		KustomizeOptions: kustomizeOptions,
 	})
 	if err != nil {
@@ -241,7 +240,7 @@ func ValidateRepo(
 	if err != nil {
 		return nil, err
 	}
-	conditions = append(conditions, verifyGenerateManifests(ctx, repo, repos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion)...)
+	conditions = append(conditions, verifyGenerateManifests(ctx, repo, helmRepos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion)...)
 
 	return conditions, nil
 }
@@ -313,7 +312,7 @@ func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.Ap
 func verifyGenerateManifests(
 	ctx context.Context,
 	repoRes *argoappv1.Repository,
-	repos argoappv1.Repositories,
+	helmRepos argoappv1.Repositories,
 	app *argoappv1.Application,
 	repoClient apiclient.RepoServerServiceClient,
 	kustomizeOptions *argoappv1.KustomizeOptions,
@@ -335,7 +334,7 @@ func verifyGenerateManifests(
 			Type: repoRes.Type,
 			Name: repoRes.Name,
 		},
-		Repos:             repos,
+		Repos:             helmRepos,
 		Revision:          spec.Source.TargetRevision,
 		AppLabelValue:     app.Name,
 		Namespace:         spec.Destination.Namespace,
