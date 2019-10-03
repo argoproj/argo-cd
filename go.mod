@@ -45,6 +45,7 @@ require (
 	github.com/google/go-jsonnet v0.10.0
 	github.com/google/gofuzz v1.0.0
 	github.com/google/shlex v0.0.0-20181106134648-c34317bd91bf
+	github.com/google/uuid v1.1.1 // indirect
 	github.com/googleapis/gnostic v0.1.0
 	github.com/gorilla/websocket v1.4.0
 	github.com/grpc-ecosystem/go-grpc-middleware v0.0.0-20190222133341-cfaf5686ec79
@@ -66,6 +67,8 @@ require (
 	github.com/mitchellh/mapstructure v1.1.2
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
 	github.com/modern-go/reflect2 v1.0.1
+	github.com/onsi/ginkgo v1.8.0 // indirect
+	github.com/onsi/gomega v1.5.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pelletier/go-buffruneio v0.2.0
 	github.com/pkg/errors v0.8.0
@@ -75,6 +78,7 @@ require (
 	github.com/prometheus/client_model v0.0.0-20180712105110-5c3871d89910
 	github.com/prometheus/common v0.2.0
 	github.com/prometheus/procfs v0.0.0-20181204211112-1dc9a6cbc91a
+	github.com/robfig/cron v1.2.0
 	github.com/rs/cors v1.6.0
 	github.com/sergi/go-diff v1.0.0
 	github.com/sirupsen/logrus v1.4.2
