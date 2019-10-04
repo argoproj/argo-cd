@@ -80,7 +80,7 @@ spec:
 
 ## Using A Hook To Send A Slack Message
 
-The following example uses the Slack API to send a a Slack message when it fails. 
+The following example uses the Slack API to send a a Slack message when sync completes: 
 
 ```yaml
 apiVersion: batch/v1
