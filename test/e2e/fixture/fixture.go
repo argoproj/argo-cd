@@ -252,7 +252,7 @@ func SetResourceFilter(filters settings.ResourcesFilter) {
 	})
 }
 
-func SetRepos(repos ...settings.RepoCredentials) {
+func SetRepos(repos ...settings.Repository) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		yamlBytes, err := yaml.Marshal(repos)
 		if err != nil {
@@ -263,7 +263,7 @@ func SetRepos(repos ...settings.RepoCredentials) {
 	})
 }
 
-func SetRepoCredentials(repos ...settings.RepoCredentials) {
+func SetRepoCredentials(repos ...settings.RepositoryCredentials) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		yamlBytes, err := yaml.Marshal(repos)
 		if err != nil {

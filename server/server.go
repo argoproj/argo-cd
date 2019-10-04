@@ -50,6 +50,7 @@ import (
 	certificatepkg "github.com/argoproj/argo-cd/pkg/apiclient/certificate"
 	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
 	projectpkg "github.com/argoproj/argo-cd/pkg/apiclient/project"
+	repocredspkg "github.com/argoproj/argo-cd/pkg/apiclient/repocreds"
 	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
 	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
@@ -65,6 +66,7 @@ import (
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/server/project"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/server/repocreds"
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/server/session"
 	"github.com/argoproj/argo-cd/server/settings"
@@ -453,6 +455,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	kubectl := kube.KubectlCmd{}
 	clusterService := cluster.NewServer(db, a.enf, a.Cache, kubectl)
 	repoService := repository.NewServer(a.RepoClientset, db, a.enf, a.Cache, a.settingsMgr)
+	repoCredsService := repocreds.NewServer(a.RepoClientset, db, a.enf, a.settingsMgr)
 	sessionService := session.NewServer(a.sessionMgr, a)
 	projectLock := util.NewKeyLock()
 	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, a.Cache, kubectl, db, a.enf, projectLock, a.settingsMgr)
@@ -464,6 +467,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	clusterpkg.RegisterClusterServiceServer(grpcS, clusterService)
 	applicationpkg.RegisterApplicationServiceServer(grpcS, applicationService)
 	repositorypkg.RegisterRepositoryServiceServer(grpcS, repoService)
+	repocredspkg.RegisterRepoCredsServiceServer(grpcS, repoCredsService)
 	sessionpkg.RegisterSessionServiceServer(grpcS, sessionService)
 	settingspkg.RegisterSettingsServiceServer(grpcS, settingsService)
 	projectpkg.RegisterProjectServiceServer(grpcS, projectService)
@@ -548,6 +552,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	mustRegisterGWHandler(clusterpkg.RegisterClusterServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(applicationpkg.RegisterApplicationServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(repositorypkg.RegisterRepositoryServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
+	mustRegisterGWHandler(repocredspkg.RegisterRepoCredsServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(sessionpkg.RegisterSessionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(settingspkg.RegisterSettingsServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(projectpkg.RegisterProjectServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)

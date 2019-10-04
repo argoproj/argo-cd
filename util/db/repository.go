@@ -53,7 +53,7 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 		data[sshPrivateKey] = []byte(r.SSHPrivateKey)
 	}
 
-	repoInfo := settings.RepoCredentials{
+	repoInfo := settings.Repository{
 		URL:                   r.Repo,
 		Type:                  r.Type,
 		Name:                  r.Name,
@@ -61,7 +61,7 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 		Insecure:              r.IsInsecure(),
 		EnableLFS:             r.EnableLFS,
 	}
-	err = db.updateSecrets(&repoInfo, r)
+	err = db.updateRepositorySecrets(&repoInfo, r)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func (db *db) ListRepositories(ctx context.Context) ([]*appsv1.Repository, error
 	return repos, nil
 }
 
-func (db *db) credentialsToRepository(repoInfo settings.RepoCredentials) (*appsv1.Repository, error) {
+func (db *db) credentialsToRepository(repoInfo settings.Repository) (*appsv1.Repository, error) {
 	repo := &appsv1.Repository{
 		Repo:                  repoInfo.URL,
 		Type:                  repoInfo.Type,
@@ -145,6 +145,20 @@ func (db *db) credentialsToRepository(repoInfo settings.RepoCredentials) (*appsv
 	return repo, err
 }
 
+func (db *db) credentialsToRepositoryCredentials(repoInfo settings.RepositoryCredentials) (*appsv1.RepoCreds, error) {
+	creds := &appsv1.RepoCreds{
+		URLPattern: repoInfo.URL,
+	}
+	err := db.unmarshalFromSecretsStr(map[*string]*apiv1.SecretKeySelector{
+		&creds.Username:          repoInfo.UsernameSecret,
+		&creds.Password:          repoInfo.PasswordSecret,
+		&creds.SSHPrivateKey:     repoInfo.SSHPrivateKeySecret,
+		&creds.TLSClientCertData: repoInfo.TLSClientCertDataSecret,
+		&creds.TLSClientCertKey:  repoInfo.TLSClientCertKeySecret,
+	}, make(map[string]*apiv1.Secret))
+	return creds, err
+}
+
 // UpdateRepository updates a repository
 func (db *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
 	repos, err := db.settingsMgr.GetRepositories()
@@ -158,7 +172,7 @@ func (db *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 	}
 
 	repoInfo := repos[index]
-	err = db.updateSecrets(&repoInfo, r)
+	err = db.updateRepositorySecrets(&repoInfo, r)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +201,7 @@ func (db *db) DeleteRepository(ctx context.Context, repoURL string) error {
 	if index < 0 {
 		return status.Errorf(codes.NotFound, "repo '%s' not found", repoURL)
 	}
-	err = db.updateSecrets(&repos[index], &appsv1.Repository{
+	err = db.updateRepositorySecrets(&repos[index], &appsv1.Repository{
 		SSHPrivateKey:     "",
 		Password:          "",
 		Username:          "",
@@ -217,8 +231,8 @@ func (db *db) ListRepositoryCredentials(ctx context.Context) ([]string, error) {
 }
 
 // GetRepositoryCredentials retrieves a repository credential set
-func (db *db) GetRepositoryCredentials(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
-	var credential *appsv1.Repository
+func (db *db) GetRepositoryCredentials(ctx context.Context, repoURL string) (*appsv1.RepoCreds, error) {
+	var credential *appsv1.RepoCreds
 
 	repoCredentials, err := db.settingsMgr.GetRepositoryCredentials()
 	if err != nil {
@@ -226,7 +240,7 @@ func (db *db) GetRepositoryCredentials(ctx context.Context, repoURL string) (*ap
 	}
 	index := getRepositoryCredentialIndex(repoCredentials, repoURL)
 	if index >= 0 {
-		credential, err = db.credentialsToRepository(repoCredentials[index])
+		credential, err = db.credentialsToRepositoryCredentials(repoCredentials[index])
 		if err != nil {
 			return nil, err
 		}
@@ -236,39 +250,39 @@ func (db *db) GetRepositoryCredentials(ctx context.Context, repoURL string) (*ap
 }
 
 // CreateRepositoryCredentials creates a repository credential set
-func (db *db) CreateRepositoryCredentials(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
-	repos, err := db.settingsMgr.GetRepositoryCredentials()
+func (db *db) CreateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
+	creds, err := db.settingsMgr.GetRepositoryCredentials()
 	if err != nil {
 		return nil, err
 	}
 
-	index := getRepositoryIndex(repos, r.Repo)
+	index := getRepositoryCredentialIndex(creds, r.URLPattern)
 	if index > -1 {
-		return nil, status.Errorf(codes.AlreadyExists, "repository credentials for '%s' already exists", r.Repo)
+		return nil, status.Errorf(codes.AlreadyExists, "repository credentials for '%s' already exists", r.URLPattern)
 	}
 
-	data := make(map[string][]byte)
-	if r.Username != "" {
-		data[username] = []byte(r.Username)
-	}
-	if r.Password != "" {
-		data[password] = []byte(r.Password)
-	}
-	if r.SSHPrivateKey != "" {
-		data[sshPrivateKey] = []byte(r.SSHPrivateKey)
+	// data := make(map[string][]byte)
+	// if r.Username != "" {
+	// 	data[username] = []byte(r.Username)
+	// }
+	// if r.Password != "" {
+	// 	data[password] = []byte(r.Password)
+	// }
+	// if r.SSHPrivateKey != "" {
+	// 	data[sshPrivateKey] = []byte(r.SSHPrivateKey)
+	// }
+
+	repoInfo := settings.RepositoryCredentials{
+		URL: r.URLPattern,
 	}
 
-	repoInfo := settings.RepoCredentials{
-		URL: r.Repo,
-	}
-
-	err = db.updateSecrets(&repoInfo, r)
+	err = db.updateCredentialsSecret(&repoInfo, r)
 	if err != nil {
 		return nil, err
 	}
 
-	repos = append(repos, repoInfo)
-	err = db.settingsMgr.SaveRepositoryCredentials(repos)
+	creds = append(creds, repoInfo)
+	err = db.settingsMgr.SaveRepositoryCredentials(creds)
 	if err != nil {
 		return nil, err
 	}
@@ -276,19 +290,19 @@ func (db *db) CreateRepositoryCredentials(ctx context.Context, r *appsv1.Reposit
 }
 
 // UpdateRepositoryCredentials updates a repository credential set
-func (db *db) UpdateRepositoryCredentials(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
+func (db *db) UpdateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
 	repos, err := db.settingsMgr.GetRepositoryCredentials()
 	if err != nil {
 		return nil, err
 	}
 
-	index := getRepositoryCredentialIndex(repos, r.Repo)
+	index := getRepositoryCredentialIndex(repos, r.URLPattern)
 	if index < 0 {
-		return nil, status.Errorf(codes.NotFound, "repository credentials '%s' not found", r.Repo)
+		return nil, status.Errorf(codes.NotFound, "repository credentials '%s' not found", r.URLPattern)
 	}
 
 	repoInfo := repos[index]
-	err = db.updateSecrets(&repoInfo, r)
+	err = db.updateCredentialsSecret(&repoInfo, r)
 	if err != nil {
 		return nil, err
 	}
@@ -314,7 +328,7 @@ func (db *db) DeleteRepositoryCredentials(ctx context.Context, name string) erro
 	if index < 0 {
 		return status.Errorf(codes.NotFound, "repository credentials '%s' not found", name)
 	}
-	err = db.updateSecrets(&repos[index], &appsv1.Repository{
+	err = db.updateCredentialsSecret(&repos[index], &appsv1.RepoCreds{
 		SSHPrivateKey:     "",
 		Password:          "",
 		Username:          "",
@@ -346,7 +360,32 @@ func (db *db) DeleteRepositoryCredentials(ctx context.Context, name string) erro
 // 	return repo, err
 // }
 
-func (db *db) updateSecrets(repoInfo *settings.RepoCredentials, r *appsv1.Repository) error {
+func (db *db) updateCredentialsSecret(credsInfo *settings.RepositoryCredentials, c *appsv1.RepoCreds) error {
+	r := &appsv1.Repository{
+		Repo:              c.URLPattern,
+		Username:          c.Username,
+		Password:          c.Password,
+		SSHPrivateKey:     c.SSHPrivateKey,
+		TLSClientCertData: c.TLSClientCertData,
+		TLSClientCertKey:  c.TLSClientCertKey,
+	}
+	var repoInfo settings.Repository
+
+	err := db.updateRepositorySecrets(&repoInfo, r)
+	if err != nil {
+		return err
+	}
+
+	credsInfo.UsernameSecret = repoInfo.UsernameSecret
+	credsInfo.PasswordSecret = repoInfo.PasswordSecret
+	credsInfo.SSHPrivateKeySecret = repoInfo.SSHPrivateKeySecret
+	credsInfo.TLSClientCertDataSecret = repoInfo.TLSClientCertDataSecret
+	credsInfo.TLSClientCertKeySecret = repoInfo.TLSClientCertKeySecret
+
+	return nil
+}
+
+func (db *db) updateRepositorySecrets(repoInfo *settings.Repository, r *appsv1.Repository) error {
 	secretsData := make(map[string]map[string][]byte)
 
 	setSecretData := func(secretKey *apiv1.SecretKeySelector, value string, defaultKeyName string) *apiv1.SecretKeySelector {
@@ -437,7 +476,7 @@ func (db *db) upsertSecret(name string, data map[string][]byte) error {
 	return nil
 }
 
-func getRepositoryIndex(repos []settings.RepoCredentials, repoURL string) int {
+func getRepositoryIndex(repos []settings.Repository, repoURL string) int {
 	for i, repo := range repos {
 		if git.SameURL(repo.URL, repoURL) {
 			return i
@@ -448,7 +487,7 @@ func getRepositoryIndex(repos []settings.RepoCredentials, repoURL string) int {
 
 // getRepositoryCredentialIndex returns the index of the best matching repository credential
 // configuration, i.e. the one with the longest match
-func getRepositoryCredentialIndex(repoCredentials []settings.RepoCredentials, repoURL string) int {
+func getRepositoryCredentialIndex(repoCredentials []settings.RepositoryCredentials, repoURL string) int {
 	var max, idx int = 0, -1
 	repoURL = git.NormalizeGitURL(repoURL)
 	for i, cred := range repoCredentials {

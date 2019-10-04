@@ -977,6 +977,22 @@ type ResourceActionParam struct {
 	Default string `json:"default,omitempty" protobuf:"bytes,4,opt,name=default"`
 }
 
+// RepoCreds holds a repository credentials definition
+type RepoCreds struct {
+	// URLPattern that this credentials matches
+	URLPattern string `json:"repo" protobuf:"bytes,1,opt,name=repo"`
+	// Username for authenticating at the repo server
+	Username string `json:"username,omitempty" protobuf:"bytes,2,opt,name=username"`
+	// Password for authenticating at the repo server
+	Password string `json:"password,omitempty" protobuf:"bytes,3,opt,name=password"`
+	// SSH private key data for authenticating at the repo server (only Git repos)
+	SSHPrivateKey string `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
+	// TLS client cert data for authenticating at the repo server
+	TLSClientCertData string `json:"tlsClientCertData,omitempty" protobuf:"bytes,5,opt,name=tlsClientCertData"`
+	// TLS client cert key for authenticating at the repo server
+	TLSClientCertKey string `json:"tlsClientCertKey,omitempty" protobuf:"bytes,6,opt,name=tlsClientCertKey"`
+}
+
 // Repository is a repository holding application configurations
 type Repository struct {
 	// URL of the repo
@@ -1024,8 +1040,28 @@ func (m *Repository) HasCredentials() bool {
 	return m.Username != "" || m.Password != "" || m.SSHPrivateKey != "" || m.TLSClientCertData != ""
 }
 
+func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
+	if source != nil {
+		if repo.Username == "" {
+			repo.Username = source.Username
+		}
+		if repo.Password == "" {
+			repo.Password = source.Password
+		}
+		if repo.SSHPrivateKey == "" {
+			repo.SSHPrivateKey = source.SSHPrivateKey
+		}
+		if repo.TLSClientCertData == "" {
+			repo.TLSClientCertData = source.TLSClientCertData
+		}
+		if repo.TLSClientCertKey == "" {
+			repo.TLSClientCertKey = source.TLSClientCertKey
+		}
+	}
+}
+
 // CopyCredentialsFrom copies all credentials from source to receiver
-func (repo *Repository) CopyCredentialsFrom(source *Repository) {
+func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 	if source != nil {
 		if repo.Username == "" {
 			repo.Username = source.Username
@@ -1101,6 +1137,12 @@ type Repositories []*Repository
 type RepositoryList struct {
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	Items           Repositories `json:"items" protobuf:"bytes,2,rep,name=items"`
+}
+
+// RepositoryList is a collection of Repositories.
+type RepoCredsList struct {
+	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+	Items           []RepoCreds `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate

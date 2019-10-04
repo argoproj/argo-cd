@@ -38,11 +38,11 @@ type ArgoDB interface {
 	// ListRepoCredentials list all repo credential sets URL patterns
 	ListRepositoryCredentials(ctx context.Context) ([]string, error)
 	// GetRepoCredentials gets repo credentials for given URL
-	GetRepositoryCredentials(ctx context.Context, name string) (*appv1.Repository, error)
+	GetRepositoryCredentials(ctx context.Context, name string) (*appv1.RepoCreds, error)
 	// CreateRepoCredentials creates a repository credential set
-	CreateRepositoryCredentials(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
+	CreateRepositoryCredentials(ctx context.Context, r *appv1.RepoCreds) (*appv1.RepoCreds, error)
 	// UpdateRepoCredentials updates a repository credential set
-	UpdateRepositoryCredentials(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
+	UpdateRepositoryCredentials(ctx context.Context, r *appv1.RepoCreds) (*appv1.RepoCreds, error)
 	// DeleteRepoCredentials deletes a repository credential set from config
 	DeleteRepositoryCredentials(ctx context.Context, name string) error
 

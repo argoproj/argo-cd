@@ -96,11 +96,6 @@ service RepositoryService {
 		option (google.api.http).get = "/api/v1/repositories";
 	}
 
-	// ListRepositoryCredentials gets a list of all configured repository credential sets
-	rpc ListRepositoryCredentials(RepoQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RepositoryList) {
-		option (google.api.http).get = "/api/v1/repositories/creds";
-	}
-
 	// ListApps returns list of apps in the repo
 	rpc ListApps(RepoAppsQuery) returns (RepoAppsResponse) {
 		option (google.api.http).get = "/api/v1/repositories/{repo}/apps";
@@ -135,14 +130,6 @@ service RepositoryService {
 		};
 	}
 
-	// CreateRepositoryCredentials creates a new repository credential set
-	rpc CreateRepositoryCredentials(RepoCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
-		option (google.api.http) = {
-			post: "/api/v1/repositories/creds"
-			body: "repo"
-		};
-	}
-
 	// Update updates a repo or repo credential set
 	rpc Update(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http) = {
@@ -160,14 +147,6 @@ service RepositoryService {
 		};
 	}
 
-	// UpdateRepositoryCredentials updates a repository credential set
-	rpc UpdateRepositoryCredentials(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
-		option (google.api.http) = {
-			put: "/api/v1/repositories/{repo.repo}/creds"
-			body: "repo"
-		};
-	}
-
 	// Delete deletes a repository from the configuration
 	rpc Delete(RepoQuery) returns (RepoResponse) {
 		option (google.api.http).delete = "/api/v1/repositories/{repo}";
@@ -177,11 +156,6 @@ service RepositoryService {
 	// DeleteRepository deletes a repository from the configuration
 	rpc DeleteRepository(RepoQuery) returns (RepoResponse) {
 		option (google.api.http).delete = "/api/v1/repositories/{repo}";
-	}
-
-	// DeleteRepositoryCredentials deletes a repository credential set from the configuration
-	rpc DeleteRepositoryCredentials(RepoQuery) returns (RepoResponse) {
-		option (google.api.http).delete = "/api/v1/repositories/{repo}/creds";
 	}
 
 	// ValidateAccess validates access to a repository with given parameters

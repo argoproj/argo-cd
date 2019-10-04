@@ -24,7 +24,7 @@ func TestRepoURLToSecretName(t *testing.T) {
 }
 
 func Test_getRepositoryCredentialIndex(t *testing.T) {
-	repositoryCredentials := []settings.RepoCredentials{
+	repositoryCredentials := []settings.RepositoryCredentials{
 		{URL: "http://known"},
 		{URL: "http://known/repos"},
 		{URL: "http://known/other"},

@@ -427,11 +427,37 @@ func getReferencedSecrets(un unstructured.Unstructured) map[string]bool {
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &cm)
 	errors.CheckError(err)
 	referencedSecrets := make(map[string]bool)
+
+	// Referenced repository secrets
 	if reposRAW, ok := cm.Data["repositories"]; ok {
-		repoCreds := make([]settings.RepoCredentials, 0)
-		err := yaml.Unmarshal([]byte(reposRAW), &repoCreds)
+		repos := make([]settings.Repository, 0)
+		err := yaml.Unmarshal([]byte(reposRAW), &repos)
 		errors.CheckError(err)
-		for _, cred := range repoCreds {
+		for _, cred := range repos {
+			if cred.PasswordSecret != nil {
+				referencedSecrets[cred.PasswordSecret.Name] = true
+			}
+			if cred.SSHPrivateKeySecret != nil {
+				referencedSecrets[cred.SSHPrivateKeySecret.Name] = true
+			}
+			if cred.UsernameSecret != nil {
+				referencedSecrets[cred.UsernameSecret.Name] = true
+			}
+			if cred.TLSClientCertDataSecret != nil {
+				referencedSecrets[cred.TLSClientCertDataSecret.Name] = true
+			}
+			if cred.TLSClientCertKeySecret != nil {
+				referencedSecrets[cred.TLSClientCertKeySecret.Name] = true
+			}
+		}
+	}
+
+	// Referenced repository credentials secrets
+	if reposRAW, ok := cm.Data["repository.credentials"]; ok {
+		creds := make([]settings.RepositoryCredentials, 0)
+		err := yaml.Unmarshal([]byte(reposRAW), &creds)
+		errors.CheckError(err)
+		for _, cred := range creds {
 			if cred.PasswordSecret != nil {
 				referencedSecrets[cred.PasswordSecret.Name] = true
 			}

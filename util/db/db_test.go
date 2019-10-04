@@ -73,15 +73,15 @@ func TestCreateRepoCredentials(t *testing.T) {
 	clientset := getClientset(nil)
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 
-	creds, err := db.CreateRepositoryCredentials(context.Background(), &v1alpha1.Repository{
-		Repo:     "https://github.com/argoproj/",
-		Username: "test-username",
-		Password: "test-password",
+	creds, err := db.CreateRepositoryCredentials(context.Background(), &v1alpha1.RepoCreds{
+		URLPattern: "https://github.com/argoproj/",
+		Username:   "test-username",
+		Password:   "test-password",
 	})
 	assert.Nil(t, err)
-	assert.Equal(t, "https://github.com/argoproj/", creds.Repo)
+	assert.Equal(t, "https://github.com/argoproj/", creds.URLPattern)
 
-	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(repoURLToSecretName(creds.Repo), metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(repoURLToSecretName(creds.URLPattern), metav1.GetOptions{})
 	assert.Nil(t, err)
 
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
