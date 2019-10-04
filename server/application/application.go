@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -1075,17 +1077,19 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 		return nil, err
 	}
 
-	availableActions, err := s.getAvailableActions(resourceOverrides, obj, "")
+	availableActions, err := s.getAvailableActions(resourceOverrides, obj, res.GroupKindVersion(), "")
 	if err != nil {
 		return nil, err
 	}
+
 	return &application.ResourceActionsListResponse{Actions: availableActions}, nil
 }
 
-func (s *Server) getAvailableActions(resourceOverrides map[string]v1alpha1.ResourceOverride, obj *unstructured.Unstructured, filterAction string) ([]appv1.ResourceAction, error) {
+func (s *Server) getAvailableActions(resourceOverrides map[string]appv1.ResourceOverride, obj *unstructured.Unstructured, gvk schema.GroupVersionKind, filterAction string) ([]appv1.ResourceAction, error) {
 	luaVM := lua.VM{
 		ResourceOverrides: resourceOverrides,
 	}
+
 	discoveryScript, err := luaVM.GetResourceActionDiscovery(obj)
 	if err != nil {
 		return nil, err
@@ -1099,6 +1103,7 @@ func (s *Server) getAvailableActions(resourceOverrides map[string]v1alpha1.Resou
 	}
 	for i := range availableActions {
 		action := availableActions[i]
+		availableActions[i].Name = gvk.Group + "/" + gvk.Kind + "/" + action.Name
 		if action.Name == filterAction {
 			return []appv1.ResourceAction{action}, nil
 		}
@@ -1116,7 +1121,8 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		Version:      q.Version,
 		Group:        q.Group,
 	}
-	res, config, _, err := s.getAppResource(ctx, rbacpolicy.ActionOverride, resourceRequest)
+	actionRequest := fmt.Sprintf("%s/%s/%s/%s", rbacpolicy.ActionAction, q.Group, q.Kind, q.Action)
+	res, config, _, err := s.getAppResource(ctx, actionRequest, resourceRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -1128,13 +1134,6 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 	resourceOverrides, err := s.settingsMgr.GetResourceOverrides()
 	if err != nil {
 		return nil, err
-	}
-	filteredAvailableActions, err := s.getAvailableActions(resourceOverrides, liveObj, q.Action)
-	if err != nil {
-		return nil, err
-	}
-	if len(filteredAvailableActions) == 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "action not available on resource")
 	}
 
 	luaVM := lua.VM{

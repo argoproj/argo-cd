@@ -3611,6 +3611,10 @@
     "v1alpha1ResourceAction": {
       "type": "object",
       "properties": {
+        "available": {
+          "type": "boolean",
+          "format": "boolean"
+        },
         "name": {
           "type": "string"
         },

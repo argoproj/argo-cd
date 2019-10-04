@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"sort"
+	"strconv"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/ghodss/yaml"
@@ -39,7 +42,6 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 	var kind string
 	var group string
 	var resourceName string
-	var all bool
 	var output string
 	var command = &cobra.Command{
 		Use:   "list APPNAME",
@@ -56,7 +58,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 		ctx := context.Background()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
-		filteredObjects := filterResources(command, resources.Items, group, kind, namespace, resourceName, all)
+		filteredObjects := filterResources(command, resources.Items, group, kind, namespace, resourceName, true)
 		availableActions := make(map[string][]argoappv1.ResourceAction)
 		for i := range filteredObjects {
 			obj := filteredObjects[i]
@@ -69,7 +71,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 				Kind:         gvk.Kind,
 			})
 			errors.CheckError(err)
-			availableActions[obj.GetName()] = availActionsForResource.Actions
+			availableActions[gvk.Group+"\t"+gvk.Kind+"\t"+obj.GetName()] = availActionsForResource.Actions
 		}
 
 		var keys []string
@@ -89,12 +91,12 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 			fmt.Println(string(jsonBytes))
 		case "":
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "RESOURCE\tACTION\n")
+			fmt.Fprintf(w, "GROUP\tKIND\tNAME\tACTION\tAVAILABLE\n")
 			fmt.Println()
 			for key := range availableActions {
 				for i := range availableActions[key] {
 					action := availableActions[key][i]
-					fmt.Fprintf(w, "%s\t%s\n", key, action.Name)
+					fmt.Fprintf(w, "%s\t%s\t%s\n", key, action.Name, strconv.FormatBool(action.Available))
 
 				}
 			}
@@ -103,11 +105,8 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 	}
 	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource")
 	command.Flags().StringVar(&kind, "kind", "", "Kind")
-	err := command.MarkFlagRequired("kind")
-	errors.CheckError(err)
 	command.Flags().StringVar(&group, "group", "", "Group")
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
-	command.Flags().BoolVar(&all, "all", false, "Indicates whether to list actions on multiple matching resources")
 	command.Flags().StringVarP(&output, "out", "o", "", "Output format. One of: yaml, json")
 
 	return command
@@ -116,9 +115,8 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 // NewApplicationResourceActionsRunCommand returns a new instance of an `argocd app actions run` command
 func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var namespace string
-	var kind string
-	var group string
 	var resourceName string
+	var kindArg string
 	var all bool
 	var command = &cobra.Command{
 		Use:   "run APPNAME ACTION",
@@ -126,11 +124,8 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	}
 
 	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource")
-	command.Flags().StringVar(&kind, "kind", "", "Kind")
-	err := command.MarkFlagRequired("kind")
-	errors.CheckError(err)
-	command.Flags().StringVar(&group, "group", "", "Group")
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
+	command.Flags().StringVar(&kindArg, "kind", "", "Kind")
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to run the action on multiple matching resources")
 
 	command.Run = func(c *cobra.Command, args []string) {
@@ -140,11 +135,36 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 		}
 		appName := args[0]
 		actionName := args[1]
+
 		conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 		defer util.Close(conn)
 		ctx := context.Background()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
+
+		var group string
+		var kind string
+		var actionNameOnly string
+		// Backwards comparability for running resume actions
+		if actionName == "resume" && kindArg == "Rollout" {
+			group = "argoproj.io"
+			kind = "Rollout"
+			actionNameOnly = "resume"
+			commandTail := ""
+			if resourceName != "" {
+				commandTail += " --resource-name " + resourceName
+			}
+			if namespace != "" {
+				commandTail += " --namespace " + namespace
+			}
+			if all {
+				commandTail += " --all"
+			}
+			fmt.Printf("\nWarning: \"resume\" action has been deprecated. Please run the action as\n\n\targocd app run %s argoproj.io/Rollout/resume%s\n\n", appName, commandTail)
+		} else {
+			group, kind, actionNameOnly = parseActionName(actionName)
+		}
+
 		filteredObjects := filterResources(command, resources.Items, group, kind, namespace, resourceName, all)
 		for i := range filteredObjects {
 			obj := filteredObjects[i]
@@ -156,10 +176,18 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 				ResourceName: objResourceName,
 				Group:        gvk.Group,
 				Kind:         gvk.Kind,
-				Action:       actionName,
+				Action:       actionNameOnly,
 			})
 			errors.CheckError(err)
 		}
 	}
 	return command
+}
+
+func parseActionName(action string) (string, string, string) {
+	actionSplit := strings.Split(action, "/")
+	if len(actionSplit) != 3 {
+		log.Fatal("Action name is malformed")
+	}
+	return actionSplit[0], actionSplit[1], actionSplit[2]
 }
