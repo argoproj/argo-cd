@@ -1,10 +1,13 @@
-import { FormField, FormSelect, getNestedField } from 'argo-ui';
+import {DataLoader, FormField, FormSelect, getNestedField} from 'argo-ui';
 import * as React from 'react';
-import { FieldApi, FormApi, FormField as ReactFormField, Text, TextArea } from 'react-form';
+import {FieldApi, FormApi, FormField as ReactFormField, Text, TextArea} from 'react-form';
 
-import { CheckboxField, EditablePanel, EditablePanelItem, TagsInputField } from '../../../shared/components';
+import {CheckboxField, EditablePanel, EditablePanelItem, TagsInputField} from '../../../shared/components';
+import {ArrayInputField} from '../../../shared/components/array-input/array-input';
 import * as models from '../../../shared/models';
-import { ImageTagFieldEditor } from './kustomize';
+import {AuthSettings} from '../../../shared/models';
+import {services} from '../../../shared/services';
+import {ImageTagFieldEditor} from './kustomize';
 import * as kustomize from './kustomize-image';
 
 const TextWithMetadataField = ReactFormField((props: {metadata: { value: string }, fieldApi: FieldApi, className: string }) => {
@@ -199,6 +202,24 @@ export const ApplicationParameters = (props: {
             const value = overrideIndex > -1 && source.helm.parameters[overrideIndex].value || original;
             return { overrideIndex, original, metadata: { name, value } };
         })));
+    } else if (props.details.type === 'Plugin') {
+        attributes.push({
+            title: 'NAME',
+            view: app.spec.source.plugin && app.spec.source.plugin.name,
+            edit: (formApi: FormApi) => (
+                <DataLoader load={() => services.authService.settings()}>{(settings: AuthSettings) => (
+                    <FormField formApi={formApi} field='spec.source.plugin.name' component={FormSelect}
+                               componentProps={{options: settings.plugins.map((p) => p.name)}}/>
+                )}</DataLoader>
+            ),
+        });
+        attributes.push({
+            title: 'ENV',
+            view: app.spec.source.plugin && (app.spec.source.plugin.env || []).map((i) => `${i.name}='${i.value}'`).join(' '),
+            edit: (formApi: FormApi) => (
+                <FormField field='spec.source.plugin.env' formApi={formApi} component={ArrayInputField}/>
+            ),
+        });
     } else if (props.details.type === 'Directory') {
         attributes.push({
             title: 'DIRECTORY RECURSE',
