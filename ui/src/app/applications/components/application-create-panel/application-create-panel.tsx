@@ -131,7 +131,7 @@ export const ApplicationCreatePanel = (props: {
                                 'metadata.name': !a.metadata.name && 'Application name is required',
                                 'spec.project': !a.spec.project && 'Project name is required',
                                 'spec.source.repoURL': !a.spec.source.repoURL && 'Repository URL is required',
-                                'spec.source.targetRevision': !a.spec.source.targetRevision && 'Revision is required',
+                                'spec.source.targetRevision': !a.spec.source.targetRevision && a.spec.source.hasOwnProperty('chart') && 'Version is required',
                                 'spec.source.path': !a.spec.source.path && !a.spec.source.chart && 'Path is required',
                                 'spec.source.chart': !a.spec.source.path && !a.spec.source.chart && 'Chart is required',
                                 'spec.destination.server': !a.spec.destination.server && 'Cluster is required',

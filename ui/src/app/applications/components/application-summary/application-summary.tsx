@@ -4,7 +4,7 @@ import { FormApi, Text } from 'react-form';
 
 require('./application-summary.scss');
 
-import { Cluster, clusterTitle, DataLoader, EditablePanel, EditablePanelItem } from '../../../shared/components';
+import { AutocompleteField, Cluster, clusterTitle, DataLoader, EditablePanel, EditablePanelItem } from '../../../shared/components';
 import { Repo, Revision } from '../../../shared/components';
 import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -26,6 +26,7 @@ export const ApplicationSummary = (props: {
     updateApp: (app: models.Application) => Promise<any>,
 }) => {
     const app = JSON.parse(JSON.stringify(props.app)) as models.Application;
+    const isHelm = app.spec.source.hasOwnProperty('chart');
 
     const attributes = [
         {
@@ -63,16 +64,43 @@ export const ApplicationSummary = (props: {
             view: <Repo url={app.spec.source.repoURL}/>,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.repoURL' component={Text}/>,
         },
-        {
+        ...(isHelm ? [{
+            title: 'CHART',
+            view: <span>{app.spec.source.chart}:{app.spec.source.targetRevision}</span>,
+            edit: (formApi: FormApi) => (
+                <DataLoader input={{repoURL: formApi.getFormState().values.spec.source.repoURL, chart: formApi.getFormState().values.spec.source.chart}}
+                load={(src) => services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>()).then((charts) => {
+                    const chartInfo = charts.find((chart) => chart.name === src.chart);
+                    return {
+                        charts: charts.map((chart) => chart.name),
+                        versions: chartInfo && chartInfo.versions || new Array<string>(),
+                    };
+                })}>
+                {(data: {charts: string[], versions: string[] }) => (
+                    <div className='row'>
+                        <div className='columns small-10'>
+                            <FormField formApi={formApi} field='spec.source.chart' component={AutocompleteField} componentProps={{
+                                items: data.charts, filterSuggestions: true,
+                            }}/>
+                        </div>
+                        <div className='columns small-2'>
+                                <FormField formApi={formApi} field='spec.source.targetRevision' component={AutocompleteField} componentProps={{
+                                items: data.versions,
+                            }}/>
+                        </div>
+                    </div>
+                )}
+                </DataLoader>
+            ),
+        }] : [{
             title: 'TARGET REVISION',
-            view: <Revision repoUrl={app.spec.source.repoURL} revision={app.spec.source.targetRevision}/>,
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.targetRevision' component={Text}/>,
-        },
-        {
+            view: <Revision repoUrl={app.spec.source.repoURL} revision={app.spec.source.targetRevision || 'HEAD'}/>,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.targetRevision' component={Text} componentProps={{placeholder: 'HEAD'}} />,
+        }, {
             title: 'PATH',
             view: app.spec.source.path,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.path' component={Text}/>,
-        },
+        }]),
         {title: 'STATUS', view: (
             <span><ComparisonStatusIcon status={app.status.sync.status}/> {app.status.sync.status} {syncStatusMessage(app)}
             </span>
@@ -169,7 +197,7 @@ export const ApplicationSummary = (props: {
     const appURL = `${location.protocol}//${location.host}/applications/${props.app.metadata.name}`;
 
     return (
-        <React.Fragment>
+        <div className='application-summary'>
             <EditablePanel
             save={props.updateApp}
             validate={(input) => ({
@@ -263,6 +291,6 @@ export const ApplicationSummary = (props: {
             )}
             </DataLoader>
             <EditablePanel save={(props.updateApp)} values={app} title='Info' items={infoItems} onModeSwitch={() => setAdjustedCount(0)}/>
-        </React.Fragment>
+        </div>
     );
 };

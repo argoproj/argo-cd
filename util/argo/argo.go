@@ -270,6 +270,13 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		})
 		return conditions, nil
 	}
+	if spec.Source.Chart != "" && spec.Source.TargetRevision == "" {
+		conditions = append(conditions, argoappv1.ApplicationCondition{
+			Type:    argoappv1.ApplicationConditionInvalidSpecError,
+			Message: "spec.source.targetRevision is required if the manifest source is a helm chart",
+		})
+		return conditions, nil
+	}
 
 	if !proj.IsSourcePermitted(spec.Source) {
 		conditions = append(conditions, argoappv1.ApplicationCondition{

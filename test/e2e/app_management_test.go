@@ -493,7 +493,7 @@ func TestResourceAction(t *testing.T) {
 				ResourceName: "guestbook-ui",
 			})
 			assert.NoError(t, err)
-			assert.Equal(t, []ResourceAction{{Name: "sample"}}, actions.Actions)
+			assert.Equal(t, []ResourceAction{{Name: "apps/Deployment/sample", Available: false}}, actions.Actions)
 
 			_, err = client.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{Name: &app.Name,
 				Group:        "apps",
