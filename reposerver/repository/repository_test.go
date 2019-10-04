@@ -28,7 +28,13 @@ import (
 )
 
 func newServiceWithMocks(root string) (*Service, *gitmocks.Client, *helmmocks.Client) {
-	service := NewService(metrics.NewMetricsServer(), argocache.NewCache(cache.NewInMemoryCache(time.Duration(1)*time.Second)), 1)
+	service := NewService(metrics.NewMetricsServer(), argocache.NewCache(
+		cache.NewInMemoryCache(1*time.Minute),
+		1*time.Minute,
+		1*time.Minute,
+		1*time.Minute,
+		1*time.Minute,
+	), 1)
 	helmClient := &helmmocks.Client{}
 	gitClient := &gitmocks.Client{}
 	root, err := filepath.Abs(root)

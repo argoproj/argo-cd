@@ -29,6 +29,8 @@ or repositories has a lot of files. To avoid this problem mount persistent volum
 * `argocd-repo-server` `git ls-remote` to resolve ambiguous revision such as `HEAD`, branch or tag name. This operation is happening pretty frequently
 and might fail. To avoid failed syncs use `ARGOCD_GIT_ATTEMPTS_COUNT` environment variable to retry failed requests.
 
+* `argocd-repo-server` caches data, including manifests, for 24h by default, then every 3m (by default) it checks for changes to the app manifests. Argo CD assumes by default that manifests only change when the Git repo changes, but with Kustomize remote bases, or Helm patch releases, it can change at other times.. You can reduce this duration by using `----repo-cache-expiration duration`, and we'd suggest in low volume environments we'd suggest you try '1h'. Bear in mind this will negate the benefit of caching if set too low. 
+
 **metrics:**
 
 * `argocd_git_request_total` - Number of git requests. The metric provides two tags: `repo` - Git repo URL; `request_type` - `ls-remote` or `fetch`.
@@ -56,7 +58,7 @@ performance. For performance reasons controller monitors and caches only preferr
 preferred version into a version of the resource stored in Git. If `kubectl convert` fails because conversion is not supported than controller fallback to Kubernetes API query which slows down
 reconciliation. In this case advice user-preferred resource version in Git.
 
-* The controller polls Git every 3m by default. You can increase this period using `--app-resync` to reduce polling.
+* The controller polls Git every 3m by default. You can increase this duration using `--app-resync seconds` to reduce polling.
 
 **metrics**
 
