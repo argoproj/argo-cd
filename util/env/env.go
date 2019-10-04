@@ -30,10 +30,6 @@ func (e Vars) Envsubst() func(s string) string {
 
 type Var string
 
-func NewEnv(key, value string) Var {
-	return Var(fmt.Sprintf("%s=%s", key, value))
-}
-
 func (e Var) parts() []string {
 	return strings.SplitN(string(e), "=", 2)
 }

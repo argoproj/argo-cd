@@ -285,10 +285,10 @@ func GenerateManifests(appPath, revision string, q *apiclient.ManifestRequest) (
 		repoURL = q.Repo.Repo
 	}
 	envVars := env.Vars{
-		env.NewEnv("ARGOCD_APP_NAME", q.AppLabelValue),
-		env.NewEnv("ARGOCD_APP_NAMESPACE", q.Namespace),
-		env.NewEnv("ARGOCD_APP_TARGET_REVISION", q.ApplicationSource.TargetRevision),
-		env.NewEnv("ARGOCD_APP_REVISION", revision),
+		env.Var("ARGOCD_APP_NAME=" + q.AppLabelValue),
+		env.Var("ARGOCD_APP_NAMESPACE=" + q.Namespace),
+		env.Var("ARGOCD_APP_TARGET_REVISION=" + q.ApplicationSource.TargetRevision),
+		env.Var("ARGOCD_APP_REVISION=" + revision),
 	}
 	postProcessor := envVars.Envsubst()
 	switch appSourceType {
