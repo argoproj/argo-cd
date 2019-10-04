@@ -31,6 +31,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSpec":                  schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationStatus":                schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSummary":               schema_pkg_apis_application_v1alpha1_ApplicationSummary(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSyncWindow":            schema_pkg_apis_application_v1alpha1_ApplicationSyncWindow(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationTree":                  schema_pkg_apis_application_v1alpha1_ApplicationTree(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationWatchEvent":            schema_pkg_apis_application_v1alpha1_ApplicationWatchEvent(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Cluster":                          schema_pkg_apis_application_v1alpha1_Cluster(ref),
@@ -53,8 +54,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Operation":                        schema_pkg_apis_application_v1alpha1_Operation(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OperationState":                   schema_pkg_apis_application_v1alpha1_OperationState(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings": schema_pkg_apis_application_v1alpha1_OrphanedResourcesMonitorSettings(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectMaintenance":               schema_pkg_apis_application_v1alpha1_ProjectMaintenance(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectMaintenanceWindow":         schema_pkg_apis_application_v1alpha1_ProjectMaintenanceWindow(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectRole":                      schema_pkg_apis_application_v1alpha1_ProjectRole(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Repository":                       schema_pkg_apis_application_v1alpha1_Repository(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RepositoryCertificate":            schema_pkg_apis_application_v1alpha1_RepositoryCertificate(ref),
@@ -83,6 +82,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncStrategy":                     schema_pkg_apis_application_v1alpha1_SyncStrategy(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncStrategyApply":                schema_pkg_apis_application_v1alpha1_SyncStrategyApply(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncStrategyHook":                 schema_pkg_apis_application_v1alpha1_SyncStrategyHook(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncWindow":                       schema_pkg_apis_application_v1alpha1_SyncWindow(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.TLSClientConfig":                  schema_pkg_apis_application_v1alpha1_TLSClientConfig(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.objectMeta":                       schema_pkg_apis_application_v1alpha1_objectMeta(ref),
 	}
@@ -288,17 +288,24 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings"),
 						},
 					},
-					"maintenance": {
+					"syncWindows": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Maintenance controls when syncs can be run for apps in this project",
-							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectMaintenance"),
+							Description: "SyncWindows controls when syncs can be run for apps in this project",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncWindow"),
+									},
+								},
+							},
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectMaintenance", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectRole", "k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectRole", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncWindow", "k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"},
 	}
 }
 
@@ -953,6 +960,47 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSummary(ref common.Referenc
 									},
 								},
 							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ApplicationSyncWindow(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ApplicationSyncWindow contains the kind, time, duration and manualSync fields of a window assigned to an application",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind defines if the window allows or blocks syncs",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"schedule": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Schedule is the time the window will begin, specified in cron format",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"duration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Duration is the amount of time the sync window will be open",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"manualSync": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ManualSync enables manual syncs when they would otherwise be blocked",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
 				},
@@ -1656,110 +1704,6 @@ func schema_pkg_apis_application_v1alpha1_OrphanedResourcesMonitorSettings(ref c
 							Description: "Warn indicates if warning condition should be created for apps which have orphaned resources",
 							Type:        []string{"boolean"},
 							Format:      "",
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-func schema_pkg_apis_application_v1alpha1_ProjectMaintenance(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "Project Maintenance controls when syncs can be run for apps in a project",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"enabled": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Enabled will allow maintenance windows to be active during their scheduled times",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
-					"windows": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Windows contains the schedules for when syncs should be disabled",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectMaintenanceWindow"),
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectMaintenanceWindow"},
-	}
-}
-
-func schema_pkg_apis_application_v1alpha1_ProjectMaintenanceWindow(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "MaintenanceWindow contains the time, duration and attributes that are used to assign the windows to apps",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"schedule": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Schedule is the time the window will begin, specified in cron format",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"duration": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Duration is the amount of time the maintenance window will be open",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"applications": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Applications contains a list of applications that the window will apply to",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
-									},
-								},
-							},
-						},
-					},
-					"namespaces": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Namespaces contains a list of namespaces that the window will apply to",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
-									},
-								},
-							},
-						},
-					},
-					"clusters": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Clusters contains a list of clusters that the window will apply to",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
-									},
-								},
-							},
 						},
 					},
 				},
@@ -3079,6 +3023,89 @@ func schema_pkg_apis_application_v1alpha1_SyncStrategyHook(ref common.ReferenceC
 					"force": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Force indicates whether or not to supply the --force flag to `kubectl apply`. The --force flag deletes and re-create the resource, when PATCH encounters conflict and has retried for 5 times.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_SyncWindow(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind defines if the window allows or blocks syncs",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"schedule": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Schedule is the time the window will begin, specified in cron format",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"duration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Duration is the amount of time the sync window will be open",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"applications": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Applications contains a list of applications that the window will apply to",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
+					"namespaces": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Namespaces contains a list of namespaces that the window will apply to",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
+					"clusters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Clusters contains a list of clusters that the window will apply to",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
+					"manualSync": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ManualSync enables manual syncs when they would otherwise be blocked",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

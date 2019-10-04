@@ -261,8 +261,8 @@ func request_ProjectService_ListEvents_0(ctx context.Context, marshaler runtime.
 
 }
 
-func request_ProjectService_GetMaintenanceState_0(ctx context.Context, marshaler runtime.Marshaler, client ProjectServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq MaintenanceStateQuery
+func request_ProjectService_GetSyncWindowsState_0(ctx context.Context, marshaler runtime.Marshaler, client ProjectServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq SyncWindowsQuery
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -283,7 +283,7 @@ func request_ProjectService_GetMaintenanceState_0(ctx context.Context, marshaler
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
 	}
 
-	msg, err := client.GetMaintenanceState(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.GetSyncWindowsState(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
@@ -558,7 +558,7 @@ func RegisterProjectServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 
 	})
 
-	mux.Handle("GET", pattern_ProjectService_GetMaintenanceState_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_ProjectService_GetSyncWindowsState_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
@@ -576,14 +576,14 @@ func RegisterProjectServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_ProjectService_GetMaintenanceState_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_ProjectService_GetSyncWindowsState_0(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_ProjectService_GetMaintenanceState_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_ProjectService_GetSyncWindowsState_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -607,7 +607,7 @@ var (
 
 	pattern_ProjectService_ListEvents_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "projects", "name", "events"}, ""))
 
-	pattern_ProjectService_GetMaintenanceState_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "projects", "name", "maintenance"}, ""))
+	pattern_ProjectService_GetSyncWindowsState_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "projects", "name", "syncwindows"}, ""))
 )
 
 var (
@@ -627,5 +627,5 @@ var (
 
 	forward_ProjectService_ListEvents_0 = runtime.ForwardResponseMessage
 
-	forward_ProjectService_GetMaintenanceState_0 = runtime.ForwardResponseMessage
+	forward_ProjectService_GetSyncWindowsState_0 = runtime.ForwardResponseMessage
 )

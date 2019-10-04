@@ -1,14 +1,14 @@
 import * as React from 'react';
 import * as ReactForm from 'react-form';
-import {ProjectMaintenanceWindow} from '../../../shared/models';
+import {SyncWindow} from '../../../shared/models';
 
-interface ProjectMaintenanceWindowsProps {
+interface ProjectSyncWindowProps {
     projName: string;
-    window: ProjectMaintenanceWindow;
+    window: SyncWindow;
     formApi: ReactForm.FormApi;
 }
 
-export const ProjectMaintenanceWindowsApplicationsEdit = (props: ProjectMaintenanceWindowsProps) => (
+export const ProjectSyncWindowApplicationsEdit = (props: ProjectSyncWindowProps) => (
     <React.Fragment>
         <h4>Applications</h4>
         <div>Manage applications assigned to this window ("*" for any)</div>
@@ -32,7 +32,7 @@ export const ProjectMaintenanceWindowsApplicationsEdit = (props: ProjectMaintena
     </React.Fragment>
 );
 
-export const ProjectMaintenanceWindowsNamespaceEdit = (props: ProjectMaintenanceWindowsProps) => (
+export const ProjectSyncWindowNamespaceEdit = (props: ProjectSyncWindowProps) => (
     <React.Fragment>
         <h4>Namespaces</h4>
         <div>Manage namespaces assigned to this window ("*" for any)</div>
@@ -56,7 +56,7 @@ export const ProjectMaintenanceWindowsNamespaceEdit = (props: ProjectMaintenance
     </React.Fragment>
 );
 
-export const ProjectMaintenanceWindowsClusterEdit = (props: ProjectMaintenanceWindowsProps) => (
+export const ProjectSyncWindowClusterEdit = (props: ProjectSyncWindowProps) => (
     <React.Fragment>
         <h4>Clusters</h4>
         <div>Manage clusters assigned to this window ("*" for any)</div>
