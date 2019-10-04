@@ -37,7 +37,7 @@ func TestKsonnet(t *testing.T) {
 func TestShow(t *testing.T) {
 	ksApp, err := NewKsonnetApp(filepath.Join(testDataDir, testAppName))
 	assert.Nil(t, err)
-	objs, err := ksApp.Show(testEnvName, func(s string) string {return s})
+	objs, err := ksApp.Show(testEnvName, func(s string) string { return s })
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(objs))
 	for _, obj := range objs {
