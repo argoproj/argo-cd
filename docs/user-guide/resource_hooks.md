@@ -95,7 +95,7 @@ spec:
     spec:
       containers:
       - name: slack-notification
-        image: 
+        image: appropriate/curl
         command:
           - "curl"
           - "-X"
