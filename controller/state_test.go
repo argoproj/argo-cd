@@ -200,10 +200,10 @@ func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
 	compRes := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
 
 	assert.NotNil(t, compRes)
-	assert.Contains(t, compRes.conditions, argoappv1.ApplicationCondition{
-		Message: "Resource /Pod/fake-dest-ns/my-pod appeared 2 times among application resources.",
-		Type:    argoappv1.ApplicationConditionRepeatedResourceWarning,
-	})
+	assert.Equal(t, 1, len(compRes.conditions))
+	assert.NotNil(t, compRes.conditions[0].LastTransitionTime)
+	assert.Equal(t, argoappv1.ApplicationConditionRepeatedResourceWarning, compRes.conditions[0].Type)
+	assert.Equal(t, "Resource /Pod/fake-dest-ns/my-pod appeared 2 times among application resources.", compRes.conditions[0].Message)
 	assert.Equal(t, 2, len(compRes.resources))
 }
 
