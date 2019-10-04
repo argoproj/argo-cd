@@ -589,6 +589,8 @@ message ResourceAction {
   optional string name = 1;
 
   repeated ResourceActionParam params = 2;
+
+  optional bool available = 3;
 }
 
 message ResourceActionDefinition {
