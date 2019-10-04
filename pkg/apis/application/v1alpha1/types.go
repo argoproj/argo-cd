@@ -97,6 +97,18 @@ func (e Env) Environ() []string {
 	return environ
 }
 
+// does an operation similar to `envstubst` tool
+// see https://linux.die.net/man/1/envsubst
+func (e Env) Envsubst() func(s string) string {
+	return func(s string) string {
+		for _, e := range e {
+			s = strings.ReplaceAll(s, fmt.Sprintf("$%s", e.Name), e.Value)
+			s = strings.ReplaceAll(s, fmt.Sprintf("${%s}", e.Name), e.Value)
+		}
+		return s
+	}
+}
+
 // ApplicationSource contains information about github repository, path within repository and target application environment.
 type ApplicationSource struct {
 	// RepoURL is the repository URL of the application manifests

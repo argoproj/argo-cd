@@ -32,7 +32,6 @@ import (
 	argopath "github.com/argoproj/argo-cd/util/app/path"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/config"
-	"github.com/argoproj/argo-cd/util/env"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/ksonnet"
@@ -284,11 +283,11 @@ func GenerateManifests(appPath, revision string, q *apiclient.ManifestRequest) (
 	if q.Repo != nil {
 		repoURL = q.Repo.Repo
 	}
-	envVars := env.Vars{
-		env.Var("ARGOCD_APP_NAME=" + q.AppLabelValue),
-		env.Var("ARGOCD_APP_NAMESPACE=" + q.Namespace),
-		env.Var("ARGOCD_APP_TARGET_REVISION=" + q.ApplicationSource.TargetRevision),
-		env.Var("ARGOCD_APP_REVISION=" + revision),
+	envVars := v1alpha1.Env{
+		&v1alpha1.EnvEntry{Name:  "ARGOCD_APP_NAME", Value: q.AppLabelValue},
+		&v1alpha1.EnvEntry{Name:  "ARGOCD_APP_NAMESPACE", Value: q.Namespace},
+		&v1alpha1.EnvEntry{Name:  "ARGOCD_APP_TARGET_REVISION", Value: q.ApplicationSource.TargetRevision},
+		&v1alpha1.EnvEntry{Name:  "ARGOCD_APP_REVISION", Value: revision},
 	}
 	postProcessor := envVars.Envsubst()
 	switch appSourceType {
@@ -544,7 +543,7 @@ func findPlugin(plugins []*v1alpha1.ConfigManagementPlugin, name string) *v1alph
 	return nil
 }
 
-func runConfigManagementPlugin(appPath string, envVars env.Vars, postProcessor func(s string) string, q *apiclient.ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
+func runConfigManagementPlugin(appPath string, envVars v1alpha1.Env, postProcessor func(s string) string, q *apiclient.ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
 	plugin := findPlugin(q.Plugins, q.ApplicationSource.Plugin.Name)
 	if plugin == nil {
 		return nil, fmt.Errorf("Config management plugin with name '%s' is not supported.", q.ApplicationSource.Plugin.Name)
