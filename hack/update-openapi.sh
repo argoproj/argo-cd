@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 PROJECT_ROOT=$(cd $(dirname "$0")/.. ; pwd)
-CODEGEN_PKG=${PROJECT_ROOT}/vendor/k8s.io/kube-openapi
+CODEGEN_PKG=$(go env GOPATH)/pkg/mod/k8s.io/kube-openapi@v0.0.0-20190502190224-411b2483e503
 VERSION="v1alpha1"
 
 go run ${CODEGEN_PKG}/cmd/openapi-gen/openapi-gen.go \

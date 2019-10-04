@@ -16,8 +16,7 @@ commands:
             # must be configured for tests to run
             git config --global user.email you@example.com
             git config --global user.name "Your Name"
-            echo "export PATH=/home/src/argo-cd/hack:\$PATH" | tee -a $BASH_ENV
-            echo "export GIT_ASKPASS=git-ask-pass.sh" | tee -a $BASH_ENV
+            echo "export GIT_ASKPASS=/home/circleci/src/argo-cd/hack/git-ask-pass.sh" | tee -a $BASH_ENV
   clean_checkout:
     steps:
       - run:
@@ -130,7 +129,7 @@ jobs:
           command: |
             set -x
             mkdir -p /tmp/test-results
-            trap "go-junit-report </tmp/test-results/go-test.out > /tmp/test-results/go-test-report.xml" EXIT
+            trap "go run github.com/jstemmer/go-junit-report </tmp/test-results/go-test.out > /tmp/test-results/go-test-report.xml" EXIT
             make test | tee /tmp/test-results/go-test.out
       - run:
           name: Uploading code coverage
@@ -248,8 +247,10 @@ jobs:
           name: Run e2e tests
           command: |
             set -x
+            pwd
+            ls ./hack/git-ask-pass.sh
             mkdir -p /tmp/test-results
-            trap "go-junit-report </tmp/test-results/go-e2e.out > /tmp/test-results/go-e2e-report.xml" EXIT
+            trap "go run github.com/jstemmer/go-junit-report </tmp/test-results/go-e2e.out > /tmp/test-results/go-e2e-report.xml" EXIT
             make test-e2e | tee /tmp/test-results/go-e2e.out
           environment:
             ARGOCD_OPTS: "--server localhost:8080 --plaintext"

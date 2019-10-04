@@ -9,9 +9,10 @@ GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
 PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run github.com/gobuffalo/packr/packr"; fi)
+GOPATH=$(shell go env GOPATH)
 
 define run-in-dev-tool
-    docker run --rm -it -u $(shell id -u) -e HOME=/home/user -v ${CURRENT_DIR}:/go/src/github.com/argoproj/argo-cd -w /go/src/github.com/argoproj/argo-cd argocd-dev-tools bash -c "GOPATH=/go $(1)"
+    docker run --rm -it -u $(shell id -u) -e HOME=/home/user -v ${GOPATH}/pkg/mod:/go/pkg/mod:cached -v ${CURRENT_DIR}:/src/argo-cd:cached -w /src/argo-cd argocd-dev-tools bash -c "GOPATH=/go $(1)"
 endef
 
 PATH:=$(PATH):$(PWD)/hack
@@ -94,7 +95,7 @@ argocd-util: clean-debug
 
 .PHONY: dev-tools-image
 dev-tools-image:
-	docker build -t argocd-dev-tools ./hack -f ./hack/Dockerfile.dev-tools
+	docker build -t argocd-dev-tools . -f ./Dockerfile.dev-tools
 
 .PHONY: manifests-local
 manifests-local:
