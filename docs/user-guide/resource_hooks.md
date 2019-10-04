@@ -87,7 +87,6 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   generateName: app-slack-notification-
-  namespace: {{ .Values.app.namespace }}
   annotations:
     argocd.argoproj.io/hook: PostSync
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
@@ -111,7 +110,6 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   generateName: app-slack-notification-fail-
-  namespace: {{ .Values.app.namespace }}
   annotations:
     argocd.argoproj.io/hook: SyncFail
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
