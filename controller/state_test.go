@@ -385,3 +385,57 @@ func TestSetManagedResourcesKnownOrphanedResourceExceptions(t *testing.T) {
 	assert.Len(t, tree.OrphanedNodes, 1)
 	assert.Equal(t, "guestbook", tree.OrphanedNodes[0].Name)
 }
+
+func Test_appStateManager_persistRevisionHistory(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(&fakeData{
+		apps: []runtime.Object{app},
+	})
+	manager := ctrl.appStateManager.(*appStateManager)
+	err := manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{})
+	assert.NoError(t, err)
+	assert.Len(t, app.Status.History, 1)
+	err = manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{})
+	assert.NoError(t, err)
+	assert.Len(t, app.Status.History, 2)
+	err = manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{})
+	assert.NoError(t, err)
+	assert.Len(t, app.Status.History, 3)
+	err = manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{})
+	assert.NoError(t, err)
+	assert.Len(t, app.Status.History, 4)
+	err = manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{})
+	assert.NoError(t, err)
+	assert.Len(t, app.Status.History, 5)
+	err = manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{})
+	assert.NoError(t, err)
+	assert.Len(t, app.Status.History, 6)
+	err = manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{})
+	assert.NoError(t, err)
+	assert.Len(t, app.Status.History, 7)
+	err = manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{})
+	assert.NoError(t, err)
+	assert.Len(t, app.Status.History, 8)
+	err = manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{})
+	assert.NoError(t, err)
+	assert.Len(t, app.Status.History, 9)
+	err = manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{})
+	assert.NoError(t, err)
+	assert.Len(t, app.Status.History, 10)
+	// default limit is 10
+	err = manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{})
+	assert.NoError(t, err)
+	assert.Len(t, app.Status.History, 10)
+	// increase limit
+	i := int64(11)
+	app.Spec.RevisionHistoryLimit = &i
+	err = manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{})
+	assert.NoError(t, err)
+	assert.Len(t, app.Status.History, 11)
+	// decrease limit
+	i = int64(9)
+	app.Spec.RevisionHistoryLimit = &i
+	err = manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{})
+	assert.NoError(t, err)
+	assert.Len(t, app.Status.History, 9)
+}

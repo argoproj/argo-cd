@@ -445,6 +445,11 @@ func (in *ApplicationSpec) DeepCopyInto(out *ApplicationSpec) {
 		*out = make([]Info, len(*in))
 		copy(*out, *in)
 	}
+	if in.RevisionHistoryLimit != nil {
+		in, out := &in.RevisionHistoryLimit, &out.RevisionHistoryLimit
+		*out = new(int64)
+		**out = **in
+	}
 	return
 }
 

@@ -59,6 +59,9 @@ type ApplicationSpec struct {
 	IgnoreDifferences []ResourceIgnoreDifferences `json:"ignoreDifferences,omitempty" protobuf:"bytes,5,name=ignoreDifferences"`
 	// Infos contains a list of useful information (URLs, email addresses, and plain text) that relates to the application
 	Info []Info `json:"info,omitempty" protobuf:"bytes,6,name=info"`
+	// RevisionHistoryLimit is the history limit for this app, this is 10 by default, increasing will increase the space
+	// used to store the history, so we do not recommend setting above 20. Setting to zero will store no history.
+	RevisionHistoryLimit *int64 `json:"revisionHistoryLimit,omitempty" protobuf:"bytes,7,name=revisionHistoryLimit"`
 }
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.

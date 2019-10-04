@@ -825,6 +825,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref common.ReferenceCa
 							},
 						},
 					},
+					"revisionHistoryLimit": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RevisionHistoryLimit is the history limit for this app, this is 10 by default, increasing will increase the space used to store the history, so we do not recommend setting above 20. Setting to zero will store no history.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
 				},
 				Required: []string{"source", "destination", "project"},
 			},
