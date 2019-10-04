@@ -545,7 +545,7 @@ func runConfigManagementPlugin(appPath, revision string, q *apiclient.ManifestRe
 		fmt.Sprintf("%s=%s", "ARGOCD_APP_NAMESPACE", q.Namespace),
 		fmt.Sprintf("%s=%s", "ARGOCD_APP_TARGET_REVISION", q.ApplicationSource.TargetRevision),
 		fmt.Sprintf("%s=%s", "ARGOCD_APP_REVISION", revision),
-		)
+	)
 	if creds != nil {
 		closer, environ, err := creds.Environ()
 		if err != nil {
