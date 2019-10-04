@@ -32,6 +32,7 @@ import (
 	argopath "github.com/argoproj/argo-cd/util/app/path"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/config"
+	"github.com/argoproj/argo-cd/util/env"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/ksonnet"
@@ -207,7 +208,7 @@ func getHelmRepos(repositories []*v1alpha1.Repository) []helm.HelmRepository {
 	return repos
 }
 
-func helmTemplate(appPath string, q *apiclient.ManifestRequest) ([]*unstructured.Unstructured, error) {
+func helmTemplate(appPath string, postProcessor func(s string) string, q *apiclient.ManifestRequest) ([]*unstructured.Unstructured, error) {
 	templateOpts := &helm.TemplateOpts{
 		Name:        q.AppLabelValue,
 		Namespace:   q.Namespace,
@@ -269,6 +270,7 @@ func helmTemplate(appPath string, q *apiclient.ManifestRequest) ([]*unstructured
 			return nil, err
 		}
 	}
+	out = postProcessor(out)
 	return kube.SplitYAML(out)
 }
 
@@ -282,22 +284,29 @@ func GenerateManifests(appPath, revision string, q *apiclient.ManifestRequest) (
 	if q.Repo != nil {
 		repoURL = q.Repo.Repo
 	}
+	envVars := env.Vars{
+		env.NewEnv("ARGOCD_APP_NAME", q.AppLabelValue),
+		env.NewEnv("ARGOCD_APP_NAMESPACE", q.Namespace),
+		env.NewEnv("ARGOCD_APP_TARGET_REVISION", q.ApplicationSource.TargetRevision),
+		env.NewEnv("ARGOCD_APP_REVISION", revision),
+	}
+	postProcessor := envVars.Envsubst()
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeKsonnet:
-		targetObjs, dest, err = ksShow(q.AppLabelKey, appPath, q.ApplicationSource.Ksonnet)
+		targetObjs, dest, err = ksShow(q.AppLabelKey, appPath, postProcessor, q.ApplicationSource.Ksonnet)
 	case v1alpha1.ApplicationSourceTypeHelm:
-		targetObjs, err = helmTemplate(appPath, q)
+		targetObjs, err = helmTemplate(appPath, postProcessor, q)
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), repoURL)
-		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions)
+		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, postProcessor, q.KustomizeOptions)
 	case v1alpha1.ApplicationSourceTypePlugin:
-		targetObjs, err = runConfigManagementPlugin(appPath, revision, q, q.Repo.GetGitCreds())
+		targetObjs, err = runConfigManagementPlugin(appPath, envVars, postProcessor, q, q.Repo.GetGitCreds())
 	case v1alpha1.ApplicationSourceTypeDirectory:
 		var directory *v1alpha1.ApplicationSourceDirectory
 		if directory = q.ApplicationSource.Directory; directory == nil {
 			directory = &v1alpha1.ApplicationSourceDirectory{}
 		}
-		targetObjs, err = findManifests(appPath, *directory)
+		targetObjs, err = findManifests(appPath, postProcessor, *directory)
 	}
 	if err != nil {
 		return nil, err
@@ -387,7 +396,7 @@ func isNullList(obj *unstructured.Unstructured) bool {
 }
 
 // ksShow runs `ks show` in an app directory after setting any component parameter overrides
-func ksShow(appLabelKey, appPath string, ksonnetOpts *v1alpha1.ApplicationSourceKsonnet) ([]*unstructured.Unstructured, *v1alpha1.ApplicationDestination, error) {
+func ksShow(appLabelKey, appPath string, postProcessor func(s string) string, ksonnetOpts *v1alpha1.ApplicationSourceKsonnet) ([]*unstructured.Unstructured, *v1alpha1.ApplicationDestination, error) {
 	ksApp, err := ksonnet.NewKsonnetApp(appPath)
 	if err != nil {
 		return nil, nil, status.Errorf(codes.FailedPrecondition, "unable to load application from %s: %v", appPath, err)
@@ -405,7 +414,7 @@ func ksShow(appLabelKey, appPath string, ksonnetOpts *v1alpha1.ApplicationSource
 	if err != nil {
 		return nil, nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
-	targetObjs, err := ksApp.Show(ksonnetOpts.Environment)
+	targetObjs, err := ksApp.Show(ksonnetOpts.Environment, postProcessor)
 	if err == nil && appLabelKey == common.LabelKeyLegacyApplicationName {
 		// Address https://github.com/ksonnet/ksonnet/issues/707
 		for _, d := range targetObjs {
@@ -421,7 +430,7 @@ func ksShow(appLabelKey, appPath string, ksonnetOpts *v1alpha1.ApplicationSource
 var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 
 // findManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
-func findManifests(appPath string, directory v1alpha1.ApplicationSourceDirectory) ([]*unstructured.Unstructured, error) {
+func findManifests(appPath string, postProcessor func(s string) string, directory v1alpha1.ApplicationSourceDirectory) ([]*unstructured.Unstructured, error) {
 	var objs []*unstructured.Unstructured
 	err := filepath.Walk(appPath, func(path string, f os.FileInfo, err error) error {
 		if err != nil {
@@ -442,6 +451,7 @@ func findManifests(appPath string, directory v1alpha1.ApplicationSourceDirectory
 		if err != nil {
 			return err
 		}
+		out = []byte(postProcessor(string(out)))
 		if strings.HasSuffix(f.Name(), ".json") {
 			var obj unstructured.Unstructured
 			err = json.Unmarshal(out, &obj)
@@ -534,18 +544,12 @@ func findPlugin(plugins []*v1alpha1.ConfigManagementPlugin, name string) *v1alph
 	return nil
 }
 
-func runConfigManagementPlugin(appPath, revision string, q *apiclient.ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
+func runConfigManagementPlugin(appPath string, envVars env.Vars, postProcessor func(s string) string, q *apiclient.ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
 	plugin := findPlugin(q.Plugins, q.ApplicationSource.Plugin.Name)
 	if plugin == nil {
 		return nil, fmt.Errorf("Config management plugin with name '%s' is not supported.", q.ApplicationSource.Plugin.Name)
 	}
-	env := append(
-		os.Environ(),
-		fmt.Sprintf("%s=%s", "ARGOCD_APP_NAME", q.AppLabelValue),
-		fmt.Sprintf("%s=%s", "ARGOCD_APP_NAMESPACE", q.Namespace),
-		fmt.Sprintf("%s=%s", "ARGOCD_APP_TARGET_REVISION", q.ApplicationSource.TargetRevision),
-		fmt.Sprintf("%s=%s", "ARGOCD_APP_REVISION", revision),
-	)
+	env := append(os.Environ(), envVars.Environ()...)
 	if creds != nil {
 		closer, environ, err := creds.Environ()
 		if err != nil {
@@ -565,6 +569,7 @@ func runConfigManagementPlugin(appPath, revision string, q *apiclient.ManifestRe
 	if err != nil {
 		return nil, err
 	}
+	out = postProcessor(out)
 	return kube.SplitYAML(out)
 }
 
@@ -664,7 +669,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		case v1alpha1.ApplicationSourceTypeKustomize:
 			res.Kustomize = &apiclient.KustomizeAppSpec{}
 			k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), q.Repo.Repo)
-			_, images, err := k.Build(nil, q.KustomizeOptions)
+			_, images, err := k.Build(nil, func(s string) string { return s }, q.KustomizeOptions)
 			if err != nil {
 				return err
 			}

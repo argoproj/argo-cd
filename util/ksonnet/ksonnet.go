@@ -45,7 +45,7 @@ type KsonnetApp interface {
 	Root() string
 
 	// Show returns a list of unstructured objects that would be applied to an environment
-	Show(environment string) ([]*unstructured.Unstructured, error)
+	Show(environment string, postProcessor func(s string) string) ([]*unstructured.Unstructured, error)
 
 	// Destination returns the deployment destination for an environment
 	Destination(environment string) (*v1alpha1.ApplicationDestination, error)
@@ -111,11 +111,12 @@ func (k *ksonnetApp) Root() string {
 }
 
 // Show generates a concatenated list of Kubernetes manifests in the given environment.
-func (k *ksonnetApp) Show(environment string) ([]*unstructured.Unstructured, error) {
+func (k *ksonnetApp) Show(environment string, postProcessor func(s string) string) ([]*unstructured.Unstructured, error) {
 	out, err := k.ksCmd("show", environment)
 	if err != nil {
 		return nil, fmt.Errorf("`ks show` failed: %v", err)
 	}
+	out = postProcessor(out)
 	return kube.SplitYAML(out)
 }
 
