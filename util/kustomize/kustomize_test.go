@@ -65,7 +65,6 @@ func TestKustomizeBuild(t *testing.T) {
 				"app.kubernetes.io/part-of":    "argo-cd-tests",
 			}, obj.GetLabels())
 		}
-
 	}
 
 	for _, image := range images {
