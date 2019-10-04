@@ -782,6 +782,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#using-a-hook-to-send-a-slack-message" title="Using A Hook To Send A Slack Message" class="md-nav__link">
+    Using A Hook To Send A Slack Message
+  </a>
+  
+</li>
+      
       
       
       
@@ -1111,6 +1118,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#using-a-hook-to-send-a-slack-message" title="Using A Hook To Send A Slack Message" class="md-nav__link">
+    Using A Hook To Send A Slack Message
+  </a>
+  
+</li>
+      
       
       
       
@@ -1233,6 +1247,57 @@ field in the spec, which let their respective controllers delete the Job/Workflo
 <div class="codehilite"><pre><span></span><span class="nt">spec</span><span class="p">:</span>
   <span class="nt">ttlSecondsAfterFinished</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">600</span>
 </pre></div>
+
+
+<h2 id="using-a-hook-to-send-a-slack-message">Using A Hook To Send A Slack Message<a class="headerlink" href="#using-a-hook-to-send-a-slack-message" title="Permanent link">&para;</a></h2>
+<p>The following example uses the Slack API to send a a Slack message when sync completes or fails: </p>
+<p>```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: app-slack-notification-
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  template:
+    spec:
+      containers:
+      - name: slack-notification
+        image: appropriate/curl
+        command:
+          - "curl"
+          - "-X"
+          - "POST"
+          - "--data-urlencode"
+          - "payload={\"channel\": \"#somechannel\", \"username\": \"hello\", \"text\": \"App Sync succeeded\", \"icon_emoji\": \":ghost:\"}"
+          - "https://hooks.slack.com/services/..."
+      restartPolicy: Never
+  backoffLimit: 2</p>
+<hr />
+<p>apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: app-slack-notification-fail-
+  annotations:
+    argocd.argoproj.io/hook: SyncFail
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  template:
+    spec:
+      containers:
+      - name: slack-notification
+        image: appropriate/curl
+        command: 
+          - "curl"
+          - "-X"
+          - "POST"
+          - "--data-urlencode"
+          - "payload={\"channel\": \"#somechannel\", \"username\": \"hello\", \"text\": \"App Sync failed\", \"icon_emoji\": \":ghost:\"}"
+          - "https://hooks.slack.com/services/..."
+      restartPolicy: Never
+  backoffLimit: 2
+  ```</p>
                 
                   
                 
