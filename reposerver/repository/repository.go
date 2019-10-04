@@ -585,7 +585,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		return false
 	}
 
-	err := s.runRepoOperation(ctx, q.Repo, q.Source, getCached, func(appPath string, resolvedRevision string) error {
+	err := s.runRepoOperation(ctx, q.Repo, q.Source, getCached, func(appPath string, revision string) error {
 		appSourceType, err := GetAppSourceType(q.Source, appPath)
 		if err != nil {
 			return err
@@ -670,7 +670,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 			}
 			res.Kustomize.Images = images
 		}
-		_ = s.cache.SetAppDetails(resolvedRevision, q.Source, res)
+		_ = s.cache.SetAppDetails(revision, q.Source, res)
 		return nil
 	}, operationSettings{})
 
