@@ -2,13 +2,11 @@ version: 2.1
 commands:
   before:
     steps:
-      - restore_go_cache
       - install_golang
       - install_tools
       - clean_checkout
       - configure_git
-      - install_go_deps
-      - dep_ensure
+      - mod_download
   configure_git:
     steps:
       - run:
@@ -18,35 +16,43 @@ commands:
             # must be configured for tests to run
             git config --global user.email you@example.com
             git config --global user.name "Your Name"
-            echo "export PATH=/home/circleci/.go_workspace/src/github.com/argoproj/argo-cd/hack:\$PATH" | tee -a $BASH_ENV
+            echo "export PATH=/home/src/argo-cd/hack:\$PATH" | tee -a $BASH_ENV
             echo "export GIT_ASKPASS=git-ask-pass.sh" | tee -a $BASH_ENV
   clean_checkout:
     steps:
       - run:
           name: Remove checked out code
-          command: rm -Rf /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
+          command: rm -Rf ~/src/argo-cd
       - checkout
-  dep_ensure:
+  mod_download:
     steps:
       - restore_cache:
           keys:
-            - vendor-v4-{{ checksum "Gopkg.lock" }}
+            - go-mod-v1-{{ checksum "go.sum" }}
       - run:
-          name: Run dep ensure
-          command: dep ensure -v
+          name: Run go mod download
+          command: |
+            [ -e "/home/circleci/.go_workspace/pkg/mod/$(sha1sum ./go.sum | cut -d " " -f 1)" ] || go mod download && touch "/home/circleci/.go_workspace/pkg/mod/$(sha1sum ./go.sum | cut -d " " -f 1)"
       - save_cache:
-          key: vendor-v4-{{ checksum "Gopkg.lock" }}
+          key: go-mod-v1-{{ checksum "go.sum" }}
           paths:
-            - vendor
+            - /home/circleci/.go_workspace/pkg/mod
   install_golang:
     steps:
+      - restore_cache:
+          keys:
+            - go-v18
       - run:
           name: Install Golang v1.12.6
           command: |
             go get golang.org/dl/go1.12.6
             [ -e /home/circleci/sdk/go1.12.6 ] || go1.12.6 download
-            echo "export GOPATH=/home/circleci/.go_workspace" | tee -a $BASH_ENV
             echo "export PATH=/home/circleci/sdk/go1.12.6/bin:\$PATH" | tee -a $BASH_ENV
+      - save_cache:
+          key: go-v18
+          paths:
+            - /home/circleci/.cache/go-build
+            - /home/circleci/sdk/go1.12.6
       - run:
           name: Golang diagnostics
           command: |
@@ -54,14 +60,6 @@ commands:
             which go
             go version
             go env
-  install_go_deps:
-    steps:
-      - run:
-          name: Install Go deps
-          command: |
-            set -x
-            go get github.com/jstemmer/go-junit-report
-            go get github.com/mattn/goreman
   install_tools:
     steps:
       - run:
@@ -88,14 +86,6 @@ commands:
             sudo mv kubectx-0.6.3/kubens /usr/local/bin/
             sudo chmod +x /usr/local/bin/kubectx
             sudo chmod +x /usr/local/bin/kubens
-      - run:
-          name: Install Dep v0.5.3
-          command: |
-            set -x
-            [ -e /tmp/dl/dep ] || curl -sLf -C - -o /tmp/dl/dep https://github.com/golang/dep/releases/download/v0.5.3/dep-linux-amd64
-            sudo cp /tmp/dl/dep /usr/local/go/bin/dep
-            sudo chmod +x /usr/local/go/bin/dep
-            dep version
       - run:
           name: Install Ksonnet v0.13.1
           command: |
@@ -127,25 +117,10 @@ commands:
           key: dl-v7
           paths:
             - /tmp/dl
-  save_go_cache:
-    steps:
-      - save_cache:
-          key: go-v17-{{ .Branch }}
-          paths:
-            - /home/circleci/.go_workspace
-            - /home/circleci/.cache/go-build
-            - /home/circleci/sdk/go1.12.6
-  restore_go_cache:
-    steps:
-      - restore_cache:
-          keys:
-            - go-v17-{{ .Branch }}
-            - go-v17-master
-            - go-v16-{{ .Branch }}
-            - go-v16-master
+
 jobs:
   build:
-    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
+    working_directory: ~/src/argo-cd
     machine:
       image: circleci/classic:201808-01
     steps:
@@ -157,7 +132,6 @@ jobs:
             mkdir -p /tmp/test-results
             trap "go-junit-report </tmp/test-results/go-test.out > /tmp/test-results/go-test-report.xml" EXIT
             make test | tee /tmp/test-results/go-test.out
-      - save_go_cache
       - run:
           name: Uploading code coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
@@ -186,7 +160,7 @@ jobs:
           path: codegen.patch
           when: always
   e2e:
-    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
+    working_directory: ~/src/argo-cd
     machine:
       image: circleci/classic:201808-01
     steps:
@@ -195,6 +169,9 @@ jobs:
           command: |
             curl -sfL https://get.k3s.io | sh -
             sudo chmod -R a+rw /etc/rancher/k3s
+            mkdir -p ~/.kube
+            cat /etc/rancher/k3s/k3s.yaml | sed "s/localhost/`hostname`/" | tee ~/.kube/config
+            echo "127.0.0.1 `hostname`" | sudo tee -a /etc/hosts
             kubectl version
           background: true
           environment:
@@ -213,8 +190,6 @@ jobs:
           name: Create namespace
           command: |
             set -x
-            cat /etc/rancher/k3s/k3s.yaml | sed "s/localhost/`hostname`/" | tee ~/.kube/config
-            echo "127.0.0.1 `hostname`" | sudo tee -a /etc/hosts
             kubectl create ns argocd-e2e
             kubens argocd-e2e
             # install the certificates (not 100% sure we need this)

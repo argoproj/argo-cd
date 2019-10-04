@@ -36,7 +36,7 @@ require (
 	github.com/go-openapi/validate v0.18.0
 	github.com/go-redis/cache v6.3.5+incompatible
 	github.com/go-redis/redis v6.15.1+incompatible
-	github.com/gobuffalo/packr v1.11.0
+	github.com/gobuffalo/packr v1.30.1
 	github.com/gobwas/glob v0.2.3
 	github.com/gogits/go-gogs-client v0.0.0-20190616193657-5a05380e4bc2
 	github.com/gogo/protobuf v1.1.1
@@ -57,10 +57,12 @@ require (
 	github.com/inconshreveable/mousetrap v1.0.0
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99
 	github.com/json-iterator/go v1.1.6
+	github.com/jstemmer/go-junit-report v0.0.0-20191003215814-8b849e7995d2 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/kevinburke/ssh_config v0.0.0-20180830205328-81db2a75821e
-	github.com/konsorten/go-windows-terminal-sequences v1.0.1
+	github.com/konsorten/go-windows-terminal-sequences v1.0.2
 	github.com/mailru/easyjson v0.0.0-20190614124828-94de47d64c63
+	github.com/mattn/goreman v0.2.1 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/mitchellh/go-wordwrap v1.0.0
@@ -84,7 +86,7 @@ require (
 	github.com/sirupsen/logrus v1.4.2
 	github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
 	github.com/soheilhy/cmux v0.1.4
-	github.com/spf13/cobra v0.0.4
+	github.com/spf13/cobra v0.0.5
 	github.com/spf13/pflag v1.0.3
 	github.com/src-d/gcfg v1.4.0
 	github.com/stretchr/objx v0.2.0
@@ -94,14 +96,14 @@ require (
 	github.com/yudai/gojsondiff v1.0.1-0.20180504020246-0525c875b75c
 	github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82
 	github.com/yuin/gopher-lua v0.0.0-20190115140932-732aa6820ec4
-	golang.org/x/crypto v0.0.0-20190611184440-5c40567a22f8
+	golang.org/x/crypto v0.0.0-20190621222207-cc06ce4a13d4
 	golang.org/x/net v0.0.0-20190613194153-d28f0bde5980
 	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	golang.org/x/sys v0.0.0-20190616124812-15dcb6c0061f
 	golang.org/x/text v0.3.2
 	golang.org/x/time v0.0.0-20180412165947-fbb02b2291d2
-	golang.org/x/tools v0.0.0-20190614205625-5aca471b1d59
+	golang.org/x/tools v0.0.0-20190624180213-70d37148ca0c
 	gonum.org/v1/gonum v0.0.0-20190621125449-90b715451587
 	google.golang.org/appengine v1.5.0
 	google.golang.org/genproto v0.0.0-20180817151627-c66870c02cf8
