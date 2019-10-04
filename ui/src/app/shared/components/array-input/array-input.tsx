@@ -77,9 +77,12 @@ class ArrayInput extends React.Component<Props, State> {
                         <div key={`item-${j}`}>
                             <input value={this.state.items[j].name}
                                    onChange={(e) => replaceItem({name: e.target.value, value: i.value}, j)}/>
+                            &nbsp;
                             =
+                            &nbsp;
                             <input value={this.state.items[j].value}
                                    onChange={(e) => replaceItem({name: i.name, value: e.target.value}, j)}/>
+                            &nbsp;
                             <button onClick={() => removeItem(j)}>
                                 <i className='fa fa-times'/>
                             </button>
@@ -89,10 +92,12 @@ class ArrayInput extends React.Component<Props, State> {
                 <div>
                     <input placeholder='Name' value={this.state.newItem.name}
                            onChange={(e) => setName(e.target.value)}/>
+                    &nbsp;
                     =
+                    &nbsp;
                     <input placeholder='Value' value={this.state.newItem.value}
                            onChange={(e) => setValue(e.target.value)}/>
-
+                    &nbsp;
                     <button disabled={this.state.newItem.name === '' || this.state.newItem.value === ''}
                             onClick={() => addItem(this.state.newItem)}>
                         <i className='fa fa-plus'/>
