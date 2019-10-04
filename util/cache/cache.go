@@ -101,7 +101,6 @@ func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
 // Cache provides strongly types methods to store and retrieve values from shared cache
 type Cache struct {
 	client                          CacheClient
-	manifestCacheExpiration         time.Duration
 	appStateCacheExpiration         time.Duration
 	connectionStatusCacheExpiration time.Duration
 	repoCacheExpiration             time.Duration
