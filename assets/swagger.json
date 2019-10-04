@@ -4124,7 +4124,16 @@
         "GoVersion": {
           "type": "string"
         },
+        "HelmVersion": {
+          "type": "string"
+        },
         "KsonnetVersion": {
+          "type": "string"
+        },
+        "KubectlVersion": {
+          "type": "string"
+        },
+        "KustomizeVersion": {
           "type": "string"
         },
         "Platform": {

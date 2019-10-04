@@ -1,13 +1,18 @@
 package helm
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/url"
+	"os/exec"
 	"path"
+	"regexp"
 	"strings"
 
 	"github.com/ghodss/yaml"
+
+	argoexec "github.com/argoproj/pkg/exec"
 
 	"github.com/argoproj/argo-cd/util/config"
 )
@@ -79,6 +84,26 @@ func (h *helm) Init() error {
 
 func (h *helm) Dispose() {
 	h.cmd.Close()
+}
+
+func Version() (string, error) {
+	cmd := exec.Command("helm", "version", "--client")
+	out, err := argoexec.RunCommandExt(cmd, argoexec.CmdOpts{
+		Redactor: redactor,
+	})
+	if err != nil {
+		return "", fmt.Errorf("could not get helm version: %s", err)
+	}
+	re := regexp.MustCompile(`SemVer:"([a-zA-Z0-9\.]+)"`)
+	matches := re.FindStringSubmatch(out)
+	if len(matches) != 2 {
+		return "", errors.New("could not get helm version")
+	}
+	version := matches[1]
+	if version[0] != 'v' {
+		version = "v" + version
+	}
+	return strings.TrimSpace(version), nil
 }
 
 func (h *helm) GetParameters(valuesFiles []string) (map[string]string, error) {
