@@ -360,11 +360,11 @@ type SyncOperationResource struct {
 // RevisionHistories is a array of history, oldest first and newest last
 type RevisionHistories []RevisionHistory
 
-func (in RevisionHistories) Trunc(remove func(h RevisionHistory) bool, n int) RevisionHistories {
+func (in RevisionHistories) Trunc(remove func(h RevisionHistory, i int) bool, n int) RevisionHistories {
 	i := 0
 	// continue as long as we're too big AND we have more elements to look at
 	for len(in) > n && i < len(in) {
-		if remove(in[i]) {
+		if remove(in[i], i) {
 			// remove the item
 			in = append(in[:i], in[i+1:]...)
 		} else {
@@ -374,14 +374,6 @@ func (in RevisionHistories) Trunc(remove func(h RevisionHistory) bool, n int) Re
 	// must always truncate
 	if len(in) > n {
 		in = in[ 1 : n+1]
-	}
-	return in
-}
-
-// map each item in the history to a new item
-func (in RevisionHistories) Map(mapper func(h RevisionHistory) RevisionHistory) RevisionHistories {
-	for i := range in {
-		in[i] = mapper(in[i])
 	}
 	return in
 }

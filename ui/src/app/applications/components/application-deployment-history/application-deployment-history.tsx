@@ -6,8 +6,8 @@ import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
+import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
 import {RevisionMetadataRows} from './revision-metadata-rows';
-import {ComparisonStatusIcon, HealthStatusIcon} from "../utils";
 
 require('./application-deployment-history.scss');
 
@@ -63,8 +63,9 @@ export const ApplicationDeploymentHistory = ({
                                 Status:
                             </div>
                             <div className='columns small-9'>
-                                <HealthStatusIcon state={{status: info.status.health, message: null}}/>&nbsp;{info.status.health}
-                                <ComparisonStatusIcon status={info.status.sync}/>&nbsp;{info.status.sync}
+                                <HealthStatusIcon state={{status: info.status.health, message: ''}} label={true}/>
+                                &nbsp;
+                                <ComparisonStatusIcon status={info.status.sync} label={true}/>
                             </div>
                         </div>
                         <RevisionMetadataRows applicationName={app.metadata.name}

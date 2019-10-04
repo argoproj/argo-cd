@@ -1078,23 +1078,17 @@ func TestProjectMaintenanceWindow_Active(t *testing.T) {
 
 func TestRevisionHistories_Trunc(t *testing.T) {
 	// always match - but limit is >= size, -> unchanged
-	assert.Len(t, RevisionHistories{{Revision: "my-revision"}, {}}.Trunc(func(h RevisionHistory) bool { return true }, 2), 2)
+	assert.Len(t, RevisionHistories{{Revision: "my-revision"}, {}}.Trunc(func(h RevisionHistory, _ int) bool { return true }, 2), 2)
 	// match one element, no need to trunc -> unchanged
-	assert.Len(t, RevisionHistories{{Revision: "my-revision"}, {}}.Trunc(func(h RevisionHistory) bool { return h.Revision == "my-revision" }, 1), 2)
-	// match first element, need to trunc
-	assert.Equal(t, RevisionHistories{{}, {}}, RevisionHistories{{Revision: "my-revision"}, {}, {}}.Trunc(func(h RevisionHistory) bool { return h.Revision == "my-revision" }, 1))
+	assert.Len(t, RevisionHistories{{Revision: "my-revision"}, {}}.Trunc(func(h RevisionHistory, _ int) bool { return h.Revision == "my-revision" }, 2), 2)
+	// match first element
+	assert.Equal(t, RevisionHistories{{}, {}}, RevisionHistories{{Revision: "my-revision"}, {}, {}}.Trunc(func(h RevisionHistory, _ int) bool { return h.Revision == "my-revision" }, 2))
+	// match middle element
+	assert.Equal(t, RevisionHistories{{}, {}}, RevisionHistories{{}, {Revision: "my-revision"}, {}}.Trunc(func(h RevisionHistory, _ int) bool { return h.Revision == "my-revision" }, 2))
+	// match last element
+	assert.Equal(t, RevisionHistories{{}, {}}, RevisionHistories{{}, {}, {Revision: "my-revision"}}.Trunc(func(h RevisionHistory, _ int) bool { return h.Revision == "my-revision" }, 2))
 	// never match, but limit < size -> change to limit
-	assert.Len(t, RevisionHistories{{}, {}}.Trunc(func(h RevisionHistory) bool { return false }, 1), 1)
-}
-
-func TestRevisionHistories_Map(t *testing.T) {
-	assert.Equal(t, RevisionHistories{{Revision: "my-revision"}}, RevisionHistories{{}}.Map(func(h RevisionHistory) RevisionHistory {
-		return RevisionHistory{Revision: "my-revision"}
-	}))
-}
-
-func TestRevisionHistoryStatus_IsZero(t *testing.T) {
-	assert.False(t, RevisionHistoryStatus{}.IsZero())
+	assert.Len(t, RevisionHistories{{}, {}}.Trunc(func(h RevisionHistory, _ int) bool { return false }, 1), 1)
 }
 
 func TestApplicationSpec_GetRevisionHistoryLimit(t *testing.T) {
