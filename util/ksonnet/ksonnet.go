@@ -57,8 +57,8 @@ type KsonnetApp interface {
 	SetComponentParams(environment string, component string, param string, value string) error
 }
 
-// KsonnetVersion returns the version of ksonnet used when running ksonnet commands
-func KsonnetVersion() (string, error) {
+// Version returns the version of ksonnet used when running ksonnet commands
+func Version() (string, error) {
 	ksApp := ksonnetApp{}
 	out, err := ksApp.ksCmd("", "version")
 	if err != nil {
@@ -69,7 +69,11 @@ func KsonnetVersion() (string, error) {
 	if len(parts) != 2 {
 		return "", fmt.Errorf("unexpected version string format: %s", ksonnetVersionStr)
 	}
-	return strings.TrimSpace(parts[1]), nil
+	version := strings.TrimSpace(parts[1])
+	if version[0] != 'v' {
+		version = "v" + version
+	}
+	return version, nil
 }
 
 type ksonnetApp struct {

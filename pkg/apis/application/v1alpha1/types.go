@@ -966,8 +966,9 @@ type ResourceActionDefinition struct {
 }
 
 type ResourceAction struct {
-	Name   string                `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-	Params []ResourceActionParam `json:"params,omitempty" protobuf:"bytes,2,rep,name=params"`
+	Name      string                `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	Params    []ResourceActionParam `json:"params,omitempty" protobuf:"bytes,2,rep,name=params"`
+	Available bool                  `json:"available,omitempty" protobuf:"varint,3,opt,name=available"`
 }
 
 type ResourceActionParam struct {
@@ -1132,6 +1133,17 @@ func (m *Repository) CopySettingsFrom(source *Repository) {
 }
 
 type Repositories []*Repository
+
+func (r Repositories) Filter(predicate func(r *Repository) bool) Repositories {
+	var res Repositories
+	for i := range r {
+		repo := r[i]
+		if predicate(repo) {
+			res = append(res, repo)
+		}
+	}
+	return res
+}
 
 // RepositoryList is a collection of Repositories.
 type RepositoryList struct {

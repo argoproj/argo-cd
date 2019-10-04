@@ -92,9 +92,9 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                             <div className='argo-table-list__row' key={repo.repo}>
                                                 <div className='row'>
                                                     <div className='columns small-1'>
-                                                        <i className={'icon argo-icon-' + (repo.type)}/>
+                                                        <i className={'icon argo-icon-' + (repo.type || 'git')}/>
                                                     </div>
-                                                    <div className='columns small-1'>{repo.type}</div>
+                                                    <div className='columns small-1'>{repo.type || 'git'}</div>
                                                     <div className='columns small-2'>{repo.name}</div>
                                                     <div className='columns small-5'>
                                                         <Repo url={repo.repo}/>
@@ -186,6 +186,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                           defaultValues={{type: 'git'}}
                           validateError={(params: NewHTTPSRepoParams) => ({
                               url: (!params.url && 'Repo URL is required') || (this.credsTemplate && !this.isHTTPSUrl(params.url) && 'Not a valid HTTPS URL'),
+                              name: params.type === 'helm' && !params.name && 'Name is required',
                               password: !params.password && params.username && 'Password is required if username is given.',
                               tlsClientCertKey: !params.tlsClientCertKey && params.tlsClientCertData && 'TLS client cert key is required if TLS client cert is given.',
                           })}>
@@ -194,9 +195,11 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Type' field='type' component={FormSelect} componentProps={{options: ['git', 'helm']}}/>
                                 </div>
-                                <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Name (mandatory for Helm)' field='name' component={Text}/>
-                                </div>
+                                {formApi.getFormState().values.type === 'helm' && (
+                                    <div className='argo-form-row'>
+                                        <FormField formApi={formApi} label='Name' field='name' component={Text}/>
+                                    </div>
+                                )}
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Repository URL' field='url' component={Text}/>
                                 </div>
@@ -213,14 +216,18 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='TLS client certificate key (optional)' field='tlsClientCertKey' component={TextArea}/>
                                 </div>
-                               <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Insecure: Skip server verification' field='insecure' component={CheckboxField}/>
+                                {formApi.getFormState().values.type === 'git' && (
+                                <React.Fragment>
+                                    <div className='argo-form-row'>
+                                        <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField}/>
+                                        {tooltip('This setting is ignored when creating as credential template.')}
+                                    </div>
+                                    <div className='argo-form-row'>
+                                        <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField}/>
                                     {tooltip('This setting is ignored when creating as credential template.')}
-                                </div>
-                                <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField}/>
-                                    {tooltip('This setting is ignored when creating as credential template.')}
-                                </div>
+                                    </div>
+                                </React.Fragment>
+                                )}
                             </form>
                         )}
                     </Form>
@@ -246,9 +253,6 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                           })}>
                         {(formApi) => (
                             <form onSubmit={formApi.submitForm} role='form' className='repos-list width-control'>
-                                <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Type' field='type' component={FormSelect} componentProps={{options: ['git', 'helm']}}/>
-                                </div>
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Name (mandatory for Helm)' field='name' component={Text}/>
                                 </div>

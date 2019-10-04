@@ -2,6 +2,14 @@
 
 
 [[projects]]
+  digest = "1:6d5a057da97a9dbdb10e7beedd2f43452b6bf7691001c0c8886e8dacf5610349"
+  name = "bou.ke/monkey"
+  packages = ["."]
+  pruneopts = ""
+  revision = "bdf6dea004c6fd1cdf4b25da8ad45a606c09409a"
+  version = "v1.0.1"
+
+[[projects]]
   digest = "1:9702dc153c9bb6ee7ee0587c248b7024700e89e4a7be284faaeeab9da32e1c6b"
   name = "cloud.google.com/go"
   packages = ["compute/metadata"]
@@ -88,14 +96,6 @@
   packages = ["quantile"]
   pruneopts = ""
   revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
-
-[[projects]]
-  digest = "1:a6ee710e45210bafe11f2f28963571be2ac8809f9a7b675a6d2c02302a1ce1a9"
-  name = "github.com/bouk/monkey"
-  packages = ["."]
-  pruneopts = ""
-  revision = "5df1f207ff77e025801505ae4d903133a0b4353f"
-  version = "v1.0.0"
 
 [[projects]]
   digest = "1:e04162bd6a6d4950541bae744c968108e14913b1cebccf29f7650b573f44adb3"
@@ -1598,6 +1598,7 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "bou.ke/monkey",
     "github.com/Masterminds/semver",
     "github.com/TomOnTime/utfutil",
     "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1",
@@ -1605,7 +1606,6 @@
     "github.com/argoproj/pkg/errors",
     "github.com/argoproj/pkg/exec",
     "github.com/argoproj/pkg/time",
-    "github.com/bouk/monkey",
     "github.com/casbin/casbin",
     "github.com/casbin/casbin/model",
     "github.com/casbin/casbin/persist",

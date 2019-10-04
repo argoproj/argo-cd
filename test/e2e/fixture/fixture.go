@@ -263,6 +263,17 @@ func SetRepos(repos ...settings.Repository) {
 	})
 }
 
+func SetHelmRepos(repos ...settings.HelmRepoCredentials) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		yamlBytes, err := yaml.Marshal(repos)
+		if err != nil {
+			return err
+		}
+		cm.Data["helm.repositories"] = string(yamlBytes)
+		return nil
+	})
+}
+
 func SetRepoCredentials(repos ...settings.RepositoryCredentials) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		yamlBytes, err := yaml.Marshal(repos)
@@ -337,6 +348,7 @@ func EnsureCleanState(t *testing.T) {
 	SetConfigManagementPlugins()
 	SetRepoCredentials()
 	SetRepos()
+	SetHelmRepos()
 	SetResourceFilter(settings.ResourcesFilter{})
 	SetProjectSpec("default", v1alpha1.AppProjectSpec{
 		OrphanedResources:        nil,

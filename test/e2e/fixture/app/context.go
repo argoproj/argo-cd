@@ -82,6 +82,11 @@ func (c *Context) SSHInsecureRepoURLAdded(withCreds bool) *Context {
 	return c
 }
 
+func (c *Context) HelmRepoAdded(name string) *Context {
+	repos.AddHelmRepo(name)
+	return c
+}
+
 func (c *Context) HTTPSCredentialsUserPassAdded() *Context {
 	repos.AddHTTPSCredentialsUserPass()
 	return c
@@ -94,11 +99,6 @@ func (c *Context) HTTPSCredentialsTLSClientCertAdded() *Context {
 
 func (c *Context) SSHCredentialsAdded() *Context {
 	repos.AddSSHCredentials()
-	return c
-}
-
-func (c *Context) HelmRepoAdded() *Context {
-	repos.AddHelmRepo()
 	return c
 }
 

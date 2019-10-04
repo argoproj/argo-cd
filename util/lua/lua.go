@@ -214,8 +214,7 @@ func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scri
 		}
 		for key := range availableActionsMap {
 			value := availableActionsMap[key]
-
-			resourceAction := appv1.ResourceAction{Name: key}
+			resourceAction := appv1.ResourceAction{Name: key, Available: isActionAvailable(value)}
 			if emptyResourceActionFromLua(value) {
 				availableActions = append(availableActions, resourceAction)
 				continue
@@ -235,6 +234,22 @@ func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scri
 	}
 
 	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
+}
+
+func isActionAvailable(actionsMap interface{}) bool {
+	actions, ok := actionsMap.(map[string]interface{})
+	if !ok {
+		return false
+	}
+	for key, val := range actions {
+		switch vv := val.(type) {
+		case bool:
+			if key == "available" {
+				return vv
+			}
+		}
+	}
+	return false
 }
 
 func emptyResourceActionFromLua(i interface{}) bool {
