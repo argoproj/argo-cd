@@ -490,13 +490,9 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 		Source:     source,
 	})
 
-	n := common.RevisionHistoryLimit
-	if app.Spec.RevisionHistoryLimit != nil {
-		n = int(*app.Spec.RevisionHistoryLimit)
-	}
-	if len(app.Status.History) > n {
-		app.Status.History = app.Status.History[1 : n+1]
-	}
+	app.Status.History = app.Status.History.Trunc(func(h appv1.RevisionHistory) bool {
+		return h.Status.Sync != appv1.SyncStatusCodeSynced || h.Status.Health != appv1.HealthStatusHealthy
+	}, app.Spec.GetRevisionHistoryLimit())
 
 	patch, err := json.Marshal(map[string]map[string][]v1alpha1.RevisionHistory{
 		"status": {

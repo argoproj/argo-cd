@@ -842,6 +842,18 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	app.Status.Health = *compareResult.healthStatus
 	app.Status.Resources = compareResult.resources
 	app.Status.SourceType = compareResult.appSourceType
+
+	// copy the status into the history
+	app.Status.History = app.Status.History.Map(func(h appv1.RevisionHistory) appv1.RevisionHistory {
+		if h.Revision == revision {
+			h.Status = appv1.RevisionHistoryStatus{
+				Sync:   app.Status.Sync.Status,
+				Health: app.Status.Health.Status,
+			}
+		}
+		return h
+	})
+
 	ctrl.persistAppStatus(origApp, &app.Status)
 	return
 }

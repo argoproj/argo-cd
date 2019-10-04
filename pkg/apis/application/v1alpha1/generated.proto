@@ -765,6 +765,15 @@ message RevisionHistory {
   optional int64 id = 5;
 
   optional ApplicationSource source = 6;
+
+  optional RevisionHistoryStatus status = 7;
+}
+
+// TODO
+message RevisionHistoryStatus {
+  optional string sync = 1;
+
+  optional string health = 2;
 }
 
 // data about a specific revision within a repo

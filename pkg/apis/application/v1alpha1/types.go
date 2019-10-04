@@ -336,7 +336,7 @@ type ApplicationStatus struct {
 	Resources      []ResourceStatus       `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
 	Sync           SyncStatus             `json:"sync,omitempty" protobuf:"bytes,2,opt,name=sync"`
 	Health         HealthStatus           `json:"health,omitempty" protobuf:"bytes,3,opt,name=health"`
-	History        []RevisionHistory      `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
+	History        RevisionHistories      `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
 	Conditions     []ApplicationCondition `json:"conditions,omitempty" protobuf:"bytes,5,opt,name=conditions"`
 	ReconciledAt   *metav1.Time           `json:"reconciledAt,omitempty" protobuf:"bytes,6,opt,name=reconciledAt"`
 	OperationState *OperationState        `json:"operationState,omitempty" protobuf:"bytes,7,opt,name=operationState"`
@@ -355,6 +355,35 @@ type SyncOperationResource struct {
 	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
 	Kind  string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
 	Name  string `json:"name" protobuf:"bytes,3,opt,name=name"`
+}
+
+// RevisionHistories is a array of history, oldest first and newest last
+type RevisionHistories []RevisionHistory
+
+func (in RevisionHistories) Trunc(remove func(h RevisionHistory) bool, n int) RevisionHistories {
+	i := 0
+	// continue as long as we're too big AND we have more elements to look at
+	for len(in) > n && i < len(in) {
+		if remove(in[i]) {
+			// remove the item
+			in = append(in[:i], in[i+1:]...)
+		} else {
+			i++
+		}
+	}
+	// must always truncate
+	if len(in) > n {
+		in = in[ 1 : n+1]
+	}
+	return in
+}
+
+// map each item in the history to a new item
+func (in RevisionHistories) Map(mapper func(h RevisionHistory) RevisionHistory) RevisionHistories {
+	for i := range in {
+		in[i] = mapper(in[i])
+	}
+	return in
 }
 
 // HasIdentity determines whether a sync operation is identified by a manifest.
@@ -627,12 +656,19 @@ func (r ResourceResults) PruningRequired() (num int) {
 	return num
 }
 
+// RevisionHistoryStatus is populated when the app's status changes
+type RevisionHistoryStatus struct {
+	Sync   SyncStatusCode   `json:"sync,omitempty" protobuf:"bytes,1,opt,name=sync"`
+	Health HealthStatusCode `json:"health,omitempty" protobuf:"bytes,2,opt,name=health"`
+}
+
 // RevisionHistory contains information relevant to an application deployment
 type RevisionHistory struct {
-	Revision   string            `json:"revision" protobuf:"bytes,2,opt,name=revision"`
-	DeployedAt metav1.Time       `json:"deployedAt" protobuf:"bytes,4,opt,name=deployedAt"`
-	ID         int64             `json:"id" protobuf:"bytes,5,opt,name=id"`
-	Source     ApplicationSource `json:"source,omitempty" protobuf:"bytes,6,opt,name=source"`
+	Revision   string                `json:"revision" protobuf:"bytes,2,opt,name=revision"`
+	DeployedAt metav1.Time           `json:"deployedAt" protobuf:"bytes,4,opt,name=deployedAt"`
+	ID         int64                 `json:"id" protobuf:"bytes,5,opt,name=id"`
+	Source     ApplicationSource     `json:"source,omitempty" protobuf:"bytes,6,opt,name=source"`
+	Status     RevisionHistoryStatus `json:"status,omitempty" protobuf:"bytes,7,opt,name=status"`
 }
 
 // ApplicationWatchEvent contains information about application change.
@@ -1777,6 +1813,13 @@ func (spec ApplicationSpec) GetProject() string {
 		return common.DefaultAppProjectName
 	}
 	return spec.Project
+}
+
+func (spec ApplicationSpec) GetRevisionHistoryLimit() int {
+	if spec.RevisionHistoryLimit != nil {
+		return int(*spec.RevisionHistoryLimit)
+	}
+	return common.RevisionHistoryLimit
 }
 
 func isResourceInList(res metav1.GroupKind, list []metav1.GroupKind) bool {

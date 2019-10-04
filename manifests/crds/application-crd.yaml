@@ -1032,6 +1032,13 @@ spec:
                     required:
                     - repoURL
                     type: object
+                  status:
+                    properties:
+                      health:
+                        type: string
+                      sync:
+                        type: string
+                    type: object
                 required:
                 - revision
                 - deployedAt

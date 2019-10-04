@@ -192,6 +192,12 @@ export interface ApplicationSpec {
     destination: ApplicationDestination;
     syncPolicy?: SyncPolicy;
     info?: Info[];
+    revisionHistoryLimit?: number;
+}
+
+export interface RevisionHistoryStatus {
+    sync: SyncStatusCode;
+    health: HealthStatusCode;
 }
 
 /**
@@ -202,6 +208,7 @@ export interface RevisionHistory {
     revision: string;
     source: ApplicationSource;
     deployedAt: models.Time;
+    status?: RevisionHistoryStatus;
 }
 
 export type SyncStatusCode = 'Unknown' | 'Synced' | 'OutOfSync';

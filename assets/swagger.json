@@ -3907,6 +3907,21 @@
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
+        },
+        "status": {
+          "$ref": "#/definitions/v1alpha1RevisionHistoryStatus"
+        }
+      }
+    },
+    "v1alpha1RevisionHistoryStatus": {
+      "type": "object",
+      "title": "TODO",
+      "properties": {
+        "health": {
+          "type": "string"
+        },
+        "sync": {
+          "type": "string"
         }
       }
     },

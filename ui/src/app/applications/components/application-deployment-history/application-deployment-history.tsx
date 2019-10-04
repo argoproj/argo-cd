@@ -7,6 +7,7 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
 import {RevisionMetadataRows} from './revision-metadata-rows';
+import {ComparisonStatusIcon, HealthStatusIcon} from "../utils";
 
 require('./application-deployment-history.scss');
 
@@ -55,6 +56,15 @@ export const ApplicationDeploymentHistory = ({
                                         action: () => rollbackApp(info),
                                     }]}/>
                                 </div>
+                            </div>
+                        </div>
+                        <div className='row'>
+                            <div className='columns small-3'>
+                                Status:
+                            </div>
+                            <div className='columns small-9'>
+                                <HealthStatusIcon state={{status: info.status.health, message: null}}/>&nbsp;{info.status.health}
+                                <ComparisonStatusIcon status={info.status.sync}/>&nbsp;{info.status.sync}
                             </div>
                         </div>
                         <RevisionMetadataRows applicationName={app.metadata.name}
