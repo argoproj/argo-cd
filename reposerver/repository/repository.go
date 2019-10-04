@@ -40,11 +40,6 @@ import (
 	"github.com/argoproj/argo-cd/util/text"
 )
 
-const (
-	PluginEnvAppName      = "ARGOCD_APP_NAME"
-	PluginEnvAppNamespace = "ARGOCD_APP_NAMESPACE"
-)
-
 // Service implements ManifestService interface
 type Service struct {
 	repoLock                  *util.KeyLock
@@ -190,7 +185,7 @@ func (s *Service) GenerateManifest(c context.Context, q *apiclient.ManifestReque
 	}
 	err := s.runRepoOperation(c, q.Repo, q.ApplicationSource, getCached, func(appPath string, revision string) error {
 		var err error
-		res, err = GenerateManifests(appPath, q)
+		res, err = GenerateManifests(appPath, revision, q)
 		if err != nil {
 			return err
 		}
@@ -278,7 +273,7 @@ func helmTemplate(appPath string, q *apiclient.ManifestRequest) ([]*unstructured
 }
 
 // GenerateManifests generates manifests from a path
-func GenerateManifests(appPath string, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
+func GenerateManifests(appPath, revision string, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
 	var targetObjs []*unstructured.Unstructured
 	var dest *v1alpha1.ApplicationDestination
 
@@ -296,7 +291,7 @@ func GenerateManifests(appPath string, q *apiclient.ManifestRequest) (*apiclient
 		k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), repoURL)
 		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions)
 	case v1alpha1.ApplicationSourceTypePlugin:
-		targetObjs, err = runConfigManagementPlugin(appPath, q, q.Repo.GetGitCreds())
+		targetObjs, err = runConfigManagementPlugin(appPath, revision, q, q.Repo.GetGitCreds())
 	case v1alpha1.ApplicationSourceTypeDirectory:
 		var directory *v1alpha1.ApplicationSourceDirectory
 		if directory = q.ApplicationSource.Directory; directory == nil {
@@ -539,12 +534,18 @@ func findPlugin(plugins []*v1alpha1.ConfigManagementPlugin, name string) *v1alph
 	return nil
 }
 
-func runConfigManagementPlugin(appPath string, q *apiclient.ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
+func runConfigManagementPlugin(appPath, revision string, q *apiclient.ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
 	plugin := findPlugin(q.Plugins, q.ApplicationSource.Plugin.Name)
 	if plugin == nil {
 		return nil, fmt.Errorf("Config management plugin with name '%s' is not supported.", q.ApplicationSource.Plugin.Name)
 	}
-	env := append(os.Environ(), fmt.Sprintf("%s=%s", PluginEnvAppName, q.AppLabelValue), fmt.Sprintf("%s=%s", PluginEnvAppNamespace, q.Namespace))
+	env := append(
+		os.Environ(),
+		fmt.Sprintf("%s=%s", "ARGOCD_APP_NAME", q.AppLabelValue),
+		fmt.Sprintf("%s=%s", "ARGOCD_APP_NAMESPACE", q.Namespace),
+		fmt.Sprintf("%s=%s", "ARGOCD_APP_TARGET_REVISION", q.ApplicationSource.TargetRevision),
+		fmt.Sprintf("%s=%s", "ARGOCD_APP_REVISION", revision),
+		)
 	if creds != nil {
 		closer, environ, err := creds.Environ()
 		if err != nil {
@@ -584,7 +585,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		return false
 	}
 
-	err := s.runRepoOperation(ctx, q.Repo, q.Source, getCached, func(appPath string, revision string) error {
+	err := s.runRepoOperation(ctx, q.Repo, q.Source, getCached, func(appPath string, resolvedRevision string) error {
 		appSourceType, err := GetAppSourceType(q.Source, appPath)
 		if err != nil {
 			return err
@@ -669,7 +670,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 			}
 			res.Kustomize.Images = images
 		}
-		_ = s.cache.SetAppDetails(revision, q.Source, res)
+		_ = s.cache.SetAppDetails(resolvedRevision, q.Source, res)
 		return nil
 	}, operationSettings{})
 
