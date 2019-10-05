@@ -21,7 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	// TODO - dup import
 	cache "github.com/argoproj/argo-cd/util/cache/reposerver"
-	argocache "github.com/argoproj/argo-cd/util/cache/reposerver"
+	cacheutil "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/git"
 	gitmocks "github.com/argoproj/argo-cd/util/git/mocks"
 	"github.com/argoproj/argo-cd/util/helm"
@@ -29,11 +29,8 @@ import (
 )
 
 func newServiceWithMocks(root string) (*Service, *gitmocks.Client, *helmmocks.Client) {
-	service := NewService(metrics.NewMetricsServer(), argocache.NewCache(
-		cache.NewInMemoryCache(1*time.Minute),
-		1*time.Minute,
-		1*time.Minute,
-		1*time.Minute,
+	service := NewService(metrics.NewMetricsServer(), cache.NewCache(
+		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
 		1*time.Minute,
 	), 1)
 	helmClient := &helmmocks.Client{}
