@@ -426,6 +426,7 @@ func (mgr *SettingsManager) GetRepositoryCredentials() ([]RepositoryCredentials,
 		if err != nil {
 			return nil, err
 		}
+		log.Debugf("CREDS: %v", creds)
 	}
 	return creds, nil
 }

@@ -36,7 +36,7 @@ const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 // RepoCredsQuery is a query for RepoCreds resources
 type RepoCredsQuery struct {
 	// Repo URL for query
-	Repo                 string   `protobuf:"bytes,1,opt,name=repo,proto3" json:"repo,omitempty"`
+	Url                  string   `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -46,7 +46,7 @@ func (m *RepoCredsQuery) Reset()         { *m = RepoCredsQuery{} }
 func (m *RepoCredsQuery) String() string { return proto.CompactTextString(m) }
 func (*RepoCredsQuery) ProtoMessage()    {}
 func (*RepoCredsQuery) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repocreds_fb6d623c2a00e0d0, []int{0}
+	return fileDescriptor_repocreds_56677074c953374d, []int{0}
 }
 func (m *RepoCredsQuery) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -75,9 +75,56 @@ func (m *RepoCredsQuery) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_RepoCredsQuery proto.InternalMessageInfo
 
-func (m *RepoCredsQuery) GetRepo() string {
+func (m *RepoCredsQuery) GetUrl() string {
 	if m != nil {
-		return m.Repo
+		return m.Url
+	}
+	return ""
+}
+
+type RepoCredsDeleteRequest struct {
+	Url                  string   `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *RepoCredsDeleteRequest) Reset()         { *m = RepoCredsDeleteRequest{} }
+func (m *RepoCredsDeleteRequest) String() string { return proto.CompactTextString(m) }
+func (*RepoCredsDeleteRequest) ProtoMessage()    {}
+func (*RepoCredsDeleteRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repocreds_56677074c953374d, []int{1}
+}
+func (m *RepoCredsDeleteRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *RepoCredsDeleteRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_RepoCredsDeleteRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (dst *RepoCredsDeleteRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RepoCredsDeleteRequest.Merge(dst, src)
+}
+func (m *RepoCredsDeleteRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *RepoCredsDeleteRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_RepoCredsDeleteRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RepoCredsDeleteRequest proto.InternalMessageInfo
+
+func (m *RepoCredsDeleteRequest) GetUrl() string {
+	if m != nil {
+		return m.Url
 	}
 	return ""
 }
@@ -93,7 +140,7 @@ func (m *RepoCredsResponse) Reset()         { *m = RepoCredsResponse{} }
 func (m *RepoCredsResponse) String() string { return proto.CompactTextString(m) }
 func (*RepoCredsResponse) ProtoMessage()    {}
 func (*RepoCredsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repocreds_fb6d623c2a00e0d0, []int{1}
+	return fileDescriptor_repocreds_56677074c953374d, []int{2}
 }
 func (m *RepoCredsResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -125,7 +172,7 @@ var xxx_messageInfo_RepoCredsResponse proto.InternalMessageInfo
 // RepoCreateRequest is a request for creating repository credentials config
 type RepoCredsCreateRequest struct {
 	// Repository definition
-	Repo *v1alpha1.RepoCreds `protobuf:"bytes,1,opt,name=repo" json:"repo,omitempty"`
+	Creds *v1alpha1.RepoCreds `protobuf:"bytes,1,opt,name=creds" json:"creds,omitempty"`
 	// Whether to create in upsert mode
 	Upsert               bool     `protobuf:"varint,2,opt,name=upsert,proto3" json:"upsert,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -137,7 +184,7 @@ func (m *RepoCredsCreateRequest) Reset()         { *m = RepoCredsCreateRequest{}
 func (m *RepoCredsCreateRequest) String() string { return proto.CompactTextString(m) }
 func (*RepoCredsCreateRequest) ProtoMessage()    {}
 func (*RepoCredsCreateRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repocreds_fb6d623c2a00e0d0, []int{2}
+	return fileDescriptor_repocreds_56677074c953374d, []int{3}
 }
 func (m *RepoCredsCreateRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -166,9 +213,9 @@ func (m *RepoCredsCreateRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_RepoCredsCreateRequest proto.InternalMessageInfo
 
-func (m *RepoCredsCreateRequest) GetRepo() *v1alpha1.RepoCreds {
+func (m *RepoCredsCreateRequest) GetCreds() *v1alpha1.RepoCreds {
 	if m != nil {
-		return m.Repo
+		return m.Creds
 	}
 	return nil
 }
@@ -182,7 +229,7 @@ func (m *RepoCredsCreateRequest) GetUpsert() bool {
 
 // RepoCredsUpdateRequest is a request for updating existing repository credentials config
 type RepoCredsUpdateRequest struct {
-	Repo                 *v1alpha1.RepoCreds `protobuf:"bytes,1,opt,name=repo" json:"repo,omitempty"`
+	Creds                *v1alpha1.RepoCreds `protobuf:"bytes,1,opt,name=creds" json:"creds,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
 	XXX_unrecognized     []byte              `json:"-"`
 	XXX_sizecache        int32               `json:"-"`
@@ -192,7 +239,7 @@ func (m *RepoCredsUpdateRequest) Reset()         { *m = RepoCredsUpdateRequest{}
 func (m *RepoCredsUpdateRequest) String() string { return proto.CompactTextString(m) }
 func (*RepoCredsUpdateRequest) ProtoMessage()    {}
 func (*RepoCredsUpdateRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repocreds_fb6d623c2a00e0d0, []int{3}
+	return fileDescriptor_repocreds_56677074c953374d, []int{4}
 }
 func (m *RepoCredsUpdateRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -221,15 +268,16 @@ func (m *RepoCredsUpdateRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_RepoCredsUpdateRequest proto.InternalMessageInfo
 
-func (m *RepoCredsUpdateRequest) GetRepo() *v1alpha1.RepoCreds {
+func (m *RepoCredsUpdateRequest) GetCreds() *v1alpha1.RepoCreds {
 	if m != nil {
-		return m.Repo
+		return m.Creds
 	}
 	return nil
 }
 
 func init() {
 	proto.RegisterType((*RepoCredsQuery)(nil), "repocreds.RepoCredsQuery")
+	proto.RegisterType((*RepoCredsDeleteRequest)(nil), "repocreds.RepoCredsDeleteRequest")
 	proto.RegisterType((*RepoCredsResponse)(nil), "repocreds.RepoCredsResponse")
 	proto.RegisterType((*RepoCredsCreateRequest)(nil), "repocreds.RepoCredsCreateRequest")
 	proto.RegisterType((*RepoCredsUpdateRequest)(nil), "repocreds.RepoCredsUpdateRequest")
@@ -253,7 +301,7 @@ type RepoCredsServiceClient interface {
 	// UpdateRepositoryCredentials updates a repository credential set
 	UpdateRepositoryCredentials(ctx context.Context, in *RepoCredsUpdateRequest, opts ...grpc.CallOption) (*v1alpha1.RepoCreds, error)
 	// DeleteRepositoryCredentials deletes a repository credential set from the configuration
-	DeleteRepositoryCredentials(ctx context.Context, in *RepoCredsQuery, opts ...grpc.CallOption) (*RepoCredsResponse, error)
+	DeleteRepositoryCredentials(ctx context.Context, in *RepoCredsDeleteRequest, opts ...grpc.CallOption) (*RepoCredsResponse, error)
 }
 
 type repoCredsServiceClient struct {
@@ -291,7 +339,7 @@ func (c *repoCredsServiceClient) UpdateRepositoryCredentials(ctx context.Context
 	return out, nil
 }
 
-func (c *repoCredsServiceClient) DeleteRepositoryCredentials(ctx context.Context, in *RepoCredsQuery, opts ...grpc.CallOption) (*RepoCredsResponse, error) {
+func (c *repoCredsServiceClient) DeleteRepositoryCredentials(ctx context.Context, in *RepoCredsDeleteRequest, opts ...grpc.CallOption) (*RepoCredsResponse, error) {
 	out := new(RepoCredsResponse)
 	err := c.cc.Invoke(ctx, "/repocreds.RepoCredsService/DeleteRepositoryCredentials", in, out, opts...)
 	if err != nil {
@@ -310,7 +358,7 @@ type RepoCredsServiceServer interface {
 	// UpdateRepositoryCredentials updates a repository credential set
 	UpdateRepositoryCredentials(context.Context, *RepoCredsUpdateRequest) (*v1alpha1.RepoCreds, error)
 	// DeleteRepositoryCredentials deletes a repository credential set from the configuration
-	DeleteRepositoryCredentials(context.Context, *RepoCredsQuery) (*RepoCredsResponse, error)
+	DeleteRepositoryCredentials(context.Context, *RepoCredsDeleteRequest) (*RepoCredsResponse, error)
 }
 
 func RegisterRepoCredsServiceServer(s *grpc.Server, srv RepoCredsServiceServer) {
@@ -372,7 +420,7 @@ func _RepoCredsService_UpdateRepositoryCredentials_Handler(srv interface{}, ctx 
 }
 
 func _RepoCredsService_DeleteRepositoryCredentials_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RepoCredsQuery)
+	in := new(RepoCredsDeleteRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -384,7 +432,7 @@ func _RepoCredsService_DeleteRepositoryCredentials_Handler(srv interface{}, ctx 
 		FullMethod: "/repocreds.RepoCredsService/DeleteRepositoryCredentials",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RepoCredsServiceServer).DeleteRepositoryCredentials(ctx, req.(*RepoCredsQuery))
+		return srv.(RepoCredsServiceServer).DeleteRepositoryCredentials(ctx, req.(*RepoCredsDeleteRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -429,11 +477,38 @@ func (m *RepoCredsQuery) MarshalTo(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if len(m.Repo) > 0 {
+	if len(m.Url) > 0 {
 		dAtA[i] = 0xa
 		i++
-		i = encodeVarintRepocreds(dAtA, i, uint64(len(m.Repo)))
-		i += copy(dAtA[i:], m.Repo)
+		i = encodeVarintRepocreds(dAtA, i, uint64(len(m.Url)))
+		i += copy(dAtA[i:], m.Url)
+	}
+	if m.XXX_unrecognized != nil {
+		i += copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	return i, nil
+}
+
+func (m *RepoCredsDeleteRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *RepoCredsDeleteRequest) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.Url) > 0 {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintRepocreds(dAtA, i, uint64(len(m.Url)))
+		i += copy(dAtA[i:], m.Url)
 	}
 	if m.XXX_unrecognized != nil {
 		i += copy(dAtA[i:], m.XXX_unrecognized)
@@ -477,11 +552,11 @@ func (m *RepoCredsCreateRequest) MarshalTo(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if m.Repo != nil {
+	if m.Creds != nil {
 		dAtA[i] = 0xa
 		i++
-		i = encodeVarintRepocreds(dAtA, i, uint64(m.Repo.Size()))
-		n1, err := m.Repo.MarshalTo(dAtA[i:])
+		i = encodeVarintRepocreds(dAtA, i, uint64(m.Creds.Size()))
+		n1, err := m.Creds.MarshalTo(dAtA[i:])
 		if err != nil {
 			return 0, err
 		}
@@ -518,11 +593,11 @@ func (m *RepoCredsUpdateRequest) MarshalTo(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if m.Repo != nil {
+	if m.Creds != nil {
 		dAtA[i] = 0xa
 		i++
-		i = encodeVarintRepocreds(dAtA, i, uint64(m.Repo.Size()))
-		n2, err := m.Repo.MarshalTo(dAtA[i:])
+		i = encodeVarintRepocreds(dAtA, i, uint64(m.Creds.Size()))
+		n2, err := m.Creds.MarshalTo(dAtA[i:])
 		if err != nil {
 			return 0, err
 		}
@@ -546,7 +621,20 @@ func encodeVarintRepocreds(dAtA []byte, offset int, v uint64) int {
 func (m *RepoCredsQuery) Size() (n int) {
 	var l int
 	_ = l
-	l = len(m.Repo)
+	l = len(m.Url)
+	if l > 0 {
+		n += 1 + l + sovRepocreds(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *RepoCredsDeleteRequest) Size() (n int) {
+	var l int
+	_ = l
+	l = len(m.Url)
 	if l > 0 {
 		n += 1 + l + sovRepocreds(uint64(l))
 	}
@@ -568,8 +656,8 @@ func (m *RepoCredsResponse) Size() (n int) {
 func (m *RepoCredsCreateRequest) Size() (n int) {
 	var l int
 	_ = l
-	if m.Repo != nil {
-		l = m.Repo.Size()
+	if m.Creds != nil {
+		l = m.Creds.Size()
 		n += 1 + l + sovRepocreds(uint64(l))
 	}
 	if m.Upsert {
@@ -584,8 +672,8 @@ func (m *RepoCredsCreateRequest) Size() (n int) {
 func (m *RepoCredsUpdateRequest) Size() (n int) {
 	var l int
 	_ = l
-	if m.Repo != nil {
-		l = m.Repo.Size()
+	if m.Creds != nil {
+		l = m.Creds.Size()
 		n += 1 + l + sovRepocreds(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -638,7 +726,7 @@ func (m *RepoCredsQuery) Unmarshal(dAtA []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Repo", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Url", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
@@ -663,7 +751,87 @@ func (m *RepoCredsQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Repo = string(dAtA[iNdEx:postIndex])
+			m.Url = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipRepocreds(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthRepocreds
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *RepoCredsDeleteRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowRepocreds
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: RepoCredsDeleteRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: RepoCredsDeleteRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Url", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepocreds
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRepocreds
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Url = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -769,7 +937,7 @@ func (m *RepoCredsCreateRequest) Unmarshal(dAtA []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Repo", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Creds", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -793,10 +961,10 @@ func (m *RepoCredsCreateRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.Repo == nil {
-				m.Repo = &v1alpha1.RepoCreds{}
+			if m.Creds == nil {
+				m.Creds = &v1alpha1.RepoCreds{}
 			}
-			if err := m.Repo.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			if err := m.Creds.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -873,7 +1041,7 @@ func (m *RepoCredsUpdateRequest) Unmarshal(dAtA []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Repo", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Creds", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -897,10 +1065,10 @@ func (m *RepoCredsUpdateRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.Repo == nil {
-				m.Repo = &v1alpha1.RepoCreds{}
+			if m.Creds == nil {
+				m.Creds = &v1alpha1.RepoCreds{}
 			}
-			if err := m.Repo.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			if err := m.Creds.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -1032,39 +1200,41 @@ var (
 )
 
 func init() {
-	proto.RegisterFile("server/repocreds/repocreds.proto", fileDescriptor_repocreds_fb6d623c2a00e0d0)
+	proto.RegisterFile("server/repocreds/repocreds.proto", fileDescriptor_repocreds_56677074c953374d)
 }
 
-var fileDescriptor_repocreds_fb6d623c2a00e0d0 = []byte{
-	// 480 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x94, 0x41, 0x6b, 0x13, 0x41,
-	0x14, 0xc7, 0x99, 0xa2, 0xc5, 0x8e, 0x20, 0x76, 0x2a, 0x25, 0xd9, 0xd4, 0x18, 0x17, 0x85, 0xa2,
-	0x38, 0x43, 0xda, 0x8b, 0x78, 0xd3, 0xf6, 0xa0, 0xe0, 0xc5, 0x15, 0x41, 0xbc, 0xc8, 0x74, 0xf6,
-	0x31, 0x1d, 0xb3, 0xee, 0x8c, 0x33, 0x93, 0xc5, 0x22, 0xbd, 0x78, 0xec, 0xd5, 0xa3, 0x1f, 0xc0,
-	0x0f, 0xe0, 0x97, 0xf0, 0x28, 0xf8, 0x05, 0x24, 0xf8, 0x41, 0x64, 0xa6, 0xc9, 0x6e, 0x42, 0x52,
-	0xc9, 0x21, 0x78, 0xfb, 0xe7, 0xbd, 0x37, 0xef, 0xfd, 0x32, 0xff, 0xb7, 0x83, 0x7b, 0x0e, 0x6c,
-	0x05, 0x96, 0x59, 0x30, 0x5a, 0x58, 0xc8, 0x5d, 0xa3, 0xa8, 0xb1, 0xda, 0x6b, 0xb2, 0x51, 0x07,
-	0x92, 0x1b, 0x52, 0x4b, 0x1d, 0xa3, 0x2c, 0xa8, 0xf3, 0x82, 0x64, 0x47, 0x6a, 0x2d, 0x0b, 0x60,
-	0xdc, 0x28, 0xc6, 0xcb, 0x52, 0x7b, 0xee, 0x95, 0x2e, 0xc7, 0xc7, 0x93, 0x74, 0xf0, 0xd0, 0x51,
-	0xa5, 0x63, 0x56, 0x68, 0x0b, 0xac, 0xea, 0x33, 0x09, 0x25, 0x58, 0xee, 0x21, 0x1f, 0xd7, 0x3c,
-	0x93, 0xca, 0x1f, 0x0f, 0x8f, 0xa8, 0xd0, 0xef, 0x19, 0xb7, 0x71, 0xc4, 0xbb, 0x28, 0x1e, 0x88,
-	0x9c, 0x99, 0x81, 0x0c, 0x87, 0x1d, 0xe3, 0xc6, 0x14, 0x4a, 0xc4, 0xe6, 0xac, 0xea, 0xf3, 0xc2,
-	0x1c, 0xf3, 0xb9, 0x56, 0xe9, 0x1d, 0x7c, 0x2d, 0x03, 0xa3, 0x0f, 0x02, 0xef, 0x8b, 0x21, 0xd8,
-	0x13, 0x42, 0xf0, 0xa5, 0xf0, 0x0f, 0x5a, 0xa8, 0x87, 0x76, 0x37, 0xb2, 0xa8, 0xd3, 0x2d, 0xbc,
-	0x59, 0x57, 0x65, 0xe0, 0x8c, 0x2e, 0x1d, 0xa4, 0x67, 0x08, 0x6f, 0xd7, 0xd1, 0x03, 0x0b, 0xdc,
-	0x43, 0x06, 0x1f, 0x86, 0xe0, 0x3c, 0x79, 0x3d, 0xd5, 0xe3, 0xea, 0xde, 0x21, 0x6d, 0x78, 0xe9,
-	0x84, 0x37, 0x8a, 0xb7, 0x22, 0xa7, 0x66, 0x20, 0x69, 0xe0, 0xa5, 0x53, 0xbc, 0x74, 0xc2, 0x4b,
-	0x9b, 0xb1, 0xb1, 0x23, 0xd9, 0xc6, 0xeb, 0x43, 0xe3, 0xc0, 0xfa, 0xd6, 0x5a, 0x0f, 0xed, 0x5e,
-	0xc9, 0xc6, 0xbf, 0x52, 0x3b, 0xc5, 0xf2, 0xca, 0xe4, 0xff, 0x83, 0x65, 0xef, 0xec, 0x32, 0xbe,
-	0x5e, 0xc7, 0x5e, 0x82, 0xad, 0x94, 0x00, 0xf2, 0x15, 0xe1, 0xf6, 0x73, 0xe5, 0x7c, 0x48, 0x38,
-	0xe5, 0xb5, 0x3d, 0x09, 0x69, 0x28, 0xbd, 0xe2, 0x85, 0x23, 0x6d, 0xda, 0xac, 0xcb, 0xec, 0xbd,
-	0x27, 0x4f, 0x57, 0x41, 0x16, 0x26, 0xa7, 0xed, 0xcf, 0xbf, 0xfe, 0x7c, 0x59, 0xdb, 0x22, 0x9b,
-	0x71, 0x89, 0xaa, 0x7e, 0xb3, 0xa2, 0xe4, 0x1b, 0xc2, 0x9d, 0x89, 0x55, 0x8b, 0xf8, 0x6e, 0x2f,
-	0xe2, 0x9b, 0xf1, 0x36, 0x59, 0xc9, 0x0d, 0xa6, 0xb7, 0x22, 0x63, 0x3b, 0x9d, 0x67, 0x7c, 0x74,
-	0x6e, 0xf4, 0x77, 0x84, 0x3b, 0x13, 0x23, 0x97, 0x26, 0x9d, 0x71, 0x7e, 0x45, 0xa4, 0xf7, 0x23,
-	0xe9, 0xdd, 0xe4, 0xe6, 0x1c, 0x29, 0xfb, 0x14, 0x64, 0xe4, 0x38, 0x1d, 0x53, 0x7f, 0xc4, 0x9d,
-	0x43, 0x28, 0xe0, 0x22, 0xe8, 0x7f, 0xd8, 0xbf, 0xb3, 0x28, 0x55, 0x7f, 0x6b, 0xbd, 0x08, 0x91,
-	0xdc, 0x6b, 0x5d, 0x00, 0x71, 0xfa, 0xe4, 0xf1, 0x8f, 0x51, 0x17, 0xfd, 0x1c, 0x75, 0xd1, 0xef,
-	0x51, 0x17, 0xbd, 0xd9, 0x5f, 0xe2, 0x85, 0x10, 0x85, 0x82, 0xd2, 0x37, 0x9d, 0x8e, 0xd6, 0xe3,
-	0x93, 0xb0, 0xff, 0x37, 0x00, 0x00, 0xff, 0xff, 0x4e, 0x0f, 0x45, 0xe3, 0xe4, 0x04, 0x00, 0x00,
+var fileDescriptor_repocreds_56677074c953374d = []byte{
+	// 497 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x94, 0x41, 0x6b, 0x14, 0x31,
+	0x14, 0xc7, 0x49, 0xa5, 0xc5, 0x46, 0x90, 0x76, 0x2a, 0xb5, 0x3b, 0x5b, 0xd7, 0x35, 0x07, 0x29,
+	0x45, 0x13, 0xb6, 0xbd, 0x88, 0x37, 0x6d, 0x0f, 0x0a, 0x5e, 0x1c, 0xf1, 0xd2, 0x8b, 0xa4, 0x33,
+	0x8f, 0x69, 0xdc, 0x71, 0x12, 0x93, 0xcc, 0x40, 0x11, 0x11, 0x3c, 0x7b, 0xeb, 0xd1, 0x2f, 0xe0,
+	0x07, 0xf0, 0x43, 0x78, 0x14, 0xfc, 0x02, 0xb2, 0xf8, 0x41, 0x24, 0xd9, 0x9d, 0x99, 0x1d, 0x76,
+	0x0e, 0x7b, 0x58, 0x7a, 0x7b, 0x93, 0xbc, 0xf9, 0xbf, 0xdf, 0xcb, 0x3f, 0x2f, 0x78, 0x68, 0x40,
+	0x97, 0xa0, 0x99, 0x06, 0x25, 0x63, 0x0d, 0x89, 0x69, 0x22, 0xaa, 0xb4, 0xb4, 0x32, 0xd8, 0xac,
+	0x17, 0xc2, 0x3b, 0xa9, 0x4c, 0xa5, 0x5f, 0x65, 0x2e, 0x9a, 0x26, 0x84, 0xfb, 0xa9, 0x94, 0x69,
+	0x06, 0x8c, 0x2b, 0xc1, 0x78, 0x9e, 0x4b, 0xcb, 0xad, 0x90, 0xf9, 0xec, 0xf7, 0x90, 0x8c, 0x9f,
+	0x18, 0x2a, 0xa4, 0xdf, 0x8d, 0xa5, 0x06, 0x56, 0x8e, 0x58, 0x0a, 0x39, 0x68, 0x6e, 0x21, 0x99,
+	0xe5, 0xbc, 0x4c, 0x85, 0xbd, 0x28, 0xce, 0x69, 0x2c, 0x3f, 0x30, 0xae, 0x7d, 0x89, 0xf7, 0x3e,
+	0x78, 0x1c, 0x27, 0x4c, 0x8d, 0x53, 0xf7, 0xb3, 0x61, 0x5c, 0xa9, 0x4c, 0xc4, 0x5e, 0x9c, 0x95,
+	0x23, 0x9e, 0xa9, 0x0b, 0xbe, 0x20, 0x45, 0x08, 0xbe, 0x1d, 0x81, 0x92, 0x27, 0x8e, 0xf7, 0x75,
+	0x01, 0xfa, 0x32, 0xd8, 0xc2, 0x37, 0x0a, 0x9d, 0xed, 0xa1, 0x21, 0x3a, 0xd8, 0x8c, 0x5c, 0x48,
+	0x0e, 0xf1, 0x6e, 0x9d, 0x73, 0x0a, 0x19, 0x58, 0x88, 0xe0, 0x63, 0x01, 0xc6, 0x76, 0xe4, 0xee,
+	0xe0, 0xed, 0x3a, 0x37, 0x02, 0xa3, 0x64, 0x6e, 0x80, 0x7c, 0x43, 0x73, 0x0a, 0x27, 0x1a, 0x78,
+	0xa3, 0x70, 0x86, 0xd7, 0xfd, 0x59, 0x79, 0x8d, 0x5b, 0x47, 0xa7, 0xb4, 0x69, 0x8d, 0x56, 0xad,
+	0xf9, 0xe0, 0x5d, 0x9c, 0x50, 0x35, 0x4e, 0xa9, 0x6b, 0x8d, 0xce, 0xb5, 0x46, 0xab, 0xd6, 0x68,
+	0x53, 0x77, 0x2a, 0x19, 0xec, 0xe2, 0x8d, 0x42, 0x19, 0xd0, 0x76, 0x6f, 0x6d, 0x88, 0x0e, 0x6e,
+	0x46, 0xb3, 0x2f, 0x62, 0xe7, 0x68, 0xde, 0xaa, 0xe4, 0x7a, 0x68, 0x8e, 0xae, 0xd6, 0xf1, 0x56,
+	0xbd, 0xf8, 0x06, 0x74, 0x29, 0x62, 0x08, 0xbe, 0x23, 0xdc, 0x7b, 0x25, 0x8c, 0x75, 0x1b, 0x46,
+	0x58, 0xa9, 0x2f, 0xdd, 0x36, 0xe4, 0x56, 0xf0, 0xcc, 0x04, 0x3d, 0xda, 0x5c, 0xae, 0xb6, 0x4b,
+	0xe1, 0x8b, 0x55, 0xa0, 0xb9, 0xca, 0xa4, 0xf7, 0xf5, 0xcf, 0xbf, 0xab, 0xb5, 0x9d, 0x60, 0xdb,
+	0x5f, 0xb9, 0x72, 0xd4, 0x5c, 0xe8, 0xe0, 0x07, 0xc2, 0xfd, 0xca, 0xae, 0x2e, 0xbe, 0x07, 0x5d,
+	0x7c, 0x2d, 0x7f, 0xc3, 0x95, 0x1c, 0x21, 0x19, 0x7a, 0xc6, 0x90, 0x2c, 0x32, 0x3e, 0x9d, 0x79,
+	0xfd, 0x13, 0xe1, 0x7e, 0xe5, 0xe5, 0xd2, 0xa8, 0x2d, 0xf3, 0x57, 0x84, 0xfa, 0xc8, 0xa3, 0x3e,
+	0x0c, 0xef, 0x2d, 0xa0, 0xb2, 0x4f, 0xd3, 0xf2, 0x85, 0xce, 0x3e, 0x57, 0xd8, 0x5f, 0x70, 0xbf,
+	0x9a, 0xa8, 0xa5, 0xa9, 0x5b, 0x23, 0x18, 0xee, 0x77, 0xa5, 0xd4, 0x93, 0x77, 0xdf, 0xd3, 0xf4,
+	0x0e, 0xef, 0x76, 0xd0, 0x38, 0x8e, 0xe7, 0xcf, 0x7e, 0x4d, 0x06, 0xe8, 0xf7, 0x64, 0x80, 0xfe,
+	0x4e, 0x06, 0xe8, 0xec, 0x78, 0x89, 0x87, 0x25, 0xce, 0x04, 0xe4, 0xb6, 0x11, 0x3a, 0xdf, 0xf0,
+	0x2f, 0xc9, 0xf1, 0xff, 0x00, 0x00, 0x00, 0xff, 0xff, 0xae, 0xe4, 0x90, 0x83, 0x1b, 0x05, 0x00,
+	0x00,
 }

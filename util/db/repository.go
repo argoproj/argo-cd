@@ -12,6 +12,8 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/argoproj/argo-cd/common"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/git"
@@ -97,12 +99,15 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 		creds, err := db.GetRepositoryCredentials(ctx, repoURL)
 		if err == nil {
 			if creds != nil {
+				log.Debugf("Copy credentials from %s", creds)
 				repo.CopyCredentialsFrom(creds)
 				repo.InheritedCreds = true
 			}
 		} else {
 			return nil, err
 		}
+	} else {
+		log.Debugf("%s has credentials", repo.Repo)
 	}
 
 	return repo, err
@@ -147,7 +152,7 @@ func (db *db) credentialsToRepository(repoInfo settings.Repository) (*appsv1.Rep
 
 func (db *db) credentialsToRepositoryCredentials(repoInfo settings.RepositoryCredentials) (*appsv1.RepoCreds, error) {
 	creds := &appsv1.RepoCreds{
-		URLPattern: repoInfo.URL,
+		URL: repoInfo.URL,
 	}
 	err := db.unmarshalFromSecretsStr(map[*string]*apiv1.SecretKeySelector{
 		&creds.Username:          repoInfo.UsernameSecret,
@@ -256,9 +261,9 @@ func (db *db) CreateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCre
 		return nil, err
 	}
 
-	index := getRepositoryCredentialIndex(creds, r.URLPattern)
+	index := getRepositoryCredentialIndex(creds, r.URL)
 	if index > -1 {
-		return nil, status.Errorf(codes.AlreadyExists, "repository credentials for '%s' already exists", r.URLPattern)
+		return nil, status.Errorf(codes.AlreadyExists, "repository credentials for '%s' already exists", r.URL)
 	}
 
 	// data := make(map[string][]byte)
@@ -273,7 +278,7 @@ func (db *db) CreateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCre
 	// }
 
 	repoInfo := settings.RepositoryCredentials{
-		URL: r.URLPattern,
+		URL: r.URL,
 	}
 
 	err = db.updateCredentialsSecret(&repoInfo, r)
@@ -296,9 +301,9 @@ func (db *db) UpdateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCre
 		return nil, err
 	}
 
-	index := getRepositoryCredentialIndex(repos, r.URLPattern)
+	index := getRepositoryCredentialIndex(repos, r.URL)
 	if index < 0 {
-		return nil, status.Errorf(codes.NotFound, "repository credentials '%s' not found", r.URLPattern)
+		return nil, status.Errorf(codes.NotFound, "repository credentials '%s' not found", r.URL)
 	}
 
 	repoInfo := repos[index]
@@ -362,7 +367,7 @@ func (db *db) DeleteRepositoryCredentials(ctx context.Context, name string) erro
 
 func (db *db) updateCredentialsSecret(credsInfo *settings.RepositoryCredentials, c *appsv1.RepoCreds) error {
 	r := &appsv1.Repository{
-		Repo:              c.URLPattern,
+		Repo:              c.URL,
 		Username:          c.Username,
 		Password:          c.Password,
 		SSHPrivateKey:     c.SSHPrivateKey,
@@ -492,6 +497,7 @@ func getRepositoryCredentialIndex(repoCredentials []settings.RepositoryCredentia
 	repoURL = git.NormalizeGitURL(repoURL)
 	for i, cred := range repoCredentials {
 		credUrl := git.NormalizeGitURL(cred.URL)
+		log.Debugf("Matching on %s", credUrl)
 		if strings.HasPrefix(repoURL, credUrl) {
 			if len(credUrl) > max {
 				max = len(credUrl)
@@ -499,6 +505,7 @@ func getRepositoryCredentialIndex(repoCredentials []settings.RepositoryCredentia
 			}
 		}
 	}
+	log.Debugf("Have IDX: %d", idx)
 	return idx
 }
 

@@ -416,14 +416,18 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		grpc.ConnectionTimeout(300 * time.Second),
 	}
 	sensitiveMethods := map[string]bool{
-		"/cluster.ClusterService/Create":                true,
-		"/cluster.ClusterService/Update":                true,
-		"/session.SessionService/Create":                true,
-		"/account.AccountService/UpdatePassword":        true,
-		"/repository.RepositoryService/Create":          true,
-		"/repository.RepositoryService/Update":          true,
-		"/repository.RepositoryService/ValidateAccess":  true,
-		"/application.ApplicationService/PatchResource": true,
+		"/cluster.ClusterService/Create":                          true,
+		"/cluster.ClusterService/Update":                          true,
+		"/session.SessionService/Create":                          true,
+		"/account.AccountService/UpdatePassword":                  true,
+		"/repository.RepositoryService/Create":                    true,
+		"/repository.RepositoryService/Update":                    true,
+		"/repository.RepositoryService/CreateRepository":          true,
+		"/repository.RepositoryService/UpdateRepository":          true,
+		"/repository.RepositoryService/ValidateAccess":            true,
+		"/repocreds.RepoCredsService/CreateRepositoryCredentials": true,
+		"/repocreds.RepoCredsService/UpdateRepositoryCredentials": true,
+		"/application.ApplicationService/PatchResource":           true,
 	}
 	// NOTE: notice we do not configure the gRPC server here with TLS (e.g. grpc.Creds(creds))
 	// This is because TLS handshaking occurs in cmux handling
@@ -821,6 +825,7 @@ type bug21955Workaround struct {
 var pathPatters = []*regexp.Regexp{
 	regexp.MustCompile(`/api/v1/clusters/[^/]+`),
 	regexp.MustCompile(`/api/v1/repositories/[^/]+`),
+	regexp.MustCompile(`/api/v1/repocreds/[^/]+`),
 	regexp.MustCompile(`/api/v1/repositories/[^/]+/apps`),
 	regexp.MustCompile(`/api/v1/repositories/[^/]+/apps/[^/]+`),
 }
@@ -860,6 +865,22 @@ func bug21955WorkaroundInterceptor(ctx context.Context, req interface{}, _ *grpc
 			return nil, err
 		}
 		ru.Repo.Repo = repo
+	} else if rk, ok := req.(*repocredspkg.RepoCredsQuery); ok {
+		log.Debugf("Entry Pattern: %s", rk.Url)
+		pattern, err := url.QueryUnescape(rk.Url)
+		if err != nil {
+			return nil, err
+		}
+		rk.Url = pattern
+		log.Debugf("Exit Pattern: %s", rk.Url)
+	} else if rk, ok := req.(*repocredspkg.RepoCredsDeleteRequest); ok {
+		log.Debugf("Entry Pattern: %s", rk.Url)
+		pattern, err := url.QueryUnescape(rk.Url)
+		if err != nil {
+			return nil, err
+		}
+		rk.Url = pattern
+		log.Debugf("Exit Pattern: %s", rk.Url)
 	} else if cq, ok := req.(*clusterpkg.ClusterQuery); ok {
 		server, err := url.QueryUnescape(cq.Server)
 		if err != nil {

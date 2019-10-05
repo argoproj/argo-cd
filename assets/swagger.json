@@ -1294,7 +1294,7 @@
           {
             "type": "string",
             "description": "Repo URL for query.",
-            "name": "repo",
+            "name": "url",
             "in": "query"
           }
         ],
@@ -1333,7 +1333,7 @@
         }
       }
     },
-    "/api/v1/repocreds/{repo.repo}": {
+    "/api/v1/repocreds/{creds.url}": {
       "put": {
         "tags": [
           "RepoCredsService"
@@ -1343,7 +1343,7 @@
         "parameters": [
           {
             "type": "string",
-            "name": "repo.repo",
+            "name": "creds.url",
             "in": "path",
             "required": true
           },
@@ -1366,7 +1366,7 @@
         }
       }
     },
-    "/api/v1/repocreds/{repo}": {
+    "/api/v1/repocreds/{url}": {
       "delete": {
         "tags": [
           "RepoCredsService"
@@ -1376,7 +1376,7 @@
         "parameters": [
           {
             "type": "string",
-            "name": "repo",
+            "name": "url",
             "in": "path",
             "required": true
           }
@@ -3629,10 +3629,6 @@
           "type": "string",
           "title": "Password for authenticating at the repo server"
         },
-        "repo": {
-          "type": "string",
-          "title": "URLPattern that this credentials matches"
-        },
         "sshPrivateKey": {
           "type": "string",
           "title": "SSH private key data for authenticating at the repo server (only Git repos)"
@@ -3644,6 +3640,10 @@
         "tlsClientCertKey": {
           "type": "string",
           "title": "TLS client cert key for authenticating at the repo server"
+        },
+        "url": {
+          "type": "string",
+          "title": "URL is the URL that this credentials matches to"
         },
         "username": {
           "type": "string",

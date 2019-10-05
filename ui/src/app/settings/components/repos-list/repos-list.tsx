@@ -32,6 +32,19 @@ interface NewHTTPSRepoParams {
     enableLfs: boolean;
 }
 
+interface NewSSHRepoCredsParams {
+    urlPattern: string;
+    sshPrivateKey: string;
+}
+
+interface NewHTTPSRepoCredsParams {
+    urlPattern: string;
+    username: string;
+    password: string;
+    tlsClientCertData: string;
+    tlsClientCertKey: string;
+}
+
 export class ReposList extends React.Component<RouteComponentProps<any>> {
     public static contextTypes = {
         router: PropTypes.object,
@@ -133,9 +146,9 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                         </DataLoader>
                     </div>
                     <div className='argo-container'>
-                        <DataLoader load={() => services.repos.listCreds()} ref={(loader) => this.credsLoader = loader}>
-                            {(repos: models.Repository[]) => (
-                                repos.length > 0 && (
+                        <DataLoader load={() => services.repocreds.list()} ref={(loader) => this.credsLoader = loader}>
+                            {(creds: models.RepoCreds[]) => (
+                                creds.length > 0 && (
                                     <div className='argo-table-list'>
                                         <div className='argo-table-list__head'>
                                             <div className='row'>
@@ -143,11 +156,11 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                                 <div className='columns small-3'>CREDS</div>
                                             </div>
                                         </div>
-                                        {repos.map((repo) => (
-                                            <div className='argo-table-list__row' key={repo.repo}>
+                                        {creds.map((repo) => (
+                                            <div className='argo-table-list__row' key={repo.url}>
                                                 <div className='row'>
                                                     <div className='columns small-9'>
-                                                        <i className='icon argo-icon-git'/> <Repo url={repo.repo}/>
+                                                        <i className='icon argo-icon-git'/> <Repo url={repo.url}/>
                                                     </div>
                                                     <div className='columns small-3'>
                                                         -
@@ -156,7 +169,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                                             <i className='fa fa-ellipsis-v'/>
                                                         </button>} items={[
                                                         { title: 'Remove',
-                                                            action: () => this.removeRepoCreds(repo.repo),
+                                                            action: () => this.removeRepoCreds(repo.url),
                                                         }]}/>
                                                     </div>
                                                 </div>
@@ -170,7 +183,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                 </div>
                 <SlidingPanel isShown={this.showConnectHTTPSRepo} onClose={() => this.showConnectHTTPSRepo = false} header={(
                     <div>
-                        <button className='argo-button argo-button--base' onClick={() => this.formApiHTTPS.submitForm(null)}>
+                        <button className='argo-button argo-button--base' onClick={() => { this.credsTemplate = false; this.formApiHTTPS.submitForm(null); }}>
                             Connect
                         </button> <button className='argo-button argo-button--base' onClick={() => { this.credsTemplate = true; this.formApiHTTPS.submitForm(null); }}>
                             Save as credentials template
@@ -234,7 +247,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                 </SlidingPanel>
                 <SlidingPanel isShown={this.showConnectSSHRepo} onClose={() => this.showConnectSSHRepo = false} header={(
                     <div>
-                        <button className='argo-button argo-button--base' onClick={() => this.formApiSSH.submitForm(null)}>
+                        <button className='argo-button argo-button--base' onClick={() => { this.credsTemplate = false; this.formApiSSH.submitForm(null); }}>
                             Connect
                         </button> <button className='argo-button argo-button--base' onClick={() => { this.credsTemplate = true; this.formApiSSH.submitForm(null); }}>
                             Save as credentials template
@@ -291,6 +304,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
     private async refreshRepoList() {
         try {
             await services.repos.listNoCache();
+            await services.repocreds.list();
             this.repoLoader.reload();
             this.appContext.apis.notifications.show({
                 content: 'Successfully reloaded list of repositories',
@@ -318,43 +332,67 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
 
     // Connect a new repository or create a repository credentials for SSH repositories
     private async connectSSHRepo(params: NewSSHRepoParams) {
-        let errorMessage = '';
-        try {
-            if (this.credsTemplate) {
-                errorMessage = 'Unable to create repository credentials';
-                await services.repos.createSSHCreds(params);
-                this.credsLoader.reload();
-            } else {
-                errorMessage = 'Unable to connect repository';
+        if (this.credsTemplate) {
+            this.createSSHCreds({urlPattern: params.url, sshPrivateKey: params.sshPrivateKey});
+        } else {
+            try {
                 await services.repos.createSSH(params);
                 this.repoLoader.reload();
+                this.showConnectSSHRepo = false;
+            } catch (e) {
+                this.appContext.apis.notifications.show({
+                    content: <ErrorNotification title='Unable to connect SSH repository' e={e}/>,
+                    type: NotificationType.Error,
+                });
             }
-            this.showConnectSSHRepo = false;
-        } catch (e) {
-            this.appContext.apis.notifications.show({
-                content: <ErrorNotification title={errorMessage} e={e}/>,
-                type: NotificationType.Error,
-            });
         }
     }
 
     // Connect a new repository or create a repository credentials for HTTPS repositories
     private async connectHTTPSRepo(params: NewHTTPSRepoParams) {
-        let errorMessage = '';
-        try {
-            if (this.credsTemplate) {
-                errorMessage = 'Unable to create repository credentials';
-                await services.repos.createHTTPSCreds(params);
-                this.credsLoader.reload();
-            } else {
-                errorMessage = 'Unable to connect repository';
+        if (this.credsTemplate) {
+            this.createHTTPSCreds({
+                urlPattern: params.url,
+                username: params.username,
+                password: params.password,
+                tlsClientCertData: params.tlsClientCertData,
+                tlsClientCertKey: params.tlsClientCertKey,
+            });
+        } else {
+            try {
                 await services.repos.createHTTPS(params);
                 this.repoLoader.reload();
+                this.showConnectHTTPSRepo = false;
+            } catch (e) {
+                this.appContext.apis.notifications.show({
+                    content: <ErrorNotification title='Unable to connect HTTPS repository' e={e}/>,
+                    type: NotificationType.Error,
+                });
             }
+        }
+    }
+
+    private async createHTTPSCreds(params: NewHTTPSRepoCredsParams) {
+        try {
+            await services.repocreds.createHTTPS(params);
+            this.repoLoader.reload();
+            this.showConnectHTTPSRepo = false;
+        } catch (e) {
+            this.appContext.apis.notifications.show({
+                content: <ErrorNotification title='Unable to create HTTPS credentials' e={e}/>,
+                type: NotificationType.Error,
+            });
+        }
+    }
+
+    private async createSSHCreds(params: NewSSHRepoCredsParams) {
+        try {
+            await services.repocreds.createSSH(params);
+            this.repoLoader.reload();
             this.showConnectSSHRepo = false;
         } catch (e) {
             this.appContext.apis.notifications.show({
-                content: <ErrorNotification title={errorMessage} e={e}/>,
+                content: <ErrorNotification title='Unable to create SSH credentials' e={e}/>,
                 type: NotificationType.Error,
             });
         }
@@ -375,7 +413,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
         const confirmed = await this.appContext.apis.popup.confirm(
             'Remove repository credentials', `Are you sure you want to remove credentials for URL prefix '${url}'?`);
         if (confirmed) {
-            await services.repos.deleteCreds(url);
+            await services.repocreds.delete(url);
             this.credsLoader.reload();
         }
     }

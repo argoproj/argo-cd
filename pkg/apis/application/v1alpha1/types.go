@@ -980,8 +980,8 @@ type ResourceActionParam struct {
 
 // RepoCreds holds a repository credentials definition
 type RepoCreds struct {
-	// URLPattern that this credentials matches
-	URLPattern string `json:"repo" protobuf:"bytes,1,opt,name=repo"`
+	// URL is the URL that this credentials matches to
+	URL string `json:"url" protobuf:"bytes,1,opt,name=url"`
 	// Username for authenticating at the repo server
 	Username string `json:"username,omitempty" protobuf:"bytes,2,opt,name=username"`
 	// Password for authenticating at the repo server

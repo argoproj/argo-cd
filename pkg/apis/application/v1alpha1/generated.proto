@@ -513,8 +513,8 @@ message ProjectRole {
 
 // RepoCreds holds a repository credentials definition
 message RepoCreds {
-  // URLPattern that this credentials matches
-  optional string repo = 1;
+  // URL is the URL that this credentials matches to
+  optional string url = 1;
 
   // Username for authenticating at the repo server
   optional string username = 2;

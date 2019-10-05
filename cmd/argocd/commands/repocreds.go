@@ -65,11 +65,11 @@ Add credentials with SSH private key authentication to use for all repositories 
 			}
 
 			// Repository URL
-			repo.URLPattern = args[0]
+			repo.URL = args[0]
 
 			// Specifying ssh-private-key-path is only valid for SSH repositories
 			if sshPrivateKeyPath != "" {
-				if ok, _ := git.IsSSHURL(repo.URLPattern); ok {
+				if ok, _ := git.IsSSHURL(repo.URL); ok {
 					keyData, err := ioutil.ReadFile(sshPrivateKeyPath)
 					if err != nil {
 						log.Fatal(err)
@@ -90,7 +90,7 @@ Add credentials with SSH private key authentication to use for all repositories 
 
 			// Specifying tls-client-cert-path is only valid for HTTPS repositories
 			if tlsClientCertPath != "" {
-				if git.IsHTTPSURL(repo.URLPattern) {
+				if git.IsHTTPSURL(repo.URL) {
 					tlsCertData, err := ioutil.ReadFile(tlsClientCertPath)
 					errors.CheckError(err)
 					tlsCertKey, err := ioutil.ReadFile(tlsClientCertKeyPath)
@@ -113,13 +113,13 @@ Add credentials with SSH private key authentication to use for all repositories 
 			}
 
 			repoCreateReq := repocredspkg.RepoCredsCreateRequest{
-				Repo:   &repo,
+				Creds:  &repo,
 				Upsert: upsert,
 			}
 
 			createdRepo, err := repoIf.CreateRepositoryCredentials(context.Background(), &repoCreateReq)
 			errors.CheckError(err)
-			fmt.Printf("repository credentials for '%s' added\n", createdRepo.URLPattern)
+			fmt.Printf("repository credentials for '%s' added\n", createdRepo.URL)
 		},
 	}
 	command.Flags().StringVar(&repo.Username, "username", "", "username to the repository")
@@ -144,7 +144,7 @@ func NewRepoCredsRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoCredsClientOrDie()
 			defer util.Close(conn)
 			for _, repoURL := range args {
-				_, err := repoIf.DeleteRepositoryCredentials(context.Background(), &repocredspkg.RepoCredsQuery{Repo: repoURL})
+				_, err := repoIf.DeleteRepositoryCredentials(context.Background(), &repocredspkg.RepoCredsDeleteRequest{Url: repoURL})
 				errors.CheckError(err)
 			}
 		},
@@ -160,7 +160,7 @@ func printRepoCredsTable(repos []appsv1.RepoCreds) {
 		if r.Username == "" {
 			r.Username = "-"
 		}
-		fmt.Fprintf(w, "%s\t%s\t%v\t%v\n", r.URLPattern, r.Username, r.SSHPrivateKey != "", r.TLSClientCertData != "")
+		fmt.Fprintf(w, "%s\t%s\t%v\t%v\n", r.URL, r.Username, r.SSHPrivateKey != "", r.TLSClientCertData != "")
 	}
 	_ = w.Flush()
 }
@@ -168,7 +168,7 @@ func printRepoCredsTable(repos []appsv1.RepoCreds) {
 // Print list of repo urls or url patterns for repository credentials
 func printRepoCredsUrls(repos []appsv1.RepoCreds) {
 	for _, r := range repos {
-		fmt.Println(r.URLPattern)
+		fmt.Println(r.URL)
 	}
 }
 

@@ -46,14 +46,14 @@ func request_RepoCredsService_ListRepositoryCredentials_0(ctx context.Context, m
 }
 
 var (
-	filter_RepoCredsService_CreateRepositoryCredentials_0 = &utilities.DoubleArray{Encoding: map[string]int{"repo": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
+	filter_RepoCredsService_CreateRepositoryCredentials_0 = &utilities.DoubleArray{Encoding: map[string]int{"creds": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
 )
 
 func request_RepoCredsService_CreateRepositoryCredentials_0(ctx context.Context, marshaler runtime.Marshaler, client RepoCredsServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq RepoCredsCreateRequest
 	var metadata runtime.ServerMetadata
 
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq.Repo); err != nil {
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq.Creds); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -70,7 +70,7 @@ func request_RepoCredsService_UpdateRepositoryCredentials_0(ctx context.Context,
 	var protoReq RepoCredsUpdateRequest
 	var metadata runtime.ServerMetadata
 
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq.Repo); err != nil {
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq.Creds); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -81,15 +81,15 @@ func request_RepoCredsService_UpdateRepositoryCredentials_0(ctx context.Context,
 		_   = err
 	)
 
-	val, ok = pathParams["repo.repo"]
+	val, ok = pathParams["creds.url"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "repo.repo")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "creds.url")
 	}
 
-	err = runtime.PopulateFieldFromPath(&protoReq, "repo.repo", val)
+	err = runtime.PopulateFieldFromPath(&protoReq, "creds.url", val)
 
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "repo.repo", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "creds.url", err)
 	}
 
 	msg, err := client.UpdateRepositoryCredentials(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
@@ -98,7 +98,7 @@ func request_RepoCredsService_UpdateRepositoryCredentials_0(ctx context.Context,
 }
 
 func request_RepoCredsService_DeleteRepositoryCredentials_0(ctx context.Context, marshaler runtime.Marshaler, client RepoCredsServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq RepoCredsQuery
+	var protoReq RepoCredsDeleteRequest
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -108,15 +108,15 @@ func request_RepoCredsService_DeleteRepositoryCredentials_0(ctx context.Context,
 		_   = err
 	)
 
-	val, ok = pathParams["repo"]
+	val, ok = pathParams["url"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "repo")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "url")
 	}
 
-	protoReq.Repo, err = runtime.String(val)
+	protoReq.Url, err = runtime.String(val)
 
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "repo", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "url", err)
 	}
 
 	msg, err := client.DeleteRepositoryCredentials(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
@@ -286,9 +286,9 @@ var (
 
 	pattern_RepoCredsService_CreateRepositoryCredentials_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "repocreds"}, ""))
 
-	pattern_RepoCredsService_UpdateRepositoryCredentials_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "repocreds", "repo.repo"}, ""))
+	pattern_RepoCredsService_UpdateRepositoryCredentials_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "repocreds", "creds.url"}, ""))
 
-	pattern_RepoCredsService_DeleteRepositoryCredentials_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "repocreds", "repo"}, ""))
+	pattern_RepoCredsService_DeleteRepositoryCredentials_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "repocreds", "url"}, ""))
 )
 
 var (

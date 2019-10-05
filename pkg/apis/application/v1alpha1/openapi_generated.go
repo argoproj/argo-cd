@@ -1848,9 +1848,9 @@ func schema_pkg_apis_application_v1alpha1_RepoCreds(ref common.ReferenceCallback
 				Description: "RepoCreds holds a repository credentials definition",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"repo": {
+					"url": {
 						SchemaProps: spec.SchemaProps{
-							Description: "URLPattern that this credentials matches",
+							Description: "URL is the URL that this credentials matches to",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1891,7 +1891,7 @@ func schema_pkg_apis_application_v1alpha1_RepoCreds(ref common.ReferenceCallback
 						},
 					},
 				},
-				Required: []string{"repo"},
+				Required: []string{"url"},
 			},
 		},
 	}

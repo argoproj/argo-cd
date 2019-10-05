@@ -52,10 +52,12 @@ func (s *Server) ListRepositoryCredentials(ctx context.Context, q *repocredspkg.
 			if err != nil {
 				return nil, err
 			}
-			items = append(items, appsv1.RepoCreds{
-				URLPattern: url,
-				Username:   repo.Username,
-			})
+			if repo != nil {
+				items = append(items, appsv1.RepoCreds{
+					URL:      url,
+					Username: repo.Username,
+				})
+			}
 		}
 	}
 	return &appsv1.RepoCredsList{Items: items}, nil
@@ -63,16 +65,20 @@ func (s *Server) ListRepositoryCredentials(ctx context.Context, q *repocredspkg.
 
 // CreateRepositoryCredentials creates a new credential set in the configuration
 func (s *Server) CreateRepositoryCredentials(ctx context.Context, q *repocredspkg.RepoCredsCreateRequest) (*appsv1.RepoCreds, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, q.Repo.URLPattern); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, q.Creds.URL); err != nil {
 		return nil, err
 	}
 
-	r := q.Repo
+	r := q.Creds
+
+	if r.URL == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify URL")
+	}
 
 	creds, err := s.db.CreateRepositoryCredentials(ctx, r)
 	if status.Convert(err).Code() == codes.AlreadyExists {
 		// act idempotent if existing spec matches new spec
-		existing, getErr := s.db.GetRepositoryCredentials(ctx, r.URLPattern)
+		existing, getErr := s.db.GetRepositoryCredentials(ctx, r.URL)
 		if getErr != nil {
 			return nil, status.Errorf(codes.Internal, "unable to check existing repository credentials details: %v", getErr)
 		}
@@ -80,29 +86,29 @@ func (s *Server) CreateRepositoryCredentials(ctx context.Context, q *repocredspk
 		if reflect.DeepEqual(existing, r) {
 			creds, err = existing, nil
 		} else if q.Upsert {
-			return s.UpdateRepositoryCredentials(ctx, &repocredspkg.RepoCredsUpdateRequest{Repo: r})
+			return s.UpdateRepositoryCredentials(ctx, &repocredspkg.RepoCredsUpdateRequest{Creds: r})
 		} else {
 			return nil, status.Errorf(codes.InvalidArgument, "existing repository credentials spec is different; use upsert flag to force update")
 		}
 	}
-	return &appsv1.RepoCreds{URLPattern: creds.URLPattern}, err
+	return &appsv1.RepoCreds{URL: creds.URL}, err
 }
 
 // UpdateRepositoryCredentials updates a repository credential set
 func (s *Server) UpdateRepositoryCredentials(ctx context.Context, q *repocredspkg.RepoCredsUpdateRequest) (*appsv1.RepoCreds, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, q.Repo.URLPattern); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, q.Creds.URL); err != nil {
 		return nil, err
 	}
-	_, err := s.db.UpdateRepositoryCredentials(ctx, q.Repo)
-	return &appsv1.RepoCreds{URLPattern: q.Repo.URLPattern}, err
+	_, err := s.db.UpdateRepositoryCredentials(ctx, q.Creds)
+	return &appsv1.RepoCreds{URL: q.Creds.URL}, err
 }
 
 // DeleteRepositoryCredentials removes a credential set from the configuration
-func (s *Server) DeleteRepositoryCredentials(ctx context.Context, q *repocredspkg.RepoCredsQuery) (*repocredspkg.RepoCredsResponse, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionDelete, q.Repo); err != nil {
+func (s *Server) DeleteRepositoryCredentials(ctx context.Context, q *repocredspkg.RepoCredsDeleteRequest) (*repocredspkg.RepoCredsResponse, error) {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionDelete, q.Url); err != nil {
 		return nil, err
 	}
 
-	err := s.db.DeleteRepositoryCredentials(ctx, q.Repo)
+	err := s.db.DeleteRepositoryCredentials(ctx, q.Url)
 	return &repocredspkg.RepoCredsResponse{}, err
 }

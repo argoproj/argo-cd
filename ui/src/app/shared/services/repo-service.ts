@@ -10,20 +10,10 @@ export class RepositoriesService {
         return requests.get(`/repositories?forceRefresh=true`).then((res) => res.body as models.RepositoryList).then((list) => list.items || []);
     }
 
-    public listCreds(): Promise<models.Repository[]> {
-        return requests.get('/repositories/creds').then((res) => res.body as models.RepositoryList).then((list) => list.items || []);
-    }
-
     public createHTTPS({type, name, url, username, password, tlsClientCertData, tlsClientCertKey, insecure, enableLfs}:
         {type: string, name: string, url: string, username: string, password: string, tlsClientCertData: string, tlsClientCertKey: string,
             insecure: boolean, enableLfs: boolean}): Promise<models.Repository> {
         return requests.post('/repositories').send({type, name, repo: url, username, password, tlsClientCertData, tlsClientCertKey, insecure, enableLfs })
-            .then((res) => res.body as models.Repository);
-    }
-
-    public createHTTPSCreds({url, username, password, tlsClientCertData, tlsClientCertKey}:
-        {url: string, username: string, password: string, tlsClientCertData: string, tlsClientCertKey: string}): Promise<models.Repository> {
-        return requests.post('/repositories/creds').send({ repo: url, username, password, tlsClientCertData, tlsClientCertKey})
             .then((res) => res.body as models.Repository);
     }
 
@@ -32,17 +22,8 @@ export class RepositoriesService {
         return requests.post('/repositories').send({ type, name, repo: url, sshPrivateKey, insecure, enableLfs }).then((res) => res.body as models.Repository);
     }
 
-    public createSSHCreds({url, sshPrivateKey}:
-        {url: string, sshPrivateKey: string}): Promise<models.Repository> {
-        return requests.post('/repositories/creds').send({ repo: url, sshPrivateKey}).then((res) => res.body as models.Repository);
-    }
-
     public delete(url: string): Promise<models.Repository> {
         return requests.delete(`/repositories/${encodeURIComponent(url)}`).send().then((res) => res.body as models.Repository);
-    }
-
-    public deleteCreds(url: string): Promise<models.Repository> {
-        return requests.delete(`/repositories/${encodeURIComponent(url)}/creds`).send().then((res) => res.body as models.Repository);
     }
 
     public apps(repo: string, revision: string): Promise<models.AppInfo[]> {
