@@ -16,13 +16,8 @@ const (
 	envRedisPassword = "REDIS_PASSWORD"
 )
 
-// NewCache creates new instance of Cache
-func NewCache(
-	cacheClient CacheClient,
-) *Cache {
-	return &Cache{
-		client:                          cacheClient,
-	}
+func NewCache(client CacheClient) *Cache {
+	return &Cache{client}
 }
 
 // AddCacheFlagsToCmd adds flags which control caching to the specified command
@@ -68,8 +63,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
 
 // Cache provides strongly types methods to store and retrieve values from shared cache
 type Cache struct {
-	client                          CacheClient
-	repoCacheExpiration             time.Duration
+	client CacheClient
 }
 
 func (c *Cache) SetItem(key string, item interface{}, expiration time.Duration, delete bool) error {

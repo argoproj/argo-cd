@@ -9,6 +9,7 @@ import (
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
+	cacheutil "github.com/argoproj/argo-cd/util/cache"
 )
 
 type fixtures struct {
@@ -16,10 +17,8 @@ type fixtures struct {
 }
 
 func newFixtures() *fixtures {
-	return &fixtures{Cache{
-		NewInMemoryCache(1*time.Hour),
-		1*time.Minute,
-		1*time.Minute,
+	return &fixtures{&Cache{
+		*cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Hour)),
 		1*time.Minute,
 	}}
 }

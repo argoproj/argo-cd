@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/reposerver/apiclient"
+	cacheutil "github.com/argoproj/argo-cd/util/cache"
 )
 
 type fixtures struct {
@@ -16,10 +16,12 @@ type fixtures struct {
 }
 
 func newFixtures() *fixtures {
-	return &fixtures{Cache{
-		cacheutil.NewInMemoryCache(1*time.Hour),
+	return &fixtures{&Cache{
+		*cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Hour)),
 		1*time.Minute,
-	}
+		1*time.Minute,
+		1*time.Minute,
+	}}
 }
 
 func TestCache_GetAppManagedResources(t *testing.T) {
