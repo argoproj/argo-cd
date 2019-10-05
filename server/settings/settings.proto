@@ -26,6 +26,7 @@ message Settings {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 8;
     // Help settings
     Help help = 9;
+    repeated Plugin plugins = 10;
 }
 
 message GoogleAnalyticsConfig {
@@ -40,6 +41,13 @@ message Help {
     // the text for getting chat help, defaults to "Chat now!"
     string chatText = 2;
 }
+
+// Plugin settings
+message Plugin {
+    // the name of the plugin, e.g. "kasane"
+    string name = 1;
+}
+
 
 message DexConfig {
     repeated Connector connectors = 1;
