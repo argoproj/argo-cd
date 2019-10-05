@@ -490,11 +490,20 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 		Source:     source,
 	})
 
-	// remove if not healthy AND not the latest (last element)
-	lastIndex := len(app.Status.History) - 1
-	app.Status.History = app.Status.History.Trunc(func(h appv1.RevisionHistory, i int) bool {
-		return i != lastIndex && h.Status.Sync != appv1.SyncStatusCodeSynced || h.Status.Health != appv1.HealthStatusHealthy
-	}, app.Spec.GetRevisionHistoryLimit())
+	history := app.Status.History.Trunc(app.Spec.GetRevisionHistoryLimit())
+	good := func(h appv1.RevisionHistory) bool {
+		return h.Status.Health.Status == appv1.HealthStatusHealthy
+	}
+	// if truncation removes all good items, then we find any good item and return that
+	if history.Find(good) == nil {
+		// This is potentially an arbitrary choice, but in practice, if history limit hasn't been reconfigured,
+		// then it can only be the one that dropped off the array, and therefore the only one that could be good
+		i := app.Status.History.Find(good)
+		if i != nil {
+			history[0] = *i
+		}
+	}
+	app.Status.History = history
 
 	patch, err := json.Marshal(map[string]map[string][]v1alpha1.RevisionHistory{
 		"status": {

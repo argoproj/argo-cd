@@ -1077,18 +1077,11 @@ func TestProjectMaintenanceWindow_Active(t *testing.T) {
 }
 
 func TestRevisionHistories_Trunc(t *testing.T) {
-	// always match - but limit is >= size, -> unchanged
-	assert.Len(t, RevisionHistories{{Revision: "my-revision"}, {}}.Trunc(func(h RevisionHistory, _ int) bool { return true }, 2), 2)
-	// match one element, no need to trunc -> unchanged
-	assert.Len(t, RevisionHistories{{Revision: "my-revision"}, {}}.Trunc(func(h RevisionHistory, _ int) bool { return h.Revision == "my-revision" }, 2), 2)
-	// match first element
-	assert.Equal(t, RevisionHistories{{}, {}}, RevisionHistories{{Revision: "my-revision"}, {}, {}}.Trunc(func(h RevisionHistory, _ int) bool { return h.Revision == "my-revision" }, 2))
-	// match middle element
-	assert.Equal(t, RevisionHistories{{}, {}}, RevisionHistories{{}, {Revision: "my-revision"}, {}}.Trunc(func(h RevisionHistory, _ int) bool { return h.Revision == "my-revision" }, 2))
-	// match last element
-	assert.Equal(t, RevisionHistories{{}, {}}, RevisionHistories{{}, {}, {Revision: "my-revision"}}.Trunc(func(h RevisionHistory, _ int) bool { return h.Revision == "my-revision" }, 2))
-	// never match, but limit < size -> change to limit
-	assert.Len(t, RevisionHistories{{}, {}}.Trunc(func(h RevisionHistory, _ int) bool { return false }, 1), 1)
+	assert.Len(t, RevisionHistories{}.Trunc(1), 0)
+	assert.Len(t, RevisionHistories{{}}.Trunc(1), 1)
+	assert.Len(t, RevisionHistories{{}, {}}.Trunc(1), 1)
+	// keep the last element, even with longer list
+	assert.Equal(t, RevisionHistories{{Revision: "my-revision"}}, RevisionHistories{{}, {}, {Revision: "my-revision"}}.Trunc(1))
 }
 
 func TestApplicationSpec_GetRevisionHistoryLimit(t *testing.T) {
@@ -1097,4 +1090,12 @@ func TestApplicationSpec_GetRevisionHistoryLimit(t *testing.T) {
 	// configured
 	n := int64(11)
 	assert.Equal(t, 11, ApplicationSpec{RevisionHistoryLimit: &n}.GetRevisionHistoryLimit())
+}
+
+func TestRevisionHistories_Find(t *testing.T) {
+	assert.Nil(t, RevisionHistories{}.Find(func(h RevisionHistory) bool { return false }))
+	assert.Nil(t, RevisionHistories{{}}.Find(func(h RevisionHistory) bool { return false }))
+	// edge case where we have any empty array
+	assert.Nil(t, RevisionHistories{}.Find(func(h RevisionHistory) bool { return true }))
+	assert.NotNil(t, RevisionHistories{{}}.Find(func(h RevisionHistory) bool { return true }))
 }

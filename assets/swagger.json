@@ -3931,12 +3931,10 @@
     },
     "v1alpha1RevisionHistoryStatus": {
       "type": "object",
-      "title": "TODO",
+      "title": "RevisionHistoryStatus is populated when the app's status changes",
       "properties": {
         "health": {
-          "type": "string"
-        },
-        "sync": {
+          "description": "Health is the last observed status of the app. This can only be indicative, as the app may have become degraded\nas the result of many other reason. Naturally, it may have become healthy for a reason unrelated to this.\nTherefore, this is only ever indicative.",
           "type": "string"
         }
       }

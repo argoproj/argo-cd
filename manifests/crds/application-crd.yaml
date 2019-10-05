@@ -1035,9 +1035,17 @@ spec:
                   status:
                     properties:
                       health:
-                        type: string
-                      sync:
-                        type: string
+                        description: Health is the last observed status of the app.
+                          This can only be indicative, as the app may have become
+                          degraded as the result of many other reason. Naturally,
+                          it may have become healthy for a reason unrelated to this.
+                          Therefore, this is only ever indicative.
+                        properties:
+                          message:
+                            type: string
+                          status:
+                            type: string
+                        type: object
                     type: object
                 required:
                 - revision

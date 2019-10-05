@@ -2765,23 +2765,20 @@ func schema_pkg_apis_application_v1alpha1_RevisionHistoryStatus(ref common.Refer
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "RevisionHistoryStatus is populated when the app's status changes",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"sync": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
 					"health": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "Health is the last observed status of the app. This can only be indicative, as the app may have become degraded as the result of many other reason. Naturally, it may have become healthy for a reason unrelated to this. Therefore, this is only ever indicative.",
+							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HealthStatus"),
 						},
 					},
 				},
 			},
 		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HealthStatus"},
 	}
 }
 

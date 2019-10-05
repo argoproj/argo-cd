@@ -769,10 +769,11 @@ message RevisionHistory {
   optional RevisionHistoryStatus status = 7;
 }
 
-// TODO
+// RevisionHistoryStatus is populated when the app's status changes
 message RevisionHistoryStatus {
-  optional string sync = 1;
-
+  // Health is the last observed status of the app. This can only be indicative, as the app may have become degraded
+  // as the result of many other reason. Naturally, it may have become healthy for a reason unrelated to this.
+  // Therefore, this is only ever indicative.
   optional string health = 2;
 }
 

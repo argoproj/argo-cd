@@ -208,8 +208,7 @@ export interface ApplicationSpec {
 }
 
 export interface RevisionHistoryStatus {
-    sync: SyncStatusCode;
-    health: HealthStatusCode;
+    health: HealthStatus;
 }
 
 /**

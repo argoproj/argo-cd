@@ -142,7 +142,7 @@ export function syncStatusMessage(app: appModels.Application) {
     }
 }
 
-export const HealthStatusIcon = ({state, label}: { state: appModels.HealthStatus, label: boolean }) => {
+export const HealthStatusIcon = ({state, label}: { state: appModels.HealthStatus, label?: boolean }) => {
     let color = COLORS.health.unknown;
     let icon = 'fa-question-circle';
 

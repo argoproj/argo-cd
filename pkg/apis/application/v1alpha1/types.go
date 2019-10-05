@@ -360,22 +360,21 @@ type SyncOperationResource struct {
 // RevisionHistories is a array of history, oldest first and newest last
 type RevisionHistories []RevisionHistory
 
-func (in RevisionHistories) Trunc(remove func(h RevisionHistory, i int) bool, n int) RevisionHistories {
-	i := 0
-	// continue as long as we're too big AND we have more elements to look at
-	for len(in) > n && i < len(in) {
-		if remove(in[i], i) {
-			// remove the item
-			in = append(in[:i], in[i+1:]...)
-		} else {
-			i++
-		}
-	}
-	// must always truncate
-	if len(in) > n {
-		in = in[ 1 : n+1]
+func (in RevisionHistories) Trunc(n int) RevisionHistories {
+	i := len(in) - n
+	if i > 0 {
+		in = in[i:]
 	}
 	return in
+}
+
+func (in RevisionHistories) Find(predicate func(h RevisionHistory) bool) *RevisionHistory {
+	for _, h := range in {
+		if predicate(h) {
+			return &h
+		}
+	}
+	return nil
 }
 
 // HasIdentity determines whether a sync operation is identified by a manifest.
@@ -650,8 +649,10 @@ func (r ResourceResults) PruningRequired() (num int) {
 
 // RevisionHistoryStatus is populated when the app's status changes
 type RevisionHistoryStatus struct {
-	Sync   SyncStatusCode   `json:"sync,omitempty" protobuf:"bytes,1,opt,name=sync"`
-	Health HealthStatusCode `json:"health,omitempty" protobuf:"bytes,2,opt,name=health"`
+	// Health is the last observed status of the app. This can only be indicative, as the app may have become degraded
+	// as the result of many other reason. Naturally, it may have become healthy for a reason unrelated to this.
+	// Therefore, this is only ever indicative.
+	Health HealthStatus `json:"health,omitempty" protobuf:"bytes,2,opt,name=health"`
 }
 
 // RevisionHistory contains information relevant to an application deployment

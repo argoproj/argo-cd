@@ -847,8 +847,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	i := len(app.Status.History) - 1
 	if app.Status.History[i].Revision == app.Status.OperationState.Operation.Sync.Revision {
 		app.Status.History[i].Status = appv1.RevisionHistoryStatus{
-			Sync:   app.Status.Sync.Status,
-			Health: app.Status.Health.Status,
+			Health: app.Status.Health,
 		}
 	}
 

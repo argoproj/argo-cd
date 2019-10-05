@@ -6,7 +6,7 @@ import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
-import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
+import {HealthStatusIcon} from '../utils';
 import {RevisionMetadataRows} from './revision-metadata-rows';
 
 require('./application-deployment-history.scss');
@@ -58,16 +58,16 @@ export const ApplicationDeploymentHistory = ({
                                 </div>
                             </div>
                         </div>
-                        <div className='row'>
-                            <div className='columns small-3'>
-                                Status:
+                        {info.status && (
+                            <div className='row'>
+                                <div className='columns small-3'>
+                                    Status:
+                                </div>
+                                <div className='columns small-9'>
+                                    <HealthStatusIcon state={info.status.health} label={true}/>
+                                </div>
                             </div>
-                            <div className='columns small-9'>
-                                <HealthStatusIcon state={{status: info.status.health, message: ''}} label={true}/>
-                                &nbsp;
-                                <ComparisonStatusIcon status={info.status.sync} label={true}/>
-                            </div>
-                        </div>
+                        )}
                         <RevisionMetadataRows applicationName={app.metadata.name}
                                               source={{ ...recentDeployments[index].source, targetRevision: recentDeployments[index].revision }}/>
                         {selectedRollbackDeploymentIndex === index ? (
