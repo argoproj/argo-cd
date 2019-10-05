@@ -33,12 +33,12 @@ interface NewHTTPSRepoParams {
 }
 
 interface NewSSHRepoCredsParams {
-    urlPattern: string;
+    url: string;
     sshPrivateKey: string;
 }
 
 interface NewHTTPSRepoCredsParams {
-    urlPattern: string;
+    url: string;
     username: string;
     password: string;
     tlsClientCertData: string;
@@ -333,7 +333,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
     // Connect a new repository or create a repository credentials for SSH repositories
     private async connectSSHRepo(params: NewSSHRepoParams) {
         if (this.credsTemplate) {
-            this.createSSHCreds({urlPattern: params.url, sshPrivateKey: params.sshPrivateKey});
+            this.createSSHCreds({url: params.url, sshPrivateKey: params.sshPrivateKey});
         } else {
             try {
                 await services.repos.createSSH(params);
@@ -352,7 +352,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
     private async connectHTTPSRepo(params: NewHTTPSRepoParams) {
         if (this.credsTemplate) {
             this.createHTTPSCreds({
-                urlPattern: params.url,
+                url: params.url,
                 username: params.username,
                 password: params.password,
                 tlsClientCertData: params.tlsClientCertData,
