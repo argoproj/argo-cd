@@ -1032,6 +1032,7 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		output string
+		project string
 	)
 	var command = &cobra.Command{
 		Use:   "list",
@@ -1041,14 +1042,20 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			defer util.Close(conn)
 			apps, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{})
 			errors.CheckError(err)
+			appList := apps.Items
+			if project != "" {
+				project_filter := []string{project}
+				appList = argo.FilterByProjects(appList, project_filter)
+			}
 			if output == "name" {
-				printApplicationNames(apps.Items)
+				printApplicationNames(appList)
 			} else {
-				printApplicationTable(apps.Items, &output)
+				printApplicationTable(appList, &output)
 			}
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name")
+	command.Flags().StringVarP(&project, "project", "p", "", "Filter by project name")
 	return command
 }
 
