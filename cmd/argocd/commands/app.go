@@ -1031,7 +1031,7 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 // NewApplicationListCommand returns a new instance of an `argocd app list` command
 func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		output string
+		output  string
 		project string
 	)
 	var command = &cobra.Command{
