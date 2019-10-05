@@ -24,7 +24,6 @@ type OIDCState struct {
 	ReturnURL string `json:"returnURL"`
 }
 
-// AddCacheFlagsToCmd adds flags which control caching to the specified command
 func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
 	var appStateCacheExpiration time.Duration
 	var connectionStatusCacheExpiration time.Duration

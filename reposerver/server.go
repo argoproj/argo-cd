@@ -8,7 +8,7 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/metrics"
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server/version"
-	"github.com/argoproj/argo-cd/util/cache"
+	cache "github.com/argoproj/argo-cd/util/cache/reposerver"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 

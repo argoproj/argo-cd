@@ -14,7 +14,7 @@ import (
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/reposerver/metrics"
-	"github.com/argoproj/argo-cd/util/cache"
+	cache "github.com/argoproj/argo-cd/util/cache/reposerver"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/stats"
 	"github.com/argoproj/argo-cd/util/tls"

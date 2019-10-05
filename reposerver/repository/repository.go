@@ -30,7 +30,7 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/app/discovery"
 	argopath "github.com/argoproj/argo-cd/util/app/path"
-	"github.com/argoproj/argo-cd/util/cache"
+	cache "github.com/argoproj/argo-cd/util/cache/reposerver"
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
