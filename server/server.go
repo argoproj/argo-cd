@@ -866,21 +866,17 @@ func bug21955WorkaroundInterceptor(ctx context.Context, req interface{}, _ *grpc
 		}
 		ru.Repo.Repo = repo
 	} else if rk, ok := req.(*repocredspkg.RepoCredsQuery); ok {
-		log.Debugf("Entry Pattern: %s", rk.Url)
 		pattern, err := url.QueryUnescape(rk.Url)
 		if err != nil {
 			return nil, err
 		}
 		rk.Url = pattern
-		log.Debugf("Exit Pattern: %s", rk.Url)
 	} else if rk, ok := req.(*repocredspkg.RepoCredsDeleteRequest); ok {
-		log.Debugf("Entry Pattern: %s", rk.Url)
 		pattern, err := url.QueryUnescape(rk.Url)
 		if err != nil {
 			return nil, err
 		}
 		rk.Url = pattern
-		log.Debugf("Exit Pattern: %s", rk.Url)
 	} else if cq, ok := req.(*clusterpkg.ClusterQuery); ok {
 		server, err := url.QueryUnescape(cq.Server)
 		if err != nil {

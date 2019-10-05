@@ -99,7 +99,6 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 		creds, err := db.GetRepositoryCredentials(ctx, repoURL)
 		if err == nil {
 			if creds != nil {
-				log.Debugf("Copy credentials from %s", creds)
 				repo.CopyCredentialsFrom(creds)
 				repo.InheritedCreds = true
 			}
@@ -266,17 +265,6 @@ func (db *db) CreateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCre
 		return nil, status.Errorf(codes.AlreadyExists, "repository credentials for '%s' already exists", r.URL)
 	}
 
-	// data := make(map[string][]byte)
-	// if r.Username != "" {
-	// 	data[username] = []byte(r.Username)
-	// }
-	// if r.Password != "" {
-	// 	data[password] = []byte(r.Password)
-	// }
-	// if r.SSHPrivateKey != "" {
-	// 	data[sshPrivateKey] = []byte(r.SSHPrivateKey)
-	// }
-
 	repoInfo := settings.RepositoryCredentials{
 		URL: r.URL,
 	}
@@ -346,24 +334,6 @@ func (db *db) DeleteRepositoryCredentials(ctx context.Context, name string) erro
 	repos = append(repos[:index], repos[index+1:]...)
 	return db.settingsMgr.SaveRepositoryCredentials(repos)
 }
-
-// func (db *db) credentialsToRepository(repoInfo settings.RepoCredentials) (*appsv1.Repository, error) {
-// 	repo := &appsv1.Repository{
-// 		Repo:                  repoInfo.URL,
-// 		InsecureIgnoreHostKey: repoInfo.InsecureIgnoreHostKey,
-// 		Insecure:              repoInfo.Insecure,
-// 		EnableLFS:             repoInfo.EnableLFS,
-// 	}
-// 	err := db.unmarshalFromSecretsStr(map[*string]*apiv1.SecretKeySelector{
-// 		&repo.Username:          repoInfo.UsernameSecret,
-// 		&repo.Password:          repoInfo.PasswordSecret,
-// 		&repo.SSHPrivateKey:     repoInfo.SSHPrivateKeySecret,
-// 		&repo.TLSClientCertData: repoInfo.TLSClientCertDataSecret,
-// 		&repo.TLSClientCertKey:  repoInfo.TLSClientCertKeySecret,
-// 	}, make(map[string]*apiv1.Secret))
-
-// 	return repo, err
-// }
 
 func (db *db) updateCredentialsSecret(credsInfo *settings.RepositoryCredentials, c *appsv1.RepoCreds) error {
 	r := &appsv1.Repository{
@@ -497,7 +467,6 @@ func getRepositoryCredentialIndex(repoCredentials []settings.RepositoryCredentia
 	repoURL = git.NormalizeGitURL(repoURL)
 	for i, cred := range repoCredentials {
 		credUrl := git.NormalizeGitURL(cred.URL)
-		log.Debugf("Matching on %s", credUrl)
 		if strings.HasPrefix(repoURL, credUrl) {
 			if len(credUrl) > max {
 				max = len(credUrl)
@@ -505,7 +474,6 @@ func getRepositoryCredentialIndex(repoCredentials []settings.RepositoryCredentia
 			}
 		}
 	}
-	log.Debugf("Have IDX: %d", idx)
 	return idx
 }
 
