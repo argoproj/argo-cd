@@ -13,10 +13,19 @@ import (
 var ErrCacheMiss = cacheutil.ErrCacheMiss
 
 type Cache struct {
-    cache                           cacheutil.Cache
+    cache                           *cacheutil.Cache
 	appStateCacheExpiration         time.Duration
 	connectionStatusCacheExpiration time.Duration
 	oidcCacheExpiration             time.Duration
+}
+
+func NewCache(
+    cache                           *cacheutil.Cache,
+	appStateCacheExpiration         time.Duration,
+	connectionStatusCacheExpiration time.Duration,
+	oidcCacheExpiration             time.Duration,
+) *Cache {
+	return &Cache{cache, appStateCacheExpiration, connectionStatusCacheExpiration, oidcCacheExpiration}
 }
 
 type OIDCState struct {
@@ -40,12 +49,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
 		if err != nil {
 		    return nil, err
 		}
-		return &Cache{
-            cache: *cache,
-            appStateCacheExpiration: appStateCacheExpiration,
-            connectionStatusCacheExpiration: connectionStatusCacheExpiration,
-            oidcCacheExpiration: oidcCacheExpiration,
-        }, nil
+		return NewCache(            cache,            appStateCacheExpiration,            connectionStatusCacheExpiration,oidcCacheExpiration), nil
 	}
 }
 

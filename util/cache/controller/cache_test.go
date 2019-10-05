@@ -16,12 +16,12 @@ type fixtures struct {
 }
 
 func newFixtures() *fixtures {
-	return &fixtures{&Cache{
-		*cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Hour)),
+	return &fixtures{NewCache(
+		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Hour)),
 		1*time.Minute,
 		1*time.Minute,
 		1*time.Minute,
-	}}
+	)}
 }
 
 func TestCache_GetAppManagedResources(t *testing.T) {

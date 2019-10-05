@@ -16,8 +16,15 @@ import (
 var ErrCacheMiss = cacheutil.ErrCacheMiss
 
 type Cache struct {
-    cache                           cacheutil.Cache
+    cache                           *cacheutil.Cache
     repoCacheExpiration             time.Duration
+}
+
+func NewCache(
+    cache                           *cacheutil.Cache,
+	repoCacheExpiration         time.Duration,
+) *Cache {
+	return &Cache{cache, repoCacheExpiration}
 }
 
 func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
@@ -32,10 +39,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
 		if err != nil {
 		    return nil, err
 		}
-		return &Cache{
-            cache: *cache,
-            repoCacheExpiration: repoCacheExpiration,
-        }, nil
+		return NewCache(cache, repoCacheExpiration), nil
 	}
 }
 
