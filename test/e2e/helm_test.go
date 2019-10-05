@@ -177,6 +177,8 @@ func TestHelmSetEnv(t *testing.T) {
 		AppSet("--helm-set", "foo=$ARGOCD_APP_NAME").
 		Sync().
 		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			assert.Equal(t, Name(), FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
 		})
@@ -190,6 +192,8 @@ func TestHelmSetStringEnv(t *testing.T) {
 		AppSet("--helm-set-string", "foo=$ARGOCD_APP_NAME").
 		Sync().
 		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			assert.Equal(t, Name(), FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
 		})

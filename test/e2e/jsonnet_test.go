@@ -5,8 +5,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	. "github.com/argoproj/argo-cd/errors"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 	"github.com/argoproj/argo-cd/util/kube"
 )
@@ -20,7 +21,7 @@ func TestJsonnetAppliedCorrectly(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			manifests, err := fixture.RunCli("app", "manifests", app.Name, "--source", "live")
+			manifests, err := RunCli("app", "manifests", app.Name, "--source", "live")
 			assert.NoError(t, err)
 			resources, err := kube.SplitYAML(manifests)
 			assert.NoError(t, err)
@@ -52,7 +53,7 @@ func TestJsonnetTlaParameterAppliedCorrectly(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			manifests, err := fixture.RunCli("app", "manifests", app.Name, "--source", "live")
+			manifests, err := RunCli("app", "manifests", app.Name, "--source", "live")
 			assert.NoError(t, err)
 			resources, err := kube.SplitYAML(manifests)
 			assert.NoError(t, err)
@@ -70,5 +71,20 @@ func TestJsonnetTlaParameterAppliedCorrectly(t *testing.T) {
 			deployment := resources[index]
 			assert.Equal(t, "testing-tla", deployment.GetName())
 			assert.Equal(t, int64(3), *kube.GetDeploymentReplicas(deployment))
+		})
+}
+
+func TestJsonnetTlaEnv(t *testing.T) {
+	Given(t).
+		Path("jsonnet").
+		When().
+		Create().
+		AppSet("--jsonnet-tla-str", "foo=$ARGOCD_APP_NAME").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Equal(t, Name(), FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
 		})
 }
