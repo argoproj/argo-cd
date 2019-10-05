@@ -51,6 +51,7 @@ type kustomize struct {
 }
 
 func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions) ([]*unstructured.Unstructured, []Image, error) {
+
 	if opts != nil {
 		if opts.NamePrefix != "" {
 			cmd := exec.Command("kustomize", "edit", "set", "nameprefix", opts.NamePrefix)
@@ -136,6 +137,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	if err != nil {
 		return nil, nil, err
 	}
+
 	objs, err := kube.SplitYAML(out)
 	if err != nil {
 		return nil, nil, err
