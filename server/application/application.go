@@ -34,7 +34,7 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	argoutil "github.com/argoproj/argo-cd/util/argo"
-	"github.com/argoproj/argo-cd/util/cache"
+	controllercache "github.com/argoproj/argo-cd/util/cache/controller"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/git"
@@ -57,7 +57,7 @@ type Server struct {
 	projectLock   *util.KeyLock
 	auditLogger   *argo.AuditLogger
 	settingsMgr   *settings.SettingsManager
-	cache         *cache.Cache
+	cache         *controllercache.Cache
 }
 
 // NewServer returns a new instance of the Application service
@@ -66,7 +66,7 @@ func NewServer(
 	kubeclientset kubernetes.Interface,
 	appclientset appclientset.Interface,
 	repoClientset apiclient.Clientset,
-	cache *cache.Cache,
+	cache *controllercache.Cache,
 	kubectl kube.Kubectl,
 	db db.ArgoDB,
 	enf *rbac.Enforcer,

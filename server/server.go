@@ -71,7 +71,7 @@ import (
 	"github.com/argoproj/argo-cd/server/version"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/assets"
-	argocache "github.com/argoproj/argo-cd/util/cache"
+	argocache "github.com/argoproj/argo-cd/util/cache/controller"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/dex"
 	dexutil "github.com/argoproj/argo-cd/util/dex"
@@ -459,7 +459,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr)
 	settingsService := settings.NewServer(a.settingsMgr)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr)
-	certificateService := certificate.NewServer(a.RepoClientset, db, a.enf, a.Cache)
+	certificateService := certificate.NewServer(a.RepoClientset, db, a.enf)
 	versionpkg.RegisterVersionServiceServer(grpcS, &version.Server{})
 	clusterpkg.RegisterClusterServiceServer(grpcS, clusterService)
 	applicationpkg.RegisterApplicationServiceServer(grpcS, applicationService)
