@@ -16,10 +16,10 @@ type fixtures struct {
 }
 
 func newFixtures() *fixtures {
-	return &fixtures{NewCache(
+	return &fixtures{Cache{
 		cacheutil.NewInMemoryCache(1*time.Hour),
-		1*time.Minute
-	)}
+		1*time.Minute,
+	}
 }
 
 func TestCache_GetAppManagedResources(t *testing.T) {

@@ -19,8 +19,9 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/reposerver/metrics"
 	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/cache"
-	argocache "github.com/argoproj/argo-cd/util/cache"
+	// TODO - dup import
+	cache "github.com/argoproj/argo-cd/util/cache/reposerver"
+	argocache "github.com/argoproj/argo-cd/util/cache/reposerver"
 	"github.com/argoproj/argo-cd/util/git"
 	gitmocks "github.com/argoproj/argo-cd/util/git/mocks"
 	"github.com/argoproj/argo-cd/util/helm"

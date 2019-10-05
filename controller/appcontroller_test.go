@@ -26,7 +26,7 @@ import (
 	mockrepoclient "github.com/argoproj/argo-cd/reposerver/apiclient/mocks"
 	mockreposerver "github.com/argoproj/argo-cd/reposerver/mocks"
 	"github.com/argoproj/argo-cd/test"
-	utilcache "github.com/argoproj/argo-cd/util/cache"
+	utilcache "github.com/argoproj/argo-cd/util/cache/controller"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kube/kubetest"
 	"github.com/argoproj/argo-cd/util/settings"

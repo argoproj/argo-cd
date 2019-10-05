@@ -16,12 +16,12 @@ type fixtures struct {
 }
 
 func newFixtures() *fixtures {
-	return &fixtures{NewCache(
+	return &fixtures{Cache{
 		NewInMemoryCache(1*time.Hour),
 		1*time.Minute,
 		1*time.Minute,
 		1*time.Minute,
-	)}
+	}}
 }
 
 func TestCache_GetRevisionMetadata(t *testing.T) {
