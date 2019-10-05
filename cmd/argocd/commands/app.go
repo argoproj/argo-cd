@@ -226,7 +226,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				fmt.Println(string(jsonBytes))
 			case "":
 				aURL := appURL(acdClient, app.Name)
-				printAppSummaryTable(app, aURL, *windows)
+				printAppSummaryTable(app, aURL, windows)
 
 				if len(app.Status.Conditions) > 0 {
 					fmt.Println()
@@ -261,7 +261,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	return command
 }
 
-func printAppSummaryTable(app *argoappv1.Application, appURL string, windows argoappv1.SyncWindows) {
+func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *argoappv1.SyncWindows) {
 	fmt.Printf(printOpFmtStr, "Name:", app.Name)
 	fmt.Printf(printOpFmtStr, "Project:", app.Spec.GetProject())
 	fmt.Printf(printOpFmtStr, "Server:", app.Spec.Destination.Server)
@@ -274,7 +274,7 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows arg
 	var wds []string
 	var status string
 	var allow, deny bool
-	if len(windows) > 0 {
+	if windows.HasWindows() {
 		active := windows.Active()
 		if active.HasWindows() {
 			for _, w := range *active {
@@ -285,7 +285,7 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows arg
 				}
 			}
 		}
-		s := windows.CanSync()
+		s := windows.CanSync(true)
 		if deny || !deny && !allow {
 			if s {
 				status = "Manual Allowed"
@@ -294,7 +294,7 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows arg
 
 			}
 		}
-		for _, w := range windows {
+		for _, w := range *windows {
 			s := w.Kind + ":" + w.Schedule + ":" + w.Duration
 			wds = append(wds, s)
 		}

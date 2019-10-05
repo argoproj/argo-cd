@@ -267,7 +267,7 @@ message ApplicationSyncWindow {
   optional string duration = 3;
 
   // ManualSync enables manual syncs when they would otherwise be blocked
-  optional bool manualSync = 7;
+  optional bool manualSync = 4;
 }
 
 // ApplicationTree holds nodes which belongs to the application

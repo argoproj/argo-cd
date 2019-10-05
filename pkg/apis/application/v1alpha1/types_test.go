@@ -882,7 +882,7 @@ func TestSyncWindows_Active(t *testing.T) {
 func TestSyncWindows_InactiveAllows(t *testing.T) {
 	proj := newTestProjectWithSyncWindows()
 	proj.Spec.SyncWindows[0].Schedule = "0 0 1 1 1"
-	assert.Equal(t, 1, len(*proj.Spec.SyncWindows.InactiveAllows()))
+	assert.Equal(t, 1, len(*proj.Spec.SyncWindows.inactiveAllows()))
 }
 
 func TestAppProjectSpec_AddWindow(t *testing.T) {
@@ -970,119 +970,186 @@ func TestSyncWindows_Matches(t *testing.T) {
 	})
 }
 
-func TestSyncWindows_CanAutoSync(t *testing.T) {
-	t.Run("ActiveAllow", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		deny := &SyncWindow{Kind: "deny", Schedule: "0 0 1 * *", Duration: "1m"}
-		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
-		canSync := proj.Spec.SyncWindows.CanAutoSync()
-		assert.True(t, canSync)
-	})
-	t.Run("ActiveAllowAndInactiveDeny", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		canSync := proj.Spec.SyncWindows.CanAutoSync()
-		assert.True(t, canSync)
-	})
-	t.Run("InactiveAllow", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		proj.Spec.SyncWindows[0].Schedule = "0 0 1 * *"
-		proj.Spec.SyncWindows[0].Duration = "1m"
-		canSync := proj.Spec.SyncWindows.CanAutoSync()
-		assert.False(t, canSync)
-	})
-	t.Run("InactiveAllowAndInactiveDeny", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		proj.Spec.SyncWindows[0].Schedule = "0 0 1 * *"
-		proj.Spec.SyncWindows[0].Duration = "1m"
-		deny := &SyncWindow{Kind: "deny", Schedule: "0 0 1 * *", Duration: "1m"}
-		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
-		canSync := proj.Spec.SyncWindows.CanAutoSync()
-		assert.False(t, canSync)
-	})
-	t.Run("ActiveDeny", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		proj.Spec.SyncWindows[0].Kind = "deny"
-		proj.Spec.SyncWindows[0].Schedule = "* * * * *"
-		canSync := proj.Spec.SyncWindows.CanAutoSync()
-		assert.False(t, canSync)
-	})
-	t.Run("ActiveDenyAndActiveAllow", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		deny := &SyncWindow{Kind: "deny", Schedule: "1 * * * *", Duration: "1h"}
-		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
-		canSync := proj.Spec.SyncWindows.CanAutoSync()
-		assert.False(t, canSync)
-	})
-}
-
 func TestSyncWindows_CanSync(t *testing.T) {
-	t.Run("ActiveAllow", func(t *testing.T) {
+	t.Run("ManualSync_ActiveAllow", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
 		deny := &SyncWindow{Kind: "deny", Schedule: "0 0 1 * *", Duration: "1m"}
 		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
-		canSync := proj.Spec.SyncWindows.CanSync()
+		canSync := proj.Spec.SyncWindows.CanSync(true)
 		assert.True(t, canSync)
 	})
-	t.Run("ActiveAllowAndInactiveDeny", func(t *testing.T) {
+	t.Run("AutoSync_ActiveAllow", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
-		canSync := proj.Spec.SyncWindows.CanSync()
+		deny := &SyncWindow{Kind: "deny", Schedule: "0 0 1 * *", Duration: "1m"}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+		canSync := proj.Spec.SyncWindows.CanSync(false)
 		assert.True(t, canSync)
 	})
-	t.Run("InactiveAllow", func(t *testing.T) {
+	t.Run("_ActiveAllowAndInactiveDeny", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+		assert.True(t, canSync)
+	})
+	t.Run("AutoSync_ActiveAllowAndInactiveDeny", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+		assert.True(t, canSync)
+	})
+	t.Run("ManualSync_InactiveAllow", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
 		proj.Spec.SyncWindows[0].Schedule = "0 0 1 * *"
 		proj.Spec.SyncWindows[0].Duration = "1m"
-		canSync := proj.Spec.SyncWindows.CanSync()
+		canSync := proj.Spec.SyncWindows.CanSync(true)
 		assert.False(t, canSync)
 	})
-	t.Run("InactiveAllowWithManualSyncEnabled", func(t *testing.T) {
+	t.Run("AutoSync_InactiveAllow", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Schedule = "0 0 1 * *"
+		proj.Spec.SyncWindows[0].Duration = "1m"
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+		assert.False(t, canSync)
+	})
+	t.Run("ManualSync_InactiveAllowWithManualSyncEnabled", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
 		proj.Spec.SyncWindows[0].Schedule = "0 0 1 * *"
 		proj.Spec.SyncWindows[0].Duration = "1m"
 		proj.Spec.SyncWindows[0].ManualSync = true
-		canSync := proj.Spec.SyncWindows.CanSync()
+		canSync := proj.Spec.SyncWindows.CanSync(true)
 		assert.True(t, canSync)
 	})
-	t.Run("InactiveAllowAndInactiveDeny", func(t *testing.T) {
+	t.Run("AutoSync_InactiveAllowWithManualSyncEnabled", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Schedule = "0 0 1 * *"
+		proj.Spec.SyncWindows[0].Duration = "1m"
+		proj.Spec.SyncWindows[0].ManualSync = true
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+		assert.False(t, canSync)
+	})
+	t.Run("ManualSync_InactiveAllowAndInactiveDeny", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
 		proj.Spec.SyncWindows[0].Schedule = "0 0 1 * *"
 		proj.Spec.SyncWindows[0].Duration = "1m"
 		deny := &SyncWindow{Kind: "deny", Schedule: "0 0 1 * *", Duration: "1m"}
 		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
-		canSync := proj.Spec.SyncWindows.CanSync()
+		canSync := proj.Spec.SyncWindows.CanSync(true)
 		assert.False(t, canSync)
 	})
-	t.Run("ActiveDeny", func(t *testing.T) {
+	t.Run("AutoSync_InactiveAllowAndInactiveDeny", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Schedule = "0 0 1 * *"
+		proj.Spec.SyncWindows[0].Duration = "1m"
+		deny := &SyncWindow{Kind: "deny", Schedule: "0 0 1 * *", Duration: "1m"}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+		assert.False(t, canSync)
+	})
+	t.Run("ManualSync_ActiveDeny", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
 		proj.Spec.SyncWindows[0].Kind = "deny"
 		proj.Spec.SyncWindows[0].Schedule = "* * * * *"
-		canSync := proj.Spec.SyncWindows.CanSync()
+		canSync := proj.Spec.SyncWindows.CanSync(true)
 		assert.False(t, canSync)
 	})
-	t.Run("ActiveDenyWithManualSyncEnabled", func(t *testing.T) {
+	t.Run("AutoSync_ActiveDeny", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Kind = "deny"
+		proj.Spec.SyncWindows[0].Schedule = "* * * * *"
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+		assert.False(t, canSync)
+	})
+	t.Run("ManualSync_ActiveDenyWithManualSyncEnabled", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
 		proj.Spec.SyncWindows[0].Kind = "deny"
 		proj.Spec.SyncWindows[0].Schedule = "* * * * *"
 		proj.Spec.SyncWindows[0].ManualSync = true
-		canSync := proj.Spec.SyncWindows.CanSync()
+		canSync := proj.Spec.SyncWindows.CanSync(true)
 		assert.True(t, canSync)
 	})
-	t.Run("MultipleActiveDenyWithManualSyncEnabledOnOne", func(t *testing.T) {
+	t.Run("AutoSync_ActiveDenyWithManualSyncEnabled", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Kind = "deny"
+		proj.Spec.SyncWindows[0].Schedule = "* * * * *"
+		proj.Spec.SyncWindows[0].ManualSync = true
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+		assert.False(t, canSync)
+	})
+	t.Run("ManualSync_MultipleActiveDenyWithManualSyncEnabledOnOne", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
 		proj.Spec.SyncWindows[0].Kind = "deny"
 		proj.Spec.SyncWindows[0].Schedule = "* * * * *"
 		proj.Spec.SyncWindows[0].ManualSync = true
 		deny2 := &SyncWindow{Kind: "deny", Schedule: "* * * * *", Duration: "2h"}
 		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny2)
-		canSync := proj.Spec.SyncWindows.CanSync()
+		canSync := proj.Spec.SyncWindows.CanSync(true)
 		assert.False(t, canSync)
 	})
-	t.Run("ActiveDenyAndActiveAllow", func(t *testing.T) {
+	t.Run("AutoSync_MultipleActiveDenyWithManualSyncEnabledOnOne", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Kind = "deny"
+		proj.Spec.SyncWindows[0].Schedule = "* * * * *"
+		proj.Spec.SyncWindows[0].ManualSync = true
+		deny2 := &SyncWindow{Kind: "deny", Schedule: "* * * * *", Duration: "2h"}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny2)
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+		assert.False(t, canSync)
+	})
+	t.Run("ManualSync_ActiveDenyAndActiveAllow", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
 		deny := &SyncWindow{Kind: "deny", Schedule: "1 * * * *", Duration: "1h"}
 		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
-		canSync := proj.Spec.SyncWindows.CanSync()
+		canSync := proj.Spec.SyncWindows.CanSync(true)
 		assert.False(t, canSync)
+	})
+	t.Run("AutoSync_ActiveDenyAndActiveAllow", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		deny := &SyncWindow{Kind: "deny", Schedule: "1 * * * *", Duration: "1h"}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+		assert.False(t, canSync)
+	})
+}
+
+func TestSyncWindows_hasDeny(t *testing.T) {
+	t.Run("True", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		deny := &SyncWindow{Kind: "deny"}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+		hasDeny, manualEnabled := proj.Spec.SyncWindows.hasDeny()
+		assert.True(t, hasDeny)
+		assert.False(t, manualEnabled)
+	})
+	t.Run("TrueManualEnabled", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		deny := &SyncWindow{Kind: "deny", ManualSync: true}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+		hasDeny, manualEnabled := proj.Spec.SyncWindows.hasDeny()
+		assert.True(t, hasDeny)
+		assert.True(t, manualEnabled)
+
+	})
+	t.Run("False", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		hasDeny, manualEnabled := proj.Spec.SyncWindows.hasDeny()
+		assert.False(t, hasDeny)
+		assert.False(t, manualEnabled)
+
+	})
+}
+
+func TestSyncWindows_hasAllow(t *testing.T) {
+	t.Run("NoWindows", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.DeleteWindow(0)
+		assert.False(t, proj.Spec.SyncWindows.hasAllow())
+	})
+	t.Run("True", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		assert.True(t, proj.Spec.SyncWindows.hasAllow())
+	})
+	t.Run("NoWindows", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Kind = "deny"
+		assert.False(t, proj.Spec.SyncWindows.hasAllow())
 	})
 }
 

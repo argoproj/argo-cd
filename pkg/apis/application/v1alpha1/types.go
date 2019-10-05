@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,8 +25,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
-
-	"strconv"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/util/cert"
@@ -1394,7 +1393,7 @@ type AppProjectSpec struct {
 	SyncWindows SyncWindows `json:"syncWindows,omitempty" protobuf:"bytes,8,opt,name=syncWindows"`
 }
 
-// SyncWindow is a collection of sync syncWindows in the project
+// SyncWindows is a collection of sync windows in this project
 type SyncWindows []*SyncWindow
 
 // SyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps
@@ -1427,7 +1426,7 @@ type ApplicationSyncWindow struct {
 	// Duration is the amount of time the sync window will be open
 	Duration string `json:"duration,omitempty" protobuf:"bytes,3,opt,name=duration"`
 	// ManualSync enables manual syncs when they would otherwise be blocked
-	ManualSync bool `json:"manualSync,omitempty" protobuf:"bytes,7,opt,name=manualSync"`
+	ManualSync bool `json:"manualSync,omitempty" protobuf:"bytes,4,opt,name=manualSync"`
 }
 
 func (s *SyncWindows) HasWindows() bool {
@@ -1454,7 +1453,7 @@ func (s *SyncWindows) Active() *SyncWindows {
 	return nil
 }
 
-func (s *SyncWindows) InactiveAllows() *SyncWindows {
+func (s *SyncWindows) inactiveAllows() *SyncWindows {
 	if s.HasWindows() {
 		var inactive SyncWindows
 		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
@@ -1579,84 +1578,77 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 	return nil
 }
 
-func (w *SyncWindows) CanAutoSync() bool {
-	var allow bool
-	if w.HasWindows() {
-		var denyActive bool
-		active := w.Active()
-		if active.HasWindows() {
-			for _, a := range *active {
-				if a.Kind == "deny" {
-					allow = false
-					denyActive = true
-				}
-				if a.Kind == "allow" {
-					if !denyActive {
-						allow = true
-					}
-				}
-			}
-		}
-		if !w.InactiveAllows().HasWindows() && !denyActive {
-			allow = true
-		}
-	} else {
-		allow = true
+func (w *SyncWindows) CanSync(isManual bool) bool {
+	if !w.HasWindows() {
+		return true
 	}
-	return allow
-}
 
-func (w *SyncWindows) CanSync() bool {
-	var allow bool
-	if w.HasWindows() {
-		var denyActive, manualSync bool
-		active := w.Active()
-		if active.HasWindows() {
-			for _, a := range *active {
-				if a.Kind == "deny" {
-					if !denyActive {
-						allow = false
-						manualSync = a.ManualSync
-					} else {
-						if manualSync {
-							if !a.ManualSync {
-								manualSync = a.ManualSync
-							}
-						}
-					}
-					denyActive = true
-				}
-				if a.Kind == "allow" {
-					if !denyActive {
-						allow = true
-					}
-				}
-			}
-		}
-		inactive := w.InactiveAllows()
-		if inactive.HasWindows() {
-			for _, i := range *inactive {
-				if i.ManualSync {
-					if !allow && !denyActive {
-						allow = true
-					}
-				}
-			}
-		} else {
-			if !denyActive {
-				allow = true
-			}
-		}
-		if !allow {
-			if manualSync {
+	var allowActive, denyActive, manualEnabled bool
+	active := w.Active()
+	denyActive, manualEnabled = active.hasDeny()
+	allowActive = active.hasAllow()
+
+	if !denyActive {
+		if !allowActive {
+			if isManual && w.inactiveAllows().manualEnabled() {
 				return true
 			}
+		} else {
+			return true
 		}
 	} else {
-		allow = true
+		if isManual && manualEnabled {
+			return true
+		}
 	}
 
-	return allow
+	return false
+}
+
+func (w *SyncWindows) hasDeny() (bool, bool) {
+	if !w.HasWindows() {
+		return false, false
+	}
+	var denyActive, manualEnabled bool
+	for _, a := range *w {
+		if a.Kind == "deny" {
+			if !denyActive {
+				manualEnabled = a.ManualSync
+			} else {
+				if manualEnabled {
+					if !a.ManualSync {
+						manualEnabled = a.ManualSync
+					}
+				}
+			}
+			denyActive = true
+		}
+	}
+	return denyActive, manualEnabled
+}
+
+func (w *SyncWindows) hasAllow() bool {
+	if !w.HasWindows() {
+		return false
+	}
+	for _, a := range *w {
+		if a.Kind == "allow" {
+			return true
+		}
+	}
+	return false
+}
+
+func (w *SyncWindows) manualEnabled() bool {
+	if !w.HasWindows() {
+		return false
+	}
+	for _, s := range *w {
+		if s.ManualSync {
+			return true
+		}
+	}
+	return false
 }
 
 func (w SyncWindow) Active() bool {
