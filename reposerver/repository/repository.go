@@ -245,10 +245,10 @@ func helmTemplate(appPath string, env v1alpha1.Env, q *apiclient.ManifestRequest
 	if templateOpts.Name == "" {
 		templateOpts.Name = q.AppLabelValue
 	}
-	for i, j:= range templateOpts.Set {
+	for i, j := range templateOpts.Set {
 		templateOpts.Set[i] = env.Envsubst(j)
 	}
-	for i, j:= range templateOpts.SetString {
+	for i, j := range templateOpts.SetString {
 		templateOpts.SetString[i] = env.Envsubst(j)
 	}
 	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos))
