@@ -457,6 +457,10 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 			setJsonnetOpt(&app.Spec.Source, appOpts.jsonnetTlaStr, false)
 		case "jsonnet-tla-code":
 			setJsonnetOpt(&app.Spec.Source, appOpts.jsonnetTlaCode, true)
+		case "jsonnet-ext-var-str":
+			setJsonnetOptExtVar(&app.Spec.Source, appOpts.jsonnetExtVarStr, false)
+		case "jsonnet-ext-var-code":
+			setJsonnetOptExtVar(&app.Spec.Source, appOpts.jsonnetExtVarCode, true)
 		case "sync-policy":
 			switch appOpts.syncPolicy {
 			case "automated":
@@ -587,7 +591,15 @@ func setJsonnetOpt(src *argoappv1.ApplicationSource, tlaParameters []string, cod
 	if src.Directory.IsZero() {
 		src.Directory = nil
 	}
+}
 
+func setJsonnetOptExtVar(src *argoappv1.ApplicationSource, jsonnetExtVar []string, code bool) {
+	if src.Directory == nil {
+		src.Directory = &argoappv1.ApplicationSourceDirectory{}
+	}
+	for _, j := range jsonnetExtVar {
+		src.Directory.Jsonnet.ExtVars = append(src.Directory.Jsonnet.ExtVars, argoappv1.NewJsonnetVar(j, code))
+	}
 }
 
 type appOptions struct {
@@ -612,6 +624,8 @@ type appOptions struct {
 	configManagementPlugin string
 	jsonnetTlaStr          []string
 	jsonnetTlaCode         []string
+	jsonnetExtVarStr       []string
+	jsonnetExtVarCode      []string
 	kustomizeImages        []string
 }
 
@@ -637,6 +651,8 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringVar(&opts.configManagementPlugin, "config-management-plugin", "", "Config management plugin name")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaStr, "jsonnet-tla-str", []string{}, "Jsonnet top level string arguments")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaCode, "jsonnet-tla-code", []string{}, "Jsonnet top level code arguments")
+	command.Flags().StringArrayVar(&opts.jsonnetExtVarStr, "jsonnet-ext-var-str", []string{}, "Jsonnet string ext var")
+	command.Flags().StringArrayVar(&opts.jsonnetExtVarCode, "jsonnet-ext-var-code", []string{}, "Jsonnet ext var")
 	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
 }
 

@@ -136,6 +136,14 @@ func (a *Actions) Create() *Actions {
 		args = append(args, "--jsonnet-tla-code", jsonnetTLAParameter)
 	}
 
+	for _, parameter := range a.context.jsonnetExtVarStr {
+		args = append(args, "--jsonnet-ext-var-str", parameter)
+	}
+
+	for _, parameter := range a.context.jsonnetExtVarCode {
+		args = append(args, "--jsonnet-ext-var-code", parameter)
+	}
+
 	if a.context.namePrefix != "" {
 		args = append(args, "--nameprefix", a.context.namePrefix)
 	}

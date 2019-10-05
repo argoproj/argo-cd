@@ -1,4 +1,4 @@
-function(foo='bar')
+function(foo='foo', bar='bar')
     {
       apiVersion: 'v1',
       kind: 'ConfigMap',
@@ -7,5 +7,6 @@ function(foo='bar')
       },
       data: {
         foo: foo,
+        bar: bar,
       }
     }

@@ -26,6 +26,8 @@ type Context struct {
 	parameters             []string
 	jsonnetTLAStr          []string
 	jsonnetTLACode         []string
+	jsonnetExtVarStr       []string
+	jsonnetExtVarCode      []string
 	namePrefix             string
 	resource               string
 	prune                  bool
@@ -139,6 +141,15 @@ func (c *Context) JsonnetTLAStrParameter(parameter string) *Context {
 
 func (c *Context) JsonnetTLACodeParameter(parameter string) *Context {
 	c.jsonnetTLACode = append(c.jsonnetTLACode, parameter)
+	return c
+}
+
+func (c *Context) JsonnetExtVarStr(parameter string) *Context {
+	c.jsonnetExtVarStr = append(c.jsonnetExtVarStr, parameter)
+	return c
+}
+func (c *Context) JsonnetExtVarCode(parameter string) *Context {
+	c.jsonnetExtVarCode = append(c.jsonnetExtVarCode, parameter)
 	return c
 }
 

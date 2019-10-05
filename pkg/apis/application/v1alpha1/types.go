@@ -280,6 +280,11 @@ type JsonnetVar struct {
 	Code  bool   `json:"code,omitempty" protobuf:"bytes,3,opt,name=code"`
 }
 
+func NewJsonnetVar(s string, code bool) JsonnetVar {
+	parts := strings.SplitN(s, "=", 2)
+	return JsonnetVar{Name: parts[0], Value: parts[1], Code: code}
+}
+
 // ApplicationSourceJsonnet holds jsonnet specific options
 type ApplicationSourceJsonnet struct {
 	// ExtVars is a list of Jsonnet External Variables
