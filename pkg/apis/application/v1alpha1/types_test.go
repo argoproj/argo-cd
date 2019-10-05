@@ -820,9 +820,9 @@ func TestEnv_IsZero(t *testing.T) {
 
 func TestEnv_Envsubst(t *testing.T) {
 	env := Env{&EnvEntry{"FOO", "bar"}}
-	assert.Equal(t, "", env.Envsubst()(""))
-	assert.Equal(t, "bar", env.Envsubst()("$FOO"))
-	assert.Equal(t, "bar", env.Envsubst()("${FOO}"))
+	assert.Equal(t, "", env.Envsubst(""))
+	assert.Equal(t, "bar", env.Envsubst("$FOO"))
+	assert.Equal(t, "bar", env.Envsubst("${FOO}"))
 }
 
 func TestEnv_Environ(t *testing.T) {

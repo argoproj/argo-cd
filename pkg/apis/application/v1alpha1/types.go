@@ -99,14 +99,12 @@ func (e Env) Environ() []string {
 
 // does an operation similar to `envstubst` tool
 // see https://linux.die.net/man/1/envsubst
-func (e Env) Envsubst() func(s string) string {
-	return func(s string) string {
-		for _, e := range e {
-			s = strings.ReplaceAll(s, fmt.Sprintf("$%s", e.Name), e.Value)
-			s = strings.ReplaceAll(s, fmt.Sprintf("${%s}", e.Name), e.Value)
-		}
-		return s
+func (e Env) Envsubst(s string) string {
+	for _, e := range e {
+		s = strings.ReplaceAll(s, fmt.Sprintf("$%s", e.Name), e.Value)
+		s = strings.ReplaceAll(s, fmt.Sprintf("${%s}", e.Name), e.Value)
 	}
+	return s
 }
 
 // ApplicationSource contains information about github repository, path within repository and target application environment.

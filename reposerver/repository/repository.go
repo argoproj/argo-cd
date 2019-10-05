@@ -207,7 +207,7 @@ func getHelmRepos(repositories []*v1alpha1.Repository) []helm.HelmRepository {
 	return repos
 }
 
-func helmTemplate(appPath string, postProcessor func(s string) string, q *apiclient.ManifestRequest) ([]*unstructured.Unstructured, error) {
+func helmTemplate(appPath string, env v1alpha1.Env, q *apiclient.ManifestRequest) ([]*unstructured.Unstructured, error) {
 	templateOpts := &helm.TemplateOpts{
 		Name:        q.AppLabelValue,
 		Namespace:   q.Namespace,
@@ -245,7 +245,12 @@ func helmTemplate(appPath string, postProcessor func(s string) string, q *apicli
 	if templateOpts.Name == "" {
 		templateOpts.Name = q.AppLabelValue
 	}
-
+	for i, j:= range templateOpts.Set {
+		templateOpts.Set[i] = env.Envsubst(j)
+	}
+	for i, j:= range templateOpts.SetString {
+		templateOpts.SetString[i] = env.Envsubst(j)
+	}
 	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos))
 	if err != nil {
 		return nil, err
@@ -269,7 +274,6 @@ func helmTemplate(appPath string, postProcessor func(s string) string, q *apicli
 			return nil, err
 		}
 	}
-	out = postProcessor(out)
 	return kube.SplitYAML(out)
 }
 
@@ -283,29 +287,29 @@ func GenerateManifests(appPath, revision string, q *apiclient.ManifestRequest) (
 	if q.Repo != nil {
 		repoURL = q.Repo.Repo
 	}
-	envVars := v1alpha1.Env{
+	env := v1alpha1.Env{
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: q.AppLabelValue},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: q.Namespace},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_TARGET_REVISION", Value: q.ApplicationSource.TargetRevision},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: revision},
 	}
-	postProcessor := envVars.Envsubst()
+
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeKsonnet:
-		targetObjs, dest, err = ksShow(q.AppLabelKey, appPath, postProcessor, q.ApplicationSource.Ksonnet)
+		targetObjs, dest, err = ksShow(q.AppLabelKey, appPath, q.ApplicationSource.Ksonnet)
 	case v1alpha1.ApplicationSourceTypeHelm:
-		targetObjs, err = helmTemplate(appPath, postProcessor, q)
+		targetObjs, err = helmTemplate(appPath, env, q)
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), repoURL)
-		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, postProcessor, q.KustomizeOptions)
+		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions)
 	case v1alpha1.ApplicationSourceTypePlugin:
-		targetObjs, err = runConfigManagementPlugin(appPath, envVars, postProcessor, q, q.Repo.GetGitCreds())
+		targetObjs, err = runConfigManagementPlugin(appPath, env, q, q.Repo.GetGitCreds())
 	case v1alpha1.ApplicationSourceTypeDirectory:
 		var directory *v1alpha1.ApplicationSourceDirectory
 		if directory = q.ApplicationSource.Directory; directory == nil {
 			directory = &v1alpha1.ApplicationSourceDirectory{}
 		}
-		targetObjs, err = findManifests(appPath, postProcessor, *directory)
+		targetObjs, err = findManifests(appPath, env, *directory)
 	}
 	if err != nil {
 		return nil, err
@@ -395,7 +399,7 @@ func isNullList(obj *unstructured.Unstructured) bool {
 }
 
 // ksShow runs `ks show` in an app directory after setting any component parameter overrides
-func ksShow(appLabelKey, appPath string, postProcessor func(s string) string, ksonnetOpts *v1alpha1.ApplicationSourceKsonnet) ([]*unstructured.Unstructured, *v1alpha1.ApplicationDestination, error) {
+func ksShow(appLabelKey, appPath string, ksonnetOpts *v1alpha1.ApplicationSourceKsonnet) ([]*unstructured.Unstructured, *v1alpha1.ApplicationDestination, error) {
 	ksApp, err := ksonnet.NewKsonnetApp(appPath)
 	if err != nil {
 		return nil, nil, status.Errorf(codes.FailedPrecondition, "unable to load application from %s: %v", appPath, err)
@@ -413,7 +417,7 @@ func ksShow(appLabelKey, appPath string, postProcessor func(s string) string, ks
 	if err != nil {
 		return nil, nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
-	targetObjs, err := ksApp.Show(ksonnetOpts.Environment, postProcessor)
+	targetObjs, err := ksApp.Show(ksonnetOpts.Environment)
 	if err == nil && appLabelKey == common.LabelKeyLegacyApplicationName {
 		// Address https://github.com/ksonnet/ksonnet/issues/707
 		for _, d := range targetObjs {
@@ -429,7 +433,7 @@ func ksShow(appLabelKey, appPath string, postProcessor func(s string) string, ks
 var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 
 // findManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
-func findManifests(appPath string, postProcessor func(s string) string, directory v1alpha1.ApplicationSourceDirectory) ([]*unstructured.Unstructured, error) {
+func findManifests(appPath string, env v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory) ([]*unstructured.Unstructured, error) {
 	var objs []*unstructured.Unstructured
 	err := filepath.Walk(appPath, func(path string, f os.FileInfo, err error) error {
 		if err != nil {
@@ -450,7 +454,6 @@ func findManifests(appPath string, postProcessor func(s string) string, director
 		if err != nil {
 			return err
 		}
-		out = []byte(postProcessor(string(out)))
 		if strings.HasSuffix(f.Name(), ".json") {
 			var obj unstructured.Unstructured
 			err = json.Unmarshal(out, &obj)
@@ -459,7 +462,7 @@ func findManifests(appPath string, postProcessor func(s string) string, director
 			}
 			objs = append(objs, &obj)
 		} else if strings.HasSuffix(f.Name(), ".jsonnet") {
-			vm := makeJsonnetVm(directory.Jsonnet)
+			vm := makeJsonnetVm(directory.Jsonnet, env)
 			vm.Importer(&jsonnet.FileImporter{
 				JPaths: []string{appPath},
 			})
@@ -503,9 +506,14 @@ func findManifests(appPath string, postProcessor func(s string) string, director
 	return objs, nil
 }
 
-func makeJsonnetVm(sourceJsonnet v1alpha1.ApplicationSourceJsonnet) *jsonnet.VM {
+func makeJsonnetVm(sourceJsonnet v1alpha1.ApplicationSourceJsonnet, env v1alpha1.Env) *jsonnet.VM {
 	vm := jsonnet.MakeVM()
-
+	for i, j := range sourceJsonnet.TLAs {
+		sourceJsonnet.TLAs[i].Value = env.Envsubst(j.Value)
+	}
+	for i, j := range sourceJsonnet.ExtVars {
+		sourceJsonnet.ExtVars[i].Value = env.Envsubst(j.Value)
+	}
 	for _, arg := range sourceJsonnet.TLAs {
 		if arg.Code {
 			vm.TLACode(arg.Name, arg.Value)
@@ -543,7 +551,7 @@ func findPlugin(plugins []*v1alpha1.ConfigManagementPlugin, name string) *v1alph
 	return nil
 }
 
-func runConfigManagementPlugin(appPath string, envVars v1alpha1.Env, postProcessor func(s string) string, q *apiclient.ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
+func runConfigManagementPlugin(appPath string, envVars v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
 	plugin := findPlugin(q.Plugins, q.ApplicationSource.Plugin.Name)
 	if plugin == nil {
 		return nil, fmt.Errorf("Config management plugin with name '%s' is not supported.", q.ApplicationSource.Plugin.Name)
@@ -568,7 +576,6 @@ func runConfigManagementPlugin(appPath string, envVars v1alpha1.Env, postProcess
 	if err != nil {
 		return nil, err
 	}
-	out = postProcessor(out)
 	return kube.SplitYAML(out)
 }
 
@@ -668,7 +675,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		case v1alpha1.ApplicationSourceTypeKustomize:
 			res.Kustomize = &apiclient.KustomizeAppSpec{}
 			k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), q.Repo.Repo)
-			_, images, err := k.Build(nil, func(s string) string { return s }, q.KustomizeOptions)
+			_, images, err := k.Build(nil, q.KustomizeOptions)
 			if err != nil {
 				return err
 			}

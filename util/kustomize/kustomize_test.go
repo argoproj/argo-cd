@@ -43,7 +43,7 @@ func TestKustomizeBuild(t *testing.T) {
 			"app.kubernetes.io/part-of":    "argo-cd-tests",
 		},
 	}
-	objs, images, err := kustomize.Build(&kustomizeSource, func(s string) string { return s }, nil)
+	objs, images, err := kustomize.Build(&kustomizeSource, nil)
 	assert.Nil(t, err)
 	if err != nil {
 		assert.Equal(t, len(objs), 2)
