@@ -375,7 +375,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
     private async createHTTPSCreds(params: NewHTTPSRepoCredsParams) {
         try {
             await services.repocreds.createHTTPS(params);
-            this.repoLoader.reload();
+            this.credsLoader.reload();
             this.showConnectHTTPSRepo = false;
         } catch (e) {
             this.appContext.apis.notifications.show({
@@ -388,7 +388,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
     private async createSSHCreds(params: NewSSHRepoCredsParams) {
         try {
             await services.repocreds.createSSH(params);
-            this.repoLoader.reload();
+            this.credsLoader.reload();
             this.showConnectSSHRepo = false;
         } catch (e) {
             this.appContext.apis.notifications.show({
