@@ -1139,7 +1139,7 @@ func TestSyncWindows_hasDeny(t *testing.T) {
 func TestSyncWindows_hasAllow(t *testing.T) {
 	t.Run("NoWindows", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
-		proj.Spec.DeleteWindow(0)
+		_ = proj.Spec.DeleteWindow(0)
 		assert.False(t, proj.Spec.SyncWindows.hasAllow())
 	})
 	t.Run("True", func(t *testing.T) {

@@ -1459,11 +1459,11 @@ func (s *SyncWindows) inactiveAllows() *SyncWindows {
 		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 		for _, w := range *s {
 			if w.Kind == "allow" {
-				schedule, _ := specParser.Parse(w.Schedule)
-				duration, _ := time.ParseDuration(w.Duration)
+				schedule, sErr := specParser.Parse(w.Schedule)
+				duration, dErr := time.ParseDuration(w.Duration)
 				now := time.Now()
 				nextWindow := schedule.Next(now.Add(-duration))
-				if !nextWindow.Before(now) {
+				if !nextWindow.Before(now) && sErr == nil && dErr == nil {
 					inactive = append(inactive, w)
 				}
 			}
