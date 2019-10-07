@@ -114,9 +114,11 @@ argocd app set redis -p password=abc123
 
 ## Build Environment
 
-Helm apps have access to the [standard build environment](build-environment.md) via substitution as parameters. E.g.:
+Helm apps have access to the [standard build environment](build-environment.md) via substitution as parameters. 
 
-```shell script
+E.g. via the CLI:
+
+```bash
 argocd app create APPNAME \
   --helm-set-string 'app=${ARGOCD_APP_NAME}'
 ```

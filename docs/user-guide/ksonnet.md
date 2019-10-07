@@ -1,6 +1,6 @@
 # Ksonnet
 
-!!! tip Warning "Ksonnet is a defunct tool. "
+!!! tip Warning "Ksonnet is defunct and no longer supported."
 
 ## Environments
 Ksonnet has a first class concept of an "environment." To create an application from a ksonnet

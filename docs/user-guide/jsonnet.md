@@ -8,7 +8,7 @@ Jsonnet apps have access to the [standard build environment](build-environment.m
 
 E.g. via the CLI:
 
-```shell script
+```bash
 argocd app create APPNAME \
   --jsonnet-ext-str 'app=${ARGOCD_APP_NAME}' \
   --jsonnet-tla-str 'ns=${ARGOCD_APP_NAMESPACE}'
