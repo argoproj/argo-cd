@@ -67,7 +67,7 @@ require (
 	gopkg.in/go-playground/webhooks.v5 v5.11.0
 	gopkg.in/src-d/go-git.v4 v4.9.1
 	gopkg.in/yaml.v2 v2.2.4
-	k8s.io/api v0.0.0-20190711103429-37c3b8b1ca65
+	k8s.io/api v0.0.0-20190816222004-e3a6b8045b0b
 	k8s.io/apiextensions-apiserver v0.0.0-20190404071145-7f7d2b94eca3
 	k8s.io/apimachinery v0.0.0-20190711103026-7bf792636534
 	k8s.io/client-go v0.0.0-20190711103903-4a0861cac5e0
