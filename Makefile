@@ -148,17 +148,8 @@ builder-image:
 	docker build  -t $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) --target builder .
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) ; fi
 
-.PHONY: dep
-dep:
-	dep ensure -v
-
-.PHONY: dep-ensure
-dep-ensure:
-	dep ensure -no-vendor
-
 .PHONY: lint
 lint:
-	# golangci-lint does not do a good job of formatting imports
 	GOGC=$(LINT_GOGC) golangci-lint run --fix --verbose --concurrency $(LINT_CONCURRENCY) --deadline $(LINT_DEADLINE)
 
 .PHONY: build
@@ -212,7 +203,7 @@ start:
 		goreman start
 
 .PHONY: pre-commit
-pre-commit: dep-ensure codegen build lint test
+pre-commit: codegen build lint test
 
 .PHONY: release-precheck
 release-precheck: manifests
