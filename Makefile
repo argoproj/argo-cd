@@ -10,10 +10,6 @@ GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
 PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run vendor/github.com/gobuffalo/packr/packr/main.go"; fi)
 
-define run-in-dev-tool
-    docker run --rm -it -u $(shell id -u) -e HOME=/home/user -v ${CURRENT_DIR}:/go/src/github.com/argoproj/argo-cd -w /go/src/github.com/argoproj/argo-cd argocd-dev-tools bash -c "GOPATH=/go $(1)"
-endef
-
 PATH:=$(PATH):$(PWD)/hack
 
 # docker image publishing options
@@ -24,10 +20,10 @@ STATIC_BUILD?=true
 # build development images
 DEV_IMAGE?=false
 # lint is memory and CPU intensive, so we can limit on CI to mitigate OOM
-LINT_GOGC?=off
+LINT_GOGC?=on
 LINT_CONCURRENCY?=8
 # Set timeout for linter
-LINT_DEADLINE?=1m0s
+LINT_DEADLINE?=2m0s
 
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
@@ -159,8 +155,8 @@ dep:
 dep-ensure:
 	dep ensure -no-vendor
 
-.PHONY: lint-local
-lint-local: build
+.PHONY: lint
+lint:
 	# golangci-lint does not do a good job of formatting imports
 	goimports -local github.com/argoproj/argo-cd -w `find . ! -path './vendor/*' ! -path './pkg/client/*' ! -path '*.pb.go' ! -path '*.gw.go' -type f -name '*.go'`
 	GOGC=$(LINT_GOGC) golangci-lint run --fix --verbose --concurrency $(LINT_CONCURRENCY) --deadline $(LINT_DEADLINE)

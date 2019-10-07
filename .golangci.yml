@@ -4,7 +4,7 @@ run:
     - ".*\\.pb\\.go"
   skip-dirs:
     - pkg/client
-    - vendor
+    - vendor/
 linters:
   enable:
     - vet
