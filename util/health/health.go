@@ -2,8 +2,9 @@ package health
 
 import (
 	"fmt"
-	"k8s.io/apimachinery/pkg/runtime"
 	"strings"
+
+	"k8s.io/apimachinery/pkg/runtime"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
@@ -603,15 +604,15 @@ const (
 
 // An agnostic workflow object only considers Status.Phase and Status.Message. It is agnostic to the API version or any
 // other fields.
-type ApiAgnosticArgoWorkflow struct {
+type ArgoWorkflow struct {
 	Status struct {
-		Phase NodePhase
+		Phase   NodePhase
 		Message string
 	}
 }
 
 func GetStatusFromArgoWorkflow(hook *unstructured.Unstructured) (operation appv1.OperationPhase, message string) {
-	var wf ApiAgnosticArgoWorkflow
+	var wf ArgoWorkflow
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(hook.Object, &wf)
 	if err != nil {
 		return appv1.OperationError, err.Error()
