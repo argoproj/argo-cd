@@ -1,4 +1,4 @@
-package reposerver
+package cache
 
 import (
 	"encoding/json"

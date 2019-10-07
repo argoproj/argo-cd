@@ -20,6 +20,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	mockstatecache "github.com/argoproj/argo-cd/controller/cache/mocks"
+	"github.com/argoproj/argo-cd/controller/controllercache"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
@@ -27,7 +28,6 @@ import (
 	mockreposerver "github.com/argoproj/argo-cd/reposerver/mocks"
 	"github.com/argoproj/argo-cd/test"
 	cacheutil "github.com/argoproj/argo-cd/util/cache"
-	controllercache "github.com/argoproj/argo-cd/util/cache/controller"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kube/kubetest"
 	"github.com/argoproj/argo-cd/util/settings"

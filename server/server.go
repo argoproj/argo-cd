@@ -43,6 +43,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/controller/controllercache"
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/pkg/apiclient/account"
@@ -71,7 +72,6 @@ import (
 	"github.com/argoproj/argo-cd/server/version"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/assets"
-	argocache "github.com/argoproj/argo-cd/util/cache/controller"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/dex"
 	dexutil "github.com/argoproj/argo-cd/util/dex"
@@ -143,7 +143,7 @@ type ArgoCDServerOpts struct {
 	KubeClientset       kubernetes.Interface
 	AppClientset        appclientset.Interface
 	RepoClientset       repoapiclient.Clientset
-	Cache               *argocache.Cache
+	Cache               *controllercache.Cache
 	TLSConfigCustomizer tlsutil.ConfigCustomizer
 }
 

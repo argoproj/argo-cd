@@ -16,8 +16,8 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/argoproj/argo-cd/common"
+	cache "github.com/argoproj/argo-cd/controller/controllercache"
 	"github.com/argoproj/argo-cd/server/settings/oidc"
-	cache "github.com/argoproj/argo-cd/util/cache/controller"
 	"github.com/argoproj/argo-cd/util/dex"
 	httputil "github.com/argoproj/argo-cd/util/http"
 	"github.com/argoproj/argo-cd/util/jwt/zjwt"

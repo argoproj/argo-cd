@@ -26,6 +26,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	statecache "github.com/argoproj/argo-cd/controller/cache"
+	controllercache "github.com/argoproj/argo-cd/controller/controllercache"
 	"github.com/argoproj/argo-cd/controller/metrics"
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/pkg/apis/application"
@@ -37,7 +38,6 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
-	argocache "github.com/argoproj/argo-cd/util/cache/controller"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/kube"
@@ -67,7 +67,7 @@ func (a CompareWith) Max(b CompareWith) CompareWith {
 
 // ApplicationController is the controller for application resources.
 type ApplicationController struct {
-	cache                     *argocache.Cache
+	cache                     *controllercache.Cache
 	namespace                 string
 	kubeClientset             kubernetes.Interface
 	kubectl                   kube.Kubectl
@@ -103,7 +103,7 @@ func NewApplicationController(
 	kubeClientset kubernetes.Interface,
 	applicationClientset appclientset.Interface,
 	repoClientset apiclient.Clientset,
-	argoCache *argocache.Cache,
+	argoCache *controllercache.Cache,
 	kubectl kube.Kubectl,
 	appResyncPeriod time.Duration,
 	selfHealTimeout time.Duration,
