@@ -170,73 +170,54 @@ function generateRange(limit: number, zeroStart: boolean): string[] {
 }
 
 function getRanges(config: string): string[] {
-    var values = [];
+    const values = [];
     const fields = config.split(',');
-    for (let f of fields) {
+    for (const f of fields) {
         if (f.search(/-/) !== -1) {
-            const r = f.split('-')
-            for (let i = parseInt(r[0]); i <= parseInt(r[1]); i++) {
-                values.push(i.toString())
+            const r = f.split('-');
+            for (let i = parseInt(r[0], 10); i <= parseInt(r[1], 10); i++) {
+                values.push(i.toString());
             }
         } else {
-            values.push(f)
+            values.push(f);
         }
     }
     return values;
 }
 
 function setRanges(config: string[]): string {
-    var values = []
-    var ranges = [];
+    const values = [];
+    const ranges = [];
     let isRange = false;
     for (let i = 0; i < config.length; i++) {
-        if ( i !== (config.length - 1) && (parseInt(config[i]) + 1) === parseInt(config[i + 1])) {
+        if ( i !== (config.length - 1) && (parseInt(config[i], 10) + 1) === parseInt(config[i + 1], 10)) {
             if (!isRange) {
-                console.log('new range');
                 if (ranges.length === 0) {
-                    console.log("new range array");
-                    console.log('adding value: ' + config[i]);
                     ranges[0] = [config[i]];
                 } else {
                     ranges[ranges.length - 1] = [config[i]];
                 }
                 isRange = true;
             } else {
-                console.log('range exists array exists');
-                console.log('adding value: ' + config[i]);
                 ranges[ranges.length - 1].push(config[i]);
             }
-        } else if ( i === (config.length - 1) && (parseInt(config[i]) -1) === parseInt(config[i - 1])) {
-            console.log('adding last in range: ' + config[i]);
+        } else if ( i === (config.length - 1) && ((parseInt(config[i], 10) - 1) === parseInt(config[i - 1], 10))) {
             ranges[ranges.length - 1].push(config[i]);
-        } else if ((parseInt(config[i]) + 2) === parseInt(config[i + 1])) {
-            console.log('new range');
+        } else if ((parseInt(config[i], 10) + 2) === parseInt(config[i + 1], 10)) {
             ranges[ranges.length] = [config[i]];
         } else {
-            console.log('not in range');
-            console.log('adding to values   : ' + config[i]);
             isRange = false;
             values.push(config[i]);
         }
     }
 
     if (ranges.length > 0) {
-        for (let r of ranges) {
-
-            console.log('adding ranges to values');
-            console.log(r);
-
-            console.log('begin: ' + r[0]);
-            console.log('end: ' + r[r.length-1]);
-            values.push(r[0] + '-' + r[r.length - 1])
+        for (const r of ranges) {
+            values.push(r[0] + '-' + r[r.length - 1]);
         }
     }
-
-    console.log('vals:' + values)
-
     return values.join(',');
 }
-
 
 class ScheduleWrapper extends React.Component<ScheduleProps, any> {
 
@@ -245,9 +226,9 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
             <React.Fragment>
                 <div className='columns small-2'>
                     <select className='argo-field' name='month' multiple={true}  value={this.getValues(0)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                        var options = e.target.options;
-                        var values = [];
-                        for (var i = 0, l = options.length; i < l; i++) {
+                        const options = e.target.options;
+                        const values = [];
+                        for (let i = 0, l = options.length; i < l; i++) {
                             if (options[i].selected) {
                                 values.push(options[i].value);
                             }
@@ -262,9 +243,9 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
                 </div>
                 <div className='columns small-2'>
                     <select className='argo-field' name='hours' multiple={true} value={this.getValues(1)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                        var options = e.target.options;
-                        var values = [];
-                        for (var i = 0, l = options.length; i < l; i++) {
+                        const options = e.target.options;
+                        const values = [];
+                        for (let i = 0, l = options.length; i < l; i++) {
                             if (options[i].selected) {
                                 values.push(options[i].value);
                             }
@@ -279,9 +260,9 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
                 </div>
                 <div className='columns small-2'>
                     <select className='argo-field' name='dom' multiple={true} value={this.getValues(2)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                        var options = e.target.options;
-                        var values = [];
-                        for (var i = 0, l = options.length; i < l; i++) {
+                        const options = e.target.options;
+                        const values = [];
+                        for (let i = 0, l = options.length; i < l; i++) {
                             if (options[i].selected) {
                                 values.push(options[i].value);
                             }
@@ -296,14 +277,14 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
                 </div>
                 <div className='columns small-2'>
                     <select className='argo-field' name='month' multiple={true} value={this.getValues(3)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                        var monthOpts = e.target.options;
-                        var monthValues = [];
-                        for (var i = 0, l = monthOpts.length; i < l; i++) {
-                            if (monthOpts[i].selected) {
-                                monthValues.push(monthOpts[i].value);
+                        const options = e.target.options;
+                        const values = [];
+                        for (let i = 0, l = options.length; i < l; i++) {
+                            if (options[i].selected) {
+                                values.push(options[i].value);
                             }
                         }
-                        this.setValues(monthValues, 3);
+                        this.setValues(values, 3);
                     }}>
                         <option key='wildcard' value='*'>Every</option>
                         <option key='1' value='1'>Jan</option>
@@ -322,9 +303,9 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
                 </div>
                 <div className='columns small-2'>
                     <select className='argo-field' name='dow' multiple={true} value={this.getValues(4)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                        var options = e.target.options;
-                        var values = [];
-                        for (var i = 0, l = options.length; i < l; i++) {
+                        const options = e.target.options;
+                        const values = [];
+                        for (let i = 0, l = options.length; i < l; i++) {
                             if (options[i].selected) {
                                 values.push(options[i].value);
                             }
@@ -348,7 +329,7 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
     private getValues(f: number): string[] {
         if (this.props.fieldApi.getValue() !== undefined) {
             const fields = (this.props.fieldApi.getValue() as string).split(' ');
-            const subFields = getRanges(fields[f])
+            const subFields = getRanges(fields[f]);
             return subFields;
         }
         return ['*'];
@@ -358,7 +339,6 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
         if (this.props.fieldApi.getValue() !== undefined) {
             const fields = (this.props.fieldApi.getValue() as string).split(' ');
             fields[f] = setRanges(values);
-            console.log('fields: ' + fields[f])
             this.props.fieldApi.setValue(fields.join(' '));
         } else {
             switch (f) {
