@@ -48,11 +48,11 @@ const (
 // Represents a condition that must match in order for a patch to be applied
 type DiffCondition struct {
 	// JSON pointer where to get the value to match
-	jsonPath string
+	JsonPointer string
 	// Operator to use for the match
-	operator int
+	Operator int
 	// Value that should match
-	matcher string
+	Matcher string
 }
 
 // Parse a condition for the diff normalizer from a string.
@@ -83,15 +83,18 @@ func parseNormalizerCondition(condition string) (*DiffCondition, error) {
 
 	// Handle special cases 'is defined' and 'not defined'
 	if sp[2] == "defined" {
-		diffCondition.jsonPath = sp[0]
+		diffCondition.JsonPointer = sp[0]
 		if sp[1] == "is" {
-			diffCondition.operator = isDefined
+			diffCondition.Operator = isDefined
 		} else if sp[1] == "not" {
-			diffCondition.operator = isNotDefined
+			diffCondition.Operator = isNotDefined
 		} else {
 			return nil, fmt.Errorf("Unknown operator: '%s'", strings.Join(sp[1:], " "))
 		}
 	}
+
+	// For now, always empty
+	diffCondition.Matcher = ""
 
 	return diffCondition, nil
 }
@@ -107,9 +110,9 @@ func matchCondition(data []byte, condition *DiffCondition) bool {
 	}
 
 	// Validate the JSON pointer
-	ptr, err := jsonpointer.Parse(condition.jsonPath)
+	ptr, err := jsonpointer.Parse(condition.JsonPointer)
 	if err != nil {
-		log.Warnf("Invalid JSON pointer in condition: %s", condition.jsonPath)
+		log.Warnf("Invalid JSON pointer in condition: %s", condition.JsonPointer)
 		return false
 	}
 
@@ -117,19 +120,19 @@ func matchCondition(data []byte, condition *DiffCondition) bool {
 	has, err := ptr.Eval(parsed)
 	if err != nil {
 		if !strings.Contains(err.Error(), "invalid JSON pointer") {
-			log.Warnf("Not matched: %s (%v)", condition.jsonPath, err)
+			log.Warnf("Not matched: %s (%v)", condition.JsonPointer, err)
 		}
 		return false
 	}
 
 	// Perform the match on the data returned by the pointer evaluation
-	switch condition.operator {
+	switch condition.Operator {
 	case isDefined:
 		return has != nil
 	case isNotDefined:
 		return has == nil
 	default:
-		log.Warnf("Unknown operator in diff condition: %d", condition.operator)
+		log.Warnf("Unknown operator in diff condition: %d", condition.Operator)
 	}
 
 	return false
