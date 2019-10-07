@@ -137,11 +137,6 @@ COPY --from=builder /usr/local/bin/packr /usr/local/bin/packr
 COPY Gopkg.toml ${GOPATH}/src/dummy/Gopkg.toml
 COPY Gopkg.lock ${GOPATH}/src/dummy/Gopkg.lock
 
-RUN cd ${GOPATH}/src/dummy && \
-    dep ensure -vendor-only && \
-    mv vendor/* ${GOPATH}/src/ && \
-    rmdir vendor
-
 # Perform the build
 WORKDIR /go/src/github.com/argoproj/argo-cd
 COPY . .

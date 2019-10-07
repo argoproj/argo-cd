@@ -8,7 +8,6 @@ commands:
       - clean_checkout
       - configure_git
       - install_go_deps
-      - dep_ensure
   configure_git:
     steps:
       - run:
@@ -26,18 +25,6 @@ commands:
           name: Remove checked out code
           command: rm -Rf /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
       - checkout
-  dep_ensure:
-    steps:
-      - restore_cache:
-          keys:
-            - vendor-v4-{{ checksum "Gopkg.lock" }}
-      - run:
-          name: Run dep ensure
-          command: dep ensure -v
-      - save_cache:
-          key: vendor-v4-{{ checksum "Gopkg.lock" }}
-          paths:
-            - vendor
   install_golang:
     steps:
       - run:
@@ -66,7 +53,7 @@ commands:
           command: mkdir -p /tmp/dl
       - restore_cache:
           keys:
-            - dl-v7
+            - dl-v9
             - dl-v8
       - run:
           name: Install Kubectl v1.14.0
@@ -86,14 +73,6 @@ commands:
             sudo mv kubectx-0.6.3/kubens /usr/local/bin/
             sudo chmod +x /usr/local/bin/kubectx
             sudo chmod +x /usr/local/bin/kubens
-      - run:
-          name: Install Dep v0.5.3
-          command: |
-            set -x
-            [ -e /tmp/dl/dep ] || curl -sLf -C - -o /tmp/dl/dep https://github.com/golang/dep/releases/download/v0.5.3/dep-linux-amd64
-            sudo cp /tmp/dl/dep /usr/local/go/bin/dep
-            sudo chmod +x /usr/local/go/bin/dep
-            dep version
       - run:
           name: Install Ksonnet v0.13.1
           command: |
@@ -122,14 +101,15 @@ commands:
             sudo chmod +x /usr/local/go/bin/kustomize
             kustomize version
       - save_cache:
-          key: dl-v8
+          key: dl-v9
           paths:
             - /tmp/dl
   save_go_cache:
     steps:
       - save_cache:
-          key: go-v17-{{ .Branch }}
+          key: go-v18-{{ .Branch }}-{{ checksum "go.sum" }}
           paths:
+            - /home/circleci/go/pkg/mod
             - /home/circleci/.go_workspace
             - /home/circleci/.cache/go-build
             - /home/circleci/sdk/go1.12.6
@@ -137,21 +117,22 @@ commands:
     steps:
       - restore_cache:
           keys:
+            - go-v18-{{ .Branch }}-{{ checksum "go.sum" }}
+            - go-v18-master-{{ checksum "go.sum" }}
             - go-v17-{{ .Branch }}
             - go-v17-master
-            - go-v16-{{ .Branch }}
-            - go-v16-master
 jobs:
   build:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
       image: circleci/classic:201808-01
+    environment:
+      GO111MODULE: "on"
     steps:
       - before
       - run:
           name: Run unit tests
           command: make test
-      - save_go_cache
       - run:
           name: Uploading code coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
@@ -182,6 +163,7 @@ jobs:
       - store_artifacts:
           path: junit.xml
           when: always
+      - save_go_cache
   e2e:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:

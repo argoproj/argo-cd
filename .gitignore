@@ -1,7 +1,6 @@
 .vscode/
 .idea/
 .DS_Store
-vendor/
 dist/
 site/
 *.iml
