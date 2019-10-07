@@ -31,7 +31,7 @@ export const ProjectSyncWindowsEditPanel = (props: ProjectSyncWindowsEditPanelPr
     if (props.defaultParams.window === undefined) {
         const w = {} as models.SyncWindow;
         props.defaultParams.window = w;
-    } 
+    }
     return (
         <div className='project-sync-windows-edit-panel'>
         <Form

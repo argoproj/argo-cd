@@ -246,7 +246,7 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
             const fields = (this.props.fieldApi.getValue() as string).split(' ');
             return fields[0];
         }
-        return '';
+        return '*';
     }
 
     private setMinute(minute: string) {
@@ -255,7 +255,7 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
             fields[0] = `${minute}`;
             this.props.fieldApi.setValue(fields.join(' '));
         } else {
-            this.props.fieldApi.setValue(generateSchedule(minute, '0', '*', '*', '*'));
+            this.props.fieldApi.setValue(generateSchedule(minute, '*', '*', '*', '*'));
         }
         return;
     }
@@ -265,7 +265,7 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
             const fields = (this.props.fieldApi.getValue() as string).split(' ');
             return fields[1];
         }
-        return '';
+        return '*';
     }
 
     private setHour(hour: string) {
@@ -274,7 +274,7 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
             fields[1] = `${hour}`;
             this.props.fieldApi.setValue(fields.join(' '));
         } else {
-            this.props.fieldApi.setValue(generateSchedule('0', hour, '*', '*', '*'));
+            this.props.fieldApi.setValue(generateSchedule('*', hour, '*', '*', '*'));
         }
         return;
     }
@@ -293,7 +293,7 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
             fields[2] = `${dom}`;
             this.props.fieldApi.setValue(fields.join(' '));
         } else {
-            this.props.fieldApi.setValue(generateSchedule('0', '0', dom, '*', '*'));
+            this.props.fieldApi.setValue(generateSchedule('*', '*', dom, '*', '*'));
         }
         return;
     }
@@ -312,7 +312,7 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
             fields[3] = `${month}`;
             this.props.fieldApi.setValue(fields.join(' '));
         } else {
-            this.props.fieldApi.setValue(generateSchedule('0', '0', '*', month, '*'));
+            this.props.fieldApi.setValue(generateSchedule('*', '*', '*', month, '*'));
         }
         return;
     }
@@ -331,7 +331,7 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
             fields[4] = `${dow}`;
             this.props.fieldApi.setValue(fields.join(' '));
         } else {
-            this.props.fieldApi.setValue(generateSchedule('0', '0', '*', '*', dow));
+            this.props.fieldApi.setValue(generateSchedule('*', '*', '*', '*', dow));
         }
         return;
     }
