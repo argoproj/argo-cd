@@ -7,11 +7,12 @@ import requests from './requests';
 interface QueryOptions {
     fields: string[];
     exclude?: boolean;
+    selector?: string;
 }
 
 function optionsToSearch(options?: QueryOptions) {
     if (options) {
-        return { fields: (options.exclude ? '-' : '') + options.fields.join(',') };
+        return { fields: (options.exclude ? '-' : '') + options.fields.join(','), selector: options.selector };
     }
     return {};
 }
@@ -78,6 +79,7 @@ export class ApplicationsService {
         if (options) {
             const searchOptions = optionsToSearch(options);
             search.set('fields', searchOptions.fields);
+            search.set('selector', searchOptions.selector);
         }
         const searchStr = search.toString();
         const url = `/stream/applications${searchStr && '?' + searchStr || ''}` ;

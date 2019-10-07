@@ -45,7 +45,10 @@ export const ApplicationsTable = (props: {
                             <div className='show-for-xxlarge columns small-2'>Source:</div>
                             <div className='columns small-12 xxlarge-10' style={{position: 'relative'}}>
                                 {shortRepo(app.spec.source.repoURL)}/{app.spec.source.path}
-                                <span className='applications-table__revision'>{app.spec.source.targetRevision || 'HEAD'}</span>
+                                <div className='applications-table__meta'>
+                                    <span>{app.spec.source.targetRevision || 'HEAD'}</span>
+                                    {Object.keys(app.metadata.labels).map((label) => <span key={label}>{`${label}=${app.metadata.labels[label]}`}</span>)}
+                                </div>
                             </div>
                         </div>
                         <div className='row'>

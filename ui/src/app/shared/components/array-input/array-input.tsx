@@ -36,7 +36,7 @@ class State {
     public newItem: Item;
 }
 
-class ArrayInput extends React.Component<Props, State> {
+export class ArrayInput extends React.Component<Props, State> {
     constructor(props: Readonly<Props>) {
         super(props);
         this.state = {newItem: {name: '', value: ''}, items: props.items};

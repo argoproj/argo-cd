@@ -20,6 +20,7 @@ message ApplicationQuery {
 	optional string refresh = 2;
 	repeated string project = 3 [(gogoproto.customname) = "Projects"];
 	optional string resourceVersion = 4 [(gogoproto.nullable) = false];
+	optional string selector = 5 [(gogoproto.nullable) = false];
 }
 
 message RevisionMetadataQuery{

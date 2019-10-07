@@ -73,6 +73,11 @@
             "type": "string",
             "name": "resourceVersion",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "selector",
+            "in": "query"
           }
         ],
         "responses": {
@@ -221,6 +226,11 @@
           {
             "type": "string",
             "name": "resourceVersion",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "selector",
             "in": "query"
           }
         ],
@@ -1615,6 +1625,11 @@
           {
             "type": "string",
             "name": "resourceVersion",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "selector",
             "in": "query"
           }
         ],

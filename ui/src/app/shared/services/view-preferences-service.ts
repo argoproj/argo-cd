@@ -15,6 +15,7 @@ export interface AppDetailsPreferences {
 export type AppsListViewType = 'tiles' | 'list' | 'summary';
 
 export interface AppsListPreferences {
+    labelsFilter: string[];
     projectsFilter: string[];
     reposFilter: string[];
     syncFilter: string[];
@@ -58,6 +59,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
     },
     appList: {
         view: 'tiles' as AppsListViewType,
+        labelsFilter: new Array<string>(),
         projectsFilter: new Array<string>(),
         namespacesFilter: new Array<string>(),
         clustersFilter: new Array<string>(),
