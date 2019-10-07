@@ -97,12 +97,13 @@ func (e Env) Environ() []string {
 	return environ
 }
 
-// does an operation similar to `envstubst` tool
+// does an operation similar to `envstubst` tool,
+// but unlike envsubst it does not change missing names into empty string
 // see https://linux.die.net/man/1/envsubst
 func (e Env) Envsubst(s string) string {
-	for _, e := range e {
-		s = strings.ReplaceAll(s, fmt.Sprintf("$%s", e.Name), e.Value)
-		s = strings.ReplaceAll(s, fmt.Sprintf("${%s}", e.Name), e.Value)
+	for _, v := range e {
+		s = strings.ReplaceAll(s, fmt.Sprintf("$%s", v.Name), v.Value)
+		s = strings.ReplaceAll(s, fmt.Sprintf("${%s}", v.Name), v.Value)
 	}
 	return s
 }
@@ -282,7 +283,11 @@ type JsonnetVar struct {
 
 func NewJsonnetVar(s string, code bool) JsonnetVar {
 	parts := strings.SplitN(s, "=", 2)
-	return JsonnetVar{Name: parts[0], Value: parts[1], Code: code}
+	if len(parts) == 2 {
+		return JsonnetVar{Name: parts[0], Value: parts[1], Code: code}
+	} else {
+		return JsonnetVar{Name: s, Code: code}
+	}
 }
 
 // ApplicationSourceJsonnet holds jsonnet specific options

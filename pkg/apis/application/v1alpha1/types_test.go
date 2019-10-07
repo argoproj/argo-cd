@@ -1082,3 +1082,10 @@ func TestProjectMaintenanceWindow_Active(t *testing.T) {
 		assert.True(t, window.Active())
 	})
 }
+
+func TestNewJsonnetVar(t *testing.T) {
+	assert.Equal(t, JsonnetVar{}, NewJsonnetVar("", false))
+	assert.Equal(t, JsonnetVar{Name: "a"}, NewJsonnetVar("a=", false))
+	assert.Equal(t, JsonnetVar{Name: "a", Code: true}, NewJsonnetVar("a=", true))
+	assert.Equal(t, JsonnetVar{Name: "a", Value: "b", Code: true}, NewJsonnetVar("a=b", true))
+}
