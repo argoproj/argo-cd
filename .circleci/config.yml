@@ -67,6 +67,7 @@ commands:
       - restore_cache:
           keys:
             - dl-v7
+            - dl-v8
       - run:
           name: Install Kubectl v1.14.0
           command: |
@@ -121,7 +122,7 @@ commands:
             sudo chmod +x /usr/local/go/bin/kustomize
             kustomize version
       - save_cache:
-          key: dl-v7
+          key: dl-v8
           paths:
             - /tmp/dl
   save_go_cache:
