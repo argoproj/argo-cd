@@ -169,45 +169,143 @@ function generateRange(limit: number, zeroStart: boolean): string[] {
     return range;
 }
 
+function getRanges(config: string): string[] {
+    var values = [];
+    const fields = config.split(',');
+    for (let f of fields) {
+        if (f.search(/-/) !== -1) {
+            const r = f.split('-')
+            for (let i = parseInt(r[0]); i <= parseInt(r[1]); i++) {
+                values.push(i.toString())
+            }
+        } else {
+            values.push(f)
+        }
+    }
+    return values;
+}
+
+function setRanges(config: string[]): string {
+    var values = []
+    var ranges = [];
+    let isRange = false;
+    for (let i = 0; i < config.length; i++) {
+        if ( i !== (config.length - 1) && (parseInt(config[i]) + 1) === parseInt(config[i + 1])) {
+            if (!isRange) {
+                console.log('new range');
+                if (ranges.length === 0) {
+                    console.log("new range array");
+                    console.log('adding value: ' + config[i]);
+                    ranges[0] = [config[i]];
+                } else {
+                    ranges[ranges.length - 1] = [config[i]];
+                }
+                isRange = true;
+            } else {
+                console.log('range exists array exists');
+                console.log('adding value: ' + config[i]);
+                ranges[ranges.length - 1].push(config[i]);
+            }
+        } else if ( i === (config.length - 1) && (parseInt(config[i]) -1) === parseInt(config[i - 1])) {
+            console.log('adding last in range: ' + config[i]);
+            ranges[ranges.length - 1].push(config[i]);
+        } else if ((parseInt(config[i]) + 2) === parseInt(config[i + 1])) {
+            console.log('new range');
+            ranges[ranges.length] = [config[i]];
+        } else {
+            console.log('not in range');
+            console.log('adding to values   : ' + config[i]);
+            isRange = false;
+            values.push(config[i]);
+        }
+    }
+
+    if (ranges.length > 0) {
+        for (let r of ranges) {
+
+            console.log('adding ranges to values');
+            console.log(r);
+
+            console.log('begin: ' + r[0]);
+            console.log('end: ' + r[r.length-1]);
+            values.push(r[0] + '-' + r[r.length - 1])
+        }
+    }
+
+    console.log('vals:' + values)
+
+    return values.join(',');
+}
+
+
 class ScheduleWrapper extends React.Component<ScheduleProps, any> {
 
     public render() {
         return (
             <React.Fragment>
                 <div className='columns small-2'>
-                    <select className='argo-field' name='month' value={this.getMinute()} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                            this.setMinute(e.target.value);
+                    <select className='argo-field' name='month' multiple={true}  value={this.getValues(0)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                        var options = e.target.options;
+                        var values = [];
+                        for (var i = 0, l = options.length; i < l; i++) {
+                            if (options[i].selected) {
+                                values.push(options[i].value);
+                            }
+                        }
+                        this.setValues(values, 0);
                     }}>
+                        <option key='wildcard' value='*'>Every</option>
                         {generateRange(60, true).map((m) => (
                             <option key={m}>{m}</option>
                         ))}
-                        <option key='wildcard' value='*'>Every</option>
                     </select>
                 </div>
                 <div className='columns small-2'>
-                    <select className='argo-field' name='hours' value={this.getHour()} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                        this.setHour(e.target.value);
+                    <select className='argo-field' name='hours' multiple={true} value={this.getValues(1)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                        var options = e.target.options;
+                        var values = [];
+                        for (var i = 0, l = options.length; i < l; i++) {
+                            if (options[i].selected) {
+                                values.push(options[i].value);
+                            }
+                        }
+                        this.setValues(values, 1);
                     }}>
+                        <option key='wildcard' value='*'>Every</option>
                         {generateRange(24, true).map((m) => (
                             <option key={m}>{m}</option>
                         ))}
-                        <option key='wildcard' value='*'>Every</option>
                     </select>
                 </div>
                 <div className='columns small-2'>
-                    <select className='argo-field' name='dom' value={this.getDOM()} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                        this.setDOM(e.target.value);
+                    <select className='argo-field' name='dom' multiple={true} value={this.getValues(2)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                        var options = e.target.options;
+                        var values = [];
+                        for (var i = 0, l = options.length; i < l; i++) {
+                            if (options[i].selected) {
+                                values.push(options[i].value);
+                            }
+                        }
+                        this.setValues(values, 2);
                     }}>
+                        <option key='wildcard' value='*'>Every</option>
                         {generateRange(31, false).map((m) => (
                             <option key={m}>{m}</option>
                         ))}
-                        <option key='wildcard' value='*'>Every</option>
                     </select>
                 </div>
                 <div className='columns small-2'>
-                    <select className='argo-field' name='month' value={this.getMonth()} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                        this.setMonth(e.target.value);
+                    <select className='argo-field' name='month' multiple={true} value={this.getValues(3)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                        var monthOpts = e.target.options;
+                        var monthValues = [];
+                        for (var i = 0, l = monthOpts.length; i < l; i++) {
+                            if (monthOpts[i].selected) {
+                                monthValues.push(monthOpts[i].value);
+                            }
+                        }
+                        this.setValues(monthValues, 3);
                     }}>
+                        <option key='wildcard' value='*'>Every</option>
                         <option key='1' value='1'>Jan</option>
                         <option key='2' value='2'>Feb</option>
                         <option key='3' value='3'>Mar</option>
@@ -220,118 +318,61 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
                         <option key='10' value='10'>Oct</option>
                         <option key='11' value='11'>Nov</option>
                         <option key='12' value='12'>Dec</option>
-                        <option key='wildcard' value='*'>Every</option>
                     </select>
                 </div>
                 <div className='columns small-2'>
-                    <select className='argo-field' name='dow' value={this.getDOW()} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                        this.setDOW(e.target.value);
+                    <select className='argo-field' name='dow' multiple={true} value={this.getValues(4)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                        var options = e.target.options;
+                        var values = [];
+                        for (var i = 0, l = options.length; i < l; i++) {
+                            if (options[i].selected) {
+                                values.push(options[i].value);
+                            }
+                        }
+                        this.setValues(values, 4);
                     }}>
-                       <option key='0' value='0'>Sun</option>
+                        <option key='wildcard' value='*'>Every</option>
+                        <option key='0' value='0'>Sun</option>
                         <option key='1' value='1'>Mon</option>
                         <option key='2' value='2'>Tue</option>
                         <option key='3' value='3'>Wed</option>
                         <option key='4' value='4'>Thu</option>
                         <option key='5' value='5'>Fri</option>
                         <option key='6' value='6'>Sat</option>
-                        <option key='wildcard' value='*'>Every</option>
                     </select>
                 </div>
             </React.Fragment>
         );
     }
 
-    private getMinute(): string {
+    private getValues(f: number): string[] {
         if (this.props.fieldApi.getValue() !== undefined) {
             const fields = (this.props.fieldApi.getValue() as string).split(' ');
-            return fields[0];
+            const subFields = getRanges(fields[f])
+            return subFields;
         }
-        return '*';
+        return ['*'];
     }
 
-    private setMinute(minute: string) {
+    private setValues(values: string[], f: number) {
         if (this.props.fieldApi.getValue() !== undefined) {
             const fields = (this.props.fieldApi.getValue() as string).split(' ');
-            fields[0] = `${minute}`;
+            fields[f] = setRanges(values);
+            console.log('fields: ' + fields[f])
             this.props.fieldApi.setValue(fields.join(' '));
         } else {
-            this.props.fieldApi.setValue(generateSchedule(minute, '*', '*', '*', '*'));
-        }
-        return;
-    }
-
-    private getHour(): string {
-        if (this.props.fieldApi.getValue() !== undefined) {
-            const fields = (this.props.fieldApi.getValue() as string).split(' ');
-            return fields[1];
-        }
-        return '*';
-    }
-
-    private setHour(hour: string) {
-        if (this.props.fieldApi.getValue() !== undefined) {
-            const fields = (this.props.fieldApi.getValue() as string).split(' ');
-            fields[1] = `${hour}`;
-            this.props.fieldApi.setValue(fields.join(' '));
-        } else {
-            this.props.fieldApi.setValue(generateSchedule('*', hour, '*', '*', '*'));
-        }
-        return;
-    }
-
-    private getDOM(): string {
-        if (this.props.fieldApi.getValue() !== undefined) {
-            const fields = (this.props.fieldApi.getValue() as string).split(' ');
-            return fields[2];
-        }
-        return '*';
-    }
-
-    private setDOM(dom: string) {
-        if (this.props.fieldApi.getValue() !== undefined) {
-            const fields = (this.props.fieldApi.getValue() as string).split(' ');
-            fields[2] = `${dom}`;
-            this.props.fieldApi.setValue(fields.join(' '));
-        } else {
-            this.props.fieldApi.setValue(generateSchedule('*', '*', dom, '*', '*'));
-        }
-        return;
-    }
-
-    private getMonth(): string {
-        if (this.props.fieldApi.getValue() !== undefined) {
-            const fields = (this.props.fieldApi.getValue() as string).split(' ');
-            return fields[3];
-        }
-        return '*';
-    }
-
-    private setMonth(month: string) {
-        if (this.props.fieldApi.getValue() !== undefined) {
-            const fields = (this.props.fieldApi.getValue() as string).split(' ');
-            fields[3] = `${month}`;
-            this.props.fieldApi.setValue(fields.join(' '));
-        } else {
-            this.props.fieldApi.setValue(generateSchedule('*', '*', '*', month, '*'));
-        }
-        return;
-    }
-
-    private getDOW(): string {
-        if (this.props.fieldApi.getValue() !== undefined) {
-            const fields = (this.props.fieldApi.getValue() as string).split(' ');
-            return fields[4];
-        }
-        return '*';
-    }
-
-    private setDOW(dow: string) {
-        if (this.props.fieldApi.getValue() !== undefined) {
-            const fields = (this.props.fieldApi.getValue() as string).split(' ');
-            fields[4] = `${dow}`;
-            this.props.fieldApi.setValue(fields.join(' '));
-        } else {
-            this.props.fieldApi.setValue(generateSchedule('*', '*', '*', '*', dow));
+            switch (f) {
+                case 0:
+                    this.props.fieldApi.setValue(generateSchedule(values.join(','), '*', '*', '*', '*'));
+                case 1:
+                    this.props.fieldApi.setValue(generateSchedule('*', values.join(','), '*', '*', '*'));
+                case 2:
+                    this.props.fieldApi.setValue(generateSchedule('*', '*', values.join(','), '*', '*'));
+                case 3:
+                    this.props.fieldApi.setValue(generateSchedule('*', '*', '*', values.join(','), '*'));
+                case 4:
+                    this.props.fieldApi.setValue(generateSchedule('*', '*', '*', '*', values.join(',')));
+            }
         }
         return;
     }

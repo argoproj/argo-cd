@@ -115,17 +115,17 @@ export class ProjectsService {
         const updatedSpec = proj.spec;
         if (proj.spec.syncWindows === undefined) {
             updatedSpec.syncWindows = [];
+        }
+        if (params.id === undefined || (!(params.id in proj.spec.syncWindows))) {
+            updatedSpec.syncWindows = updatedSpec.syncWindows.concat(params.window);
         } else {
-            if (params.id === undefined || (!(params.id in proj.spec.syncWindows))) {
-                updatedSpec.syncWindows = updatedSpec.syncWindows.concat(params.window);
+            if (params.deleteWindow) {
+                updatedSpec.syncWindows.splice(params.id, 1);
             } else {
-                if (params.deleteWindow) {
-                    updatedSpec.syncWindows.splice(params.id, 1);
-                } else {
-                    updatedSpec.syncWindows[params.id] = params.window;
-                }
+                updatedSpec.syncWindows[params.id] = params.window;
             }
         }
+
         return requests.put(`/projects/${params.projName}`).send({project: {...proj, spec: updatedSpec }}).then((res) => res.body as models.Project);
     }
 
