@@ -611,6 +611,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#build-environment" title="Build Environment" class="md-nav__link">
+    Build Environment
+  </a>
+  
+</li>
+      
       
       
       
@@ -619,6 +626,18 @@
   
 </nav>
     
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../jsonnet/" title="Jsonnet" class="md-nav__link">
+      Jsonnet
+    </a>
   </li>
 
         
@@ -738,6 +757,18 @@
   <li class="md-nav__item">
     <a href="../parameters/" title="Parameter Overrides" class="md-nav__link">
       Parameter Overrides
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../build-environment/" title="Build Environment" class="md-nav__link">
+      Build Environment
     </a>
   </li>
 
@@ -1057,6 +1088,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#build-environment" title="Build Environment" class="md-nav__link">
+    Build Environment
+  </a>
+  
+</li>
+      
       
       
       
@@ -1077,6 +1115,9 @@
                 
                 
                 <h1 id="ksonnet">Ksonnet<a class="headerlink" href="#ksonnet" title="Permanent link">&para;</a></h1>
+<div class="admonition tip warning">
+<p class="admonition-title">Ksonnet is a defunct tool. </p>
+</div>
 <h2 id="environments">Environments<a class="headerlink" href="#environments" title="Permanent link">&para;</a></h2>
 <p>Ksonnet has a first class concept of an "environment." To create an application from a ksonnet
 app directory, an environment must be specified. For example, the following command creates the
@@ -1104,6 +1145,10 @@ guestbook-ui <span class="nb">type</span>          <span class="s2">&quot;LoadBa
 <code>argocd app set</code> command, in the form of <code>-p COMPONENT=PARAM=VALUE</code>. For example:</p>
 <div class="codehilite"><pre><span></span>argocd app <span class="nb">set</span> guestbook-default -p guestbook-ui<span class="o">=</span><span class="nv">image</span><span class="o">=</span>gcr.io/heptio-images/ks-guestbook-demo:0.1
 </pre></div>
+
+
+<h2 id="build-environment">Build Environment<a class="headerlink" href="#build-environment" title="Permanent link">&para;</a></h2>
+<p>We do not support the <a href="../build-environment/">standard build environment</a> for Ksonnet.</p>
                 
                   
                 
@@ -1139,13 +1184,13 @@ guestbook-ui <span class="nb">type</span>          <span class="s2">&quot;LoadBa
           </a>
         
         
-          <a href="../config-management-plugins/" title="Plugins" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+          <a href="../jsonnet/" title="Jsonnet" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
               <span class="md-flex__ellipsis">
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                Plugins
+                Jsonnet
               </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink">

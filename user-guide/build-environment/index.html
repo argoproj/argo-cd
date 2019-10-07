@@ -36,7 +36,7 @@
     
     
       
-        <title>Status Badge - Argo CD - Declarative GitOps CD for Kubernetes</title>
+        <title>Build Environment - Argo CD - Declarative GitOps CD for Kubernetes</title>
       
     
     
@@ -127,7 +127,7 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
     
-      <a href="#status-badge" tabindex="1" class="md-skip">
+      <a href="#build-environment" tabindex="1" class="md-skip">
         Skip to content
       </a>
     
@@ -152,7 +152,7 @@
               Argo CD - Declarative GitOps CD for Kubernetes
             </span>
             <span class="md-header-nav__topic">
-              Status Badge
+              Build Environment
             </span>
           
         </div>
@@ -713,11 +713,20 @@
           
           
 
+  
 
-  <li class="md-nav__item">
-    <a href="../build-environment/" title="Build Environment" class="md-nav__link">
+
+  <li class="md-nav__item md-nav__item--active">
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    
+      
+    
+    
+    <a href="./" title="Build Environment" class="md-nav__link md-nav__link--active">
       Build Environment
     </a>
+    
   </li>
 
         
@@ -821,20 +830,11 @@
           
           
 
-  
 
-
-  <li class="md-nav__item md-nav__item--active">
-    
-    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
-    
-      
-    
-    
-    <a href="./" title="Status Badge" class="md-nav__link md-nav__link--active">
+  <li class="md-nav__item">
+    <a href="../status-badge/" title="Status Badge" class="md-nav__link">
       Status Badge
     </a>
-    
   </li>
 
         
@@ -1038,25 +1038,17 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/user-guide/status-badge.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/user-guide/build-environment.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
-                <h1 id="status-badge">Status Badge<a class="headerlink" href="#status-badge" title="Permanent link">&para;</a></h1>
-<blockquote>
-<p>v1.2</p>
-</blockquote>
-<p>Argo CD can display a badge with health and sync status for any application. The feature is disabled by default because badge image is available to any user without authentication.
-The feature can be enabled using <code>statusbadge.enabled</code> key of <code>argocd-cm</code> ConfigMap (see <a href="../../operator-manual/argocd-cm.yaml">argocd-cm.yaml</a>).</p>
-<p><img alt="healthy and synced" src="../../assets/status-badge-healthy-synced.png" /></p>
-<p>To show this badge, use the following URL format <code>${argoCdBaseUrl}/api/badge?name=${appName}</code>, e.g. http://localhost:8080/api/badge?name=guestbook.
-The URLs for status image are available on application details page:</p>
-<ol>
-<li>Navigate to application details page and click on 'Details' button.</li>
-<li>Scroll down to 'Status Badge' section.</li>
-<li>Select required template such as URL, Markdown etc.
-for the status image URL in markdown, html, etc are available .</li>
-<li>Copy the text and paste it into your README or website.</li>
-</ol>
+                <h1 id="build-environment">Build Environment<a class="headerlink" href="#build-environment" title="Permanent link">&para;</a></h1>
+<p><a href="../config-management-plugins/">Custom tools</a>, <a href="../helm/">Helm</a>, and <a href="../jsonnet/">Jsonnet</a> support the following build env vars:</p>
+<ul>
+<li><code>ARGOCD_APP_NAME</code> - name of application</li>
+<li><code>ARGOCD_APP_NAMESPACE</code> - destination application namespace.</li>
+<li><code>ARGOCD_APP_TARGET_REVISION</code> - the target revision from the spec, e.g. <code>master</code>.</li>
+<li><code>ARGOCD_APP_REVISION</code> - the resolved revision, e.g. <code>f913b6cbf58aa5ae5ca1f8a2b149477aebcbd9d8</code></li>
+</ul>
                 
                   
                 
@@ -1077,7 +1069,7 @@ for the status image URL in markdown, html, etc are available .</li>
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
         
-          <a href="../best_practices/" title="Best Practices" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+          <a href="../parameters/" title="Parameter Overrides" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
             <div class="md-flex__cell md-flex__cell--shrink">
               <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
             </div>
@@ -1086,19 +1078,19 @@ for the status image URL in markdown, html, etc are available .</li>
                 <span class="md-footer-nav__direction">
                   Previous
                 </span>
-                Best Practices
+                Parameter Overrides
               </span>
             </div>
           </a>
         
         
-          <a href="../../developer-guide/" title="Overview" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+          <a href="../tracking_strategies/" title="Tracking and Deployment Strategies" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
               <span class="md-flex__ellipsis">
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                Overview
+                Tracking and Deployment Strategies
               </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink">

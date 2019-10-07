@@ -581,6 +581,18 @@
           
           
 
+
+  <li class="md-nav__item">
+    <a href="../jsonnet/" title="Jsonnet" class="md-nav__link">
+      Jsonnet
+    </a>
+  </li>
+
+        
+          
+          
+          
+
   
 
 
@@ -731,6 +743,18 @@
   <li class="md-nav__item">
     <a href="../parameters/" title="Parameter Overrides" class="md-nav__link">
       Parameter Overrides
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../build-environment/" title="Build Environment" class="md-nav__link">
+      Build Environment
     </a>
   </li>
 
@@ -1091,13 +1115,11 @@
 <p>More config management plugin examples are available in <a href="https://github.com/argoproj/argocd-example-apps/tree/master/plugins">argocd-example-apps</a>.</p>
 <h2 id="environment">Environment<a class="headerlink" href="#environment" title="Permanent link">&para;</a></h2>
 <p>Commands have access to</p>
-<p>(1) The system environment variables
-(2) Argo CD  environment variables:</p>
-<ul>
-<li><code>ARGOCD_APP_NAME</code> - name of application</li>
-<li><code>ARGOCD_APP_NAMESPACE</code> - destination application namespace.</li>
-</ul>
-<p>(3) Variables in the application spec:</p>
+<ol>
+<li>The system environment variables</li>
+<li><a href="../build-environment/">Standard build environment</a></li>
+<li>Variables in the application spec:</li>
+</ol>
 <blockquote>
 <p>v1.2</p>
 </blockquote>
@@ -1128,7 +1150,7 @@
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
         
-          <a href="../ksonnet/" title="Ksonnet" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+          <a href="../jsonnet/" title="Jsonnet" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
             <div class="md-flex__cell md-flex__cell--shrink">
               <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
             </div>
@@ -1137,7 +1159,7 @@
                 <span class="md-footer-nav__direction">
                   Previous
                 </span>
-                Ksonnet
+                Jsonnet
               </span>
             </div>
           </a>
