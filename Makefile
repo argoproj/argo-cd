@@ -90,7 +90,7 @@ argocd-util: clean-debug
 
 .PHONY: dev-tools-image
 dev-tools-image:
-	docker build -t argocd-dev-tools ./hack -f ./hack/Dockerfile.dev-tools
+	docker build -t argocd-dev-tools ./hack/dev-tools
 
 .PHONY: manifests-local
 manifests-local:
@@ -160,10 +160,6 @@ lint:
 	# golangci-lint does not do a good job of formatting imports
 	goimports -local github.com/argoproj/argo-cd -w `find . ! -path './vendor/*' ! -path './pkg/client/*' ! -path '*.pb.go' ! -path '*.gw.go' -type f -name '*.go'`
 	GOGC=$(LINT_GOGC) golangci-lint run --fix --verbose --concurrency $(LINT_CONCURRENCY) --deadline $(LINT_DEADLINE)
-
-.PHONY: lint
-lint: dev-tools-image
-	$(call run-in-dev-tool,make lint-local LINT_CONCURRENCY=$(LINT_CONCURRENCY) LINT_DEADLINE=$(LINT_DEADLINE) LINT_GOGC=$(LINT_GOGC))
 
 .PHONY: build
 build:

@@ -5,21 +5,13 @@ RUN curl -L -o /usr/local/bin/kustomize https://github.com/kubernetes-sigs/kusto
     chmod +x /usr/local/bin/kustomize && \
     kustomize version
 
-ADD . /src
-
-WORKDIR /src
-
 RUN GO111MODULE=on go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.0-alpha.2 && \
     GO111MODULE=on go get github.com/gobuffalo/packr/packr@v1.30.1 && \
     GO111MODULE=on go get github.com/gogo/protobuf/gogoproto@v1.2.1 && \
     GO111MODULE=on go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.0-beta.2 && \
     GO111MODULE=on go get github.com/golang/protobuf/protoc-gen-go@v1.3.1 && \
-    GO111MODULE=on go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.17.1 && \
     GO111MODULE=on go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway@v1.9.2 && \
-    GO111MODULE=on go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger@v1.9.2 && \
-    GO111MODULE=on go get github.com/jstemmer/go-junit-report@v0.0.0-20190106144839-af01ea7f8024 && \
-    GO111MODULE=on go get github.com/mattn/goreman@v0.2.1 && \
-    GO111MODULE=on go get golang.org/x/tools/cmd/goimports@v0.0.0-20190627203933-19ff4fff8850
+    GO111MODULE=on go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger@v1.9.2
 
 ENV KUSTOMIZE_VERSION=2.0.3
 RUN curl -L -o /usr/local/bin/kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64 && \

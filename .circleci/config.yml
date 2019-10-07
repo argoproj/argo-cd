@@ -58,11 +58,7 @@ commands:
     steps:
       - run:
           name: Install Go deps
-          command: |
-            set -x
-            go get github.com/jstemmer/go-junit-report
-            go get github.com/mattn/goreman
-            GO111MODULE=on go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.19.1
+          command: ./hack/install-go-tools.sh
   install_tools:
     steps:
       - run:
