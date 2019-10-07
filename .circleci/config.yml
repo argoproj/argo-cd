@@ -107,7 +107,7 @@ commands:
   save_go_cache:
     steps:
       - save_cache:
-          key: go-v18-{{ .Branch }}-{{ checksum "go.sum" }}
+          key: go-v18-{{ .Branch }}
           paths:
             - /home/circleci/go/pkg/mod
             - /home/circleci/.go_workspace
@@ -117,8 +117,8 @@ commands:
     steps:
       - restore_cache:
           keys:
-            - go-v18-{{ .Branch }}-{{ checksum "go.sum" }}
-            - go-v18-master-{{ checksum "go.sum" }}
+            - go-v18-{{ .Branch }}
+            - go-v18-master
             - go-v17-{{ .Branch }}
             - go-v17-master
 jobs:

@@ -2443,7 +2443,7 @@
         },
         "state": {
           "type": "string",
-          "title": "State of this Series: Ongoing or Finished\nDeprecated. Planned removal for 1.18"
+          "title": "State of this Series: Ongoing or Finished"
         }
       }
     },

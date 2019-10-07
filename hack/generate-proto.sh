@@ -56,9 +56,9 @@ go get github.com/gogo/protobuf/protoc-gen-gogofast@v1.3.0
 GOPROTOBINARY=gogofast
 
 # protoc-gen-grpc-gateway is used to build <service>.pb.gw.go files from from .proto files
-go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway@v1.11.3
+go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway@v1.9.2
 # protoc-gen-swagger is used to build swagger.json
-go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger@v1.11.3
+go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger@v1.9.2
 
 # Generate server/<service>/(<service>.pb.go|<service>.pb.gw.go)
 PROTO_FILES=$(find $PROJECT_ROOT \( -name "*.proto" -and -path '*/server/*' -or -path '*/reposerver/*' -and -name "*.proto" \) | sort)
@@ -67,7 +67,7 @@ for i in ${PROTO_FILES}; do
         -I${PROJECT_ROOT} \
         -I/usr/local/include \
         -I$GOPATH/src \
-        -I$GOPATH/pkg/mod/github.com/grpc-ecosystem/grpc-gateway@v1.11.3/third_party/googleapis \
+        -I$GOPATH/pkg/mod/github.com/grpc-ecosystem/grpc-gateway@v1.9.2/third_party/googleapis \
         -I$GOPATH/pkg/mod/github.com/gogo/protobuf@v1.3.0 \
         --${GOPROTOBINARY}_out=plugins=grpc:$GOPATH/src \
         --grpc-gateway_out=logtostderr=true:$GOPATH/src \
