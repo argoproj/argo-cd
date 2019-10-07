@@ -26,9 +26,8 @@ require (
 	github.com/gobwas/glob v0.2.3
 	github.com/gogits/go-gogs-client v0.0.0-20190616193657-5a05380e4bc2
 	github.com/gogo/protobuf v1.2.1
-	github.com/golang/lint v0.0.0-20180702182130-06c8688daad7 // indirect
+	github.com/golang/groupcache v0.0.0-20190129154638-5b532d6fd5ef // indirect
 	github.com/golang/protobuf v1.3.2
-	github.com/golangci/golangci-lint v1.19.1 // indirect
 	github.com/google/go-jsonnet v0.10.0
 	github.com/google/shlex v0.0.0-20181106134648-c34317bd91bf
 	github.com/googleapis/gnostic v0.1.0 // indirect
@@ -37,14 +36,13 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.9.2
 	github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
 	github.com/json-iterator/go v1.1.7 // indirect
-	github.com/jstemmer/go-junit-report v0.0.0-20190106144839-af01ea7f8024 // indirect
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
-	github.com/kisielk/errcheck v1.2.0 // indirect
 	github.com/malexdev/utfutil v0.0.0-20180510171754-00c8d4a8e7a8 // indirect
 	github.com/mattn/go-colorable v0.1.4 // indirect
-	github.com/mattn/goreman v0.2.1 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.0 // indirect
+	github.com/onsi/ginkgo v1.10.1 // indirect
+	github.com/onsi/gomega v1.7.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.8.1
 	github.com/pquerna/cachecontrol v0.0.0-20180306154005-525d0eb5f91d // indirect
@@ -66,8 +64,11 @@ require (
 	golang.org/x/net v0.0.0-20190909003024-a7b16738d86b
 	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
+	golang.org/x/sys v0.0.0-20190911201528-7ad0cfa0b7b5 // indirect
+	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
 	google.golang.org/genproto v0.0.0-20180817151627-c66870c02cf8
 	google.golang.org/grpc v1.21.0
+	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/go-playground/webhooks.v5 v5.11.0
 	gopkg.in/src-d/go-git.v4 v4.9.1
 	gopkg.in/yaml.v2 v2.2.4
@@ -75,12 +76,10 @@ require (
 	k8s.io/apiextensions-apiserver v0.0.0-20190404071145-7f7d2b94eca3
 	k8s.io/apimachinery v0.0.0-20190711103026-7bf792636534
 	k8s.io/client-go v0.0.0-20190711103903-4a0861cac5e0
-	k8s.io/gengo v0.0.0-20190822140433-26a664648505 // indirect
 	k8s.io/klog v1.0.0
 	k8s.io/kube-aggregator v0.0.0-20190711105720-e80910364765
 	k8s.io/kube-openapi v0.0.0-20190502190224-411b2483e503
 	k8s.io/kubernetes v1.15.0-alpha.0.0.20190621004036-2d20b5759406
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a
 	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
-	sigs.k8s.io/structured-merge-diff v0.0.0-20190525122527-15d366b2352e // indirect
 )
