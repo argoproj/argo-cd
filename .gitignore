@@ -9,3 +9,6 @@ site/
 cmd/**/debug
 debug.test
 coverage.out
+junit.xml
+test.out
+test-e2e.out

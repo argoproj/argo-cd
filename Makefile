@@ -175,7 +175,7 @@ build:
 
 .PHONY: test
 test:
-	go test -v -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "test/e2e"`
+	./hack/test.sh
 
 .PHONY: cover
 cover:
@@ -183,7 +183,7 @@ cover:
 
 .PHONY: test-e2e
 test-e2e: cli
-	go test -v -timeout 15m ./test/e2e
+	./hack/test-e2e.sh
 
 .PHONY: start-e2e
 start-e2e: cli

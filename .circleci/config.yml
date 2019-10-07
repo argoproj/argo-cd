@@ -152,19 +152,13 @@ jobs:
       - before
       - run:
           name: Run unit tests
-          command: |
-            set -x
-            mkdir -p /tmp/test-results
-            trap "go-junit-report </tmp/test-results/go-test.out > /tmp/test-results/go-test-report.xml" EXIT
-            make test | tee /tmp/test-results/go-test.out
+          command: make test
       - save_go_cache
       - run:
           name: Uploading code coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
           # This takes 2m, lets background it.
           background: true
-      - store_test_results:
-          path: /tmp/test-results
       - run:
           name: Generate code
           command: make codegen
@@ -185,8 +179,10 @@ jobs:
       - store_artifacts:
           path: codegen.patch
           when: always
+      - store_test_results:
+          path: junit.xml
       - store_artifacts:
-          path: /tmp/test-results/*.xml
+          path: junit.xml
           when: always
   e2e:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
@@ -274,19 +270,15 @@ jobs:
             argocd app delete guestbook
       - run:
           name: Run e2e tests
-          command: |
-            set -x
-            mkdir -p /tmp/test-results
-            trap "go-junit-report </tmp/test-results/go-e2e.out > /tmp/test-results/go-e2e-report.xml" EXIT
-            make test-e2e | tee /tmp/test-results/go-e2e.out
+          command: make test-e2e
           environment:
             ARGOCD_OPTS: "--server localhost:8080 --plaintext"
             ARGOCD_E2E_EXPECT_TIMEOUT: "30"
             ARGOCD_E2E_K3S: "true"
       - store_test_results:
-          path: /tmp/test-results
+          path: junit.xml
       - store_artifacts:
-          path: /tmp/test-results/*.xml
+          path: junit.xml
           when: always
   ui:
     # note that we checkout the code in ~/argo-cd/, but then work in ~/argo-cd/ui
