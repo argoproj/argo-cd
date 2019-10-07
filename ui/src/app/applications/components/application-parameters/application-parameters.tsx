@@ -209,7 +209,7 @@ export const ApplicationParameters = (props: {
             edit: (formApi: FormApi) => (
                 <DataLoader load={() => services.authService.settings()}>{(settings: AuthSettings) => (
                     <FormField formApi={formApi} field='spec.source.plugin.name' component={FormSelect}
-                               componentProps={{options: settings.plugins.map((p) => p.name)}}/>
+                               componentProps={{options: (settings.plugins || []).map((p) => p.name)}}/>
                 )}</DataLoader>
             ),
         });
