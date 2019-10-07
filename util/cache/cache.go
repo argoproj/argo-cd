@@ -79,4 +79,3 @@ func (c *Cache) GetItem(key string, item interface{}) error {
 	key = fmt.Sprintf("%s|%s", key, common.CacheVersion)
 	return c.client.Get(key, item)
 }
-

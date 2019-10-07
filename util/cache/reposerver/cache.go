@@ -8,21 +8,20 @@ import (
 	"github.com/spf13/cobra"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-    cacheutil "github.com/argoproj/argo-cd/util/cache"
-    "github.com/argoproj/argo-cd/util/hash"
-
+	cacheutil "github.com/argoproj/argo-cd/util/cache"
+	"github.com/argoproj/argo-cd/util/hash"
 )
 
 var ErrCacheMiss = cacheutil.ErrCacheMiss
 
 type Cache struct {
-    cache                           *cacheutil.Cache
-    repoCacheExpiration             time.Duration
+	cache               *cacheutil.Cache
+	repoCacheExpiration time.Duration
 }
 
 func NewCache(
-    cache                           *cacheutil.Cache,
-	repoCacheExpiration         time.Duration,
+	cache *cacheutil.Cache,
+	repoCacheExpiration time.Duration,
 ) *Cache {
 	return &Cache{cache, repoCacheExpiration}
 }
@@ -37,7 +36,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
 	return func() (*Cache, error) {
 		cache, err := fn()
 		if err != nil {
-		    return nil, err
+			return nil, err
 		}
 		return NewCache(cache, repoCacheExpiration), nil
 	}

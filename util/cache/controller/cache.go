@@ -1,4 +1,4 @@
-package controller;
+package controller
 
 import (
 	"fmt"
@@ -7,23 +7,23 @@ import (
 	"github.com/spf13/cobra"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-    cacheutil "github.com/argoproj/argo-cd/util/cache"
+	cacheutil "github.com/argoproj/argo-cd/util/cache"
 )
 
 var ErrCacheMiss = cacheutil.ErrCacheMiss
 
 type Cache struct {
-    cache                           *cacheutil.Cache
+	cache                           *cacheutil.Cache
 	appStateCacheExpiration         time.Duration
 	connectionStatusCacheExpiration time.Duration
 	oidcCacheExpiration             time.Duration
 }
 
 func NewCache(
-    cache                           *cacheutil.Cache,
-	appStateCacheExpiration         time.Duration,
+	cache *cacheutil.Cache,
+	appStateCacheExpiration time.Duration,
 	connectionStatusCacheExpiration time.Duration,
-	oidcCacheExpiration             time.Duration,
+	oidcCacheExpiration time.Duration,
 ) *Cache {
 	return &Cache{cache, appStateCacheExpiration, connectionStatusCacheExpiration, oidcCacheExpiration}
 }
@@ -47,9 +47,9 @@ func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
 	return func() (*Cache, error) {
 		cache, err := fn()
 		if err != nil {
-		    return nil, err
+			return nil, err
 		}
-		return NewCache(            cache,            appStateCacheExpiration,            connectionStatusCacheExpiration,oidcCacheExpiration), nil
+		return NewCache(cache, appStateCacheExpiration, connectionStatusCacheExpiration, oidcCacheExpiration), nil
 	}
 }
 

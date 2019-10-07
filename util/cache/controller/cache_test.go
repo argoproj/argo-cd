@@ -58,7 +58,6 @@ func TestCache_GetAppResourcesTree(t *testing.T) {
 	assert.Equal(t, &ApplicationTree{Nodes: []ResourceNode{{}}}, value)
 }
 
-
 func TestCache_GetClusterConnectionState(t *testing.T) {
 	cache := newFixtures().Cache
 	// cache miss
