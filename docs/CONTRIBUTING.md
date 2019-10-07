@@ -57,10 +57,6 @@ make
 The make command can take a while, and we recommend building the specific component you are working on
 
 * `make codegen` - Builds protobuf and swagger files.
-
-Note: `make codegen` is slow because it uses docker + volume mounts. To improve performance you might install binaries from `./hack/Dockerfile.dev-tools`
-and use `make codegen-local`. It is still recommended to run `make codegen` once before sending PR to make sure correct version of codegen tools is used.   
-
 * `make cli` - Make the argocd CLI tool
 * `make server` - Make the API/repo/controller server
 * `make argocd-util` - Make the administrator's utility, used for certain tasks such as import/export

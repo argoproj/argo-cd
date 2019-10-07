@@ -16,11 +16,10 @@ jq --version
 
 PROJECT_ROOT=$(cd $(dirname ${BASH_SOURCE})/..; pwd)
 CODEGEN_PKG=${CODEGEN_PKG:-$(cd ${PROJECT_ROOT}; ls -d -1 ./vendor/k8s.io/code-generator 2>/dev/null || echo ../code-generator)}
-PATH="${PROJECT_ROOT}/dist:${PATH}"
+GO111MODULE=on
 
 # protbuf tooling required to build .proto files from go annotations from k8s-like api types
-go build -i -o dist/go-to-protobuf ./vendor/k8s.io/code-generator/cmd/go-to-protobuf
-go build -i -o dist/protoc-gen-gogo ./vendor/k8s.io/code-generator/cmd/go-to-protobuf/protoc-gen-gogo
+go get k8s.io/code-generator/cmd/go-to-protobuf/protoc-gen-gogo@v0.0.0-20191003035328-700b1226c0bd
 
 # Generate pkg/apis/<group>/<apiversion>/(generated.proto,generated.pb.go)
 # NOTE: any dependencies of our types to the k8s.io apimachinery types should be added to the
@@ -47,20 +46,20 @@ go-to-protobuf \
 # server/*/<service>.pb.go from .proto files. golang/protobuf and gogo/protobuf can be used
 # interchangeably. The difference in the options are:
 # 1. protoc-gen-go - official golang/protobuf
-#go build -i -o dist/protoc-gen-go ./vendor/github.com/golang/protobuf/protoc-gen-go
+#go build -i -o protoc-gen-go ./vendor/github.com/golang/protobuf/protoc-gen-go
 #GOPROTOBINARY=go
 # 2. protoc-gen-gofast - fork of golang golang/protobuf. Faster code generation
-#go build -i -o dist/protoc-gen-gofast ./vendor/github.com/gogo/protobuf/protoc-gen-gofast
+#go build -i -o protoc-gen-gofast ./vendor/github.com/gogo/protobuf/protoc-gen-gofast
 #GOPROTOBINARY=gofast
 # 3. protoc-gen-gogofast - faster code generation and gogo extensions and flexibility in controlling
 # the generated go code (e.g. customizing field names, nullable fields)
-go build -i -o dist/protoc-gen-gogofast ./vendor/github.com/gogo/protobuf/protoc-gen-gogofast
+go get github.com/gogo/protobuf/protoc-gen-gogofast
 GOPROTOBINARY=gogofast
 
 # protoc-gen-grpc-gateway is used to build <service>.pb.gw.go files from from .proto files
-go build -i -o dist/protoc-gen-grpc-gateway ./vendor/github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
 # protoc-gen-swagger is used to build swagger.json
-go build -i -o dist/protoc-gen-swagger ./vendor/github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
+go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
 
 # Generate server/<service>/(<service>.pb.go|<service>.pb.gw.go)
 PROTO_FILES=$(find $PROJECT_ROOT \( -name "*.proto" -and -path '*/server/*' -or -path '*/reposerver/*' -and -name "*.proto" \) | sort)
