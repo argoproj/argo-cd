@@ -11,6 +11,7 @@ import {
     ProjectSyncWindowApplicationsEdit,
     ProjectSyncWindowClusterEdit,
     ProjectSyncWindowNamespaceEdit,
+    ProjectSyncWindowScheduleEdit,
 } from '../project-sync-windows-edit/project-sync-windows-edit';
 
 interface ProjectSyncWindowsDefaultParams {
@@ -30,7 +31,7 @@ export const ProjectSyncWindowsEditPanel = (props: ProjectSyncWindowsEditPanelPr
     if (props.defaultParams.window === undefined) {
         const w = {} as models.SyncWindow;
         props.defaultParams.window = w;
-    }
+    } 
     return (
         <div className='project-sync-windows-edit-panel'>
         <Form
@@ -49,13 +50,13 @@ export const ProjectSyncWindowsEditPanel = (props: ProjectSyncWindowsEditPanelPr
                 <form onSubmit={api.submitForm} role='form' className='width-control'>
                     <div className='argo-form-row'>
                         <FormField formApi={api} label='Kind'
-                                   componentProps={{options: ['allow', 'deny']}} field='window.kind'
-                                   component={FormSelect}/>
+                               componentProps={{options: ['allow', 'deny']}} field='window.kind'
+                               component={FormSelect}/>
                     </div>
-                    <div className='argo-form-row'>
-                        <FormField formApi={api} label='Schedule (in crontab format, e.g. "0 8 * * *" would be 8am daily)'
-                                   field='window.schedule' component={Text}/>
-                    </div>
+                    <ProjectSyncWindowScheduleEdit
+                        projName={api.values.projName}
+                        window={api.values.window}
+                        formApi={api}/>
                     <div className='argo-form-row'>
                          <FormField formApi={api} label='Duration (e.g. "30m" or "1h")'
                                     field='window.duration' component={Text}/>
