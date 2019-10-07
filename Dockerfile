@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=debian:9.5-slim
+ARG BASE_IMAGE=debian:10-slim
 ####################################################################################################
 # Builder image
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
@@ -6,7 +6,7 @@ ARG BASE_IMAGE=debian:9.5-slim
 ####################################################################################################
 FROM golang:1.12.6 as builder
 
-RUN echo 'deb http://deb.debian.org/debian stretch-backports main' >> /etc/apt/sources.list
+RUN echo 'deb http://deb.debian.org/debian buster-backports main' >> /etc/apt/sources.list
 
 RUN apt-get update && apt-get install -y \
     openssh-server \
@@ -72,7 +72,7 @@ FROM $BASE_IMAGE as argocd-base
 
 USER root
 
-RUN echo 'deb http://deb.debian.org/debian stretch-backports main' >> /etc/apt/sources.list
+RUN echo 'deb http://deb.debian.org/debian buster-backports main' >> /etc/apt/sources.list
 
 RUN groupadd -g 999 argocd && \
     useradd -r -u 999 -g argocd argocd && \
