@@ -170,17 +170,6 @@
   revision = "9f541cc9db5d55bce703bd99987c9d5cb8eea45e"
 
 [[projects]]
-  digest = "1:971e9ba63a417c5f1f83ab358677bc59e96ff04285f26c6646ff089fb60b15e8"
-  name = "github.com/emicklei/go-restful"
-  packages = [
-    ".",
-    "log",
-  ]
-  pruneopts = ""
-  revision = "3658237ded108b4134956c1b3050349d93e7b895"
-  version = "v2.7.1"
-
-[[projects]]
   digest = "1:ba7c75e38d81b9cf3e8601c081567be3b71bccca8c11aee5de98871360aa4d7b"
   name = "github.com/emirpasic/gods"
   packages = [
