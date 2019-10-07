@@ -52,13 +52,13 @@ go-to-protobuf \
 #GOPROTOBINARY=gofast
 # 3. protoc-gen-gogofast - faster code generation and gogo extensions and flexibility in controlling
 # the generated go code (e.g. customizing field names, nullable fields)
-go get github.com/gogo/protobuf/protoc-gen-gogofast@v1.3.0
+go get github.com/gogo/protobuf/protoc-gen-gogofast@v1.1.1
 GOPROTOBINARY=gogofast
 
 # protoc-gen-grpc-gateway is used to build <service>.pb.gw.go files from from .proto files
-go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway@v1.9.2
+go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway@v1.3.1
 # protoc-gen-swagger is used to build swagger.json
-go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger@v1.9.2
+go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger@v1.3.1
 
 # Generate server/<service>/(<service>.pb.go|<service>.pb.gw.go)
 PROTO_FILES=$(find $PROJECT_ROOT \( -name "*.proto" -and -path '*/server/*' -or -path '*/reposerver/*' -and -name "*.proto" \) | sort)
@@ -67,8 +67,8 @@ for i in ${PROTO_FILES}; do
         -I${PROJECT_ROOT} \
         -I/usr/local/include \
         -I$GOPATH/src \
-        -I$GOPATH/pkg/mod/github.com/grpc-ecosystem/grpc-gateway@v1.9.2/third_party/googleapis \
-        -I$GOPATH/pkg/mod/github.com/gogo/protobuf@v1.3.0 \
+        -I$GOPATH/pkg/mod/github.com/grpc-ecosystem/grpc-gateway@v1.3.1/third_party/googleapis \
+        -I$GOPATH/pkg/mod/github.com/gogo/protobuf@v1.1.1 \
         --${GOPROTOBINARY}_out=plugins=grpc:$GOPATH/src \
         --grpc-gateway_out=logtostderr=true:$GOPATH/src \
         --swagger_out=logtostderr=true:. \

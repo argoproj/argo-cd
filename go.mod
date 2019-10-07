@@ -25,7 +25,7 @@ require (
 	github.com/gobuffalo/packr v1.30.1
 	github.com/gobwas/glob v0.2.3
 	github.com/gogits/go-gogs-client v0.0.0-20190616193657-5a05380e4bc2
-	github.com/gogo/protobuf v1.3.0
+	github.com/gogo/protobuf v1.1.1
 	github.com/golang/lint v0.0.0-20180702182130-06c8688daad7 // indirect
 	github.com/golang/protobuf v1.3.1
 	github.com/google/go-jsonnet v0.10.0
@@ -35,8 +35,11 @@ require (
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway v1.9.2
 	github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
+	github.com/json-iterator/go v1.1.7 // indirect
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
+	github.com/kisielk/errcheck v1.2.0 // indirect
+	github.com/kisielk/gotool v1.0.0 // indirect
 	github.com/malexdev/utfutil v0.0.0-20180510171754-00c8d4a8e7a8 // indirect
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.0 // indirect
@@ -71,11 +74,12 @@ require (
 	k8s.io/apiextensions-apiserver v0.0.0-20190404071145-7f7d2b94eca3
 	k8s.io/apimachinery v0.0.0-20190711103026-7bf792636534
 	k8s.io/client-go v0.0.0-20190711103903-4a0861cac5e0
-	k8s.io/code-generator v0.0.0-20191003035328-700b1226c0bd // indirect
+	k8s.io/gengo v0.0.0-20190822140433-26a664648505 // indirect
 	k8s.io/klog v1.0.0
 	k8s.io/kube-aggregator v0.0.0-20190711105720-e80910364765
-	k8s.io/kube-openapi v0.0.0-20190918143330-0270cf2f1c1d
+	k8s.io/kube-openapi v0.0.0-20190502190224-411b2483e503
 	k8s.io/kubernetes v1.15.0-alpha.0.0.20190621004036-2d20b5759406
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a
 	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
+	sigs.k8s.io/structured-merge-diff v0.0.0-20190525122527-15d366b2352e // indirect
 )

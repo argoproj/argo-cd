@@ -24,7 +24,7 @@ DEV_IMAGE?=false
 LINT_GOGC?=on
 LINT_CONCURRENCY?=8
 # Set timeout for linter
-LINT_DEADLINE?=2m0s
+LINT_DEADLINE?=1m0s
 
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
