@@ -83,8 +83,8 @@ class EnvInput extends React.Component<Props, State> {
                             <input value={this.state.items[j].value} title='Value'
                                    onChange={(e) => replaceItem({name: i.name, value: e.target.value}, j)}/>
                             &nbsp;
-                            <button onClick={() => removeItem(j)}>
-                                <i className='fa fa-times'/>
+                            <button >
+                                <i className='fa fa-times' style={{cursor: 'pointer'}} onClick={() => removeItem(j)}/>
                             </button>
                         </div>
                     ))}
@@ -100,7 +100,7 @@ class EnvInput extends React.Component<Props, State> {
                     &nbsp;
                     <button disabled={this.state.newItem.name === '' || this.state.newItem.value === ''}
                             onClick={() => addItem(this.state.newItem)}>
-                        <i className='fa fa-plus'/>
+                        <i style={{cursor: 'pointer'}} className='fa fa-plus'/>
                     </button>
                 </div>
             </div>
