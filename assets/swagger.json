@@ -49,7 +49,7 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "ListMixin7",
+        "operationId": "ListMixin1",
         "parameters": [
           {
             "type": "string",
@@ -89,7 +89,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "CreateMixin7",
+        "operationId": "CreateMixin1",
         "parameters": [
           {
             "name": "body",
@@ -116,7 +116,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "UpdateMixin7",
+        "operationId": "UpdateMixin1",
         "parameters": [
           {
             "type": "string",
@@ -197,7 +197,7 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "GetMixin7",
+        "operationId": "Get",
         "parameters": [
           {
             "type": "string",
@@ -238,7 +238,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "DeleteMixin7",
+        "operationId": "DeleteMixin1",
         "parameters": [
           {
             "type": "string",
@@ -877,7 +877,7 @@
           "ClusterService"
         ],
         "summary": "List returns list of clusters",
-        "operationId": "List",
+        "operationId": "ListMixin3",
         "parameters": [
           {
             "type": "string",
@@ -899,7 +899,7 @@
           "ClusterService"
         ],
         "summary": "Create creates a cluster",
-        "operationId": "Create",
+        "operationId": "CreateMixin3",
         "parameters": [
           {
             "name": "body",
@@ -926,7 +926,7 @@
           "ClusterService"
         ],
         "summary": "Update updates a cluster",
-        "operationId": "Update",
+        "operationId": "UpdateMixin3",
         "parameters": [
           {
             "type": "string",
@@ -959,7 +959,7 @@
           "ClusterService"
         ],
         "summary": "Get returns a cluster by server address",
-        "operationId": "GetMixin2",
+        "operationId": "GetMixin3",
         "parameters": [
           {
             "type": "string",
@@ -982,7 +982,7 @@
           "ClusterService"
         ],
         "summary": "Delete deletes a cluster",
-        "operationId": "Delete",
+        "operationId": "DeleteMixin3",
         "parameters": [
           {
             "type": "string",
@@ -1032,7 +1032,7 @@
           "ProjectService"
         ],
         "summary": "List returns list of projects",
-        "operationId": "ListMixin5",
+        "operationId": "ListMixin4",
         "parameters": [
           {
             "type": "string",
@@ -1054,7 +1054,7 @@
           "ProjectService"
         ],
         "summary": "Create a new project.",
-        "operationId": "CreateMixin5",
+        "operationId": "CreateMixin4",
         "parameters": [
           {
             "name": "body",
@@ -1081,7 +1081,7 @@
           "ProjectService"
         ],
         "summary": "Get returns a project by name",
-        "operationId": "GetMixin5",
+        "operationId": "GetMixin4",
         "parameters": [
           {
             "type": "string",
@@ -1104,7 +1104,7 @@
           "ProjectService"
         ],
         "summary": "Delete deletes a project",
-        "operationId": "DeleteMixin5",
+        "operationId": "DeleteMixin4",
         "parameters": [
           {
             "type": "string",
@@ -1179,7 +1179,7 @@
           "ProjectService"
         ],
         "summary": "Update updates a project",
-        "operationId": "UpdateMixin5",
+        "operationId": "UpdateMixin4",
         "parameters": [
           {
             "type": "string",
@@ -1289,7 +1289,7 @@
           "RepositoryService"
         ],
         "summary": "List returns list of repos",
-        "operationId": "ListMixin3",
+        "operationId": "List",
         "parameters": [
           {
             "type": "string",
@@ -1311,7 +1311,7 @@
           "RepositoryService"
         ],
         "summary": "Create creates a repo",
-        "operationId": "CreateMixin3",
+        "operationId": "Create",
         "parameters": [
           {
             "name": "body",
@@ -1338,7 +1338,7 @@
           "RepositoryService"
         ],
         "summary": "Update updates a repo",
-        "operationId": "UpdateMixin3",
+        "operationId": "Update",
         "parameters": [
           {
             "type": "string",
@@ -1371,7 +1371,7 @@
           "RepositoryService"
         ],
         "summary": "Delete deletes a repo",
-        "operationId": "DeleteMixin3",
+        "operationId": "Delete",
         "parameters": [
           {
             "type": "string",
@@ -1575,7 +1575,7 @@
           "SettingsService"
         ],
         "summary": "Get returns Argo CD settings",
-        "operationId": "Get",
+        "operationId": "GetMixin6",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -3694,23 +3694,39 @@
       "description": "ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.",
       "type": "object",
       "properties": {
+        "conditions": {
+          "type": "array",
+          "title": "Conditions is a list of strings representing JSON paths that must evaluate to true in order for this selector to match",
+          "items": {
+            "type": "string"
+          }
+        },
         "group": {
-          "type": "string"
+          "type": "string",
+          "title": "Group is the API group this selector is valid for"
         },
         "jsonPointers": {
           "type": "array",
+          "title": "JSONPointers is a list of strings representing JSON paths that shall be ignored from the diff",
           "items": {
             "type": "string"
           }
         },
         "kind": {
-          "type": "string"
+          "type": "string",
+          "title": "Kind is the resource kind this selector is valid for"
+        },
+        "matchStrategy": {
+          "type": "string",
+          "title": "MatchStrategy defines how conditions should be matched - may be one of 'all', 'any' or 'none'"
         },
         "name": {
-          "type": "string"
+          "type": "string",
+          "title": "Name is the name of the resource that this selector has to match"
         },
         "namespace": {
-          "type": "string"
+          "type": "string",
+          "title": "Namespace is the name of the namespace this resource has to belong to so this selector matches"
         }
       }
     },

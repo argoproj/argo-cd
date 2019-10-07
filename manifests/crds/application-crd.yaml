@@ -622,17 +622,37 @@ spec:
                 be ignored during comparison
               items:
                 properties:
+                  conditions:
+                    description: Conditions is a list of strings representing JSON
+                      paths that must evaluate to true in order for this selector
+                      to match
+                    items:
+                      type: string
+                    type: array
                   group:
+                    description: Group is the API group this selector is valid for
                     type: string
                   jsonPointers:
+                    description: JSONPointers is a list of strings representing JSON
+                      paths that shall be ignored from the diff
                     items:
                       type: string
                     type: array
                   kind:
+                    description: Kind is the resource kind this selector is valid
+                      for
+                    type: string
+                  matchStrategy:
+                    description: MatchStrategy defines how conditions should be matched
+                      - may be one of 'all', 'any' or 'none'
                     type: string
                   name:
+                    description: Name is the name of the resource that this selector
+                      has to match
                     type: string
                   namespace:
+                    description: Namespace is the name of the namespace this resource
+                      has to belong to so this selector matches
                     type: string
                 required:
                 - kind

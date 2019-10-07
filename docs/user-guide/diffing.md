@@ -43,6 +43,57 @@ spec:
     - /spec/replicas
 ```
 
+> v1.4 and later
+
+You can further restrict the resources on which the customization should be applied by defining conditions that the resource has to match (or not match). A condition compares the state of a given part in the resource's definition specified as JSON pointer against a given expression.
+
+This enables you to apply customization on auto-generated resources or values, such as the case with aggregated `ClusterRole` rules.
+
+```yaml
+spec:
+  ignoreDifferences:
+  - group: rbac.authorization.k8s.io
+    kind: ClusterRole
+    jsonPointers:
+    - /rules
+    conditions:
+    - /aggregationRule/clusterRoleSelectors is defined
+```
+
+The above example would ignore all differences within `/rules` specification of the objects that are of Kind `rbac.authorization.k8s.io/ClusterRole` and have `/aggregationRule/clusterRoleSelectors` defined in their manifest. 
+
+You can define any number of expressions in the `conditions` list. If you define multiple conditions, the final matching result will be evaluated according to the match strategy. The match strategy can be set by the `matchStrategy` property and can take one of the values:
+
+* `all` (logical and, all conditions have to evaluate to true)
+* `any` (logical or, one of the conditions has to evaluate to true)
+* `none` (none of the conditions have to evaluate to true).
+
+The default value for `matchStrategy` is `all`, which will be used if `matchStrategy` is not set in the configuration.
+
+```yaml
+spec:
+  ignoreDifferences:
+  - group: rbac.authorization.k8s.io
+    kind: ClusterRole
+    jsonPointers:
+    - /rules
+    conditions:
+    - /aggregationRule/clusterRoleSelectors is defined
+    - /metadata/labels/rules.my-app.org~1ignorerbac is defined
+    matchStrategy: any
+```
+
+Considering above example, the differences in the `/rules` part of the object's specification would be ignored if either `/aggregationRule/clusterRoleSelectors` or the label `rules.my-app.org/ignorerbac` is 
+defined in the resource's definition. For the special value `~1` seen in the expression, refer to the note below.
+
+Currently supported expressions are:
+
+* `is defined` evaluates to true if the selector is defined in the resource's manifest
+* `not defined` evaluates to true if the selector is not defined in the resource's manifest
+
+!!! note "JSON pointer escaping"
+    If you have JSON pointer path names that contain the special characters `/` or `~`, they need to be properly escaped in their notation. `/` becomes `~1` and `~` becomes `~0`. That means if you want to specify a label named `foo/bar/baz`, you'd have to specify the pointer to it as `foo~1bar~1baz`. For more information, refer to [the JSON pointer RFC](https://tools.ietf.org/html/rfc6901)
+
 ## System-Level Configuration
 
 The comparison of resources with well-known issues can be customized at a system level. Ignored differences can be configured for a specified group and kind

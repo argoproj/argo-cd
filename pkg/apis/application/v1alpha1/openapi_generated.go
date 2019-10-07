@@ -2256,31 +2256,36 @@ func schema_pkg_apis_application_v1alpha1_ResourceIgnoreDifferences(ref common.R
 				Properties: map[string]spec.Schema{
 					"group": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "Group is the API group this selector is valid for",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"kind": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "Kind is the resource kind this selector is valid for",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "Name is the name of the resource that this selector has to match",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"namespace": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "Namespace is the name of the namespace this resource has to belong to so this selector matches",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"jsonPointers": {
 						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
+							Description: "JSONPointers is a list of strings representing JSON paths that shall be ignored from the diff",
+							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
@@ -2289,6 +2294,27 @@ func schema_pkg_apis_application_v1alpha1_ResourceIgnoreDifferences(ref common.R
 									},
 								},
 							},
+						},
+					},
+					"conditions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Conditions is a list of strings representing JSON paths that must evaluate to true in order for this selector to match",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
+					"matchStrategy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MatchStrategy defines how conditions should be matched - may be one of 'all', 'any' or 'none'",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},

@@ -636,15 +636,26 @@ message ResourceDiff {
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
 message ResourceIgnoreDifferences {
+  // Group is the API group this selector is valid for
   optional string group = 1;
 
+  // Kind is the resource kind this selector is valid for
   optional string kind = 2;
 
+  // Name is the name of the resource that this selector has to match
   optional string name = 3;
 
+  // Namespace is the name of the namespace this resource has to belong to so this selector matches
   optional string namespace = 4;
 
+  // JSONPointers is a list of strings representing JSON paths that shall be ignored from the diff
   repeated string jsonPointers = 5;
+
+  // Conditions is a list of strings representing JSON paths that must evaluate to true in order for this selector to match
+  repeated string conditions = 6;
+
+  // MatchStrategy defines how conditions should be matched - may be one of 'all', 'any' or 'none'
+  optional string matchStrategy = 7;
 }
 
 // ResourceNetworkingInfo holds networking resource related information

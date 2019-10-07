@@ -1336,6 +1336,11 @@ func (in *ResourceIgnoreDifferences) DeepCopyInto(out *ResourceIgnoreDifferences
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.Conditions != nil {
+		in, out := &in.Conditions, &out.Conditions
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

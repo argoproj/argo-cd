@@ -743,6 +743,14 @@
   revision = "05ee40e3a273f7245e8777337fc7b46e533a9a92"
 
 [[projects]]
+  branch = "master"
+  digest = "1:77ae071c890180141f560071a6150ce138a0464519963ec1800b9c6213d8dbfe"
+  name = "github.com/qri-io/jsonpointer"
+  packages = ["."]
+  pruneopts = ""
+  revision = "43be820608971e680b60469cfc7cc0e2e75fd4ef"
+
+[[projects]]
   digest = "1:6bb048133650d1fb7fbff9fb3c35bd5c7e8653fc95c3bae6df94cd17d1580278"
   name = "github.com/robfig/cron"
   packages = ["."]
@@ -1649,6 +1657,7 @@
     "github.com/pkg/errors",
     "github.com/prometheus/client_golang/prometheus",
     "github.com/prometheus/client_golang/prometheus/promhttp",
+    "github.com/qri-io/jsonpointer",
     "github.com/robfig/cron",
     "github.com/sirupsen/logrus",
     "github.com/sirupsen/logrus/hooks/test",

@@ -80,3 +80,7 @@ required = [
 [[override]]
   revision = "411b2483e5034420675ebcdd4a55fc76fe5e55cf"
   name = "k8s.io/kube-openapi"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/qri-io/jsonpointer"

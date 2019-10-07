@@ -63,11 +63,20 @@ type ApplicationSpec struct {
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
 type ResourceIgnoreDifferences struct {
-	Group        string   `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
-	Kind         string   `json:"kind" protobuf:"bytes,2,opt,name=kind"`
-	Name         string   `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
-	Namespace    string   `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
+	// Group is the API group this selector is valid for
+	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	// Kind is the resource kind this selector is valid for
+	Kind string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
+	// Name is the name of the resource that this selector has to match
+	Name string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
+	// Namespace is the name of the namespace this resource has to belong to so this selector matches
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
+	// JSONPointers is a list of strings representing JSON paths that shall be ignored from the diff
 	JSONPointers []string `json:"jsonPointers" protobuf:"bytes,5,opt,name=jsonPointers"`
+	// Conditions is a list of strings representing JSON paths that must evaluate to true in order for this selector to match
+	Conditions []string `json:"conditions,omitempty" protobuf:"bytes,6,opt,name=conditions"`
+	// MatchStrategy defines how conditions should be matched - may be one of 'all', 'any' or 'none'
+	MatchStrategy string `json:"matchStrategy,omitempty" protobuf:"bytes,7,opt,name=matchStrategy"`
 }
 
 type EnvEntry struct {

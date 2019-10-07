@@ -34,6 +34,246 @@ func TestNormalizeObjectWithMatchedGroupKind(t *testing.T) {
 	assert.False(t, has)
 }
 
+func TestNormalizeObjectWithMatchingConditions(t *testing.T) {
+	normalizer, err := NewDiffNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
+		Group:         "apps",
+		Kind:          "Deployment",
+		JSONPointers:  []string{"/not-matching-path", "/spec/template/spec/containers"},
+		Conditions:    []string{"/spec/template is defined"},
+		MatchStrategy: "all",
+	}}, make(map[string]v1alpha1.ResourceOverride))
+
+	assert.NoError(t, err)
+
+	deployment := kube.MustToUnstructured(test.DemoDeployment())
+
+	_, has, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+	assert.NoError(t, err)
+	assert.True(t, has)
+
+	err = normalizer.Normalize(deployment)
+	assert.NoError(t, err)
+	_, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+	assert.NoError(t, err)
+	assert.False(t, has)
+}
+
+func TestNormalizeObjectWithNonMatchingConditions(t *testing.T) {
+	normalizer, err := NewDiffNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
+		Group:         "apps",
+		Kind:          "Deployment",
+		JSONPointers:  []string{"/not-matching-path", "/spec/template/spec/containers"},
+		Conditions:    []string{"/spec/template not defined"},
+		MatchStrategy: "all",
+	}}, make(map[string]v1alpha1.ResourceOverride))
+
+	assert.NoError(t, err)
+
+	deployment := kube.MustToUnstructured(test.DemoDeployment())
+
+	_, has, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+	assert.NoError(t, err)
+	assert.True(t, has)
+
+	err = normalizer.Normalize(deployment)
+	assert.NoError(t, err)
+	_, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+	assert.NoError(t, err)
+	assert.True(t, has)
+}
+
+func TestNormalizeObjectWithMultipleMatchingConditionsStrategyAll(t *testing.T) {
+	normalizer, err := NewDiffNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
+		Group:         "apps",
+		Kind:          "Deployment",
+		JSONPointers:  []string{"/not-matching-path", "/spec/template/spec/containers"},
+		Conditions:    []string{"/spec/template is defined", "/spec/template/metadata/labels/app is defined"},
+		MatchStrategy: "all",
+	}}, make(map[string]v1alpha1.ResourceOverride))
+
+	assert.NoError(t, err)
+
+	deployment := kube.MustToUnstructured(test.DemoDeployment())
+
+	_, has, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+	assert.NoError(t, err)
+	assert.True(t, has)
+
+	err = normalizer.Normalize(deployment)
+	assert.NoError(t, err)
+	_, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+	assert.NoError(t, err)
+	assert.False(t, has)
+}
+
+func TestNormalizeObjectWithMultipleNonMatchingConditionsStrategyAll(t *testing.T) {
+	normalizer, err := NewDiffNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
+		Group:         "apps",
+		Kind:          "Deployment",
+		JSONPointers:  []string{"/not-matching-path", "/spec/template/spec/containers"},
+		Conditions:    []string{"/spec/template is defined", "/spec/template/metadata/labels/app not defined"},
+		MatchStrategy: "all",
+	}}, make(map[string]v1alpha1.ResourceOverride))
+
+	assert.NoError(t, err)
+
+	deployment := kube.MustToUnstructured(test.DemoDeployment())
+
+	_, has, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+	assert.NoError(t, err)
+	assert.True(t, has)
+
+	err = normalizer.Normalize(deployment)
+	assert.NoError(t, err)
+	_, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+	assert.NoError(t, err)
+	assert.True(t, has)
+}
+
+func TestNormalizeObjectWithMultipleMatchingConditionsStrategyAny(t *testing.T) {
+	normalizer, err := NewDiffNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
+		Group:         "apps",
+		Kind:          "Deployment",
+		JSONPointers:  []string{"/not-matching-path", "/spec/template/spec/containers"},
+		Conditions:    []string{"/spec/template is defined", "/spec/foo is defined"},
+		MatchStrategy: "any",
+	}}, make(map[string]v1alpha1.ResourceOverride))
+
+	assert.NoError(t, err)
+
+	deployment := kube.MustToUnstructured(test.DemoDeployment())
+
+	_, has, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+	assert.NoError(t, err)
+	assert.True(t, has)
+
+	err = normalizer.Normalize(deployment)
+	assert.NoError(t, err)
+	_, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+	assert.NoError(t, err)
+	assert.False(t, has)
+}
+
+func TestNormalizeObjectWithMultipleNonMatchingConditionsStrategyAny(t *testing.T) {
+	normalizer, err := NewDiffNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
+		Group:         "apps",
+		Kind:          "Deployment",
+		JSONPointers:  []string{"/not-matching-path", "/spec/template/spec/containers"},
+		Conditions:    []string{"/spec/foo is defined", "/spec/template/metadata/labels/app not defined"},
+		MatchStrategy: "any",
+	}}, make(map[string]v1alpha1.ResourceOverride))
+
+	assert.NoError(t, err)
+
+	deployment := kube.MustToUnstructured(test.DemoDeployment())
+
+	_, has, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+	assert.NoError(t, err)
+	assert.True(t, has)
+
+	err = normalizer.Normalize(deployment)
+	assert.NoError(t, err)
+	_, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+	assert.NoError(t, err)
+	assert.True(t, has)
+}
+
+func TestNormalizeObjectWithMultipleMatchingConditionsStrategyNone(t *testing.T) {
+	normalizer, err := NewDiffNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
+		Group:         "apps",
+		Kind:          "Deployment",
+		JSONPointers:  []string{"/not-matching-path", "/spec/template/spec/containers"},
+		Conditions:    []string{"/spec/template is defined", "/spec/template/metadata/labels/app not defined"},
+		MatchStrategy: "none",
+	}}, make(map[string]v1alpha1.ResourceOverride))
+
+	assert.NoError(t, err)
+
+	deployment := kube.MustToUnstructured(test.DemoDeployment())
+
+	_, has, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+	assert.NoError(t, err)
+	assert.True(t, has)
+
+	err = normalizer.Normalize(deployment)
+	assert.NoError(t, err)
+	_, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+	assert.NoError(t, err)
+	assert.True(t, has)
+}
+
+func TestNormalizeObjectWithMultipleNonMatchingConditionsStrategyNone(t *testing.T) {
+	normalizer, err := NewDiffNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
+		Group:         "apps",
+		Kind:          "Deployment",
+		JSONPointers:  []string{"/not-matching-path", "/spec/template/spec/containers"},
+		Conditions:    []string{"/spec/foo is defined", "/spec/template/metadata/labels/app not defined"},
+		MatchStrategy: "none",
+	}}, make(map[string]v1alpha1.ResourceOverride))
+
+	assert.NoError(t, err)
+
+	deployment := kube.MustToUnstructured(test.DemoDeployment())
+
+	_, has, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+	assert.NoError(t, err)
+	assert.True(t, has)
+
+	err = normalizer.Normalize(deployment)
+	assert.NoError(t, err)
+	_, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+	assert.NoError(t, err)
+	assert.False(t, has)
+}
+
+func TestNormalizeObjectWithInvalidMatchingConditions(t *testing.T) {
+	normalizer, err := NewDiffNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
+		Group:         "apps",
+		Kind:          "Deployment",
+		JSONPointers:  []string{"/not-matching-path", "/spec/template/spec/containers"},
+		Conditions:    []string{"/spec/foo are defined", "/spec/template/metadata/labels/app not defined"},
+		MatchStrategy: "none",
+	}}, make(map[string]v1alpha1.ResourceOverride))
+
+	assert.NoError(t, err)
+
+	deployment := kube.MustToUnstructured(test.DemoDeployment())
+
+	_, has, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+	assert.NoError(t, err)
+	assert.True(t, has)
+
+	err = normalizer.Normalize(deployment)
+	assert.NoError(t, err)
+	_, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+	assert.NoError(t, err)
+	assert.False(t, has)
+}
+
+func TestNormalizeObjectWithInvalidMatchingSyntax(t *testing.T) {
+	normalizer, err := NewDiffNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
+		Group:         "apps",
+		Kind:          "Deployment",
+		JSONPointers:  []string{"/not-matching-path", "/spec/template/spec/containers"},
+		Conditions:    []string{"/spec/foo is", "/spec/template/metadata/labels/app not defined"},
+		MatchStrategy: "none",
+	}}, make(map[string]v1alpha1.ResourceOverride))
+
+	assert.NoError(t, err)
+
+	deployment := kube.MustToUnstructured(test.DemoDeployment())
+
+	_, has, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+	assert.NoError(t, err)
+	assert.True(t, has)
+
+	err = normalizer.Normalize(deployment)
+	assert.NoError(t, err)
+	_, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+	assert.NoError(t, err)
+	assert.False(t, has)
+}
+
 func TestNormalizeNoMatchedGroupKinds(t *testing.T) {
 	normalizer, err := NewDiffNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
 		Group:        "",
