@@ -63,6 +63,10 @@ export class ApplicationsService {
         return requests.put(`/applications/${appName}/spec`).send(spec).then((res) => res.body as models.ApplicationSpec);
     }
 
+    public update(app: models.Application): Promise<models.Application> {
+        return requests.put(`/applications/${app.metadata.name}`).send(app).then((res) => res.body as models.Application);
+    }
+
     public create(app: models.Application): Promise<models.Application> {
         return requests.post(`/applications`).send(app).then((res) => this.parseAppFields(res.body));
     }

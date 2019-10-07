@@ -112,3 +112,17 @@ export const ArrayInputField = ReactForm.FormField((props: { fieldApi: ReactForm
     const {fieldApi: {getValue, setValue}} = props;
     return <ArrayInput items={getValue() || []} onChange={setValue}/>;
 });
+
+export const MapInputField = ReactForm.FormField((props: { fieldApi: ReactForm.FieldApi }) => {
+    const {fieldApi: {getValue, setValue}} = props;
+    const items = new Array<Item>();
+    const map = getValue() || {};
+    Object.keys(map).forEach((key) => items.push({ name: key, value: map[key] }));
+    return (
+        <ArrayInput items={items} onChange={(array) => {
+            const newMap = {} as any;
+            array.forEach((item) => newMap[item.name] = item.value);
+            setValue(newMap);
+        }}/>
+    );
+});

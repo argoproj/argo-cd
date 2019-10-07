@@ -53,11 +53,13 @@
         "parameters": [
           {
             "type": "string",
+            "description": "the application's name.",
             "name": "name",
             "in": "query"
           },
           {
             "type": "string",
+            "description": "forces application reconciliation if set to true.",
             "name": "refresh",
             "in": "query"
           },
@@ -66,16 +68,19 @@
             "items": {
               "type": "string"
             },
+            "description": "the project names to restrict returned list applications.",
             "name": "project",
             "in": "query"
           },
           {
             "type": "string",
+            "description": "when specified with a watch call, shows changes that occur after that particular version of a resource.",
             "name": "resourceVersion",
             "in": "query"
           },
           {
             "type": "string",
+            "description": "the selector to to restrict returned list to applications only with matched labels.",
             "name": "selector",
             "in": "query"
           }
@@ -212,6 +217,7 @@
           },
           {
             "type": "string",
+            "description": "forces application reconciliation if set to true.",
             "name": "refresh",
             "in": "query"
           },
@@ -220,16 +226,19 @@
             "items": {
               "type": "string"
             },
+            "description": "the project names to restrict returned list applications.",
             "name": "project",
             "in": "query"
           },
           {
             "type": "string",
+            "description": "when specified with a watch call, shows changes that occur after that particular version of a resource.",
             "name": "resourceVersion",
             "in": "query"
           },
           {
             "type": "string",
+            "description": "the selector to to restrict returned list to applications only with matched labels.",
             "name": "selector",
             "in": "query"
           }
@@ -1606,11 +1615,13 @@
         "parameters": [
           {
             "type": "string",
+            "description": "the application's name.",
             "name": "name",
             "in": "query"
           },
           {
             "type": "string",
+            "description": "forces application reconciliation if set to true.",
             "name": "refresh",
             "in": "query"
           },
@@ -1619,16 +1630,19 @@
             "items": {
               "type": "string"
             },
+            "description": "the project names to restrict returned list applications.",
             "name": "project",
             "in": "query"
           },
           {
             "type": "string",
+            "description": "when specified with a watch call, shows changes that occur after that particular version of a resource.",
             "name": "resourceVersion",
             "in": "query"
           },
           {
             "type": "string",
+            "description": "the selector to to restrict returned list to applications only with matched labels.",
             "name": "selector",
             "in": "query"
           }

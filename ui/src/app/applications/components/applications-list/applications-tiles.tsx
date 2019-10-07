@@ -48,7 +48,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                         ))}
                                         </div>}>
                                         <span>
-                                            {Object.keys(app.metadata.labels || {}).map((label) => `${label}=${app.metadata.labels[label]}`).join(' ')}
+                                            {Object.keys(app.metadata.labels || {}).map((label) => `${label}=${app.metadata.labels[label]}`).join(', ')}
                                         </span>
                                     </Tooltip>
                                 </div>
