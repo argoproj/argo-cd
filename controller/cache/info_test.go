@@ -194,3 +194,29 @@ func TestExternalUrlWithNoSubPath(t *testing.T) {
 	expectedExternalUrls := []string{"https://107.178.210.11"}
 	assert.Equal(t, expectedExternalUrls, node.networkingInfo.ExternalURLs)
 }
+
+func TestExternalUrlWithNetworkingApi(t *testing.T) {
+	ingress := strToUnstructured(`
+  apiVersion: networking.k8s.io/v1beta1
+  kind: Ingress
+  metadata:
+    name: helm-guestbook
+    namespace: default
+  spec:
+    rules:
+    - http:
+        paths:
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: 443
+  status:
+    loadBalancer:
+      ingress:
+      - ip: 107.178.210.11`)
+
+	node := &node{}
+	populateNodeInfo(ingress, node)
+
+	expectedExternalUrls := []string{"https://107.178.210.11"}
+	assert.Equal(t, expectedExternalUrls, node.networkingInfo.ExternalURLs)
+}
