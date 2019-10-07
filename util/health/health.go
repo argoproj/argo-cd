@@ -2,6 +2,7 @@ package health
 
 import (
 	"fmt"
+	"k8s.io/apimachinery/pkg/runtime"
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -586,4 +587,44 @@ func getAPIServiceHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, e
 		Status:  appv1.HealthStatusProgressing,
 		Message: "Waiting to be processed",
 	}, nil
+}
+
+type NodePhase string
+
+// Workflow and node statuses
+const (
+	NodePending   NodePhase = "Pending"
+	NodeRunning   NodePhase = "Running"
+	NodeSucceeded NodePhase = "Succeeded"
+	NodeSkipped   NodePhase = "Skipped"
+	NodeFailed    NodePhase = "Failed"
+	NodeError     NodePhase = "Error"
+)
+
+// An agnostic workflow object only considers Status.Phase and Status.Message. It is agnostic to the API version or any
+// other fields.
+type ApiAgnosticArgoWorkflow struct {
+	Status struct {
+		Phase NodePhase
+		Message string
+	}
+}
+
+func GetStatusFromArgoWorkflow(hook *unstructured.Unstructured) (operation appv1.OperationPhase, message string) {
+	var wf ApiAgnosticArgoWorkflow
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(hook.Object, &wf)
+	if err != nil {
+		return appv1.OperationError, err.Error()
+	}
+	switch wf.Status.Phase {
+	case NodePending, NodeRunning:
+		return appv1.OperationRunning, wf.Status.Message
+	case NodeSucceeded:
+		return appv1.OperationSucceeded, wf.Status.Message
+	case NodeFailed:
+		return appv1.OperationFailed, wf.Status.Message
+	case NodeError:
+		return appv1.OperationError, wf.Status.Message
+	}
+	return appv1.OperationSucceeded, wf.Status.Message
 }
