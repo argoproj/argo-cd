@@ -844,10 +844,12 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	app.Status.SourceType = compareResult.appSourceType
 
 	// copy the status into the history
-	i := len(app.Status.History) - 1
-	if app.Status.History[i].Revision == app.Status.OperationState.Operation.Sync.Revision {
-		app.Status.History[i].Status = appv1.RevisionHistoryStatus{
-			Health: app.Status.Health,
+	if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
+		i := len(app.Status.History) - 1
+		if app.Status.History[i].Revision == app.Status.OperationState.Operation.Sync.Revision {
+			app.Status.History[i].Status = appv1.RevisionHistoryStatus{
+				Health: app.Status.Health,
+			}
 		}
 	}
 
