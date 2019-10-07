@@ -458,6 +458,7 @@ google.golang.org/genproto v0.0.0-20180817151627-c66870c02cf8/go.mod h1:JiN7NxoA
 google.golang.org/grpc v1.13.0/go.mod h1:yo6s7OP7yaDglbqo1J04qKzAhqBH6lvTonzMVmEdcZw=
 google.golang.org/grpc v1.15.0 h1:Az/KuahOM4NAidTEuJCv/RonAA7rYsTPkqXVjr+8OOw=
 google.golang.org/grpc v1.15.0/go.mod h1:0JHn/cJsOMiMfNA9+DeHDlAU7KAAB5GDlYFpa9MZMio=
+google.golang.org/grpc v1.19.0 h1:cfg4PD8YEdSFnm7qLV4++93WcmhH2nIUhMjhdCvl3j8=
 google.golang.org/grpc v1.19.0/go.mod h1:mqu4LbDTu4XGKhr4mRzUsmM4RtVoemTSY81AxZiDr8c=
 gopkg.in/airbrake/gobrake.v2 v2.0.9/go.mod h1:/h5ZAUhDkGaJfjzjKLSjv6zCL6O0LLBxU4K+aSYdM/U=
 gopkg.in/alecthomas/kingpin.v2 v2.2.6/go.mod h1:FMv+mEhP44yOT+4EoQTLFTRgOQ1FBLkstjWtayDeSgw=
@@ -538,6 +539,8 @@ k8s.io/kube-openapi v0.0.0-20190502190224-411b2483e503 h1:IrnrEIp9du1SngrzGC1fdY
 k8s.io/kube-openapi v0.0.0-20190502190224-411b2483e503/go.mod h1:iU+ZGYsNlvU9XKUSso6SQfKTCCw7lFduMZy26Mgr2Fw=
 k8s.io/kube-openapi v0.0.0-20190816220812-743ec37842bf h1:EYm5AW/UUDbnmnI+gK0TJDVK9qPLhM+sRHYanNKw0EQ=
 k8s.io/kube-openapi v0.0.0-20190816220812-743ec37842bf/go.mod h1:1TqjTSzOxsLGIKfj0lK8EeCP7K1iUG65v09OM0/WG5E=
+k8s.io/kube-openapi v0.0.0-20190918143330-0270cf2f1c1d h1:Xpe6sK+RY4ZgCTyZ3y273UmFmURhjtoJiwOMbQsXitY=
+k8s.io/kube-openapi v0.0.0-20190918143330-0270cf2f1c1d/go.mod h1:1TqjTSzOxsLGIKfj0lK8EeCP7K1iUG65v09OM0/WG5E=
 k8s.io/kubernetes v1.15.0-alpha.0.0.20190621004036-2d20b5759406 h1:7Mcmj/33/nnlKob3ke8um7qxq9EyG3pCNgg0hnv9kGw=
 k8s.io/kubernetes v1.15.0-alpha.0.0.20190621004036-2d20b5759406/go.mod h1:ocZa8+6APFNC2tX1DZASIbocyYT5jHzqFVsY5aoB7Jk=
 k8s.io/utils v0.0.0-20190221042446-c2654d5206da/go.mod h1:8k8uAuAQ0rXslZKaEWd0c3oVhZz7sSzSiPnVZayjIX0=
