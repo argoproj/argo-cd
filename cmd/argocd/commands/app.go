@@ -598,6 +598,21 @@ func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
 	}
 }
 
+func setApplicationDestination(dest *argoappv1.ApplicationDestination, cluster string) {
+	if isClusterURL(cluster) {
+		dest.Server = cluster
+	} else {
+		dest.Name = cluster
+	}
+}
+
+func isClusterURL(cluster string) bool {
+	if strings.HasPrefix(cluster, "http://") || strings.HasPrefix(cluster, "https://") {
+		return true
+	}
+	return false
+}
+
 type helmOpts struct {
 	valueFiles     []string
 	releaseName    string
