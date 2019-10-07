@@ -36,7 +36,7 @@ class State {
     public newItem: Item;
 }
 
-class ArrayInput extends React.Component<Props, State> {
+class EnvInput extends React.Component<Props, State> {
     constructor(props: Readonly<Props>) {
         super(props);
         this.state = {newItem: {name: '', value: ''}, items: props.items};
@@ -75,12 +75,12 @@ class ArrayInput extends React.Component<Props, State> {
                 <div>
                     {this.state.items.map((i, j) => (
                         <div key={`item-${j}`}>
-                            <input value={this.state.items[j].name}
+                            <input value={this.state.items[j].name} title='Name'
                                    onChange={(e) => replaceItem({name: e.target.value, value: i.value}, j)}/>
                             &nbsp;
                             =
                             &nbsp;
-                            <input value={this.state.items[j].value}
+                            <input value={this.state.items[j].value} title='Value'
                                    onChange={(e) => replaceItem({name: i.name, value: e.target.value}, j)}/>
                             &nbsp;
                             <button onClick={() => removeItem(j)}>
@@ -90,12 +90,12 @@ class ArrayInput extends React.Component<Props, State> {
                     ))}
                 </div>
                 <div>
-                    <input placeholder='Name' value={this.state.newItem.name}
+                    <input placeholder='Name' value={this.state.newItem.name} title='Name'
                            onChange={(e) => setName(e.target.value)}/>
                     &nbsp;
                     =
                     &nbsp;
-                    <input placeholder='Value' value={this.state.newItem.value}
+                    <input placeholder='Value' value={this.state.newItem.value} title='Value'
                            onChange={(e) => setValue(e.target.value)}/>
                     &nbsp;
                     <button disabled={this.state.newItem.name === '' || this.state.newItem.value === ''}
@@ -108,7 +108,7 @@ class ArrayInput extends React.Component<Props, State> {
     }
 }
 
-export const ArrayInputField = ReactForm.FormField((props: { fieldApi: ReactForm.FieldApi }) => {
+export const EnvInputField = ReactForm.FormField((props: { fieldApi: ReactForm.FieldApi }) => {
     const {fieldApi: {getValue, setValue}} = props;
-    return <ArrayInput items={getValue() || []} onChange={setValue}/>;
+    return <EnvInput items={getValue() || []} onChange={setValue}/>;
 });

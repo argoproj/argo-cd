@@ -230,3 +230,20 @@ release-precheck: manifests
 
 .PHONY: release
 release: pre-commit release-precheck image release-cli
+
+.PHONY: build-docs
+build-docs:
+	mkdocs build
+
+.PHONY: serve-docs
+serve-docs:
+	mkdocs serve
+
+.PHONY: lint-docs
+lint-docs:
+	#  https://github.com/dkhamsing/awesome_bot
+	find docs -name '*.md' -exec grep -l http {} + | xargs docker run --rm -v $(PWD):/mnt:ro dkhamsing/awesome_bot -t 3 --allow-dupe --allow-redirect --white-list `cat white-list | tr "\n" ','` --skip-save-results --
+
+.PHONY: publish-docs
+publish-docs: lint-docs
+	mkdocs gh-deploy
