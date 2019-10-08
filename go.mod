@@ -68,8 +68,8 @@ require (
 	gopkg.in/yaml.v2 v2.2.2
 	k8s.io/api v0.0.0-20190711103429-37c3b8b1ca65
 	k8s.io/apiextensions-apiserver v0.0.0-20190404071145-7f7d2b94eca3
-	k8s.io/apimachinery v0.0.0-20190711103026-7bf792636534
-	k8s.io/client-go v11.0.1-0.20190521191137-11646d1007e0+incompatible
+	k8s.io/apimachinery v0.0.0-20191004074956-c5d2f014d689
+	k8s.io/client-go v11.0.0+incompatible
 	k8s.io/klog v0.3.3
 	k8s.io/kube-aggregator v0.0.0-20190711105720-e80910364765
 	k8s.io/kube-openapi v0.0.0-20190502190224-411b2483e503
