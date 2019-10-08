@@ -144,7 +144,7 @@ commands:
             - go-v16-{{ .Branch }}
             - go-v16-master
 jobs:
-  build-v2:
+  build:
     docker:
       - image: circleci/golang:1.12
     working_directory: /go/src/github.com/argoproj/argo-cd
@@ -170,7 +170,7 @@ jobs:
       - run:
           name: Uploading code coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
-  build:
+  codegen:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
       image: circleci/classic:201808-01
@@ -344,7 +344,7 @@ workflows:
   workflow:
     jobs:
       - build
-      - build-v2
+      - codegen
       - e2e
       - ui:
           # this isn't strictly true, we just put in here so that we 2/4 executors rather than 3/4
