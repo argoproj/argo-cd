@@ -152,16 +152,14 @@ jobs:
       - checkout
       - dep_ensure
       - run: make test
-      - run:
-          name: Uploading code coverage
-          command: bash <(curl -s https://codecov.io/bash) -f coverage.out
-          # This takes 2m, lets background it.
-          background: true
       - store_test_results:
           path: junit.xml
       - store_artifacts:
           path: test.html
           when: always
+      - run:
+          name: Uploading code coverage
+          command: bash <(curl -s https://codecov.io/bash) -f coverage.out
   build:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
