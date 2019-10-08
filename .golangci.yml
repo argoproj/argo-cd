@@ -14,6 +14,3 @@ linters:
     - ineffassign
     - unconvert
     - unparam
-linters-settings:
-  goimports:
-    local-prefixes: github.com/argoproj/argo-cd
