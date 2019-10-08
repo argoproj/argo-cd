@@ -175,22 +175,6 @@ jobs:
       image: circleci/classic:201808-01
     steps:
       - before
-      - run: go get github.com/jstemmer/go-junit-report
-      - run: sudo apt-get install -y xsltproc
-      - run:
-          name: Run unit tests
-          command: make test
-      - save_go_cache
-      - run:
-          name: Uploading code coverage
-          command: bash <(curl -s https://codecov.io/bash) -f coverage.out
-          # This takes 2m, lets background it.
-          background: true
-      - store_test_results:
-          path: junit.xml
-      - store_artifacts:
-          path: test.html
-          when: always
       - restore_cache:
           keys:
             - dev-tools-v1-{{ .Branch }}
