@@ -1,13 +1,11 @@
 FROM golang:1.12.6 as builder
 
-RUN apt-get update && apt-get install -y zip
-
+# `make manifests`
 ENV KUSTOMIZE_VERSION=2.0.3
 RUN curl -sLf -C - -o /usr/local/bin/kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64 && \
     chmod +x /usr/local/bin/kustomize && \
     kustomize version
 
-# Install helm
 ENV HELM_VERSION=2.12.1
 RUN curl -sLf -C - -o /tmp/helm.tar.gz https://storage.googleapis.com/kubernetes-helm/helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
     tar -C /tmp/ -xf /tmp/helm.tar.gz && \
@@ -16,6 +14,9 @@ RUN curl -sLf -C - -o /tmp/helm.tar.gz https://storage.googleapis.com/kubernetes
 
 RUN mkdir -p /home/user && chmod 777 /home/user
 RUN HELM_HOME=/home/user/.helm helm init --client-only
+
+# `make codegen`
+RUN apt-get update && apt-get install -y zip
 
 RUN curl -sLf -C - -o /tmp/swagger https://github.com/go-swagger/go-swagger/releases/download/v0.19.0/swagger_linux_amd64 && \
     cp /tmp/swagger /usr/local/bin/swagger && \
@@ -33,20 +34,18 @@ RUN curl -sLf -C - -o /tmp/jq https://github.com/stedolan/jq/releases/download/j
     chmod +x /usr/local/bin/jq && \
     jq --version
 
-RUN apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
 RUN GO111MODULE=on go get github.com/gogo/protobuf/gogoproto@v1.2.1
 RUN GO111MODULE=on go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.0-beta.2
 RUN GO111MODULE=on go get github.com/golang/protobuf/protoc-gen-go@v1.3.1
 RUN GO111MODULE=on go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway@v1.9.2
 RUN GO111MODULE=on go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger@v1.9.2
 RUN GO111MODULE=on go get golang.org/x/tools/cmd/goimports@v0.0.0-20190627203933-19ff4fff8850
+
+# `make lint`
 RUN GO111MODULE=on go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.19.1
 
+# clean-up
 RUN mkdir -p /go/pkg && chmod 777 /go/pkg
 
-ADD . /src
-
-WORKDIR /src
-
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*

@@ -97,7 +97,7 @@ manifests-local:
 	./hack/update-manifests.sh
 
 .PHONY: manifests
-manifests: dev-tools-image
+manifests:
 	$(call run-in-dev-tool,make manifests-local IMAGE_TAG='${IMAGE_TAG}')
 
 
@@ -161,7 +161,7 @@ lint-local:
 
 .PHONY: lint
 lint:
-	$(call run-in-dev-tool,make lint-local)
+	$(call run-in-dev-tool,make lint-local LINT_CONCURRENCY=$(LINT_CONCURRENCY) LINT_DEADLINE=$(LINT_DEADLINE) LINT_GOGC=$(LINT_GOGC))
 
 .PHONY: build
 build:
