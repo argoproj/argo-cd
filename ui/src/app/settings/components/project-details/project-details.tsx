@@ -186,7 +186,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                                         hideJWTToken={() => this.setState({token: ''})}
                                     />}
                                 </SlidingPanel>
-                                <SlidingPanel isMiddle={true} isShown={params.get('editWindow') !== null || params.get('newWindow') !== null}
+                                <SlidingPanel isNarrow={false} isMiddle={false} isShown={params.get('editWindow') !== null || params.get('newWindow') !== null}
                                               onClose={() => {
                                                   this.setState({token: ''});
                                                   ctx.navigation.goto('.', {editWindow: null, newWindow: null});

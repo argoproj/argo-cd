@@ -138,11 +138,11 @@ export const ProjectSyncWindowScheduleEdit = (props: ProjectSyncWindowProps) => 
         <h6>Schedule</h6>
         <div className='argo-table-list__head'>
             <div className='row'>
-                <div className='columns small-2'>Min{helpTip('The minute that the schedule will start on')}</div>
-                <div className='columns small-2'>Hour{helpTip('The hour that the schedule will start on')}</div>
-                <div className='columns small-2'>DOM{helpTip('The day of the month that the schedule will start on')}</div>
-                <div className='columns small-2'>Mon{helpTip('The month that the schedule will start on')}</div>
-                <div className='columns small-2'>DOW{helpTip('The day of the week that the schedule will start on')}</div>
+                <div className='columns small-2'>Minute{helpTip('The minute/minutes assigned to the schedule')}</div>
+                <div className='columns small-2'>Hour{helpTip('The hour/hours assigned to the schedule')}</div>
+                <div className='columns small-2'>Day Of The Month{helpTip('The day/days of the month assigned to the schedule')}</div>
+                <div className='columns small-2'>Month{helpTip('The month/months assigned to the schedule.')}</div>
+                <div className='columns small-2'>Day Of the Week{helpTip('The day/days of the week assigned to the schedule')}</div>
             </div>
         </div>
         <div className='row project-sync-windows-panel__form-row'>
@@ -201,19 +201,21 @@ function setRanges(config: string[]): string {
             } else {
                 ranges[ranges.length - 1].push(config[i]);
             }
-        } else if ( i === (config.length - 1) && ((parseInt(config[i], 10) - 1) === parseInt(config[i - 1], 10))) {
+        } else if ((parseInt(config[i], 10) - 1) === parseInt(config[i - 1], 10)) {
             ranges[ranges.length - 1].push(config[i]);
-        } else if ((parseInt(config[i], 10) + 2) === parseInt(config[i + 1], 10)) {
+        } else  {
             ranges[ranges.length] = [config[i]];
-        } else {
             isRange = false;
-            values.push(config[i]);
         }
     }
 
     if (ranges.length > 0) {
         for (const r of ranges) {
-            values.push(r[0] + '-' + r[r.length - 1]);
+            if (r.length > 1) {
+                values.push(r[0] + '-' + r[r.length - 1]);
+            } else {
+                values.push(r[0]);
+            }
         }
     }
     return values.join(',');
@@ -225,68 +227,68 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
         return (
             <React.Fragment>
                 <div className='columns small-2'>
-                    <select className='argo-field' name='month' multiple={true}  value={this.getValues(0)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                        const options = e.target.options;
-                        const values = [];
-                        for (let i = 0, l = options.length; i < l; i++) {
-                            if (options[i].selected) {
-                                values.push(options[i].value);
+                    <select className='argo-field' size={8} name='minute' multiple={true}  value={this.getValues(0)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                        const minuteOptions = e.target.options;
+                        const minuteValues = [];
+                        for (let i = 0, l = minuteOptions.length; i < l; i++) {
+                            if (minuteOptions[i].selected) {
+                                minuteValues.push(minuteOptions[i].value);
                             }
                         }
-                        this.setValues(values, 0);
+                        this.setValues(minuteValues, 0);
                     }}>
-                        <option key='wildcard' value='*'>Every</option>
+                        <option key='wildcard' value='*'>Every Minute</option>
                         {generateRange(60, true).map((m) => (
                             <option key={m}>{m}</option>
                         ))}
                     </select>
                 </div>
                 <div className='columns small-2'>
-                    <select className='argo-field' name='hours' multiple={true} value={this.getValues(1)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                        const options = e.target.options;
-                        const values = [];
-                        for (let i = 0, l = options.length; i < l; i++) {
-                            if (options[i].selected) {
-                                values.push(options[i].value);
+                    <select className='argo-field' size={8} name='hours' multiple={true} value={this.getValues(1)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                        const hourOptions = e.target.options;
+                        const hourValues = [];
+                        for (let i = 0, l = hourOptions.length; i < l; i++) {
+                            if (hourOptions[i].selected) {
+                                hourValues.push(hourOptions[i].value);
                             }
                         }
-                        this.setValues(values, 1);
+                        this.setValues(hourValues, 1);
                     }}>
-                        <option key='wildcard' value='*'>Every</option>
+                        <option key='wildcard' value='*'>Every Hour</option>
                         {generateRange(24, true).map((m) => (
                             <option key={m}>{m}</option>
                         ))}
                     </select>
                 </div>
                 <div className='columns small-2'>
-                    <select className='argo-field' name='dom' multiple={true} value={this.getValues(2)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                        const options = e.target.options;
-                        const values = [];
-                        for (let i = 0, l = options.length; i < l; i++) {
-                            if (options[i].selected) {
-                                values.push(options[i].value);
+                    <select className='argo-field' size={8} name='dom' multiple={true} value={this.getValues(2)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                        const domOptions = e.target.options;
+                        const domValues = [];
+                        for (let i = 0, l = domOptions.length; i < l; i++) {
+                            if (domOptions[i].selected) {
+                                domValues.push(domOptions[i].value);
                             }
                         }
-                        this.setValues(values, 2);
+                        this.setValues(domValues, 2);
                     }}>
-                        <option key='wildcard' value='*'>Every</option>
+                        <option key='wildcard' value='*'>Every Day</option>
                         {generateRange(31, false).map((m) => (
                             <option key={m}>{m}</option>
                         ))}
                     </select>
                 </div>
                 <div className='columns small-2'>
-                    <select className='argo-field' name='month' multiple={true} value={this.getValues(3)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                        const options = e.target.options;
-                        const values = [];
-                        for (let i = 0, l = options.length; i < l; i++) {
-                            if (options[i].selected) {
-                                values.push(options[i].value);
+                    <select className='argo-field' size={8} name='month' multiple={true} value={this.getValues(3)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                        const monthOptions = e.target.options;
+                        const monthValues = [];
+                        for (let i = 0, l = monthOptions.length; i < l; i++) {
+                            if (monthOptions[i].selected) {
+                                monthValues.push(monthOptions[i].value);
                             }
                         }
-                        this.setValues(values, 3);
+                        this.setValues(monthValues, 3);
                     }}>
-                        <option key='wildcard' value='*'>Every</option>
+                        <option key='wildcard' value='*'>Every Month</option>
                         <option key='1' value='1'>Jan</option>
                         <option key='2' value='2'>Feb</option>
                         <option key='3' value='3'>Mar</option>
@@ -302,17 +304,17 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
                     </select>
                 </div>
                 <div className='columns small-2'>
-                    <select className='argo-field' name='dow' multiple={true} value={this.getValues(4)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                        const options = e.target.options;
-                        const values = [];
-                        for (let i = 0, l = options.length; i < l; i++) {
-                            if (options[i].selected) {
-                                values.push(options[i].value);
+                    <select className='argo-field' size={8} name='dow' multiple={true} value={this.getValues(4)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                        const dowOptions = e.target.options;
+                        const dowValues = [];
+                        for (let i = 0, l = dowOptions.length; i < l; i++) {
+                            if (dowOptions[i].selected) {
+                                dowValues.push(dowOptions[i].value);
                             }
                         }
-                        this.setValues(values, 4);
+                        this.setValues(dowValues, 4);
                     }}>
-                        <option key='wildcard' value='*'>Every</option>
+                        <option key='wildcard' value='*'>Sunday-Saturday</option>
                         <option key='0' value='0'>Sun</option>
                         <option key='1' value='1'>Mon</option>
                         <option key='2' value='2'>Tue</option>
