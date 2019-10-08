@@ -341,5 +341,4 @@ workflows:
   workflow:
     jobs:
       - test
-      - codegen
       - lint
