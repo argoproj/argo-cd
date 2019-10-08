@@ -168,6 +168,7 @@ jobs:
       image: circleci/classic:201808-01
     steps:
       - before
+      - run: go get github.com/jstemmer/go-junit-report
       - run: sudo apt-get install -y xsltproc
       - run:
           name: Run unit tests

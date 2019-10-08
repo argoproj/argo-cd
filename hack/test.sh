@@ -2,6 +2,7 @@
 set -eux
 
 report() {
+  set -xux
   go-junit-report --package-name com.github.argoproj.argo_cd < test.out > junit.xml
   xsltproc junit-noframes.xsl junit.xml > test.html
 }
