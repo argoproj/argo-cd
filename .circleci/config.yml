@@ -203,12 +203,10 @@ jobs:
           name: Uploading code coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
   codegen:
-    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
-    machine:
-      image: circleci/classic:201808-01
+    docker:
+      - image: circleci/golang:1.12
+    working_directory: /go/src/github.com/argoproj/argo-cd
     steps:
-      - before
-      - dev_tools
       - run: make codegen
       - check_for_changes
   lint:
