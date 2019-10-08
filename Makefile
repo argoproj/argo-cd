@@ -18,6 +18,7 @@ PATH:=$(PATH):$(PWD)/hack
 
 # docker image publishing options
 DOCKER_PUSH?=false
+IMAGE_NAMESPACE?=argoproj
 IMAGE_TAG?=
 # perform static compilation
 STATIC_BUILD?=true
@@ -44,12 +45,6 @@ IMAGE_TAG=${GIT_TAG}
 LDFLAGS += -X ${PACKAGE}.gitTag=${GIT_TAG}
 endif
 
-ifeq (${DOCKER_PUSH},true)
-ifndef IMAGE_NAMESPACE
-$(error IMAGE_NAMESPACE must be set to push images (e.g. IMAGE_NAMESPACE=argoproj))
-endif
-endif
-
 ifdef IMAGE_NAMESPACE
 IMAGE_PREFIX=${IMAGE_NAMESPACE}/
 endif
@@ -73,7 +68,7 @@ clientgen:
 codegen-local: protogen clientgen openapigen manifests-local
 
 .PHONY: codegen
-codegen: dev-tools-image
+codegen:
 	$(call run-in-dev-tool,make codegen-local)
 
 .PHONY: cli
@@ -92,9 +87,10 @@ argocd-util: clean-debug
 	# Build argocd-util as a statically linked binary, so it could run within the alpine-based dex container (argoproj/argo-cd#844)
 	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-util ./cmd/argocd-util
 
-.PHONY: dev-tools-image
+.PHONY:
 dev-tools-image:
-	docker build -t argocd-dev-tools ./hack -f ./hack/dev-tools-image/Dockerfile
+	docker build -t $(IMAGE_PREFIX)argocd-dev-tools:latest ./hack -f ./hack/dev-tools-image/Dockerfile
+	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd-dev-tools:latest ; fi
 
 .PHONY: manifests-local
 manifests-local:
