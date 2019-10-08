@@ -14,7 +14,8 @@ protoc --version
 
 # shellcheck disable=SC2034
 GO111MODULE=on
-go get k8s.io/code-generator/cmd/go-to-protobuf/protoc-gen-gogo@v0.0.0-20191003035328-700b1226c0bd
+# protbuf tooling required to build .proto files from go annotations from k8s-like api types
+go get k8s.io/code-generator/cmd/go-to-protobuf@v0.0.0-20191003035328-700b1226c0bd
 
 PROJECT_ROOT=$(cd $(dirname ${BASH_SOURCE})/..; pwd)
 
@@ -36,10 +37,10 @@ APIMACHINERY_PKGS=(
 go-to-protobuf \
     --go-header-file=${PROJECT_ROOT}/hack/custom-boilerplate.go.txt \
     --packages=$(IFS=, ; echo "${PACKAGES[*]}") \
-    --apimachinery-packages=$(IFS=, ; echo "${APIMACHINERY_PKGS[*]}")
+    --apimachinery-packages=$(IFS=, ; echo "${APIMACHINERY_PKGS[*]}") \
+    --proto-import=./vendor
 
 exit 1
-
 # Either protoc-gen-go, protoc-gen-gofast, or protoc-gen-gogofast can be used to build
 # server/*/<service>.pb.go from .proto files. golang/protobuf and gogo/protobuf can be used
 # interchangeably. The difference in the options are:
