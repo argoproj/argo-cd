@@ -146,7 +146,7 @@ commands:
 jobs:
   build-v2:
     docker:
-      - image: golang:1.12.6
+      - image: circleci/golang:1.12
     steps:
       - checkout
       - dep_ensure
