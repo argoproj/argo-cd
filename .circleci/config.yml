@@ -163,7 +163,7 @@ jobs:
       - check_for_changes
   lint:
     docker:
-      - image: golangci/golangci-lint:v1.20
+      - image: golangci/golangci-lint:v1.17.1
     working_directory: /src/github.com/argoproj/argo-cd
     steps:
       - checkout
