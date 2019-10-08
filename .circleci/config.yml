@@ -100,6 +100,15 @@ commands:
             sudo cp /tmp/dl/kustomize_${VER} /usr/local/go/bin/kustomize
             sudo chmod +x /usr/local/go/bin/kustomize
             kustomize version
+
+      - run:
+          name: Install Swagger v0.19.0
+          command: |
+            set -x
+            [ -e /tmp/dl/swagger ] || curl -sLf -C - -o /tmp/dl/swagger https://github.com/go-swagger/go-swagger/releases/download/v0.19.0/swagger_linux_amd64
+            cp /tmp/dl/swagger /usr/local/bin/swagger
+            chmod +x /usr/local/bin/swagger
+            swagger version
       - save_cache:
           key: dl-v9
           paths:
@@ -154,7 +163,7 @@ jobs:
             # We exclude the Swagger resources; CircleCI doesn't generate them correctly.
             # When this fails, it will, create a patch file you can apply locally to fix it.
             # To troubleshoot builds: https://argoproj.github.io/argo-cd/developer-guide/ci/
-            git diff --exit-code -- . ':!Gopkg.lock'  ':!assets/swagger.json' | tee codegen.patch
+            git diff --exit-code -- . ':!assets/swagger.json' | tee codegen.patch
       - store_artifacts:
           path: codegen.patch
           when: always
