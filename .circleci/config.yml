@@ -188,6 +188,7 @@ jobs:
             - vendor-v1-master
       - run: dep ensure
       - run: go get github.com/jstemmer/go-junit-report
+      - run: sudo apt-get install -y xsltproc
       - save_cache:
           key: vendor-v2-{{ .Branch }}
           paths:
@@ -365,10 +366,8 @@ workflows:
       - codegen
       - lint
       - e2e:
-          # this isn't strictly true, we just put in here so that we 2/4 executors rather than 3/4
           requires:
             - codegen
       - ui:
-          # this isn't strictly true, we just put in here so that we 2/4 executors rather than 3/4
           requires:
             - codegen
