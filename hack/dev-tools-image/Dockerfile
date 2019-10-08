@@ -1,5 +1,7 @@
 FROM golang:1.12.6 as builder
 
+RUN apt-get update && apt-get install -y zip
+
 ENV KUSTOMIZE_VERSION=2.0.3
 RUN curl -L -o /usr/local/bin/kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64 && \
     chmod +x /usr/local/bin/kustomize && \
@@ -31,9 +33,7 @@ RUN curl -sLf -C - -o /tmp/jq https://github.com/stedolan/jq/releases/download/j
     chmod +x /usr/local/bin/jq && \
     jq --version
 
-RUN apt-get update && apt-get install -y \
-    zip && \
-    apt-get clean && \
+RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 RUN GO111MODULE=on go get github.com/gogo/protobuf/gogoproto@v1.2.1 && \
