@@ -181,9 +181,8 @@ jobs:
     working_directory: /go/src/github.com/argoproj/argo-cd
     steps:
       - install_tools
-      - run: ls
-      - checkout
       - configure_git
+      - checkout
       - restore_cache:
           keys:
             - vendor-v2-{{ .Branch }}
