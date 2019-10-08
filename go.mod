@@ -76,9 +76,8 @@ require (
 	k8s.io/gengo v0.0.0-20190822140433-26a664648505 // indirect
 	k8s.io/klog v1.0.0
 	k8s.io/kube-aggregator v0.0.0-20190711105720-e80910364765
-	k8s.io/kube-openapi v0.0.0-20190502190224-411b2483e503
+	k8s.io/kube-openapi v0.0.0-20190816220812-743ec37842bf
 	k8s.io/kubernetes v1.14.0
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a
 	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
-	sigs.k8s.io/structured-merge-diff v0.0.0-20190525122527-15d366b2352e // indirect
 )

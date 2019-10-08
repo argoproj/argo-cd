@@ -58,6 +58,10 @@ all: cli image argocd-util
 protogen:
 	./hack/generate-proto.sh
 
+.PHONY: swagger
+swagger:
+	./hack/generate-swagger.sh
+
 .PHONY: openapigen
 openapigen:
 	./hack/update-openapi.sh
@@ -67,7 +71,7 @@ clientgen:
 	./hack/update-codegen.sh
 
 .PHONY: codegen
-codegen: protogen clientgen openapigen manifests
+codegen: protogen swagger clientgen openapigen manifests
 
 cli: clean-debug
 	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd

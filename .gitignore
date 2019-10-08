@@ -11,3 +11,14 @@ coverage.out
 junit.xml
 test.out
 test-e2e.out
+reposerver/repository/repository.swagger.json
+server/account/account.swagger.json
+server/application/application.swagger.json
+server/certificate/certificate.swagger.json
+server/cluster/cluster.swagger.json
+server/project/project.swagger.json
+server/repository/repository.swagger.json
+server/session/session.swagger.json
+server/settings/oidc/claims.swagger.json
+server/settings/settings.swagger.json
+server/version/version.swagger.json
