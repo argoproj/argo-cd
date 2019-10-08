@@ -152,11 +152,7 @@ jobs:
       - before
       #- run:
       #    name: Run unit tests
-      #    command: |
-      #      set -x
-      #      mkdir -p /tmp/test-results
-      #      trap "go-junit-report </tmp/test-results/go-test.out > /tmp/test-results/go-test-report.xml" EXIT
-      #      make test | tee /tmp/test-results/go-test.out
+      #    command: make test
       - save_go_cache
       - run:
           name: Uploading code coverage
@@ -164,7 +160,7 @@ jobs:
           # This takes 2m, lets background it.
           background: true
       - store_test_results:
-          path: /tmp/test-results
+          path: junit.xml
       - restore_cache:
           keys:
             - dev-tools-v1-{{ .Branch }}
@@ -284,11 +280,7 @@ jobs:
             argocd app delete guestbook
       - run:
           name: Run e2e tests
-          command: |
-            set -x
-            mkdir -p /tmp/test-results
-            trap "go-junit-report </tmp/test-results/go-e2e.out > /tmp/test-results/go-e2e-report.xml" EXIT
-            make test-e2e | tee /tmp/test-results/go-e2e.out
+          command: make test-e2e
           environment:
             ARGOCD_OPTS: "--server localhost:8080 --plaintext"
             ARGOCD_E2E_EXPECT_TIMEOUT: "30"
