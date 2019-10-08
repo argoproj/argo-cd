@@ -35,7 +35,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/accountUpdatePasswordResponse"
             }
@@ -66,7 +66,6 @@
             "items": {
               "type": "string"
             },
-            "collectionFormat": "multi",
             "name": "project",
             "in": "query"
           },
@@ -78,7 +77,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1ApplicationList"
             }
@@ -103,7 +102,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1Application"
             }
@@ -121,7 +120,6 @@
         "parameters": [
           {
             "type": "string",
-            "description": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names\n+optional",
             "name": "application.metadata.name",
             "in": "path",
             "required": true
@@ -137,7 +135,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1Application"
             }
@@ -161,7 +159,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/applicationManagedResourcesResponse"
             }
@@ -185,7 +183,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1ApplicationTree"
             }
@@ -217,7 +215,6 @@
             "items": {
               "type": "string"
             },
-            "collectionFormat": "multi",
             "name": "project",
             "in": "query"
           },
@@ -229,7 +226,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1Application"
             }
@@ -248,17 +245,11 @@
             "name": "name",
             "in": "path",
             "required": true
-          },
-          {
-            "type": "boolean",
-            "format": "boolean",
-            "name": "cascade",
-            "in": "query"
           }
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/applicationApplicationResponse"
             }
@@ -289,7 +280,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1Application"
             }
@@ -329,7 +320,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1EventList"
             }
@@ -354,7 +345,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/applicationApplicationMaintenanceResponse"
             }
@@ -384,7 +375,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/repositoryManifestResponse"
             }
@@ -409,7 +400,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/applicationOperationTerminateResponse"
             }
@@ -482,9 +473,9 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.(streaming responses)",
+            "description": "(streaming responses)",
             "schema": {
-              "$ref": "#/x-stream-definitions/applicationLogEntry"
+              "$ref": "#/definitions/applicationLogEntry"
             }
           }
         }
@@ -532,7 +523,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/applicationApplicationResourceResponse"
             }
@@ -563,7 +554,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/applicationApplicationResourceResponse"
             }
@@ -582,42 +573,11 @@
             "name": "name",
             "in": "path",
             "required": true
-          },
-          {
-            "type": "string",
-            "name": "namespace",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "resourceName",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "version",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "group",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "kind",
-            "in": "query"
-          },
-          {
-            "type": "boolean",
-            "format": "boolean",
-            "name": "force",
-            "in": "query"
           }
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/applicationApplicationResponse"
             }
@@ -666,7 +626,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/applicationResourceActionsListResponse"
             }
@@ -696,7 +656,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/applicationApplicationResponse"
             }
@@ -714,14 +674,12 @@
         "parameters": [
           {
             "type": "string",
-            "description": "the application's name",
             "name": "name",
             "in": "path",
             "required": true
           },
           {
             "type": "string",
-            "description": "the revision of the app",
             "name": "revision",
             "in": "path",
             "required": true
@@ -729,7 +687,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1RevisionMetadata"
             }
@@ -762,7 +720,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1Application"
             }
@@ -795,7 +753,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1ApplicationSpec"
             }
@@ -828,7 +786,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1Application"
             }
@@ -865,7 +823,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1RepositoryCertificateList"
             }
@@ -880,7 +838,6 @@
         "operationId": "CreateCertificate",
         "parameters": [
           {
-            "description": "List of certificates to be created",
             "name": "body",
             "in": "body",
             "required": true,
@@ -891,7 +848,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1RepositoryCertificateList"
             }
@@ -904,29 +861,9 @@
         ],
         "summary": "Delete the certificates that match the RepositoryCertificateQuery",
         "operationId": "DeleteCertificate",
-        "parameters": [
-          {
-            "type": "string",
-            "description": "A file-glob pattern (not regular expression) the host name has to match.",
-            "name": "hostNamePattern",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "description": "The type of the certificate to match (ssh or https).",
-            "name": "certType",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "description": "The sub type of the certificate to match (protocol dependent, usually only used for ssh certs).",
-            "name": "certSubType",
-            "in": "query"
-          }
-        ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1RepositoryCertificateList"
             }
@@ -950,7 +887,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1ClusterList"
             }
@@ -975,7 +912,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1Cluster"
             }
@@ -993,7 +930,6 @@
         "parameters": [
           {
             "type": "string",
-            "description": "Server is the API server URL of the Kubernetes cluster",
             "name": "cluster.server",
             "in": "path",
             "required": true
@@ -1009,7 +945,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1Cluster"
             }
@@ -1034,7 +970,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1Cluster"
             }
@@ -1057,7 +993,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/clusterClusterResponse"
             }
@@ -1082,7 +1018,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/clusterClusterResponse"
             }
@@ -1106,7 +1042,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1AppProjectList"
             }
@@ -1131,7 +1067,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1AppProject"
             }
@@ -1156,7 +1092,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1AppProject"
             }
@@ -1179,7 +1115,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/projectEmptyResponse"
             }
@@ -1204,7 +1140,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1EventList"
             }
@@ -1229,7 +1165,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/projectMaintenanceResponse"
             }
@@ -1247,7 +1183,6 @@
         "parameters": [
           {
             "type": "string",
-            "description": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names\n+optional",
             "name": "project.metadata.name",
             "in": "path",
             "required": true
@@ -1263,7 +1198,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1AppProject"
             }
@@ -1302,7 +1237,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/projectProjectTokenResponse"
             }
@@ -1340,7 +1275,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/projectEmptyResponse"
             }
@@ -1364,7 +1299,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1RepositoryList"
             }
@@ -1389,7 +1324,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1Repository"
             }
@@ -1407,7 +1342,6 @@
         "parameters": [
           {
             "type": "string",
-            "description": "URL of the repo",
             "name": "repo.repo",
             "in": "path",
             "required": true
@@ -1423,7 +1357,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1Repository"
             }
@@ -1448,7 +1382,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/repositoryRepoResponse"
             }
@@ -1478,7 +1412,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/repositoryRepoAppsResponse"
             }
@@ -1502,7 +1436,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/repositoryHelmChartsResponse"
             }
@@ -1520,13 +1454,11 @@
         "parameters": [
           {
             "type": "string",
-            "description": "The URL to the repo",
             "name": "repo",
             "in": "path",
             "required": true
           },
           {
-            "description": "The URL to the repo",
             "name": "body",
             "in": "body",
             "required": true,
@@ -1537,7 +1469,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/repositoryRepoResponse"
             }
@@ -1555,7 +1487,6 @@
         "parameters": [
           {
             "type": "string",
-            "description": "RepoURL is the repository URL of the application manifests",
             "name": "source.repoURL",
             "in": "path",
             "required": true
@@ -1571,7 +1502,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/repositoryRepoAppDetailsResponse"
             }
@@ -1598,7 +1529,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/sessionSessionResponse"
             }
@@ -1613,7 +1544,7 @@
         "operationId": "DeleteMixin9",
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/sessionSessionResponse"
             }
@@ -1630,7 +1561,7 @@
         "operationId": "GetUserInfo",
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/sessionGetUserInfoResponse"
             }
@@ -1647,7 +1578,7 @@
         "operationId": "Get",
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/clusterSettings"
             }
@@ -1678,7 +1609,6 @@
             "items": {
               "type": "string"
             },
-            "collectionFormat": "multi",
             "name": "project",
             "in": "query"
           },
@@ -1690,9 +1620,9 @@
         ],
         "responses": {
           "200": {
-            "description": "A successful response.(streaming responses)",
+            "description": "(streaming responses)",
             "schema": {
-              "$ref": "#/x-stream-definitions/v1alpha1ApplicationWatchEvent"
+              "$ref": "#/definitions/v1alpha1ApplicationWatchEvent"
             }
           }
         }
@@ -1707,7 +1637,7 @@
         "operationId": "Version",
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/versionVersionMessage"
             }
@@ -2073,18 +2003,6 @@
         }
       }
     },
-    "protobufAny": {
-      "type": "object",
-      "properties": {
-        "type_url": {
-          "type": "string"
-        },
-        "value": {
-          "type": "string",
-          "format": "byte"
-        }
-      }
-    },
     "repositoryAppInfo": {
       "type": "object",
       "title": "AppInfo contains application type and app file path",
@@ -2282,31 +2200,6 @@
     },
     "repositoryRepoResponse": {
       "type": "object"
-    },
-    "runtimeStreamError": {
-      "type": "object",
-      "properties": {
-        "details": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/protobufAny"
-          }
-        },
-        "grpc_code": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "http_code": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "http_status": {
-          "type": "string"
-        },
-        "message": {
-          "type": "string"
-        }
-      }
     },
     "sessionGetUserInfoResponse": {
       "type": "object",

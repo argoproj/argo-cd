@@ -44,7 +44,7 @@ commands:
   install_go_deps:
     steps:
       - run:
-          name: Install Go deps
+          name: Install Go tools
           command: ./hack/install-go-tools.sh
   install_tools:
     steps:
@@ -168,6 +168,8 @@ jobs:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
       image: circleci/classic:201808-01
+    environment:
+      GO111MODULE: "on"
     steps:
       - run:
           name: Install and start K3S v0.5.0
