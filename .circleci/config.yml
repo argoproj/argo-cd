@@ -38,6 +38,20 @@ commands:
           key: vendor-v4-{{ checksum "Gopkg.lock" }}
           paths:
             - vendor
+  dev-tools-image:
+    steps:
+      - restore_cache:
+          keys:
+            - dev-tools-image-v1-{{ checksum "hack/Dockerfile.dev-tools" }}
+      - run:
+          name: Run make dev-tools-image
+          command: |
+            IMAGE_PATH="/tmp/dev-tools/$(sha1sum ./hack/Dockerfile.dev-tools | cut -d " " -f 1)"
+            [ -e $IMAGE_PATH ] && docker load $IMAGE_PATH || make dev-tools-image && mkdir -p /tmp/dev-tools && docker save argocd-dev-tools:latest > $IMAGE_PATH
+      - save_cache:
+          key: dev-tools-image-v1-{{ checksum "hack/Dockerfile.dev-tools" }}
+          paths:
+            - /tmp/dev-tools
   install_golang:
     steps:
       - run:
@@ -165,6 +179,7 @@ jobs:
           background: true
       - store_test_results:
           path: /tmp/test-results
+      - dev-tools-image
       - run:
           name: Generate code
           command: make codegen
