@@ -363,9 +363,7 @@ workflows:
     jobs:
       - test
       - codegen
-      - lint:
-          requires:
-            - codegen
+      - lint
       - e2e:
           # this isn't strictly true, we just put in here so that we 2/4 executors rather than 3/4
           requires:
