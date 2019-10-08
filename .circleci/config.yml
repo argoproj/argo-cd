@@ -161,6 +161,9 @@ jobs:
           background: true
       - store_test_results:
           path: junit.xml
+      - store_artifacts:
+          path: test.html
+          when: always
       - restore_cache:
           keys:
             - dev-tools-v1-{{ .Branch }}
@@ -169,7 +172,7 @@ jobs:
           name: Make dev tools
           command: |
             set -x
-            docker load dev-tools.tar.gz || make dev-tools-image && docker save argoproj/argocd-dev-tools:latest | gzip > dev-tools.tar.gz
+            docker load < dev-tools.tar.gz || make dev-tools-image && docker save argoproj/argocd-dev-tools:latest | gzip > dev-tools.tar.gz
       - save_cache:
           key: dev-tools-v1-{{ .Branch }}
           paths:
@@ -286,7 +289,10 @@ jobs:
             ARGOCD_E2E_EXPECT_TIMEOUT: "30"
             ARGOCD_E2E_K3S: "true"
       - store_test_results:
-          path: /tmp/test-results
+          path: junit.xml
+      - store_artifacts:
+          path: test.html
+          when: always
   ui:
     # note that we checkout the code in ~/argo-cd/, but then work in ~/argo-cd/ui
     working_directory: ~/argo-cd/ui
