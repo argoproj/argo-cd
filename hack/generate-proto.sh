@@ -37,8 +37,7 @@ APIMACHINERY_PKGS=(
 go-to-protobuf \
     --go-header-file=${PROJECT_ROOT}/hack/custom-boilerplate.go.txt \
     --packages=$(IFS=, ; echo "${PACKAGES[*]}") \
-    --apimachinery-packages=$(IFS=, ; echo "${APIMACHINERY_PKGS[*]}") \
-    --proto-import $GOPATH/pkg/mod/github.com/gogo/protobuf@v1.1.1/protobuf
+    --apimachinery-packages=$(IFS=, ; echo "${APIMACHINERY_PKGS[*]}")
 
 exit 1
 

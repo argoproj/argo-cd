@@ -26,7 +26,7 @@ require (
 	github.com/gobwas/glob v0.2.3
 	github.com/gogits/go-gogs-client v0.0.0-20190616193657-5a05380e4bc2
 	github.com/gogo/protobuf v1.2.2-0.20190723190241-65acae22fc9d
-	github.com/golang/protobuf v1.2.0
+	github.com/golang/protobuf v1.3.1
 	github.com/google/go-jsonnet v0.10.0
 	github.com/google/shlex v0.0.0-20181106134648-c34317bd91bf
 	github.com/googleapis/gnostic v0.1.0 // indirect
@@ -68,9 +68,8 @@ require (
 	gopkg.in/yaml.v2 v2.2.4
 	k8s.io/api v0.0.0-20190711103429-37c3b8b1ca65
 	k8s.io/apiextensions-apiserver v0.0.0-20190404071145-7f7d2b94eca3
-	k8s.io/apimachinery v0.0.0-20190711103026-7bf792636534
+	k8s.io/apimachinery v0.0.0-20191006235458-f9f2f3f8ab02
 	k8s.io/client-go v0.0.0-20190711103903-4a0861cac5e0
-	k8s.io/code-generator v0.0.0-20191003035328-700b1226c0bd // indirect
 	k8s.io/klog v1.0.0
 	k8s.io/kube-aggregator v0.0.0-20190711105720-e80910364765
 	k8s.io/kube-openapi v0.0.0-20190816220812-743ec37842bf
