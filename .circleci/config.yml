@@ -144,7 +144,7 @@ commands:
             - go-v16-{{ .Branch }}
             - go-v16-master
 jobs:
-  build:
+  test:
     docker:
       - image: circleci/golang:1.12
     resource_class: large
@@ -345,7 +345,7 @@ workflows:
   version: 2
   workflow:
     jobs:
-      - build
+      - test
       - codegen
       - e2e:
           # this isn't strictly true, we just put in here so that we 2/4 executors rather than 3/4
