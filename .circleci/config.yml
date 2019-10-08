@@ -210,9 +210,9 @@ jobs:
       - run: make codegen
       - check_for_changes
   lint:
+    docker:
+      - image: golangci/golangci-lint:v1.20
     working_directory: /go/src/github.com/argoproj/argo-cd
-    machine:
-      image: golangci/golangci-lint:v1.20
     steps:
       - checkout
       - run: golangci-lint run -v --fix
@@ -344,9 +344,3 @@ workflows:
       - test
       - codegen
       - lint
-      - e2e:
-          requires:
-            - codegen
-      - ui:
-          requires:
-            - codegen
