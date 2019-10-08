@@ -25,8 +25,8 @@ STATIC_BUILD?=true
 # build development images
 DEV_IMAGE?=false
 # lint is memory and CPU intensive, so we can limit on CI to mitigate OOM
-LINT_GOGC?=off
-LINT_CONCURRENCY?=8
+LINT_GOGC?=on
+LINT_CONCURRENCY?=4
 # Set timeout for linter
 LINT_DEADLINE?=1m0s
 
@@ -155,11 +155,13 @@ dep:
 dep-ensure:
 	dep ensure -no-vendor
 
+.PHONY: lint-local
+lint-local:
+	GOGC=$(LINT_GOGC) golangci-lint run --fix --verbose --concurrency $(LINT_CONCURRENCY) --deadline $(LINT_DEADLINE)
+
 .PHONY: lint
 lint:
-	GO111MODULE=on go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.19.1
-	golangci-lint --version
-	GOGC=$(LINT_GOGC) golangci-lint run --fix --verbose --concurrency $(LINT_CONCURRENCY) --deadline $(LINT_DEADLINE)
+	$(call run-in-dev-tool,make lint-local)
 
 .PHONY: build
 build:
