@@ -77,7 +77,7 @@ require (
 	k8s.io/klog v1.0.0
 	k8s.io/kube-aggregator v0.0.0-20190711105720-e80910364765
 	k8s.io/kube-openapi v0.0.0-20190816220812-743ec37842bf
-	k8s.io/kubernetes v1.15.0-alpha.0.0.20190621004036-2d20b5759406
+	k8s.io/kubernetes v1.14.0
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a
 	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
 )

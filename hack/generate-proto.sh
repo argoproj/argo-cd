@@ -19,7 +19,6 @@ GO111MODULE=on
 go get k8s.io/code-generator/cmd/go-to-protobuf/protoc-gen-gogo@v0.0.0-20191003035328-700b1226c0bd
 
 PROJECT_ROOT=$(cd $(dirname ${BASH_SOURCE})/..; pwd)
-CODEGEN_PKG=${CODEGEN_PKG:-$(cd ${PROJECT_ROOT}; ls -d -1 $GOPATH/pkg/mod/k8s.io/code-generator@v0.0.0-20191003035328-700b1226c0bd 2>/dev/null || echo ../code-generator)}
 
 # Generate pkg/apis/<group>/<apiversion>/(generated.proto,generated.pb.go)
 # NOTE: any dependencies of our types to the k8s.io apimachinery types should be added to the
