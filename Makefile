@@ -161,6 +161,8 @@ dep-ensure:
 
 .PHONY: lint
 lint:
+	GO111MODULE=on go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.19.1
+	golangci-lint --version
 	GOGC=$(LINT_GOGC) golangci-lint run --fix --verbose --concurrency $(LINT_CONCURRENCY) --deadline $(LINT_DEADLINE)
 
 .PHONY: build
