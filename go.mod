@@ -34,6 +34,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway v1.3.1
 	github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
+	github.com/json-iterator/go v1.1.7 // indirect
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/malexdev/utfutil v0.0.0-20180510171754-00c8d4a8e7a8 // indirect
@@ -70,7 +71,6 @@ require (
 	k8s.io/apiextensions-apiserver v0.0.0-20190404071145-7f7d2b94eca3
 	k8s.io/apimachinery v0.0.0-20190711103026-7bf792636534
 	k8s.io/client-go v0.0.0-20190711103903-4a0861cac5e0
-	k8s.io/code-generator v0.0.0-20191003035328-700b1226c0bd // indirect
 	k8s.io/klog v1.0.0
 	k8s.io/kube-aggregator v0.0.0-20190711105720-e80910364765
 	k8s.io/kube-openapi v0.0.0-20190816220812-743ec37842bf
