@@ -312,6 +312,7 @@ jobs:
     working_directory: ~/argo-cd/ui
     docker:
       - image: node:11.15.0
+    resource_class: large
     steps:
       - checkout:
           path: ~/argo-cd/
