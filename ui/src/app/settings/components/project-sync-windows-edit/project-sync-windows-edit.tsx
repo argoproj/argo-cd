@@ -346,14 +346,19 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
             switch (f) {
                 case 0:
                     this.props.fieldApi.setValue(generateSchedule(values.join(','), '*', '*', '*', '*'));
+                    break;
                 case 1:
                     this.props.fieldApi.setValue(generateSchedule('*', values.join(','), '*', '*', '*'));
+                    break;
                 case 2:
                     this.props.fieldApi.setValue(generateSchedule('*', '*', values.join(','), '*', '*'));
+                    break;
                 case 3:
                     this.props.fieldApi.setValue(generateSchedule('*', '*', '*', values.join(','), '*'));
+                    break;
                 case 4:
                     this.props.fieldApi.setValue(generateSchedule('*', '*', '*', '*', values.join(',')));
+                    break;
             }
         }
         return;
