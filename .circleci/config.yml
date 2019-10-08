@@ -144,15 +144,31 @@ commands:
             - go-v16-{{ .Branch }}
             - go-v16-master
 jobs:
+  build-v2:
+    docker: golang:1.12.6
+    steps:
+      - checkout
+      - dep_ensure
+      - run: make test
+      - run:
+          name: Uploading code coverage
+          command: bash <(curl -s https://codecov.io/bash) -f coverage.out
+          # This takes 2m, lets background it.
+          background: true
+       - store_test_results:
+           path: junit.xml
+       - store_artifacts:
+           path: test.html
+           when: always
   build:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
       image: circleci/classic:201808-01
     steps:
       - before
-      #- run:
-      #    name: Run unit tests
-      #    command: make test
+      - run:
+          name: Run unit tests
+          command: make test
       - save_go_cache
       - run:
           name: Uploading code coverage
@@ -172,7 +188,7 @@ jobs:
           name: Make dev tools
           command: |
             set -x
-            docker load < dev-tools.tar.gz || make dev-tools-image && docker save argoproj/argocd-dev-tools:latest | gzip > dev-tools.tar.gz
+            docker load < dev-tools.tar.gz || ( make dev-tools-image && docker save argoproj/argocd-dev-tools:latest | gzip > dev-tools.tar.gz )
       - save_cache:
           key: dev-tools-v1-{{ .Branch }}
           paths:
@@ -332,6 +348,7 @@ workflows:
   workflow:
     jobs:
       - build
+      - build-v2
       - e2e
       - ui:
           # this isn't strictly true, we just put in here so that we 2/4 executors rather than 3/4
