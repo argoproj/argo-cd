@@ -212,7 +212,6 @@ jobs:
   lint:
     docker:
       - image: golangci/golangci-lint:v1.20
-    working_directory: /go/src/github.com/argoproj/argo-cd
     steps:
       - checkout
       - run: golangci-lint run -v --fix
