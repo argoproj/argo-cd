@@ -147,6 +147,7 @@ jobs:
   build-v2:
     docker:
       - image: circleci/golang:1.12
+    working_directory: /go/src/github.com/argoproj/argo-cd
     steps:
       - checkout
       - dep_ensure
