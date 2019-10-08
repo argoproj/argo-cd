@@ -185,17 +185,18 @@ jobs:
       - checkout
       - restore_cache:
           keys:
+            - vendor-v3-{{ .Branch }}
+            - vendor-v3-master
             - vendor-v2-{{ .Branch }}
             - vendor-v2-master
-            - vendor-v1-{{ .Branch }}
-            - vendor-v1-master
       - run: dep ensure
       - run: go get github.com/jstemmer/go-junit-report
       - run: sudo apt-get install -y xsltproc
       - save_cache:
-          key: vendor-v2-{{ .Branch }}
+          key: vendor-v3-{{ .Branch }}
           paths:
             - /go/pkg
+            - vendor
       - run: make test
       - store_test_results:
           path: junit.xml
