@@ -145,7 +145,8 @@ commands:
             - go-v16-master
 jobs:
   build-v2:
-    docker: golang:1.12.6
+    docker:
+      - image: golang:1.12.6
     steps:
       - checkout
       - dep_ensure
@@ -155,11 +156,11 @@ jobs:
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
           # This takes 2m, lets background it.
           background: true
-       - store_test_results:
-           path: junit.xml
-       - store_artifacts:
-           path: test.html
-           when: always
+      - store_test_results:
+          path: junit.xml
+      - store_artifacts:
+          path: test.html
+          when: always
   build:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
