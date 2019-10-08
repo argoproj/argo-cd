@@ -188,24 +188,18 @@ function getRanges(config: string): string[] {
 function setRanges(config: string[]): string {
     const values = [];
     const ranges = [];
-    let isRange = false;
+
+    config.sort((n1, n2) => parseInt(n1, 10) - parseInt(n2, 10));
+
     for (let i = 0; i < config.length; i++) {
-        if ( i !== (config.length - 1) && (parseInt(config[i], 10) + 1) === parseInt(config[i + 1], 10)) {
-            if (!isRange) {
-                if (ranges.length === 0) {
-                    ranges[0] = [config[i]];
-                } else {
-                    ranges[ranges.length - 1] = [config[i]];
-                }
-                isRange = true;
-            } else {
+        if (ranges.length === 0) {
+            ranges[0] = [config[i]];
+        } else {
+            if ((parseInt(config[i], 10) - 1) === parseInt(config[i - 1], 10)) {
                 ranges[ranges.length - 1].push(config[i]);
+            } else {
+                ranges[ranges.length] = [config[i]];
             }
-        } else if ((parseInt(config[i], 10) - 1) === parseInt(config[i - 1], 10)) {
-            ranges[ranges.length - 1].push(config[i]);
-        } else  {
-            ranges[ranges.length] = [config[i]];
-            isRange = false;
         }
     }
 
