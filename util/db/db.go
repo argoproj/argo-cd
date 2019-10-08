@@ -26,6 +26,7 @@ type ArgoDB interface {
 
 	// ListRepositories lists repositories
 	ListRepositories(ctx context.Context) ([]*appv1.Repository, error)
+
 	// CreateRepository creates a repository
 	CreateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
 	// GetRepository returns a repository by URL
@@ -41,6 +42,9 @@ type ArgoDB interface {
 	CreateRepoCertificate(ctx context.Context, certificate *appv1.RepositoryCertificateList, upsert bool) (*appv1.RepositoryCertificateList, error)
 	// CreateRepoCertificate creates a new certificate entry
 	RemoveRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appv1.RepositoryCertificateList, error)
+
+	// ListHelmRepositories lists repositories
+	ListHelmRepositories(ctx context.Context) ([]*appv1.Repository, error)
 }
 
 type db struct {

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -92,9 +94,16 @@ func appRBACName(app appv1.Application) string {
 	return fmt.Sprintf("%s/%s", app.Spec.GetProject(), app.Name)
 }
 
+func validatedSelector(selector string) string {
+	if _, err := fields.ParseSelector(selector); err != nil {
+		return ""
+	}
+	return selector
+}
+
 // List returns list of applications
 func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*appv1.ApplicationList, error) {
-	appList, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(metav1.ListOptions{})
+	appList, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(metav1.ListOptions{LabelSelector: validatedSelector(q.Selector)})
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +189,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	if err != nil {
 		return nil, err
 	}
-	repos, err := s.db.ListRepositories(ctx)
+	helmRepos, err := s.db.ListHelmRepositories(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +221,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		AppLabelValue:     a.Name,
 		Namespace:         a.Spec.Destination.Namespace,
 		ApplicationSource: &a.Spec.Source,
-		Repos:             repos,
+		Repos:             helmRepos,
 		Plugins:           plugins,
 		KustomizeOptions:  &kustomizeOptions,
 		KubeVersion:       cluster.ServerVersion,
@@ -488,7 +497,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		return nil
 	}
 
-	var listOpts metav1.ListOptions
+	listOpts := metav1.ListOptions{LabelSelector: validatedSelector(q.Selector)}
 	if q.Name != nil && *q.Name != "" {
 		listOpts.FieldSelector = fmt.Sprintf("metadata.name=%s", *q.Name)
 	}
@@ -1074,17 +1083,19 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 		return nil, err
 	}
 
-	availableActions, err := s.getAvailableActions(resourceOverrides, obj, "")
+	availableActions, err := s.getAvailableActions(resourceOverrides, obj, res.GroupKindVersion(), "")
 	if err != nil {
 		return nil, err
 	}
+
 	return &application.ResourceActionsListResponse{Actions: availableActions}, nil
 }
 
-func (s *Server) getAvailableActions(resourceOverrides map[string]v1alpha1.ResourceOverride, obj *unstructured.Unstructured, filterAction string) ([]appv1.ResourceAction, error) {
+func (s *Server) getAvailableActions(resourceOverrides map[string]appv1.ResourceOverride, obj *unstructured.Unstructured, gvk schema.GroupVersionKind, filterAction string) ([]appv1.ResourceAction, error) {
 	luaVM := lua.VM{
 		ResourceOverrides: resourceOverrides,
 	}
+
 	discoveryScript, err := luaVM.GetResourceActionDiscovery(obj)
 	if err != nil {
 		return nil, err
@@ -1098,6 +1109,7 @@ func (s *Server) getAvailableActions(resourceOverrides map[string]v1alpha1.Resou
 	}
 	for i := range availableActions {
 		action := availableActions[i]
+		availableActions[i].Name = gvk.Group + "/" + gvk.Kind + "/" + action.Name
 		if action.Name == filterAction {
 			return []appv1.ResourceAction{action}, nil
 		}
@@ -1115,7 +1127,8 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		Version:      q.Version,
 		Group:        q.Group,
 	}
-	res, config, _, err := s.getAppResource(ctx, rbacpolicy.ActionOverride, resourceRequest)
+	actionRequest := fmt.Sprintf("%s/%s/%s/%s", rbacpolicy.ActionAction, q.Group, q.Kind, q.Action)
+	res, config, _, err := s.getAppResource(ctx, actionRequest, resourceRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -1127,13 +1140,6 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 	resourceOverrides, err := s.settingsMgr.GetResourceOverrides()
 	if err != nil {
 		return nil, err
-	}
-	filteredAvailableActions, err := s.getAvailableActions(resourceOverrides, liveObj, q.Action)
-	if err != nil {
-		return nil, err
-	}
-	if len(filteredAvailableActions) == 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "action not available on resource")
 	}
 
 	luaVM := lua.VM{

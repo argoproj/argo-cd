@@ -16,10 +16,16 @@ import "github.com/argoproj/argo-cd/reposerver/repository/repository.proto";
 
 // ApplicationQuery is a query for application resources
 message ApplicationQuery {
+	// the application's name
 	optional string name = 1;
+	// forces application reconciliation if set to true
 	optional string refresh = 2;
+	// the project names to restrict returned list applications
 	repeated string project = 3 [(gogoproto.customname) = "Projects"];
+	// when specified with a watch call, shows changes that occur after that particular version of a resource.
 	optional string resourceVersion = 4 [(gogoproto.nullable) = false];
+	// the selector to to restrict returned list to applications only with matched labels
+	optional string selector = 5 [(gogoproto.nullable) = false];
 }
 
 message RevisionMetadataQuery{

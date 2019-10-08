@@ -43,4 +43,19 @@
         border: 1px solid #dbdcdc;
         border-radius: 2px;
     }
+    .argo-field {
+        line-height: 1.15;
+    }
+
+    .white-box__details-row .row {
+        padding-left: 1em;
+        padding-right: 1em;
+    }
+
+    .white-box__details-row .row .columns:last-child {
+        padding-left: 1em;
+    }
+    .select {
+        padding-bottom: 0;
+    }
 }

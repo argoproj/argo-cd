@@ -1,15 +1,21 @@
 package e2e
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/argoproj/argo-cd/errors"
 	. "github.com/argoproj/argo-cd/errors"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/test/e2e/fixture/repos"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 func TestHelmHooksAreCreated(t *testing.T) {
@@ -98,7 +104,7 @@ func TestDeclarativeHelmInvalidValuesFile(t *testing.T) {
 func TestHelmRepo(t *testing.T) {
 	Given(t).
 		CustomCACertAdded().
-		HelmRepoAdded().
+		HelmRepoAdded("").
 		RepoURLType(RepoURLTypeHelm).
 		Chart("helm").
 		Revision("1.0.0").
@@ -177,4 +183,47 @@ func TestKubeVersion(t *testing.T) {
 			// Capabiliets.KubeVersion defaults to 1.9.0, we assume here you are running a later version
 			assert.Equal(t, GetVersions().ServerVersion.Format("v%s.%s.0"), kubeVersion)
 		})
+}
+
+func TestHelmWithDependencies(t *testing.T) {
+	testHelmWithDependencies(t, false)
+}
+
+func TestHelmWithDependenciesLegacyRepo(t *testing.T) {
+	testHelmWithDependencies(t, true)
+}
+
+func testHelmWithDependencies(t *testing.T, legacyRepo bool) {
+	ctx := Given(t).CustomCACertAdded()
+	if legacyRepo {
+		ctx.And(func() {
+			errors.FailOnErr(fixture.Run("", "kubectl", "create", "secret", "generic", "helm-repo",
+				"-n", fixture.ArgoCDNamespace,
+				fmt.Sprintf("--from-file=certSecret=%s", repos.CertPath),
+				fmt.Sprintf("--from-file=keySecret=%s", repos.CertKeyPath),
+				fmt.Sprintf("--from-literal=username=%s", GitUsername),
+				fmt.Sprintf("--from-literal=password=%s", GitPassword),
+			))
+			errors.FailOnErr(fixture.KubeClientset.CoreV1().Secrets(fixture.ArgoCDNamespace).Patch(
+				"helm-repo", types.MergePatchType, []byte(`{"metadata": { "labels": {"e2e.argoproj.io": "true"} }}`)))
+
+			fixture.SetHelmRepos(settings.HelmRepoCredentials{
+				URL:            RepoURL(RepoURLTypeHelm),
+				Name:           "custom-repo",
+				KeySecret:      &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "keySecret"},
+				CertSecret:     &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "certSecret"},
+				UsernameSecret: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "username"},
+				PasswordSecret: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "password"},
+			})
+		})
+	} else {
+		ctx = ctx.HelmRepoAdded("custom-repo")
+	}
+
+	ctx.Path("helm-with-dependencies").
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }

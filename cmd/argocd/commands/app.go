@@ -1054,7 +1054,8 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 // NewApplicationListCommand returns a new instance of an `argocd app list` command
 func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		output string
+		output   string
+		projects []string
 	)
 	var command = &cobra.Command{
 		Use:   "list",
@@ -1064,14 +1065,19 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			defer util.Close(conn)
 			apps, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{})
 			errors.CheckError(err)
+			appList := apps.Items
+			if len(projects) != 0 {
+				appList = argo.FilterByProjects(appList, projects)
+			}
 			if output == "name" {
-				printApplicationNames(apps.Items)
+				printApplicationNames(appList)
 			} else {
-				printApplicationTable(apps.Items, &output)
+				printApplicationTable(appList, &output)
 			}
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name")
+	command.Flags().StringArrayVarP(&projects, "project", "p", []string{}, "Filter by project name")
 	return command
 }
 
@@ -1950,23 +1956,17 @@ func filterResources(command *cobra.Command, resources []*argoappv1.ResourceDiff
 		if resourceName != "" && resourceName != obj.GetName() {
 			continue
 		}
-		if kind == gvk.Kind {
-			copy := obj.DeepCopy()
-			filteredObjects = append(filteredObjects, copy)
+		if kind != "" && kind != gvk.Kind {
+			continue
 		}
+		copy := obj.DeepCopy()
+		filteredObjects = append(filteredObjects, copy)
 	}
 	if len(filteredObjects) == 0 {
 		log.Fatal("No matching resource found")
 	}
 	if len(filteredObjects) > 1 && !all {
 		log.Fatal("Multiple resources match inputs. Use the --all flag to patch multiple resources")
-	}
-	firstGroup := filteredObjects[0].GroupVersionKind().Group
-	for i := range filteredObjects {
-		obj := filteredObjects[i]
-		if obj.GroupVersionKind().Group != firstGroup {
-			log.Fatal("Multiple groups found in objects to patch. Specify which group to patch with --group flag")
-		}
 	}
 	return filteredObjects
 }
