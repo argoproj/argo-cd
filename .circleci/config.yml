@@ -214,6 +214,7 @@ jobs:
       - image: golangci/golangci-lint:v1.20
     steps:
       - checkout
+      - ls
       - run: golangci-lint run -v --fix
       - check_for_changes
   e2e:
