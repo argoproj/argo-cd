@@ -497,6 +497,7 @@ k8s.io/apiserver v0.0.0-20190711105201-c925c445ddf6/go.mod h1:6M1Xg8rqnQKjtp2XM0
 k8s.io/client-go v0.0.0-20190404070121-75debb4b680d/go.mod h1:bIEHXHbykaOlj+pgLllzLJ2RPGdzkjtqdk0Il07KPEM=
 k8s.io/client-go v0.0.0-20190711103903-4a0861cac5e0 h1:Icp1PBIR9z3I7XnB5syHSdthR9K6WCUjuxSbFWCU+CM=
 k8s.io/client-go v0.0.0-20190711103903-4a0861cac5e0/go.mod h1:MdhWxiGHTqqubuL4pqFLTAhEjVr0Oa6nj8mAy3kFIEI=
+k8s.io/client-go v11.0.1-0.20190521191137-11646d1007e0+incompatible/go.mod h1:7vJpHMYJwNQCWgzmNV+VYUl1zCObLyodBc8nIyt8L5s=
 k8s.io/client-go v11.0.1-0.20190816222228-6d55c1b1f1ca+incompatible h1:2fjBDmXTKmTEIpBVgq1sMDHm2Y3RYgMJCrHk/Dbmpmw=
 k8s.io/client-go v11.0.1-0.20190816222228-6d55c1b1f1ca+incompatible/go.mod h1:7vJpHMYJwNQCWgzmNV+VYUl1zCObLyodBc8nIyt8L5s=
 k8s.io/code-generator v0.0.0-20190404065638-916349668d3d/go.mod h1:IPqxl/YHk05nodzupwjke6ctMjyNRdV2zZ5/j3/F204=
@@ -522,6 +523,8 @@ k8s.io/kube-openapi v0.0.0-20190502190224-411b2483e503 h1:IrnrEIp9du1SngrzGC1fdY
 k8s.io/kube-openapi v0.0.0-20190502190224-411b2483e503/go.mod h1:iU+ZGYsNlvU9XKUSso6SQfKTCCw7lFduMZy26Mgr2Fw=
 k8s.io/kubernetes v1.14.0 h1:6T2iAEoOYQnzQb3WvPlUkcczEEXZ7+YPlAO8olwujRw=
 k8s.io/kubernetes v1.14.0/go.mod h1:ocZa8+6APFNC2tX1DZASIbocyYT5jHzqFVsY5aoB7Jk=
+k8s.io/kubernetes v1.15.0-alpha.0.0.20190621004036-2d20b5759406 h1:7Mcmj/33/nnlKob3ke8um7qxq9EyG3pCNgg0hnv9kGw=
+k8s.io/kubernetes v1.15.0-alpha.0.0.20190621004036-2d20b5759406/go.mod h1:ocZa8+6APFNC2tX1DZASIbocyYT5jHzqFVsY5aoB7Jk=
 k8s.io/kubernetes v1.15.0-alpha.0.0.20190914015840-8fca2ec50a61 h1:htit3IpEzT8j64xwd4lpO2hdcsK9TbDmNTYjGEjmOLc=
 k8s.io/kubernetes v1.15.0-alpha.0.0.20190914015840-8fca2ec50a61/go.mod h1:ocZa8+6APFNC2tX1DZASIbocyYT5jHzqFVsY5aoB7Jk=
 k8s.io/utils v0.0.0-20190221042446-c2654d5206da/go.mod h1:8k8uAuAQ0rXslZKaEWd0c3oVhZz7sSzSiPnVZayjIX0=
