@@ -47,7 +47,7 @@ commands:
           name: Run make dev-tools-image
           command: |
             IMAGE_PATH="/tmp/dev-tools/$(sha1sum ./hack/Dockerfile.dev-tools | cut -d " " -f 1)"
-            [ -e $IMAGE_PATH ] && docker load $IMAGE_PATH || make dev-tools-image && mkdir -p /tmp/dev-tools && docker save argocd-dev-tools:latest > $IMAGE_PATH
+            [ -e $IMAGE_PATH ] && docker load -i $IMAGE_PATH || make dev-tools-image && mkdir -p /tmp/dev-tools && docker save argocd-dev-tools:latest > $IMAGE_PATH
       - save_cache:
           key: dev-tools-image-v1-{{ checksum "hack/Dockerfile.dev-tools" }}
           paths:
