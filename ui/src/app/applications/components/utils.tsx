@@ -396,6 +396,7 @@ export const ApplicationSyncWindowStatusIcon = ({project, state}: { project: str
     let color = '';
     let deny = false;
     let allow = false;
+    let inactiveAllow = false;
     if (state.assignedWindows !== undefined && state.assignedWindows.length > 0) {
         if (state.activeWindows !== undefined && state.activeWindows.length > 0) {
             for (const w of state.activeWindows) {
@@ -405,12 +406,17 @@ export const ApplicationSyncWindowStatusIcon = ({project, state}: { project: str
                     allow = true;
                 }
             }
+            for (const a of state.assignedWindows) {
+                if (a.kind === 'allow') {
+                    inactiveAllow = true;
+                }
+            }
         }
     } else {
         allow = true;
     }
 
-    if ((deny) || (!deny && !allow)) {
+    if ((deny) || (!deny && !allow && inactiveAllow)) {
         className = 'fa fa-stop-circle';
         if (state.canSync) {
             color = COLORS.sync_window.manual;
