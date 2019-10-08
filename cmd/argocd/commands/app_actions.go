@@ -160,7 +160,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 			if all {
 				commandTail += " --all"
 			}
-			fmt.Printf("\nWarning: \"resume\" action has been deprecated. Please run the action as\n\n\targocd app run %s argoproj.io/Rollout/resume%s\n\n", appName, commandTail)
+			fmt.Printf("\nWarning: this syntax for running the \"resume\" action has been deprecated. Please run the action as\n\n\targocd app actions run %s argoproj.io/Rollout/resume%s\n\n", appName, commandTail)
 		} else {
 			group, kind, actionNameOnly = parseActionName(actionName)
 		}

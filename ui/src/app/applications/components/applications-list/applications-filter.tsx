@@ -58,6 +58,15 @@ class ItemsFilter extends React.Component<{
     }
 }
 
+function getLabelsSuggestions(labels: Map<string, Set<string>>) {
+    const suggestions = new Array<string>();
+    Array.from(labels.entries()).forEach(([label, values]) => {
+        suggestions.push(label);
+        values.forEach((val) => suggestions.push(`${label}=${val}`));
+    });
+    return suggestions;
+}
+
 export class ApplicationsFilter extends React.Component<ApplicationsFilterProps, { expanded: boolean }> {
 
     constructor(props: ApplicationsFilterProps) {
@@ -74,6 +83,15 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
         const health = new Map<string, number>();
         Object.keys(models.HealthStatuses).forEach((key) => health.set(models.HealthStatuses[key], 0));
         applications.filter((app) => app.status.health.status).forEach((app) => health.set(app.status.health.status, (health.get(app.status.health.status) || 0) + 1));
+        const labels = new Map<string, Set<string>>();
+        applications.filter((app) => app.metadata && app.metadata.labels).forEach((app) => Object.keys(app.metadata.labels).forEach((label) => {
+            let values = labels.get(label);
+            if (!values) {
+                values = new Set<string>();
+                labels.set(label, values);
+            }
+            values.add(app.metadata.labels[label]);
+        }));
         return (
             <div className={classNames('applications-list__filters-container', { 'applications-list__filters-container--expanded': this.state.expanded })}>
             <i onClick={() => this.setState({ expanded: !this.state.expanded })}
@@ -97,22 +115,32 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
                             type='health' />
                     </div>
                     <div className='columns small-12 medium-3 xxlarge-12'>
-                        <p>Projects</p>
-                        <DataLoader load={() => services.projects.list()}>
-                        {(projects) => {
-                            const projAppCount = new Map<string, number>();
-                            projects.forEach((proj) => projAppCount.set(proj.metadata.name, 0));
-                            applications.forEach((app) => projAppCount.set(app.spec.project, (projAppCount.get(app.spec.project) || 0) + 1));
-                            return <ItemsFilter
-                                selected={pref.projectsFilter}
-                                onChange={(selected) => onChange({...pref, projectsFilter: selected})}
-                                items={projects.map((proj) => ({name: proj.metadata.name, count: projAppCount.get(proj.metadata.name) || 0 }))}
-                                type='projects' />;
-                        }}
-                        </DataLoader>
-                    </div>
-                    <div className='columns small-12 medium-3 xxlarge-12'>
                         <div className='applications-list__filter'>
+                            <p>Labels</p>
+                            <ul>
+                                <li>
+                                    <TagsInput placeholder=''
+                                            autocomplete={getLabelsSuggestions(labels)}
+                                            tags={pref.labelsFilter}
+                                            onChange={(selected) => onChange({...pref, labelsFilter: selected})}/>
+                                </li>
+                            </ul>
+                            <p>Projects</p>
+                            <ul>
+                                <li>
+                                <DataLoader load={() => services.projects.list()}>
+                                    {(projects) => {
+                                        const projAppCount = new Map<string, number>();
+                                        projects.forEach((proj) => projAppCount.set(proj.metadata.name, 0));
+                                        applications.forEach((app) => projAppCount.set(app.spec.project, (projAppCount.get(app.spec.project) || 0) + 1));
+                                        return <TagsInput placeholder='default'
+                                            autocomplete={projects.map((proj) => proj.metadata.name)}
+                                            tags={pref.projectsFilter}
+                                            onChange={(selected) => onChange({...pref, projectsFilter: selected})}/>;
+                                    }}
+                                    </DataLoader>
+                                </li>
+                            </ul>
                             <p>Clusters</p>
                             <ul>
                                 <li>
