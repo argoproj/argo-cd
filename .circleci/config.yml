@@ -151,10 +151,11 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          - vendor-v1-{{ .Branch }}
-          - vendor-v1-master
-          - vendor-v1-{{ .Branch }}
-          - vendor-v1-master
+          keys:
+            - vendor-v1-{{ .Branch }}
+            - vendor-v1-master
+            - vendor-v1-{{ .Branch }}
+            - vendor-v1-master
       - run: dep ensure
       - save_cache:
           key: vendor-v1-{{ .Branch }}
