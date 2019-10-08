@@ -171,7 +171,7 @@ build:
 
 .PHONY: test
 test:
-	./hack/test.sh
+	./hack/test.sh `go list ./... | grep -v 'test/e2e'`
 
 .PHONY: cover
 cover:
@@ -179,7 +179,7 @@ cover:
 
 .PHONY: test-e2e
 test-e2e: cli
-	./hack/test-e2e.sh
+	./hack/test.sh ./test/e2e
 
 .PHONY: start-e2e
 start-e2e: cli
