@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1215,20 +1216,20 @@ func (p *AppProject) ValidateProject() error {
 		roleNames[role.Name] = true
 	}
 
-	if p.Spec.HasMaintenance() && p.Spec.Maintenance.HasWindows() {
-		existingWindows := make(map[string]string)
-		for _, window := range p.Spec.Maintenance.Windows {
-			if existingWindows[window.Schedule] == window.Duration {
-				return status.Errorf(codes.AlreadyExists, "window '%s':'%s' already exists, update or edit", window.Schedule, window.Duration)
+	if p.Spec.SyncWindows.HasWindows() {
+		existingWindows := make(map[string]bool)
+		for _, window := range p.Spec.SyncWindows {
+			if _, ok := existingWindows[window.Kind+window.Schedule+window.Duration]; ok {
+				return status.Errorf(codes.AlreadyExists, "window '%s':'%s':'%s' already exists, update or edit", window.Kind, window.Schedule, window.Duration)
 			}
 			err := window.Validate()
 			if err != nil {
 				return err
 			}
 			if len(window.Applications) == 0 && len(window.Namespaces) == 0 && len(window.Clusters) == 0 {
-				return status.Errorf(codes.OutOfRange, "window '%s':'%s' requires one of application, cluster or namespace", window.Schedule, window.Duration)
+				return status.Errorf(codes.OutOfRange, "window '%s':'%s':'%s' requires one of application, cluster or namespace", window.Kind, window.Schedule, window.Duration)
 			}
-			existingWindows[window.Schedule] = window.Duration
+			existingWindows[window.Kind+window.Schedule+window.Duration] = true
 		}
 	}
 
@@ -1400,114 +1401,128 @@ type AppProjectSpec struct {
 	NamespaceResourceBlacklist []metav1.GroupKind `json:"namespaceResourceBlacklist,omitempty" protobuf:"bytes,6,opt,name=namespaceResourceBlacklist"`
 	// OrphanedResources specifies if controller should monitor orphaned resources of apps in this project
 	OrphanedResources *OrphanedResourcesMonitorSettings `json:"orphanedResources,omitempty" protobuf:"bytes,7,opt,name=orphanedResources"`
-	// Maintenance controls when syncs can be run for apps in this project
-	Maintenance *ProjectMaintenance `json:"maintenance,omitempty" protobuf:"bytes,8,opt,name=maintenance"`
+	// SyncWindows controls when syncs can be run for apps in this project
+	SyncWindows SyncWindows `json:"syncWindows,omitempty" protobuf:"bytes,8,opt,name=syncWindows"`
 }
 
-func (s *AppProjectSpec) AddMaintenance() {
-	if s.Maintenance == nil {
-		s.Maintenance = &ProjectMaintenance{
-			Enabled: true,
-			Windows: ProjectMaintenanceWindows{},
-		}
-	}
-}
+// SyncWindows is a collection of sync windows in this project
+type SyncWindows []*SyncWindow
 
-func (m *AppProjectSpec) HasMaintenance() bool {
-	return m.Maintenance != nil
-}
-
-// Project Maintenance controls when syncs can be run for apps in a project
-type ProjectMaintenance struct {
-	// Enabled will allow maintenance windows to be active during their scheduled times
-	Enabled bool `json:"enabled,omitempty" protobuf:"bytes,1,opt,name=enabled"`
-	// Windows contains the schedules for when syncs should be disabled
-	Windows ProjectMaintenanceWindows `json:"windows,omitempty" protobuf:"bytes,2,opt,name=windows"`
-}
-
-func (m *ProjectMaintenance) IsEnabled() bool {
-	return m != nil && m.Enabled
-}
-
-// MaintenanceWindows is a collection of maintenance windows in the project
-type ProjectMaintenanceWindows []*ProjectMaintenanceWindow
-
-// MaintenanceWindow contains the time, duration and attributes that are used to assign the windows to apps
-type ProjectMaintenanceWindow struct {
+// SyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps
+type SyncWindow struct {
+	// Kind defines if the window allows or blocks syncs
+	Kind string `json:"kind,omitempty" protobuf:"bytes,1,opt,name=kind"`
 	// Schedule is the time the window will begin, specified in cron format
-	Schedule string `json:"schedule,omitempty" protobuf:"bytes,1,opt,name=schedule"`
-	// Duration is the amount of time the maintenance window will be open
-	Duration string `json:"duration,omitempty" protobuf:"bytes,2,opt,name=duration"`
+	Schedule string `json:"schedule,omitempty" protobuf:"bytes,2,opt,name=schedule"`
+	// Duration is the amount of time the sync window will be open
+	Duration string `json:"duration,omitempty" protobuf:"bytes,3,opt,name=duration"`
 	// Applications contains a list of applications that the window will apply to
-	Applications []string `json:"applications,omitempty" protobuf:"bytes,3,opt,name=applications"`
+	Applications []string `json:"applications,omitempty" protobuf:"bytes,4,opt,name=applications"`
 	// Namespaces contains a list of namespaces that the window will apply to
-	Namespaces []string `json:"namespaces,omitempty" protobuf:"bytes,4,opt,name=namespaces"`
+	Namespaces []string `json:"namespaces,omitempty" protobuf:"bytes,5,opt,name=namespaces"`
 	// Clusters contains a list of clusters that the window will apply to
-	Clusters []string `json:"clusters,omitempty" protobuf:"bytes,5,opt,name=clusters"`
+	Clusters []string `json:"clusters,omitempty" protobuf:"bytes,6,opt,name=clusters"`
+	// ManualSync enables manual syncs when they would otherwise be blocked
+	ManualSync bool `json:"manualSync,omitempty" protobuf:"bytes,7,opt,name=manualSync"`
 }
 
-func (m *ProjectMaintenance) HasWindows() bool {
-	return m != nil && len(m.Windows) > 0
+func (s *SyncWindows) HasWindows() bool {
+	return s != nil && len(*s) > 0
 }
 
-func (m *ProjectMaintenance) ActiveWindows() ProjectMaintenanceWindows {
-	if m != nil && len(m.Windows) > 0 && m.IsEnabled() {
-		var activeWindows ProjectMaintenanceWindows
+func (s *SyncWindows) Active() *SyncWindows {
+	if s.HasWindows() {
+		var active SyncWindows
 		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
-		for _, w := range m.Windows {
+		for _, w := range *s {
 			schedule, _ := specParser.Parse(w.Schedule)
 			duration, _ := time.ParseDuration(w.Duration)
 			now := time.Now()
 			nextWindow := schedule.Next(now.Add(-duration))
 			if nextWindow.Before(now) {
-				activeWindows = append(activeWindows, w)
+				active = append(active, w)
 			}
 		}
-		if len(activeWindows) > 0 {
-			return activeWindows
+		if len(active) > 0 {
+			return &active
 		}
 	}
 	return nil
 }
 
-func (m *ProjectMaintenance) AddWindow(s string, d string, a []string, n []string, c []string) {
-	window := &ProjectMaintenanceWindow{
-		Schedule: s,
-		Duration: d,
+func (s *SyncWindows) inactiveAllows() *SyncWindows {
+	if s.HasWindows() {
+		var inactive SyncWindows
+		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+		for _, w := range *s {
+			if w.Kind == "allow" {
+				schedule, sErr := specParser.Parse(w.Schedule)
+				duration, dErr := time.ParseDuration(w.Duration)
+				now := time.Now()
+				nextWindow := schedule.Next(now.Add(-duration))
+				if !nextWindow.Before(now) && sErr == nil && dErr == nil {
+					inactive = append(inactive, w)
+				}
+			}
+		}
+		if len(inactive) > 0 {
+			return &inactive
+		}
+	}
+	return nil
+}
+
+func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool) error {
+	if len(knd) == 0 || len(sch) == 0 || len(dur) == 0 {
+		return fmt.Errorf("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
+
+	}
+	window := &SyncWindow{
+		Kind:       knd,
+		Schedule:   sch,
+		Duration:   dur,
+		ManualSync: ms,
 	}
 
-	if len(a) > 0 {
-		window.Applications = a
+	if len(app) > 0 {
+		window.Applications = app
 	}
-	if len(n) > 0 {
-		window.Namespaces = n
+	if len(ns) > 0 {
+		window.Namespaces = ns
 	}
-	if len(c) > 0 {
-		window.Clusters = c
+	if len(cl) > 0 {
+		window.Clusters = cl
 	}
 
-	m.Windows = append(m.Windows, window)
+	err := window.Validate()
+	if err != nil {
+		return err
+	}
+
+	s.SyncWindows = append(s.SyncWindows, window)
+
+	return nil
 
 }
 
-func (m *ProjectMaintenance) DeleteWindow(s string, d string) error {
+func (s *AppProjectSpec) DeleteWindow(id int) error {
 	var exists bool
-	for i, w := range m.Windows {
-		if w.Matches(s, d) {
+	for i := range s.SyncWindows {
+		if i == id {
 			exists = true
-			m.Windows = append(m.Windows[:i], m.Windows[i+1:]...)
+			s.SyncWindows = append(s.SyncWindows[:i], s.SyncWindows[i+1:]...)
 			break
 		}
 	}
 	if !exists {
-		return fmt.Errorf("window not found")
+		return fmt.Errorf("window with id '%s' not found", strconv.Itoa(id))
 	}
 	return nil
 }
 
-func (w *ProjectMaintenanceWindows) Match(app *Application) (bool, ProjectMaintenanceWindows) {
-	if w != nil && len(*w) != 0 {
-		var matchingWindows ProjectMaintenanceWindows
+func (w *SyncWindows) Matches(app *Application) *SyncWindows {
+	if w.HasWindows() {
+		var matchingWindows SyncWindows
 		for _, w := range *w {
 			if len(w.Applications) > 0 {
 				for _, a := range w.Applications {
@@ -1535,14 +1550,86 @@ func (w *ProjectMaintenanceWindows) Match(app *Application) (bool, ProjectMainte
 			}
 		}
 		if len(matchingWindows) > 0 {
-			return true, matchingWindows
+			return &matchingWindows
 		}
 	}
-	// No active maintenance windows
-	return false, nil
+	return nil
 }
 
-func (w ProjectMaintenanceWindow) Active() bool {
+func (w *SyncWindows) CanSync(isManual bool) bool {
+	if !w.HasWindows() {
+		return true
+	}
+
+	var allowActive, denyActive, manualEnabled bool
+	active := w.Active()
+	denyActive, manualEnabled = active.hasDeny()
+	allowActive = active.hasAllow()
+
+	if !denyActive {
+		if !allowActive {
+			if isManual && w.inactiveAllows().manualEnabled() {
+				return true
+			}
+		} else {
+			return true
+		}
+	} else {
+		if isManual && manualEnabled {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (w *SyncWindows) hasDeny() (bool, bool) {
+	if !w.HasWindows() {
+		return false, false
+	}
+	var denyActive, manualEnabled bool
+	for _, a := range *w {
+		if a.Kind == "deny" {
+			if !denyActive {
+				manualEnabled = a.ManualSync
+			} else {
+				if manualEnabled {
+					if !a.ManualSync {
+						manualEnabled = a.ManualSync
+					}
+				}
+			}
+			denyActive = true
+		}
+	}
+	return denyActive, manualEnabled
+}
+
+func (w *SyncWindows) hasAllow() bool {
+	if !w.HasWindows() {
+		return false
+	}
+	for _, a := range *w {
+		if a.Kind == "allow" {
+			return true
+		}
+	}
+	return false
+}
+
+func (w *SyncWindows) manualEnabled() bool {
+	if !w.HasWindows() {
+		return false
+	}
+	for _, s := range *w {
+		if s.ManualSync {
+			return true
+		}
+	}
+	return false
+}
+
+func (w SyncWindow) Active() bool {
 	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 	schedule, _ := specParser.Parse(w.Schedule)
 	duration, _ := time.ParseDuration(w.Duration)
@@ -1551,9 +1638,17 @@ func (w ProjectMaintenanceWindow) Active() bool {
 	return nextWindow.Before(now)
 }
 
-func (w *ProjectMaintenanceWindow) Update(a []string, n []string, c []string) error {
-	if len(a) == 0 && len(n) == 0 && len(c) == 0 {
-		return fmt.Errorf("cannot update window: require one of application, namespace or cluster")
+func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string) error {
+	if len(s) == 0 && len(d) == 0 && len(a) == 0 && len(n) == 0 && len(c) == 0 {
+		return fmt.Errorf("cannot update: require one or more of schedule, duration, application, namespace, or cluster")
+	}
+
+	if len(s) > 0 {
+		w.Schedule = s
+	}
+
+	if len(d) > 0 {
+		w.Duration = d
 	}
 
 	if len(a) > 0 {
@@ -1569,11 +1664,10 @@ func (w *ProjectMaintenanceWindow) Update(a []string, n []string, c []string) er
 	return nil
 }
 
-func (w *ProjectMaintenanceWindow) Matches(s string, d string) bool {
-	return w.Schedule == s && w.Duration == d
-}
-
-func (w *ProjectMaintenanceWindow) Validate() error {
+func (w *SyncWindow) Validate() error {
+	if w.Kind != "allow" && w.Kind != "deny" {
+		return fmt.Errorf("kind '%s' mismatch: can only be allow or deny", w.Kind)
+	}
 	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 	_, err := specParser.Parse(w.Schedule)
 	if err != nil {
@@ -1835,7 +1929,12 @@ func (c *Cluster) RESTConfig() *rest.Config {
 	var config *rest.Config
 	var err error
 	if c.Server == common.KubernetesInternalAPIServerAddr && os.Getenv(common.EnvVarFakeInClusterConfig) == "true" {
-		config, err = clientcmd.BuildConfigFromFlags("", filepath.Join(os.Getenv("HOME"), ".kube", "config"))
+		conf, exists := os.LookupEnv("KUBECONFIG")
+		if exists {
+			config, err = clientcmd.BuildConfigFromFlags("", conf)
+		} else {
+			config, err = clientcmd.BuildConfigFromFlags("", filepath.Join(os.Getenv("HOME"), ".kube", "config"))
+		}
 	} else if c.Server == common.KubernetesInternalAPIServerAddr && c.Config.Username == "" && c.Config.Password == "" && c.Config.BearerToken == "" {
 		config, err = rest.InClusterConfig()
 	} else {

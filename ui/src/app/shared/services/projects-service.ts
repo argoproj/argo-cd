@@ -12,6 +12,7 @@ export interface ProjectParams {
     namespaceResourceBlacklist: models.GroupKind[];
     orphanedResourcesEnabled: boolean;
     orphanedResourcesWarn: boolean;
+    syncWindows: models.SyncWindow[];
 }
 
 export interface CreateJWTTokenParams {
@@ -30,9 +31,10 @@ export interface JWTTokenResponse {
     token: string;
 }
 
-export interface ProjectMaintenanceParams {
+export interface ProjectSyncWindowsParams {
     projName: string;
-    window: models.ProjectMaintenanceWindow;
+    id: number;
+    window: models.SyncWindow;
     deleteWindow: boolean;
 }
 
@@ -73,6 +75,7 @@ function paramsToProj(params: ProjectParams) {
             sourceRepos: params.sourceRepos,
             destinations: params.destinations,
             roles: params.roles,
+            syncWindows: params.syncWindows,
             clusterResourceWhitelist: params.clusterResourceWhitelist,
             namespaceResourceBlacklist: params.namespaceResourceBlacklist,
             orphanedResources: params.orphanedResourcesEnabled && { warn: !!params.orphanedResourcesWarn } || null,
@@ -103,34 +106,26 @@ export class ProjectsService {
         return requests.put(`/projects/${params.name}`).send({project: {...proj, spec: update.spec }}).then((res) => res.body as models.Project);
     }
 
-    public getMaintenanceWindowState(name: string): Promise<models.MaintenanceState> {
-        return requests.get(`/projects/${name}/maintenance`).query({name}).then((res) => res.body as models.MaintenanceState);
+    public getSyncWindows(name: string): Promise<models.SyncWindowsState> {
+        return requests.get(`/projects/${name}/syncwindows`).query({name}).then((res) => res.body as models.SyncWindowsState);
     }
 
-    public async updateWindow(params: ProjectMaintenanceParams): Promise<models.Project> {
+    public async updateWindow(params: ProjectSyncWindowsParams): Promise<models.Project> {
         const proj = await this.get(params.projName);
         const updatedSpec = proj.spec;
-        let windowExists = false;
-        if (proj.spec.maintenance === undefined) {
-            const m = {enabled: true, windows: []} as models.ProjectMaintenance;
-            updatedSpec.maintenance = m;
-        } else if (updatedSpec.maintenance.windows === undefined) {
-            updatedSpec.maintenance.windows = [];
+        if (proj.spec.syncWindows === undefined) {
+            updatedSpec.syncWindows = [];
+        }
+        if (params.id === undefined || (!(params.id in proj.spec.syncWindows))) {
+            updatedSpec.syncWindows = updatedSpec.syncWindows.concat(params.window);
         } else {
-            for (let i = 0; i < proj.spec.maintenance.windows.length; i++) {
-                if (proj.spec.maintenance.windows[i].schedule === params.window.schedule && proj.spec.maintenance.windows[i].duration === params.window.duration) {
-                    windowExists = true;
-                    if (params.deleteWindow) {
-                        updatedSpec.maintenance.windows.splice(i, 1);
-                        break;
-                    }
-                    updatedSpec.maintenance.windows[i] = params.window;
-                }
+            if (params.deleteWindow) {
+                updatedSpec.syncWindows.splice(params.id, 1);
+            } else {
+                updatedSpec.syncWindows[params.id] = params.window;
             }
         }
-        if (!windowExists) {
-            updatedSpec.maintenance.windows = updatedSpec.maintenance.windows.concat(params.window);
-        }
+
         return requests.put(`/projects/${params.projName}`).send({project: {...proj, spec: updatedSpec }}).then((res) => res.body as models.Project);
     }
 

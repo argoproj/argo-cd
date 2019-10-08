@@ -118,22 +118,23 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		},
 	}
-	projWithMaintenance := &appsv1.AppProject{
+	projWithSyncWindows := &appsv1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "proj-maint", Namespace: "default"},
 		Spec: appsv1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
 			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
-			Maintenance:  &appsv1.ProjectMaintenance{Enabled: true, Windows: appsv1.ProjectMaintenanceWindows{}},
+			SyncWindows:  appsv1.SyncWindows{},
 		},
 	}
-	matchingWindow := &appsv1.ProjectMaintenanceWindow{
+	matchingWindow := &appsv1.SyncWindow{
+		Kind:         "allow",
 		Schedule:     "* * * * *",
 		Duration:     "1h",
 		Applications: []string{"test-app"},
 	}
-	projWithMaintenance.Spec.Maintenance.Windows = append(projWithMaintenance.Spec.Maintenance.Windows, matchingWindow)
+	projWithSyncWindows.Spec.SyncWindows = append(projWithSyncWindows.Spec.SyncWindows, matchingWindow)
 
-	objects = append(objects, defaultProj, myProj, projWithMaintenance)
+	objects = append(objects, defaultProj, myProj, projWithSyncWindows)
 
 	fakeAppsClientset := apps.NewSimpleClientset(objects...)
 	factory := appinformer.NewFilteredSharedInformerFactory(fakeAppsClientset, 0, "", func(options *metav1.ListOptions) {})
@@ -420,31 +421,31 @@ func TestAppMergePatch(t *testing.T) {
 	assert.Equal(t, "foo", app.Spec.Source.Path)
 }
 
-func TestServer_GetApplicationMaintenanceState(t *testing.T) {
+func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 	t.Run("Active", func(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Spec.Project = "proj-maint"
 		appServer := newTestAppServer(testApp)
 
-		active, err := appServer.GetApplicationMaintenanceState(context.Background(), &application.ApplicationMaintenanceQuery{Name: &testApp.Name})
+		active, err := appServer.GetApplicationSyncWindows(context.Background(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name})
 		assert.NoError(t, err)
-		assert.Equal(t, 1, len(active.Windows))
+		assert.Equal(t, 1, len(active.ActiveWindows))
 	})
 	t.Run("Inactive", func(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Spec.Project = "default"
 		appServer := newTestAppServer(testApp)
 
-		active, err := appServer.GetApplicationMaintenanceState(context.Background(), &application.ApplicationMaintenanceQuery{Name: &testApp.Name})
+		active, err := appServer.GetApplicationSyncWindows(context.Background(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name})
 		assert.NoError(t, err)
-		assert.Equal(t, 0, len(active.Windows))
+		assert.Equal(t, 0, len(active.ActiveWindows))
 	})
 	t.Run("ProjectDoesNotExist", func(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Spec.Project = "none"
 		appServer := newTestAppServer(testApp)
 
-		active, err := appServer.GetApplicationMaintenanceState(context.Background(), &application.ApplicationMaintenanceQuery{Name: &testApp.Name})
+		active, err := appServer.GetApplicationSyncWindows(context.Background(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name})
 		assert.Contains(t, err.Error(), "not found")
 		assert.Nil(t, active)
 	})

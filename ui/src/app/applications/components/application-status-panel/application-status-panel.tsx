@@ -6,7 +6,7 @@ import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import * as utils from '../utils';
-import {ApplicationMaintenanceWindowStatusIcon, ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage} from '../utils';
+import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
 
 require('./application-status-panel.scss');
@@ -112,15 +112,17 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 </div>
             )}
             <DataLoader noLoaderOnInputChange={true} input={application} load={async () => {
-                return await services.applications.getApplicationMaintenanceWindowState(application.metadata.name);
+                return await services.applications.getApplicationSyncWindowState(application.metadata.name);
             }}>{(data) =>
                 <React.Fragment>
                     <div className='application-status-panel__item columns small-2' style={{position: 'relative'}}>
                         <div className='application-status-panel__item-value'>
-                            <ApplicationMaintenanceWindowStatusIcon state={data} project={application.spec.project}/>
-                            {tooltip('If there is currently an active maintenance window for this app. If there is, all syncs with be prevented.')}
+                            <ApplicationSyncWindowStatusIcon project={application.spec.project} state={data}/>
+                            {tooltip('The aggregate state of sync windows for this app. ' +
+                                'Red: no syncs allowed. ' +
+                                'Yellow: manual syncs allowed. ' +
+                                'Green: all syncs allowed')}
                         </div>
-                        {data.windows === undefined || data.windows.map((w) => <div key={w}><span>{w}</span></div>)}
                     </div>
                 </React.Fragment>
             }</DataLoader>
