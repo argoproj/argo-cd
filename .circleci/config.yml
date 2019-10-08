@@ -53,6 +53,7 @@ commands:
           command: mkdir -p /tmp/dl
       - restore_cache:
           keys:
+            - dl-v10
             - dl-v9
             - dl-v8
       - run:
@@ -100,7 +101,6 @@ commands:
             sudo cp /tmp/dl/kustomize_${VER} /usr/local/go/bin/kustomize
             sudo chmod +x /usr/local/go/bin/kustomize
             kustomize version
-
       - run:
           name: Install Swagger v0.19.0
           command: |
@@ -110,7 +110,7 @@ commands:
             chmod +x /usr/local/bin/swagger
             swagger version
       - save_cache:
-          key: dl-v9
+          key: dl-v10
           paths:
             - /tmp/dl
   save_go_cache:
