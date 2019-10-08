@@ -68,12 +68,12 @@ require (
 	gopkg.in/yaml.v2 v2.2.2
 	k8s.io/api v0.0.0-20190816222004-e3a6b8045b0b
 	k8s.io/apiextensions-apiserver v0.0.0-20190404071145-7f7d2b94eca3
-	k8s.io/apimachinery v0.0.0-20190816221834-a9f1d8a9c101
+	k8s.io/apimachinery v0.0.0-20190711103026-7bf792636534
 	k8s.io/client-go v11.0.1-0.20190816222228-6d55c1b1f1ca+incompatible
 	k8s.io/klog v0.3.3
 	k8s.io/kube-aggregator v0.0.0-20190711105720-e80910364765
 	k8s.io/kube-openapi v0.0.0-20190502190224-411b2483e503
-	k8s.io/kubernetes v1.15.0-alpha.0.0.20190914015840-8fca2ec50a61
+	k8s.io/kubernetes v1.14.0
 	k8s.io/utils v0.0.0-20190607212802-c55fbcfc754a
 	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
 )
