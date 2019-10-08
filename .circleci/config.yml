@@ -19,6 +19,7 @@ commands:
             git config --global user.email you@example.com
             git config --global user.name "Your Name"
             echo "export PATH=/home/circleci/.go_workspace/src/github.com/argoproj/argo-cd/hack:\$PATH" | tee -a $BASH_ENV
+            echo "export PATH=/go/src/github.com/argoproj/argo-cd/hack:\$PATH" | tee -a $BASH_ENV
             echo "export GIT_ASKPASS=git-ask-pass.sh" | tee -a $BASH_ENV
   clean_checkout:
     steps:
@@ -179,6 +180,8 @@ jobs:
     resource_class: xlarge
     working_directory: /go/src/github.com/argoproj/argo-cd
     steps:
+      - configure_git
+      - install_tools
       - checkout
       - restore_cache:
           keys:
