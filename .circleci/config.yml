@@ -176,7 +176,7 @@ jobs:
   test:
     docker:
       - image: circleci/golang:1.12
-    resource_class: large
+    resource_class: xlarge
     working_directory: /go/src/github.com/argoproj/argo-cd
     steps:
       - checkout
