@@ -8,6 +8,7 @@ site/
 # delve debug binaries
 cmd/**/debug
 debug.test
-coverage.out
-test.out
-junit.xml
+/coverage.out
+/test.out
+/junit.xml
+/test.html

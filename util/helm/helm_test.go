@@ -74,7 +74,7 @@ func TestHelmTemplateValues(t *testing.T) {
 
 func TestHelmGetParams(t *testing.T) {
 	h, err := NewHelmApp("./testdata/redis", nil)
-	assert.NoError(t, err)
+	assert.Error(t, err)
 	params, err := h.GetParameters([]string{})
 	assert.Nil(t, err)
 
