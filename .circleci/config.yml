@@ -143,6 +143,35 @@ commands:
             - go-v17-master
             - go-v16-{{ .Branch }}
             - go-v16-master
+  check_for_changes:
+    steps:
+      - run:
+          name: Check nothing has changed
+          command: |
+            set -xo pipefail
+            # This makes sure you ran `make pre-commit` before you pushed.
+            # We exclude the Swagger resources; CircleCI doesn't generate them correctly.
+            # When this fails, it will, create a patch file you can apply locally to fix it.
+            # To troubleshoot builds: https://argoproj.github.io/argo-cd/developer-guide/ci/
+            git diff --exit-code -- . ':!Gopkg.lock'  ':!assets/swagger.json' | tee codegen.patch
+      - store_artifacts:
+          path: codegen.patch
+          when: always
+  dev_tools:
+    steps:
+      - restore_cache:
+          keys:
+            - dev-tools-v1-{{ .Branch }}
+            - dev-tools-v1-master
+      - run:
+          name: Make dev tools
+          command: |
+            set -x
+            docker load < dev-tools.tar.gz || ( make dev-tools-image && docker save argoproj/argocd-dev-tools:latest | gzip > dev-tools.tar.gz )
+      - save_cache:
+          key: dev-tools-v1-{{ .Branch }}
+          paths:
+            - dev-tools.tar.gz
 jobs:
   test:
     docker:
@@ -178,39 +207,24 @@ jobs:
       image: circleci/classic:201808-01
     steps:
       - before
-      - restore_cache:
-          keys:
-            - dev-tools-v1-{{ .Branch }}
-            - dev-tools-v1-master
-      - run:
-          name: Make dev tools
-          command: |
-            set -x
-            docker load < dev-tools.tar.gz || ( make dev-tools-image && docker save argoproj/argocd-dev-tools:latest | gzip > dev-tools.tar.gz )
-      - save_cache:
-          key: dev-tools-v1-{{ .Branch }}
-          paths:
-            - dev-tools.tar.gz
+      - dev_tools
       - run:
           name: Generate code
           command: make codegen
+      - check_for_changes
+  lint:
+    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
+    machine:
+      image: circleci/classic:201808-01
+    steps:
+      - before
+      - dev_tools
       - run:
           name: Lint code
           # use GOGC to limit memory usage in exchange for CPU usage, https://github.com/golangci/golangci-lint#memory-usage-of-golangci-lint
           # we have 8GB RAM, 2CPUs https://circleci.com/docs/2.0/executor-types/#using-machine
           command: LINT_GOGC=20 LINT_CONCURRENCY=1 LINT_DEADLINE=4m0s make lint
-      - run:
-          name: Check nothing has changed
-          command: |
-            set -xo pipefail
-            # This makes sure you ran `make pre-commit` before you pushed.
-            # We exclude the Swagger resources; CircleCI doesn't generate them correctly.
-            # When this fails, it will, create a patch file you can apply locally to fix it.
-            # To troubleshoot builds: https://argoproj.github.io/argo-cd/developer-guide/ci/
-            git diff --exit-code -- . ':!Gopkg.lock'  ':!assets/swagger.json' | tee codegen.patch
-      - store_artifacts:
-          path: codegen.patch
-          when: always
+      - check_for_changes
   e2e:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
@@ -342,12 +356,16 @@ jobs:
       - run:
           name: Lint
           command: yarn lint
+      - check_for_changes
 workflows:
   version: 2
   workflow:
     jobs:
       - test
       - codegen
+      - lint:
+          requires:
+            - codegen
       - e2e:
           # this isn't strictly true, we just put in here so that we 2/4 executors rather than 3/4
           requires:
@@ -355,4 +373,4 @@ workflows:
       - ui:
           # this isn't strictly true, we just put in here so that we 2/4 executors rather than 3/4
           requires:
-            - build
+            - codegen
