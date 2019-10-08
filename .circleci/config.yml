@@ -165,9 +165,23 @@ jobs:
           background: true
       - store_test_results:
           path: /tmp/test-results
+      - restore_go_cache:
+          steps:
+            - restore_cache:
+                keys:
+                  - dev-tools-v1-{{ .Branch }}
+                  - dev-tools-v1-master
       - run:
           name: Make dev tools
-          command: make dev-tools-image
+          command: |
+            set -x
+            docker load dev-tools.tar.gz || make dev-tools-image && docker save argoproj/argocd-dev-tools:latest | gzip > dev-tools.tar.gz
+      - save_go_cache:
+          steps:
+            - save_cache:
+                key: dev-tools-v1-{{ .Branch }}
+                paths:
+                  - dev-tools.tar.gz
       - run:
           name: Generate code
           command: make codegen

@@ -42,7 +42,7 @@ RUN GO111MODULE=on go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swag
 RUN GO111MODULE=on go get golang.org/x/tools/cmd/goimports@v0.0.0-20190627203933-19ff4fff8850
 
 # `make lint`
-RUN GO111MODULE=on go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.19.1
+RUN GO111MODULE=on go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.17.1
 
 # clean-up
 RUN mkdir -p /go/pkg && chmod 777 /go/pkg
