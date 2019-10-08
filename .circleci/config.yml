@@ -180,9 +180,9 @@ jobs:
     resource_class: xlarge
     working_directory: /go/src/github.com/argoproj/argo-cd
     steps:
-      - configure_git
       - install_tools
       - checkout
+      - configure_git
       - restore_cache:
           keys:
             - vendor-v2-{{ .Branch }}
