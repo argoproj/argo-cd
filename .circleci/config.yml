@@ -205,7 +205,7 @@ jobs:
   codegen:
     docker:
       - image: circleci/golang:1.12
-    working_directory: /go/src/github.com/argoproj/argo-cd
+    working_directory: /src/github.com/argoproj/argo-cd
     steps:
       - run: make codegen
       - check_for_changes
