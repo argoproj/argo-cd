@@ -33,7 +33,7 @@ commands:
             - vendor-v4-{{ checksum "Gopkg.lock" }}
       - run:
           name: Run dep ensure
-          command: dep ensure -v
+          command: dep ensure
       - save_cache:
           key: vendor-v4-{{ checksum "Gopkg.lock" }}
           paths:
@@ -150,7 +150,16 @@ jobs:
     working_directory: /go/src/github.com/argoproj/argo-cd
     steps:
       - checkout
-      - dep_ensure
+      - restore_cache:
+          - vendor-v1-{{ .Branch }}
+          - vendor-v1-master
+          - vendor-v1-{{ .Branch }}
+          - vendor-v1-master
+      - run: dep ensure
+      - save_cache:
+          key: vendor-v1-{{ .Branch }}
+          paths:
+            - /go/pkg
       - run: make test
       - store_test_results:
           path: junit.xml
