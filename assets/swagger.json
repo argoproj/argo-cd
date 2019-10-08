@@ -1742,19 +1742,37 @@
         }
       }
     },
+    "applicationApplicationSyncWindow": {
+      "type": "object",
+      "properties": {
+        "duration": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "manualSync": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "schedule": {
+          "type": "string"
+        }
+      }
+    },
     "applicationApplicationSyncWindowsResponse": {
       "type": "object",
       "properties": {
         "activeWindows": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/v1alpha1ApplicationSyncWindow"
+            "$ref": "#/definitions/applicationApplicationSyncWindow"
           }
         },
         "assignedWindows": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/v1alpha1ApplicationSyncWindow"
+            "$ref": "#/definitions/applicationApplicationSyncWindow"
           }
         },
         "canSync": {
@@ -3127,29 +3145,6 @@
           "items": {
             "type": "string"
           }
-        }
-      }
-    },
-    "v1alpha1ApplicationSyncWindow": {
-      "type": "object",
-      "title": "ApplicationSyncWindow contains the kind, time, duration and manualSync fields of a window assigned to an application",
-      "properties": {
-        "duration": {
-          "type": "string",
-          "title": "Duration is the amount of time the sync window will be open"
-        },
-        "kind": {
-          "type": "string",
-          "title": "Kind defines if the window allows or blocks syncs"
-        },
-        "manualSync": {
-          "type": "boolean",
-          "format": "boolean",
-          "title": "ManualSync enables manual syncs when they would otherwise be blocked"
-        },
-        "schedule": {
-          "type": "string",
-          "title": "Schedule is the time the window will begin, specified in cron format"
         }
       }
     },

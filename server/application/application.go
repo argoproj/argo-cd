@@ -890,7 +890,6 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	}
 
 	if !proj.Spec.SyncWindows.Matches(a).CanSync(true) {
-		s.logEvent(a, ctx, argo.EventReasonOperationCompleted, fmt.Sprint("Cannot sync: Blocked by sync window"))
 		return a, status.Errorf(codes.PermissionDenied, "Cannot sync: Blocked by sync window")
 	}
 
@@ -1211,10 +1210,29 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 	sync := windows.CanSync(true)
 
 	res := &application.ApplicationSyncWindowsResponse{
-		ActiveWindows:   windows.Active().Convert(),
-		AssignedWindows: windows.Convert(),
+		ActiveWindows:   convertSyncWindows(windows.Active()),
+		AssignedWindows: convertSyncWindows(windows),
 		CanSync:         &sync,
 	}
 
 	return res, nil
+}
+
+func convertSyncWindows(w *v1alpha1.SyncWindows) []*application.ApplicationSyncWindow {
+	if w != nil {
+		var windows []*application.ApplicationSyncWindow
+		for _, w := range *w {
+			nw := &application.ApplicationSyncWindow{
+				Kind:       &w.Kind,
+				Schedule:   &w.Schedule,
+				Duration:   &w.Duration,
+				ManualSync: &w.ManualSync,
+			}
+			windows = append(windows, nw)
+		}
+		if len(windows) > 0 {
+			return windows
+		}
+	}
+	return nil
 }

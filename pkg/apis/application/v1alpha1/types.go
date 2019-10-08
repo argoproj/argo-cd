@@ -1414,21 +1414,6 @@ type SyncWindow struct {
 	ManualSync bool `json:"manualSync,omitempty" protobuf:"bytes,7,opt,name=manualSync"`
 }
 
-// ApplicationSyncWindows is a collection of ApplicationSyncWindows
-type ApplicationSyncWindows []*ApplicationSyncWindow
-
-// ApplicationSyncWindow contains the kind, time, duration and manualSync fields of a window assigned to an application
-type ApplicationSyncWindow struct {
-	// Kind defines if the window allows or blocks syncs
-	Kind string `json:"kind,omitempty" protobuf:"bytes,1,opt,name=kind"`
-	// Schedule is the time the window will begin, specified in cron format
-	Schedule string `json:"schedule,omitempty" protobuf:"bytes,2,opt,name=schedule"`
-	// Duration is the amount of time the sync window will be open
-	Duration string `json:"duration,omitempty" protobuf:"bytes,3,opt,name=duration"`
-	// ManualSync enables manual syncs when they would otherwise be blocked
-	ManualSync bool `json:"manualSync,omitempty" protobuf:"bytes,4,opt,name=manualSync"`
-}
-
 func (s *SyncWindows) HasWindows() bool {
 	return s != nil && len(*s) > 0
 }
@@ -1470,25 +1455,6 @@ func (s *SyncWindows) inactiveAllows() *SyncWindows {
 		}
 		if len(inactive) > 0 {
 			return &inactive
-		}
-	}
-	return nil
-}
-
-func (w *SyncWindows) Convert() ApplicationSyncWindows {
-	if w != nil {
-		var windows ApplicationSyncWindows
-		for _, w := range *w {
-			nw := &ApplicationSyncWindow{
-				Kind:       w.Kind,
-				Schedule:   w.Schedule,
-				Duration:   w.Duration,
-				ManualSync: w.ManualSync,
-			}
-			windows = append(windows, nw)
-		}
-		if len(windows) > 0 {
-			return windows
 		}
 	}
 	return nil

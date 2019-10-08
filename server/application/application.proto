@@ -163,9 +163,16 @@ message ApplicationSyncWindowsQuery {
 }
 
 message ApplicationSyncWindowsResponse {
-	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSyncWindow activeWindows = 1;
-    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSyncWindow assignedWindows = 2;
+	repeated ApplicationSyncWindow activeWindows = 1;
+	repeated ApplicationSyncWindow assignedWindows = 2;
 	required bool canSync = 3;
+}
+
+message ApplicationSyncWindow {
+	required string kind = 1;
+	required string schedule = 2;
+	required string duration = 3;
+	required bool manualSync = 4;
 }
 
 message OperationTerminateResponse {
@@ -182,139 +189,139 @@ message ManagedResourcesResponse {
 // ApplicationService
 service ApplicationService {
 
-    // List returns list of applications
-    rpc List(ApplicationQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationList) {
+	// List returns list of applications
+	rpc List(ApplicationQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationList) {
 		option (google.api.http).get = "/api/v1/applications";
 	}
 
-    // ListResourceEvents returns a list of event resources
-    rpc ListResourceEvents(ApplicationResourceEventsQuery) returns (k8s.io.api.core.v1.EventList) {
+	// ListResourceEvents returns a list of event resources
+	rpc ListResourceEvents(ApplicationResourceEventsQuery) returns (k8s.io.api.core.v1.EventList) {
 		option (google.api.http).get = "/api/v1/applications/{name}/events";
 	}
 
-    // Watch returns stream of application change events.
-    rpc Watch(ApplicationQuery) returns (stream github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationWatchEvent) {
+	// Watch returns stream of application change events.
+	rpc Watch(ApplicationQuery) returns (stream github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationWatchEvent) {
 		option (google.api.http).get = "/api/v1/stream/applications";
 	}
 
-    // Create creates an application
-    rpc Create (ApplicationCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
+	// Create creates an application
+	rpc Create (ApplicationCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
 			post: "/api/v1/applications"
 			body: "application"
 		};
-    }
+	}
 
-    // Get returns an application by name
-    rpc Get (ApplicationQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
+	// Get returns an application by name
+	rpc Get (ApplicationQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http).get = "/api/v1/applications/{name}";
-    }
+	}
 
-    // Get returns an application by name
-    rpc GetApplicationSyncWindows (ApplicationSyncWindowsQuery) returns (ApplicationSyncWindowsResponse) {
+	// Get returns an application by name
+	rpc GetApplicationSyncWindows (ApplicationSyncWindowsQuery) returns (ApplicationSyncWindowsResponse) {
 		option (google.api.http).get = "/api/v1/applications/{name}/syncwindows";
-    }
+	}
 
-    // Get the meta-data (author, date, tags, message) for a specific revision of the application
-    rpc RevisionMetadata (RevisionMetadataQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RevisionMetadata) {
+	// Get the meta-data (author, date, tags, message) for a specific revision of the application
+	rpc RevisionMetadata (RevisionMetadataQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RevisionMetadata) {
 		option (google.api.http).get = "/api/v1/applications/{name}/revisions/{revision}/metadata";
-    }
+	}
 
-    // GetManifests returns application manifests
-    rpc GetManifests (ApplicationManifestQuery) returns (repository.ManifestResponse) {
+	// GetManifests returns application manifests
+	rpc GetManifests (ApplicationManifestQuery) returns (repository.ManifestResponse) {
 		option (google.api.http).get = "/api/v1/applications/{name}/manifests";
-    }
+	}
 
-    // Update updates an application
-    rpc Update(ApplicationUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
+	// Update updates an application
+	rpc Update(ApplicationUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
 			put: "/api/v1/applications/{application.metadata.name}"
 			body: "application"
 		};
 	}
 
-    // UpdateSpec updates an application spec
-    rpc UpdateSpec(ApplicationUpdateSpecRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSpec) {
+	// UpdateSpec updates an application spec
+	rpc UpdateSpec(ApplicationUpdateSpecRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSpec) {
 		option (google.api.http) = {
 			put: "/api/v1/applications/{name}/spec"
 			body: "spec"
 		};
 	}
 
-    // Patch patch an application
-    rpc Patch(ApplicationPatchRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
+	// Patch patch an application
+	rpc Patch(ApplicationPatchRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
 			patch: "/api/v1/applications/{name}"
 			body: "*"
 		};
 	}
 
-    // Delete deletes an application
-    rpc Delete(ApplicationDeleteRequest) returns (ApplicationResponse) {
+	// Delete deletes an application
+	rpc Delete(ApplicationDeleteRequest) returns (ApplicationResponse) {
 		option (google.api.http).delete = "/api/v1/applications/{name}";
 	}
 
-    // Sync syncs an application to its target state
-    rpc Sync(ApplicationSyncRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
+	// Sync syncs an application to its target state
+	rpc Sync(ApplicationSyncRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
 			post: "/api/v1/applications/{name}/sync"
 			body: "*"
 		};
 	}
 
-    rpc ManagedResources(ResourcesQuery) returns (ManagedResourcesResponse) {
+	rpc ManagedResources(ResourcesQuery) returns (ManagedResourcesResponse) {
 		option (google.api.http).get = "/api/v1/applications/{applicationName}/managed-resources";
 	}
 
-    rpc ResourceTree(ResourcesQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationTree) {
+	rpc ResourceTree(ResourcesQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationTree) {
 		option (google.api.http).get = "/api/v1/applications/{applicationName}/resource-tree";
 	}
-    // Rollback syncs an application to its target state
-    rpc Rollback(ApplicationRollbackRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
+	// Rollback syncs an application to its target state
+	rpc Rollback(ApplicationRollbackRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
 			post: "/api/v1/applications/{name}/rollback"
 			body: "*"
 		};
 	}
 
-    // TerminateOperation terminates the currently running operation
-    rpc TerminateOperation(OperationTerminateRequest) returns (OperationTerminateResponse) {
+	// TerminateOperation terminates the currently running operation
+	rpc TerminateOperation(OperationTerminateRequest) returns (OperationTerminateResponse) {
 		option (google.api.http) = {
 			delete: "/api/v1/applications/{name}/operation";
 		};
 	}
 
-    // GetResource returns single application resource
-    rpc GetResource(ApplicationResourceRequest) returns (ApplicationResourceResponse) {
+	// GetResource returns single application resource
+	rpc GetResource(ApplicationResourceRequest) returns (ApplicationResourceResponse) {
 		option (google.api.http).get = "/api/v1/applications/{name}/resource";
 	}
 
-    // PatchResource patch single application resource
-    rpc PatchResource(ApplicationResourcePatchRequest) returns (ApplicationResourceResponse) {
+	// PatchResource patch single application resource
+	rpc PatchResource(ApplicationResourcePatchRequest) returns (ApplicationResourceResponse) {
 		option (google.api.http) = {
 			post: "/api/v1/applications/{name}/resource"
 			body: "patch"
 		};
 	}
 
-    rpc ListResourceActions(ApplicationResourceRequest) returns (ResourceActionsListResponse) {
+	rpc ListResourceActions(ApplicationResourceRequest) returns (ResourceActionsListResponse) {
 		option (google.api.http).get = "/api/v1/applications/{name}/resource/actions";
 	}
 
-    rpc RunResourceAction(ResourceActionRunRequest) returns (ApplicationResponse) {
+	rpc RunResourceAction(ResourceActionRunRequest) returns (ApplicationResponse) {
 		option (google.api.http) = {
 			post: "/api/v1/applications/{name}/resource/actions"
-		    body: "action"
+			body: "action"
 		};
 	}
 
-    // DeleteResource deletes a single application resource
-    rpc DeleteResource(ApplicationResourceDeleteRequest) returns (ApplicationResponse) {
+	// DeleteResource deletes a single application resource
+	rpc DeleteResource(ApplicationResourceDeleteRequest) returns (ApplicationResponse) {
 		option (google.api.http).delete = "/api/v1/applications/{name}/resource";
 	}
 
-    // PodLogs returns stream of log entries for the specified pod. Pod
-    rpc PodLogs(ApplicationPodLogsQuery) returns (stream LogEntry) {
+	// PodLogs returns stream of log entries for the specified pod. Pod
+	rpc PodLogs(ApplicationPodLogsQuery) returns (stream LogEntry) {
 		option (google.api.http).get = "/api/v1/applications/{name}/pods/{podName}/logs";
 	}
 }

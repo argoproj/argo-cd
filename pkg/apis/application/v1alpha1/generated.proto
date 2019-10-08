@@ -255,21 +255,6 @@ message ApplicationSummary {
   repeated string images = 2;
 }
 
-// ApplicationSyncWindow contains the kind, time, duration and manualSync fields of a window assigned to an application
-message ApplicationSyncWindow {
-  // Kind defines if the window allows or blocks syncs
-  optional string kind = 1;
-
-  // Schedule is the time the window will begin, specified in cron format
-  optional string schedule = 2;
-
-  // Duration is the amount of time the sync window will be open
-  optional string duration = 3;
-
-  // ManualSync enables manual syncs when they would otherwise be blocked
-  optional bool manualSync = 4;
-}
-
 // ApplicationTree holds nodes which belongs to the application
 message ApplicationTree {
   // Nodes contains list of nodes which either directly managed by the application and children of directly managed nodes.

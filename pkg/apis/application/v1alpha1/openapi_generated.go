@@ -31,7 +31,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSpec":                  schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationStatus":                schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSummary":               schema_pkg_apis_application_v1alpha1_ApplicationSummary(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSyncWindow":            schema_pkg_apis_application_v1alpha1_ApplicationSyncWindow(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationTree":                  schema_pkg_apis_application_v1alpha1_ApplicationTree(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationWatchEvent":            schema_pkg_apis_application_v1alpha1_ApplicationWatchEvent(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Cluster":                          schema_pkg_apis_application_v1alpha1_Cluster(ref),
@@ -960,47 +959,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSummary(ref common.Referenc
 									},
 								},
 							},
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-func schema_pkg_apis_application_v1alpha1_ApplicationSyncWindow(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "ApplicationSyncWindow contains the kind, time, duration and manualSync fields of a window assigned to an application",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"kind": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Kind defines if the window allows or blocks syncs",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"schedule": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Schedule is the time the window will begin, specified in cron format",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"duration": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Duration is the amount of time the sync window will be open",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"manualSync": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ManualSync enables manual syncs when they would otherwise be blocked",
-							Type:        []string{"boolean"},
-							Format:      "",
 						},
 					},
 				},

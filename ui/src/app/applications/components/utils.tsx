@@ -406,10 +406,10 @@ export const ApplicationSyncWindowStatusIcon = ({project, state}: { project: str
                     allow = true;
                 }
             }
-            for (const a of state.assignedWindows) {
-                if (a.kind === 'allow') {
-                    inactiveAllow = true;
-                }
+        }
+        for (const a of state.assignedWindows) {
+            if (a.kind === 'allow') {
+                inactiveAllow = true;
             }
         }
     } else {
