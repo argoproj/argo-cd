@@ -150,13 +150,13 @@ jobs:
       image: circleci/classic:201808-01
     steps:
       - before
-      - run:
-          name: Run unit tests
-          command: |
-            set -x
-            mkdir -p /tmp/test-results
-            trap "go-junit-report </tmp/test-results/go-test.out > /tmp/test-results/go-test-report.xml" EXIT
-            make test | tee /tmp/test-results/go-test.out
+      #- run:
+      #    name: Run unit tests
+      #    command: |
+      #      set -x
+      #      mkdir -p /tmp/test-results
+      #      trap "go-junit-report </tmp/test-results/go-test.out > /tmp/test-results/go-test-report.xml" EXIT
+      #      make test | tee /tmp/test-results/go-test.out
       - save_go_cache
       - run:
           name: Uploading code coverage
