@@ -2,10 +2,12 @@ package helm
 
 import (
 	"fmt"
+	"github.com/argoproj/argo-cd/util/security"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 
 	"github.com/argoproj/argo-cd/util"
@@ -192,6 +194,11 @@ func (c *Cmd) template(chart string, opts *TemplateOpts) (string, error) {
 		args = append(args, "--set-string", key+"="+cleanSetParameters(val))
 	}
 	for _, val := range opts.Values {
+		absoluteRequestedPath := c.WorkDir + string(filepath.Separator) + val
+		_, err := security.EnforceToCurrentRoot(c.WorkDir, absoluteRequestedPath)
+		if err != nil {
+			return "", err
+		}
 		args = append(args, "--values", val)
 	}
 
