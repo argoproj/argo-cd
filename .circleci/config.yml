@@ -65,9 +65,6 @@ commands:
             go get github.com/mattn/goreman
   install_tools:
     steps:
-      - run:
-          name: Create downloads dir
-          command: mkdir -p /tmp/dl
       - restore_cache:
           keys:
             - dl-v7

@@ -1,5 +1,6 @@
 #!/bin/bash
 set -eux -o pipefail
 
-[ -e $BIN/kubectl ] || curl -sLf -o $BIN/kubectl https://storage.googleapis.com/kubernetes-release/release/v1.14.0/bin/linux/amd64/kubectl
+[ -e $DOWNLOADS/kubectl ] || curl -sLf -o $DOWNLOADS/kubectl https://storage.googleapis.com/kubernetes-release/release/v1.14.0/bin/linux/amd64/kubectl
+cp $DOWNLOADS/dep $BIN/
 chmod +x $BIN/kubectl
