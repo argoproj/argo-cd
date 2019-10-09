@@ -145,6 +145,20 @@ jobs:
       - dep_ensure
       - run: make lint
       - check_for_changes
+  e2e2:
+    docker:
+      - image: circleci/golang:1.12
+        environment:
+          ARGOCD_FAKE_IN_CLUSTER: "true"
+          ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
+          ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
+          ARGOCD_ZJWT_FEATURE_FLAG: "always"
+      - image: rancher/k3s:v0.9.1
+    working_directory: /go/src/github.com/argoproj/argo-cd
+    steps:
+      - checkout
+      - dep_ensure
+      - run: make test-e2e
   e2e:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
@@ -269,3 +283,4 @@ workflows:
       - test
       - lint
       - codegen
+      - e2e2
