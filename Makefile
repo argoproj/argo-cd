@@ -161,7 +161,7 @@ dep-ensure:
 
 .PHONY: lint
 lint:
-	cd hack/lint && go mod verify
+	cd hack/lint && GO111MODULE=on go mod verify
 	# golangci-lint does not do a good job of formatting imports
 	goimports -local github.com/argoproj/argo-cd -w `find . ! -path './vendor/*' ! -path './pkg/client/*' ! -path '*.pb.go' ! -path '*.gw.go' -type f -name '*.go'`
 	golangci-lint --version
