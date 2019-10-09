@@ -159,11 +159,8 @@ build:
 
 .PHONY: test
 test:
+	# TODO -covermode=count -coverprofile=coverage.out
 	./hack/test.sh `go list ./... | grep -v 'test/e2e'`
-
-.PHONY: cover
-cover:
-	go tool cover -html=coverage.out
 
 .PHONY: test-e2e
 test-e2e: cli

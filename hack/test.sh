@@ -10,4 +10,4 @@ report() {
 
 trap 'report' EXIT
 
-go test -v -covermode=count -coverprofile=coverage.out $* 2>&1 | tee test.out
+go test -v $* 2>&1 | tee test.out

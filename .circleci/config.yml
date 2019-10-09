@@ -101,8 +101,11 @@ jobs:
       - check_for_changes
   e2e:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
+    # it's not possible to run k3s using containers (which would be faster)
+    # because it requires tmpfs and privileged and CircleCI does not support this
     machine:
       image: circleci/classic:201808-01
+    # TODO ubuntu-1604:201903-01
     steps:
       - run:
           name: Install and start K3S v0.5.0
