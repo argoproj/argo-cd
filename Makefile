@@ -15,7 +15,7 @@ define run-in-dev-tool
 endef
 
 PATH:=$(PATH):$(PWD)/hack
-DOWNLOADS=/tmp/dl
+DOWNLOADS:=/tmp/dl
 
 # docker image publishing options
 DOCKER_PUSH?=false
@@ -153,9 +153,6 @@ dep-ensure:
 
 .PHONY: lint
 lint:
-	mkdir -p $(DOWNLOADS)
-	./hack/installers/install-golangci-lint.sh
-	./hack/installers/install-goimports.sh
 	# golangci-lint does not do a good job of formatting imports
 	goimports -local github.com/argoproj/argo-cd -w `find . ! -path './vendor/*' ! -path './pkg/client/*' ! -path '*.pb.go' ! -path '*.gw.go' -type f -name '*.go'`
 	golangci-lint run --fix --verbose
