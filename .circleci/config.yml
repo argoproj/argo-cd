@@ -68,7 +68,17 @@ commands:
       - restore_cache:
           keys:
             - dl-v7
-      - run: ./hack/installers/install-tools.sh
+      - run: |
+          sh -x
+          export DOWNLOADS=/tmp/dl
+          export BIN=/usr/local/bin
+          ./hack/installers/install-kubectl.sh
+          ./hack/installers/install-kubectx.sh
+          ./hack/installers/install-dep.sh
+          ./hack/installers/install-ksonnet.sh
+          ./hack/installers/install-helm.sh
+          ./hack/installers/install-kustomize.sh
+          ./hack/installers/install-goimports.sh
       - save_cache:
           key: dl-v7
           paths:
@@ -127,7 +137,16 @@ jobs:
     steps:
       - configure_git
       - checkout
-      - install_tools
+      - run: |
+          sh -x
+          export DOWNLOADS=/tmp/dl
+          export BIN=/usr/local/bin
+          ./hack/installers/install-kubectl.sh
+          ./hack/installers/install-kubectx.sh
+          ./hack/installers/install-dep.sh
+          ./hack/installers/install-ksonnet.sh
+          ./hack/installers/install-helm.sh
+          ./hack/installers/install-kustomize.sh
       - restore_cache:
           keys:
             - vendor-v3-{{ .Branch }}
@@ -161,7 +180,7 @@ jobs:
       - check_for_changes
   lint:
     docker:
-    - image: circleci/golang:1.12
+      - image: circleci/golang:1.12
     working_directory: /go/src/github.com/argoproj/argo-cd
     steps:
       - checkout
@@ -297,5 +316,6 @@ workflows:
   version: 2
   workflow:
     jobs:
+      - test
       - lint
       - codegen
