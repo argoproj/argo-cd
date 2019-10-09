@@ -288,7 +288,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 	} else {
 		namespace = q.ResourceNamespace
 		var config *rest.Config
-		config, _, err = s.getApplicationClusterConfig(*q.Name)
+		config, err = s.getApplicationClusterConfig(*q.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -607,17 +607,17 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	return nil
 }
 
-func (s *Server) getApplicationClusterConfig(applicationName string) (*rest.Config, string, error) {
-	server, namespace, err := s.getApplicationDestination(applicationName)
+func (s *Server) getApplicationClusterConfig(applicationName string) (*rest.Config, error) {
+	server, _, err := s.getApplicationDestination(applicationName)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	clst, err := s.db.GetCluster(context.Background(), server)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	config := clst.RESTConfig()
-	return config, namespace, err
+	return config, err
 }
 
 func (s *Server) getAppResources(q *application.ResourcesQuery) (*appv1.ApplicationTree, error) {
@@ -642,7 +642,7 @@ func (s *Server) getAppResource(ctx context.Context, action string, q *applicati
 	if found == nil {
 		return nil, nil, nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", q.Kind, q.Group, q.ResourceName, *q.Name)
 	}
-	config, _, err := s.getApplicationClusterConfig(*q.Name)
+	config, err := s.getApplicationClusterConfig(*q.Name)
 	if err != nil {
 		return nil, nil, nil, err
 	}

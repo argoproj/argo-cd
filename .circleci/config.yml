@@ -164,8 +164,6 @@ jobs:
     working_directory: /src/github.com/argoproj/argo-cd
     steps:
       - checkout
-      - run: ./hack/installers/install-goimports.sh
-      - run: ./hack/installers/install-golangci-lint.sh
       - run: make lint
       - check_for_changes
   e2e:
