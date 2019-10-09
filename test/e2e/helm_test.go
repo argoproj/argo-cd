@@ -98,7 +98,7 @@ func TestDeclarativeHelmInvalidValuesFile(t *testing.T) {
 		Then().
 		Expect(HealthIs(HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
-		Expect(Condition(ApplicationConditionComparisonError, "open does-not-exist-values.yaml: no such file or directory"))
+		Expect(Condition(ApplicationConditionComparisonError, "does-not-exist-values.yaml: no such file or directory"))
 }
 
 func TestHelmRepo(t *testing.T) {
