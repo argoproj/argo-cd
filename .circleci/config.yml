@@ -71,7 +71,7 @@ commands:
       - restore_cache:
           keys:
             - dl-v7
-      - run: sudo DOWNLOADS=/tmp/dl BIN=/usr/local/bin ./hack/installers/install-tools.sh
+      - run: sudo ./hack/installers/install-tools.sh
       - save_cache:
           key: dl-v7
           paths:
