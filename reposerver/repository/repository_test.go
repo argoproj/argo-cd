@@ -272,6 +272,7 @@ func TestRunCustomTool(t *testing.T) {
 
 func TestGenerateFromUTF16(t *testing.T) {
 	q := apiclient.ManifestRequest{
+		Repo: &argoappv1.Repository{},
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
 	res1, err := GenerateManifests("./testdata/utf-16", "", &q)
