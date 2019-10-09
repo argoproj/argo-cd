@@ -112,7 +112,7 @@ jobs:
     steps:
       - configure_git
       - checkout
-      - run: ./hack/install.sh kubectl-linux ksonnet-linux helm-linux kustomize-linux
+      - run: ./hack/install.sh kubectl-linux ksonnet-linux helm-linux kustomize-linux xsltproc-linux go-junit-report
       - dep_ensure
       - run: go get github.com/jstemmer/go-junit-report
       - run: sudo apt-get install -y xsltproc
