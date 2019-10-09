@@ -4,6 +4,8 @@ set -eux -o pipefail
 export DOWNLOADS=${DOWNLOADS:-/tmp/dl}
 export BIN=${BIN:-$HOME/bin}
 
+mkdir -p $DOWNLOADS
+
 $(dirname $0)/install-kubectl.sh
 $(dirname $0)/install-kubectx.sh
 $(dirname $0)/install-dep.sh
