@@ -159,9 +159,8 @@ jobs:
       - run: make codegen
       - check_for_changes
   lint:
-    docker:
-      - image: golangci/golangci-lint:v1.17.1
-    working_directory: /src/github.com/argoproj/argo-cd
+    - image: circleci/golang:1.12
+    working_directory: /go/src/github.com/argoproj/argo-cd
     steps:
       - checkout
       - run: |
