@@ -172,6 +172,7 @@ jobs:
           export BIN=/usr/local/bin
           mkdir -p $DOWNLOADS
           ./hack/installers/install-protoc.sh
+          ./hack/installers/install-swagger.sh
       - run: make codegen
       - check_for_changes
   lint:
