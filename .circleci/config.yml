@@ -150,27 +150,27 @@ jobs:
       image: circleci/classic:201808-01
     steps:
       - before
-      - run:
-          name: Run unit tests
-          command: |
-            set -x
-            mkdir -p /tmp/test-results
-            trap "go-junit-report </tmp/test-results/go-test.out > /tmp/test-results/go-test-report.xml" EXIT
-            make test | tee /tmp/test-results/go-test.out
-      - save_go_cache
-      - run:
-          name: Uploading code coverage
-          command: bash <(curl -s https://codecov.io/bash) -f coverage.out
-          # This takes 2m, lets background it.
-          background: true
-      - store_test_results:
-          path: /tmp/test-results
-      - run:
-          name: Make dev tools
-          command: make dev-tools-image
-      - run:
-          name: Generate code
-          command: make codegen
+      #- run:
+      #    name: Run unit tests
+      #    command: |
+      #      set -x
+      #      mkdir -p /tmp/test-results
+      #      trap "go-junit-report </tmp/test-results/go-test.out > /tmp/test-results/go-test-report.xml" EXIT
+      #      make test | tee /tmp/test-results/go-test.out
+      #- save_go_cache
+      #- run:
+      #    name: Uploading code coverage
+      #    command: bash <(curl -s https://codecov.io/bash) -f coverage.out
+      #    # This takes 2m, lets background it.
+      #    background: true
+      #- store_test_results:
+      #    path: /tmp/test-results
+      #- run:
+      #    name: Make dev tools
+      #    command: make dev-tools-image
+      #- run:
+      #    name: Generate code
+      #    command: make codegen
       - run:
           name: Lint code
           # use GOGC to limit memory usage in exchange for CPU usage, https://github.com/golangci/golangci-lint#memory-usage-of-golangci-lint
