@@ -142,6 +142,7 @@ jobs:
           sh -x
           export DOWNLOADS=/tmp/dl
           export BIN=/usr/local/bin
+          mkdir -p $DOWNLOADS
           ./hack/installers/install-kubectl.sh
           ./hack/installers/install-kubectx.sh
           ./hack/installers/install-dep.sh
