@@ -31,12 +31,13 @@ commands:
     steps:
       - restore_cache:
           keys:
+            - vendor-v5-{{ checksum "Gopkg.lock" }}
             - vendor-v4-{{ checksum "Gopkg.lock" }}
       - run:
           name: Run dep ensure
           command: dep ensure
       - save_cache:
-          key: vendor-v4-{{ checksum "Gopkg.lock" }}
+          key: vendor-v5-{{ checksum "Gopkg.lock" }}
           paths:
             - vendor
   install_golang:
@@ -84,22 +85,6 @@ commands:
           key: dl-v7
           paths:
             - /tmp/dl
-  save_go_cache:
-    steps:
-      - save_cache:
-          key: go-v17-{{ .Branch }}
-          paths:
-            - /home/circleci/.go_workspace
-            - /home/circleci/.cache/go-build
-            - /home/circleci/sdk/go1.12.6
-  restore_go_cache:
-    steps:
-      - restore_cache:
-          keys:
-            - go-v17-{{ .Branch }}
-            - go-v17-master
-            - go-v16-{{ .Branch }}
-            - go-v16-master
   check_for_changes:
     steps:
       - run:
@@ -189,18 +174,7 @@ jobs:
           mkdir -p $DOWNLOADS
           ./hack/installers/install-golangci-lint.sh
           ./hack/installers/install-goimports.sh
-      - restore_cache:
-          keys:
-            - vendor-v3-{{ .Branch }}
-            - vendor-v3-master
-            - vendor-v2-{{ .Branch }}
-            - vendor-v2-master
       - dep_ensure
-      - save_cache:
-          key: vendor-v3-{{ .Branch }}
-          paths:
-            - /go/pkg
-            - vendor
       - run: make lint
       - check_for_changes
   e2e:
