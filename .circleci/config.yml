@@ -8,7 +8,6 @@ commands:
       - clean_checkout
       - configure_git
       - install_go_deps
-      - dep_ensure
   configure_git:
     steps:
       - run:
@@ -27,18 +26,6 @@ commands:
           name: Remove checked out code
           command: rm -Rf /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
       - checkout
-  dep_ensure:
-    steps:
-      - restore_cache:
-          keys:
-            - vendor-v6-{{ checksum "Gopkg.lock" }}
-      - run:
-          name: Run dep ensure
-          command: dep ensure
-      - save_cache:
-          key: vendor-v6-{{ checksum "Gopkg.lock" }}
-          paths:
-            - vendor
   install_golang:
     steps:
       - run:
@@ -96,18 +83,17 @@ jobs:
     steps:
       - configure_git
       - checkout
-      #- restore_cache:
-      #    keys:
-      #      - test-install-v1
+      - restore_cache:
+          keys:
+            - test-v1
       - run: ./hack/install.sh kubectl-linux ksonnet-linux helm-linux kustomize-linux xsltproc-linux go-junit-report
-      #- save_cache:
-      #    key: test-install-v1
-      #    paths:
-      #      - /tmp/dl
-      #      - /go/pkg
-      #- dep_ensure
       - run: dep ensure
-      - run: go test ./util/app/discovery
+      - save_cache:
+          key: test-v1
+          paths:
+            - /tmp/dl
+            - /go/pkg
+            - vendor
       - run: make test
       - store_test_results:
           path: test-results
@@ -125,14 +111,15 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - codegen-install-v1
+            - codegen-v1
       - run: ./hack/install.sh protoc-linux swagger-linux jq-linux helm-linux kustomize-linux codegen-tools
+      - run: dep ensure
       - save_cache:
-          key: codegen-install-v1
+          key: codegen-v1
           paths:
             - /tmp/dl
             - /go/pkg
-      - dep_ensure
+            - vendor
       - run: make codegen
       - check_for_changes
   lint:
@@ -141,8 +128,17 @@ jobs:
     working_directory: /go/src/github.com/argoproj/argo-cd
     steps:
       - checkout
+      - restore_cache:
+          keys:
+            - lint-v1
       - run: ./hack/install.sh golangci-lint goimports
-      - dep_ensure
+      - run: dep ensure
+      - save_cache:
+          key: lint-v1
+          paths:
+            - /tmp/dl
+            - /go/pkg
+            - vendor
       - run: make lint
       - check_for_changes
   e2e2:
@@ -166,14 +162,15 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - e2e-install-v1
+            - e2e--v1
       - run: ./hack/install.sh kubectl-linux packr-linux
+      - run: dep ensure
       - save_cache:
           key: e2e-install-v1
           paths:
             - /tmp/dl
             - /go/pkg
-      - dep_ensure
+            - vendor
       - run: make test-e2e
   e2e:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
