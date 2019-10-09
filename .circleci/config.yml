@@ -166,6 +166,9 @@ jobs:
       - store_test_results:
           path: /tmp/test-results
       - run:
+          name: Make dev tools
+          command: make dev-tools-image
+      - run:
           name: Generate code
           command: make codegen
       - run:

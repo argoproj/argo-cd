@@ -87,8 +87,6 @@ github.com/golangci/gocyclo v0.0.0-20180528134321-2becd97e67ee h1:J2XAy40+7yz70u
 github.com/golangci/gocyclo v0.0.0-20180528134321-2becd97e67ee/go.mod h1:ozx7R9SIwqmqf5pRP90DhR2Oay2UIjGuKheCBCNwAYU=
 github.com/golangci/gofmt v0.0.0-20181105071733-0b8337e80d98 h1:ir6/L2ZOJfFrJlOTsuf/hlzdPuUwXV/VzkSlgS6f1vs=
 github.com/golangci/gofmt v0.0.0-20181105071733-0b8337e80d98/go.mod h1:9qCChq59u/eW8im404Q2WWTrnBUQKjpNYKMbU4M7EFU=
-github.com/golangci/golangci-lint v1.17.1 h1:lc8Hf9GPCjIr0hg3S/xhvFT1+Hydass8F1xchr8jkME=
-github.com/golangci/golangci-lint v1.17.1/go.mod h1:+5sJSl2h3aly+fpmL2meSP8CaSKua2E4Twi9LPy7b1g=
 github.com/golangci/gosec v0.0.0-20180901114220-66fb7fc33547 h1:qMomh8bv+kDazm1dSLZ9S3zZ2PJZMHL4ilfBjxFOlmI=
 github.com/golangci/gosec v0.0.0-20180901114220-66fb7fc33547/go.mod h1:0qUabqiIQgfmlAmulqxyiGkkyF6/tOGSnY2cnPVwrzU=
 github.com/golangci/ineffassign v0.0.0-20180808204949-42439a7714cc h1:XRFao922N8F3EcIXBSNX8Iywk+GI0dxD/8FicMX2D/c=

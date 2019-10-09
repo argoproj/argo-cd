@@ -73,7 +73,7 @@ clientgen:
 codegen-local: protogen clientgen openapigen manifests-local
 
 .PHONY: codegen
-codegen: dev-tools-image
+codegen:
 	$(call run-in-dev-tool,make codegen-local)
 
 .PHONY: cli
@@ -101,7 +101,7 @@ manifests-local:
 	./hack/update-manifests.sh
 
 .PHONY: manifests
-manifests: dev-tools-image
+manifests:
 	$(call run-in-dev-tool,make manifests-local IMAGE_TAG='${IMAGE_TAG}')
 
 
@@ -159,15 +159,13 @@ dep:
 dep-ensure:
 	dep ensure -no-vendor
 
-.PHONY: lint-local
-lint-local: build
+.PHONY: lint
+lint:
+	cd hack/lint && go mod verify
 	# golangci-lint does not do a good job of formatting imports
 	goimports -local github.com/argoproj/argo-cd -w `find . ! -path './vendor/*' ! -path './pkg/client/*' ! -path '*.pb.go' ! -path '*.gw.go' -type f -name '*.go'`
+	golangci-lint --version
 	GOGC=$(LINT_GOGC) golangci-lint run --fix --verbose --concurrency $(LINT_CONCURRENCY) --deadline $(LINT_DEADLINE)
-
-.PHONY: lint
-lint: dev-tools-image
-	$(call run-in-dev-tool,make lint-local LINT_CONCURRENCY=$(LINT_CONCURRENCY) LINT_DEADLINE=$(LINT_DEADLINE) LINT_GOGC=$(LINT_GOGC))
 
 .PHONY: build
 build:
