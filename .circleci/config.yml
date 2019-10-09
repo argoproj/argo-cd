@@ -156,8 +156,8 @@ jobs:
           mkdir -p $DOWNLOADS
           ./hack/installers/install-protoc.sh
           ./hack/installers/install-swagger.sh
-          ./hack/installers/install-jq.sh
           ./hack/installers/install-goimports.sh
+          ./hack/installers/install-jq.sh
       - dep_ensure
       - run: make codegen
       - check_for_changes
