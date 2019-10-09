@@ -16,7 +16,7 @@ const ItemEditor = (i: Item, replaceItem: (i: Item) => void, removeItem: () => v
         &nbsp;
         <input value={i.value} onChange={(e) => replaceItem({...i, value: e.target.value})} title='Value'/>
         &nbsp;
-        <input value={i.code} type='checkbox' checked={i.code} onChange={(e) => replaceItem({...i, code: e.target.checked})}
+        <input type='checkbox' checked={!!i.code} onChange={(e) => replaceItem({...i, code: e.target.checked})}
                title='Code'/>
         &nbsp;
         <button>
@@ -55,7 +55,7 @@ export class ItemCreator<I> extends React.Component<Props, Item> {
                 <input placeholder='Value' value={this.state.value} onChange={(e) => setValue(e.target.value)}
                        title='Value'/>
                 &nbsp;
-                <input value={this.state.code} type='checkbox' checked={this.state.code} onChange={(e) => setCode(e.target.checked)}
+                <input type='checkbox' checked={this.state.code} onChange={(e) => setCode(e.target.checked)}
                        title='Code'/>
                 &nbsp;
                 <button disabled={this.state.name === '' || this.state.value === ''}
