@@ -155,6 +155,7 @@ jobs:
           export DOWNLOADS=/tmp/dl
           export BIN=/usr/local/bin
           mkdir -p $DOWNLOADS
+          ./hack/installers/linux/install-helm.sh
           ./hack/installers/linux/install-protoc.sh
           ./hack/installers/linux/install-swagger.sh
           ./hack/installers/linux/install-jq.sh
