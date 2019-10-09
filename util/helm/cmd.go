@@ -195,12 +195,18 @@ func (c *Cmd) template(chart string, opts *TemplateOpts) (string, error) {
 		args = append(args, "--set-string", key+"="+cleanSetParameters(val))
 	}
 	for _, val := range opts.Values {
-		absoluteRequestedPath := c.WorkDir + string(filepath.Separator) + val
-		_, err := security.EnforceToCurrentRoot(c.WorkDir, absoluteRequestedPath)
+		absWorkDir, err := filepath.Abs(c.WorkDir)
 		if err != nil {
 			return "", err
 		}
-		args = append(args, "--values", val)
+		if !filepath.IsAbs(val) {
+			val = filepath.Join(absWorkDir, val)
+		}
+		cleanVal, err := security.EnforceToCurrentRoot(absWorkDir, val)
+		if err != nil {
+			return "", err
+		}
+		args = append(args, "--values", cleanVal)
 	}
 
 	return c.run(args...)
