@@ -154,7 +154,7 @@ jobs:
             - vendor-v3-master
             - vendor-v2-{{ .Branch }}
             - vendor-v2-master
-      - run: dep ensure
+      - dep_ensure
       - save_cache:
           key: vendor-v3-{{ .Branch }}
           paths:
@@ -197,7 +197,7 @@ jobs:
             - vendor-v3-master
             - vendor-v2-{{ .Branch }}
             - vendor-v2-master
-      - run: dep ensure
+      - dep_ensure
       - save_cache:
           key: vendor-v3-{{ .Branch }}
           paths:
