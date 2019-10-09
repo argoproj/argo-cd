@@ -99,7 +99,7 @@ jobs:
       #- restore_cache:
       #    keys:
       #      - test-install-v1
-      #- run: ./hack/install.sh kubectl-linux ksonnet-linux helm-linux kustomize-linux xsltproc-linux go-junit-report
+      - run: ./hack/install.sh kubectl-linux ksonnet-linux helm-linux kustomize-linux xsltproc-linux go-junit-report
       #- save_cache:
       #    key: test-install-v1
       #    paths:
@@ -167,7 +167,7 @@ jobs:
       - restore_cache:
           keys:
             - e2e-install-v1
-      - run: ./hack/install.sh kubectl-linux
+      - run: ./hack/install.sh kubectl-linux packr-linux
       - save_cache:
           key: e2e-install-v1
           paths:
