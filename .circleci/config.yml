@@ -167,6 +167,7 @@ jobs:
     working_directory: /src/github.com/argoproj/argo-cd
     steps:
       - checkout
+      - install_tools
       - run: make lint
       - check_for_changes
   e2e:
