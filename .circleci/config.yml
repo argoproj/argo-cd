@@ -117,6 +117,7 @@ jobs:
           environment:
             INSTALL_K3S_EXEC: --docker
             INSTALL_K3S_VERSION: v0.5.0
+      - configure_git
       - install_golang
       - checkout
       # TODO - cache
