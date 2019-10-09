@@ -9,6 +9,4 @@ site/
 cmd/**/debug
 debug.test
 /coverage.out
-/test.out
-/junit.xml
-/test.html
+/test-results
