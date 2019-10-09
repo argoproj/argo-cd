@@ -42,16 +42,16 @@ jobs:
     steps:
       - configure_git
       - checkout
-      #- restore_cache:
-      #    keys:
-      #      - test-v1
-      # - run: ./hack/install.sh kubectl-linux ksonnet-linux helm-linux kustomize-linux xsltproc-linux go-junit-report
+      - restore_cache:
+          keys:
+            - test-v1
+      - run: ./hack/install.sh kubectl-linux ksonnet-linux helm-linux kustomize-linux xsltproc-linux go-junit-report
       - run: dep ensure
-      #- save_cache:
-      #    key: test-v1
-      #    paths:
-      #      - /tmp/dl
-      #      - vendor
+      - save_cache:
+          key: test-v1
+          paths:
+            - /tmp/dl
+            - vendor
       - run: make test
       - store_test_results:
           path: test-results
