@@ -213,8 +213,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: app.Spec.Project})
 			errors.CheckError(err)
 
-			active := proj.Spec.Maintenance.ActiveWindows()
-			_, win := active.Match(app)
+			windows := proj.Spec.SyncWindows.Matches(app)
 
 			switch output {
 			case "yaml":
@@ -227,7 +226,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				fmt.Println(string(jsonBytes))
 			case "":
 				aURL := appURL(acdClient, app.Name)
-				printAppSummaryTable(app, aURL, win)
+				printAppSummaryTable(app, aURL, windows)
 
 				if len(app.Status.Conditions) > 0 {
 					fmt.Println()
@@ -262,7 +261,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	return command
 }
 
-func printAppSummaryTable(app *argoappv1.Application, appURL string, windows argoappv1.ProjectMaintenanceWindows) {
+func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *argoappv1.SyncWindows) {
 	fmt.Printf(printOpFmtStr, "Name:", app.Name)
 	fmt.Printf(printOpFmtStr, "Project:", app.Spec.GetProject())
 	fmt.Printf(printOpFmtStr, "Server:", app.Spec.Destination.Server)
@@ -272,18 +271,42 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows arg
 	fmt.Printf(printOpFmtStr, "Target:", app.Spec.Source.TargetRevision)
 	fmt.Printf(printOpFmtStr, "Path:", app.Spec.Source.Path)
 	printAppSourceDetails(&app.Spec.Source)
-	var syncPolicy string
-	if len(windows) > 0 {
-		var wds []string
-		status := "Active"
-		for _, w := range windows {
-			s := w.Schedule + ":" + w.Duration
+	var wds []string
+	var status string
+	var allow, deny bool
+	if windows.HasWindows() {
+		active := windows.Active()
+		if active.HasWindows() {
+			for _, w := range *active {
+				if w.Kind == "deny" {
+					deny = true
+				} else {
+					allow = true
+				}
+			}
+		}
+		s := windows.CanSync(true)
+		if deny || !deny && !allow {
+			if s {
+				status = "Manual Allowed"
+			} else {
+				status = "Sync Denied"
+
+			}
+		}
+		for _, w := range *windows {
+			s := w.Kind + ":" + w.Schedule + ":" + w.Duration
 			wds = append(wds, s)
 		}
-		fmt.Printf(printOpFmtStr, "Maintenance:", status)
-		fmt.Printf(printOpFmtStr, "Active Windows:", strings.Join(wds, ","))
+	} else {
+		status = "Sync Allowed"
+	}
+	fmt.Printf(printOpFmtStr, "SyncWindow:", status)
+	if len(wds) > 0 {
+		fmt.Printf(printOpFmtStr, "Assigned Windows:", strings.Join(wds, ","))
 	}
 
+	var syncPolicy string
 	if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
 		syncPolicy = "Automated"
 		if app.Spec.SyncPolicy.Automated.Prune {

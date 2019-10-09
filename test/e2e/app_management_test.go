@@ -774,6 +774,7 @@ func TestExcludedResource(t *testing.T) {
 		When().
 		Create().
 		Sync().
+		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(Condition(ApplicationConditionExcludedResourceWarning, "Resource apps/Deployment guestbook-ui is excluded in the settings"))
 }

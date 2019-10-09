@@ -554,20 +554,19 @@ export interface ProjectSpec {
     clusterResourceWhitelist: GroupKind[];
     namespaceResourceBlacklist: GroupKind[];
     orphanedResources?: { warn?: boolean };
-    maintenance?: ProjectMaintenance;
+    syncWindows?: SyncWindows;
 }
 
-export interface ProjectMaintenance {
-    enabled?: boolean;
-    windows: ProjectMaintenanceWindow[];
-}
+export type SyncWindows = SyncWindow[];
 
-export interface ProjectMaintenanceWindow {
+export interface SyncWindow {
+    kind: string;
     schedule: string;
     duration: string;
     applications: string[];
     namespaces: string[];
     clusters: string[];
+    manualSync: boolean;
 }
 
 export interface Project {
@@ -600,10 +599,13 @@ export interface ResourceAction {
     params: ResourceActionParam[];
 }
 
-export interface MaintenanceState {
-    windows: ProjectMaintenanceWindow[];
+export interface SyncWindowsState {
+    windows: SyncWindow[];
 }
 
-export interface ApplicationMaintenanceState {
-    windows: string[];
+export interface ApplicationSyncWindowState {
+    activeWindows: SyncWindow[];
+    assignedWindows: SyncWindow[];
+    canSync: boolean;
+
 }

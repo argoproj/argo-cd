@@ -2,9 +2,7 @@ import {DataLoader, FormField, FormSelect, getNestedField} from 'argo-ui';
 import * as React from 'react';
 import {FieldApi, FormApi, FormField as ReactFormField, Text, TextArea} from 'react-form';
 
-import {CheckboxField, EditablePanel, EditablePanelItem, TagsInputField} from '../../../shared/components';
-import {EnvInputField} from '../../../shared/components/env-input/env-input';
-import {VarsInputField} from '../../../shared/components/vars-input/vars-input';
+import {ArrayInputField, CheckboxField, EditablePanel, EditablePanelItem, TagsInputField} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {AuthSettings} from '../../../shared/models';
 import {services} from '../../../shared/services';

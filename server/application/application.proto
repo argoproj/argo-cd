@@ -16,10 +16,16 @@ import "github.com/argoproj/argo-cd/reposerver/repository/repository.proto";
 
 // ApplicationQuery is a query for application resources
 message ApplicationQuery {
+	// the application's name
 	optional string name = 1;
+	// forces application reconciliation if set to true
 	optional string refresh = 2;
+	// the project names to restrict returned list applications
 	repeated string project = 3 [(gogoproto.customname) = "Projects"];
+	// when specified with a watch call, shows changes that occur after that particular version of a resource.
 	optional string resourceVersion = 4 [(gogoproto.nullable) = false];
+	// the selector to to restrict returned list to applications only with matched labels
+	optional string selector = 5 [(gogoproto.nullable) = false];
 }
 
 message RevisionMetadataQuery{
@@ -158,12 +164,21 @@ message OperationTerminateRequest {
 	required string name = 1;
 }
 
-message ApplicationMaintenanceQuery {
+message ApplicationSyncWindowsQuery {
 	required string name = 1;
 }
 
-message ApplicationMaintenanceResponse {
-	repeated string windows = 1;
+message ApplicationSyncWindowsResponse {
+	repeated ApplicationSyncWindow activeWindows = 1;
+	repeated ApplicationSyncWindow assignedWindows = 2;
+	required bool canSync = 3;
+}
+
+message ApplicationSyncWindow {
+	required string kind = 1;
+	required string schedule = 2;
+	required string duration = 3;
+	required bool manualSync = 4;
 }
 
 message OperationTerminateResponse {
@@ -196,7 +211,7 @@ service ApplicationService {
 	}
 
 	// Create creates an application
-	rpc Create(ApplicationCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
+	rpc Create (ApplicationCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
 			post: "/api/v1/applications"
 			body: "application"
@@ -204,22 +219,22 @@ service ApplicationService {
 	}
 
 	// Get returns an application by name
-	rpc Get(ApplicationQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
+	rpc Get (ApplicationQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http).get = "/api/v1/applications/{name}";
 	}
 
 	// Get returns an application by name
-	rpc GetApplicationMaintenanceState(ApplicationMaintenanceQuery) returns (ApplicationMaintenanceResponse) {
-		option (google.api.http).get = "/api/v1/applications/{name}/maintenance";
+	rpc GetApplicationSyncWindows (ApplicationSyncWindowsQuery) returns (ApplicationSyncWindowsResponse) {
+		option (google.api.http).get = "/api/v1/applications/{name}/syncwindows";
 	}
 
 	// Get the meta-data (author, date, tags, message) for a specific revision of the application
-	rpc RevisionMetadata(RevisionMetadataQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RevisionMetadata) {
+	rpc RevisionMetadata (RevisionMetadataQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RevisionMetadata) {
 		option (google.api.http).get = "/api/v1/applications/{name}/revisions/{revision}/metadata";
 	}
 
 	// GetManifests returns application manifests
-	rpc GetManifests(ApplicationManifestQuery) returns (repository.ManifestResponse) {
+	rpc GetManifests (ApplicationManifestQuery) returns (repository.ManifestResponse) {
 		option (google.api.http).get = "/api/v1/applications/{name}/manifests";
 	}
 
@@ -302,7 +317,7 @@ service ApplicationService {
 	rpc RunResourceAction(ResourceActionRunRequest) returns (ApplicationResponse) {
 		option (google.api.http) = {
 			post: "/api/v1/applications/{name}/resource/actions"
-		    body: "action"
+			body: "action"
 		};
 	}
 

@@ -815,25 +815,20 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		app.Status.Summary = tree.GetSummary()
 	}
 
-	var sErr bool
 	project, err := ctrl.getAppProj(app)
 	if err != nil {
-		logCtx.Infof("Could not lookup project for %s in order to check maintenance state", app.Name)
+		logCtx.Infof("Could not lookup project for %s in order to check schedules state", app.Name)
 	} else {
-		active := project.Spec.Maintenance.ActiveWindows()
-		match, _ := active.Match(app)
-		if match {
-			logCtx.Infof("Maintenance window active, skipping sync")
-		} else {
+		if project.Spec.SyncWindows.Matches(app).CanSync(false) {
 			syncErrCond := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources)
 			if syncErrCond != nil {
-				sErr = true
 				app.Status.SetConditions([]appv1.ApplicationCondition{*syncErrCond}, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true})
+			} else {
+				app.Status.SetConditions([]appv1.ApplicationCondition{}, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true})
 			}
+		} else {
+			logCtx.Infof("Sync prevented by sync window")
 		}
-	}
-	if !sErr {
-		app.Status.SetConditions([]appv1.ApplicationCondition{}, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true})
 	}
 
 	app.Status.ObservedAt = &compareResult.reconciledAt

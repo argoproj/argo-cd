@@ -23,7 +23,7 @@ export const ProjectEditPanel = (props: {
     <Form
         onSubmit={props.submit}
         getApi={props.getApi}
-        defaultValues={{sourceRepos: [], destinations: [], roles: [], clusterResourceWhitelist: [], namespaceResourceBlacklist: [], ...props.defaultParams}}
+        defaultValues={{sourceRepos: [], destinations: [], roles: [], syncWindows: [], clusterResourceWhitelist: [], namespaceResourceBlacklist: [], ...props.defaultParams}}
         validateError={(params: ProjectParams) => ({
             name: !params.name && 'Project name is required',
         })}

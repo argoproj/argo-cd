@@ -5,7 +5,7 @@ import { FormApi, Text } from 'react-form';
 require('./application-summary.scss');
 
 import { AutocompleteField, Cluster, clusterTitle, DataLoader, EditablePanel, EditablePanelItem } from '../../../shared/components';
-import { Repo, Revision } from '../../../shared/components';
+import { MapInputField, Repo, Revision } from '../../../shared/components';
 import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
@@ -38,6 +38,13 @@ export const ApplicationSummary = (props: {
                 <DataLoader load={() => services.projects.list().then((projs) => projs.map((item) => item.metadata.name))}>
                     {(projects) => <FormField formApi={formApi} field='spec.project' component={FormSelect} componentProps={{options: projects}} />}
                 </DataLoader>
+            ),
+        },
+        {
+            title: 'LABELS',
+            view: Object.keys(app.metadata.labels || {}).map((label) => `${label}=${app.metadata.labels[label]}`).join(' '),
+            edit: (formApi: FormApi) => (
+                <FormField formApi={formApi} field='metadata.labels' component={MapInputField}/>
             ),
         },
         {
