@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -362,11 +361,6 @@ func GenerateManifests(appPath, revision string, q *apiclient.ManifestRequest) (
 }
 
 func newEnv(q *apiclient.ManifestRequest, revision string) (*v1alpha1.Env, error) {
-
-	_, err := url.Parse(q.Repo.Repo)
-	if err != nil {
-		return nil, err
-	}
 	return &v1alpha1.Env{
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: q.AppLabelValue},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: q.Namespace},
