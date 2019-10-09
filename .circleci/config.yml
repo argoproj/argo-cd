@@ -143,39 +143,8 @@ commands:
             - go-v17-master
             - go-v16-{{ .Branch }}
             - go-v16-master
-jobs:
-  build:
-    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
-    machine:
-      image: circleci/classic:201808-01
+  check_for_changes:
     steps:
-      - before
-      #- run:
-      #    name: Run unit tests
-      #    command: |
-      #      set -x
-      #      mkdir -p /tmp/test-results
-      #      trap "go-junit-report </tmp/test-results/go-test.out > /tmp/test-results/go-test-report.xml" EXIT
-      #      make test | tee /tmp/test-results/go-test.out
-      #- save_go_cache
-      #- run:
-      #    name: Uploading code coverage
-      #    command: bash <(curl -s https://codecov.io/bash) -f coverage.out
-      #    # This takes 2m, lets background it.
-      #    background: true
-      #- store_test_results:
-      #    path: /tmp/test-results
-      #- run:
-      #    name: Make dev tools
-      #    command: make dev-tools-image
-      #- run:
-      #    name: Generate code
-      #    command: make codegen
-      - run:
-          name: Lint code
-          # use GOGC to limit memory usage in exchange for CPU usage, https://github.com/golangci/golangci-lint#memory-usage-of-golangci-lint
-          # we have 8GB RAM, 2CPUs https://circleci.com/docs/2.0/executor-types/#using-machine
-          command: LINT_GOGC=20 LINT_CONCURRENCY=1 LINT_DEADLINE=4m0s make lint
       - run:
           name: Check nothing has changed
           command: |
@@ -185,9 +154,53 @@ jobs:
             # When this fails, it will, create a patch file you can apply locally to fix it.
             # To troubleshoot builds: https://argoproj.github.io/argo-cd/developer-guide/ci/
             git diff --exit-code -- . ':!Gopkg.lock'  ':!assets/swagger.json' | tee codegen.patch
+jobs:
+  build:
+    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
+    machine:
+      image: circleci/classic:201808-01
+    steps:
+      - before
+      - run:
+          name: Run unit tests
+          command: |
+            set -x
+            mkdir -p /tmp/test-results
+            trap "go-junit-report </tmp/test-results/go-test.out > /tmp/test-results/go-test-report.xml" EXIT
+            make test | tee /tmp/test-results/go-test.out
+      - save_go_cache
+      - run:
+          name: Uploading code coverage
+          command: bash <(curl -s https://codecov.io/bash) -f coverage.out
+          # This takes 2m, lets background it.
+          background: true
+      - store_test_results:
+          path: /tmp/test-results
+      - run:
+          name: Make dev tools
+          command: make dev-tools-image
+      - run:
+          name: Generate code
+          command: make codegen
+      - check_for_changes
       - store_artifacts:
           path: codegen.patch
           when: always
+  lint:
+    docker:
+      - image: circleci/golang:1.12
+    working_directory: /go/src/github.com/argoproj/argo-cd
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - lint-v1
+      - run: make lint
+      - save_cache:
+          key: lint-v1
+          paths:
+            - /go/pkg
+      - check_for_changes
   e2e:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
@@ -323,7 +336,8 @@ workflows:
   version: 2
   workflow:
     jobs:
-      - build
+      #- build
+      - lint
       #- e2e
       #- ui:
       #    # this isn't strictly true, we just put in here so that we 2/4 executors rather than 3/4
