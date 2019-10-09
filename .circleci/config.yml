@@ -156,7 +156,9 @@ jobs:
           ARGOCD_E2E_EXPECT_TIMEOUT: "30"
           ARGOCD_E2E_K3S: "true"
       - image: rancher/k3s:v0.9.1
-        command: k3s serve --token abc123
+        command: server --disable-agent
+        environment:
+          - K3S_CLUSTER_SECRET=somethingtotallyrandom
     working_directory: /go/src/github.com/argoproj/argo-cd
     resource_class: large
     steps:
