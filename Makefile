@@ -242,7 +242,7 @@ serve-docs:
 .PHONY: lint-docs
 lint-docs:
 	#  https://github.com/dkhamsing/awesome_bot
-	find docs -name '*.md' -exec grep -l http {} + | xargs docker run --rm -v $(PWD):/mnt:ro dkhamsing/awesome_bot -t 3 --allow-dupe --allow-redirect --white-list `cat white-list | tr "\n" ','` --skip-save-results --
+	find docs -name '*.md' -exec grep -l http {} + | xargs docker run --rm -v $(PWD):/mnt:ro dkhamsing/awesome_bot -t 3 --allow-dupe --allow-redirect --white-list `cat white-list | grep -v "#" | tr "\n" ','` --skip-save-results --
 
 .PHONY: publish-docs
 publish-docs: lint-docs

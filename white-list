@@ -1,3 +1,4 @@
+# a list of sites we ignore when checking for broken links in mkdocs
 10.97.164.88
 192.168.0.20
 argocd.example.com
