@@ -9,7 +9,6 @@ commands:
             # must be configured for tests to run
             git config --global user.email you@example.com
             git config --global user.name "Your Name"
-            echo "export PATH=/home/circleci/.go_workspace/src/github.com/argoproj/argo-cd/hack:\$PATH" | tee -a $BASH_ENV
             echo "export PATH=/go/src/github.com/argoproj/argo-cd/hack:\$PATH" | tee -a $BASH_ENV
             echo "export GIT_ASKPASS=git-ask-pass.sh" | tee -a $BASH_ENV
   install_golang:
@@ -21,13 +20,6 @@ commands:
             [ -e /home/circleci/sdk/go1.12.6 ] || go1.12.6 download
             echo "export GOPATH=/home/circleci/.go_workspace" | tee -a $BASH_ENV
             echo "export PATH=/home/circleci/sdk/go1.12.6/bin:\$PATH" | tee -a $BASH_ENV
-      - run:
-          name: Golang diagnostics
-          command: |
-            env
-            which go
-            go version
-            go env
   check_for_changes:
     steps:
       - run:
@@ -126,8 +118,8 @@ jobs:
           environment:
             INSTALL_K3S_EXEC: --docker
             INSTALL_K3S_VERSION: v0.5.0
-      - configure_git
       - install_golang
+      - checkout
       - run: ./hack/install.sh kubectl-linux dep-linux kustomize-linux
       - run: dep ensure
       - run:
