@@ -60,12 +60,8 @@ openapigen:
 clientgen:
 	./hack/update-codegen.sh
 
-.PHONY: codegen-local
-codegen-local: protogen clientgen openapigen manifests-local
-
 .PHONY: codegen
-codegen:
-	$(call run-in-dev-tool,make codegen-local)
+codegen: protogen clientgen openapigen manifests-local
 
 .PHONY: cli
 cli: clean-debug
