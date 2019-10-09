@@ -51,9 +51,9 @@ jobs:
     steps:
       - configure_git
       - checkout
-      - restore_cache:
-          keys:
-            - test-v1
+      #- restore_cache:
+      #    keys:
+      #      - test-v1
       # - run: ./hack/install.sh kubectl-linux ksonnet-linux
       # helm-linux kustomize-linux
       #  xsltproc-linux go-junit-report
@@ -128,6 +128,7 @@ jobs:
             INSTALL_K3S_VERSION: v0.5.0
       - configure_git
       - install_golang
+      - run: ./hack/install.sh kubectl-linux dep-linux kustomize-linux
       - run: dep ensure
       - run:
           # do this before we build everything else in the background, as they tend to explode
