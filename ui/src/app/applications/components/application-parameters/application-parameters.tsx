@@ -2,9 +2,16 @@ import {DataLoader, FormField, FormSelect, getNestedField} from 'argo-ui';
 import * as React from 'react';
 import {FieldApi, FormApi, FormField as ReactFormField, Text, TextArea} from 'react-form';
 
-import {ArrayInputField, CheckboxField, EditablePanel, EditablePanelItem, TagsInputField} from '../../../shared/components';
+import {
+    ArrayInputField,
+    CheckboxField,
+    EditablePanel,
+    EditablePanelItem,
+    TagsInputField,
+    VarsInputField,
+} from '../../../shared/components';
 import * as models from '../../../shared/models';
-import {AuthSettings} from '../../../shared/models';
+import {ApplicationSourceDirectory, AuthSettings} from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ImageTagFieldEditor} from './kustomize';
 import * as kustomize from './kustomize-image';
@@ -216,27 +223,29 @@ export const ApplicationParameters = (props: {
             title: 'ENV',
             view: app.spec.source.plugin && (app.spec.source.plugin.env || []).map((i) => `${i.name}='${i.value}'`).join(' '),
             edit: (formApi: FormApi) => (
-                <FormField field='spec.source.plugin.env' formApi={formApi} component={EnvInputField}/>
+                <FormField field='spec.source.plugin.env' formApi={formApi} component={ArrayInputField}/>
             ),
         });
     } else if (props.details.type === 'Directory') {
+        const directory = app.spec.source.directory || {} as ApplicationSourceDirectory;
         attributes.push({
             title: 'DIRECTORY RECURSE',
-            view: (!!(app.spec.source.directory && app.spec.source.directory.recurse)).toString(),
+            view: !!directory.recurse,
             edit: (formApi: FormApi) => (
                 <FormField formApi={formApi} field='spec.source.directory.recurse' component={CheckboxField}/>
             ),
         });
         attributes.push({
             title: 'TOP-LEVEL ARGUMENTS',
-            view: app.spec.source.directory.jsonnet && (app.spec.source.directory.jsonnet.tlas || []).map((i) => `${i.name}='${i.value}'`).join(' '),
+            view: (directory.jsonnet && directory.jsonnet.tlas || []).map((i) => `${i.name}='${i.value}'`).join(' '),
             edit: (formApi: FormApi) => (
                 <FormField field='spec.source.directory.jsonnet.tlas' formApi={formApi} component={VarsInputField}/>
             ),
         });
         attributes.push({
             title: 'EXTERNAL VARIABLES',
-            view: app.spec.source.directory.jsonnet && (app.spec.source.directory.jsonnet.extVars || []).map((i) => `${i.name}='${i.value}'`).join(' '),
+            view: (directory.jsonnet && directory.jsonnet.extVars || [])
+                .map((i) => `${i.name}='${i.value}'`).join(' '),
             edit: (formApi: FormApi) => (
                 <FormField field='spec.source.directory.jsonnet.extVars' formApi={formApi} component={VarsInputField}/>
             ),

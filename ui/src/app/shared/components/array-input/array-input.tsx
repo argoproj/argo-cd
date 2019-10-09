@@ -83,7 +83,7 @@ export class ArrayInput extends React.Component<Props, State> {
                             <input value={this.state.items[j].value}
                                    onChange={(e) => replaceItem({name: i.name, value: e.target.value}, j)}/>
                             &nbsp;
-                            <button >
+                            <button>
                                 <i className='fa fa-times' style={{cursor: 'pointer'}} onClick={() => removeItem(j)}/>
                             </button>
                         </div>
@@ -117,7 +117,7 @@ export const MapInputField = ReactForm.FormField((props: { fieldApi: ReactForm.F
     const {fieldApi: {getValue, setValue}} = props;
     const items = new Array<Item>();
     const map = getValue() || {};
-    Object.keys(map).forEach((key) => items.push({ name: key, value: map[key] }));
+    Object.keys(map).forEach((key) => items.push({name: key, value: map[key]}));
     return (
         <ArrayInput items={items} onChange={(array) => {
             const newMap = {} as any;
@@ -125,4 +125,9 @@ export const MapInputField = ReactForm.FormField((props: { fieldApi: ReactForm.F
             setValue(newMap);
         }}/>
     );
+});
+
+export const VarsInputField = ReactForm.FormField((props: { fieldApi: ReactForm.FieldApi }) => {
+    const {fieldApi: {getValue, setValue}} = props;
+    return <ArrayInput items={getValue() || []} onChange={setValue}/>;
 });
