@@ -171,6 +171,7 @@ jobs:
       #- run:
       #    name: Generate code
       #    command: make codegen
+      - run: make build
       - run:
           name: Lint code
           # use GOGC to limit memory usage in exchange for CPU usage, https://github.com/golangci/golangci-lint#memory-usage-of-golangci-lint
