@@ -136,7 +136,7 @@ jobs:
       - run: sudo apt-get install -y xsltproc
       - run: make test
       - store_test_results:
-          path: junit.xml
+          path: .
       - store_artifacts:
           path: test.html
           when: always
@@ -268,7 +268,7 @@ jobs:
             ARGOCD_E2E_EXPECT_TIMEOUT: "30"
             ARGOCD_E2E_K3S: "true"
       - store_test_results:
-          path: junit.xml
+          path: .
       - store_artifacts:
           path: test.html
           when: always
@@ -290,9 +290,6 @@ jobs:
             - ~/.cache/yarn
             - node_modules
       - run: yarn test
-      # This does not appear to work, and I don't want to spend time on it.
-      - store_test_results:
-          path: junit.xml
       - run: yarn build
       - run: yarn lint
       - check_for_changes
