@@ -39,7 +39,6 @@ jobs:
     docker:
       - image: circleci/golang:1.12
     working_directory: /go/src/github.com/argoproj/argo-cd
-    resource_class: large
     steps:
       - configure_git
       - checkout
@@ -52,7 +51,6 @@ jobs:
       #    key: test-v1
       #    paths:
       #      - /tmp/dl
-      #      - /go/pkg
       #      - vendor
       - run: make test
       - store_test_results:
@@ -118,8 +116,10 @@ jobs:
             INSTALL_K3S_VERSION: v0.5.0
       - install_golang
       - checkout
-      - run: ./hack/install.sh kubectl-linux dep-linux kustomize-linux
+      # TODO - cache
+      - run: ./hack/install.sh kubectl-linux kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
       - run: dep ensure
+      # TODO - cache
       - run:
           # do this before we build everything else in the background, as they tend to explode
           name: Make CLI
