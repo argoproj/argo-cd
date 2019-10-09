@@ -21,36 +21,78 @@ import * as ReactForm from 'react-form';
     It does not allow re-ordering of elements (maybe in a v2).
  */
 
-class Item {
+class ArrayItem {
     public name: string;
     public value: string;
 }
 
-class Props {
-    public items: Item[];
-    public onChange: (items: Item[]) => void;
+class Props<I> {
+    public items: I[];
+    // create a new empty item
+    public readonly emptyItem: () => I;
+    public readonly onChange: (items: I[]) => void;
+    // render a component to edit an item
+    public readonly itemEditor: (i: I, replaceItem: (i: I) => void, removeItem: () => void) => React.ReactFragment;
+    // render a component to create a new item
+    public readonly itemCreator: (i: I, onChange: (i: I) => void, addItem: () => void) => React.ReactFragment;
 }
 
-class State {
-    public items: Item[];
-    public newItem: Item;
+class State<I> {
+    public items: I[];
+    public newItem: I;
 }
 
-export class ArrayInput extends React.Component<Props, State> {
-    constructor(props: Readonly<Props>) {
+const ArrayItemEditor = (i: ArrayItem, replaceItem: (i: ArrayItem) => void, removeItem: () => void) => (
+    <React.Fragment>
+        <input value={i.name} onChange={(e) => replaceItem({...i, name: e.target.value})}/>
+        &nbsp;
+        =
+        &nbsp;
+        <input value={i.value} onChange={(e) => replaceItem({...i, value: e.target.value})}/>
+        &nbsp;
+        <button>
+            <i className='fa fa-times' style={{cursor: 'pointer'}} onClick={() => removeItem()}/>
+        </button>
+    </React.Fragment>
+);
+
+const ArrayItemCreator = (i: ArrayItem, onChange: (i: ArrayItem) => void, addItem: () => void) => (
+    <div>
+        <input placeholder='Name' value={i.name} onChange={(e) => {
+            onChange({...i, name: e.target.value});
+        }}/>
+        &nbsp;
+        =
+        &nbsp;
+        <input placeholder='Value' value={i.value} onChange={(e) => {
+            onChange({...i, value: e.target.value});
+        }}/>
+        &nbsp;
+        <button disabled={i.name === '' || i.value === ''} onClick={() => addItem()}>
+            <i style={{cursor: 'pointer'}} className='fa fa-plus'/>
+        </button>
+    </div>
+
+);
+
+export abstract class ArrayInput<I> extends React.Component<Props<I>, State<I>> {
+    protected constructor(props: Readonly<Props<I>>) {
         super(props);
-        this.state = {newItem: {name: '', value: ''}, items: props.items};
+        this.state = {newItem: props.emptyItem(), items: props.items};
     }
 
     public render() {
-        const addItem = (i: Item) => {
+        const onChange = (i: I) => {
+            this.setState((s) => ({...s, newItem: i}));
+        };
+        const addItem = () => {
             this.setState((s) => {
-                s.items.push(i);
+                s.items.push(s.newItem);
                 this.props.onChange(s.items);
-                return {items: s.items, newItem: {name: '', value: ''}};
+                return {...s, newItem: this.props.emptyItem()};
             });
         };
-        const replaceItem = (i: Item, j: number) => {
+        const replaceItem = (i: I, j: number) => {
             this.setState((s) => {
                 s.items[j] = i;
                 this.props.onChange(s.items);
@@ -64,44 +106,17 @@ export class ArrayInput extends React.Component<Props, State> {
                 return s;
             });
         };
-        const setName = (name: string) => {
-            this.setState((s) => ({items: s.items, newItem: {name, value: s.newItem.value}}));
-        };
-        const setValue = (value: string) => {
-            this.setState((s) => ({items: s.items, newItem: {name: s.newItem.name, value}}));
-        };
         return (
             <div className='argo-field' style={{border: 0}}>
                 <div>
                     {this.state.items.map((i, j) => (
                         <div key={`item-${j}`}>
-                            <input value={this.state.items[j].name}
-                                   onChange={(e) => replaceItem({name: e.target.value, value: i.value}, j)}/>
-                            &nbsp;
-                            =
-                            &nbsp;
-                            <input value={this.state.items[j].value}
-                                   onChange={(e) => replaceItem({name: i.name, value: e.target.value}, j)}/>
-                            &nbsp;
-                            <button>
-                                <i className='fa fa-times' style={{cursor: 'pointer'}} onClick={() => removeItem(j)}/>
-                            </button>
+                            {this.props.itemEditor(i, (k: I) => replaceItem(k, j), () => removeItem(j))}
                         </div>
                     ))}
-                </div>
-                <div>
-                    <input placeholder='Name' value={this.state.newItem.name}
-                           onChange={(e) => setName(e.target.value)}/>
-                    &nbsp;
-                    =
-                    &nbsp;
-                    <input placeholder='Value' value={this.state.newItem.value}
-                           onChange={(e) => setValue(e.target.value)}/>
-                    &nbsp;
-                    <button disabled={this.state.newItem.name === '' || this.state.newItem.value === ''}
-                            onClick={() => addItem(this.state.newItem)}>
-                        <i style={{cursor: 'pointer'}} className='fa fa-plus'/>
-                    </button>
+                    <div>
+                        {this.props.itemCreator(this.state.newItem, onChange, addItem)}
+                    </div>
                 </div>
             </div>
         );
@@ -110,12 +125,15 @@ export class ArrayInput extends React.Component<Props, State> {
 
 export const ArrayInputField = ReactForm.FormField((props: { fieldApi: ReactForm.FieldApi }) => {
     const {fieldApi: {getValue, setValue}} = props;
-    return <ArrayInput items={getValue() || []} onChange={setValue}/>;
+    return (
+        <ArrayInput items={getValue() || []} onChange={setValue} emptyItem={() => new ArrayItem()}
+                    itemEditor={ArrayItemEditor} itemCreator={ArrayItemCreator}/>
+    );
 });
 
 export const MapInputField = ReactForm.FormField((props: { fieldApi: ReactForm.FieldApi }) => {
     const {fieldApi: {getValue, setValue}} = props;
-    const items = new Array<Item>();
+    const items = new Array<ArrayItem>();
     const map = getValue() || {};
     Object.keys(map).forEach((key) => items.push({name: key, value: map[key]}));
     return (
@@ -123,11 +141,14 @@ export const MapInputField = ReactForm.FormField((props: { fieldApi: ReactForm.F
             const newMap = {} as any;
             array.forEach((item) => newMap[item.name] = item.value);
             setValue(newMap);
-        }}/>
+        }} emptyItem={() => new ArrayItem()} itemEditor={ArrayItemEditor} itemCreator={ArrayItemCreator}/>
     );
 });
 
 export const VarsInputField = ReactForm.FormField((props: { fieldApi: ReactForm.FieldApi }) => {
     const {fieldApi: {getValue, setValue}} = props;
-    return <ArrayInput items={getValue() || []} onChange={setValue}/>;
+    return (
+        <ArrayInput items={getValue() || []} onChange={setValue} emptyItem={() => new ArrayItem()}
+                    itemEditor={ArrayItemEditor} itemCreator={ArrayItemCreator}/>
+    );
 });
