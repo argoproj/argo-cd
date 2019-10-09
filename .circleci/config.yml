@@ -156,6 +156,7 @@ jobs:
       - image: circleci/golang:1.12
     working_directory: /go/src/github.com/argoproj/argo-cd
     steps:
+      - checkout
       - run: make codegen
       - check_for_changes
   lint:
