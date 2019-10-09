@@ -96,16 +96,17 @@ jobs:
     steps:
       - configure_git
       - checkout
-      - restore_cache:
-          keys:
-            - test-install-v1
+      #- restore_cache:
+      #    keys:
+      #      - test-install-v1
       #- run: ./hack/install.sh kubectl-linux ksonnet-linux helm-linux kustomize-linux xsltproc-linux go-junit-report
-      - save_cache:
-          key: test-install-v1
-          paths:
-            - /tmp/dl
-            - /go/pkg
-      - dep_ensure
+      #- save_cache:
+      #    key: test-install-v1
+      #    paths:
+      #      - /tmp/dl
+      #      - /go/pkg
+      #- dep_ensure
+      - run: dep ensure
       - run: make build
       - run: make test
       - store_test_results:
@@ -147,7 +148,6 @@ jobs:
   e2e2:
     docker:
       - image: circleci/golang:1.12
-        command: echo hello
         environment:
           ARGOCD_FAKE_IN_CLUSTER: "true"
           ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
@@ -157,6 +157,7 @@ jobs:
           ARGOCD_E2E_EXPECT_TIMEOUT: "30"
           ARGOCD_E2E_K3S: "true"
       - image: rancher/k3s:v0.9.1
+        command: k3s serve --token abc123
     working_directory: /go/src/github.com/argoproj/argo-cd
     resource_class: large
     steps:
