@@ -1,7 +1,7 @@
 #!/bin/bash
 set -eux -o pipefail
 
-[ -e $DOWNLOADS/kubectx.zip ] || curl -sLf -C - -o $DOWNLOADS/kubectx.zip https://github.com/ahmetb/kubectx/archive/v0.6.3.zip
+[ -e $DOWNLOADS/kubectx.zip ] || curl -sLf -o $DOWNLOADS/kubectx.zip https://github.com/ahmetb/kubectx/archive/v0.6.3.zip
 unzip $DOWNLOADS/kubectx.zip kubectx-0.6.3/kubectx -d $DOWNLOADS
 unzip $DOWNLOADS/kubectx.zip kubectx-0.6.3/kubens -d $DOWNLOADS
 mv $DOWNLOADS/kubectx-0.6.3/kubectx $BIN/
