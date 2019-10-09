@@ -19,10 +19,7 @@ type Cache struct {
 	repoCacheExpiration time.Duration
 }
 
-func NewCache(
-	cache *cacheutil.Cache,
-	repoCacheExpiration time.Duration,
-) *Cache {
+func NewCache(cache *cacheutil.Cache, repoCacheExpiration time.Duration) *Cache {
 	return &Cache{cache, repoCacheExpiration}
 }
 
@@ -31,10 +28,10 @@ func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
 
 	cmd.Flags().DurationVar(&repoCacheExpiration, "repo-cache-expiration", 24*time.Hour, "Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data")
 
-	fn := cacheutil.AddCacheFlagsToCmd(cmd)
+	repoFactory := cacheutil.AddCacheFlagsToCmd(cmd)
 
 	return func() (*Cache, error) {
-		cache, err := fn()
+		cache, err := repoFactory()
 		if err != nil {
 			return nil, err
 		}

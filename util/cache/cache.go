@@ -42,9 +42,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
 				DB:            redisDB,
 				Password:      password,
 			})
-			return NewCache(
-				NewRedisCache(client, defaultCacheExpiration),
-			), nil
+			return NewCache(NewRedisCache(client, defaultCacheExpiration)), nil
 		}
 
 		if redisAddress == "" {
@@ -55,9 +53,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
 			Password: password,
 			DB:       redisDB,
 		})
-		return NewCache(
-			NewRedisCache(client, defaultCacheExpiration),
-		), nil
+		return NewCache(NewRedisCache(client, defaultCacheExpiration)), nil
 	}
 }
 

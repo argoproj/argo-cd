@@ -17,10 +17,7 @@ type Cache struct {
 	appStateCacheExpiration time.Duration
 }
 
-func NewCache(
-	cache *cacheutil.Cache,
-	appStateCacheExpiration time.Duration,
-) *Cache {
+func NewCache(cache *cacheutil.Cache, appStateCacheExpiration time.Duration) *Cache {
 	return &Cache{cache, appStateCacheExpiration}
 }
 
@@ -34,10 +31,10 @@ func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
 
 	cmd.Flags().DurationVar(&appStateCacheExpiration, "app-state-cache-expiration", 1*time.Hour, "Cache expiration for app state")
 
-	fn := cacheutil.AddCacheFlagsToCmd(cmd)
+	cacheFactory := cacheutil.AddCacheFlagsToCmd(cmd)
 
 	return func() (*Cache, error) {
-		cache, err := fn()
+		cache, err := cacheFactory()
 		if err != nil {
 			return nil, err
 		}
