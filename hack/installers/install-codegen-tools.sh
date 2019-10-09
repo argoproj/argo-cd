@@ -1,6 +1,8 @@
 #!/bin/bash
 set -eux -o pipefail
 
+$(dirname $0)/install-goimports.sh
+
 cd $DOWNLOADS
 GO111MODULE=on go get github.com/gogo/protobuf/gogoproto@v1.2.1
 GO111MODULE=on go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.0-beta.2

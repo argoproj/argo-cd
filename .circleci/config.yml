@@ -154,10 +154,9 @@ jobs:
           export DOWNLOADS=/tmp/dl
           export BIN=/usr/local/bin
           mkdir -p $DOWNLOADS
-          ./hack/installers/install-protoc.sh
-          ./hack/installers/install-swagger.sh
-          ./hack/installers/install-goimports.sh
-          ./hack/installers/install-jq.sh
+          ./hack/installers/linux/install-protoc.sh
+          ./hack/installers/linux/install-swagger.sh
+          ./hack/installers/linux/install-jq.sh
           ./hack/installers/install-codegen-tools.sh
       - dep_ensure
       - run: make codegen
