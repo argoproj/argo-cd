@@ -230,7 +230,7 @@ export const ApplicationParameters = (props: {
         const directory = app.spec.source.directory || {} as ApplicationSourceDirectory;
         attributes.push({
             title: 'DIRECTORY RECURSE',
-            view: !!directory.recurse,
+            view: (!!directory.recurse).toString(),
             edit: (formApi: FormApi) => (
                 <FormField formApi={formApi} field='spec.source.directory.recurse' component={CheckboxField}/>
             ),
