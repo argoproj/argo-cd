@@ -164,8 +164,12 @@ jobs:
     working_directory: /src/github.com/argoproj/argo-cd
     steps:
       - checkout
-      - run: ./hack/installers/install-golangci-lint.sh
-      - run: ./hack/installers/install-goimports.sh
+      - run: |
+          sh -x
+          export DOWNLOADS=/tmp/dl
+          mkdir -p $DOWNLOADS
+          ./hack/installers/install-golangci-lint.sh
+          ./hack/installers/install-goimports.sh
       - run: make lint
       - check_for_changes
   e2e:
@@ -292,5 +296,5 @@ workflows:
   version: 2
   workflow:
     jobs:
-      - test
       - lint
+      - codegen
