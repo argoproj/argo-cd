@@ -107,6 +107,7 @@ jobs:
       #      - /go/pkg
       #- dep_ensure
       - run: dep ensure
+      - run: go test ./util/app/discovery
       - run: make test
       - store_test_results:
           path: test-results
