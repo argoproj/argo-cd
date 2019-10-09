@@ -79,7 +79,6 @@ jobs:
     docker:
       - image: circleci/golang:1.12
     working_directory: /go/src/github.com/argoproj/argo-cd
-    resource_class: large
     steps:
       - configure_git
       - checkout
@@ -157,22 +156,22 @@ jobs:
         command: server --disable-agent
         environment:
           - K3S_CLUSTER_SECRET=somethingtotallyrandom
+      - image: redis:5.0.3-alpine
     working_directory: /go/src/github.com/argoproj/argo-cd
-    resource_class: large
     steps:
       - checkout
       - restore_cache:
           keys:
-            - e2e--v1
-      - run: ./hack/install.sh kubectl-linux packr-linux
+            - e2e-v1
+      - run: ./hack/install.sh kubectl-linux kustomize-linux packr-linux
       - run: dep ensure
       - save_cache:
-          key: e2e-install-v1
+          key: e2e-v1
           paths:
             - /tmp/dl
             - /go/pkg
             - vendor
-      - run: make test-e2e
+      - run: kustomize build test/manifests/base | kubectl apply -f -
   e2e:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
