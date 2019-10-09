@@ -114,8 +114,6 @@ jobs:
       - checkout
       - run: ./hack/install.sh kubectl-linux ksonnet-linux helm-linux kustomize-linux xsltproc-linux go-junit-report
       - dep_ensure
-      - run: go get github.com/jstemmer/go-junit-report
-      - run: sudo apt-get install -y xsltproc
       - run: make test
       - store_test_results:
           path: test-results
@@ -153,6 +151,9 @@ jobs:
           ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
           ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
           ARGOCD_ZJWT_FEATURE_FLAG: "always"
+          ARGOCD_OPTS: "--server localhost:8080 --plaintext"
+          ARGOCD_E2E_EXPECT_TIMEOUT: "30"
+          ARGOCD_E2E_K3S: "true"
       - image: rancher/k3s:v0.9.1
     working_directory: /go/src/github.com/argoproj/argo-cd
     steps:
