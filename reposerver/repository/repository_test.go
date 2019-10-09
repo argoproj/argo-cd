@@ -385,3 +385,18 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.EqualValues(t, []string{"tag1", "tag2"}, res.Tags)
 
 }
+
+func Test_newEnv(t *testing.T) {
+	assert.Equal(t, argoappv1.Env{
+		&argoappv1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: "my-app-name"},
+		&argoappv1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: "my-namespace"},
+		&argoappv1.EnvEntry{Name: "ARGOCD_APP_TARGET_REVISION", Value: "my-target-revision"},
+		&argoappv1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: "my-revision"},
+	}, newEnv(&apiclient.ManifestRequest{
+		AppLabelValue: "my-app-name",
+		Namespace:     "my-namespace",
+		ApplicationSource: &argoappv1.ApplicationSource{
+			TargetRevision: "my-target-revision",
+		},
+	}, "my-revision"))
+}
