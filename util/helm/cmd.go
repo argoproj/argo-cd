@@ -2,13 +2,14 @@ package helm
 
 import (
 	"fmt"
-	"github.com/argoproj/argo-cd/util/security"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+
+	"github.com/argoproj/argo-cd/util/security"
 
 	"github.com/argoproj/argo-cd/util"
 

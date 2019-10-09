@@ -20,7 +20,7 @@ func isRequestedDirUnderCurrentRoot(currentRoot, requestedDir string) bool {
 	} else if currentRoot == requestedDir {
 		return true
 	}
-	return strings.HasPrefix(requestedDir, currentRoot + string(filepath.Separator))
+	return strings.HasPrefix(requestedDir, currentRoot+string(filepath.Separator))
 }
 
 func parsePath(path string) (string, string) {
