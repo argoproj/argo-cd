@@ -127,9 +127,6 @@ jobs:
           export DOWNLOADS=/tmp/dl
           export BIN=/usr/local/bin
           mkdir -p $DOWNLOADS
-          ./hack/installers/install-kubectl.sh
-          ./hack/installers/install-kubectx.sh
-          ./hack/installers/install-dep.sh
           ./hack/installers/install-ksonnet.sh
           ./hack/installers/install-helm.sh
           ./hack/installers/install-kustomize.sh
@@ -158,6 +155,7 @@ jobs:
           mkdir -p $DOWNLOADS
           ./hack/installers/install-protoc.sh
           ./hack/installers/install-swagger.sh
+          ./hack/installers/install-goimports.sh
       - dep_ensure
       - run: make codegen
       - check_for_changes
