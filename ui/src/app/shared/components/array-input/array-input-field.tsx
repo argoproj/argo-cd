@@ -21,16 +21,16 @@ const ArrayItemEditor = (i: ArrayItem, replaceItem: (i: ArrayItem) => void, remo
     </React.Fragment>
 );
 
-const ArrayItemCreator = (i: ArrayItem, onChange: (i: ArrayItem) => void, addItem: () => void) => (
+const ArrayItemCreator = (i: ArrayItem, addItem: () => void) => (
     <div>
         <input placeholder='Name' value={i.name} onChange={(e) => {
-            onChange({...i, name: e.target.value});
+            i.name = e.target.value;
         }}/>
         &nbsp;
         =
         &nbsp;
         <input placeholder='Value' value={i.value} onChange={(e) => {
-            onChange({...i, value: e.target.value});
+            i.value = e.target.value;
         }}/>
         &nbsp;
         <button disabled={i.name === '' || i.value === ''} onClick={() => addItem()}>

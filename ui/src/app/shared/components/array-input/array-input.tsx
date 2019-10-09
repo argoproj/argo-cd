@@ -26,9 +26,9 @@ class Props<I> {
     public readonly emptyItem: () => I;
     public readonly onChange: (items: I[]) => void;
     // render a component to edit an item
-    public readonly itemEditor: (i: I, replaceItem: (i: I) => void, removeItem: () => void) => React.ReactFragment;
+    public readonly itemEditor: (i: I, replaceItem: (k: I) => void, removeItem: () => void) => React.ReactFragment;
     // render a component to create a new item
-    public readonly itemCreator: (i: I, onChange: (i: I) => void, addItem: () => void) => React.ReactFragment;
+    public readonly itemCreator: (i: I, addItem: () => void) => React.ReactFragment;
 }
 
 class State<I> {
@@ -75,7 +75,7 @@ export abstract class ArrayInput<I> extends React.Component<Props<I>, State<I>> 
                             {this.props.itemEditor(i, (k: I) => replaceItem(k, j), () => removeItem(j))}
                         </div>
                     ))}
-                    <div>
+                    <div key={`item-new-${this.state.newItem.toString()}`}>
                         {this.props.itemCreator(this.state.newItem, onChange, addItem)}
                     </div>
                 </div>
