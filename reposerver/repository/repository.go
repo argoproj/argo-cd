@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -207,7 +208,7 @@ func getHelmRepos(repositories []*v1alpha1.Repository) []helm.HelmRepository {
 	return repos
 }
 
-func helmTemplate(appPath string, env v1alpha1.Env, q *apiclient.ManifestRequest) ([]*unstructured.Unstructured, error) {
+func helmTemplate(appPath string, env *v1alpha1.Env, q *apiclient.ManifestRequest) ([]*unstructured.Unstructured, error) {
 	templateOpts := &helm.TemplateOpts{
 		Name:        q.AppLabelValue,
 		Namespace:   q.Namespace,
@@ -287,7 +288,10 @@ func GenerateManifests(appPath, revision string, q *apiclient.ManifestRequest) (
 	if q.Repo != nil {
 		repoURL = q.Repo.Repo
 	}
-	env := newEnv(q, revision)
+	env, err := newEnv(q, revision)
+	if err != nil {
+		return nil, err
+	}
 
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeKsonnet:
@@ -357,13 +361,20 @@ func GenerateManifests(appPath, revision string, q *apiclient.ManifestRequest) (
 	return &res, nil
 }
 
-func newEnv(q *apiclient.ManifestRequest, revision string) v1alpha1.Env {
-	return v1alpha1.Env{
+func newEnv(q *apiclient.ManifestRequest, revision string) (*v1alpha1.Env, error) {
+
+	_, err := url.Parse(q.Repo.Repo)
+	if err != nil {
+		return nil, err
+	}
+	return &v1alpha1.Env{
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: q.AppLabelValue},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: q.Namespace},
-		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_TARGET_REVISION", Value: q.ApplicationSource.TargetRevision},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: revision},
-	}
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: q.Repo.Repo},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: q.ApplicationSource.Path},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: q.ApplicationSource.TargetRevision},
+	}, nil
 }
 
 // GetAppSourceType returns explicit application source type or examines a directory and determines its application source type
@@ -437,7 +448,7 @@ func ksShow(appLabelKey, appPath string, ksonnetOpts *v1alpha1.ApplicationSource
 var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 
 // findManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
-func findManifests(appPath string, env v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory) ([]*unstructured.Unstructured, error) {
+func findManifests(appPath string, env *v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory) ([]*unstructured.Unstructured, error) {
 	var objs []*unstructured.Unstructured
 	err := filepath.Walk(appPath, func(path string, f os.FileInfo, err error) error {
 		if err != nil {
@@ -510,7 +521,7 @@ func findManifests(appPath string, env v1alpha1.Env, directory v1alpha1.Applicat
 	return objs, nil
 }
 
-func makeJsonnetVm(sourceJsonnet v1alpha1.ApplicationSourceJsonnet, env v1alpha1.Env) *jsonnet.VM {
+func makeJsonnetVm(sourceJsonnet v1alpha1.ApplicationSourceJsonnet, env *v1alpha1.Env) *jsonnet.VM {
 	vm := jsonnet.MakeVM()
 	for i, j := range sourceJsonnet.TLAs {
 		sourceJsonnet.TLAs[i].Value = env.Envsubst(j.Value)
@@ -555,7 +566,7 @@ func findPlugin(plugins []*v1alpha1.ConfigManagementPlugin, name string) *v1alph
 	return nil
 }
 
-func runConfigManagementPlugin(appPath string, envVars v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
+func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
 	plugin := findPlugin(q.Plugins, q.ApplicationSource.Plugin.Name)
 	if plugin == nil {
 		return nil, fmt.Errorf("Config management plugin with name '%s' is not supported.", q.ApplicationSource.Plugin.Name)
