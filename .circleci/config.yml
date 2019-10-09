@@ -31,13 +31,12 @@ commands:
     steps:
       - restore_cache:
           keys:
-            - vendor-v5-{{ checksum "Gopkg.lock" }}
-            - vendor-v4-{{ checksum "Gopkg.lock" }}
+            - vendor-v6-{{ checksum "Gopkg.lock" }}
       - run:
           name: Run dep ensure
           command: dep ensure
       - save_cache:
-          key: vendor-v5-{{ checksum "Gopkg.lock" }}
+          key: vendor-v6-{{ checksum "Gopkg.lock" }}
           paths:
             - vendor
   install_golang:
