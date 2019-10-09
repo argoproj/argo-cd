@@ -10,13 +10,14 @@ class Item {
 
 const ItemEditor = (i: Item, replaceItem: (i: Item) => void, removeItem: () => void) => (
     <React.Fragment>
-        <input value={i.name} onChange={(e) => replaceItem({...i, name: e.target.value})}/>
+        <input value={i.name} onChange={(e) => replaceItem({...i, name: e.target.value})} title='Name'/>
         &nbsp;
         =
         &nbsp;
-        <input value={i.value} onChange={(e) => replaceItem({...i, value: e.target.value})}/>
+        <input value={i.value} onChange={(e) => replaceItem({...i, value: e.target.value})} title='Value'/>
         &nbsp;
-        <input checked={i.code} onChange={(e) => replaceItem({...i, code: e.target.checked})}/>
+        <input type='checkbox' checked={i.code} onChange={(e) => replaceItem({...i, code: e.target.checked})}
+               title='Code'/>
         &nbsp;
         <button>
             <i className='fa fa-times' style={{cursor: 'pointer'}} onClick={() => removeItem()}/>
@@ -46,13 +47,16 @@ export class ItemCreator<I> extends React.Component<Props, Item> {
         };
         return (
             <div>
-                <input placeholder='Name' value={this.state.name} onChange={(e) => setName(e.target.value)}/>
+                <input placeholder='Name' value={this.state.name} onChange={(e) => setName(e.target.value)}
+                       title='Name'/>
                 &nbsp;
                 =
                 &nbsp;
-                <input placeholder='Value' value={this.state.value} onChange={(e) => setValue(e.target.value)}/>
+                <input placeholder='Value' value={this.state.value} onChange={(e) => setValue(e.target.value)}
+                       title='Value'/>
                 &nbsp;
-                <input checked={this.state.code} onChange={(e) => setCode(e.target.checked)}/>
+                <input type='checkbox' checked={this.state.code} onChange={(e) => setCode(e.target.checked)}
+                       title='Code'/>
                 &nbsp;
                 <button disabled={this.state.name === '' || this.state.value === ''}
                         onClick={() => {
