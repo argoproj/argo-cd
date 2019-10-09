@@ -2,8 +2,7 @@ import {DataLoader, FormField, FormSelect, getNestedField} from 'argo-ui';
 import * as React from 'react';
 import {FieldApi, FormApi, FormField as ReactFormField, Text, TextArea} from 'react-form';
 
-import {CheckboxField, EditablePanel, EditablePanelItem, TagsInputField} from '../../../shared/components';
-import {ArrayInputField} from '../../../shared/components/array-input/array-input';
+import {ArrayInputField, CheckboxField, EditablePanel, EditablePanelItem, TagsInputField} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {AuthSettings} from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -209,7 +208,7 @@ export const ApplicationParameters = (props: {
             edit: (formApi: FormApi) => (
                 <DataLoader load={() => services.authService.settings()}>{(settings: AuthSettings) => (
                     <FormField formApi={formApi} field='spec.source.plugin.name' component={FormSelect}
-                               componentProps={{options: settings.plugins.map((p) => p.name)}}/>
+                               componentProps={{options: (settings.plugins || []).map((p) => p.name)}}/>
                 )}</DataLoader>
             ),
         });

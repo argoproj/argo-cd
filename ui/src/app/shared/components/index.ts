@@ -1,5 +1,6 @@
 export { DataLoader, ErrorNotification } from 'argo-ui';
 
+export * from './array-input/array-input';
 export * from './page';
 export * from './checkbox/checkbox-field';
 export * from './colors';

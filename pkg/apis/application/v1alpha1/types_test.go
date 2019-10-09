@@ -861,189 +861,374 @@ func TestApplicationSourceKustomize_MergeImage(t *testing.T) {
 	})
 }
 
-func TestProjectMaintenance_AddWindow(t *testing.T) {
-	proj := newTestProjectWithMaintenance(true)
+func TestSyncWindows_HasWindows(t *testing.T) {
+	t.Run("True", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		assert.True(t, proj.Spec.SyncWindows.HasWindows())
+	})
+	t.Run("False", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		err := proj.Spec.DeleteWindow(0)
+		assert.NoError(t, err)
+		assert.False(t, proj.Spec.SyncWindows.HasWindows())
+	})
+}
+
+func TestSyncWindows_Active(t *testing.T) {
+	proj := newTestProjectWithSyncWindows()
+	assert.Equal(t, 1, len(*proj.Spec.SyncWindows.Active()))
+}
+
+func TestSyncWindows_InactiveAllows(t *testing.T) {
+	proj := newTestProjectWithSyncWindows()
+	proj.Spec.SyncWindows[0].Schedule = "0 0 1 1 1"
+	assert.Equal(t, 1, len(*proj.Spec.SyncWindows.inactiveAllows()))
+}
+
+func TestAppProjectSpec_AddWindow(t *testing.T) {
+	proj := newTestProjectWithSyncWindows()
 	tests := []struct {
 		name string
 		p    *AppProject
+		k    string
 		s    string
 		d    string
 		a    []string
 		n    []string
 		c    []string
+		m    bool
 		want string
 	}{
-		{"MissingConfig", proj, "", "", []string{}, []string{}, []string{}, "error"},
-		{"BadSchedule", proj, "* * *", "1h", []string{"app1"}, []string{}, []string{}, "error"},
-		{"BadDuration", proj, "* * * * *", "11", []string{"app1"}, []string{}, []string{}, "error"},
-		{"WorkingApplication", proj, "1 * * * *", "1h", []string{"app1"}, []string{}, []string{}, "noError"},
-		{"WorkingNamespace", proj, "2 * * * *", "1h", []string{}, []string{"prod"}, []string{}, "noError"},
-		{"WorkingCluster", proj, "3 * * * *", "1h", []string{}, []string{}, []string{"cluster"}, "noError"},
+		{"MissingKind", proj, "", "* * * * *", "11", []string{"app1"}, []string{}, []string{}, false, "error"},
+		{"MissingSchedule", proj, "allow", "", "", []string{"app1"}, []string{}, []string{}, false, "error"},
+		{"MissingDuration", proj, "allow", "* * * * *", "", []string{"app1"}, []string{}, []string{}, false, "error"},
+		{"BadSchedule", proj, "allow", "* * *", "1h", []string{"app1"}, []string{}, []string{}, false, "error"},
+		{"BadDuration", proj, "deny", "* * * * *", "33mm", []string{"app1"}, []string{}, []string{}, false, "error"},
+		{"WorkingApplication", proj, "allow", "1 * * * *", "1h", []string{"app1"}, []string{}, []string{}, false, "noError"},
+		{"WorkingNamespace", proj, "deny", "3 * * * *", "1h", []string{}, []string{}, []string{"cluster"}, false, "noError"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.p.Spec.Maintenance.AddWindow(tt.s, tt.d, tt.a, tt.n, tt.c)
 			switch tt.want {
 			case "error":
-				assert.Error(t, tt.p.ValidateProject())
-				assert.NoError(t, tt.p.Spec.Maintenance.DeleteWindow(tt.s, tt.d))
+				assert.Error(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m))
 			case "noError":
-				assert.NoError(t, tt.p.ValidateProject())
-				assert.NoError(t, tt.p.Spec.Maintenance.DeleteWindow(tt.s, tt.d))
+				assert.NoError(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m))
+				assert.NoError(t, tt.p.Spec.DeleteWindow(0))
 			}
 		})
 
 	}
 }
 
-func TestProjectMaintenance_DeleteWindow(t *testing.T) {
-	proj := newTestProjectWithMaintenance(true)
-	window1 := &ProjectMaintenanceWindow{Schedule: "* * * * *", Duration: "1h"}
-	proj.Spec.Maintenance.Windows = append(proj.Spec.Maintenance.Windows, window1)
-	window2 := &ProjectMaintenanceWindow{Schedule: "1 * * * *", Duration: "2h"}
-	proj.Spec.Maintenance.Windows = append(proj.Spec.Maintenance.Windows, window2)
+func TestAppProjectSpec_DeleteWindow(t *testing.T) {
+	proj := newTestProjectWithSyncWindows()
+	window2 := &SyncWindow{Schedule: "1 * * * *", Duration: "2h"}
+	proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, window2)
 	t.Run("CannotFind", func(t *testing.T) {
-		err := proj.Spec.Maintenance.DeleteWindow("* * * *", "1h")
+		err := proj.Spec.DeleteWindow(3)
 		assert.Error(t, err)
-		assert.Equal(t, len(proj.Spec.Maintenance.Windows), 2)
+		assert.Equal(t, 2, len(proj.Spec.SyncWindows))
 	})
 	t.Run("Delete", func(t *testing.T) {
-		err := proj.Spec.Maintenance.DeleteWindow("* * * * *", "1h")
+		err := proj.Spec.DeleteWindow(0)
 		assert.NoError(t, err)
-		assert.Equal(t, len(proj.Spec.Maintenance.Windows), 1)
+		assert.Equal(t, 1, len(proj.Spec.SyncWindows))
 	})
 }
 
-func TestProjectMaintenance_HasWindows(t *testing.T) {
-	t.Run("True", func(t *testing.T) {
-		proj := newTestProjectWithMaintenance(true)
-		window := &ProjectMaintenanceWindow{Schedule: "* * * * *", Duration: "1h"}
-		proj.Spec.Maintenance.Windows = append(proj.Spec.Maintenance.Windows, window)
-		assert.True(t, proj.Spec.Maintenance.HasWindows())
-	})
-	t.Run("False", func(t *testing.T) {
-		proj := newTestProjectWithMaintenance(true)
-		assert.False(t, proj.Spec.Maintenance.HasWindows())
-	})
-}
-
-func TestProjectMaintenance_ActiveWindows(t *testing.T) {
-	proj := newTestProjectWithMaintenance(false)
-	window := &ProjectMaintenanceWindow{Schedule: "* * * * *", Duration: "1h"}
-	proj.Spec.Maintenance.Windows = append(proj.Spec.Maintenance.Windows, window)
-	t.Run("SingleActive", func(t *testing.T) {
-		windows := proj.Spec.Maintenance.ActiveWindows()
-		assert.Equal(t, 1, len(windows))
-	})
-	t.Run("MultipleActive", func(t *testing.T) {
-		window2 := &ProjectMaintenanceWindow{Schedule: "* * * * *", Duration: "2h"}
-		proj.Spec.Maintenance.Windows = append(proj.Spec.Maintenance.Windows, window2)
-		assert.Equal(t, 2, len(proj.Spec.Maintenance.ActiveWindows()))
-	})
-	t.Run("None", func(t *testing.T) {
-		proj.Spec.Maintenance.Windows = ProjectMaintenanceWindows{}
-		assert.Equal(t, 0, len(proj.Spec.Maintenance.ActiveWindows()))
-	})
-
-}
-
-func TestProjectMaintenanceWindows_Match(t *testing.T) {
-	proj := newTestProjectWithMaintenance(false)
-	window := &ProjectMaintenanceWindow{Schedule: "* * * * *", Duration: "1h"}
-	proj.Spec.Maintenance.Windows = append(proj.Spec.Maintenance.Windows, window)
+func TestSyncWindows_Matches(t *testing.T) {
+	proj := newTestProjectWithSyncWindows()
 	app := newTestApp()
 	t.Run("MatchNamespace", func(t *testing.T) {
-		proj.Spec.Maintenance.Windows[0].Namespaces = []string{"default"}
-		match, windows := proj.Spec.Maintenance.Windows.Match(app)
-		assert.True(t, match)
-		assert.Equal(t, 1, len(windows))
-		proj.Spec.Maintenance.Windows[0].Namespaces = nil
+		proj.Spec.SyncWindows[0].Namespaces = []string{"default"}
+		windows := proj.Spec.SyncWindows.Matches(app)
+		assert.Equal(t, 1, len(*windows))
+		proj.Spec.SyncWindows[0].Namespaces = nil
 	})
 	t.Run("MatchCluster", func(t *testing.T) {
-		proj.Spec.Maintenance.Windows[0].Clusters = []string{"cluster1"}
-		match, windows := proj.Spec.Maintenance.Windows.Match(app)
-		assert.True(t, match)
-		assert.Equal(t, 1, len(windows))
-		proj.Spec.Maintenance.Windows[0].Clusters = nil
+		proj.Spec.SyncWindows[0].Clusters = []string{"cluster1"}
+		windows := proj.Spec.SyncWindows.Matches(app)
+		assert.Equal(t, 1, len(*windows))
+		proj.Spec.SyncWindows[0].Clusters = nil
 	})
 	t.Run("MatchAppName", func(t *testing.T) {
-		proj.Spec.Maintenance.Windows[0].Applications = []string{"test-app"}
-		match, windows := proj.Spec.Maintenance.Windows.Match(app)
-		assert.True(t, match)
-		assert.Equal(t, 1, len(windows))
-		proj.Spec.Maintenance.Windows[0].Applications = nil
+		proj.Spec.SyncWindows[0].Applications = []string{"test-app"}
+		windows := proj.Spec.SyncWindows.Matches(app)
+		assert.Equal(t, 1, len(*windows))
+		proj.Spec.SyncWindows[0].Applications = nil
 	})
 	t.Run("MatchWildcardAppName", func(t *testing.T) {
-		proj.Spec.Maintenance.Windows[0].Applications = []string{"test-*"}
-		match, windows := proj.Spec.Maintenance.Windows.Match(app)
-		assert.True(t, match)
-		assert.Equal(t, 1, len(windows))
-		proj.Spec.Maintenance.Windows[0].Applications = nil
+		proj.Spec.SyncWindows[0].Applications = []string{"test-*"}
+		windows := proj.Spec.SyncWindows.Matches(app)
+		assert.Equal(t, 1, len(*windows))
+		proj.Spec.SyncWindows[0].Applications = nil
 	})
 	t.Run("NoMatch", func(t *testing.T) {
-		match, windows := proj.Spec.Maintenance.Windows.Match(app)
-		assert.False(t, match)
-		assert.Equal(t, 0, len(windows))
+		windows := proj.Spec.SyncWindows.Matches(app)
+		assert.Nil(t, windows)
 	})
 }
 
-func TestProjectMaintenanceWindows_Active_Match(t *testing.T) {
-	proj := newTestProjectWithMaintenance(false)
-	window := &ProjectMaintenanceWindow{Schedule: "* * * * *", Duration: "1h"}
-	proj.Spec.Maintenance.Windows = append(proj.Spec.Maintenance.Windows, window)
-	app := newTestApp()
-	t.Run("MatchNamespace", func(t *testing.T) {
-		proj.Spec.Maintenance.Windows[0].Namespaces = []string{"default"}
-		active := proj.Spec.Maintenance.ActiveWindows()
-		match, windows := active.Match(app)
-		assert.True(t, match)
-		assert.Equal(t, 1, len(windows))
-		proj.Spec.Maintenance.Windows[0].Namespaces = nil
+func TestSyncWindows_CanSync(t *testing.T) {
+	t.Run("ManualSync_ActiveAllow", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		deny := &SyncWindow{Kind: "deny", Schedule: "0 0 1 * *", Duration: "1m"}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+		assert.True(t, canSync)
+	})
+	t.Run("AutoSync_ActiveAllow", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		deny := &SyncWindow{Kind: "deny", Schedule: "0 0 1 * *", Duration: "1m"}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+		assert.True(t, canSync)
+	})
+	t.Run("_ActiveAllowAndInactiveDeny", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+		assert.True(t, canSync)
+	})
+	t.Run("AutoSync_ActiveAllowAndInactiveDeny", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+		assert.True(t, canSync)
+	})
+	t.Run("ManualSync_InactiveAllow", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Schedule = "0 0 1 * *"
+		proj.Spec.SyncWindows[0].Duration = "1m"
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+		assert.False(t, canSync)
+	})
+	t.Run("AutoSync_InactiveAllow", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Schedule = "0 0 1 * *"
+		proj.Spec.SyncWindows[0].Duration = "1m"
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+		assert.False(t, canSync)
+	})
+	t.Run("ManualSync_InactiveAllowWithManualSyncEnabled", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Schedule = "0 0 1 * *"
+		proj.Spec.SyncWindows[0].Duration = "1m"
+		proj.Spec.SyncWindows[0].ManualSync = true
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+		assert.True(t, canSync)
+	})
+	t.Run("AutoSync_InactiveAllowWithManualSyncEnabled", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Schedule = "0 0 1 * *"
+		proj.Spec.SyncWindows[0].Duration = "1m"
+		proj.Spec.SyncWindows[0].ManualSync = true
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+		assert.False(t, canSync)
+	})
+	t.Run("ManualSync_InactiveAllowAndInactiveDeny", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Schedule = "0 0 1 * *"
+		proj.Spec.SyncWindows[0].Duration = "1m"
+		deny := &SyncWindow{Kind: "deny", Schedule: "0 0 1 * *", Duration: "1m"}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+		assert.False(t, canSync)
+	})
+	t.Run("AutoSync_InactiveAllowAndInactiveDeny", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Schedule = "0 0 1 * *"
+		proj.Spec.SyncWindows[0].Duration = "1m"
+		deny := &SyncWindow{Kind: "deny", Schedule: "0 0 1 * *", Duration: "1m"}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+		assert.False(t, canSync)
+	})
+	t.Run("ManualSync_ActiveDeny", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Kind = "deny"
+		proj.Spec.SyncWindows[0].Schedule = "* * * * *"
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+		assert.False(t, canSync)
+	})
+	t.Run("AutoSync_ActiveDeny", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Kind = "deny"
+		proj.Spec.SyncWindows[0].Schedule = "* * * * *"
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+		assert.False(t, canSync)
+	})
+	t.Run("ManualSync_ActiveDenyWithManualSyncEnabled", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Kind = "deny"
+		proj.Spec.SyncWindows[0].Schedule = "* * * * *"
+		proj.Spec.SyncWindows[0].ManualSync = true
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+		assert.True(t, canSync)
+	})
+	t.Run("AutoSync_ActiveDenyWithManualSyncEnabled", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Kind = "deny"
+		proj.Spec.SyncWindows[0].Schedule = "* * * * *"
+		proj.Spec.SyncWindows[0].ManualSync = true
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+		assert.False(t, canSync)
+	})
+	t.Run("ManualSync_MultipleActiveDenyWithManualSyncEnabledOnOne", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Kind = "deny"
+		proj.Spec.SyncWindows[0].Schedule = "* * * * *"
+		proj.Spec.SyncWindows[0].ManualSync = true
+		deny2 := &SyncWindow{Kind: "deny", Schedule: "* * * * *", Duration: "2h"}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny2)
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+		assert.False(t, canSync)
+	})
+	t.Run("AutoSync_MultipleActiveDenyWithManualSyncEnabledOnOne", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Kind = "deny"
+		proj.Spec.SyncWindows[0].Schedule = "* * * * *"
+		proj.Spec.SyncWindows[0].ManualSync = true
+		deny2 := &SyncWindow{Kind: "deny", Schedule: "* * * * *", Duration: "2h"}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny2)
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+		assert.False(t, canSync)
+	})
+	t.Run("ManualSync_ActiveDenyAndActiveAllow", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		deny := &SyncWindow{Kind: "deny", Schedule: "1 * * * *", Duration: "1h"}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+		assert.False(t, canSync)
+	})
+	t.Run("AutoSync_ActiveDenyAndActiveAllow", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		deny := &SyncWindow{Kind: "deny", Schedule: "1 * * * *", Duration: "1h"}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+		assert.False(t, canSync)
 	})
 }
 
-func TestProjectMaintenance_IsEnabled(t *testing.T) {
+func TestSyncWindows_hasDeny(t *testing.T) {
 	t.Run("True", func(t *testing.T) {
-		proj := newTestProjectWithMaintenance(true)
-		assert.True(t, proj.Spec.Maintenance.IsEnabled())
+		proj := newTestProjectWithSyncWindows()
+		deny := &SyncWindow{Kind: "deny"}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+		hasDeny, manualEnabled := proj.Spec.SyncWindows.hasDeny()
+		assert.True(t, hasDeny)
+		assert.False(t, manualEnabled)
+	})
+	t.Run("TrueManualEnabled", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		deny := &SyncWindow{Kind: "deny", ManualSync: true}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+		hasDeny, manualEnabled := proj.Spec.SyncWindows.hasDeny()
+		assert.True(t, hasDeny)
+		assert.True(t, manualEnabled)
+
 	})
 	t.Run("False", func(t *testing.T) {
-		proj := newTestProjectWithMaintenance(false)
-		proj.Spec.Maintenance.Enabled = false
-		assert.False(t, proj.Spec.Maintenance.IsEnabled())
+		proj := newTestProjectWithSyncWindows()
+		hasDeny, manualEnabled := proj.Spec.SyncWindows.hasDeny()
+		assert.False(t, hasDeny)
+		assert.False(t, manualEnabled)
+
 	})
 }
 
-func TestProjectMaintenanceWindow_Update(t *testing.T) {
-	e := ProjectMaintenanceWindow{Schedule: "* * * * *", Duration: "1h", Applications: []string{"app1"}}
+func TestSyncWindows_hasAllow(t *testing.T) {
+	t.Run("NoWindows", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		_ = proj.Spec.DeleteWindow(0)
+		assert.False(t, proj.Spec.SyncWindows.hasAllow())
+	})
+	t.Run("True", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		assert.True(t, proj.Spec.SyncWindows.hasAllow())
+	})
+	t.Run("NoWindows", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Kind = "deny"
+		assert.False(t, proj.Spec.SyncWindows.hasAllow())
+	})
+}
+
+func TestSyncWindow_Active(t *testing.T) {
+	window := &SyncWindow{Schedule: "* * * * *", Duration: "1h"}
+	t.Run("ActiveWindow", func(t *testing.T) {
+		window.Active()
+		assert.True(t, window.Active())
+	})
+}
+
+func TestSyncWindow_Update(t *testing.T) {
+	e := SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h", Applications: []string{"app1"}}
 	t.Run("AddApplication", func(t *testing.T) {
-		err := e.Update([]string{"app1", "app2"}, []string{}, []string{})
+		err := e.Update("", "", []string{"app1", "app2"}, []string{}, []string{})
 		assert.NoError(t, err)
 		assert.Equal(t, []string{"app1", "app2"}, e.Applications)
 	})
 	t.Run("AddNamespace", func(t *testing.T) {
-		err := e.Update([]string{}, []string{"namespace1"}, []string{})
+		err := e.Update("", "", []string{}, []string{"namespace1"}, []string{})
 		assert.NoError(t, err)
 		assert.Equal(t, []string{"namespace1"}, e.Namespaces)
 	})
 	t.Run("AddCluster", func(t *testing.T) {
-		err := e.Update([]string{}, []string{}, []string{"cluster1"})
+		err := e.Update("", "", []string{}, []string{}, []string{"cluster1"})
 		assert.NoError(t, err)
 		assert.Equal(t, []string{"cluster1"}, e.Clusters)
 	})
 	t.Run("MissingConfig", func(t *testing.T) {
-		err := e.Update([]string{}, []string{}, []string{})
-		assert.EqualError(t, err, "cannot update window: require one of application, namespace or cluster")
+		err := e.Update("", "", []string{}, []string{}, []string{})
+		assert.EqualError(t, err, "cannot update: require one or more of schedule, duration, application, namespace, or cluster")
+	})
+	t.Run("ChangeDuration", func(t *testing.T) {
+		err := e.Update("", "10h", []string{}, []string{}, []string{})
+		assert.NoError(t, err)
+		assert.Equal(t, "10h", e.Duration)
+	})
+	t.Run("ChangeSchedule", func(t *testing.T) {
+		err := e.Update("* 1 0 0 *", "", []string{}, []string{}, []string{})
+		assert.NoError(t, err)
+		assert.Equal(t, "* 1 0 0 *", e.Schedule)
 	})
 }
 
-func newTestProjectWithMaintenance(w bool) *AppProject {
+func TestSyncWindow_Validate(t *testing.T) {
+	window := &SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
+	t.Run("Validates", func(t *testing.T) {
+		assert.NoError(t, window.Validate())
+	})
+	t.Run("IncorrectKind", func(t *testing.T) {
+		window.Kind = "wrong"
+		assert.Error(t, window.Validate())
+	})
+	t.Run("IncorrectSchedule", func(t *testing.T) {
+		window.Kind = "allow"
+		window.Schedule = "* * *"
+		assert.Error(t, window.Validate())
+	})
+	t.Run("IncorrectDuration", func(t *testing.T) {
+		window.Kind = "allow"
+		window.Schedule = "* * * * *"
+		window.Duration = "1000days"
+		assert.Error(t, window.Validate())
+	})
+}
+
+func newTestProjectWithSyncWindows() *AppProject {
 	p := &AppProject{
 		ObjectMeta: v1.ObjectMeta{Name: "my-proj"},
-		Spec:       AppProjectSpec{Maintenance: &ProjectMaintenance{Enabled: true}}}
-	if w {
-		p.Spec.Maintenance.Windows = ProjectMaintenanceWindows{}
+		Spec:       AppProjectSpec{SyncWindows: SyncWindows{}}}
+
+	window := &SyncWindow{
+		Kind:         "allow",
+		Schedule:     "* * * * *",
+		Duration:     "1h",
+		Applications: []string{"app1"},
+		Namespaces:   []string{"public"},
 	}
+	p.Spec.SyncWindows = append(p.Spec.SyncWindows, window)
 	return p
 }
 
@@ -1058,20 +1243,4 @@ func newTestApp() *Application {
 		},
 	}
 	return a
-}
-
-func TestAppProjectSpec_AddMaintenance(t *testing.T) {
-	proj := newTestProject()
-	t.Run("AddMaintenance", func(t *testing.T) {
-		proj.Spec.AddMaintenance()
-		assert.NotNil(t, proj.Spec.Maintenance)
-	})
-}
-
-func TestProjectMaintenanceWindow_Active(t *testing.T) {
-	window := &ProjectMaintenanceWindow{Schedule: "* * * * *", Duration: "1h"}
-	t.Run("ActiveWindow", func(t *testing.T) {
-		window.Active()
-		assert.True(t, window.Active())
-	})
 }

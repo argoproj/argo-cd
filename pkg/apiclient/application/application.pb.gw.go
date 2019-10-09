@@ -161,8 +161,8 @@ func request_ApplicationService_Get_0(ctx context.Context, marshaler runtime.Mar
 
 }
 
-func request_ApplicationService_GetApplicationMaintenanceState_0(ctx context.Context, marshaler runtime.Marshaler, client ApplicationServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq ApplicationMaintenanceQuery
+func request_ApplicationService_GetApplicationSyncWindows_0(ctx context.Context, marshaler runtime.Marshaler, client ApplicationServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq ApplicationSyncWindowsQuery
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -183,7 +183,7 @@ func request_ApplicationService_GetApplicationMaintenanceState_0(ctx context.Con
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
 	}
 
-	msg, err := client.GetApplicationMaintenanceState(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.GetApplicationSyncWindows(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
@@ -952,7 +952,7 @@ func RegisterApplicationServiceHandlerClient(ctx context.Context, mux *runtime.S
 
 	})
 
-	mux.Handle("GET", pattern_ApplicationService_GetApplicationMaintenanceState_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_ApplicationService_GetApplicationSyncWindows_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
@@ -970,14 +970,14 @@ func RegisterApplicationServiceHandlerClient(ctx context.Context, mux *runtime.S
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_ApplicationService_GetApplicationMaintenanceState_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_ApplicationService_GetApplicationSyncWindows_0(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_ApplicationService_GetApplicationMaintenanceState_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_ApplicationService_GetApplicationSyncWindows_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -1488,7 +1488,7 @@ var (
 
 	pattern_ApplicationService_Get_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "applications", "name"}, ""))
 
-	pattern_ApplicationService_GetApplicationMaintenanceState_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "applications", "name", "maintenance"}, ""))
+	pattern_ApplicationService_GetApplicationSyncWindows_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "applications", "name", "syncwindows"}, ""))
 
 	pattern_ApplicationService_RevisionMetadata_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 1, 0, 4, 1, 5, 5, 2, 6}, []string{"api", "v1", "applications", "name", "revisions", "revision", "metadata"}, ""))
 
@@ -1536,7 +1536,7 @@ var (
 
 	forward_ApplicationService_Get_0 = runtime.ForwardResponseMessage
 
-	forward_ApplicationService_GetApplicationMaintenanceState_0 = runtime.ForwardResponseMessage
+	forward_ApplicationService_GetApplicationSyncWindows_0 = runtime.ForwardResponseMessage
 
 	forward_ApplicationService_RevisionMetadata_0 = runtime.ForwardResponseMessage
 
