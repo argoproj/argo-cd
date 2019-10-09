@@ -128,17 +128,17 @@ jobs:
           export DOWNLOADS=/tmp/dl
           export BIN=/usr/local/bin
           mkdir -p $DOWNLOADS
-          ./hack/installers/install-ksonnet.sh
-          ./hack/installers/install-helm.sh
-          ./hack/installers/install-kustomize.sh
+          ./hack/installers/linux/install-ksonnet.sh
+          ./hack/installers/linux/install-helm.sh
+          ./hack/installers/linux/install-kustomize.sh
       - dep_ensure
       - run: go get github.com/jstemmer/go-junit-report
       - run: sudo apt-get install -y xsltproc
       - run: make test
       - store_test_results:
-          path: tests-results
+          path: test-results
       - store_artifacts:
-          path: tests-results
+          path: test-results
           when: always
       - run:
           name: Uploading code coverage
@@ -268,9 +268,9 @@ jobs:
             ARGOCD_E2E_EXPECT_TIMEOUT: "30"
             ARGOCD_E2E_K3S: "true"
       - store_test_results:
-          path: tests-results
+          path: test-results
       - store_artifacts:
-          path: tests-results/
+          path: test-results/
           when: always
   ui:
     # note that we checkout the code in ~/argo-cd/, but then work in ~/argo-cd/ui
