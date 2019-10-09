@@ -131,7 +131,7 @@ jobs:
     working_directory: /go/src/github.com/argoproj/argo-cd
     steps:
       - checkout
-      - run: ./hack/install.sh helm-linux protoc-linux swagger-linux jq-linux codegen-tools
+      - run: ./hack/install.sh protoc-linux swagger-linux jq-linux helm-linux kustomize-linux codegen-tools
       - dep_ensure
       - run: make codegen
       - check_for_changes
