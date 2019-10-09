@@ -86,7 +86,8 @@ jobs:
       - restore_cache:
           keys:
             - test-v1
-      - run: ./hack/install.sh kubectl-linux ksonnet-linux helm-linux kustomize-linux xsltproc-linux go-junit-report
+      - run: ./hack/install.sh kubectl-linux ksonnet-linux helm-linux kustomize-linux
+      #  xsltproc-linux go-junit-report
       - run: dep ensure
       - save_cache:
           key: test-v1
