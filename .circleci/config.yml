@@ -87,21 +87,6 @@ commands:
       - store_artifacts:
           path: codegen.patch
           when: always
-  dev_tools:
-    steps:
-      - restore_cache:
-          keys:
-            - dev-tools-v1-{{ .Branch }}
-            - dev-tools-v1-master
-      - run:
-          name: Make dev tools
-          command: |
-            set -x
-            docker load < dev-tools.tar.gz || ( make dev-tools-image && docker save argoproj/argocd-dev-tools:latest | gzip > dev-tools.tar.gz )
-      - save_cache:
-          key: dev-tools-v1-{{ .Branch }}
-          paths:
-            - dev-tools.tar.gz
 jobs:
   test:
     docker:
@@ -113,6 +98,7 @@ jobs:
       - checkout
       - run: ./hack/install.sh kubectl-linux ksonnet-linux helm-linux kustomize-linux xsltproc-linux go-junit-report
       - dep_ensure
+      - run: make build
       - run: make test
       - store_test_results:
           path: test-results
@@ -145,6 +131,7 @@ jobs:
   e2e2:
     docker:
       - image: circleci/golang:1.12
+        command: todo
         environment:
           ARGOCD_FAKE_IN_CLUSTER: "true"
           ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
@@ -155,6 +142,7 @@ jobs:
           ARGOCD_E2E_K3S: "true"
       - image: rancher/k3s:v0.9.1
     working_directory: /go/src/github.com/argoproj/argo-cd
+    resource_class: large
     steps:
       - checkout
       - dep_ensure
