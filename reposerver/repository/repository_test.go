@@ -388,16 +388,6 @@ func TestGetRevisionMetadata(t *testing.T) {
 }
 
 func Test_newEnv(t *testing.T) {
-	env, err := newEnv(&apiclient.ManifestRequest{
-		AppLabelValue: "my-app-name",
-		Namespace:     "my-namespace",
-		Repo:          &argoappv1.Repository{Repo: "https://github.com/my-org/my-repo"},
-		ApplicationSource: &argoappv1.ApplicationSource{
-			Path:           "my-path",
-			TargetRevision: "my-target-revision",
-		},
-	}, "my-revision")
-	assert.NoError(t, err)
 	assert.Equal(t, &argoappv1.Env{
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: "my-app-name"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: "my-namespace"},
@@ -405,5 +395,13 @@ func Test_newEnv(t *testing.T) {
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: "https://github.com/my-org/my-repo"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: "my-path"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: "my-target-revision"},
-	}, env)
+	}, newEnv(&apiclient.ManifestRequest{
+		AppLabelValue: "my-app-name",
+		Namespace:     "my-namespace",
+		Repo:          &argoappv1.Repository{Repo: "https://github.com/my-org/my-repo"},
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path:           "my-path",
+			TargetRevision: "my-target-revision",
+		},
+	}, "my-revision"))
 }

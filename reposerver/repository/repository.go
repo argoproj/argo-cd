@@ -283,14 +283,14 @@ func GenerateManifests(appPath, revision string, q *apiclient.ManifestRequest) (
 	var dest *v1alpha1.ApplicationDestination
 
 	appSourceType, err := GetAppSourceType(q.ApplicationSource, appPath)
+	if err != nil {
+		return nil, err
+	}
 	repoURL := ""
 	if q.Repo != nil {
 		repoURL = q.Repo.Repo
 	}
-	env, err := newEnv(q, revision)
-	if err != nil {
-		return nil, err
-	}
+	env := newEnv(q, revision)
 
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeKsonnet:
@@ -360,7 +360,7 @@ func GenerateManifests(appPath, revision string, q *apiclient.ManifestRequest) (
 	return &res, nil
 }
 
-func newEnv(q *apiclient.ManifestRequest, revision string) (*v1alpha1.Env, error) {
+func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
 	return &v1alpha1.Env{
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: q.AppLabelValue},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: q.Namespace},
@@ -368,7 +368,7 @@ func newEnv(q *apiclient.ManifestRequest, revision string) (*v1alpha1.Env, error
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: q.Repo.Repo},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: q.ApplicationSource.Path},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: q.ApplicationSource.TargetRevision},
-	}, nil
+	}
 }
 
 // GetAppSourceType returns explicit application source type or examines a directory and determines its application source type
