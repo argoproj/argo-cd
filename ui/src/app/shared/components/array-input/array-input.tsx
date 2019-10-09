@@ -22,35 +22,29 @@ import * as React from 'react';
 
 class Props<I> {
     public items: I[];
-    // create a new empty item
-    public readonly emptyItem: () => I;
     public readonly onChange: (items: I[]) => void;
     // render a component to edit an item
     public readonly itemEditor: (i: I, replaceItem: (k: I) => void, removeItem: () => void) => React.ReactFragment;
     // render a component to create a new item
-    public readonly itemCreator: (i: I, addItem: () => void) => React.ReactFragment;
+    public readonly itemCreator: (addItem: (i: I) => void) => React.ReactFragment;
 }
 
 class State<I> {
     public items: I[];
-    public newItem: I;
 }
 
 export abstract class ArrayInput<I> extends React.Component<Props<I>, State<I>> {
     protected constructor(props: Readonly<Props<I>>) {
         super(props);
-        this.state = {newItem: props.emptyItem(), items: props.items};
+        this.state = {items: props.items};
     }
 
     public render() {
-        const onChange = (i: I) => {
-            this.setState((s) => ({...s, newItem: i}));
-        };
-        const addItem = () => {
+        const addItem = (i: I) => {
             this.setState((s) => {
-                s.items.push(s.newItem);
+                s.items.push(i);
                 this.props.onChange(s.items);
-                return {...s, newItem: this.props.emptyItem()};
+                return {...s};
             });
         };
         const replaceItem = (i: I, j: number) => {
@@ -75,8 +69,8 @@ export abstract class ArrayInput<I> extends React.Component<Props<I>, State<I>> 
                             {this.props.itemEditor(i, (k: I) => replaceItem(k, j), () => removeItem(j))}
                         </div>
                     ))}
-                    <div key={`item-new-${this.state.newItem.toString()}`}>
-                        {this.props.itemCreator(this.state.newItem, onChange, addItem)}
+                    <div>
+                        {this.props.itemCreator(addItem)}
                     </div>
                 </div>
             </div>

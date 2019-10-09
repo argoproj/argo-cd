@@ -21,51 +21,75 @@ const ArrayItemEditor = (i: ArrayItem, replaceItem: (i: ArrayItem) => void, remo
     </React.Fragment>
 );
 
-const ArrayItemCreator = (i: ArrayItem, addItem: () => void) => (
-    <div>
-        <input placeholder='Name' value={i.name} onChange={(e) => {
-            i.name = e.target.value;
-        }}/>
-        &nbsp;
-        =
-        &nbsp;
-        <input placeholder='Value' value={i.value} onChange={(e) => {
-            i.value = e.target.value;
-        }}/>
-        &nbsp;
-        <button disabled={i.name === '' || i.value === ''} onClick={() => addItem()}>
-            <i style={{cursor: 'pointer'}} className='fa fa-plus'/>
-        </button>
-    </div>
+class Props {
+    public addItem: (i: ArrayItem) => void;
+}
 
-);
+export class ArrayItemCreator<I> extends React.Component<Props, ArrayItem> {
+    constructor(props: Props) {
+        super(props);
+        this.state = new ArrayItem();
+    }
 
-export const ArrayInputField = ReactForm.FormField((props: { fieldApi: ReactForm.FieldApi }) => {
-    const {fieldApi: {getValue, setValue}} = props;
-    return (
-        <ArrayInput items={getValue() || []} onChange={setValue} emptyItem={() => new ArrayItem()}
-                    itemEditor={ArrayItemEditor} itemCreator={ArrayItemCreator}/>
-    );
-});
+    public render() {
+        return (
+            <div>
+                <input placeholder='Name' value={this.state.name} onChange={(e) =>
+                    this.setState((s) => {
+                        return {...s, name: e.target.value};
+                    })
+                }/>
+                &nbsp;
+                =
+                &nbsp;
+                <input placeholder='Value' value={this.state.value} onChange={(e) =>
+                    this.setState((s) => ({...s, value: e.target.value}))
+                }/>
+                &nbsp;
+                <button disabled={this.state.name === '' || this.state.value === ''}
+                        onClick={() => {
+                            this.props.addItem(this.state);
+                            this.setState(() => new ArrayItem());
+                        }}>
+                    <i style={{cursor: 'pointer'}} className='fa fa-plus'/>
+                </button>
+            </div>
+        );
+    }
+}
 
-export const MapInputField = ReactForm.FormField((props: { fieldApi: ReactForm.FieldApi }) => {
-    const {fieldApi: {getValue, setValue}} = props;
-    const items = new Array<ArrayItem>();
-    const map = getValue() || {};
-    Object.keys(map).forEach((key) => items.push({name: key, value: map[key]}));
-    return (
-        <ArrayInput items={items} onChange={(array) => {
+export const
+    ArrayInputField = ReactForm.FormField((props: { fieldApi: ReactForm.FieldApi }) => {
+        const {fieldApi: {getValue, setValue}} = props;
+        return (
+            <ArrayInput items={getValue() || []} onChange={setValue}
+                        itemEditor={ArrayItemEditor}
+                        itemCreator={(addItem: (i: ArrayItem) => void) => <ArrayItemCreator addItem={addItem}/>}/>
+        );
+    });
+
+export const
+    MapInputField = ReactForm.FormField((props: { fieldApi: ReactForm.FieldApi }) => {
+        const {fieldApi: {getValue, setValue}} = props;
+        const items = new Array<ArrayItem>();
+        const map = getValue() || {};
+        Object.keys(map).forEach((key) => items.push({name: key, value: map[key]}));
+        const onChange = (array: ArrayItem[]) => {
             const newMap = {} as any;
             array.forEach((item) => newMap[item.name] = item.value);
             setValue(newMap);
-        }} emptyItem={() => new ArrayItem()} itemEditor={ArrayItemEditor} itemCreator={ArrayItemCreator}/>
-    );
-});
+        };
+        return (
+            <ArrayInput items={items} onChange={onChange} itemEditor={ArrayItemEditor}
+                        itemCreator={(addItem: (i: ArrayItem) => void) => <ArrayItemCreator addItem={addItem}/>}/>
+        );
+    });
 
-export const VarsInputField = ReactForm.FormField((props: { fieldApi: ReactForm.FieldApi }) => {
-    const {fieldApi: {getValue, setValue}} = props;
-    return (
-        <ArrayInput items={getValue() || []} onChange={setValue} emptyItem={() => new ArrayItem()}
-                    itemEditor={ArrayItemEditor} itemCreator={ArrayItemCreator}/>
-    );
-});
+export const
+    VarsInputField = ReactForm.FormField((props: { fieldApi: ReactForm.FieldApi }) => {
+        const {fieldApi: {getValue, setValue}} = props;
+        return (
+            <ArrayInput items={getValue() || []} onChange={setValue} itemEditor={ArrayItemEditor}
+                        itemCreator={(addItem: (i: ArrayItem) => void) => <ArrayItemCreator addItem={addItem}/>}/>
+        );
+    });
