@@ -36,7 +36,7 @@
     
     
       
-        <title>Jsonnet - Argo CD - Declarative GitOps CD for Kubernetes</title>
+        <title>Sync Windows - Argo CD - Declarative GitOps CD for Kubernetes</title>
       
     
     
@@ -127,7 +127,7 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
     
-      <a href="#jsonnet" tabindex="1" class="md-skip">
+      <a href="#sync-windows" tabindex="1" class="md-skip">
         Skip to content
       </a>
     
@@ -152,7 +152,7 @@
               Argo CD - Declarative GitOps CD for Kubernetes
             </span>
             <span class="md-header-nav__topic">
-              Jsonnet
+              Sync Windows
             </span>
           
         </div>
@@ -581,56 +581,6 @@
           
           
 
-  
-
-
-  <li class="md-nav__item md-nav__item--active">
-    
-    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
-    
-      
-    
-    
-      <label class="md-nav__link md-nav__link--active" for="__toc">
-        Jsonnet
-      </label>
-    
-    <a href="./" title="Jsonnet" class="md-nav__link md-nav__link--active">
-      Jsonnet
-    </a>
-    
-      
-<nav class="md-nav md-nav--secondary">
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">Table of contents</label>
-    <ul class="md-nav__list" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#build-environment" title="Build Environment" class="md-nav__link">
-    Build Environment
-  </a>
-  
-</li>
-      
-      
-      
-      
-      
-    </ul>
-  
-</nav>
-    
-  </li>
-
-        
-          
-          
-          
-
 
   <li class="md-nav__item">
     <a href="../config-management-plugins/" title="Plugins" class="md-nav__link">
@@ -753,18 +703,6 @@
 
 
   <li class="md-nav__item">
-    <a href="../build-environment/" title="Build Environment" class="md-nav__link">
-      Build Environment
-    </a>
-  </li>
-
-        
-          
-          
-          
-
-
-  <li class="md-nav__item">
     <a href="../tracking_strategies/" title="Tracking and Deployment Strategies" class="md-nav__link">
       Tracking and Deployment Strategies
     </a>
@@ -811,11 +749,20 @@
           
           
 
+  
 
-  <li class="md-nav__item">
-    <a href="../maintenance_windows/" title="Maintenance Windows" class="md-nav__link">
-      Maintenance Windows
+
+  <li class="md-nav__item md-nav__item--active">
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    
+      
+    
+    
+    <a href="./" title="Sync Windows" class="md-nav__link md-nav__link--active">
+      Sync Windows
     </a>
+    
   </li>
 
         
@@ -1057,22 +1004,6 @@
     
   
   
-    <label class="md-nav__title" for="__toc">Table of contents</label>
-    <ul class="md-nav__list" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#build-environment" title="Build Environment" class="md-nav__link">
-    Build Environment
-  </a>
-  
-</li>
-      
-      
-      
-      
-      
-    </ul>
-  
 </nav>
                   </div>
                 </div>
@@ -1083,12 +1014,82 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/user-guide/jsonnet.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/user-guide/sync_windows.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
-                <h1 id="jsonnet">Jsonnet<a class="headerlink" href="#jsonnet" title="Permanent link">&para;</a></h1>
-<h2 id="build-environment">Build Environment<a class="headerlink" href="#build-environment" title="Permanent link">&para;</a></h2>
-<p>Jsonnet apps have access to the <a href="../build-environment/">standard build environment</a> via substitution into <em>TLAs</em> and <em>external variables</em>.</p>
+                <h1 id="sync-windows">Sync Windows<a class="headerlink" href="#sync-windows" title="Permanent link">&para;</a></h1>
+<p>Sync windows are configurable windows of time where syncs will either be blocked or allowed. These are defined
+by a kind, which can be either <code>allow</code> or <code>deny</code>, a start time in cron format and a duration along with one or 
+more of either applications, namespaces and clusters. Wildcards are supported. These windows affect the running 
+of both manual and automated syncs but allow an override for manual syncs which is useful if you are only interested
+in preventing automated syncs or if you need to temporarily override a window to perform a sync.</p>
+<p>If an application has matching allow windows then it will only be able to sync during those windows. If is has 
+has matching deny windows then they will override any matching allows if the windows are active at the same time.</p>
+<p>Windows can be created using the CLI:</p>
+<div class="codehilite"><pre><span></span>argocd proj windows add PROJECT <span class="se">\</span>
+    --kind allow <span class="se">\</span>
+    --schedule <span class="s2">&quot;0 22 * * *&quot;</span> <span class="se">\</span>
+    --duration 1h <span class="se">\</span>
+    --applications <span class="s2">&quot;*&quot;</span>
+</pre></div>
+
+
+<p>Alternatively, they can be created directly in the <code>AppProject</code> manifest:</p>
+<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AppProject</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">default</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">syncWindows</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">allow</span>
+    <span class="nt">schedule</span><span class="p">:</span> <span class="s">&#39;10</span><span class="nv"> </span><span class="s">1</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">*&#39;</span>
+    <span class="nt">duration</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1h</span>
+    <span class="nt">applications</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="s">&#39;*-prod&#39;</span>
+    <span class="nt">manualSync</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
+  <span class="p p-Indicator">-</span> <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">deny</span>
+    <span class="nt">schedule</span><span class="p">:</span> <span class="s">&#39;0</span><span class="nv"> </span><span class="s">22</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">*&#39;</span>
+    <span class="nt">duration</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1h</span>
+    <span class="nt">namespaces</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">default</span>
+  <span class=" -Error"> </span><span class="p p-Indicator">-</span> <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">allow</span>
+     <span class="nt">schedule</span><span class="p">:</span> <span class="s">&#39;0</span><span class="nv"> </span><span class="s">23</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">*&#39;</span>
+     <span class="nt">duration</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1h</span>
+     <span class="nt">clusters</span><span class="p">:</span>
+     <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">in-cluster</span>
+     <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">cluster1</span>
+</pre></div>
+
+
+<p>In order to perform a sync when syncs are being prevented by a window, you can configure the window to allow manual syncs
+using the CLI, UI or directly in the <code>AppProject</code> manifest:</p>
+<div class="codehilite"><pre><span></span>argocd proj windows enable-manual-sync PROJECT ID
+</pre></div>
+
+
+<p>To disable</p>
+<div class="codehilite"><pre><span></span>argocd proj windows disable-manual-sync PROJECT ID
+</pre></div>
+
+
+<p>Windows can be listed using the CLI or viewed in the UI:</p>
+<div class="codehilite"><pre><span></span>argocd proj windows list PROJECT
+</pre></div>
+
+
+<div class="codehilite"><pre><span></span>ID  STATUS    KIND   SCHEDULE    DURATION  APPLICATIONS  NAMESPACES  CLUSTERS  MANUALSYNC
+<span class="m">0</span>   Active    allow  * * * * *   1h        -             -           prod1     Disabled
+<span class="m">1</span>   Inactive  deny   * * * * <span class="m">1</span>   3h        -             default     -         Disabled
+<span class="m">2</span>   Inactive  allow  <span class="m">1</span> <span class="m">2</span> * * *   1h        prod-*        -           -         Enabled
+<span class="m">3</span>   Active    deny   * * * * *   1h        -             default     -         Disabled
+</pre></div>
+
+
+<p>All fields of a window can be updated using either the CLI or UI. The <code>applications</code>, <code>namespaces</code> and <code>clusters</code> fields
+require the update to contain all of the required values. For example if updating the <code>namespaces</code> field and it already
+contains default and kube-system then the new value would have to include those in the list. </p>
+<div class="codehilite"><pre><span></span>argocd proj windows update PROJECT ID --namespaces default,kube-system,prod1
+</pre></div>
                 
                   
                 
@@ -1109,7 +1110,7 @@
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
         
-          <a href="../ksonnet/" title="Ksonnet" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+          <a href="../sync-waves/" title="Sync Phases and Waves" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
             <div class="md-flex__cell md-flex__cell--shrink">
               <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
             </div>
@@ -1118,19 +1119,19 @@
                 <span class="md-footer-nav__direction">
                   Previous
                 </span>
-                Ksonnet
+                Sync Phases and Waves
               </span>
             </div>
           </a>
         
         
-          <a href="../config-management-plugins/" title="Plugins" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+          <a href="../ci_automation/" title="Automation from CI Pipelines" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
               <span class="md-flex__ellipsis">
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                Plugins
+                Automation from CI Pipelines
               </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink">
