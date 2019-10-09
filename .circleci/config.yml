@@ -119,6 +119,7 @@ jobs:
     docker:
       - image: circleci/golang:1.12
     working_directory: /go/src/github.com/argoproj/argo-cd
+    resource_class: large
     steps:
       - configure_git
       - checkout
@@ -155,6 +156,7 @@ jobs:
           mkdir -p $DOWNLOADS
           ./hack/installers/install-protoc.sh
           ./hack/installers/install-swagger.sh
+          ./hack/installers/install-jq.sh
           ./hack/installers/install-goimports.sh
       - dep_ensure
       - run: make codegen
