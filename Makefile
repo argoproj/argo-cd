@@ -157,6 +157,8 @@ dep-ensure:
 
 .PHONY: lint
 lint:
+	./hack/installers/install-golangci-lint.sh
+	./hack/installers/install-goimports.sh
 	# golangci-lint does not do a good job of formatting imports
 	goimports -local github.com/argoproj/argo-cd -w `find . ! -path './vendor/*' ! -path './pkg/client/*' ! -path '*.pb.go' ! -path '*.gw.go' -type f -name '*.go'`
 	golangci-lint --version
