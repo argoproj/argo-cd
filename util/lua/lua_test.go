@@ -217,7 +217,7 @@ const validDiscoveryLua = `
 scaleParams = { {name = "replicas", type = "number"} }
 scale = {name = 'scale', params = scaleParams}
 
-resume = {name = 'resume'}
+resume = {name = 'resume', available = false}
 
 test = {}
 a = {scale = scale, resume = resume, test = test}
@@ -232,15 +232,18 @@ func TestExecuteResourceActionDiscovery(t *testing.T) {
 	assert.Nil(t, err)
 	expectedActions := []appv1.ResourceAction{
 		{
-			Name: "resume",
+			Available: false,
+			Name:      "resume",
 		}, {
-			Name: "scale",
+			Available: true,
+			Name:      "scale",
 			Params: []appv1.ResourceActionParam{{
 				Name: "replicas",
 				Type: "number",
 			}},
 		}, {
-			Name: "test",
+			Available: true,
+			Name:      "test",
 		},
 	}
 	for _, expectedAction := range expectedActions {

@@ -239,7 +239,7 @@ func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scri
 func isActionAvailable(actionsMap interface{}) bool {
 	actions, ok := actionsMap.(map[string]interface{})
 	if !ok {
-		return false
+		return true
 	}
 	for key, val := range actions {
 		switch vv := val.(type) {
@@ -249,7 +249,7 @@ func isActionAvailable(actionsMap interface{}) bool {
 			}
 		}
 	}
-	return false
+	return true
 }
 
 func emptyResourceActionFromLua(i interface{}) bool {
