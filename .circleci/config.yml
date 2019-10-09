@@ -99,7 +99,7 @@ jobs:
       - restore_cache:
           keys:
             - test-install-v1
-      - run: ./hack/install.sh kubectl-linux ksonnet-linux helm-linux kustomize-linux xsltproc-linux go-junit-report
+      #- run: ./hack/install.sh kubectl-linux ksonnet-linux helm-linux kustomize-linux xsltproc-linux go-junit-report
       - save_cache:
           key: test-install-v1
           paths:
@@ -147,7 +147,7 @@ jobs:
   e2e2:
     docker:
       - image: circleci/golang:1.12
-        command: "/bin/k3s server --token abc123"
+        command: echo hello
         environment:
           ARGOCD_FAKE_IN_CLUSTER: "true"
           ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
