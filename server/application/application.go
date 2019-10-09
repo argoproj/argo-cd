@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime/schema"
-
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -1083,7 +1081,7 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 		return nil, err
 	}
 
-	availableActions, err := s.getAvailableActions(resourceOverrides, obj, res.GroupKindVersion(), "")
+	availableActions, err := s.getAvailableActions(resourceOverrides, obj)
 	if err != nil {
 		return nil, err
 	}
@@ -1091,7 +1089,7 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 	return &application.ResourceActionsListResponse{Actions: availableActions}, nil
 }
 
-func (s *Server) getAvailableActions(resourceOverrides map[string]appv1.ResourceOverride, obj *unstructured.Unstructured, gvk schema.GroupVersionKind, filterAction string) ([]appv1.ResourceAction, error) {
+func (s *Server) getAvailableActions(resourceOverrides map[string]appv1.ResourceOverride, obj *unstructured.Unstructured) ([]appv1.ResourceAction, error) {
 	luaVM := lua.VM{
 		ResourceOverrides: resourceOverrides,
 	}
@@ -1106,13 +1104,6 @@ func (s *Server) getAvailableActions(resourceOverrides map[string]appv1.Resource
 	availableActions, err := luaVM.ExecuteResourceActionDiscovery(obj, discoveryScript)
 	if err != nil {
 		return nil, err
-	}
-	for i := range availableActions {
-		action := availableActions[i]
-		availableActions[i].Name = gvk.Group + "/" + gvk.Kind + "/" + action.Name
-		if action.Name == filterAction {
-			return []appv1.ResourceAction{action}, nil
-		}
 	}
 	return availableActions, nil
 
