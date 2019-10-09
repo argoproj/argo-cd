@@ -9,11 +9,11 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/controller/controllercache"
 	"github.com/argoproj/argo-cd/errors"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/server"
+	"github.com/argoproj/argo-cd/server/cache"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/stats"
 	"github.com/argoproj/argo-cd/util/tls"
@@ -35,7 +35,7 @@ func NewCommand() *cobra.Command {
 		dexServerAddress         string
 		disableAuth              bool
 		tlsConfigCustomizerSrc   func() (tls.ConfigCustomizer, error)
-		cacheSrc                 func() (*controllercache.Cache, error)
+		cacheSrc                 func() (*cache.Cache, error)
 	)
 	var command = &cobra.Command{
 		Use:   cliName,
@@ -106,6 +106,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDAPIServerMetrics, "Start metrics on given port")
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", 60, "Repo server RPC call timeout seconds.")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
-	cacheSrc = controllercache.AddCacheFlagsToCmd(command)
+	cacheSrc = cache.AddCacheFlagsToCmd(command)
 	return command
 }
