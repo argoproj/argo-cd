@@ -69,18 +69,7 @@ commands:
       - restore_cache:
           keys:
             - dl-v7
-      - run: |
-          sh -x
-          export DOWNLOADS=/tmp/dl
-          export BIN=/usr/local/bin
-          mkdir -p $DOWNLOADS
-          ./hack/installers/install-kubectl.sh
-          ./hack/installers/install-kubectx.sh
-          ./hack/installers/install-dep.sh
-          ./hack/installers/install-ksonnet.sh
-          ./hack/installers/install-helm.sh
-          ./hack/installers/install-kustomize.sh
-          ./hack/installers/install-goimports.sh
+      - run: ./hack/install.sh kubectl-linux kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux goimports
       - save_cache:
           key: dl-v7
           paths:
@@ -123,15 +112,7 @@ jobs:
     steps:
       - configure_git
       - checkout
-      - run: |
-          sh -x
-          export DOWNLOADS=/tmp/dl
-          export BIN=/usr/local/bin
-          mkdir -p $DOWNLOADS
-          ./hack/installers/linux/install-kubectl.sh
-          ./hack/installers/linux/install-ksonnet.sh
-          ./hack/installers/linux/install-helm.sh
-          ./hack/installers/linux/install-kustomize.sh
+      - run: ./hack/install.sh kubectl-linux ksonnet-linux helm-linux kustomize-linux
       - dep_ensure
       - run: go get github.com/jstemmer/go-junit-report
       - run: sudo apt-get install -y xsltproc
@@ -150,16 +131,7 @@ jobs:
     working_directory: /go/src/github.com/argoproj/argo-cd
     steps:
       - checkout
-      - run: |
-          sh -x
-          export DOWNLOADS=/tmp/dl
-          export BIN=/usr/local/bin
-          mkdir -p $DOWNLOADS
-          ./hack/installers/linux/install-helm.sh
-          ./hack/installers/linux/install-protoc.sh
-          ./hack/installers/linux/install-swagger.sh
-          ./hack/installers/linux/install-jq.sh
-          ./hack/installers/install-codegen-tools.sh
+      - run: ./hack/install.sh helm-linux protoc-linux swagger-linux jq-linux codegen-tools
       - dep_ensure
       - run: make codegen
       - check_for_changes
@@ -169,12 +141,7 @@ jobs:
     working_directory: /go/src/github.com/argoproj/argo-cd
     steps:
       - checkout
-      - run: |
-          sh -x
-          export DOWNLOADS=/tmp/dl
-          mkdir -p $DOWNLOADS
-          ./hack/installers/install-golangci-lint.sh
-          ./hack/installers/install-goimports.sh
+      - run: ./hack/install.sh golangci-lint goimports
       - dep_ensure
       - run: make lint
       - check_for_changes
