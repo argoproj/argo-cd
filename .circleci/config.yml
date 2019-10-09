@@ -166,6 +166,12 @@ jobs:
     working_directory: /go/src/github.com/argoproj/argo-cd
     steps:
       - checkout
+      - run: |
+          sh -x
+          export DOWNLOADS=/tmp/dl
+          export BIN=/usr/local/bin
+          mkdir -p $DOWNLOADS
+          ./hack/installers/install-protoc.sh
       - run: make codegen
       - check_for_changes
   lint:
