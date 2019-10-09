@@ -158,6 +158,7 @@ jobs:
           ./hack/installers/install-swagger.sh
           ./hack/installers/install-goimports.sh
           ./hack/installers/install-jq.sh
+          ./hack/installers/install-codegen-tools.sh
       - dep_ensure
       - run: make codegen
       - check_for_changes
