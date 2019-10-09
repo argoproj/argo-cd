@@ -232,15 +232,14 @@ export const ApplicationParameters = (props: {
         });
         attributes.push({
             title: 'TOP-LEVEL ARGUMENTS',
-            view: (directory.jsonnet && directory.jsonnet.tlas || []).map((i) => `${i.name}='${i.value}'`).join(' '),
+            view: (directory.jsonnet && directory.jsonnet.tlas || []).map((i, j) => <p key={j}>{i.name}='{i.value}' {i.code && 'code'}</p>),
             edit: (formApi: FormApi) => (
                 <FormField field='spec.source.directory.jsonnet.tlas' formApi={formApi} component={VarsInputField}/>
             ),
         });
         attributes.push({
             title: 'EXTERNAL VARIABLES',
-            view: (directory.jsonnet && directory.jsonnet.extVars || [])
-                .map((i) => `${i.name}='${i.value}'`).join(' '),
+            view: (directory.jsonnet && directory.jsonnet.extVars || []).map((i, j) => <p key={j}>{i.name}='{i.value}' {i.code && 'code'}</p>),
             edit: (formApi: FormApi) => (
                 <FormField field='spec.source.directory.jsonnet.extVars' formApi={formApi} component={VarsInputField}/>
             ),
