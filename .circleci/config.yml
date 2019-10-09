@@ -154,13 +154,13 @@ jobs:
             - vendor-v2-{{ .Branch }}
             - vendor-v2-master
       - run: dep ensure
-      - run: go get github.com/jstemmer/go-junit-report
-      - run: sudo apt-get install -y xsltproc
       - save_cache:
           key: vendor-v3-{{ .Branch }}
           paths:
             - /go/pkg
             - vendor
+      - run: go get github.com/jstemmer/go-junit-report
+      - run: sudo apt-get install -y xsltproc
       - run: make test
       - store_test_results:
           path: junit.xml
@@ -190,6 +190,18 @@ jobs:
           mkdir -p $DOWNLOADS
           ./hack/installers/install-golangci-lint.sh
           ./hack/installers/install-goimports.sh
+      - restore_cache:
+          keys:
+            - vendor-v3-{{ .Branch }}
+            - vendor-v3-master
+            - vendor-v2-{{ .Branch }}
+            - vendor-v2-master
+      - run: dep ensure
+      - save_cache:
+          key: vendor-v3-{{ .Branch }}
+          paths:
+            - /go/pkg
+            - vendor
       - run: make lint
       - check_for_changes
   e2e:
