@@ -1177,8 +1177,8 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		resources       []string
 	)
 	var command = &cobra.Command{
-		Use:     "wait [APPNAME.. | -l selector]",
-		Short:   "Wait for an application to reach a synced and healthy state",
+		Use:   "wait [APPNAME.. | -l selector]",
+		Short: "Wait for an application to reach a synced and healthy state",
 		Example: `  # Wait for an app
   argocd app wait my-app
 
