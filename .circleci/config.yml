@@ -194,10 +194,10 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - lint-v1
+            - lint-v2
       - run: make pre-lint
       - save_cache:
-          key: lint-v1
+          key: lint-v2
           paths:
             - /go/pkg
       - run:

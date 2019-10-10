@@ -1054,8 +1054,9 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 // NewApplicationListCommand returns a new instance of an `argocd app list` command
 func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		output   string
-		projects []string
+		output    string
+		selectors []string
+		projects  []string
 	)
 	var command = &cobra.Command{
 		Use:   "list",
@@ -1077,6 +1078,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name")
+	command.Flags().StringArrayVarP(&selectors, "selectors", "l", []string{}, "Select apps by labels")
 	command.Flags().StringArrayVarP(&projects, "project", "p", []string{}, "Filter by project name")
 	return command
 }
@@ -1233,15 +1235,25 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer util.Close(conn)
 
-			selectedLabels, parseErr := parseLabels(labels)
-			if parseErr != nil {
-				log.Fatal(parseErr)
-			}
+			selectedLabels, err := parseLabels(labels)
+			errors.CheckError(err)
 
 			var appNames []string
 
-			if len(args) == 1 {
+			if len(args) >= 1 {
 				appNames = args
+			} else if len(selectors) > 0 {
+				for _, i := range selectors {
+					list, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{
+						Selector: i
+					})
+					errors.CheckError(err)
+					for _, i := range list.Items {
+						appNames = append(appNames, i.Name)
+					}
+				}
+			} else {
+				log.Fatal("this should never happen")
 			}
 
 			for _, appName := range appNames {
