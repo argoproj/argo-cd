@@ -179,10 +179,12 @@ jobs:
       - run: make codegen-local
       - check_for_changes
   lint:
-    docker:
-      - image: golangci/golangci-lint:v1.18.0
-    working_directory: /go/src/github.com/argoproj/argo-cd
+
+    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
+    machine:
+      image: circleci/classic:201808-01
     steps:
+      - install_golang
       - checkout
       - restore_cache:
           keys: [lint-v2]
