@@ -125,7 +125,9 @@ jobs:
             # install the certificates (not 100% sure we need this)
             sudo cp /var/lib/rancher/k3s/server/tls/token-ca.crt /usr/local/share/ca-certificates/k3s.crt
             sudo update-ca-certificates
-      - run: make start-e2e
+      - run:
+          command: make start-e2e
+          background: true
       - run: until curl -v http://localhost:8080/healthz; do sleep 5; done
       - run:
           command: make test-e2e
