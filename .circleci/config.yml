@@ -152,7 +152,7 @@ jobs:
       - install_golang
       - checkout
       # TODO cache
-      - run: BIN=/usr/local/bin sudo ./hack/install.sh kubectl-linux kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
+      - run: sudo ./hack/install.sh kubectl-linux kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
       - run: dep ensure
       - run: go get github.com/jstemmer/go-junit-report
       # TODO cache
@@ -173,9 +173,7 @@ jobs:
       - checkout
       - restore_cache:
           keys: [codegen-v2]
-        # TODO
-      - run: sudo ./hack/install.sh protoc-linux
-      - run: ./hack/install.sh swagger-linux jq-linux helm-linux kustomize-linux codegen-tools
+      - run: sudo ./hack/install.sh protoc-linux swagger-linux jq-linux helm-linux kustomize-linux codegen-tools
       - run: dep ensure
       - save_cache:
           key: codegen-v2
@@ -191,7 +189,7 @@ jobs:
       - checkout
       - restore_cache:
           keys: [lint-v5]
-      - run: ./hack/install.sh dep-linux
+      - run: sudo ./hack/install.sh dep-linux
       - run: dep ensure
       - save_cache:
           key: lint-v5
@@ -318,8 +316,7 @@ workflows:
   workflow:
     jobs:
       - test
-      # TODO
-      # - codegen
+      - codegen
       - lint
       # TODO
       #- e2e

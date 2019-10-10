@@ -2,7 +2,7 @@
 set -eux -o pipefail
 
 export DOWNLOADS=/tmp/dl
-export BIN=${BIN:-/go/bin}
+export BIN=${BIN:/usr/local/bin}
 
 mkdir -p $DOWNLOADS
 
