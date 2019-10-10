@@ -185,7 +185,8 @@ jobs:
       - restore_cache:
           keys:
             - codegen-v1
-      - run: ./hack/install.sh protoc-linux swagger-linux jq-linux helm-linux kustomize-linux codegen-tools
+      - run: sudo ./hack/install.sh protoc-linux
+      - run: ./hack/install.sh swagger-linux jq-linux helm-linux kustomize-linux codegen-tools
       - run: dep ensure
       - save_cache:
           key: codegen-v1
