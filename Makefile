@@ -162,7 +162,7 @@ pre-lint:
 .PHONY: lint
 lint:
 	golangci-lint --version
-	golangci-lint run --fix --verbose
+	golangci-lint run --fix --verbose --concurrency 8
 
 .PHONY: build
 build:
