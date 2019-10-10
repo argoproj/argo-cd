@@ -174,7 +174,7 @@ test:
 	# ./hack/test.sh -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`
 
 .PHONY: test-e2e
-test-e2e: cli
+test-e2e:
 	./hack/test.sh -timeout 15m ./test/e2e
 
 .PHONY: start-e2e
