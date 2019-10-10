@@ -172,8 +172,9 @@ build:
 
 .PHONY: test
 test:
-	./hack/test.sh -coverprofile=coverage.out ./util/cache
-	# ./hack/test.sh -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`
+	# TODO
+	#./hack/test.sh -coverprofile=coverage.out ./util/cache
+	 ./hack/test.sh -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`
 
 .PHONY: test-e2e
 test-e2e:

@@ -114,7 +114,7 @@ jobs:
       - save_cache:
           key: e2e-v2
           paths: [vendor, /tmp/dl, /home/circleci/.go_workspace/pkg]
-      - run: configure_git
+      - configure_git
       - run:
           name: Configure kubectl
           command: |
@@ -156,9 +156,8 @@ workflows:
   version: 2
   workflow:
     jobs:
-      #- test
+      - test
       #- codegen
-      - lint
+      #- lint
       - e2e
-      # TODO
       #- ui
