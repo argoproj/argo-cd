@@ -160,7 +160,7 @@ jobs:
           command: |
             test/fixture/testrepos/start-git.sh
           background: true
-      - run: curl http://localhost:8080/healthz  --retry 10 --retry-delay 30 --retry-max-time 180 --retry-connrefused
+      - run: curl http://localhost:8080/healthz  --retry 10 --retry-delay 30 --retry-max-time 180
       - run:
           name: Start controller
           command: go run ./cmd/argocd-application-controller/main.go --loglevel debug --redis localhost:6379 --repo-server localhost:8081 --kubeconfig ~/.kube/config
