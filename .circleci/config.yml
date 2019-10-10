@@ -170,7 +170,6 @@ jobs:
       - image: circleci/golang:1.12
     working_directory: /go/src/github.com/argoproj/argo-cd
     steps:
-      - install_golang
       - checkout
       - restore_cache:
           keys: [codegen-v2]
