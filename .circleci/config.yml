@@ -153,9 +153,7 @@ jobs:
       image: circleci/classic:201808-01
     steps:
       - before
-      - run:
-          name: Run unit tests
-          command: make test
+      - run: make test
       - save_go_cache
       - run:
           name: Uploading code coverage
@@ -171,17 +169,13 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          keys:
-            - codegen-v2
+          keys: [codegen-v2]
       - run: sudo ./hack/install.sh protoc-linux
       - run: ./hack/install.sh swagger-linux jq-linux helm-linux kustomize-linux codegen-tools
       - run: dep ensure
       - save_cache:
           key: codegen-v2
-          paths:
-            - /tmp/dl
-            - /go/pkg
-            - vendor
+          paths: [/tmp/dl, /go/pkg, vendor]
       - run: make codegen-local
       - check_for_changes
   lint:
@@ -191,14 +185,12 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          keys:
-            - lint-v2
+          keys: [lint-v2]
       - run: ./hack/install.sh dep-linux
       - run: dep ensure
       - save_cache:
           key: lint-v2
-          paths:
-            - vendor
+          paths: [vendor]
       - run: GOGC=20 make lint
       - check_for_changes
   e2e:
@@ -307,31 +299,15 @@ jobs:
       - checkout:
           path: ~/argo-cd/
       - restore_cache:
-          name: Restore Yarn Package Cache
           keys:
-            - yarn-packages-v3-{{ checksum "yarn.lock" }}
-      - run:
-          name: Install
-          command:
-            yarn install --frozen-lockfile --ignore-optional --non-interactive
+            - yarn-packages-v4-{{ checksum "yarn.lock" }}
+      - run: yarn install --frozen-lockfile --ignore-optional --non-interactive
       - save_cache:
-          name: Save Yarn Package Cache
-          key: yarn-packages-v3-{{ checksum "yarn.lock" }}
-          paths:
-            - ~/.cache/yarn
-            - node_modules
-      - run:
-          name: Test
-          command: yarn test
-      # This does not appear to work, and I don't want to spend time on it.
-      - store_test_results:
-          path: junit.xml
-      - run:
-          name: Build
-          command: yarn build
-      - run:
-          name: Lint
-          command: yarn lint
+          key: yarn-packages-v4-{{ checksum "yarn.lock" }}
+          paths: [~/.cache/yarn, node_modules]
+      - run: yarn test
+      - run: yarn build
+      - run: yarn lint
 workflows:
   version: 2
   workflow:
@@ -340,6 +316,4 @@ workflows:
       - codegen
       - lint
       #- e2e
-      #- ui:
-      #    requires:
-      #      - build
+      - ui
