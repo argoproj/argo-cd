@@ -98,11 +98,11 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		fileURL string
 		appName string
 		upsert  bool
-		labels []string
+		labels  []string
 	)
 	var command = &cobra.Command{
-		Use:   "create APPNAME",
-		Short: "Create an application",
+		Use:     "create APPNAME",
+		Short:   "Create an application",
 		Example: `TODO`,
 		Run: func(c *cobra.Command, args []string) {
 			var app argoappv1.Application
