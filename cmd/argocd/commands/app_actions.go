@@ -91,12 +91,12 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 			fmt.Println(string(jsonBytes))
 		case "":
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "GROUP\tKIND\tNAME\tACTION\tAVAILABLE\n")
+			fmt.Fprintf(w, "GROUP\tKIND\tNAME\tACTION\tDISABLED\n")
 			fmt.Println()
 			for key := range availableActions {
 				for i := range availableActions[key] {
 					action := availableActions[key][i]
-					fmt.Fprintf(w, "%s\t%s\t%s\n", key, action.Name, strconv.FormatBool(action.Available))
+					fmt.Fprintf(w, "%s\t%s\t%s\n", key, action.Name, strconv.FormatBool(action.Disabled))
 
 				}
 			}

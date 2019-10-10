@@ -1,5 +1,5 @@
 actions = {}
-actions["resume"] = {["available"] = false}
+actions["resume"] = {["disabled"] = false}
 
 local paused = false
 
@@ -9,7 +9,9 @@ elseif obj.spec.paused ~= nil then
     paused = obj.spec.paused
 end
 if paused then
-    actions["resume"]["available"] = true
+    actions["resume"]["disabled"] = false
+else
+    actions["resume"]["disabled"] = true
 end
 
 return actions
