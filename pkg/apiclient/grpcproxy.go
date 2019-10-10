@@ -2,6 +2,7 @@ package apiclient
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/binary"
 	"fmt"
@@ -113,7 +114,19 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 			if err != nil {
 				return err
 			}
+
 			md, _ := metadata.FromIncomingContext(stream.Context())
+
+			if c.AdditionalHeaders != "" {
+				for _, kv := range strings.Split(c.AdditionalHeaders, ",") {
+					if len(strings.Split(kv, ":"))%2 == 1 {
+						return fmt.Errorf("additional headers must be colon(:)-separated: %s", kv)
+					}
+					ctx := metadata.AppendToOutgoingContext(context.Background(), strings.Split(kv, ":")[0], strings.Split(kv, ":")[1])
+					md, _ = metadata.FromOutgoingContext(ctx)
+				}
+			}
+
 			resp, err := c.executeRequest(fullMethodName, msg, md)
 			if err != nil {
 				return err

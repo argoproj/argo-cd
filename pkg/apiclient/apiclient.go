@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"google.golang.org/grpc/metadata"
 	"io"
 	"io/ioutil"
 	"net"
@@ -81,26 +82,28 @@ type Client interface {
 
 // ClientOptions hold address, security, and other settings for the API client.
 type ClientOptions struct {
-	ServerAddr string
-	PlainText  bool
-	Insecure   bool
-	CertFile   string
-	AuthToken  string
-	ConfigPath string
-	Context    string
-	UserAgent  string
-	GRPCWeb    bool
+	ServerAddr        string
+	PlainText         bool
+	Insecure          bool
+	CertFile          string
+	AuthToken         string
+	ConfigPath        string
+	Context           string
+	UserAgent         string
+	GRPCWeb           bool
+	AdditionalHeaders string
 }
 
 type client struct {
-	ServerAddr   string
-	PlainText    bool
-	Insecure     bool
-	CertPEMData  []byte
-	AuthToken    string
-	RefreshToken string
-	UserAgent    string
-	GRPCWeb      bool
+	ServerAddr        string
+	PlainText         bool
+	Insecure          bool
+	CertPEMData       []byte
+	AuthToken         string
+	RefreshToken      string
+	UserAgent         string
+	GRPCWeb           bool
+	AdditionalHeaders string
 
 	proxyMutex      *sync.Mutex
 	proxyListener   net.Listener
@@ -188,6 +191,9 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		if err != nil {
 			return nil, err
 		}
+	}
+	if opts.AdditionalHeaders != "" {
+		c.AdditionalHeaders = opts.AdditionalHeaders
 	}
 	return &c, nil
 }
@@ -383,10 +389,21 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 	var dialOpts []grpc.DialOption
 	dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(endpointCredentials))
 	dialOpts = append(dialOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize)))
+
+	ctx := context.Background()
+
+	if c.AdditionalHeaders != "" {
+		for _, kv := range strings.Split(c.AdditionalHeaders, ",") {
+			if len(strings.Split(kv, ":"))%2 == 1 {
+				return nil, nil, fmt.Errorf("additional headers must be colon(:)-separated: %s", kv)
+			}
+			ctx = metadata.AppendToOutgoingContext(ctx, strings.Split(kv, ":")[0], strings.Split(kv, ":")[1])
+		}
+	}
 	if c.UserAgent != "" {
 		dialOpts = append(dialOpts, grpc.WithUserAgent(c.UserAgent))
 	}
-	conn, e := grpc_util.BlockingDial(context.Background(), network, serverAddr, creds, dialOpts...)
+	conn, e := grpc_util.BlockingDial(ctx, network, serverAddr, creds, dialOpts...)
 	closers = append(closers, conn)
 	return conn, util.NewCloser(func() error {
 		var firstErr error
