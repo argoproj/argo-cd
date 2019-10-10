@@ -72,15 +72,15 @@ jobs:
       image: circleci/classic:201808-01
     resource_class: large
     steps:
-      - install_golang
       - checkout
       - restore_cache:
-          keys: [test-v10]
+          keys: [test-v11, test-v10]
+      - install_golang
       - run: sudo ./hack/install.sh kubectl-linux kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
       - run: dep ensure
       - run: go get github.com/jstemmer/go-junit-report
       - save_cache:
-          key: test-v10
+          key: test-v11
           paths: [vendor, /tmp/dl, /home/circleci/.go_workspace/pkg]
       - configure_git
       - run: make test
@@ -99,13 +99,6 @@ jobs:
       ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
     steps:
       - run:
-          command: |
-            set -x
-            docker pull argoproj/argo-cd-ci-builder:v1.0.0
-            docker pull alpine:latest
-            docker pull redis:5.0.3-alpine
-          background: true
-      - run:
           name: Install and start K3S v0.5.0
           command: |
             curl -sfL https://get.k3s.io | sh -
@@ -115,17 +108,18 @@ jobs:
           environment:
             INSTALL_K3S_EXEC: "--docker"
             INSTALL_K3S_VERSION: "v0.5.0"
-      - install_golang
       - checkout
       - restore_cache:
-          keys: [e2e-v2]
+          keys: [e2e-v3, e2e-v2]
+      - install_golang
       - run: sudo ./hack/install.sh kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
       - run: dep ensure
       - run: go get github.com/jstemmer/go-junit-report
       - save_cache:
-          key: e2e-v2
+          key: e2e-v3
           paths: [vendor, /tmp/dl, /home/circleci/.go_workspace/pkg]
       - configure_git
+      - run: make cli
       - run:
           name: Create namespace
           command: |
@@ -160,7 +154,6 @@ jobs:
           command: |
             test/fixture/testrepos/start-git.sh
           background: true
-      - run: make cli
       - run: echo "export PATH=dist:$PATH" >> $BASH_ENV
       - run: until curl -v http://localhost:8080/healthz; do sleep 10; done
       - run:
