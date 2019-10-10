@@ -1093,14 +1093,23 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			if len(projects) != 0 {
 				appList = argo.FilterByProjects(appList, projects)
 			}
-			if output == "name" {
+			switch output {
+			case "yaml":
+				yamlBytes, err := yaml.Marshal(appList)
+				errors.CheckError(err)
+				fmt.Println(string(yamlBytes))
+			case "json":
+				jsonBytes, err := json.MarshalIndent(appList, "", "  ")
+				errors.CheckError(err)
+				fmt.Println(string(jsonBytes))
+			case "name":
 				printApplicationNames(appList)
-			} else {
+			default:
 				printApplicationTable(appList, &output)
 			}
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name|json|yaml")
 	command.Flags().StringVarP(&selector, "selector", "l", "", "List apps by label")
 	command.Flags().StringArrayVarP(&projects, "project", "p", []string{}, "Filter by project name")
 	return command
