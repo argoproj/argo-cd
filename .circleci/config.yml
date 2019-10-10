@@ -64,7 +64,7 @@ jobs:
       - save_cache:
           key: lint-v10
           paths: [/tmp/dl, /home/circleci/.go_workspace, /home/circleci/.cache/go-build, /home/circleci/sdk/go1.12.6]
-      - run: GOGC=50 make lint
+      - run: GOGC=75 make lint
       - check_for_changes
   test:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd

@@ -168,7 +168,7 @@ spec:
   containers:
     - command:
         - "true"
-      image: "alpine:latest"
+      image: "alpine:3.10.2"
       imagePullPolicy: IfNotPresent
       name: main
   restartPolicy: Never
@@ -199,7 +199,7 @@ spec:
   containers:
     - command:
         - "true"
-      image: "alpine:latest"
+      image: "alpine:3.10.2"
       imagePullPolicy: IfNotPresent
       name: main
   restartPolicy: Never
@@ -215,7 +215,7 @@ spec:
   containers:
     - command:
         - "false"
-      image: "alpine:latest"
+      image: "alpine:3.10.2"
       imagePullPolicy: IfNotPresent
       name: main
   restartPolicy: Never
