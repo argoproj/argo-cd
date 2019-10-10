@@ -198,14 +198,14 @@ workflows:
   version: 2
   workflow:
     jobs:
-      - test
-      - e2e
+      - lint
+      - test:
+          requires:
+            - lint
       - codegen:
           requires:
             - test
-      - lint:
-          requires:
-            - codegen
       - ui:
           requires:
-            - lint
+            - codegen
+      - e2e
