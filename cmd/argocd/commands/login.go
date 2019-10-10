@@ -69,7 +69,6 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 				Insecure:   globalClientOpts.Insecure,
 				PlainText:  globalClientOpts.PlainText,
 				GRPCWeb:    globalClientOpts.GRPCWeb,
-				UserAgent:  globalClientOpts.UserAgent,
 			}
 			acdClient := argocdclient.NewClientOrDie(&clientOpts)
 			setConn, setIf := acdClient.NewSettingsClientOrDie()

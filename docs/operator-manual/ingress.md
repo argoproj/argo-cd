@@ -156,6 +156,13 @@ passthrough mode is needed, or NLBs.
 $ argocd login <host>:<port> --grpc-web
 ```
 
+## Authenticating through multiple layers of authenticating reverse proxies
+
+ArgoCD endpoints may be protected by one or more reverse proxies layers, in that case, you can provide additional headers through the `argocd` CLI `--additional-headers` parameter to authenticate through those layers.
+
+```shell
+$ argocd login <host>:<port> --additional-headers 'x-token1:foo,x-token2:bar'
+```
 
 ## UI Base Path
 
