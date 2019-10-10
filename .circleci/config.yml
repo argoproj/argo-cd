@@ -179,6 +179,7 @@ jobs:
       - save_cache:
           key: codegen-v2
           paths: [/tmp/dl, /go/pkg, vendor]
+      - run: helm init --client-only
       - run: make codegen-local
       - check_for_changes
   lint:

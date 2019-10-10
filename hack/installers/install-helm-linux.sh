@@ -5,4 +5,3 @@ set -eux -o pipefail
 tar -C /tmp/ -xf $DOWNLOADS/helm.tar.gz
 cp /tmp/linux-amd64/helm $BIN/helm
 helm version --client
-helm init --client-only
