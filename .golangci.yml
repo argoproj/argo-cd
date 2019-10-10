@@ -3,8 +3,8 @@ run:
   skip-files:
     - ".*\\.pb\\.go"
   skip-dirs:
-    - pkg/client
-    - vendor
+    - pkg/client/
+    - vendor/
 linters:
   enable:
     - vet
