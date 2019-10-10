@@ -170,7 +170,7 @@ jobs:
       # list images for diagnosis
       - run: docker images
       - store_test_results:
-          path: test-results`
+          path: test-results
   ui:
     docker:
       - image: node:11.15.0

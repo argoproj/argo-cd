@@ -8,7 +8,7 @@ mkdir -p $TEST_RESULTS
 report() {
   set -eux -o pipefail
 
-  go-junit-report --package-name com.github.argoproj.argo_cd < $TEST_RESULTS/test.out > $TEST_RESULTS/junit.xml
+  go-junit-report < $TEST_RESULTS/test.out > $TEST_RESULTS/junit.xml
 }
 
 trap 'report' EXIT
