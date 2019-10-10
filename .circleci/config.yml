@@ -93,47 +93,47 @@ jobs:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
       image: circleci/classic:201808-01
-      steps:
-        - run:
-            name: Install and start K3S v0.5.0
-            command: |
-              curl -sfL https://get.k3s.io | sh -
-              sudo chmod -R a+rw /etc/rancher/k3s
-              kubectl version
-            background: true
-            environment:
-              INSTALL_K3S_EXEC: "--docker"
-              INSTALL_K3S_VERSION: "v0.5.0"
-        - restore_cache:
-            keys: [e2e-v1]
-        - checkout
-        - run: sudo ./hack/install.sh kubectl-linux kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
-        - run: dep ensure
-        - run: go get github.com/jstemmer/go-junit-report
-        - run: go get github.com/mattn/goreman
-        - save_cache:
-            key: e2e-v1
-            paths: [vendor, /tmp/dl, /home/circleci/.go_workspace/pkg]
-        - run: configure_git
-        - run:
-            name: Configure kubectl
-            command: |
-              set -x
-              cat /etc/rancher/k3s/k3s.yaml | sed "s/localhost/`hostname`/" | tee ~/.kube/config
-              echo "127.0.0.1 `hostname`" | sudo tee -a /etc/hosts
-              # install the certificates (not 100% sure we need this)
-              sudo cp /var/lib/rancher/k3s/server/tls/token-ca.crt /usr/local/share/ca-certificates/k3s.crt
-              sudo update-ca-certificates
-        - run: make start-e2e
-        - run: until curl -v http://localhost:8080/healthz; do sleep 5; done
-        - run:
-            command: make test-e2e
-            environment:
-              ARGOCD_OPTS: "--server localhost:8080 --plaintext"
-              ARGOCD_E2E_EXPECT_TIMEOUT: "30"
-              ARGOCD_E2E_K3S: "true"
-        - store_test_results:
-            path: test-results
+    steps:
+      - run:
+          name: Install and start K3S v0.5.0
+          command: |
+            curl -sfL https://get.k3s.io | sh -
+            sudo chmod -R a+rw /etc/rancher/k3s
+            kubectl version
+          background: true
+          environment:
+            INSTALL_K3S_EXEC: "--docker"
+            INSTALL_K3S_VERSION: "v0.5.0"
+      - restore_cache:
+          keys: [e2e-v1]
+      - checkout
+      - run: sudo ./hack/install.sh kubectl-linux kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
+      - run: dep ensure
+      - run: go get github.com/jstemmer/go-junit-report
+      - run: go get github.com/mattn/goreman
+      - save_cache:
+          key: e2e-v1
+          paths: [vendor, /tmp/dl, /home/circleci/.go_workspace/pkg]
+      - run: configure_git
+      - run:
+          name: Configure kubectl
+          command: |
+            set -x
+            cat /etc/rancher/k3s/k3s.yaml | sed "s/localhost/`hostname`/" | tee ~/.kube/config
+            echo "127.0.0.1 `hostname`" | sudo tee -a /etc/hosts
+            # install the certificates (not 100% sure we need this)
+            sudo cp /var/lib/rancher/k3s/server/tls/token-ca.crt /usr/local/share/ca-certificates/k3s.crt
+            sudo update-ca-certificates
+      - run: make start-e2e
+      - run: until curl -v http://localhost:8080/healthz; do sleep 5; done
+      - run:
+          command: make test-e2e
+          environment:
+            ARGOCD_OPTS: "--server localhost:8080 --plaintext"
+            ARGOCD_E2E_EXPECT_TIMEOUT: "30"
+            ARGOCD_E2E_K3S: "true"
+      - store_test_results:
+          path: test-results`
   ui:
     # note that we checkout the code in ~/argo-cd/, but then work in ~/argo-cd/ui
     working_directory: ~/argo-cd/ui
