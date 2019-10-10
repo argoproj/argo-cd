@@ -98,10 +98,12 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		fileURL string
 		appName string
 		upsert  bool
+		labels []string
 	)
 	var command = &cobra.Command{
 		Use:   "create APPNAME",
 		Short: "Create an application",
+		Example: `TODO`,
 		Run: func(c *cobra.Command, args []string) {
 			var app argoappv1.Application
 			argocdClient := argocdclient.NewClientOrDie(clientOpts)
@@ -161,6 +163,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set (DEPRECATED)")
 	command.Flags().BoolVar(&upsert, "upsert", false, "Allows to override application with the same name even if supplied application spec is different from existing spec")
 	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the app")
+	command.Flags().StringArrayVarP(&labels, "label", "l", []string{}, "Labels to apply to the app")
 	// Only complete files with appropriate extension.
 	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
 	if err != nil {
