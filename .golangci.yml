@@ -14,3 +14,5 @@ linters:
     - ineffassign
     - unconvert
     - unparam
+service:
+  golangci-lint-version: 1.18.0
