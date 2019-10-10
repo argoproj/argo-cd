@@ -194,11 +194,12 @@ jobs:
       - checkout
       - restore_cache:
           keys:
+            - lint-v4
             - lint-v3
       - run: dep ensure
       - run: make pre-lint
       - save_cache:
-          key: lint-v3
+          key: lint-v4
           paths:
             - /go/pkg
             - vendor
