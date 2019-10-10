@@ -493,7 +493,7 @@ func TestResourceAction(t *testing.T) {
 				ResourceName: "guestbook-ui",
 			})
 			assert.NoError(t, err)
-			assert.Equal(t, []ResourceAction{{Name: "apps/Deployment/sample", Available: false}}, actions.Actions)
+			assert.Equal(t, []ResourceAction{{Name: "sample", Available: false}}, actions.Actions)
 
 			_, err = client.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{Name: &app.Name,
 				Group:        "apps",
@@ -774,6 +774,7 @@ func TestExcludedResource(t *testing.T) {
 		When().
 		Create().
 		Sync().
+		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(Condition(ApplicationConditionExcludedResourceWarning, "Resource apps/Deployment guestbook-ui is excluded in the settings"))
 }

@@ -51,12 +51,12 @@ message ProjectUpdateRequest {
 
 message EmptyResponse {}
 
-message MaintenanceStateQuery {
+message SyncWindowsQuery {
     string name = 1;
 }
 
-message MaintenanceResponse {
-    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ProjectMaintenanceWindow windows = 1;
+message SyncWindowsResponse {
+    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.SyncWindow windows = 1;
 }
 
 // ProjectService
@@ -111,8 +111,8 @@ service ProjectService {
       option (google.api.http).get = "/api/v1/projects/{name}/events";
   }
 
-  // GetMaintenanceState returns true if there are any active maintenance windows
-  rpc GetMaintenanceState(MaintenanceStateQuery) returns (MaintenanceResponse) {
-      option (google.api.http).get = "/api/v1/projects/{name}/maintenance";
+  // GetSchedulesState returns true if there are any active sync syncWindows
+  rpc GetSyncWindowsState(SyncWindowsQuery) returns (SyncWindowsResponse) {
+      option (google.api.http).get = "/api/v1/projects/{name}/syncwindows";
   }
 }

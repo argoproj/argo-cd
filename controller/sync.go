@@ -13,6 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	"k8s.io/apimachinery/pkg/api/errors"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -243,7 +244,7 @@ func (sc *syncContext) sync() {
 			// maybe delete the hook
 			if task.needsDeleting() {
 				err := sc.deleteResource(task)
-				if err != nil {
+				if err != nil && !errors.IsNotFound(err) {
 					sc.setResourceResult(task, "", v1alpha1.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
 				}
 			}

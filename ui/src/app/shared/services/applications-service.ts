@@ -32,8 +32,8 @@ export class ApplicationsService {
         return requests.get(`/applications/${name}`).query(query).then((res) => this.parseAppFields(res.body));
     }
 
-    public getApplicationMaintenanceWindowState(name: string): Promise<models.ApplicationMaintenanceState> {
-        return requests.get(`/applications/${name}/maintenance`).query({name}).then((res) => res.body as models.ApplicationMaintenanceState);
+    public getApplicationSyncWindowState(name: string): Promise<models.ApplicationSyncWindowState> {
+        return requests.get(`/applications/${name}/syncwindows`).query({name}).then((res) => res.body as models.ApplicationSyncWindowState);
     }
 
     public revisionMetadata(name: string, revision: string): Promise<models.RevisionMetadata> {
