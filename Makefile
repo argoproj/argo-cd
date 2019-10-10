@@ -94,7 +94,7 @@ argocd-util: clean-debug
 
 .PHONY: dev-tools-image
 dev-tools-image:
-	docker build -t argocd-dev-tools ./hack -f ./hack/Dockerfile.dev-tools
+	cd hack && docker build -t argocd-dev-tools . -f Dockerfile.dev-tools
 
 .PHONY: manifests-local
 manifests-local:
