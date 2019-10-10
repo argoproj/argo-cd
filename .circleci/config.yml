@@ -119,7 +119,7 @@ jobs:
       - checkout
       - restore_cache:
           keys: [e2e-v2]
-      - run: sudo ./hack/install.sh dep-linux ksonnet-linux helm-linux kustomize-linux
+      - run: sudo ./hack/install.sh kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
       - run: dep ensure
       - run: go get github.com/jstemmer/go-junit-report
       - save_cache:
