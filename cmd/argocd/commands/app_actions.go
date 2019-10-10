@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -17,7 +16,6 @@ import (
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 )
 
@@ -91,12 +89,6 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 			}
 		}
 
-		var keys []string
-		for key := range availableActions {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
-
 		switch output {
 		case "yaml":
 			yamlBytes, err := yaml.Marshal(availableActions)
@@ -111,7 +103,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 			fmt.Fprintf(w, "GROUP\tKIND\tNAME\tACTION\tDISABLED\n")
 			fmt.Println()
 			for _, action := range availableActions {
-				fmt.Fprintf(w, "%s\t%s\t%s\n", action.Group, action.Kind, action.Name, action.Action, strconv.FormatBool(action.Disabled))
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", action.Group, action.Kind, action.Name, action.Action, strconv.FormatBool(action.Disabled))
 			}
 			_ = w.Flush()
 		}
