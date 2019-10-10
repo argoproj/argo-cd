@@ -167,6 +167,8 @@ jobs:
           name: Start controller
           command: go run ./cmd/argocd-application-controller/main.go --loglevel debug --redis localhost:6379 --repo-server localhost:8081 --kubeconfig ~/.kube/config
           background: true
+      # list images for diagnosis
+      - run: docker images
       - run:
           command: make test-e2e
           environment:
