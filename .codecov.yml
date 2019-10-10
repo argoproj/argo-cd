@@ -9,6 +9,7 @@ ignore:
 - "vendor/.*"
 coverage:
   status:
+    # we've found this not to be useful
     patch: off
     project:
       default:
