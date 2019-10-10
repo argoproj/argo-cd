@@ -1209,7 +1209,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			acdClient := argocdclient.NewClientOrDie(clientOpts)
 			closer, appIf := acdClient.NewApplicationClientOrDie()
 			defer util.Close(closer)
-			if len(selector) > 0 {
+			if selector != "" {
 				list, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: selector})
 				errors.CheckError(err)
 				for _, i := range list.Items {
@@ -1267,7 +1267,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   # Sync apps by label, in this example we sync apps that are children of another app (aka app-of-apps)
   argocd app sync -l app.kubernetes.io/instance=my-app`,
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) >= 1 && selector == "" {
+			if len(args) == 0 && selector == "" {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
@@ -1279,7 +1279,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			errors.CheckError(err)
 
 			appNames := args
-			if len(selector) > 0 {
+			if selector != "" {
 				list, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: selector})
 				errors.CheckError(err)
 				for _, i := range list.Items {
