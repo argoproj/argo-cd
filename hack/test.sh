@@ -9,7 +9,6 @@ report() {
   set -eux -o pipefail
 
   go-junit-report --package-name com.github.argoproj.argo_cd < $TEST_RESULTS/test.out > $TEST_RESULTS/junit.xml
-  xsltproc junit-noframes.xsl $TEST_RESULTS/junit.xml > $TEST_RESULTS/test.html
 }
 
 trap 'report' EXIT

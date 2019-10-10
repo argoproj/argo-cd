@@ -153,7 +153,6 @@ jobs:
       image: circleci/classic:201808-01
     steps:
       - before
-      - run: sudo apt-get -y install xsltproc
       - run:
           name: Run unit tests
           command: make test
