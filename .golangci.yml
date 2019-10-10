@@ -10,7 +10,7 @@ linters:
     - vet
     - deadcode
     - varcheck
-    - goimports
+    #- goimports
     - structcheck
     - ineffassign
     - unconvert
