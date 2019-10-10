@@ -64,7 +64,7 @@ jobs:
       - save_cache:
           key: lint-v9
           paths: [vendor, /tmp/dl, /home/circleci/.go_workspace/pkg]
-      - run: make lint
+      - run: GOGC=50 make lint
       - check_for_changes
   test:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
@@ -174,7 +174,7 @@ jobs:
             ARGOCD_E2E_EXPECT_TIMEOUT: "30"
             ARGOCD_E2E_K3S: "true"
       # list images for diagnosis
-      - run: docker image
+      - run: docker images
       - store_test_results:
           path: test-results`
   ui:
