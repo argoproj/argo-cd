@@ -10,9 +10,13 @@ linters:
     - vet
     - deadcode
     - varcheck
+    - goimports
     - structcheck
     - ineffassign
     - unconvert
     - unparam
+linters-settings:
+  goimports:
+    local-prefixes: github.com/argoproj/argo-cd
 service:
   golangci-lint-version: 1.18.0
