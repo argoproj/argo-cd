@@ -353,9 +353,9 @@ func printAppSourceDetails(appSrc *argoappv1.ApplicationSource) {
 }
 
 func printAppConditions(w io.Writer, app *argoappv1.Application) {
-	_, _ = fmt.Fprintf(w, "CONDITION\tMESSAGE\n")
+	fmt.Fprintf(w, "CONDITION\tMESSAGE\n")
 	for _, item := range app.Status.Conditions {
-		_, _ = fmt.Fprintf(w, "%s\t%s\n", item.Type, item.Message)
+		fmt.Fprintf(w, "%s\t%s\n", item.Type, item.Message)
 	}
 }
 
@@ -393,15 +393,15 @@ func printParams(app *argoappv1.Application) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	if app.Spec.Source.Ksonnet != nil {
 		fmt.Println()
-		_, _ = fmt.Fprintf(w, "COMPONENT\tNAME\tVALUE\n")
+		fmt.Fprintf(w, "COMPONENT\tNAME\tVALUE\n")
 		for _, p := range app.Spec.Source.Ksonnet.Parameters {
-			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n", p.Component, p.Name, truncateString(p.Value, paramLenLimit))
+			fmt.Fprintf(w, "%s\t%s\t%s\n", p.Component, p.Name, truncateString(p.Value, paramLenLimit))
 		}
 	} else if app.Spec.Source.Helm != nil {
 		fmt.Println()
-		_, _ = fmt.Fprintf(w, "NAME\tVALUE\n")
+		fmt.Fprintf(w, "NAME\tVALUE\n")
 		for _, p := range app.Spec.Source.Helm.Parameters {
-			_, _ = fmt.Fprintf(w, "%s\t%s\n", p.Name, truncateString(p.Value, paramLenLimit))
+			fmt.Fprintf(w, "%s\t%s\n", p.Name, truncateString(p.Value, paramLenLimit))
 		}
 	}
 	_ = w.Flush()
@@ -604,7 +604,7 @@ func setJsonnetOpt(src *argoappv1.ApplicationSource, tlaParameters []string, cod
 				Value: parts[1],
 				Code:  code}
 		}
-		var existingTLAs []argoappv1.JsonnetVar
+		existingTLAs := []argoappv1.JsonnetVar{}
 		for i := range src.Directory.Jsonnet.TLAs {
 			if src.Directory.Jsonnet.TLAs[i].Code != code {
 				existingTLAs = append(existingTLAs, src.Directory.Jsonnet.TLAs[i])
@@ -1037,7 +1037,7 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 	} else {
 		fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
 	}
-	_, _ = fmt.Fprintf(w, fmtStr, headers...)
+	fmt.Fprintf(w, fmtStr, headers...)
 	for _, app := range apps {
 		vals := []interface{}{
 			app.Name,
@@ -1052,7 +1052,7 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 		if *output == "wide" {
 			vals = append(vals, app.Spec.Source.RepoURL, app.Spec.Source.Path, app.Spec.Source.TargetRevision)
 		}
-		_, _ = fmt.Fprintf(w, fmtStr, vals...)
+		fmt.Fprintf(w, fmtStr, vals...)
 	}
 	_ = w.Flush()
 }
@@ -1061,21 +1061,15 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		output   string
-		selector string
 		projects []string
 	)
 	var command = &cobra.Command{
 		Use:   "list",
 		Short: "List applications",
-		Example: `  # List all apps
-	argocd app list
-
-  # List apps by label, in this example we're waiting for apps that are children of another app (aka app-of-apps)
-  argocd app list -l app.kubernetes.io/instance=my-app`,
 		Run: func(c *cobra.Command, args []string) {
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			apps, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: selector})
+			apps, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{})
 			errors.CheckError(err)
 			appList := apps.Items
 			if len(projects) != 0 {
@@ -1089,7 +1083,6 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name")
-	command.Flags().StringVarP(&selector, "selector", "l", "", "Select apps by label")
 	command.Flags().StringArrayVarP(&projects, "project", "p", []string{}, "Filter by project name")
 	return command
 }
@@ -1179,22 +1172,13 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		watchSuspended  bool
 		watchOperations bool
 		timeout         uint
-		selector        string
 		resources       []string
 	)
 	var command = &cobra.Command{
-		Use:   "wait [APPNAME.. | -l selector]",
+		Use:   "wait APPNAME",
 		Short: "Wait for an application to reach a synced and healthy state",
-		Example: `  # Wait for an app
-  argocd app wait my-app
-
-  # Wait for multiple apps
-  argocd app wait my-app other-app 
-  
-  # Wait for apps by label, in this example we're waiting for apps that are children of another app (aka app-of-apps)
-  argocd app wait -l app.kubernetes.io/instance=apps`,
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) == 0 && selector == "" {
+			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
@@ -1205,27 +1189,15 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				watchSuspended = false
 			}
 			selectedResources := parseSelectedResources(resources)
-			appNames := args
+			appName := args[0]
 			acdClient := argocdclient.NewClientOrDie(clientOpts)
-			closer, appIf := acdClient.NewApplicationClientOrDie()
-			defer util.Close(closer)
-			if len(selector) > 0 {
-				list, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: selector})
-				errors.CheckError(err)
-				for _, i := range list.Items {
-					appNames = append(appNames, i.Name)
-				}
-			}
-			for _, appName := range appNames {
-				_, err := waitOnApplicationStatus(acdClient, appName, timeout, watchSync, watchHealth, watchOperations, watchSuspended, selectedResources)
-				errors.CheckError(err)
-			}
+			_, err := waitOnApplicationStatus(acdClient, appName, timeout, watchSync, watchHealth, watchOperations, watchSuspended, selectedResources)
+			errors.CheckError(err)
 		},
 	}
 	command.Flags().BoolVar(&watchSync, "sync", false, "Wait for sync")
 	command.Flags().BoolVar(&watchHealth, "health", false, "Wait for health")
 	command.Flags().BoolVar(&watchSuspended, "suspended", false, "Wait for suspended")
-	command.Flags().StringVarP(&selector, "selector", "l", "", "Sync apps that match this label, e.g. argocd app list --selector foo=bar")
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%sKIND%sNAME. Fields may be blank. This option may be specified repeatedly", resourceFieldDelimiter, resourceFieldDelimiter))
 	command.Flags().BoolVar(&watchOperations, "operation", false, "Wait for pending operations")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
@@ -1246,7 +1218,6 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		revision  string
 		resources []string
 		labels    []string
-		selector  string
 		prune     bool
 		dryRun    bool
 		timeout   uint
@@ -1256,18 +1227,10 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		local     string
 	)
 	var command = &cobra.Command{
-		Use:   "sync [APPNAME... | -l selector]",
+		Use:   "sync APPNAME",
 		Short: "Sync an application to its target state",
-		Example: `  # Sync an app
-  argocd app sync my-app
-
-  # Sync multiples apps
-  argocd app sync my-app other-app
-
-  # Sync apps by label, in this example we're sync apps that are children of another app (aka app-of-apps)
-  argocd app sync -l app.kubernetes.io/instance=my-app`,
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) >= 1 && selector == "" {
+			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
@@ -1275,112 +1238,104 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer util.Close(conn)
 
-			selectedLabels, err := parseLabels(labels)
-			errors.CheckError(err)
+			appName := args[0]
 
-			appNames := args
-			if len(selector) > 0 {
-				list, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: selector})
-				errors.CheckError(err)
-				for _, i := range list.Items {
-					appNames = append(appNames, i.Name)
+			selectedLabels, parseErr := parseLabels(labels)
+			if parseErr != nil {
+				log.Fatal(parseErr)
+			}
+
+			if len(selectedLabels) > 0 {
+				ctx := context.Background()
+
+				q := applicationpkg.ApplicationManifestQuery{
+					Name:     &appName,
+					Revision: revision,
+				}
+
+				res, err := appIf.GetManifests(ctx, &q)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				for _, mfst := range res.Manifests {
+					obj, err := argoappv1.UnmarshalToUnstructured(mfst)
+					errors.CheckError(err)
+					for key, selectedValue := range selectedLabels {
+						if objectValue, ok := obj.GetLabels()[key]; ok && selectedValue == objectValue {
+							gvk := obj.GroupVersionKind()
+							resources = append(resources, fmt.Sprintf("%s:%s:%s", gvk.Group, gvk.Kind, obj.GetName()))
+						}
+					}
+				}
+
+				// If labels are provided and none are found return error only if specific resources were also not
+				// specified.
+				if len(resources) == 0 {
+					log.Fatalf("No matching resources found for labels: %v", labels)
+					return
 				}
 			}
 
-			for _, appName := range appNames {
+			selectedResources := parseSelectedResources(resources)
 
-				if len(selectedLabels) > 0 {
-					ctx := context.Background()
-
-					q := applicationpkg.ApplicationManifestQuery{
-						Name:     &appName,
-						Revision: revision,
-					}
-
-					res, err := appIf.GetManifests(ctx, &q)
-					if err != nil {
-						log.Fatal(err)
-					}
-
-					for _, mfst := range res.Manifests {
-						obj, err := argoappv1.UnmarshalToUnstructured(mfst)
-						errors.CheckError(err)
-						for key, selectedValue := range selectedLabels {
-							if objectValue, ok := obj.GetLabels()[key]; ok && selectedValue == objectValue {
-								gvk := obj.GroupVersionKind()
-								resources = append(resources, fmt.Sprintf("%s:%s:%s", gvk.Group, gvk.Kind, obj.GetName()))
-							}
-						}
-					}
-
-					// If labels are provided and none are found return error only if specific resources were also not
-					// specified.
-					if len(resources) == 0 {
-						log.Fatalf("No matching resources found for labels: %v", labels)
-						return
-					}
+			var localObjsStrings []string
+			if local != "" {
+				app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
+				errors.CheckError(err)
+				if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
+					log.Fatal("Cannot use local sync when Automatic Sync Policy is enabled")
 				}
 
-				selectedResources := parseSelectedResources(resources)
+				errors.CheckError(err)
+				conn, settingsIf := acdClient.NewSettingsClientOrDie()
+				argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
+				errors.CheckError(err)
+				util.Close(conn)
 
-				var localObjsStrings []string
-				if local != "" {
-					app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
-					errors.CheckError(err)
-					if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
-						log.Fatal("Cannot use local sync when Automatic Sync Policy is enabled")
-					}
+				conn, clusterIf := acdClient.NewClusterClientOrDie()
+				defer util.Close(conn)
+				cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: app.Spec.Destination.Server})
+				errors.CheckError(err)
+				util.Close(conn)
+				localObjsStrings = getLocalObjectsString(app, local, cluster.ServerVersion, argoSettings.AppLabelKey, argoSettings.KustomizeOptions)
+			}
 
-					errors.CheckError(err)
-					conn, settingsIf := acdClient.NewSettingsClientOrDie()
-					argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
-					errors.CheckError(err)
-					util.Close(conn)
+			syncReq := applicationpkg.ApplicationSyncRequest{
+				Name:      &appName,
+				DryRun:    dryRun,
+				Revision:  revision,
+				Resources: selectedResources,
+				Prune:     prune,
+				Manifests: localObjsStrings,
+			}
+			switch strategy {
+			case "apply":
+				syncReq.Strategy = &argoappv1.SyncStrategy{Apply: &argoappv1.SyncStrategyApply{}}
+				syncReq.Strategy.Apply.Force = force
+			case "", "hook":
+				syncReq.Strategy = &argoappv1.SyncStrategy{Hook: &argoappv1.SyncStrategyHook{}}
+				syncReq.Strategy.Hook.Force = force
+			default:
+				log.Fatalf("Unknown sync strategy: '%s'", strategy)
+			}
+			ctx := context.Background()
+			_, err := appIf.Sync(ctx, &syncReq)
+			errors.CheckError(err)
 
-					conn, clusterIf := acdClient.NewClusterClientOrDie()
-					defer util.Close(conn)
-					cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: app.Spec.Destination.Server})
-					errors.CheckError(err)
-					util.Close(conn)
-					localObjsStrings = getLocalObjectsString(app, local, cluster.ServerVersion, argoSettings.AppLabelKey, argoSettings.KustomizeOptions)
-				}
-
-				syncReq := applicationpkg.ApplicationSyncRequest{
-					Name:      &appName,
-					DryRun:    dryRun,
-					Revision:  revision,
-					Resources: selectedResources,
-					Prune:     prune,
-					Manifests: localObjsStrings,
-				}
-				switch strategy {
-				case "apply":
-					syncReq.Strategy = &argoappv1.SyncStrategy{Apply: &argoappv1.SyncStrategyApply{}}
-					syncReq.Strategy.Apply.Force = force
-				case "", "hook":
-					syncReq.Strategy = &argoappv1.SyncStrategy{Hook: &argoappv1.SyncStrategyHook{}}
-					syncReq.Strategy.Hook.Force = force
-				default:
-					log.Fatalf("Unknown sync strategy: '%s'", strategy)
-				}
-				ctx := context.Background()
-				_, err := appIf.Sync(ctx, &syncReq)
+			if !async {
+				app, err := waitOnApplicationStatus(acdClient, appName, timeout, false, false, true, false, selectedResources)
 				errors.CheckError(err)
 
-				if !async {
-					app, err := waitOnApplicationStatus(acdClient, appName, timeout, false, false, true, false, selectedResources)
-					errors.CheckError(err)
+				// Only get resources to be pruned if sync was application-wide
+				if len(selectedResources) == 0 {
+					pruningRequired := app.Status.OperationState.SyncResult.Resources.PruningRequired()
+					if pruningRequired > 0 {
+						log.Fatalf("%d resources require pruning", pruningRequired)
+					}
 
-					// Only get resources to be pruned if sync was application-wide
-					if len(selectedResources) == 0 {
-						pruningRequired := app.Status.OperationState.SyncResult.Resources.PruningRequired()
-						if pruningRequired > 0 {
-							log.Fatalf("%d resources require pruning", pruningRequired)
-						}
-
-						if !app.Status.OperationState.Phase.Successful() && !dryRun {
-							os.Exit(1)
-						}
+					if !app.Status.OperationState.Phase.Successful() && !dryRun {
+						os.Exit(1)
 					}
 				}
 			}
@@ -1390,7 +1345,6 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	command.Flags().StringVar(&revision, "revision", "", "Sync to a specific revision. Preserves parameter overrides")
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%sKIND%sNAME. Fields may be blank. This option may be specified repeatedly", resourceFieldDelimiter, resourceFieldDelimiter))
-	command.Flags().StringVarP(&selector, "selector", "l", "", "Sync apps that match this label, e.g. argocd app list --selector foo=bar")
 	command.Flags().StringArrayVar(&labels, "label", []string{}, fmt.Sprintf("Sync only specific resources with a label. This option may be specified repeatedly."))
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().StringVar(&strategy, "strategy", "", "Sync strategy (one of: apply|hook)")
@@ -1619,7 +1573,7 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 				doPrint = true
 			}
 			if doPrint {
-				_, _ = fmt.Fprintf(w, waitFormatString, prevStates[stateKey].FormatItems()...)
+				fmt.Fprintf(w, waitFormatString, prevStates[stateKey].FormatItems()...)
 			}
 		}
 		_ = w.Flush()
@@ -1708,13 +1662,13 @@ func printApplicationHistoryIds(revHistory []argoappv1.RevisionHistory) {
 // Print a history table for an application.
 func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(w, "ID\tDATE\tREVISION\n")
+	fmt.Fprintf(w, "ID\tDATE\tREVISION\n")
 	for _, depInfo := range revHistory {
 		rev := depInfo.Source.TargetRevision
 		if len(depInfo.Revision) >= 7 {
 			rev = fmt.Sprintf("%s (%s)", rev, depInfo.Revision[0:7])
 		}
-		_, _ = fmt.Fprintf(w, "%d\t%s\t%s\n", depInfo.ID, depInfo.DeployedAt, rev)
+		fmt.Fprintf(w, "%d\t%s\t%s\n", depInfo.ID, depInfo.DeployedAt, rev)
 	}
 	_ = w.Flush()
 }
@@ -2011,7 +1965,6 @@ func filterResources(command *cobra.Command, resources []*argoappv1.ResourceDiff
 		if kind != "" && kind != gvk.Kind {
 			continue
 		}
-		//noinspection ALL
 		copy := obj.DeepCopy()
 		filteredObjects = append(filteredObjects, copy)
 	}

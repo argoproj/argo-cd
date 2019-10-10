@@ -92,9 +92,16 @@ func appRBACName(app appv1.Application) string {
 	return fmt.Sprintf("%s/%s", app.Spec.GetProject(), app.Name)
 }
 
+func validatedSelector(selector string) string {
+	if _, err := fields.ParseSelector(selector); err != nil {
+		return ""
+	}
+	return selector
+}
+
 // List returns list of applications
 func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*appv1.ApplicationList, error) {
-	appList, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(metav1.ListOptions{LabelSelector: q.Selector})
+	appList, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(metav1.ListOptions{LabelSelector: validatedSelector(q.Selector)})
 	if err != nil {
 		return nil, err
 	}
@@ -488,7 +495,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		return nil
 	}
 
-	listOpts := metav1.ListOptions{LabelSelector: q.Selector}
+	listOpts := metav1.ListOptions{LabelSelector: validatedSelector(q.Selector)}
 	if q.Name != nil && *q.Name != "" {
 		listOpts.FieldSelector = fmt.Sprintf("metadata.name=%s", *q.Name)
 	}
