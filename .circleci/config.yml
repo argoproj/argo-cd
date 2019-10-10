@@ -192,11 +192,12 @@ jobs:
       - checkout
       - restore_cache:
           keys:
+            - lint-v2
             - lint-v1
       - run: ./hack/install.sh dep-linux
       - run: dep ensure
       - save_cache:
-          key: lint-v1
+          key: lint-v2
           paths:
             - vendor
       - run: make lint
