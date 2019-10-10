@@ -273,7 +273,7 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 	printAppSourceDetails(&app.Spec.Source)
 	var wds []string
 	var status string
-	var allow, deny bool
+	var allow, deny, inactiveAllows bool
 	if windows.HasWindows() {
 		active := windows.Active()
 		if active.HasWindows() {
@@ -285,14 +285,20 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 				}
 			}
 		}
+		if windows.InactiveAllows().HasWindows() {
+			inactiveAllows = true
+		}
+
 		s := windows.CanSync(true)
-		if deny || !deny && !allow {
+		if deny || !deny && !allow && inactiveAllows {
 			if s {
 				status = "Manual Allowed"
 			} else {
 				status = "Sync Denied"
 
 			}
+		} else {
+			status = "Sync Allowed"
 		}
 		for _, w := range *windows {
 			s := w.Kind + ":" + w.Schedule + ":" + w.Duration

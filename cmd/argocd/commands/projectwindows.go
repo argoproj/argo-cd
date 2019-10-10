@@ -40,20 +40,20 @@ func NewProjectWindowsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 
 // NewProjectSyncWindowsDisableManualSyncCommand returns a new instance of an `argocd proj windows disable-manual-sync` command
 func NewProjectWindowsDisableManualSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		id int
-	)
 	var command = &cobra.Command{
-		Use:   "disable-manual-sync PROJECT",
+		Use:   "disable-manual-sync PROJECT ID",
 		Short: "Disable manual sync for a sync window",
-		Long:  "Disable manual sync for a sync window. Requires --id",
+		Long:  "Disable manual sync for a sync window. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 1 || id == 999 {
+			if len(args) != 2 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 
 			projName := args[0]
+			id, err := strconv.Atoi(args[1])
+			errors.CheckError(err)
+
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 
@@ -70,26 +70,25 @@ func NewProjectWindowsDisableManualSyncCommand(clientOpts *argocdclient.ClientOp
 			errors.CheckError(err)
 		},
 	}
-	command.Flags().IntVar(&id, "id", 999, "Sync window ID, run \"argocd proj windows list\" to get ID")
 	return command
 }
 
 // NewProjectWindowsEnableManualSyncCommand returns a new instance of an `argocd proj windows enable-manual-sync` command
 func NewProjectWindowsEnableManualSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		id int
-	)
 	var command = &cobra.Command{
-		Use:   "enable-manual-sync PROJECT",
+		Use:   "enable-manual-sync PROJECT ID",
 		Short: "Enable manual sync for a sync window",
-		Long:  "Enable manual sync for a sync window. Requires --id",
+		Long:  "Enable manual sync for a sync window. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 1 || id == 999 {
+			if len(args) != 2 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 
 			projName := args[0]
+			id, err := strconv.Atoi(args[1])
+			errors.CheckError(err)
+
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 
@@ -106,7 +105,6 @@ func NewProjectWindowsEnableManualSyncCommand(clientOpts *argocdclient.ClientOpt
 			errors.CheckError(err)
 		},
 	}
-	command.Flags().IntVar(&id, "id", 999, "Sync window ID, run \"argocd proj windows list\" to get ID")
 	return command
 }
 
@@ -156,19 +154,19 @@ func NewProjectWindowsAddWindowCommand(clientOpts *argocdclient.ClientOptions) *
 
 // NewProjectWindowsAddWindowCommand returns a new instance of an `argocd proj windows delete` command
 func NewProjectWindowsDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		id int
-	)
 	var command = &cobra.Command{
-		Use:   "delete PROJECT",
-		Short: "Delete a sync window from a project. Requires --id",
+		Use:   "delete PROJECT ID",
+		Short: "Delete a sync window from a project. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 1 || id == 999 {
+			if len(args) != 2 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 
 			projName := args[0]
+			id, err := strconv.Atoi(args[1])
+			errors.CheckError(err)
+
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 
@@ -182,14 +180,12 @@ func NewProjectWindowsDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 			errors.CheckError(err)
 		},
 	}
-	command.Flags().IntVar(&id, "id", 999, "Sync window ID, run \"argocd proj windows list\" to get ID")
 	return command
 }
 
 // NewProjectWindowsUpdateCommand returns a new instance of an `argocd proj windows update` command
 func NewProjectWindowsUpdateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		id           int
 		schedule     string
 		duration     string
 		applications []string
@@ -197,16 +193,19 @@ func NewProjectWindowsUpdateCommand(clientOpts *argocdclient.ClientOptions) *cob
 		clusters     []string
 	)
 	var command = &cobra.Command{
-		Use:   "update PROJECT",
+		Use:   "update PROJECT ID",
 		Short: "Update a project sync window",
-		Long:  "Update a project sync window. Requires --id",
+		Long:  "Update a project sync window. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 1 || id == 999 {
+			if len(args) != 2 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 
 			projName := args[0]
+			id, err := strconv.Atoi(args[1])
+			errors.CheckError(err)
+
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 
@@ -226,7 +225,6 @@ func NewProjectWindowsUpdateCommand(clientOpts *argocdclient.ClientOptions) *cob
 			errors.CheckError(err)
 		},
 	}
-	command.Flags().IntVar(&id, "id", 999, "Sync window ID, run \"argocd proj windows list\" to get ID")
 	command.Flags().StringVar(&schedule, "schedule", "", "Sync window schedule in cron format. (e.g. --schedule \"0 22 * * *\")")
 	command.Flags().StringVar(&duration, "duration", "", "Sync window duration. (e.g. --duration 1h)")
 	command.Flags().StringSliceVar(&applications, "applications", []string{}, "Applications that the schedule will be applied to. Comma separated, wildcards supported (e.g. --applications prod-\\*,website)")
