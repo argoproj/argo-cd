@@ -93,7 +93,18 @@ jobs:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
       image: circleci/classic:201808-01
+    environment:
+      ARGOCD_FAKE_IN_CLUSTER: "true"
+      ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
+      ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
     steps:
+      - run:
+          command: |
+            set -x
+            docker pull argoproj/argo-cd-ci-builder:v1.0.0
+            docker pull alpine:latest
+            docker pull redis:5.0.3-alpine
+        background: true
       - run:
           name: Install and start K3S v0.5.0
           command: |
@@ -111,30 +122,57 @@ jobs:
       - run: sudo ./hack/install.sh dep-linux ksonnet-linux helm-linux kustomize-linux
       - run: dep ensure
       - run: go get github.com/jstemmer/go-junit-report
-      - run: go get github.com/mattn/goreman
       - save_cache:
           key: e2e-v2
           paths: [vendor, /tmp/dl, /home/circleci/.go_workspace/pkg]
       - configure_git
       - run:
-          name: Configure kubectl
+          name: Create namespace
           command: |
             set -x
+            kubectl create ns argocd-e2e
+            kubens argocd-e2e
             cat /etc/rancher/k3s/k3s.yaml | sed "s/localhost/`hostname`/" | tee ~/.kube/config
             echo "127.0.0.1 `hostname`" | sudo tee -a /etc/hosts
             # install the certificates (not 100% sure we need this)
             sudo cp /var/lib/rancher/k3s/server/tls/token-ca.crt /usr/local/share/ca-certificates/k3s.crt
             sudo update-ca-certificates
+            # create the kubecfg, again - not sure we need this
+            cat /etc/rancher/k3s/k3s.yaml | sed "s/localhost/`hostname`/" | tee ~/.kube/config
+            echo "127.0.0.1 `hostname`" | sudo tee -a /etc/hosts
       - run:
-          command: make start-e2e
+          name: Apply manifests
+          command: kustomize build test/manifests/base | kubectl apply -f -
+      - run:
+          name: Start Redis
+          command: docker run --rm --name argocd-redis -i -p 6379:6379 redis:5.0.3-alpine --save "" --appendonly no
           background: true
-      - run: until curl -v http://localhost:8080/healthz; do sleep 5; done
+      - run:
+          name: Start repo server
+          command: go run ./cmd/argocd-repo-server/main.go --loglevel debug --redis localhost:6379
+          background: true
+      - run:
+          name: Start API server
+          command: go run ./cmd/argocd-server/main.go --loglevel debug --redis localhost:6379 --insecure --dex-server http://localhost:5556 --repo-server localhost:8081 --staticassets ../argo-cd-ui/dist/app
+          background: true
+      - run:
+          name: Start Test Git
+          command: |
+            test/fixture/testrepos/start-git.sh
+          background: true
+      - run: curl http://localhost:8080/healthz  --retry 10 --retry-delay 30 --retry-max-time 180 --retry-connrefused
+      - run:
+          name: Start controller
+          command: go run ./cmd/argocd-application-controller/main.go --loglevel debug --redis localhost:6379 --repo-server localhost:8081 --kubeconfig ~/.kube/config
+          background: true
       - run:
           command: make test-e2e
           environment:
             ARGOCD_OPTS: "--server localhost:8080 --plaintext"
             ARGOCD_E2E_EXPECT_TIMEOUT: "30"
             ARGOCD_E2E_K3S: "true"
+      # list images for diagnosis
+      - run: docker image
       - store_test_results:
           path: test-results`
   ui:
