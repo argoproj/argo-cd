@@ -194,13 +194,14 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - lint-v2
+            - lint-v3
+      - run: dep ensure
       - run: make pre-lint
-      - run: rm -Rf vendor
       - save_cache:
-          key: lint-v2
+          key: lint-v3
           paths:
             - /go/pkg
+            - vendor
       - run:
           name: Lint code
           # use GOGC to limit memory usage in exchange for CPU usage, https://github.com/golangci/golangci-lint#memory-usage-of-golangci-lint
