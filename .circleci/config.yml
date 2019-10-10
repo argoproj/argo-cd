@@ -98,12 +98,11 @@ jobs:
       ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
       ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
     steps:
-      - run:
-          command: |
-            set -x
-            docker pull argoproj/argo-cd-ci-builder:v1.0.0
-            docker pull alpine:latest
-            docker pull redis:5.0.3-alpine
+      - run: |
+          set -x
+          docker pull argoproj/argo-cd-ci-builder:v1.0.0
+          docker pull alpine:latest
+          docker pull redis:5.0.3-alpine
         background: true
       - run:
           name: Install and start K3S v0.5.0
