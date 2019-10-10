@@ -176,16 +176,25 @@ jobs:
           background: true
       - store_test_results:
           path: /tmp/test-results
-      - run:
-          name: Make dev tools
-          command: make dev-tools-image
-      - run:
-          name: Generate code
-          command: make codegen
+  codegen:
+    docker:
+      - image: circleci/golang:1.12
+    working_directory: /go/src/github.com/argoproj/argo-cd
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - codegen-v1
+      - run: ./hack/install.sh protoc-linux swagger-linux jq-linux helm-linux kustomize-linux codegen-tools
+      - run: dep ensure
+      - save_cache:
+          key: codegen-v1
+          paths:
+            - /tmp/dl
+            - /go/pkg
+            - vendor
+      - run: make codegen
       - check_for_changes
-      - store_artifacts:
-          path: codegen.patch
-          when: always
   e2e:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
@@ -322,6 +331,7 @@ workflows:
   workflow:
     jobs:
       #- build
+      - codegen
       #- e2e
       #- ui:
       #    # this isn't strictly true, we just put in here so that we 2/4 executors rather than 3/4
