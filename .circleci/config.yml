@@ -105,14 +105,14 @@ jobs:
             INSTALL_K3S_EXEC: "--docker"
             INSTALL_K3S_VERSION: "v0.5.0"
       - restore_cache:
-          keys: [e2e-v1]
+          keys: [e2e-v2]
       - checkout
       - run: sudo ./hack/install.sh kubectl-linux kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
       - run: dep ensure
       - run: go get github.com/jstemmer/go-junit-report
       - run: go get github.com/mattn/goreman
       - save_cache:
-          key: e2e-v1
+          key: e2e-v2
           paths: [vendor, /tmp/dl, /home/circleci/.go_workspace/pkg]
       - run: configure_git
       - run:
@@ -157,8 +157,8 @@ workflows:
   workflow:
     jobs:
       - test
-      - codegen
-      - lint
+      #- codegen
+      #- lint
       - e2e
       # TODO
       #- ui
