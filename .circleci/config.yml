@@ -54,34 +54,33 @@ jobs:
     machine:
       image: circleci/classic:201808-01
     steps:
+      - restore_cache:
+          keys: [lint-v10]
       - install_golang
       - checkout
-      - restore_cache:
-          keys: [lint-v9, lint-v8]
       - run: sudo ./hack/install.sh dep-linux
       - run: dep ensure
       - run: make install-lint-tools
       - save_cache:
-          key: lint-v9
-          paths: [vendor, /tmp/dl, /home/circleci/.go_workspace/pkg]
+          key: lint-v10
+          paths: [/tmp/dl, /home/circleci/.go_workspace, /home/circleci/.cache/go-build, /home/circleci/sdk/go1.12.6]
       - run: GOGC=50 make lint
       - check_for_changes
   test:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
       image: circleci/classic:201808-01
-    resource_class: large
     steps:
-      - checkout
       - restore_cache:
-          keys: [test-v11, test-v10]
+          keys: [test-v12]
       - install_golang
+      - checkout
       - run: sudo ./hack/install.sh kubectl-linux kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
       - run: dep ensure
       - run: go get github.com/jstemmer/go-junit-report
       - save_cache:
-          key: test-v11
-          paths: [vendor, /tmp/dl, /home/circleci/.go_workspace/pkg]
+          key: test-v12
+          paths: [/tmp/dl, /home/circleci/.go_workspace, /home/circleci/.cache/go-build, /home/circleci/sdk/go1.12.6]
       - configure_git
       - run: make test
       - run:
@@ -108,16 +107,16 @@ jobs:
           environment:
             INSTALL_K3S_EXEC: "--docker"
             INSTALL_K3S_VERSION: "v0.5.0"
-      - checkout
       - restore_cache:
-          keys: [e2e-v3, e2e-v2]
+          keys: [e2e-v4]
       - install_golang
+      - checkout
       - run: sudo ./hack/install.sh kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
       - run: dep ensure
       - run: go get github.com/jstemmer/go-junit-report
       - save_cache:
-          key: e2e-v3
-          paths: [vendor, /tmp/dl, /home/circleci/.go_workspace/pkg]
+          key: e2e-v4
+          paths: [/tmp/dl, /home/circleci/.go_workspace, /home/circleci/.cache/go-build, /home/circleci/sdk/go1.12.6]
       - configure_git
       - run: make cli
       - run:
