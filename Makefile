@@ -162,7 +162,8 @@ dep-ensure:
 .PHONY: pre-lint
 pre-lint:
 	cd /tmp && GO111MODULE=on go get golang.org/x/tools/cmd/goimports@v0.0.0-20190627203933-19ff4fff8850
-	cd /tmp && GO111MODULE=on go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.20.0
+	# later version seen to need go1.13
+	cd /tmp && GO111MODULE=on go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.18.0
 
 .PHONY: lint
 lint:
