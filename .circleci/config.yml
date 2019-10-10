@@ -147,15 +147,18 @@ jobs:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
       image: circleci/classic:201808-01
-      environment:
+    resource_class: large
     steps:
       - install_golang
       - checkout
-      # TODO cache
+      - restore_cache:
+          keys: [test-v10]
       - run: sudo ./hack/install.sh kubectl-linux kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
       - run: dep ensure
       - run: go get github.com/jstemmer/go-junit-report
-      # TODO cache
+      - save_cache:
+          key: test-v10
+          paths: [vendor, /tmp/dl, /home/circleci/.go_workspace/pkg]
       - configure_git
       - run: make test
       - run:
@@ -178,7 +181,7 @@ jobs:
       - run: dep ensure
       - save_cache:
           key: codegen-v2
-          paths: [/tmp/dl, /go/pkg, vendor]
+          paths: [vendor, /tmp/dl, /go/pkg]
       - run: helm init --client-only
       - run: make codegen-local
       - check_for_changes
@@ -190,13 +193,13 @@ jobs:
       - install_golang
       - checkout
       - restore_cache:
-          keys: [lint-v6, lint-v5]
+          keys: [lint-v7, lint-v6]
       - run: sudo ./hack/install.sh dep-linux
       - run: dep ensure
       - run: make pre-lint
       - save_cache:
-          key: lint-v6
-          paths: [vendor, /home/circleci/.go_workspace/go/pkg]
+          key: lint-v7
+          paths: [vendor, /tmp/dl, /home/circleci/.go_workspace/pkg]
       - run: GOGC=20 make lint
       - check_for_changes
   e2e:
@@ -321,7 +324,6 @@ workflows:
       - test
       - codegen
       - lint
-      # TODO
-      #- e2e
+      - e2e
       # TODO
       #- ui
