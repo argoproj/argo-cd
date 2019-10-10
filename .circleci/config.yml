@@ -147,11 +147,12 @@ jobs:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
       image: circleci/classic:201808-01
+      environment:
     steps:
       - install_golang
       - checkout
       # TODO cache
-      - run: ./hack/install.sh kubectl-linux kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
+      - run: BIN=/usr/local/bin sudo ./hack/install.sh kubectl-linux kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
       - run: dep ensure
       - run: go get github.com/jstemmer/go-junit-report
       # TODO cache
@@ -171,7 +172,8 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          keys: [codegen-v2, codegen-v1]
+          keys: [codegen-v2]
+        # TODO
       - run: sudo ./hack/install.sh protoc-linux
       - run: ./hack/install.sh swagger-linux jq-linux helm-linux kustomize-linux codegen-tools
       - run: dep ensure
@@ -188,11 +190,11 @@ jobs:
       - install_golang
       - checkout
       - restore_cache:
-          keys: [lint-v4]
+          keys: [lint-v5]
       - run: ./hack/install.sh dep-linux
       - run: dep ensure
       - save_cache:
-          key: lint-v4
+          key: lint-v5
           paths: [vendor, /home/circleci/.go_workspace/go/pkg]
       - run: GOGC=20 make lint
       - check_for_changes
@@ -317,7 +319,7 @@ workflows:
     jobs:
       - test
       # TODO
-      - codegen
+      # - codegen
       - lint
       # TODO
       #- e2e
