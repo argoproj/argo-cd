@@ -196,6 +196,22 @@ jobs:
             - vendor
       - run: make codegen
       - check_for_changes
+  lint:
+    docker:
+      - image: golangci/golangci-lint:v1.8.0
+    working_directory: /go/src/github.com/argoproj/argo-cd
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - lint-v1
+      - run: dep ensure
+      - save_cache:
+          key: lint-v1
+          paths:
+            - vendor
+      - run: make lint
+      - check_for_changes
   e2e:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
@@ -333,6 +349,7 @@ workflows:
     jobs:
       #- build
       - codegen
+      - lint
       #- e2e
       #- ui:
       #    # this isn't strictly true, we just put in here so that we 2/4 executors rather than 3/4
