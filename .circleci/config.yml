@@ -172,12 +172,12 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - codegen-v1
+            - codegen-v2
       - run: sudo ./hack/install.sh protoc-linux
       - run: ./hack/install.sh swagger-linux jq-linux helm-linux kustomize-linux codegen-tools
       - run: dep ensure
       - save_cache:
-          key: codegen-v1
+          key: codegen-v2
           paths:
             - /tmp/dl
             - /go/pkg
@@ -193,7 +193,6 @@ jobs:
       - restore_cache:
           keys:
             - lint-v2
-            - lint-v1
       - run: ./hack/install.sh dep-linux
       - run: dep ensure
       - save_cache:
