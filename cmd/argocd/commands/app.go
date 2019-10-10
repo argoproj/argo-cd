@@ -1070,7 +1070,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		Example: `  # List all apps
   argocd app list
 
-  # List apps by label, in this example we waiting for apps that are children of another app (aka app-of-apps)
+  # List apps by label, in this example we listing apps that are children of another app (aka app-of-apps)
   argocd app list -l app.kubernetes.io/instance=my-app`,
 		Run: func(c *cobra.Command, args []string) {
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
