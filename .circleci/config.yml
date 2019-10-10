@@ -200,7 +200,7 @@ jobs:
       - save_cache:
           key: lint-v7
           paths: [vendor, /tmp/dl, /home/circleci/.go_workspace/pkg]
-      - run: GOGC=20 make lint
+      - run: make lint
       - check_for_changes
   e2e:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
