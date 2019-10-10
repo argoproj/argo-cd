@@ -697,7 +697,6 @@ type appOptions struct {
 	env                    string
 	revision               string
 	destServer             string
-	destName               string
 	destNamespace          string
 	parameters             []string
 	valuesFiles            []string
