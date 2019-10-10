@@ -104,9 +104,10 @@ jobs:
           environment:
             INSTALL_K3S_EXEC: "--docker"
             INSTALL_K3S_VERSION: "v0.5.0"
+      - install_golang
+      - checkout
       - restore_cache:
           keys: [e2e-v2]
-      - checkout
       - run: sudo ./hack/install.sh dep-linux ksonnet-linux helm-linux kustomize-linux
       - run: dep ensure
       - run: go get github.com/jstemmer/go-junit-report
