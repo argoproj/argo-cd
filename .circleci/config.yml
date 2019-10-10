@@ -47,13 +47,6 @@ commands:
             [ -e /home/circleci/sdk/go1.12.6 ] || go1.12.6 download
             echo "export GOPATH=/home/circleci/.go_workspace" | tee -a $BASH_ENV
             echo "export PATH=/home/circleci/sdk/go1.12.6/bin:\$PATH" | tee -a $BASH_ENV
-      - run:
-          name: Golang diagnostics
-          command: |
-            env
-            which go
-            go version
-            go env
   install_go_deps:
     steps:
       - run:
@@ -61,7 +54,6 @@ commands:
           command: |
             set -x
             go get github.com/jstemmer/go-junit-report
-            go get github.com/mattn/goreman
   install_tools:
     steps:
       - run:
@@ -155,7 +147,7 @@ commands:
             # To troubleshoot builds: https://argoproj.github.io/argo-cd/developer-guide/ci/
             git diff --exit-code -- . ':!Gopkg.lock'  ':!assets/swagger.json' | tee codegen.patch
 jobs:
-  build:
+  test:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
       image: circleci/classic:201808-01
@@ -163,11 +155,7 @@ jobs:
       - before
       - run:
           name: Run unit tests
-          command: |
-            set -x
-            mkdir -p /tmp/test-results
-            trap "go-junit-report </tmp/test-results/go-test.out > /tmp/test-results/go-test-report.xml" EXIT
-            make test | tee /tmp/test-results/go-test.out
+          command: make test
       - save_go_cache
       - run:
           name: Uploading code coverage
@@ -175,7 +163,7 @@ jobs:
           # This takes 2m, lets background it.
           background: true
       - store_test_results:
-          path: /tmp/test-results
+          path: test-results
   codegen:
     docker:
       - image: circleci/golang:1.12
@@ -301,15 +289,15 @@ jobs:
           name: Run e2e tests
           command: |
             set -x
-            mkdir -p /tmp/test-results
-            trap "go-junit-report </tmp/test-results/go-e2e.out > /tmp/test-results/go-e2e-report.xml" EXIT
-            make test-e2e | tee /tmp/test-results/go-e2e.out
+            mkdir -p test-results
+            trap "go-junit-report <test-results/go-e2e.out > test-results/go-e2e-report.xml" EXIT
+            make test-e2e | tee test-results/go-e2e.out
           environment:
             ARGOCD_OPTS: "--server localhost:8080 --plaintext"
             ARGOCD_E2E_EXPECT_TIMEOUT: "30"
             ARGOCD_E2E_K3S: "true"
       - store_test_results:
-          path: /tmp/test-results
+          path: test-results
   ui:
     # note that we checkout the code in ~/argo-cd/, but then work in ~/argo-cd/ui
     working_directory: ~/argo-cd/ui
@@ -348,11 +336,10 @@ workflows:
   version: 2
   workflow:
     jobs:
-      #- build
+      - test
       - codegen
       - lint
       #- e2e
       #- ui:
-      #    # this isn't strictly true, we just put in here so that we 2/4 executors rather than 3/4
       #    requires:
       #      - build

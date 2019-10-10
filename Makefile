@@ -23,11 +23,6 @@ IMAGE_TAG?=
 STATIC_BUILD?=true
 # build development images
 DEV_IMAGE?=false
-# lint is memory and CPU intensive, so we can limit on CI to mitigate OOM
-LINT_GOGC?=on
-LINT_CONCURRENCY?=8
-# Set timeout for linter
-LINT_DEADLINE?=1m0s
 
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
@@ -166,9 +161,8 @@ pre-lint:
 
 .PHONY: lint
 lint:
-	# golangci-lint does not do a good job of formatting imports
 	golangci-lint --version
-	GOGC=$(LINT_GOGC) golangci-lint run --fix --verbose --concurrency $(LINT_CONCURRENCY) --deadline $(LINT_DEADLINE)
+	golangci-lint run --fix --verbose
 
 .PHONY: build
 build:
@@ -176,15 +170,11 @@ build:
 
 .PHONY: test
 test:
-	go test -v -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "test/e2e"`
-
-.PHONY: cover
-cover:
-	go tool cover -html=coverage.out
+	./hack/test.sh -covermode=count -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`
 
 .PHONY: test-e2e
 test-e2e: cli
-	go test -v -timeout 15m ./test/e2e
+	./hack/test.sh -timeout 15m ./test/e2e
 
 .PHONY: start-e2e
 start-e2e: cli
