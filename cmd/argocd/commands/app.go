@@ -1054,17 +1054,22 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 // NewApplicationListCommand returns a new instance of an `argocd app list` command
 func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		output    string
-		selectors []string
-		projects  []string
+		output   string
+		selector string
+		projects []string
 	)
 	var command = &cobra.Command{
 		Use:   "list",
 		Short: "List applications",
+		Example: `  # List all apps
+	argocd app list
+
+  # List apps by label, in this example we're waiting for apps that are children of another app (aka app-of-apps)
+  argocd app list -l app.kubernetes.io/instance=my-app`,
 		Run: func(c *cobra.Command, args []string) {
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			apps, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{})
+			apps, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: selector})
 			errors.CheckError(err)
 			appList := apps.Items
 			if len(projects) != 0 {
@@ -1078,7 +1083,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name")
-	command.Flags().StringArrayVarP(&selectors, "selectors", "l", []string{}, "Select apps by labels")
+	command.Flags().StringVarP(&selector, "selector", "l", "", "Select apps by label")
 	command.Flags().StringArrayVarP(&projects, "project", "p", []string{}, "Filter by project name")
 	return command
 }
@@ -1168,13 +1173,22 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		watchSuspended  bool
 		watchOperations bool
 		timeout         uint
+		selector        string
 		resources       []string
 	)
 	var command = &cobra.Command{
-		Use:   "wait APPNAME",
-		Short: "Wait for an application to reach a synced and healthy state",
+		Use:     "wait [APPNAME.. | -l selector]",
+		Short:   "Wait for an application to reach a synced and healthy state",
+		Example: `  # Wait for an app
+  argocd app wait my-app
+
+  # Wait for multiple apps
+  argocd app wait my-app other-app 
+  
+  # Wait for apps by label, in this example we're waiting for apps that are children of another app (aka app-of-apps)
+  argocd app wait -l app.kubernetes.io/instance=apps`,
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 1 {
+			if len(args) == 0 && selector == "" {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
@@ -1185,15 +1199,27 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				watchSuspended = false
 			}
 			selectedResources := parseSelectedResources(resources)
-			appName := args[0]
+			appNames := args
 			acdClient := argocdclient.NewClientOrDie(clientOpts)
-			_, err := waitOnApplicationStatus(acdClient, appName, timeout, watchSync, watchHealth, watchOperations, watchSuspended, selectedResources)
-			errors.CheckError(err)
+			closer, appIf := acdClient.NewApplicationClientOrDie()
+			defer util.Close(closer)
+			if len(selector) > 0 {
+				list, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: selector})
+				errors.CheckError(err)
+				for _, i := range list.Items {
+					appNames = append(appNames, i.Name)
+				}
+			}
+			for _, appName := range appNames {
+				_, err := waitOnApplicationStatus(acdClient, appName, timeout, watchSync, watchHealth, watchOperations, watchSuspended, selectedResources)
+				errors.CheckError(err)
+			}
 		},
 	}
 	command.Flags().BoolVar(&watchSync, "sync", false, "Wait for sync")
 	command.Flags().BoolVar(&watchHealth, "health", false, "Wait for health")
 	command.Flags().BoolVar(&watchSuspended, "suspended", false, "Wait for suspended")
+	command.Flags().StringVarP(&selector, "selector", "l", "", "Sync apps that match this label, e.g. argocd app list --selector foo=bar")
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%sKIND%sNAME. Fields may be blank. This option may be specified repeatedly", resourceFieldDelimiter, resourceFieldDelimiter))
 	command.Flags().BoolVar(&watchOperations, "operation", false, "Wait for pending operations")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
@@ -1214,7 +1240,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		revision  string
 		resources []string
 		labels    []string
-		selectors []string
+		selector  string
 		prune     bool
 		dryRun    bool
 		timeout   uint
@@ -1226,8 +1252,16 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	var command = &cobra.Command{
 		Use:   "sync [APPNAME... | -l selector]",
 		Short: "Sync an application to its target state",
+		Example: `  # Sync an app
+  argocd app sync my-app
+
+  # Sync multiples apps
+  argocd app sync my-app other-app
+
+  # Sync apps by label, in this example we're sync apps that are children of another app (aka app-of-apps)
+  argocd app sync -l app.kubernetes.io/instance=my-app`,
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) >= 1 && len(selectors) == 0 {
+			if len(args) >= 1 && selector == "" {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
@@ -1238,22 +1272,13 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			selectedLabels, err := parseLabels(labels)
 			errors.CheckError(err)
 
-			var appNames []string
-
-			if len(args) >= 1 {
-				appNames = args
-			} else if len(selectors) > 0 {
-				for _, i := range selectors {
-					list, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{
-						Selector: i
-					})
-					errors.CheckError(err)
-					for _, i := range list.Items {
-						appNames = append(appNames, i.Name)
-					}
+			appNames := args
+			if len(selector) > 0 {
+				list, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: selector})
+				errors.CheckError(err)
+				for _, i := range list.Items {
+					appNames = append(appNames, i.Name)
 				}
-			} else {
-				log.Fatal("this should never happen")
 			}
 
 			for _, appName := range appNames {
@@ -1359,7 +1384,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	command.Flags().StringVar(&revision, "revision", "", "Sync to a specific revision. Preserves parameter overrides")
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%sKIND%sNAME. Fields may be blank. This option may be specified repeatedly", resourceFieldDelimiter, resourceFieldDelimiter))
-	command.Flags().StringArrayVarP(&selectors, "selector", "l", []string{}, fmt.Sprintf("Sync apps that match this label"))
+	command.Flags().StringVarP(&selector, "selector", "l", "", "Sync apps that match this label, e.g. argocd app list --selector foo=bar")
 	command.Flags().StringArrayVar(&labels, "label", []string{}, fmt.Sprintf("Sync only specific resources with a label. This option may be specified repeatedly."))
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().StringVar(&strategy, "strategy", "", "Sync strategy (one of: apply|hook)")
