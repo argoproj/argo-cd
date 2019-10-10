@@ -24,7 +24,7 @@ STATIC_BUILD?=true
 # build development images
 DEV_IMAGE?=false
 # lint is memory and CPU intensive, so we can limit on CI to mitigate OOM
-LINT_GOGC?=off
+LINT_GOGC?=on
 LINT_CONCURRENCY?=8
 # Set timeout for linter
 LINT_DEADLINE?=1m0s
@@ -159,10 +159,13 @@ dep:
 dep-ensure:
 	dep ensure -no-vendor
 
-.PHONY: lint
-lint:
+.PHONY: pre-lint
+pre-lint:
 	cd /tmp && GO111MODULE=on go get golang.org/x/tools/cmd/goimports@v0.0.0-20190627203933-19ff4fff8850
 	cd /tmp && GO111MODULE=on go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.17.1
+
+.PHONY: lint
+lint:
 	# golangci-lint does not do a good job of formatting imports
 	goimports -local github.com/argoproj/argo-cd -w `find . ! -path './vendor/*' ! -path './pkg/client/*' ! -path '*.pb.go' ! -path '*.gw.go' -type f -name '*.go'`
 	golangci-lint --version
