@@ -1,7 +1,9 @@
 #!/bin/bash
 set -eux -o pipefail
 
-cd $DOWNLOADS
+mkdir -p $DOWNLOADS/codegen-tools
+cd $DOWNLOADS/codegen-tools
+
 GO111MODULE=on go get github.com/gogo/protobuf/gogoproto@v1.2.1
 GO111MODULE=on go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.0-beta.2
 GO111MODULE=on go get github.com/golang/protobuf/protoc-gen-go@v1.3.1

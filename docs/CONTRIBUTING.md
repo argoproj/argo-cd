@@ -55,7 +55,7 @@ Ensure dependencies are up to date first:
 ```shell
 dep ensure
 make dev-builder-image
-make pre-lint
+make install-lint-tools
 ```
 
 Common make targets:

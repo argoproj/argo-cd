@@ -57,12 +57,12 @@ jobs:
       - install_golang
       - checkout
       - restore_cache:
-          keys: [lint-v8, lint-v7]
+          keys: [lint-v9, lint-v8]
       - run: sudo ./hack/install.sh dep-linux
       - run: dep ensure
-      - run: make pre-lint
+      - run: make install-lint-tools
       - save_cache:
-          key: lint-v8
+          key: lint-v9
           paths: [vendor, /tmp/dl, /home/circleci/.go_workspace/pkg]
       - run: make lint
       - check_for_changes
