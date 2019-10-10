@@ -15,6 +15,7 @@ linters:
     - unconvert
     - unparam
 linters-settings:
+  # we don't actually use this because it take 5x longer than running directly
   goimports:
     local-prefixes: github.com/argoproj/argo-cd
 service:
