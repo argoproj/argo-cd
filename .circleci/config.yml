@@ -49,11 +49,7 @@ commands:
             echo "export PATH=/home/circleci/sdk/go1.12.6/bin:\$PATH" | tee -a $BASH_ENV
   install_go_deps:
     steps:
-      - run:
-          name: Install Go deps
-          command: |
-            set -x
-            go get github.com/jstemmer/go-junit-report
+      - run: go get github.com/jstemmer/go-junit-report
   install_tools:
     steps:
       - run:
@@ -152,9 +148,15 @@ jobs:
     machine:
       image: circleci/classic:201808-01
     steps:
-      - before
+      - install_golang
+      - checkout
+      # TODO cache
+      - run: ./install.sh kubectl-linux kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
+      - run: dep ensure
+      - run: go get github.com/jstemmer/go-junit-report
+      # TODO cache
+      - configure_git
       - run: make test
-      - save_go_cache
       - run:
           name: Uploading code coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
