@@ -160,10 +160,10 @@ workflows:
     jobs:
       - test
       - e2e
-      - codegen
-        requires:
-          - test
-      - lint
+      - codegen:
+          requires:
+            - test
+      - lint:
           requires:
             - codegen
       - ui:
