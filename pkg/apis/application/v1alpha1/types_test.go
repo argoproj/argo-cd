@@ -882,7 +882,7 @@ func TestSyncWindows_Active(t *testing.T) {
 func TestSyncWindows_InactiveAllows(t *testing.T) {
 	proj := newTestProjectWithSyncWindows()
 	proj.Spec.SyncWindows[0].Schedule = "0 0 1 1 1"
-	assert.Equal(t, 1, len(*proj.Spec.SyncWindows.inactiveAllows()))
+	assert.Equal(t, 1, len(*proj.Spec.SyncWindows.InactiveAllows()))
 }
 
 func TestAppProjectSpec_AddWindow(t *testing.T) {

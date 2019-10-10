@@ -117,11 +117,15 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 <React.Fragment>
                     <div className='application-status-panel__item columns small-2' style={{position: 'relative'}}>
                         <div className='application-status-panel__item-value'>
-                            <ApplicationSyncWindowStatusIcon project={application.spec.project} state={data}/>
-                            {tooltip('The aggregate state of sync windows for this app. ' +
-                                'Red: no syncs allowed. ' +
-                                'Yellow: manual syncs allowed. ' +
-                                'Green: all syncs allowed')}
+                            {data.assignedWindows && (
+                                <React.Fragment>
+                                    <ApplicationSyncWindowStatusIcon project={application.spec.project} state={data}/>
+                                    {tooltip('The aggregate state of sync windows for this app. ' +
+                                        'Red: no syncs allowed. ' +
+                                        'Yellow: manual syncs allowed. ' +
+                                        'Green: all syncs allowed')}
+                                </React.Fragment>
+                            )}
                         </div>
                     </div>
                 </React.Fragment>

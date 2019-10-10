@@ -1450,7 +1450,7 @@ func (s *SyncWindows) Active() *SyncWindows {
 	return nil
 }
 
-func (s *SyncWindows) inactiveAllows() *SyncWindows {
+func (s *SyncWindows) InactiveAllows() *SyncWindows {
 	if s.HasWindows() {
 		var inactive SyncWindows
 		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
@@ -1568,7 +1568,7 @@ func (w *SyncWindows) CanSync(isManual bool) bool {
 
 	if !denyActive {
 		if !allowActive {
-			if isManual && w.inactiveAllows().manualEnabled() {
+			if isManual && w.InactiveAllows().manualEnabled() {
 				return true
 			}
 		} else {
