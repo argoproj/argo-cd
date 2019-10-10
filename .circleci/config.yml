@@ -194,7 +194,7 @@ jobs:
             - /tmp/dl
             - /go/pkg
             - vendor
-      - run: make codegen
+      - run: make codegen-local
       - check_for_changes
   lint:
     docker:
