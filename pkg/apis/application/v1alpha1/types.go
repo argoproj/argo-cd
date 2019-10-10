@@ -1816,6 +1816,17 @@ func (status *ApplicationStatus) GetErrorConditions() []ApplicationCondition {
 	return result
 }
 
+func (status *ApplicationStatus) GetConditions(conditionTypes map[ApplicationConditionType]bool) []ApplicationCondition {
+	result := make([]ApplicationCondition, 0)
+	for i := range status.Conditions {
+		condition := status.Conditions[i]
+		if ok := conditionTypes[condition.Type]; ok {
+			result = append(result, condition)
+		}
+	}
+	return result
+}
+
 // IsError returns true if condition is error condition
 func (condition *ApplicationCondition) IsError() bool {
 	return strings.HasSuffix(condition.Type, "Error")
