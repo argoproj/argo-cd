@@ -18,7 +18,8 @@ PATH:=$(PATH):$(PWD)/hack
 
 # docker image publishing options
 DOCKER_PUSH?=false
-IMAGE_TAG?=
+IMAGE_NAMESPACE?=argoproj
+IMAGE_TAG?=latest
 # perform static compilation
 STATIC_BUILD?=true
 # build development images
@@ -39,15 +40,7 @@ IMAGE_TAG=${GIT_TAG}
 LDFLAGS += -X ${PACKAGE}.gitTag=${GIT_TAG}
 endif
 
-ifeq (${DOCKER_PUSH},true)
-ifndef IMAGE_NAMESPACE
-$(error IMAGE_NAMESPACE must be set to push images (e.g. IMAGE_NAMESPACE=argoproj))
-endif
-endif
-
-ifdef IMAGE_NAMESPACE
 IMAGE_PREFIX=${IMAGE_NAMESPACE}/
-endif
 
 .PHONY: all
 all: cli image argocd-util
