@@ -151,7 +151,7 @@ jobs:
       - install_golang
       - checkout
       # TODO cache
-      - run: ./install.sh kubectl-linux kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
+      - run: ./hack/install.sh kubectl-linux kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
       - run: dep ensure
       - run: go get github.com/jstemmer/go-junit-report
       # TODO cache
@@ -318,5 +318,7 @@ workflows:
       - test
       - codegen
       - lint
+      # TODO
       #- e2e
-      - ui
+      # TODO
+      #- ui
