@@ -1068,9 +1068,9 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		Use:   "list",
 		Short: "List applications",
 		Example: `  # List all apps
-	argocd app list
+  argocd app list
 
-  # List apps by label, in this example we're waiting for apps that are children of another app (aka app-of-apps)
+  # List apps by label, in this example we waiting for apps that are children of another app (aka app-of-apps)
   argocd app list -l app.kubernetes.io/instance=my-app`,
 		Run: func(c *cobra.Command, args []string) {
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
@@ -1191,7 +1191,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   # Wait for multiple apps
   argocd app wait my-app other-app 
   
-  # Wait for apps by label, in this example we're waiting for apps that are children of another app (aka app-of-apps)
+  # Wait for apps by label, in this example we waiting for apps that are children of another app (aka app-of-apps)
   argocd app wait -l app.kubernetes.io/instance=apps`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 && selector == "" {
@@ -1264,7 +1264,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   # Sync multiples apps
   argocd app sync my-app other-app
 
-  # Sync apps by label, in this example we're sync apps that are children of another app (aka app-of-apps)
+  # Sync apps by label, in this example we sync apps that are children of another app (aka app-of-apps)
   argocd app sync -l app.kubernetes.io/instance=my-app`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) >= 1 && selector == "" {
@@ -1390,7 +1390,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	command.Flags().StringVar(&revision, "revision", "", "Sync to a specific revision. Preserves parameter overrides")
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%sKIND%sNAME. Fields may be blank. This option may be specified repeatedly", resourceFieldDelimiter, resourceFieldDelimiter))
-	command.Flags().StringVarP(&selector, "selector", "l", "", "Sync apps that match this label, e.g. argocd app list --selector foo=bar")
+	command.Flags().StringVarP(&selector, "selector", "l", "", "Sync apps that match this label")
 	command.Flags().StringArrayVar(&labels, "label", []string{}, fmt.Sprintf("Sync only specific resources with a label. This option may be specified repeatedly."))
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().StringVar(&strategy, "strategy", "", "Sync strategy (one of: apply|hook)")
