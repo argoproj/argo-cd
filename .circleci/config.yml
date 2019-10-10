@@ -169,7 +169,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          keys: [codegen-v2]
+          keys: [codegen-v2, codegen-v1]
       - run: sudo ./hack/install.sh protoc-linux
       - run: ./hack/install.sh swagger-linux jq-linux helm-linux kustomize-linux codegen-tools
       - run: dep ensure
@@ -179,7 +179,6 @@ jobs:
       - run: make codegen-local
       - check_for_changes
   lint:
-
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
       image: circleci/classic:201808-01
@@ -187,12 +186,12 @@ jobs:
       - install_golang
       - checkout
       - restore_cache:
-          keys: [lint-v2]
+          keys: [lint-v3]
       - run: ./hack/install.sh dep-linux
       - run: dep ensure
       - save_cache:
-          key: lint-v2
-          paths: [vendor]
+          key: lint-v3
+          paths: [vendor, /home/circleci/.go_workspace/go/pkg]
       - run: GOGC=20 make lint
       - check_for_changes
   e2e:
