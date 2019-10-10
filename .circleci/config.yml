@@ -9,8 +9,8 @@ commands:
             # must be configured for tests to run
             git config --global user.email you@example.com
             git config --global user.name "Your Name"
-            echo "export PATH=/home/circleci/.go_workspace/src/github.com/argoproj/argo-cd/hack:\$PATH" | tee -a $BASH_ENV
-            echo "export GIT_ASKPASS=git-ask-pass.sh" | tee -a $BASH_ENV
+            echo "export PATH=/home/circleci/.go_workspace/src/github.com/argoproj/argo-cd/hack:\$PATH" > $BASH_ENV
+            echo "export GIT_ASKPASS=git-ask-pass.sh" > $BASH_ENV
   install_golang:
     steps:
       - run:
@@ -18,8 +18,8 @@ commands:
           command: |
             go get golang.org/dl/go1.12.6
             [ -e /home/circleci/sdk/go1.12.6 ] || go1.12.6 download
-            echo "export GOPATH=/home/circleci/.go_workspace" | tee -a $BASH_ENV
-            echo "export PATH=/home/circleci/sdk/go1.12.6/bin:\$PATH" | tee -a $BASH_ENV
+            echo "export GOPATH=/home/circleci/.go_workspace" > $BASH_ENV
+            echo "export PATH=/home/circleci/sdk/go1.12.6/bin:\$PATH" > $BASH_ENV
   check_for_changes:
     steps:
       - run:
@@ -160,6 +160,8 @@ jobs:
           command: |
             test/fixture/testrepos/start-git.sh
           background: true
+      - run: make cli
+      - run: echo "export PATH=dist:$PATH" > $BASH_ENV
       - run: until curl -v http://localhost:8080/healthz; do sleep 10; done
       - run:
           name: Start controller
