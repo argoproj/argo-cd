@@ -136,6 +136,35 @@ func TestAppDeletion(t *testing.T) {
 	assert.NotContains(t, output, Name())
 }
 
+func TestAppLabels(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		Labels("foo=bar").
+		When().
+		Create().
+		Then().
+		And(func(app *Application) {
+			assert.Contains(t, FailOnErr(RunCli("app", "list")), Name())
+			assert.Contains(t, FailOnErr(RunCli("app", "list", "-l", "foo=bar")), Name())
+			assert.NotContains(t, FailOnErr(RunCli("app", "list", "-l", "foo=rubbish")), Name())
+		}).
+		Given().
+		// remove both name and replace labels means nothing will sync
+		Name("").
+		Labels("foo=rubbish").
+		When().
+		IgnoreErrors().
+		Sync().
+		DoNotIgnoreErrors().
+		Then().
+		Expect(Error("", "no apps match selector foo=rubbish")).
+		// check we can update the app and it is then sync'd
+		Given().
+		Labels("foo=bar").
+		When().
+		Sync()
+}
+
 func TestTrackAppStateAndSyncApp(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).

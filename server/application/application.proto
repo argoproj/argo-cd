@@ -54,8 +54,6 @@ message ApplicationResponse {}
 message ApplicationCreateRequest {
 	required github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application application = 1 [(gogoproto.nullable) = false];
 	optional bool upsert = 2;
-	// labels to apply on creation
-	repeated string labels = 3;
 }
 
 message ApplicationUpdateRequest {

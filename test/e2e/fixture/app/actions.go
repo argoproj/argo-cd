@@ -148,6 +148,10 @@ func (a *Actions) Create() *Actions {
 		args = append(args, "--revision", a.context.revision)
 	}
 
+	for _, label := range a.context.labels {
+		args = append(args, "-l", label)
+	}
+
 	a.runCli(args...)
 
 	return a
@@ -189,7 +193,11 @@ func (a *Actions) AppSet(flags ...string) *Actions {
 
 func (a *Actions) Sync() *Actions {
 	a.context.t.Helper()
-	args := []string{"app", "sync", a.context.name, "--timeout", fmt.Sprintf("%v", a.context.timeout)}
+	args := []string{"app", "sync"}
+	if a.context.name != "" {
+		args = append(args, a.context.name)
+	}
+	args = append(args, "--timeout", fmt.Sprintf("%v", a.context.timeout))
 
 	if a.context.async {
 		args = append(args, "--async")
@@ -209,6 +217,10 @@ func (a *Actions) Sync() *Actions {
 
 	if a.context.force {
 		args = append(args, "--force")
+	}
+
+	for _, label := range a.context.labels {
+		args = append(args, "-l", label)
 	}
 
 	a.runCli(args...)
