@@ -136,10 +136,9 @@ jobs:
       - store_test_results:
           path: test-results`
   ui:
-    # note that we checkout the code in ~/argo-cd/, but then work in ~/argo-cd/ui
-    working_directory: ~/argo-cd/ui
     docker:
       - image: node:11.15.0
+    working_directory: ~/argo-cd/ui
     steps:
       - checkout:
           path: ~/argo-cd/
