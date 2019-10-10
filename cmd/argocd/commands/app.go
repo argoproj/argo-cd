@@ -273,7 +273,7 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 	printAppSourceDetails(&app.Spec.Source)
 	var wds []string
 	var status string
-	var allow, deny bool
+	var allow, deny, inactiveAllows bool
 	if windows.HasWindows() {
 		active := windows.Active()
 		if active.HasWindows() {
@@ -285,14 +285,20 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 				}
 			}
 		}
+		if windows.InactiveAllows().HasWindows() {
+			inactiveAllows = true
+		}
+
 		s := windows.CanSync(true)
-		if deny || !deny && !allow {
+		if deny || !deny && !allow && inactiveAllows {
 			if s {
 				status = "Manual Allowed"
 			} else {
 				status = "Sync Denied"
 
 			}
+		} else {
+			status = "Sync Allowed"
 		}
 		for _, w := range *windows {
 			s := w.Kind + ":" + w.Schedule + ":" + w.Duration
@@ -1083,7 +1089,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name")
-	command.Flags().StringVarP(&selector, "selector", "l", "", "Select apps by label")
+	command.Flags().StringVarP(&selector, "selector", "l", "", "List apps by label")
 	command.Flags().StringArrayVarP(&projects, "project", "p", []string{}, "Filter by project name")
 	return command
 }
@@ -1177,8 +1183,8 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		resources       []string
 	)
 	var command = &cobra.Command{
-		Use:     "wait [APPNAME.. | -l selector]",
-		Short:   "Wait for an application to reach a synced and healthy state",
+		Use:   "wait [APPNAME.. | -l selector]",
+		Short: "Wait for an application to reach a synced and healthy state",
 		Example: `  # Wait for an app
   argocd app wait my-app
 
@@ -1219,7 +1225,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&watchSync, "sync", false, "Wait for sync")
 	command.Flags().BoolVar(&watchHealth, "health", false, "Wait for health")
 	command.Flags().BoolVar(&watchSuspended, "suspended", false, "Wait for suspended")
-	command.Flags().StringVarP(&selector, "selector", "l", "", "Sync apps that match this label, e.g. argocd app list --selector foo=bar")
+	command.Flags().StringVarP(&selector, "selector", "l", "", "Wait for apps by label")
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%sKIND%sNAME. Fields may be blank. This option may be specified repeatedly", resourceFieldDelimiter, resourceFieldDelimiter))
 	command.Flags().BoolVar(&watchOperations, "operation", false, "Wait for pending operations")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
@@ -2005,7 +2011,6 @@ func filterResources(command *cobra.Command, resources []*argoappv1.ResourceDiff
 		if kind != "" && kind != gvk.Kind {
 			continue
 		}
-		//noinspection ALL
 		copy := obj.DeepCopy()
 		filteredObjects = append(filteredObjects, copy)
 	}
