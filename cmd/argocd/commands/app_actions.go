@@ -20,10 +20,10 @@ import (
 )
 
 type DisplayedAction struct {
-	Group string
-	Kind string
-	Name string
-	Action string
+	Group    string
+	Kind     string
+	Name     string
+	Action   string
 	Disabled bool
 }
 
@@ -79,10 +79,10 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 			errors.CheckError(err)
 			for _, action := range availActionsForResource.Actions {
 				displayAction := DisplayedAction{
-					Group: gvk.Group,
-					Kind: gvk.Kind,
-					Name: obj.GetName(),
-					Action: action.Name,
+					Group:    gvk.Group,
+					Kind:     gvk.Kind,
+					Name:     obj.GetName(),
+					Action:   action.Name,
 					Disabled: action.Disabled,
 				}
 				availableActions = append(availableActions, displayAction)
