@@ -175,7 +175,7 @@ jobs:
           paths: [~/.cache/yarn, node_modules]
       - run: yarn test
       - run: yarn build
-      - run: yarn s
+      - run: yarn lint
 workflows:
   version: 2
   workflow:
