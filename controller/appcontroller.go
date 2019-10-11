@@ -807,8 +807,6 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	ctrl.normalizeApplication(origApp, app)
 
-	app.Status.Conditions = append(app.Status.Conditions, compareResult.conditions...)
-
 	tree, err := ctrl.setAppManagedResources(app, compareResult)
 	if err != nil {
 		logCtx.Errorf("Failed to cache app resources: %v", err)
@@ -903,12 +901,8 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 		}
 	}
 	app.Status.SetConditions(errorConditions, map[appv1.ApplicationConditionType]bool{
-		appv1.ApplicationConditionInvalidSpecError:        true,
-		appv1.ApplicationConditionUnknownError:            true,
-		appv1.ApplicationConditionComparisonError:         true,
-		appv1.ApplicationConditionSharedResourceWarning:   true,
-		appv1.ApplicationConditionRepeatedResourceWarning: true,
-		appv1.ApplicationConditionExcludedResourceWarning: true,
+		appv1.ApplicationConditionInvalidSpecError: true,
+		appv1.ApplicationConditionUnknownError:     true,
 	})
 	return len(errorConditions) > 0
 }
