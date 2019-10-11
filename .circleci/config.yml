@@ -40,8 +40,8 @@ jobs:
       - checkout
       - restore_cache:
           keys: [codegen-v2]
-      - run: sudo ./hack/install.sh protoc-linux swagger-linux jq-linux helm-linux kustomize-linux
       - run: ./hack/install.sh codegen-tools
+      - run: sudo ./hack/install.sh protoc-linux swagger-linux jq-linux helm-linux kustomize-linux
       - run: dep ensure
       - save_cache:
           key: codegen-v2
