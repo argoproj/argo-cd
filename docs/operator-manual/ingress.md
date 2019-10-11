@@ -158,11 +158,11 @@ $ argocd login <host>:<port> --grpc-web
 
 ## Authenticating through multiple layers of authenticating reverse proxies
 
-ArgoCD endpoints may be protected by one or more reverse proxies layers, in that case, you can provide additional headers through the `argocd` CLI `--add-header` parameter to authenticate through those layers.
+ArgoCD endpoints may be protected by one or more reverse proxies layers, in that case, you can provide additional headers through the `argocd` CLI `--header` parameter to authenticate through those layers.
 
 ```shell
-$ argocd login <host>:<port> --add-header 'x-token1:foo' --add-header 'x-token2:bar' # can be repeated multiple times
-$ argocd login <host>:<port> --add-header 'x-token1:foo,x-token2:bar' # headers can also be comma separated
+$ argocd login <host>:<port> --header 'x-token1:foo' --header 'x-token2:bar' # can be repeated multiple times
+$ argocd login <host>:<port> --header 'x-token1:foo,x-token2:bar' # headers can also be comma separated
 ```
 
 ## UI Base Path
