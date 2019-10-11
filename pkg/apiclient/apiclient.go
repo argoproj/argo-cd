@@ -91,19 +91,19 @@ type ClientOptions struct {
 	Context    string
 	UserAgent  string
 	GRPCWeb    bool
-	AddHeader  []string
+	Headers    []string
 }
 
 type client struct {
-	ServerAddr        string
-	PlainText         bool
-	Insecure          bool
-	CertPEMData       []byte
-	AuthToken         string
-	RefreshToken      string
-	UserAgent         string
-	GRPCWeb           bool
-	AdditionalHeaders []string
+	ServerAddr   string
+	PlainText    bool
+	Insecure     bool
+	CertPEMData  []byte
+	AuthToken    string
+	RefreshToken string
+	UserAgent    string
+	GRPCWeb      bool
+	Headers      []string
 
 	proxyMutex      *sync.Mutex
 	proxyListener   net.Listener
@@ -192,9 +192,8 @@ func NewClient(opts *ClientOptions) (Client, error) {
 			return nil, err
 		}
 	}
-	if len(opts.AddHeader) > 0 {
-		c.AdditionalHeaders = opts.AddHeader
-	}
+	c.Headers = opts.Headers
+
 	return &c, nil
 }
 
@@ -392,14 +391,13 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 
 	ctx := context.Background()
 
-	if len(c.AdditionalHeaders) > 0 {
-		for _, kv := range c.AdditionalHeaders {
-			if len(strings.Split(kv, ":"))%2 == 1 {
-				return nil, nil, fmt.Errorf("additional headers must be colon(:)-separated: %s", kv)
-			}
-			ctx = metadata.AppendToOutgoingContext(ctx, strings.Split(kv, ":")[0], strings.Split(kv, ":")[1])
+	for _, kv := range c.Headers {
+		if len(strings.Split(kv, ":"))%2 == 1 {
+			return nil, nil, fmt.Errorf("additional headers must be colon(:)-separated: %s", kv)
 		}
+		ctx = metadata.AppendToOutgoingContext(ctx, strings.Split(kv, ":")[0], strings.Split(kv, ":")[1])
 	}
+
 	if c.UserAgent != "" {
 		dialOpts = append(dialOpts, grpc.WithUserAgent(c.UserAgent))
 	}
