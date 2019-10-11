@@ -765,7 +765,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	app := origApp.DeepCopy()
 	logCtx := log.WithFields(log.Fields{"application": app.Name})
 	if comparisonLevel == ComparisonWithNothing {
-		if managedResources, err := ctrl.cache.GetAppManagedResources(app.Name); err != nil {
+		managedResources := make([]*appv1.ResourceDiff, 0)
+		if err := ctrl.cache.GetAppManagedResources(app.Name, &managedResources); err != nil {
 			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fallback to full reconciliation")
 		} else {
 			if tree, err := ctrl.getResourceTree(app, managedResources); err != nil {
@@ -805,8 +806,6 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	compareResult := ctrl.appStateManager.CompareAppState(app, revision, app.Spec.Source, refreshType == appv1.RefreshTypeHard, localManifests)
 
 	ctrl.normalizeApplication(origApp, app)
-
-	app.Status.Conditions = append(app.Status.Conditions, compareResult.conditions...)
 
 	tree, err := ctrl.setAppManagedResources(app, compareResult)
 	if err != nil {
@@ -902,12 +901,8 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 		}
 	}
 	app.Status.SetConditions(errorConditions, map[appv1.ApplicationConditionType]bool{
-		appv1.ApplicationConditionInvalidSpecError:        true,
-		appv1.ApplicationConditionUnknownError:            true,
-		appv1.ApplicationConditionComparisonError:         true,
-		appv1.ApplicationConditionSharedResourceWarning:   true,
-		appv1.ApplicationConditionRepeatedResourceWarning: true,
-		appv1.ApplicationConditionExcludedResourceWarning: true,
+		appv1.ApplicationConditionInvalidSpecError: true,
+		appv1.ApplicationConditionUnknownError:     true,
 	})
 	return len(errorConditions) > 0
 }

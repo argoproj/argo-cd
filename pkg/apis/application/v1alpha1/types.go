@@ -1804,12 +1804,11 @@ func (status *ApplicationStatus) SetConditions(conditions []ApplicationCondition
 	status.Conditions = appConditions
 }
 
-// GetErrorConditions returns list of application error conditions
-func (status *ApplicationStatus) GetErrorConditions() []ApplicationCondition {
+func (status *ApplicationStatus) GetConditions(conditionTypes map[ApplicationConditionType]bool) []ApplicationCondition {
 	result := make([]ApplicationCondition, 0)
 	for i := range status.Conditions {
 		condition := status.Conditions[i]
-		if condition.IsError() {
+		if ok := conditionTypes[condition.Type]; ok {
 			result = append(result, condition)
 		}
 	}
