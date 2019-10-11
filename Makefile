@@ -18,16 +18,12 @@ PATH:=$(PATH):$(PWD)/hack
 
 # docker image publishing options
 DOCKER_PUSH?=false
-IMAGE_TAG?=
+IMAGE_NAMESPACE?=argoproj
+IMAGE_TAG?=latest
 # perform static compilation
 STATIC_BUILD?=true
 # build development images
 DEV_IMAGE?=false
-# lint is memory and CPU intensive, so we can limit on CI to mitigate OOM
-LINT_GOGC?=off
-LINT_CONCURRENCY?=8
-# Set timeout for linter
-LINT_DEADLINE?=1m0s
 
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
@@ -44,15 +40,7 @@ IMAGE_TAG=${GIT_TAG}
 LDFLAGS += -X ${PACKAGE}.gitTag=${GIT_TAG}
 endif
 
-ifeq (${DOCKER_PUSH},true)
-ifndef IMAGE_NAMESPACE
-$(error IMAGE_NAMESPACE must be set to push images (e.g. IMAGE_NAMESPACE=argoproj))
-endif
-endif
-
-ifdef IMAGE_NAMESPACE
 IMAGE_PREFIX=${IMAGE_NAMESPACE}/
-endif
 
 .PHONY: all
 all: cli image argocd-util
@@ -73,7 +61,7 @@ clientgen:
 codegen-local: protogen clientgen openapigen manifests-local
 
 .PHONY: codegen
-codegen: dev-tools-image
+codegen:
 	$(call run-in-dev-tool,make codegen-local)
 
 .PHONY: cli
@@ -94,14 +82,14 @@ argocd-util: clean-debug
 
 .PHONY: dev-tools-image
 dev-tools-image:
-	docker build -t argocd-dev-tools ./hack -f ./hack/Dockerfile.dev-tools
+	cd hack && docker build -t argocd-dev-tools . -f Dockerfile.dev-tools
 
 .PHONY: manifests-local
 manifests-local:
 	./hack/update-manifests.sh
 
 .PHONY: manifests
-manifests: dev-tools-image
+manifests:
 	$(call run-in-dev-tool,make manifests-local IMAGE_TAG='${IMAGE_TAG}')
 
 

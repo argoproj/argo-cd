@@ -46,6 +46,7 @@ Ensure dependencies are up to date first:
 
 ```shell
 dep ensure
+make install-codegen-tools
 ```
 
 Build `cli`, `image`, and `argocd-util` as default targets by running make:
@@ -110,7 +111,7 @@ You can now execute `argocd` command against your locally running ArgoCD by appe
 argocd app create guestbook --path guestbook --repo https://github.com/argoproj/argocd-example-apps.git --dest-server https://kubernetes.default.svc  --dest-namespace default --server localhost:8080 --plaintext --insecure
 ```
 
-You can open the UI: http://localhost:8080
+You can open the UI: http://localhost:4000
 
 ## Running Local Containers
 
