@@ -111,15 +111,15 @@ jobs:
             INSTALL_K3S_EXEC: "--docker"
             INSTALL_K3S_VERSION: "v0.5.0"
       - restore_cache:
-          keys: [e2e-v4]
+          keys: [e2e-v5, e2e-v4]
       - install_golang
       - checkout
       - run: sudo ./hack/install.sh kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
       - run: dep ensure
       - run: go get github.com/jstemmer/go-junit-report
       - save_cache:
-          key: e2e-v4
-          paths: [/tmp/dl, /home/circleci/.go_workspace, /home/circleci/.cache/go-build, /home/circleci/sdk/go1.12.6]
+          key: e2e-v5
+          paths: [/tmp/dl, /home/circleci/.go_workspace/pkg, /home/circleci/.cache/go-build, /home/circleci/sdk/go1.12.6]
       - configure_git
       - run: make cli
       - run:
