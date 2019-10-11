@@ -49,24 +49,6 @@ jobs:
       - run: helm init --client-only
       - run: make codegen-local
       - check_for_changes
-  lint:
-    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
-    machine:
-      image: circleci/classic:201808-01
-    steps:
-      - checkout
-      - restore_cache:
-          keys: [lint-v8]
-      - install_golang
-      - run: make install-lint-tools
-      - run: sudo ./hack/install.sh dep-linux
-      - run: dep ensure
-      - save_cache:
-          key: lint-v8
-          paths: [vendor, /tmp/dl, /home/circleci/.go_workspace/pkg]
-      # TODO GOGC default vs 75
-      - run: make lint
-      - check_for_changes
   test:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
@@ -193,15 +175,12 @@ jobs:
           paths: [~/.cache/yarn, node_modules]
       - run: yarn test
       - run: yarn build
-      - run: yarn lint
+      - run: yarn s
 workflows:
   version: 2
   workflow:
     jobs:
-      - lint
-      - test:
-          requires:
-            - lint
+      - test
       - codegen:
           requires:
             - test
