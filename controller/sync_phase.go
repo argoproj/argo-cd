@@ -11,12 +11,16 @@ func syncPhases(obj *unstructured.Unstructured) []v1alpha1.SyncPhase {
 	if hook.Skip(obj) {
 		return nil
 	} else if hook.IsHook(obj) {
-		var phases []v1alpha1.SyncPhase
+		phasesMap := make(map[v1alpha1.SyncPhase]bool)
 		for _, hookType := range hook.Types(obj) {
 			switch hookType {
 			case v1alpha1.HookTypePreSync, v1alpha1.HookTypeSync, v1alpha1.HookTypePostSync, v1alpha1.HookTypeSyncFail:
-				phases = append(phases, v1alpha1.SyncPhase(hookType))
+				phasesMap[v1alpha1.SyncPhase(hookType)] = true
 			}
+		}
+		var phases []v1alpha1.SyncPhase
+		for phase := range phasesMap {
+			phases = append(phases, phase)
 		}
 		return phases
 	} else {
