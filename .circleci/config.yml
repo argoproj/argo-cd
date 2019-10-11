@@ -54,10 +54,10 @@ jobs:
     machine:
       image: circleci/classic:201808-01
     steps:
+      - checkout
       - restore_cache:
           keys: [lint-v8]
       - install_golang
-      - checkout
       - run: make install-lint-tools
       - run: sudo ./hack/install.sh dep-linux
       - run: dep ensure
