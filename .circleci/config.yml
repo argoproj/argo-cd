@@ -35,7 +35,7 @@ commands:
   save_go_cache:
     steps:
       - save_cache:
-          key: go-v17-{{ .Branch }}
+          key: go-v18-{{ .Branch }}
           paths:
             - /home/circleci/.go_workspace
             - /home/circleci/.cache/go-build
@@ -44,6 +44,8 @@ commands:
     steps:
       - restore_cache:
           keys:
+            - go-v18-{{ .Branch }}
+            - go-v18-master
             - go-v17-{{ .Branch }}
             - go-v17-master
 jobs:
@@ -89,6 +91,7 @@ jobs:
       - configure_git
       - run: go get github.com/jstemmer/go-junit-report
       - dep_ensure
+      - save_go_cache
       - run: make test
       - run:
           name: Uploading code coverage
