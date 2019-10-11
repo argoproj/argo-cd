@@ -5,7 +5,7 @@ metadata:
   labels:
     app: helm-guestbook
 spec:
-  replicas: 1
+  replicas: 0
   selector:
     matchLabels:
       app: helm-guestbook

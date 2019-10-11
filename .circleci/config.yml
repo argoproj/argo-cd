@@ -4,8 +4,8 @@ commands:
     steps:
       - restore_go_cache
       - install_golang
-      - install_tools
       - clean_checkout
+      - install_tools
       - configure_git
       - install_go_deps
       - dep_ensure
