@@ -5,7 +5,6 @@ commands:
       - restore_go_cache
       - install_golang
       - install_tools
-      - clean_checkout
       - configure_git
       - install_go_deps
       - dep_ensure
@@ -20,12 +19,6 @@ commands:
             git config --global user.name "Your Name"
             echo "export PATH=/home/circleci/.go_workspace/src/github.com/argoproj/argo-cd/hack:\$PATH" | tee -a $BASH_ENV
             echo "export GIT_ASKPASS=git-ask-pass.sh" | tee -a $BASH_ENV
-  clean_checkout:
-    steps:
-      - run:
-          name: Remove checked out code
-          command: rm -Rf /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
-      - checkout
   dep_ensure:
     steps:
       - restore_cache:
@@ -130,6 +123,7 @@ jobs:
     machine:
       image: circleci/classic:201808-01
     steps:
+      - checkout
       - before
       - run:
           name: Run unit tests
@@ -181,6 +175,7 @@ jobs:
           environment:
             INSTALL_K3S_EXEC: --docker
             INSTALL_K3S_VERSION: v0.5.0
+      - checkout
       - before
       - run:
           # do this before we build everything else in the background, as they tend to explode
