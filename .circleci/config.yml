@@ -9,8 +9,20 @@ commands:
             # must be configured for tests to run
             git config --global user.email you@example.com
             git config --global user.name "Your Name"
-            echo "export PATH=/home/circleci/.go_workspace/src/github.com/argoproj/argo-cd/hack:\$PATH" >> $BASH_ENV
-            echo "export GIT_ASKPASS=git-ask-pass.sh" >> $BASH_ENV
+            echo "export PATH=/home/circleci/.go_workspace/src/github.com/argoproj/argo-cd/hack:\$PATH" | tee -a $BASH_ENV
+            echo "export GIT_ASKPASS=git-ask-pass.sh" | tee -a $BASH_ENV
+  dep_ensure:
+    steps:
+      - restore_cache:
+          keys:
+            - vendor-v4-{{ checksum "Gopkg.lock" }}
+      - run:
+          name: Run dep ensure
+          command: dep ensure -v
+      - save_cache:
+          key: vendor-v4-{{ checksum "Gopkg.lock" }}
+          paths:
+            - vendor
   install_golang:
     steps:
       - run:
@@ -18,8 +30,22 @@ commands:
           command: |
             go get golang.org/dl/go1.12.6
             [ -e /home/circleci/sdk/go1.12.6 ] || go1.12.6 download
-            echo "export GOPATH=/home/circleci/.go_workspace" >> $BASH_ENV
-            echo "export PATH=/home/circleci/sdk/go1.12.6/bin:\$PATH" >> $BASH_ENV
+            echo "export GOPATH=/home/circleci/.go_workspace" | tee -a $BASH_ENV
+            echo "export PATH=/home/circleci/sdk/go1.12.6/bin:\$PATH" | tee -a $BASH_ENV
+  save_go_cache:
+    steps:
+      - save_cache:
+          key: go-v17-{{ .Branch }}
+          paths:
+            - /home/circleci/.go_workspace
+            - /home/circleci/.cache/go-build
+            - /home/circleci/sdk/go1.12.6
+  restore_go_cache:
+    steps:
+      - restore_cache:
+          keys:
+            - go-v17-{{ .Branch }}
+            - go-v17-master
   check_for_changes:
     steps:
       - run:
@@ -54,17 +80,18 @@ jobs:
     machine:
       image: circleci/classic:201808-01
     steps:
+      - restore_go_cache
+      - install_golang
       - checkout
       - restore_cache:
-          keys: [test-v11]
-      - install_golang
+          key: test-dl-v1
       - run: sudo ./hack/install.sh kubectl-linux kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
-      - run: dep ensure
-      - run: go get github.com/jstemmer/go-junit-report
       - save_cache:
-          key: test-v11
-          paths: [vendor, /tmp/dl, /home/circleci/.go_workspace/pkg]
+          key: test-dl-v1
+          paths: [/tmp/dl]
       - configure_git
+      - run: go get github.com/jstemmer/go-junit-report
+      - dep_ensure
       - run: make test
       - run:
           name: Uploading code coverage
@@ -91,18 +118,19 @@ jobs:
             kubectl version
           background: true
           environment:
-            INSTALL_K3S_EXEC: "--docker"
-            INSTALL_K3S_VERSION: "v0.5.0"
-      - restore_cache:
-          keys: [e2e-v6, e2e-v5]
+            INSTALL_K3S_EXEC: --docker
+            INSTALL_K3S_VERSION: v0.5.0
+      - restore_go_cache
       - install_golang
       - checkout
+      - restore_cache:
+          keys: [e2e-dl-v1]
       - run: sudo ./hack/install.sh kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
-      - run: dep ensure
       - run: go get github.com/jstemmer/go-junit-report
       - save_cache:
-          key: e2e-v6
-          paths: [vendor, /tmp/dl, /home/circleci/.go_workspace/pkg, /home/circleci/.cache/go-build, /home/circleci/sdk/go1.12.6]
+          key: e2e-dl-v10
+          paths: [/tmp/dl]
+      - dep_ensure
       - configure_git
       - run: make cli
       - run:
@@ -111,8 +139,6 @@ jobs:
             set -x
             kubectl create ns argocd-e2e
             kubens argocd-e2e
-            cat /etc/rancher/k3s/k3s.yaml | sed "s/localhost/`hostname`/" | tee ~/.kube/config
-            echo "127.0.0.1 `hostname`" | sudo tee -a /etc/hosts
             # install the certificates (not 100% sure we need this)
             sudo cp /var/lib/rancher/k3s/server/tls/token-ca.crt /usr/local/share/ca-certificates/k3s.crt
             sudo update-ca-certificates
@@ -144,16 +170,12 @@ jobs:
           name: Start controller
           command: go run ./cmd/argocd-application-controller/main.go --loglevel debug --redis localhost:6379 --repo-server localhost:8081 --kubeconfig ~/.kube/config
           background: true
-      # TODO list images for diagnosis
-      - run: docker images
       - run:
           command: PATH=dist:$PATH make test-e2e
           environment:
             ARGOCD_OPTS: "--server localhost:8080 --plaintext"
             ARGOCD_E2E_EXPECT_TIMEOUT: "30"
             ARGOCD_E2E_K3S: "true"
-      # TODO list images for diagnosis
-      - run: docker images
       - store_test_results:
           path: test-results
       - store_artifacts:
