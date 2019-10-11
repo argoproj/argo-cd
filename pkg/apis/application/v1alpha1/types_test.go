@@ -1223,6 +1223,19 @@ func TestSyncWindow_Validate(t *testing.T) {
 	})
 }
 
+func TestApplicationStatus_GetConditions(t *testing.T) {
+	status := ApplicationStatus{
+		Conditions: []ApplicationCondition{
+			{Type: ApplicationConditionInvalidSpecError},
+			{Type: ApplicationConditionRepeatedResourceWarning},
+		},
+	}
+	conditions := status.GetConditions(map[ApplicationConditionType]bool{
+		ApplicationConditionInvalidSpecError: true,
+	})
+	assert.EqualValues(t, []ApplicationCondition{{Type: ApplicationConditionInvalidSpecError}}, conditions)
+}
+
 func newTestProjectWithSyncWindows() *AppProject {
 	p := &AppProject{
 		ObjectMeta: v1.ObjectMeta{Name: "my-proj"},

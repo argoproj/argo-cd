@@ -108,14 +108,11 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 
 	compareResult := m.CompareAppState(app, revision, source, false, syncOp.Manifests)
 
-	// If there are any error conditions, do not perform the operation
-	errConditions := make([]v1alpha1.ApplicationCondition, 0)
-	for i := range compareResult.conditions {
-		if compareResult.conditions[i].IsError() {
-			errConditions = append(errConditions, compareResult.conditions[i])
-		}
-	}
-	if len(errConditions) > 0 {
+	// If there are any comparison or spec errors error conditions do not perform the operation
+	if errConditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{
+		v1alpha1.ApplicationConditionComparisonError:  true,
+		v1alpha1.ApplicationConditionInvalidSpecError: true,
+	}); len(errConditions) > 0 {
 		state.Phase = v1alpha1.OperationError
 		state.Message = argo.FormatAppConditions(errConditions)
 		return
