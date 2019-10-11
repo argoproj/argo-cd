@@ -55,14 +55,14 @@ jobs:
       image: circleci/classic:201808-01
     steps:
       - restore_cache:
-          keys: [lint-v10]
+          keys: [lint-v11]
       - install_golang
       - checkout
       - run: sudo ./hack/install.sh dep-linux
       - run: dep ensure
       - run: make install-lint-tools
       - save_cache:
-          key: lint-v10
+          key: lint-v11
           paths: [/tmp/dl, /home/circleci/.go_workspace, /home/circleci/.cache/go-build, /home/circleci/sdk/go1.12.6]
       - run: GOGC=75 make lint
       - check_for_changes
@@ -88,6 +88,9 @@ jobs:
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
       - store_test_results:
           path: test-results
+      - store_artifacts:
+          path: test-results
+          destination: .
   e2e:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
@@ -153,24 +156,26 @@ jobs:
           command: |
             test/fixture/testrepos/start-git.sh
           background: true
-      - run: echo "export PATH=dist:$PATH" >> $BASH_ENV
       - run: until curl -v http://localhost:8080/healthz; do sleep 10; done
       - run:
           name: Start controller
           command: go run ./cmd/argocd-application-controller/main.go --loglevel debug --redis localhost:6379 --repo-server localhost:8081 --kubeconfig ~/.kube/config
           background: true
-      # list images for diagnosis
+      # TODO list images for diagnosis
       - run: docker images
       - run:
-          command: make test-e2e
+          command: PATH=dist:$PATH make test-e2e
           environment:
             ARGOCD_OPTS: "--server localhost:8080 --plaintext"
             ARGOCD_E2E_EXPECT_TIMEOUT: "30"
             ARGOCD_E2E_K3S: "true"
-      # list images for diagnosis
+      # TODO list images for diagnosis
       - run: docker images
       - store_test_results:
           path: test-results
+      - store_artifacts:
+          path: test-results
+          destination: .
   ui:
     docker:
       - image: node:11.15.0
