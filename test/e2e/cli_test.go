@@ -12,7 +12,7 @@ import (
 
 func TestCliAppCommand(t *testing.T) {
 	Given(t).
-		Path("hook").
+		Path("hook-pods").
 		When().
 		Create().
 		And(func() {
