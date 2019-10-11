@@ -3078,6 +3078,10 @@
         "namePrefix": {
           "type": "string",
           "title": "NamePrefix is a prefix appended to resources for kustomize apps"
+        },
+        "nameSuffix": {
+          "type": "string",
+          "title": "NameSuffix is a suffix appended to resources for kustomize apps"
         }
       }
     },

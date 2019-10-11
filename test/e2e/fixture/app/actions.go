@@ -80,6 +80,11 @@ func (a *Actions) CreateFromFile(handler func(app *Application)) *Actions {
 			NamePrefix: a.context.namePrefix,
 		}
 	}
+	if a.context.nameSuffix != "" {
+		app.Spec.Source.Kustomize = &ApplicationSourceKustomize{
+			NameSuffix: a.context.nameSuffix,
+		}
+	}
 	if a.context.configManagementPlugin != "" {
 		app.Spec.Source.Plugin = &ApplicationSourcePlugin{
 			Name: a.context.configManagementPlugin,
@@ -138,6 +143,10 @@ func (a *Actions) Create() *Actions {
 
 	if a.context.namePrefix != "" {
 		args = append(args, "--nameprefix", a.context.namePrefix)
+	}
+
+	if a.context.nameSuffix != "" {
+		args = append(args, "--namesuffix", a.context.nameSuffix)
 	}
 
 	if a.context.configManagementPlugin != "" {

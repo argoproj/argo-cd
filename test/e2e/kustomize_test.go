@@ -180,3 +180,16 @@ func TestKustomizeImages(t *testing.T) {
 			assert.Contains(t, app.Spec.Source.Kustomize.Images, KustomizeImage("alpine:bar"))
 		})
 }
+
+// make sure we we can invoke the CLI to set namesuffix
+func TestKustomizeNameSuffix(t *testing.T) {
+	Given(t).
+		Path("kustomize").
+		When().
+		Create().
+		AppSet("--namesuffix", "-suf").
+		Then().
+		And(func(app *Application) {
+			assert.Contains(t, app.Spec.Source.Kustomize.NameSuffix, "-suf")
+		})
+}
