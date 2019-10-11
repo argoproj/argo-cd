@@ -3,8 +3,8 @@ kind: Deployment
 metadata:
   name: main
 spec:
-  replicas: 0
-  progressDeadlineSeconds: 30
+  replicas: 1
+  progressDeadlineSeconds: 10
   selector:
     matchLabels:
       my-label: whatever

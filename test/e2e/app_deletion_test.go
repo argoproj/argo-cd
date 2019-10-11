@@ -13,7 +13,7 @@ import (
 func TestDeletingAppStuckInSync(t *testing.T) {
 	Given(t).
 		Async(true).
-		Path("hook").
+		Path("hook-pods").
 		When().
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command", "value": ["sh", "-c", "until ls /tmp/done; do sleep 0.1; done"]}]`).
 		PatchFile("pod.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-wave": "1"}}]`).
