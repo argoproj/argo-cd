@@ -35,7 +35,7 @@ func TestHelmHooksAreCreated(t *testing.T) {
 // make sure we treat Helm weights as a sync wave
 func TestHelmHookWeight(t *testing.T) {
 	Given(t).
-		Path("hook-pods").
+		Path("hook").
 		When().
 		// this create a weird hook, that runs during sync - but before the pod, and because it'll fail - the pod will never be created
 		PatchFile("hook.yaml", `[
