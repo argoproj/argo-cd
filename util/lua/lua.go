@@ -236,6 +236,7 @@ func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scri
 	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
 }
 
+// Actions are enabled by default
 func isActionDisabled(actionsMap interface{}) bool {
 	actions, ok := actionsMap.(map[string]interface{})
 	if !ok {
