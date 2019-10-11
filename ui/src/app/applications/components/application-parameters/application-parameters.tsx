@@ -2,7 +2,7 @@ import {DataLoader, FormField, FormSelect, getNestedField} from 'argo-ui';
 import * as React from 'react';
 import {FieldApi, FormApi, FormField as ReactFormField, Text, TextArea} from 'react-form';
 
-import {ArrayInputField, CheckboxField, EditablePanel, EditablePanelItem, TagsInputField} from '../../../shared/components';
+import {ArrayInputField, CheckboxField, EditablePanel, EditablePanelItem, Expandable, TagsInputField} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {AuthSettings} from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -171,14 +171,16 @@ export const ApplicationParameters = (props: {
         });
         attributes.push({
             title: 'VALUES',
-            view: app.spec.source.helm && (<pre>{app.spec.source.helm.values}</pre>),
+            view: app.spec.source.helm && (<Expandable><pre>{app.spec.source.helm.values}</pre></Expandable>),
             edit: (formApi: FormApi) => (
                 <div>
                     <pre><FormField formApi={formApi} field='spec.source.helm.values' component={TextArea}/></pre>
                     {props.details.helm.values && (
                         <div>
                             <label>values.yaml</label>
-                            <pre>{props.details.helm.values}</pre>
+                            <Expandable>
+                                <pre>{props.details.helm.values}</pre>
+                            </Expandable>
                         </div>
                     )}
                 </div>

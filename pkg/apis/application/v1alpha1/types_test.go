@@ -882,7 +882,7 @@ func TestSyncWindows_Active(t *testing.T) {
 func TestSyncWindows_InactiveAllows(t *testing.T) {
 	proj := newTestProjectWithSyncWindows()
 	proj.Spec.SyncWindows[0].Schedule = "0 0 1 1 1"
-	assert.Equal(t, 1, len(*proj.Spec.SyncWindows.inactiveAllows()))
+	assert.Equal(t, 1, len(*proj.Spec.SyncWindows.InactiveAllows()))
 }
 
 func TestAppProjectSpec_AddWindow(t *testing.T) {
@@ -1214,6 +1214,19 @@ func TestSyncWindow_Validate(t *testing.T) {
 		window.Duration = "1000days"
 		assert.Error(t, window.Validate())
 	})
+}
+
+func TestApplicationStatus_GetConditions(t *testing.T) {
+	status := ApplicationStatus{
+		Conditions: []ApplicationCondition{
+			{Type: ApplicationConditionInvalidSpecError},
+			{Type: ApplicationConditionRepeatedResourceWarning},
+		},
+	}
+	conditions := status.GetConditions(map[ApplicationConditionType]bool{
+		ApplicationConditionInvalidSpecError: true,
+	})
+	assert.EqualValues(t, []ApplicationCondition{{Type: ApplicationConditionInvalidSpecError}}, conditions)
 }
 
 func newTestProjectWithSyncWindows() *AppProject {
