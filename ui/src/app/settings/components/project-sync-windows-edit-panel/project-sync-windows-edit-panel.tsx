@@ -29,7 +29,9 @@ interface ProjectSyncWindowsEditPanelProps {
 
 export const ProjectSyncWindowsEditPanel = (props: ProjectSyncWindowsEditPanelProps) => {
     if (props.defaultParams.window === undefined) {
-        const w = {} as models.SyncWindow;
+        const w = {
+            schedule: '* * * * *',
+        } as models.SyncWindow;
         props.defaultParams.window = w;
     }
     return (
