@@ -210,7 +210,7 @@ func Error(message, err string) Expectation {
 		if !strings.Contains(c.actions.lastOutput, message) {
 			return failed, fmt.Sprintf("output does not contain '%s'", message)
 		}
-		if ! strings.Contains(c.actions.lastError.Error(), err) {
+		if !strings.Contains(c.actions.lastError.Error(), err) {
 			return failed, fmt.Sprintf("error does not contain '%s'", message)
 		}
 		return succeeded, fmt.Sprintf("error '%s'", message)
