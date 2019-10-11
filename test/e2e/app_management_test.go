@@ -148,6 +148,8 @@ func TestTrackAppStateAndSyncApp(t *testing.T) {
 		Expect(HealthIs(HealthStatusHealthy)).
 		Expect(Success(fmt.Sprintf("apps  Deployment  %s          guestbook-ui  OutOfSync  Missing", DeploymentNamespace()))).
 		Expect(Success(fmt.Sprintf("Service  %s          guestbook-ui  OutOfSync  Missing", DeploymentNamespace()))).
+		Expect(Success(fmt.Sprintf("Service     %s  guestbook-ui  Synced ", DeploymentNamespace()))).
+		Expect(Success(fmt.Sprintf("apps   Deployment  %s  guestbook-ui  Synced", DeploymentNamespace()))).
 		Expect(Event(EventReasonResourceUpdated, "sync")).
 		And(func(app *Application) {
 			assert.NotNil(t, app.Status.OperationState.SyncResult)
