@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -17,9 +16,16 @@ import (
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 )
+
+type DisplayedAction struct {
+	Group    string
+	Kind     string
+	Name     string
+	Action   string
+	Disabled bool
+}
 
 // NewApplicationResourceActionsCommand returns a new instance of an `argocd app actions` command
 func NewApplicationResourceActionsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
@@ -59,7 +65,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
 		filteredObjects := filterResources(command, resources.Items, group, kind, namespace, resourceName, true)
-		availableActions := make(map[string][]argoappv1.ResourceAction)
+		var availableActions []DisplayedAction
 		for i := range filteredObjects {
 			obj := filteredObjects[i]
 			gvk := obj.GroupVersionKind()
@@ -71,14 +77,17 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 				Kind:         gvk.Kind,
 			})
 			errors.CheckError(err)
-			availableActions[gvk.Group+"\t"+gvk.Kind+"\t"+obj.GetName()] = availActionsForResource.Actions
+			for _, action := range availActionsForResource.Actions {
+				displayAction := DisplayedAction{
+					Group:    gvk.Group,
+					Kind:     gvk.Kind,
+					Name:     obj.GetName(),
+					Action:   action.Name,
+					Disabled: action.Disabled,
+				}
+				availableActions = append(availableActions, displayAction)
+			}
 		}
-
-		var keys []string
-		for key := range availableActions {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
 
 		switch output {
 		case "yaml":
@@ -91,14 +100,10 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 			fmt.Println(string(jsonBytes))
 		case "":
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "GROUP\tKIND\tNAME\tACTION\tAVAILABLE\n")
+			fmt.Fprintf(w, "GROUP\tKIND\tNAME\tACTION\tDISABLED\n")
 			fmt.Println()
-			for key := range availableActions {
-				for i := range availableActions[key] {
-					action := availableActions[key][i]
-					fmt.Fprintf(w, "%s\t%s\t%s\n", key, action.Name, strconv.FormatBool(action.Available))
-
-				}
+			for _, action := range availableActions {
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", action.Group, action.Kind, action.Name, action.Action, strconv.FormatBool(action.Disabled))
 			}
 			_ = w.Flush()
 		}
