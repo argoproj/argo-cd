@@ -1,4 +1,4 @@
-package controllercache
+package appstate
 
 import (
 	"fmt"
@@ -54,26 +54,24 @@ func appManagedResourcesKey(appName string) string {
 	return fmt.Sprintf("app|managed-resources|%s", appName)
 }
 
-func (c *Cache) GetAppManagedResources(appName string) ([]*appv1.ResourceDiff, error) {
-	res := make([]*appv1.ResourceDiff, 0)
-	err := c.cache.GetItem(appManagedResourcesKey(appName), &res)
-	return res, err
+func (c *Cache) GetAppManagedResources(appName string, res *[]*appv1.ResourceDiff) error {
+	err := c.GetItem(appManagedResourcesKey(appName), &res)
+	return err
 }
 
 func (c *Cache) SetAppManagedResources(appName string, managedResources []*appv1.ResourceDiff) error {
-	return c.cache.SetItem(appManagedResourcesKey(appName), managedResources, c.appStateCacheExpiration, managedResources == nil)
+	return c.SetItem(appManagedResourcesKey(appName), managedResources, c.appStateCacheExpiration, managedResources == nil)
 }
 
 func appResourcesTreeKey(appName string) string {
 	return fmt.Sprintf("app|resources-tree|%s", appName)
 }
 
-func (c *Cache) GetAppResourcesTree(appName string) (*appv1.ApplicationTree, error) {
-	var res *appv1.ApplicationTree
-	err := c.cache.GetItem(appResourcesTreeKey(appName), &res)
-	return res, err
+func (c *Cache) GetAppResourcesTree(appName string, res *appv1.ApplicationTree) error {
+	err := c.GetItem(appResourcesTreeKey(appName), &res)
+	return err
 }
 
 func (c *Cache) SetAppResourcesTree(appName string, resourcesTree *appv1.ApplicationTree) error {
-	return c.cache.SetItem(appResourcesTreeKey(appName), resourcesTree, c.appStateCacheExpiration, resourcesTree == nil)
+	return c.SetItem(appResourcesTreeKey(appName), resourcesTree, c.appStateCacheExpiration, resourcesTree == nil)
 }

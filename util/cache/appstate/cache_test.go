@@ -1,4 +1,4 @@
-package controllercache
+package appstate
 
 import (
 	"testing"
@@ -25,33 +25,35 @@ func newFixtures() *fixtures {
 func TestCache_GetAppManagedResources(t *testing.T) {
 	cache := newFixtures().Cache
 	// cache miss
-	_, err := cache.GetAppManagedResources("my-appname")
+	value := &[]*ResourceDiff{}
+	err := cache.GetAppManagedResources("my-appname", value)
 	assert.Equal(t, ErrCacheMiss, err)
 	// populate cache
 	err = cache.SetAppManagedResources("my-appname", []*ResourceDiff{{Name: "my-name"}})
 	assert.NoError(t, err)
 	// cache miss
-	_, err = cache.GetAppManagedResources("other-appname")
+	err = cache.GetAppManagedResources("other-appname", value)
 	assert.Equal(t, ErrCacheMiss, err)
 	// cache hit
-	value, err := cache.GetAppManagedResources("my-appname")
+	err = cache.GetAppManagedResources("my-appname", value)
 	assert.NoError(t, err)
-	assert.Equal(t, []*ResourceDiff{{Name: "my-name"}}, value)
+	assert.Equal(t, &[]*ResourceDiff{{Name: "my-name"}}, value)
 }
 
 func TestCache_GetAppResourcesTree(t *testing.T) {
 	cache := newFixtures().Cache
 	// cache miss
-	_, err := cache.GetAppResourcesTree("my-appname")
+	value := &ApplicationTree{}
+	err := cache.GetAppResourcesTree("my-appname", value)
 	assert.Equal(t, ErrCacheMiss, err)
 	// populate cache
 	err = cache.SetAppResourcesTree("my-appname", &ApplicationTree{Nodes: []ResourceNode{{}}})
 	assert.NoError(t, err)
 	// cache miss
-	_, err = cache.GetAppResourcesTree("other-appname")
+	err = cache.GetAppResourcesTree("other-appname", value)
 	assert.Equal(t, ErrCacheMiss, err)
 	// cache hit
-	value, err := cache.GetAppResourcesTree("my-appname")
+	err = cache.GetAppResourcesTree("my-appname", value)
 	assert.NoError(t, err)
 	assert.Equal(t, &ApplicationTree{Nodes: []ResourceNode{{}}}, value)
 }

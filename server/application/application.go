@@ -623,7 +623,7 @@ func (s *Server) getApplicationClusterConfig(applicationName string) (*rest.Conf
 // getCachedAppState loads the cached state and trigger app refresh if cache is missing
 func (s *Server) getCachedAppState(ctx context.Context, a *appv1.Application, getFromCache func() error) error {
 	err := getFromCache()
-	if err != nil && err == cache.ErrCacheMiss {
+	if err != nil && err == servercache.ErrCacheMiss {
 		conditions := a.Status.GetConditions(map[appv1.ApplicationConditionType]bool{
 			appv1.ApplicationConditionComparisonError:  true,
 			appv1.ApplicationConditionInvalidSpecError: true,

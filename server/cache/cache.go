@@ -50,12 +50,12 @@ func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
 	}
 }
 
-func (c *Cache) GetAppResourcesTree(appName string) (*appv1.ApplicationTree, error) {
-	return c.cache.GetAppResourcesTree(appName)
+func (c *Cache) GetAppResourcesTree(appName string, res *appv1.ApplicationTree) error {
+	return c.cache.GetAppResourcesTree(appName, res)
 }
 
-func (c *Cache) GetAppManagedResources(appName string) ([]*appv1.ResourceDiff, error) {
-	return c.cache.GetAppManagedResources(appName)
+func (c *Cache) GetAppManagedResources(appName string, res *[]*appv1.ResourceDiff) error {
+	return c.cache.GetAppManagedResources(appName, res)
 }
 
 func clusterConnectionStateKey(server string) string {
