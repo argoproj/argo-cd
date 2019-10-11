@@ -46,17 +46,6 @@ commands:
           keys:
             - go-v17-{{ .Branch }}
             - go-v17-master
-  check_for_changes:
-    steps:
-      - run:
-          name: Check nothing has changed
-          command: |
-            set -xo pipefail
-            # This makes sure you ran `make pre-commit` before you pushed.
-            # We exclude the Swagger resources; CircleCI doesn't generate them correctly.
-            # When this fails, it will, create a patch file you can apply locally to fix it.
-            # To troubleshoot builds: https://argoproj.github.io/argo-cd/developer-guide/ci/
-            git diff --exit-code -- . ':!Gopkg.lock'  ':!assets/swagger.json' | tee codegen.patch
 jobs:
   codegen:
     docker:
@@ -66,15 +55,23 @@ jobs:
       - checkout
       - restore_cache:
           keys: [codegen-v2]
-      - run: ./hack/install.sh codegen-tools
-      - run: sudo ./hack/install.sh protoc-linux swagger-linux jq-linux helm-linux kustomize-linux
+      - run: ./hack/install.sh codegen-go-tools
+      - run: sudo ./hack/install.sh codegen-tools
       - run: dep ensure
       - save_cache:
           key: codegen-v2
           paths: [vendor, /tmp/dl, /go/pkg]
       - run: helm init --client-only
       - run: make codegen-local
-      - check_for_changes
+      - run:
+          name: Check nothing has changed
+          command: |
+            set -xo pipefail
+            # This makes sure you ran `make pre-commit` before you pushed.
+            # We exclude the Swagger resources; CircleCI doesn't generate them correctly.
+            # When this fails, it will, create a patch file you can apply locally to fix it.
+            # To troubleshoot builds: https://argoproj.github.io/argo-cd/developer-guide/ci/
+            git diff --exit-code -- . ':!Gopkg.lock'  ':!assets/swagger.json' | tee codegen.patch
   test:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
