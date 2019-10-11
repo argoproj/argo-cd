@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"google.golang.org/grpc/metadata"
 	"io"
 	"io/ioutil"
 	"net"
@@ -15,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	md "google.golang.org/grpc/metadata"
 
 	"github.com/coreos/go-oidc"
 	"github.com/dgrijalva/jwt-go"
@@ -82,16 +83,16 @@ type Client interface {
 
 // ClientOptions hold address, security, and other settings for the API client.
 type ClientOptions struct {
-	ServerAddr        string
-	PlainText         bool
-	Insecure          bool
-	CertFile          string
-	AuthToken         string
-	ConfigPath        string
-	Context           string
-	UserAgent         string
-	GRPCWeb           bool
-	AdditionalHeaders string
+	ServerAddr string
+	PlainText  bool
+	Insecure   bool
+	CertFile   string
+	AuthToken  string
+	ConfigPath string
+	Context    string
+	UserAgent  string
+	GRPCWeb    bool
+	AddHeader  []string
 }
 
 type client struct {
@@ -103,7 +104,7 @@ type client struct {
 	RefreshToken      string
 	UserAgent         string
 	GRPCWeb           bool
-	AdditionalHeaders string
+	AdditionalHeaders []string
 
 	proxyMutex      *sync.Mutex
 	proxyListener   net.Listener
@@ -192,8 +193,8 @@ func NewClient(opts *ClientOptions) (Client, error) {
 			return nil, err
 		}
 	}
-	if opts.AdditionalHeaders != "" {
-		c.AdditionalHeaders = opts.AdditionalHeaders
+	if len(opts.AddHeader) > 0 {
+		c.AdditionalHeaders = opts.AddHeader
 	}
 	return &c, nil
 }
@@ -392,12 +393,12 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 
 	ctx := context.Background()
 
-	if c.AdditionalHeaders != "" {
-		for _, kv := range strings.Split(c.AdditionalHeaders, ",") {
+	if len(c.AdditionalHeaders) > 0 {
+		for _, kv := range c.AdditionalHeaders {
 			if len(strings.Split(kv, ":"))%2 == 1 {
 				return nil, nil, fmt.Errorf("additional headers must be colon(:)-separated: %s", kv)
 			}
-			ctx = metadata.AppendToOutgoingContext(ctx, strings.Split(kv, ":")[0], strings.Split(kv, ":")[1])
+			ctx = md.AppendToOutgoingContext(ctx, strings.Split(kv, ":")[0], strings.Split(kv, ":")[1])
 		}
 	}
 	if c.UserAgent != "" {

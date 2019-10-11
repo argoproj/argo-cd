@@ -59,6 +59,6 @@ func NewCommand() *cobra.Command {
 	command.PersistentFlags().StringVar(&clientOpts.AuthToken, "auth-token", config.GetFlag("auth-token", ""), "Authentication token")
 	command.PersistentFlags().BoolVar(&clientOpts.GRPCWeb, "grpc-web", config.GetBoolFlag("grpc-web"), "Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.")
 	command.PersistentFlags().StringVar(&logLevel, "loglevel", config.GetFlag("loglevel", "info"), "Set the logging level. One of: debug|info|warn|error")
-	command.PersistentFlags().StringVar(&clientOpts.AdditionalHeaders, "additional-headers", config.GetFlag("additional-headers", ""), "Sets a comma separated list of additional headers.")
+	command.PersistentFlags().StringSliceVar(&clientOpts.AddHeader, "add-header", []string{}, "Sets one additional header to all requests made by Argo CD CLI. (Can be repeated multiple times)")
 	return command
 }
