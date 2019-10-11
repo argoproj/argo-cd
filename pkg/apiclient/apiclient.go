@@ -15,8 +15,6 @@ import (
 	"sync"
 	"time"
 
-	md "google.golang.org/grpc/metadata"
-
 	"github.com/coreos/go-oidc"
 	"github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
@@ -24,6 +22,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	"github.com/argoproj/argo-cd/common"
@@ -398,7 +397,7 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 			if len(strings.Split(kv, ":"))%2 == 1 {
 				return nil, nil, fmt.Errorf("additional headers must be colon(:)-separated: %s", kv)
 			}
-			ctx = md.AppendToOutgoingContext(ctx, strings.Split(kv, ":")[0], strings.Split(kv, ":")[1])
+			ctx = metadata.AppendToOutgoingContext(ctx, strings.Split(kv, ":")[0], strings.Split(kv, ":")[1])
 		}
 	}
 	if c.UserAgent != "" {
