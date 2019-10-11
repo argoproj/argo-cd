@@ -64,7 +64,8 @@ jobs:
       - save_cache:
           key: lint-v8
           paths: [vendor, /tmp/dl, /home/circleci/.go_workspace/pkg]
-      - run: GOGC=75 make lint
+      # TODO GOGC default vs 75
+      - run: make lint
       - check_for_changes
   test:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd

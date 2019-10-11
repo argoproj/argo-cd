@@ -7,5 +7,5 @@ metadata:
 spec:
   containers:
     - name: main
-      image: nginx:1.7.9
+      image: nginx:1.17.4-alpine
       imagePullPolicy: IfNotPresent
