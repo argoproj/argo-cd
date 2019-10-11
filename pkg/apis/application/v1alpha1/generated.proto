@@ -563,7 +563,7 @@ message ResourceAction {
 
   repeated ResourceActionParam params = 2;
 
-  optional bool available = 3;
+  optional bool disabled = 3;
 }
 
 message ResourceActionDefinition {

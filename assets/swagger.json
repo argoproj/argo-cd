@@ -3635,7 +3635,7 @@
     "v1alpha1ResourceAction": {
       "type": "object",
       "properties": {
-        "available": {
+        "disabled": {
           "type": "boolean",
           "format": "boolean"
         },
