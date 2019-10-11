@@ -1,12 +1,4 @@
 apiVersion: v1
-kind: Pod
+kind: ConfigMap
 metadata:
   name: pod
-spec:
-  containers:
-    - name: main
-      image: alpine:3.10.2
-      imagePullPolicy: IfNotPresent
-      command:
-        - "true"
-  restartPolicy: Never

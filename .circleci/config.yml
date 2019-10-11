@@ -58,9 +58,9 @@ jobs:
           keys: [lint-v11]
       - install_golang
       - checkout
+      - run: make install-lint-tools
       - run: sudo ./hack/install.sh dep-linux
       - run: dep ensure
-      - run: make install-lint-tools
       - save_cache:
           key: lint-v11
           paths: [/tmp/dl, /home/circleci/.go_workspace, /home/circleci/.cache/go-build, /home/circleci/sdk/go1.12.6]
