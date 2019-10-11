@@ -3,6 +3,7 @@ package application
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -22,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -618,8 +620,35 @@ func (s *Server) getApplicationClusterConfig(applicationName string) (*rest.Conf
 	return config, namespace, err
 }
 
-func (s *Server) getAppResources(q *application.ResourcesQuery) (*appv1.ApplicationTree, error) {
-	return s.cache.GetAppResourcesTree(*q.ApplicationName)
+// getCachedAppState loads the cached state and trigger app refresh if cache is missing
+func (s *Server) getCachedAppState(ctx context.Context, a *appv1.Application, getFromCache func() error) error {
+	err := getFromCache()
+	if err != nil && err == cache.ErrCacheMiss {
+		conditions := a.Status.GetConditions(map[appv1.ApplicationConditionType]bool{
+			appv1.ApplicationConditionComparisonError:  true,
+			appv1.ApplicationConditionInvalidSpecError: true,
+		})
+		if len(conditions) > 0 {
+			return errors.New(argoutil.FormatAppConditions(conditions))
+		}
+		_, err = s.Get(ctx, &application.ApplicationQuery{
+			Name:    pointer.StringPtr(a.Name),
+			Refresh: pointer.StringPtr(string(appv1.RefreshTypeNormal)),
+		})
+		if err != nil {
+			return err
+		}
+		return getFromCache()
+	}
+	return err
+}
+
+func (s *Server) getAppResources(ctx context.Context, a *appv1.Application) (*appv1.ApplicationTree, error) {
+	var tree appv1.ApplicationTree
+	err := s.getCachedAppState(ctx, a, func() error {
+		return s.cache.GetAppResourcesTree(a.Name, &tree)
+	})
+	return &tree, err
 }
 
 func (s *Server) getAppResource(ctx context.Context, action string, q *application.ApplicationResourceRequest) (*appv1.ResourceNode, *rest.Config, *appv1.Application, error) {
@@ -631,7 +660,7 @@ func (s *Server) getAppResource(ctx context.Context, action string, q *applicati
 		return nil, nil, nil, err
 	}
 
-	tree, err := s.getAppResources(&application.ResourcesQuery{ApplicationName: &a.Name})
+	tree, err := s.getAppResources(ctx, a)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -752,7 +781,7 @@ func (s *Server) ResourceTree(ctx context.Context, q *application.ResourcesQuery
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
 		return nil, err
 	}
-	return s.getAppResources(q)
+	return s.getAppResources(ctx, a)
 }
 
 func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMetadataQuery) (*v1alpha1.RevisionMetadata, error) {
@@ -783,7 +812,10 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
 		return nil, err
 	}
-	items, err := s.cache.GetAppManagedResources(a.Name)
+	items := make([]*appv1.ResourceDiff, 0)
+	err = s.getCachedAppState(ctx, a, func() error {
+		return s.cache.GetAppManagedResources(a.Name, &items)
+	})
 	if err != nil {
 		return nil, err
 	}

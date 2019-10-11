@@ -598,3 +598,56 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 		assert.Equal(t, CompareWithLatest, compareWith)
 	}
 }
+
+func TestRefreshAppConditions(t *testing.T) {
+	defaultProj := argoappv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Spec: argoappv1.AppProjectSpec{
+			SourceRepos: []string{"*"},
+			Destinations: []argoappv1.ApplicationDestination{
+				{
+					Server:    "*",
+					Namespace: "*",
+				},
+			},
+		},
+	}
+
+	t.Run("NoErrorConditions", func(t *testing.T) {
+		app := newFakeApp()
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
+
+		hasErrors := ctrl.refreshAppConditions(app)
+		assert.False(t, hasErrors)
+		assert.Len(t, app.Status.Conditions, 0)
+	})
+
+	t.Run("PreserveExistingWarningCondition", func(t *testing.T) {
+		app := newFakeApp()
+		app.Status.SetConditions([]argoappv1.ApplicationCondition{{Type: argoappv1.ApplicationConditionExcludedResourceWarning}}, nil)
+
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
+
+		hasErrors := ctrl.refreshAppConditions(app)
+		assert.False(t, hasErrors)
+		assert.Len(t, app.Status.Conditions, 1)
+		assert.Equal(t, argoappv1.ApplicationConditionExcludedResourceWarning, app.Status.Conditions[0].Type)
+	})
+
+	t.Run("ReplacesSpecErrorCondition", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Project = "wrong project"
+		app.Status.SetConditions([]argoappv1.ApplicationCondition{{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: "old message"}}, nil)
+
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
+
+		hasErrors := ctrl.refreshAppConditions(app)
+		assert.True(t, hasErrors)
+		assert.Len(t, app.Status.Conditions, 1)
+		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
+		assert.Equal(t, "Application referencing project wrong project which does not exist", app.Status.Conditions[0].Message)
+	})
+}
