@@ -74,13 +74,13 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          keys: [test-v10]
+          keys: [test-v11]
       - install_golang
       - run: sudo ./hack/install.sh kubectl-linux kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
       - run: dep ensure
       - run: go get github.com/jstemmer/go-junit-report
       - save_cache:
-          key: test-v10
+          key: test-v11
           paths: [vendor, /tmp/dl, /home/circleci/.go_workspace/pkg]
       - configure_git
       - run: make test
