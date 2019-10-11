@@ -23,11 +23,6 @@ IMAGE_TAG?=
 STATIC_BUILD?=true
 # build development images
 DEV_IMAGE?=false
-# lint is memory and CPU intensive, so we can limit on CI to mitigate OOM
-LINT_GOGC?=off
-LINT_CONCURRENCY?=8
-# Set timeout for linter
-LINT_DEADLINE?=1m0s
 
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
@@ -159,15 +154,14 @@ dep:
 dep-ensure:
 	dep ensure -no-vendor
 
-.PHONY: lint-local
-lint-local: build
-	# golangci-lint does not do a good job of formatting imports
-	goimports -local github.com/argoproj/argo-cd -w `find . ! -path './vendor/*' ! -path './pkg/client/*' ! -path '*.pb.go' ! -path '*.gw.go' -type f -name '*.go'`
-	GOGC=$(LINT_GOGC) golangci-lint run --fix --verbose --concurrency $(LINT_CONCURRENCY) --deadline $(LINT_DEADLINE)
+.PHONY: install-lint-tools
+install-lint-tools:
+	./hack/install.sh lint-tools
 
 .PHONY: lint
-lint: dev-tools-image
-	$(call run-in-dev-tool,make lint-local LINT_CONCURRENCY=$(LINT_CONCURRENCY) LINT_DEADLINE=$(LINT_DEADLINE) LINT_GOGC=$(LINT_GOGC))
+lint:
+	golangci-lint --version
+	golangci-lint run --fix --verbose
 
 .PHONY: build
 build:
