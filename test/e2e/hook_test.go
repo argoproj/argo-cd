@@ -39,9 +39,10 @@ func testHookSuccessful(t *testing.T, hookType HookType) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(ResourceSyncStatusIs("ConfigMap", "pod", SyncStatusCodeSynced)).
+		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced)).
+		Expect(ResourceHealthIs("Pod", "pod", HealthStatusHealthy)).
 		Expect(ResourceResultNumbering(2)).
-		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "ConfigMap", Namespace: DeploymentNamespace(), Name: "hook", Message: "hook created", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook", Message: "pod/hook created", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
 }
 
 // make sure that that hooks do not appear in "argocd app diff"
@@ -167,7 +168,7 @@ spec:
   containers:
     - command:
         - "true"
-      image: "alpine:3.10.2"
+      image: "alpine:latest"
       imagePullPolicy: IfNotPresent
       name: main
   restartPolicy: Never
@@ -198,7 +199,7 @@ spec:
   containers:
     - command:
         - "true"
-      image: "alpine:3.10.2"
+      image: "alpine:latest"
       imagePullPolicy: IfNotPresent
       name: main
   restartPolicy: Never
@@ -214,7 +215,7 @@ spec:
   containers:
     - command:
         - "false"
-      image: "alpine:3.10.2"
+      image: "alpine:latest"
       imagePullPolicy: IfNotPresent
       name: main
   restartPolicy: Never

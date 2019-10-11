@@ -1,5 +1,12 @@
 apiVersion: v1
-kind: ConfigMap
+kind: Pod
 metadata:
-  # TODO - rename to something not pod like!
   name: pod
+spec:
+  containers:
+    - name: main
+      image: alpine:latest
+      imagePullPolicy: IfNotPresent
+      command:
+        - "true"
+  restartPolicy: Never
