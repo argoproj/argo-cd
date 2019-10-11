@@ -146,7 +146,7 @@ jobs:
           path: /tmp/test-results
       - run: ./hack/install.sh codegen-go-tools
       - run: sudo ./hack/install.sh codegen-tools
-      - run: make codegen
+      - run: make codegen-local
       - run:
           name: Check nothing has changed
           command: |
