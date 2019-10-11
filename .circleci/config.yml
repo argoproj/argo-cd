@@ -22,9 +22,7 @@ commands:
             echo "export GIT_ASKPASS=git-ask-pass.sh" | tee -a $BASH_ENV
   clean_checkout:
     steps:
-      - run:
-          name: Remove checked out code
-          command: rm -Rf /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
+      - run: rm -Rf /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
       - checkout
   dep_ensure:
     steps:
@@ -58,10 +56,7 @@ commands:
     steps:
       - run:
           name: Install Go deps
-          command: |
-            set -x
-            go get github.com/jstemmer/go-junit-report
-            go get github.com/mattn/goreman
+          command: go get github.com/jstemmer/go-junit-report
   install_tools:
     steps:
       - run:
@@ -105,24 +100,8 @@ commands:
             sudo cp /tmp/ks_0.13.1_linux_amd64/ks /usr/local/go/bin/ks
             sudo chmod +x /usr/local/go/bin/ks
             ks version
-      - run:
-          name: Install Helm v2.13.1
-          command: |
-            set -x
-            [ -e /tmp/dl/helm.tar.gz ] || curl -sLf -C - -o /tmp/dl/helm.tar.gz https://storage.googleapis.com/kubernetes-helm/helm-v2.13.1-linux-amd64.tar.gz
-            tar -C /tmp/ -xf /tmp/dl/helm.tar.gz
-            sudo cp /tmp/linux-amd64/helm /usr/local/go/bin/helm
-            helm version --client
-            helm init --client-only
-      - run:
-          name: Install Kustomize v3.1.0
-          command: |
-            set -x
-            export VER=3.1.0
-            [ -e /tmp/dl/kustomize_${VER} ] || curl -sLf -C - -o /tmp/dl/kustomize_${VER} https://github.com/kubernetes-sigs/kustomize/releases/download/v${VER}/kustomize_${VER}_linux_amd64
-            sudo cp /tmp/dl/kustomize_${VER} /usr/local/go/bin/kustomize
-            sudo chmod +x /usr/local/go/bin/kustomize
-            kustomize version
+      - run: sudo ./hack/install.sh helm-linux && helm init --client-only
+      - run: sudo ./hack/install.sh kustomize-linux
       - save_cache:
           key: dl-v7
           paths:
@@ -165,9 +144,9 @@ jobs:
           background: true
       - store_test_results:
           path: /tmp/test-results
-      - run:
-          name: Generate code
-          command: make codegen
+      - run: ./hack/install.sh codegen-go-tools
+      - run: sudo ./hack/install.sh codegen-tools
+      - run: make codegen-local
       - run:
           name: Check nothing has changed
           command: |

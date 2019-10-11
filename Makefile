@@ -18,7 +18,7 @@ PATH:=$(PATH):$(PWD)/hack
 
 # docker image publishing options
 DOCKER_PUSH?=false
-IMAGE_TAG?=
+IMAGE_NAMESPACE?=
 # perform static compilation
 STATIC_BUILD?=true
 # build development images
@@ -68,7 +68,7 @@ clientgen:
 codegen-local: protogen clientgen openapigen manifests-local
 
 .PHONY: codegen
-codegen: dev-tools-image
+codegen:
 	$(call run-in-dev-tool,make codegen-local)
 
 .PHONY: cli
@@ -89,14 +89,14 @@ argocd-util: clean-debug
 
 .PHONY: dev-tools-image
 dev-tools-image:
-	docker build -t argocd-dev-tools ./hack -f ./hack/Dockerfile.dev-tools
+	cd hack && docker build -t argocd-dev-tools . -f Dockerfile.dev-tools
 
 .PHONY: manifests-local
 manifests-local:
 	./hack/update-manifests.sh
 
 .PHONY: manifests
-manifests: dev-tools-image
+manifests:
 	$(call run-in-dev-tool,make manifests-local IMAGE_TAG='${IMAGE_TAG}')
 
 
