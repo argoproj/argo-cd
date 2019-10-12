@@ -539,12 +539,8 @@ func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
 	if src.Kustomize == nil {
 		src.Kustomize = &argoappv1.ApplicationSourceKustomize{}
 	}
-	if opts.namePrefix != "" {
-		src.Kustomize.NamePrefix = opts.namePrefix
-	}
-	if opts.nameSuffix != "" {
-		src.Kustomize.NameSuffix = opts.nameSuffix
-	}
+	src.Kustomize.NamePrefix = opts.namePrefix
+	src.Kustomize.NameSuffix = opts.nameSuffix
 	for _, image := range opts.images {
 		src.Kustomize.MergeImage(argoappv1.KustomizeImage(image))
 	}
