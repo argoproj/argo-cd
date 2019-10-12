@@ -6,7 +6,10 @@ import (
 	"strings"
 )
 
+// Ensure that `requestedPath` is on the same directory or any subdirectory of `currentRoot`. Both `currentRoot` and
+// `requestedPath` must be absolute paths. They may contain any number of `./` or `/../` dir changes.
 func EnforceToCurrentRoot(currentRoot, requestedPath string) (string, error) {
+	currentRoot = filepath.Clean(currentRoot)
 	requestedDir, requestedFile := parsePath(requestedPath)
 	if !isRequestedDirUnderCurrentRoot(currentRoot, requestedDir) {
 		return "", fmt.Errorf("requested path %s should be on or under current directory %s", requestedPath, currentRoot)
