@@ -12,11 +12,11 @@ func TestEnforceToCurrentRoot(t *testing.T) {
 	assert.Equal(t, "/home/argo/helmapp/values.yaml", cleanDir)
 
 	// File is outside current working directory
-	cleanDir, err = EnforceToCurrentRoot("/home/argo/helmapp/", "/home/values.yaml")
+	_, err = EnforceToCurrentRoot("/home/argo/helmapp/", "/home/values.yaml")
 	assert.Error(t, err)
 
 	// File is outside current working directory
-	cleanDir, err = EnforceToCurrentRoot("/home/argo/helmapp/", "/home/argo/helmapp/../differentapp/values.yaml")
+	_, err = EnforceToCurrentRoot("/home/argo/helmapp/", "/home/argo/helmapp/../differentapp/values.yaml")
 	assert.Error(t, err)
 
 	// Goes back and forth, but still legal

@@ -32,7 +32,7 @@ func TestCmd_template_PathTraversal(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, s)
 
-	s, err = cmd.template(".", &TemplateOpts{
+	_, err = cmd.template(".", &TemplateOpts{
 		KubeVersion: "1.14",
 		Values:      []string{"../minio/values.yaml"},
 	})
