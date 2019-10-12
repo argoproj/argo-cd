@@ -3,14 +3,20 @@ run:
   skip-files:
     - ".*\\.pb\\.go"
   skip-dirs:
-    - pkg/client
-    - vendor
+    - pkg/client/
+    - vendor/
 linters:
   enable:
     - vet
     - deadcode
+    - goimports
     - varcheck
     - structcheck
     - ineffassign
     - unconvert
     - unparam
+linters-settings:
+  goimports:
+    local-prefixes: github.com/argoproj/argo-cd
+service:
+  golangci-lint-version: 1.18.0

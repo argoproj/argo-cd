@@ -18,16 +18,11 @@ PATH:=$(PATH):$(PWD)/hack
 
 # docker image publishing options
 DOCKER_PUSH?=false
-IMAGE_TAG?=
+IMAGE_NAMESPACE?=
 # perform static compilation
 STATIC_BUILD?=true
 # build development images
 DEV_IMAGE?=false
-# lint is memory and CPU intensive, so we can limit on CI to mitigate OOM
-LINT_GOGC?=off
-LINT_CONCURRENCY?=8
-# Set timeout for linter
-LINT_DEADLINE?=1m0s
 
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
@@ -73,7 +68,7 @@ clientgen:
 codegen-local: protogen clientgen openapigen manifests-local
 
 .PHONY: codegen
-codegen: dev-tools-image
+codegen:
 	$(call run-in-dev-tool,make codegen-local)
 
 .PHONY: cli
@@ -94,14 +89,14 @@ argocd-util: clean-debug
 
 .PHONY: dev-tools-image
 dev-tools-image:
-	docker build -t argocd-dev-tools ./hack -f ./hack/Dockerfile.dev-tools
+	cd hack && docker build -t argocd-dev-tools . -f Dockerfile.dev-tools
 
 .PHONY: manifests-local
 manifests-local:
 	./hack/update-manifests.sh
 
 .PHONY: manifests
-manifests: dev-tools-image
+manifests:
 	$(call run-in-dev-tool,make manifests-local IMAGE_TAG='${IMAGE_TAG}')
 
 
@@ -159,15 +154,14 @@ dep:
 dep-ensure:
 	dep ensure -no-vendor
 
-.PHONY: lint-local
-lint-local: build
-	# golangci-lint does not do a good job of formatting imports
-	goimports -local github.com/argoproj/argo-cd -w `find . ! -path './vendor/*' ! -path './pkg/client/*' ! -path '*.pb.go' ! -path '*.gw.go' -type f -name '*.go'`
-	GOGC=$(LINT_GOGC) golangci-lint run --fix --verbose --concurrency $(LINT_CONCURRENCY) --deadline $(LINT_DEADLINE)
+.PHONY: install-lint-tools
+install-lint-tools:
+	./hack/install.sh lint-tools
 
 .PHONY: lint
-lint: dev-tools-image
-	$(call run-in-dev-tool,make lint-local LINT_CONCURRENCY=$(LINT_CONCURRENCY) LINT_DEADLINE=$(LINT_DEADLINE) LINT_GOGC=$(LINT_GOGC))
+lint:
+	golangci-lint --version
+	golangci-lint run --fix --verbose
 
 .PHONY: build
 build:

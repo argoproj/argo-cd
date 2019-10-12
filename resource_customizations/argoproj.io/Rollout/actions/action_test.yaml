@@ -2,19 +2,19 @@ discoveryTests:
 - inputPath: testdata/paused_rollout.yaml
   result:
     - name: resume
-      available: true
+      disabled: false
 - inputPath: testdata/v0.2_paused_rollout.yaml
   result:
     - name: resume
-      available: true
+      disabled: false
 - inputPath: testdata/not_paused_rollout.yaml
   result:
     - name: resume
-      available: false
+      disabled: true
 - inputPath: testdata/nil_paused_rollout.yaml
   result:
     - name: resume
-      available: false
+      disabled: true
 actionTests:
 - action: resume
   inputPath: testdata/paused_rollout.yaml

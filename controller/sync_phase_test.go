@@ -43,6 +43,15 @@ func TestSyncPhaseTwoPhases(t *testing.T) {
 	assert.ElementsMatch(t, []SyncPhase{SyncPhasePreSync, SyncPhasePostSync}, syncPhases(pod("PreSync,PostSync")))
 }
 
+func TestSyncDuplicatedPhases(t *testing.T) {
+	assert.ElementsMatch(t, []SyncPhase{SyncPhasePreSync}, syncPhases(pod("PreSync,PreSync")))
+	assert.ElementsMatch(t, []SyncPhase{SyncPhasePreSync}, syncPhases(podWithHelmHook("pre-install,pre-upgrade")))
+}
+
 func pod(hookType string) *unstructured.Unstructured {
 	return test.Annotate(test.NewPod(), "argocd.argoproj.io/hook", hookType)
+}
+
+func podWithHelmHook(hookType string) *unstructured.Unstructured {
+	return test.Annotate(test.NewPod(), "helm.sh/hook", hookType)
 }
