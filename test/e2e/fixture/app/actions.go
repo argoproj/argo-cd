@@ -75,13 +75,9 @@ func (a *Actions) CreateFromFile(handler func(app *Application)) *Actions {
 			Environment: a.context.env,
 		}
 	}
-	if a.context.namePrefix != "" {
+	if a.context.namePrefix != "" || a.context.nameSuffix != "" {
 		app.Spec.Source.Kustomize = &ApplicationSourceKustomize{
 			NamePrefix: a.context.namePrefix,
-		}
-	}
-	if a.context.nameSuffix != "" {
-		app.Spec.Source.Kustomize = &ApplicationSourceKustomize{
 			NameSuffix: a.context.nameSuffix,
 		}
 	}

@@ -16,7 +16,7 @@ func TestKustomize2AppSource(t *testing.T) {
 
 	patchLabelMatchesFor := func(kind string) func(app *Application) {
 		return func(app *Application) {
-			name := "k2-patched-guestbook-ui"
+			name := "k2-patched-guestbook-ui-deploy1"
 			labelValue, err := fixture.Run(
 				"", "kubectl", "-n="+fixture.DeploymentNamespace(),
 				"get", kind, name,
@@ -29,6 +29,7 @@ func TestKustomize2AppSource(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		NamePrefix("k2-").
+		NameSuffix("-deploy1").
 		When().
 		Create().
 		Then().
