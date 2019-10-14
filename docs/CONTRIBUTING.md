@@ -114,6 +114,13 @@ argocd app create guestbook --path guestbook --repo https://github.com/argoproj/
 
 You can open the UI: http://localhost:8080
 
+As an alternative to using the above command line parameters each time you call `argocd` CLI, you can set the following environment variables:
+
+```bash
+export ARGOCD_SERVER=127.0.0.1:8080
+export ARGOCD_OPTS="--plaintext --insecure"
+```
+
 ## Running Local Containers
 
 You may need to run containers locally, so here's how:
@@ -130,13 +137,19 @@ Add your username as the environment variable, e.g. to your `~/.bash_profile`:
 export IMAGE_NAMESPACE=alexcollinsintuit
 ```
 
+If you don't want to use `latest` as the image's tag (the default), you can set it from the environment too:
+
+```bash
+export IMAGE_TAG=yourtag
+```
+
 Build the image:
 
 ```bash
 DOCKER_PUSH=true make image
 ```
 
-Update the manifests:
+Update the manifests (be sure to do that from a shell that has above environment variables set)
 
 ```bash
 make manifests
