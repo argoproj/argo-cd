@@ -84,11 +84,11 @@ It is much easier to run and debug if you run ArgoCD on your local machine than 
 You should scale the deployments to zero:
 
 ```bash
-kubectl -n argocd scale deployment.extensions/argocd-application-controller --replicas 0
-kubectl -n argocd scale deployment.extensions/argocd-dex-server --replicas 0
-kubectl -n argocd scale deployment.extensions/argocd-repo-server --replicas 0
-kubectl -n argocd scale deployment.extensions/argocd-server --replicas 0
-kubectl -n argocd scale deployment.extensions/argocd-redis --replicas 0
+kubectl -n argocd scale deployment/argocd-application-controller --replicas 0
+kubectl -n argocd scale deployment/argocd-dex-server --replicas 0
+kubectl -n argocd scale deployment/argocd-repo-server --replicas 0
+kubectl -n argocd scale deployment/argocd-server --replicas 0
+kubectl -n argocd scale deployment/argocd-redis --replicas 0
 ```
 
 Download Yarn dependencies and Compile:
@@ -114,6 +114,13 @@ argocd app create guestbook --path guestbook --repo https://github.com/argoproj/
 
 You can open the UI: http://localhost:8080
 
+As an alternative to using the above command line parameters each time you call `argocd` CLI, you can set the following environment variables:
+
+```bash
+export ARGOCD_SERVER=127.0.0.1:8080
+export ARGOCD_OPTS="--plaintext --insecure"
+```
+
 ## Running Local Containers
 
 You may need to run containers locally, so here's how:
@@ -130,21 +137,19 @@ Add your username as the environment variable, e.g. to your `~/.bash_profile`:
 export IMAGE_NAMESPACE=alexcollinsintuit
 ```
 
-If you have not built the UI image (see [the UI README](https://github.com/argoproj/argo-cd/blob/master/ui/README.md)), then do the following:
+If you don't want to use `latest` as the image's tag (the default), you can set it from the environment too:
 
 ```bash
-docker pull argoproj/argocd-ui:latest
-docker tag argoproj/argocd-ui:latest $IMAGE_NAMESPACE/argocd-ui:latest
-docker push $IMAGE_NAMESPACE/argocd-ui:latest
+export IMAGE_TAG=yourtag
 ```
 
-Build the images:
+Build the image:
 
 ```bash
 DOCKER_PUSH=true make image
 ```
 
-Update the manifests:
+Update the manifests (be sure to do that from a shell that has above environment variables set)
 
 ```bash
 make manifests
@@ -159,11 +164,11 @@ kubectl -n argocd apply --force -f manifests/install.yaml
 Scale your deployments up:
 
 ```bash
-kubectl -n argocd scale deployment.extensions/argocd-application-controller --replicas 1
-kubectl -n argocd scale deployment.extensions/argocd-dex-server --replicas 1
-kubectl -n argocd scale deployment.extensions/argocd-repo-server --replicas 1
-kubectl -n argocd scale deployment.extensions/argocd-server --replicas 1
-kubectl -n argocd scale deployment.extensions/argocd-redis --replicas 1
+kubectl -n argocd scale deployment/argocd-application-controller --replicas 1
+kubectl -n argocd scale deployment/argocd-dex-server --replicas 1
+kubectl -n argocd scale deployment/argocd-repo-server --replicas 1
+kubectl -n argocd scale deployment/argocd-server --replicas 1
+kubectl -n argocd scale deployment/argocd-redis --replicas 1
 ```
 
 Now you can set-up the port-forwarding and open the UI or CLI.
