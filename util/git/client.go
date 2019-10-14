@@ -303,6 +303,11 @@ func (m *nativeGitClient) Checkout(revision string) error {
 			return err
 		}
 	}
+	if _, err := os.Stat(m.root + "/.gitmodules"); !os.IsNotExist(err) {
+		if _, err := m.runCredentialedCmd("git", "submodule", "update", "--init", "--recursive"); err != nil {
+			return err
+		}
+	}
 	if _, err := m.runCmd("clean", "-fdx"); err != nil {
 		return err
 	}
