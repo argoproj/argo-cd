@@ -132,6 +132,19 @@ func TestHelmValues(t *testing.T) {
 		})
 }
 
+func TestHelmCrdHook(t *testing.T) {
+	Given(t).
+		Path("helm-crd").
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(ResourceResultNumbering(2))
+}
+
 func TestHelmReleaseName(t *testing.T) {
 	Given(t).
 		Path("helm").
