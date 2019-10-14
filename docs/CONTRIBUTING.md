@@ -130,15 +130,7 @@ Add your username as the environment variable, e.g. to your `~/.bash_profile`:
 export IMAGE_NAMESPACE=alexcollinsintuit
 ```
 
-If you have not built the UI image (see [the UI README](https://github.com/argoproj/argo-cd/blob/master/ui/README.md)), then do the following:
-
-```bash
-docker pull argoproj/argocd-ui:latest
-docker tag argoproj/argocd-ui:latest $IMAGE_NAMESPACE/argocd-ui:latest
-docker push $IMAGE_NAMESPACE/argocd-ui:latest
-```
-
-Build the images:
+Build the image:
 
 ```bash
 DOCKER_PUSH=true make image
