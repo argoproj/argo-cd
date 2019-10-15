@@ -92,7 +92,4 @@ Or, via the CLI:
 argocd app sync -l app.kubernetes.io/instance=apps
 ```
 
-
- 
-
 View [the example on Github](https://github.com/argoproj/argocd-example-apps/tree/master/apps).
