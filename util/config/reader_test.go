@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+
 func TestUnmarshalLocalFile(t *testing.T) {
 	const (
 		field1 = "Hello, world!"

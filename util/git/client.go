@@ -37,6 +37,7 @@ type RevisionMetadata struct {
 	Message string
 }
 
+
 // Client is a generic git client interface
 type Client interface {
 	Root() string

@@ -45,6 +45,7 @@ import (
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
+
 // Server provides a Application service
 type Server struct {
 	ns            string

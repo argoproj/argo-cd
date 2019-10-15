@@ -16,6 +16,7 @@ import (
 	"github.com/argoproj/argo-cd/util/healthz"
 )
 
+
 type MetricsServer struct {
 	*http.Server
 	syncCounter             *prometheus.CounterVec
