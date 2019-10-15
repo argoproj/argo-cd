@@ -17,7 +17,6 @@ import (
 	"github.com/argoproj/argo-cd/util/config"
 )
 
-
 type HelmRepository struct {
 	Creds
 	Name string
@@ -112,7 +111,7 @@ func (h *helm) GetParameters(valuesFiles []string) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	values := append([]string{out})
+	values := []string{out}
 	for _, file := range valuesFiles {
 		var fileValues []byte
 		parsedURL, err := url.ParseRequestURI(file)

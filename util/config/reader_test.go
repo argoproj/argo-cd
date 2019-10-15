@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-
 func TestUnmarshalLocalFile(t *testing.T) {
 	const (
 		field1 = "Hello, world!"
@@ -101,7 +100,7 @@ func TestUnmarshalRemoteFile(t *testing.T) {
 
 func TestUnmarshalReader(t *testing.T) {
 	type testStruct struct {
-		value string
+		Value string
 	}
 	value := "test-reader"
 	instance := testStruct{value}
@@ -110,5 +109,5 @@ func TestUnmarshalReader(t *testing.T) {
 	var reader io.Reader = bytes.NewReader(data)
 	err = UnmarshalReader(reader, &instance)
 	assert.NoError(t, err)
-	assert.Equal(t, value, instance.value)
+	assert.Equal(t, value, instance.Value)
 }
