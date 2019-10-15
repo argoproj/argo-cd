@@ -26,6 +26,12 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {
                     <Form
                         onSubmit={async (params: any) => {
                             for (const app of apps) {
+                                if (!params[app.metadata.name]) {
+                                    ctx.notifications.show({
+                                        content: `Ignoring ${app.metadata.name}`,
+                                        type: NotificationType.Warning,
+                                    });
+                                }
                                 if (params.applyOnly) {
                                     syncStrategy.apply = {force: params.force};
                                 } else {
@@ -46,13 +52,18 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {
                         {() => (
                             <React.Fragment>
                                 <h4>Sync {apps.length} app(s)</h4>
-                                <ul>
-                                    {apps.map((app) => (<li>
-                                        <HealthStatusIcon state={app.status.health}/>
-                                        <ComparisonStatusIcon status={app.status.sync.status}/>
-                                        {app.metadata.name}
-                                    </li>))}
-                                </ul>
+                                <div className='argo-form-row'>
+                                    <ul>
+                                        {apps.map((app) => (<li>
+                                            <Checkbox field={app.metadata.name}/>
+                                            &nbsp;
+                                            <HealthStatusIcon state={app.status.health}/>
+                                            &nbsp;
+                                            <ComparisonStatusIcon status={app.status.sync.status}/>
+                                            {app.metadata.name}
+                                        </li>))}
+                                    </ul>
+                                </div>
                                 <div className='argo-form-row'>
                                     <label><Checkbox field='prune'/> Prune</label>
                                     <label><Checkbox field='dryRun'/> Dry Run</label>
