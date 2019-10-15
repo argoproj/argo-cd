@@ -210,7 +210,7 @@ func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 		},
 	})
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "should be on or under current directory")
+	assert.Error(t, err, "should be on or under current directory")
 }
 
 func TestGenerateNullList(t *testing.T) {

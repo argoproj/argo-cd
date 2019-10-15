@@ -9,10 +9,8 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/argoproj/argo-cd/util/security"
-
 	"github.com/argoproj/argo-cd/util"
-
+	"github.com/argoproj/argo-cd/util/security"
 	argoexec "github.com/argoproj/pkg/exec"
 )
 
