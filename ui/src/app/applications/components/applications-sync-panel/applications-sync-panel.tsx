@@ -4,8 +4,10 @@ import {Checkbox, Form, FormApi} from 'react-form';
 import * as models from '../../../shared/models';
 import {Consumer} from '../../../shared/context';
 import {services} from '../../../shared/services';
+import {ComparisonStatusIcon, HealthStatusIcon} from "../utils";
 
-export const ApplicationsSyncPanel = ({apps, hide}: {
+export const ApplicationsSyncPanel = ({show, apps, hide}: {
+    show: boolean;
     apps: models.Application[];
     hide: () => any;
 }) => {
@@ -14,7 +16,7 @@ export const ApplicationsSyncPanel = ({apps, hide}: {
     return (
         <Consumer>
             {(ctx) => (
-                <SlidingPanel isMiddle={true} isShown={true} onClose={() => hide()} header={(
+                <SlidingPanel isMiddle={true} isShown={show} onClose={() => hide()} header={(
                     <div>
                         <button className='argo-button argo-button--base' onClick={() => form.submitForm(null)}>Sync
                         </button>
@@ -42,27 +44,22 @@ export const ApplicationsSyncPanel = ({apps, hide}: {
                         }}
                         getApi={setForm}>
                         {() => (
-                            <div className='argo-form-row'>
-                                <h6>Synchronizing apps</h6>
-                                <span>
-                                        <label>
-                                            <Checkbox field='prune'/>
-                                            Prune
-                                        </label>
-                                    </span>
-                                <span>
-                                        <Checkbox id='dry-run-checkbox' field='dryRun'/>
-                                        <label htmlFor='dry-run-checkbox'>Dry Run</label>
-                                    </span>
-                                <span>
-                                        <Checkbox id='apply-only-checkbox' field='applyOnly'/>
-                                        <label htmlFor='apply-only-checkbox'>Apply Only</label>
-                                     </span>
-                                <span>
-                                        <Checkbox id='force-checkbox' field='force'/>
-                                        <label htmlFor='force-checkbox'>Force</label>
-                                     </span>
-                            </div>
+                            <React.Fragment>
+                                <h4>Sync {apps.length} app(s)</h4>
+                                <ul>
+                                    {apps.map((app) => (<li>
+                                        <HealthStatusIcon state={app.status.health}/>
+                                        <ComparisonStatusIcon status={app.status.sync.status}/>
+                                        {app.metadata.name}
+                                    </li>))}
+                                </ul>
+                                <div className='argo-form-row'>
+                                    <label><Checkbox field='prune'/> Prune</label>
+                                    <label><Checkbox field='dryRun'/> Dry Run</label>
+                                    <label><Checkbox field='applyOnly'/> Apply Only</label>
+                                    <label><Checkbox field='force'/> Force</label>
+                                </div>
+                            </React.Fragment>
                         )}
                     </Form>
                 </SlidingPanel>

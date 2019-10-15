@@ -228,6 +228,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         labels: newPref.labelsFilter.join(','),
                                     });
                                 }} />
+                                {syncInput && (<ApplicationsSyncPanel key='syncsPanel' show={syncInput} hide={() => ctx.navigation.goto('.', {sync: null})}  apps={applications}/>)}
                             </div>
                             <div className='columns small-12 xxlarge-10'>
                             {pref.view === 'summary' && (
@@ -306,7 +307,6 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
             app={appInput}
             onAppChanged={(app) => ctx.navigation.goto('.', { new: JSON.stringify(app) }, { replace: true })} />}
         </SlidingPanel>
-        {syncInput && <ApplicationsSyncPanel key='syncPanel' hide={() => ctx.navigation.goto('.', { sync: null })} />}
     </Page>
 )}
 </Consumer>
