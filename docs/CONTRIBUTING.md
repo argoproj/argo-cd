@@ -23,7 +23,15 @@ Install:
 Brew users can quickly install the lot:
     
 ```bash
-brew install git-lfs go dep kubectl kubectx ksonnet/tap/ks kubernetes-helm kustomize 
+brew install go git-lfs kubectl kubectx dep ksonnet/tap/ks kubernetes-helm kustomize kustomize
+```
+
+Check the versions:
+
+```
+go version ;# must be v1.12.x
+helm version ;# must be v2.13.x
+kustomize version ;# must be v3.10.x
 ```
 
 Set up environment variables (e.g. is `~/.bashrc`):
@@ -46,32 +54,16 @@ Ensure dependencies are up to date first:
 
 ```shell
 dep ensure
+make dev-builder-image
+make install-lint-tools
 ```
 
-Build `cli`, `image`, and `argocd-util` as default targets by running make:
+Common make targets:
 
-```bash
-make
-```
-
-The make command can take a while, and we recommend building the specific component you are working on
-
-* `make codegen` - Builds protobuf and swagger files.
-
-Note: `make codegen` is slow because it uses docker + volume mounts. To improve performance you might install binaries from `./hack/Dockerfile.dev-tools`
-and use `make codegen-local`. It is still recommended to run `make codegen` once before sending PR to make sure correct version of codegen tools is used.   
-
-* `make cli` - Make the argocd CLI tool
-* `make server` - Make the API/repo/controller server
-* `make argocd-util` - Make the administrator's utility, used for certain tasks such as import/export
-
-## Running Tests
-
-To run unit tests:
-
-```bash
-make test
-```
+* `make codegen` - Run code generation
+* `make lint` - Lint code
+* `make test` - Run unit tests
+* `make cli` - Make the `argocd` CLI tool
 
 Check out the following [documentation](https://github.com/argoproj/argo-cd/blob/master/docs/developer-guide/test-e2e.md) for instructions on running the e2e tests.
 
@@ -82,11 +74,11 @@ It is much easier to run and debug if you run ArgoCD on your local machine than 
 You should scale the deployments to zero:
 
 ```bash
-kubectl -n argocd scale deployment.extensions/argocd-application-controller --replicas 0
-kubectl -n argocd scale deployment.extensions/argocd-dex-server --replicas 0
-kubectl -n argocd scale deployment.extensions/argocd-repo-server --replicas 0
-kubectl -n argocd scale deployment.extensions/argocd-server --replicas 0
-kubectl -n argocd scale deployment.extensions/argocd-redis --replicas 0
+kubectl -n argocd scale deployment/argocd-application-controller --replicas 0
+kubectl -n argocd scale deployment/argocd-dex-server --replicas 0
+kubectl -n argocd scale deployment/argocd-repo-server --replicas 0
+kubectl -n argocd scale deployment/argocd-server --replicas 0
+kubectl -n argocd scale deployment/argocd-redis --replicas 0
 ```
 
 Download Yarn dependencies and Compile:
@@ -110,7 +102,14 @@ You can now execute `argocd` command against your locally running ArgoCD by appe
 argocd app create guestbook --path guestbook --repo https://github.com/argoproj/argocd-example-apps.git --dest-server https://kubernetes.default.svc  --dest-namespace default --server localhost:8080 --plaintext --insecure
 ```
 
-You can open the UI: http://localhost:8080
+You can open the UI: http://localhost:4000
+
+As an alternative to using the above command line parameters each time you call `argocd` CLI, you can set the following environment variables:
+
+```bash
+export ARGOCD_SERVER=127.0.0.1:8080
+export ARGOCD_OPTS="--plaintext --insecure"
+```
 
 ## Running Local Containers
 
@@ -128,21 +127,19 @@ Add your username as the environment variable, e.g. to your `~/.bash_profile`:
 export IMAGE_NAMESPACE=alexcollinsintuit
 ```
 
-If you have not built the UI image (see [the UI README](https://github.com/argoproj/argo-cd/blob/master/ui/README.md)), then do the following:
+If you don't want to use `latest` as the image's tag (the default), you can set it from the environment too:
 
 ```bash
-docker pull argoproj/argocd-ui:latest
-docker tag argoproj/argocd-ui:latest $IMAGE_NAMESPACE/argocd-ui:latest
-docker push $IMAGE_NAMESPACE/argocd-ui:latest
+export IMAGE_TAG=yourtag
 ```
 
-Build the images:
+Build the image:
 
 ```bash
 DOCKER_PUSH=true make image
 ```
 
-Update the manifests:
+Update the manifests (be sure to do that from a shell that has above environment variables set)
 
 ```bash
 make manifests
@@ -157,11 +154,11 @@ kubectl -n argocd apply --force -f manifests/install.yaml
 Scale your deployments up:
 
 ```bash
-kubectl -n argocd scale deployment.extensions/argocd-application-controller --replicas 1
-kubectl -n argocd scale deployment.extensions/argocd-dex-server --replicas 1
-kubectl -n argocd scale deployment.extensions/argocd-repo-server --replicas 1
-kubectl -n argocd scale deployment.extensions/argocd-server --replicas 1
-kubectl -n argocd scale deployment.extensions/argocd-redis --replicas 1
+kubectl -n argocd scale deployment/argocd-application-controller --replicas 1
+kubectl -n argocd scale deployment/argocd-dex-server --replicas 1
+kubectl -n argocd scale deployment/argocd-repo-server --replicas 1
+kubectl -n argocd scale deployment/argocd-server --replicas 1
+kubectl -n argocd scale deployment/argocd-redis --replicas 1
 ```
 
 Now you can set-up the port-forwarding and open the UI or CLI.

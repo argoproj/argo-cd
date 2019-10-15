@@ -25,7 +25,7 @@ func TestFixingDegradedApp(t *testing.T) {
 		Expect(ResourceSyncStatusIs("Pod", "pod-2", SyncStatusCodeOutOfSync)).
 		Expect(ResourceHealthIs("Pod", "pod-2", HealthStatusMissing)).
 		When().
-		PatchFile("pod-1.yaml", `[{"op": "replace", "path": "/spec/containers/0/image", "value": "nginx"}]`).
+		PatchFile("pod-1.yaml", `[{"op": "replace", "path": "/spec/containers/0/image", "value": "nginx:1.17.4-alpine"}]`).
 		// need to force a refresh here
 		Refresh(RefreshTypeNormal).
 		Then().

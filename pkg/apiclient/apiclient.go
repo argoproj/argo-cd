@@ -22,6 +22,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	"github.com/argoproj/argo-cd/common"
@@ -90,6 +91,7 @@ type ClientOptions struct {
 	Context    string
 	UserAgent  string
 	GRPCWeb    bool
+	Headers    []string
 }
 
 type client struct {
@@ -101,6 +103,7 @@ type client struct {
 	RefreshToken string
 	UserAgent    string
 	GRPCWeb      bool
+	Headers      []string
 
 	proxyMutex      *sync.Mutex
 	proxyListener   net.Listener
@@ -189,6 +192,8 @@ func NewClient(opts *ClientOptions) (Client, error) {
 			return nil, err
 		}
 	}
+	c.Headers = opts.Headers
+
 	return &c, nil
 }
 
@@ -383,10 +388,20 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 	var dialOpts []grpc.DialOption
 	dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(endpointCredentials))
 	dialOpts = append(dialOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize)))
+
+	ctx := context.Background()
+
+	for _, kv := range c.Headers {
+		if len(strings.Split(kv, ":"))%2 == 1 {
+			return nil, nil, fmt.Errorf("additional headers must be colon(:)-separated: %s", kv)
+		}
+		ctx = metadata.AppendToOutgoingContext(ctx, strings.Split(kv, ":")[0], strings.Split(kv, ":")[1])
+	}
+
 	if c.UserAgent != "" {
 		dialOpts = append(dialOpts, grpc.WithUserAgent(c.UserAgent))
 	}
-	conn, e := grpc_util.BlockingDial(context.Background(), network, serverAddr, creds, dialOpts...)
+	conn, e := grpc_util.BlockingDial(ctx, network, serverAddr, creds, dialOpts...)
 	closers = append(closers, conn)
 	return conn, util.NewCloser(func() error {
 		var firstErr error

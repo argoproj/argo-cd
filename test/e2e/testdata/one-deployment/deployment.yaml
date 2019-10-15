@@ -4,7 +4,7 @@ metadata:
   name: main
 spec:
   replicas: 1
-  progressDeadlineSeconds: 30
+  progressDeadlineSeconds: 10
   selector:
     matchLabels:
       my-label: whatever
@@ -16,6 +16,6 @@ spec:
       containers:
         - name: main
           command: ["sleep", "999"]
-          image: alpine:latest
+          image: alpine:3.10.2
           imagePullPolicy: IfNotPresent
 
