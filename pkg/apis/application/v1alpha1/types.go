@@ -978,7 +978,7 @@ func (o *ResourceOverride) GetActions() (ResourceActions, error) {
 
 type ResourceActions struct {
 	ActionDiscoveryLua string                     `json:"discovery.lua,omitempty" yaml:"discovery.lua,omitempty" protobuf:"bytes,1,opt,name=actionDiscoveryLua"`
-	Definitions        []ResourceActionDefinition `json:"definitions,omitEmpty" protobuf:"bytes,2,rep,name=definitions"`
+	Definitions        []ResourceActionDefinition `json:"definitions,omitempty" protobuf:"bytes,2,rep,name=definitions"`
 }
 
 type ResourceActionDefinition struct {
@@ -987,9 +987,9 @@ type ResourceActionDefinition struct {
 }
 
 type ResourceAction struct {
-	Name      string                `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-	Params    []ResourceActionParam `json:"params,omitempty" protobuf:"bytes,2,rep,name=params"`
-	Available bool                  `json:"available,omitempty" protobuf:"varint,3,opt,name=available"`
+	Name     string                `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	Params   []ResourceActionParam `json:"params,omitempty" protobuf:"bytes,2,rep,name=params"`
+	Disabled bool                  `json:"disabled,omitempty" protobuf:"varint,3,opt,name=disabled"`
 }
 
 type ResourceActionParam struct {
