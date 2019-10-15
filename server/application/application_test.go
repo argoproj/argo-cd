@@ -111,7 +111,7 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
 		Spec: appsv1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
-			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*", Name: "*"}},
 		},
 	}
 	myProj := &appsv1.AppProject{
@@ -165,7 +165,7 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 	return server.(*Server)
 }
 
-const fakeApp = `
+const fakeAppWithDestServer = `
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -183,9 +183,27 @@ spec:
     server: https://cluster-api.com
 `
 
-func newTestApp() *appsv1.Application {
+const fakeAppWithDestName = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: test-dest-name
+  namespace: default
+spec:
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    ksonnet:
+      environment: default
+  destination:
+    namespace: ` + test.FakeDestNamespace + `
+    name: fake-cluster
+`
+
+func newTestApp(whichApp string) *appsv1.Application {
 	var app appsv1.Application
-	err := yaml.Unmarshal([]byte(fakeApp), &app)
+	err := yaml.Unmarshal([]byte(whichApp), &app)
 	if err != nil {
 		panic(err)
 	}
@@ -193,7 +211,7 @@ func newTestApp() *appsv1.Application {
 }
 
 func TestCreateApp(t *testing.T) {
-	testApp := newTestApp()
+	testApp := newTestApp(fakeAppWithDestServer)
 	appServer := newTestAppServer()
 	testApp.Spec.Project = ""
 	createReq := application.ApplicationCreateRequest{
@@ -204,10 +222,27 @@ func TestCreateApp(t *testing.T) {
 	assert.NotNil(t, app)
 	assert.NotNil(t, app.Spec)
 	assert.Equal(t, app.Spec.Project, "default")
+	assert.Equal(t, "", app.Spec.Destination.Name)
+}
+
+func TestCreateAppWithDestName(t *testing.T) {
+	testApp := newTestApp(fakeAppWithDestName)
+	appServer := newTestAppServer()
+	testApp.Spec.Project = ""
+	createReq := application.ApplicationCreateRequest{
+		Application: *testApp,
+	}
+	app, err := appServer.Create(context.Background(), &createReq)
+	assert.NoError(t, err)
+	assert.NotNil(t, app)
+	assert.NotNil(t, app.Spec)
+	assert.Equal(t, "fake-cluster", app.Spec.Destination.Name)
+	assert.Equal(t, "", app.Spec.Destination.Server)
+	assert.Equal(t, app.Spec.Project, "default")
 }
 
 func TestUpdateApp(t *testing.T) {
-	testApp := newTestApp()
+	testApp := newTestApp(fakeAppWithDestServer)
 	appServer := newTestAppServer(testApp)
 	testApp.Spec.Project = ""
 	app, err := appServer.Update(context.Background(), &application.ApplicationUpdateRequest{
@@ -218,7 +253,7 @@ func TestUpdateApp(t *testing.T) {
 }
 
 func TestUpdateAppSpec(t *testing.T) {
-	testApp := newTestApp()
+	testApp := newTestApp(fakeAppWithDestServer)
 	appServer := newTestAppServer(testApp)
 	testApp.Spec.Project = ""
 	spec, err := appServer.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{
@@ -236,7 +271,7 @@ func TestDeleteApp(t *testing.T) {
 	ctx := context.Background()
 	appServer := newTestAppServer()
 	createReq := application.ApplicationCreateRequest{
-		Application: *newTestApp(),
+		Application: *newTestApp(fakeAppWithDestServer),
 	}
 	app, err := appServer.Create(ctx, &createReq)
 	assert.Nil(t, err)
@@ -279,7 +314,7 @@ func TestDeleteApp(t *testing.T) {
 func TestSyncAndTerminate(t *testing.T) {
 	ctx := context.Background()
 	appServer := newTestAppServer()
-	testApp := newTestApp()
+	testApp := newTestApp(fakeAppWithDestServer)
 	testApp.Spec.Source.RepoURL = "https://github.com/argoproj/argo-cd.git"
 	createReq := application.ApplicationCreateRequest{
 		Application: *testApp,
@@ -318,7 +353,7 @@ func TestSyncAndTerminate(t *testing.T) {
 }
 
 func TestRollbackApp(t *testing.T) {
-	testApp := newTestApp()
+	testApp := newTestApp(fakeAppWithDestServer)
 	testApp.Status.History = []appsv1.RevisionHistory{{
 		ID:       1,
 		Revision: "abc",
@@ -340,7 +375,7 @@ func TestRollbackApp(t *testing.T) {
 }
 
 func TestUpdateAppProject(t *testing.T) {
-	testApp := newTestApp()
+	testApp := newTestApp(fakeAppWithDestServer)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
 	appServer := newTestAppServer(testApp)
@@ -392,7 +427,7 @@ p, admin, applications, update, my-proj/test-app, allow
 }
 
 func TestAppJsonPatch(t *testing.T) {
-	testApp := newTestApp()
+	testApp := newTestApp(fakeAppWithDestServer)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
 	appServer := newTestAppServer(testApp)
@@ -412,7 +447,7 @@ func TestAppJsonPatch(t *testing.T) {
 }
 
 func TestAppMergePatch(t *testing.T) {
-	testApp := newTestApp()
+	testApp := newTestApp(fakeAppWithDestServer)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
 	appServer := newTestAppServer(testApp)
@@ -426,7 +461,7 @@ func TestAppMergePatch(t *testing.T) {
 
 func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 	t.Run("Active", func(t *testing.T) {
-		testApp := newTestApp()
+		testApp := newTestApp(fakeAppWithDestServer)
 		testApp.Spec.Project = "proj-maint"
 		appServer := newTestAppServer(testApp)
 
@@ -435,7 +470,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 		assert.Equal(t, 1, len(active.ActiveWindows))
 	})
 	t.Run("Inactive", func(t *testing.T) {
-		testApp := newTestApp()
+		testApp := newTestApp(fakeAppWithDestServer)
 		testApp.Spec.Project = "default"
 		appServer := newTestAppServer(testApp)
 
@@ -444,7 +479,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 		assert.Equal(t, 0, len(active.ActiveWindows))
 	})
 	t.Run("ProjectDoesNotExist", func(t *testing.T) {
-		testApp := newTestApp()
+		testApp := newTestApp(fakeAppWithDestServer)
 		testApp.Spec.Project = "none"
 		appServer := newTestAppServer(testApp)
 

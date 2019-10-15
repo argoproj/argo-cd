@@ -35,3 +35,18 @@ func Test_setHelmOpt(t *testing.T) {
 		assert.Equal(t, []v1alpha1.HelmParameter{{Name: "foo", Value: "bar", ForceString: true}}, src.Helm.Parameters)
 	})
 }
+
+func Test_setApplicationDestination(t *testing.T) {
+	t.Run("cluster url", func(t *testing.T) {
+		d := v1alpha1.ApplicationDestination{}
+		setApplicationDestination(&d, "https://kubernetes.default.svc")
+		assert.Equal(t, "https://kubernetes.default.svc", d.Server)
+		assert.Equal(t, "", d.Name)
+	})
+	t.Run("cluster name", func(t *testing.T) {
+		d := v1alpha1.ApplicationDestination{}
+		setApplicationDestination(&d, "minikube")
+		assert.Equal(t, "minikube", d.Name)
+		assert.Equal(t, "", d.Server)
+	})
+}

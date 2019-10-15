@@ -334,7 +334,7 @@ func verifyGenerateManifests(
 ) []argoappv1.ApplicationCondition {
 	spec := &app.Spec
 	var conditions []argoappv1.ApplicationCondition
-	if spec.Destination.Server == "" || spec.Destination.Namespace == "" {
+	if (spec.Destination.Server == "" && spec.Destination.Name == "") || spec.Destination.Namespace == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
 			Message: errDestinationMissing,

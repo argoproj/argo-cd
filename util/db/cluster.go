@@ -183,7 +183,7 @@ func (db *db) getClusterSecret(server string, name string) (*apiv1.Secret, error
 		}
 
 	}
-	return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
+	return nil, status.Errorf(codes.NotFound, "cluster not found by server %q or name %q", server, name)
 
 }
 
