@@ -10,7 +10,7 @@ We know that for many of our users, they want to deploy existing Helm charts usi
 
 On top of that, we've improved support for Helm apps. The most common types of Helm hooks such as `pre-install` and `post-install` are supported as well as a the delete policy `before-hook-creation` which makes it easier to work with hooks.
 
-TODO - add video.
+https://youtu.be/GP7xtrnNznw
 
 ##### Orphan Resources
 
