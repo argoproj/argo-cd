@@ -213,8 +213,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: app.Spec.Project})
 			errors.CheckError(err)
 
-			active := proj.Spec.Maintenance.ActiveWindows()
-			_, win := active.Match(app)
+			windows := proj.Spec.SyncWindows.Matches(app)
 
 			switch output {
 			case "yaml":
@@ -227,7 +226,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				fmt.Println(string(jsonBytes))
 			case "":
 				aURL := appURL(acdClient, app.Name)
-				printAppSummaryTable(app, aURL, win)
+				printAppSummaryTable(app, aURL, windows)
 
 				if len(app.Status.Conditions) > 0 {
 					fmt.Println()
@@ -262,7 +261,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	return command
 }
 
-func printAppSummaryTable(app *argoappv1.Application, appURL string, windows argoappv1.ProjectMaintenanceWindows) {
+func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *argoappv1.SyncWindows) {
 	fmt.Printf(printOpFmtStr, "Name:", app.Name)
 	fmt.Printf(printOpFmtStr, "Project:", app.Spec.GetProject())
 	fmt.Printf(printOpFmtStr, "Server:", app.Spec.Destination.Server)
@@ -272,18 +271,48 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows arg
 	fmt.Printf(printOpFmtStr, "Target:", app.Spec.Source.TargetRevision)
 	fmt.Printf(printOpFmtStr, "Path:", app.Spec.Source.Path)
 	printAppSourceDetails(&app.Spec.Source)
-	var syncPolicy string
-	if len(windows) > 0 {
-		var wds []string
-		status := "Active"
-		for _, w := range windows {
-			s := w.Schedule + ":" + w.Duration
+	var wds []string
+	var status string
+	var allow, deny, inactiveAllows bool
+	if windows.HasWindows() {
+		active := windows.Active()
+		if active.HasWindows() {
+			for _, w := range *active {
+				if w.Kind == "deny" {
+					deny = true
+				} else {
+					allow = true
+				}
+			}
+		}
+		if windows.InactiveAllows().HasWindows() {
+			inactiveAllows = true
+		}
+
+		s := windows.CanSync(true)
+		if deny || !deny && !allow && inactiveAllows {
+			if s {
+				status = "Manual Allowed"
+			} else {
+				status = "Sync Denied"
+
+			}
+		} else {
+			status = "Sync Allowed"
+		}
+		for _, w := range *windows {
+			s := w.Kind + ":" + w.Schedule + ":" + w.Duration
 			wds = append(wds, s)
 		}
-		fmt.Printf(printOpFmtStr, "Maintenance:", status)
-		fmt.Printf(printOpFmtStr, "Active Windows:", strings.Join(wds, ","))
+	} else {
+		status = "Sync Allowed"
+	}
+	fmt.Printf(printOpFmtStr, "SyncWindow:", status)
+	if len(wds) > 0 {
+		fmt.Printf(printOpFmtStr, "Assigned Windows:", strings.Join(wds, ","))
 	}
 
+	var syncPolicy string
 	if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
 		syncPolicy = "Automated"
 		if app.Spec.SyncPolicy.Automated.Prune {
@@ -1031,7 +1060,8 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 // NewApplicationListCommand returns a new instance of an `argocd app list` command
 func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		output string
+		output   string
+		projects []string
 	)
 	var command = &cobra.Command{
 		Use:   "list",
@@ -1041,14 +1071,19 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			defer util.Close(conn)
 			apps, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{})
 			errors.CheckError(err)
+			appList := apps.Items
+			if len(projects) != 0 {
+				appList = argo.FilterByProjects(appList, projects)
+			}
 			if output == "name" {
-				printApplicationNames(apps.Items)
+				printApplicationNames(appList)
 			} else {
-				printApplicationTable(apps.Items, &output)
+				printApplicationTable(appList, &output)
 			}
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name")
+	command.Flags().StringArrayVarP(&projects, "project", "p", []string{}, "Filter by project name")
 	return command
 }
 
@@ -1927,23 +1962,17 @@ func filterResources(command *cobra.Command, resources []*argoappv1.ResourceDiff
 		if resourceName != "" && resourceName != obj.GetName() {
 			continue
 		}
-		if kind == gvk.Kind {
-			copy := obj.DeepCopy()
-			filteredObjects = append(filteredObjects, copy)
+		if kind != "" && kind != gvk.Kind {
+			continue
 		}
+		copy := obj.DeepCopy()
+		filteredObjects = append(filteredObjects, copy)
 	}
 	if len(filteredObjects) == 0 {
 		log.Fatal("No matching resource found")
 	}
 	if len(filteredObjects) > 1 && !all {
 		log.Fatal("Multiple resources match inputs. Use the --all flag to patch multiple resources")
-	}
-	firstGroup := filteredObjects[0].GroupVersionKind().Group
-	for i := range filteredObjects {
-		obj := filteredObjects[i]
-		if obj.GroupVersionKind().Group != firstGroup {
-			log.Fatal("Multiple groups found in objects to patch. Specify which group to patch with --group flag")
-		}
 	}
 	return filteredObjects
 }

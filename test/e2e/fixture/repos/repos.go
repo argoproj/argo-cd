@@ -7,6 +7,17 @@ import (
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 )
 
+var (
+	CertPath    = mustToAbsPath("../fixture/certs/argocd-test-client.crt")
+	CertKeyPath = mustToAbsPath("../fixture/certs/argocd-test-client.key")
+)
+
+func mustToAbsPath(relativePath string) string {
+	res, err := filepath.Abs(relativePath)
+	errors.CheckError(err)
+	return res
+}
+
 // sets the current repo as the default SSH test repo
 func AddSSHRepo(insecure bool) {
 	keyPath, err := filepath.Abs("../fixture/testrepos/id_rsa")
@@ -31,18 +42,14 @@ func AddHTTPSRepo(insecure bool) {
 
 // sets a HTTPS repo using TLS client certificate authentication
 func AddHTTPSRepoClientCert(insecure bool) {
-	certPath, err := filepath.Abs("../fixture/certs/argocd-test-client.crt")
-	errors.CheckError(err)
-	keyPath, err := filepath.Abs("../fixture/certs/argocd-test-client.key")
-	errors.CheckError(err)
 	args := []string{
 		"repo",
 		"add",
 		fixture.RepoURL(fixture.RepoURLTypeHTTPSClientCert),
 		"--username", fixture.GitUsername,
 		"--password", fixture.GitPassword,
-		"--tls-client-cert-path", certPath,
-		"--tls-client-cert-key-path", keyPath,
+		"--tls-client-cert-path", CertPath,
+		"--tls-client-cert-key-path", CertKeyPath,
 	}
 	if insecure {
 		args = append(args, "--insecure-skip-server-verification")
@@ -50,21 +57,17 @@ func AddHTTPSRepoClientCert(insecure bool) {
 	errors.FailOnErr(fixture.RunCli(args...))
 }
 
-func AddHelmRepo() {
-	certPath, err := filepath.Abs("../fixture/certs/argocd-test-client.crt")
-	errors.CheckError(err)
-	keyPath, err := filepath.Abs("../fixture/certs/argocd-test-client.key")
-	errors.CheckError(err)
-
+func AddHelmRepo(name string) {
 	args := []string{
 		"repo",
 		"add",
 		fixture.RepoURL(fixture.RepoURLTypeHelm),
 		"--username", fixture.GitUsername,
 		"--password", fixture.GitPassword,
-		"--tls-client-cert-path", certPath,
-		"--tls-client-cert-key-path", keyPath,
+		"--tls-client-cert-path", CertPath,
+		"--tls-client-cert-key-path", CertKeyPath,
 		"--type", "helm",
+		"--name", name,
 	}
 	errors.FailOnErr(fixture.RunCli(args...))
 }

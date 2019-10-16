@@ -13,6 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	"k8s.io/apimachinery/pkg/api/errors"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -107,14 +108,11 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 
 	compareResult := m.CompareAppState(app, revision, source, false, syncOp.Manifests)
 
-	// If there are any error conditions, do not perform the operation
-	errConditions := make([]v1alpha1.ApplicationCondition, 0)
-	for i := range compareResult.conditions {
-		if compareResult.conditions[i].IsError() {
-			errConditions = append(errConditions, compareResult.conditions[i])
-		}
-	}
-	if len(errConditions) > 0 {
+	// If there are any comparison or spec errors error conditions do not perform the operation
+	if errConditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{
+		v1alpha1.ApplicationConditionComparisonError:  true,
+		v1alpha1.ApplicationConditionInvalidSpecError: true,
+	}); len(errConditions) > 0 {
 		state.Phase = v1alpha1.OperationError
 		state.Message = argo.FormatAppConditions(errConditions)
 		return
@@ -243,7 +241,7 @@ func (sc *syncContext) sync() {
 			// maybe delete the hook
 			if task.needsDeleting() {
 				err := sc.deleteResource(task)
-				if err != nil {
+				if err != nil && !errors.IsNotFound(err) {
 					sc.setResourceResult(task, "", v1alpha1.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
 				}
 			}

@@ -27,16 +27,17 @@ func (c *Consequences) Expect(e Expectation) *Consequences {
 	timeout := c.timeout()
 	for start := time.Now(); time.Since(start) < timeout; time.Sleep(3 * time.Second) {
 		state, message = e(c)
-		log.WithFields(log.Fields{"message": message, "state": state}).Info("polling for expectation")
 		switch state {
 		case succeeded:
+			log.Infof("expectation succeeded: %s", message)
 			return c
 		case failed:
-			c.context.t.Fatal(message)
+			c.context.t.Fatalf("failed expectation: %s", message)
 			return c
 		}
+		log.Infof("pending: %s", message)
 	}
-	c.context.t.Fatal("timeout waiting, " + message)
+	c.context.t.Fatal("timeout waiting for: " + message)
 	return c
 }
 

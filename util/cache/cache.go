@@ -135,20 +135,18 @@ func (c *Cache) getItem(key string, item interface{}) error {
 	return c.client.Get(key, item)
 }
 
-func (c *Cache) GetAppManagedResources(appName string) ([]*appv1.ResourceDiff, error) {
-	res := make([]*appv1.ResourceDiff, 0)
+func (c *Cache) GetAppManagedResources(appName string, res *[]*appv1.ResourceDiff) error {
 	err := c.getItem(appManagedResourcesKey(appName), &res)
-	return res, err
+	return err
 }
 
 func (c *Cache) SetAppManagedResources(appName string, managedResources []*appv1.ResourceDiff) error {
 	return c.setItem(appManagedResourcesKey(appName), managedResources, appStateCacheExpiration, managedResources == nil)
 }
 
-func (c *Cache) GetAppResourcesTree(appName string) (*appv1.ApplicationTree, error) {
-	var res *appv1.ApplicationTree
+func (c *Cache) GetAppResourcesTree(appName string, res *appv1.ApplicationTree) error {
 	err := c.getItem(appResourcesTreeKey(appName), &res)
-	return res, err
+	return err
 }
 
 func (c *Cache) SetAppResourcesTree(appName string, resourcesTree *appv1.ApplicationTree) error {

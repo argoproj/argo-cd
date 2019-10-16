@@ -3,6 +3,7 @@ package application
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -22,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -92,9 +94,16 @@ func appRBACName(app appv1.Application) string {
 	return fmt.Sprintf("%s/%s", app.Spec.GetProject(), app.Name)
 }
 
+func validatedSelector(selector string) string {
+	if _, err := fields.ParseSelector(selector); err != nil {
+		return ""
+	}
+	return selector
+}
+
 // List returns list of applications
 func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*appv1.ApplicationList, error) {
-	appList, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(metav1.ListOptions{})
+	appList, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(metav1.ListOptions{LabelSelector: validatedSelector(q.Selector)})
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +189,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	if err != nil {
 		return nil, err
 	}
-	repos, err := s.db.ListRepositories(ctx)
+	helmRepos, err := s.db.ListHelmRepositories(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +221,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		AppLabelValue:     a.Name,
 		Namespace:         a.Spec.Destination.Namespace,
 		ApplicationSource: &a.Spec.Source,
-		Repos:             repos,
+		Repos:             helmRepos,
 		Plugins:           plugins,
 		KustomizeOptions:  &kustomizeOptions,
 		KubeVersion:       cluster.ServerVersion,
@@ -279,7 +288,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 	} else {
 		namespace = q.ResourceNamespace
 		var config *rest.Config
-		config, _, err = s.getApplicationClusterConfig(*q.Name)
+		config, err = s.getApplicationClusterConfig(*q.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -488,7 +497,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		return nil
 	}
 
-	var listOpts metav1.ListOptions
+	listOpts := metav1.ListOptions{LabelSelector: validatedSelector(q.Selector)}
 	if q.Name != nil && *q.Name != "" {
 		listOpts.FieldSelector = fmt.Sprintf("metadata.name=%s", *q.Name)
 	}
@@ -598,21 +607,48 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	return nil
 }
 
-func (s *Server) getApplicationClusterConfig(applicationName string) (*rest.Config, string, error) {
-	server, namespace, err := s.getApplicationDestination(applicationName)
+func (s *Server) getApplicationClusterConfig(applicationName string) (*rest.Config, error) {
+	server, _, err := s.getApplicationDestination(applicationName)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	clst, err := s.db.GetCluster(context.Background(), server)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	config := clst.RESTConfig()
-	return config, namespace, err
+	return config, err
 }
 
-func (s *Server) getAppResources(q *application.ResourcesQuery) (*appv1.ApplicationTree, error) {
-	return s.cache.GetAppResourcesTree(*q.ApplicationName)
+// getCachedAppState loads the cached state and trigger app refresh if cache is missing
+func (s *Server) getCachedAppState(ctx context.Context, a *appv1.Application, getFromCache func() error) error {
+	err := getFromCache()
+	if err != nil && err == cache.ErrCacheMiss {
+		conditions := a.Status.GetConditions(map[appv1.ApplicationConditionType]bool{
+			appv1.ApplicationConditionComparisonError:  true,
+			appv1.ApplicationConditionInvalidSpecError: true,
+		})
+		if len(conditions) > 0 {
+			return errors.New(argoutil.FormatAppConditions(conditions))
+		}
+		_, err = s.Get(ctx, &application.ApplicationQuery{
+			Name:    pointer.StringPtr(a.Name),
+			Refresh: pointer.StringPtr(string(appv1.RefreshTypeNormal)),
+		})
+		if err != nil {
+			return err
+		}
+		return getFromCache()
+	}
+	return err
+}
+
+func (s *Server) getAppResources(ctx context.Context, a *appv1.Application) (*appv1.ApplicationTree, error) {
+	var tree appv1.ApplicationTree
+	err := s.getCachedAppState(ctx, a, func() error {
+		return s.cache.GetAppResourcesTree(a.Name, &tree)
+	})
+	return &tree, err
 }
 
 func (s *Server) getAppResource(ctx context.Context, action string, q *application.ApplicationResourceRequest) (*appv1.ResourceNode, *rest.Config, *appv1.Application, error) {
@@ -624,7 +660,7 @@ func (s *Server) getAppResource(ctx context.Context, action string, q *applicati
 		return nil, nil, nil, err
 	}
 
-	tree, err := s.getAppResources(&application.ResourcesQuery{ApplicationName: &a.Name})
+	tree, err := s.getAppResources(ctx, a)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -633,7 +669,7 @@ func (s *Server) getAppResource(ctx context.Context, action string, q *applicati
 	if found == nil {
 		return nil, nil, nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", q.Kind, q.Group, q.ResourceName, *q.Name)
 	}
-	config, _, err := s.getApplicationClusterConfig(*q.Name)
+	config, err := s.getApplicationClusterConfig(*q.Name)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -745,7 +781,7 @@ func (s *Server) ResourceTree(ctx context.Context, q *application.ResourcesQuery
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
 		return nil, err
 	}
-	return s.getAppResources(q)
+	return s.getAppResources(ctx, a)
 }
 
 func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMetadataQuery) (*v1alpha1.RevisionMetadata, error) {
@@ -776,7 +812,10 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
 		return nil, err
 	}
-	items, err := s.cache.GetAppManagedResources(a.Name)
+	items := make([]*appv1.ResourceDiff, 0)
+	err = s.getCachedAppState(ctx, a, func() error {
+		return s.cache.GetAppManagedResources(a.Name, &items)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -888,12 +927,11 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		}
 		return a, err
 	}
-	active := proj.Spec.Maintenance.ActiveWindows()
-	match, _ := active.Match(a)
-	if match {
-		s.logEvent(a, ctx, argo.EventReasonOperationCompleted, fmt.Sprint("Cannot sync: Maintenance Windows are active"))
-		return a, err
+
+	if !proj.Spec.SyncWindows.Matches(a).CanSync(true) {
+		return a, status.Errorf(codes.PermissionDenied, "Cannot sync: Blocked by sync window")
 	}
+
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionSync, appRBACName(*a)); err != nil {
 		return nil, err
 	}
@@ -1075,17 +1113,19 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 		return nil, err
 	}
 
-	availableActions, err := s.getAvailableActions(resourceOverrides, obj, "")
+	availableActions, err := s.getAvailableActions(resourceOverrides, obj)
 	if err != nil {
 		return nil, err
 	}
+
 	return &application.ResourceActionsListResponse{Actions: availableActions}, nil
 }
 
-func (s *Server) getAvailableActions(resourceOverrides map[string]v1alpha1.ResourceOverride, obj *unstructured.Unstructured, filterAction string) ([]appv1.ResourceAction, error) {
+func (s *Server) getAvailableActions(resourceOverrides map[string]appv1.ResourceOverride, obj *unstructured.Unstructured) ([]appv1.ResourceAction, error) {
 	luaVM := lua.VM{
 		ResourceOverrides: resourceOverrides,
 	}
+
 	discoveryScript, err := luaVM.GetResourceActionDiscovery(obj)
 	if err != nil {
 		return nil, err
@@ -1096,12 +1136,6 @@ func (s *Server) getAvailableActions(resourceOverrides map[string]v1alpha1.Resou
 	availableActions, err := luaVM.ExecuteResourceActionDiscovery(obj, discoveryScript)
 	if err != nil {
 		return nil, err
-	}
-	for i := range availableActions {
-		action := availableActions[i]
-		if action.Name == filterAction {
-			return []appv1.ResourceAction{action}, nil
-		}
 	}
 	return availableActions, nil
 
@@ -1116,7 +1150,8 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		Version:      q.Version,
 		Group:        q.Group,
 	}
-	res, config, _, err := s.getAppResource(ctx, rbacpolicy.ActionOverride, resourceRequest)
+	actionRequest := fmt.Sprintf("%s/%s/%s/%s", rbacpolicy.ActionAction, q.Group, q.Kind, q.Action)
+	res, config, _, err := s.getAppResource(ctx, actionRequest, resourceRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -1128,13 +1163,6 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 	resourceOverrides, err := s.settingsMgr.GetResourceOverrides()
 	if err != nil {
 		return nil, err
-	}
-	filteredAvailableActions, err := s.getAvailableActions(resourceOverrides, liveObj, q.Action)
-	if err != nil {
-		return nil, err
-	}
-	if len(filteredAvailableActions) == 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "action not available on resource")
 	}
 
 	luaVM := lua.VM{
@@ -1187,7 +1215,7 @@ func (s *Server) plugins() ([]*v1alpha1.ConfigManagementPlugin, error) {
 	return tools, nil
 }
 
-func (s *Server) GetApplicationMaintenanceState(ctx context.Context, q *application.ApplicationMaintenanceQuery) (*application.ApplicationMaintenanceResponse, error) {
+func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.ApplicationSyncWindowsQuery) (*application.ApplicationSyncWindowsResponse, error) {
 	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
 	a, err := appIf.Get(*q.Name, metav1.GetOptions{})
 	if err != nil {
@@ -1207,18 +1235,33 @@ func (s *Server) GetApplicationMaintenanceState(ctx context.Context, q *applicat
 		return nil, err
 	}
 
-	active := proj.Spec.Maintenance.ActiveWindows()
-	_, pWindows := active.Match(a)
+	windows := proj.Spec.SyncWindows.Matches(a)
+	sync := windows.CanSync(true)
 
-	var windows []string
-	for _, win := range pWindows {
-		w := win.Schedule + ":" + win.Duration
-		windows = append(windows, w)
-	}
-
-	res := &application.ApplicationMaintenanceResponse{
-		Windows: windows,
+	res := &application.ApplicationSyncWindowsResponse{
+		ActiveWindows:   convertSyncWindows(windows.Active()),
+		AssignedWindows: convertSyncWindows(windows),
+		CanSync:         &sync,
 	}
 
 	return res, nil
+}
+
+func convertSyncWindows(w *v1alpha1.SyncWindows) []*application.ApplicationSyncWindow {
+	if w != nil {
+		var windows []*application.ApplicationSyncWindow
+		for _, w := range *w {
+			nw := &application.ApplicationSyncWindow{
+				Kind:       &w.Kind,
+				Schedule:   &w.Schedule,
+				Duration:   &w.Duration,
+				ManualSync: &w.ManualSync,
+			}
+			windows = append(windows, nw)
+		}
+		if len(windows) > 0 {
+			return windows
+		}
+	}
+	return nil
 }

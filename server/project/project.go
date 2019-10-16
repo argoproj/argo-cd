@@ -341,7 +341,7 @@ func (s *Server) logEvent(a *v1alpha1.AppProject, ctx context.Context, reason st
 	s.auditLogger.LogAppProjEvent(a, eventInfo, message)
 }
 
-func (s *Server) GetMaintenanceState(ctx context.Context, q *project.MaintenanceStateQuery) (*project.MaintenanceResponse, error) {
+func (s *Server) GetSyncWindowsState(ctx context.Context, q *project.SyncWindowsQuery) (*project.SyncWindowsResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name); err != nil {
 		return nil, err
 	}
@@ -350,10 +350,14 @@ func (s *Server) GetMaintenanceState(ctx context.Context, q *project.Maintenance
 	if err != nil {
 		return nil, err
 	}
-	active := proj.Spec.Maintenance.ActiveWindows()
 
-	res := &project.MaintenanceResponse{
-		Windows: active,
+	res := &project.SyncWindowsResponse{}
+
+	windows := proj.Spec.SyncWindows.Active()
+	if windows.HasWindows() {
+		res.Windows = *windows
+	} else {
+		res.Windows = []*v1alpha1.SyncWindow{}
 	}
 
 	return res, nil

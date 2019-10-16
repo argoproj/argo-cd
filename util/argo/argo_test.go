@@ -148,6 +148,23 @@ func TestValidatePermissionsEmptyDestination(t *testing.T) {
 	assert.ElementsMatch(t, conditions, []argoappv1.ApplicationCondition{{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: "Destination server and/or namespace missing from app spec"}})
 }
 
+func TestValidateChartWithoutRevision(t *testing.T) {
+	conditions, err := ValidatePermissions(context.Background(), &argoappv1.ApplicationSpec{
+		Source: argoappv1.ApplicationSource{RepoURL: "https://kubernetes-charts-incubator.storage.googleapis.com/", Chart: "myChart", TargetRevision: ""},
+		Destination: argoappv1.ApplicationDestination{
+			Server: "https://kubernetes.default.svc", Namespace: "default",
+		},
+	}, &argoappv1.AppProject{
+		Spec: argoappv1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []argoappv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+		},
+	}, nil)
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, conditions, []argoappv1.ApplicationCondition{{
+		Type: argoappv1.ApplicationConditionInvalidSpecError, Message: "spec.source.targetRevision is required if the manifest source is a helm chart"}})
+}
+
 func Test_enrichSpec(t *testing.T) {
 	t.Run("Empty", func(t *testing.T) {
 		spec := &argoappv1.ApplicationSpec{}

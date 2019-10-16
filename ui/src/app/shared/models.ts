@@ -154,6 +154,8 @@ export interface ApplicationSource {
 
     ksonnet?: ApplicationSourceKsonnet;
 
+    plugin?: ApplicationSourcePlugin;
+
     directory?: ApplicationSourceDirectory;
 }
 
@@ -171,6 +173,16 @@ export interface ApplicationSourceKustomize {
 export interface ApplicationSourceKsonnet {
     environment: string;
     parameters: KsonnetParameter[];
+}
+
+export interface PluginEnv {
+    name: string;
+    value: string;
+}
+
+export interface ApplicationSourcePlugin {
+    name: string;
+    env: PluginEnv[];
 }
 
 export interface ApplicationSourceDirectory {
@@ -320,6 +332,11 @@ export interface LogEntry {
     timeStamp: models.Time;
 }
 
+// describes plugin settings
+export interface Plugin {
+    name: string;
+}
+
 export interface AuthSettings {
     url: string;
     statusBadgeEnabled: boolean;
@@ -340,6 +357,7 @@ export interface AuthSettings {
         chatUrl: string;
         chatText: string;
     };
+    plugins: Plugin[];
 }
 
 export interface UserInfo  {
@@ -423,6 +441,7 @@ export interface RepoAppDetails {
     ksonnet?: KsonnetAppSpec;
     helm?: HelmAppSpec;
     kustomize?: KustomizeAppSpec;
+    plugin?: PluginAppSpec;
     directory?: {};
 }
 
@@ -447,6 +466,11 @@ export interface HelmAppSpec {
 export interface KustomizeAppSpec {
     path: string;
     images?: string[];
+}
+
+export interface PluginAppSpec {
+    name: string;
+    env: PluginEnv[];
 }
 
 export interface ObjectReference {
@@ -518,20 +542,19 @@ export interface ProjectSpec {
     clusterResourceWhitelist: GroupKind[];
     namespaceResourceBlacklist: GroupKind[];
     orphanedResources?: { warn?: boolean };
-    maintenance?: ProjectMaintenance;
+    syncWindows?: SyncWindows;
 }
 
-export interface ProjectMaintenance {
-    enabled?: boolean;
-    windows: ProjectMaintenanceWindow[];
-}
+export type SyncWindows = SyncWindow[];
 
-export interface ProjectMaintenanceWindow {
+export interface SyncWindow {
+    kind: string;
     schedule: string;
     duration: string;
     applications: string[];
     namespaces: string[];
     clusters: string[];
+    manualSync: boolean;
 }
 
 export interface Project {
@@ -562,12 +585,16 @@ export interface ResourceActionParam {
 export interface ResourceAction {
     name: string;
     params: ResourceActionParam[];
+    available: boolean;
 }
 
-export interface MaintenanceState {
-    windows: ProjectMaintenanceWindow[];
+export interface SyncWindowsState {
+    windows: SyncWindow[];
 }
 
-export interface ApplicationMaintenanceState {
-    windows: string[];
+export interface ApplicationSyncWindowState {
+    activeWindows: SyncWindow[];
+    assignedWindows: SyncWindow[];
+    canSync: boolean;
+
 }

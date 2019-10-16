@@ -72,8 +72,8 @@ func (c *Context) HTTPSRepoURLWithClientCertAdded() *Context {
 	return c
 }
 
-func (c *Context) HelmRepoAdded() *Context {
-	repos.AddHelmRepo()
+func (c *Context) HelmRepoAdded(name string) *Context {
+	repos.AddHelmRepo(name)
 	return c
 }
 

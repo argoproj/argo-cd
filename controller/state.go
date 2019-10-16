@@ -68,7 +68,6 @@ type comparisonResult struct {
 	healthStatus     *v1alpha1.HealthStatus
 	resources        []v1alpha1.ResourceStatus
 	managedResources []managedResource
-	conditions       []v1alpha1.ApplicationCondition
 	hooks            []*unstructured.Unstructured
 	diffNormalizer   diff.Normalizer
 	appSourceType    v1alpha1.ApplicationSourceType
@@ -88,7 +87,7 @@ type appStateManager struct {
 }
 
 func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
-	repos, err := m.db.ListRepositories(context.Background())
+	helmRepos, err := m.db.ListHelmRepositories(context.Background())
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -130,7 +129,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	}
 	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 		Repo:              repo,
-		Repos:             repos,
+		Repos:             helmRepos,
 		Revision:          revision,
 		NoCache:           noCache,
 		AppLabelKey:       appLabelKey,
@@ -468,13 +467,18 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		healthStatus:     healthStatus,
 		resources:        resourceSummaries,
 		managedResources: managedResources,
-		conditions:       conditions,
 		hooks:            hooks,
 		diffNormalizer:   diffNormalizer,
 	}
 	if manifestInfo != nil {
 		compRes.appSourceType = v1alpha1.ApplicationSourceType(manifestInfo.SourceType)
 	}
+	app.Status.SetConditions(conditions, map[appv1.ApplicationConditionType]bool{
+		appv1.ApplicationConditionComparisonError:         true,
+		appv1.ApplicationConditionSharedResourceWarning:   true,
+		appv1.ApplicationConditionRepeatedResourceWarning: true,
+		appv1.ApplicationConditionExcludedResourceWarning: true,
+	})
 	return &compRes
 }
 
