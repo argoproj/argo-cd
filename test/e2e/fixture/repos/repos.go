@@ -19,10 +19,10 @@ func mustToAbsPath(relativePath string) string {
 }
 
 // sets the current repo as the default SSH test repo
-func AddSSHRepo(insecure bool) {
+func AddSSHRepo(insecure bool, repoType fixture.RepoURLType) {
 	keyPath, err := filepath.Abs("../fixture/testrepos/id_rsa")
 	errors.CheckError(err)
-	args := []string{"repo", "add", fixture.RepoURL(fixture.RepoURLTypeSSH), "--ssh-private-key-path", keyPath}
+	args := []string{"repo", "add", fixture.RepoURL(repoType), "--ssh-private-key-path", keyPath}
 	if insecure {
 		args = append(args, "--insecure-ignore-host-key")
 	}
@@ -30,10 +30,9 @@ func AddSSHRepo(insecure bool) {
 }
 
 // sets the current repo as the default HTTPS test repo
-func AddHTTPSRepo(insecure bool) {
+func AddHTTPSRepo(insecure bool, repoType fixture.RepoURLType) {
 	// This construct is somewhat necessary to satisfy the compiler
-	var repoURLType fixture.RepoURLType = fixture.RepoURLTypeHTTPS
-	args := []string{"repo", "add", fixture.RepoURL(repoURLType), "--username", fixture.GitUsername, "--password", fixture.GitPassword}
+	args := []string{"repo", "add", fixture.RepoURL(repoType), "--username", fixture.GitUsername, "--password", fixture.GitPassword}
 	if insecure {
 		args = append(args, "--insecure-skip-server-verification")
 	}
