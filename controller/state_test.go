@@ -385,3 +385,10 @@ func TestSetManagedResourcesKnownOrphanedResourceExceptions(t *testing.T) {
 	assert.Len(t, tree.OrphanedNodes, 1)
 	assert.Equal(t, "guestbook", tree.OrphanedNodes[0].Name)
 }
+
+func Test_comparisonResult_obs(t *testing.T) {
+	assert.Len(t, (&comparisonResult{}).targetObjs(), 0)
+	assert.Len(t, (&comparisonResult{managedResources: []managedResource{{}}}).targetObjs(), 0)
+	assert.Len(t, (&comparisonResult{managedResources: []managedResource{{Target: test.NewPod()}}}).targetObjs(), 1)
+	assert.Len(t, (&comparisonResult{hooks: []*unstructured.Unstructured{{}}}).targetObjs(), 1)
+}

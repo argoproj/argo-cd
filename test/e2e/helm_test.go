@@ -64,20 +64,6 @@ func TestHelmHookDeletePolicy(t *testing.T) {
 		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "hook" }))
 }
 
-func TestHelmCrdInstallIsCreated(t *testing.T) {
-	Given(t).
-		Path("hook").
-		When().
-		PatchFile("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"helm.sh/hook": "crd-install"}}]`).
-		Create().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(HealthIs(HealthStatusHealthy)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(ResourceResultNumbering(2))
-}
-
 func TestDeclarativeHelm(t *testing.T) {
 	Given(t).
 		Path("helm").
@@ -130,6 +116,19 @@ func TestHelmValues(t *testing.T) {
 		And(func(app *Application) {
 			assert.Equal(t, []string{"foo.yml"}, app.Spec.Source.Helm.ValueFiles)
 		})
+}
+
+func TestHelmCrdHook(t *testing.T) {
+	Given(t).
+		Path("helm-crd").
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(ResourceResultNumbering(2))
 }
 
 func TestHelmReleaseName(t *testing.T) {
