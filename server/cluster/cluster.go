@@ -14,9 +14,9 @@ import (
 
 	"github.com/argoproj/argo-cd/pkg/apiclient/cluster"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	servercache "github.com/argoproj/argo-cd/server/cache"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/clusterauth"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/kube"
@@ -27,12 +27,12 @@ import (
 type Server struct {
 	db      db.ArgoDB
 	enf     *rbac.Enforcer
-	cache   *cache.Cache
+	cache   *servercache.Cache
 	kubectl kube.Kubectl
 }
 
 // NewServer returns a new instance of the Cluster service
-func NewServer(db db.ArgoDB, enf *rbac.Enforcer, cache *cache.Cache, kubectl kube.Kubectl) *Server {
+func NewServer(db db.ArgoDB, enf *rbac.Enforcer, cache *servercache.Cache, kubectl kube.Kubectl) *Server {
 	return &Server{
 		db:      db,
 		enf:     enf,
