@@ -9,6 +9,8 @@ flag. The flag can be repeated to support multiple values files:
 ```bash
 argocd app set helm-guestbook --values values-production.yaml
 ```
+!!! note
+    Values files must be on the same directory or a subdirectory of the Helm application
 
 ## Helm Parameters
 
