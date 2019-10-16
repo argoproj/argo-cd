@@ -19,4 +19,4 @@ linters-settings:
   goimports:
     local-prefixes: github.com/argoproj/argo-cd
 service:
-  golangci-lint-version: 1.18.0
+  golangci-lint-version: 1.21.0

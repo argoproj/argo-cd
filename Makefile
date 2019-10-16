@@ -9,9 +9,10 @@ GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
 PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run vendor/github.com/gobuffalo/packr/packr/main.go"; fi)
+VOLUME_MOUNT=$(shell [[ $(go env GOOS)=="darwin" ]] && echo ":delegated" || echo "")
 
 define run-in-dev-tool
-    docker run --rm -it -u $(shell id -u) -e HOME=/home/user -v ${CURRENT_DIR}:/go/src/github.com/argoproj/argo-cd -w /go/src/github.com/argoproj/argo-cd argocd-dev-tools bash -c "GOPATH=/go $(1)"
+    docker run --rm -it -u $(shell id -u) -e HOME=/home/user -v ${CURRENT_DIR}:/go/src/github.com/argoproj/argo-cd${VOLUME_MOUNT} -w /go/src/github.com/argoproj/argo-cd argocd-dev-tools bash -c "GOPATH=/go $(1)"
 endef
 
 PATH:=$(PATH):$(PWD)/hack
@@ -68,7 +69,7 @@ clientgen:
 codegen-local: protogen clientgen openapigen manifests-local
 
 .PHONY: codegen
-codegen:
+codegen: dev-tools-image
 	$(call run-in-dev-tool,make codegen-local)
 
 .PHONY: cli
@@ -169,15 +170,11 @@ build:
 
 .PHONY: test
 test:
-	go test -v -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "test/e2e"`
-
-.PHONY: cover
-cover:
-	go tool cover -html=coverage.out
+	 ./hack/test.sh -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`
 
 .PHONY: test-e2e
-test-e2e: cli
-	go test -v -timeout 15m ./test/e2e
+test-e2e:
+	./hack/test.sh -timeout 15m ./test/e2e
 
 .PHONY: start-e2e
 start-e2e: cli
