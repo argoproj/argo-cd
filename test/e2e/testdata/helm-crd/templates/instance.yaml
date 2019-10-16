@@ -1,9 +1,4 @@
-apiVersion: argoproj.io/v1
-kind: TestCrd
+apiVersion: stable.example.com/v1
+kind: CronTab
 metadata:
-  name: default
-  labels:
-    app.kubernetes.io/name: {{ .Release.Name }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
-spec:
-  foo: bar
+  name: {{ .Release.Name }}-inst
