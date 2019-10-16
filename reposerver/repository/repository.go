@@ -227,7 +227,7 @@ func helmTemplate(appPath string, q *apiclient.ManifestRequest) ([]*unstructured
 		}
 		templateOpts.Values = appHelm.ValueFiles
 		if appHelm.Values != "" {
-			file, err := ioutil.TempFile("", "values-*.yaml")
+			file, err := ioutil.TempFile(appPath, "values-*.yaml")
 			if err != nil {
 				return nil, err
 			}
