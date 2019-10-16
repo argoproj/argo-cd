@@ -3,8 +3,9 @@ package e2e
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	v1 "k8s.io/api/core/v1"
+
+	"github.com/argoproj/argo-cd/test/e2e/fixture"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
@@ -18,7 +19,7 @@ func TestGitSubmoduleSSHSupport(t *testing.T) {
 		CustomSSHKnownHostsAdded().
 		SubmoduleSSHRepoURLAdded().
 		When().
-		CreateFromFile(func(app *Application){}).
+		CreateFromFile(func(app *Application) {}).
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -33,7 +34,7 @@ func TestGitSubmoduleHTTPSSupport(t *testing.T) {
 		CustomCACertAdded().
 		SubmoduleHTTPSRepoURLAdded().
 		When().
-		CreateFromFile(func(app *Application){}).
+		CreateFromFile(func(app *Application) {}).
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).

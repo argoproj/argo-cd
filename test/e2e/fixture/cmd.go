@@ -36,9 +36,7 @@ func RunWithStdinVars(stdin, workDir string, env []string, name string, args ...
 	cmd.Env = os.Environ()
 	cmd.Dir = workDir
 
-	for _, v := range env {
-		cmd.Env = append(cmd.Env, v)
-	}
+	cmd.Env = append(cmd.Env, env...)
 
 	return argoexec.RunCommandExt(cmd, argoexec.CmdOpts{})
 }
