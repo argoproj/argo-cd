@@ -19,8 +19,9 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/reposerver/metrics"
 	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/cache"
-	argocache "github.com/argoproj/argo-cd/util/cache"
+
+	"github.com/argoproj/argo-cd/reposerver/cache"
+	cacheutil "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/git"
 	gitmocks "github.com/argoproj/argo-cd/util/git/mocks"
 	"github.com/argoproj/argo-cd/util/helm"
@@ -28,7 +29,10 @@ import (
 )
 
 func newServiceWithMocks(root string) (*Service, *gitmocks.Client, *helmmocks.Client) {
-	service := NewService(metrics.NewMetricsServer(), argocache.NewCache(cache.NewInMemoryCache(time.Duration(1)*time.Second)), 1)
+	service := NewService(metrics.NewMetricsServer(), cache.NewCache(
+		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
+		1*time.Minute,
+	), 1)
 	helmClient := &helmmocks.Client{}
 	gitClient := &gitmocks.Client{}
 	root, err := filepath.Abs(root)
