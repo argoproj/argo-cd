@@ -2978,7 +2978,7 @@ spec:
         - argocd-redis-ha-announce-2:26379
         - --sentinelmaster
         - argocd
-        image: argoproj/argocd:latest
+        image: argoproj/argocd:v1.3.0-rc1
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -3032,7 +3032,7 @@ spec:
         - cp
         - /usr/local/bin/argocd-util
         - /shared
-        image: argoproj/argocd:latest
+        image: argoproj/argocd:v1.3.0-rc1
         imagePullPolicy: Always
         name: copyutil
         volumeMounts:
@@ -3088,7 +3088,7 @@ spec:
         - argocd-redis-ha-announce-2:26379
         - --sentinelmaster
         - argocd
-        image: argoproj/argocd:latest
+        image: argoproj/argocd:v1.3.0-rc1
         imagePullPolicy: Always
         livenessProbe:
           initialDelaySeconds: 5
@@ -3162,7 +3162,7 @@ spec:
         - argocd-redis-ha-announce-2:26379
         - --sentinelmaster
         - argocd
-        image: argoproj/argocd:latest
+        image: argoproj/argocd:v1.3.0-rc1
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
