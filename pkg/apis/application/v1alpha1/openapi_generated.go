@@ -2087,7 +2087,6 @@ func schema_pkg_apis_application_v1alpha1_ResourceActions(ref common.ReferenceCa
 						},
 					},
 				},
-				Required: []string{"definitions"},
 			},
 		},
 		Dependencies: []string{
