@@ -21,6 +21,7 @@ const appTypes = new Array<{ field: string, type: models.AppSourceType }>(
 
 const DEFAULT_APP: Partial<models.Application> = {
     apiVersion: 'argoproj.io/v1alpha1',
+    kind: 'Application',
     metadata: {
         name: '',
     },
