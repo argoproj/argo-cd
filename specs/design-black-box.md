@@ -20,7 +20,7 @@ The following Flux features are missing in Argo CD:
 - GPG commit signatures verification - an ability to verify the commit signature before pushing changes to the Kubernetes.
 - Namespace mode - an ability to control only given namespace in the target cluster. Currently, Argo CD requires read access in all namespaces.
 
-These features must be contributed to Argo CD before moving Argo CD controller into Argo Flux GitOps engine repo.
+These features must be contributed to Argo-Flux GitOps engine implementation before Flux starts using it.
 
 Flux additionally provides the ability to monitor Docker registry and automatically push changes to the Git repository when a new image is released. Both teams feel the this should not
 be a part of GitOps engine. So it is proposed to keep the feature only in Flux for now and then work together to move it into a separate component that would work for both Flux
