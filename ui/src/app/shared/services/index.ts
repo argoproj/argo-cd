@@ -5,6 +5,7 @@ import { ClustersService } from './clusters-service';
 import { ProjectsService } from './projects-service';
 import { RepositoriesService } from './repo-service';
 import { UserService } from './user-service';
+import {VersionService} from './version-service';
 import { ViewPreferencesService } from './view-preferences-service';
 
 export interface Services {
@@ -16,6 +17,7 @@ export interface Services {
     clusters: ClustersService;
     projects: ProjectsService;
     viewPreferences: ViewPreferencesService;
+    version: VersionService;
 }
 
 export const services: Services = {
@@ -27,6 +29,7 @@ export const services: Services = {
     repos: new RepositoriesService(),
     projects: new ProjectsService(),
     viewPreferences: new ViewPreferencesService(),
+    version: new VersionService(),
 };
 
 export { ProjectParams, ProjectRoleParams, CreateJWTTokenParams, DeleteJWTTokenParams, JWTTokenResponse } from './projects-service';

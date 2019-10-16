@@ -170,6 +170,12 @@ export class App extends React.Component<{}, { popupProps: PopupProps, error: Er
                             <Redirect path='*' to='/'/>
                         </Switch>
                     </Router>
+                    <div style={{position: 'fixed', left: 70, bottom: 5}}>
+                        <small>
+                            {SYSTEM_INFO.version}|
+                            <DataLoader load={() => services.version.version()}>{(msg) => msg.Version}</DataLoader>
+                        </small>
+                    </div>
                     <DataLoader load={() => services.authService.settings()}>{(s) => (
                         s.help && s.help.chatUrl && <div style={{position: 'fixed', right: 10, bottom: 10}}>
                             <a href={s.help.chatUrl} className='argo-button argo-button--special'>
