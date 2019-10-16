@@ -14,7 +14,7 @@ a base:
 - The Argo CD controller leverages Kubernetes watch APIs instead of pulling. This enables Argo CD features such as Health assessment, UI and could provide better performance to
 Flux as well.
 
-Following Flux features are missing in Argo CD:
+The following Flux features are missing in Argo CD:
 
 - Manifest generation using .flux.yaml files.
 - GPG commit signatures verification - an ability to verify the commit signature before pushing changes to the Kubernetes.
