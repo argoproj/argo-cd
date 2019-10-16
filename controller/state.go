@@ -44,13 +44,6 @@ type managedResource struct {
 	Hook      bool
 }
 
-func (mr *managedResource) obj() *unstructured.Unstructured {
-	if mr.Target != nil {
-		return mr.Target
-	}
-	return mr.Live
-}
-
 func GetLiveObjs(res []managedResource) []*unstructured.Unstructured {
 	objs := make([]*unstructured.Unstructured, len(res))
 	for i := range res {
@@ -80,10 +73,12 @@ type comparisonResult struct {
 	appSourceType    v1alpha1.ApplicationSourceType
 }
 
-func (cr *comparisonResult) objs() []*unstructured.Unstructured {
+func (cr *comparisonResult) targetObjs() []*unstructured.Unstructured {
 	objs := cr.hooks
 	for _, r := range cr.managedResources {
-		objs = append(objs, r.obj())
+		if r.Target != nil {
+			objs = append(objs, r.Target)
+		}
 	}
 	return objs
 }

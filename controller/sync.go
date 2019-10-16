@@ -578,7 +578,7 @@ func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dr
 }
 
 func (sc *syncContext) hasCRDOfGroupKind(group string, kind string) bool {
-	for _, obj := range sc.compareResult.objs() {
+	for _, obj := range sc.compareResult.targetObjs() {
 		if kube.IsCRD(obj) {
 			crdGroup, ok, err := unstructured.NestedString(obj.Object, "spec", "group")
 			if err != nil || !ok {

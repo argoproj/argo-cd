@@ -387,7 +387,8 @@ func TestSetManagedResourcesKnownOrphanedResourceExceptions(t *testing.T) {
 }
 
 func Test_comparisonResult_obs(t *testing.T) {
-	assert.Len(t, (&comparisonResult{}).objs(), 0)
-	assert.Len(t, (&comparisonResult{managedResources: []managedResource{{}}}).objs(), 1)
-	assert.Len(t, (&comparisonResult{hooks: []*unstructured.Unstructured{{}}}).objs(), 1)
+	assert.Len(t, (&comparisonResult{}).targetObjs(), 0)
+	assert.Len(t, (&comparisonResult{managedResources: []managedResource{{}}}).targetObjs(), 0)
+	assert.Len(t, (&comparisonResult{managedResources: []managedResource{{Target: test.NewPod()}}}).targetObjs(), 1)
+	assert.Len(t, (&comparisonResult{hooks: []*unstructured.Unstructured{{}}}).targetObjs(), 1)
 }
