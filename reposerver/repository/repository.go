@@ -26,11 +26,11 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
+	reposervercache "github.com/argoproj/argo-cd/reposerver/cache"
 	"github.com/argoproj/argo-cd/reposerver/metrics"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/app/discovery"
 	argopath "github.com/argoproj/argo-cd/util/app/path"
-	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
@@ -48,7 +48,7 @@ const (
 // Service implements ManifestService interface
 type Service struct {
 	repoLock                  *util.KeyLock
-	cache                     *cache.Cache
+	cache                     *reposervercache.Cache
 	parallelismLimitSemaphore *semaphore.Weighted
 	metricsServer             *metrics.MetricsServer
 	newGitClient              func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool) (git.Client, error)
@@ -56,7 +56,7 @@ type Service struct {
 }
 
 // NewService returns a new instance of the Manifest service
-func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, parallelismLimit int64) *Service {
+func NewService(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, parallelismLimit int64) *Service {
 	var parallelismLimitSemaphore *semaphore.Weighted
 	if parallelismLimit > 0 {
 		parallelismLimitSemaphore = semaphore.NewWeighted(parallelismLimit)
@@ -181,7 +181,7 @@ func (s *Service) GenerateManifest(c context.Context, q *apiclient.ManifestReque
 			log.Infof("manifest cache hit: %s/%s", q.ApplicationSource.String(), revision)
 			return true
 		}
-		if err != cache.ErrCacheMiss {
+		if err != reposervercache.ErrCacheMiss {
 			log.Warnf("manifest cache error %s: %v", q.ApplicationSource.String(), err)
 		} else {
 			log.Infof("manifest cache miss: %s/%s", q.ApplicationSource.String(), revision)
@@ -575,7 +575,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 			log.Infof("manifest cache hit: %s/%s", revision, q.Source.Path)
 			return true
 		} else {
-			if err != cache.ErrCacheMiss {
+			if err != reposervercache.ErrCacheMiss {
 				log.Warnf("manifest cache error %s: %v", revision, q.Source)
 			} else {
 				log.Infof("manifest cache miss: %s/%s", revision, q.Source)
@@ -687,7 +687,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 		log.Infof("manifest cache hit: %s/%s", q.Repo.Repo, commitSHA)
 		return metadata, nil
 	} else {
-		if err != cache.ErrCacheMiss {
+		if err != reposervercache.ErrCacheMiss {
 			log.Warnf("manifest cache error %s/%s: %v", q.Repo.Repo, commitSHA, err)
 		} else {
 			log.Infof("manifest cache miss: %s/%s", q.Repo.Repo, commitSHA)
