@@ -167,6 +167,7 @@ export interface ApplicationSourceHelm {
 
 export interface ApplicationSourceKustomize {
     namePrefix: string;
+    nameSuffix: string;
     images: string[];
 }
 

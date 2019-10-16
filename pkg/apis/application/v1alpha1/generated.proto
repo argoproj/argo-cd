@@ -189,6 +189,9 @@ message ApplicationSourceKustomize {
   // NamePrefix is a prefix appended to resources for kustomize apps
   optional string namePrefix = 1;
 
+  // NameSuffix is a suffix appended to resources for kustomize apps
+  optional string nameSuffix = 2;
+
   // Images are kustomize image overrides
   repeated string images = 3;
 
