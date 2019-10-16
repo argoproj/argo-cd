@@ -10,7 +10,7 @@ effort to resolve such differences it is proposed contributing missing features 
 
 It is proposed to use Argo CD application controller as the base for the GitOps engine and contribute a set of Flux features into it. There are two main reasons to try using Argo CD as
 a base:
-- Argo CD uses Application abstraction to represent the desired state and target Kubernetes cluster. This abstraction works for both Argo CD and Flux cases.
+- Argo CD uses the _Application_ abstraction to represent the desired state and target the Kubernetes cluster. This abstraction works for both Argo CD and Flux.
 - The Argo CD controller leverages Kubernetes watch APIs instead of pulling. This enables Argo CD features such as Health assessment, UI and could provide better performance to
 Flux as well.
 
