@@ -6,10 +6,11 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 
 	"github.com/argoproj/argo-cd/util"
-
+	"github.com/argoproj/argo-cd/util/security"
 	argoexec "github.com/argoproj/pkg/exec"
 )
 
@@ -192,7 +193,18 @@ func (c *Cmd) template(chart string, opts *TemplateOpts) (string, error) {
 		args = append(args, "--set-string", key+"="+cleanSetParameters(val))
 	}
 	for _, val := range opts.Values {
-		args = append(args, "--values", val)
+		absWorkDir, err := filepath.Abs(c.WorkDir)
+		if err != nil {
+			return "", err
+		}
+		if !filepath.IsAbs(val) {
+			val = filepath.Join(absWorkDir, val)
+		}
+		cleanVal, err := security.EnforceToCurrentRoot(absWorkDir, val)
+		if err != nil {
+			return "", err
+		}
+		args = append(args, "--values", cleanVal)
 	}
 
 	return c.run(args...)
