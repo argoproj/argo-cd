@@ -187,6 +187,41 @@ func TestAPIService(t *testing.T) {
 	assertAppHealth(t, "./testdata/apiservice-v1beta1-false.yaml", appv1.HealthStatusProgressing)
 }
 
+func TestGetStatusFromArgoWorkflow(t *testing.T) {
+	sampleWorkflow := unstructured.Unstructured{Object: map[string]interface{}{
+		"spec": map[string]interface{}{
+			"entrypoint":    "sampleEntryPoint",
+			"extraneousKey": "we are agnostic to extraneous keys",
+		},
+		"status": map[string]interface{}{
+			"phase":   "Running",
+			"message": "This node is running",
+		},
+	},
+	}
+
+	status, message := GetStatusFromArgoWorkflow(&sampleWorkflow)
+	assert.Equal(t, appv1.OperationRunning, status)
+	assert.Equal(t, "This node is running", message)
+
+	sampleWorkflow = unstructured.Unstructured{Object: map[string]interface{}{
+		"spec": map[string]interface{}{
+			"entrypoint":    "sampleEntryPoint",
+			"extraneousKey": "we are agnostic to extraneous keys",
+		},
+		"status": map[string]interface{}{
+			"phase":   "Succeeded",
+			"message": "This node is has succeeded",
+		},
+	},
+	}
+
+	status, message = GetStatusFromArgoWorkflow(&sampleWorkflow)
+	assert.Equal(t, appv1.OperationSucceeded, status)
+	assert.Equal(t, "This node is has succeeded", message)
+
+}
+
 func noFilter(obj *unstructured.Unstructured) bool {
 	return true
 }

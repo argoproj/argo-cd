@@ -49,15 +49,17 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "List",
+        "operationId": "ListMixin8",
         "parameters": [
           {
             "type": "string",
+            "description": "the application's name.",
             "name": "name",
             "in": "query"
           },
           {
             "type": "string",
+            "description": "forces application reconciliation if set to true.",
             "name": "refresh",
             "in": "query"
           },
@@ -66,12 +68,20 @@
             "items": {
               "type": "string"
             },
+            "description": "the project names to restrict returned list applications.",
             "name": "project",
             "in": "query"
           },
           {
             "type": "string",
+            "description": "when specified with a watch call, shows changes that occur after that particular version of a resource.",
             "name": "resourceVersion",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the selector to to restrict returned list to applications only with matched labels.",
+            "name": "selector",
             "in": "query"
           }
         ],
@@ -89,7 +99,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "Create",
+        "operationId": "CreateMixin8",
         "parameters": [
           {
             "name": "body",
@@ -116,7 +126,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "Update",
+        "operationId": "UpdateMixin8",
         "parameters": [
           {
             "type": "string",
@@ -197,7 +207,7 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "Get",
+        "operationId": "GetMixin8",
         "parameters": [
           {
             "type": "string",
@@ -207,6 +217,7 @@
           },
           {
             "type": "string",
+            "description": "forces application reconciliation if set to true.",
             "name": "refresh",
             "in": "query"
           },
@@ -215,12 +226,20 @@
             "items": {
               "type": "string"
             },
+            "description": "the project names to restrict returned list applications.",
             "name": "project",
             "in": "query"
           },
           {
             "type": "string",
+            "description": "when specified with a watch call, shows changes that occur after that particular version of a resource.",
             "name": "resourceVersion",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the selector to to restrict returned list to applications only with matched labels.",
+            "name": "selector",
             "in": "query"
           }
         ],
@@ -238,7 +257,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "Delete",
+        "operationId": "DeleteMixin8",
         "parameters": [
           {
             "type": "string",
@@ -323,31 +342,6 @@
             "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1EventList"
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/applications/{name}/maintenance": {
-      "get": {
-        "tags": [
-          "ApplicationService"
-        ],
-        "summary": "Get returns an application by name",
-        "operationId": "GetApplicationMaintenanceState",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "name",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "(empty)",
-            "schema": {
-              "$ref": "#/definitions/applicationApplicationMaintenanceResponse"
             }
           }
         }
@@ -794,6 +788,31 @@
         }
       }
     },
+    "/api/v1/applications/{name}/syncwindows": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Get returns an application by name",
+        "operationId": "GetApplicationSyncWindows",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationSyncWindowsResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/certificates": {
       "get": {
         "tags": [
@@ -877,7 +896,7 @@
           "ClusterService"
         ],
         "summary": "List returns list of clusters",
-        "operationId": "ListMixin4",
+        "operationId": "List",
         "parameters": [
           {
             "type": "string",
@@ -899,7 +918,7 @@
           "ClusterService"
         ],
         "summary": "Create creates a cluster",
-        "operationId": "CreateMixin4",
+        "operationId": "Create",
         "parameters": [
           {
             "name": "body",
@@ -926,7 +945,7 @@
           "ClusterService"
         ],
         "summary": "Update updates a cluster",
-        "operationId": "UpdateMixin4",
+        "operationId": "Update",
         "parameters": [
           {
             "type": "string",
@@ -959,7 +978,7 @@
           "ClusterService"
         ],
         "summary": "Get returns a cluster by server address",
-        "operationId": "GetMixin4",
+        "operationId": "GetMixin2",
         "parameters": [
           {
             "type": "string",
@@ -982,7 +1001,7 @@
           "ClusterService"
         ],
         "summary": "Delete deletes a cluster",
-        "operationId": "DeleteMixin4",
+        "operationId": "Delete",
         "parameters": [
           {
             "type": "string",
@@ -1032,7 +1051,7 @@
           "ProjectService"
         ],
         "summary": "List returns list of projects",
-        "operationId": "ListMixin5",
+        "operationId": "ListMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1054,7 +1073,7 @@
           "ProjectService"
         ],
         "summary": "Create a new project.",
-        "operationId": "CreateMixin5",
+        "operationId": "CreateMixin6",
         "parameters": [
           {
             "name": "body",
@@ -1081,7 +1100,7 @@
           "ProjectService"
         ],
         "summary": "Get returns a project by name",
-        "operationId": "GetMixin5",
+        "operationId": "GetMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1104,7 +1123,7 @@
           "ProjectService"
         ],
         "summary": "Delete deletes a project",
-        "operationId": "DeleteMixin5",
+        "operationId": "DeleteMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1148,13 +1167,13 @@
         }
       }
     },
-    "/api/v1/projects/{name}/maintenance": {
+    "/api/v1/projects/{name}/syncwindows": {
       "get": {
         "tags": [
           "ProjectService"
         ],
-        "summary": "GetMaintenanceState returns true if there are any active maintenance windows",
-        "operationId": "GetMaintenanceState",
+        "summary": "GetSchedulesState returns true if there are any active sync syncWindows",
+        "operationId": "GetSyncWindowsState",
         "parameters": [
           {
             "type": "string",
@@ -1167,7 +1186,7 @@
           "200": {
             "description": "(empty)",
             "schema": {
-              "$ref": "#/definitions/projectMaintenanceResponse"
+              "$ref": "#/definitions/projectSyncWindowsResponse"
             }
           }
         }
@@ -1179,7 +1198,7 @@
           "ProjectService"
         ],
         "summary": "Update updates a project",
-        "operationId": "UpdateMixin5",
+        "operationId": "UpdateMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1698,7 +1717,7 @@
           "SettingsService"
         ],
         "summary": "Get returns Argo CD settings",
-        "operationId": "GetMixin7",
+        "operationId": "Get",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -1719,11 +1738,13 @@
         "parameters": [
           {
             "type": "string",
+            "description": "the application's name.",
             "name": "name",
             "in": "query"
           },
           {
             "type": "string",
+            "description": "forces application reconciliation if set to true.",
             "name": "refresh",
             "in": "query"
           },
@@ -1732,12 +1753,20 @@
             "items": {
               "type": "string"
             },
+            "description": "the project names to restrict returned list applications.",
             "name": "project",
             "in": "query"
           },
           {
             "type": "string",
+            "description": "when specified with a watch call, shows changes that occur after that particular version of a resource.",
             "name": "resourceVersion",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the selector to to restrict returned list to applications only with matched labels.",
+            "name": "selector",
             "in": "query"
           }
         ],
@@ -1783,17 +1812,6 @@
     },
     "accountUpdatePasswordResponse": {
       "type": "object"
-    },
-    "applicationApplicationMaintenanceResponse": {
-      "type": "object",
-      "properties": {
-        "windows": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      }
     },
     "applicationApplicationPatchRequest": {
       "type": "object",
@@ -1873,6 +1891,45 @@
         },
         "strategy": {
           "$ref": "#/definitions/v1alpha1SyncStrategy"
+        }
+      }
+    },
+    "applicationApplicationSyncWindow": {
+      "type": "object",
+      "properties": {
+        "duration": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "manualSync": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "schedule": {
+          "type": "string"
+        }
+      }
+    },
+    "applicationApplicationSyncWindowsResponse": {
+      "type": "object",
+      "properties": {
+        "activeWindows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/applicationApplicationSyncWindow"
+          }
+        },
+        "assignedWindows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/applicationApplicationSyncWindow"
+          }
+        },
+        "canSync": {
+          "type": "boolean",
+          "format": "boolean"
         }
       }
     },
@@ -1992,6 +2049,16 @@
         }
       }
     },
+    "clusterPlugin": {
+      "type": "object",
+      "title": "Plugin settings",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "the name of the plugin, e.g. \"kasane\""
+        }
+      }
+    },
     "clusterSettings": {
       "type": "object",
       "properties": {
@@ -2012,6 +2079,12 @@
         },
         "oidcConfig": {
           "$ref": "#/definitions/clusterOIDCConfig"
+        },
+        "plugins": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/clusterPlugin"
+          }
         },
         "resourceOverrides": {
           "type": "object",
@@ -2048,17 +2121,6 @@
     },
     "projectEmptyResponse": {
       "type": "object"
-    },
-    "projectMaintenanceResponse": {
-      "type": "object",
-      "properties": {
-        "windows": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ProjectMaintenanceWindow"
-          }
-        }
-      }
     },
     "projectProjectCreateRequest": {
       "description": "ProjectCreateRequest defines project creation parameters.",
@@ -2107,6 +2169,17 @@
       "properties": {
         "project": {
           "$ref": "#/definitions/v1alpha1AppProject"
+        }
+      }
+    },
+    "projectSyncWindowsResponse": {
+      "type": "object",
+      "properties": {
+        "windows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1SyncWindow"
+          }
         }
       }
     },
@@ -2903,9 +2976,6 @@
             "$ref": "#/definitions/v1alpha1ApplicationDestination"
           }
         },
-        "maintenance": {
-          "$ref": "#/definitions/v1alpha1ProjectMaintenance"
-        },
         "namespaceResourceBlacklist": {
           "type": "array",
           "title": "NamespaceResourceBlacklist contains list of blacklisted namespace level resources",
@@ -2928,6 +2998,13 @@
           "title": "SourceRepos contains list of repository URLs which can be used for deployment",
           "items": {
             "type": "string"
+          }
+        },
+        "syncWindows": {
+          "type": "array",
+          "title": "SyncWindows controls when syncs can be run for apps in this project",
+          "items": {
+            "$ref": "#/definitions/v1alpha1SyncWindow"
           }
         }
       }
@@ -3128,6 +3205,10 @@
         "namePrefix": {
           "type": "string",
           "title": "NamePrefix is a prefix appended to resources for kustomize apps"
+        },
+        "nameSuffix": {
+          "type": "string",
+          "title": "NameSuffix is a suffix appended to resources for kustomize apps"
         }
       }
     },
@@ -3533,59 +3614,6 @@
         }
       }
     },
-    "v1alpha1ProjectMaintenance": {
-      "type": "object",
-      "title": "Project Maintenance controls when syncs can be run for apps in a project",
-      "properties": {
-        "enabled": {
-          "type": "boolean",
-          "format": "boolean",
-          "title": "Enabled will allow maintenance windows to be active during their scheduled times"
-        },
-        "windows": {
-          "type": "array",
-          "title": "Windows contains the schedules for when syncs should be disabled",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ProjectMaintenanceWindow"
-          }
-        }
-      }
-    },
-    "v1alpha1ProjectMaintenanceWindow": {
-      "type": "object",
-      "title": "MaintenanceWindow contains the time, duration and attributes that are used to assign the windows to apps",
-      "properties": {
-        "applications": {
-          "type": "array",
-          "title": "Applications contains a list of applications that the window will apply to",
-          "items": {
-            "type": "string"
-          }
-        },
-        "clusters": {
-          "type": "array",
-          "title": "Clusters contains a list of clusters that the window will apply to",
-          "items": {
-            "type": "string"
-          }
-        },
-        "duration": {
-          "type": "string",
-          "title": "Duration is the amount of time the maintenance window will be open"
-        },
-        "namespaces": {
-          "type": "array",
-          "title": "Namespaces contains a list of namespaces that the window will apply to",
-          "items": {
-            "type": "string"
-          }
-        },
-        "schedule": {
-          "type": "string",
-          "title": "Schedule is the time the window will begin, specified in cron format"
-        }
-      }
-    },
     "v1alpha1ProjectRole": {
       "type": "object",
       "title": "ProjectRole represents a role that has access to a project",
@@ -3788,7 +3816,7 @@
     "v1alpha1ResourceAction": {
       "type": "object",
       "properties": {
-        "available": {
+        "disabled": {
           "type": "boolean",
           "format": "boolean"
         },
@@ -4250,6 +4278,50 @@
       "properties": {
         "syncStrategyApply": {
           "$ref": "#/definitions/v1alpha1SyncStrategyApply"
+        }
+      }
+    },
+    "v1alpha1SyncWindow": {
+      "type": "object",
+      "title": "SyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps",
+      "properties": {
+        "applications": {
+          "type": "array",
+          "title": "Applications contains a list of applications that the window will apply to",
+          "items": {
+            "type": "string"
+          }
+        },
+        "clusters": {
+          "type": "array",
+          "title": "Clusters contains a list of clusters that the window will apply to",
+          "items": {
+            "type": "string"
+          }
+        },
+        "duration": {
+          "type": "string",
+          "title": "Duration is the amount of time the sync window will be open"
+        },
+        "kind": {
+          "type": "string",
+          "title": "Kind defines if the window allows or blocks syncs"
+        },
+        "manualSync": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "ManualSync enables manual syncs when they would otherwise be blocked"
+        },
+        "namespaces": {
+          "type": "array",
+          "title": "Namespaces contains a list of namespaces that the window will apply to",
+          "items": {
+            "type": "string"
+          }
+        },
+        "schedule": {
+          "type": "string",
+          "title": "Schedule is the time the window will begin, specified in cron format"
         }
       }
     },

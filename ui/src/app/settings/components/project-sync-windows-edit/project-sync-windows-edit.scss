@@ -1,0 +1,19 @@
+.project-sync-windows-panel {
+    &__form-row {
+        position: relative;
+        input.argo-field {
+            margin-top: 29px;
+        }
+
+        .fa-times {
+            position: absolute;
+            cursor: pointer;
+            left: -1.2em;
+            top: 2.2em;
+        }
+    }
+
+    form > .row > .columns {
+        padding-left: 0;
+    }
+}

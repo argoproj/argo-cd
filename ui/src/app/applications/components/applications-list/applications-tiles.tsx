@@ -40,6 +40,20 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                 <div className='columns small-9'>{app.spec.project}</div>
                             </div>
                             <div className='row'>
+                                <div className='columns small-3'>Labels:</div>
+                                <div className='columns small-9'>
+                                    <Tooltip content={
+                                        <div>{Object.keys(app.metadata.labels || {}).map((label) => ({label, value: app.metadata.labels[label]})).map((item) => (
+                                            <div key={item.label}>{item.label}={item.value}</div>
+                                        ))}
+                                        </div>}>
+                                        <span>
+                                            {Object.keys(app.metadata.labels || {}).map((label) => `${label}=${app.metadata.labels[label]}`).join(', ')}
+                                        </span>
+                                    </Tooltip>
+                                </div>
+                            </div>
+                            <div className='row'>
                                 <div className='columns small-3'>Status:</div>
                                 <div className='columns small-9'>
                                     <AppUtils.HealthStatusIcon state={app.status.health}/> {app.status.health.status}

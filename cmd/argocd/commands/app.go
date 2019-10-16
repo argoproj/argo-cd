@@ -213,8 +213,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: app.Spec.Project})
 			errors.CheckError(err)
 
-			active := proj.Spec.Maintenance.ActiveWindows()
-			_, win := active.Match(app)
+			windows := proj.Spec.SyncWindows.Matches(app)
 
 			switch output {
 			case "yaml":
@@ -227,7 +226,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				fmt.Println(string(jsonBytes))
 			case "":
 				aURL := appURL(acdClient, app.Name)
-				printAppSummaryTable(app, aURL, win)
+				printAppSummaryTable(app, aURL, windows)
 
 				if len(app.Status.Conditions) > 0 {
 					fmt.Println()
@@ -262,7 +261,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	return command
 }
 
-func printAppSummaryTable(app *argoappv1.Application, appURL string, windows argoappv1.ProjectMaintenanceWindows) {
+func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *argoappv1.SyncWindows) {
 	fmt.Printf(printOpFmtStr, "Name:", app.Name)
 	fmt.Printf(printOpFmtStr, "Project:", app.Spec.GetProject())
 	fmt.Printf(printOpFmtStr, "Server:", app.Spec.Destination.Server)
@@ -272,18 +271,48 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows arg
 	fmt.Printf(printOpFmtStr, "Target:", app.Spec.Source.TargetRevision)
 	fmt.Printf(printOpFmtStr, "Path:", app.Spec.Source.Path)
 	printAppSourceDetails(&app.Spec.Source)
-	var syncPolicy string
-	if len(windows) > 0 {
-		var wds []string
-		status := "Active"
-		for _, w := range windows {
-			s := w.Schedule + ":" + w.Duration
+	var wds []string
+	var status string
+	var allow, deny, inactiveAllows bool
+	if windows.HasWindows() {
+		active := windows.Active()
+		if active.HasWindows() {
+			for _, w := range *active {
+				if w.Kind == "deny" {
+					deny = true
+				} else {
+					allow = true
+				}
+			}
+		}
+		if windows.InactiveAllows().HasWindows() {
+			inactiveAllows = true
+		}
+
+		s := windows.CanSync(true)
+		if deny || !deny && !allow && inactiveAllows {
+			if s {
+				status = "Manual Allowed"
+			} else {
+				status = "Sync Denied"
+
+			}
+		} else {
+			status = "Sync Allowed"
+		}
+		for _, w := range *windows {
+			s := w.Kind + ":" + w.Schedule + ":" + w.Duration
 			wds = append(wds, s)
 		}
-		fmt.Printf(printOpFmtStr, "Maintenance:", status)
-		fmt.Printf(printOpFmtStr, "Active Windows:", strings.Join(wds, ","))
+	} else {
+		status = "Sync Allowed"
+	}
+	fmt.Printf(printOpFmtStr, "SyncWindow:", status)
+	if len(wds) > 0 {
+		fmt.Printf(printOpFmtStr, "Assigned Windows:", strings.Join(wds, ","))
 	}
 
+	var syncPolicy string
 	if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
 		syncPolicy = "Automated"
 		if app.Spec.SyncPolicy.Automated.Prune {
@@ -450,9 +479,11 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 		case "project":
 			app.Spec.Project = appOpts.project
 		case "nameprefix":
-			setKustomizeOpt(&app.Spec.Source, &appOpts.namePrefix)
+			setKustomizeOpt(&app.Spec.Source, kustomizeOpts{namePrefix: appOpts.namePrefix})
+		case "namesuffix":
+			setKustomizeOpt(&app.Spec.Source, kustomizeOpts{nameSuffix: appOpts.nameSuffix})
 		case "kustomize-image":
-			setKustomizeImages(&app.Spec.Source, appOpts.kustomizeImages)
+			setKustomizeOpt(&app.Spec.Source, kustomizeOpts{images: appOpts.kustomizeImages})
 		case "jsonnet-tla-str":
 			setJsonnetOpt(&app.Spec.Source, appOpts.jsonnetTlaStr, false)
 		case "jsonnet-tla-code":
@@ -498,22 +529,19 @@ func setKsonnetOpt(src *argoappv1.ApplicationSource, env *string) {
 	}
 }
 
-func setKustomizeOpt(src *argoappv1.ApplicationSource, namePrefix *string) {
-	if src.Kustomize == nil {
-		src.Kustomize = &argoappv1.ApplicationSourceKustomize{}
-	}
-	if namePrefix != nil {
-		src.Kustomize.NamePrefix = *namePrefix
-	}
-	if src.Kustomize.IsZero() {
-		src.Kustomize = nil
-	}
+type kustomizeOpts struct {
+	namePrefix string
+	nameSuffix string
+	images     []string
 }
-func setKustomizeImages(src *argoappv1.ApplicationSource, images []string) {
+
+func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
 	if src.Kustomize == nil {
 		src.Kustomize = &argoappv1.ApplicationSourceKustomize{}
 	}
-	for _, image := range images {
+	src.Kustomize.NamePrefix = opts.namePrefix
+	src.Kustomize.NameSuffix = opts.nameSuffix
+	for _, image := range opts.images {
 		src.Kustomize.MergeImage(argoappv1.KustomizeImage(image))
 	}
 	if src.Kustomize.IsZero() {
@@ -608,6 +636,7 @@ type appOptions struct {
 	autoPrune              bool
 	selfHeal               bool
 	namePrefix             string
+	nameSuffix             string
 	directoryRecurse       bool
 	configManagementPlugin string
 	jsonnetTlaStr          []string
@@ -633,6 +662,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
 	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing when sync is automated")
 	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
+	command.Flags().StringVar(&opts.nameSuffix, "namesuffix", "", "Kustomize namesuffix")
 	command.Flags().BoolVar(&opts.directoryRecurse, "directory-recurse", false, "Recurse directory")
 	command.Flags().StringVar(&opts.configManagementPlugin, "config-management-plugin", "", "Config management plugin name")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaStr, "jsonnet-tla-str", []string{}, "Jsonnet top level string arguments")
@@ -1031,7 +1061,8 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 // NewApplicationListCommand returns a new instance of an `argocd app list` command
 func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		output string
+		output   string
+		projects []string
 	)
 	var command = &cobra.Command{
 		Use:   "list",
@@ -1041,14 +1072,19 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			defer util.Close(conn)
 			apps, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{})
 			errors.CheckError(err)
+			appList := apps.Items
+			if len(projects) != 0 {
+				appList = argo.FilterByProjects(appList, projects)
+			}
 			if output == "name" {
-				printApplicationNames(apps.Items)
+				printApplicationNames(appList)
 			} else {
-				printApplicationTable(apps.Items, &output)
+				printApplicationTable(appList, &output)
 			}
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name")
+	command.Flags().StringArrayVarP(&projects, "project", "p", []string{}, "Filter by project name")
 	return command
 }
 

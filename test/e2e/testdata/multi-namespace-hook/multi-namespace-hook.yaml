@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
       - name: nginx
-        image: nginx:latest
+        image: nginx:1.17.4-alpine
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 80
@@ -39,7 +39,7 @@ spec:
   restartPolicy: Never
   containers:
   - name: main
-    image: alpine:latest
+    image: alpine:3.10.2
     imagePullPolicy: IfNotPresent
     command: [sh, -c, "sleep 10"]
 
@@ -56,6 +56,6 @@ spec:
   restartPolicy: Never
   containers:
   - name: main
-    image: alpine:latest
+    image: alpine:3.10.2
     imagePullPolicy: IfNotPresent
     command: [sh, -c, "sleep 10"]

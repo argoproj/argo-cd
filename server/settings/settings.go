@@ -27,6 +27,11 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 	if err != nil {
 		return nil, err
 	}
+	overrides := make(map[string]*v1alpha1.ResourceOverride)
+	for k := range resourceOverrides {
+		val := resourceOverrides[k]
+		overrides[k] = &val
+	}
 	appInstanceLabelKey, err := s.mgr.GetAppInstanceLabelKey()
 	if err != nil {
 		return nil, err
@@ -43,11 +48,9 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 	if err != nil {
 		return nil, err
 	}
-
-	overrides := make(map[string]*v1alpha1.ResourceOverride)
-	for k := range resourceOverrides {
-		val := resourceOverrides[k]
-		overrides[k] = &val
+	plugins, err := s.plugins()
+	if err != nil {
+		return nil, err
 	}
 
 	set := settingspkg.Settings{
@@ -66,6 +69,7 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 			ChatUrl:  help.ChatURL,
 			ChatText: help.ChatText,
 		},
+		Plugins: plugins,
 	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg settingspkg.DexConfig
@@ -87,6 +91,19 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		}
 	}
 	return &set, nil
+}
+
+func (s *Server) plugins() ([]*settingspkg.Plugin, error) {
+	in, err := s.mgr.GetConfigManagementPlugins()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*settingspkg.Plugin, len(in))
+	for i, p := range in {
+		out[i] = &settingspkg.Plugin{Name: p.Name}
+
+	}
+	return out, nil
 }
 
 // AuthFuncOverride disables authentication for settings service

@@ -31,7 +31,7 @@ func populateNodeInfo(un *unstructured.Unstructured, node *node) {
 			populateServiceInfo(un, node)
 			return
 		}
-	case "extensions":
+	case "extensions", "networking.k8s.io":
 		switch gvk.Kind {
 		case kube.IngressKind:
 			populateIngressInfo(un, node)

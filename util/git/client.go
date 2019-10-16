@@ -247,12 +247,12 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch() error {
-	_, err := m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
+	err := m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if err == nil && m.IsLFSEnabled() {
 		largeFiles, err := m.LsLargeFiles()
 		if err == nil && len(largeFiles) > 0 {
-			_, err = m.runCredentialedCmd("git", "lfs", "fetch", "--all")
+			err = m.runCredentialedCmd("git", "lfs", "fetch", "--all")
 			if err != nil {
 				return err
 			}
@@ -434,15 +434,16 @@ func (m *nativeGitClient) runCmd(args ...string) (string, error) {
 }
 
 // runCredentialedCmd is a convenience function to run a git command with username/password credentials
-func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) (string, error) {
+func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) error {
 	cmd := exec.Command(command, args...)
 	closer, environ, err := m.creds.Environ()
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer func() { _ = closer.Close() }()
 	cmd.Env = append(cmd.Env, environ...)
-	return m.runCmdOutput(cmd)
+	_, err = m.runCmdOutput(cmd)
+	return err
 }
 
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {

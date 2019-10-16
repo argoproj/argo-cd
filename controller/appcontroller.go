@@ -37,7 +37,7 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
-	argocache "github.com/argoproj/argo-cd/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/kube"
@@ -67,7 +67,7 @@ func (a CompareWith) Max(b CompareWith) CompareWith {
 
 // ApplicationController is the controller for application resources.
 type ApplicationController struct {
-	cache                     *argocache.Cache
+	cache                     *appstatecache.Cache
 	namespace                 string
 	kubeClientset             kubernetes.Interface
 	kubectl                   kube.Kubectl
@@ -103,13 +103,14 @@ func NewApplicationController(
 	kubeClientset kubernetes.Interface,
 	applicationClientset appclientset.Interface,
 	repoClientset apiclient.Clientset,
-	argoCache *argocache.Cache,
+	argoCache *appstatecache.Cache,
 	kubectl kube.Kubectl,
 	appResyncPeriod time.Duration,
 	selfHealTimeout time.Duration,
 	metricsPort int,
 	kubectlParallelismLimit int64,
 ) (*ApplicationController, error) {
+	log.Infof("appResyncPeriod=%v", appResyncPeriod)
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
 	ctrl := ApplicationController{
 		cache:                     argoCache,
@@ -765,7 +766,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	app := origApp.DeepCopy()
 	logCtx := log.WithFields(log.Fields{"application": app.Name})
 	if comparisonLevel == ComparisonWithNothing {
-		if managedResources, err := ctrl.cache.GetAppManagedResources(app.Name); err != nil {
+		managedResources := make([]*appv1.ResourceDiff, 0)
+		if err := ctrl.cache.GetAppManagedResources(app.Name, &managedResources); err != nil {
 			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fallback to full reconciliation")
 		} else {
 			if tree, err := ctrl.getResourceTree(app, managedResources); err != nil {
@@ -806,8 +808,6 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	ctrl.normalizeApplication(origApp, app)
 
-	app.Status.Conditions = append(app.Status.Conditions, compareResult.conditions...)
-
 	tree, err := ctrl.setAppManagedResources(app, compareResult)
 	if err != nil {
 		logCtx.Errorf("Failed to cache app resources: %v", err)
@@ -815,25 +815,20 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		app.Status.Summary = tree.GetSummary()
 	}
 
-	var sErr bool
 	project, err := ctrl.getAppProj(app)
 	if err != nil {
-		logCtx.Infof("Could not lookup project for %s in order to check maintenance state", app.Name)
+		logCtx.Infof("Could not lookup project for %s in order to check schedules state", app.Name)
 	} else {
-		active := project.Spec.Maintenance.ActiveWindows()
-		match, _ := active.Match(app)
-		if match {
-			logCtx.Infof("Maintenance window active, skipping sync")
-		} else {
+		if project.Spec.SyncWindows.Matches(app).CanSync(false) {
 			syncErrCond := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources)
 			if syncErrCond != nil {
-				sErr = true
 				app.Status.SetConditions([]appv1.ApplicationCondition{*syncErrCond}, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true})
+			} else {
+				app.Status.SetConditions([]appv1.ApplicationCondition{}, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true})
 			}
+		} else {
+			logCtx.Infof("Sync prevented by sync window")
 		}
-	}
-	if !sErr {
-		app.Status.SetConditions([]appv1.ApplicationCondition{}, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true})
 	}
 
 	app.Status.ObservedAt = &compareResult.reconciledAt
@@ -907,12 +902,8 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 		}
 	}
 	app.Status.SetConditions(errorConditions, map[appv1.ApplicationConditionType]bool{
-		appv1.ApplicationConditionInvalidSpecError:        true,
-		appv1.ApplicationConditionUnknownError:            true,
-		appv1.ApplicationConditionComparisonError:         true,
-		appv1.ApplicationConditionSharedResourceWarning:   true,
-		appv1.ApplicationConditionRepeatedResourceWarning: true,
-		appv1.ApplicationConditionExcludedResourceWarning: true,
+		appv1.ApplicationConditionInvalidSpecError: true,
+		appv1.ApplicationConditionUnknownError:     true,
 	})
 	return len(errorConditions) > 0
 }
