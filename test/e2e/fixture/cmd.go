@@ -23,7 +23,6 @@ func RunWithStdin(stdin, workDir, name string, args ...string) (string, error) {
 	return argoexec.RunCommandExt(cmd, argoexec.CmdOpts{})
 }
 
-
 func RunWithVars(workDir string, env []string, name string, args ...string) (string, error) {
 	return RunWithStdinVars("", workDir, env, name, args...)
 }
