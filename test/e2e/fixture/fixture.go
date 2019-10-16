@@ -506,15 +506,12 @@ func CreateSubmoduleRepos(repoType string) {
 	FailOnErr(Run(submoduleParentDirectory(), "chmod", "777", "."))
 	FailOnErr(Run(submoduleParentDirectory(), "git", "init"))
 	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "."))
-
+	FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", "../submodule.git", "submodule/test"))
 	if repoType == "ssh" {
-		FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", "../submodule.git", "submodule/test"))
 		FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeSSHSubmodule)))
 	} else if repoType == "https" {
-		FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", "../submodule.git", "submodule/test"))
 		FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeHTTPSSubmodule)))
 	}
-
 	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "--all"))
 	FailOnErr(Run(submoduleParentDirectory(), "git", "commit", "-q", "-m", "commit with submodule"))
 }
