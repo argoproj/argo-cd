@@ -105,7 +105,9 @@ spec:
           - "https://hooks.slack.com/services/..."
       restartPolicy: Never
   backoffLimit: 2
----
+```
+
+```yaml
 apiVersion: batch/v1
 kind: Job
 metadata:

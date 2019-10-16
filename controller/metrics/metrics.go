@@ -104,7 +104,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, health
 			// Buckets chosen after observing a ~2100ms mean reconcile time
 			Buckets: []float64{0.25, .5, 1, 2, 4, 8, 16},
 		},
-		append(descAppDefaultLabels),
+		descAppDefaultLabels,
 	)
 
 	appRegistry.MustRegister(reconcileHistogram)

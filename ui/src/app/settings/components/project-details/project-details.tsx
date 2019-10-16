@@ -11,12 +11,12 @@ import { CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services
 import { ProjectEditPanel } from '../project-edit-panel/project-edit-panel';
 import { ProjectEvents } from '../project-events/project-events';
 
-import { ProjectMaintenanceEditPanel } from '../project-maintenance-edit-panel/project-maintenance-edit-panel';
 import { ProjectRoleEditPanel } from '../project-role-edit-panel/project-role-edit-panel';
+import { ProjectSyncWindowsEditPanel } from '../project-sync-windows-edit-panel/project-sync-windows-edit-panel';
 
-import { ProjectMaintenanceParams } from '../../../shared/services/projects-service';
+import { ProjectSyncWindowsParams } from '../../../shared/services/projects-service';
 
-import { MaintenanceWindowStatusIcon } from '../../../applications/components/utils';
+import { SyncWindowStatusIcon } from '../../../applications/components/utils';
 
 interface ProjectDetailsState {
     token: string;
@@ -33,7 +33,7 @@ function helpTip(text: string) {
 export class ProjectDetails extends React.Component<RouteComponentProps<{ name: string; }>, ProjectDetailsState> {
     private projectFormApi: FormApi;
     private projectRoleFormApi: FormApi;
-    private projectMaintenanceFormApi: FormApi;
+    private projectSyncWindowsFormApi: FormApi;
     private loader: DataLoader;
 
     constructor(props: RouteComponentProps<{ name: string; }>) {
@@ -50,7 +50,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                 actionMenu: {items: [
                     { title: 'Edit', iconClassName: 'fa fa-pencil-alt', action: () => ctx.navigation.goto('.', {edit: true}) },
                     { title: 'Add Role', iconClassName: 'fa fa-plus', action: () => ctx.navigation.goto('.', {newRole: true})},
-                    { title: 'Add Maintenance Window', iconClassName: 'fa fa-plus', action: () => ctx.navigation.goto('.', {newWindow: true})},
+                    { title: 'Add Sync Window', iconClassName: 'fa fa-plus', action: () => ctx.navigation.goto('.', {newWindow: true})},
                     { title: 'Delete', iconClassName: 'fa fa-times-circle', action: async () => {
                         const confirmed = await ctx.popup.confirm('Delete project', 'Are you sure you want to delete project?');
                         if (confirmed) {
@@ -81,9 +81,9 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                                     title: 'Roles',
                                     content: this.rolesTab(proj, ctx),
                                 }, {
-                                    key: 'maintenance',
-                                    title: 'Maintenance',
-                                    content: this.maintenanceTab(proj, ctx),
+                                    key: 'windows',
+                                    title: 'Windows',
+                                    content: this.SyncWindowsTab(proj, ctx),
                                 }, {
                                     key: 'events',
                                     title: 'Events',
@@ -107,6 +107,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                                         clusterResourceWhitelist: proj.spec.clusterResourceWhitelist || [],
                                         namespaceResourceBlacklist: proj.spec.namespaceResourceBlacklist || [],
                                         roles: proj.spec.roles || [],
+                                        syncWindows: proj.spec.syncWindows || [],
                                         orphanedResourcesEnabled: !!proj.spec.orphanedResources,
                                         orphanedResourcesWarn: proj.spec.orphanedResources && (proj.spec.orphanedResources.warn === undefined || proj.spec.orphanedResources.warn),
                                         }} getApi={(api) => this.projectFormApi = api} submit={async (projParams) => {
@@ -185,7 +186,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                                         hideJWTToken={() => this.setState({token: ''})}
                                     />}
                                 </SlidingPanel>
-                                <SlidingPanel isMiddle={true} isShown={params.get('editWindow') !== null || params.get('newWindow') !== null}
+                                <SlidingPanel isNarrow={false} isMiddle={false} isShown={params.get('editWindow') !== null || params.get('newWindow') !== null}
                                               onClose={() => {
                                                   this.setState({token: ''});
                                                   ctx.navigation.goto('.', {editWindow: null, newWindow: null});
@@ -196,19 +197,25 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                                             ctx.navigation.goto('.', {editWindow: null, newWindow: null});
                                         }} className='argo-button argo-button--base-o'>
                                             Cancel
-                                        </button> <button onClick={() => this.projectMaintenanceFormApi.submitForm(null)} className='argo-button argo-button--base'>
+                                        </button> <button onClick={() => {
+                                            if (params.get('newWindow') === null) {
+                                                this.projectSyncWindowsFormApi.setValue('id', Number(params.get('editWindow')));
+                                            }
+                                            this.projectSyncWindowsFormApi.submitForm(null);
+                                        }} className='argo-button argo-button--base'>
                                         {params.get('newWindow') != null ? 'Create' : 'Update'}
                                     </button> {params.get('newWindow') === null ? (
                                         <button onClick={async () => {
-                                            const confirmed = await ctx.popup.confirm('Delete maintenance window', 'Are you sure you want to delete maintenance window?');
+                                            const confirmed = await ctx.popup.confirm('Delete sync window', 'Are you sure you want to delete sync window?');
                                             if (confirmed) {
                                                 try {
-                                                    this.projectMaintenanceFormApi.setValue('deleteWindow', true);
-                                                    this.projectMaintenanceFormApi.submitForm(null);
+                                                    this.projectSyncWindowsFormApi.setValue('id', Number(params.get('editWindow')));
+                                                    this.projectSyncWindowsFormApi.setValue('deleteWindow', true);
+                                                    this.projectSyncWindowsFormApi.submitForm(null);
                                                     ctx.navigation.goto('.', {editWindow: null});
                                                 } catch (e) {
                                                     ctx.notifications.show({
-                                                        content: <ErrorNotification title='Unable to delete maintenance window' e={e}/>,
+                                                        content: <ErrorNotification title='Unable to delete sync window' e={e}/>,
                                                         type: NotificationType.Error,
                                                     });
                                                 }
@@ -219,18 +226,18 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                                     ) : null}
                                     </div>
                                 )}>
-                                    {(params.get('editWindow') !== null || params.get('newWindow') === 'true') && <ProjectMaintenanceEditPanel
-                                        nameReadonly={params.get('newWindow') === null ? true : false}
+                                    {(params.get('editWindow') !== null || params.get('newWindow') === 'true') && <ProjectSyncWindowsEditPanel
                                         defaultParams={{
                                             newWindow: (params.get('newWindow') === null ) ? false : true,
                                             projName: proj.metadata.name,
-                                            window: (params.get('newWindow') === null && proj.spec.maintenance.windows !== undefined) ?
-                                                proj.spec.maintenance.windows.find((x) => params.get('editWindow') === x.schedule + ':' + x.duration)
-                                                : undefined,
+                                            window: (params.get('newWindow') === null && proj.spec.syncWindows !== undefined) ?
+                                                proj.spec.syncWindows[Number(params.get('editWindow'))] : undefined,
+                                            id: (params.get('newWindow') === null && proj.spec.syncWindows !== undefined) ?
+                                                Number(params.get('editWindow')) : undefined,
                                         }}
-                                        getApi={(api: FormApi) => this.projectMaintenanceFormApi = api} submit={async (projMaintenanceParams: ProjectMaintenanceParams) => {
+                                        getApi={(api: FormApi) => this.projectSyncWindowsFormApi = api} submit={async (projectSyncWindowsParams: ProjectSyncWindowsParams) => {
                                         try {
-                                            await services.projects.updateWindow(projMaintenanceParams);
+                                            await services.projects.updateWindow(projectSyncWindowsParams);
                                             ctx.navigation.goto('.', {editWindow: null, newWindow: null});
                                             this.loader.reload();
                                         } catch (e) {
@@ -314,48 +321,75 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
         );
     }
 
-    private maintenanceTab(proj: Project, ctx: any) {
+    private SyncWindowsTab(proj: Project, ctx: any) {
         return (
             <div className='argo-container'>
-                {(proj.spec.maintenance && proj.spec.maintenance.windows || []).length > 0 && (
-                    <DataLoader noLoaderOnInputChange={true} input={proj.spec.maintenance.windows} load={async () => {
-                            return await services.projects.getMaintenanceWindowState(proj.metadata.name);
+                {(proj.spec.syncWindows || []).length > 0 && (
+                    <DataLoader noLoaderOnInputChange={true} input={proj.spec.syncWindows} load={async () => {
+                            return await services.projects.getSyncWindows(proj.metadata.name);
                         }}>{(data) =>
                             <div className='argo-table-list argo-table-list--clickable'>
                                 <div className='argo-table-list__head'>
                                     <div className='row'>
-                                        <div className='columns small-1.5'>STATUS</div>
-                                        <div className='columns small-1.5'>WINDOW</div>
-                                        <div className='columns small-3'>APPLICATIONS</div>
-                                        <div className='columns small-3'>NAMESPACES</div>
-                                        <div className='columns small-3'>CLUSTERS</div>
+                                        <div className='columns small-2' >
+                                            STATUS
+                                            {helpTip('If a window is active or inactive and what the current ' +
+                                                'effect would be if it was assigned to an application, namespace or cluster. ' +
+                                                'Red: no syncs allowed. ' +
+                                                'Yellow: manual syncs allowed. ' +
+                                                'Green: all syncs allowed')}
+                                        </div>
+                                        <div className='columns small-2'>
+                                            WINDOW
+                                            {helpTip('The kind, start time and duration of the window')}
+                                        </div>
+                                        <div className='columns small-2'>
+                                            APPLICATIONS
+                                            {helpTip('The applications assigned to the window, wildcards are supported')}
+                                        </div>
+                                        <div className='columns small-2'>
+                                            NAMESPACES
+                                            {helpTip('The namespaces assigned to the window, wildcards are supported')}
+                                        </div>
+                                        <div className='columns small-2'>
+                                            CLUSTERS
+                                            {helpTip('The clusters assigned to the window, wildcards are supported')}
+                                        </div>
+                                        <div className='columns small-2'>
+                                            MANUALSYNC
+                                            {helpTip('If the window allows manual syncs')}
+                                        </div>
                                     </div>
                                 </div>
-                                {(proj.spec.maintenance.windows || []).map((window) => (
-                                    <div className='argo-table-list__row' key={`${window.schedule}:${window.duration}`}
-                                         onClick={() => ctx.navigation.goto(`.`, {editWindow: window.schedule + ':' + window.duration})}>
+                                {(proj.spec.syncWindows || []).map((window, i) => (
+                                    <div className='argo-table-list__row' key={`${i}`}
+                                         onClick={() => ctx.navigation.goto(`.`,
+                                             {editWindow: `${i}`})}>
                                         <div className='row'>
-                                            <div className='columns small-1.1'>
-                                                <span><MaintenanceWindowStatusIcon state={data} window={window}/></span>
+                                            <div className='columns small-2'>
+                                                <span><SyncWindowStatusIcon state={data} window={window}/></span>
                                             </div>
-                                            <div className='columns small-1.9'>
-                                                {window.schedule}:{window.duration}
+                                            <div className='columns small-2'>
+                                                {window.kind}:{window.schedule}:{window.duration}
                                             </div>
-                                            <div className='columns small-3'>
+                                            <div className='columns small-2'>
                                                 {(window.applications || ['-']).join(',')}
                                             </div>
-                                            <div className='columns small-3'>
+                                            <div className='columns small-2'>
                                                 {(window.namespaces || ['-']).join(',')}
                                             </div>
-                                            <div className='columns small-3'>
+                                            <div className='columns small-2'>
                                                 {(window.clusters || ['-']).join(',')}
+                                            </div>
+                                            <div className='columns small-2'>
+                                                {window.manualSync ? 'Enabled' : 'Disabled'}
                                             </div>
                                         </div>
                                     </div>
                                 ))}
                                 </div>
                     }</DataLoader>
-                ) || <div className='white-box'><p>Project has no maintenance windows</p></div>}
+                ) || <div className='white-box'><p>Project has no sync windows</p></div>}
             </div>
         );
     }

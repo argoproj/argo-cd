@@ -348,42 +348,89 @@ export function refreshLinkAttrs(app: appModels.Application) {
     return { disabled: isAppRefreshing(app) };
 }
 
-export const MaintenanceWindowStatusIcon = ({state, window}: { state: appModels.MaintenanceState, window: appModels.ProjectMaintenanceWindow }) => {
-    let className = 'fa fa-question-circle';
-    let color = COLORS.maintenance_state.unknown;
-    let current = 'Unknown';
+export const SyncWindowStatusIcon = ({state, window}: { state: appModels.SyncWindowsState, window: appModels.SyncWindow }) => {
+    let className = '';
+    let color = '';
+    let current = '';
 
     if (state.windows === undefined ) {
-        className = 'fa fa-stop-circle';
-        color = COLORS.maintenance_state.inactive;
         current = 'Inactive';
     } else {
         for (const w of state.windows) {
-            if (w.schedule === window.schedule && w.duration === window.duration) {
-                className = 'fa fa-stop-circle';
-                color = COLORS.maintenance_state.active;
+            if (w.kind === window.kind && w.schedule === window.schedule && w.duration === window.duration) {
                 current = 'Active';
                 break;
             } else {
-                className = 'fa fa-stop-circle';
-                color = COLORS.maintenance_state.inactive;
                 current = 'Inactive';
             }
         }
     }
+
+    switch (current + ':' + window.kind) {
+        case 'Active:deny':
+        case 'Inactive:allow':
+            className = 'fa fa-stop-circle';
+            if (window.manualSync) {
+                color = COLORS.sync_window.manual;
+            } else {
+                color = COLORS.sync_window.deny;
+            }
+            break;
+        case 'Active:allow':
+        case 'Inactive:deny':
+            className = 'fa fa-check-circle';
+            color = COLORS.sync_window.allow;
+            break;
+        default:
+            className = 'fa fa-question-circle';
+            color = COLORS.sync_window.unknown;
+            current = 'Unknown';
+            break;
+    }
+
     return <React.Fragment><i title={current} className={className} style={{color}}/> {current}</React.Fragment>;
 };
 
-export const ApplicationMaintenanceWindowStatusIcon = ({project, state}: { project: string, state: appModels.ApplicationMaintenanceState }) => {
-    let className = 'fa fa-stop-circle';
-    if (state.windows === undefined ) {
-        className = 'fa fa-stop-circle';
-    } else if (state.windows.length > 0) {
-        className = 'fa fa-stop-circle';
+export const ApplicationSyncWindowStatusIcon = ({project, state}: { project: string, state: appModels.ApplicationSyncWindowState }) => {
+    let className = '';
+    let color = '';
+    let deny = false;
+    let allow = false;
+    let inactiveAllow = false;
+    if (state.assignedWindows !== undefined && state.assignedWindows.length > 0) {
+        if (state.activeWindows !== undefined && state.activeWindows.length > 0) {
+            for (const w of state.activeWindows) {
+                if (w.kind === 'deny') {
+                    deny = true;
+                } else if (w.kind === 'allow') {
+                    allow = true;
+                }
+            }
+        }
+        for (const a of state.assignedWindows) {
+            if (a.kind === 'allow') {
+                inactiveAllow = true;
+            }
+        }
+    } else {
+        allow = true;
     }
+
+    if ((deny) || (!deny && !allow && inactiveAllow)) {
+        className = 'fa fa-stop-circle';
+        if (state.canSync) {
+            color = COLORS.sync_window.manual;
+        } else {
+            color = COLORS.sync_window.deny;
+        }
+    } else {
+        className = 'fa fa-check-circle';
+        color = COLORS.sync_window.allow;
+    }
+
     return (
-        <a href={`/settings/projects/${project}?tab=maintenance`} className={state.windows ? 'warning' : ''}>
-            <i className={className}/> Maintenance
-        </a>
+    <a href={`/settings/projects/${project}?tab=windows`} style={{color}}>
+        <i className={className} style={{color}}/> SyncWindow
+    </a>
     );
 };

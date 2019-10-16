@@ -20,15 +20,23 @@ import { ApplicationTiles } from './applications-tiles';
 require('./applications-list.scss');
 
 const APP_FIELDS = [
-    'metadata.name', 'metadata.annotations', 'metadata.resourceVersion', 'metadata.creationTimestamp', 'spec', 'status.sync.status', 'status.health', 'status.summary'];
+    'metadata.name',
+    'metadata.annotations',
+    'metadata.labels',
+    'metadata.resourceVersion',
+    'metadata.creationTimestamp',
+    'spec',
+    'status.sync.status',
+    'status.health',
+    'status.summary'];
 const APP_LIST_FIELDS = APP_FIELDS.map((field) => `items.${field}`);
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map((field) => `result.application.${field}`)];
 
-function loadApplications(): Observable<models.Application[]> {
-    return Observable.fromPromise(services.applications.list([], { fields: APP_LIST_FIELDS })).flatMap((applications) =>
+function loadApplications(selector: string): Observable<models.Application[]> {
+    return Observable.fromPromise(services.applications.list([], { fields: APP_LIST_FIELDS, selector })).flatMap((applications) =>
         Observable.merge(
             Observable.from([applications]),
-            services.applications.watch(null, { fields: APP_WATCH_FIELDS }).map((appChange) => {
+            services.applications.watch(null, { fields: APP_WATCH_FIELDS, selector }).map((appChange) => {
                 const index = applications.findIndex((item) => item.metadata.name === appChange.application.metadata.name);
                 if (index > -1 && appChange.application.metadata.resourceVersion === applications[index].metadata.resourceVersion) {
                     return {applications, updated: false};
@@ -77,6 +85,9 @@ const ViewPref = ({children}: { children: (pref: AppsListPreferences & { page: n
                     }
                     if (params.get('view') != null) {
                         viewPref.view = params.get('view') as AppsListViewType;
+                    }
+                    if (params.get('labels') != null) {
+                        viewPref.labelsFilter = params.get('labels').split(',').filter((item) => !!item);
                     }
                     return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || ''};
             })}>
@@ -145,11 +156,14 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
         },
     }))}>
         <div className='applications-list'>
+            <ViewPref>
+            {(pref) =>
             <DataLoader
-                load={() => loadApplications()}
+                input={(pref.labelsFilter || []).join(',')}
+                load={(selector) => loadApplications(selector)}
                 loadingRenderer={() => (<div className='argo-container'><MockupList height={100} marginTop={30}/></div>)}>
                 {(applications: models.Application[]) => (
-                    applications.length === 0 ? (
+                    applications.length === 0 && (pref.labelsFilter || []).length === 0 ? (
                         <EmptyState icon='argo-icon-application'>
                             <h4>No applications yet</h4>
                             <h5>Create new application to start managing resources in your cluster</h5>
@@ -188,8 +202,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                     </div>
                                 )}
                                 </Query>
-                                <ViewPref>
-                                {(pref) => <ApplicationsFilter applications={applications} pref={pref} onChange={(newPref) => {
+                                <ApplicationsFilter applications={applications} pref={pref} onChange={(newPref) => {
                                     services.viewPreferences.updatePreferences({appList: newPref});
                                     ctx.navigation.goto('.', {
                                         proj: newPref.projectsFilter.join(','),
@@ -197,13 +210,12 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         health: newPref.healthFilter.join(','),
                                         namespace: newPref.namespacesFilter.join(','),
                                         cluster: newPref.clustersFilter.join(','),
+                                        labels: newPref.labelsFilter.join(','),
                                     });
-                                }} />}
-                                </ViewPref>
+                                }} />
                             </div>
                             <div className='columns small-12 xxlarge-10'>
-                            <ViewPref>
-                            {(pref) => pref.view === 'summary' && (
+                            {pref.view === 'summary' && (
                                 <ApplicationsSummary applications={filterApps(applications, pref, pref.search)} />
                             ) || (
                                 <Paginate
@@ -234,12 +246,12 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                 )}
                                 </Paginate>
                             )}
-                            </ViewPref>
                             </div>
                         </div>
                     )
                 )}
             </DataLoader>
+            }</ViewPref>
         </div>
         <ObservableQuery>
         {(q) => (

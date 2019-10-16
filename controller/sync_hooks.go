@@ -3,7 +3,8 @@ package controller
 import (
 	"fmt"
 
-	wfv1 "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
+	"github.com/argoproj/argo-cd/util/health"
+
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -19,7 +20,7 @@ func getOperationPhase(hook *unstructured.Unstructured) (operation v1alpha1.Oper
 	if isBatchJob(gvk) {
 		return getStatusFromBatchJob(hook)
 	} else if isArgoWorkflow(gvk) {
-		return getStatusFromArgoWorkflow(hook)
+		return health.GetStatusFromArgoWorkflow(hook)
 	} else if isPod(gvk) {
 		return getStatusFromPod(hook)
 	} else {
@@ -68,26 +69,6 @@ func getStatusFromBatchJob(hook *unstructured.Unstructured) (operation v1alpha1.
 
 func isArgoWorkflow(gvk schema.GroupVersionKind) bool {
 	return gvk.Group == "argoproj.io" && gvk.Kind == "Workflow"
-}
-
-// TODO - should we move this to health.go?
-func getStatusFromArgoWorkflow(hook *unstructured.Unstructured) (operation v1alpha1.OperationPhase, message string) {
-	var wf wfv1.Workflow
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(hook.Object, &wf)
-	if err != nil {
-		return v1alpha1.OperationError, err.Error()
-	}
-	switch wf.Status.Phase {
-	case wfv1.NodePending, wfv1.NodeRunning:
-		return v1alpha1.OperationRunning, wf.Status.Message
-	case wfv1.NodeSucceeded:
-		return v1alpha1.OperationSucceeded, wf.Status.Message
-	case wfv1.NodeFailed:
-		return v1alpha1.OperationFailed, wf.Status.Message
-	case wfv1.NodeError:
-		return v1alpha1.OperationError, wf.Status.Message
-	}
-	return v1alpha1.OperationSucceeded, wf.Status.Message
 }
 
 func isPod(gvk schema.GroupVersionKind) bool {

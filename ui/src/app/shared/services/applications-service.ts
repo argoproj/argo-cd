@@ -7,11 +7,12 @@ import requests from './requests';
 interface QueryOptions {
     fields: string[];
     exclude?: boolean;
+    selector?: string;
 }
 
 function optionsToSearch(options?: QueryOptions) {
     if (options) {
-        return { fields: (options.exclude ? '-' : '') + options.fields.join(',') };
+        return { fields: (options.exclude ? '-' : '') + options.fields.join(','), selector: options.selector };
     }
     return {};
 }
@@ -31,8 +32,8 @@ export class ApplicationsService {
         return requests.get(`/applications/${name}`).query(query).then((res) => this.parseAppFields(res.body));
     }
 
-    public getApplicationMaintenanceWindowState(name: string): Promise<models.ApplicationMaintenanceState> {
-        return requests.get(`/applications/${name}/maintenance`).query({name}).then((res) => res.body as models.ApplicationMaintenanceState);
+    public getApplicationSyncWindowState(name: string): Promise<models.ApplicationSyncWindowState> {
+        return requests.get(`/applications/${name}/syncwindows`).query({name}).then((res) => res.body as models.ApplicationSyncWindowState);
     }
 
     public revisionMetadata(name: string, revision: string): Promise<models.RevisionMetadata> {
@@ -62,6 +63,10 @@ export class ApplicationsService {
         return requests.put(`/applications/${appName}/spec`).send(spec).then((res) => res.body as models.ApplicationSpec);
     }
 
+    public update(app: models.Application): Promise<models.Application> {
+        return requests.put(`/applications/${app.metadata.name}`).send(app).then((res) => res.body as models.Application);
+    }
+
     public create(app: models.Application): Promise<models.Application> {
         return requests.post(`/applications`).send(app).then((res) => this.parseAppFields(res.body));
     }
@@ -78,6 +83,7 @@ export class ApplicationsService {
         if (options) {
             const searchOptions = optionsToSearch(options);
             search.set('fields', searchOptions.fields);
+            search.set('selector', searchOptions.selector);
         }
         const searchStr = search.toString();
         const url = `/stream/applications${searchStr && '?' + searchStr || ''}` ;

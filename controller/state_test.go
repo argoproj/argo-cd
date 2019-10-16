@@ -36,7 +36,7 @@ func TestCompareAppStateEmpty(t *testing.T) {
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Len(t, compRes.resources, 0)
 	assert.Len(t, compRes.managedResources, 0)
-	assert.Len(t, compRes.conditions, 0)
+	assert.Len(t, app.Status.Conditions, 0)
 }
 
 // TestCompareAppStateMissing tests when there is a manifest defined in the repo which doesn't exist in live
@@ -59,7 +59,7 @@ func TestCompareAppStateMissing(t *testing.T) {
 	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
 	assert.Len(t, compRes.resources, 1)
 	assert.Len(t, compRes.managedResources, 1)
-	assert.Len(t, compRes.conditions, 0)
+	assert.Len(t, app.Status.Conditions, 0)
 }
 
 // TestCompareAppStateExtra tests when there is an extra object in live but not defined in git
@@ -85,7 +85,7 @@ func TestCompareAppStateExtra(t *testing.T) {
 	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
 	assert.Equal(t, 1, len(compRes.resources))
 	assert.Equal(t, 1, len(compRes.managedResources))
-	assert.Equal(t, 0, len(compRes.conditions))
+	assert.Equal(t, 0, len(app.Status.Conditions))
 }
 
 // TestCompareAppStateHook checks that hooks are detected during manifest generation, and not
@@ -112,7 +112,7 @@ func TestCompareAppStateHook(t *testing.T) {
 	assert.Equal(t, 0, len(compRes.resources))
 	assert.Equal(t, 0, len(compRes.managedResources))
 	assert.Equal(t, 1, len(compRes.hooks))
-	assert.Equal(t, 0, len(compRes.conditions))
+	assert.Equal(t, 0, len(app.Status.Conditions))
 }
 
 // checks that ignore resources are detected, but excluded from status
@@ -138,7 +138,7 @@ func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Len(t, compRes.resources, 0)
 	assert.Len(t, compRes.managedResources, 0)
-	assert.Len(t, compRes.conditions, 0)
+	assert.Len(t, app.Status.Conditions, 0)
 }
 
 // TestCompareAppStateExtraHook tests when there is an extra _hook_ object in live but not defined in git
@@ -167,7 +167,7 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 	assert.Equal(t, 1, len(compRes.resources))
 	assert.Equal(t, 1, len(compRes.managedResources))
 	assert.Equal(t, 0, len(compRes.hooks))
-	assert.Equal(t, 0, len(compRes.conditions))
+	assert.Equal(t, 0, len(app.Status.Conditions))
 }
 
 func toJSON(t *testing.T, obj *unstructured.Unstructured) string {
@@ -200,7 +200,7 @@ func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
 	compRes := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
 
 	assert.NotNil(t, compRes)
-	assert.Contains(t, compRes.conditions, argoappv1.ApplicationCondition{
+	assert.Contains(t, app.Status.Conditions, argoappv1.ApplicationCondition{
 		Message: "Resource /Pod/fake-dest-ns/my-pod appeared 2 times among application resources.",
 		Type:    argoappv1.ApplicationConditionRepeatedResourceWarning,
 	})

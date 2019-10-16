@@ -1,12 +1,20 @@
 @import 'node_modules/argo-ui/src/app/shared/styles/config';
 
 .applications-table {
-    &__revision {
-        background-color: $argo-color-gray-4;
-        border-radius: 5px;
+    &__meta {
         position: absolute;
         right: 5px;
-        padding: 0 2px;
+        top: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 40%;
+        span {
+            background-color: $argo-color-gray-4;
+            border-radius: 5px;
+            padding: 0 2px;
+            margin-right: 2px;
+        }
     }
 
     .argo-table-list__row {
