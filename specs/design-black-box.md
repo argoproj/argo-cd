@@ -37,7 +37,7 @@ The proposed solution is based on the assumption that despite implementation dif
 ultimately extract the set of manifests from Git and use "kubectl apply" to change the cluster state. The minor differences are expected but we can resolve them by introducing new
 knobs.
 
-However, there is a risk that there will be two many differences and it might be not feasible to support all of them. To mitigate the risk of let's start from POC implementation
+However, there is a risk that there will be too many differences and it might be not feasible to support all of them. To mitigate the risk of let's start from POC implementation
 to catch possible blockers earlier. 
 
 ### GitOps Engine POC
