@@ -14,17 +14,20 @@ TODO - add video.
 
 ##### Orphan Resources
 
-TODO - Alex to write
+TODO - Alex M to write/video(?)
+
+##### Maintenance Windows
+
+TODO
+
+##### Gzip JWTs & User Info Page
+
+TODO - Alex C
 
 #### Enhancements
 
 * Issue #2396 argocd list command should have filter options like by pr… (#2421)
-<!--* Issue #2261 - Refactor Helm first class support (#2364)-->
 * Adds support for Helm 1st-class. Closes #1145 (#1865)
-<!--* Issue #1167 - Document orphaned resources, update proj CLI (#2188)-->
-<!--* Issue #1167 - Allow enabling/disabling orphaned resources using UI (#2186)-->
-<!--* Issue #1167 - Excluded known orphaned resources exceptions (#2178)-->
-<!--* Issue #1167 - Controller should remove orphaned resources warning if app has no orphaned resources (#2169)-->
 * Issue #1167 - Implement orphan resources support (#2103)
 * Helm hooks. Closes #355 (#2069)
 * Adds support for a literal YAML block of Helm values. Closes #1930  (#2057)
@@ -35,15 +38,10 @@ TODO - Alex to write
 
 - Issue #2484 - Impossible to edit chart name using App details page (#2485)
 - Issue #2185 - Manual sync don't trigger hooks (#2477)
-<!-- - Issue #2480 - Helm Hook is executed twice if annotated with both pre-install and pre-upgrade annotations (#2481)-->
-- Issue #2475 - UI don't allow to create window with '* * * * *' schedule (#2476)
 - Issue #2453 - Application controller sometimes accidentally removes duplicated/excluded resource warning condition (#2454)
 - Issue #1944 - Gracefully handle missing cached app state (#2464)
 - Issue #2321 - Hook deletion should not fail if error message is not found (#2458)
 - Issue #2448 - Custom resource actions cannot be executed from the UI (#2449)
-<!--- Issue #2407 - Improve Helm/Git app version rendering (#2410)-->
-<!--- Issue #2316 - support deprecated 'helm.repositories' config (#2405)-->
-<!--- Issue #2378 - Creating an application from Helm repository should select Helm as source type (#2409)-->
 - Issue #2339 - Make sure controller uses latest git version if app reconciliation result expired (#2346)
 - Issue #2290 - Fix nil pointer dereference in application controller (#2291)
 - Issue #2245 - Intermittent "git ls-remote" request failures should not fail app reconciliation (#2281)
@@ -53,17 +51,80 @@ TODO - Alex to write
 - Fix for displaying hooks in app diff view. Fixes #2215 (#2218)
 - Issue #2212 - Correctly handle trailing slash in configured URL while creating redirect URL (#2214)
 - Deals with race condition when deleting resource. Closes #2141 (#2200)
-<!--- Improves BeforeHookCreation. Closes #2141 (#2142)-->
 - Issue #2192 - SyncError app condition disappears during app reconciliation (#2193)
 - Adds test for updating immutable field, adds UI button to allow force from UI. See #2150 (#2155)
 - Issue #2174 - Fix git repo url parsing on application list view (#2175)
 - Issue #2146 - Fix nil pointer dereference error during app reconciliation (#2170)
 - Issue #2114 - Fix history api fallback implementation to support app names with dots (#2168)
-<!--- Fixes some code issues related to Kustomize build options. See #2146 (#2151)-->
 - Issue #2060 - Endpoint incorrectly considered top level managed resource (#2129)
 - Fixed truncation of group in UI. Closes #2006 (#2128)
 - Allow adding certs for hostnames ending on a dot (fixes #2116) (#2120)
 - Escape square brackets in pattern matching hostnames (fixes #2099) (#2113)
+
+#### Other
+
+- Fix possible path traversal attack when supporting Helm `values.yaml` (#2452)
+- Fix UI crash on application list page (#2490)
+- add support for --additional-headers cli flag (#2467)
+- Allow collapse/expand helm values text (#2469)
+- Update base image to Debian buster (#2431)
+- Error with new  `actions run` suggestion (#2434)
+- Detach ArgoCD from specific workflow API (#2428)
+- Add application labels to Applications list and Applications details page (#2430)
+- Fix JS error on application creation page if no plugins configured (#2432)
+- Add missing externalURL for networking.k8s.io Ingress type (#2390)
+- App status panel shows metadata of current revision in git instead of most recent reconciled revision (#2419)
+- Adds support for plugin params.  (#2406)
+- Granular RBAC Support for actions (#2110)
+- Added Kustomize, Helm, and Kubectl to `argocd version` (#2329)
+- Stop unnecessary re-loading clusters on every app list page re-render (#2411)
+- Add project level maintenance windows for applications (#2380)
+- Make argo-cd docker images openshift friendly (#2362)
+- Add dest-server and dest-namespace field to reconciliation logs (#2388)
+- Add custom action example to argocd-cm.yaml (#2375)
+- Try out community icons.  (#2349)
+- Make `group` optional for `ignoreDifferences` setting (#2335)
+- Adds support for Github Enterprise URLs (#2344)
+- Add argocd project as variable to grafana dashboard (#2336)
+- Fix missing envs when updating application of content management plugin type (#2331)
+- util/localconfig: prefer HOME env var over os/user (#2326)
+- Auto-detect Helm repos + support Helm basic auth + fix bugs (#2309)
+- Add cache-control HTTP header to badge response (#2328)
+- Document flags/env variables useful for performance tuning (#2312)
+- Re-enable caching when listing apps.  (#2295)
+- Fixes bug in `argocd repo list` and tidy up UI (#2307)
+- Add restart action to Deployment/StatefulSet/DaemonSet (#2300)
+- Clean-up the kube-version from Helm so that we can support GKE.  (#2304)
+- Fixes issue diffing secrets (#2271)
+- Add --self-heal flag to argocd cli (#2296)
+- Support --kube-version.  (#2276)
+- Fix building error when following CONTRIBUTING.md (#2278)
+- Adding information to make local execution more accessible (#2279)
+- API clients may use the HTTP Authorization header for auth.  (#2262)
+- Fix TestAutoSyncSelfHealEnabled test flakiness (#2282)
+- Change Helm repo URLs to argoproj/argo-cd/master (#2266)
+- Fix/grafana datasources (#2229)
+- If there is only one wave and no pre/post hooks, we should be synced.… (#2217)
+- Create projects from manifests (#2202)
+- Fix JS crash in EditablePanel component (#2222)
+- Use same /24 network for testing immutable field update (#2213)
+- Add path to externalURLs (#2208)
+- support OIDC claims request (#1957)
+- Better detection for authorization_code OIDC response type (#2164)
+- Allow list actions to return yaml or json (#1805)
+- Adds a floating action button with help and chat links to every page.… (#2125)
+- Temporary disable Git LFS test to unblock release (#2172)
+- Determine the manifest version from the VERSION file when on release branch (#2166)
+- Enhances cookie warning with actual length to help users fix their co… (#2134)
+- Fixed routing issue for periods (#2162)
+- Added more health filters in UI (#2160)
+- Added 'SyncFail' to possible HookTypes in UI (#2153)
+- Indicate that `SyncFail` hooks are on v1.2+ (#2149)
+- Adds checks around valid paths for apps (#2133)
+- Minor CLI bug fixes (#2132)
+- Adds support for a literal YAML block of Helm values. Closes #1930  (#2057)
+- Fixed truncation of group in UI. Closes #2006 (#2128)
+- Redact secrets using "+" rather than "*" as this is base 64 compatiba… (#2119)
 
 #### Contributors
 
