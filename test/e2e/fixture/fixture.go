@@ -508,16 +508,11 @@ func CreateSubmoduleRepos(repoType string) {
 	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "."))
 
 	if repoType == "ssh" {
-		keyPath, err := filepath.Abs("../fixture/testrepos/id_rsa")
-		if err != nil {
-			log.Fatal(err)
-		}
-		gitVars := []string{"GIT_SSH_COMMAND=ssh -i " + keyPath, "GIT_SSH_VARIANT=ssh"}
-		FailOnErr(RunWithVars(submoduleParentDirectory(), gitVars, "git", "submodule", "add", "-b", "master", RepoURL(RepoURLTypeSSHSubmodule), "submodule/test"))
+		FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", "../submodule.git", "submodule/test"))
+		FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeSSHSubmodule)))
 	} else if repoType == "https" {
-		httpsWithCreds := strings.Replace(RepoURL(RepoURLTypeHTTPSSubmodule), "localhost", GitUsername+":"+GitPassword+"@localhost", 1)
-		FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", httpsWithCreds, "submodule/test"))
-		FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeHTTPSSubmodule), "submodule/test"))
+		FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", "../submodule.git", "submodule/test"))
+		FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeHTTPSSubmodule)))
 	}
 
 	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "--all"))
