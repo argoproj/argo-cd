@@ -74,6 +74,9 @@ jobs:
             # When this fails, it will, create a patch file you can apply locally to fix it.
             # To troubleshoot builds: https://argoproj.github.io/argo-cd/developer-guide/ci/
             git diff --exit-code -- . ':!Gopkg.lock'  ':!assets/swagger.json' | tee codegen.patch
+      - store_artifacts:
+          path: codegen.patch
+          destination: .
   test:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
