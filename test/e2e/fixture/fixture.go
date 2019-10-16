@@ -319,6 +319,7 @@ func EnsureCleanState(t *testing.T) {
 		&v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: testingLabel + "=true"}))
 
 	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", testingLabel+"=true", "--field-selector", "status.phase=Active", "--wait=false"))
+	FailOnErr(Run("", "kubectl", "delete", "crd", "-l", testingLabel+"=true", "--wait=false"))
 
 	// reset settings
 	s, err := settingsManager.GetSettings()

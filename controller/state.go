@@ -73,6 +73,16 @@ type comparisonResult struct {
 	appSourceType    v1alpha1.ApplicationSourceType
 }
 
+func (cr *comparisonResult) targetObjs() []*unstructured.Unstructured {
+	objs := cr.hooks
+	for _, r := range cr.managedResources {
+		if r.Target != nil {
+			objs = append(objs, r.Target)
+		}
+	}
+	return objs
+}
+
 // appStateManager allows to compare applications to git
 type appStateManager struct {
 	metricsServer  *metrics.MetricsServer
