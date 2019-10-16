@@ -1,5 +1,102 @@
 # Changelog
 
+## v1.3-rc1 (2019-10-16)
+
+#### New Features
+
+##### Helm 1st-Class Support
+
+We know that for many of our users, they want to deploy existing Helm charts using Argo CD. Up until now that has required you to create an Argo CD app in a Git repo that does nothing but point to that chart. Now you can use a Helm chart repository is the same way as a Git repository.
+
+On top of that, we've improved support for Helm apps. The most common types of Helm hooks such as `pre-install` and `post-install` are supported as well as a the delete policy `before-hook-creation` which makes it easier to work with hooks.
+
+TODO - add video.
+
+##### Orphan Resources
+
+TODO - Alex to write
+
+#### Enhancements
+
+* Issue #2396 argocd list command should have filter options like by pr… (#2421)
+<!--* Issue #2261 - Refactor Helm first class support (#2364)-->
+* Adds support for Helm 1st-class. Closes #1145 (#1865)
+<!--* Issue #1167 - Document orphaned resources, update proj CLI (#2188)-->
+<!--* Issue #1167 - Allow enabling/disabling orphaned resources using UI (#2186)-->
+<!--* Issue #1167 - Excluded known orphaned resources exceptions (#2178)-->
+<!--* Issue #1167 - Controller should remove orphaned resources warning if app has no orphaned resources (#2169)-->
+* Issue #1167 - Implement orphan resources support (#2103)
+* Helm hooks. Closes #355 (#2069)
+* Adds support for a literal YAML block of Helm values. Closes #1930  (#2057)
+* Adds support for hook-delete-policy: BeforeHookCreation. Closes #2036 (#2048)
+* Adds support for setting Helm string parameters via CLI. Closes #2078 (#2109)
+
+#### Bug Fixes
+
+- Issue #2484 - Impossible to edit chart name using App details page (#2485)
+- Issue #2185 - Manual sync don't trigger hooks (#2477)
+<!-- - Issue #2480 - Helm Hook is executed twice if annotated with both pre-install and pre-upgrade annotations (#2481)-->
+- Issue #2475 - UI don't allow to create window with '* * * * *' schedule (#2476)
+- Issue #2453 - Application controller sometimes accidentally removes duplicated/excluded resource warning condition (#2454)
+- Issue #1944 - Gracefully handle missing cached app state (#2464)
+- Issue #2321 - Hook deletion should not fail if error message is not found (#2458)
+- Issue #2448 - Custom resource actions cannot be executed from the UI (#2449)
+<!--- Issue #2407 - Improve Helm/Git app version rendering (#2410)-->
+<!--- Issue #2316 - support deprecated 'helm.repositories' config (#2405)-->
+<!--- Issue #2378 - Creating an application from Helm repository should select Helm as source type (#2409)-->
+- Issue #2339 - Make sure controller uses latest git version if app reconciliation result expired (#2346)
+- Issue #2290 - Fix nil pointer dereference in application controller (#2291)
+- Issue #2245 - Intermittent "git ls-remote" request failures should not fail app reconciliation (#2281)
+- Issue #2022 - Support limiting number of concurrent kubectl fork/execs (#2264)
+- Fix degraded proxy support for http(s) git repository (#2243) (#2249)
+- Issue #2198 - Print empty string instead of Unknown in 'argocd app sync' output (#2223)
+- Fix for displaying hooks in app diff view. Fixes #2215 (#2218)
+- Issue #2212 - Correctly handle trailing slash in configured URL while creating redirect URL (#2214)
+- Deals with race condition when deleting resource. Closes #2141 (#2200)
+<!--- Improves BeforeHookCreation. Closes #2141 (#2142)-->
+- Issue #2192 - SyncError app condition disappears during app reconciliation (#2193)
+- Adds test for updating immutable field, adds UI button to allow force from UI. See #2150 (#2155)
+- Issue #2174 - Fix git repo url parsing on application list view (#2175)
+- Issue #2146 - Fix nil pointer dereference error during app reconciliation (#2170)
+- Issue #2114 - Fix history api fallback implementation to support app names with dots (#2168)
+<!--- Fixes some code issues related to Kustomize build options. See #2146 (#2151)-->
+- Issue #2060 - Endpoint incorrectly considered top level managed resource (#2129)
+- Fixed truncation of group in UI. Closes #2006 (#2128)
+- Allow adding certs for hostnames ending on a dot (fixes #2116) (#2120)
+- Escape square brackets in pattern matching hostnames (fixes #2099) (#2113)
+
+#### Contributors
+
+* Aalok Ahluwalia <!-- num=1 -->
+* Adam Johnson <!-- num=4 -->
+* Alex Collins <!-- num=62 -->
+* Alexander Matyushentsev <!-- num=58 -->
+* Andrew Waters <!-- num=2 -->
+* Ben Doyle <!-- num=1 -->
+* Chris Jones <!-- num=1 -->
+* Fred Dubois <!-- num=1 -->
+* Gregor Krmelj <!-- num=2 -->
+* Gustav Paul <!-- num=2 -->
+* Isaac Gaskin <!-- num=1 -->
+* Jesse Suen <!-- num=1 -->
+* John Reese <!-- num=1 -->
+* Mitz Amano <!-- num=1 -->
+* Olivier Boukili <!-- num=1 -->
+* Olivier Lemasle <!-- num=1 -->
+* Rayyis <!-- num=1 -->
+* Rodolphe Prin <!-- num=1 -->
+* Ryota <!-- num=2 -->
+* Seiya Muramatsu <!-- num=1 -->
+* Simon Behar <!-- num=11 -->
+* Sverre Boschman <!-- num=1 -->
+* Tom Wieczorek <!-- num=3 -->
+* Yujun Zhang <!-- num=4 -->
+* Zoltán Reegn <!-- num=1 -->
+* agabet <!-- num=1 -->
+* dthomson25 <!-- num=2 -->
+* jannfis <!-- num=8 -->
+* ssbtn <!-- num=2 -->
+
 ## v1.2.3 (2019-10-1)
 * Make argo-cd docker images openshift friendly (#2362) (@duboisf)
 * Add dest-server and dest-namespace field to reconciliation logs (#2354)
