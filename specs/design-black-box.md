@@ -33,7 +33,12 @@ be wrong. So if we are missing some important Flux feature the approach might be
 
 ### Risks and Mitigations
 
-To mitigate the risk of let's start from POC to catch possible blockers earlier. 
+The proposed solution is based on the assumption that despite implementation differences the core functionality of Argo CD and Flux behaves in the same way. Both projects
+ultimately extract the set of manifests from Git and use "kubectl apply" to change the cluster state. The minor differences are expected but we can resolve them by introducing new
+knobs.
+
+However, there is a risk that there will be two many differences and it might be not feasible to support all of them. To mitigate the risk of let's start from POC implementation
+to catch possible blockers earlier. 
 
 ### GitOps Engine POC
 
