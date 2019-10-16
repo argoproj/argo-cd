@@ -9,9 +9,10 @@ import (
 	"path/filepath"
 	"regexp"
 
+	argoexec "github.com/argoproj/pkg/exec"
+
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/security"
-	argoexec "github.com/argoproj/pkg/exec"
 )
 
 // A thin wrapper around the "helm" command, adding logging and error translation.
