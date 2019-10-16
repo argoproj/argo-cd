@@ -54,7 +54,15 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 
 	if opts != nil {
 		if opts.NamePrefix != "" {
-			cmd := exec.Command("kustomize", "edit", "set", "nameprefix", opts.NamePrefix)
+			cmd := exec.Command("kustomize", "edit", "set", "nameprefix", "--", opts.NamePrefix)
+			cmd.Dir = k.path
+			_, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+		if opts.NameSuffix != "" {
+			cmd := exec.Command("kustomize", "edit", "set", "namesuffix", "--", opts.NameSuffix)
 			cmd.Dir = k.path
 			_, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
 			if err != nil {

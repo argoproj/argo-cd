@@ -167,6 +167,7 @@ export interface ApplicationSourceHelm {
 
 export interface ApplicationSourceKustomize {
     namePrefix: string;
+    nameSuffix: string;
     images: string[];
 }
 
@@ -585,6 +586,7 @@ export interface ResourceActionParam {
 export interface ResourceAction {
     name: string;
     params: ResourceActionParam[];
+    available: boolean;
 }
 
 export interface SyncWindowsState {

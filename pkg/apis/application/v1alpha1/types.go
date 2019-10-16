@@ -244,6 +244,8 @@ func (images KustomizeImages) Find(image KustomizeImage) int {
 type ApplicationSourceKustomize struct {
 	// NamePrefix is a prefix appended to resources for kustomize apps
 	NamePrefix string `json:"namePrefix,omitempty" protobuf:"bytes,1,opt,name=namePrefix"`
+	// NameSuffix is a suffix appended to resources for kustomize apps
+	NameSuffix string `json:"nameSuffix,omitempty" protobuf:"bytes,2,opt,name=nameSuffix"`
 	// Images are kustomize image overrides
 	Images KustomizeImages `json:"images,omitempty" protobuf:"bytes,3,opt,name=images"`
 	// CommonLabels adds additional kustomize commonLabels
@@ -251,7 +253,11 @@ type ApplicationSourceKustomize struct {
 }
 
 func (k *ApplicationSourceKustomize) IsZero() bool {
-	return k == nil || k.NamePrefix == "" && len(k.Images) == 0 && len(k.CommonLabels) == 0
+	return k == nil ||
+		k.NamePrefix == "" &&
+			k.NameSuffix == "" &&
+			len(k.Images) == 0 &&
+			len(k.CommonLabels) == 0
 }
 
 // either updates or adds the images
@@ -960,7 +966,7 @@ func (o *ResourceOverride) GetActions() (ResourceActions, error) {
 
 type ResourceActions struct {
 	ActionDiscoveryLua string                     `json:"discovery.lua,omitempty" yaml:"discovery.lua,omitempty" protobuf:"bytes,1,opt,name=actionDiscoveryLua"`
-	Definitions        []ResourceActionDefinition `json:"definitions,omitEmpty" protobuf:"bytes,2,rep,name=definitions"`
+	Definitions        []ResourceActionDefinition `json:"definitions,omitempty" protobuf:"bytes,2,rep,name=definitions"`
 }
 
 type ResourceActionDefinition struct {
@@ -969,9 +975,9 @@ type ResourceActionDefinition struct {
 }
 
 type ResourceAction struct {
-	Name      string                `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-	Params    []ResourceActionParam `json:"params,omitempty" protobuf:"bytes,2,rep,name=params"`
-	Available bool                  `json:"available,omitempty" protobuf:"varint,3,opt,name=available"`
+	Name     string                `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	Params   []ResourceActionParam `json:"params,omitempty" protobuf:"bytes,2,rep,name=params"`
+	Disabled bool                  `json:"disabled,omitempty" protobuf:"varint,3,opt,name=disabled"`
 }
 
 type ResourceActionParam struct {
@@ -1452,7 +1458,7 @@ func (s *SyncWindows) Active() *SyncWindows {
 	return nil
 }
 
-func (s *SyncWindows) inactiveAllows() *SyncWindows {
+func (s *SyncWindows) InactiveAllows() *SyncWindows {
 	if s.HasWindows() {
 		var inactive SyncWindows
 		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
@@ -1570,7 +1576,7 @@ func (w *SyncWindows) CanSync(isManual bool) bool {
 
 	if !denyActive {
 		if !allowActive {
-			if isManual && w.inactiveAllows().manualEnabled() {
+			if isManual && w.InactiveAllows().manualEnabled() {
 				return true
 			}
 		} else {
@@ -1835,11 +1841,11 @@ func findConditionIndexByType(conditions []ApplicationCondition, t ApplicationCo
 }
 
 // GetErrorConditions returns list of application error conditions
-func (status *ApplicationStatus) GetErrorConditions() []ApplicationCondition {
+func (status *ApplicationStatus) GetConditions(conditionTypes map[ApplicationConditionType]bool) []ApplicationCondition {
 	result := make([]ApplicationCondition, 0)
 	for i := range status.Conditions {
 		condition := status.Conditions[i]
-		if condition.IsError() {
+		if ok := conditionTypes[condition.Type]; ok {
 			result = append(result, condition)
 		}
 	}

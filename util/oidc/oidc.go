@@ -16,8 +16,8 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/argoproj/argo-cd/common"
+	servercache "github.com/argoproj/argo-cd/server/cache"
 	"github.com/argoproj/argo-cd/server/settings/oidc"
-	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/dex"
 	httputil "github.com/argoproj/argo-cd/util/http"
 	"github.com/argoproj/argo-cd/util/jwt/zjwt"
@@ -63,7 +63,7 @@ type ClientApp struct {
 	provider Provider
 	// cache holds temporary nonce tokens to which hold application state values
 	// See http://tools.ietf.org/html/rfc6749#section-10.12 for more info.
-	cache *cache.Cache
+	cache *servercache.Cache
 }
 
 func GetScopesOrDefault(scopes []string) []string {
@@ -75,7 +75,7 @@ func GetScopesOrDefault(scopes []string) []string {
 
 // NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an
 // object which has HTTP handlers for handling the HTTP responses for login and callback
-func NewClientApp(settings *settings.ArgoCDSettings, cache *cache.Cache, dexServerAddr string) (*ClientApp, error) {
+func NewClientApp(settings *settings.ArgoCDSettings, cache *servercache.Cache, dexServerAddr string) (*ClientApp, error) {
 	redirectURL, err := settings.RedirectURL()
 	if err != nil {
 		return nil, err
@@ -142,7 +142,7 @@ func (a *ClientApp) generateAppState(returnURL string) string {
 	if returnURL == "" {
 		returnURL = "/"
 	}
-	err := a.cache.SetOIDCState(randStr, &cache.OIDCState{ReturnURL: returnURL})
+	err := a.cache.SetOIDCState(randStr, &servercache.OIDCState{ReturnURL: returnURL})
 	if err != nil {
 		// This should never happen with the in-memory cache
 		log.Errorf("Failed to set app state: %v", err)
@@ -150,10 +150,10 @@ func (a *ClientApp) generateAppState(returnURL string) string {
 	return randStr
 }
 
-func (a *ClientApp) verifyAppState(state string) (*cache.OIDCState, error) {
+func (a *ClientApp) verifyAppState(state string) (*servercache.OIDCState, error) {
 	res, err := a.cache.GetOIDCState(state)
 	if err != nil {
-		if err == cache.ErrCacheMiss {
+		if err == servercache.ErrCacheMiss {
 			return nil, fmt.Errorf("unknown app state %s", state)
 		} else {
 			return nil, fmt.Errorf("failed to verify app state %s: %v", state, err)

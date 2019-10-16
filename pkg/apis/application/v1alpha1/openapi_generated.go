@@ -713,6 +713,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							Format:      "",
 						},
 					},
+					"nameSuffix": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NameSuffix is a suffix appended to resources for kustomize apps",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"images": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Images are kustomize image overrides",
@@ -1988,7 +1995,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceAction(ref common.ReferenceCal
 							},
 						},
 					},
-					"available": {
+					"disabled": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"boolean"},
 							Format: "",
@@ -2088,7 +2095,6 @@ func schema_pkg_apis_application_v1alpha1_ResourceActions(ref common.ReferenceCa
 						},
 					},
 				},
-				Required: []string{"definitions"},
 			},
 		},
 		Dependencies: []string{

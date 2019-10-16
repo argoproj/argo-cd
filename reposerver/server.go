@@ -5,10 +5,10 @@ import (
 
 	versionpkg "github.com/argoproj/argo-cd/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
+	reposervercache "github.com/argoproj/argo-cd/reposerver/cache"
 	"github.com/argoproj/argo-cd/reposerver/metrics"
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server/version"
-	"github.com/argoproj/argo-cd/util/cache"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 
@@ -24,13 +24,13 @@ import (
 type ArgoCDRepoServer struct {
 	log              *log.Entry
 	metricsServer    *metrics.MetricsServer
-	cache            *cache.Cache
+	cache            *reposervercache.Cache
 	opts             []grpc.ServerOption
 	parallelismLimit int64
 }
 
 // NewServer returns a new instance of the Argo CD Repo server
-func NewServer(metricsServer *metrics.MetricsServer, cache *cache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, parallelismLimit int64) (*ArgoCDRepoServer, error) {
+func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, parallelismLimit int64) (*ArgoCDRepoServer, error) {
 	// generate TLS cert
 	hosts := []string{
 		"localhost",

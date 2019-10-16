@@ -47,7 +47,7 @@ export const ApplicationsTable = (props: {
                                 {shortRepo(app.spec.source.repoURL)}/{app.spec.source.path}
                                 <div className='applications-table__meta'>
                                     <span>{app.spec.source.targetRevision || 'HEAD'}</span>
-                                    {Object.keys(app.metadata.labels).map((label) => <span key={label}>{`${label}=${app.metadata.labels[label]}`}</span>)}
+                                    {Object.keys(app.metadata.labels || {}).map((label) => <span key={label}>{`${label}=${app.metadata.labels[label]}`}</span>)}
                                 </div>
                             </div>
                         </div>

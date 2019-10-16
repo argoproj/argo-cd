@@ -105,4 +105,12 @@
         line-height: normal;
         white-space: pre;
     }
+    &__action-menu {
+        text-transform: capitalize;
+
+        &.disabled {
+            cursor: default !important;
+            color: $argo-color-gray-3 !important;
+        }
+    }
 }

@@ -40,6 +40,8 @@ const jsonMergePatch = require('json-merge-patch');
 
 require('./application-details.scss');
 
+type ActionMenuItem = MenuItem & { disabled?: boolean };
+
 export class ApplicationDetails extends React.Component<RouteComponentProps<{ name: string; }>, {page: number}> {
 
     public static contextTypes = {
@@ -481,7 +483,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     }
 
     private renderResourceMenu(resource: ResourceTreeNode, application: appModels.Application): React.ReactNode {
-        let menuItems: Observable<MenuItem[]>;
+        let menuItems: Observable<ActionMenuItem[]>;
         if (AppUtils.isAppNode(resource) && resource.name === application.metadata.name) {
             menuItems = Observable.from([this.getApplicationActionMenu(application)]);
         } else {
@@ -520,6 +522,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             const resourceActions = services.applications.getResourceActions(application.metadata.name, resource)
                 .then((actions) => items.concat(actions.map((action) => ({
                     title: action.name,
+                    disabled: !action.available,
                     action: async () => {
                         try {
                             const confirmed = await this.appContext.apis.popup.confirm(
@@ -544,10 +547,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             {(items) => (
                 <ul>
                     {items.map((item, i) => (
-                        <li style={{ textTransform: 'capitalize' }} key={i} onClick={(e) => {
+                        <li className={classNames('application-details__action-menu', { disabled: item.disabled })} key={i} onClick={(e) => {
                             e.stopPropagation();
-                            item.action();
-                            document.body.click(); // hack, trigger body click to make sure that dropdown
+                            if (!item.disabled) {
+                                item.action();
+                                document.body.click(); // hack, trigger body click to make sure that dropdown closed
+                            }
                         }}>{item.iconClassName && <i className={item.iconClassName}/>} {item.title}</li>
                     ))}
                 </ul>

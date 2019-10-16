@@ -3,12 +3,11 @@ package application
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
 	"time"
-
-	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
@@ -24,17 +23,18 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
+	servercache "github.com/argoproj/argo-cd/server/cache"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	argoutil "github.com/argoproj/argo-cd/util/argo"
-	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/git"
@@ -57,7 +57,7 @@ type Server struct {
 	projectLock   *util.KeyLock
 	auditLogger   *argo.AuditLogger
 	settingsMgr   *settings.SettingsManager
-	cache         *cache.Cache
+	cache         *servercache.Cache
 }
 
 // NewServer returns a new instance of the Application service
@@ -66,7 +66,7 @@ func NewServer(
 	kubeclientset kubernetes.Interface,
 	appclientset appclientset.Interface,
 	repoClientset apiclient.Clientset,
-	cache *cache.Cache,
+	cache *servercache.Cache,
 	kubectl kube.Kubectl,
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
@@ -288,7 +288,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 	} else {
 		namespace = q.ResourceNamespace
 		var config *rest.Config
-		config, _, err = s.getApplicationClusterConfig(*q.Name)
+		config, err = s.getApplicationClusterConfig(*q.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -607,21 +607,48 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	return nil
 }
 
-func (s *Server) getApplicationClusterConfig(applicationName string) (*rest.Config, string, error) {
-	server, namespace, err := s.getApplicationDestination(applicationName)
+func (s *Server) getApplicationClusterConfig(applicationName string) (*rest.Config, error) {
+	server, _, err := s.getApplicationDestination(applicationName)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	clst, err := s.db.GetCluster(context.Background(), server)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	config := clst.RESTConfig()
-	return config, namespace, err
+	return config, err
 }
 
-func (s *Server) getAppResources(q *application.ResourcesQuery) (*appv1.ApplicationTree, error) {
-	return s.cache.GetAppResourcesTree(*q.ApplicationName)
+// getCachedAppState loads the cached state and trigger app refresh if cache is missing
+func (s *Server) getCachedAppState(ctx context.Context, a *appv1.Application, getFromCache func() error) error {
+	err := getFromCache()
+	if err != nil && err == servercache.ErrCacheMiss {
+		conditions := a.Status.GetConditions(map[appv1.ApplicationConditionType]bool{
+			appv1.ApplicationConditionComparisonError:  true,
+			appv1.ApplicationConditionInvalidSpecError: true,
+		})
+		if len(conditions) > 0 {
+			return errors.New(argoutil.FormatAppConditions(conditions))
+		}
+		_, err = s.Get(ctx, &application.ApplicationQuery{
+			Name:    pointer.StringPtr(a.Name),
+			Refresh: pointer.StringPtr(string(appv1.RefreshTypeNormal)),
+		})
+		if err != nil {
+			return err
+		}
+		return getFromCache()
+	}
+	return err
+}
+
+func (s *Server) getAppResources(ctx context.Context, a *appv1.Application) (*appv1.ApplicationTree, error) {
+	var tree appv1.ApplicationTree
+	err := s.getCachedAppState(ctx, a, func() error {
+		return s.cache.GetAppResourcesTree(a.Name, &tree)
+	})
+	return &tree, err
 }
 
 func (s *Server) getAppResource(ctx context.Context, action string, q *application.ApplicationResourceRequest) (*appv1.ResourceNode, *rest.Config, *appv1.Application, error) {
@@ -633,7 +660,7 @@ func (s *Server) getAppResource(ctx context.Context, action string, q *applicati
 		return nil, nil, nil, err
 	}
 
-	tree, err := s.getAppResources(&application.ResourcesQuery{ApplicationName: &a.Name})
+	tree, err := s.getAppResources(ctx, a)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -642,7 +669,7 @@ func (s *Server) getAppResource(ctx context.Context, action string, q *applicati
 	if found == nil {
 		return nil, nil, nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", q.Kind, q.Group, q.ResourceName, *q.Name)
 	}
-	config, _, err := s.getApplicationClusterConfig(*q.Name)
+	config, err := s.getApplicationClusterConfig(*q.Name)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -754,7 +781,7 @@ func (s *Server) ResourceTree(ctx context.Context, q *application.ResourcesQuery
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
 		return nil, err
 	}
-	return s.getAppResources(q)
+	return s.getAppResources(ctx, a)
 }
 
 func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMetadataQuery) (*v1alpha1.RevisionMetadata, error) {
@@ -785,7 +812,10 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
 		return nil, err
 	}
-	items, err := s.cache.GetAppManagedResources(a.Name)
+	items := make([]*appv1.ResourceDiff, 0)
+	err = s.getCachedAppState(ctx, a, func() error {
+		return s.cache.GetAppManagedResources(a.Name, &items)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -1083,7 +1113,7 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 		return nil, err
 	}
 
-	availableActions, err := s.getAvailableActions(resourceOverrides, obj, res.GroupKindVersion(), "")
+	availableActions, err := s.getAvailableActions(resourceOverrides, obj)
 	if err != nil {
 		return nil, err
 	}
@@ -1091,7 +1121,7 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 	return &application.ResourceActionsListResponse{Actions: availableActions}, nil
 }
 
-func (s *Server) getAvailableActions(resourceOverrides map[string]appv1.ResourceOverride, obj *unstructured.Unstructured, gvk schema.GroupVersionKind, filterAction string) ([]appv1.ResourceAction, error) {
+func (s *Server) getAvailableActions(resourceOverrides map[string]appv1.ResourceOverride, obj *unstructured.Unstructured) ([]appv1.ResourceAction, error) {
 	luaVM := lua.VM{
 		ResourceOverrides: resourceOverrides,
 	}
@@ -1106,13 +1136,6 @@ func (s *Server) getAvailableActions(resourceOverrides map[string]appv1.Resource
 	availableActions, err := luaVM.ExecuteResourceActionDiscovery(obj, discoveryScript)
 	if err != nil {
 		return nil, err
-	}
-	for i := range availableActions {
-		action := availableActions[i]
-		availableActions[i].Name = gvk.Group + "/" + gvk.Kind + "/" + action.Name
-		if action.Name == filterAction {
-			return []appv1.ResourceAction{action}, nil
-		}
 	}
 	return availableActions, nil
 

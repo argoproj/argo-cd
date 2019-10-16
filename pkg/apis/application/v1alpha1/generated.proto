@@ -192,6 +192,9 @@ message ApplicationSourceKustomize {
   // NamePrefix is a prefix appended to resources for kustomize apps
   optional string namePrefix = 1;
 
+  // NameSuffix is a suffix appended to resources for kustomize apps
+  optional string nameSuffix = 2;
+
   // Images are kustomize image overrides
   repeated string images = 3;
 
@@ -566,7 +569,7 @@ message ResourceAction {
 
   repeated ResourceActionParam params = 2;
 
-  optional bool available = 3;
+  optional bool disabled = 3;
 }
 
 message ResourceActionDefinition {
