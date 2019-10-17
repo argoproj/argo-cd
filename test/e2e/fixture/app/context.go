@@ -27,6 +27,7 @@ type Context struct {
 	jsonnetTLAStr          []string
 	jsonnetTLACode         []string
 	namePrefix             string
+	nameSuffix             string
 	resource               string
 	prune                  bool
 	configManagementPlugin string
@@ -150,6 +151,11 @@ func (c *Context) SelectedResource(resource string) *Context {
 
 func (c *Context) NamePrefix(namePrefix string) *Context {
 	c.namePrefix = namePrefix
+	return c
+}
+
+func (c *Context) NameSuffix(nameSuffix string) *Context {
+	c.nameSuffix = nameSuffix
 	return c
 }
 

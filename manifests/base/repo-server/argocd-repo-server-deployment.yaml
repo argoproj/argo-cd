@@ -24,7 +24,7 @@ spec:
         - uid_entrypoint.sh
         - argocd-repo-server
         - --redis
-        - argocd-redis:6379
+        - $(ARGOCD_REDIS_SERVICE):6379
         ports:
         - containerPort: 8081
         - containerPort: 8084

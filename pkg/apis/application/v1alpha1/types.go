@@ -244,6 +244,8 @@ func (images KustomizeImages) Find(image KustomizeImage) int {
 type ApplicationSourceKustomize struct {
 	// NamePrefix is a prefix appended to resources for kustomize apps
 	NamePrefix string `json:"namePrefix,omitempty" protobuf:"bytes,1,opt,name=namePrefix"`
+	// NameSuffix is a suffix appended to resources for kustomize apps
+	NameSuffix string `json:"nameSuffix,omitempty" protobuf:"bytes,2,opt,name=nameSuffix"`
 	// Images are kustomize image overrides
 	Images KustomizeImages `json:"images,omitempty" protobuf:"bytes,3,opt,name=images"`
 	// CommonLabels adds additional kustomize commonLabels
@@ -251,7 +253,11 @@ type ApplicationSourceKustomize struct {
 }
 
 func (k *ApplicationSourceKustomize) IsZero() bool {
-	return k == nil || k.NamePrefix == "" && len(k.Images) == 0 && len(k.CommonLabels) == 0
+	return k == nil ||
+		k.NamePrefix == "" &&
+			k.NameSuffix == "" &&
+			len(k.Images) == 0 &&
+			len(k.CommonLabels) == 0
 }
 
 // either updates or adds the images

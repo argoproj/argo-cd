@@ -705,6 +705,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							Format:      "",
 						},
 					},
+					"nameSuffix": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NameSuffix is a suffix appended to resources for kustomize apps",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"images": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Images are kustomize image overrides",
