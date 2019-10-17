@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	coreerrors "errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -211,34 +212,40 @@ func newTestApp(whichApp string) *appsv1.Application {
 }
 
 func TestCreateApp(t *testing.T) {
-	testApp := newTestApp(fakeAppWithDestServer)
+	appDestServer := newTestApp(fakeAppWithDestServer)
+	appDestName := newTestApp(fakeAppWithDestName)
 	appServer := newTestAppServer()
-	testApp.Spec.Project = ""
-	createReq := application.ApplicationCreateRequest{
-		Application: *testApp,
+	testAppCases := [2]*appsv1.Application{appDestServer, appDestName}
+	for _, testApp := range testAppCases {
+		t.Run(fmt.Sprintf("%s in %s", testApp.Name, "test Create App"), func(t *testing.T) {
+			testApp.Spec.Project = ""
+			createReq := application.ApplicationCreateRequest{
+				Application: *testApp,
+			}
+			app, err := appServer.Create(context.Background(), &createReq)
+			assert.NoError(t, err)
+			assert.NotNil(t, app)
+			assert.NotNil(t, app.Spec)
+			assert.Equal(t, app.Spec.Project, "default")
+			assert.Equal(t, testApp.Spec.Destination.Name, app.Spec.Destination.Name)
+			assert.Equal(t, testApp.Spec.Destination.Server, app.Spec.Destination.Server)
+		})
 	}
-	app, err := appServer.Create(context.Background(), &createReq)
-	assert.NoError(t, err)
-	assert.NotNil(t, app)
-	assert.NotNil(t, app.Spec)
-	assert.Equal(t, app.Spec.Project, "default")
-	assert.Equal(t, "", app.Spec.Destination.Name)
+
 }
 
-func TestCreateAppWithDestName(t *testing.T) {
-	testApp := newTestApp(fakeAppWithDestName)
+func TestGetClusterConfig(t *testing.T) {
+	ctx := context.Background()
 	appServer := newTestAppServer()
-	testApp.Spec.Project = ""
 	createReq := application.ApplicationCreateRequest{
-		Application: *testApp,
+		Application: *newTestApp(fakeAppWithDestName),
 	}
-	app, err := appServer.Create(context.Background(), &createReq)
-	assert.NoError(t, err)
-	assert.NotNil(t, app)
-	assert.NotNil(t, app.Spec)
-	assert.Equal(t, "fake-cluster", app.Spec.Destination.Name)
-	assert.Equal(t, "", app.Spec.Destination.Server)
-	assert.Equal(t, app.Spec.Project, "default")
+	app, err := appServer.Create(ctx, &createReq)
+	assert.Nil(t, err)
+
+	restConfig, namespace, err := appServer.getApplicationClusterConfig(app.Name)
+	assert.Equal(t, test.FakeDestNamespace, namespace)
+	assert.Equal(t, "https://cluster-api.com", restConfig.Host)
 }
 
 func TestUpdateApp(t *testing.T) {

@@ -19,7 +19,7 @@ import (
 
 // TestCompareAppStateEmpty tests comparison when both git and live have no objects
 func TestCompareAppStateEmpty(t *testing.T) {
-	app := newFakeApp()
+	app := newFakeApp(fakeAppWithDestServer)
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
 			Manifests: []string{},
@@ -41,7 +41,7 @@ func TestCompareAppStateEmpty(t *testing.T) {
 
 // TestCompareAppStateMissing tests when there is a manifest defined in the repo which doesn't exist in live
 func TestCompareAppStateMissing(t *testing.T) {
-	app := newFakeApp()
+	app := newFakeApp(fakeAppWithDestServer)
 	data := fakeData{
 		apps: []runtime.Object{app},
 		manifestResponse: &apiclient.ManifestResponse{
@@ -66,7 +66,7 @@ func TestCompareAppStateMissing(t *testing.T) {
 func TestCompareAppStateExtra(t *testing.T) {
 	pod := test.NewPod()
 	pod.SetNamespace(test.FakeDestNamespace)
-	app := newFakeApp()
+	app := newFakeApp(fakeAppWithDestServer)
 	key := kube.ResourceKey{Group: "", Kind: "Pod", Namespace: test.FakeDestNamespace, Name: app.Name}
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
@@ -94,7 +94,7 @@ func TestCompareAppStateHook(t *testing.T) {
 	pod := test.NewPod()
 	pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
 	podBytes, _ := json.Marshal(pod)
-	app := newFakeApp()
+	app := newFakeApp(fakeAppWithDestServer)
 	data := fakeData{
 		apps: []runtime.Object{app},
 		manifestResponse: &apiclient.ManifestResponse{
@@ -119,7 +119,7 @@ func TestCompareAppStateHook(t *testing.T) {
 func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
 	pod := test.NewPod()
 	pod.SetAnnotations(map[string]string{common.AnnotationCompareOptions: "IgnoreExtraneous"})
-	app := newFakeApp()
+	app := newFakeApp(fakeAppWithDestServer)
 	data := fakeData{
 		apps: []runtime.Object{app},
 		manifestResponse: &apiclient.ManifestResponse{
@@ -146,7 +146,7 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 	pod := test.NewPod()
 	pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
 	pod.SetNamespace(test.FakeDestNamespace)
-	app := newFakeApp()
+	app := newFakeApp(fakeAppWithDestServer)
 	key := kube.ResourceKey{Group: "", Kind: "Pod", Namespace: test.FakeDestNamespace, Name: app.Name}
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
@@ -183,7 +183,7 @@ func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
 	obj3 := test.NewPod()
 	obj3.SetNamespace("kube-system")
 
-	app := newFakeApp()
+	app := newFakeApp(fakeAppWithDestServer)
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
 			Manifests: []string{toJSON(t, obj1), toJSON(t, obj2), toJSON(t, obj3)},
@@ -224,7 +224,7 @@ var defaultProj = argoappv1.AppProject{
 }
 
 func TestSetHealth(t *testing.T) {
-	app := newFakeApp()
+	app := newFakeApp(fakeAppWithDestServer)
 	deployment := kube.MustToUnstructured(&v1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1beta1",
@@ -254,7 +254,7 @@ func TestSetHealth(t *testing.T) {
 }
 
 func TestSetHealthSelfReferencedApp(t *testing.T) {
-	app := newFakeApp()
+	app := newFakeApp(fakeAppWithDestServer)
 	unstructuredApp := kube.MustToUnstructured(app)
 	deployment := kube.MustToUnstructured(&v1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -289,7 +289,7 @@ func TestSetManagedResourcesWithOrphanedResources(t *testing.T) {
 	proj := defaultProj.DeepCopy()
 	proj.Spec.OrphanedResources = &argoappv1.OrphanedResourcesMonitorSettings{}
 
-	app := newFakeApp()
+	app := newFakeApp(fakeAppWithDestServer)
 	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, proj},
 		namespacedResources: map[kube.ResourceKey]namespacedResource{
@@ -314,9 +314,9 @@ func TestSetManagedResourcesWithResourcesOfAnotherApp(t *testing.T) {
 	proj := defaultProj.DeepCopy()
 	proj.Spec.OrphanedResources = &argoappv1.OrphanedResourcesMonitorSettings{}
 
-	app1 := newFakeApp()
+	app1 := newFakeApp(fakeAppWithDestServer)
 	app1.Name = "app1"
-	app2 := newFakeApp()
+	app2 := newFakeApp(fakeAppWithDestServer)
 	app2.Name = "app2"
 
 	ctrl := newFakeController(&fakeData{
@@ -341,7 +341,7 @@ func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 	proj := defaultProj.DeepCopy()
 	proj.Spec.OrphanedResources = &argoappv1.OrphanedResourcesMonitorSettings{}
 
-	app := newFakeApp()
+	app := newFakeApp(fakeAppWithDestServer)
 
 	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, proj},
@@ -361,7 +361,7 @@ func TestSetManagedResourcesKnownOrphanedResourceExceptions(t *testing.T) {
 	proj := defaultProj.DeepCopy()
 	proj.Spec.OrphanedResources = &argoappv1.OrphanedResourcesMonitorSettings{}
 
-	app := newFakeApp()
+	app := newFakeApp(fakeAppWithDestServer)
 	app.Namespace = "default"
 
 	ctrl := newFakeController(&fakeData{

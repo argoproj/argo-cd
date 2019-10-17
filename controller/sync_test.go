@@ -444,7 +444,7 @@ func TestObjectsGetANamespace(t *testing.T) {
 }
 
 func TestPersistRevisionHistory(t *testing.T) {
-	app := newFakeApp()
+	app := newFakeApp(fakeAppWithDestServer)
 	app.Status.OperationState = nil
 	app.Status.History = nil
 
@@ -482,7 +482,7 @@ func TestPersistRevisionHistory(t *testing.T) {
 }
 
 func TestPersistRevisionHistoryRollback(t *testing.T) {
-	app := newFakeApp()
+	app := newFakeApp(fakeAppWithDestServer)
 	app.Status.OperationState = nil
 	app.Status.History = nil
 	defaultProject := &v1alpha1.AppProject{
