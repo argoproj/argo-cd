@@ -43,6 +43,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [Tesla](https://tesla.com/)
 1. [tZERO](https://www.tzero.com/)
 1. [Ticketmaster](https://ticketmaster.com)
+1. [Twilio SendGrid](https://sendgrid.com)
 1. [Yieldlab](https://www.yieldlab.de/)
 1. [UBIO](https://ub.io/)
 1. [Volvo Cars](https://www.volvocars.com/)

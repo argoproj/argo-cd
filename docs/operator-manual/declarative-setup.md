@@ -3,6 +3,7 @@
 Argo CD applications, projects and settings can be defined declaratively using Kubernetes manifests.
 
 ## Quick Reference
+
 | Name | Kind | Description |
 |------|------|-------------|
 | [`argocd-cm.yaml`](argocd-cm.yaml) | ConfigMap | General Argo CD configuration |
@@ -47,7 +48,7 @@ See [application.yaml](application.yaml) for additional fields
 
 !!! warning
     By default, deleting an application will not perform a cascade delete, thereby deleting its resources. You must add the finalizer if you want this behaviour - which you may well not want.
-    
+
 ```yaml
 metadata:
   finalizers:
@@ -56,12 +57,13 @@ metadata:
 
 ### App of Apps
 
-You can create an app that creates other apps, which in turn can create other apps. 
+You can create an app that creates other apps, which in turn can create other apps.
 This allows you to declaratively manage a group of app that can be deployed and configured in concert.
 
 See [cluster bootstrapping](cluster-bootstrapping.md).
 
 ## Projects
+
 The AppProject CRD is the Kubernetes resource object representing a logical grouping of applications.
 It is defined by the following key pieces of information:
 
@@ -168,8 +170,7 @@ data:
 ```
 
 !!! tip
-    The Kubernetes documentation has [instructions for creating a secret containing a private key](https://kubernetes.io/docs/concepts/configuration/secret/#use-case-pod-with-ssh-keys). 
-
+    The Kubernetes documentation has [instructions for creating a secret containing a private key](https://kubernetes.io/docs/concepts/configuration/secret/#use-case-pod-with-ssh-keys).
 
 ### Repository Credentials
  
@@ -205,7 +206,7 @@ Argo CD will only use the credentials if you omit `usernameSecret`, `passwordSec
 A credential may be match if it's URL is the prefix of the repository's URL. The means that credentials may match, e.g in the above example both [https://github.com/argoproj](https://github.com/argoproj) and [https://github.com](https://github.com) would match. Argo CD selects the first one that matches.
 
 !!! tip
-    Order your credentials with the most specific at the top and the least specific at the bottom. 
+    Order your credentials with the most specific at the top and the least specific at the bottom.
 
 A complete example.
 
@@ -366,7 +367,7 @@ data:
 ```
 
 !!! note
-    The `argocd-tls-certs-cm` ConfigMap will be mounted as a volume at the mount path `/app/config/tls` in the pods of `argocd-server` and `argocd-repo-server`. It will create files for each data key in the mount path directory, so above example would leave the file `/app/config/tls/server.example.com`, which contains the certificate data. It might take a while for changes in the ConfigMap to be reflected in your pods, depending on your Kubernetes configuration. 
+    The `argocd-tls-certs-cm` ConfigMap will be mounted as a volume at the mount path `/app/config/tls` in the pods of `argocd-server` and `argocd-repo-server`. It will create files for each data key in the mount path directory, so above example would leave the file `/app/config/tls/server.example.com`, which contains the certificate data. It might take a while for changes in the ConfigMap to be reflected in your pods, depending on your Kubernetes configuration.
 
 ### SSH known host public keys
 
@@ -395,8 +396,7 @@ data:
 ```
 
 !!! note
-    The `argocd-ssh-known-hosts-cm` ConfigMap will be mounted as a volume at the mount path `/app/config/ssh` in the pods of `argocd-server` and `argocd-repo-server`. It will create a file `ssh_known_hosts` in that directory, which contains the SSH known hosts data used by ArgoCD for connecting to Git repositories via SSH. It might take a while for changes in the ConfigMap to be reflected in your pods, depending on your Kubernetes configuration. 
-
+    The `argocd-ssh-known-hosts-cm` ConfigMap will be mounted as a volume at the mount path `/app/config/ssh` in the pods of `argocd-server` and `argocd-repo-server`. It will create a file `ssh_known_hosts` in that directory, which contains the SSH known hosts data used by ArgoCD for connecting to Git repositories via SSH. It might take a while for changes in the ConfigMap to be reflected in your pods, depending on your Kubernetes configuration.
 
 ## Clusters
 
@@ -434,7 +434,6 @@ tlsClientConfig:
     # server is used.
     serverName: string
 ```
-
 
 Cluster secret example:
 
@@ -517,7 +516,7 @@ Resources can be excluded from discovery and sync so that ArgoCD is unaware of t
 
 To configure this, edit the `argcd-cm` config map:
 
-```
+```shell
 kubectl edit configmap argocd-cm -n argocdconfigmap/argocd-cm edited
 ```
 
@@ -538,9 +537,9 @@ kind: ConfigMap
 
 The `resource.exclusions` node is a list of objects. Each object can have:
 
-- `apiGroups` A list of globs to match the API group.
-- `kinds` A list of kinds to match. Can be "*" to match all.
-- `cluster` A list of globs to match the cluster.
+* `apiGroups` A list of globs to match the API group.
+* `kinds` A list of kinds to match. Can be "*" to match all.
+* `cluster` A list of globs to match the cluster.
 
 If all three match, then the resource is ignored.
 
@@ -552,13 +551,13 @@ Notes:
 
 ## SSO & RBAC
 
-* SSO configuration details: [SSO](sso.md)
-* RBAC configuration details: [RBAC](rbac.md)
+* SSO configuration details: [SSO](../sso)
+* RBAC configuration details: [RBAC](../rbac)
 
 ## Manage Argo CD Using Argo CD
 
 Argo CD is able to manage itself since all settings are represented by Kubernetes manifests. The suggested way is to create [Kustomize](https://github.com/kubernetes-sigs/kustomize)
-based application which uses base Argo CD manifests from [https://github.com/argoproj/argo-cd] and apply required changes on top.
+based application which uses base Argo CD manifests from [https://github.com/argoproj/argo-cd](https://github.com/argoproj/argo-cd/tree/stable/manifests) and apply required changes on top.
 
 Example of `kustomization.yaml`:
 
@@ -576,8 +575,8 @@ patchesStrategicMerge:
 - overlays/argo-cd-cm.yaml
 ```
 
-The live example of self managed Argo CD config is available at https://cd.apps.argoproj.io and with configuration
+The live example of self managed Argo CD config is available at [https://cd.apps.argoproj.io](https://cd.apps.argoproj.io) and with configuration
 stored at [argoproj/argoproj-deployments](https://github.com/argoproj/argoproj-deployments/tree/master/argocd).
 
 !!! note
-    You will need to sign-in using your github account to get access to https://cd.apps.argoproj.io
+    You will need to sign-in using your github account to get access to [https://cd.apps.argoproj.io](https://cd.apps.argoproj.io)
