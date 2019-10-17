@@ -315,6 +315,7 @@ func TestGetClusterSuccessful(t *testing.T) {
 	cluster, err := db.GetCluster(context.Background(), clusterURL)
 	assert.Nil(t, err)
 	assert.Equal(t, clusterURL, cluster.Server)
+	assert.Equal(t, clusterURL, cluster.GetURL())
 }
 
 func TestGetNonExistingCluster(t *testing.T) {

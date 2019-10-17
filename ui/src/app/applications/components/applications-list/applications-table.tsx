@@ -2,7 +2,6 @@ import { DropDownMenu, Tooltip } from 'argo-ui';
 import * as React from 'react';
 const GitUrlParse = require('git-url-parse');
 
-import { Cluster } from '../../../shared/components';
 import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { ApplicationURLs } from '../application-urls';
@@ -53,7 +52,7 @@ export const ApplicationsTable = (props: {
                         </div>
                         <div className='row'>
                             <div className='show-for-xxlarge columns small-2'>Destination:</div>
-                            <div className='columns small-12 xxlarge-10'><Cluster url={app.spec.destination.server}/>/{app.spec.destination.namespace}</div>
+                            <div className='columns small-12 xxlarge-10'>{app.spec.destination.server}/{app.spec.destination.namespace}</div>
                         </div>
                     </div>
                     <div className='columns small-2'>

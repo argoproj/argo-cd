@@ -4,7 +4,7 @@ import { FormApi, Text } from 'react-form';
 
 require('./application-summary.scss');
 
-import { AutocompleteField, Cluster, clusterTitle, DataLoader, EditablePanel, EditablePanelItem } from '../../../shared/components';
+import { AutocompleteField, DataLoader, EditablePanel, EditablePanelItem } from '../../../shared/components';
 import { MapInputField, Repo, Revision } from '../../../shared/components';
 import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -49,10 +49,10 @@ export const ApplicationSummary = (props: {
         },
         {
             title: 'CLUSTER',
-            view: <Cluster url={app.spec.destination.server} showUrl={true}/> ,
+            view: app.spec.destination.server,
             edit: (formApi: FormApi) => (
                 <DataLoader load={() => services.clusters.list().then((clusters) => clusters.map((cluster) => ({
-                    title: clusterTitle(cluster),
+                    title: cluster.name,
                     value: cluster.server,
                 })))}>
                     {(clusters) => (

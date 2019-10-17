@@ -13,6 +13,7 @@ func Test_printClusterTable(t *testing.T) {
 		{
 			Server: "my-server",
 			Name:   "my-name",
+			URL:    "my-url",
 			Config: v1alpha1.ClusterConfig{
 				Username:        "my-username",
 				Password:        "my-password",

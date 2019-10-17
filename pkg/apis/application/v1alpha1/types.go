@@ -883,9 +883,9 @@ type ConnectionState struct {
 
 // Cluster is the definition of a cluster resource
 type Cluster struct {
-	// Server is the API server URL of the Kubernetes cluster
+	// Server is the unique ID for the server.
 	Server string `json:"server" protobuf:"bytes,1,opt,name=server"`
-	// Name of the cluster. If omitted, will use the server address
+	// Name is the display name.
 	Name string `json:"name" protobuf:"bytes,2,opt,name=name"`
 	// Config holds cluster information for connecting to a cluster
 	Config ClusterConfig `json:"config" protobuf:"bytes,3,opt,name=config"`
@@ -893,6 +893,15 @@ type Cluster struct {
 	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,4,opt,name=connectionState"`
 	// The server version
 	ServerVersion string `json:"serverVersion,omitempty" protobuf:"bytes,5,opt,name=serverVersion"`
+	// URL is the API server URL of the Kubernetes cluster.
+	URL string `json:"url" protobuf:"bytes,6,opt,name=url"`
+}
+
+func (c Cluster) GetURL() string {
+	if c.URL != "" {
+		return c.URL
+	}
+	return c.Server
 }
 
 // ClusterList is a collection of Clusters.
@@ -2046,7 +2055,7 @@ func (c *Cluster) RESTConfig() *rest.Config {
 				args = append(args, "-r", c.Config.AWSAuthConfig.RoleARN)
 			}
 			config = &rest.Config{
-				Host:            c.Server,
+				Host:            c.GetURL(),
 				TLSClientConfig: tlsClientConfig,
 				ExecProvider: &api.ExecConfig{
 					APIVersion: "client.authentication.k8s.io/v1alpha1",
@@ -2056,7 +2065,7 @@ func (c *Cluster) RESTConfig() *rest.Config {
 			}
 		} else {
 			config = &rest.Config{
-				Host:            c.Server,
+				Host:            c.GetURL(),
 				Username:        c.Config.Username,
 				Password:        c.Config.Password,
 				BearerToken:     c.Config.BearerToken,

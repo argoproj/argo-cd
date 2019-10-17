@@ -47,6 +47,7 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 // NewClusterAddCommand returns a new instance of an `argocd cluster add` command
 func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var (
+		server          string
 		inCluster       bool
 		upsert          bool
 		awsRoleArn      string
@@ -65,9 +66,10 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			}
 			config, err := configAccess.GetStartingConfig()
 			errors.CheckError(err)
-			clstContext := config.Contexts[args[0]]
+			clusterName := args[0]
+			clstContext := config.Contexts[clusterName]
 			if clstContext == nil {
-				log.Fatalf("Context %s does not exist in kubeconfig", args[0])
+				log.Fatalf("Context %s does not exist in kubeconfig", clusterName)
 			}
 
 			overrides := clientcmd.ConfigOverrides{
@@ -93,10 +95,14 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
-			clst := NewCluster(args[0], conf, managerBearerToken, awsAuthConf)
+			url := conf.Host
 			if inCluster {
-				clst.Server = common.KubernetesInternalAPIServerAddr
+				url = common.KubernetesInternalAPIServerAddr
 			}
+			if server == "" {
+				server = url
+			}
+			clst := NewCluster(server, clusterName, url, conf, managerBearerToken, awsAuthConf)
 			clstCreateReq := clusterpkg.ClusterCreateRequest{
 				Cluster: clst,
 				Upsert:  upsert,
@@ -106,6 +112,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			fmt.Printf("Cluster '%s' added\n", clst.Name)
 		},
 	}
+	command.Flags().StringVar(&server, "server", "", "The unique identifier for the cluster")
 	command.PersistentFlags().StringVar(&pathOpts.LoadingRules.ExplicitPath, pathOpts.ExplicitFileFlag, pathOpts.LoadingRules.ExplicitPath, "use a particular kubeconfig file")
 	command.Flags().BoolVar(&inCluster, "in-cluster", false, "Indicates Argo CD resides inside this cluster and should connect using the internal k8s hostname (kubernetes.default.svc)")
 	command.Flags().BoolVar(&upsert, "upsert", false, "Override an existing cluster with the same name even if the spec differs")
@@ -154,7 +161,7 @@ func printKubeContexts(ca clientcmd.ConfigAccess) {
 	}
 }
 
-func NewCluster(name string, conf *rest.Config, managerBearerToken string, awsAuthConf *argoappv1.AWSAuthConfig) *argoappv1.Cluster {
+func NewCluster(server, name, url string, conf *rest.Config, managerBearerToken string, awsAuthConf *argoappv1.AWSAuthConfig) *argoappv1.Cluster {
 	tlsClientConfig := argoappv1.TLSClientConfig{
 		Insecure:   conf.TLSClientConfig.Insecure,
 		ServerName: conf.TLSClientConfig.ServerName,
@@ -166,8 +173,9 @@ func NewCluster(name string, conf *rest.Config, managerBearerToken string, awsAu
 		tlsClientConfig.CAData = data
 	}
 	clst := argoappv1.Cluster{
-		Server: conf.Host,
+		Server: server,
 		Name:   name,
+		URL:    url,
 		Config: argoappv1.ClusterConfig{
 			BearerToken:     managerBearerToken,
 			TLSClientConfig: tlsClientConfig,
@@ -232,9 +240,9 @@ func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 // Print table of cluster information
 func printClusterTable(clusters []argoappv1.Cluster) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(w, "SERVER\tNAME\tVERSION\tSTATUS\tMESSAGE\n")
+	_, _ = fmt.Fprintf(w, "SERVER\tNAME\tURL\tVERSION\tSTATUS\tMESSAGE\n")
 	for _, c := range clusters {
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", c.Server, c.Name, c.ServerVersion, c.ConnectionState.Status, c.ConnectionState.Message)
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", c.Server, c.Name, c.GetURL(), c.ServerVersion, c.ConnectionState.Status, c.ConnectionState.Message)
 	}
 	_ = w.Flush()
 }

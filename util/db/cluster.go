@@ -25,6 +25,8 @@ import (
 var (
 	localCluster = appv1.Cluster{
 		Server:          common.KubernetesInternalAPIServerAddr,
+		Name:            "in-cluster",
+		URL:             common.KubernetesInternalAPIServerAddr,
 		ConnectionState: appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful},
 	}
 )
@@ -61,7 +63,7 @@ func (db *db) ListClusters(ctx context.Context) (*appv1.ClusterList, error) {
 	for i, clusterSecret := range clusterSecrets {
 		cluster := *secretToCluster(clusterSecret)
 		clusterList.Items[i] = cluster
-		if cluster.Server == common.KubernetesInternalAPIServerAddr {
+		if cluster.GetURL() == common.KubernetesInternalAPIServerAddr {
 			hasInClusterCredentials = true
 		}
 	}
@@ -137,7 +139,7 @@ func (db *db) WatchClusters(ctx context.Context, callback func(*ClusterEvent)) e
 			cluster := secretToCluster(secret)
 
 			// change local cluster event to modified or deleted, since it cannot be re-added or deleted
-			if cluster.Server == common.KubernetesInternalAPIServerAddr {
+			if cluster.GetURL() == common.KubernetesInternalAPIServerAddr {
 				if next.Type == watch.Deleted {
 					next.Type = watch.Modified
 					cluster = &localCluster
@@ -251,11 +253,8 @@ func serverToSecretName(server string) (string, error) {
 func clusterToData(c *appv1.Cluster) map[string][]byte {
 	data := make(map[string][]byte)
 	data["server"] = []byte(c.Server)
-	if c.Name == "" {
-		data["name"] = []byte(c.Server)
-	} else {
-		data["name"] = []byte(c.Name)
-	}
+	data["name"] = []byte(c.Name)
+	data["url"] = []byte(c.URL)
 	configBytes, err := json.Marshal(c.Config)
 	if err != nil {
 		panic(err)
@@ -274,6 +273,7 @@ func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
 	cluster := appv1.Cluster{
 		Server: string(s.Data["server"]),
 		Name:   string(s.Data["name"]),
+		URL:    string(s.Data["url"]),
 		Config: config,
 	}
 	return &cluster

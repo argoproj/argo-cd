@@ -2,7 +2,7 @@ import {FormField, FormSelect} from 'argo-ui';
 import * as React from 'react';
 import {Form, FormApi, Text} from 'react-form';
 
-import {AutocompleteField, CheckboxField, clusterTitle, DataLoader} from '../../../shared/components';
+import {AutocompleteField, CheckboxField, DataLoader} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {ProjectParams, services} from '../../../shared/services';
 
@@ -83,7 +83,7 @@ export const ProjectEditPanel = (props: {
                                         <FormSelect field={['destinations', i, 'server']}
                                                     options={clusters.map((cluster) => ({
                                                         value: cluster.server,
-                                                        title: clusterTitle(cluster),
+                                                        title: cluster.name,
                                                     })).concat({value: '*', title: '*'})}/>
                                     </div>
                                     <div className='columns small-5'>

@@ -7,7 +7,6 @@ import {Observable} from 'rxjs';
 
 import {
     Autocomplete,
-    ClusterCtx,
     DataLoader,
     EmptyState,
     ObservableQuery,
@@ -132,10 +131,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const appInput = tryJsonParse(query.get('new'));
     const syncAppsInput = tryJsonParse(query.get('syncApps'));
     const [createApi, setCreateApi] = React.useState(null);
-    const clusters = React.useMemo(() => services.clusters.list(), []);
-
     return (
-<ClusterCtx.Provider value={clusters}>
 <Consumer>{
 (ctx) => (
     <Page title='Applications' toolbar={services.viewPreferences.getPreferences().map((pref) => ({
@@ -311,6 +307,5 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
         </SlidingPanel>
     </Page>
 )}
-</Consumer>
-</ClusterCtx.Provider>);
+</Consumer>);
 };
