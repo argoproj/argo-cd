@@ -1,21 +1,31 @@
-import { ErrorNotification, MockupList, NotificationType, SlidingPanel } from 'argo-ui';
+import {ErrorNotification, MockupList, NotificationType, SlidingPanel} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as minimatch from 'minimatch';
 import * as React from 'react';
-import { RouteComponentProps } from 'react-router';
-import { Observable } from 'rxjs';
+import {RouteComponentProps} from 'react-router';
+import {Observable} from 'rxjs';
 
-import { Autocomplete, ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Query } from '../../../shared/components';
-import { Consumer } from '../../../shared/context';
+import {
+    Autocomplete,
+    ClusterCtx,
+    DataLoader,
+    EmptyState,
+    ObservableQuery,
+    Page,
+    Paginate,
+    Query,
+} from '../../../shared/components';
+import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
-import { AppsListPreferences, AppsListViewType, services } from '../../../shared/services';
-import { ApplicationCreatePanel } from '../application-create-panel/application-create-panel';
-import { ApplicationSyncPanel } from '../application-sync-panel/application-sync-panel';
+import {AppsListPreferences, AppsListViewType, services} from '../../../shared/services';
+import {ApplicationCreatePanel} from '../application-create-panel/application-create-panel';
+import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
+import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
 import * as AppUtils from '../utils';
-import { ApplicationsFilter } from './applications-filter';
-import { ApplicationsSummary } from './applications-summary';
-import { ApplicationsTable } from './applications-table';
-import { ApplicationTiles } from './applications-tiles';
+import {ApplicationsFilter} from './applications-filter';
+import {ApplicationsSummary} from './applications-summary';
+import {ApplicationsTable} from './applications-table';
+import {ApplicationTiles} from './applications-tiles';
 
 require('./applications-list.scss');
 
@@ -120,6 +130,7 @@ function tryJsonParse(input: string) {
 export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const query = new URLSearchParams(props.location.search);
     const appInput = tryJsonParse(query.get('new'));
+    const syncAppsInput = tryJsonParse(query.get('syncApps'));
     const [createApi, setCreateApi] = React.useState(null);
     const clusters = React.useMemo(() => services.clusters.list(), []);
 
@@ -148,10 +159,14 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
             </React.Fragment>
         ),
         actionMenu: {
-            className: 'fa fa-plus',
             items: [{
-                title: 'New Application',
-                action: () => ctx.navigation.goto('.', { new: '{}' }),
+                title: 'New App',
+                iconClassName: 'fa fa-plus',
+                action: () => ctx.navigation.goto('.', {new: '{}'}),
+            }, {
+                title: 'Sync Apps',
+                iconClassName: 'fa fa-sync',
+                action: () => ctx.navigation.goto('.', {syncApps: true}),
             }],
         },
     }))}>
@@ -213,6 +228,9 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         labels: newPref.labelsFilter.join(','),
                                     });
                                 }} />
+                                {syncAppsInput && (<ApplicationsSyncPanel key='syncsPanel' show={syncAppsInput}
+                                                                          hide={() => ctx.navigation.goto('.', {syncApps: null})}
+                                                                          apps={applications}/>)}
                             </div>
                             <div className='columns small-12 xxlarge-10'>
                             {pref.view === 'summary' && (

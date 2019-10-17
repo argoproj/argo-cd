@@ -113,6 +113,11 @@ func (c *Context) RepoURLType(urlType fixture.RepoURLType) *Context {
 	return c
 }
 
+func (c *Context) Name(name string) *Context {
+	c.name = name
+	return c
+}
+
 func (c *Context) Path(path string) *Context {
 	c.path = path
 	return c
