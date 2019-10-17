@@ -129,10 +129,10 @@ See [#2165](https://github.com/argoproj/argo-cd/issues/2165).
 
 ## Why Am I Getting `rpc error: code = Unavailable desc = transport is closing` When Using The CLI?
 
-Maybe you're behind a proxy that does not support HTTP 2? Try the `--grcp-web` flag.:
+Maybe you're behind a proxy that does not support HTTP 2? Try the `--grpc-web` flag.:
 
 ```bash
-argocd ... --grcp-web
+argocd ... --grpc-web
 ```
 
 ## Why Am I Getting `x509: certificate signed by unknown authority` When Using The CLI?
