@@ -54,7 +54,7 @@ all the following must hold true:
      in the same way (same content) and in the same situations
 
 Additionally, there must be a clear way forward (in the shape of well-defined steps) 
-for the features not covered by the PoC to work (complying with the points avoid) int he final GitOps  
+for the features not covered by the PoC to work (complying with the points avoid) in the final GitOps  
 Engine.
 
 
