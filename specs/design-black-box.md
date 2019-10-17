@@ -53,10 +53,11 @@ all the following must hold true:
    - Flux+GitEngine should add and update Kubernetes resources if and only if Flux without GitEngine would had done, 
      in the same way (same content) and in the same situations
 
-Additionally, there must be a clear way forward (in the shape of well-defined steps) 
-for the features not covered by the PoC to work (complying with the points avoid) in the final GitOps  
-Engine.
+Unfortunately, there isn't a straightforward way to decidedly check for (3).
 
+Additionally, there must be a clear way forward (in the shape of well-defined steps) 
+for the features not covered by the PoC to work (complying with the points above) int he final GitOps  
+Engine.
 
 ### GitOps Engine PoC
 
