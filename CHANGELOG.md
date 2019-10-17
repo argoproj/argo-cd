@@ -14,7 +14,9 @@ https://youtu.be/GP7xtrnNznw
 
 ##### Orphan Resources
 
-TODO - Alex M to write/video(?)
+The Orphan Resources feature allows detecting if the Kubernetes namespace managed by Argo CD deviates from the expected state. Once the Orphan Resources feature is enabled in the Project settings, the Argo CD is going to look for resources in the Application's namespace and which are not managed by any Argo CD Application.
+
+Such resources are considered orphaned, visible in the Application details page and optionally cause an Application warning condition.
 
 ##### Sync Windows
 
