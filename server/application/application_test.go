@@ -243,8 +243,7 @@ func TestGetClusterConfig(t *testing.T) {
 	app, err := appServer.Create(ctx, &createReq)
 	assert.Nil(t, err)
 
-	restConfig, namespace, err := appServer.getApplicationClusterConfig(app.Name)
-	assert.Equal(t, test.FakeDestNamespace, namespace)
+	restConfig, err := appServer.getApplicationClusterConfig(app.Name)
 	assert.Equal(t, "https://cluster-api.com", restConfig.Host)
 }
 
@@ -497,7 +496,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 }
 
 func TestGetCachedAppState(t *testing.T) {
-	testApp := newTestApp()
+	testApp := newTestApp(fakeAppWithDestServer)
 	testApp.Spec.Project = "none"
 	appServer := newTestAppServer(testApp)
 

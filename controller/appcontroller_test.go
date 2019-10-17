@@ -687,7 +687,7 @@ func TestRefreshAppConditions(t *testing.T) {
 	}
 
 	t.Run("NoErrorConditions", func(t *testing.T) {
-		app := newFakeApp()
+		app := newFakeApp(fakeAppWithDestServer)
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
 
 		hasErrors := ctrl.refreshAppConditions(app)
@@ -696,7 +696,7 @@ func TestRefreshAppConditions(t *testing.T) {
 	})
 
 	t.Run("PreserveExistingWarningCondition", func(t *testing.T) {
-		app := newFakeApp()
+		app := newFakeApp(fakeAppWithDestServer)
 		app.Status.SetConditions([]argoappv1.ApplicationCondition{{Type: argoappv1.ApplicationConditionExcludedResourceWarning}}, nil)
 
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
@@ -708,7 +708,7 @@ func TestRefreshAppConditions(t *testing.T) {
 	})
 
 	t.Run("ReplacesSpecErrorCondition", func(t *testing.T) {
-		app := newFakeApp()
+		app := newFakeApp(fakeAppWithDestServer)
 		app.Spec.Project = "wrong project"
 		app.Status.SetConditions([]argoappv1.ApplicationCondition{{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: "old message"}}, nil)
 

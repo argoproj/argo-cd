@@ -605,7 +605,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	return nil
 }
 
-func (s *Server) getApplicationClusterConfig(applicationName string) (*rest.Config, string, error) {
+func (s *Server) getApplicationClusterConfig(applicationName string) (*rest.Config, error) {
 	server, _, name, err := s.getApplicationDestination(applicationName)
 	if err != nil {
 		return nil, err

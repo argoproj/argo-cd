@@ -551,21 +551,6 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 	return visited
 }
 
-func setApplicationDestination(dest *argoappv1.ApplicationDestination, cluster string) {
-	if isClusterURL(cluster) {
-		dest.Server = cluster
-	} else {
-		dest.Name = cluster
-	}
-}
-
-func isClusterURL(cluster string) bool {
-	if strings.HasPrefix(cluster, "http://") || strings.HasPrefix(cluster, "https://") {
-		return true
-	}
-	return false
-}
-
 func setKsonnetOpt(src *argoappv1.ApplicationSource, env *string) {
 	if src.Ksonnet == nil {
 		src.Ksonnet = &argoappv1.ApplicationSourceKsonnet{}
