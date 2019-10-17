@@ -17,7 +17,7 @@ func TestGitSubmoduleSSHSupport(t *testing.T) {
 		Path("submodule").
 		Recurse().
 		CustomSSHKnownHostsAdded().
-		SubmoduleSSHRepoURLAdded().
+		SubmoduleSSHRepoURLAdded(true).
 		When().
 		CreateFromFile(func(app *Application) {}).
 		Sync().
@@ -32,7 +32,7 @@ func TestGitSubmoduleHTTPSSupport(t *testing.T) {
 		Path("submodule").
 		Recurse().
 		CustomCACertAdded().
-		SubmoduleHTTPSRepoURLAdded().
+		SubmoduleHTTPSRepoURLAdded(true).
 		When().
 		CreateFromFile(func(app *Application) {}).
 		Sync().

@@ -43,6 +43,7 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewLoginCommand(&clientOpts))
 	command.AddCommand(NewReloginCommand(&clientOpts))
 	command.AddCommand(NewRepoCommand(&clientOpts))
+	command.AddCommand(NewRepoCredsCommand(&clientOpts))
 	command.AddCommand(NewContextCommand(&clientOpts))
 	command.AddCommand(NewProjectCommand(&clientOpts))
 	command.AddCommand(NewAccountCommand(&clientOpts))

@@ -350,7 +350,8 @@ func verifyGenerateManifests(
 		KustomizeOptions:  kustomizeOptions,
 		KubeVersion:       kubeVersion,
 	}
-	req.Repo.CopyCredentialsFrom(repoRes)
+	req.Repo.CopyCredentialsFromRepo(repoRes)
+	req.Repo.CopySettingsFrom(repoRes)
 
 	// Only check whether we can access the application's path,
 	// and not whether it actually contains any manifests.

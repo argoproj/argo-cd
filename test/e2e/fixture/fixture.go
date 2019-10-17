@@ -176,6 +176,10 @@ func RepoURL(urlType RepoURLType) string {
 	}
 }
 
+func RepoBaseURL(urlType RepoURLType) string {
+	return path.Base(RepoURL(urlType))
+}
+
 func DeploymentNamespace() string {
 	return deploymentNamespace
 }
@@ -273,7 +277,7 @@ func SetResourceFilter(filters settings.ResourcesFilter) {
 	})
 }
 
-func SetRepos(repos ...settings.RepoCredentials) {
+func SetRepos(repos ...settings.Repository) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		yamlBytes, err := yaml.Marshal(repos)
 		if err != nil {
@@ -295,7 +299,7 @@ func SetHelmRepos(repos ...settings.HelmRepoCredentials) {
 	})
 }
 
-func SetRepoCredentials(repos ...settings.RepoCredentials) {
+func SetRepoCredentials(repos ...settings.RepositoryCredentials) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		yamlBytes, err := yaml.Marshal(repos)
 		if err != nil {
@@ -344,6 +348,7 @@ func EnsureCleanState(t *testing.T) {
 		&v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: testingLabel + "=true"}))
 
 	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", testingLabel+"=true", "--field-selector", "status.phase=Active", "--wait=false"))
+	FailOnErr(Run("", "kubectl", "delete", "crd", "-l", testingLabel+"=true", "--wait=false"))
 
 	// reset settings
 	s, err := settingsManager.GetSettings()
