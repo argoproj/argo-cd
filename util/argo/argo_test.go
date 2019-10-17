@@ -116,6 +116,12 @@ func TestNilOutZerValueAppSources(t *testing.T) {
 		assert.Nil(t, spec.Source.Kustomize)
 	}
 	{
+		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NameSuffix: "foo"}}})
+		assert.NotNil(t, spec.Source.Kustomize)
+		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NameSuffix: ""}}})
+		assert.Nil(t, spec.Source.Kustomize)
+	}
+	{
 		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{"values.yaml"}}}})
 		assert.NotNil(t, spec.Source.Helm)
 		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{}}}})
@@ -161,8 +167,9 @@ func TestValidateChartWithoutRevision(t *testing.T) {
 		},
 	}, nil)
 	assert.NoError(t, err)
-	assert.ElementsMatch(t, conditions, []argoappv1.ApplicationCondition{{
-		Type: argoappv1.ApplicationConditionInvalidSpecError, Message: "spec.source.targetRevision is required if the manifest source is a helm chart"}})
+	assert.Equal(t, 1, len(conditions))
+	assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
+	assert.Equal(t, "spec.source.targetRevision is required if the manifest source is a helm chart", conditions[0].Message)
 }
 
 func Test_enrichSpec(t *testing.T) {

@@ -491,9 +491,11 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		case "project":
 			spec.Project = appOpts.project
 		case "nameprefix":
-			setKustomizeOpt(&spec.Source, &appOpts.namePrefix)
+			setKustomizeOpt(&spec.Source, kustomizeOpts{namePrefix: appOpts.namePrefix})
+		case "namesuffix":
+			setKustomizeOpt(&spec.Source, kustomizeOpts{nameSuffix: appOpts.nameSuffix})
 		case "kustomize-image":
-			setKustomizeImages(&spec.Source, appOpts.kustomizeImages)
+			setKustomizeOpt(&spec.Source, kustomizeOpts{images: appOpts.kustomizeImages})
 		case "jsonnet-tla-str":
 			setJsonnetOpt(&spec.Source, appOpts.jsonnetTlaStr, false)
 		case "jsonnet-tla-code":
@@ -539,22 +541,19 @@ func setKsonnetOpt(src *argoappv1.ApplicationSource, env *string) {
 	}
 }
 
-func setKustomizeOpt(src *argoappv1.ApplicationSource, namePrefix *string) {
-	if src.Kustomize == nil {
-		src.Kustomize = &argoappv1.ApplicationSourceKustomize{}
-	}
-	if namePrefix != nil {
-		src.Kustomize.NamePrefix = *namePrefix
-	}
-	if src.Kustomize.IsZero() {
-		src.Kustomize = nil
-	}
+type kustomizeOpts struct {
+	namePrefix string
+	nameSuffix string
+	images     []string
 }
-func setKustomizeImages(src *argoappv1.ApplicationSource, images []string) {
+
+func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
 	if src.Kustomize == nil {
 		src.Kustomize = &argoappv1.ApplicationSourceKustomize{}
 	}
-	for _, image := range images {
+	src.Kustomize.NamePrefix = opts.namePrefix
+	src.Kustomize.NameSuffix = opts.nameSuffix
+	for _, image := range opts.images {
 		src.Kustomize.MergeImage(argoappv1.KustomizeImage(image))
 	}
 	if src.Kustomize.IsZero() {
@@ -649,6 +648,7 @@ type appOptions struct {
 	autoPrune              bool
 	selfHeal               bool
 	namePrefix             string
+	nameSuffix             string
 	directoryRecurse       bool
 	configManagementPlugin string
 	jsonnetTlaStr          []string
@@ -674,6 +674,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
 	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing when sync is automated")
 	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
+	command.Flags().StringVar(&opts.nameSuffix, "namesuffix", "", "Kustomize namesuffix")
 	command.Flags().BoolVar(&opts.directoryRecurse, "directory-recurse", false, "Recurse directory")
 	command.Flags().StringVar(&opts.configManagementPlugin, "config-management-plugin", "", "Config management plugin name")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaStr, "jsonnet-tla-str", []string{}, "Jsonnet top level string arguments")

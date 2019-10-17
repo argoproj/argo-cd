@@ -3,7 +3,11 @@ import requests from './requests';
 
 export class RepositoriesService {
     public list(): Promise<models.Repository[]> {
-        return requests.get('/repositories').then((res) => res.body as models.RepositoryList).then((list) => list.items || []);
+        return requests.get(`/repositories`).then((res) => res.body as models.RepositoryList).then((list) => list.items || []);
+    }
+
+    public listNoCache(): Promise<models.Repository[]> {
+        return requests.get(`/repositories?forceRefresh=true`).then((res) => res.body as models.RepositoryList).then((list) => list.items || []);
     }
 
     public createHTTPS({type, name, url, username, password, tlsClientCertData, tlsClientCertKey, insecure, enableLfs}:
