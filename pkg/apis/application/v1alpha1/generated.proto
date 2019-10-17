@@ -95,6 +95,9 @@ message ApplicationCondition {
 
   // Message contains human-readable message indicating details about condition
   optional string message = 2;
+
+  // LastTransitionTime is the time the condition was first observed.
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
 }
 
 // ApplicationDestination contains deployment destination information

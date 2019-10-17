@@ -847,6 +847,11 @@ spec:
             conditions:
               items:
                 properties:
+                  lastTransitionTime:
+                    description: LastTransitionTime is the time the condition was
+                      first observed.
+                    format: date-time
+                    type: string
                   message:
                     description: Message contains human-readable message indicating
                       details about condition

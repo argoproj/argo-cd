@@ -3,9 +3,10 @@ package v1alpha1
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestAppProject_IsSourcePermitted(t *testing.T) {
@@ -177,7 +178,7 @@ func TestAppProject_RemoveGroupFromRole(t *testing.T) {
 
 func newTestProject() *AppProject {
 	p := AppProject{
-		ObjectMeta: v1.ObjectMeta{Name: "my-proj"},
+		ObjectMeta: metav1.ObjectMeta{Name: "my-proj"},
 		Spec:       AppProjectSpec{Roles: []ProjectRole{{Name: "my-role"}}},
 	}
 	return &p
@@ -1414,7 +1415,7 @@ func TestApplicationStatus_GetConditions(t *testing.T) {
 
 func newTestProjectWithSyncWindows() *AppProject {
 	p := &AppProject{
-		ObjectMeta: v1.ObjectMeta{Name: "my-proj"},
+		ObjectMeta: metav1.ObjectMeta{Name: "my-proj"},
 		Spec:       AppProjectSpec{SyncWindows: SyncWindows{}}}
 
 	window := &SyncWindow{
@@ -1430,7 +1431,7 @@ func newTestProjectWithSyncWindows() *AppProject {
 
 func newTestApp() *Application {
 	a := &Application{
-		ObjectMeta: v1.ObjectMeta{Name: "test-app"},
+		ObjectMeta: metav1.ObjectMeta{Name: "test-app"},
 		Spec: ApplicationSpec{
 			Destination: ApplicationDestination{
 				Namespace: "default",
@@ -1439,4 +1440,185 @@ func newTestApp() *Application {
 		},
 	}
 	return a
+}
+
+func testCond(t ApplicationConditionType, msg string, lastTransitionTime *metav1.Time) ApplicationCondition {
+	return ApplicationCondition{
+		Type:               t,
+		Message:            msg,
+		LastTransitionTime: lastTransitionTime,
+	}
+}
+
+func TestSetConditions(t *testing.T) {
+	fiveMinsAgo := &metav1.Time{Time: time.Now().Add(-5 * time.Minute)}
+	tenMinsAgo := &metav1.Time{Time: time.Now().Add(-10 * time.Minute)}
+	tests := []struct {
+		name           string
+		existing       []ApplicationCondition
+		incoming       []ApplicationCondition
+		evaluatedTypes map[ApplicationConditionType]bool
+		expected       []ApplicationCondition
+		validate       func(*testing.T, *Application)
+	}{
+		{
+			name:     "new conditions with lastTransitionTime",
+			existing: []ApplicationCondition{},
+			incoming: []ApplicationCondition{
+				testCond(ApplicationConditionInvalidSpecError, "foo", fiveMinsAgo),
+				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
+			},
+			evaluatedTypes: map[ApplicationConditionType]bool{
+				ApplicationConditionInvalidSpecError:      true,
+				ApplicationConditionSharedResourceWarning: true,
+			},
+			expected: []ApplicationCondition{
+				testCond(ApplicationConditionInvalidSpecError, "foo", fiveMinsAgo),
+				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
+			},
+			validate: func(t *testing.T, a *Application) {
+				assert.Equal(t, fiveMinsAgo, a.Status.Conditions[0].LastTransitionTime)
+				assert.Equal(t, tenMinsAgo, a.Status.Conditions[1].LastTransitionTime)
+			},
+		},
+		{
+			name:     "new conditions without lastTransitionTime",
+			existing: []ApplicationCondition{},
+			incoming: []ApplicationCondition{
+				testCond(ApplicationConditionInvalidSpecError, "foo", nil),
+				testCond(ApplicationConditionSharedResourceWarning, "bar", nil),
+			},
+			evaluatedTypes: map[ApplicationConditionType]bool{
+				ApplicationConditionInvalidSpecError:      true,
+				ApplicationConditionSharedResourceWarning: true,
+			},
+			expected: []ApplicationCondition{
+				testCond(ApplicationConditionInvalidSpecError, "foo", nil),
+				testCond(ApplicationConditionSharedResourceWarning, "bar", nil),
+			},
+			validate: func(t *testing.T, a *Application) {
+				// SetConditions should add timestamps for new conditions.
+				assert.True(t, a.Status.Conditions[0].LastTransitionTime.Time.After(fiveMinsAgo.Time))
+				assert.True(t, a.Status.Conditions[1].LastTransitionTime.Time.After(fiveMinsAgo.Time))
+			},
+		},
+		{
+			name: "condition cleared",
+			existing: []ApplicationCondition{
+				testCond(ApplicationConditionInvalidSpecError, "foo", fiveMinsAgo),
+				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
+			},
+			incoming: []ApplicationCondition{
+				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
+			},
+			evaluatedTypes: map[ApplicationConditionType]bool{
+				ApplicationConditionInvalidSpecError:      true,
+				ApplicationConditionSharedResourceWarning: true,
+			},
+			expected: []ApplicationCondition{
+				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
+			},
+			validate: func(t *testing.T, a *Application) {
+				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[0].LastTransitionTime.Time)
+			},
+		},
+		{
+			name: "all conditions cleared",
+			existing: []ApplicationCondition{
+				testCond(ApplicationConditionInvalidSpecError, "foo", fiveMinsAgo),
+				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
+			},
+			incoming: []ApplicationCondition{},
+			evaluatedTypes: map[ApplicationConditionType]bool{
+				ApplicationConditionInvalidSpecError:      true,
+				ApplicationConditionSharedResourceWarning: true,
+			},
+			expected: []ApplicationCondition{},
+		},
+		{
+			name: "existing condition lastTransitionTime preserved",
+			existing: []ApplicationCondition{
+				testCond(ApplicationConditionInvalidSpecError, "foo", tenMinsAgo),
+				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
+			},
+			incoming: []ApplicationCondition{
+				testCond(ApplicationConditionInvalidSpecError, "foo", fiveMinsAgo),
+				testCond(ApplicationConditionSharedResourceWarning, "bar", fiveMinsAgo),
+			},
+			evaluatedTypes: map[ApplicationConditionType]bool{
+				ApplicationConditionInvalidSpecError:      true,
+				ApplicationConditionSharedResourceWarning: true,
+			},
+			expected: []ApplicationCondition{
+				testCond(ApplicationConditionInvalidSpecError, "foo", tenMinsAgo),
+				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
+			},
+			validate: func(t *testing.T, a *Application) {
+				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[0].LastTransitionTime.Time)
+				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[1].LastTransitionTime.Time)
+			},
+		},
+		{
+			name: "existing condition lastTransitionTime updated if message changed",
+			existing: []ApplicationCondition{
+				testCond(ApplicationConditionInvalidSpecError, "foo", tenMinsAgo),
+				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
+			},
+			incoming: []ApplicationCondition{
+				testCond(ApplicationConditionInvalidSpecError, "foo", fiveMinsAgo),
+				testCond(ApplicationConditionSharedResourceWarning, "bar changed message", fiveMinsAgo),
+			},
+			evaluatedTypes: map[ApplicationConditionType]bool{
+				ApplicationConditionInvalidSpecError:      true,
+				ApplicationConditionSharedResourceWarning: true,
+			},
+			expected: []ApplicationCondition{
+				testCond(ApplicationConditionInvalidSpecError, "foo", tenMinsAgo),
+				testCond(ApplicationConditionSharedResourceWarning, "bar changed message", fiveMinsAgo),
+			},
+			validate: func(t *testing.T, a *Application) {
+				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[0].LastTransitionTime.Time)
+				assert.Equal(t, fiveMinsAgo.Time, a.Status.Conditions[1].LastTransitionTime.Time)
+			},
+		},
+		{
+			name: "unevaluated condition types preserved",
+			existing: []ApplicationCondition{
+				testCond(ApplicationConditionInvalidSpecError, "foo", fiveMinsAgo),
+				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
+			},
+			incoming: []ApplicationCondition{},
+			evaluatedTypes: map[ApplicationConditionType]bool{
+				ApplicationConditionInvalidSpecError: true,
+			},
+			expected: []ApplicationCondition{
+				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
+			},
+			validate: func(t *testing.T, a *Application) {
+				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[0].LastTransitionTime.Time)
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := newTestApp()
+			a.Status.Conditions = tt.existing
+			a.Status.SetConditions(tt.incoming, tt.evaluatedTypes)
+			assertConditions(t, tt.expected, a.Status.Conditions)
+			if tt.validate != nil {
+				tt.validate(t, a)
+			}
+		})
+	}
+}
+
+// assertConditions compares two arrays of conditions without their timestamps, which may be
+// difficult to strictly assert on as they can use time.Now(). Elements in each array are assumed
+// to match positions.
+func assertConditions(t *testing.T, expected []ApplicationCondition, actual []ApplicationCondition) {
+	assert.Equal(t, len(expected), len(actual))
+	for i := range expected {
+		assert.Equal(t, expected[i].Type, actual[i].Type)
+		assert.Equal(t, expected[i].Message, actual[i].Message)
+	}
 }

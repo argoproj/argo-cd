@@ -167,8 +167,9 @@ func TestValidateChartWithoutRevision(t *testing.T) {
 		},
 	}, nil)
 	assert.NoError(t, err)
-	assert.ElementsMatch(t, conditions, []argoappv1.ApplicationCondition{{
-		Type: argoappv1.ApplicationConditionInvalidSpecError, Message: "spec.source.targetRevision is required if the manifest source is a helm chart"}})
+	assert.Equal(t, 1, len(conditions))
+	assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
+	assert.Equal(t, "spec.source.targetRevision is required if the manifest source is a helm chart", conditions[0].Message)
 }
 
 func Test_enrichSpec(t *testing.T) {

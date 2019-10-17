@@ -709,6 +709,8 @@ type ApplicationCondition struct {
 	Type ApplicationConditionType `json:"type" protobuf:"bytes,1,opt,name=type"`
 	// Message contains human-readable message indicating details about condition
 	Message string `json:"message" protobuf:"bytes,2,opt,name=message"`
+	// LastTransitionTime is the time the condition was first observed.
+	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
 }
 
 // ComparedTo contains application source and target which was used for resources comparison
@@ -1854,21 +1856,50 @@ func (app *Application) SetCascadedDeletion(prune bool) {
 	}
 }
 
+// SetConditions updates the application status conditions for a subset of evaluated types.
+// If the application has a pre-existing condition of a type that is not in the evaluated list,
+// it will be preserved. If the application has a pre-existing condition of a type that
+// is in the evaluated list, but not in the incoming conditions list, it will be removed.
 func (status *ApplicationStatus) SetConditions(conditions []ApplicationCondition, evaluatedTypes map[ApplicationConditionType]bool) {
 	appConditions := make([]ApplicationCondition, 0)
+	now := metav1.Now()
 	for i := 0; i < len(status.Conditions); i++ {
 		condition := status.Conditions[i]
 		if _, ok := evaluatedTypes[condition.Type]; !ok {
+			if condition.LastTransitionTime == nil {
+				condition.LastTransitionTime = &now
+			}
 			appConditions = append(appConditions, condition)
 		}
 	}
 	for i := range conditions {
 		condition := conditions[i]
-		appConditions = append(appConditions, condition)
+		if condition.LastTransitionTime == nil {
+			condition.LastTransitionTime = &now
+		}
+		eci := findConditionIndexByType(status.Conditions, condition.Type)
+		if eci >= 0 && status.Conditions[eci].Message == condition.Message {
+			// If we already have a condition of this type, only update the timestamp if something
+			// has changed.
+			appConditions = append(appConditions, status.Conditions[eci])
+		} else {
+			// Otherwise we use the new incoming condition with an updated timestamp:
+			appConditions = append(appConditions, condition)
+		}
 	}
 	status.Conditions = appConditions
 }
 
+func findConditionIndexByType(conditions []ApplicationCondition, t ApplicationConditionType) int {
+	for i := range conditions {
+		if conditions[i].Type == t {
+			return i
+		}
+	}
+	return -1
+}
+
+// GetErrorConditions returns list of application error conditions
 func (status *ApplicationStatus) GetConditions(conditionTypes map[ApplicationConditionType]bool) []ApplicationCondition {
 	result := make([]ApplicationCondition, 0)
 	for i := range status.Conditions {
