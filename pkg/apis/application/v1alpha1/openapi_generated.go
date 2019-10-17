@@ -1062,14 +1062,14 @@ func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) 
 				Properties: map[string]spec.Schema{
 					"server": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Server is the API server URL of the Kubernetes cluster",
+							Description: "Server is the unique ID for the server.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Name of the cluster. If omitted, will use the server address",
+							Description: "Name is the display name.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1093,8 +1093,15 @@ func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) 
 							Format:      "",
 						},
 					},
+					"url": {
+						SchemaProps: spec.SchemaProps{
+							Description: "URL is the API server URL of the Kubernetes cluster.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
-				Required: []string{"server", "name", "config"},
+				Required: []string{"server", "name", "config", "url"},
 			},
 		},
 		Dependencies: []string{

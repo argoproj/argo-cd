@@ -889,6 +889,11 @@ func bug21955WorkaroundInterceptor(ctx context.Context, req interface{}, _ *grpc
 			return nil, err
 		}
 		cu.Cluster.Server = server
+		url, err := url.QueryUnescape(cu.Cluster.URL)
+		if err != nil {
+			return nil, err
+		}
+		cu.Cluster.URL = url
 	}
 	return handler(ctx, req)
 }

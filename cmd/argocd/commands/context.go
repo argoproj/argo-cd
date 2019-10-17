@@ -121,7 +121,7 @@ func printArgoCDContexts(configPath string) {
 	}
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	defer func() { _ = w.Flush() }()
-	columnNames := []string{"CURRENT", "NAME", "SERVER"}
+	columnNames := []string{"CURRENT", "NAME", "URL"}
 	_, err = fmt.Fprintf(w, "%s\n", strings.Join(columnNames, "\t"))
 	errors.CheckError(err)
 

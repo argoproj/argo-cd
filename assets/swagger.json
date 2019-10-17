@@ -3370,16 +3370,20 @@
           "$ref": "#/definitions/v1alpha1ConnectionState"
         },
         "name": {
-          "type": "string",
-          "title": "Name of the cluster. If omitted, will use the server address"
+          "description": "Name is the display name.",
+          "type": "string"
         },
         "server": {
-          "type": "string",
-          "title": "Server is the API server URL of the Kubernetes cluster"
+          "description": "Server is the unique ID for the server.",
+          "type": "string"
         },
         "serverVersion": {
           "type": "string",
           "title": "The server version"
+        },
+        "url": {
+          "description": "URL is the API server URL of the Kubernetes cluster.",
+          "type": "string"
         }
       }
     },

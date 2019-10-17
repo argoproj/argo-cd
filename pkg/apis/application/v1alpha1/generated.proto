@@ -284,10 +284,10 @@ message ApplicationWatchEvent {
 
 // Cluster is the definition of a cluster resource
 message Cluster {
-  // Server is the API server URL of the Kubernetes cluster
+  // Server is the unique ID for the server.
   optional string server = 1;
 
-  // Name of the cluster. If omitted, will use the server address
+  // Name is the display name.
   optional string name = 2;
 
   // Config holds cluster information for connecting to a cluster
@@ -298,6 +298,9 @@ message Cluster {
 
   // The server version
   optional string serverVersion = 5;
+
+  // URL is the API server URL of the Kubernetes cluster.
+  optional string url = 6;
 }
 
 // ClusterConfig is the configuration attributes. This structure is subset of the go-client

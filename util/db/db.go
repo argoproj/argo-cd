@@ -18,11 +18,11 @@ type ArgoDB interface {
 	// WatchClusters allow watching for cluster events
 	WatchClusters(ctx context.Context, callback func(*ClusterEvent)) error
 	// Get returns a cluster from a query
-	GetCluster(ctx context.Context, name string) (*appv1.Cluster, error)
+	GetCluster(ctx context.Context, server string) (*appv1.Cluster, error)
 	// UpdateCluster updates a cluster
 	UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error)
 	// DeleteCluster deletes a cluster by name
-	DeleteCluster(ctx context.Context, name string) error
+	DeleteCluster(ctx context.Context, server string) error
 
 	// ListRepositories lists repositories
 	ListRepositories(ctx context.Context) ([]*appv1.Repository, error)

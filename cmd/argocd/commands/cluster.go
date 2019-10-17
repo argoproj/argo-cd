@@ -55,7 +55,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 		systemNamespace string
 	)
 	var command = &cobra.Command{
-		Use:   "add",
+		Use:   "add CONTEXT",
 		Short: fmt.Sprintf("%s cluster add CONTEXT", cliName),
 		Run: func(c *cobra.Command, args []string) {
 			var configAccess clientcmd.ConfigAccess = pathOpts
@@ -66,10 +66,10 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			}
 			config, err := configAccess.GetStartingConfig()
 			errors.CheckError(err)
-			clusterName := args[0]
-			clstContext := config.Contexts[clusterName]
+			contextName := args[0]
+			clstContext := config.Contexts[contextName]
 			if clstContext == nil {
-				log.Fatalf("Context %s does not exist in kubeconfig", clusterName)
+				log.Fatalf("Context %s does not exist in kubeconfig", contextName)
 			}
 
 			overrides := clientcmd.ConfigOverrides{
@@ -102,14 +102,14 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			if server == "" {
 				server = url
 			}
-			clst := NewCluster(server, clusterName, url, conf, managerBearerToken, awsAuthConf)
+			clst := NewCluster(server, contextName, url, conf, managerBearerToken, awsAuthConf)
 			clstCreateReq := clusterpkg.ClusterCreateRequest{
 				Cluster: clst,
 				Upsert:  upsert,
 			}
-			clst, err = clusterIf.Create(context.Background(), &clstCreateReq)
+			_, err = clusterIf.Create(context.Background(), &clstCreateReq)
 			errors.CheckError(err)
-			fmt.Printf("Cluster '%s' added\n", clst.Name)
+			fmt.Printf("Cluster '%s' added\n", server)
 		},
 	}
 	command.Flags().StringVar(&server, "server", "", "The unique identifier for the cluster")
@@ -240,7 +240,7 @@ func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 // Print table of cluster information
 func printClusterTable(clusters []argoappv1.Cluster) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(w, "SERVER\tNAME\tURL\tVERSION\tSTATUS\tMESSAGE\n")
+	_, _ = fmt.Fprintf(w, "CLUSTER\tNAME\tURL\tVERSION\tSTATUS\tMESSAGE\n")
 	for _, c := range clusters {
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", c.Server, c.Name, c.GetURL(), c.ServerVersion, c.ConnectionState.Status, c.ConnectionState.Message)
 	}

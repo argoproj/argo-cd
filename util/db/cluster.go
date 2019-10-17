@@ -212,8 +212,8 @@ func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 }
 
 // Delete deletes a cluster by name
-func (db *db) DeleteCluster(ctx context.Context, name string) error {
-	secret, err := db.getClusterSecret(name)
+func (db *db) DeleteCluster(ctx context.Context, server string) error {
+	secret, err := db.getClusterSecret(server)
 	if err != nil {
 		if errorStatus, ok := status.FromError(err); ok && errorStatus.Code() == codes.NotFound {
 			return nil
@@ -239,6 +239,9 @@ func (db *db) DeleteCluster(ctx context.Context, name string) error {
 // serverToSecretName hashes server address to the secret name using a formula.
 // Part of the server address is incorporated for debugging purposes
 func serverToSecretName(server string) (string, error) {
+	if !strings.Contains(server, "://") {
+		server = fmt.Sprintf("not://%s", server)
+	}
 	serverURL, err := url.ParseRequestURI(server)
 	if err != nil {
 		return "", err
