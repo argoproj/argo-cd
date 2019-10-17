@@ -3031,6 +3031,9 @@
       "type": "object",
       "title": "ApplicationCondition contains details about current application condition",
       "properties": {
+        "lastTransitionTime": {
+          "$ref": "#/definitions/v1Time"
+        },
         "message": {
           "type": "string",
           "title": "Message contains human-readable message indicating details about condition"
