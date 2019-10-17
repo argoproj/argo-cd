@@ -405,7 +405,136 @@ func TestAppProjectSpec_DestinationClusters(t *testing.T) {
 	}
 }
 
-func TestRepository_CopyCredentialsFrom(t *testing.T) {
+func TestRepository_HasCredentials(t *testing.T) {
+
+	tests := []struct {
+		name string
+		repo Repository
+		want bool
+	}{
+		{
+			name: "TestHasRepo",
+			repo: Repository{Repo: "foo"},
+			want: false,
+		},
+		{
+			name: "TestHasUsername",
+			repo: Repository{Username: "foo"},
+			want: true,
+		},
+		{
+			name: "TestHasPassword",
+			repo: Repository{Password: "foo"},
+			want: true,
+		},
+		{
+			name: "TestHasSSHPrivateKey",
+			repo: Repository{SSHPrivateKey: "foo"},
+			want: true,
+		},
+		{
+			name: "TestHasTLSClientCertData",
+			repo: Repository{TLSClientCertData: "foo"},
+			want: true,
+		},
+		{
+			name: "TestHasInsecureHostKey",
+			repo: Repository{InsecureIgnoreHostKey: true},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.repo.HasCredentials(); got != tt.want {
+				t.Errorf("Repository.HasCredentials() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRepository_IsInsecure(t *testing.T) {
+	tests := []struct {
+		name string
+		repo Repository
+		want bool
+	}{
+		{
+			name: "TestHasRepo",
+			repo: Repository{Repo: "foo"},
+			want: false,
+		},
+		{
+			name: "TestHasUsername",
+			repo: Repository{Username: "foo"},
+			want: false,
+		},
+		{
+			name: "TestHasInsecure",
+			repo: Repository{Insecure: true},
+			want: true,
+		},
+		{
+			name: "TestHasInsecureHostKey",
+			repo: Repository{InsecureIgnoreHostKey: true},
+			want: true,
+		},
+		{
+			name: "TestHasEnableLFS",
+			repo: Repository{EnableLFS: true},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.repo.IsInsecure(); got != tt.want {
+				t.Errorf("Repository.IsInsecure() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRepository_IsLFSEnabled(t *testing.T) {
+	tests := []struct {
+		name string
+		repo Repository
+		want bool
+	}{
+		{
+			name: "TestHasRepo",
+			repo: Repository{Repo: "foo"},
+			want: false,
+		},
+		{
+			name: "TestHasUsername",
+			repo: Repository{Username: "foo"},
+			want: false,
+		},
+		{
+			name: "TestHasInsecure",
+			repo: Repository{Insecure: true},
+			want: false,
+		},
+		{
+			name: "TestHasInsecureHostKey",
+			repo: Repository{InsecureIgnoreHostKey: true},
+			want: false,
+		},
+		{
+			name: "TestHasEnableLFS",
+			repo: Repository{EnableLFS: true},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.repo.IsLFSEnabled(); got != tt.want {
+				t.Errorf("Repository.IsLFSEnabled() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRepository_CopyCredentialsFromRepo(t *testing.T) {
 	tests := []struct {
 		name   string
 		repo   *Repository
@@ -425,17 +554,70 @@ func TestRepository_CopyCredentialsFrom(t *testing.T) {
 		{"SourceUsername", &Repository{}, &Repository{Username: "foo"}, Repository{Username: "foo"}},
 		{"SourcePassword", &Repository{}, &Repository{Password: "foo"}, Repository{Password: "foo"}},
 		{"SourceSSHPrivateKey", &Repository{}, &Repository{SSHPrivateKey: "foo"}, Repository{SSHPrivateKey: "foo"}},
-		{"SourceInsecureHostKey", &Repository{}, &Repository{InsecureIgnoreHostKey: true}, Repository{InsecureIgnoreHostKey: true}},
-		{"SourceInsecure", &Repository{}, &Repository{Insecure: true}, Repository{Insecure: true}},
-		{"SourceEnableLFS", &Repository{}, &Repository{EnableLFS: true}, Repository{EnableLFS: true}},
+		{"SourceInsecureHostKey", &Repository{}, &Repository{InsecureIgnoreHostKey: true}, Repository{InsecureIgnoreHostKey: false}},
+		{"SourceInsecure", &Repository{}, &Repository{Insecure: true}, Repository{Insecure: false}},
+		{"SourceEnableLFS", &Repository{}, &Repository{EnableLFS: true}, Repository{EnableLFS: false}},
 		{"SourceTLSClientCertData", &Repository{}, &Repository{TLSClientCertData: "foo"}, Repository{TLSClientCertData: "foo"}},
 		{"SourceTLSClientCertKey", &Repository{}, &Repository{TLSClientCertKey: "foo"}, Repository{TLSClientCertKey: "foo"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := tt.repo.DeepCopy()
+			r.CopyCredentialsFromRepo(tt.source)
+			assert.Equal(t, tt.want, *r)
+		})
+	}
+}
+
+func TestRepository_CopyCredentialsFrom(t *testing.T) {
+	tests := []struct {
+		name   string
+		repo   *Repository
+		source *RepoCreds
+		want   Repository
+	}{
+		{"Username", &Repository{Username: "foo"}, &RepoCreds{}, Repository{Username: "foo"}},
+		{"Password", &Repository{Password: "foo"}, &RepoCreds{}, Repository{Password: "foo"}},
+		{"SSHPrivateKey", &Repository{SSHPrivateKey: "foo"}, &RepoCreds{}, Repository{SSHPrivateKey: "foo"}},
+		{"InsecureHostKey", &Repository{InsecureIgnoreHostKey: true}, &RepoCreds{}, Repository{InsecureIgnoreHostKey: true}},
+		{"Insecure", &Repository{Insecure: true}, &RepoCreds{}, Repository{Insecure: true}},
+		{"EnableLFS", &Repository{EnableLFS: true}, &RepoCreds{}, Repository{EnableLFS: true}},
+		{"TLSClientCertData", &Repository{TLSClientCertData: "foo"}, &RepoCreds{}, Repository{TLSClientCertData: "foo"}},
+		{"TLSClientCertKey", &Repository{TLSClientCertKey: "foo"}, &RepoCreds{}, Repository{TLSClientCertKey: "foo"}},
+		{"SourceNil", &Repository{}, nil, Repository{}},
+
+		{"SourceUsername", &Repository{}, &RepoCreds{Username: "foo"}, Repository{Username: "foo"}},
+		{"SourcePassword", &Repository{}, &RepoCreds{Password: "foo"}, Repository{Password: "foo"}},
+		{"SourceSSHPrivateKey", &Repository{}, &RepoCreds{SSHPrivateKey: "foo"}, Repository{SSHPrivateKey: "foo"}},
+		{"SourceTLSClientCertData", &Repository{}, &RepoCreds{TLSClientCertData: "foo"}, Repository{TLSClientCertData: "foo"}},
+		{"SourceTLSClientCertKey", &Repository{}, &RepoCreds{TLSClientCertKey: "foo"}, Repository{TLSClientCertKey: "foo"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := tt.repo.DeepCopy()
 			r.CopyCredentialsFrom(tt.source)
 			assert.Equal(t, tt.want, *r)
+		})
+	}
+}
+
+func TestRepository_CopySettingsFrom(t *testing.T) {
+	tests := []struct {
+		name   string
+		source *Repository
+		want   Repository
+	}{
+		{"TestNil", nil, Repository{}},
+		{"TestHasRepo", &Repository{Repo: "foo"}, Repository{}},
+		{"TestHasEnableLFS", &Repository{EnableLFS: true}, Repository{EnableLFS: true}},
+		{"TestHasInsecure", &Repository{Insecure: true}, Repository{Insecure: true}},
+		{"TestHasInsecureIgnoreHostKey", &Repository{InsecureIgnoreHostKey: true}, Repository{InsecureIgnoreHostKey: true}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := Repository{}
+			repo.CopySettingsFrom(tt.source)
+			assert.Equal(t, tt.want, repo)
 		})
 	}
 }

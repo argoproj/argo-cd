@@ -487,6 +487,34 @@ message ProjectRole {
   repeated string groups = 5;
 }
 
+// RepoCreds holds a repository credentials definition
+message RepoCreds {
+  // URL is the URL that this credentials matches to
+  optional string url = 1;
+
+  // Username for authenticating at the repo server
+  optional string username = 2;
+
+  // Password for authenticating at the repo server
+  optional string password = 3;
+
+  // SSH private key data for authenticating at the repo server (only Git repos)
+  optional string sshPrivateKey = 4;
+
+  // TLS client cert data for authenticating at the repo server
+  optional string tlsClientCertData = 5;
+
+  // TLS client cert key for authenticating at the repo server
+  optional string tlsClientCertKey = 6;
+}
+
+// RepositoryList is a collection of Repositories.
+message RepoCredsList {
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  repeated RepoCreds items = 2;
+}
+
 // Repository is a repository holding application configurations
 message Repository {
   // URL of the repo
@@ -526,6 +554,9 @@ message Repository {
 
   // only for Helm repos
   optional string name = 12;
+
+  // Whether credentials were inherited from a credential set
+  optional bool inheritedCreds = 13;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate

@@ -173,7 +173,7 @@ data:
 
 ### Repository Credentials
  
->v1.1
+> Earlier than v1.4
 
 If you want to use the same credentials for multiple repositories, you can use `repository.credentials`:
 
@@ -257,6 +257,55 @@ data:
         name: another-private-repo-secret
         key: sshPrivateKey
 ```
+
+> v1.4 or later
+
+If you want to use the same credentials for multiple repositories, you can use `repository.credentials` to configure credential templates. Credential templates can carry the same credentials information as repositories.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  repositories: |
+    - url: https://github.com/argoproj/private-repo
+    - url: https://github.com/argoproj/other-private-repo
+  repository.credentials: |
+    - url: https://github.com/argoproj
+      passwordSecret:
+        name: my-secret
+        key: password
+      usernameSecret:
+        name: my-secret
+        key: username
+```
+
+In the above example, every repository accessed via HTTPS whose URL is prefixed with `https://github.com/argoproj` would use a username stored in the key `username` and a password stored in the key `password` of the secret `my-secret` for connecting to Git.
+
+In order for ArgoCD to use a credential template for any given repository, the following conditions must be met:
+
+* The repository must either not be configured at all, or if configured, must not contain any credential information (i.e. contain none of `sshPrivateKeySecret`, `usernameSecret`, `passwordSecret` )
+* The URL configured for a credential template (e.g. `https://github.com/argoproj`) must match as prefix for the repository URL (e.g. `https://github.com/argoproj/argocd-example-apps`). 
+
+!!! note
+    Matching credential template URL prefixes is done on a _best match_ effort, so the longest (best) match will take precedence. The order of definition is not important, as opposed to pre v1.4 configuration.
+
+The following keys are valid to refer to credential secrets:
+
+#### SSH repositories
+
+* `sshPrivateKeySecret` refers to a secret where an SSH private key is stored for accessing the repositories
+
+#### HTTPS repositories
+
+* `usernameSecret` and `passwordSecret` refer to secrets where username and/or password are stored for accessing the repositories
+* `tlsClientCertData` and `tlsClientCertKey` refer to secrets where a TLS client certificate (`tlsClientCertData`) and the corresponding private key `tlsClientCertKey` are stored for accessing the repositories
+
 
 ### Repositories using self-signed TLS certificates (or are signed by custom CA)
 

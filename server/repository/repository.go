@@ -48,9 +48,14 @@ func NewServer(
 	}
 }
 
-func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.ConnectionState {
-	if connectionState, err := s.cache.GetRepoConnectionState(url); err == nil {
-		return connectionState
+// Get the connection state for a given repository URL by connecting to the
+// repo and evaluate the results. Unless forceRefresh is set to true, the
+// result may be retrieved out of the cache.
+func (s *Server) getConnectionState(ctx context.Context, url string, forceRefresh bool) appsv1.ConnectionState {
+	if !forceRefresh {
+		if connectionState, err := s.cache.GetRepoConnectionState(url); err == nil {
+			return connectionState
+		}
 	}
 	now := metav1.Now()
 	connectionState := appsv1.ConnectionState{
@@ -74,7 +79,13 @@ func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.Conn
 }
 
 // List returns list of repositories
+// Deprecated: Use ListRepositories instead
 func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.RepositoryList, error) {
+	return s.ListRepositories(ctx, q)
+}
+
+// ListRepositories returns a list of all configured repositories and the state of their connections
+func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.RepositoryList, error) {
 	repos, err := s.db.ListRepositories(ctx)
 	if err != nil {
 		return nil, err
@@ -94,7 +105,7 @@ func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.
 		}
 	}
 	err = util.RunAllAsync(len(items), func(i int) error {
-		items[i].ConnectionState = s.getConnectionState(ctx, items[i].Repo)
+		items[i].ConnectionState = s.getConnectionState(ctx, items[i].Repo, q.ForceRefresh)
 		return nil
 	})
 	if err != nil {
@@ -181,21 +192,31 @@ func (s *Server) GetHelmCharts(ctx context.Context, q *repositorypkg.RepoQuery) 
 	return repoClient.GetHelmCharts(ctx, &apiclient.HelmChartsRequest{Repo: repo})
 }
 
-// Create creates a repository
+// Create creates a repository or repository credential set
+// Deprecated: Use CreateRepository() instead
 func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest) (*appsv1.Repository, error) {
-	err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, q.Repo.Repo)
-	if err != nil {
+	return s.CreateRepository(ctx, q)
+}
+
+// CreateRepository creates a repository configuration
+func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCreateRequest) (*appsv1.Repository, error) {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, q.Repo.Repo); err != nil {
 		return nil, err
 	}
+
+	var repo *appsv1.Repository
+	var err error
 
 	// check we can connect to the repo, copying any existing creds
 	{
 		repo := q.Repo.DeepCopy()
-		creds, err := s.db.GetRepository(ctx, repo.Repo)
-		if err != nil {
-			return nil, err
+		if !repo.HasCredentials() {
+			creds, err := s.db.GetRepositoryCredentials(ctx, repo.Repo)
+			if err != nil {
+				return nil, err
+			}
+			repo.CopyCredentialsFrom(creds)
 		}
-		repo.CopyCredentialsFrom(creds)
 		err = argo.TestRepo(repo)
 		if err != nil {
 			return nil, err
@@ -204,7 +225,7 @@ func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest)
 
 	r := q.Repo
 	r.ConnectionState = appsv1.ConnectionState{Status: appsv1.ConnectionStatusSuccessful}
-	repo, err := s.db.CreateRepository(ctx, r)
+	repo, err = s.db.CreateRepository(ctx, r)
 	if status.Convert(err).Code() == codes.AlreadyExists {
 		// act idempotent if existing spec matches new spec
 		existing, getErr := s.db.GetRepository(ctx, r.Repo)
@@ -217,7 +238,7 @@ func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest)
 		if reflect.DeepEqual(existing, r) {
 			repo, err = existing, nil
 		} else if q.Upsert {
-			return s.Update(ctx, &repositorypkg.RepoUpdateRequest{Repo: r})
+			return s.UpdateRepository(ctx, &repositorypkg.RepoUpdateRequest{Repo: r})
 		} else {
 			return nil, status.Errorf(codes.InvalidArgument, "existing repository spec is different; use upsert flag to force update")
 		}
@@ -225,8 +246,14 @@ func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest)
 	return &appsv1.Repository{Repo: repo.Repo, Type: repo.Type, Name: repo.Name}, err
 }
 
-// Update updates a repository
+// Update updates a repository or credential set
+// Deprecated: Use UpdateRepository() instead
 func (s *Server) Update(ctx context.Context, q *repositorypkg.RepoUpdateRequest) (*appsv1.Repository, error) {
+	return s.UpdateRepository(ctx, q)
+}
+
+// UpdateRepository updates a repository configuration
+func (s *Server) UpdateRepository(ctx context.Context, q *repositorypkg.RepoUpdateRequest) (*appsv1.Repository, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, q.Repo.Repo); err != nil {
 		return nil, err
 	}
@@ -234,8 +261,14 @@ func (s *Server) Update(ctx context.Context, q *repositorypkg.RepoUpdateRequest)
 	return &appsv1.Repository{Repo: q.Repo.Repo, Type: q.Repo.Type, Name: q.Repo.Name}, err
 }
 
-// Delete updates a repository
+// Delete removes a repository from the configuration
+// Deprecated: Use DeleteRepository() instead
 func (s *Server) Delete(ctx context.Context, q *repositorypkg.RepoQuery) (*repositorypkg.RepoResponse, error) {
+	return s.DeleteRepository(ctx, q)
+}
+
+// DeleteRepository removes a repository from the configuration
+func (s *Server) DeleteRepository(ctx context.Context, q *repositorypkg.RepoQuery) (*repositorypkg.RepoResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionDelete, q.Repo); err != nil {
 		return nil, err
 	}
@@ -267,11 +300,21 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		TLSClientCertData: q.TlsClientCertData,
 		TLSClientCertKey:  q.TlsClientCertKey,
 	}
-	creds, err := s.db.GetRepository(ctx, q.Repo)
-	if err != nil {
-		return nil, err
+
+	var repoCreds *appsv1.RepoCreds
+	var err error
+
+	// If repo does not have credentials, check if there are credentials stored
+	// for it and if yes, copy them
+	if !repo.HasCredentials() {
+		repoCreds, err = s.db.GetRepositoryCredentials(ctx, q.Repo)
+		if err != nil {
+			return nil, err
+		}
+		if repoCreds != nil {
+			repo.CopyCredentialsFrom(repoCreds)
+		}
 	}
-	repo.CopyCredentialsFrom(creds)
 	err = argo.TestRepo(repo)
 	if err != nil {
 		return nil, err

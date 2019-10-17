@@ -120,7 +120,7 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 func TestKustomizeSSHRemoteBase(t *testing.T) {
 	Given(t).
 		// not the best test, as we should have two remote repos both with the same SSH private key
-		SSHInsecureRepoURLAdded().
+		SSHInsecureRepoURLAdded(true).
 		RepoURLType(fixture.RepoURLTypeSSH).
 		Path("ssh-kustomize-base").
 		When().
