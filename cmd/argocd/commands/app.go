@@ -104,7 +104,25 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	var command = &cobra.Command{
 		Use:     "create APPNAME",
 		Short:   "Create an application",
-		Example: `TODO`,
+		Example: `
+	# Create a directory app
+	argocd app create guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --directory-recurse
+	
+	# Create a Jsonnet app
+	argocd app create jsonnet-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path jsonnet-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --jsonnet-ext-str replicas=2
+	
+	# Create a Helm app
+	argocd app create helm-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path helm-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --helm-set replicaCount=2
+	
+	# Create a Helm app from a Helm repo
+	argocd app create nginx-ingress --repo https://kubernetes-charts.storage.googleapis.com --helm-chart nginx-ingress --revision 1.24.3 --dest-namespace default --dest-server https://kubernetes.default.svc
+	
+	# Create a Kustomize app
+	argocd app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo=0.1
+	
+	# Create a app using a custom tool:
+	argocd app create ksane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
+`,
 		Run: func(c *cobra.Command, args []string) {
 			var app argoappv1.Application
 			argocdClient := argocdclient.NewClientOrDie(clientOpts)
@@ -662,7 +680,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringVar(&opts.chart, "helm-chart", "", "Helm Chart name")
 	command.Flags().StringVar(&opts.env, "env", "", "Application environment to monitor")
 	command.Flags().StringVar(&opts.revision, "revision", "", "The tracking source branch, tag, or commit the application will sync to")
-	command.Flags().StringVar(&opts.destServer, "dest-server", "", "K8s cluster URL (overrides the server URL specified in the ksonnet app.yaml)")
+	command.Flags().StringVar(&opts.destServer, "dest-server", "", "K8s cluster URL (overrides the server URL specified in the ksonnet app.yaml), e.g. https://kubernetes.default.svc")
 	command.Flags().StringVar(&opts.destNamespace, "dest-namespace", "", "K8s target namespace (overrides the namespace specified in the ksonnet app.yaml)")
 	command.Flags().StringArrayVarP(&opts.parameters, "parameter", "p", []string{}, "set a parameter override (e.g. -p guestbook=image=example/guestbook:latest)")
 	command.Flags().StringArrayVar(&opts.valuesFiles, "values", []string{}, "Helm values file(s) to use")
