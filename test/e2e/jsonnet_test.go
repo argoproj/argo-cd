@@ -45,10 +45,8 @@ func TestJsonnetAppliedCorrectly(t *testing.T) {
 func TestJsonnetTlaParameterAppliedCorrectly(t *testing.T) {
 	Given(t).
 		Path("jsonnet-tla").
-		JsonnetTLAStrParameter("name=testing-tla").
-		JsonnetTLACodeParameter("replicas=3").
 		When().
-		Create().
+		Create("--jsonnet-tla-str", "name=testing-tla", "--jsonnet-tla-code", "replicas=0").
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -77,10 +75,8 @@ func TestJsonnetTlaParameterAppliedCorrectly(t *testing.T) {
 func TestJsonnetTlaEnv(t *testing.T) {
 	Given(t).
 		Path("jsonnet-tla-cm").
-		JsonnetTLAStrParameter("foo=$ARGOCD_APP_NAME").
-		JsonnetTLACodeParameter("bar='$ARGOCD_APP_NAME'").
 		When().
-		Create().
+		Create("--jsonnet-tla-str", "foo=$ARGOCD_APP_NAME", "--jsonnet-tla-code", "bar='$ARGOCD_APP_NAME'").
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -93,10 +89,8 @@ func TestJsonnetTlaEnv(t *testing.T) {
 func TestJsonnetExtVarEnv(t *testing.T) {
 	Given(t).
 		Path("jsonnet-ext-var").
-		JsonnetExtVarStr("foo=$ARGOCD_APP_NAME").
-		JsonnetExtVarCode("bar='$ARGOCD_APP_NAME'").
 		When().
-		Create().
+		Create("--jsonnet-ext-var-str", "foo=$ARGOCD_APP_NAME", "--jsonnet-ext-var-code", "bar='$ARGOCD_APP_NAME'").
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
