@@ -102,14 +102,14 @@ func (a *Actions) CreateFromFile(handler func(app *Application)) *Actions {
 	return a
 }
 
-func (a *Actions) Create() *Actions {
+func (a *Actions) Create(args ...string) *Actions {
 	a.context.t.Helper()
-	args := []string{
+	args = append([]string{
 		"app", "create", a.context.name,
 		"--repo", fixture.RepoURL(a.context.repoURLType),
 		"--dest-server", a.context.destServer,
 		"--dest-namespace", fixture.DeploymentNamespace(),
-	}
+	}, args...)
 
 	if a.context.path != "" {
 		args = append(args, "--path", a.context.path)
@@ -153,10 +153,6 @@ func (a *Actions) Create() *Actions {
 		args = append(args, "--revision", a.context.revision)
 	}
 
-	for _, label := range a.context.labels {
-		args = append(args, "-l", label)
-	}
-
 	a.runCli(args...)
 
 	return a
@@ -196,9 +192,9 @@ func (a *Actions) AppSet(flags ...string) *Actions {
 	return a
 }
 
-func (a *Actions) Sync() *Actions {
+func (a *Actions) Sync(args ...string) *Actions {
 	a.context.t.Helper()
-	args := []string{"app", "sync"}
+	args = append([]string{"app", "sync"}, args...)
 	if a.context.name != "" {
 		args = append(args, a.context.name)
 	}
@@ -222,10 +218,6 @@ func (a *Actions) Sync() *Actions {
 
 	if a.context.force {
 		args = append(args, "--force")
-	}
-
-	for _, label := range a.context.labels {
-		args = append(args, "-l", label)
 	}
 
 	a.runCli(args...)

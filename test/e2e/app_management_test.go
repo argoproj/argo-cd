@@ -138,10 +138,9 @@ func TestAppDeletion(t *testing.T) {
 
 func TestAppLabels(t *testing.T) {
 	Given(t).
-		Path(guestbookPath).
-		Labels("foo=bar").
+		Path("config-map").
 		When().
-		Create().
+		Create("-l", "foo=bar").
 		Then().
 		And(func(app *Application) {
 			assert.Contains(t, FailOnErr(RunCli("app", "list")), Name())
@@ -151,18 +150,16 @@ func TestAppLabels(t *testing.T) {
 		Given().
 		// remove both name and replace labels means nothing will sync
 		Name("").
-		Labels("foo=rubbish").
 		When().
 		IgnoreErrors().
-		Sync().
+		Sync("-l", "foo=rubbish").
 		DoNotIgnoreErrors().
 		Then().
 		Expect(Error("", "no apps match selector foo=rubbish")).
 		// check we can update the app and it is then sync'd
 		Given().
-		Labels("foo=bar").
 		When().
-		Sync()
+		Sync("-l", "foo=bar")
 }
 
 func TestTrackAppStateAndSyncApp(t *testing.T) {

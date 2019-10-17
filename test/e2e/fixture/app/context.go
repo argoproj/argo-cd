@@ -17,7 +17,6 @@ type Context struct {
 	t           *testing.T
 	path        string
 	chart       string
-	labels      []string
 	repoURLType fixture.RepoURLType
 	// seconds
 	timeout                int
@@ -131,11 +130,6 @@ func (c *Context) Chart(chart string) *Context {
 
 func (c *Context) Revision(revision string) *Context {
 	c.revision = revision
-	return c
-}
-
-func (c *Context) Labels(labels ...string) *Context {
-	c.labels = labels
 	return c
 }
 
