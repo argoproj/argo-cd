@@ -469,9 +469,28 @@
           
 
 
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-5" type="checkbox" id="nav-5-5">
+    
+    <label class="md-nav__link" for="nav-5-5">
+      Single Sign On (SSO) & Role-Based Access Control (RBAC)
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
+      <label class="md-nav__title" for="nav-5-5">
+        Single Sign On (SSO) & Role-Based Access Control (RBAC)
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
   <li class="md-nav__item">
-    <a href="operator-manual/sso/" title="SSO Configuration" class="md-nav__link">
-      SSO Configuration
+    <a href="operator-manual/sso/" title="SSO Overview" class="md-nav__link">
+      SSO Overview
     </a>
   </li>
 
@@ -482,9 +501,62 @@
 
 
   <li class="md-nav__item">
-    <a href="operator-manual/rbac/" title="RBAC" class="md-nav__link">
-      RBAC
+    <a href="operator-manual/sso/auth0/" title="Auth0" class="md-nav__link">
+      Auth0
     </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="operator-manual/sso/microsoft/" title="Microsoft" class="md-nav__link">
+      Microsoft
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="operator-manual/sso/okta/" title="Okta" class="md-nav__link">
+      Okta
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="operator-manual/sso/onelogin/" title="OneLogin" class="md-nav__link">
+      OneLogin
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="operator-manual/rbac/" title="RBAC Configuration" class="md-nav__link">
+      RBAC Configuration
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
   </li>
 
         
@@ -1171,10 +1243,18 @@
                 
                 
                 <h1 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h1>
+<!-- markdownlint-disable MD026 -->
+
 <h2 id="what-is-argo-cd">What Is Argo CD?<a class="headerlink" href="#what-is-argo-cd" title="Permanent link">&para;</a></h2>
+<!-- markdownlint-enable MD026 -->
+
 <p>Argo CD is a declarative, GitOps continuous delivery tool for Kubernetes.</p>
 <p><img alt="Argo CD UI" src="assets/argocd-ui.gif" /></p>
+<!-- markdownlint-disable MD026 -->
+
 <h2 id="why-argo-cd">Why Argo CD?<a class="headerlink" href="#why-argo-cd" title="Permanent link">&para;</a></h2>
+<!-- markdownlint-enable MD026 -->
+
 <p>Application definitions, configurations, and environments should be declarative and version controlled.
 Application deployment and lifecycle management should be automated, auditable, and easy to understand.</p>
 <h2 id="getting-started">Getting Started<a class="headerlink" href="#getting-started" title="Permanent link">&para;</a></h2>
@@ -1193,7 +1273,7 @@ the desired application state. Kubernetes manifests can be specified in several 
 <li><a href="https://kustomize.io">kustomize</a> applications</li>
 <li><a href="https://helm.sh">helm</a> charts</li>
 <li><a href="https://ksonnet.io">ksonnet</a> applications</li>
-<li><a href="https://jsonnet.org">jsonnet</a> files </li>
+<li><a href="https://jsonnet.org">jsonnet</a> files</li>
 <li>Plain directory of YAML/json manifests</li>
 <li>Any custom config management tool configured as a config management plugin</li>
 </ul>

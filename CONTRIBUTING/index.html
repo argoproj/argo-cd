@@ -376,9 +376,28 @@
           
 
 
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-5" type="checkbox" id="nav-5-5">
+    
+    <label class="md-nav__link" for="nav-5-5">
+      Single Sign On (SSO) & Role-Based Access Control (RBAC)
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
+      <label class="md-nav__title" for="nav-5-5">
+        Single Sign On (SSO) & Role-Based Access Control (RBAC)
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
   <li class="md-nav__item">
-    <a href="../operator-manual/sso/" title="SSO Configuration" class="md-nav__link">
-      SSO Configuration
+    <a href="../operator-manual/sso/" title="SSO Overview" class="md-nav__link">
+      SSO Overview
     </a>
   </li>
 
@@ -389,9 +408,62 @@
 
 
   <li class="md-nav__item">
-    <a href="../operator-manual/rbac/" title="RBAC" class="md-nav__link">
-      RBAC
+    <a href="../operator-manual/sso/auth0/" title="Auth0" class="md-nav__link">
+      Auth0
     </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../operator-manual/sso/microsoft/" title="Microsoft" class="md-nav__link">
+      Microsoft
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../operator-manual/sso/okta/" title="Okta" class="md-nav__link">
+      Okta
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../operator-manual/sso/onelogin/" title="OneLogin" class="md-nav__link">
+      OneLogin
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../operator-manual/rbac/" title="RBAC Configuration" class="md-nav__link">
+      RBAC Configuration
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
   </li>
 
         
@@ -895,13 +967,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#running-tests" title="Running Tests" class="md-nav__link">
-    Running Tests
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#running-locally" title="Running Locally" class="md-nav__link">
     Running Locally
   </a>
@@ -1093,13 +1158,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#running-tests" title="Running Tests" class="md-nav__link">
-    Running Tests
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#running-locally" title="Running Locally" class="md-nav__link">
     Running Locally
   </a>
@@ -1151,7 +1209,14 @@
 <li><a href="https://kubernetes.io/docs/setup/minikube/">minikube</a> or Docker for Desktop</li>
 </ul>
 <p>Brew users can quickly install the lot:</p>
-<div class="codehilite"><pre><span></span>brew install git-lfs go dep kubectl kubectx ksonnet/tap/ks kubernetes-helm kustomize 
+<div class="codehilite"><pre><span></span>brew install go git-lfs kubectl kubectx dep ksonnet/tap/ks kubernetes-helm kustomize
+</pre></div>
+
+
+<p>Check the versions:</p>
+<div class="codehilite"><pre><span></span>go version <span class="p">;</span><span class="c1"># must be v1.12.x</span>
+helm version <span class="p">;</span><span class="c1"># must be v2.13.x</span>
+kustomize version <span class="p">;</span><span class="c1"># must be v3.10.x</span>
 </pre></div>
 
 
@@ -1170,45 +1235,32 @@
 <h2 id="building">Building<a class="headerlink" href="#building" title="Permanent link">&para;</a></h2>
 <p>Ensure dependencies are up to date first:</p>
 <div class="codehilite"><pre><span></span>dep ensure
+make dev-builder-image
+make install-lint-tools
 </pre></div>
 
 
-<p>Build <code>cli</code>, <code>image</code>, and <code>argocd-util</code> as default targets by running make:</p>
-<div class="codehilite"><pre><span></span>make
-</pre></div>
-
-
-<p>The make command can take a while, and we recommend building the specific component you are working on</p>
+<p>Common make targets:</p>
 <ul>
-<li><code>make codegen</code> - Builds protobuf and swagger files.</li>
+<li><code>make codegen</code> - Run code generation</li>
+<li><code>make lint</code> - Lint code</li>
+<li><code>make test</code> - Run unit tests</li>
+<li><code>make cli</code> - Make the <code>argocd</code> CLI tool</li>
 </ul>
-<p>Note: <code>make codegen</code> is slow because it uses docker + volume mounts. To improve performance you might install binaries from <code>./hack/Dockerfile.dev-tools</code>
-and use <code>make codegen-local</code>. It is still recommended to run <code>make codegen</code> once before sending PR to make sure correct version of codegen tools is used.   </p>
-<ul>
-<li><code>make cli</code> - Make the argocd CLI tool</li>
-<li><code>make server</code> - Make the API/repo/controller server</li>
-<li><code>make argocd-util</code> - Make the administrator's utility, used for certain tasks such as import/export</li>
-</ul>
-<h2 id="running-tests">Running Tests<a class="headerlink" href="#running-tests" title="Permanent link">&para;</a></h2>
-<p>To run unit tests:</p>
-<div class="codehilite"><pre><span></span>make <span class="nb">test</span>
-</pre></div>
-
-
 <p>Check out the following <a href="https://github.com/argoproj/argo-cd/blob/master/docs/developer-guide/test-e2e.md">documentation</a> for instructions on running the e2e tests.</p>
 <h2 id="running-locally">Running Locally<a class="headerlink" href="#running-locally" title="Permanent link">&para;</a></h2>
 <p>It is much easier to run and debug if you run ArgoCD on your local machine than in the Kubernetes cluster.</p>
 <p>You should scale the deployments to zero:</p>
-<div class="codehilite"><pre><span></span>kubectl -n argocd scale deployment.extensions/argocd-application-controller --replicas <span class="m">0</span>
-kubectl -n argocd scale deployment.extensions/argocd-dex-server --replicas <span class="m">0</span>
-kubectl -n argocd scale deployment.extensions/argocd-repo-server --replicas <span class="m">0</span>
-kubectl -n argocd scale deployment.extensions/argocd-server --replicas <span class="m">0</span>
-kubectl -n argocd scale deployment.extensions/argocd-redis --replicas <span class="m">0</span>
+<div class="codehilite"><pre><span></span>kubectl -n argocd scale deployment/argocd-application-controller --replicas <span class="m">0</span>
+kubectl -n argocd scale deployment/argocd-dex-server --replicas <span class="m">0</span>
+kubectl -n argocd scale deployment/argocd-repo-server --replicas <span class="m">0</span>
+kubectl -n argocd scale deployment/argocd-server --replicas <span class="m">0</span>
+kubectl -n argocd scale deployment/argocd-redis --replicas <span class="m">0</span>
 </pre></div>
 
 
 <p>Download Yarn dependencies and Compile:</p>
-<div class="codehilite"><pre><span></span>~/go/src/github.com/argoproj/argo-cd/ui 
+<div class="codehilite"><pre><span></span>~/go/src/github.com/argoproj/argo-cd/ui
 yarn install
 yarn build
 </pre></div>
@@ -1225,7 +1277,13 @@ make start
 </pre></div>
 
 
-<p>You can open the UI: http://localhost:8080</p>
+<p>You can open the UI: <a href="http://localhost:4000">http://localhost:4000</a></p>
+<p>As an alternative to using the above command line parameters each time you call <code>argocd</code> CLI, you can set the following environment variables:</p>
+<div class="codehilite"><pre><span></span><span class="nb">export</span> <span class="nv">ARGOCD_SERVER</span><span class="o">=</span><span class="m">127</span>.0.0.1:8080
+<span class="nb">export</span> <span class="nv">ARGOCD_OPTS</span><span class="o">=</span><span class="s2">&quot;--plaintext --insecure&quot;</span>
+</pre></div>
+
+
 <h2 id="running-local-containers">Running Local Containers<a class="headerlink" href="#running-local-containers" title="Permanent link">&para;</a></h2>
 <p>You may need to run containers locally, so here's how:</p>
 <p>Create login to Docker Hub, then login.</p>
@@ -1238,19 +1296,17 @@ make start
 </pre></div>
 
 
-<p>If you have not built the UI image (see <a href="https://github.com/argoproj/argo-cd/blob/master/ui/README.md">the UI README</a>), then do the following:</p>
-<div class="codehilite"><pre><span></span>docker pull argoproj/argocd-ui:latest
-docker tag argoproj/argocd-ui:latest <span class="nv">$IMAGE_NAMESPACE</span>/argocd-ui:latest
-docker push <span class="nv">$IMAGE_NAMESPACE</span>/argocd-ui:latest
+<p>If you don't want to use <code>latest</code> as the image's tag (the default), you can set it from the environment too:</p>
+<div class="codehilite"><pre><span></span><span class="nb">export</span> <span class="nv">IMAGE_TAG</span><span class="o">=</span>yourtag
 </pre></div>
 
 
-<p>Build the images:</p>
+<p>Build the image:</p>
 <div class="codehilite"><pre><span></span><span class="nv">DOCKER_PUSH</span><span class="o">=</span><span class="nb">true</span> make image
 </pre></div>
 
 
-<p>Update the manifests:</p>
+<p>Update the manifests (be sure to do that from a shell that has above environment variables set)</p>
 <div class="codehilite"><pre><span></span>make manifests
 </pre></div>
 
@@ -1261,11 +1317,11 @@ docker push <span class="nv">$IMAGE_NAMESPACE</span>/argocd-ui:latest
 
 
 <p>Scale your deployments up:</p>
-<div class="codehilite"><pre><span></span>kubectl -n argocd scale deployment.extensions/argocd-application-controller --replicas <span class="m">1</span>
-kubectl -n argocd scale deployment.extensions/argocd-dex-server --replicas <span class="m">1</span>
-kubectl -n argocd scale deployment.extensions/argocd-repo-server --replicas <span class="m">1</span>
-kubectl -n argocd scale deployment.extensions/argocd-server --replicas <span class="m">1</span>
-kubectl -n argocd scale deployment.extensions/argocd-redis --replicas <span class="m">1</span>
+<div class="codehilite"><pre><span></span>kubectl -n argocd scale deployment/argocd-application-controller --replicas <span class="m">1</span>
+kubectl -n argocd scale deployment/argocd-dex-server --replicas <span class="m">1</span>
+kubectl -n argocd scale deployment/argocd-repo-server --replicas <span class="m">1</span>
+kubectl -n argocd scale deployment/argocd-server --replicas <span class="m">1</span>
+kubectl -n argocd scale deployment/argocd-redis --replicas <span class="m">1</span>
 </pre></div>
 
 

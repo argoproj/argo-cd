@@ -435,6 +435,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#authenticating-through-multiple-layers-of-authenticating-reverse-proxies" title="Authenticating through multiple layers of authenticating reverse proxies" class="md-nav__link">
+    Authenticating through multiple layers of authenticating reverse proxies
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#ui-base-path" title="UI Base Path" class="md-nav__link">
     UI Base Path
   </a>
@@ -457,9 +464,28 @@
           
 
 
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-5" type="checkbox" id="nav-5-5">
+    
+    <label class="md-nav__link" for="nav-5-5">
+      Single Sign On (SSO) & Role-Based Access Control (RBAC)
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
+      <label class="md-nav__title" for="nav-5-5">
+        Single Sign On (SSO) & Role-Based Access Control (RBAC)
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
   <li class="md-nav__item">
-    <a href="../sso/" title="SSO Configuration" class="md-nav__link">
-      SSO Configuration
+    <a href="../sso/" title="SSO Overview" class="md-nav__link">
+      SSO Overview
     </a>
   </li>
 
@@ -470,9 +496,62 @@
 
 
   <li class="md-nav__item">
-    <a href="../rbac/" title="RBAC" class="md-nav__link">
-      RBAC
+    <a href="../sso/auth0/" title="Auth0" class="md-nav__link">
+      Auth0
     </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../sso/microsoft/" title="Microsoft" class="md-nav__link">
+      Microsoft
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../sso/okta/" title="Okta" class="md-nav__link">
+      Okta
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../sso/onelogin/" title="OneLogin" class="md-nav__link">
+      OneLogin
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../rbac/" title="RBAC Configuration" class="md-nav__link">
+      RBAC Configuration
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
   </li>
 
         
@@ -1119,6 +1198,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#authenticating-through-multiple-layers-of-authenticating-reverse-proxies" title="Authenticating through multiple layers of authenticating reverse proxies" class="md-nav__link">
+    Authenticating through multiple layers of authenticating reverse proxies
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#ui-base-path" title="UI Base Path" class="md-nav__link">
     UI Base Path
   </a>
@@ -1284,6 +1370,13 @@ passthrough mode is needed, or NLBs.</p>
 </pre></div>
 
 
+<h2 id="authenticating-through-multiple-layers-of-authenticating-reverse-proxies">Authenticating through multiple layers of authenticating reverse proxies<a class="headerlink" href="#authenticating-through-multiple-layers-of-authenticating-reverse-proxies" title="Permanent link">&para;</a></h2>
+<p>ArgoCD endpoints may be protected by one or more reverse proxies layers, in that case, you can provide additional headers through the <code>argocd</code> CLI <code>--header</code> parameter to authenticate through those layers.</p>
+<div class="codehilite"><pre><span></span>$ argocd login &lt;host&gt;:&lt;port&gt; --header <span class="s1">&#39;x-token1:foo&#39;</span> --header <span class="s1">&#39;x-token2:bar&#39;</span> <span class="c1"># can be repeated multiple times</span>
+$ argocd login &lt;host&gt;:&lt;port&gt; --header <span class="s1">&#39;x-token1:foo,x-token2:bar&#39;</span> <span class="c1"># headers can also be comma separated</span>
+</pre></div>
+
+
 <h2 id="ui-base-path">UI Base Path<a class="headerlink" href="#ui-base-path" title="Permanent link">&para;</a></h2>
 <p>If the Argo CD UI is available under a non-root path (e.g. <code>/argo-cd</code> instead of <code>/</code>) then the UI path should be configured in the API server.
 To configure the UI path add the <code>--basehref</code> flag into the <code>argocd-server</code> deployment command:</p>
@@ -1363,13 +1456,13 @@ Example nginx.conf with URL rewrite:</p>
           </a>
         
         
-          <a href="../sso/" title="SSO Configuration" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+          <a href="../sso/" title="SSO Overview" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
               <span class="md-flex__ellipsis">
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                SSO Configuration
+                SSO Overview
               </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink">

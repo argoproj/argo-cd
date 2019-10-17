@@ -376,9 +376,28 @@
           
 
 
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-5" type="checkbox" id="nav-5-5">
+    
+    <label class="md-nav__link" for="nav-5-5">
+      Single Sign On (SSO) & Role-Based Access Control (RBAC)
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
+      <label class="md-nav__title" for="nav-5-5">
+        Single Sign On (SSO) & Role-Based Access Control (RBAC)
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
   <li class="md-nav__item">
-    <a href="../../operator-manual/sso/" title="SSO Configuration" class="md-nav__link">
-      SSO Configuration
+    <a href="../../operator-manual/sso/" title="SSO Overview" class="md-nav__link">
+      SSO Overview
     </a>
   </li>
 
@@ -389,9 +408,62 @@
 
 
   <li class="md-nav__item">
-    <a href="../../operator-manual/rbac/" title="RBAC" class="md-nav__link">
-      RBAC
+    <a href="../../operator-manual/sso/auth0/" title="Auth0" class="md-nav__link">
+      Auth0
     </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/sso/microsoft/" title="Microsoft" class="md-nav__link">
+      Microsoft
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/sso/okta/" title="Okta" class="md-nav__link">
+      Okta
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/sso/onelogin/" title="OneLogin" class="md-nav__link">
+      OneLogin
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/rbac/" title="RBAC Configuration" class="md-nav__link">
+      RBAC Configuration
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
   </li>
 
         
@@ -1019,12 +1091,38 @@
                 
                 <h1 id="sync-windows">Sync Windows<a class="headerlink" href="#sync-windows" title="Permanent link">&para;</a></h1>
 <p>Sync windows are configurable windows of time where syncs will either be blocked or allowed. These are defined
-by a kind, which can be either <code>allow</code> or <code>deny</code>, a start time in cron format and a duration along with one or 
-more of either applications, namespaces and clusters. Wildcards are supported. These windows affect the running 
+by a kind, which can be either <code>allow</code> or <code>deny</code>, a <code>schedule</code> in cron format and a duration along with one or 
+more of either <code>applications</code>, <code>namespaces</code> and <code>clusters</code>. Wildcards are supported. These windows affect the running 
 of both manual and automated syncs but allow an override for manual syncs which is useful if you are only interested
 in preventing automated syncs or if you need to temporarily override a window to perform a sync.</p>
-<p>If an application has matching allow windows then it will only be able to sync during those windows. If is has 
-has matching deny windows then they will override any matching allows if the windows are active at the same time.</p>
+<p>The windows work in the following way. If there are no windows matching an application then all syncs are allowed. If there
+are any <code>allow</code> windows matching an application then syncs will only be allowed when there ia an active <code>allow</code> windows. If there
+are any <code>deny</code> windows matching an application then all syncs will be denied when the <code>deny</code> windows are active. If there is an
+active matching <code>allow</code> and an active matching <code>deny</code> then syncs will be denied as <code>deny</code> windows override <code>allow</code> windows. The
+UI and the CLI will both display the state of the sync windows. The UI has a panel which will display different colours depending
+on the state. The colours are as follows. <code>Red: sync denied</code>, <code>Orange: manual allowed</code> and <code>Green: sync allowed</code>.</p>
+<p>To display the sync state using the CLI:</p>
+<div class="codehilite"><pre><span></span>argocd app get APP
+</pre></div>
+
+
+<p>Which will return the sync state and any matching windows.</p>
+<div class="codehilite"><pre><span></span><span class="n">Name</span><span class="p">:</span>               <span class="n">guestbook</span>
+<span class="n">Project</span><span class="p">:</span>            <span class="k">default</span>
+<span class="n">Server</span><span class="p">:</span>             <span class="ow">in</span><span class="o">-</span><span class="n">cluster</span>
+<span class="n">Namespace</span><span class="p">:</span>          <span class="k">default</span>
+<span class="n">URL</span><span class="p">:</span>                <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="n">localhost</span><span class="p">:</span><span class="mi">8080</span><span class="o">/</span><span class="n">applications</span><span class="o">/</span><span class="n">guestbook</span>
+<span class="n">Repo</span><span class="p">:</span>               <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="p">.</span><span class="n">com</span><span class="o">/</span><span class="n">argoproj</span><span class="o">/</span><span class="n">argocd</span><span class="o">-</span><span class="n">example</span><span class="o">-</span><span class="n">apps</span><span class="p">.</span><span class="n">git</span>
+<span class="n">Target</span><span class="p">:</span>
+<span class="n">Path</span><span class="p">:</span>               <span class="n">guestbook</span>
+<span class="n">SyncWindow</span><span class="p">:</span>         <span class="n">Sync</span> <span class="n">Denied</span>
+<span class="n">Assigned</span> <span class="n">Windows</span><span class="p">:</span>   <span class="n">deny</span><span class="p">:</span><span class="mi">0</span> <span class="mi">2</span> <span class="o">*</span> <span class="o">*</span> <span class="o">*</span><span class="p">:</span><span class="mi">1</span><span class="n">h</span><span class="p">,</span><span class="n">allow</span><span class="p">:</span><span class="mi">0</span> <span class="mi">2</span> <span class="mi">3</span> <span class="mi">3</span> <span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="n">h</span>
+<span class="n">Sync</span> <span class="n">Policy</span><span class="p">:</span>        <span class="n">Automated</span>
+<span class="n">Sync</span> <span class="n">Status</span><span class="p">:</span>        <span class="n">Synced</span> <span class="k">to</span>  <span class="p">(</span><span class="mi">5</span><span class="n">c2d89b</span><span class="p">)</span>
+<span class="n">Health</span> <span class="n">Status</span><span class="p">:</span>      <span class="n">Healthy</span>
+</pre></div>
+
+
 <p>Windows can be created using the CLI:</p>
 <div class="codehilite"><pre><span></span>argocd proj windows add PROJECT <span class="se">\</span>
     --kind allow <span class="se">\</span>

@@ -376,9 +376,28 @@
           
 
 
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-5" type="checkbox" id="nav-5-5">
+    
+    <label class="md-nav__link" for="nav-5-5">
+      Single Sign On (SSO) & Role-Based Access Control (RBAC)
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
+      <label class="md-nav__title" for="nav-5-5">
+        Single Sign On (SSO) & Role-Based Access Control (RBAC)
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
   <li class="md-nav__item">
-    <a href="../operator-manual/sso/" title="SSO Configuration" class="md-nav__link">
-      SSO Configuration
+    <a href="../operator-manual/sso/" title="SSO Overview" class="md-nav__link">
+      SSO Overview
     </a>
   </li>
 
@@ -389,9 +408,62 @@
 
 
   <li class="md-nav__item">
-    <a href="../operator-manual/rbac/" title="RBAC" class="md-nav__link">
-      RBAC
+    <a href="../operator-manual/sso/auth0/" title="Auth0" class="md-nav__link">
+      Auth0
     </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../operator-manual/sso/microsoft/" title="Microsoft" class="md-nav__link">
+      Microsoft
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../operator-manual/sso/okta/" title="Okta" class="md-nav__link">
+      Okta
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../operator-manual/sso/onelogin/" title="OneLogin" class="md-nav__link">
+      OneLogin
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../operator-manual/rbac/" title="RBAC Configuration" class="md-nav__link">
+      RBAC Configuration
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
   </li>
 
         
@@ -1288,8 +1360,8 @@ You can get the list of groups by opening "developer tools -&gt; network"</p>
 <p>Decode the token at https://jwt.io/. That will provide the list of teams that you can remove yourself from.</p>
 <p>See <a href="https://github.com/argoproj/argo-cd/issues/2165">#2165</a>.</p>
 <h2 id="why-am-i-getting-rpc-error-code-unavailable-desc-transport-is-closing-when-using-the-cli">Why Am I Getting <code>rpc error: code = Unavailable desc = transport is closing</code> When Using The CLI?<a class="headerlink" href="#why-am-i-getting-rpc-error-code-unavailable-desc-transport-is-closing-when-using-the-cli" title="Permanent link">&para;</a></h2>
-<p>Maybe you're behind a proxy that does not support HTTP 2? Try the <code>--grcp-web</code> flag.:</p>
-<div class="codehilite"><pre><span></span>argocd ... --grcp-web
+<p>Maybe you're behind a proxy that does not support HTTP 2? Try the <code>--grpc-web</code> flag.:</p>
+<div class="codehilite"><pre><span></span>argocd ... --grpc-web
 </pre></div>
 
 

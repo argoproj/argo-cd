@@ -378,9 +378,28 @@
           
 
 
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-5" type="checkbox" id="nav-5-5">
+    
+    <label class="md-nav__link" for="nav-5-5">
+      Single Sign On (SSO) & Role-Based Access Control (RBAC)
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
+      <label class="md-nav__title" for="nav-5-5">
+        Single Sign On (SSO) & Role-Based Access Control (RBAC)
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
   <li class="md-nav__item">
-    <a href="../sso/" title="SSO Configuration" class="md-nav__link">
-      SSO Configuration
+    <a href="../sso/" title="SSO Overview" class="md-nav__link">
+      SSO Overview
     </a>
   </li>
 
@@ -391,9 +410,62 @@
 
 
   <li class="md-nav__item">
-    <a href="../rbac/" title="RBAC" class="md-nav__link">
-      RBAC
+    <a href="../sso/auth0/" title="Auth0" class="md-nav__link">
+      Auth0
     </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../sso/microsoft/" title="Microsoft" class="md-nav__link">
+      Microsoft
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../sso/okta/" title="Okta" class="md-nav__link">
+      Okta
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../sso/onelogin/" title="OneLogin" class="md-nav__link">
+      OneLogin
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../rbac/" title="RBAC Configuration" class="md-nav__link">
+      RBAC Configuration
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
   </li>
 
         
@@ -1159,6 +1231,9 @@ or repositories has a lot of files. To avoid this problem mount persistent volum
 <p><code>argocd-repo-server</code> <code>git ls-remote</code> to resolve ambiguous revision such as <code>HEAD</code>, branch or tag name. This operation is happening pretty frequently
 and might fail. To avoid failed syncs use <code>ARGOCD_GIT_ATTEMPTS_COUNT</code> environment variable to retry failed requests.</p>
 </li>
+<li>
+<p><code>argocd-repo-server</code> Every 3m (by default) Argo CD checks for changes to the app manifests. Argo CD assumes by default that manifests only change when the repo changes, so it caches generated manifests (for 24h by default). With Kustomize remote bases, or Helm patch releases, the manifests can change even though the repo has not changed. By reducing the cache time, you can get the changes without waiting for 24h. Use <code>--repo-cache-expiration duration</code>, and we'd suggest in low volume environments you try '1h'. Bear in mind this will negate the benefit of caching if set too low. </p>
+</li>
 </ul>
 <p><strong>metrics:</strong></p>
 <ul>
@@ -1188,6 +1263,9 @@ number of allowed concurrent kubectl fork/execs.</p>
 performance. For performance reasons controller monitors and caches only preferred the version of a resource. During reconciliation, the controller might have to convert cached resource from
 preferred version into a version of the resource stored in Git. If <code>kubectl convert</code> fails because conversion is not supported than controller fallback to Kubernetes API query which slows down
 reconciliation. In this case advice user-preferred resource version in Git.</p>
+</li>
+<li>
+<p>The controller polls Git every 3m by default. You can increase this duration using <code>--app-resync seconds</code> to reduce polling.</p>
 </li>
 </ul>
 <p><strong>metrics</strong></p>

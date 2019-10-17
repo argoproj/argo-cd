@@ -376,9 +376,28 @@
           
 
 
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-5" type="checkbox" id="nav-5-5">
+    
+    <label class="md-nav__link" for="nav-5-5">
+      Single Sign On (SSO) & Role-Based Access Control (RBAC)
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
+      <label class="md-nav__title" for="nav-5-5">
+        Single Sign On (SSO) & Role-Based Access Control (RBAC)
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
   <li class="md-nav__item">
-    <a href="../../operator-manual/sso/" title="SSO Configuration" class="md-nav__link">
-      SSO Configuration
+    <a href="../../operator-manual/sso/" title="SSO Overview" class="md-nav__link">
+      SSO Overview
     </a>
   </li>
 
@@ -389,9 +408,62 @@
 
 
   <li class="md-nav__item">
-    <a href="../../operator-manual/rbac/" title="RBAC" class="md-nav__link">
-      RBAC
+    <a href="../../operator-manual/sso/auth0/" title="Auth0" class="md-nav__link">
+      Auth0
     </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/sso/microsoft/" title="Microsoft" class="md-nav__link">
+      Microsoft
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/sso/okta/" title="Okta" class="md-nav__link">
+      Okta
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/sso/onelogin/" title="OneLogin" class="md-nav__link">
+      OneLogin
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/rbac/" title="RBAC Configuration" class="md-nav__link">
+      RBAC Configuration
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
   </li>
 
         
@@ -1153,6 +1225,10 @@ flag. The flag can be repeated to support multiple values files:</p>
 </pre></div>
 
 
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Values files must be on the same directory or a subdirectory of the Helm application</p>
+</div>
 <h2 id="helm-parameters">Helm Parameters<a class="headerlink" href="#helm-parameters" title="Permanent link">&para;</a></h2>
 <p>Helm has the ability to set parameter values, which override any values in
 a <code>values.yaml</code>. For example, <code>service.type</code> is a common parameter which is exposed in a Helm chart:</p>
@@ -1167,7 +1243,7 @@ in the form of <code>-p PARAM=VALUE</code>. For example:</p>
 
 
 <h2 id="helm-release-name">Helm Release Name<a class="headerlink" href="#helm-release-name" title="Permanent link">&para;</a></h2>
-<p>By default the Helm release name is equal to the Application name to which it belongs. Sometimes, especially on a centralised ArgoCD, 
+<p>By default the Helm release name is equal to the Application name to which it belongs. Sometimes, especially on a centralised ArgoCD,
 you may want to override that  name, and it is possible with the <code>release-name</code> flag on the cli:</p>
 <div class="codehilite"><pre><span></span>argocd app <span class="nb">set</span> helm-guestbook --release-name myRelease
 </pre></div>
@@ -1189,8 +1265,8 @@ you may want to override that  name, and it is possible with the <code>release-n
 <p>v1.3 or later</p>
 </blockquote>
 <p>Helm hooks are similar to <a href="../resource_hooks/">Argo CD hooks</a>. In Helm, a hook
-is any normal Kubernetes resource annotated with the <code>helm.sh/hook</code> annotation. </p>
-<p>Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Argo CD's own hook annotations: </p>
+is any normal Kubernetes resource annotated with the <code>helm.sh/hook</code> annotation.</p>
+<p>Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Argo CD's own hook annotations:</p>
 <table>
 <thead>
 <tr>
@@ -1264,12 +1340,12 @@ is any normal Kubernetes resource annotated with the <code>helm.sh/hook</code> a
 </div>
 <h3 id="hook-tips">Hook Tips<a class="headerlink" href="#hook-tips" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Make your hook idempotent. </li>
+<li>Make your hook idempotent.</li>
 <li>Annotate <code>crd-install</code> with <code>hook-weight: "-2"</code> to make sure it runs to success before any install or upgrade hooks.</li>
 <li>Annotate  <code>pre-install</code> and <code>post-install</code> with <code>hook-weight: "-1"</code>. This will make sure it runs to success before any upgrade hooks.</li>
 <li>Annotate <code>pre-upgrade</code> and <code>post-upgrade</code> with <code>hook-delete-policy: before-hook-creation</code> to make sure it runs on every sync.</li>
 </ul>
-<p>Read more about <a href="../resource_hooks/">Argo hooks</a> and <a href="https://github.com/kubernetes/helm/blob/master/docs/charts_hooks.md">Helm hooks</a>. </p>
+<p>Read more about <a href="../resource_hooks/">Argo hooks</a> and <a href="https://github.com/kubernetes/helm/blob/master/docs/charts_hooks.md">Helm hooks</a>.</p>
 <h2 id="random-data">Random Data<a class="headerlink" href="#random-data" title="Permanent link">&para;</a></h2>
 <p>Helm templating has the ability to generate random data during chart rendering via the
 <code>randAlphaNum</code> function. Many helm charts from the <a href="https://github.com/helm/charts">charts repository</a>
