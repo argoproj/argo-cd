@@ -102,8 +102,8 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		labels  []string
 	)
 	var command = &cobra.Command{
-		Use:     "create APPNAME",
-		Short:   "Create an application",
+		Use:   "create APPNAME",
+		Short: "Create an application",
 		Example: `
 	# Create a directory app
 	argocd app create guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --directory-recurse
