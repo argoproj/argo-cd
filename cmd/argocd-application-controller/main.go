@@ -21,7 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/errors"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/settings"
@@ -48,7 +48,7 @@ func newCommand() *cobra.Command {
 		glogLevel                int
 		metricsPort              int
 		kubectlParallelismLimit  int64
-		cacheSrc                 func() (*cache.Cache, error)
+		cacheSrc                 func() (*appstatecache.Cache, error)
 	)
 	var command = cobra.Command{
 		Use:   cliName,
@@ -116,7 +116,7 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&selfHealTimeoutSeconds, "self-heal-timeout-seconds", 5, "Specifies timeout between application self heal attempts")
 	command.Flags().Int64Var(&kubectlParallelismLimit, "kubectl-parallelism-limit", 20, "Number of allowed concurrent kubectl fork/execs. Any value less the 1 means no limit.")
 
-	cacheSrc = cache.AddCacheFlagsToCmd(&command)
+	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command)
 	return &command
 }
 

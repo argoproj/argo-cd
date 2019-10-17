@@ -26,8 +26,13 @@ nav:
     - operator-manual/architecture.md
     - operator-manual/declarative-setup.md
     - operator-manual/ingress.md
-    - operator-manual/sso.md
-    - operator-manual/rbac.md
+    - Single Sign On (SSO) & Role-Based Access Control (RBAC):
+      - operator-manual/sso/index.md
+      - operator-manual/sso/auth0.md
+      - operator-manual/sso/microsoft.md
+      - operator-manual/sso/okta.md
+      - operator-manual/sso/onelogin.md
+      - operator-manual/rbac.md
     - operator-manual/security.md
     - operator-manual/cluster-bootstrapping.md
     - operator-manual/high_availability.md

@@ -29,6 +29,7 @@ type Context struct {
 	jsonnetExtVarStr       []string
 	jsonnetExtVarCode      []string
 	namePrefix             string
+	nameSuffix             string
 	resource               string
 	prune                  bool
 	configManagementPlugin string
@@ -54,23 +55,33 @@ func (c *Context) CustomSSHKnownHostsAdded() *Context {
 	return c
 }
 
-func (c *Context) HTTPSRepoURLAdded() *Context {
-	repos.AddHTTPSRepo(false)
+func (c *Context) HTTPSRepoURLAdded(withCreds bool) *Context {
+	repos.AddHTTPSRepo(false, withCreds)
 	return c
 }
 
-func (c *Context) HTTPSInsecureRepoURLAdded() *Context {
-	repos.AddHTTPSRepo(true)
+func (c *Context) HTTPSInsecureRepoURLAdded(withCreds bool) *Context {
+	repos.AddHTTPSRepo(true, withCreds)
 	return c
 }
 
 func (c *Context) HTTPSInsecureRepoURLWithClientCertAdded() *Context {
-	repos.AddHTTPSRepoClientCert(false)
+	repos.AddHTTPSRepoClientCert(true)
 	return c
 }
 
 func (c *Context) HTTPSRepoURLWithClientCertAdded() *Context {
-	repos.AddHTTPSRepoClientCert(true)
+	repos.AddHTTPSRepoClientCert(false)
+	return c
+}
+
+func (c *Context) SSHRepoURLAdded(withCreds bool) *Context {
+	repos.AddSSHRepo(false, withCreds)
+	return c
+}
+
+func (c *Context) SSHInsecureRepoURLAdded(withCreds bool) *Context {
+	repos.AddSSHRepo(true, withCreds)
 	return c
 }
 
@@ -79,13 +90,18 @@ func (c *Context) HelmRepoAdded(name string) *Context {
 	return c
 }
 
-func (c *Context) SSHRepoURLAdded() *Context {
-	repos.AddSSHRepo(false)
+func (c *Context) HTTPSCredentialsUserPassAdded() *Context {
+	repos.AddHTTPSCredentialsUserPass()
 	return c
 }
 
-func (c *Context) SSHInsecureRepoURLAdded() *Context {
-	repos.AddSSHRepo(true)
+func (c *Context) HTTPSCredentialsTLSClientCertAdded() *Context {
+	repos.AddHTTPSCredentialsTLSClientCert()
+	return c
+}
+
+func (c *Context) SSHCredentialsAdded() *Context {
+	repos.AddSSHCredentials()
 	return c
 }
 
@@ -96,6 +112,11 @@ func (c *Context) ProjectSpec(spec v1alpha1.AppProjectSpec) *Context {
 
 func (c *Context) RepoURLType(urlType fixture.RepoURLType) *Context {
 	c.repoURLType = urlType
+	return c
+}
+
+func (c *Context) Name(name string) *Context {
+	c.name = name
 	return c
 }
 
@@ -161,6 +182,11 @@ func (c *Context) SelectedResource(resource string) *Context {
 
 func (c *Context) NamePrefix(namePrefix string) *Context {
 	c.namePrefix = namePrefix
+	return c
+}
+
+func (c *Context) NameSuffix(nameSuffix string) *Context {
+	c.nameSuffix = nameSuffix
 	return c
 }
 

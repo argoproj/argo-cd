@@ -4,7 +4,6 @@ Argo CD has undergone rigourous internal security reviews and penetration testin
 compliance](https://www.pcisecuritystandards.org) requirements. The following are some security
 topics and implementation details of Argo CD.
 
-
 ## Authentication
 
 Authentication to Argo CD API server is performed exclusively using [JSON Web Tokens](https://jwt.io)
@@ -27,20 +26,17 @@ in one of the following ways:
    JWTs have a configurable expiration and can be immediately revoked by deleting the JWT reference
    ID from the project role.
 
-
 ## Authorization
 
 Authorization is performed by iterating the list of group membership in a user's JWT groups claims,
-and comparing each group against the roles/rules in the [RBAC](rbac.md) policy. Any matched rule
+and comparing each group against the roles/rules in the [RBAC](../rbac) policy. Any matched rule
 permits access to the API request.
-
 
 ## TLS
 
 All network communication is performed over TLS including service-to-service communication between
 the three components (argocd-server, argocd-repo-server, argocd-application-controller). The Argo CD
 API server can enforce the use of TLS 1.2 using the flag: `--tlsminversion 1.2`.
-
 
 ## Sensitive Information
 
@@ -79,15 +75,16 @@ cluster, and remove the cluster entry from Argo CD:
 
 ```bash
 # run using a kubeconfig for the externally managed cluster
-kubectl delete sa argocd-manager -n kube-system 
+kubectl delete sa argocd-manager -n kube-system
 kubectl delete clusterrole argocd-manager-role
 kubectl delete clusterrolebinding argocd-manager-role-binding
 argocd cluster rm https://your-kubernetes-cluster-addr
 ```
-
+<!-- markdownlint-disable MD027 -->
 > NOTE: for AWS EKS clusters, [aws-iam-authenticator](https://github.com/kubernetes-sigs/aws-iam-authenticator)
   is used to authenticate to the external cluster, which uses IAM roles in lieu of locally stored
   tokens, so token rotation is not needed, and revokation is handled through IAM.
+<!-- markdownlint-enable MD027 -->
 
 ## Cluster RBAC
 
@@ -110,7 +107,7 @@ To fine-tune privileges of externally managed clusters, edit the ClusterRole of 
 kubectl edit clusterrole argocd-manager-role
 ```
 
-To fine-tune privileges which Argo CD has against its own cluster (i.e. https://kubernetes.default.svc),
+To fine-tune privileges which Argo CD has against its own cluster (i.e. `https://kubernetes.default.svc`),
 edit the following cluster roles where Argo CD is running in:
 
 ```bash
@@ -120,7 +117,7 @@ kubectl edit clusterrole argocd-application-controller
 ```
 
 !!! tip
-    If you want to deny ArgoCD access to a kind of resource then add it as an [excluded resource](declarative-setup.md#resource-exclusion). 
+    If you want to deny ArgoCD access to a kind of resource then add it as an [excluded resource](declarative-setup.md#resource-exclusion).
 
 ## Auditing
 
@@ -150,14 +147,12 @@ These events can be then be persisted for longer periods of time using other too
 [Event Exporter](https://github.com/GoogleCloudPlatform/k8s-stackdriver/tree/master/event-exporter) or
 [Event Router](https://github.com/heptiolabs/eventrouter).
 
-
 ## WebHook Payloads
 
 Payloads from webhook events are considered untrusted. Argo CD only examines the payload to infer
 the involved applications of the webhook event (e.g. which repo was modified), then refreshes
 the related application for reconciliation. This refresh is the same refresh which occurs regularly
 at three minute intervals, just fast-tracked by the webhook event.
-
 
 ## Reporting Vulnerabilities
 

@@ -30,11 +30,11 @@ import (
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
+	servercache "github.com/argoproj/argo-cd/server/cache"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	argoutil "github.com/argoproj/argo-cd/util/argo"
-	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/git"
@@ -57,7 +57,7 @@ type Server struct {
 	projectLock   *util.KeyLock
 	auditLogger   *argo.AuditLogger
 	settingsMgr   *settings.SettingsManager
-	cache         *cache.Cache
+	cache         *servercache.Cache
 }
 
 // NewServer returns a new instance of the Application service
@@ -66,7 +66,7 @@ func NewServer(
 	kubeclientset kubernetes.Interface,
 	appclientset appclientset.Interface,
 	repoClientset apiclient.Clientset,
-	cache *cache.Cache,
+	cache *servercache.Cache,
 	kubectl kube.Kubectl,
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
@@ -94,16 +94,9 @@ func appRBACName(app appv1.Application) string {
 	return fmt.Sprintf("%s/%s", app.Spec.GetProject(), app.Name)
 }
 
-func validatedSelector(selector string) string {
-	if _, err := fields.ParseSelector(selector); err != nil {
-		return ""
-	}
-	return selector
-}
-
 // List returns list of applications
 func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*appv1.ApplicationList, error) {
-	appList, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(metav1.ListOptions{LabelSelector: validatedSelector(q.Selector)})
+	appList, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(metav1.ListOptions{LabelSelector: q.Selector})
 	if err != nil {
 		return nil, err
 	}
@@ -497,7 +490,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		return nil
 	}
 
-	listOpts := metav1.ListOptions{LabelSelector: validatedSelector(q.Selector)}
+	listOpts := metav1.ListOptions{LabelSelector: q.Selector}
 	if q.Name != nil && *q.Name != "" {
 		listOpts.FieldSelector = fmt.Sprintf("metadata.name=%s", *q.Name)
 	}
@@ -623,7 +616,7 @@ func (s *Server) getApplicationClusterConfig(applicationName string) (*rest.Conf
 // getCachedAppState loads the cached state and trigger app refresh if cache is missing
 func (s *Server) getCachedAppState(ctx context.Context, a *appv1.Application, getFromCache func() error) error {
 	err := getFromCache()
-	if err != nil && err == cache.ErrCacheMiss {
+	if err != nil && err == servercache.ErrCacheMiss {
 		conditions := a.Status.GetConditions(map[appv1.ApplicationConditionType]bool{
 			appv1.ApplicationConditionComparisonError:  true,
 			appv1.ApplicationConditionInvalidSpecError: true,

@@ -8,24 +8,6 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
-func TestParseLabels(t *testing.T) {
-	validLabels := []string{"key=value", "foo=bar", "intuit=inc"}
-
-	result, err := parseLabels(validLabels)
-	assert.NoError(t, err)
-	assert.Len(t, result, 3)
-
-	invalidLabels := []string{"key=value", "too=many=equals"}
-	_, err = parseLabels(invalidLabels)
-	assert.Error(t, err)
-
-	emptyLabels := []string{}
-	result, err = parseLabels(emptyLabels)
-	assert.NoError(t, err)
-	assert.Len(t, result, 0)
-
-}
-
 func Test_setHelmOpt(t *testing.T) {
 	t.Run("Zero", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
