@@ -27,10 +27,10 @@ spec:
         - --staticassets
         - /shared/app
         - --sentinel
-        - argocd-redis-ha-announce-0:26379
+        - $(ARGOCD_REDIS_HA_ANNOUNCE_0_SERVICE):26379
         - --sentinel
-        - argocd-redis-ha-announce-1:26379
+        - $(ARGOCD_REDIS_HA_ANNOUNCE_1_SERVICE):26379
         - --sentinel
-        - argocd-redis-ha-announce-2:26379
+        - $(ARGOCD_REDIS_HA_ANNOUNCE_2_SERVICE):26379
         - --sentinelmaster
         - argocd

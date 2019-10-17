@@ -30,7 +30,7 @@ argocd app set helm-guestbook -p service.type=LoadBalancer
 
 ## Helm Release Name
 
-By default the Helm release name is equal to the Application name to which it belongs. Sometimes, especially on a centralised ArgoCD, 
+By default the Helm release name is equal to the Application name to which it belongs. Sometimes, especially on a centralised ArgoCD,
 you may want to override that  name, and it is possible with the `release-name` flag on the cli:
 
 ```bash
@@ -46,16 +46,16 @@ source:
 ```
 
 !!! warning "Important notice on overriding the release name"
-    Please note that overriding the Helm release name might cause problems when the chart you are deploying is using the `app.kubernetes.io/instance` label. ArgoCD injects this label with the value of the Application name for tracking purposes. So when overriding the release name, the Application name will stop being equal to the release name. Because ArgoCD will overwrite the label with the Application name it might cause some selectors on the resources to stop working. In order to avoid this we can configure ArgoCD to use another label for tracking in the [ArgoCD configmap argocd-cm.yaml](./../operator-manual/argocd-cm.yaml) - check the lines describing `application.instanceLabelKey`.
+    Please note that overriding the Helm release name might cause problems when the chart you are deploying is using the `app.kubernetes.io/instance` label. ArgoCD injects this label with the value of the Application name for tracking purposes. So when overriding the release name, the Application name will stop being equal to the release name. Because ArgoCD will overwrite the label with the Application name it might cause some selectors on the resources to stop working. In order to avoid this we can configure ArgoCD to use another label for tracking in the [ArgoCD configmap argocd-cm.yaml](../operator-manual/argocd-cm.yaml) - check the lines describing `application.instanceLabelKey`.
 
 ## Helm Hooks
 
 > v1.3 or later
 
 Helm hooks are similar to [Argo CD hooks](resource_hooks.md). In Helm, a hook
-is any normal Kubernetes resource annotated with the `helm.sh/hook` annotation. 
+is any normal Kubernetes resource annotated with the `helm.sh/hook` annotation.
 
-Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Argo CD's own hook annotations: 
+Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Argo CD's own hook annotations:
 
 | Helm Annotation | Notes |
 |---|---|
@@ -81,12 +81,12 @@ Unsupported hooks are ignored. In Argo CD, hooks are created by using `kubectl a
 
 ### Hook Tips
 
-* Make your hook idempotent. 
+* Make your hook idempotent.
 * Annotate `crd-install` with `hook-weight: "-2"` to make sure it runs to success before any install or upgrade hooks.
 * Annotate  `pre-install` and `post-install` with `hook-weight: "-1"`. This will make sure it runs to success before any upgrade hooks.
 * Annotate `pre-upgrade` and `post-upgrade` with `hook-delete-policy: before-hook-creation` to make sure it runs on every sync.
 
-Read more about [Argo hooks](resource_hooks.md) and [Helm hooks](https://github.com/kubernetes/helm/blob/master/docs/charts_hooks.md). 
+Read more about [Argo hooks](resource_hooks.md) and [Helm hooks](https://github.com/kubernetes/helm/blob/master/docs/charts_hooks.md).
 
 ## Random Data
 
@@ -113,4 +113,3 @@ value, in the values.yaml such that the value is stable between each comparison.
 ```bash
 argocd app set redis -p password=abc123
 ```
-
