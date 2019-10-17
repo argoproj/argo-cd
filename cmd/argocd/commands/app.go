@@ -503,7 +503,7 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		case "config-management-plugin":
 			spec.Source.Plugin = &argoappv1.ApplicationSourcePlugin{Name: appOpts.configManagementPlugin}
 		case "dest-server":
-			setApplicationDestination(&app.Spec.Destination, appOpts.destServer)
+			setApplicationDestination(&spec.Destination, appOpts.destServer)
 		case "dest-namespace":
 			spec.Destination.Namespace = appOpts.destNamespace
 		case "project":

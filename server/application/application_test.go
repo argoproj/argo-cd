@@ -245,6 +245,7 @@ func TestGetClusterConfig(t *testing.T) {
 
 	restConfig, err := appServer.getApplicationClusterConfig(app.Name)
 	assert.Equal(t, "https://cluster-api.com", restConfig.Host)
+	assert.Nil(t, err)
 }
 
 func TestUpdateApp(t *testing.T) {

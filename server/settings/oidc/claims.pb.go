@@ -33,7 +33,7 @@ func (m *Claim) Reset()         { *m = Claim{} }
 func (m *Claim) String() string { return proto.CompactTextString(m) }
 func (*Claim) ProtoMessage()    {}
 func (*Claim) Descriptor() ([]byte, []int) {
-	return fileDescriptor_claims_5bbce62b030182fa, []int{0}
+	return fileDescriptor_claims_b8213d38e99ae690, []int{0}
 }
 func (m *Claim) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -417,10 +417,10 @@ var (
 )
 
 func init() {
-	proto.RegisterFile("server/settings/oidc/claims.proto", fileDescriptor_claims_5bbce62b030182fa)
+	proto.RegisterFile("server/settings/oidc/claims.proto", fileDescriptor_claims_b8213d38e99ae690)
 }
 
-var fileDescriptor_claims_5bbce62b030182fa = []byte{
+var fileDescriptor_claims_b8213d38e99ae690 = []byte{
 	// 191 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x52, 0x2c, 0x4e, 0x2d, 0x2a,
 	0x4b, 0x2d, 0xd2, 0x2f, 0x4e, 0x2d, 0x29, 0xc9, 0xcc, 0x4b, 0x2f, 0xd6, 0xcf, 0xcf, 0x4c, 0x49,
