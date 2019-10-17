@@ -54,6 +54,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OperationState":                   schema_pkg_apis_application_v1alpha1_OperationState(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings": schema_pkg_apis_application_v1alpha1_OrphanedResourcesMonitorSettings(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectRole":                      schema_pkg_apis_application_v1alpha1_ProjectRole(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RepoCreds":                        schema_pkg_apis_application_v1alpha1_RepoCreds(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RepoCredsList":                    schema_pkg_apis_application_v1alpha1_RepoCredsList(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Repository":                       schema_pkg_apis_application_v1alpha1_Repository(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RepositoryCertificate":            schema_pkg_apis_application_v1alpha1_RepositoryCertificate(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RepositoryCertificateList":        schema_pkg_apis_application_v1alpha1_RepositoryCertificateList(ref),
@@ -1748,6 +1750,95 @@ func schema_pkg_apis_application_v1alpha1_ProjectRole(ref common.ReferenceCallba
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_RepoCreds(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RepoCreds holds a repository credentials definition",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"url": {
+						SchemaProps: spec.SchemaProps{
+							Description: "URL is the URL that this credentials matches to",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"username": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Username for authenticating at the repo server",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"password": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Password for authenticating at the repo server",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"sshPrivateKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SSH private key data for authenticating at the repo server (only Git repos)",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"tlsClientCertData": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TLS client cert data for authenticating at the repo server",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"tlsClientCertKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TLS client cert key for authenticating at the repo server",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"url"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_RepoCredsList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RepositoryList is a collection of Repositories.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RepoCreds"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RepoCreds", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1835,6 +1926,13 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 						SchemaProps: spec.SchemaProps{
 							Description: "only for Helm repos",
 							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"inheritedCreds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Whether credentials were inherited from a credential set",
+							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},

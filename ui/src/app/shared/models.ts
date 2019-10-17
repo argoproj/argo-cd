@@ -401,6 +401,13 @@ export interface Repository {
 
 export interface RepositoryList extends ItemsList<Repository> { }
 
+export interface RepoCreds {
+    url: string;
+    username?: string;
+}
+
+export interface RepoCredsList extends ItemsList<RepoCreds> { }
+
 export interface Cluster {
     name: string;
     server: string;

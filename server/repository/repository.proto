@@ -37,7 +37,10 @@ message RepoAppsResponse {
 
 // RepoQuery is a query for Repository resources
 message RepoQuery {
+	// Repo URL for query
 	string repo = 1;
+	// Whether to force a cache refresh on repo's connection state
+	bool forceRefresh = 2;
 }
 
 // RepoAccessQuery is a query for checking access to a repo
@@ -64,21 +67,32 @@ message RepoAccessQuery {
 
 message RepoResponse {}
 
+// RepoCreateRequest is a request for creating repository config
 message RepoCreateRequest {
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
-    bool upsert = 2;
+	// Repository definition
+	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
+	// Whether to create in upsert mode
+	bool upsert = 2;
+	// Whether to operate on credential set instead of repository
+	bool credsOnly = 3;
 }
 
 message RepoUpdateRequest {
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
+	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
 }
 
 
 // RepositoryService 
 service RepositoryService {
 
-	// List returns list of repos
+	// List returns list of repos or repository credentials
 	rpc List(RepoQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RepositoryList) {
+		option (google.api.http).get = "/api/v1/repositories";
+		option deprecated = true;
+	}
+
+	// ListRepositories gets a list of all configured repositories
+	rpc ListRepositories(RepoQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RepositoryList) {
 		option (google.api.http).get = "/api/v1/repositories";
 	}
 
@@ -99,24 +113,48 @@ service RepositoryService {
 		option (google.api.http).get = "/api/v1/repositories/{repo}/helmcharts";
 	}
 
-	// Create creates a repo
+	// Create creates a repo or a repo credential set
 	rpc Create(RepoCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http) = {
 			post: "/api/v1/repositories"
 			body: "repo"
 		};
+		option deprecated = true;
 	}
 	
-	// Update updates a repo
+	// CreateRepository creates a new repository configuration
+	rpc CreateRepository(RepoCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
+		option (google.api.http) = {
+			post: "/api/v1/repositories"
+			body: "repo"
+		};
+	}
+
+	// Update updates a repo or repo credential set
 	rpc Update(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
+		option (google.api.http) = {
+			put: "/api/v1/repositories/{repo.repo}"
+			body: "repo"
+		};
+		option deprecated = true;
+	}
+
+	// UpdateRepository updates a repository configuration
+	rpc UpdateRepository(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http) = {
 			put: "/api/v1/repositories/{repo.repo}"
 			body: "repo"
 		};
 	}
 
-	// Delete deletes a repo
+	// Delete deletes a repository from the configuration
 	rpc Delete(RepoQuery) returns (RepoResponse) {
+		option (google.api.http).delete = "/api/v1/repositories/{repo}";
+		option deprecated = true;
+	}
+
+	// DeleteRepository deletes a repository from the configuration
+	rpc DeleteRepository(RepoQuery) returns (RepoResponse) {
 		option (google.api.http).delete = "/api/v1/repositories/{repo}";
 	}
 

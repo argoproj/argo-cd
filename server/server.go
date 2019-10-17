@@ -50,6 +50,7 @@ import (
 	certificatepkg "github.com/argoproj/argo-cd/pkg/apiclient/certificate"
 	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
 	projectpkg "github.com/argoproj/argo-cd/pkg/apiclient/project"
+	repocredspkg "github.com/argoproj/argo-cd/pkg/apiclient/repocreds"
 	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
 	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
@@ -66,6 +67,7 @@ import (
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/server/project"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/server/repocreds"
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/server/session"
 	"github.com/argoproj/argo-cd/server/settings"
@@ -414,14 +416,18 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		grpc.ConnectionTimeout(300 * time.Second),
 	}
 	sensitiveMethods := map[string]bool{
-		"/cluster.ClusterService/Create":                true,
-		"/cluster.ClusterService/Update":                true,
-		"/session.SessionService/Create":                true,
-		"/account.AccountService/UpdatePassword":        true,
-		"/repository.RepositoryService/Create":          true,
-		"/repository.RepositoryService/Update":          true,
-		"/repository.RepositoryService/ValidateAccess":  true,
-		"/application.ApplicationService/PatchResource": true,
+		"/cluster.ClusterService/Create":                          true,
+		"/cluster.ClusterService/Update":                          true,
+		"/session.SessionService/Create":                          true,
+		"/account.AccountService/UpdatePassword":                  true,
+		"/repository.RepositoryService/Create":                    true,
+		"/repository.RepositoryService/Update":                    true,
+		"/repository.RepositoryService/CreateRepository":          true,
+		"/repository.RepositoryService/UpdateRepository":          true,
+		"/repository.RepositoryService/ValidateAccess":            true,
+		"/repocreds.RepoCredsService/CreateRepositoryCredentials": true,
+		"/repocreds.RepoCredsService/UpdateRepositoryCredentials": true,
+		"/application.ApplicationService/PatchResource":           true,
 	}
 	// NOTE: notice we do not configure the gRPC server here with TLS (e.g. grpc.Creds(creds))
 	// This is because TLS handshaking occurs in cmux handling
@@ -453,6 +459,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	kubectl := kube.KubectlCmd{}
 	clusterService := cluster.NewServer(db, a.enf, a.Cache, kubectl)
 	repoService := repository.NewServer(a.RepoClientset, db, a.enf, a.Cache, a.settingsMgr)
+	repoCredsService := repocreds.NewServer(a.RepoClientset, db, a.enf, a.settingsMgr)
 	sessionService := session.NewServer(a.sessionMgr, a)
 	projectLock := util.NewKeyLock()
 	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, a.Cache, kubectl, db, a.enf, projectLock, a.settingsMgr)
@@ -464,6 +471,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	clusterpkg.RegisterClusterServiceServer(grpcS, clusterService)
 	applicationpkg.RegisterApplicationServiceServer(grpcS, applicationService)
 	repositorypkg.RegisterRepositoryServiceServer(grpcS, repoService)
+	repocredspkg.RegisterRepoCredsServiceServer(grpcS, repoCredsService)
 	sessionpkg.RegisterSessionServiceServer(grpcS, sessionService)
 	settingspkg.RegisterSettingsServiceServer(grpcS, settingsService)
 	projectpkg.RegisterProjectServiceServer(grpcS, projectService)
@@ -548,6 +556,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	mustRegisterGWHandler(clusterpkg.RegisterClusterServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(applicationpkg.RegisterApplicationServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(repositorypkg.RegisterRepositoryServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
+	mustRegisterGWHandler(repocredspkg.RegisterRepoCredsServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(sessionpkg.RegisterSessionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(settingspkg.RegisterSettingsServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(projectpkg.RegisterProjectServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
@@ -816,6 +825,7 @@ type bug21955Workaround struct {
 var pathPatters = []*regexp.Regexp{
 	regexp.MustCompile(`/api/v1/clusters/[^/]+`),
 	regexp.MustCompile(`/api/v1/repositories/[^/]+`),
+	regexp.MustCompile(`/api/v1/repocreds/[^/]+`),
 	regexp.MustCompile(`/api/v1/repositories/[^/]+/apps`),
 	regexp.MustCompile(`/api/v1/repositories/[^/]+/apps/[^/]+`),
 }
@@ -855,6 +865,18 @@ func bug21955WorkaroundInterceptor(ctx context.Context, req interface{}, _ *grpc
 			return nil, err
 		}
 		ru.Repo.Repo = repo
+	} else if rk, ok := req.(*repocredspkg.RepoCredsQuery); ok {
+		pattern, err := url.QueryUnescape(rk.Url)
+		if err != nil {
+			return nil, err
+		}
+		rk.Url = pattern
+	} else if rk, ok := req.(*repocredspkg.RepoCredsDeleteRequest); ok {
+		pattern, err := url.QueryUnescape(rk.Url)
+		if err != nil {
+			return nil, err
+		}
+		rk.Url = pattern
 	} else if cq, ok := req.(*clusterpkg.ClusterQuery); ok {
 		server, err := url.QueryUnescape(cq.Server)
 		if err != nil {
