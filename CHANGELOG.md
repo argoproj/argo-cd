@@ -16,9 +16,9 @@ https://youtu.be/GP7xtrnNznw
 
 TODO - Alex M to write/video(?)
 
-##### Maintenance Windows
+##### Sync Windows
 
-TODO
+There may be instances when you want to control the times during which an Argo CD app can sync. Sync Windows now gives you the capability to create windows of time in which apps are either allowed or denied the ability to sync. This can apply to both manual and auto-sync, or just auto-sync. The windows are configured at the project level and assigned to apps using app name, namespace or cluster. Wildcards are supported for all fields.
 
 ##### Gzip JWTs & User Info Page
 
