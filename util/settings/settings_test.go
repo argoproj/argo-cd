@@ -35,12 +35,12 @@ func TestGetRepositories(t *testing.T) {
 	})
 	filter, err := settingsManager.GetRepositories()
 	assert.NoError(t, err)
-	assert.Equal(t, []RepoCredentials{{URL: "http://foo"}}, filter)
+	assert.Equal(t, []Repository{{URL: "http://foo"}}, filter)
 }
 
 func TestSaveRepositories(t *testing.T) {
 	kubeClient, settingsManager := fixtures(nil)
-	err := settingsManager.SaveRepositories([]RepoCredentials{{URL: "http://foo"}})
+	err := settingsManager.SaveRepositories([]Repository{{URL: "http://foo"}})
 	assert.NoError(t, err)
 	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
@@ -53,7 +53,7 @@ func TestGetRepositoryCredentials(t *testing.T) {
 	})
 	filter, err := settingsManager.GetRepositoryCredentials()
 	assert.NoError(t, err)
-	assert.Equal(t, []RepoCredentials{{URL: "http://foo"}}, filter)
+	assert.Equal(t, []RepositoryCredentials{{URL: "http://foo"}}, filter)
 }
 
 func TestGetResourceFilter(t *testing.T) {
