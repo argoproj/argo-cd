@@ -14,17 +14,11 @@ https://youtu.be/GP7xtrnNznw
 
 ##### Orphan Resources
 
-The Orphan Resources feature allows detecting if the Kubernetes namespace managed by Argo CD deviates from the expected state. Once the Orphan Resources feature is enabled in the Project settings, the Argo CD is going to look for resources in the Application's namespace and which are not managed by any Argo CD Application.
-
-Such resources are considered orphaned, visible in the Application details page and optionally cause an Application warning condition.
+Some users would like to make sure that resources in a namespace are managed only by Argo CD. So we've introduced the concept of an "orphan resource" - any resource that is in namespace associated with an app, but not managed by Argo CD. This is enable in the project settings. Once enabled, Argo CD will show in the app view any resources in the app's namepspace that is not mananged by Argo CD. 
 
 ##### Sync Windows
 
 There may be instances when you want to control the times during which an Argo CD app can sync. Sync Windows now gives you the capability to create windows of time in which apps are either allowed or denied the ability to sync. This can apply to both manual and auto-sync, or just auto-sync. The windows are configured at the project level and assigned to apps using app name, namespace or cluster. Wildcards are supported for all fields.
-
-##### Gzip JWTs & User Info Page
-
-TODO - Alex C
 
 #### Enhancements
 
