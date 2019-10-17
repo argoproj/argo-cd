@@ -3,6 +3,7 @@
 You have three configuration options for Kustomize:
 
 * `namePrefix` is a prefix appended to resources for Kustomize apps
+* `nameSuffix` is a suffix appended to resources for Kustomize apps
 * `images` is a list of Kustomize image overrides
     
 To use Kustomize with an overlay, point your path to the overlay.

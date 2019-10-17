@@ -1,16 +1,14 @@
-# SSO Configuration
-
-## Overview
+# SSO Overview
 
 Argo CD does not have any local users other than the built-in `admin` user. All other users are
 expected to login via SSO. There are two ways that SSO can be configured:
 
-* Bundled Dex OIDC provider - use this option if your current provider does not support OIDC (e.g. SAML,
+* [Bundled Dex OIDC provider](#dex) - use this option if your current provider does not support OIDC (e.g. SAML,
   LDAP) or if you wish to leverage any of Dex's connector features (e.g. the ability to map GitHub
   organizations and teams to OIDC groups claims).
 
-* Existing OIDC provider - use this if you already have an OIDC provider which you are using (e.g.
-  Okta, OneLogin, Auth0, Microsoft), where you manage your users, groups, and memberships.
+* [Existing OIDC provider](#existing-oidc-provider) - use this if you already have an OIDC provider which you are using (e.g.
+  [Okta](okta.md), [OneLogin](onelogin.md), [Auth0](auth0.md), [Microsoft](microsoft.md)), where you manage your users, groups, and memberships.
 
 ## Dex
 
@@ -26,14 +24,14 @@ steps should be similar for other identity providers.
 ### 1. Register the application in the identity provider
 
 In GitHub, register a new application. The callback address should be the `/api/dex/callback`
-endpoint of your Argo CD URL (e.g. https://argocd.example.com/api/dex/callback).
+endpoint of your Argo CD URL (e.g. `https://argocd.example.com/api/dex/callback`).
 
-![Register OAuth App](../assets/register-app.png "Register OAuth App")
+![Register OAuth App](../../assets/register-app.png "Register OAuth App")
 
 After registering the app, you will receive an OAuth2 client ID and secret. These values will be
 inputted into the Argo CD configmap.
 
-![OAuth2 Client Config](../assets/oauth2-config.png "OAuth2 Client Config")
+![OAuth2 Client Config](../../assets/oauth2-config.png "OAuth2 Client Config")
 
 ### 2. Configure Argo CD for SSO
 
@@ -43,7 +41,7 @@ Edit the argocd-cm configmap:
 kubectl edit configmap argocd-cm -n argocd
 ```
 
-* In the `url` key, input the base URL of Argo CD. In this example, it is https://argocd.example.com
+* In the `url` key, input the base URL of Argo CD. In this example, it is `https://argocd.example.com`
 * In the `dex.config` key, add the `github` connector to the `connectors` sub field. See Dex's
   [GitHub connector](https://github.com/coreos/dex/blob/master/Documentation/connectors/github.md)
   documentation for explanation of the fields. A minimal config should populate the clientID,
@@ -86,14 +84,11 @@ NOTES:
 
 * Any values which start with '$' will look to a key in argocd-secret of the same name (minus the $),
   to obtain the actual value. This allows you to store the `clientSecret` as a kubernetes secret.
-    * If you are editing the secret using `kubectl edit secret` remember that the `data` field expects a base64 encoded value (`echo -n "<CLIENT_SECRET>" | base64`).
-    * The error: *Failed to authenticate: github: get user: github: get URL Get https://api.github.com/user: oauth2: token expired and refresh token is not set* can be attributed to the secret value not being interpreted correctly by dex (e.g. incorrect client secret value).
 * There is no need to set `redirectURI` in the `connectors.config` as shown in the dex documentation.
   Argo CD will automatically use the correct `redirectURI` for any OAuth2 connectors, to match the
-  correct external callback URL (e.g. https://argocd.example.com/api/dex/callback)
+  correct external callback URL (e.g. `https://argocd.example.com/api/dex/callback`)
 
-
-## Existing OIDC Provider 
+## Existing OIDC Provider
 
 To configure Argo CD to delegate authenticate to your existing OIDC provider, add the OAuth2
 configuration to the `argocd-cm` ConfigMap under the `oidc.config` key:

@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
@@ -68,6 +69,42 @@ func TestCreateRepository(t *testing.T) {
 	assert.Nil(t, secret.Data[sshPrivateKey])
 }
 
+func TestCreateRepoCredentials(t *testing.T) {
+	clientset := getClientset(nil)
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+
+	creds, err := db.CreateRepositoryCredentials(context.Background(), &v1alpha1.RepoCreds{
+		URL:      "https://github.com/argoproj/",
+		Username: "test-username",
+		Password: "test-password",
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, "https://github.com/argoproj/", creds.URL)
+
+	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(repoURLToSecretName(creds.URL), metav1.GetOptions{})
+	assert.Nil(t, err)
+
+	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
+	assert.Equal(t, string(secret.Data[username]), "test-username")
+	assert.Equal(t, string(secret.Data[password]), "test-password")
+	assert.Nil(t, secret.Data[sshPrivateKey])
+
+	created, err := db.CreateRepository(context.Background(), &v1alpha1.Repository{
+		Repo: "https://github.com/argoproj/argo-cd",
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, "https://github.com/argoproj/argo-cd", created.Repo)
+
+	// There seems to be a race or some other hiccup in the fake K8s clientset used for this test.
+	// Just give it a little time to settle.
+	time.Sleep(1 * time.Second)
+
+	repo, err := db.GetRepository(context.Background(), created.Repo)
+	assert.NoError(t, err)
+	assert.Equal(t, "test-username", repo.Username)
+	assert.Equal(t, "test-password", repo.Password)
+}
+
 func TestCreateExistingRepository(t *testing.T) {
 	clientset := getClientset(map[string]string{
 		"repositories": `- url: https://github.com/argoproj/argocd-example-apps`,
@@ -119,7 +156,7 @@ func TestGetRepository(t *testing.T) {
 		{
 			name:    "TestSecuredRepo",
 			repoURL: "https://secured/repo",
-			want:    &v1alpha1.Repository{Repo: "https://secured/repo", Username: "test-username", Password: "test-password"},
+			want:    &v1alpha1.Repository{Repo: "https://secured/repo", Username: "test-username", Password: "test-password", InheritedCreds: true},
 		},
 	}
 	for _, tt := range tests {

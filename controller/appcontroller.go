@@ -37,7 +37,7 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
-	argocache "github.com/argoproj/argo-cd/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/kube"
@@ -67,7 +67,7 @@ func (a CompareWith) Max(b CompareWith) CompareWith {
 
 // ApplicationController is the controller for application resources.
 type ApplicationController struct {
-	cache                     *argocache.Cache
+	cache                     *appstatecache.Cache
 	namespace                 string
 	kubeClientset             kubernetes.Interface
 	kubectl                   kube.Kubectl
@@ -103,13 +103,14 @@ func NewApplicationController(
 	kubeClientset kubernetes.Interface,
 	applicationClientset appclientset.Interface,
 	repoClientset apiclient.Clientset,
-	argoCache *argocache.Cache,
+	argoCache *appstatecache.Cache,
 	kubectl kube.Kubectl,
 	appResyncPeriod time.Duration,
 	selfHealTimeout time.Duration,
 	metricsPort int,
 	kubectlParallelismLimit int64,
 ) (*ApplicationController, error) {
+	log.Infof("appResyncPeriod=%v", appResyncPeriod)
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
 	ctrl := ApplicationController{
 		cache:                     argoCache,
@@ -555,18 +556,8 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 }
 
 func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condition appv1.ApplicationCondition) {
-	index := -1
-	for i, exiting := range app.Status.Conditions {
-		if exiting.Type == condition.Type {
-			index = i
-			break
-		}
-	}
-	if index > -1 {
-		app.Status.Conditions[index] = condition
-	} else {
-		app.Status.Conditions = append(app.Status.Conditions, condition)
-	}
+	app.Status.SetConditions([]appv1.ApplicationCondition{condition}, map[appv1.ApplicationConditionType]bool{condition.Type: true})
+
 	var patch []byte
 	patch, err := json.Marshal(map[string]interface{}{
 		"status": map[string]interface{}{
@@ -770,7 +761,17 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fallback to full reconciliation")
 		} else {
 			if tree, err := ctrl.getResourceTree(app, managedResources); err != nil {
-				app.Status.Conditions = []appv1.ApplicationCondition{{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()}}
+				app.Status.SetConditions(
+					[]appv1.ApplicationCondition{
+						{
+							Type:    appv1.ApplicationConditionComparisonError,
+							Message: err.Error(),
+						},
+					},
+					map[appv1.ApplicationConditionType]bool{
+						appv1.ApplicationConditionComparisonError: true,
+					},
+				)
 			} else {
 				app.Status.Summary = tree.GetSummary()
 				if err = ctrl.cache.SetAppResourcesTree(app.Name, tree); err != nil {
@@ -821,9 +822,15 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		if project.Spec.SyncWindows.Matches(app).CanSync(false) {
 			syncErrCond := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources)
 			if syncErrCond != nil {
-				app.Status.SetConditions([]appv1.ApplicationCondition{*syncErrCond}, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true})
+				app.Status.SetConditions(
+					[]appv1.ApplicationCondition{*syncErrCond},
+					map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true},
+				)
 			} else {
-				app.Status.SetConditions([]appv1.ApplicationCondition{}, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true})
+				app.Status.SetConditions(
+					[]appv1.ApplicationCondition{},
+					map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true},
+				)
 			}
 		} else {
 			logCtx.Infof("Sync prevented by sync window")

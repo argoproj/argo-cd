@@ -688,3 +688,12 @@ func Test_syncContext_liveObj(t *testing.T) {
 		})
 	}
 }
+
+func Test_syncContext_hasCRDOfGroupKind(t *testing.T) {
+	// target
+	assert.False(t, (&syncContext{compareResult: &comparisonResult{managedResources: []managedResource{{Target: test.NewCRD()}}}}).hasCRDOfGroupKind("", ""))
+	assert.True(t, (&syncContext{compareResult: &comparisonResult{managedResources: []managedResource{{Target: test.NewCRD()}}}}).hasCRDOfGroupKind("argoproj.io", "TestCrd"))
+	// hook
+	assert.False(t, (&syncContext{compareResult: &comparisonResult{hooks: []*unstructured.Unstructured{test.NewCRD()}}}).hasCRDOfGroupKind("", ""))
+	assert.True(t, (&syncContext{compareResult: &comparisonResult{hooks: []*unstructured.Unstructured{test.NewCRD()}}}).hasCRDOfGroupKind("argoproj.io", "TestCrd"))
+}
