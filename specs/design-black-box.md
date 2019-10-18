@@ -26,25 +26,44 @@ Flux additionally provides the ability to monitor Docker registry and automatica
 be a part of GitOps engine. So it is proposed to keep the feature only in Flux for now and then work together to move it into a separate component that would work for both Flux
 and Argo CD.
 
-### Implementation Details/Notes/Constraints
-
-The proposed approach is based on the assumption that Argo CD engine is flexible enough to cover all Flux use-cases and can be easily integrated into Argo CD. This assumption might
-be wrong. So if we are missing some important Flux feature the approach might be no feasible.
-
-### Risks and Mitigations
+### Hypothesis and assumptions
 
 The proposed solution is based on the assumption that despite implementation differences the core functionality of Argo CD and Flux behaves in the same way. Both projects
 ultimately extract the set of manifests from Git and use "kubectl apply" to change the cluster state. The minor differences are expected but we can resolve them by introducing new
 knobs.
 
-However, there is a risk that there will be too many differences and it might be not feasible to support all of them. To mitigate the risk of let's start from POC implementation
-to catch possible blockers earlier. 
+Also, the proposed approach is based on the assumption that Argo CD engine is flexible enough to cover all Flux use-cases, reproduce Flux's behavior with minor differences and can be easily integrated into Argo CD.
 
-### GitOps Engine POC
+However, there is a risk that there will be too many differences and it might be not feasible to support all of them. To get early feedback, we will start with a Proof-of-Concept 
+(PoC from now on) implementation which will serve as an experiment to assess the feasibility of the approach.
 
-POC deliverables are:
+### Acceptance criteria
 
-- All POC changes are in separate branches.
+To consider the PoC successful (and with the exception of features excluded from the PoC to save time), 
+all the following must hold true:
+1. All the Flux unit and end-to-end tests must pass. The existing tests are limited, so we may decide to include additional ones.
+2. The UX of Flux must remain unchanged. That includes:
+   - The flags of `fluxd` and `fluxctl` must  be respected and can be used in the same way as before
+     resulting in the same configuration behavioural changes.
+   - Flux's API must remain unchanged. In particular, the web API (used by fluxctl) and the websocket API (e.g. used to 
+     communicate with Weave Cloud) must work without changes.
+3. Flux's writing behaviour on Git and Kubernetes must be identical. In particular:
+   - Flux+GitEngine should make changes in Git if and only if Flux without GitEngine would had done it,
+     in the same way (same content) and in the same situations
+   - Flux+GitEngine should add and update Kubernetes resources if and only if Flux without GitEngine would had done, 
+     in the same way (same content) and in the same situations
+
+Unfortunately, there isn't a straightforward way to decidedly check for (3).
+
+Additionally, there must be a clear way forward (in the shape of well-defined steps) 
+for the features not covered by the PoC to work (complying with the points above) int he final GitOps  
+Engine.
+
+### GitOps Engine PoC
+
+The PoC deliverables are:
+
+- All PoC changes are in separate branches.
 - Argo CD controller will be moved to https://github.com/argoproj/gitops-engine.
 - Flux will import GitOps engine component from the https://github.com/argoproj/gitops-engine repository and use it to perform cluster state syncing.
 - The flux installation and fluxctl behavior will remain the same other than using GitOps engine internally. That means there will be no creation of Application CRD or Argo CD
