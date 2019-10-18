@@ -235,7 +235,7 @@ func (sc *syncContext) sync() {
 	}) {
 		if task.isHook() {
 			// update the hook's result
-			operationState, message := getOperationPhase(task.liveObj)
+			operationState, message := getOperationPhase(task.liveObj, sc.resourceOverrides)
 			sc.setResourceResult(task, "", operationState, message)
 
 			// maybe delete the hook

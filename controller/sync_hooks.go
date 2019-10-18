@@ -15,7 +15,7 @@ import (
 )
 
 // getOperationPhase returns a hook status from an _live_ unstructured object
-func getOperationPhase(hook *unstructured.Unstructured) (operation v1alpha1.OperationPhase, message string) {
+func getOperationPhase(hook *unstructured.Unstructured, resourceOverrides map[string]appv1.ResourceOverride) (operation v1alpha1.OperationPhase, message string) {
 	gvk := hook.GroupVersionKind()
 	if isBatchJob(gvk) {
 		return getStatusFromBatchJob(hook)
@@ -24,7 +24,13 @@ func getOperationPhase(hook *unstructured.Unstructured) (operation v1alpha1.Oper
 	} else if isPod(gvk) {
 		return getStatusFromPod(hook)
 	} else {
-		return v1alpha1.OperationSucceeded, fmt.Sprintf("%s created", hook.GetName())
+		// TODO users should opt-in to hook resource health check via annotation
+		checkHealth = true
+		if checkHealth {
+			return getResourceHealth(hook, resourceOverrides)
+		} else {
+			return v1alpha1.OperationSucceeded, fmt.Sprintf("%s created", hook.GetName())
+		}
 	}
 }
 
@@ -35,6 +41,31 @@ func isRunnable(gvk schema.GroupVersionKind) bool {
 
 func isBatchJob(gvk schema.GroupVersionKind) bool {
 	return gvk.Group == "batch" && gvk.Kind == "Job"
+}
+
+func getResourceHealth(hook *unstructured.Unstructured, resourceOverrides map[string]appv1.ResourceOverride) (operation v1alpha.OperationPhase, message string) {
+	health, err := health.GetResourceHealth(hook, resourceOverrides)
+	if err != nil {
+		return v1alpha1.OperationError, err.Error()
+	}
+
+	switch health.Status {
+	case v1alpha1.HealthStatusProgressing:
+		return v1alpha.OperationRunning, health.Message
+	case v1alpha1.HealthStatusHealthy:
+		return v1alpha.OperationSucceeded, health.Message
+	case v1alpha1.HealthStatusDegraded:
+		fallthrough
+	case v1alpha1.HealthStatusMissing:
+		fallthrough
+	case v1alpha1.HealthStatusUnknown:
+		fallthrough
+	case v1alpha1.HealthStatusSuspended:
+		fallthrough
+	case v1alpha1.HealthStatusMissing:
+		return v1alpha.OperationFailed, health.Message
+	}
+
 }
 
 // TODO this is a copy-and-paste of health.getJobHealth(), refactor out?
