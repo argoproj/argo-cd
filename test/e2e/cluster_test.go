@@ -12,8 +12,8 @@ import (
 
 func TestClusterList(t *testing.T) {
 	output := FailOnErr(RunCli("cluster", "list")).(string)
-	assert.Equal(t, fmt.Sprintf(`SERVER                          NAME  VERSION  STATUS      MESSAGE
-https://kubernetes.default.svc        %v     Successful  `, GetVersions().ServerVersion), output)
+	assert.Equal(t, fmt.Sprintf(`CLUSTER                         NAME        URL                             VERSION  STATUS      MESSAGE
+https://kubernetes.default.svc  in-cluster  https://kubernetes.default.svc  %v     Successful  `, GetVersions().ServerVersion), output)
 }
 
 func TestClusterGet(t *testing.T) {
@@ -25,7 +25,8 @@ connectionState:
   attemptedAt: null
   message: ""
   status: Successful
-name: ""
+name: in-cluster
 server: https://kubernetes.default.svc
-serverVersion: "%v"`, GetVersions().ServerVersion), output)
+serverVersion: "%v"
+url: https://kubernetes.default.svc`, GetVersions().ServerVersion), output)
 }
