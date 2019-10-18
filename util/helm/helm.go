@@ -12,7 +12,6 @@ import (
 
 	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/ghodss/yaml"
-	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/util/config"
 )
@@ -141,17 +140,14 @@ func (h *helm) GetParameters(valuesFiles []string) (map[string]string, error) {
 func flatVals(input interface{}, output map[string]string, prefixes ...string) {
 	switch i := input.(type) {
 	case map[string]interface{}:
-		log.WithField("i", i).Info("map")
 		for k, v := range i {
 			flatVals(v, output, append(prefixes, k)...)
 		}
 	case []interface{}:
-		log.WithField("i", i).Info("array")
 		for j, v := range i {
 			flatVals(v, output, append(prefixes[0:len(prefixes)-1], fmt.Sprintf("%s[%v]", prefixes[len(prefixes)-1], j))...)
 		}
 	default:
-		log.WithField("i", i).Info("default")
 		output[strings.Join(prefixes, ".")] = fmt.Sprintf("%v", i)
 	}
 }
