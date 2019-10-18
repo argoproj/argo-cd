@@ -42,6 +42,9 @@ function loadApplications(selector: string): Observable<models.Application[]> {
                     return {applications, updated: false};
                 }
                 switch (appChange.type) {
+                    // Do nothing on KEEPALIVE
+                    case 'KEEPALIVE':
+                        break;
                     case 'DELETED':
                         if (index > -1) {
                             applications.splice(index, 1);

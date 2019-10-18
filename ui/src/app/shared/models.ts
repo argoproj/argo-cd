@@ -110,7 +110,7 @@ export interface Application {
     operation?: Operation;
 }
 
-type WatchType = 'ADDED' | 'MODIFIED' | 'DELETED' | 'ERROR';
+type WatchType = 'ADDED' | 'MODIFIED' | 'DELETED' | 'ERROR' | 'KEEPALIVE';
 
 export interface ApplicationWatchEvent {
     type: WatchType;
