@@ -537,6 +537,10 @@ spec:
                           description: NamePrefix is a prefix appended to resources
                             for kustomize apps
                           type: string
+                        nameSuffix:
+                          description: NameSuffix is a suffix appended to resources
+                            for kustomize apps
+                          type: string
                       type: object
                     path:
                       description: Path is a directory path within the Git repository
@@ -777,6 +781,10 @@ spec:
                       description: NamePrefix is a prefix appended to resources for
                         kustomize apps
                       type: string
+                    nameSuffix:
+                      description: NameSuffix is a suffix appended to resources for
+                        kustomize apps
+                      type: string
                   type: object
                 path:
                   description: Path is a directory path within the Git repository
@@ -838,6 +846,11 @@ spec:
             conditions:
               items:
                 properties:
+                  lastTransitionTime:
+                    description: LastTransitionTime is the time the condition was
+                      first observed.
+                    format: date-time
+                    type: string
                   message:
                     description: Message contains human-readable message indicating
                       details about condition
@@ -986,6 +999,10 @@ spec:
                             type: array
                           namePrefix:
                             description: NamePrefix is a prefix appended to resources
+                              for kustomize apps
+                            type: string
+                          nameSuffix:
+                            description: NameSuffix is a suffix appended to resources
                               for kustomize apps
                             type: string
                         type: object
@@ -1211,6 +1228,10 @@ spec:
                                   type: array
                                 namePrefix:
                                   description: NamePrefix is a prefix appended to
+                                    resources for kustomize apps
+                                  type: string
+                                nameSuffix:
+                                  description: NameSuffix is a suffix appended to
                                     resources for kustomize apps
                                   type: string
                               type: object
@@ -1463,6 +1484,10 @@ spec:
                               description: NamePrefix is a prefix appended to resources
                                 for kustomize apps
                               type: string
+                            nameSuffix:
+                              description: NameSuffix is a suffix appended to resources
+                                for kustomize apps
+                              type: string
                           type: object
                         path:
                           description: Path is a directory path within the Git repository
@@ -1691,6 +1716,10 @@ spec:
                               type: array
                             namePrefix:
                               description: NamePrefix is a prefix appended to resources
+                                for kustomize apps
+                              type: string
+                            nameSuffix:
+                              description: NameSuffix is a suffix appended to resources
                                 for kustomize apps
                               type: string
                           type: object

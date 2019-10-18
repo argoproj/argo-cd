@@ -16,7 +16,7 @@ func TestKustomize2AppSource(t *testing.T) {
 
 	patchLabelMatchesFor := func(kind string) func(app *Application) {
 		return func(app *Application) {
-			name := "k2-patched-guestbook-ui"
+			name := "k2-patched-guestbook-ui-deploy1"
 			labelValue, err := fixture.Run(
 				"", "kubectl", "-n="+fixture.DeploymentNamespace(),
 				"get", kind, name,
@@ -29,6 +29,7 @@ func TestKustomize2AppSource(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		NamePrefix("k2-").
+		NameSuffix("-deploy1").
 		When().
 		Create().
 		Then().
@@ -119,7 +120,7 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 func TestKustomizeSSHRemoteBase(t *testing.T) {
 	Given(t).
 		// not the best test, as we should have two remote repos both with the same SSH private key
-		SSHInsecureRepoURLAdded().
+		SSHInsecureRepoURLAdded(true).
 		RepoURLType(fixture.RepoURLTypeSSH).
 		Path("ssh-kustomize-base").
 		When().
@@ -178,5 +179,18 @@ func TestKustomizeImages(t *testing.T) {
 		Then().
 		And(func(app *Application) {
 			assert.Contains(t, app.Spec.Source.Kustomize.Images, KustomizeImage("alpine:bar"))
+		})
+}
+
+// make sure we we can invoke the CLI to set namesuffix
+func TestKustomizeNameSuffix(t *testing.T) {
+	Given(t).
+		Path("kustomize").
+		When().
+		Create().
+		AppSet("--namesuffix", "-suf").
+		Then().
+		And(func(app *Application) {
+			assert.Contains(t, app.Spec.Source.Kustomize.NameSuffix, "-suf")
 		})
 }

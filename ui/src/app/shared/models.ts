@@ -167,6 +167,7 @@ export interface ApplicationSourceHelm {
 
 export interface ApplicationSourceKustomize {
     namePrefix: string;
+    nameSuffix: string;
     images: string[];
 }
 
@@ -399,6 +400,13 @@ export interface Repository {
 }
 
 export interface RepositoryList extends ItemsList<Repository> { }
+
+export interface RepoCreds {
+    url: string;
+    username?: string;
+}
+
+export interface RepoCredsList extends ItemsList<RepoCreds> { }
 
 export interface Cluster {
     name: string;
