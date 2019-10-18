@@ -411,7 +411,7 @@ export interface RepoCredsList extends ItemsList<RepoCreds> { }
 export interface Cluster {
     server: string;
     name: string;
-    url: string;
+    url?: string;
     connectionState: ConnectionState;
     serverVersion: string;
 }

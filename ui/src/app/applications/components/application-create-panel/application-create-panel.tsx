@@ -2,7 +2,7 @@ import {Checkbox, DataLoader, DropDownMenu, FormField, Select} from 'argo-ui';
 import * as deepMerge from 'deepmerge';
 import * as React from 'react';
 import {FieldApi, Form, FormApi, FormField as ReactFormField, Text} from 'react-form';
-import {AutocompleteField, YamlEditor} from '../../../shared/components';
+import {AutocompleteField, clusterTitle, YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import { ApplicationParameters } from '../application-parameters/application-parameters';
@@ -107,7 +107,7 @@ export const ApplicationCreatePanel = (props: {
             <DataLoader key='creation-deps' load={() => Promise.all([
                 services.projects.list().then((projects) => projects.map((proj) => proj.metadata.name).sort()),
                 services.clusters.list().then((clusters) => clusters
-                    .map((cluster) => ({label: cluster.name, value: cluster.server}))
+                    .map((cluster) => ({label: clusterTitle(cluster), value: cluster.server}))
                     .sort((first, second) => first.label.localeCompare(second.label)),
                 ),
                 services.repos.list(),

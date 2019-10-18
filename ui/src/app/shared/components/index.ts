@@ -5,6 +5,7 @@ export * from './expandable/expandable';
 export * from './page';
 export * from './checkbox/checkbox-field';
 export * from './colors';
+export * from './cluster';
 export * from './connection-state-icon';
 export * from './query';
 export * from './events-list/events-list';
