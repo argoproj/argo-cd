@@ -15,7 +15,7 @@ import (
 )
 
 // getOperationPhase returns a hook status from an _live_ unstructured object
-func getOperationPhase(hook *unstructured.Unstructured, resourceOverrides map[string]appv1.ResourceOverride) (operation v1alpha1.OperationPhase, message string) {
+func getOperationPhase(hook *unstructured.Unstructured, resourceOverrides map[string]v1alpha1.ResourceOverride) (operation v1alpha1.OperationPhase, message string) {
 	gvk := hook.GroupVersionKind()
 	if isBatchJob(gvk) {
 		return getStatusFromBatchJob(hook)
@@ -25,7 +25,7 @@ func getOperationPhase(hook *unstructured.Unstructured, resourceOverrides map[st
 		return getStatusFromPod(hook)
 	} else {
 		// TODO users should opt-in to hook resource health check via annotation
-		checkHealth = true
+		checkHealth := true
 		if checkHealth {
 			return getResourceHealth(hook, resourceOverrides)
 		} else {
@@ -43,7 +43,7 @@ func isBatchJob(gvk schema.GroupVersionKind) bool {
 	return gvk.Group == "batch" && gvk.Kind == "Job"
 }
 
-func getResourceHealth(hook *unstructured.Unstructured, resourceOverrides map[string]appv1.ResourceOverride) (operation v1alpha.OperationPhase, message string) {
+func getResourceHealth(hook *unstructured.Unstructured, resourceOverrides map[string]v1alpha1.ResourceOverride) (operation v1alpha1.OperationPhase, message string) {
 	health, err := health.GetResourceHealth(hook, resourceOverrides)
 	if err != nil {
 		return v1alpha1.OperationError, err.Error()
@@ -51,9 +51,9 @@ func getResourceHealth(hook *unstructured.Unstructured, resourceOverrides map[st
 
 	switch health.Status {
 	case v1alpha1.HealthStatusProgressing:
-		return v1alpha.OperationRunning, health.Message
+		return v1alpha1.OperationRunning, health.Message
 	case v1alpha1.HealthStatusHealthy:
-		return v1alpha.OperationSucceeded, health.Message
+		return v1alpha1.OperationSucceeded, health.Message
 	case v1alpha1.HealthStatusDegraded:
 		fallthrough
 	case v1alpha1.HealthStatusMissing:
@@ -61,9 +61,9 @@ func getResourceHealth(hook *unstructured.Unstructured, resourceOverrides map[st
 	case v1alpha1.HealthStatusUnknown:
 		fallthrough
 	case v1alpha1.HealthStatusSuspended:
-		fallthrough
-	case v1alpha1.HealthStatusMissing:
-		return v1alpha.OperationFailed, health.Message
+		return v1alpha1.OperationFailed, health.Message
+	default:
+		return v1alpha1.OperationRunning, health.Message
 	}
 
 }
