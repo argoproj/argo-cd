@@ -523,7 +523,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	}
 
 	keepalive := true
-	for keepalive == true {
+	for keepalive {
 		w, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Watch(listOpts)
 		if err != nil {
 			return err
