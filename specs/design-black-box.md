@@ -35,7 +35,7 @@ knobs.
 Also, the proposed approach is based on the assumption that Argo CD engine is flexible enough to cover all Flux use-cases, reproduce Flux's behavior with minor differences and can be easily integrated into Argo CD.
 
 However, there is a risk that there will be too many differences and it might be not feasible to support all of them. To get early feedback, we will start with a Proof-of-Concept 
-(PoC from now on) implementation which will serve as an experiment to asses the feasibility of the approach.
+(PoC from now on) implementation which will serve as an experiment to assess the feasibility of the approach.
 
 ### Acceptance criteria
 
