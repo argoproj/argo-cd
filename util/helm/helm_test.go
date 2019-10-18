@@ -164,21 +164,3 @@ func TestVersion(t *testing.T) {
 	re := regexp.MustCompile(SemverRegexValidation)
 	assert.True(t, re.MatchString(ver))
 }
-
-func Test_flatVals(t *testing.T) {
-	input := map[string]interface{}{
-		"foo": map[string]interface{}{
-			"bar": []map[string]string{
-				{"baz": "qux"},
-			},
-		},
-	}
-	output := map[string]string{}
-
-	flatVals(input, output)
-
-	assert.Equal(t, map[string]string{
-		"foo.bar[0].baz": "qux",
-	}, output)
-
-}

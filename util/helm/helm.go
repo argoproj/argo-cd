@@ -140,9 +140,7 @@ func (h *helm) GetParameters(valuesFiles []string) (map[string]string, error) {
 
 func flatVals(input map[string]interface{}, output map[string]string, prefixes ...string) {
 	for key, val := range input {
-		if arr, ok := val.([]map[string]interface{}); ok{
-			
-		} else if subMap, ok := val.(map[string]interface{}); ok {
+		if subMap, ok := val.(map[string]interface{}); ok {
 			flatVals(subMap, output, append(prefixes, fmt.Sprintf("%v", key))...)
 		} else {
 			output[strings.Join(append(prefixes, fmt.Sprintf("%v", key)), ".")] = fmt.Sprintf("%v", val)
