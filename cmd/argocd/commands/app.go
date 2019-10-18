@@ -1289,7 +1289,12 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   argocd app sync my-app other-app
 
   # Sync apps by label, in this example we sync apps that are children of another app (aka app-of-apps)
-  argocd app sync -l app.kubernetes.io/instance=my-app`,
+  argocd app sync -l app.kubernetes.io/instance=my-app
+
+  # Sync a specific resource
+  # Resource should be formatted as GROUP:KIND:NAME. If no GROUP is specified then :KIND:NAME
+  argocd app sync my-app --resource :Service:my-service
+  argocd app sync my-app --resource argoproj.io:Rollout:my-rollout`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 && selector == "" {
 				c.HelpFunc()(c, args)
@@ -1616,7 +1621,7 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 		if len(selectedResources) > 0 {
 			selectedResourcesAreReady = true
 			for _, state := range getResourceStates(app, selectedResources) {
-				resourceIsReady := checkResourceStatus(watchSync, watchHealth, false, watchSuspended, state.Health, state.Status, nil)
+				resourceIsReady := checkResourceStatus(watchSync, watchHealth, watchOperation, watchSuspended, state.Health, state.Status, appEvent.Application.Operation)
 				if !resourceIsReady {
 					selectedResourcesAreReady = false
 					break
