@@ -171,14 +171,14 @@ func Test_flatVals(t *testing.T) {
 
 		flatVals(map[string]interface{}{"foo": map[string]interface{}{"bar": "baz"}}, output)
 
-		assert.Equal(t, map[string]string{"foo.bar": "baz",}, output)
+		assert.Equal(t, map[string]string{"foo.bar": "baz"}, output)
 	})
 	t.Run("Array", func(t *testing.T) {
 		output := map[string]string{}
 
 		flatVals(map[string]interface{}{"foo": []interface{}{"bar"},}, output)
 
-		assert.Equal(t, map[string]string{"foo[0]": "bar",}, output)
+		assert.Equal(t, map[string]string{"foo[0]": "bar"}, output)
 	})
 	t.Run("Val", func(t *testing.T) {
 		output := map[string]string{}
