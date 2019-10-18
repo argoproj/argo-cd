@@ -68,7 +68,7 @@ func TestJsonnetTlaParameterAppliedCorrectly(t *testing.T) {
 
 			deployment := resources[index]
 			assert.Equal(t, "testing-tla", deployment.GetName())
-			assert.Equal(t, int64(3), *kube.GetDeploymentReplicas(deployment))
+			assert.Equal(t, int64(0), *kube.GetDeploymentReplicas(deployment))
 		})
 }
 
