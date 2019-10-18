@@ -114,7 +114,7 @@ func TestResourceActionWildcards(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	policy := `
-p,alice,*,get,foo/obj,allow
+p, alice, *, get, foo/obj, allow
 p, bob, repositories, *, foo/obj, allow
 p, cathy, *, *, foo/obj, allow
 p, dave, applications, get, foo/obj, allow
