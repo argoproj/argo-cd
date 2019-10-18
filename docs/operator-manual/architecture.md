@@ -30,5 +30,5 @@ manifests when provided the following inputs:
 The application controller is a Kubernetes controller which continuously monitors running
 applications and compares the current, live state against the desired target state (as specified in
 the repo). It detects `OutOfSync` application state and optionally takes corrective action. It
-is responsible for invoking any user-defined hooks for lifcecycle events (PreSync, Sync, PostSync)
+is responsible for invoking any user-defined hooks for lifecycle events (PreSync, Sync, PostSync)
 

@@ -2,7 +2,9 @@ package ksonnet
 
 import (
 	"encoding/json"
+	"fmt"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"testing"
 
@@ -43,4 +45,13 @@ func TestShow(t *testing.T) {
 		assert.Nil(t, err)
 		log.Infof("%v", string(jsonBytes))
 	}
+}
+
+func TestVersion(t *testing.T) {
+	ver, err := Version()
+	assert.NoError(t, err)
+	SemverRegexValidation := `^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$`
+	re := regexp.MustCompile(SemverRegexValidation)
+	fmt.Println(ver)
+	assert.True(t, re.MatchString(ver))
 }

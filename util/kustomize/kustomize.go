@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -53,7 +54,15 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 
 	if opts != nil {
 		if opts.NamePrefix != "" {
-			cmd := exec.Command("kustomize", "edit", "set", "nameprefix", opts.NamePrefix)
+			cmd := exec.Command("kustomize", "edit", "set", "nameprefix", "--", opts.NamePrefix)
+			cmd.Dir = k.path
+			_, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+		if opts.NameSuffix != "" {
+			cmd := exec.Command("kustomize", "edit", "set", "namesuffix", "--", opts.NameSuffix)
 			cmd.Dir = k.path
 			_, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
 			if err != nil {
@@ -169,6 +178,24 @@ func IsKustomization(path string) bool {
 		}
 	}
 	return false
+}
+
+func Version() (string, error) {
+	cmd := exec.Command("kustomize", "version")
+	out, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
+	if err != nil {
+		return "", fmt.Errorf("could not get kustomize version: %s", err)
+	}
+	re := regexp.MustCompile(`KustomizeVersion:([a-zA-Z0-9\.]+)`)
+	matches := re.FindStringSubmatch(out)
+	if len(matches) != 2 {
+		return "", errors.New("could not get kustomize version")
+	}
+	version := matches[1]
+	if version[0] != 'v' {
+		version = "v" + version
+	}
+	return strings.TrimSpace(version), nil
 }
 
 func getImageParameters(objs []*unstructured.Unstructured) []Image {

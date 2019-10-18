@@ -14,3 +14,7 @@ func TestAnnotate(t *testing.T) {
 	assert.Equal(t, "bar", obj.GetAnnotations()["foo"])
 	assert.Equal(t, "qux", obj.GetAnnotations()["baz"])
 }
+
+func TestNewCRD(t *testing.T) {
+	assert.Equal(t, "CustomResourceDefinition", NewCRD().GetKind())
+}

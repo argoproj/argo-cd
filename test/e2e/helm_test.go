@@ -1,16 +1,20 @@
 package e2e
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/argoproj/argo-cd/errors"
+	. "github.com/argoproj/argo-cd/errors"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
-	"github.com/argoproj/argo-cd/test/fixture/testrepos"
+	"github.com/argoproj/argo-cd/test/e2e/fixture/repos"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -60,20 +64,6 @@ func TestHelmHookDeletePolicy(t *testing.T) {
 		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "hook" }))
 }
 
-func TestHelmCrdInstallIsCreated(t *testing.T) {
-	Given(t).
-		Path("hook").
-		When().
-		PatchFile("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"helm.sh/hook": "crd-install"}}]`).
-		Create().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(HealthIs(HealthStatusHealthy)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(ResourceResultNumbering(2))
-}
-
 func TestDeclarativeHelm(t *testing.T) {
 	Given(t).
 		Path("helm").
@@ -94,18 +84,15 @@ func TestDeclarativeHelmInvalidValuesFile(t *testing.T) {
 		Then().
 		Expect(HealthIs(HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
-		Expect(Condition(ApplicationConditionComparisonError, "open does-not-exist-values.yaml: no such file or directory"))
+		Expect(Condition(ApplicationConditionComparisonError, "does-not-exist-values.yaml: no such file or directory"))
 }
 
 func TestHelmRepo(t *testing.T) {
 	Given(t).
-		Repos(settings.RepoCredentials{
-			Type: "helm",
-			Name: "testrepo",
-			URL:  testrepos.HelmTestRepo,
-		}).
-		RepoURLType(fixture.RepoURLTypeHelm).
-		Path("helm").
+		CustomCACertAdded().
+		HelmRepoAdded("").
+		RepoURLType(RepoURLTypeHelm).
+		Chart("helm").
 		Revision("1.0.0").
 		When().
 		Create().
@@ -129,6 +116,19 @@ func TestHelmValues(t *testing.T) {
 		And(func(app *Application) {
 			assert.Equal(t, []string{"foo.yml"}, app.Spec.Source.Helm.ValueFiles)
 		})
+}
+
+func TestHelmCrdHook(t *testing.T) {
+	Given(t).
+		Path("helm-crd").
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(ResourceResultNumbering(2))
 }
 
 func TestHelmReleaseName(t *testing.T) {
@@ -165,4 +165,64 @@ func TestHelmSetString(t *testing.T) {
 		And(func(app *Application) {
 			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "baz", ForceString: true}}, app.Spec.Source.Helm.Parameters)
 		})
+}
+
+// make sure kube-version gets passed down to resources
+func TestKubeVersion(t *testing.T) {
+	Given(t).
+		Path("helm-kube-version").
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			kubeVersion := FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map",
+				"-o", "jsonpath={.data.kubeVersion}")).(string)
+			// Capabiliets.KubeVersion defaults to 1.9.0, we assume here you are running a later version
+			assert.Equal(t, GetVersions().ServerVersion.Format("v%s.%s.0"), kubeVersion)
+		})
+}
+
+func TestHelmWithDependencies(t *testing.T) {
+	testHelmWithDependencies(t, false)
+}
+
+func TestHelmWithDependenciesLegacyRepo(t *testing.T) {
+	testHelmWithDependencies(t, true)
+}
+
+func testHelmWithDependencies(t *testing.T, legacyRepo bool) {
+	ctx := Given(t).CustomCACertAdded()
+	if legacyRepo {
+		ctx.And(func() {
+			errors.FailOnErr(fixture.Run("", "kubectl", "create", "secret", "generic", "helm-repo",
+				"-n", fixture.ArgoCDNamespace,
+				fmt.Sprintf("--from-file=certSecret=%s", repos.CertPath),
+				fmt.Sprintf("--from-file=keySecret=%s", repos.CertKeyPath),
+				fmt.Sprintf("--from-literal=username=%s", GitUsername),
+				fmt.Sprintf("--from-literal=password=%s", GitPassword),
+			))
+			errors.FailOnErr(fixture.KubeClientset.CoreV1().Secrets(fixture.ArgoCDNamespace).Patch(
+				"helm-repo", types.MergePatchType, []byte(`{"metadata": { "labels": {"e2e.argoproj.io": "true"} }}`)))
+
+			fixture.SetHelmRepos(settings.HelmRepoCredentials{
+				URL:            RepoURL(RepoURLTypeHelm),
+				Name:           "custom-repo",
+				KeySecret:      &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "keySecret"},
+				CertSecret:     &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "certSecret"},
+				UsernameSecret: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "username"},
+				PasswordSecret: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "password"},
+			})
+		})
+	} else {
+		ctx = ctx.HelmRepoAdded("custom-repo")
+	}
+
+	ctx.Path("helm-with-dependencies").
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }

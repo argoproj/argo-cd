@@ -420,6 +420,9 @@ spec:
                     This is typically set in a Rollback operation and nil during a
                     Sync operation
                   properties:
+                    chart:
+                      description: Chart is a Helm chart name
+                      type: string
                     directory:
                       description: Directory holds path/directory specific options
                       properties:
@@ -534,10 +537,13 @@ spec:
                           description: NamePrefix is a prefix appended to resources
                             for kustomize apps
                           type: string
+                        nameSuffix:
+                          description: NameSuffix is a suffix appended to resources
+                            for kustomize apps
+                          type: string
                       type: object
                     path:
-                      description: Path is a directory path within the repository
-                        containing a
+                      description: Path is a directory path within the Git repository
                       type: string
                     plugin:
                       description: ConfigManagementPlugin holds config management
@@ -571,7 +577,6 @@ spec:
                       type: string
                   required:
                   - repoURL
-                  - path
                   type: object
                 syncStrategy:
                   description: SyncStrategy describes how to perform the sync
@@ -634,7 +639,6 @@ spec:
                   namespace:
                     type: string
                 required:
-                - group
                 - kind
                 - jsonPointers
                 type: object
@@ -661,6 +665,9 @@ spec:
               description: Source is a reference to the location ksonnet application
                 definition
               properties:
+                chart:
+                  description: Chart is a Helm chart name
+                  type: string
                 directory:
                   description: Directory holds path/directory specific options
                   properties:
@@ -774,10 +781,13 @@ spec:
                       description: NamePrefix is a prefix appended to resources for
                         kustomize apps
                       type: string
+                    nameSuffix:
+                      description: NameSuffix is a suffix appended to resources for
+                        kustomize apps
+                      type: string
                   type: object
                 path:
-                  description: Path is a directory path within the repository containing
-                    a
+                  description: Path is a directory path within the Git repository
                   type: string
                 plugin:
                   description: ConfigManagementPlugin holds config management plugin
@@ -809,7 +819,6 @@ spec:
                   type: string
               required:
               - repoURL
-              - path
               type: object
             syncPolicy:
               description: SyncPolicy controls when a sync will be performed
@@ -837,6 +846,11 @@ spec:
             conditions:
               items:
                 properties:
+                  lastTransitionTime:
+                    description: LastTransitionTime is the time the condition was
+                      first observed.
+                    format: date-time
+                    type: string
                   message:
                     description: Message contains human-readable message indicating
                       details about condition
@@ -869,6 +883,9 @@ spec:
                     type: string
                   source:
                     properties:
+                      chart:
+                        description: Chart is a Helm chart name
+                        type: string
                       directory:
                         description: Directory holds path/directory specific options
                         properties:
@@ -984,10 +1001,13 @@ spec:
                             description: NamePrefix is a prefix appended to resources
                               for kustomize apps
                             type: string
+                          nameSuffix:
+                            description: NameSuffix is a suffix appended to resources
+                              for kustomize apps
+                            type: string
                         type: object
                       path:
-                        description: Path is a directory path within the repository
-                          containing a
+                        description: Path is a directory path within the Git repository
                         type: string
                       plugin:
                         description: ConfigManagementPlugin holds config management
@@ -1021,7 +1041,6 @@ spec:
                         type: string
                     required:
                     - repoURL
-                    - path
                     type: object
                 required:
                 - revision
@@ -1086,6 +1105,9 @@ spec:
                             in the application. This is typically set in a Rollback
                             operation and nil during a Sync operation
                           properties:
+                            chart:
+                              description: Chart is a Helm chart name
+                              type: string
                             directory:
                               description: Directory holds path/directory specific
                                 options
@@ -1208,10 +1230,14 @@ spec:
                                   description: NamePrefix is a prefix appended to
                                     resources for kustomize apps
                                   type: string
+                                nameSuffix:
+                                  description: NameSuffix is a suffix appended to
+                                    resources for kustomize apps
+                                  type: string
                               type: object
                             path:
-                              description: Path is a directory path within the repository
-                                containing a
+                              description: Path is a directory path within the Git
+                                repository
                               type: string
                             plugin:
                               description: ConfigManagementPlugin holds config management
@@ -1245,7 +1271,6 @@ spec:
                               type: string
                           required:
                           - repoURL
-                          - path
                           type: object
                         syncStrategy:
                           description: SyncStrategy describes how to perform the sync
@@ -1338,6 +1363,9 @@ spec:
                       description: Source records the application source information
                         of the sync, used for comparing auto-sync
                       properties:
+                        chart:
+                          description: Chart is a Helm chart name
+                          type: string
                         directory:
                           description: Directory holds path/directory specific options
                           properties:
@@ -1456,10 +1484,13 @@ spec:
                               description: NamePrefix is a prefix appended to resources
                                 for kustomize apps
                               type: string
+                            nameSuffix:
+                              description: NameSuffix is a suffix appended to resources
+                                for kustomize apps
+                              type: string
                           type: object
                         path:
-                          description: Path is a directory path within the repository
-                            containing a
+                          description: Path is a directory path within the Git repository
                           type: string
                         plugin:
                           description: ConfigManagementPlugin holds config management
@@ -1493,7 +1524,6 @@ spec:
                           type: string
                       required:
                       - repoURL
-                      - path
                       type: object
                   required:
                   - revision
@@ -1567,6 +1597,9 @@ spec:
                       type: object
                     source:
                       properties:
+                        chart:
+                          description: Chart is a Helm chart name
+                          type: string
                         directory:
                           description: Directory holds path/directory specific options
                           properties:
@@ -1685,10 +1718,13 @@ spec:
                               description: NamePrefix is a prefix appended to resources
                                 for kustomize apps
                               type: string
+                            nameSuffix:
+                              description: NameSuffix is a suffix appended to resources
+                                for kustomize apps
+                              type: string
                           type: object
                         path:
-                          description: Path is a directory path within the repository
-                            containing a
+                          description: Path is a directory path within the Git repository
                           type: string
                         plugin:
                           description: ConfigManagementPlugin holds config management
@@ -1722,7 +1758,6 @@ spec:
                           type: string
                       required:
                       - repoURL
-                      - path
                       type: object
                   required:
                   - source

@@ -26,21 +26,36 @@ type ArgoDB interface {
 
 	// ListRepositories lists repositories
 	ListRepositories(ctx context.Context) ([]*appv1.Repository, error)
+
 	// CreateRepository creates a repository
 	CreateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
 	// GetRepository returns a repository by URL
 	GetRepository(ctx context.Context, url string) (*appv1.Repository, error)
 	// UpdateRepository updates a repository
 	UpdateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
-	// DeleteRepository updates a repository
-	DeleteRepository(ctx context.Context, url string) error
+	// DeleteRepository deletes a repository from config
+	DeleteRepository(ctx context.Context, name string) error
 
-	// ListRepoCertificates lists all configured certificates
+	// ListRepoCredentials list all repo credential sets URL patterns
+	ListRepositoryCredentials(ctx context.Context) ([]string, error)
+	// GetRepoCredentials gets repo credentials for given URL
+	GetRepositoryCredentials(ctx context.Context, name string) (*appv1.RepoCreds, error)
+	// CreateRepoCredentials creates a repository credential set
+	CreateRepositoryCredentials(ctx context.Context, r *appv1.RepoCreds) (*appv1.RepoCreds, error)
+	// UpdateRepoCredentials updates a repository credential set
+	UpdateRepositoryCredentials(ctx context.Context, r *appv1.RepoCreds) (*appv1.RepoCreds, error)
+	// DeleteRepoCredentials deletes a repository credential set from config
+	DeleteRepositoryCredentials(ctx context.Context, name string) error
+
+	// ListRepoCerticifates lists all configured certificates
 	ListRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appv1.RepositoryCertificateList, error)
 	// CreateRepoCertificate creates a new certificate entry
 	CreateRepoCertificate(ctx context.Context, certificate *appv1.RepositoryCertificateList, upsert bool) (*appv1.RepositoryCertificateList, error)
 	// CreateRepoCertificate creates a new certificate entry
 	RemoveRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appv1.RepositoryCertificateList, error)
+
+	// ListHelmRepositories lists repositories
+	ListHelmRepositories(ctx context.Context) ([]*appv1.Repository, error)
 }
 
 type db struct {

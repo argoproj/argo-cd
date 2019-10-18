@@ -1,18 +1,10 @@
 import * as React from 'react';
 
 import {Checkbox, NotificationsApi, NotificationType} from 'argo-ui';
-import {COLORS, ErrorNotification} from '../../shared/components';
-import {Revision} from '../../shared/components/revision';
+import {COLORS, ErrorNotification, Revision} from '../../shared/components';
 import {ContextApis} from '../../shared/context';
 import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
-
-export const ICON_CLASS_BY_KIND = {
-    application: 'argo-icon-application',
-    deployment: 'argo-icon-deployment',
-    pod: 'argo-icon-docker',
-    service: 'argo-icon-hosts',
-} as any;
 
 export interface NodeId {
     kind: string;
@@ -40,7 +32,7 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
         public render() {
             return (
                 <div>
-                    <p>Are you sure you want to delete the application "{appName}"?</p>
+                    <p>Are you sure you want to delete the application '{appName}'?</p>
                     <p><Checkbox checked={this.state.cascade}
                                  onChange={(val) => this.setState({cascade: val})}/> Cascade</p>
                 </div>
@@ -303,7 +295,7 @@ export function getPodStateReason(pod: appModels.State): { message: string; reas
             }
         }
 
-        // change pod status back to "Running" if there is at least one container still reporting as "Running" status
+        // change pod status back to 'Running' if there is at least one container still reporting as 'Running' status
         if (reason === 'Completed' && hasRunning) {
             reason = 'Running';
             message = '';
@@ -355,3 +347,90 @@ export function isAppRefreshing(app: appModels.Application) {
 export function refreshLinkAttrs(app: appModels.Application) {
     return { disabled: isAppRefreshing(app) };
 }
+
+export const SyncWindowStatusIcon = ({state, window}: { state: appModels.SyncWindowsState, window: appModels.SyncWindow }) => {
+    let className = '';
+    let color = '';
+    let current = '';
+
+    if (state.windows === undefined ) {
+        current = 'Inactive';
+    } else {
+        for (const w of state.windows) {
+            if (w.kind === window.kind && w.schedule === window.schedule && w.duration === window.duration) {
+                current = 'Active';
+                break;
+            } else {
+                current = 'Inactive';
+            }
+        }
+    }
+
+    switch (current + ':' + window.kind) {
+        case 'Active:deny':
+        case 'Inactive:allow':
+            className = 'fa fa-stop-circle';
+            if (window.manualSync) {
+                color = COLORS.sync_window.manual;
+            } else {
+                color = COLORS.sync_window.deny;
+            }
+            break;
+        case 'Active:allow':
+        case 'Inactive:deny':
+            className = 'fa fa-check-circle';
+            color = COLORS.sync_window.allow;
+            break;
+        default:
+            className = 'fa fa-question-circle';
+            color = COLORS.sync_window.unknown;
+            current = 'Unknown';
+            break;
+    }
+
+    return <React.Fragment><i title={current} className={className} style={{color}}/> {current}</React.Fragment>;
+};
+
+export const ApplicationSyncWindowStatusIcon = ({project, state}: { project: string, state: appModels.ApplicationSyncWindowState }) => {
+    let className = '';
+    let color = '';
+    let deny = false;
+    let allow = false;
+    let inactiveAllow = false;
+    if (state.assignedWindows !== undefined && state.assignedWindows.length > 0) {
+        if (state.activeWindows !== undefined && state.activeWindows.length > 0) {
+            for (const w of state.activeWindows) {
+                if (w.kind === 'deny') {
+                    deny = true;
+                } else if (w.kind === 'allow') {
+                    allow = true;
+                }
+            }
+        }
+        for (const a of state.assignedWindows) {
+            if (a.kind === 'allow') {
+                inactiveAllow = true;
+            }
+        }
+    } else {
+        allow = true;
+    }
+
+    if ((deny) || (!deny && !allow && inactiveAllow)) {
+        className = 'fa fa-stop-circle';
+        if (state.canSync) {
+            color = COLORS.sync_window.manual;
+        } else {
+            color = COLORS.sync_window.deny;
+        }
+    } else {
+        className = 'fa fa-check-circle';
+        color = COLORS.sync_window.allow;
+    }
+
+    return (
+    <a href={`/settings/projects/${project}?tab=windows`} style={{color}}>
+        <i className={className} style={{color}}/> SyncWindow
+    </a>
+    );
+};

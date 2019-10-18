@@ -18,20 +18,19 @@ func TestCannotAddAppFromPrivateRepoWithoutCfg(t *testing.T) {
 		IgnoreErrors().
 		Create().
 		Then().
-		Expect(Error("", "unable to access"))
+		Expect(Error("", "repository not accessible"))
 }
 
 // make sure you cannot create an app from a private repo without set-up
 func TestCannotAddAppFromClientCertRepoWithoutCfg(t *testing.T) {
 	Given(t).
-		HTTPSInsecureRepoURLAdded().
 		RepoURLType(fixture.RepoURLTypeHTTPSClientCert).
 		Path(fixture.GuestbookPath).
 		When().
 		IgnoreErrors().
 		Create().
 		Then().
-		Expect(Error("", "unable to access"))
+		Expect(Error("", "repository not accessible"))
 }
 
 // make sure you can create an app from a private repo, if the repo is set-up in the CM
@@ -49,10 +48,13 @@ func TestCanAddAppFromPrivateRepoWithRepoCfg(t *testing.T) {
 		Expect(Success(""))
 }
 
+func TestCanAddAppFromPrivateRepoWithCredsFromCLI(t *testing.T) {
+}
+
 // make sure you can create an app from a private repo, if the creds are set-up in the CM
 func TestCanAddAppFromInsecurePrivateRepoWithCredCfg(t *testing.T) {
 	Given(t).
-		HTTPSInsecureRepoURLAdded().
+		CustomCACertAdded().
 		RepoURLType(fixture.RepoURLTypeHTTPS).
 		Path("https-kustomize-base").
 		And(func() {
@@ -77,7 +79,8 @@ func TestCanAddAppFromInsecurePrivateRepoWithCredCfg(t *testing.T) {
 func TestCanAddAppFromPrivateRepoWithCredCfg(t *testing.T) {
 	Given(t).
 		CustomCACertAdded().
-		HTTPSRepoURLAdded().
+		HTTPSCredentialsUserPassAdded().
+		HTTPSRepoURLAdded(false).
 		RepoURLType(fixture.RepoURLTypeHTTPS).
 		Path("https-kustomize-base").
 		And(func() {

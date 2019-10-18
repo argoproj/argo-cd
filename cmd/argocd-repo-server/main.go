@@ -7,17 +7,15 @@ import (
 	"os"
 	"time"
 
-	"github.com/argoproj/argo-cd/reposerver/metrics"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/reposerver"
-	"github.com/argoproj/argo-cd/util/cache"
+	reposervercache "github.com/argoproj/argo-cd/reposerver/cache"
+	"github.com/argoproj/argo-cd/reposerver/metrics"
 	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/repo/factory"
 	"github.com/argoproj/argo-cd/util/stats"
 	"github.com/argoproj/argo-cd/util/tls"
 )
@@ -33,7 +31,7 @@ func newCommand() *cobra.Command {
 		parallelismLimit       int64
 		listenPort             int
 		metricsPort            int
-		cacheSrc               func() (*cache.Cache, error)
+		cacheSrc               func() (*reposervercache.Cache, error)
 		tlsConfigCustomizerSrc func() (tls.ConfigCustomizer, error)
 	)
 	var command = cobra.Command{
@@ -48,7 +46,7 @@ func newCommand() *cobra.Command {
 			cache, err := cacheSrc()
 			errors.CheckError(err)
 
-			metricsServer := metrics.NewMetricsServer(factory.NewFactory())
+			metricsServer := metrics.NewMetricsServer()
 			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, parallelismLimit)
 			errors.CheckError(err)
 
@@ -74,7 +72,7 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortRepoServer, "Listen on given port for incoming connections")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortRepoServerMetrics, "Start metrics server on given port")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
-	cacheSrc = cache.AddCacheFlagsToCmd(&command)
+	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command)
 	return &command
 }
 

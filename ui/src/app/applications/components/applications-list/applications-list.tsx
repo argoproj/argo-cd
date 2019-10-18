@@ -1,34 +1,52 @@
-import { ErrorNotification, MockupList, NotificationType, SlidingPanel } from 'argo-ui';
+import {ErrorNotification, MockupList, NotificationType, SlidingPanel} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as minimatch from 'minimatch';
 import * as React from 'react';
-import { RouteComponentProps } from 'react-router';
-import { Observable } from 'rxjs';
+import {RouteComponentProps} from 'react-router';
+import {Observable} from 'rxjs';
 
-import { Autocomplete, ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Query } from '../../../shared/components';
-import { Consumer } from '../../../shared/context';
+import {
+    Autocomplete,
+    ClusterCtx,
+    DataLoader,
+    EmptyState,
+    ObservableQuery,
+    Page,
+    Paginate,
+    Query,
+} from '../../../shared/components';
+import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
-import { AppsListPreferences, AppsListViewType, services } from '../../../shared/services';
-import { ApplicationCreatePanel } from '../application-create-panel/application-create-panel';
-import { ApplicationSyncPanel } from '../application-sync-panel/application-sync-panel';
+import {AppsListPreferences, AppsListViewType, services} from '../../../shared/services';
+import {ApplicationCreatePanel} from '../application-create-panel/application-create-panel';
+import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
+import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
 import * as AppUtils from '../utils';
-import { ApplicationsFilter } from './applications-filter';
-import { ApplicationsSummary } from './applications-summary';
-import { ApplicationsTable } from './applications-table';
-import { ApplicationTiles } from './applications-tiles';
+import {ApplicationsFilter} from './applications-filter';
+import {ApplicationsSummary} from './applications-summary';
+import {ApplicationsTable} from './applications-table';
+import {ApplicationTiles} from './applications-tiles';
 
 require('./applications-list.scss');
 
 const APP_FIELDS = [
-    'metadata.name', 'metadata.annotations', 'metadata.resourceVersion', 'metadata.creationTimestamp', 'spec', 'status.sync.status', 'status.health', 'status.summary'];
+    'metadata.name',
+    'metadata.annotations',
+    'metadata.labels',
+    'metadata.resourceVersion',
+    'metadata.creationTimestamp',
+    'spec',
+    'status.sync.status',
+    'status.health',
+    'status.summary'];
 const APP_LIST_FIELDS = APP_FIELDS.map((field) => `items.${field}`);
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map((field) => `result.application.${field}`)];
 
-function loadApplications(): Observable<models.Application[]> {
-    return Observable.fromPromise(services.applications.list([], { fields: APP_LIST_FIELDS })).flatMap((applications) =>
+function loadApplications(selector: string): Observable<models.Application[]> {
+    return Observable.fromPromise(services.applications.list([], { fields: APP_LIST_FIELDS, selector })).flatMap((applications) =>
         Observable.merge(
             Observable.from([applications]),
-            services.applications.watch(null, { fields: APP_WATCH_FIELDS }).map((appChange) => {
+            services.applications.watch(null, { fields: APP_WATCH_FIELDS, selector }).map((appChange) => {
                 const index = applications.findIndex((item) => item.metadata.name === appChange.application.metadata.name);
                 if (index > -1 && appChange.application.metadata.resourceVersion === applications[index].metadata.resourceVersion) {
                     return {applications, updated: false};
@@ -78,6 +96,9 @@ const ViewPref = ({children}: { children: (pref: AppsListPreferences & { page: n
                     if (params.get('view') != null) {
                         viewPref.view = params.get('view') as AppsListViewType;
                     }
+                    if (params.get('labels') != null) {
+                        viewPref.labelsFilter = params.get('labels').split(',').filter((item) => !!item);
+                    }
                     return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || ''};
             })}>
             {(pref) => children(pref)}
@@ -109,10 +130,12 @@ function tryJsonParse(input: string) {
 export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const query = new URLSearchParams(props.location.search);
     const appInput = tryJsonParse(query.get('new'));
+    const syncAppsInput = tryJsonParse(query.get('syncApps'));
     const [createApi, setCreateApi] = React.useState(null);
+    const clusters = React.useMemo(() => services.clusters.list(), []);
 
     return (
-<ClusterCtx.Provider value={services.clusters.list()}>
+<ClusterCtx.Provider value={clusters}>
 <Consumer>{
 (ctx) => (
     <Page title='Applications' toolbar={services.viewPreferences.getPreferences().map((pref) => ({
@@ -136,19 +159,26 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
             </React.Fragment>
         ),
         actionMenu: {
-            className: 'fa fa-plus',
             items: [{
-                title: 'New Application',
-                action: () => ctx.navigation.goto('.', { new: '{}' }),
+                title: 'New App',
+                iconClassName: 'fa fa-plus',
+                action: () => ctx.navigation.goto('.', {new: '{}'}),
+            }, {
+                title: 'Sync Apps',
+                iconClassName: 'fa fa-sync',
+                action: () => ctx.navigation.goto('.', {syncApps: true}),
             }],
         },
     }))}>
         <div className='applications-list'>
+            <ViewPref>
+            {(pref) =>
             <DataLoader
-                load={() => loadApplications()}
+                input={(pref.labelsFilter || []).join(',')}
+                load={(selector) => loadApplications(selector)}
                 loadingRenderer={() => (<div className='argo-container'><MockupList height={100} marginTop={30}/></div>)}>
                 {(applications: models.Application[]) => (
-                    applications.length === 0 ? (
+                    applications.length === 0 && (pref.labelsFilter || []).length === 0 ? (
                         <EmptyState icon='argo-icon-application'>
                             <h4>No applications yet</h4>
                             <h5>Create new application to start managing resources in your cluster</h5>
@@ -187,8 +217,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                     </div>
                                 )}
                                 </Query>
-                                <ViewPref>
-                                {(pref) => <ApplicationsFilter applications={applications} pref={pref} onChange={(newPref) => {
+                                <ApplicationsFilter applications={applications} pref={pref} onChange={(newPref) => {
                                     services.viewPreferences.updatePreferences({appList: newPref});
                                     ctx.navigation.goto('.', {
                                         proj: newPref.projectsFilter.join(','),
@@ -196,13 +225,15 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         health: newPref.healthFilter.join(','),
                                         namespace: newPref.namespacesFilter.join(','),
                                         cluster: newPref.clustersFilter.join(','),
+                                        labels: newPref.labelsFilter.join(','),
                                     });
-                                }} />}
-                                </ViewPref>
+                                }} />
+                                {syncAppsInput && (<ApplicationsSyncPanel key='syncsPanel' show={syncAppsInput}
+                                                                          hide={() => ctx.navigation.goto('.', {syncApps: null})}
+                                                                          apps={applications}/>)}
                             </div>
                             <div className='columns small-12 xxlarge-10'>
-                            <ViewPref>
-                            {(pref) => pref.view === 'summary' && (
+                            {pref.view === 'summary' && (
                                 <ApplicationsSummary applications={filterApps(applications, pref, pref.search)} />
                             ) || (
                                 <Paginate
@@ -233,12 +264,12 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                 )}
                                 </Paginate>
                             )}
-                            </ViewPref>
                             </div>
                         </div>
                     )
                 )}
             </DataLoader>
+            }</ViewPref>
         </div>
         <ObservableQuery>
         {(q) => (

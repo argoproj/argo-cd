@@ -26,8 +26,10 @@ import (
 	mockrepoclient "github.com/argoproj/argo-cd/reposerver/apiclient/mocks"
 	mockreposerver "github.com/argoproj/argo-cd/reposerver/mocks"
 	"github.com/argoproj/argo-cd/test"
-	utilcache "github.com/argoproj/argo-cd/util/cache"
+	cacheutil "github.com/argoproj/argo-cd/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/kube/kubetest"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -79,16 +81,22 @@ func newFakeController(data *fakeData) *ApplicationController {
 	}
 	kubeClient := fake.NewSimpleClientset(&clust, &cm, &secret)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
+	kubectl := &kubetest.MockKubectlCmd{}
 	ctrl, err := NewApplicationController(
 		test.FakeArgoCDNamespace,
 		settingsMgr,
 		kubeClient,
 		appclientset.NewSimpleClientset(data.apps...),
 		&mockRepoClientset,
-		utilcache.NewCache(utilcache.NewInMemoryCache(1*time.Hour)),
+		appstatecache.NewCache(
+			cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
+			1*time.Minute,
+		),
+		kubectl,
 		time.Minute,
 		time.Minute,
 		common.DefaultPortArgoCDMetrics,
+		0,
 	)
 	if err != nil {
 		panic(err)
@@ -568,13 +576,82 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 	assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
 	assert.Equal(t, CompareWithLatest, compareWith)
 
-	// execute hard refresh if app has refresh annotation
-	app.Annotations = map[string]string{
-		common.AnnotationKeyRefresh: string(argoappv1.RefreshTypeHard),
+	{
+		// refresh app using the 'latest' level if comparison expired
+		app := app.DeepCopy()
+		ctrl.requestAppRefresh(app.Name, CompareWithRecent)
+		reconciledAt := metav1.NewTime(time.Now().UTC().Add(-1 * time.Hour))
+		app.Status.ReconciledAt = &reconciledAt
+		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Minute)
+		assert.True(t, needRefresh)
+		assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
+		assert.Equal(t, CompareWithLatest, compareWith)
 	}
-	needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour)
-	assert.True(t, needRefresh)
-	assert.Equal(t, argoappv1.RefreshTypeHard, refreshType)
-	assert.Equal(t, CompareWithLatest, compareWith)
 
+	{
+		app := app.DeepCopy()
+		// execute hard refresh if app has refresh annotation
+		reconciledAt := metav1.NewTime(time.Now().UTC().Add(-1 * time.Hour))
+		app.Status.ReconciledAt = &reconciledAt
+		app.Annotations = map[string]string{
+			common.AnnotationKeyRefresh: string(argoappv1.RefreshTypeHard),
+		}
+		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour)
+		assert.True(t, needRefresh)
+		assert.Equal(t, argoappv1.RefreshTypeHard, refreshType)
+		assert.Equal(t, CompareWithLatest, compareWith)
+	}
+}
+
+func TestRefreshAppConditions(t *testing.T) {
+	defaultProj := argoappv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Spec: argoappv1.AppProjectSpec{
+			SourceRepos: []string{"*"},
+			Destinations: []argoappv1.ApplicationDestination{
+				{
+					Server:    "*",
+					Namespace: "*",
+				},
+			},
+		},
+	}
+
+	t.Run("NoErrorConditions", func(t *testing.T) {
+		app := newFakeApp()
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
+
+		hasErrors := ctrl.refreshAppConditions(app)
+		assert.False(t, hasErrors)
+		assert.Len(t, app.Status.Conditions, 0)
+	})
+
+	t.Run("PreserveExistingWarningCondition", func(t *testing.T) {
+		app := newFakeApp()
+		app.Status.SetConditions([]argoappv1.ApplicationCondition{{Type: argoappv1.ApplicationConditionExcludedResourceWarning}}, nil)
+
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
+
+		hasErrors := ctrl.refreshAppConditions(app)
+		assert.False(t, hasErrors)
+		assert.Len(t, app.Status.Conditions, 1)
+		assert.Equal(t, argoappv1.ApplicationConditionExcludedResourceWarning, app.Status.Conditions[0].Type)
+	})
+
+	t.Run("ReplacesSpecErrorCondition", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Project = "wrong project"
+		app.Status.SetConditions([]argoappv1.ApplicationCondition{{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: "old message"}}, nil)
+
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
+
+		hasErrors := ctrl.refreshAppConditions(app)
+		assert.True(t, hasErrors)
+		assert.Len(t, app.Status.Conditions, 1)
+		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
+		assert.Equal(t, "Application referencing project wrong project which does not exist", app.Status.Conditions[0].Message)
+	})
 }

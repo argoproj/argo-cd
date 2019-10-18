@@ -40,6 +40,8 @@ const jsonMergePatch = require('json-merge-patch');
 
 require('./application-details.scss');
 
+type ActionMenuItem = MenuItem & { disabled?: boolean };
+
 export class ApplicationDetails extends React.Component<RouteComponentProps<{ name: string; }>, {page: number}> {
 
     public static contextTypes = {
@@ -262,13 +264,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                         title: 'SUMMARY', key: 'summary', content: <ApplicationSummary app={application} updateApp={(app) => this.updateApp(app)}/>,
                                     }, {
                                         title: 'PARAMETERS', key: 'parameters', content: (
-                                            <DataLoader key='appDetails' input={{
-                                                repoURL: application.spec.source.repoURL,
-                                                path: application.spec.source.path,
-                                                targetRevision: application.spec.source.targetRevision,
-                                                details: { helm: application.spec.source.helm },
-                                            }} load={(src) =>
-                                                services.repos.appDetails(src.repoURL, src.path, src.targetRevision, src.details)
+                                            <DataLoader key='appDetails' input={application.spec.source} load={(src) => services.repos.appDetails(src)
                                                 .catch(() => ({ type: 'Directory' as appModels.AppSourceType, path: application.spec.source.path }))}>
                                             {(details: appModels.RepoAppDetails) => <ApplicationParameters
                                                     save={(app) => this.updateApp(app)} application={application} details={details} />}
@@ -410,7 +406,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     }
 
     private async updateApp(app: appModels.Application) {
-        await services.applications.updateSpec(app.metadata.name, app.spec);
+        const latestApp = await services.applications.get(app.metadata.name);
+        latestApp.metadata.labels = app.metadata.labels;
+        latestApp.spec = app.spec;
+        await services.applications.update(latestApp);
         this.refreshRequested.next({});
     }
 
@@ -484,7 +483,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     }
 
     private renderResourceMenu(resource: ResourceTreeNode, application: appModels.Application): React.ReactNode {
-        let menuItems: Observable<MenuItem[]>;
+        let menuItems: Observable<ActionMenuItem[]>;
         if (AppUtils.isAppNode(resource) && resource.name === application.metadata.name) {
             menuItems = Observable.from([this.getApplicationActionMenu(application)]);
         } else {
@@ -523,6 +522,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             const resourceActions = services.applications.getResourceActions(application.metadata.name, resource)
                 .then((actions) => items.concat(actions.map((action) => ({
                     title: action.name,
+                    disabled: !action.available,
                     action: async () => {
                         try {
                             const confirmed = await this.appContext.apis.popup.confirm(
@@ -547,10 +547,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             {(items) => (
                 <ul>
                     {items.map((item, i) => (
-                        <li style={{ textTransform: 'capitalize' }} key={i} onClick={(e) => {
+                        <li className={classNames('application-details__action-menu', { disabled: item.disabled })} key={i} onClick={(e) => {
                             e.stopPropagation();
-                            item.action();
-                            document.body.click(); // hack, trigger body click to make sure that dropdown
+                            if (!item.disabled) {
+                                item.action();
+                                document.body.click(); // hack, trigger body click to make sure that dropdown closed
+                            }
                         }}>{item.iconClassName && <i className={item.iconClassName}/>} {item.title}</li>
                     ))}
                 </ul>

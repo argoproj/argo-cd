@@ -3,9 +3,10 @@ package v1alpha1
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestAppProject_IsSourcePermitted(t *testing.T) {
@@ -177,7 +178,7 @@ func TestAppProject_RemoveGroupFromRole(t *testing.T) {
 
 func newTestProject() *AppProject {
 	p := AppProject{
-		ObjectMeta: v1.ObjectMeta{Name: "my-proj"},
+		ObjectMeta: metav1.ObjectMeta{Name: "my-proj"},
 		Spec:       AppProjectSpec{Roles: []ProjectRole{{Name: "my-role"}}},
 	}
 	return &p
@@ -433,9 +434,14 @@ func TestRepository_HasCredentials(t *testing.T) {
 			want: true,
 		},
 		{
+			name: "TestHasTLSClientCertData",
+			repo: Repository{TLSClientCertData: "foo"},
+			want: true,
+		},
+		{
 			name: "TestHasInsecureHostKey",
 			repo: Repository{InsecureIgnoreHostKey: true},
-			want: true,
+			want: false,
 		},
 	}
 	for _, tt := range tests {
@@ -447,7 +453,156 @@ func TestRepository_HasCredentials(t *testing.T) {
 	}
 }
 
+func TestRepository_IsInsecure(t *testing.T) {
+	tests := []struct {
+		name string
+		repo Repository
+		want bool
+	}{
+		{
+			name: "TestHasRepo",
+			repo: Repository{Repo: "foo"},
+			want: false,
+		},
+		{
+			name: "TestHasUsername",
+			repo: Repository{Username: "foo"},
+			want: false,
+		},
+		{
+			name: "TestHasInsecure",
+			repo: Repository{Insecure: true},
+			want: true,
+		},
+		{
+			name: "TestHasInsecureHostKey",
+			repo: Repository{InsecureIgnoreHostKey: true},
+			want: true,
+		},
+		{
+			name: "TestHasEnableLFS",
+			repo: Repository{EnableLFS: true},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.repo.IsInsecure(); got != tt.want {
+				t.Errorf("Repository.IsInsecure() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRepository_IsLFSEnabled(t *testing.T) {
+	tests := []struct {
+		name string
+		repo Repository
+		want bool
+	}{
+		{
+			name: "TestHasRepo",
+			repo: Repository{Repo: "foo"},
+			want: false,
+		},
+		{
+			name: "TestHasUsername",
+			repo: Repository{Username: "foo"},
+			want: false,
+		},
+		{
+			name: "TestHasInsecure",
+			repo: Repository{Insecure: true},
+			want: false,
+		},
+		{
+			name: "TestHasInsecureHostKey",
+			repo: Repository{InsecureIgnoreHostKey: true},
+			want: false,
+		},
+		{
+			name: "TestHasEnableLFS",
+			repo: Repository{EnableLFS: true},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.repo.IsLFSEnabled(); got != tt.want {
+				t.Errorf("Repository.IsLFSEnabled() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRepository_CopyCredentialsFromRepo(t *testing.T) {
+	tests := []struct {
+		name   string
+		repo   *Repository
+		source *Repository
+		want   Repository
+	}{
+		{"Username", &Repository{Username: "foo"}, &Repository{}, Repository{Username: "foo"}},
+		{"Password", &Repository{Password: "foo"}, &Repository{}, Repository{Password: "foo"}},
+		{"SSHPrivateKey", &Repository{SSHPrivateKey: "foo"}, &Repository{}, Repository{SSHPrivateKey: "foo"}},
+		{"InsecureHostKey", &Repository{InsecureIgnoreHostKey: true}, &Repository{}, Repository{InsecureIgnoreHostKey: true}},
+		{"Insecure", &Repository{Insecure: true}, &Repository{}, Repository{Insecure: true}},
+		{"EnableLFS", &Repository{EnableLFS: true}, &Repository{}, Repository{EnableLFS: true}},
+		{"TLSClientCertData", &Repository{TLSClientCertData: "foo"}, &Repository{}, Repository{TLSClientCertData: "foo"}},
+		{"TLSClientCertKey", &Repository{TLSClientCertKey: "foo"}, &Repository{}, Repository{TLSClientCertKey: "foo"}},
+		{"SourceNil", &Repository{}, nil, Repository{}},
+
+		{"SourceUsername", &Repository{}, &Repository{Username: "foo"}, Repository{Username: "foo"}},
+		{"SourcePassword", &Repository{}, &Repository{Password: "foo"}, Repository{Password: "foo"}},
+		{"SourceSSHPrivateKey", &Repository{}, &Repository{SSHPrivateKey: "foo"}, Repository{SSHPrivateKey: "foo"}},
+		{"SourceInsecureHostKey", &Repository{}, &Repository{InsecureIgnoreHostKey: true}, Repository{InsecureIgnoreHostKey: false}},
+		{"SourceInsecure", &Repository{}, &Repository{Insecure: true}, Repository{Insecure: false}},
+		{"SourceEnableLFS", &Repository{}, &Repository{EnableLFS: true}, Repository{EnableLFS: false}},
+		{"SourceTLSClientCertData", &Repository{}, &Repository{TLSClientCertData: "foo"}, Repository{TLSClientCertData: "foo"}},
+		{"SourceTLSClientCertKey", &Repository{}, &Repository{TLSClientCertKey: "foo"}, Repository{TLSClientCertKey: "foo"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := tt.repo.DeepCopy()
+			r.CopyCredentialsFromRepo(tt.source)
+			assert.Equal(t, tt.want, *r)
+		})
+	}
+}
+
 func TestRepository_CopyCredentialsFrom(t *testing.T) {
+	tests := []struct {
+		name   string
+		repo   *Repository
+		source *RepoCreds
+		want   Repository
+	}{
+		{"Username", &Repository{Username: "foo"}, &RepoCreds{}, Repository{Username: "foo"}},
+		{"Password", &Repository{Password: "foo"}, &RepoCreds{}, Repository{Password: "foo"}},
+		{"SSHPrivateKey", &Repository{SSHPrivateKey: "foo"}, &RepoCreds{}, Repository{SSHPrivateKey: "foo"}},
+		{"InsecureHostKey", &Repository{InsecureIgnoreHostKey: true}, &RepoCreds{}, Repository{InsecureIgnoreHostKey: true}},
+		{"Insecure", &Repository{Insecure: true}, &RepoCreds{}, Repository{Insecure: true}},
+		{"EnableLFS", &Repository{EnableLFS: true}, &RepoCreds{}, Repository{EnableLFS: true}},
+		{"TLSClientCertData", &Repository{TLSClientCertData: "foo"}, &RepoCreds{}, Repository{TLSClientCertData: "foo"}},
+		{"TLSClientCertKey", &Repository{TLSClientCertKey: "foo"}, &RepoCreds{}, Repository{TLSClientCertKey: "foo"}},
+		{"SourceNil", &Repository{}, nil, Repository{}},
+
+		{"SourceUsername", &Repository{}, &RepoCreds{Username: "foo"}, Repository{Username: "foo"}},
+		{"SourcePassword", &Repository{}, &RepoCreds{Password: "foo"}, Repository{Password: "foo"}},
+		{"SourceSSHPrivateKey", &Repository{}, &RepoCreds{SSHPrivateKey: "foo"}, Repository{SSHPrivateKey: "foo"}},
+		{"SourceTLSClientCertData", &Repository{}, &RepoCreds{TLSClientCertData: "foo"}, Repository{TLSClientCertData: "foo"}},
+		{"SourceTLSClientCertKey", &Repository{}, &RepoCreds{TLSClientCertKey: "foo"}, Repository{TLSClientCertKey: "foo"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := tt.repo.DeepCopy()
+			r.CopyCredentialsFrom(tt.source)
+			assert.Equal(t, tt.want, *r)
+		})
+	}
+}
+
+func TestRepository_CopySettingsFrom(t *testing.T) {
 	tests := []struct {
 		name   string
 		source *Repository
@@ -455,15 +610,14 @@ func TestRepository_CopyCredentialsFrom(t *testing.T) {
 	}{
 		{"TestNil", nil, Repository{}},
 		{"TestHasRepo", &Repository{Repo: "foo"}, Repository{}},
-		{"TestHasUsername", &Repository{Username: "foo"}, Repository{Username: "foo"}},
-		{"TestHasPassword", &Repository{Password: "foo"}, Repository{Password: "foo"}},
-		{"TestHasSSHPrivateKey", &Repository{SSHPrivateKey: "foo"}, Repository{SSHPrivateKey: "foo"}},
-		{"TestHasInsecureHostKey", &Repository{InsecureIgnoreHostKey: true}, Repository{InsecureIgnoreHostKey: true}},
+		{"TestHasEnableLFS", &Repository{EnableLFS: true}, Repository{EnableLFS: true}},
+		{"TestHasInsecure", &Repository{Insecure: true}, Repository{Insecure: true}},
+		{"TestHasInsecureIgnoreHostKey", &Repository{InsecureIgnoreHostKey: true}, Repository{InsecureIgnoreHostKey: true}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := Repository{}
-			repo.CopyCredentialsFrom(tt.source)
+			repo.CopySettingsFrom(tt.source)
 			assert.Equal(t, tt.want, repo)
 		})
 	}
@@ -730,6 +884,7 @@ func TestApplicationSourceKustomize_IsZero(t *testing.T) {
 		{"Nil", nil, true},
 		{"Empty", &ApplicationSourceKustomize{}, true},
 		{"NamePrefix", &ApplicationSourceKustomize{NamePrefix: "foo"}, false},
+		{"NameSuffix", &ApplicationSourceKustomize{NameSuffix: "foo"}, false},
 		{"Images", &ApplicationSourceKustomize{Images: []KustomizeImage{""}}, false},
 		{"CommonLabels", &ApplicationSourceKustomize{CommonLabels: map[string]string{"": ""}}, false},
 	}
@@ -888,4 +1043,582 @@ func TestApplicationSourceKustomize_MergeImage(t *testing.T) {
 		k.MergeImage("foo=2")
 		assert.Equal(t, KustomizeImages{"foo=2"}, k.Images)
 	})
+}
+
+func TestSyncWindows_HasWindows(t *testing.T) {
+	t.Run("True", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		assert.True(t, proj.Spec.SyncWindows.HasWindows())
+	})
+	t.Run("False", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		err := proj.Spec.DeleteWindow(0)
+		assert.NoError(t, err)
+		assert.False(t, proj.Spec.SyncWindows.HasWindows())
+	})
+}
+
+func TestSyncWindows_Active(t *testing.T) {
+	proj := newTestProjectWithSyncWindows()
+	assert.Equal(t, 1, len(*proj.Spec.SyncWindows.Active()))
+}
+
+func TestSyncWindows_InactiveAllows(t *testing.T) {
+	proj := newTestProjectWithSyncWindows()
+	proj.Spec.SyncWindows[0].Schedule = "0 0 1 1 1"
+	assert.Equal(t, 1, len(*proj.Spec.SyncWindows.InactiveAllows()))
+}
+
+func TestAppProjectSpec_AddWindow(t *testing.T) {
+	proj := newTestProjectWithSyncWindows()
+	tests := []struct {
+		name string
+		p    *AppProject
+		k    string
+		s    string
+		d    string
+		a    []string
+		n    []string
+		c    []string
+		m    bool
+		want string
+	}{
+		{"MissingKind", proj, "", "* * * * *", "11", []string{"app1"}, []string{}, []string{}, false, "error"},
+		{"MissingSchedule", proj, "allow", "", "", []string{"app1"}, []string{}, []string{}, false, "error"},
+		{"MissingDuration", proj, "allow", "* * * * *", "", []string{"app1"}, []string{}, []string{}, false, "error"},
+		{"BadSchedule", proj, "allow", "* * *", "1h", []string{"app1"}, []string{}, []string{}, false, "error"},
+		{"BadDuration", proj, "deny", "* * * * *", "33mm", []string{"app1"}, []string{}, []string{}, false, "error"},
+		{"WorkingApplication", proj, "allow", "1 * * * *", "1h", []string{"app1"}, []string{}, []string{}, false, "noError"},
+		{"WorkingNamespace", proj, "deny", "3 * * * *", "1h", []string{}, []string{}, []string{"cluster"}, false, "noError"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			switch tt.want {
+			case "error":
+				assert.Error(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m))
+			case "noError":
+				assert.NoError(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m))
+				assert.NoError(t, tt.p.Spec.DeleteWindow(0))
+			}
+		})
+
+	}
+}
+
+func TestAppProjectSpec_DeleteWindow(t *testing.T) {
+	proj := newTestProjectWithSyncWindows()
+	window2 := &SyncWindow{Schedule: "1 * * * *", Duration: "2h"}
+	proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, window2)
+	t.Run("CannotFind", func(t *testing.T) {
+		err := proj.Spec.DeleteWindow(3)
+		assert.Error(t, err)
+		assert.Equal(t, 2, len(proj.Spec.SyncWindows))
+	})
+	t.Run("Delete", func(t *testing.T) {
+		err := proj.Spec.DeleteWindow(0)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(proj.Spec.SyncWindows))
+	})
+}
+
+func TestSyncWindows_Matches(t *testing.T) {
+	proj := newTestProjectWithSyncWindows()
+	app := newTestApp()
+	t.Run("MatchNamespace", func(t *testing.T) {
+		proj.Spec.SyncWindows[0].Namespaces = []string{"default"}
+		windows := proj.Spec.SyncWindows.Matches(app)
+		assert.Equal(t, 1, len(*windows))
+		proj.Spec.SyncWindows[0].Namespaces = nil
+	})
+	t.Run("MatchCluster", func(t *testing.T) {
+		proj.Spec.SyncWindows[0].Clusters = []string{"cluster1"}
+		windows := proj.Spec.SyncWindows.Matches(app)
+		assert.Equal(t, 1, len(*windows))
+		proj.Spec.SyncWindows[0].Clusters = nil
+	})
+	t.Run("MatchAppName", func(t *testing.T) {
+		proj.Spec.SyncWindows[0].Applications = []string{"test-app"}
+		windows := proj.Spec.SyncWindows.Matches(app)
+		assert.Equal(t, 1, len(*windows))
+		proj.Spec.SyncWindows[0].Applications = nil
+	})
+	t.Run("MatchWildcardAppName", func(t *testing.T) {
+		proj.Spec.SyncWindows[0].Applications = []string{"test-*"}
+		windows := proj.Spec.SyncWindows.Matches(app)
+		assert.Equal(t, 1, len(*windows))
+		proj.Spec.SyncWindows[0].Applications = nil
+	})
+	t.Run("NoMatch", func(t *testing.T) {
+		windows := proj.Spec.SyncWindows.Matches(app)
+		assert.Nil(t, windows)
+	})
+}
+
+func TestSyncWindows_CanSync(t *testing.T) {
+	t.Run("ManualSync_ActiveAllow", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		deny := &SyncWindow{Kind: "deny", Schedule: "0 0 1 * *", Duration: "1m"}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+		assert.True(t, canSync)
+	})
+	t.Run("AutoSync_ActiveAllow", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		deny := &SyncWindow{Kind: "deny", Schedule: "0 0 1 * *", Duration: "1m"}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+		assert.True(t, canSync)
+	})
+	t.Run("_ActiveAllowAndInactiveDeny", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+		assert.True(t, canSync)
+	})
+	t.Run("AutoSync_ActiveAllowAndInactiveDeny", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+		assert.True(t, canSync)
+	})
+	t.Run("ManualSync_InactiveAllow", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Schedule = "0 0 1 * *"
+		proj.Spec.SyncWindows[0].Duration = "1m"
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+		assert.False(t, canSync)
+	})
+	t.Run("AutoSync_InactiveAllow", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Schedule = "0 0 1 * *"
+		proj.Spec.SyncWindows[0].Duration = "1m"
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+		assert.False(t, canSync)
+	})
+	t.Run("ManualSync_InactiveAllowWithManualSyncEnabled", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Schedule = "0 0 1 * *"
+		proj.Spec.SyncWindows[0].Duration = "1m"
+		proj.Spec.SyncWindows[0].ManualSync = true
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+		assert.True(t, canSync)
+	})
+	t.Run("AutoSync_InactiveAllowWithManualSyncEnabled", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Schedule = "0 0 1 * *"
+		proj.Spec.SyncWindows[0].Duration = "1m"
+		proj.Spec.SyncWindows[0].ManualSync = true
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+		assert.False(t, canSync)
+	})
+	t.Run("ManualSync_InactiveAllowAndInactiveDeny", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Schedule = "0 0 1 * *"
+		proj.Spec.SyncWindows[0].Duration = "1m"
+		deny := &SyncWindow{Kind: "deny", Schedule: "0 0 1 * *", Duration: "1m"}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+		assert.False(t, canSync)
+	})
+	t.Run("AutoSync_InactiveAllowAndInactiveDeny", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Schedule = "0 0 1 * *"
+		proj.Spec.SyncWindows[0].Duration = "1m"
+		deny := &SyncWindow{Kind: "deny", Schedule: "0 0 1 * *", Duration: "1m"}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+		assert.False(t, canSync)
+	})
+	t.Run("ManualSync_ActiveDeny", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Kind = "deny"
+		proj.Spec.SyncWindows[0].Schedule = "* * * * *"
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+		assert.False(t, canSync)
+	})
+	t.Run("AutoSync_ActiveDeny", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Kind = "deny"
+		proj.Spec.SyncWindows[0].Schedule = "* * * * *"
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+		assert.False(t, canSync)
+	})
+	t.Run("ManualSync_ActiveDenyWithManualSyncEnabled", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Kind = "deny"
+		proj.Spec.SyncWindows[0].Schedule = "* * * * *"
+		proj.Spec.SyncWindows[0].ManualSync = true
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+		assert.True(t, canSync)
+	})
+	t.Run("AutoSync_ActiveDenyWithManualSyncEnabled", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Kind = "deny"
+		proj.Spec.SyncWindows[0].Schedule = "* * * * *"
+		proj.Spec.SyncWindows[0].ManualSync = true
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+		assert.False(t, canSync)
+	})
+	t.Run("ManualSync_MultipleActiveDenyWithManualSyncEnabledOnOne", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Kind = "deny"
+		proj.Spec.SyncWindows[0].Schedule = "* * * * *"
+		proj.Spec.SyncWindows[0].ManualSync = true
+		deny2 := &SyncWindow{Kind: "deny", Schedule: "* * * * *", Duration: "2h"}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny2)
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+		assert.False(t, canSync)
+	})
+	t.Run("AutoSync_MultipleActiveDenyWithManualSyncEnabledOnOne", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Kind = "deny"
+		proj.Spec.SyncWindows[0].Schedule = "* * * * *"
+		proj.Spec.SyncWindows[0].ManualSync = true
+		deny2 := &SyncWindow{Kind: "deny", Schedule: "* * * * *", Duration: "2h"}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny2)
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+		assert.False(t, canSync)
+	})
+	t.Run("ManualSync_ActiveDenyAndActiveAllow", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		deny := &SyncWindow{Kind: "deny", Schedule: "1 * * * *", Duration: "1h"}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+		assert.False(t, canSync)
+	})
+	t.Run("AutoSync_ActiveDenyAndActiveAllow", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		deny := &SyncWindow{Kind: "deny", Schedule: "1 * * * *", Duration: "1h"}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+		assert.False(t, canSync)
+	})
+}
+
+func TestSyncWindows_hasDeny(t *testing.T) {
+	t.Run("True", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		deny := &SyncWindow{Kind: "deny"}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+		hasDeny, manualEnabled := proj.Spec.SyncWindows.hasDeny()
+		assert.True(t, hasDeny)
+		assert.False(t, manualEnabled)
+	})
+	t.Run("TrueManualEnabled", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		deny := &SyncWindow{Kind: "deny", ManualSync: true}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+		hasDeny, manualEnabled := proj.Spec.SyncWindows.hasDeny()
+		assert.True(t, hasDeny)
+		assert.True(t, manualEnabled)
+
+	})
+	t.Run("False", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		hasDeny, manualEnabled := proj.Spec.SyncWindows.hasDeny()
+		assert.False(t, hasDeny)
+		assert.False(t, manualEnabled)
+
+	})
+}
+
+func TestSyncWindows_hasAllow(t *testing.T) {
+	t.Run("NoWindows", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		_ = proj.Spec.DeleteWindow(0)
+		assert.False(t, proj.Spec.SyncWindows.hasAllow())
+	})
+	t.Run("True", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		assert.True(t, proj.Spec.SyncWindows.hasAllow())
+	})
+	t.Run("NoWindows", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Kind = "deny"
+		assert.False(t, proj.Spec.SyncWindows.hasAllow())
+	})
+}
+
+func TestSyncWindow_Active(t *testing.T) {
+	window := &SyncWindow{Schedule: "* * * * *", Duration: "1h"}
+	t.Run("ActiveWindow", func(t *testing.T) {
+		window.Active()
+		assert.True(t, window.Active())
+	})
+}
+
+func TestSyncWindow_Update(t *testing.T) {
+	e := SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h", Applications: []string{"app1"}}
+	t.Run("AddApplication", func(t *testing.T) {
+		err := e.Update("", "", []string{"app1", "app2"}, []string{}, []string{})
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"app1", "app2"}, e.Applications)
+	})
+	t.Run("AddNamespace", func(t *testing.T) {
+		err := e.Update("", "", []string{}, []string{"namespace1"}, []string{})
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"namespace1"}, e.Namespaces)
+	})
+	t.Run("AddCluster", func(t *testing.T) {
+		err := e.Update("", "", []string{}, []string{}, []string{"cluster1"})
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"cluster1"}, e.Clusters)
+	})
+	t.Run("MissingConfig", func(t *testing.T) {
+		err := e.Update("", "", []string{}, []string{}, []string{})
+		assert.EqualError(t, err, "cannot update: require one or more of schedule, duration, application, namespace, or cluster")
+	})
+	t.Run("ChangeDuration", func(t *testing.T) {
+		err := e.Update("", "10h", []string{}, []string{}, []string{})
+		assert.NoError(t, err)
+		assert.Equal(t, "10h", e.Duration)
+	})
+	t.Run("ChangeSchedule", func(t *testing.T) {
+		err := e.Update("* 1 0 0 *", "", []string{}, []string{}, []string{})
+		assert.NoError(t, err)
+		assert.Equal(t, "* 1 0 0 *", e.Schedule)
+	})
+}
+
+func TestSyncWindow_Validate(t *testing.T) {
+	window := &SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
+	t.Run("Validates", func(t *testing.T) {
+		assert.NoError(t, window.Validate())
+	})
+	t.Run("IncorrectKind", func(t *testing.T) {
+		window.Kind = "wrong"
+		assert.Error(t, window.Validate())
+	})
+	t.Run("IncorrectSchedule", func(t *testing.T) {
+		window.Kind = "allow"
+		window.Schedule = "* * *"
+		assert.Error(t, window.Validate())
+	})
+	t.Run("IncorrectDuration", func(t *testing.T) {
+		window.Kind = "allow"
+		window.Schedule = "* * * * *"
+		window.Duration = "1000days"
+		assert.Error(t, window.Validate())
+	})
+}
+
+func TestApplicationStatus_GetConditions(t *testing.T) {
+	status := ApplicationStatus{
+		Conditions: []ApplicationCondition{
+			{Type: ApplicationConditionInvalidSpecError},
+			{Type: ApplicationConditionRepeatedResourceWarning},
+		},
+	}
+	conditions := status.GetConditions(map[ApplicationConditionType]bool{
+		ApplicationConditionInvalidSpecError: true,
+	})
+	assert.EqualValues(t, []ApplicationCondition{{Type: ApplicationConditionInvalidSpecError}}, conditions)
+}
+
+func newTestProjectWithSyncWindows() *AppProject {
+	p := &AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "my-proj"},
+		Spec:       AppProjectSpec{SyncWindows: SyncWindows{}}}
+
+	window := &SyncWindow{
+		Kind:         "allow",
+		Schedule:     "* * * * *",
+		Duration:     "1h",
+		Applications: []string{"app1"},
+		Namespaces:   []string{"public"},
+	}
+	p.Spec.SyncWindows = append(p.Spec.SyncWindows, window)
+	return p
+}
+
+func newTestApp() *Application {
+	a := &Application{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-app"},
+		Spec: ApplicationSpec{
+			Destination: ApplicationDestination{
+				Namespace: "default",
+				Server:    "cluster1",
+			},
+		},
+	}
+	return a
+}
+
+func testCond(t ApplicationConditionType, msg string, lastTransitionTime *metav1.Time) ApplicationCondition {
+	return ApplicationCondition{
+		Type:               t,
+		Message:            msg,
+		LastTransitionTime: lastTransitionTime,
+	}
+}
+
+func TestSetConditions(t *testing.T) {
+	fiveMinsAgo := &metav1.Time{Time: time.Now().Add(-5 * time.Minute)}
+	tenMinsAgo := &metav1.Time{Time: time.Now().Add(-10 * time.Minute)}
+	tests := []struct {
+		name           string
+		existing       []ApplicationCondition
+		incoming       []ApplicationCondition
+		evaluatedTypes map[ApplicationConditionType]bool
+		expected       []ApplicationCondition
+		validate       func(*testing.T, *Application)
+	}{
+		{
+			name:     "new conditions with lastTransitionTime",
+			existing: []ApplicationCondition{},
+			incoming: []ApplicationCondition{
+				testCond(ApplicationConditionInvalidSpecError, "foo", fiveMinsAgo),
+				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
+			},
+			evaluatedTypes: map[ApplicationConditionType]bool{
+				ApplicationConditionInvalidSpecError:      true,
+				ApplicationConditionSharedResourceWarning: true,
+			},
+			expected: []ApplicationCondition{
+				testCond(ApplicationConditionInvalidSpecError, "foo", fiveMinsAgo),
+				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
+			},
+			validate: func(t *testing.T, a *Application) {
+				assert.Equal(t, fiveMinsAgo, a.Status.Conditions[0].LastTransitionTime)
+				assert.Equal(t, tenMinsAgo, a.Status.Conditions[1].LastTransitionTime)
+			},
+		},
+		{
+			name:     "new conditions without lastTransitionTime",
+			existing: []ApplicationCondition{},
+			incoming: []ApplicationCondition{
+				testCond(ApplicationConditionInvalidSpecError, "foo", nil),
+				testCond(ApplicationConditionSharedResourceWarning, "bar", nil),
+			},
+			evaluatedTypes: map[ApplicationConditionType]bool{
+				ApplicationConditionInvalidSpecError:      true,
+				ApplicationConditionSharedResourceWarning: true,
+			},
+			expected: []ApplicationCondition{
+				testCond(ApplicationConditionInvalidSpecError, "foo", nil),
+				testCond(ApplicationConditionSharedResourceWarning, "bar", nil),
+			},
+			validate: func(t *testing.T, a *Application) {
+				// SetConditions should add timestamps for new conditions.
+				assert.True(t, a.Status.Conditions[0].LastTransitionTime.Time.After(fiveMinsAgo.Time))
+				assert.True(t, a.Status.Conditions[1].LastTransitionTime.Time.After(fiveMinsAgo.Time))
+			},
+		},
+		{
+			name: "condition cleared",
+			existing: []ApplicationCondition{
+				testCond(ApplicationConditionInvalidSpecError, "foo", fiveMinsAgo),
+				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
+			},
+			incoming: []ApplicationCondition{
+				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
+			},
+			evaluatedTypes: map[ApplicationConditionType]bool{
+				ApplicationConditionInvalidSpecError:      true,
+				ApplicationConditionSharedResourceWarning: true,
+			},
+			expected: []ApplicationCondition{
+				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
+			},
+			validate: func(t *testing.T, a *Application) {
+				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[0].LastTransitionTime.Time)
+			},
+		},
+		{
+			name: "all conditions cleared",
+			existing: []ApplicationCondition{
+				testCond(ApplicationConditionInvalidSpecError, "foo", fiveMinsAgo),
+				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
+			},
+			incoming: []ApplicationCondition{},
+			evaluatedTypes: map[ApplicationConditionType]bool{
+				ApplicationConditionInvalidSpecError:      true,
+				ApplicationConditionSharedResourceWarning: true,
+			},
+			expected: []ApplicationCondition{},
+		},
+		{
+			name: "existing condition lastTransitionTime preserved",
+			existing: []ApplicationCondition{
+				testCond(ApplicationConditionInvalidSpecError, "foo", tenMinsAgo),
+				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
+			},
+			incoming: []ApplicationCondition{
+				testCond(ApplicationConditionInvalidSpecError, "foo", fiveMinsAgo),
+				testCond(ApplicationConditionSharedResourceWarning, "bar", fiveMinsAgo),
+			},
+			evaluatedTypes: map[ApplicationConditionType]bool{
+				ApplicationConditionInvalidSpecError:      true,
+				ApplicationConditionSharedResourceWarning: true,
+			},
+			expected: []ApplicationCondition{
+				testCond(ApplicationConditionInvalidSpecError, "foo", tenMinsAgo),
+				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
+			},
+			validate: func(t *testing.T, a *Application) {
+				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[0].LastTransitionTime.Time)
+				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[1].LastTransitionTime.Time)
+			},
+		},
+		{
+			name: "existing condition lastTransitionTime updated if message changed",
+			existing: []ApplicationCondition{
+				testCond(ApplicationConditionInvalidSpecError, "foo", tenMinsAgo),
+				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
+			},
+			incoming: []ApplicationCondition{
+				testCond(ApplicationConditionInvalidSpecError, "foo", fiveMinsAgo),
+				testCond(ApplicationConditionSharedResourceWarning, "bar changed message", fiveMinsAgo),
+			},
+			evaluatedTypes: map[ApplicationConditionType]bool{
+				ApplicationConditionInvalidSpecError:      true,
+				ApplicationConditionSharedResourceWarning: true,
+			},
+			expected: []ApplicationCondition{
+				testCond(ApplicationConditionInvalidSpecError, "foo", tenMinsAgo),
+				testCond(ApplicationConditionSharedResourceWarning, "bar changed message", fiveMinsAgo),
+			},
+			validate: func(t *testing.T, a *Application) {
+				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[0].LastTransitionTime.Time)
+				assert.Equal(t, fiveMinsAgo.Time, a.Status.Conditions[1].LastTransitionTime.Time)
+			},
+		},
+		{
+			name: "unevaluated condition types preserved",
+			existing: []ApplicationCondition{
+				testCond(ApplicationConditionInvalidSpecError, "foo", fiveMinsAgo),
+				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
+			},
+			incoming: []ApplicationCondition{},
+			evaluatedTypes: map[ApplicationConditionType]bool{
+				ApplicationConditionInvalidSpecError: true,
+			},
+			expected: []ApplicationCondition{
+				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
+			},
+			validate: func(t *testing.T, a *Application) {
+				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[0].LastTransitionTime.Time)
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := newTestApp()
+			a.Status.Conditions = tt.existing
+			a.Status.SetConditions(tt.incoming, tt.evaluatedTypes)
+			assertConditions(t, tt.expected, a.Status.Conditions)
+			if tt.validate != nil {
+				tt.validate(t, a)
+			}
+		})
+	}
+}
+
+// assertConditions compares two arrays of conditions without their timestamps, which may be
+// difficult to strictly assert on as they can use time.Now(). Elements in each array are assumed
+// to match positions.
+func assertConditions(t *testing.T, expected []ApplicationCondition, actual []ApplicationCondition) {
+	assert.Equal(t, len(expected), len(actual))
+	for i := range expected {
+		assert.Equal(t, expected[i].Type, actual[i].Type)
+		assert.Equal(t, expected[i].Message, actual[i].Message)
+	}
 }

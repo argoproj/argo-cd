@@ -535,6 +535,48 @@ p, role:admin, projects, update, *, allow`)
 		expectedPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, object, effect)
 		assert.Equal(t, expectedPolicy, updateProj.Spec.Roles[0].Policies[0])
 	})
+
+	t.Run("TestSyncWindowsActive", func(t *testing.T) {
+		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		projectWithSyncWindows := existingProj.DeepCopy()
+		projectWithSyncWindows.Spec.SyncWindows = v1alpha1.SyncWindows{}
+		win := &v1alpha1.SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
+		projectWithSyncWindows.Spec.SyncWindows = append(projectWithSyncWindows.Spec.SyncWindows, win)
+
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithSyncWindows), enforcer, util.NewKeyLock(), sessionMgr)
+		res, err := projectServer.GetSyncWindowsState(ctx, &project.SyncWindowsQuery{Name: projectWithSyncWindows.Name})
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(res.Windows))
+	})
+
+	t.Run("TestGetSyncWindowsStateCannotGetProjectDetails", func(t *testing.T) {
+		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		projectWithSyncWindows := existingProj.DeepCopy()
+		projectWithSyncWindows.Spec.SyncWindows = v1alpha1.SyncWindows{}
+		win := &v1alpha1.SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
+		projectWithSyncWindows.Spec.SyncWindows = append(projectWithSyncWindows.Spec.SyncWindows, win)
+
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithSyncWindows), enforcer, util.NewKeyLock(), sessionMgr)
+		res, err := projectServer.GetSyncWindowsState(ctx, &project.SyncWindowsQuery{Name: "incorrect"})
+		assert.Contains(t, err.Error(), "not found")
+		assert.Nil(t, res)
+	})
+
+	t.Run("TestGetSyncWindowsStateDenied", func(t *testing.T) {
+		enforcer = newEnforcer(kubeclientset)
+		_ = enforcer.SetBuiltinPolicy(`p, *, *, *, *, deny`)
+		enforcer.SetClaimsEnforcerFunc(nil)
+		ctx := context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"my-group"}})
+
+		sessionMgr := session.NewSessionManager(settingsMgr, "")
+		projectWithSyncWindows := existingProj.DeepCopy()
+		win := &v1alpha1.SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
+		projectWithSyncWindows.Spec.SyncWindows = append(projectWithSyncWindows.Spec.SyncWindows, win)
+
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithSyncWindows), enforcer, util.NewKeyLock(), sessionMgr)
+		_, err := projectServer.GetSyncWindowsState(ctx, &project.SyncWindowsQuery{Name: projectWithSyncWindows.Name})
+		assert.EqualError(t, err, "rpc error: code = PermissionDenied desc = permission denied: projects, get, test")
+	})
 }
 
 func newEnforcer(kubeclientset *fake.Clientset) *rbac.Enforcer {

@@ -51,6 +51,14 @@ message ProjectUpdateRequest {
 
 message EmptyResponse {}
 
+message SyncWindowsQuery {
+    string name = 1;
+}
+
+message SyncWindowsResponse {
+    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.SyncWindow windows = 1;
+}
+
 // ProjectService
 service ProjectService {
 
@@ -101,5 +109,10 @@ service ProjectService {
   // ListEvents returns a list of project events
   rpc ListEvents(ProjectQuery) returns (k8s.io.api.core.v1.EventList) {
       option (google.api.http).get = "/api/v1/projects/{name}/events";
+  }
+
+  // GetSchedulesState returns true if there are any active sync syncWindows
+  rpc GetSyncWindowsState(SyncWindowsQuery) returns (SyncWindowsResponse) {
+      option (google.api.http).get = "/api/v1/projects/{name}/syncwindows";
   }
 }

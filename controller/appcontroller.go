@@ -12,6 +12,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sync/semaphore"
 	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,7 +37,7 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
-	argocache "github.com/argoproj/argo-cd/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/kube"
@@ -66,7 +67,7 @@ func (a CompareWith) Max(b CompareWith) CompareWith {
 
 // ApplicationController is the controller for application resources.
 type ApplicationController struct {
-	cache                     *argocache.Cache
+	cache                     *appstatecache.Cache
 	namespace                 string
 	kubeClientset             kubernetes.Interface
 	kubectl                   kube.Kubectl
@@ -87,6 +88,7 @@ type ApplicationController struct {
 	refreshRequestedApps      map[string]CompareWith
 	refreshRequestedAppsMutex *sync.Mutex
 	metricsServer             *metrics.MetricsServer
+	kubectlSemaphore          *semaphore.Weighted
 }
 
 type ApplicationControllerConfig struct {
@@ -101,18 +103,20 @@ func NewApplicationController(
 	kubeClientset kubernetes.Interface,
 	applicationClientset appclientset.Interface,
 	repoClientset apiclient.Clientset,
-	argoCache *argocache.Cache,
+	argoCache *appstatecache.Cache,
+	kubectl kube.Kubectl,
 	appResyncPeriod time.Duration,
 	selfHealTimeout time.Duration,
 	metricsPort int,
+	kubectlParallelismLimit int64,
 ) (*ApplicationController, error) {
+	log.Infof("appResyncPeriod=%v", appResyncPeriod)
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
-	kubectlCmd := kube.KubectlCmd{}
 	ctrl := ApplicationController{
 		cache:                     argoCache,
 		namespace:                 namespace,
 		kubeClientset:             kubeClientset,
-		kubectl:                   kubectlCmd,
+		kubectl:                   kubectl,
 		applicationClientset:      applicationClientset,
 		repoClientset:             repoClientset,
 		appRefreshQueue:           workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
@@ -125,6 +129,10 @@ func NewApplicationController(
 		settingsMgr:               settingsMgr,
 		selfHealTimeout:           selfHealTimeout,
 	}
+	if kubectlParallelismLimit > 0 {
+		ctrl.kubectlSemaphore = semaphore.NewWeighted(kubectlParallelismLimit)
+	}
+	kubectl.SetOnKubectlRun(ctrl.onKubectlRun)
 	appInformer, appLister, err := ctrl.newApplicationInformerAndLister()
 	if err != nil {
 		return nil, err
@@ -135,8 +143,8 @@ func NewApplicationController(
 		_, err := kubeClientset.Discovery().ServerVersion()
 		return err
 	})
-	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectlCmd, ctrl.metricsServer, ctrl.handleObjectUpdated)
-	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectlCmd, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer)
+	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectl, ctrl.metricsServer, ctrl.handleObjectUpdated)
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
 	ctrl.projInformer = projInformer
@@ -144,6 +152,23 @@ func NewApplicationController(
 	ctrl.stateCache = stateCache
 
 	return &ctrl, nil
+}
+
+func (ctrl *ApplicationController) onKubectlRun(command string) (util.Closer, error) {
+	ctrl.metricsServer.IncKubectlExec(command)
+	if ctrl.kubectlSemaphore != nil {
+		if err := ctrl.kubectlSemaphore.Acquire(context.Background(), 1); err != nil {
+			return nil, err
+		}
+		ctrl.metricsServer.IncKubectlExecPending(command)
+	}
+	return util.NewCloser(func() error {
+		if ctrl.kubectlSemaphore != nil {
+			ctrl.kubectlSemaphore.Release(1)
+			ctrl.metricsServer.DecKubectlExecPending(command)
+		}
+		return nil
+	}), nil
 }
 
 func isSelfReferencedApp(app *appv1.Application, ref v1.ObjectReference) bool {
@@ -531,18 +556,8 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 }
 
 func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condition appv1.ApplicationCondition) {
-	index := -1
-	for i, exiting := range app.Status.Conditions {
-		if exiting.Type == condition.Type {
-			index = i
-			break
-		}
-	}
-	if index > -1 {
-		app.Status.Conditions[index] = condition
-	} else {
-		app.Status.Conditions = append(app.Status.Conditions, condition)
-	}
+	app.Status.SetConditions([]appv1.ApplicationCondition{condition}, map[appv1.ApplicationConditionType]bool{condition.Type: true})
+
 	var patch []byte
 	patch, err := json.Marshal(map[string]interface{}{
 		"status": map[string]interface{}{
@@ -728,18 +743,35 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	defer func() {
 		reconcileDuration := time.Since(startTime)
 		ctrl.metricsServer.IncReconcile(origApp, reconcileDuration)
-		logCtx := log.WithFields(log.Fields{"application": origApp.Name, "time_ms": reconcileDuration.Seconds() * 1e3, "level": comparisonLevel})
+		logCtx := log.WithFields(log.Fields{
+			"application":    origApp.Name,
+			"time_ms":        reconcileDuration.Seconds() * 1e3,
+			"level":          comparisonLevel,
+			"dest-server":    origApp.Spec.Destination.Server,
+			"dest-namespace": origApp.Spec.Destination.Namespace,
+		})
 		logCtx.Info("Reconciliation completed")
 	}()
 
 	app := origApp.DeepCopy()
 	logCtx := log.WithFields(log.Fields{"application": app.Name})
 	if comparisonLevel == ComparisonWithNothing {
-		if managedResources, err := ctrl.cache.GetAppManagedResources(app.Name); err != nil {
+		managedResources := make([]*appv1.ResourceDiff, 0)
+		if err := ctrl.cache.GetAppManagedResources(app.Name, &managedResources); err != nil {
 			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fallback to full reconciliation")
 		} else {
 			if tree, err := ctrl.getResourceTree(app, managedResources); err != nil {
-				app.Status.Conditions = []appv1.ApplicationCondition{{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()}}
+				app.Status.SetConditions(
+					[]appv1.ApplicationCondition{
+						{
+							Type:    appv1.ApplicationConditionComparisonError,
+							Message: err.Error(),
+						},
+					},
+					map[appv1.ApplicationConditionType]bool{
+						appv1.ApplicationConditionComparisonError: true,
+					},
+				)
 			} else {
 				app.Status.Summary = tree.GetSummary()
 				if err = ctrl.cache.SetAppResourcesTree(app.Name, tree); err != nil {
@@ -763,7 +795,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 
 	var localManifests []string
-	if opState := app.Status.OperationState; opState != nil {
+	if opState := app.Status.OperationState; opState != nil && opState.Operation.Sync != nil {
 		localManifests = opState.Operation.Sync.Manifests
 	}
 
@@ -776,8 +808,6 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	ctrl.normalizeApplication(origApp, app)
 
-	app.Status.Conditions = append(app.Status.Conditions, compareResult.conditions...)
-
 	tree, err := ctrl.setAppManagedResources(app, compareResult)
 	if err != nil {
 		logCtx.Errorf("Failed to cache app resources: %v", err)
@@ -785,11 +815,26 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		app.Status.Summary = tree.GetSummary()
 	}
 
-	syncErrCond := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources)
-	if syncErrCond != nil {
-		app.Status.SetConditions([]appv1.ApplicationCondition{*syncErrCond}, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true})
+	project, err := ctrl.getAppProj(app)
+	if err != nil {
+		logCtx.Infof("Could not lookup project for %s in order to check schedules state", app.Name)
 	} else {
-		app.Status.SetConditions([]appv1.ApplicationCondition{}, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true})
+		if project.Spec.SyncWindows.Matches(app).CanSync(false) {
+			syncErrCond := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources)
+			if syncErrCond != nil {
+				app.Status.SetConditions(
+					[]appv1.ApplicationCondition{*syncErrCond},
+					map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true},
+				)
+			} else {
+				app.Status.SetConditions(
+					[]appv1.ApplicationCondition{},
+					map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true},
+				)
+			}
+		} else {
+			logCtx.Infof("Sync prevented by sync window")
+		}
 	}
 
 	app.Status.ObservedAt = &compareResult.reconciledAt
@@ -812,9 +857,13 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	compareWith := CompareWithLatest
 	refreshType := appv1.RefreshTypeNormal
 	expired := app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
-	if requestedType, ok := app.IsRefreshRequested(); ok {
-		refreshType = requestedType
-		reason = fmt.Sprintf("%s refresh requested", refreshType)
+	if requestedType, ok := app.IsRefreshRequested(); ok || expired {
+		if ok {
+			refreshType = requestedType
+			reason = fmt.Sprintf("%s refresh requested", refreshType)
+		} else if expired {
+			reason = fmt.Sprintf("comparison expired. reconciledAt: %v, expiry: %v", app.Status.ReconciledAt, statusRefreshTimeout)
+		}
 	} else if requested, level := ctrl.isRefreshRequested(app.Name); requested {
 		compareWith = level
 		reason = fmt.Sprintf("controller refresh requested")
@@ -824,8 +873,6 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 		reason = "spec.source differs"
 	} else if !app.Spec.Destination.Equals(app.Status.Sync.ComparedTo.Destination) {
 		reason = "spec.destination differs"
-	} else if expired {
-		reason = fmt.Sprintf("comparison expired. reconciledAt: %v, expiry: %v", app.Status.ReconciledAt, statusRefreshTimeout)
 	}
 	if reason != "" {
 		logCtx.Infof("Refreshing app status (%s), level (%d)", reason, compareWith)
@@ -861,12 +908,8 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 		}
 	}
 	app.Status.SetConditions(errorConditions, map[appv1.ApplicationConditionType]bool{
-		appv1.ApplicationConditionInvalidSpecError:        true,
-		appv1.ApplicationConditionUnknownError:            true,
-		appv1.ApplicationConditionComparisonError:         true,
-		appv1.ApplicationConditionSharedResourceWarning:   true,
-		appv1.ApplicationConditionRepeatedResourceWarning: true,
-		appv1.ApplicationConditionExcludedResourceWarning: true,
+		appv1.ApplicationConditionInvalidSpecError: true,
+		appv1.ApplicationConditionUnknownError:     true,
 	})
 	return len(errorConditions) > 0
 }
@@ -943,6 +986,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		logCtx.Infof("Skipping auto-sync: deletion in progress")
 		return nil
 	}
+
 	// Only perform auto-sync if we detect OutOfSync status. This is to prevent us from attempting
 	// a sync when application is already in a Synced or Unknown state
 	if syncStatus.Status != appv1.SyncStatusCodeOutOfSync {

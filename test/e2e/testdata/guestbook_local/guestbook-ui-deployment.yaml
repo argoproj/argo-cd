@@ -1,4 +1,4 @@
-apiVersion: apps/v1beta2
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: guestbook-ui
@@ -18,3 +18,4 @@ spec:
         name: guestbook-ui
         ports:
         - containerPort: 81
+

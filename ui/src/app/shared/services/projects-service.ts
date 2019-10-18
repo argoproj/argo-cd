@@ -12,6 +12,7 @@ export interface ProjectParams {
     namespaceResourceBlacklist: models.GroupKind[];
     orphanedResourcesEnabled: boolean;
     orphanedResourcesWarn: boolean;
+    syncWindows: models.SyncWindow[];
 }
 
 export interface CreateJWTTokenParams {
@@ -28,6 +29,13 @@ export interface DeleteJWTTokenParams {
 
 export interface JWTTokenResponse {
     token: string;
+}
+
+export interface ProjectSyncWindowsParams {
+    projName: string;
+    id: number;
+    window: models.SyncWindow;
+    deleteWindow: boolean;
 }
 
 export interface ProjectRoleParams {
@@ -67,6 +75,7 @@ function paramsToProj(params: ProjectParams) {
             sourceRepos: params.sourceRepos,
             destinations: params.destinations,
             roles: params.roles,
+            syncWindows: params.syncWindows,
             clusterResourceWhitelist: params.clusterResourceWhitelist,
             namespaceResourceBlacklist: params.namespaceResourceBlacklist,
             orphanedResources: params.orphanedResourcesEnabled && { warn: !!params.orphanedResourcesWarn } || null,
@@ -95,6 +104,29 @@ export class ProjectsService {
         const proj = await this.get(params.name);
         const update = paramsToProj(params);
         return requests.put(`/projects/${params.name}`).send({project: {...proj, spec: update.spec }}).then((res) => res.body as models.Project);
+    }
+
+    public getSyncWindows(name: string): Promise<models.SyncWindowsState> {
+        return requests.get(`/projects/${name}/syncwindows`).query({name}).then((res) => res.body as models.SyncWindowsState);
+    }
+
+    public async updateWindow(params: ProjectSyncWindowsParams): Promise<models.Project> {
+        const proj = await this.get(params.projName);
+        const updatedSpec = proj.spec;
+        if (proj.spec.syncWindows === undefined) {
+            updatedSpec.syncWindows = [];
+        }
+        if (params.id === undefined || (!(params.id in proj.spec.syncWindows))) {
+            updatedSpec.syncWindows = updatedSpec.syncWindows.concat(params.window);
+        } else {
+            if (params.deleteWindow) {
+                updatedSpec.syncWindows.splice(params.id, 1);
+            } else {
+                updatedSpec.syncWindows[params.id] = params.window;
+            }
+        }
+
+        return requests.put(`/projects/${params.projName}`).send({project: {...proj, spec: updatedSpec }}).then((res) => res.body as models.Project);
     }
 
     public async updateRole(params: ProjectRoleParams): Promise<models.Project> {

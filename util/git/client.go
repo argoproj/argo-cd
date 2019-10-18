@@ -3,10 +3,12 @@ package git
 import (
 	"crypto/tls"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -23,9 +25,9 @@ import (
 	ssh2 "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 
+	"github.com/argoproj/argo-cd/common"
 	certutil "github.com/argoproj/argo-cd/util/cert"
 	argoconfig "github.com/argoproj/argo-cd/util/config"
-	"github.com/argoproj/argo-cd/util/repo/metrics"
 )
 
 type RevisionMetadata struct {
@@ -48,12 +50,6 @@ type Client interface {
 	RevisionMetadata(revision string) (*RevisionMetadata, error)
 }
 
-// ClientFactory is a factory of Git Clients
-// Primarily used to support creation of mock git clients during unit testing
-type ClientFactory interface {
-	NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool, eventReporter metrics.Reporter) (Client, error)
-}
-
 // nativeGitClient implements Client interface using git CLI
 type nativeGitClient struct {
 	// URL of the repository
@@ -66,24 +62,34 @@ type nativeGitClient struct {
 	insecure bool
 	// Whether the repository is LFS enabled
 	enableLfs bool
-	// metrics reporter
-	reporter metrics.Reporter
 }
 
-type factory struct{}
+var (
+	maxAttemptsCount = 1
+)
 
-func NewFactory() ClientFactory {
-	return &factory{}
+func init() {
+	if countStr := os.Getenv(common.EnvGitAttemptsCount); countStr != "" {
+		if cnt, err := strconv.Atoi(countStr); err != nil {
+			panic(fmt.Sprintf("Invalid value in %s env variable: %v", common.EnvGitAttemptsCount, err))
+		} else {
+			maxAttemptsCount = int(math.Max(float64(cnt), 1))
+		}
+	}
 }
 
-func (f *factory) NewClient(rawRepoURL string, path string, creds Creds, insecure bool, enableLfs bool, reporter metrics.Reporter) (Client, error) {
+func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool) (Client, error) {
+	root := filepath.Join(os.TempDir(), strings.Replace(NormalizeGitURL(rawRepoURL), "/", "_", -1))
+	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs)
+}
+
+func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool) (Client, error) {
 	client := nativeGitClient{
 		repoURL:   rawRepoURL,
-		root:      path,
+		root:      root,
 		creds:     creds,
 		insecure:  insecure,
 		enableLfs: enableLfs,
-		reporter:  reporter,
 	}
 	return &client, nil
 }
@@ -98,7 +104,7 @@ func (f *factory) NewClient(rawRepoURL string, path string, creds Creds, insecur
 // - Otherwise (and on non-fatal errors), a default HTTP client is returned.
 func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client {
 	// Default HTTP client
-	var customHTTPClient *http.Client = &http.Client{
+	var customHTTPClient = &http.Client{
 		// 15 second timeout
 		Timeout: 15 * time.Second,
 		// don't follow redirect
@@ -241,13 +247,12 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch() error {
-	m.reporter.Event(m.repoURL, "GitRequestTypeFetch")
-	_, err := m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
+	err := m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if err == nil && m.IsLFSEnabled() {
 		largeFiles, err := m.LsLargeFiles()
 		if err == nil && len(largeFiles) > 0 {
-			_, err = m.runCredentialedCmd("git", "lfs", "fetch", "--all")
+			err = m.runCredentialedCmd("git", "lfs", "fetch", "--all")
 			if err != nil {
 				return err
 			}
@@ -309,7 +314,16 @@ func (m *nativeGitClient) Checkout(revision string) error {
 // Otherwise, it returns an error indicating that the revision could not be resolved. This method
 // runs with in-memory storage and is safe to run concurrently, or to be run without a git
 // repository locally cloned.
-func (m *nativeGitClient) LsRemote(revision string) (string, error) {
+func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
+	for attempt := 0; attempt < maxAttemptsCount; attempt++ {
+		if res, err = m.lsRemote(revision); err == nil {
+			return
+		}
+	}
+	return
+}
+
+func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	if IsCommitSHA(revision) {
 		return revision, nil
 	}
@@ -328,7 +342,6 @@ func (m *nativeGitClient) LsRemote(revision string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	m.reporter.Event(m.repoURL, "GitRequestTypeLsRemote")
 	//refs, err := remote.List(&git.ListOptions{Auth: auth})
 	refs, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds)
 	if err != nil {
@@ -421,15 +434,16 @@ func (m *nativeGitClient) runCmd(args ...string) (string, error) {
 }
 
 // runCredentialedCmd is a convenience function to run a git command with username/password credentials
-func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) (string, error) {
+func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) error {
 	cmd := exec.Command(command, args...)
 	closer, environ, err := m.creds.Environ()
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer func() { _ = closer.Close() }()
 	cmd.Env = append(cmd.Env, environ...)
-	return m.runCmdOutput(cmd)
+	_, err = m.runCmdOutput(cmd)
+	return err
 }
 
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {

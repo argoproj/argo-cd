@@ -25,6 +25,7 @@ to return `Progressing` state instead of `Healthy`.
 * `StatefulSet` is considered healthy if value of `status.updatedReplicas` field matches to `spec.replicas` field. Due to Kubernetes bug
 [kubernetes/kubernetes#68573](https://github.com/kubernetes/kubernetes/issues/68573) the `status.updatedReplicas` is not populated. So unless you run Kubernetes version which
 include the fix [kubernetes/kubernetes#67570](https://github.com/kubernetes/kubernetes/pull/67570) `StatefulSet` might stay in `Progressing` state.
+* Your `StatefulSet` or `DaemonSet` is using `OnDelete` instead of `RollingUpdate` strategy. See [#1881](https://github.com/argoproj/argo-cd/issues/1881).
 
 As workaround Argo CD allows providing [health check](operator-manual/health.md) customization which overrides default behavior.
 
@@ -36,10 +37,10 @@ To change the password, edit the `argocd-secret` secret and update the `admin.pa
 can use a site like https://www.browserling.com/tools/bcrypt to generate a new hash. For example:
 
 ```bash
-# bcrypt(Password1!)=$2a$10$hDj12Tw9xVmvybSahN1Y0.f9DZixxN8oybyA32Uy/eqWklFU4Mo8O
+# bcrypt(password)=$2a$10$rRyBsGSHK6.uc8fntPwVIuLVHgsAhAX7TcdrqW/RADU0uh7CaChLa
 kubectl -n argocd patch secret argocd-secret \
   -p '{"stringData": {
-    "admin.password": "$2a$10$hDj12Tw9xVmvybSahN1Y0.f9DZixxN8oybyA32Uy/eqWklFU4Mo8O",
+    "admin.password": "$2a$10$rRyBsGSHK6.uc8fntPwVIuLVHgsAhAX7TcdrqW/RADU0uh7CaChLa",
     "admin.passwordMtime": "'$(date +%FT%T%Z)'"
   }}'
 ```
@@ -54,6 +55,11 @@ uses only internally available Helm repositories. Even if the chart uses only de
 
 ```yaml
 data:
+  # v1.2 or earlier use `helm.repositories`
+  helm.repositories: |
+    - url: http://<internal-helm-repo-host>:8080
+      name: stable
+  # v1.3 or later use `repositories` with `type: helm`
   repositories: |
     - type: helm
       url: http://<internal-helm-repo-host>:8080
@@ -94,6 +100,20 @@ Argo CD automatically sets the `app.kubernetes.io/instance` label and uses it to
 
 See [#1482](https://github.com/argoproj/argo-cd/issues/1482).
 
+## Why Are My Resource Limits Out Of Sync?
+
+Kubernetes has normalized your resource limits when they are applied, and then Argo CD has then compared the version in your generated manifests to the normalized one is Kubernetes - they won't match. 
+
+E.g. 
+
+* `'1000m'` normalized to `'1'`
+* `'0.1'` normalized to `'100m'`
+* `'3072Mi'` normalized to `'3Gi'`
+* `3072` normalized to `'3072'` (quotes added)
+
+To fix this - replace your values with the normalized values.
+
+See [#1615](https://github.com/argoproj/argo-cd/issues/1615)
 
 # How Do I Fix "invalid cookie, longer than max length 4093"?
 
@@ -109,10 +129,10 @@ See [#2165](https://github.com/argoproj/argo-cd/issues/2165).
 
 ## Why Am I Getting `rpc error: code = Unavailable desc = transport is closing` When Using The CLI?
 
-Maybe you're behind a proxy that does not support HTTP 2? Try the `--grcp-web` flag.:
+Maybe you're behind a proxy that does not support HTTP 2? Try the `--grpc-web` flag.:
 
 ```bash
-argocd ... --grcp-web
+argocd ... --grpc-web
 ```
 
 ## Why Am I Getting `x509: certificate signed by unknown authority` When Using The CLI?

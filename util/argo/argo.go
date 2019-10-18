@@ -24,9 +24,9 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/repo/factory"
-	"github.com/argoproj/argo-cd/util/repo/metrics"
 )
 
 const (
@@ -123,6 +123,39 @@ func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, na
 	return nil, fmt.Errorf("application refresh deadline exceeded")
 }
 
+func TestRepoWithKnownType(repo *argoappv1.Repository, isHelm bool) error {
+	repo = repo.DeepCopy()
+	if isHelm {
+		repo.Type = "helm"
+	} else {
+		repo.Type = "git"
+	}
+	return TestRepo(repo)
+}
+
+func TestRepo(repo *argoappv1.Repository) error {
+	checks := map[string]func() error{
+		"git": func() error {
+			return git.TestRepo(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled())
+		},
+		"helm": func() error {
+			_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds()).GetIndex()
+			return err
+		},
+	}
+	if check, ok := checks[repo.Type]; ok {
+		return check()
+	}
+	var err error
+	for _, check := range checks {
+		err = check()
+		if err == nil {
+			return nil
+		}
+	}
+	return err
+}
+
 // ValidateRepo validates the repository specified in application spec. Following is checked:
 // * the repository is accessible
 // * the path contains valid manifests
@@ -130,12 +163,14 @@ func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, na
 // * ksonnet: the specified environment exists
 func ValidateRepo(
 	ctx context.Context,
-	spec *argoappv1.ApplicationSpec,
+	app *argoappv1.Application,
 	repoClientset apiclient.Clientset,
 	db db.ArgoDB,
 	kustomizeOptions *argoappv1.KustomizeOptions,
 	plugins []*argoappv1.ConfigManagementPlugin,
+	kubectl kube.Kubectl,
 ) ([]argoappv1.ApplicationCondition, error) {
+	spec := &app.Spec
 	conditions := make([]argoappv1.ApplicationCondition, 0)
 
 	// Test the repo
@@ -150,7 +185,7 @@ func ValidateRepo(
 	}
 
 	repoAccessible := false
-	_, err = factory.NewFactory().NewRepo(repo, metrics.NopReporter)
+	err = TestRepoWithKnownType(repo, app.Spec.Source.IsHelm())
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
@@ -171,29 +206,16 @@ func ValidateRepo(
 		return conditions, nil
 	}
 
-	// get the app details, and populate the Ksonnet stuff from it
-	repos, err := db.ListRepositories(ctx)
+	helmRepos, err := db.ListHelmRepositories(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// can we actually read the app from the repo
-	var helm *apiclient.HelmAppDetailsQuery
-	if spec.Source.Helm != nil {
-		helm = &apiclient.HelmAppDetailsQuery{ValueFiles: spec.Source.Helm.ValueFiles}
-	}
-	var ksonnet *apiclient.KsonnetAppDetailsQuery
-	if spec.Source.Ksonnet != nil {
-		ksonnet = &apiclient.KsonnetAppDetailsQuery{Environment: spec.Source.Ksonnet.Environment}
-	}
+	// get the app details, and populate the Ksonnet stuff from it
 	appDetails, err := repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 		Repo:             repo,
-		Revision:         spec.Source.TargetRevision,
-		App:              spec.Source.Path,
-		Repos:            repos,
-		Plugins:          plugins,
-		Helm:             helm,
-		Ksonnet:          ksonnet,
+		Source:           &spec.Source,
+		Repos:            helmRepos,
 		KustomizeOptions: kustomizeOptions,
 	})
 	if err != nil {
@@ -206,7 +228,19 @@ func ValidateRepo(
 
 	enrichSpec(spec, appDetails)
 
-	conditions = append(conditions, verifyGenerateManifests(ctx, repo, repos, spec, repoClient, kustomizeOptions, plugins)...)
+	cluster, err := db.GetCluster(context.Background(), spec.Destination.Server)
+	if err != nil {
+		conditions = append(conditions, argoappv1.ApplicationCondition{
+			Type:    argoappv1.ApplicationConditionInvalidSpecError,
+			Message: fmt.Sprintf("Unable to get cluster: %v", err),
+		})
+		return conditions, nil
+	}
+	cluster.ServerVersion, err = kubectl.GetServerVersion(cluster.RESTConfig())
+	if err != nil {
+		return nil, err
+	}
+	conditions = append(conditions, verifyGenerateManifests(ctx, repo, helmRepos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion)...)
 
 	return conditions, nil
 }
@@ -229,10 +263,17 @@ func enrichSpec(spec *argoappv1.ApplicationSpec, appDetails *apiclient.RepoAppDe
 // ValidatePermissions ensures that the referenced cluster has been added to Argo CD and the app source repo and destination namespace/cluster are permitted in app project
 func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, proj *argoappv1.AppProject, db db.ArgoDB) ([]argoappv1.ApplicationCondition, error) {
 	conditions := make([]argoappv1.ApplicationCondition, 0)
-	if spec.Source.RepoURL == "" || spec.Source.Path == "" {
+	if spec.Source.RepoURL == "" || (spec.Source.Path == "" && spec.Source.Chart == "") {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: "spec.source.repoURL and spec.source.path are required",
+			Message: "spec.source.repoURL and spec.source.path either spec.source.chart are required",
+		})
+		return conditions, nil
+	}
+	if spec.Source.Chart != "" && spec.Source.TargetRevision == "" {
+		conditions = append(conditions, argoappv1.ApplicationCondition{
+			Type:    argoappv1.ApplicationConditionInvalidSpecError,
+			Message: "spec.source.targetRevision is required if the manifest source is a helm chart",
 		})
 		return conditions, nil
 	}
@@ -278,13 +319,14 @@ func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.Ap
 func verifyGenerateManifests(
 	ctx context.Context,
 	repoRes *argoappv1.Repository,
-	repos argoappv1.Repositories,
-	spec *argoappv1.ApplicationSpec,
+	helmRepos argoappv1.Repositories,
+	app *argoappv1.Application,
 	repoClient apiclient.RepoServerServiceClient,
 	kustomizeOptions *argoappv1.KustomizeOptions,
 	plugins []*argoappv1.ConfigManagementPlugin,
+	kubeVersion string,
 ) []argoappv1.ApplicationCondition {
-
+	spec := &app.Spec
 	var conditions []argoappv1.ApplicationCondition
 	if spec.Destination.Server == "" || spec.Destination.Namespace == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
@@ -299,14 +341,17 @@ func verifyGenerateManifests(
 			Type: repoRes.Type,
 			Name: repoRes.Name,
 		},
-		Repos:             repos,
+		Repos:             helmRepos,
 		Revision:          spec.Source.TargetRevision,
+		AppLabelValue:     app.Name,
 		Namespace:         spec.Destination.Namespace,
 		ApplicationSource: &spec.Source,
 		Plugins:           plugins,
 		KustomizeOptions:  kustomizeOptions,
+		KubeVersion:       kubeVersion,
 	}
-	req.Repo.CopyCredentialsFrom(repoRes)
+	req.Repo.CopyCredentialsFromRepo(repoRes)
+	req.Repo.CopySettingsFrom(repoRes)
 
 	// Only check whether we can access the application's path,
 	// and not whether it actually contains any manifests.

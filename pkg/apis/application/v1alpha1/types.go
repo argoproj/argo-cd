@@ -3,12 +3,17 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
+	"github.com/robfig/cron"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"gopkg.in/yaml.v2"
@@ -22,7 +27,9 @@ import (
 	"k8s.io/client-go/tools/clientcmd/api"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/util/cert"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/rbac"
 )
 
@@ -57,7 +64,7 @@ type ApplicationSpec struct {
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
 type ResourceIgnoreDifferences struct {
-	Group        string   `json:"group" protobuf:"bytes,1,opt,name=group"`
+	Group        string   `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
 	Kind         string   `json:"kind" protobuf:"bytes,2,opt,name=kind"`
 	Name         string   `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
 	Namespace    string   `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
@@ -95,8 +102,8 @@ func (e Env) Environ() []string {
 type ApplicationSource struct {
 	// RepoURL is the repository URL of the application manifests
 	RepoURL string `json:"repoURL" protobuf:"bytes,1,opt,name=repoURL"`
-	// Path is a directory path within the repository containing a
-	Path string `json:"path" protobuf:"bytes,2,opt,name=path"`
+	// Path is a directory path within the Git repository
+	Path string `json:"path,omitempty" protobuf:"bytes,2,opt,name=path"`
 	// TargetRevision defines the commit, tag, or branch in which to sync the application to.
 	// If omitted, will sync to HEAD
 	TargetRevision string `json:"targetRevision,omitempty" protobuf:"bytes,4,opt,name=targetRevision"`
@@ -110,6 +117,12 @@ type ApplicationSource struct {
 	Directory *ApplicationSourceDirectory `json:"directory,omitempty" protobuf:"bytes,10,opt,name=directory"`
 	// ConfigManagementPlugin holds config management plugin specific options
 	Plugin *ApplicationSourcePlugin `json:"plugin,omitempty" protobuf:"bytes,11,opt,name=plugin"`
+	// Chart is a Helm chart name
+	Chart string `json:"chart,omitempty" protobuf:"bytes,12,opt,name=chart"`
+}
+
+func (a *ApplicationSource) IsHelm() bool {
+	return a.Chart != ""
 }
 
 func (a *ApplicationSource) IsZero() bool {
@@ -231,6 +244,8 @@ func (images KustomizeImages) Find(image KustomizeImage) int {
 type ApplicationSourceKustomize struct {
 	// NamePrefix is a prefix appended to resources for kustomize apps
 	NamePrefix string `json:"namePrefix,omitempty" protobuf:"bytes,1,opt,name=namePrefix"`
+	// NameSuffix is a suffix appended to resources for kustomize apps
+	NameSuffix string `json:"nameSuffix,omitempty" protobuf:"bytes,2,opt,name=nameSuffix"`
 	// Images are kustomize image overrides
 	Images KustomizeImages `json:"images,omitempty" protobuf:"bytes,3,opt,name=images"`
 	// CommonLabels adds additional kustomize commonLabels
@@ -238,7 +253,11 @@ type ApplicationSourceKustomize struct {
 }
 
 func (k *ApplicationSourceKustomize) IsZero() bool {
-	return k == nil || k.NamePrefix == "" && len(k.Images) == 0 && len(k.CommonLabels) == 0
+	return k == nil ||
+		k.NamePrefix == "" &&
+			k.NameSuffix == "" &&
+			len(k.Images) == 0 &&
+			len(k.CommonLabels) == 0
 }
 
 // either updates or adds the images
@@ -690,6 +709,8 @@ type ApplicationCondition struct {
 	Type ApplicationConditionType `json:"type" protobuf:"bytes,1,opt,name=type"`
 	// Message contains human-readable message indicating details about condition
 	Message string `json:"message" protobuf:"bytes,2,opt,name=message"`
+	// LastTransitionTime is the time the condition was first observed.
+	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
 }
 
 // ComparedTo contains application source and target which was used for resources comparison
@@ -870,6 +891,8 @@ type Cluster struct {
 	Config ClusterConfig `json:"config" protobuf:"bytes,3,opt,name=config"`
 	// ConnectionState contains information about cluster connection state
 	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,4,opt,name=connectionState"`
+	// The server version
+	ServerVersion string `json:"serverVersion,omitempty" protobuf:"bytes,5,opt,name=serverVersion"`
 }
 
 // ClusterList is a collection of Clusters.
@@ -943,7 +966,7 @@ func (o *ResourceOverride) GetActions() (ResourceActions, error) {
 
 type ResourceActions struct {
 	ActionDiscoveryLua string                     `json:"discovery.lua,omitempty" yaml:"discovery.lua,omitempty" protobuf:"bytes,1,opt,name=actionDiscoveryLua"`
-	Definitions        []ResourceActionDefinition `json:"definitions,omitEmpty" protobuf:"bytes,2,rep,name=definitions"`
+	Definitions        []ResourceActionDefinition `json:"definitions,omitempty" protobuf:"bytes,2,rep,name=definitions"`
 }
 
 type ResourceActionDefinition struct {
@@ -952,8 +975,9 @@ type ResourceActionDefinition struct {
 }
 
 type ResourceAction struct {
-	Name   string                `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-	Params []ResourceActionParam `json:"params,omitempty" protobuf:"bytes,2,rep,name=params"`
+	Name     string                `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	Params   []ResourceActionParam `json:"params,omitempty" protobuf:"bytes,2,rep,name=params"`
+	Disabled bool                  `json:"disabled,omitempty" protobuf:"varint,3,opt,name=disabled"`
 }
 
 type ResourceActionParam struct {
@@ -961,6 +985,22 @@ type ResourceActionParam struct {
 	Value   string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
 	Type    string `json:"type,omitempty" protobuf:"bytes,3,opt,name=type"`
 	Default string `json:"default,omitempty" protobuf:"bytes,4,opt,name=default"`
+}
+
+// RepoCreds holds a repository credentials definition
+type RepoCreds struct {
+	// URL is the URL that this credentials matches to
+	URL string `json:"url" protobuf:"bytes,1,opt,name=url"`
+	// Username for authenticating at the repo server
+	Username string `json:"username,omitempty" protobuf:"bytes,2,opt,name=username"`
+	// Password for authenticating at the repo server
+	Password string `json:"password,omitempty" protobuf:"bytes,3,opt,name=password"`
+	// SSH private key data for authenticating at the repo server (only Git repos)
+	SSHPrivateKey string `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
+	// TLS client cert data for authenticating at the repo server
+	TLSClientCertData string `json:"tlsClientCertData,omitempty" protobuf:"bytes,5,opt,name=tlsClientCertData"`
+	// TLS client cert key for authenticating at the repo server
+	TLSClientCertKey string `json:"tlsClientCertKey,omitempty" protobuf:"bytes,6,opt,name=tlsClientCertKey"`
 }
 
 // Repository is a repository holding application configurations
@@ -987,36 +1027,117 @@ type Repository struct {
 	TLSClientCertData string `json:"tlsClientCertData,omitempty" protobuf:"bytes,9,opt,name=tlsClientCertData"`
 	// TLS client cert key for authenticating at the repo server
 	TLSClientCertKey string `json:"tlsClientCertKey,omitempty" protobuf:"bytes,10,opt,name=tlsClientCertKey"`
-	// only for Helm repos
-	TLSClientCAData string `json:"tlsClientCaData,omitempty" protobuf:"bytes,11,opt,name=tlsClientCaData"`
 	// type of the repo, maybe "git or "helm, "git" is assumed if empty or absent
-	Type string `json:"type,omitempty" protobuf:"bytes,12,opt,name=type"`
+	Type string `json:"type,omitempty" protobuf:"bytes,11,opt,name=type"`
 	// only for Helm repos
-	Name string `json:"name,omitempty" protobuf:"bytes,13,opt,name=name"`
+	Name string `json:"name,omitempty" protobuf:"bytes,12,opt,name=name"`
+	// Whether credentials were inherited from a credential set
+	InheritedCreds bool `json:"inheritedCreds,omitempty" protobuf:"bytes,13,opt,name=inheritedCreds"`
 }
 
+// IsInsecure returns true if receiver has been configured to skip server verification
 func (repo *Repository) IsInsecure() bool {
 	return repo.InsecureIgnoreHostKey || repo.Insecure
 }
 
+// IsLFSEnabled returns true if LFS support is enabled on receiver
 func (repo *Repository) IsLFSEnabled() bool {
 	return repo.EnableLFS
 }
 
+// HasCredentials returns true when the receiver has been configured any credentials
 func (m *Repository) HasCredentials() bool {
-	return m.Username != "" || m.Password != "" || m.SSHPrivateKey != "" || m.InsecureIgnoreHostKey
+	return m.Username != "" || m.Password != "" || m.SSHPrivateKey != "" || m.TLSClientCertData != ""
 }
 
-func (m *Repository) CopyCredentialsFrom(source *Repository) {
+func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
 	if source != nil {
-		m.Username = source.Username
-		m.Password = source.Password
-		m.SSHPrivateKey = source.SSHPrivateKey
+		if repo.Username == "" {
+			repo.Username = source.Username
+		}
+		if repo.Password == "" {
+			repo.Password = source.Password
+		}
+		if repo.SSHPrivateKey == "" {
+			repo.SSHPrivateKey = source.SSHPrivateKey
+		}
+		if repo.TLSClientCertData == "" {
+			repo.TLSClientCertData = source.TLSClientCertData
+		}
+		if repo.TLSClientCertKey == "" {
+			repo.TLSClientCertKey = source.TLSClientCertKey
+		}
+	}
+}
+
+// CopyCredentialsFrom copies all credentials from source to receiver
+func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
+	if source != nil {
+		if repo.Username == "" {
+			repo.Username = source.Username
+		}
+		if repo.Password == "" {
+			repo.Password = source.Password
+		}
+		if repo.SSHPrivateKey == "" {
+			repo.SSHPrivateKey = source.SSHPrivateKey
+		}
+		if repo.TLSClientCertData == "" {
+			repo.TLSClientCertData = source.TLSClientCertData
+		}
+		if repo.TLSClientCertKey == "" {
+			repo.TLSClientCertKey = source.TLSClientCertKey
+		}
+	}
+}
+
+func (repo *Repository) GetGitCreds() git.Creds {
+	if repo == nil {
+		return git.NopCreds{}
+	}
+	if repo.Username != "" && repo.Password != "" {
+		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure())
+	}
+	if repo.SSHPrivateKey != "" {
+		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure())
+	}
+	return git.NopCreds{}
+}
+
+func (repo *Repository) GetHelmCreds() helm.Creds {
+	return helm.Creds{
+		Username: repo.Username,
+		Password: repo.Password,
+		CAPath:   getCAPath(repo.Repo),
+		CertData: []byte(repo.TLSClientCertData),
+		KeyData:  []byte(repo.TLSClientCertKey),
+	}
+}
+
+func getCAPath(repoURL string) string {
+	if git.IsHTTPSURL(repoURL) {
+		if parsedURL, err := url.Parse(repoURL); err == nil {
+			if caPath, err := cert.GetCertBundlePathForRepository(parsedURL.Host); err == nil {
+				return caPath
+			} else {
+				log.Warnf("Could not get cert bundle path for host '%s'", parsedURL.Host)
+			}
+		} else {
+			// We don't fail if we cannot parse the URL, but log a warning in that
+			// case. And we execute the command in a verbatim way.
+			log.Warnf("Could not parse repo URL '%s'", repoURL)
+		}
+	}
+	return ""
+}
+
+// CopySettingsFrom copies all repository settings from source to receiver
+func (m *Repository) CopySettingsFrom(source *Repository) {
+	if source != nil {
+		m.EnableLFS = source.EnableLFS
 		m.InsecureIgnoreHostKey = source.InsecureIgnoreHostKey
 		m.Insecure = source.Insecure
-		m.EnableLFS = source.EnableLFS
-		m.TLSClientCertData = source.TLSClientCertData
-		m.TLSClientCertKey = source.TLSClientCertKey
+		m.InheritedCreds = source.InheritedCreds
 	}
 }
 
@@ -1024,7 +1145,8 @@ type Repositories []*Repository
 
 func (r Repositories) Filter(predicate func(r *Repository) bool) Repositories {
 	var res Repositories
-	for _, repo := range r {
+	for i := range r {
+		repo := r[i]
 		if predicate(repo) {
 			res = append(res, repo)
 		}
@@ -1036,6 +1158,12 @@ func (r Repositories) Filter(predicate func(r *Repository) bool) Repositories {
 type RepositoryList struct {
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	Items           Repositories `json:"items" protobuf:"bytes,2,rep,name=items"`
+}
+
+// RepositoryList is a collection of Repositories.
+type RepoCredsList struct {
+	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+	Items           []RepoCreds `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
@@ -1154,6 +1282,24 @@ func (p *AppProject) ValidateProject() error {
 		}
 		roleNames[role.Name] = true
 	}
+
+	if p.Spec.SyncWindows.HasWindows() {
+		existingWindows := make(map[string]bool)
+		for _, window := range p.Spec.SyncWindows {
+			if _, ok := existingWindows[window.Kind+window.Schedule+window.Duration]; ok {
+				return status.Errorf(codes.AlreadyExists, "window '%s':'%s':'%s' already exists, update or edit", window.Kind, window.Schedule, window.Duration)
+			}
+			err := window.Validate()
+			if err != nil {
+				return err
+			}
+			if len(window.Applications) == 0 && len(window.Namespaces) == 0 && len(window.Clusters) == 0 {
+				return status.Errorf(codes.OutOfRange, "window '%s':'%s':'%s' requires one of application, cluster or namespace", window.Kind, window.Schedule, window.Duration)
+			}
+			existingWindows[window.Kind+window.Schedule+window.Duration] = true
+		}
+	}
+
 	if err := p.validatePolicySyntax(); err != nil {
 		return err
 	}
@@ -1322,6 +1468,283 @@ type AppProjectSpec struct {
 	NamespaceResourceBlacklist []metav1.GroupKind `json:"namespaceResourceBlacklist,omitempty" protobuf:"bytes,6,opt,name=namespaceResourceBlacklist"`
 	// OrphanedResources specifies if controller should monitor orphaned resources of apps in this project
 	OrphanedResources *OrphanedResourcesMonitorSettings `json:"orphanedResources,omitempty" protobuf:"bytes,7,opt,name=orphanedResources"`
+	// SyncWindows controls when syncs can be run for apps in this project
+	SyncWindows SyncWindows `json:"syncWindows,omitempty" protobuf:"bytes,8,opt,name=syncWindows"`
+}
+
+// SyncWindows is a collection of sync windows in this project
+type SyncWindows []*SyncWindow
+
+// SyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps
+type SyncWindow struct {
+	// Kind defines if the window allows or blocks syncs
+	Kind string `json:"kind,omitempty" protobuf:"bytes,1,opt,name=kind"`
+	// Schedule is the time the window will begin, specified in cron format
+	Schedule string `json:"schedule,omitempty" protobuf:"bytes,2,opt,name=schedule"`
+	// Duration is the amount of time the sync window will be open
+	Duration string `json:"duration,omitempty" protobuf:"bytes,3,opt,name=duration"`
+	// Applications contains a list of applications that the window will apply to
+	Applications []string `json:"applications,omitempty" protobuf:"bytes,4,opt,name=applications"`
+	// Namespaces contains a list of namespaces that the window will apply to
+	Namespaces []string `json:"namespaces,omitempty" protobuf:"bytes,5,opt,name=namespaces"`
+	// Clusters contains a list of clusters that the window will apply to
+	Clusters []string `json:"clusters,omitempty" protobuf:"bytes,6,opt,name=clusters"`
+	// ManualSync enables manual syncs when they would otherwise be blocked
+	ManualSync bool `json:"manualSync,omitempty" protobuf:"bytes,7,opt,name=manualSync"`
+}
+
+func (s *SyncWindows) HasWindows() bool {
+	return s != nil && len(*s) > 0
+}
+
+func (s *SyncWindows) Active() *SyncWindows {
+	if s.HasWindows() {
+		var active SyncWindows
+		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+		for _, w := range *s {
+			schedule, _ := specParser.Parse(w.Schedule)
+			duration, _ := time.ParseDuration(w.Duration)
+			now := time.Now()
+			nextWindow := schedule.Next(now.Add(-duration))
+			if nextWindow.Before(now) {
+				active = append(active, w)
+			}
+		}
+		if len(active) > 0 {
+			return &active
+		}
+	}
+	return nil
+}
+
+func (s *SyncWindows) InactiveAllows() *SyncWindows {
+	if s.HasWindows() {
+		var inactive SyncWindows
+		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+		for _, w := range *s {
+			if w.Kind == "allow" {
+				schedule, sErr := specParser.Parse(w.Schedule)
+				duration, dErr := time.ParseDuration(w.Duration)
+				now := time.Now()
+				nextWindow := schedule.Next(now.Add(-duration))
+				if !nextWindow.Before(now) && sErr == nil && dErr == nil {
+					inactive = append(inactive, w)
+				}
+			}
+		}
+		if len(inactive) > 0 {
+			return &inactive
+		}
+	}
+	return nil
+}
+
+func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool) error {
+	if len(knd) == 0 || len(sch) == 0 || len(dur) == 0 {
+		return fmt.Errorf("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
+
+	}
+	window := &SyncWindow{
+		Kind:       knd,
+		Schedule:   sch,
+		Duration:   dur,
+		ManualSync: ms,
+	}
+
+	if len(app) > 0 {
+		window.Applications = app
+	}
+	if len(ns) > 0 {
+		window.Namespaces = ns
+	}
+	if len(cl) > 0 {
+		window.Clusters = cl
+	}
+
+	err := window.Validate()
+	if err != nil {
+		return err
+	}
+
+	s.SyncWindows = append(s.SyncWindows, window)
+
+	return nil
+
+}
+
+func (s *AppProjectSpec) DeleteWindow(id int) error {
+	var exists bool
+	for i := range s.SyncWindows {
+		if i == id {
+			exists = true
+			s.SyncWindows = append(s.SyncWindows[:i], s.SyncWindows[i+1:]...)
+			break
+		}
+	}
+	if !exists {
+		return fmt.Errorf("window with id '%s' not found", strconv.Itoa(id))
+	}
+	return nil
+}
+
+func (w *SyncWindows) Matches(app *Application) *SyncWindows {
+	if w.HasWindows() {
+		var matchingWindows SyncWindows
+		for _, w := range *w {
+			if len(w.Applications) > 0 {
+				for _, a := range w.Applications {
+					if globMatch(a, app.Name) {
+						matchingWindows = append(matchingWindows, w)
+						break
+					}
+				}
+			}
+			if len(w.Clusters) > 0 {
+				for _, c := range w.Clusters {
+					if globMatch(c, app.Spec.Destination.Server) {
+						matchingWindows = append(matchingWindows, w)
+						break
+					}
+				}
+			}
+			if len(w.Namespaces) > 0 {
+				for _, n := range w.Namespaces {
+					if globMatch(n, app.Spec.Destination.Namespace) {
+						matchingWindows = append(matchingWindows, w)
+						break
+					}
+				}
+			}
+		}
+		if len(matchingWindows) > 0 {
+			return &matchingWindows
+		}
+	}
+	return nil
+}
+
+func (w *SyncWindows) CanSync(isManual bool) bool {
+	if !w.HasWindows() {
+		return true
+	}
+
+	var allowActive, denyActive, manualEnabled bool
+	active := w.Active()
+	denyActive, manualEnabled = active.hasDeny()
+	allowActive = active.hasAllow()
+
+	if !denyActive {
+		if !allowActive {
+			if isManual && w.InactiveAllows().manualEnabled() {
+				return true
+			}
+		} else {
+			return true
+		}
+	} else {
+		if isManual && manualEnabled {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (w *SyncWindows) hasDeny() (bool, bool) {
+	if !w.HasWindows() {
+		return false, false
+	}
+	var denyActive, manualEnabled bool
+	for _, a := range *w {
+		if a.Kind == "deny" {
+			if !denyActive {
+				manualEnabled = a.ManualSync
+			} else {
+				if manualEnabled {
+					if !a.ManualSync {
+						manualEnabled = a.ManualSync
+					}
+				}
+			}
+			denyActive = true
+		}
+	}
+	return denyActive, manualEnabled
+}
+
+func (w *SyncWindows) hasAllow() bool {
+	if !w.HasWindows() {
+		return false
+	}
+	for _, a := range *w {
+		if a.Kind == "allow" {
+			return true
+		}
+	}
+	return false
+}
+
+func (w *SyncWindows) manualEnabled() bool {
+	if !w.HasWindows() {
+		return false
+	}
+	for _, s := range *w {
+		if s.ManualSync {
+			return true
+		}
+	}
+	return false
+}
+
+func (w SyncWindow) Active() bool {
+	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+	schedule, _ := specParser.Parse(w.Schedule)
+	duration, _ := time.ParseDuration(w.Duration)
+	now := time.Now()
+	nextWindow := schedule.Next(now.Add(-duration))
+	return nextWindow.Before(now)
+}
+
+func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string) error {
+	if len(s) == 0 && len(d) == 0 && len(a) == 0 && len(n) == 0 && len(c) == 0 {
+		return fmt.Errorf("cannot update: require one or more of schedule, duration, application, namespace, or cluster")
+	}
+
+	if len(s) > 0 {
+		w.Schedule = s
+	}
+
+	if len(d) > 0 {
+		w.Duration = d
+	}
+
+	if len(a) > 0 {
+		w.Applications = a
+	}
+	if len(n) > 0 {
+		w.Namespaces = n
+	}
+	if len(c) > 0 {
+		w.Clusters = c
+	}
+
+	return nil
+}
+
+func (w *SyncWindow) Validate() error {
+	if w.Kind != "allow" && w.Kind != "deny" {
+		return fmt.Errorf("kind '%s' mismatch: can only be allow or deny", w.Kind)
+	}
+	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+	_, err := specParser.Parse(w.Schedule)
+	if err != nil {
+		return fmt.Errorf("cannot parse schedule '%s': %s", w.Schedule, err)
+	}
+	_, err = time.ParseDuration(w.Duration)
+	if err != nil {
+		return fmt.Errorf("cannot parse duration '%s': %s", w.Duration, err)
+	}
+	return nil
 }
 
 func (d AppProjectSpec) DestinationClusters() []string {
@@ -1433,27 +1856,55 @@ func (app *Application) SetCascadedDeletion(prune bool) {
 	}
 }
 
+// SetConditions updates the application status conditions for a subset of evaluated types.
+// If the application has a pre-existing condition of a type that is not in the evaluated list,
+// it will be preserved. If the application has a pre-existing condition of a type that
+// is in the evaluated list, but not in the incoming conditions list, it will be removed.
 func (status *ApplicationStatus) SetConditions(conditions []ApplicationCondition, evaluatedTypes map[ApplicationConditionType]bool) {
 	appConditions := make([]ApplicationCondition, 0)
+	now := metav1.Now()
 	for i := 0; i < len(status.Conditions); i++ {
 		condition := status.Conditions[i]
 		if _, ok := evaluatedTypes[condition.Type]; !ok {
+			if condition.LastTransitionTime == nil {
+				condition.LastTransitionTime = &now
+			}
 			appConditions = append(appConditions, condition)
 		}
 	}
 	for i := range conditions {
 		condition := conditions[i]
-		appConditions = append(appConditions, condition)
+		if condition.LastTransitionTime == nil {
+			condition.LastTransitionTime = &now
+		}
+		eci := findConditionIndexByType(status.Conditions, condition.Type)
+		if eci >= 0 && status.Conditions[eci].Message == condition.Message {
+			// If we already have a condition of this type, only update the timestamp if something
+			// has changed.
+			appConditions = append(appConditions, status.Conditions[eci])
+		} else {
+			// Otherwise we use the new incoming condition with an updated timestamp:
+			appConditions = append(appConditions, condition)
+		}
 	}
 	status.Conditions = appConditions
 }
 
+func findConditionIndexByType(conditions []ApplicationCondition, t ApplicationConditionType) int {
+	for i := range conditions {
+		if conditions[i].Type == t {
+			return i
+		}
+	}
+	return -1
+}
+
 // GetErrorConditions returns list of application error conditions
-func (status *ApplicationStatus) GetErrorConditions() []ApplicationCondition {
+func (status *ApplicationStatus) GetConditions(conditionTypes map[ApplicationConditionType]bool) []ApplicationCondition {
 	result := make([]ApplicationCondition, 0)
 	for i := range status.Conditions {
 		condition := status.Conditions[i]
-		if condition.IsError() {
+		if ok := conditionTypes[condition.Type]; ok {
 			result = append(result, condition)
 		}
 	}
@@ -1573,7 +2024,12 @@ func (c *Cluster) RESTConfig() *rest.Config {
 	var config *rest.Config
 	var err error
 	if c.Server == common.KubernetesInternalAPIServerAddr && os.Getenv(common.EnvVarFakeInClusterConfig) == "true" {
-		config, err = clientcmd.BuildConfigFromFlags("", filepath.Join(os.Getenv("HOME"), ".kube", "config"))
+		conf, exists := os.LookupEnv("KUBECONFIG")
+		if exists {
+			config, err = clientcmd.BuildConfigFromFlags("", conf)
+		} else {
+			config, err = clientcmd.BuildConfigFromFlags("", filepath.Join(os.Getenv("HOME"), ".kube", "config"))
+		}
 	} else if c.Server == common.KubernetesInternalAPIServerAddr && c.Config.Username == "" && c.Config.Password == "" && c.Config.BearerToken == "" {
 		config, err = rest.InClusterConfig()
 	} else {

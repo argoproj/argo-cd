@@ -36,4 +36,11 @@ export const COLORS = {
         pruned: ARGO_GRAY4_COLOR,
         unknown: ARGO_GRAY4_COLOR,
     },
+    sync_window: {
+        deny: ARGO_FAILED_COLOR,
+        allow: ARGO_SUCCESS_COLOR,
+        manual: ARGO_WARNING_COLOR,
+        inactive: ARGO_GRAY4_COLOR,
+        unknown: ARGO_GRAY4_COLOR,
+    },
 };

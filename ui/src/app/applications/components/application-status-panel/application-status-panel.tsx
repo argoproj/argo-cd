@@ -1,10 +1,12 @@
 import {Tooltip} from 'argo-ui';
 import * as React from 'react';
+import {DataLoader} from '../../../shared/components';
 import {Revision} from '../../../shared/components/revision';
 import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
+import {services} from '../../../shared/services';
 import * as utils from '../utils';
-import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage} from '../utils';
+import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
 
 require('./application-status-panel.scss');
@@ -60,7 +62,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 </div>
                 <div className='application-status-panel__item-name'>{application.status.health.message}</div>
             </div>
-            <div className='application-status-panel__item columns small-4' style={{position: 'relative'}}>
+            <div className='application-status-panel__item columns small-2' style={{position: 'relative'}}>
                 <div className='application-status-panel__item-value'>
                     <ComparisonStatusIcon status={application.status.sync.status}/>&nbsp;
                     {application.status.sync.status}
@@ -68,13 +70,13 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 </div>
                 <div className='application-status-panel__item-name'>{syncStatusMessage(application)}</div>
                 <div className='application-status-panel__item-name'>
-                    { application.status && application.status.sync && (
-                        <RevisionMetadataPanel applicationName={application.metadata.name} revision={application.status.sync.revision}/>
+                    { application.status && application.status.sync && application.status.sync.revision && (
+                        <RevisionMetadataPanel applicationName={application.metadata.name} source={{...application.spec.source, targetRevision: application.status.sync.revision}}/>
                     )}
                 </div>
             </div>
             {appOperationState && (
-                <div className='application-status-panel__item columns small-4'>
+                <div className='application-status-panel__item columns small-4 '>
                     <div
                         className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
                         <a onClick={() => showOperation && showOperation()}>{utils.getOperationType(application)}
@@ -94,7 +96,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                     </div>
                     {appOperationState.syncResult && (
                         <RevisionMetadataPanel applicationName={application.metadata.name}
-                                               revision={appOperationState.syncResult.revision}/>
+                                               source={{...application.spec.source, targetRevision: appOperationState.syncResult.revision}}/>
                     )}
                 </div>
             )}
@@ -109,6 +111,25 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                     </div>
                 </div>
             )}
+            <DataLoader noLoaderOnInputChange={true} input={application} load={async () => {
+                return await services.applications.getApplicationSyncWindowState(application.metadata.name);
+            }}>{(data) =>
+                <React.Fragment>
+                    <div className='application-status-panel__item columns small-2' style={{position: 'relative'}}>
+                        <div className='application-status-panel__item-value'>
+                            {data.assignedWindows && (
+                                <React.Fragment>
+                                    <ApplicationSyncWindowStatusIcon project={application.spec.project} state={data}/>
+                                    {tooltip('The aggregate state of sync windows for this app. ' +
+                                        'Red: no syncs allowed. ' +
+                                        'Yellow: manual syncs allowed. ' +
+                                        'Green: all syncs allowed')}
+                                </React.Fragment>
+                            )}
+                        </div>
+                    </div>
+                </React.Fragment>
+            }</DataLoader>
         </div>
     );
 };

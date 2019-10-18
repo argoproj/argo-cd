@@ -43,14 +43,6 @@ func (noopCodec) String() string {
 	return "bytes"
 }
 
-type inlineCloser struct {
-	close func() error
-}
-
-func (c *inlineCloser) Close() error {
-	return c.close()
-}
-
 func toFrame(msg []byte) []byte {
 	frame := append([]byte{0, 0, 0, 0}, msg...)
 	binary.BigEndian.PutUint32(frame, uint32(len(msg)))
@@ -121,7 +113,16 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 			if err != nil {
 				return err
 			}
+
 			md, _ := metadata.FromIncomingContext(stream.Context())
+
+			for _, kv := range c.Headers {
+				if len(strings.Split(kv, ":"))%2 == 1 {
+					return fmt.Errorf("additional headers key/values must be separated by a colon(:): %s", kv)
+				}
+				md.Append(strings.Split(kv, ":")[0], strings.Split(kv, ":")[1])
+			}
+
 			resp, err := c.executeRequest(fullMethodName, msg, md)
 			if err != nil {
 				return err
@@ -185,7 +186,7 @@ func (c *client) useGRPCProxy() (net.Addr, io.Closer, error) {
 	}
 	c.proxyUsersCount = c.proxyUsersCount + 1
 
-	return c.proxyListener.Addr(), &inlineCloser{close: func() error {
+	return c.proxyListener.Addr(), util.NewCloser(func() error {
 		c.proxyMutex.Lock()
 		defer c.proxyMutex.Unlock()
 		c.proxyUsersCount = c.proxyUsersCount - 1
@@ -196,5 +197,5 @@ func (c *client) useGRPCProxy() (net.Addr, io.Closer, error) {
 			return nil
 		}
 		return nil
-	}}, nil
+	}), nil
 }

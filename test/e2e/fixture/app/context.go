@@ -16,6 +16,7 @@ import (
 type Context struct {
 	t           *testing.T
 	path        string
+	chart       string
 	repoURLType fixture.RepoURLType
 	// seconds
 	timeout                int
@@ -26,6 +27,7 @@ type Context struct {
 	jsonnetTLAStr          []string
 	jsonnetTLACode         []string
 	namePrefix             string
+	nameSuffix             string
 	resource               string
 	prune                  bool
 	configManagementPlugin string
@@ -51,33 +53,53 @@ func (c *Context) CustomSSHKnownHostsAdded() *Context {
 	return c
 }
 
-func (c *Context) HTTPSRepoURLAdded() *Context {
-	repos.AddHTTPSRepo(false)
+func (c *Context) HTTPSRepoURLAdded(withCreds bool) *Context {
+	repos.AddHTTPSRepo(false, withCreds)
 	return c
 }
 
-func (c *Context) HTTPSInsecureRepoURLAdded() *Context {
-	repos.AddHTTPSRepo(true)
+func (c *Context) HTTPSInsecureRepoURLAdded(withCreds bool) *Context {
+	repos.AddHTTPSRepo(true, withCreds)
 	return c
 }
 
 func (c *Context) HTTPSInsecureRepoURLWithClientCertAdded() *Context {
-	repos.AddHTTPSRepoClientCert(false)
-	return c
-}
-
-func (c *Context) HTTPSRepoURLWithClientCertAdded() *Context {
 	repos.AddHTTPSRepoClientCert(true)
 	return c
 }
 
-func (c *Context) SSHRepoURLAdded() *Context {
-	repos.AddSSHRepo(false)
+func (c *Context) HTTPSRepoURLWithClientCertAdded() *Context {
+	repos.AddHTTPSRepoClientCert(false)
 	return c
 }
 
-func (c *Context) SSHInsecureRepoURLAdded() *Context {
-	repos.AddSSHRepo(true)
+func (c *Context) SSHRepoURLAdded(withCreds bool) *Context {
+	repos.AddSSHRepo(false, withCreds)
+	return c
+}
+
+func (c *Context) SSHInsecureRepoURLAdded(withCreds bool) *Context {
+	repos.AddSSHRepo(true, withCreds)
+	return c
+}
+
+func (c *Context) HelmRepoAdded(name string) *Context {
+	repos.AddHelmRepo(name)
+	return c
+}
+
+func (c *Context) HTTPSCredentialsUserPassAdded() *Context {
+	repos.AddHTTPSCredentialsUserPass()
+	return c
+}
+
+func (c *Context) HTTPSCredentialsTLSClientCertAdded() *Context {
+	repos.AddHTTPSCredentialsTLSClientCert()
+	return c
+}
+
+func (c *Context) SSHCredentialsAdded() *Context {
+	repos.AddSSHCredentials()
 	return c
 }
 
@@ -91,8 +113,18 @@ func (c *Context) RepoURLType(urlType fixture.RepoURLType) *Context {
 	return c
 }
 
+func (c *Context) Name(name string) *Context {
+	c.name = name
+	return c
+}
+
 func (c *Context) Path(path string) *Context {
 	c.path = path
+	return c
+}
+
+func (c *Context) Chart(chart string) *Context {
+	c.chart = chart
 	return c
 }
 
@@ -142,6 +174,11 @@ func (c *Context) NamePrefix(namePrefix string) *Context {
 	return c
 }
 
+func (c *Context) NameSuffix(nameSuffix string) *Context {
+	c.nameSuffix = nameSuffix
+	return c
+}
+
 func (c *Context) ResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) *Context {
 	fixture.SetResourceOverrides(overrides)
 	return c
@@ -156,11 +193,6 @@ func (c *Context) ResourceFilter(filter settings.ResourcesFilter) *Context {
 func (c *Context) ConfigManagementPlugin(plugin v1alpha1.ConfigManagementPlugin) *Context {
 	fixture.SetConfigManagementPlugins(plugin)
 	c.configManagementPlugin = plugin.Name
-	return c
-}
-
-func (c *Context) Repos(repos ...settings.RepoCredentials) *Context {
-	fixture.SetRepos(repos...)
 	return c
 }
 

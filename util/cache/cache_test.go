@@ -4,20 +4,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
-func TestCacheRevisionMetadata(t *testing.T) {
-	cache := NewCache(NewInMemoryCache(1 * time.Hour))
-	// cache miss
-	_, err := cache.GetRevisionMetadata("", "", "")
-	assert.Equal(t, ErrCacheMiss, err)
-	// cache hit
-	err = cache.SetRevisionMetadata("foo", "bar", "baz", &v1alpha1.RevisionMetadata{Message: "foo"})
+func TestAddCacheFlagsToCmd(t *testing.T) {
+	cache, err := AddCacheFlagsToCmd(&cobra.Command{})()
 	assert.NoError(t, err)
-	metadata, err := cache.GetRevisionMetadata("foo", "bar", "baz")
-	assert.NoError(t, err)
-	assert.Equal(t, &v1alpha1.RevisionMetadata{Message: "foo"}, metadata)
+	assert.Equal(t, 24*time.Hour, cache.client.(*redisCache).expiration)
 }

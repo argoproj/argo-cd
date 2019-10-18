@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	coreerrors "errors"
 	"testing"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 
@@ -30,8 +32,9 @@ import (
 	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/assets"
+	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/kube/kubetest"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -118,7 +121,23 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		},
 	}
-	objects = append(objects, defaultProj, myProj)
+	projWithSyncWindows := &appsv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "proj-maint", Namespace: "default"},
+		Spec: appsv1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			SyncWindows:  appsv1.SyncWindows{},
+		},
+	}
+	matchingWindow := &appsv1.SyncWindow{
+		Kind:         "allow",
+		Schedule:     "* * * * *",
+		Duration:     "1h",
+		Applications: []string{"test-app"},
+	}
+	projWithSyncWindows.Spec.SyncWindows = append(projWithSyncWindows.Spec.SyncWindows, matchingWindow)
+
+	objects = append(objects, defaultProj, myProj, projWithSyncWindows)
 
 	fakeAppsClientset := apps.NewSimpleClientset(objects...)
 	factory := appinformer.NewFilteredSharedInformerFactory(fakeAppsClientset, 0, "", func(options *metav1.ListOptions) {})
@@ -137,7 +156,7 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 		fakeAppsClientset,
 		mockRepoClient,
 		nil,
-		kube.KubectlCmd{},
+		&kubetest.MockKubectlCmd{},
 		db,
 		enforcer,
 		util.NewKeyLock(),
@@ -181,7 +200,9 @@ func TestCreateApp(t *testing.T) {
 		Application: *testApp,
 	}
 	app, err := appServer.Create(context.Background(), &createReq)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
+	assert.NotNil(t, app)
+	assert.NotNil(t, app.Spec)
 	assert.Equal(t, app.Spec.Project, "default")
 }
 
@@ -401,4 +422,85 @@ func TestAppMergePatch(t *testing.T) {
 		Name: &testApp.Name, Patch: `{"spec": { "source": { "path": "foo" } }}`, PatchType: "merge"})
 	assert.NoError(t, err)
 	assert.Equal(t, "foo", app.Spec.Source.Path)
+}
+
+func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
+	t.Run("Active", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Spec.Project = "proj-maint"
+		appServer := newTestAppServer(testApp)
+
+		active, err := appServer.GetApplicationSyncWindows(context.Background(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name})
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(active.ActiveWindows))
+	})
+	t.Run("Inactive", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Spec.Project = "default"
+		appServer := newTestAppServer(testApp)
+
+		active, err := appServer.GetApplicationSyncWindows(context.Background(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name})
+		assert.NoError(t, err)
+		assert.Equal(t, 0, len(active.ActiveWindows))
+	})
+	t.Run("ProjectDoesNotExist", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Spec.Project = "none"
+		appServer := newTestAppServer(testApp)
+
+		active, err := appServer.GetApplicationSyncWindows(context.Background(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name})
+		assert.Contains(t, err.Error(), "not found")
+		assert.Nil(t, active)
+	})
+}
+
+func TestGetCachedAppState(t *testing.T) {
+	testApp := newTestApp()
+	testApp.Spec.Project = "none"
+	appServer := newTestAppServer(testApp)
+
+	fakeClientSet := appServer.appclientset.(*apps.Clientset)
+
+	t.Run("NoError", func(t *testing.T) {
+		err := appServer.getCachedAppState(context.Background(), testApp, func() error {
+			return nil
+		})
+		assert.NoError(t, err)
+	})
+
+	t.Run("CacheMissErrorTriggersRefresh", func(t *testing.T) {
+		retryCount := 0
+		patched := false
+		watcher := watch.NewFakeWithChanSize(1, true)
+
+		fakeClientSet.ReactionChain = nil
+		fakeClientSet.WatchReactionChain = nil
+		fakeClientSet.AddReactor("patch", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patched = true
+			watcher.Modify(testApp)
+			return true, nil, nil
+		})
+		fakeClientSet.AddWatchReactor("applications", func(action kubetesting.Action) (handled bool, ret watch.Interface, err error) {
+			return true, watcher, nil
+		})
+		err := appServer.getCachedAppState(context.Background(), testApp, func() error {
+			res := cache.ErrCacheMiss
+			if retryCount == 1 {
+				res = nil
+			}
+			retryCount++
+			return res
+		})
+		assert.Equal(t, nil, err)
+		assert.Equal(t, 2, retryCount)
+		assert.True(t, patched)
+	})
+
+	t.Run("NonCacheErrorDoesNotTriggerRefresh", func(t *testing.T) {
+		randomError := coreerrors.New("random error")
+		err := appServer.getCachedAppState(context.Background(), testApp, func() error {
+			return randomError
+		})
+		assert.Equal(t, randomError, err)
+	})
 }

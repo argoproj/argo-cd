@@ -20,7 +20,7 @@ metadata:
 spec:
   containers:
     - name: main
-      image: alpine:latest
+      image: alpine:3.10.2
       imagePullPolicy: IfNotPresent
       command:
         - "true"
@@ -41,7 +41,7 @@ metadata:
 spec:
   containers:
     - name: main
-      image: alpine:latest
+      image: alpine:3.10.2
       imagePullPolicy: IfNotPresent
       command:
         - "true"

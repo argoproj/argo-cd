@@ -27,7 +27,6 @@ import (
 	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/test/fixture/testrepos"
 	"github.com/argoproj/argo-cd/util"
 	grpcutil "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/rand"
@@ -48,15 +47,16 @@ const (
 )
 
 var (
-	id               string
-	name             string
-	KubeClientset    kubernetes.Interface
-	AppClientset     appclientset.Interface
-	ArgoCDClientset  argocdclient.Client
-	settingsManager  *settings.SettingsManager
-	apiServerAddress string
-	token            string
-	plainText        bool
+	id                  string
+	deploymentNamespace string
+	name                string
+	KubeClientset       kubernetes.Interface
+	AppClientset        appclientset.Interface
+	ArgoCDClientset     argocdclient.Client
+	settingsManager     *settings.SettingsManager
+	apiServerAddress    string
+	token               string
+	plainText           bool
 )
 
 type RepoURLType string
@@ -145,14 +145,18 @@ func RepoURL(urlType RepoURLType) string {
 		return "https://localhost:9444/argo-e2e/testdata.git"
 	// Default - file based Git repository
 	case RepoURLTypeHelm:
-		return testrepos.HelmTestRepo
+		return "https://localhost:9444/argo-e2e/testdata.git/helm-repo"
 	default:
 		return fmt.Sprintf("file://%s", repoDirectory())
 	}
 }
 
+func RepoBaseURL(urlType RepoURLType) string {
+	return path.Base(RepoURL(urlType))
+}
+
 func DeploymentNamespace() string {
-	return dnsFriendly(fmt.Sprintf("argocd-e2e-%s", id))
+	return deploymentNamespace
 }
 
 // creates a secret for the current test, this currently can only create a single secret
@@ -248,7 +252,7 @@ func SetResourceFilter(filters settings.ResourcesFilter) {
 	})
 }
 
-func SetRepos(repos ...settings.RepoCredentials) {
+func SetRepos(repos ...settings.Repository) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		yamlBytes, err := yaml.Marshal(repos)
 		if err != nil {
@@ -259,7 +263,18 @@ func SetRepos(repos ...settings.RepoCredentials) {
 	})
 }
 
-func SetRepoCredentials(repos ...settings.RepoCredentials) {
+func SetHelmRepos(repos ...settings.HelmRepoCredentials) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		yamlBytes, err := yaml.Marshal(repos)
+		if err != nil {
+			return err
+		}
+		cm.Data["helm.repositories"] = string(yamlBytes)
+		return nil
+	})
+}
+
+func SetRepoCredentials(repos ...settings.RepositoryCredentials) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		yamlBytes, err := yaml.Marshal(repos)
 		if err != nil {
@@ -308,6 +323,7 @@ func EnsureCleanState(t *testing.T) {
 		&v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: testingLabel + "=true"}))
 
 	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", testingLabel+"=true", "--field-selector", "status.phase=Active", "--wait=false"))
+	FailOnErr(Run("", "kubectl", "delete", "crd", "-l", testingLabel+"=true", "--wait=false"))
 
 	// reset settings
 	s, err := settingsManager.GetSettings()
@@ -333,6 +349,7 @@ func EnsureCleanState(t *testing.T) {
 	SetConfigManagementPlugins()
 	SetRepoCredentials()
 	SetRepos()
+	SetHelmRepos()
 	SetResourceFilter(settings.ResourcesFilter{})
 	SetProjectSpec("default", v1alpha1.AppProjectSpec{
 		OrphanedResources:        nil,
@@ -345,10 +362,11 @@ func EnsureCleanState(t *testing.T) {
 	// remove tmp dir
 	CheckError(os.RemoveAll(TmpDir))
 
-	// name based on test name
-	name = dnsFriendly(t.Name())
 	// random id - unique across test runs
-	id = name + "-" + strings.ToLower(rand.RandString(5))
+	postFix := "-" + strings.ToLower(rand.RandString(5))
+	id = t.Name() + postFix
+	name = dnsFriendly(t.Name(), "")
+	deploymentNamespace = dnsFriendly(fmt.Sprintf("argocd-e2e-%s", t.Name()), postFix)
 
 	// create tmp dir
 	FailOnErr(Run("", "mkdir", "-p", TmpDir))
@@ -368,7 +386,7 @@ func EnsureCleanState(t *testing.T) {
 	FailOnErr(Run("", "kubectl", "create", "ns", DeploymentNamespace()))
 	FailOnErr(Run("", "kubectl", "label", "ns", DeploymentNamespace(), testingLabel+"=true"))
 
-	log.WithFields(log.Fields{"duration": time.Since(start), "name": name, "id": id, "username": "admin", "password": "password"}).Info("clean state")
+	log.WithFields(log.Fields{"duration": time.Since(start), "name": t.Name(), "id": id, "username": "admin", "password": "password"}).Info("clean state")
 }
 
 func RunCli(args ...string) (string, error) {

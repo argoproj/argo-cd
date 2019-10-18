@@ -10,7 +10,13 @@ import { CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services
 
 import { ProjectEditPanel } from '../project-edit-panel/project-edit-panel';
 import { ProjectEvents } from '../project-events/project-events';
+
 import { ProjectRoleEditPanel } from '../project-role-edit-panel/project-role-edit-panel';
+import { ProjectSyncWindowsEditPanel } from '../project-sync-windows-edit-panel/project-sync-windows-edit-panel';
+
+import { ProjectSyncWindowsParams } from '../../../shared/services/projects-service';
+
+import { SyncWindowStatusIcon } from '../../../applications/components/utils';
 
 interface ProjectDetailsState {
     token: string;
@@ -27,6 +33,7 @@ function helpTip(text: string) {
 export class ProjectDetails extends React.Component<RouteComponentProps<{ name: string; }>, ProjectDetailsState> {
     private projectFormApi: FormApi;
     private projectRoleFormApi: FormApi;
+    private projectSyncWindowsFormApi: FormApi;
     private loader: DataLoader;
 
     constructor(props: RouteComponentProps<{ name: string; }>) {
@@ -41,8 +48,9 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
             <Page title='Projects' toolbar={{
                 breadcrumbs: [{title: 'Settings', path: '/settings' }, {title: 'Projects', path: '/settings/projects'}, {title: this.props.match.params.name}],
                 actionMenu: {items: [
-                    { title: 'Add Role', iconClassName: 'fa fa-plus', action: () => ctx.navigation.goto('.', {newRole: true})},
                     { title: 'Edit', iconClassName: 'fa fa-pencil-alt', action: () => ctx.navigation.goto('.', {edit: true}) },
+                    { title: 'Add Role', iconClassName: 'fa fa-plus', action: () => ctx.navigation.goto('.', {newRole: true})},
+                    { title: 'Add Sync Window', iconClassName: 'fa fa-plus', action: () => ctx.navigation.goto('.', {newWindow: true})},
                     { title: 'Delete', iconClassName: 'fa fa-times-circle', action: async () => {
                         const confirmed = await ctx.popup.confirm('Delete project', 'Are you sure you want to delete project?');
                         if (confirmed) {
@@ -73,6 +81,10 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                                     title: 'Roles',
                                     content: this.rolesTab(proj, ctx),
                                 }, {
+                                    key: 'windows',
+                                    title: 'Windows',
+                                    content: this.SyncWindowsTab(proj, ctx),
+                                }, {
                                     key: 'events',
                                     title: 'Events',
                                     content: this.eventsTab(proj),
@@ -95,6 +107,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                                         clusterResourceWhitelist: proj.spec.clusterResourceWhitelist || [],
                                         namespaceResourceBlacklist: proj.spec.namespaceResourceBlacklist || [],
                                         roles: proj.spec.roles || [],
+                                        syncWindows: proj.spec.syncWindows || [],
                                         orphanedResourcesEnabled: !!proj.spec.orphanedResources,
                                         orphanedResourcesWarn: proj.spec.orphanedResources && (proj.spec.orphanedResources.warn === undefined || proj.spec.orphanedResources.warn),
                                         }} getApi={(api) => this.projectFormApi = api} submit={async (projParams) => {
@@ -173,6 +186,69 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                                         hideJWTToken={() => this.setState({token: ''})}
                                     />}
                                 </SlidingPanel>
+                                <SlidingPanel isNarrow={false} isMiddle={false} isShown={params.get('editWindow') !== null || params.get('newWindow') !== null}
+                                              onClose={() => {
+                                                  this.setState({token: ''});
+                                                  ctx.navigation.goto('.', {editWindow: null, newWindow: null});
+                                              }} header={(
+                                    <div>
+                                        <button onClick={() => {
+                                            this.setState({token: ''});
+                                            ctx.navigation.goto('.', {editWindow: null, newWindow: null});
+                                        }} className='argo-button argo-button--base-o'>
+                                            Cancel
+                                        </button> <button onClick={() => {
+                                            if (params.get('newWindow') === null) {
+                                                this.projectSyncWindowsFormApi.setValue('id', Number(params.get('editWindow')));
+                                            }
+                                            this.projectSyncWindowsFormApi.submitForm(null);
+                                        }} className='argo-button argo-button--base'>
+                                        {params.get('newWindow') != null ? 'Create' : 'Update'}
+                                    </button> {params.get('newWindow') === null ? (
+                                        <button onClick={async () => {
+                                            const confirmed = await ctx.popup.confirm('Delete sync window', 'Are you sure you want to delete sync window?');
+                                            if (confirmed) {
+                                                try {
+                                                    this.projectSyncWindowsFormApi.setValue('id', Number(params.get('editWindow')));
+                                                    this.projectSyncWindowsFormApi.setValue('deleteWindow', true);
+                                                    this.projectSyncWindowsFormApi.submitForm(null);
+                                                    ctx.navigation.goto('.', {editWindow: null});
+                                                } catch (e) {
+                                                    ctx.notifications.show({
+                                                        content: <ErrorNotification title='Unable to delete sync window' e={e}/>,
+                                                        type: NotificationType.Error,
+                                                    });
+                                                }
+                                            }
+                                        }} className='argo-button argo-button--base'>
+                                            Delete
+                                        </button>
+                                    ) : null}
+                                    </div>
+                                )}>
+                                    {(params.get('editWindow') !== null || params.get('newWindow') === 'true') && <ProjectSyncWindowsEditPanel
+                                        defaultParams={{
+                                            newWindow: (params.get('newWindow') === null ) ? false : true,
+                                            projName: proj.metadata.name,
+                                            window: (params.get('newWindow') === null && proj.spec.syncWindows !== undefined) ?
+                                                proj.spec.syncWindows[Number(params.get('editWindow'))] : undefined,
+                                            id: (params.get('newWindow') === null && proj.spec.syncWindows !== undefined) ?
+                                                Number(params.get('editWindow')) : undefined,
+                                        }}
+                                        getApi={(api: FormApi) => this.projectSyncWindowsFormApi = api} submit={async (projectSyncWindowsParams: ProjectSyncWindowsParams) => {
+                                        try {
+                                            await services.projects.updateWindow(projectSyncWindowsParams);
+                                            ctx.navigation.goto('.', {editWindow: null, newWindow: null});
+                                            this.loader.reload();
+                                        } catch (e) {
+                                            ctx.notifications.show({
+                                                content: <ErrorNotification title='Unable to edit project' e={e}/>,
+                                                type: NotificationType.Error,
+                                            });
+                                        }
+                                    }}
+                                    />}
+                                </SlidingPanel>
                             </div>
                         )}
                         </Query>
@@ -241,6 +317,79 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                             </div>
                         ))}
                 </div>) || <div className='white-box'><p>Project has no roles</p></div>}
+            </div>
+        );
+    }
+
+    private SyncWindowsTab(proj: Project, ctx: any) {
+        return (
+            <div className='argo-container'>
+                {(proj.spec.syncWindows || []).length > 0 && (
+                    <DataLoader noLoaderOnInputChange={true} input={proj.spec.syncWindows} load={async () => {
+                            return await services.projects.getSyncWindows(proj.metadata.name);
+                        }}>{(data) =>
+                            <div className='argo-table-list argo-table-list--clickable'>
+                                <div className='argo-table-list__head'>
+                                    <div className='row'>
+                                        <div className='columns small-2' >
+                                            STATUS
+                                            {helpTip('If a window is active or inactive and what the current ' +
+                                                'effect would be if it was assigned to an application, namespace or cluster. ' +
+                                                'Red: no syncs allowed. ' +
+                                                'Yellow: manual syncs allowed. ' +
+                                                'Green: all syncs allowed')}
+                                        </div>
+                                        <div className='columns small-2'>
+                                            WINDOW
+                                            {helpTip('The kind, start time and duration of the window')}
+                                        </div>
+                                        <div className='columns small-2'>
+                                            APPLICATIONS
+                                            {helpTip('The applications assigned to the window, wildcards are supported')}
+                                        </div>
+                                        <div className='columns small-2'>
+                                            NAMESPACES
+                                            {helpTip('The namespaces assigned to the window, wildcards are supported')}
+                                        </div>
+                                        <div className='columns small-2'>
+                                            CLUSTERS
+                                            {helpTip('The clusters assigned to the window, wildcards are supported')}
+                                        </div>
+                                        <div className='columns small-2'>
+                                            MANUALSYNC
+                                            {helpTip('If the window allows manual syncs')}
+                                        </div>
+                                    </div>
+                                </div>
+                                {(proj.spec.syncWindows || []).map((window, i) => (
+                                    <div className='argo-table-list__row' key={`${i}`}
+                                         onClick={() => ctx.navigation.goto(`.`,
+                                             {editWindow: `${i}`})}>
+                                        <div className='row'>
+                                            <div className='columns small-2'>
+                                                <span><SyncWindowStatusIcon state={data} window={window}/></span>
+                                            </div>
+                                            <div className='columns small-2'>
+                                                {window.kind}:{window.schedule}:{window.duration}
+                                            </div>
+                                            <div className='columns small-2'>
+                                                {(window.applications || ['-']).join(',')}
+                                            </div>
+                                            <div className='columns small-2'>
+                                                {(window.namespaces || ['-']).join(',')}
+                                            </div>
+                                            <div className='columns small-2'>
+                                                {(window.clusters || ['-']).join(',')}
+                                            </div>
+                                            <div className='columns small-2'>
+                                                {window.manualSync ? 'Enabled' : 'Disabled'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                                </div>
+                    }</DataLoader>
+                ) || <div className='white-box'><p>Project has no sync windows</p></div>}
             </div>
         );
     }

@@ -2,6 +2,14 @@
 
 
 [[projects]]
+  digest = "1:6d5a057da97a9dbdb10e7beedd2f43452b6bf7691001c0c8886e8dacf5610349"
+  name = "bou.ke/monkey"
+  packages = ["."]
+  pruneopts = ""
+  revision = "bdf6dea004c6fd1cdf4b25da8ad45a606c09409a"
+  version = "v1.0.1"
+
+[[projects]]
   digest = "1:9702dc153c9bb6ee7ee0587c248b7024700e89e4a7be284faaeeab9da32e1c6b"
   name = "cloud.google.com/go"
   packages = ["compute/metadata"]
@@ -52,11 +60,7 @@
   branch = "master"
   digest = "1:0caf9208419fa5db5a0ca7112affaa9550c54291dda8e2abac0c0e76181c959e"
   name = "github.com/argoproj/argo"
-  packages = [
-    "pkg/apis/workflow",
-    "pkg/apis/workflow/v1alpha1",
-    "util",
-  ]
+  packages = ["util"]
   pruneopts = ""
   revision = "7ef1cea68c94f7f0e1e2f8bd75bedc5a7df8af90"
 
@@ -733,6 +737,14 @@
   ]
   pruneopts = ""
   revision = "05ee40e3a273f7245e8777337fc7b46e533a9a92"
+
+[[projects]]
+  digest = "1:6bb048133650d1fb7fbff9fb3c35bd5c7e8653fc95c3bae6df94cd17d1580278"
+  name = "github.com/robfig/cron"
+  packages = ["."]
+  pruneopts = ""
+  revision = "45fbe1491cdd47d74d1bf1396286d67faee8b8b5"
+  version = "v3.0.0"
 
 [[projects]]
   digest = "1:5f47c69f85311c4dc292be6cc995a0a3fe8337a6ce38ef4f71e5b7efd5ad42e0"
@@ -1582,9 +1594,9 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "bou.ke/monkey",
     "github.com/Masterminds/semver",
     "github.com/TomOnTime/utfutil",
-    "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1",
     "github.com/argoproj/argo/util",
     "github.com/argoproj/pkg/errors",
     "github.com/argoproj/pkg/exec",
@@ -1632,6 +1644,7 @@
     "github.com/pkg/errors",
     "github.com/prometheus/client_golang/prometheus",
     "github.com/prometheus/client_golang/prometheus/promhttp",
+    "github.com/robfig/cron",
     "github.com/sirupsen/logrus",
     "github.com/sirupsen/logrus/hooks/test",
     "github.com/skratchdot/open-golang/open",

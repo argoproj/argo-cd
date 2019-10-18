@@ -22,6 +22,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	"github.com/argoproj/argo-cd/common"
@@ -30,12 +31,14 @@ import (
 	certificatepkg "github.com/argoproj/argo-cd/pkg/apiclient/certificate"
 	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
 	projectpkg "github.com/argoproj/argo-cd/pkg/apiclient/project"
+	repocredspkg "github.com/argoproj/argo-cd/pkg/apiclient/repocreds"
 	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
 	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
 	versionpkg "github.com/argoproj/argo-cd/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/localconfig"
 	oidcutil "github.com/argoproj/argo-cd/util/oidc"
@@ -59,6 +62,8 @@ type Client interface {
 	OIDCConfig(context.Context, *settingspkg.Settings) (*oauth2.Config, *oidc.Provider, error)
 	NewRepoClient() (io.Closer, repositorypkg.RepositoryServiceClient, error)
 	NewRepoClientOrDie() (io.Closer, repositorypkg.RepositoryServiceClient)
+	NewRepoCredsClient() (io.Closer, repocredspkg.RepoCredsServiceClient, error)
+	NewRepoCredsClientOrDie() (io.Closer, repocredspkg.RepoCredsServiceClient)
 	NewCertClient() (io.Closer, certificatepkg.CertificateServiceClient, error)
 	NewCertClientOrDie() (io.Closer, certificatepkg.CertificateServiceClient)
 	NewClusterClient() (io.Closer, clusterpkg.ClusterServiceClient, error)
@@ -89,6 +94,7 @@ type ClientOptions struct {
 	Context    string
 	UserAgent  string
 	GRPCWeb    bool
+	Headers    []string
 }
 
 type client struct {
@@ -100,6 +106,7 @@ type client struct {
 	RefreshToken string
 	UserAgent    string
 	GRPCWeb      bool
+	Headers      []string
 
 	proxyMutex      *sync.Mutex
 	proxyListener   net.Listener
@@ -188,6 +195,8 @@ func NewClient(opts *ClientOptions) (Client, error) {
 			return nil, err
 		}
 	}
+	c.Headers = opts.Headers
+
 	return &c, nil
 }
 
@@ -382,12 +391,22 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 	var dialOpts []grpc.DialOption
 	dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(endpointCredentials))
 	dialOpts = append(dialOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize)))
+
+	ctx := context.Background()
+
+	for _, kv := range c.Headers {
+		if len(strings.Split(kv, ":"))%2 == 1 {
+			return nil, nil, fmt.Errorf("additional headers must be colon(:)-separated: %s", kv)
+		}
+		ctx = metadata.AppendToOutgoingContext(ctx, strings.Split(kv, ":")[0], strings.Split(kv, ":")[1])
+	}
+
 	if c.UserAgent != "" {
 		dialOpts = append(dialOpts, grpc.WithUserAgent(c.UserAgent))
 	}
-	conn, e := grpc_util.BlockingDial(context.Background(), network, serverAddr, creds, dialOpts...)
+	conn, e := grpc_util.BlockingDial(ctx, network, serverAddr, creds, dialOpts...)
 	closers = append(closers, conn)
-	return conn, &inlineCloser{close: func() error {
+	return conn, util.NewCloser(func() error {
 		var firstErr error
 		for i := range closers {
 			err := closers[i].Close()
@@ -396,7 +415,7 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 			}
 		}
 		return firstErr
-	}}, e
+	}), e
 }
 
 func (c *client) tlsConfig() (*tls.Config, error) {
@@ -434,6 +453,23 @@ func (c *client) NewRepoClient() (io.Closer, repositorypkg.RepositoryServiceClie
 
 func (c *client) NewRepoClientOrDie() (io.Closer, repositorypkg.RepositoryServiceClient) {
 	conn, repoIf, err := c.NewRepoClient()
+	if err != nil {
+		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
+	}
+	return conn, repoIf
+}
+
+func (c *client) NewRepoCredsClient() (io.Closer, repocredspkg.RepoCredsServiceClient, error) {
+	conn, closer, err := c.newConn()
+	if err != nil {
+		return nil, nil, err
+	}
+	repoIf := repocredspkg.NewRepoCredsServiceClient(conn)
+	return closer, repoIf, nil
+}
+
+func (c *client) NewRepoCredsClientOrDie() (io.Closer, repocredspkg.RepoCredsServiceClient) {
+	conn, repoIf, err := c.NewRepoCredsClient()
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}

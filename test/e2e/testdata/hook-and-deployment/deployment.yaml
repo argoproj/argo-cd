@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: main
-        image: nginx:latest
+        image: nginx:1.17.4-alpine
         imagePullPolicy: IfNotPresent
         readinessProbe:
           failureThreshold: 3

@@ -7,7 +7,7 @@ export class UserService {
     }
 
     public logout(): Promise<boolean> {
-        return requests.delete('/session').then((res) => true);
+        return requests.delete('/session').then(() => true);
     }
 
     public get(): Promise<UserInfo> {

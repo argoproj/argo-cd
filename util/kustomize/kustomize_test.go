@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"path"
 	"path/filepath"
+	"regexp"
 	"testing"
 
 	"github.com/argoproj/pkg/exec"
@@ -33,9 +34,11 @@ func TestKustomizeBuild(t *testing.T) {
 	appPath, err := testDataDir()
 	assert.Nil(t, err)
 	namePrefix := "namePrefix-"
+	nameSuffix := "-nameSuffix"
 	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "")
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		NamePrefix: namePrefix,
+		NameSuffix: nameSuffix,
 		Images:     v1alpha1.KustomizeImages{"nginx:1.15.5"},
 		CommonLabels: map[string]string{
 			"app.kubernetes.io/managed-by": "argo-cd",
@@ -51,13 +54,13 @@ func TestKustomizeBuild(t *testing.T) {
 	for _, obj := range objs {
 		switch obj.GetKind() {
 		case "StatefulSet":
-			assert.Equal(t, namePrefix+"web", obj.GetName())
+			assert.Equal(t, namePrefix+"web"+nameSuffix, obj.GetName())
 			assert.Equal(t, map[string]string{
 				"app.kubernetes.io/managed-by": "argo-cd",
 				"app.kubernetes.io/part-of":    "argo-cd-tests",
 			}, obj.GetLabels())
 		case "Deployment":
-			assert.Equal(t, namePrefix+"nginx-deployment", obj.GetName())
+			assert.Equal(t, namePrefix+"nginx-deployment"+nameSuffix, obj.GetName())
 			assert.Equal(t, map[string]string{
 				"app":                          "nginx",
 				"app.kubernetes.io/managed-by": "argo-cd",
@@ -96,4 +99,12 @@ func TestIsKustomization(t *testing.T) {
 func TestParseKustomizeBuildOptions(t *testing.T) {
 	built := parseKustomizeBuildOptions("guestbook", "-v 6 --logtostderr")
 	assert.Equal(t, []string{"build", "guestbook", "-v", "6", "--logtostderr"}, built)
+}
+
+func TestVersion(t *testing.T) {
+	ver, err := Version()
+	assert.NoError(t, err)
+	SemverRegexValidation := `^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$`
+	re := regexp.MustCompile(SemverRegexValidation)
+	assert.True(t, re.MatchString(ver))
 }

@@ -45,7 +45,7 @@ func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState,
 		SkipOpenLibs: !vm.UseOpenLibs,
 	})
 	defer l.Close()
-	// Opens table library to allow access to functions to manulate tables
+	// Opens table library to allow access to functions to manipulate tables
 	for _, pair := range []struct {
 		n string
 		f lua.LGFunction
@@ -53,6 +53,8 @@ func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState,
 		{lua.LoadLibName, lua.OpenPackage},
 		{lua.BaseLibName, lua.OpenBase},
 		{lua.TabLibName, lua.OpenTable},
+		// load our 'safe' version of the os library
+		{lua.OsLibName, OpenSafeOs},
 	} {
 		if err := l.CallByParam(lua.P{
 			Fn:      l.NewFunction(pair.f),
@@ -62,6 +64,8 @@ func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState,
 			panic(err)
 		}
 	}
+	// preload our 'safe' version of the os library. Allows the 'local os = require("os")' to work
+	l.PreloadModule(lua.OsLibName, SafeOsLoader)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
@@ -210,8 +214,7 @@ func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scri
 		}
 		for key := range availableActionsMap {
 			value := availableActionsMap[key]
-
-			resourceAction := appv1.ResourceAction{Name: key}
+			resourceAction := appv1.ResourceAction{Name: key, Disabled: isActionDisabled(value)}
 			if emptyResourceActionFromLua(value) {
 				availableActions = append(availableActions, resourceAction)
 				continue
@@ -231,6 +234,23 @@ func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scri
 	}
 
 	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
+}
+
+// Actions are enabled by default
+func isActionDisabled(actionsMap interface{}) bool {
+	actions, ok := actionsMap.(map[string]interface{})
+	if !ok {
+		return false
+	}
+	for key, val := range actions {
+		switch vv := val.(type) {
+		case bool:
+			if key == "disabled" {
+				return vv
+			}
+		}
+	}
+	return false
 }
 
 func emptyResourceActionFromLua(i interface{}) bool {

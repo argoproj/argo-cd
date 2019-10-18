@@ -340,3 +340,25 @@ func (s *Server) logEvent(a *v1alpha1.AppProject, ctx context.Context, reason st
 	message := fmt.Sprintf("%s %s", user, action)
 	s.auditLogger.LogAppProjEvent(a, eventInfo, message)
 }
+
+func (s *Server) GetSyncWindowsState(ctx context.Context, q *project.SyncWindowsQuery) (*project.SyncWindowsResponse, error) {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name); err != nil {
+		return nil, err
+	}
+	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Name, metav1.GetOptions{})
+
+	if err != nil {
+		return nil, err
+	}
+
+	res := &project.SyncWindowsResponse{}
+
+	windows := proj.Spec.SyncWindows.Active()
+	if windows.HasWindows() {
+		res.Windows = *windows
+	} else {
+		res.Windows = []*v1alpha1.SyncWindow{}
+	}
+
+	return res, nil
+}

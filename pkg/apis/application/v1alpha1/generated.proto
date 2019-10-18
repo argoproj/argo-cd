@@ -68,6 +68,9 @@ message AppProjectSpec {
 
   // OrphanedResources specifies if controller should monitor orphaned resources of apps in this project
   optional OrphanedResourcesMonitorSettings orphanedResources = 7;
+
+  // SyncWindows controls when syncs can be run for apps in this project
+  repeated SyncWindow syncWindows = 8;
 }
 
 // Application is a definition of Application resource.
@@ -92,6 +95,9 @@ message ApplicationCondition {
 
   // Message contains human-readable message indicating details about condition
   optional string message = 2;
+
+  // LastTransitionTime is the time the condition was first observed.
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
 }
 
 // ApplicationDestination contains deployment destination information
@@ -116,7 +122,7 @@ message ApplicationSource {
   // RepoURL is the repository URL of the application manifests
   optional string repoURL = 1;
 
-  // Path is a directory path within the repository containing a
+  // Path is a directory path within the Git repository
   optional string path = 2;
 
   // TargetRevision defines the commit, tag, or branch in which to sync the application to.
@@ -137,6 +143,9 @@ message ApplicationSource {
 
   // ConfigManagementPlugin holds config management plugin specific options
   optional ApplicationSourcePlugin plugin = 11;
+
+  // Chart is a Helm chart name
+  optional string chart = 12;
 }
 
 message ApplicationSourceDirectory {
@@ -182,6 +191,9 @@ message ApplicationSourceKsonnet {
 message ApplicationSourceKustomize {
   // NamePrefix is a prefix appended to resources for kustomize apps
   optional string namePrefix = 1;
+
+  // NameSuffix is a suffix appended to resources for kustomize apps
+  optional string nameSuffix = 2;
 
   // Images are kustomize image overrides
   repeated string images = 3;
@@ -283,6 +295,9 @@ message Cluster {
 
   // ConnectionState contains information about cluster connection state
   optional ConnectionState connectionState = 4;
+
+  // The server version
+  optional string serverVersion = 5;
 }
 
 // ClusterConfig is the configuration attributes. This structure is subset of the go-client
@@ -475,6 +490,34 @@ message ProjectRole {
   repeated string groups = 5;
 }
 
+// RepoCreds holds a repository credentials definition
+message RepoCreds {
+  // URL is the URL that this credentials matches to
+  optional string url = 1;
+
+  // Username for authenticating at the repo server
+  optional string username = 2;
+
+  // Password for authenticating at the repo server
+  optional string password = 3;
+
+  // SSH private key data for authenticating at the repo server (only Git repos)
+  optional string sshPrivateKey = 4;
+
+  // TLS client cert data for authenticating at the repo server
+  optional string tlsClientCertData = 5;
+
+  // TLS client cert key for authenticating at the repo server
+  optional string tlsClientCertKey = 6;
+}
+
+// RepositoryList is a collection of Repositories.
+message RepoCredsList {
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  repeated RepoCreds items = 2;
+}
+
 // Repository is a repository holding application configurations
 message Repository {
   // URL of the repo
@@ -509,14 +552,14 @@ message Repository {
   // TLS client cert key for authenticating at the repo server
   optional string tlsClientCertKey = 10;
 
-  // only for Helm repos
-  optional string tlsClientCaData = 11;
-
   // type of the repo, maybe "git or "helm, "git" is assumed if empty or absent
-  optional string type = 12;
+  optional string type = 11;
 
   // only for Helm repos
-  optional string name = 13;
+  optional string name = 12;
+
+  // Whether credentials were inherited from a credential set
+  optional bool inheritedCreds = 13;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
@@ -556,6 +599,8 @@ message ResourceAction {
   optional string name = 1;
 
   repeated ResourceActionParam params = 2;
+
+  optional bool disabled = 3;
 }
 
 message ResourceActionDefinition {
@@ -842,6 +887,30 @@ message SyncStrategyHook {
   // Embed SyncStrategyApply type to inherit any `apply` options
   // +optional
   optional SyncStrategyApply syncStrategyApply = 1;
+}
+
+// SyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps
+message SyncWindow {
+  // Kind defines if the window allows or blocks syncs
+  optional string kind = 1;
+
+  // Schedule is the time the window will begin, specified in cron format
+  optional string schedule = 2;
+
+  // Duration is the amount of time the sync window will be open
+  optional string duration = 3;
+
+  // Applications contains a list of applications that the window will apply to
+  repeated string applications = 4;
+
+  // Namespaces contains a list of namespaces that the window will apply to
+  repeated string namespaces = 5;
+
+  // Clusters contains a list of clusters that the window will apply to
+  repeated string clusters = 6;
+
+  // ManualSync enables manual syncs when they would otherwise be blocked
+  optional bool manualSync = 7;
 }
 
 // TLSClientConfig contains settings to enable transport layer security

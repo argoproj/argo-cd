@@ -16,7 +16,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {
     const [form, setForm] = React.useState<FormApi>(null);
     const isVisible = !!(selectedResource && application);
     const appResources = (application && selectedResource && application.status && application.status.resources || []).sort(
-        (first, second) => nodeKey(first).localeCompare(nodeKey(second)));
+        (first, second) => nodeKey(first).localeCompare(nodeKey(second))).filter((item) => !item.hook);
     const syncResIndex = appResources.findIndex((item) => nodeKey(item) === selectedResource);
     const syncStrategy = {} as models.SyncStrategy;
 
@@ -35,8 +35,8 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {
             {isVisible && (
                 <Form
                     defaultValues={{
-                        revision: application.spec.source.targetRevision,
-                        resources: appResources.filter((item) => !item.hook).map((_, i) => i === syncResIndex || syncResIndex === -1),
+                        revision: application.spec.source.targetRevision || 'HEAD',
+                        resources: appResources.map((_, i) => i === syncResIndex || syncResIndex === -1),
                     }}
                     validateError={(values) => ({
                         resources: values.resources.every((item: boolean) => !item) && 'Select at least one resource',

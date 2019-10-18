@@ -1,10 +1,12 @@
-import { FormField, FormSelect, getNestedField } from 'argo-ui';
+import {DataLoader, FormField, FormSelect, getNestedField} from 'argo-ui';
 import * as React from 'react';
-import { FieldApi, FormApi, FormField as ReactFormField, Text, TextArea } from 'react-form';
+import {FieldApi, FormApi, FormField as ReactFormField, Text, TextArea} from 'react-form';
 
-import { CheckboxField, EditablePanel, EditablePanelItem, TagsInputField } from '../../../shared/components';
+import {ArrayInputField, CheckboxField, EditablePanel, EditablePanelItem, Expandable, TagsInputField} from '../../../shared/components';
 import * as models from '../../../shared/models';
-import { ImageTagFieldEditor } from './kustomize';
+import {AuthSettings} from '../../../shared/models';
+import {services} from '../../../shared/services';
+import {ImageTagFieldEditor} from './kustomize';
 import * as kustomize from './kustomize-image';
 
 const TextWithMetadataField = ReactFormField((props: {metadata: { value: string }, fieldApi: FieldApi, className: string }) => {
@@ -134,6 +136,12 @@ export const ApplicationParameters = (props: {
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.kustomize.namePrefix' component={Text}/>,
         });
 
+        attributes.push({
+            title: 'NAME SUFFIX',
+            view: app.spec.source.kustomize && app.spec.source.kustomize.nameSuffix,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.kustomize.nameSuffix' component={Text}/>,
+        });
+
         const srcImages = (props.details && props.details.kustomize && props.details.kustomize.images || []).map((val) => kustomize.parse(val));
         const images = (source.kustomize && source.kustomize.images || []).map((val) => kustomize.parse(val));
 
@@ -169,14 +177,16 @@ export const ApplicationParameters = (props: {
         });
         attributes.push({
             title: 'VALUES',
-            view: app.spec.source.helm && (<pre>{app.spec.source.helm.values}</pre>),
+            view: app.spec.source.helm && (<Expandable><pre>{app.spec.source.helm.values}</pre></Expandable>),
             edit: (formApi: FormApi) => (
                 <div>
                     <pre><FormField formApi={formApi} field='spec.source.helm.values' component={TextArea}/></pre>
                     {props.details.helm.values && (
                         <div>
                             <label>values.yaml</label>
-                            <pre>{props.details.helm.values}</pre>
+                            <Expandable>
+                                <pre>{props.details.helm.values}</pre>
+                            </Expandable>
                         </div>
                     )}
                 </div>
@@ -199,6 +209,24 @@ export const ApplicationParameters = (props: {
             const value = overrideIndex > -1 && source.helm.parameters[overrideIndex].value || original;
             return { overrideIndex, original, metadata: { name, value } };
         })));
+    } else if (props.details.type === 'Plugin') {
+        attributes.push({
+            title: 'NAME',
+            view: app.spec.source.plugin && app.spec.source.plugin.name,
+            edit: (formApi: FormApi) => (
+                <DataLoader load={() => services.authService.settings()}>{(settings: AuthSettings) => (
+                    <FormField formApi={formApi} field='spec.source.plugin.name' component={FormSelect}
+                               componentProps={{options: (settings.plugins || []).map((p) => p.name)}}/>
+                )}</DataLoader>
+            ),
+        });
+        attributes.push({
+            title: 'ENV',
+            view: app.spec.source.plugin && (app.spec.source.plugin.env || []).map((i) => `${i.name}='${i.value}'`).join(' '),
+            edit: (formApi: FormApi) => (
+                <FormField field='spec.source.plugin.env' formApi={formApi} component={ArrayInputField}/>
+            ),
+        });
     } else if (props.details.type === 'Directory') {
         attributes.push({
             title: 'DIRECTORY RECURSE',

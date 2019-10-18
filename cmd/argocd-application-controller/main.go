@@ -21,8 +21,9 @@ import (
 	"github.com/argoproj/argo-cd/errors"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/argoproj/argo-cd/util/stats"
 )
@@ -46,7 +47,8 @@ func newCommand() *cobra.Command {
 		logLevel                 string
 		glogLevel                int
 		metricsPort              int
-		cacheSrc                 func() (*cache.Cache, error)
+		kubectlParallelismLimit  int64
+		cacheSrc                 func() (*appstatecache.Cache, error)
 	)
 	var command = cobra.Command{
 		Use:   cliName,
@@ -75,6 +77,7 @@ func newCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
+			kubectl := kube.KubectlCmd{}
 			appController, err := controller.NewApplicationController(
 				namespace,
 				settingsMgr,
@@ -82,9 +85,11 @@ func newCommand() *cobra.Command {
 				appClient,
 				repoClientset,
 				cache,
+				kubectl,
 				resyncDuration,
 				time.Duration(selfHealTimeoutSeconds)*time.Second,
-				metricsPort)
+				metricsPort,
+				kubectlParallelismLimit)
 			errors.CheckError(err)
 
 			log.Infof("Application Controller (version: %s) starting (namespace: %s)", common.GetVersion(), namespace)
@@ -109,8 +114,9 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDMetrics, "Start metrics server on given port")
 	command.Flags().IntVar(&selfHealTimeoutSeconds, "self-heal-timeout-seconds", 5, "Specifies timeout between application self heal attempts")
+	command.Flags().Int64Var(&kubectlParallelismLimit, "kubectl-parallelism-limit", 20, "Number of allowed concurrent kubectl fork/execs. Any value less the 1 means no limit.")
 
-	cacheSrc = cache.AddCacheFlagsToCmd(&command)
+	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command)
 	return &command
 }
 

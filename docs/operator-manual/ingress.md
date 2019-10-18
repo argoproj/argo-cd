@@ -120,6 +120,32 @@ the API server -- one for gRPC and the other for HTTP/HTTPS. However it allows T
 happen at the ingress controller.
 
 
+## [Traefik (v2.0)](https://docs.traefik.io/)
+
+Traefik can be used as an edge router and provide [TLS](https://docs.traefik.io/user-guides/crd-acme/) termination within the same deployment.
+
+It currently has an advantage over NGINX in that it can terminate both TCP and HTTP connections _on the same port_ meaning you do not require multiple ingress objects and hosts.
+
+```yaml
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: argocd-server-ingress
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`argocd.example.com`)
+      kind: Rule
+      services:
+        - name: argocd-server
+          port: 80
+  tls:
+    certResolver: default
+    options: {}
+```
+
+
 ## AWS Application Load Balancers (ALBs) And Classic ELB (HTTP Mode)
 
 ALBs and Classic ELBs don't fully support HTTP2/gRPC, which is used by the `argocd` CLI.
@@ -130,6 +156,14 @@ passthrough mode is needed, or NLBs.
 $ argocd login <host>:<port> --grpc-web
 ```
 
+## Authenticating through multiple layers of authenticating reverse proxies
+
+ArgoCD endpoints may be protected by one or more reverse proxies layers, in that case, you can provide additional headers through the `argocd` CLI `--header` parameter to authenticate through those layers.
+
+```shell
+$ argocd login <host>:<port> --header 'x-token1:foo' --header 'x-token2:bar' # can be repeated multiple times
+$ argocd login <host>:<port> --header 'x-token1:foo,x-token2:bar' # headers can also be comma separated
+```
 
 ## UI Base Path
 

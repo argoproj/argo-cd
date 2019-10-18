@@ -142,15 +142,19 @@ export interface ApplicationSource {
     repoURL: string;
 
     /**
-     * Path is a directory path within repository which contains ksonnet project.
+     * Path is a directory path within repository which
      */
-    path: string;
+    path?: string;
+
+    chart?: string;
 
     helm?: ApplicationSourceHelm;
 
     kustomize?: ApplicationSourceKustomize;
 
     ksonnet?: ApplicationSourceKsonnet;
+
+    plugin?: ApplicationSourcePlugin;
 
     directory?: ApplicationSourceDirectory;
 }
@@ -163,12 +167,23 @@ export interface ApplicationSourceHelm {
 
 export interface ApplicationSourceKustomize {
     namePrefix: string;
+    nameSuffix: string;
     images: string[];
 }
 
 export interface ApplicationSourceKsonnet {
     environment: string;
     parameters: KsonnetParameter[];
+}
+
+export interface PluginEnv {
+    name: string;
+    value: string;
+}
+
+export interface ApplicationSourcePlugin {
+    name: string;
+    env: PluginEnv[];
 }
 
 export interface ApplicationSourceDirectory {
@@ -318,6 +333,11 @@ export interface LogEntry {
     timeStamp: models.Time;
 }
 
+// describes plugin settings
+export interface Plugin {
+    name: string;
+}
+
 export interface AuthSettings {
     url: string;
     statusBadgeEnabled: boolean;
@@ -338,6 +358,7 @@ export interface AuthSettings {
         chatUrl: string;
         chatText: string;
     };
+    plugins: Plugin[];
 }
 
 export interface UserInfo  {
@@ -380,10 +401,18 @@ export interface Repository {
 
 export interface RepositoryList extends ItemsList<Repository> { }
 
+export interface RepoCreds {
+    url: string;
+    username?: string;
+}
+
+export interface RepoCredsList extends ItemsList<RepoCreds> { }
+
 export interface Cluster {
     name: string;
     server: string;
     connectionState: ConnectionState;
+    serverVersion: string;
 }
 
 export interface ClusterList extends ItemsList<Cluster> { }
@@ -407,6 +436,11 @@ export interface KsonnetAppSpec {
     parameters: KsonnetParameter[];
 }
 
+export interface HelmChart {
+    name: string;
+    versions: string[];
+}
+
 export type AppSourceType = 'Helm' | 'Kustomize' | 'Ksonnet' | 'Directory' | 'Plugin';
 
 export interface RepoAppDetails {
@@ -415,6 +449,7 @@ export interface RepoAppDetails {
     ksonnet?: KsonnetAppSpec;
     helm?: HelmAppSpec;
     kustomize?: KustomizeAppSpec;
+    plugin?: PluginAppSpec;
     directory?: {};
 }
 
@@ -439,6 +474,11 @@ export interface HelmAppSpec {
 export interface KustomizeAppSpec {
     path: string;
     images?: string[];
+}
+
+export interface PluginAppSpec {
+    name: string;
+    env: PluginEnv[];
 }
 
 export interface ObjectReference {
@@ -510,6 +550,19 @@ export interface ProjectSpec {
     clusterResourceWhitelist: GroupKind[];
     namespaceResourceBlacklist: GroupKind[];
     orphanedResources?: { warn?: boolean };
+    syncWindows?: SyncWindows;
+}
+
+export type SyncWindows = SyncWindow[];
+
+export interface SyncWindow {
+    kind: string;
+    schedule: string;
+    duration: string;
+    applications: string[];
+    namespaces: string[];
+    clusters: string[];
+    manualSync: boolean;
 }
 
 export interface Project {
@@ -540,4 +593,16 @@ export interface ResourceActionParam {
 export interface ResourceAction {
     name: string;
     params: ResourceActionParam[];
+    available: boolean;
+}
+
+export interface SyncWindowsState {
+    windows: SyncWindow[];
+}
+
+export interface ApplicationSyncWindowState {
+    activeWindows: SyncWindow[];
+    assignedWindows: SyncWindow[];
+    canSync: boolean;
+
 }
