@@ -46,10 +46,7 @@ spec:
   source:
     path: guestbook
     repoURL: https://github.com/argoproj/argocd-example-apps
-    targetRevision: 08836bd970037ebcd14494831de4635bad961139
-  syncPolicy:
-    automated:
-      prune: true
+    targetRevision: HEAD
 ``` 
 
 The sync policy to automated + prune, so that child app is are automatically created, synced, and deleted when the manifest is changed, but you may wish to disable this. I've also added the finalizer, which will ensure that you apps are deleted correctly.
@@ -66,17 +63,33 @@ spec:
     server: https://kubernetes.default.svc
 ```
 
-Finally, you need to create your parent app, e.g.:
+Next, you need to create and sync your parent app, e.g. via the CLI:
 
 ```bash
-argocd app create applications \
+argocd app create apps \
     --dest-namespace argocd \
     --dest-server https://kubernetes.default.svc \
     --repo https://github.com/argoproj/argocd-example-apps.git \
-    --path apps \
-    --sync-policy automated 
+    --path apps  
+argocd app sync apps  
 ```
 
-In this example, I excluded auto-prune, as this would result in all apps being deleted if some accidentally deleted the *app of apps*.
+The parent app will appear as in-sync but the child apps will be out of sync:
+
+![New App Of Apps](../assets/new-app-of-apps.png)
+
+You can either sync via the UI, firstly filter by the correct label:
+
+![Filter Apps](../assets/filter-apps.png)
+
+The select the "out of sync" apps and sync: 
+
+![Sync Apps](../assets/sync-apps.png)
+
+Or, via the CLI: 
+
+```bash
+argocd app sync -l app.kubernetes.io/instance=apps
+```
 
 View [the example on Github](https://github.com/argoproj/argocd-example-apps/tree/master/apps).

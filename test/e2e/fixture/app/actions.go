@@ -75,9 +75,10 @@ func (a *Actions) CreateFromFile(handler func(app *Application)) *Actions {
 			Environment: a.context.env,
 		}
 	}
-	if a.context.namePrefix != "" {
+	if a.context.namePrefix != "" || a.context.nameSuffix != "" {
 		app.Spec.Source.Kustomize = &ApplicationSourceKustomize{
 			NamePrefix: a.context.namePrefix,
+			NameSuffix: a.context.nameSuffix,
 		}
 	}
 	if a.context.configManagementPlugin != "" {
@@ -101,14 +102,14 @@ func (a *Actions) CreateFromFile(handler func(app *Application)) *Actions {
 	return a
 }
 
-func (a *Actions) Create() *Actions {
+func (a *Actions) Create(args ...string) *Actions {
 	a.context.t.Helper()
-	args := []string{
+	args = append([]string{
 		"app", "create", a.context.name,
 		"--repo", fixture.RepoURL(a.context.repoURLType),
 		"--dest-server", a.context.destServer,
 		"--dest-namespace", fixture.DeploymentNamespace(),
-	}
+	}, args...)
 
 	if a.context.path != "" {
 		args = append(args, "--path", a.context.path)
@@ -138,6 +139,10 @@ func (a *Actions) Create() *Actions {
 
 	if a.context.namePrefix != "" {
 		args = append(args, "--nameprefix", a.context.namePrefix)
+	}
+
+	if a.context.nameSuffix != "" {
+		args = append(args, "--namesuffix", a.context.nameSuffix)
 	}
 
 	if a.context.configManagementPlugin != "" {
@@ -187,9 +192,13 @@ func (a *Actions) AppSet(flags ...string) *Actions {
 	return a
 }
 
-func (a *Actions) Sync() *Actions {
+func (a *Actions) Sync(args ...string) *Actions {
 	a.context.t.Helper()
-	args := []string{"app", "sync", a.context.name, "--timeout", fmt.Sprintf("%v", a.context.timeout)}
+	args = append([]string{"app", "sync"}, args...)
+	if a.context.name != "" {
+		args = append(args, a.context.name)
+	}
+	args = append(args, "--timeout", fmt.Sprintf("%v", a.context.timeout))
 
 	if a.context.async {
 		args = append(args, "--async")

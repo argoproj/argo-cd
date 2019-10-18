@@ -1,12 +1,16 @@
 # Overview
 
+<!-- markdownlint-disable MD026 -->
 ## What Is Argo CD?
+<!-- markdownlint-enable MD026 -->
 
 Argo CD is a declarative, GitOps continuous delivery tool for Kubernetes.
 
 ![Argo CD UI](assets/argocd-ui.gif)
 
+<!-- markdownlint-disable MD026 -->
 ## Why Argo CD?
+<!-- markdownlint-enable MD026 -->
 
 Application definitions, configurations, and environments should be declarative and version controlled.
 Application deployment and lifecycle management should be automated, auditable, and easy to understand.
@@ -31,7 +35,7 @@ the desired application state. Kubernetes manifests can be specified in several 
 * [kustomize](https://kustomize.io) applications
 * [helm](https://helm.sh) charts
 * [ksonnet](https://ksonnet.io) applications
-* [jsonnet](https://jsonnet.org) files 
+* [jsonnet](https://jsonnet.org) files
 * Plain directory of YAML/json manifests
 * Any custom config management tool configured as a config management plugin
 
@@ -43,7 +47,6 @@ details about the different tracking strategies available.
 For a quick 10 minute overview of Argo CD, check out the demo presented to the Sig Apps community
 meeting:
 [![Alt text](https://img.youtube.com/vi/aWDIQMbp1cc/0.jpg)](https://youtu.be/aWDIQMbp1cc?t=1m4s)
-
 
 ## Architecture
 
@@ -82,4 +85,3 @@ For additional details, see [architecture overview](operator-manual/architecture
 ## Development Status
 
 Argo CD is actively developed and is being used in production to deploy SaaS services at Intuit
-
