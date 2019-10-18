@@ -1,4 +1,4 @@
-import { BehaviorSubject, Observable } from 'rxjs';
+import {BehaviorSubject, Observable} from 'rxjs';
 
 export type AppsDetailsViewType = 'tree' | 'network' | 'list';
 
@@ -40,17 +40,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
     version: 1,
     appDetails: {
         view: 'tree',
-        resourceFilter: [
-            'kind:Deployment',
-            'kind:Service',
-            'kind:Pod',
-            'kind:StatefulSet',
-            'kind:Ingress',
-            'kind:ConfigMap',
-            'kind:Job',
-            'kind:DaemonSet',
-            'kind:Workflow',
-        ],
+        resourceFilter: ['kind:Deployment', 'kind:Service', 'kind:Pod', 'kind:StatefulSet', 'kind:Ingress', 'kind:ConfigMap', 'kind:Job', 'kind:DaemonSet', 'kind:Workflow'],
         hideDefaultedFields: false,
         inlineDiff: false,
         compactDiff: false,
@@ -87,7 +77,7 @@ export class ViewPreferencesService {
     }
 
     public updatePreferences(change: Partial<ViewPreferences>) {
-        const nextPref = Object.assign({}, this.preferencesSubj.getValue(), change, { version: minVer });
+        const nextPref = Object.assign({}, this.preferencesSubj.getValue(), change, {version: minVer});
         window.localStorage.setItem(VIEW_PREFERENCES_KEY, JSON.stringify(nextPref));
         this.preferencesSubj.next(nextPref);
     }

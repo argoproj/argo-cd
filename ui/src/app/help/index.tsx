@@ -1,4 +1,4 @@
-import { Help } from './components/help';
+import {Help} from './components/help';
 
 export default {
     component: Help,

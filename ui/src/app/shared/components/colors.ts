@@ -11,10 +11,10 @@ export const COLORS = {
         unknown: ARGO_GRAY4_COLOR,
     },
     health: {
-        degraded:  ARGO_FAILED_COLOR,
-        healthy:  ARGO_SUCCESS_COLOR,
+        degraded: ARGO_FAILED_COLOR,
+        healthy: ARGO_SUCCESS_COLOR,
         missing: 'black',
-        progressing:  ARGO_RUNNING_COLOR,
+        progressing: ARGO_RUNNING_COLOR,
         suspended: ARGO_GRAY4_COLOR,
         unknown: ARGO_GRAY4_COLOR,
     },

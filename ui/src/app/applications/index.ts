@@ -1,4 +1,4 @@
-import { ApplicationsContainer } from './components/applications-container';
+import {ApplicationsContainer} from './components/applications-container';
 
 export default {
     component: ApplicationsContainer,

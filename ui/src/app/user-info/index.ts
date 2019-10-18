@@ -1,4 +1,4 @@
-import { UserInfoContainer } from './components/user-info-container';
+import {UserInfoContainer} from './components/user-info-container';
 
 export default {
     component: UserInfoContainer,
