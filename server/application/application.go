@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	"time"
@@ -59,6 +60,9 @@ type Server struct {
 	settingsMgr   *settings.SettingsManager
 	cache         *cache.Cache
 }
+
+// The default time in seconds for sending keepalive packets in application watch stream
+const DefaultStreamKeepaliveInterval = int64(60)
 
 // NewServer returns a new instance of the Application service
 func NewServer(
@@ -520,28 +524,47 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		listOpts.ResourceVersion = appsList.ResourceVersion
 	}
 
-	w, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Watch(listOpts)
-	if err != nil {
-		return err
+	interval := getKeepaliveIntervalFromEnv()
+	if interval > 0 {
+		listOpts.TimeoutSeconds = &interval
 	}
-	defer w.Stop()
-	done := make(chan bool)
-	go func() {
-		for next := range w.ResultChan() {
-			a, ok := next.Object.(*appv1.Application)
-			if ok {
-				_ = sendIfPermitted(*a, next.Type)
+
+	keepalive := true
+	for keepalive == true {
+		w, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Watch(listOpts)
+		if err != nil {
+			return err
+		}
+		defer w.Stop()
+		done := make(chan bool)
+		go func() {
+			for next := range w.ResultChan() {
+				a, ok := next.Object.(*appv1.Application)
+				if ok {
+					_ = sendIfPermitted(*a, next.Type)
+				} else {
+					keepalive = false
+					break
+				}
+			}
+			close(done)
+		}()
+		select {
+		case <-ws.Context().Done():
+			logCtx.Info("client watch grpc context closed")
+			keepalive = false
+		case <-done:
+			if !keepalive {
+				logCtx.Info("k8s application watch event channel closed")
 			} else {
-				break
+				// Send a keepalive beacon with empty application list
+				err = ws.Send(&appv1.ApplicationWatchEvent{Type: "KEEPALIVE"})
+				if err != nil {
+					logCtx.Errorf("Error sending keepalive beacon to client: %v", err)
+					keepalive = false
+				}
 			}
 		}
-		logCtx.Info("k8s application watch event channel closed")
-		close(done)
-	}()
-	select {
-	case <-ws.Context().Done():
-		logCtx.Info("client watch grpc context closed")
-	case <-done:
 	}
 	return nil
 }
@@ -1264,4 +1287,27 @@ func convertSyncWindows(w *v1alpha1.SyncWindows) []*application.ApplicationSyncW
 		}
 	}
 	return nil
+}
+
+func getKeepaliveIntervalFromEnv() int64 {
+	var configuredInterval int64 = 0
+
+	env := os.Getenv("ARGOCD_STREAM_KEEPALIVE_INTERVAL")
+	if env != "" {
+		_, err := fmt.Sscanf(env, "%d", &configuredInterval)
+		if err != nil {
+			log.Warnf("could not parse value from ARGOCD_STREAM_KEEPALIVE_INTERVAL: %v -- using default value %d", err, DefaultStreamKeepaliveInterval)
+			return DefaultStreamKeepaliveInterval
+		}
+		if configuredInterval >= 0 {
+			log.Debugf("using keepalive interval of %d", configuredInterval)
+			return configuredInterval
+		} else {
+			log.Warnf("negative keepalive %d not allowed, using default value of %d", configuredInterval, DefaultStreamKeepaliveInterval)
+		}
+	} else {
+		log.Debugf("Using default keepalive interval of %d", DefaultStreamKeepaliveInterval)
+	}
+
+	return DefaultStreamKeepaliveInterval
 }

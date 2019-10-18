@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	coreerrors "errors"
+	"os"
 	"testing"
 	"time"
 
@@ -503,4 +504,27 @@ func TestGetCachedAppState(t *testing.T) {
 		})
 		assert.Equal(t, randomError, err)
 	})
+}
+
+func TestGetKeepaliveIntervalFromEnv(t *testing.T) {
+	os.Setenv("ARGOCD_STREAM_KEEPALIVE_INTERVAL", "10")
+	timeout := getKeepaliveIntervalFromEnv()
+	assert.Equal(t, timeout, int64(10))
+
+	os.Setenv("ARGOCD_STREAM_KEEPALIVE_INTERVAL", "0")
+	timeout = getKeepaliveIntervalFromEnv()
+	assert.Equal(t, timeout, int64(0))
+
+	os.Setenv("ARGOCD_STREAM_KEEPALIVE_INTERVAL", "-1")
+	timeout = getKeepaliveIntervalFromEnv()
+	assert.Equal(t, timeout, DefaultStreamKeepaliveInterval)
+
+	os.Setenv("ARGOCD_STREAM_KEEPALIVE_INTERVAL", "whatever")
+	timeout = getKeepaliveIntervalFromEnv()
+	assert.Equal(t, timeout, DefaultStreamKeepaliveInterval)
+
+	os.Setenv("ARGOCD_STREAM_KEEPALIVE_INTERVAL", "")
+	timeout = getKeepaliveIntervalFromEnv()
+	assert.Equal(t, timeout, DefaultStreamKeepaliveInterval)
+
 }
