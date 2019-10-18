@@ -135,7 +135,7 @@ const (
 	EnvVarTLSDataPath = "ARGOCD_TLS_DATA_PATH"
 	// Specifies number of git remote operations attempts count
 	EnvGitAttemptsCount = "ARGOCD_GIT_ATTEMPTS_COUNT"
-	// Overrides git submpdule support, true by default
+	// Overrides git submodule support, true by default
 	EnvGitSubmoduleEnabled = "ARGOCD_GIT_MODULES_ENABLED"
 )
 

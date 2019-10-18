@@ -346,7 +346,7 @@ argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-ke
 
 ## Git Submodules
 
-Submodules are supported and will be picked up automatically. If the submodule repository requires authentication then the credentials will need to match the credentials of the parent repository.      
+Submodules are supported and will be picked up automatically. If the submodule repository requires authentication then the credentials will need to match the credentials of the parent repository. Set ARGOCD_GIT_MODULES_ENABLED=false to disable submodule support
 
 ## Declarative Configuration
 
