@@ -9,25 +9,21 @@ GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
 PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run vendor/github.com/gobuffalo/packr/packr/main.go"; fi)
+VOLUME_MOUNT=$(shell [[ $(go env GOOS)=="darwin" ]] && echo ":delegated" || echo "")
 
 define run-in-dev-tool
-    docker run --rm -it -u $(shell id -u) -e HOME=/home/user -v ${CURRENT_DIR}:/go/src/github.com/argoproj/argo-cd -w /go/src/github.com/argoproj/argo-cd argocd-dev-tools bash -c "GOPATH=/go $(1)"
+    docker run --rm -it -u $(shell id -u) -e HOME=/home/user -v ${CURRENT_DIR}:/go/src/github.com/argoproj/argo-cd${VOLUME_MOUNT} -w /go/src/github.com/argoproj/argo-cd argocd-dev-tools bash -c "GOPATH=/go $(1)"
 endef
 
 PATH:=$(PATH):$(PWD)/hack
 
 # docker image publishing options
 DOCKER_PUSH?=false
-IMAGE_TAG?=
+IMAGE_NAMESPACE?=
 # perform static compilation
 STATIC_BUILD?=true
 # build development images
 DEV_IMAGE?=false
-# lint is memory and CPU intensive, so we can limit on CI to mitigate OOM
-LINT_GOGC?=off
-LINT_CONCURRENCY?=8
-# Set timeout for linter
-LINT_DEADLINE?=1m0s
 
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
@@ -94,14 +90,14 @@ argocd-util: clean-debug
 
 .PHONY: dev-tools-image
 dev-tools-image:
-	docker build -t argocd-dev-tools ./hack -f ./hack/Dockerfile.dev-tools
+	cd hack && docker build -t argocd-dev-tools . -f Dockerfile.dev-tools
 
 .PHONY: manifests-local
 manifests-local:
 	./hack/update-manifests.sh
 
 .PHONY: manifests
-manifests: dev-tools-image
+manifests:
 	$(call run-in-dev-tool,make manifests-local IMAGE_TAG='${IMAGE_TAG}')
 
 
@@ -159,15 +155,14 @@ dep:
 dep-ensure:
 	dep ensure -no-vendor
 
-.PHONY: lint-local
-lint-local: build
-	# golangci-lint does not do a good job of formatting imports
-	goimports -local github.com/argoproj/argo-cd -w `find . ! -path './vendor/*' ! -path './pkg/client/*' ! -path '*.pb.go' ! -path '*.gw.go' -type f -name '*.go'`
-	GOGC=$(LINT_GOGC) golangci-lint run --fix --verbose --concurrency $(LINT_CONCURRENCY) --deadline $(LINT_DEADLINE)
+.PHONY: install-lint-tools
+install-lint-tools:
+	./hack/install.sh lint-tools
 
 .PHONY: lint
-lint: dev-tools-image
-	$(call run-in-dev-tool,make lint-local LINT_CONCURRENCY=$(LINT_CONCURRENCY) LINT_DEADLINE=$(LINT_DEADLINE) LINT_GOGC=$(LINT_GOGC))
+lint:
+	golangci-lint --version
+	golangci-lint run --fix --verbose
 
 .PHONY: build
 build:
@@ -175,15 +170,11 @@ build:
 
 .PHONY: test
 test:
-	go test -v -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "test/e2e"`
-
-.PHONY: cover
-cover:
-	go tool cover -html=coverage.out
+	 ./hack/test.sh -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`
 
 .PHONY: test-e2e
-test-e2e: cli
-	go test -v -timeout 15m ./test/e2e
+test-e2e:
+	./hack/test.sh -timeout 15m ./test/e2e
 
 .PHONY: start-e2e
 start-e2e: cli

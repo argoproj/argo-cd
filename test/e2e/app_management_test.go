@@ -136,6 +136,32 @@ func TestAppDeletion(t *testing.T) {
 	assert.NotContains(t, output, Name())
 }
 
+func TestAppLabels(t *testing.T) {
+	Given(t).
+		Path("config-map").
+		When().
+		Create("-l", "foo=bar").
+		Then().
+		And(func(app *Application) {
+			assert.Contains(t, FailOnErr(RunCli("app", "list")), Name())
+			assert.Contains(t, FailOnErr(RunCli("app", "list", "-l", "foo=bar")), Name())
+			assert.NotContains(t, FailOnErr(RunCli("app", "list", "-l", "foo=rubbish")), Name())
+		}).
+		Given().
+		// remove both name and replace labels means nothing will sync
+		Name("").
+		When().
+		IgnoreErrors().
+		Sync("-l", "foo=rubbish").
+		DoNotIgnoreErrors().
+		Then().
+		Expect(Error("", "no apps match selector foo=rubbish")).
+		// check we can update the app and it is then sync'd
+		Given().
+		When().
+		Sync("-l", "foo=bar")
+}
+
 func TestTrackAppStateAndSyncApp(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
@@ -145,10 +171,11 @@ func TestTrackAppStateAndSyncApp(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusHealthy)).
 		Expect(Success(fmt.Sprintf("apps  Deployment  %s          guestbook-ui  OutOfSync  Missing", DeploymentNamespace()))).
 		Expect(Success(fmt.Sprintf("Service  %s          guestbook-ui  OutOfSync  Missing", DeploymentNamespace()))).
-		Expect(Success(fmt.Sprintf("Service     %s  guestbook-ui  Synced  Healthy        service/guestbook-ui created", DeploymentNamespace()))).
-		Expect(Success(fmt.Sprintf("apps   Deployment  %s  guestbook-ui  Synced  Healthy        deployment.apps/guestbook-ui created", DeploymentNamespace()))).
+		Expect(Success(fmt.Sprintf("Service     %s  guestbook-ui  Synced ", DeploymentNamespace()))).
+		Expect(Success(fmt.Sprintf("apps   Deployment  %s  guestbook-ui  Synced", DeploymentNamespace()))).
 		Expect(Event(EventReasonResourceUpdated, "sync")).
 		And(func(app *Application) {
 			assert.NotNil(t, app.Status.OperationState.SyncResult)
@@ -493,7 +520,7 @@ func TestResourceAction(t *testing.T) {
 				ResourceName: "guestbook-ui",
 			})
 			assert.NoError(t, err)
-			assert.Equal(t, []ResourceAction{{Name: "sample", Available: false}}, actions.Actions)
+			assert.Equal(t, []ResourceAction{{Name: "sample", Disabled: false}}, actions.Actions)
 
 			_, err = client.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{Name: &app.Name,
 				Group:        "apps",

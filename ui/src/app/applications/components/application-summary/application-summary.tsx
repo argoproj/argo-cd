@@ -75,26 +75,27 @@ export const ApplicationSummary = (props: {
             title: 'CHART',
             view: <span>{app.spec.source.chart}:{app.spec.source.targetRevision}</span>,
             edit: (formApi: FormApi) => (
-                <DataLoader input={{repoURL: formApi.getFormState().values.spec.source.repoURL, chart: formApi.getFormState().values.spec.source.chart}}
-                load={(src) => services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>()).then((charts) => {
-                    const chartInfo = charts.find((chart) => chart.name === src.chart);
-                    return {
-                        charts: charts.map((chart) => chart.name),
-                        versions: chartInfo && chartInfo.versions || new Array<string>(),
-                    };
-                })}>
-                {(data: {charts: string[], versions: string[] }) => (
+                <DataLoader input={{repoURL: formApi.getFormState().values.spec.source.repoURL}}
+                load={(src) => services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())}>
+                {(charts: models.HelmChart[]) => (
                     <div className='row'>
                         <div className='columns small-10'>
                             <FormField formApi={formApi} field='spec.source.chart' component={AutocompleteField} componentProps={{
-                                items: data.charts, filterSuggestions: true,
+                                items: charts.map((chart) => chart.name), filterSuggestions: true,
                             }}/>
                         </div>
-                        <div className='columns small-2'>
-                                <FormField formApi={formApi} field='spec.source.targetRevision' component={AutocompleteField} componentProps={{
-                                items: data.versions,
-                            }}/>
-                        </div>
+                        <DataLoader input={{charts, chart: formApi.getFormState().values.spec.source.chart}} load={async (data) => {
+                            const chartInfo = data.charts.find((chart) => chart.name === data.chart);
+                            return chartInfo && chartInfo.versions || new Array<string>();
+                        }}>
+                            {(versions: string[]) => (
+                                <div className='columns small-2'>
+                                        <FormField formApi={formApi} field='spec.source.targetRevision' component={AutocompleteField} componentProps={{
+                                        items: versions,
+                                    }}/>
+                                </div>
+                            )}
+                        </DataLoader>
                     </div>
                 )}
                 </DataLoader>

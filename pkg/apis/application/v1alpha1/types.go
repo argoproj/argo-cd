@@ -253,6 +253,8 @@ func (images KustomizeImages) Find(image KustomizeImage) int {
 type ApplicationSourceKustomize struct {
 	// NamePrefix is a prefix appended to resources for kustomize apps
 	NamePrefix string `json:"namePrefix,omitempty" protobuf:"bytes,1,opt,name=namePrefix"`
+	// NameSuffix is a suffix appended to resources for kustomize apps
+	NameSuffix string `json:"nameSuffix,omitempty" protobuf:"bytes,2,opt,name=nameSuffix"`
 	// Images are kustomize image overrides
 	Images KustomizeImages `json:"images,omitempty" protobuf:"bytes,3,opt,name=images"`
 	// CommonLabels adds additional kustomize commonLabels
@@ -260,7 +262,11 @@ type ApplicationSourceKustomize struct {
 }
 
 func (k *ApplicationSourceKustomize) IsZero() bool {
-	return k == nil || k.NamePrefix == "" && len(k.Images) == 0 && len(k.CommonLabels) == 0
+	return k == nil ||
+		k.NamePrefix == "" &&
+			k.NameSuffix == "" &&
+			len(k.Images) == 0 &&
+			len(k.CommonLabels) == 0
 }
 
 // either updates or adds the images
@@ -712,6 +718,8 @@ type ApplicationCondition struct {
 	Type ApplicationConditionType `json:"type" protobuf:"bytes,1,opt,name=type"`
 	// Message contains human-readable message indicating details about condition
 	Message string `json:"message" protobuf:"bytes,2,opt,name=message"`
+	// LastTransitionTime is the time the condition was first observed.
+	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
 }
 
 // ComparedTo contains application source and target which was used for resources comparison
@@ -967,7 +975,7 @@ func (o *ResourceOverride) GetActions() (ResourceActions, error) {
 
 type ResourceActions struct {
 	ActionDiscoveryLua string                     `json:"discovery.lua,omitempty" yaml:"discovery.lua,omitempty" protobuf:"bytes,1,opt,name=actionDiscoveryLua"`
-	Definitions        []ResourceActionDefinition `json:"definitions,omitEmpty" protobuf:"bytes,2,rep,name=definitions"`
+	Definitions        []ResourceActionDefinition `json:"definitions,omitempty" protobuf:"bytes,2,rep,name=definitions"`
 }
 
 type ResourceActionDefinition struct {
@@ -976,9 +984,9 @@ type ResourceActionDefinition struct {
 }
 
 type ResourceAction struct {
-	Name      string                `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-	Params    []ResourceActionParam `json:"params,omitempty" protobuf:"bytes,2,rep,name=params"`
-	Available bool                  `json:"available,omitempty" protobuf:"varint,3,opt,name=available"`
+	Name     string                `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	Params   []ResourceActionParam `json:"params,omitempty" protobuf:"bytes,2,rep,name=params"`
+	Disabled bool                  `json:"disabled,omitempty" protobuf:"varint,3,opt,name=disabled"`
 }
 
 type ResourceActionParam struct {
@@ -986,6 +994,22 @@ type ResourceActionParam struct {
 	Value   string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
 	Type    string `json:"type,omitempty" protobuf:"bytes,3,opt,name=type"`
 	Default string `json:"default,omitempty" protobuf:"bytes,4,opt,name=default"`
+}
+
+// RepoCreds holds a repository credentials definition
+type RepoCreds struct {
+	// URL is the URL that this credentials matches to
+	URL string `json:"url" protobuf:"bytes,1,opt,name=url"`
+	// Username for authenticating at the repo server
+	Username string `json:"username,omitempty" protobuf:"bytes,2,opt,name=username"`
+	// Password for authenticating at the repo server
+	Password string `json:"password,omitempty" protobuf:"bytes,3,opt,name=password"`
+	// SSH private key data for authenticating at the repo server (only Git repos)
+	SSHPrivateKey string `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
+	// TLS client cert data for authenticating at the repo server
+	TLSClientCertData string `json:"tlsClientCertData,omitempty" protobuf:"bytes,5,opt,name=tlsClientCertData"`
+	// TLS client cert key for authenticating at the repo server
+	TLSClientCertKey string `json:"tlsClientCertKey,omitempty" protobuf:"bytes,6,opt,name=tlsClientCertKey"`
 }
 
 // Repository is a repository holding application configurations
@@ -1016,17 +1040,26 @@ type Repository struct {
 	Type string `json:"type,omitempty" protobuf:"bytes,11,opt,name=type"`
 	// only for Helm repos
 	Name string `json:"name,omitempty" protobuf:"bytes,12,opt,name=name"`
+	// Whether credentials were inherited from a credential set
+	InheritedCreds bool `json:"inheritedCreds,omitempty" protobuf:"bytes,13,opt,name=inheritedCreds"`
 }
 
+// IsInsecure returns true if receiver has been configured to skip server verification
 func (repo *Repository) IsInsecure() bool {
 	return repo.InsecureIgnoreHostKey || repo.Insecure
 }
 
+// IsLFSEnabled returns true if LFS support is enabled on receiver
 func (repo *Repository) IsLFSEnabled() bool {
 	return repo.EnableLFS
 }
 
-func (repo *Repository) CopyCredentialsFrom(source *Repository) {
+// HasCredentials returns true when the receiver has been configured any credentials
+func (m *Repository) HasCredentials() bool {
+	return m.Username != "" || m.Password != "" || m.SSHPrivateKey != "" || m.TLSClientCertData != ""
+}
+
+func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
 	if source != nil {
 		if repo.Username == "" {
 			repo.Username = source.Username
@@ -1037,9 +1070,27 @@ func (repo *Repository) CopyCredentialsFrom(source *Repository) {
 		if repo.SSHPrivateKey == "" {
 			repo.SSHPrivateKey = source.SSHPrivateKey
 		}
-		repo.InsecureIgnoreHostKey = repo.InsecureIgnoreHostKey || source.InsecureIgnoreHostKey
-		repo.Insecure = repo.Insecure || source.Insecure
-		repo.EnableLFS = repo.EnableLFS || source.EnableLFS
+		if repo.TLSClientCertData == "" {
+			repo.TLSClientCertData = source.TLSClientCertData
+		}
+		if repo.TLSClientCertKey == "" {
+			repo.TLSClientCertKey = source.TLSClientCertKey
+		}
+	}
+}
+
+// CopyCredentialsFrom copies all credentials from source to receiver
+func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
+	if source != nil {
+		if repo.Username == "" {
+			repo.Username = source.Username
+		}
+		if repo.Password == "" {
+			repo.Password = source.Password
+		}
+		if repo.SSHPrivateKey == "" {
+			repo.SSHPrivateKey = source.SSHPrivateKey
+		}
 		if repo.TLSClientCertData == "" {
 			repo.TLSClientCertData = source.TLSClientCertData
 		}
@@ -1089,6 +1140,16 @@ func getCAPath(repoURL string) string {
 	return ""
 }
 
+// CopySettingsFrom copies all repository settings from source to receiver
+func (m *Repository) CopySettingsFrom(source *Repository) {
+	if source != nil {
+		m.EnableLFS = source.EnableLFS
+		m.InsecureIgnoreHostKey = source.InsecureIgnoreHostKey
+		m.Insecure = source.Insecure
+		m.InheritedCreds = source.InheritedCreds
+	}
+}
+
 type Repositories []*Repository
 
 func (r Repositories) Filter(predicate func(r *Repository) bool) Repositories {
@@ -1106,6 +1167,12 @@ func (r Repositories) Filter(predicate func(r *Repository) bool) Repositories {
 type RepositoryList struct {
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	Items           Repositories `json:"items" protobuf:"bytes,2,rep,name=items"`
+}
+
+// RepositoryList is a collection of Repositories.
+type RepoCredsList struct {
+	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+	Items           []RepoCreds `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
@@ -1798,27 +1865,55 @@ func (app *Application) SetCascadedDeletion(prune bool) {
 	}
 }
 
+// SetConditions updates the application status conditions for a subset of evaluated types.
+// If the application has a pre-existing condition of a type that is not in the evaluated list,
+// it will be preserved. If the application has a pre-existing condition of a type that
+// is in the evaluated list, but not in the incoming conditions list, it will be removed.
 func (status *ApplicationStatus) SetConditions(conditions []ApplicationCondition, evaluatedTypes map[ApplicationConditionType]bool) {
 	appConditions := make([]ApplicationCondition, 0)
+	now := metav1.Now()
 	for i := 0; i < len(status.Conditions); i++ {
 		condition := status.Conditions[i]
 		if _, ok := evaluatedTypes[condition.Type]; !ok {
+			if condition.LastTransitionTime == nil {
+				condition.LastTransitionTime = &now
+			}
 			appConditions = append(appConditions, condition)
 		}
 	}
 	for i := range conditions {
 		condition := conditions[i]
-		appConditions = append(appConditions, condition)
+		if condition.LastTransitionTime == nil {
+			condition.LastTransitionTime = &now
+		}
+		eci := findConditionIndexByType(status.Conditions, condition.Type)
+		if eci >= 0 && status.Conditions[eci].Message == condition.Message {
+			// If we already have a condition of this type, only update the timestamp if something
+			// has changed.
+			appConditions = append(appConditions, status.Conditions[eci])
+		} else {
+			// Otherwise we use the new incoming condition with an updated timestamp:
+			appConditions = append(appConditions, condition)
+		}
 	}
 	status.Conditions = appConditions
 }
 
+func findConditionIndexByType(conditions []ApplicationCondition, t ApplicationConditionType) int {
+	for i := range conditions {
+		if conditions[i].Type == t {
+			return i
+		}
+	}
+	return -1
+}
+
 // GetErrorConditions returns list of application error conditions
-func (status *ApplicationStatus) GetErrorConditions() []ApplicationCondition {
+func (status *ApplicationStatus) GetConditions(conditionTypes map[ApplicationConditionType]bool) []ApplicationCondition {
 	result := make([]ApplicationCondition, 0)
 	for i := range status.Conditions {
 		condition := status.Conditions[i]
-		if condition.IsError() {
+		if ok := conditionTypes[condition.Type]; ok {
 			result = append(result, condition)
 		}
 	}

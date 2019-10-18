@@ -49,7 +49,7 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "ListMixin1",
+        "operationId": "ListMixin8",
         "parameters": [
           {
             "type": "string",
@@ -99,7 +99,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "CreateMixin1",
+        "operationId": "CreateMixin8",
         "parameters": [
           {
             "name": "body",
@@ -126,7 +126,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "UpdateMixin1",
+        "operationId": "UpdateMixin8",
         "parameters": [
           {
             "type": "string",
@@ -207,7 +207,7 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "Get",
+        "operationId": "GetMixin8",
         "parameters": [
           {
             "type": "string",
@@ -257,7 +257,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "DeleteMixin1",
+        "operationId": "DeleteMixin8",
         "parameters": [
           {
             "type": "string",
@@ -1051,7 +1051,7 @@
           "ProjectService"
         ],
         "summary": "List returns list of projects",
-        "operationId": "ListMixin4",
+        "operationId": "ListMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1073,7 +1073,7 @@
           "ProjectService"
         ],
         "summary": "Create a new project.",
-        "operationId": "CreateMixin4",
+        "operationId": "CreateMixin6",
         "parameters": [
           {
             "name": "body",
@@ -1100,7 +1100,7 @@
           "ProjectService"
         ],
         "summary": "Get returns a project by name",
-        "operationId": "GetMixin4",
+        "operationId": "GetMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1123,7 +1123,7 @@
           "ProjectService"
         ],
         "summary": "Delete deletes a project",
-        "operationId": "DeleteMixin4",
+        "operationId": "DeleteMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1198,7 +1198,7 @@
           "ProjectService"
         ],
         "summary": "Update updates a project",
-        "operationId": "UpdateMixin4",
+        "operationId": "UpdateMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1302,17 +1302,133 @@
         }
       }
     },
+    "/api/v1/repocreds": {
+      "get": {
+        "tags": [
+          "RepoCredsService"
+        ],
+        "summary": "ListRepositoryCredentials gets a list of all configured repository credential sets",
+        "operationId": "ListRepositoryCredentials",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Repo URL for query.",
+            "name": "url",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepoCredsList"
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "RepoCredsService"
+        ],
+        "summary": "CreateRepositoryCredentials creates a new repository credential set",
+        "operationId": "CreateRepositoryCredentials",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepoCreds"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepoCreds"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repocreds/{creds.url}": {
+      "put": {
+        "tags": [
+          "RepoCredsService"
+        ],
+        "summary": "UpdateRepositoryCredentials updates a repository credential set",
+        "operationId": "UpdateRepositoryCredentials",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "creds.url",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepoCreds"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepoCreds"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repocreds/{url}": {
+      "delete": {
+        "tags": [
+          "RepoCredsService"
+        ],
+        "summary": "DeleteRepositoryCredentials deletes a repository credential set from the configuration",
+        "operationId": "DeleteRepositoryCredentials",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "url",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/repocredsRepoCredsResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/repositories": {
       "get": {
         "tags": [
           "RepositoryService"
         ],
-        "summary": "List returns list of repos",
-        "operationId": "List",
+        "summary": "ListRepositories gets a list of all configured repositories",
+        "operationId": "ListRepositories",
         "parameters": [
           {
             "type": "string",
+            "description": "Repo URL for query.",
             "name": "repo",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "format": "boolean",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "name": "forceRefresh",
             "in": "query"
           }
         ],
@@ -1329,8 +1445,8 @@
         "tags": [
           "RepositoryService"
         ],
-        "summary": "Create creates a repo",
-        "operationId": "Create",
+        "summary": "CreateRepository creates a new repository configuration",
+        "operationId": "CreateRepository",
         "parameters": [
           {
             "name": "body",
@@ -1356,8 +1472,8 @@
         "tags": [
           "RepositoryService"
         ],
-        "summary": "Update updates a repo",
-        "operationId": "Update",
+        "summary": "UpdateRepository updates a repository configuration",
+        "operationId": "UpdateRepository",
         "parameters": [
           {
             "type": "string",
@@ -1389,8 +1505,8 @@
         "tags": [
           "RepositoryService"
         ],
-        "summary": "Delete deletes a repo",
-        "operationId": "Delete",
+        "summary": "DeleteRepository deletes a repository from the configuration",
+        "operationId": "DeleteRepository",
         "parameters": [
           {
             "type": "string",
@@ -1451,6 +1567,13 @@
             "name": "repo",
             "in": "path",
             "required": true
+          },
+          {
+            "type": "boolean",
+            "format": "boolean",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "name": "forceRefresh",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1535,7 +1658,7 @@
           "SessionService"
         ],
         "summary": "Create a new JWT for authentication and set a cookie if using HTTP.",
-        "operationId": "CreateMixin9",
+        "operationId": "CreateMixin10",
         "parameters": [
           {
             "name": "body",
@@ -1560,7 +1683,7 @@
           "SessionService"
         ],
         "summary": "Delete an existing JWT cookie if using HTTP.",
-        "operationId": "DeleteMixin9",
+        "operationId": "DeleteMixin10",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -2059,6 +2182,10 @@
           }
         }
       }
+    },
+    "repocredsRepoCredsResponse": {
+      "type": "object",
+      "title": "RepoCredsResponse is a resonse to most repository credentials requests"
     },
     "repositoryAppInfo": {
       "type": "object",
@@ -2904,6 +3031,9 @@
       "type": "object",
       "title": "ApplicationCondition contains details about current application condition",
       "properties": {
+        "lastTransitionTime": {
+          "$ref": "#/definitions/v1Time"
+        },
         "message": {
           "type": "string",
           "title": "Message contains human-readable message indicating details about condition"
@@ -3078,6 +3208,10 @@
         "namePrefix": {
           "type": "string",
           "title": "NamePrefix is a prefix appended to resources for kustomize apps"
+        },
+        "nameSuffix": {
+          "type": "string",
+          "title": "NameSuffix is a suffix appended to resources for kustomize apps"
         }
       }
     },
@@ -3518,6 +3652,51 @@
         }
       }
     },
+    "v1alpha1RepoCreds": {
+      "type": "object",
+      "title": "RepoCreds holds a repository credentials definition",
+      "properties": {
+        "password": {
+          "type": "string",
+          "title": "Password for authenticating at the repo server"
+        },
+        "sshPrivateKey": {
+          "type": "string",
+          "title": "SSH private key data for authenticating at the repo server (only Git repos)"
+        },
+        "tlsClientCertData": {
+          "type": "string",
+          "title": "TLS client cert data for authenticating at the repo server"
+        },
+        "tlsClientCertKey": {
+          "type": "string",
+          "title": "TLS client cert key for authenticating at the repo server"
+        },
+        "url": {
+          "type": "string",
+          "title": "URL is the URL that this credentials matches to"
+        },
+        "username": {
+          "type": "string",
+          "title": "Username for authenticating at the repo server"
+        }
+      }
+    },
+    "v1alpha1RepoCredsList": {
+      "description": "RepositoryList is a collection of Repositories.",
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1RepoCreds"
+          }
+        },
+        "metadata": {
+          "$ref": "#/definitions/v1ListMeta"
+        }
+      }
+    },
     "v1alpha1Repository": {
       "type": "object",
       "title": "Repository is a repository holding application configurations",
@@ -3529,6 +3708,11 @@
           "type": "boolean",
           "format": "boolean",
           "title": "Whether git-lfs support should be enabled for this repo"
+        },
+        "inheritedCreds": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "Whether credentials were inherited from a credential set"
         },
         "insecure": {
           "type": "boolean",
@@ -3635,7 +3819,7 @@
     "v1alpha1ResourceAction": {
       "type": "object",
       "properties": {
-        "available": {
+        "disabled": {
           "type": "boolean",
           "format": "boolean"
         },

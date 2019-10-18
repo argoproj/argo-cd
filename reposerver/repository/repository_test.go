@@ -19,8 +19,9 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/reposerver/metrics"
 	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/cache"
-	argocache "github.com/argoproj/argo-cd/util/cache"
+
+	"github.com/argoproj/argo-cd/reposerver/cache"
+	cacheutil "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/git"
 	gitmocks "github.com/argoproj/argo-cd/util/git/mocks"
 	"github.com/argoproj/argo-cd/util/helm"
@@ -28,7 +29,10 @@ import (
 )
 
 func newServiceWithMocks(root string) (*Service, *gitmocks.Client, *helmmocks.Client) {
-	service := NewService(metrics.NewMetricsServer(), argocache.NewCache(cache.NewInMemoryCache(time.Duration(1)*time.Second)), 1)
+	service := NewService(metrics.NewMetricsServer(), cache.NewCache(
+		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
+		1*time.Minute,
+	), 1)
 	helmClient := &helmmocks.Client{}
 	gitClient := &gitmocks.Client{}
 	root, err := filepath.Abs(root)
@@ -191,6 +195,26 @@ func TestGenerateHelmWithValues(t *testing.T) {
 	}
 	assert.True(t, replicasVerified)
 
+}
+
+// This tests against a path traversal attack. The requested value file (`../minio/values.yaml`) is outside the
+// app path (`./util/helm/testdata/redis`)
+func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
+	service := newService("../..")
+
+	_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		Repo:          &argoappv1.Repository{},
+		AppLabelValue: "test",
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: "./util/helm/testdata/redis",
+			Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"../minio/values.yaml"},
+				Values:     `cluster: {slaveCount: 2}`,
+			},
+		},
+	})
+	assert.Error(t, err)
+	assert.Error(t, err, "should be on or under current directory")
 }
 
 func TestGenerateNullList(t *testing.T) {

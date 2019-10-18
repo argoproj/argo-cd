@@ -3,6 +3,7 @@ package test
 import (
 	"encoding/json"
 
+	"github.com/ghodss/yaml"
 	appsv1 "k8s.io/api/apps/v1"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,6 +49,24 @@ var PodManifest = []byte(`
 func NewPod() *unstructured.Unstructured {
 	var un unstructured.Unstructured
 	err := json.Unmarshal(PodManifest, &un)
+	if err != nil {
+		panic(err)
+	}
+	return &un
+}
+func NewCRD() *unstructured.Unstructured {
+	var un unstructured.Unstructured
+	err := yaml.Unmarshal([]byte(`apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: testcrds.argoproj.io
+spec:
+  group: argoproj.io
+  version: v1
+  scope: Namespaced
+  names:
+    plural: testcrds
+    kind: TestCrd`), &un)
 	if err != nil {
 		panic(err)
 	}

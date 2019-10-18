@@ -105,7 +105,7 @@ type HelmRepoCredentials struct {
 }
 
 // Credentials for accessing a Git repository
-type RepoCredentials struct {
+type Repository struct {
 	// The URL to the repository
 	URL string `json:"url,omitempty"`
 	// the type of the repo, "git" or "helm", assumed to be "git" if empty or absent
@@ -124,6 +124,22 @@ type RepoCredentials struct {
 	Insecure bool `json:"insecure,omitempty"`
 	// Whether the repo is git-lfs enabled. Git only.
 	EnableLFS bool `json:"enableLfs,omitempty"`
+	// Name of the secret storing the TLS client cert data
+	TLSClientCertDataSecret *apiv1.SecretKeySelector `json:"tlsClientCertDataSecret,omitempty"`
+	// Name of the secret storing the TLS client cert's key data
+	TLSClientCertKeySecret *apiv1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
+}
+
+// Credential template for accessing repositories
+type RepositoryCredentials struct {
+	// The URL pattern the repository URL has to match
+	URL string `json:"url,omitempty"`
+	// Name of the secret storing the username used to access the repo
+	UsernameSecret *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
+	// Name of the secret storing the password used to access the repo
+	PasswordSecret *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
+	// Name of the secret storing the SSH private key used to access the repo. Git only
+	SSHPrivateKeySecret *apiv1.SecretKeySelector `json:"sshPrivateKeySecret,omitempty"`
 	// Name of the secret storing the TLS client cert data
 	TLSClientCertDataSecret *apiv1.SecretKeySelector `json:"tlsClientCertDataSecret,omitempty"`
 	// Name of the secret storing the TLS client cert's key data
@@ -345,12 +361,12 @@ func (mgr *SettingsManager) GetHelmRepositories() ([]HelmRepoCredentials, error)
 	return helmRepositories, nil
 }
 
-func (mgr *SettingsManager) GetRepositories() ([]RepoCredentials, error) {
+func (mgr *SettingsManager) GetRepositories() ([]Repository, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		return nil, err
 	}
-	repositories := make([]RepoCredentials, 0)
+	repositories := make([]Repository, 0)
 	repositoriesStr := argoCDCM.Data[repositoriesKey]
 	if repositoriesStr != "" {
 		err := yaml.Unmarshal([]byte(repositoriesStr), &repositories)
@@ -361,7 +377,7 @@ func (mgr *SettingsManager) GetRepositories() ([]RepoCredentials, error) {
 	return repositories, nil
 }
 
-func (mgr *SettingsManager) SaveRepositories(repos []RepoCredentials) error {
+func (mgr *SettingsManager) SaveRepositories(repos []Repository) error {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		return err
@@ -379,21 +395,40 @@ func (mgr *SettingsManager) SaveRepositories(repos []RepoCredentials) error {
 	return err
 }
 
-func (mgr *SettingsManager) GetRepositoryCredentials() ([]RepoCredentials, error) {
+func (mgr *SettingsManager) SaveRepositoryCredentials(creds []RepositoryCredentials) error {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return err
+	}
+	if len(creds) > 0 {
+		yamlStr, err := yaml.Marshal(creds)
+		if err != nil {
+			return err
+		}
+		argoCDCM.Data[repositoryCredentialsKey] = string(yamlStr)
+	} else {
+		delete(argoCDCM.Data, repositoryCredentialsKey)
+	}
+	_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(argoCDCM)
+	return err
+}
+
+func (mgr *SettingsManager) GetRepositoryCredentials() ([]RepositoryCredentials, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		return nil, err
 	}
 
-	repositoryCredentials := make([]RepoCredentials, 0)
-	repositoryCredentialsStr := argoCDCM.Data[repositoryCredentialsKey]
-	if repositoryCredentialsStr != "" {
-		err := yaml.Unmarshal([]byte(repositoryCredentialsStr), &repositoryCredentials)
+	creds := make([]RepositoryCredentials, 0)
+	credsStr := argoCDCM.Data[repositoryCredentialsKey]
+	if credsStr != "" {
+		err := yaml.Unmarshal([]byte(credsStr), &creds)
 		if err != nil {
 			return nil, err
 		}
+		log.Debugf("CREDS: %v", creds)
 	}
-	return repositoryCredentials, nil
+	return creds, nil
 }
 
 func (mgr *SettingsManager) GetGoogleAnalytics() (*GoogleAnalytics, error) {
