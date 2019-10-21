@@ -23,47 +23,16 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /tmp
 
-# Install dep
-ENV DEP_VERSION=0.5.0
-RUN wget https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 -O /usr/local/bin/dep && \
-    chmod +x /usr/local/bin/dep
+ADD hack/install.sh .
+ADD hack/installers installers
 
-# Install packr
-ENV PACKR_VERSION=1.21.9
-RUN wget https://github.com/gobuffalo/packr/releases/download/v${PACKR_VERSION}/packr_${PACKR_VERSION}_linux_amd64.tar.gz && \
-    tar -vxf packr*.tar.gz -C /tmp/ && \
-    mv /tmp/packr /usr/local/bin/packr
-
-# Install kubectl
-# NOTE: keep the version synced with https://storage.googleapis.com/kubernetes-release/release/stable.txt
-ENV KUBECTL_VERSION=1.14.0
-RUN curl -L -o /usr/local/bin/kubectl -LO https://storage.googleapis.com/kubernetes-release/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl && \
-    chmod +x /usr/local/bin/kubectl && \
-    kubectl version --client
-
-# Install ksonnet
-ENV KSONNET_VERSION=0.13.1
-RUN wget https://github.com/ksonnet/ksonnet/releases/download/v${KSONNET_VERSION}/ks_${KSONNET_VERSION}_linux_amd64.tar.gz && \
-    tar -C /tmp/ -xf ks_${KSONNET_VERSION}_linux_amd64.tar.gz && \
-    mv /tmp/ks_${KSONNET_VERSION}_linux_amd64/ks /usr/local/bin/ks && \
-    ks version
-
-# Install helm
-ENV HELM_VERSION=2.12.1
-RUN wget https://storage.googleapis.com/kubernetes-helm/helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
-    tar -C /tmp/ -xf helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
-    mv /tmp/linux-amd64/helm /usr/local/bin/helm && \
-    helm version --client
-
-ENV KUSTOMIZE_VERSION=3.1.0
-RUN curl -L -o /usr/local/bin/kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64 && \
-    chmod +x /usr/local/bin/kustomize && \
-    kustomize version
-
-# Install AWS IAM Authenticator
-ENV AWS_IAM_AUTHENTICATOR_VERSION=0.4.0-alpha.1
-RUN curl -L -o /usr/local/bin/aws-iam-authenticator https://github.com/kubernetes-sigs/aws-iam-authenticator/releases/download/${AWS_IAM_AUTHENTICATOR_VERSION}/aws-iam-authenticator_${AWS_IAM_AUTHENTICATOR_VERSION}_linux_amd64 && \
-    chmod +x /usr/local/bin/aws-iam-authenticator
+RUN ./install.sh dep-linux
+RUN ./install.sh packr-linux
+RUN ./install.sh kubectl-linux
+RUN ./install.sh ksonnet-linux
+RUN ./install.sh helm-linux
+RUN ./install.sh kustomize-linux
+RUN ./install.sh aws-iam-authenticator-linux
 
 ####################################################################################################
 # Argo CD Base - used as the base for both the release and dev argocd images
