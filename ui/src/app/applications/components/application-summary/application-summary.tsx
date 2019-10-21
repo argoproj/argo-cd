@@ -5,8 +5,7 @@ import { FormApi, Text } from 'react-form';
 require('./application-summary.scss');
 
 import { AutocompleteField, Cluster, clusterTitle, DataLoader, EditablePanel, EditablePanelItem } from '../../../shared/components';
-import { Repo, Revision } from '../../../shared/components';
-import {MapInputField} from '../../../shared/components/array-input/array-input-field';
+import { MapInputField, Repo, Revision } from '../../../shared/components';
 import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';

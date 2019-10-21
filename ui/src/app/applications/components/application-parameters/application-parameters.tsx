@@ -2,14 +2,13 @@ import {DataLoader, FormField, FormSelect, getNestedField} from 'argo-ui';
 import * as React from 'react';
 import {FieldApi, FormApi, FormField as ReactFormField, Text, TextArea} from 'react-form';
 
-import {CheckboxField, EditablePanel, EditablePanelItem, Expandable, TagsInputField} from '../../../shared/components';
-import {ArrayInputField} from '../../../shared/components/array-input/array-input-field';
-import {VarsInputField} from '../../../shared/components/array-input/vars-input-field';
+import {ArrayInputField, CheckboxField, EditablePanel, EditablePanelItem, Expandable, TagsInputField} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {ApplicationSourceDirectory, AuthSettings} from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ImageTagFieldEditor} from './kustomize';
 import * as kustomize from './kustomize-image';
+import { VarsInputField } from './vars-input-field';
 
 const TextWithMetadataField = ReactFormField((props: {metadata: { value: string }, fieldApi: FieldApi, className: string }) => {
     const { fieldApi: {getValue, setValue}} = props;
