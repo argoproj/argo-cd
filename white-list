@@ -1,0 +1,23 @@
+# a list of sites we ignore when checking for broken links in mkdocs
+10.97.164.88
+192.168.0.20
+argocd.example.com
+api.github.com/user
+cd.apps.argoproj.io
+git.example.com
+github.com/argoproj/another-private-repo
+github.com/argoproj/my-private-repository
+github.com/argoproj/other-private-repo
+github.com/argoproj/private-repo
+github.com/otherproj/another-private-repo
+ksonnet.io
+raw.githubusercontent.com/argoproj/argo-cd
+repo.example.com
+server.example.com
+kubernetes.default.svc
+kubernetes.default.svc:443
+localhost:6443
+localhost:8080
+mycluster.com
+storage.googleapis.com
+your-kubernetes-cluster-addr

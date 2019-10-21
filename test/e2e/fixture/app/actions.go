@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/errors"
@@ -87,8 +87,8 @@ func (a *Actions) CreateFromFile(handler func(app *Application)) *Actions {
 		}
 	}
 
-	if len(a.context.jsonnetTLAStr) > 0 || len(a.context.parameters) > 0 {
-		logrus.Fatal("Application parameters or json tlas are not supported")
+	if len(a.context.parameters) > 0 {
+		log.Fatal("Application parameters or json tlas are not supported")
 	}
 
 	if a.context.directoryRecurse {
@@ -133,14 +133,6 @@ func (a *Actions) Create(args ...string) *Actions {
 
 	args = append(args, "--project", a.context.project)
 
-	for _, jsonnetTLAParameter := range a.context.jsonnetTLAStr {
-		args = append(args, "--jsonnet-tla-str", jsonnetTLAParameter)
-	}
-
-	for _, jsonnetTLAParameter := range a.context.jsonnetTLACode {
-		args = append(args, "--jsonnet-tla-code", jsonnetTLAParameter)
-	}
-
 	if a.context.namePrefix != "" {
 		args = append(args, "--nameprefix", a.context.namePrefix)
 	}
@@ -156,6 +148,8 @@ func (a *Actions) Create(args ...string) *Actions {
 	if a.context.revision != "" {
 		args = append(args, "--revision", a.context.revision)
 	}
+
+	//  are you adding new context values? if you only use them for this func, then use args instead
 
 	a.runCli(args...)
 
@@ -223,6 +217,8 @@ func (a *Actions) Sync(args ...string) *Actions {
 	if a.context.force {
 		args = append(args, "--force")
 	}
+
+	//  are you adding new context values? if you only use them for this func, then use args instead
 
 	a.runCli(args...)
 

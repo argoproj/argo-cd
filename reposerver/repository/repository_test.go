@@ -85,7 +85,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 			assert.Equal(t, countOfManifests, len(res1.Manifests))
 
 			// this will test concatenated manifests to verify we split YAMLs correctly
-			res2, err := GenerateManifests("./testdata/concatenated", &q)
+			res2, err := GenerateManifests("./testdata/concatenated", "", &q)
 			assert.Nil(t, err)
 			assert.Equal(t, 3, len(res2.Manifests))
 		})
@@ -296,9 +296,10 @@ func TestRunCustomTool(t *testing.T) {
 
 func TestGenerateFromUTF16(t *testing.T) {
 	q := apiclient.ManifestRequest{
+		Repo:              &argoappv1.Repository{},
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
-	res1, err := GenerateManifests("./testdata/utf-16", &q)
+	res1, err := GenerateManifests("./testdata/utf-16", "", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res1.Manifests))
 }
@@ -408,4 +409,23 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.Equal(t, "author", res.Author)
 	assert.EqualValues(t, []string{"tag1", "tag2"}, res.Tags)
 
+}
+
+func Test_newEnv(t *testing.T) {
+	assert.Equal(t, &argoappv1.Env{
+		&argoappv1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: "my-app-name"},
+		&argoappv1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: "my-namespace"},
+		&argoappv1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: "my-revision"},
+		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: "https://github.com/my-org/my-repo"},
+		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: "my-path"},
+		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: "my-target-revision"},
+	}, newEnv(&apiclient.ManifestRequest{
+		AppLabelValue: "my-app-name",
+		Namespace:     "my-namespace",
+		Repo:          &argoappv1.Repository{Repo: "https://github.com/my-org/my-repo"},
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path:           "my-path",
+			TargetRevision: "my-target-revision",
+		},
+	}, "my-revision"))
 }

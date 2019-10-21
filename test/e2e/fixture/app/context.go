@@ -24,8 +24,6 @@ type Context struct {
 	destServer             string
 	env                    string
 	parameters             []string
-	jsonnetTLAStr          []string
-	jsonnetTLACode         []string
 	namePrefix             string
 	nameSuffix             string
 	resource               string
@@ -168,16 +166,6 @@ func (c *Context) Env(env string) *Context {
 
 func (c *Context) Parameter(parameter string) *Context {
 	c.parameters = append(c.parameters, parameter)
-	return c
-}
-
-func (c *Context) JsonnetTLAStrParameter(parameter string) *Context {
-	c.jsonnetTLAStr = append(c.jsonnetTLAStr, parameter)
-	return c
-}
-
-func (c *Context) JsonnetTLACodeParameter(parameter string) *Context {
-	c.jsonnetTLACode = append(c.jsonnetTLACode, parameter)
 	return c
 }
 
