@@ -111,7 +111,7 @@ commands:
           command: go run ./cmd/argocd-application-controller/main.go --loglevel debug --redis localhost:6379 --repo-server localhost:8081 --kubeconfig ~/.kube/config
           background: true
       - run:
-          command: PATH=dist:$PATH make test-e2e
+          command: PATH=dist:$PATH make test-e2e E2E_TAGS=${E2E_TAGS}
           environment:
             ARGOCD_OPTS: "--server localhost:8080 --plaintext"
             ARGOCD_E2E_EXPECT_TIMEOUT: "30"
@@ -185,6 +185,7 @@ jobs:
       ARGOCD_FAKE_IN_CLUSTER: "true"
       ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
       ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
+      E2E_TAGS: 'group0'
     steps:
       - e2e
   ui:
