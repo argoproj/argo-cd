@@ -185,9 +185,13 @@ jobs:
       ARGOCD_FAKE_IN_CLUSTER: "true"
       ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
       ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
-      E2E_TAGS: 'group 0 group1'
     steps:
-      - e2e
+      - e2e:
+          environment:
+            E2E_TAGS: group0
+      - e2e:
+          environment:
+            E2E_TAGS: group1
   e2e-part-2:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
@@ -196,9 +200,10 @@ jobs:
       ARGOCD_FAKE_IN_CLUSTER: "true"
       ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
       ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
-      E2E_TAGS: 'group2'
     steps:
-      - e2e
+      - e2e:
+          environment:
+            E2E_TAGS: group2
   ui:
     docker:
       - image: node:11.15.0
