@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/test/e2e/0"
 
 	"github.com/stretchr/testify/assert"
 
@@ -27,7 +28,7 @@ func TestKustomize2AppSource(t *testing.T) {
 	}
 
 	Given(t).
-		Path(guestbookPath).
+		Path(_.guestbookPath).
 		NamePrefix("k2-").
 		NameSuffix("-deploy1").
 		When().
@@ -146,7 +147,7 @@ func TestKustomizeDeclarativeInvalidApp(t *testing.T) {
 
 func TestKustomizeBuildOptionsLoadRestrictor(t *testing.T) {
 	Given(t).
-		Path(guestbookPath).
+		Path(_.guestbookPath).
 		And(func() {
 			errors.FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
 				"-n", fixture.ArgoCDNamespace,

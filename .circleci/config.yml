@@ -193,7 +193,7 @@ jobs:
     working_directory: ~/argo-cd/ui
     steps:
       - checkout:
-          path: ~/argo-cd/I
+          path: ~/argo-cd/
       - restore_cache:
           keys:
             - yarn-packages-v4-{{ checksum "yarn.lock" }}
