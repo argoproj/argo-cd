@@ -205,11 +205,11 @@ workflows:
   version: 2
   workflow:
     jobs:
+      - codegen
       - test
-      - codegen:
-          requires:
-            - test
+        requires:
+          - codegen
       - ui:
           requires:
-            - codegen
+            - test
       - e2e
