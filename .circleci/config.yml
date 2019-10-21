@@ -49,6 +49,9 @@ commands:
             - go-v17-{{ .Branch }}
             - go-v17-master
   e2e:
+    parameters:
+      tags:
+        type: string
     steps:
       - run:
           name: Install and start K3S v0.5.0
@@ -111,7 +114,7 @@ commands:
           command: go run ./cmd/argocd-application-controller/main.go --loglevel debug --redis localhost:6379 --repo-server localhost:8081 --kubeconfig ~/.kube/config
           background: true
       - run:
-          command: PATH=dist:$PATH make test-e2e E2E_TAGS=${E2E_TAGS}
+          command: PATH=dist:$PATH make test-e2e E2E_TAGS=<< parameters.tags >>
           environment:
             ARGOCD_OPTS: "--server localhost:8080 --plaintext"
             ARGOCD_E2E_EXPECT_TIMEOUT: "30"
@@ -187,11 +190,9 @@ jobs:
       ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
     steps:
       - e2e:
-          environment:
-            E2E_TAGS: group0
+          tags: group0
       - e2e:
-          environment:
-            E2E_TAGS: group1
+          tags: group1
   e2e-part-2:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
@@ -202,8 +203,7 @@ jobs:
       ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
     steps:
       - e2e:
-          environment:
-            E2E_TAGS: group2
+          tags: group2
   ui:
     docker:
       - image: node:11.15.0
