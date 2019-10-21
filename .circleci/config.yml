@@ -177,7 +177,7 @@ jobs:
       - store_artifacts:
           path: test-results
           destination: .
-  e2e-group0:
+  e2e-part-1:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
       image: circleci/classic:201808-01
@@ -185,21 +185,10 @@ jobs:
       ARGOCD_FAKE_IN_CLUSTER: "true"
       ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
       ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
-      E2E_TAGS: 'group0'
+      E2E_TAGS: 'group 0 group1'
     steps:
       - e2e
-  e2e-group1:
-    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
-    machine:
-      image: circleci/classic:201808-01
-    environment:
-      ARGOCD_FAKE_IN_CLUSTER: "true"
-      ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
-      ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
-      E2E_TAGS: 'group1'
-    steps:
-      - e2e
-  e2e-group2:
+  e2e-part-2:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
       image: circleci/classic:201808-01
@@ -232,16 +221,9 @@ workflows:
   workflow:
     jobs:
       - codegen
-      - test:
-          requires:
-            - codegen
       - ui:
           requires:
-            - test
-      - e2e-group0
-      - e2e-group1:
-          requires:
-            - e2e-group0
-      - e2e-group2:
-          requires:
-            - e2e-group0
+            - codegen
+      - test
+      - e2e-part-1
+      - e2e-part-2
