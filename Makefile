@@ -24,6 +24,7 @@ IMAGE_NAMESPACE?=
 STATIC_BUILD?=true
 # build development images
 DEV_IMAGE?=false
+E2E_TAGS='group0 !group0'
 
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
@@ -174,7 +175,7 @@ test:
 
 .PHONY: test-e2e
 test-e2e:
-	./hack/test.sh -timeout 15m ./test/e2e
+	./hack/test.sh -tags="$(E2E_TAGS)" -timeout 15m ./test/e2e
 
 .PHONY: start-e2e
 start-e2e: cli

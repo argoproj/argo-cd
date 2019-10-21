@@ -1,4 +1,6 @@
-package _
+//+build group0
+
+package e2e
 
 import (
 	"testing"
