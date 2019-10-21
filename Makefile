@@ -24,6 +24,7 @@ IMAGE_NAMESPACE?=
 STATIC_BUILD?=true
 # build development images
 DEV_IMAGE?=false
+# the build tags on e2e tests, note that "group0" is first, and therefore should contain flaky tests
 E2E_TAGS='group0 !group0'
 
 override LDFLAGS += \

@@ -1,4 +1,4 @@
-//+build group1
+//+build group2
 
 package e2e
 
