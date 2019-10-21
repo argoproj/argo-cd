@@ -176,7 +176,7 @@ test:
 
 .PHONY: test-e2e
 test-e2e:
-	./hack/test.sh -tags="$(E2E_TAGS)" -timeout 15m ./test/e2e
+	./hack/test.sh "-tags='$(E2E_TAGS)'" -timeout 15m ./test/e2e
 
 .PHONY: start-e2e
 start-e2e: cli
