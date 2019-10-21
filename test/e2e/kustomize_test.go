@@ -29,7 +29,7 @@ func TestKustomize2AppSource(t *testing.T) {
 	}
 
 	Given(t).
-		Path(guestbookPath).
+		Path("guestbook").
 		NamePrefix("k2-").
 		NameSuffix("-deploy1").
 		When().
@@ -148,7 +148,7 @@ func TestKustomizeDeclarativeInvalidApp(t *testing.T) {
 
 func TestKustomizeBuildOptionsLoadRestrictor(t *testing.T) {
 	Given(t).
-		Path(guestbookPath).
+		Path("guestbook").
 		And(func() {
 			errors.FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
 				"-n", fixture.ArgoCDNamespace,

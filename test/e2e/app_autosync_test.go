@@ -18,7 +18,7 @@ import (
 
 func TestAutoSyncSelfHealDisabled(t *testing.T) {
 	Given(t).
-		Path(guestbookPath).
+		Path("guestbook").
 		When().
 		// app should be auto-synced once created
 		CreateFromFile(func(app *Application) {
@@ -44,7 +44,7 @@ func TestAutoSyncSelfHealDisabled(t *testing.T) {
 
 func TestAutoSyncSelfHealEnabled(t *testing.T) {
 	Given(t).
-		Path(guestbookPath).
+		Path("guestbook").
 		When().
 		// app should be auto-synced once created
 		CreateFromFile(func(app *Application) {

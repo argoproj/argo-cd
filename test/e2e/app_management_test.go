@@ -34,14 +34,9 @@ import (
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
-const (
-	guestbookPath      = "guestbook"
-	guestbookPathLocal = "./testdata/guestbook_local"
-)
-
 func TestAppCreation(t *testing.T) {
 	Given(t).
-		Path(guestbookPath).
+		Path("guestbook").
 		When().
 		Create().
 		Then().
@@ -49,7 +44,7 @@ func TestAppCreation(t *testing.T) {
 		And(func(app *Application) {
 			assert.Equal(t, Name(), app.Name)
 			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.Source.RepoURL)
-			assert.Equal(t, guestbookPath, app.Spec.Source.Path)
+			assert.Equal(t, "guestbook", app.Spec.Source.Path)
 			assert.Equal(t, DeploymentNamespace(), app.Spec.Destination.Namespace)
 			assert.Equal(t, common.KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
 		}).
@@ -111,7 +106,7 @@ func TestImmutableChange(t *testing.T) {
 
 func TestInvalidAppProject(t *testing.T) {
 	Given(t).
-		Path(guestbookPath).
+		Path("guestbook").
 		Project("does-not-exist").
 		When().
 		IgnoreErrors().
@@ -122,7 +117,7 @@ func TestInvalidAppProject(t *testing.T) {
 
 func TestAppDeletion(t *testing.T) {
 	Given(t).
-		Path(guestbookPath).
+		Path("guestbook").
 		When().
 		Create().
 		Then().
@@ -166,7 +161,7 @@ func TestAppLabels(t *testing.T) {
 
 func TestTrackAppStateAndSyncApp(t *testing.T) {
 	Given(t).
-		Path(guestbookPath).
+		Path("guestbook").
 		When().
 		Create().
 		Sync().
@@ -186,7 +181,7 @@ func TestTrackAppStateAndSyncApp(t *testing.T) {
 
 func TestAppRollbackSuccessful(t *testing.T) {
 	Given(t).
-		Path(guestbookPath).
+		Path("guestbook").
 		When().
 		Create().
 		Sync().
@@ -232,7 +227,7 @@ func TestAppRollbackSuccessful(t *testing.T) {
 
 func TestComparisonFailsIfClusterNotAdded(t *testing.T) {
 	Given(t).
-		Path(guestbookPath).
+		Path("guestbook").
 		DestServer("https://not-registered-cluster/api").
 		When().
 		IgnoreErrors().
@@ -243,7 +238,7 @@ func TestComparisonFailsIfClusterNotAdded(t *testing.T) {
 
 func TestCannotSetInvalidPath(t *testing.T) {
 	Given(t).
-		Path(guestbookPath).
+		Path("guestbook").
 		When().
 		Create().
 		IgnoreErrors().
@@ -254,7 +249,7 @@ func TestCannotSetInvalidPath(t *testing.T) {
 
 func TestManipulateApplicationResources(t *testing.T) {
 	Given(t).
-		Path(guestbookPath).
+		Path("guestbook").
 		When().
 		Create().
 		Sync().
@@ -385,7 +380,7 @@ func TestAppWithSecrets(t *testing.T) {
 
 func TestResourceDiffing(t *testing.T) {
 	Given(t).
-		Path(guestbookPath).
+		Path("guestbook").
 		When().
 		Create().
 		Sync().
@@ -501,7 +496,7 @@ definitions:
 
 func TestResourceAction(t *testing.T) {
 	Given(t).
-		Path(guestbookPath).
+		Path("guestbook").
 		ResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {Actions: actionsConfig}}).
 		When().
 		Create().
@@ -543,7 +538,7 @@ func TestResourceAction(t *testing.T) {
 
 func TestSyncResourceByLabel(t *testing.T) {
 	Given(t).
-		Path(guestbookPath).
+		Path("guestbook").
 		When().
 		Create().
 		Sync().
@@ -561,7 +556,7 @@ func TestSyncResourceByLabel(t *testing.T) {
 
 func TestLocalManifestSync(t *testing.T) {
 	Given(t).
-		Path(guestbookPath).
+		Path("guestbook").
 		When().
 		Create().
 		Sync().
@@ -572,7 +567,7 @@ func TestLocalManifestSync(t *testing.T) {
 			assert.Contains(t, res, "image: gcr.io/heptio-images/ks-guestbook-demo:0.2")
 		}).
 		Given().
-		LocalPath(guestbookPathLocal).
+		LocalPath("./testdata/guestbook_local").
 		When().
 		Sync().
 		Then().
@@ -597,7 +592,7 @@ func TestLocalManifestSync(t *testing.T) {
 
 func TestNoLocalSyncWithAutosyncEnabled(t *testing.T) {
 	Given(t).
-		Path(guestbookPath).
+		Path("guestbook").
 		When().
 		Create().
 		Sync().
@@ -606,14 +601,14 @@ func TestNoLocalSyncWithAutosyncEnabled(t *testing.T) {
 			_, err := RunCli("app", "set", app.Name, "--sync-policy", "automated")
 			assert.NoError(t, err)
 
-			_, err = RunCli("app", "sync", app.Name, "--local", guestbookPathLocal)
+			_, err = RunCli("app", "sync", app.Name, "--local", "./testdata/guestbook_local")
 			assert.Error(t, err)
 		})
 }
 
 func TestSyncAsync(t *testing.T) {
 	Given(t).
-		Path(guestbookPath).
+		Path("guestbook").
 		Async(true).
 		When().
 		Create().
@@ -632,7 +627,7 @@ func TestPermissions(t *testing.T) {
 
 	// make sure app cannot be created without permissions in project
 	_, err = RunCli("app", "create", appName, "--repo", RepoURL(RepoURLTypeFile),
-		"--path", guestbookPath, "--project", "test", "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", DeploymentNamespace())
+		"--path", "guestbook", "--project", "test", "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", DeploymentNamespace())
 	assert.Error(t, err)
 	sourceError := fmt.Sprintf("application repo %s is not permitted in project 'test'", RepoURL(RepoURLTypeFile))
 	destinationError := fmt.Sprintf("application destination {%s %s} is not permitted in project 'test'", common.KubernetesInternalAPIServerAddr, DeploymentNamespace())
@@ -650,7 +645,7 @@ func TestPermissions(t *testing.T) {
 
 	// make sure controller report permissions issues in conditions
 	_, err = RunCli("app", "create", appName, "--repo", RepoURL(RepoURLTypeFile),
-		"--path", guestbookPath, "--project", "test", "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", DeploymentNamespace())
+		"--path", "guestbook", "--project", "test", "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", DeploymentNamespace())
 	assert.NoError(t, err)
 	defer func() {
 		err = AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Delete(appName, &metav1.DeleteOptions{})
@@ -796,7 +791,7 @@ func TestSelfManagedApps(t *testing.T) {
 func TestExcludedResource(t *testing.T) {
 	Given(t).
 		ResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {Actions: actionsConfig}}).
-		Path(guestbookPath).
+		Path("guestbook").
 		ResourceFilter(settings.ResourcesFilter{
 			ResourceExclusions: []settings.FilteredResource{{Kinds: []string{kube.DeploymentKind}}},
 		}).
@@ -815,7 +810,7 @@ func TestOrphanedResource(t *testing.T) {
 			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
 			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true)},
 		}).
-		Path(guestbookPath).
+		Path("guestbook").
 		When().
 		Create().
 		Sync().
