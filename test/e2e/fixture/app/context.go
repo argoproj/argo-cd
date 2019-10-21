@@ -36,6 +36,7 @@ type Context struct {
 	project                string
 	revision               string
 	force                  bool
+	directoryRecurse       bool
 }
 
 func Given(t *testing.T) *Context {
@@ -54,12 +55,12 @@ func (c *Context) CustomSSHKnownHostsAdded() *Context {
 }
 
 func (c *Context) HTTPSRepoURLAdded(withCreds bool) *Context {
-	repos.AddHTTPSRepo(false, withCreds)
+	repos.AddHTTPSRepo(false, withCreds, fixture.RepoURLTypeHTTPS)
 	return c
 }
 
 func (c *Context) HTTPSInsecureRepoURLAdded(withCreds bool) *Context {
-	repos.AddHTTPSRepo(true, withCreds)
+	repos.AddHTTPSRepo(true, withCreds, fixture.RepoURLTypeHTTPS)
 	return c
 }
 
@@ -73,13 +74,25 @@ func (c *Context) HTTPSRepoURLWithClientCertAdded() *Context {
 	return c
 }
 
+func (c *Context) SubmoduleHTTPSRepoURLAdded(withCreds bool) *Context {
+	fixture.CreateSubmoduleRepos("https")
+	repos.AddHTTPSRepo(false, withCreds, fixture.RepoURLTypeHTTPSSubmoduleParent)
+	return c
+}
+
 func (c *Context) SSHRepoURLAdded(withCreds bool) *Context {
-	repos.AddSSHRepo(false, withCreds)
+	repos.AddSSHRepo(false, withCreds, fixture.RepoURLTypeSSH)
 	return c
 }
 
 func (c *Context) SSHInsecureRepoURLAdded(withCreds bool) *Context {
-	repos.AddSSHRepo(true, withCreds)
+	repos.AddSSHRepo(true, withCreds, fixture.RepoURLTypeSSH)
+	return c
+}
+
+func (c *Context) SubmoduleSSHRepoURLAdded(withCreds bool) *Context {
+	fixture.CreateSubmoduleRepos("ssh")
+	repos.AddSSHRepo(false, withCreds, fixture.RepoURLTypeSSHSubmoduleParent)
 	return c
 }
 
@@ -120,6 +133,11 @@ func (c *Context) Name(name string) *Context {
 
 func (c *Context) Path(path string) *Context {
 	c.path = path
+	return c
+}
+
+func (c *Context) Recurse() *Context {
+	c.directoryRecurse = true
 	return c
 }
 
