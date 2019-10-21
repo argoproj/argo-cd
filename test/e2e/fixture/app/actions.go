@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/errors"
@@ -84,6 +85,14 @@ func (a *Actions) CreateFromFile(handler func(app *Application)) *Actions {
 		app.Spec.Source.Plugin = &ApplicationSourcePlugin{
 			Name: a.context.configManagementPlugin,
 		}
+	}
+
+	if len(a.context.parameters) > 0 {
+		log.Fatal("Application parameters or json tlas are not supported")
+	}
+
+	if a.context.directoryRecurse {
+		app.Spec.Source.Directory = &ApplicationSourceDirectory{Recurse: true}
 	}
 
 	handler(app)
