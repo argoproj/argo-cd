@@ -10,7 +10,7 @@ import (
 
 func Test_generateRule(t *testing.T) {
 	t.Run("GenerateLabelRule", func(t *testing.T) {
-		rule, err  := generateRule([]string{"test in thisLabel"})
+		rule, err := generateRule([]string{"test in thisLabel"})
 		assert.Nil(t, err)
 		assert.Equal(t, rule.Conditions[0].Kind, argoappv1.ConditionKindLabel)
 		assert.Equal(t, rule.Conditions[0].Operator, argoappv1.ConditionOperatorIn)
