@@ -18,7 +18,7 @@ func Test_generateRule(t *testing.T) {
 		assert.Equal(t, rule.Conditions[0].Values[0], "thisLabel")
 	})
 	t.Run("GenerateLabelExistsRule", func(t *testing.T) {
-		rule, err  := generateRule([]string{"test exists"})
+		rule, err := generateRule([]string{"test exists"})
 		assert.Nil(t, err)
 		assert.Equal(t, rule.Conditions[0].Kind, argoappv1.ConditionKindLabel)
 		assert.Equal(t, rule.Conditions[0].Operator, argoappv1.ConditionOperatorExists)
