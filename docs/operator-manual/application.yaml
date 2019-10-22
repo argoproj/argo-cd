@@ -74,6 +74,7 @@ spec:
     automated:
       prune: true # Specifies if resources should be pruned during auto-syncing ( false by default ).
       selfHeal: true # Specifies if partial app sync should be executed when resources are changed only in target Kubernetes cluster and no git change detected ( false by default ).
+    noValidate: true # Do not validate resources before applying to k8s
 
   # Ignore differences at the specified json pointers
   ignoreDifferences:
