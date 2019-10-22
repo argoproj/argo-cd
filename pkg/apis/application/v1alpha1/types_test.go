@@ -1092,7 +1092,7 @@ func TestAppProject_ValidateProject(t *testing.T) {
 	})
 	t.Run("SyncWindowRuleConditionValuesContainsEmptyString", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
-		proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Values = []string{"val1",""}
+		proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Values = []string{"val1", ""}
 		err := proj.ValidateProject()
 		assert.Contains(t, err.Error(), "condition values array cannot contain empty strings")
 	})
