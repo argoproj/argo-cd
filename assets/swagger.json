@@ -4153,6 +4153,11 @@
             "type": "string"
           }
         },
+        "noValidate": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "NoValidate will perform a `kubectl apply --validate=false`"
+        },
         "prune": {
           "type": "boolean",
           "format": "boolean",
@@ -4218,6 +4223,11 @@
       "properties": {
         "automated": {
           "$ref": "#/definitions/v1alpha1SyncPolicyAutomated"
+        },
+        "noValidate": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "NoValidate does `kubectl apply --validate=false`"
         }
       }
     },

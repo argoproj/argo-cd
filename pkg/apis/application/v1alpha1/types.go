@@ -407,6 +407,8 @@ type SyncOperation struct {
 	Source *ApplicationSource `json:"source,omitempty" protobuf:"bytes,7,opt,name=source"`
 	// Manifests is an optional field that overrides sync source with a local directory for development
 	Manifests []string `json:"manifests,omitempty" protobuf:"bytes,8,opt,name=manifests"`
+	// NoValidate will perform a `kubectl apply --validate=false`
+	NoValidate bool `json:"noValidate,omitempty" protobuf:"bytes,9,opt,name=noValidate"`
 }
 
 func (o *SyncOperation) IsApplyStrategy() bool {
@@ -468,6 +470,8 @@ type Info struct {
 type SyncPolicy struct {
 	// Automated will keep an application synced to the target revision
 	Automated *SyncPolicyAutomated `json:"automated,omitempty" protobuf:"bytes,1,opt,name=automated"`
+	// NoValidate does `kubectl apply --validate=false`
+	NoValidate bool `json:"noValidate,omitempty" protobuf:"bytes,2,opt,name=noValidate"`
 }
 
 // SyncPolicyAutomated controls the behavior of an automated sync

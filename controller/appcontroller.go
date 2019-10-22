@@ -999,8 +999,9 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	selfHeal := app.Spec.SyncPolicy.Automated.SelfHeal
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
-			Revision: desiredCommitSHA,
-			Prune:    app.Spec.SyncPolicy.Automated.Prune,
+			Revision:   desiredCommitSHA,
+			Prune:      app.Spec.SyncPolicy.Automated.Prune,
+			NoValidate: app.Spec.SyncPolicy.NoValidate,
 		},
 	}
 	// It is possible for manifests to remain OutOfSync even after a sync/kubectl apply (e.g.

@@ -2879,6 +2879,13 @@ func schema_pkg_apis_application_v1alpha1_SyncOperation(ref common.ReferenceCall
 							},
 						},
 					},
+					"noValidate": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NoValidate will perform a `kubectl apply --validate=false`",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
@@ -2972,6 +2979,13 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicy(ref common.ReferenceCallbac
 						SchemaProps: spec.SchemaProps{
 							Description: "Automated will keep an application synced to the target revision",
 							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncPolicyAutomated"),
+						},
+					},
+					"noValidate": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NoValidate does `kubectl apply --validate=false`",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
 				},

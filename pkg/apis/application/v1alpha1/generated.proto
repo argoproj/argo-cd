@@ -817,6 +817,9 @@ message SyncOperation {
 
   // Manifests is an optional field that overrides sync source with a local directory for development
   repeated string manifests = 8;
+
+  // NoValidate will perform a `kubectl apply --validate=false`
+  optional bool noValidate = 9;
 }
 
 // SyncOperationResource contains resources to sync.
@@ -844,6 +847,9 @@ message SyncOperationResult {
 message SyncPolicy {
   // Automated will keep an application synced to the target revision
   optional SyncPolicyAutomated automated = 1;
+
+  // NoValidate does `kubectl apply --validate=false`
+  optional bool noValidate = 2;
 }
 
 // SyncPolicyAutomated controls the behavior of an automated sync
