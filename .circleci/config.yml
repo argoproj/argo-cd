@@ -207,6 +207,17 @@ jobs:
     steps:
       - e2e:
           tags: group2
+  e2e-part-3:
+    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
+    machine:
+      image: circleci/classic:201808-01
+    environment:
+      ARGOCD_FAKE_IN_CLUSTER: "true"
+      ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
+      ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
+    steps:
+      - e2e:
+          tags: group3
   ui:
     docker:
       - image: node:11.15.0
@@ -235,3 +246,4 @@ workflows:
       - test
       - e2e-part-1
       - e2e-part-2
+      - e2e-part-3
