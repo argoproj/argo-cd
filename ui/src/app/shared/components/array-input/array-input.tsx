@@ -28,11 +28,9 @@ export interface NameValue {
 
 export const NameValueEditor = (item: NameValue, onChange: (item: NameValue) => any) => (
     <React.Fragment>
-        <input placeholder='Name' value={item.name || ''} onChange={(e) => onChange({...item, name: e.target.value})} title='Name'/>
-        &nbsp;
-        =
-        &nbsp;
-        <input placeholder='Value' value={item.value || ''} onChange={(e) => onChange({...item, value: e.target.value})} title='Value'/>
+        <input placeholder='Name' value={item.name || ''} onChange={e => onChange({...item, name: e.target.value})} title='Name' />
+        &nbsp; = &nbsp;
+        <input placeholder='Value' value={item.value || ''} onChange={e => onChange({...item, value: e.target.value})} title='Value' />
         &nbsp;
     </React.Fragment>
 );
@@ -70,18 +68,20 @@ export function ArrayInput<T>(props: Props<T>) {
                         {props.editor(item, (updated: T) => replaceItem(updated, i))}
                         &nbsp;
                         <button>
-                            <i className='fa fa-times' style={{cursor: 'pointer'}} onClick={() => removeItem(i)}/>
+                            <i className='fa fa-times' style={{cursor: 'pointer'}} onClick={() => removeItem(i)} />
                         </button>
                     </div>
                 ))}
                 <div>
                     {props.editor(newItem, setNewItem)}
                     &nbsp;
-                    <button disabled={!props.valid(newItem)} onClick={() => {
-                        addItem(newItem);
-                        setNewItem({} as T);
-                    }}>
-                        <i style={{cursor: 'pointer'}} className='fa fa-plus'/>
+                    <button
+                        disabled={!props.valid(newItem)}
+                        onClick={() => {
+                            addItem(newItem);
+                            setNewItem({} as T);
+                        }}>
+                        <i style={{cursor: 'pointer'}} className='fa fa-plus' />
                     </button>
                 </div>
             </div>
@@ -89,25 +89,34 @@ export function ArrayInput<T>(props: Props<T>) {
     );
 }
 
-export function hasNameAndValue(item: {name?: string, value?: string}) {
+export function hasNameAndValue(item: {name?: string; value?: string}) {
     return (item.name || '').trim() !== '' && (item.value || '').trim() !== '';
 }
 
-export const ArrayInputField = ReactForm.FormField((props: { fieldApi: ReactForm.FieldApi }) => {
-    const {fieldApi: {getValue, setValue}} = props;
+export const ArrayInputField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
+    const {
+        fieldApi: {getValue, setValue}
+    } = props;
     return <ArrayInput editor={NameValueEditor} items={getValue() || []} onChange={setValue} valid={hasNameAndValue} />;
 });
 
-export const MapInputField = ReactForm.FormField((props: { fieldApi: ReactForm.FieldApi }) => {
-    const {fieldApi: {getValue, setValue}} = props;
+export const MapInputField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
+    const {
+        fieldApi: {getValue, setValue}
+    } = props;
     const items = new Array<NameValue>();
     const map = getValue() || {};
-    Object.keys(map).forEach((key) => items.push({ name: key, value: map[key] }));
+    Object.keys(map).forEach(key => items.push({name: key, value: map[key]}));
     return (
-        <ArrayInput editor={NameValueEditor} items={items} valid={hasNameAndValue} onChange={(array) => {
-            const newMap = {} as any;
-            array.forEach((item) => newMap[item.name] = item.value);
-            setValue(newMap);
-        }}/>
+        <ArrayInput
+            editor={NameValueEditor}
+            items={items}
+            valid={hasNameAndValue}
+            onChange={array => {
+                const newMap = {} as any;
+                array.forEach(item => (newMap[item.name] = item.value));
+                setValue(newMap);
+            }}
+        />
     );
 });

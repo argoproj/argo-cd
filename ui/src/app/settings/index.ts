@@ -1,5 +1,5 @@
-import { SettingsContainer } from './components/settings-container';
+import {SettingsContainer} from './components/settings-container';
 
 export default {
-    component: SettingsContainer,
+    component: SettingsContainer
 };

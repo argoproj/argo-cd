@@ -25,13 +25,13 @@ export interface AutocompleteProps {
 }
 
 export const Autocomplete = (props: AutocompleteProps) => {
-    const items = (props.items || []).map((item) => {
+    const items = (props.items || []).map(item => {
         if (typeof item === 'string') {
-            return { value: item, label: item };
+            return {value: item, label: item};
         } else {
             return {
                 value: item.value,
-                label: item.label || item.value,
+                label: item.label || item.value
             };
         }
     });
@@ -82,7 +82,7 @@ export const Autocomplete = (props: AutocompleteProps) => {
                                 el.setState({
                                     menuTop,
                                     menuLeft: rect.left + marginLeft,
-                                    menuWidth: rect.width + marginLeft + marginRight,
+                                    menuWidth: rect.width + marginLeft + marginRight
                                 });
                             }
                         };
@@ -90,11 +90,13 @@ export const Autocomplete = (props: AutocompleteProps) => {
                 }
                 setAutocompleteEl(el);
                 if (props.autoCompleteRef) {
-                    props.autoCompleteRef({ refresh: () => {
-                        if (el && el.refs.input) {
-                            el.setMenuPositions();
+                    props.autoCompleteRef({
+                        refresh: () => {
+                            if (el && el.refs.input) {
+                                el.setMenuPositions();
+                            }
                         }
-                    } });
+                    });
                 }
             }}
             inputProps={props.inputProps}
@@ -104,16 +106,16 @@ export const Autocomplete = (props: AutocompleteProps) => {
             }}
             renderMenu={function(menuItems, _, style) {
                 if (menuItems.length === 0) {
-                    return <div style={{ display: 'none' }}/>;
+                    return <div style={{display: 'none'}} />;
                 }
-                return <div style={{ ...style, ...this.menuStyle, background: 'white', zIndex: 10, maxHeight: '20em' }} children={menuItems} />;
+                return <div style={{...style, ...this.menuStyle, background: 'white', zIndex: 10, maxHeight: '20em'}} children={menuItems} />;
             }}
-            getItemValue={(item) => item.label}
+            getItemValue={item => item.label}
             items={items}
             value={props.value}
             renderItem={(item, isSelected) => (
-                <div className={classNames('select__option', { selected: isSelected })} key={item.label}>
-                    {props.renderItem && props.renderItem(item) || item.label}
+                <div className={classNames('select__option', {selected: isSelected})} key={item.label}>
+                    {(props.renderItem && props.renderItem(item)) || item.label}
                 </div>
             )}
             onChange={props.onChange}
