@@ -49,7 +49,7 @@ export const ApplicationSummary = (props: {
         },
         {
             title: 'CLUSTER',
-            view: <Cluster url={app.spec.destination.server} showUrl={true}/> ,
+            view: <Cluster server={app.spec.destination.server} showUrl={true}/> ,
             edit: (formApi: FormApi) => (
                 <DataLoader load={() => services.clusters.list().then((clusters) => clusters.map((cluster) => ({
                     title: clusterTitle(cluster),

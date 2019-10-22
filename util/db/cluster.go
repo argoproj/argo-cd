@@ -210,8 +210,8 @@ func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 }
 
 // Delete deletes a cluster by name
-func (db *db) DeleteCluster(ctx context.Context, name string) error {
-	secret, err := db.getClusterSecret(name)
+func (db *db) DeleteCluster(ctx context.Context, server string) error {
+	secret, err := db.getClusterSecret(server)
 	if err != nil {
 		if errorStatus, ok := status.FromError(err); ok && errorStatus.Code() == codes.NotFound {
 			return nil
