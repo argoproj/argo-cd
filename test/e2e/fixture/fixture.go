@@ -401,7 +401,7 @@ func EnsureCleanState(t *testing.T) {
 	FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/ssh"))
 
 	// set-up tmp repo, must have unique name
-	FailOnErr(Run("", "cp", "-Rf", "testdata", repoDirectory()))
+	FailOnErr(Run("", "cp", "-Rf", "../testdata", repoDirectory()))
 	FailOnErr(Run(repoDirectory(), "chmod", "777", "."))
 	FailOnErr(Run(repoDirectory(), "git", "init"))
 	FailOnErr(Run(repoDirectory(), "git", "add", "."))
@@ -425,7 +425,7 @@ func RunCliWithStdin(stdin string, args ...string) (string, error) {
 
 	args = append(args, "--server", apiServerAddress, "--auth-token", token, "--insecure")
 
-	return RunWithStdin(stdin, "", "../../dist/argocd", args...)
+	return RunWithStdin(stdin, "", "../../../dist/argocd", args...)
 }
 
 func Patch(path string, jsonPatch string) {
@@ -511,7 +511,7 @@ func CreateSubmoduleRepos(repoType string) {
 	FailOnErr(Run(submoduleParentDirectory(), "chmod", "777", "."))
 	FailOnErr(Run(submoduleParentDirectory(), "git", "init"))
 	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "."))
-	FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", "../submodule.git", "submodule/test"))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", "../../submodule.git", "submodule/test"))
 	if repoType == "ssh" {
 		FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeSSHSubmodule)))
 	} else if repoType == "https" {

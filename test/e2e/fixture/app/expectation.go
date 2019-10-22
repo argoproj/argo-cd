@@ -192,7 +192,7 @@ func Event(reason string, message string) Expectation {
 func Success(message string) Expectation {
 	return func(c *Consequences) (state, string) {
 		if c.actions.lastError != nil {
-			return failed, "error"
+			return failed, fmt.Sprintf("error %v", c.actions.lastError)
 		}
 		if !strings.Contains(c.actions.lastOutput, message) {
 			return failed, fmt.Sprintf("output did not contain '%s'", message)

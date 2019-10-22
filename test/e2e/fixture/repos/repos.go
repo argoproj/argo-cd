@@ -8,8 +8,8 @@ import (
 )
 
 var (
-	CertPath    = mustToAbsPath("../fixture/certs/argocd-test-client.crt")
-	CertKeyPath = mustToAbsPath("../fixture/certs/argocd-test-client.key")
+	CertPath    = mustToAbsPath("../../fixture/certs/argocd-test-client.crt")
+	CertKeyPath = mustToAbsPath("../../fixture/certs/argocd-test-client.key")
 )
 
 func mustToAbsPath(relativePath string) string {
@@ -20,7 +20,7 @@ func mustToAbsPath(relativePath string) string {
 
 // sets the current repo as the default SSH test repo
 func AddSSHRepo(insecure bool, credentials bool, repoURLType fixture.RepoURLType) {
-	keyPath, err := filepath.Abs("../fixture/testrepos/id_rsa")
+	keyPath, err := filepath.Abs("../../fixture/testrepos/id_rsa")
 	errors.CheckError(err)
 	args := []string{"repo", "add", fixture.RepoURL(repoURLType)}
 	if credentials {
@@ -86,9 +86,9 @@ func AddHTTPSCredentialsUserPass() {
 
 // AddHTTPSRepoCredentialsTLSClientCert adds E2E  for HTTPS repos to context
 func AddHTTPSCredentialsTLSClientCert() {
-	certPath, err := filepath.Abs("../fixture/certs/argocd-test-client.crt")
+	certPath, err := filepath.Abs("../../fixture/certs/argocd-test-client.crt")
 	errors.CheckError(err)
-	keyPath, err := filepath.Abs("../fixture/certs/argocd-test-client.key")
+	keyPath, err := filepath.Abs("../../fixture/certs/argocd-test-client.key")
 	errors.CheckError(err)
 	args := []string{
 		"repocreds",
@@ -104,7 +104,7 @@ func AddHTTPSCredentialsTLSClientCert() {
 
 // AddSSHRepoCredentials adds E2E fixture credentials for SSH repos to context
 func AddSSHCredentials() {
-	keyPath, err := filepath.Abs("../fixture/testrepos/id_rsa")
+	keyPath, err := filepath.Abs("../../fixture/testrepos/id_rsa")
 	errors.CheckError(err)
 	var repoURLType fixture.RepoURLType = fixture.RepoURLTypeSSH
 	args := []string{"repocreds", "add", fixture.RepoBaseURL(repoURLType), "--ssh-private-key-path", keyPath}
