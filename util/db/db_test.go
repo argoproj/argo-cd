@@ -308,8 +308,8 @@ func TestGetClusterSuccessful(t *testing.T) {
 		},
 		Data: map[string][]byte{
 			"server": []byte(server),
-			"url":    []byte(url),
 			"name":   []byte(name),
+			"url":    []byte(url),
 			"config": []byte("{}"),
 		},
 	})

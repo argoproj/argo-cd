@@ -619,3 +619,7 @@ export interface ApplicationSyncWindowState {
     canSync: boolean;
 
 }
+
+export interface VersionMessage {
+    Version: string;
+}

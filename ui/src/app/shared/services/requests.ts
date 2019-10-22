@@ -35,6 +35,7 @@ export default {
     setApiRoot(val: string) {
         apiRoot = val;
     },
+    agent,
     onError: onError.asObservable().filter((err) => err != null),
     get(url: string) {
         return initHandlers(agent.get(`${apiRoot}${url}`));
