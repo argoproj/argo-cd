@@ -561,7 +561,7 @@ func NewClusterConfig() *cobra.Command {
 
 func redactor(dirtyString string) string {
 	dirtyString = regexp.MustCompile("(clientSecret: )[^ \n]*").ReplaceAllString(dirtyString, "$1********")
-	 return regexp.MustCompile("(secret: )[^ \n]*").ReplaceAllString(dirtyString, "$1********")
+	return regexp.MustCompile("(secret: )[^ \n]*").ReplaceAllString(dirtyString, "$1********")
 }
 
 func main() {
