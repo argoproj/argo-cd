@@ -125,6 +125,13 @@ export class ProjectsService {
                 updatedSpec.syncWindows[params.id] = params.window;
             }
         }
+        for (const w of updatedSpec.syncWindows) {
+            for (let r = 0; r < w.rules.length; r++) {
+                if ((w.rules[r].conditions.length === 0) || (w.rules[r] === undefined)) {
+                    w.rules.splice(r, 1);
+                }
+            }
+        }
 
         return requests.put(`/projects/${params.projName}`).send({project: {...proj, spec: updatedSpec }}).then((res) => res.body as models.Project);
     }

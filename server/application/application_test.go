@@ -129,11 +129,23 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 			SyncWindows:  appsv1.SyncWindows{},
 		},
 	}
+	rules := appsv1.WindowRules{
+		appsv1.WindowRule{
+			Conditions: []appsv1.RuleCondition{
+				{
+					Kind:     appsv1.ConditionKindNamespace,
+					Operator: appsv1.ConditionOperatorNotIn,
+					Values:   []string{"default"},
+				},
+			},
+		},
+	}
+
 	matchingWindow := &appsv1.SyncWindow{
-		Kind:         "allow",
-		Schedule:     "* * * * *",
-		Duration:     "1h",
-		Applications: []string{"test-app"},
+		Kind:     "allow",
+		Schedule: "* * * * *",
+		Duration: "1h",
+		Rules:    rules,
 	}
 	projWithSyncWindows.Spec.SyncWindows = append(projWithSyncWindows.Spec.SyncWindows, matchingWindow)
 

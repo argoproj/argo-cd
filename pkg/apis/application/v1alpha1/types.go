@@ -1287,15 +1287,54 @@ func (p *AppProject) ValidateProject() error {
 		existingWindows := make(map[string]bool)
 		for _, window := range p.Spec.SyncWindows {
 			if _, ok := existingWindows[window.Kind+window.Schedule+window.Duration]; ok {
-				return status.Errorf(codes.AlreadyExists, "window '%s':'%s':'%s' already exists, update or edit", window.Kind, window.Schedule, window.Duration)
+				return status.Errorf(codes.AlreadyExists, "window '%s':'%s':'%s' already exists, update or edit",
+					window.Kind, window.Schedule, window.Duration)
 			}
 			err := window.Validate()
 			if err != nil {
 				return err
 			}
-			if len(window.Applications) == 0 && len(window.Namespaces) == 0 && len(window.Clusters) == 0 {
-				return status.Errorf(codes.OutOfRange, "window '%s':'%s':'%s' requires one of application, cluster or namespace", window.Kind, window.Schedule, window.Duration)
+			if len(window.Rules) == 0 {
+				return status.Errorf(codes.OutOfRange, "window '%s':'%s':'%s' requires rules",
+					window.Kind, window.Schedule, window.Duration)
 			}
+			for _, r := range window.Rules {
+				for _, c := range r.Conditions {
+					if c.Kind == "" {
+						return status.Errorf(codes.InvalidArgument, "window '%s':'%s':'%s' condition missing kind field",
+							window.Kind, window.Schedule, window.Duration)
+					}
+					if c.Operator == "" {
+						return status.Errorf(codes.InvalidArgument, "window '%s':'%s':'%s' condition missing operator field",
+							window.Kind, window.Schedule, window.Duration)
+					}
+					if c.Kind == ConditionKindLabel {
+						if c.Key == "" {
+							return status.Errorf(codes.InvalidArgument, "window '%s':'%s':'%s' if kind is '%s' then key cannot be empty",
+								window.Kind, window.Schedule, window.Duration, c.Kind)
+						}
+					} else {
+						if c.Key != "" {
+							return status.Errorf(codes.InvalidArgument, "window '%s':'%s':'%s' if kind is '%s' then key must be empty",
+								window.Kind, window.Schedule, window.Duration, c.Kind)
+						}
+					}
+					if c.Operator != ConditionOperatorExists {
+						if len(c.Values) == 0 {
+							return status.Errorf(codes.InvalidArgument, "window '%s':'%s':'%s' operator '%s' requires values",
+								window.Kind, window.Schedule, window.Duration, c.Operator)
+						} else {
+							for _, v := range c.Values {
+								if v == "" {
+									return status.Errorf(codes.InvalidArgument, "window '%s':'%s':'%s' condition values array cannot contain empty strings",
+										window.Kind, window.Schedule, window.Duration)
+								}
+							}
+						}
+					}
+				}
+			}
+
 			existingWindows[window.Kind+window.Schedule+window.Duration] = true
 		}
 	}
@@ -1483,14 +1522,10 @@ type SyncWindow struct {
 	Schedule string `json:"schedule,omitempty" protobuf:"bytes,2,opt,name=schedule"`
 	// Duration is the amount of time the sync window will be open
 	Duration string `json:"duration,omitempty" protobuf:"bytes,3,opt,name=duration"`
-	// Applications contains a list of applications that the window will apply to
-	Applications []string `json:"applications,omitempty" protobuf:"bytes,4,opt,name=applications"`
-	// Namespaces contains a list of namespaces that the window will apply to
-	Namespaces []string `json:"namespaces,omitempty" protobuf:"bytes,5,opt,name=namespaces"`
-	// Clusters contains a list of clusters that the window will apply to
-	Clusters []string `json:"clusters,omitempty" protobuf:"bytes,6,opt,name=clusters"`
+	// Rules used for assigning applications to windows
+	Rules WindowRules `json:"rules,omitempty" protobuf:"bytes,4,opt,name=rules"`
 	// ManualSync enables manual syncs when they would otherwise be blocked
-	ManualSync bool `json:"manualSync,omitempty" protobuf:"bytes,7,opt,name=manualSync"`
+	ManualSync bool `json:"manualSync,omitempty" protobuf:"bytes,5,opt,name=manualSync"`
 }
 
 func (s *SyncWindows) HasWindows() bool {
@@ -1539,26 +1574,17 @@ func (s *SyncWindows) InactiveAllows() *SyncWindows {
 	return nil
 }
 
-func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool) error {
-	if len(knd) == 0 || len(sch) == 0 || len(dur) == 0 {
-		return fmt.Errorf("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
-
+func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, rules WindowRules, ms bool) error {
+	if len(rules) == 0 {
+		return fmt.Errorf("cannot create window: require kind, schedule, duration and at least one rule")
 	}
+
 	window := &SyncWindow{
 		Kind:       knd,
 		Schedule:   sch,
 		Duration:   dur,
 		ManualSync: ms,
-	}
-
-	if len(app) > 0 {
-		window.Applications = app
-	}
-	if len(ns) > 0 {
-		window.Namespaces = ns
-	}
-	if len(cl) > 0 {
-		window.Clusters = cl
+		Rules:      rules,
 	}
 
 	err := window.Validate()
@@ -1573,16 +1599,10 @@ func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []str
 }
 
 func (s *AppProjectSpec) DeleteWindow(id int) error {
-	var exists bool
-	for i := range s.SyncWindows {
-		if i == id {
-			exists = true
-			s.SyncWindows = append(s.SyncWindows[:i], s.SyncWindows[i+1:]...)
-			break
-		}
-	}
-	if !exists {
-		return fmt.Errorf("window with id '%s' not found", strconv.Itoa(id))
+	if len(s.SyncWindows) > id {
+		s.SyncWindows = append(s.SyncWindows[:id], s.SyncWindows[id+1:]...)
+	} else {
+		return fmt.Errorf("condition with id '%s' not found", strconv.Itoa(id))
 	}
 	return nil
 }
@@ -1591,28 +1611,9 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 	if w.HasWindows() {
 		var matchingWindows SyncWindows
 		for _, w := range *w {
-			if len(w.Applications) > 0 {
-				for _, a := range w.Applications {
-					if globMatch(a, app.Name) {
-						matchingWindows = append(matchingWindows, w)
-						break
-					}
-				}
-			}
-			if len(w.Clusters) > 0 {
-				for _, c := range w.Clusters {
-					if globMatch(c, app.Spec.Destination.Server) {
-						matchingWindows = append(matchingWindows, w)
-						break
-					}
-				}
-			}
-			if len(w.Namespaces) > 0 {
-				for _, n := range w.Namespaces {
-					if globMatch(n, app.Spec.Destination.Namespace) {
-						matchingWindows = append(matchingWindows, w)
-						break
-					}
+			for _, rule := range w.Rules {
+				if rule.Match(app) {
+					matchingWindows = append(matchingWindows, w)
 				}
 			}
 		}
@@ -1705,9 +1706,13 @@ func (w SyncWindow) Active() bool {
 	return nextWindow.Before(now)
 }
 
-func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string) error {
-	if len(s) == 0 && len(d) == 0 && len(a) == 0 && len(n) == 0 && len(c) == 0 {
-		return fmt.Errorf("cannot update: require one or more of schedule, duration, application, namespace, or cluster")
+func (w *SyncWindow) Update(k string, s string, d string) error {
+	if len(k) == 0 && len(s) == 0 && len(d) == 0 {
+		return fmt.Errorf("cannot update: require one or more of kind, schedule or duration")
+	}
+
+	if len(k) > 0 {
+		w.Kind = k
 	}
 
 	if len(s) > 0 {
@@ -1718,16 +1723,25 @@ func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []stri
 		w.Duration = d
 	}
 
-	if len(a) > 0 {
-		w.Applications = a
-	}
-	if len(n) > 0 {
-		w.Namespaces = n
-	}
-	if len(c) > 0 {
-		w.Clusters = c
-	}
+	return nil
+}
 
+func (w *SyncWindow) AddRule(rule WindowRule) {
+	w.Rules = append(w.Rules, rule)
+}
+
+func (w *SyncWindow) DeleteRule(id int) error {
+	var exists bool
+	for i := range w.Rules {
+		if i == id {
+			exists = true
+			w.Rules = append(w.Rules[:i], w.Rules[i+1:]...)
+			break
+		}
+	}
+	if !exists {
+		return fmt.Errorf("window with id '%s' not found", strconv.Itoa(id))
+	}
 	return nil
 }
 
@@ -1745,6 +1759,98 @@ func (w *SyncWindow) Validate() error {
 		return fmt.Errorf("cannot parse duration '%s': %s", w.Duration, err)
 	}
 	return nil
+}
+
+const (
+	ConditionOperatorIn      = "in"
+	ConditionOperatorNotIn   = "notIn"
+	ConditionOperatorExists  = "exists"
+	ConditionKindApplication = "application"
+	ConditionKindNamespace   = "namespace"
+	ConditionKindCluster     = "cluster"
+	ConditionKindLabel       = "label"
+)
+
+type WindowRules []WindowRule
+
+type WindowRule struct {
+	Conditions []RuleCondition `json:"conditions,omitempty" protobuf:"bytes,1,opt,name=conditions"`
+}
+
+func (r *WindowRule) Match(app *Application) bool {
+	if r == nil {
+		return false
+	}
+	conditionCount := 0
+	for _, c := range r.Conditions {
+		switch c.Operator {
+		case ConditionOperatorIn:
+			if c.Match(app) {
+				conditionCount++
+			}
+		case ConditionOperatorNotIn:
+			if !c.Match(app) {
+				conditionCount++
+			}
+		case ConditionOperatorExists:
+			if c.MatchExists(app) {
+				conditionCount++
+			}
+		}
+	}
+	return conditionCount == len(r.Conditions)
+}
+
+func (r *WindowRule) DeleteCondition(id int) error {
+	if len(r.Conditions) > id {
+		r.Conditions = append(r.Conditions[:id], r.Conditions[id+1:]...)
+	} else {
+		return fmt.Errorf("condition with id '%s' not found", strconv.Itoa(id))
+	}
+	return nil
+}
+
+type RuleCondition struct {
+	Kind     string   `json:"kind,omitempty" protobuf:"bytes,1,opt,name=kind"`
+	Key      string   `json:"key,omitempty" protobuf:"bytes,2,opt,name=key"`
+	Operator string   `json:"operator,omitempty" protobuf:"bytes,3,opt,name=operator"`
+	Values   []string `json:"values,omitempty" protobuf:"bytes,4,opt,name=values"`
+}
+
+func (f *RuleCondition) Match(app *Application) bool {
+	var check string
+	switch f.Kind {
+	case ConditionKindLabel:
+		for _, v := range f.Values {
+			if app.Labels[f.Key] == v {
+				return true
+			}
+		}
+	case ConditionKindApplication:
+		check = app.Name
+	case ConditionKindNamespace:
+		check = app.Spec.Destination.Namespace
+	case ConditionKindCluster:
+		check = app.Spec.Destination.Server
+	}
+	if check != "" {
+		for _, v := range f.Values {
+			if globMatch(v, check) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (f *RuleCondition) MatchExists(app *Application) bool {
+	switch f.Kind {
+	case ConditionKindLabel:
+		if _, ok := app.Labels[f.Key]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func (d AppProjectSpec) DestinationClusters() []string {
