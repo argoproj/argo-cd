@@ -1617,7 +1617,6 @@ func TestRuleCondition_MatchExists(t *testing.T) {
 
 }
 
-
 func TestWindowRule_DeleteCondition(t *testing.T) {
 	proj := newTestProjectWithSyncWindows()
 	t.Run("NoError", func(t *testing.T) {
