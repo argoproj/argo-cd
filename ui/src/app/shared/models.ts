@@ -180,18 +180,30 @@ export interface ApplicationSourceKsonnet {
     parameters: KsonnetParameter[];
 }
 
-export interface PluginEnv {
+export interface EnvEntry {
     name: string;
     value: string;
 }
 
 export interface ApplicationSourcePlugin {
     name: string;
-    env: PluginEnv[];
+    env: EnvEntry[];
+}
+
+export interface JsonnetVar {
+    name: string;
+    value: string;
+    code: boolean;
+}
+
+interface ApplicationSourceJsonnet {
+    extVars: JsonnetVar[];
+    tlas: JsonnetVar[];
 }
 
 export interface ApplicationSourceDirectory {
     recurse: boolean;
+    jsonnet?: ApplicationSourceJsonnet;
 }
 
 export interface SyncPolicy {
@@ -482,7 +494,7 @@ export interface KustomizeAppSpec {
 
 export interface PluginAppSpec {
     name: string;
-    env: PluginEnv[];
+    env: EnvEntry[];
 }
 
 export interface ObjectReference {
@@ -608,4 +620,8 @@ export interface ApplicationSyncWindowState {
     activeWindows: SyncWindow[];
     assignedWindows: SyncWindow[];
     canSync: boolean;
+}
+
+export interface VersionMessage {
+    Version: string;
 }
