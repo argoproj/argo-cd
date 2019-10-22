@@ -1731,15 +1731,9 @@ func (w *SyncWindow) AddRule(rule WindowRule) {
 }
 
 func (w *SyncWindow) DeleteRule(id int) error {
-	var exists bool
-	for i := range w.Rules {
-		if i == id {
-			exists = true
-			w.Rules = append(w.Rules[:i], w.Rules[i+1:]...)
-			break
-		}
-	}
-	if !exists {
+	if len(w.Rules) > id {
+		w.Rules = append(w.Rules[:id], w.Rules[id+1:]...)
+	} else {
 		return fmt.Errorf("window with id '%s' not found", strconv.Itoa(id))
 	}
 	return nil
