@@ -26,7 +26,7 @@ func Test_generateRule(t *testing.T) {
 		assert.Equal(t, rule.Conditions[0].Values[0], "")
 	})
 	t.Run("GenerateApplicationRule", func(t *testing.T) {
-		rule, err  := generateRule([]string{"application in thisApp"})
+		rule, err := generateRule([]string{"application in thisApp"})
 		assert.Nil(t, err)
 		assert.Equal(t, rule.Conditions[0].Kind, argoappv1.ConditionKindApplication)
 		assert.Equal(t, rule.Conditions[0].Operator, argoappv1.ConditionOperatorIn)
@@ -34,7 +34,7 @@ func Test_generateRule(t *testing.T) {
 		assert.Equal(t, rule.Conditions[0].Values[0], "thisApp")
 	})
 	t.Run("GenerateNamespaceRule", func(t *testing.T) {
-		rule, err  := generateRule([]string{"namespace notIn thisNamespace"})
+		rule, err := generateRule([]string{"namespace notIn thisNamespace"})
 		assert.Nil(t, err)
 		assert.Equal(t, rule.Conditions[0].Kind, argoappv1.ConditionKindNamespace)
 		assert.Equal(t, rule.Conditions[0].Operator, argoappv1.ConditionOperatorNotIn)
@@ -54,4 +54,3 @@ func Test_generateRule(t *testing.T) {
 		assert.Contains(t, err.Error(), "operator 'shouldBe' not supported")
 	})
 }
-
