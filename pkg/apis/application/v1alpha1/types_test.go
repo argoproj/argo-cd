@@ -1045,6 +1045,59 @@ func TestApplicationSourceKustomize_MergeImage(t *testing.T) {
 	})
 }
 
+func TestAppProject_ValidateProject(t *testing.T) {
+	t.Run("SyncWindowDuplicateWindow", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, proj.Spec.SyncWindows...)
+		err := proj.ValidateProject()
+		assert.Contains(t, err.Error(), "already exists, update or edit")
+	})
+	t.Run("SyncWindowEmptyRules", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Rules = WindowRules{}
+		err := proj.ValidateProject()
+		assert.Contains(t, err.Error(), "requires rules")
+	})
+	t.Run("SyncWindowRuleConditionMissingKind", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Kind = ""
+		err := proj.ValidateProject()
+		assert.Contains(t, err.Error(), "condition missing kind field")
+	})
+	t.Run("SyncWindowRuleConditionMissingOperator", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Operator = ""
+		err := proj.ValidateProject()
+		assert.Contains(t, err.Error(), "condition missing operator field")
+	})
+	t.Run("SyncWindowRuleConditionLabelMissingKey", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Key = ""
+		proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Kind = "label"
+		err := proj.ValidateProject()
+		assert.Contains(t, err.Error(), "if kind is 'label' then key cannot be empty")
+	})
+	t.Run("SyncWindowRuleConditionApplicationWithKey", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Key = "shouldNotBeHere"
+		proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Kind = "application"
+		err := proj.ValidateProject()
+		assert.Contains(t, err.Error(), "if kind is 'application' then key must be empty")
+	})
+	t.Run("SyncWindowRuleConditionMissingValues", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Values = []string{}
+		err := proj.ValidateProject()
+		assert.Contains(t, err.Error(), "requires values")
+	})
+	t.Run("SyncWindowRuleConditionValuesContainsEmptyString", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Values = []string{"val1",""}
+		err := proj.ValidateProject()
+		assert.Contains(t, err.Error(), "condition values array cannot contain empty strings")
+	})
+}
+
 func TestSyncWindows_HasWindows(t *testing.T) {
 	t.Run("True", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
@@ -1098,8 +1151,7 @@ func TestAppProjectSpec_AddWindow(t *testing.T) {
 		{"MissingDuration", proj, "allow", "* * * * *", "", rules, false, "error"},
 		{"BadSchedule", proj, "allow", "* * *", "1h", rules, false, "error"},
 		{"BadDuration", proj, "deny", "* * * * *", "33mm", rules, false, "error"},
-		{"WorkingApplication", proj, "allow", "1 * * * *", "1h", rules, false, "noError"},
-		{"WorkingNamespace", proj, "deny", "3 * * * *", "1h", rules, false, "noError"},
+		{"NoRules", proj, "", "* * * * *", "11", WindowRules{}, false, "error"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1455,6 +1507,16 @@ func TestSyncWindow_Validate(t *testing.T) {
 	})
 }
 
+func TestSyncWindow_DeleteRule(t *testing.T) {
+	proj := newTestProjectWithSyncWindows()
+	t.Run("NoError", func(t *testing.T) {
+		assert.NoError(t, proj.Spec.SyncWindows[0].DeleteRule(0))
+	})
+	t.Run("Error", func(t *testing.T) {
+		assert.Error(t, proj.Spec.SyncWindows[0].DeleteRule(10))
+	})
+}
+
 func TestWindowRule_Match(t *testing.T) {
 	proj := newTestProjectWithSyncWindows()
 	app := newTestApp()
@@ -1471,10 +1533,10 @@ func TestRuleCondition_Match(t *testing.T) {
 	proj := newTestProjectWithSyncWindows()
 	app := newTestApp()
 
-	t.Run("ApplicationMatches", func(t *testing.T) {
+	t.Run("ApplicationMatch", func(t *testing.T) {
 		assert.True(t, proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Match(app))
 	})
-	t.Run("ApplicationMatches", func(t *testing.T) {
+	t.Run("NamespaceMatches", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Rules = WindowRules{
 			WindowRule{
 				Conditions: []RuleCondition{
@@ -1488,7 +1550,7 @@ func TestRuleCondition_Match(t *testing.T) {
 		}
 		assert.True(t, proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Match(app))
 	})
-	t.Run("ApplicationMatches", func(t *testing.T) {
+	t.Run("ClusterMatch", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Rules = WindowRules{
 			WindowRule{
 				Conditions: []RuleCondition{
@@ -1502,13 +1564,27 @@ func TestRuleCondition_Match(t *testing.T) {
 		}
 		assert.True(t, proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Match(app))
 	})
+	t.Run("NoMatch", func(t *testing.T) {
+		proj.Spec.SyncWindows[0].Rules = WindowRules{
+			WindowRule{
+				Conditions: []RuleCondition{
+					{
+						Kind:     ConditionKindCluster,
+						Operator: ConditionOperatorIn,
+						Values:   []string{"cluster10"},
+					},
+				},
+			},
+		}
+		assert.False(t, proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Match(app))
+	})
 }
 
 func TestRuleCondition_MatchExists(t *testing.T) {
 	proj := newTestProjectWithSyncWindows()
 	app := newTestApp()
 
-	t.Run("MatchExists", func(t *testing.T) {
+	t.Run("MatchExistsTrue", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Rules = WindowRules{
 			WindowRule{
 				Conditions: []RuleCondition{
@@ -1523,7 +1599,33 @@ func TestRuleCondition_MatchExists(t *testing.T) {
 		app.Labels = map[string]string{"appType": "webserver"}
 		assert.True(t, proj.Spec.SyncWindows[0].Rules[0].Conditions[0].MatchExists(app))
 	})
+	t.Run("MatchExistsFalse", func(t *testing.T) {
+		proj.Spec.SyncWindows[0].Rules = WindowRules{
+			WindowRule{
+				Conditions: []RuleCondition{
+					{
+						Kind:     ConditionKindLabel,
+						Key:      "wontMatch",
+						Operator: ConditionOperatorExists,
+					},
+				},
+			},
+		}
+		app.Labels = map[string]string{"appType": "webserver"}
+		assert.False(t, proj.Spec.SyncWindows[0].Rules[0].Conditions[0].MatchExists(app))
+	})
 
+}
+
+
+func TestWindowRule_DeleteCondition(t *testing.T) {
+	proj := newTestProjectWithSyncWindows()
+	t.Run("NoError", func(t *testing.T) {
+		assert.NoError(t, proj.Spec.SyncWindows[0].Rules[0].DeleteCondition(0))
+	})
+	t.Run("Error", func(t *testing.T) {
+		assert.Error(t, proj.Spec.SyncWindows[0].Rules[0].DeleteCondition(10))
+	})
 }
 
 func newTestProjectWithSyncWindows() *AppProject {

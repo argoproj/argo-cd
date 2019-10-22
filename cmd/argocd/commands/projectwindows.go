@@ -8,7 +8,6 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/errors"
@@ -150,8 +149,10 @@ func NewProjectWindowsAddWindowCommand(clientOpts *argocdclient.ClientOptions) *
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
-			rule := generateRule(conditions)
-			rules := argoappv1.WindowRules{rule}
+			rule, err := generateRule(conditions)
+			errors.CheckError(err)
+
+			rules := argoappv1.WindowRules{*rule}
 
 			err = proj.Spec.AddWindow(kind, schedule, duration, rules, manualSync)
 			errors.CheckError(err)
@@ -306,8 +307,10 @@ func NewProjectWindowsRulesAddCommand(clientOpts *argocdclient.ClientOptions) *c
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
-			rule := generateRule(conditions)
-			proj.Spec.SyncWindows[windowID].Rules = append(proj.Spec.SyncWindows[windowID].Rules, rule)
+			rule, err := generateRule(conditions)
+			errors.CheckError(err)
+
+			proj.Spec.SyncWindows[windowID].Rules = append(proj.Spec.SyncWindows[windowID].Rules, *rule)
 			errors.CheckError(err)
 
 			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
@@ -415,7 +418,9 @@ func NewProjectWindowsRulesAddConditionCommand(clientOpts *argocdclient.ClientOp
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
-			rule := generateRule(conditions)
+			rule, err := generateRule(conditions)
+			errors.CheckError(err)
+
 			proj.Spec.SyncWindows[windowID].Rules[ruleID].Conditions = append(proj.Spec.SyncWindows[windowID].Rules[ruleID].Conditions, rule.Conditions...)
 			errors.CheckError(err)
 
@@ -546,7 +551,7 @@ func formatManualOutput(active bool) string {
 	return o
 }
 
-func generateRule(conditions []string) argoappv1.WindowRule {
+func generateRule(conditions []string) (*argoappv1.WindowRule, error) {
 	var rule argoappv1.WindowRule
 	var values string
 	for _, comp := range conditions {
@@ -555,10 +560,10 @@ func generateRule(conditions []string) argoappv1.WindowRule {
 		operator := f[1]
 		if strings.HasSuffix(comp, argoappv1.ConditionOperatorExists) {
 			if len(f) != 2 {
-				log.Fatalf("field mismatch expected 2 got %v", len(f))
+				return nil, fmt.Errorf("field mismatch expected 2 got %v", len(f))
 			}
 		} else if len(f) != 3 {
-			log.Fatalf("field mismatch expected 3 got %v", len(f))
+			return nil, fmt.Errorf("field mismatch expected 3 got %v", len(f))
 		} else {
 			values = f[2]
 		}
@@ -570,7 +575,7 @@ func generateRule(conditions []string) argoappv1.WindowRule {
 		case argoappv1.ConditionOperatorExists:
 			break
 		default:
-			log.Fatalf("operator %v not supported", operator)
+			return nil, fmt.Errorf("operator '%v' not supported", operator)
 		}
 		nc := argoappv1.RuleCondition{
 			Operator: operator,
@@ -589,5 +594,5 @@ func generateRule(conditions []string) argoappv1.WindowRule {
 		}
 		rule.Conditions = append(rule.Conditions, nc)
 	}
-	return rule
+	return &rule, nil
 }
