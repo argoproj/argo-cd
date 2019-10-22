@@ -331,7 +331,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                             <div className='argo-table-list argo-table-list--clickable'>
                                 <div className='argo-table-list__head'>
                                     <div className='row'>
-                                        <div className='columns small-2' >
+                                        <div className='columns small-3' >
                                             STATUS
                                             {helpTip('If a window is active or inactive and what the current ' +
                                                 'effect would be if it was assigned to an application, namespace or cluster. ' +
@@ -339,23 +339,15 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                                                 'Yellow: manual syncs allowed. ' +
                                                 'Green: all syncs allowed')}
                                         </div>
-                                        <div className='columns small-2'>
+                                        <div className='columns small-3'>
                                             WINDOW
                                             {helpTip('The kind, start time and duration of the window')}
                                         </div>
-                                        <div className='columns small-2'>
-                                            APPLICATIONS
-                                            {helpTip('The applications assigned to the window, wildcards are supported')}
+                                        <div className='columns small-3'>
+                                            RULES
+                                            {helpTip('The number of rules configured for the window')}
                                         </div>
-                                        <div className='columns small-2'>
-                                            NAMESPACES
-                                            {helpTip('The namespaces assigned to the window, wildcards are supported')}
-                                        </div>
-                                        <div className='columns small-2'>
-                                            CLUSTERS
-                                            {helpTip('The clusters assigned to the window, wildcards are supported')}
-                                        </div>
-                                        <div className='columns small-2'>
+                                        <div className='columns small-3'>
                                             MANUALSYNC
                                             {helpTip('If the window allows manual syncs')}
                                         </div>
@@ -366,22 +358,16 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                                          onClick={() => ctx.navigation.goto(`.`,
                                              {editWindow: `${i}`})}>
                                         <div className='row'>
-                                            <div className='columns small-2'>
+                                            <div className='columns small-3'>
                                                 <span><SyncWindowStatusIcon state={data} window={window}/></span>
                                             </div>
-                                            <div className='columns small-2'>
+                                            <div className='columns small-3'>
                                                 {window.kind}:{window.schedule}:{window.duration}
                                             </div>
-                                            <div className='columns small-2'>
-                                                {(window.applications || ['-']).join(',')}
+                                            <div className='columns small-3'>
+                                                {window.rules.length}
                                             </div>
-                                            <div className='columns small-2'>
-                                                {(window.namespaces || ['-']).join(',')}
-                                            </div>
-                                            <div className='columns small-2'>
-                                                {(window.clusters || ['-']).join(',')}
-                                            </div>
-                                            <div className='columns small-2'>
+                                            <div className='columns small-3'>
                                                 {window.manualSync ? 'Enabled' : 'Disabled'}
                                             </div>
                                         </div>
