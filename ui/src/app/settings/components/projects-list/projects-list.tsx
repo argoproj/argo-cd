@@ -19,7 +19,7 @@ export class ProjectsList extends React.Component {
                         title='Projects'
                         toolbar={{
                             breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Projects'}],
-                            actionMenu: {className: 'fa fa-plus', items: [{title: 'New Project', action: () => ctx.navigation.goto('.', {add: true})}]},
+                            actionMenu: {className: 'fa fa-plus', items: [{title: 'New Project', action: () => ctx.navigation.goto('.', {add: true})}]}
                         }}>
                         <div className='projects argo-container'>
                             <DataLoader load={() => services.projects.list()} ref={loader => (this.loader = loader)}>
@@ -72,7 +72,7 @@ export class ProjectsList extends React.Component {
                                             } catch (e) {
                                                 ctx.notifications.show({
                                                     content: <ErrorNotification title='Unable to create project' e={e} />,
-                                                    type: NotificationType.Error,
+                                                    type: NotificationType.Error
                                                 });
                                             }
                                         }}

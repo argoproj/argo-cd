@@ -45,7 +45,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         inlineDiff: false,
         compactDiff: false,
         resourceView: 'manifest',
-        orphanedResources: false,
+        orphanedResources: false
     },
     appList: {
         view: 'tiles' as AppsListViewType,
@@ -55,9 +55,9 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         clustersFilter: new Array<string>(),
         reposFilter: new Array<string>(),
         syncFilter: new Array<string>(),
-        healthFilter: new Array<string>(),
+        healthFilter: new Array<string>()
     },
-    pageSizes: {},
+    pageSizes: {}
 };
 
 export class ViewPreferencesService {

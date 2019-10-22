@@ -14,7 +14,7 @@ export interface ObservableQueryProps {
 
 export class ObservableQuery extends React.Component<ObservableQueryProps> {
     public static contextTypes = {
-        router: PropTypes.object,
+        router: PropTypes.object
     };
 
     private search: BehaviorSubject<string>;

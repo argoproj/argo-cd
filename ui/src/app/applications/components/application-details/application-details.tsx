@@ -35,7 +35,7 @@ type ActionMenuItem = MenuItem & {disabled?: boolean};
 
 export class ApplicationDetails extends React.Component<RouteComponentProps<{name: string}>, {page: number}> {
     public static contextTypes = {
-        apis: PropTypes.object,
+        apis: PropTypes.object
     };
 
     private refreshRequested = new BehaviorSubject(null);
@@ -129,15 +129,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 Kinds <a onClick={() => setSelection(noKindsFilter.concat(kinds.map(kind => `kind:${kind}`)))}>all</a> /{' '}
                                                 <a onClick={() => setSelection(noKindsFilter)}>none</a>
                                             </div>
-                                        ),
+                                        )
                                     },
-                                    ...kinds.sort().map(kind => ({value: `kind:${kind}`, label: kind})),
+                                    ...kinds.sort().map(kind => ({value: `kind:${kind}`, label: kind}))
                                 ],
                                 selectedValues: pref.resourceFilter,
                                 selectionChanged: items => {
                                     this.appContext.apis.navigation.goto('.', {resource: `${items.join(',')}`});
                                     services.viewPreferences.updatePreferences({appDetails: {...pref, resourceFilter: items}});
-                                },
+                                }
                             };
 
                             const appNodesByName = this.groupAppNodesByKey(application, tree);
@@ -187,7 +187,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         />
                                                     </div>
                                                 </React.Fragment>
-                                            ),
+                                            )
                                         }}>
                                         <div className='application-details__status-panel'>
                                             <ApplicationStatusPanel
@@ -268,7 +268,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                     (await services.applications.resourceEvents(application.metadata.name, {
                                                                         name: liveState.metadata.name,
                                                                         namespace: liveState.metadata.namespace,
-                                                                        uid: liveState.metadata.uid,
+                                                                        uid: liveState.metadata.uid
                                                                     }))) ||
                                                                 [];
 
@@ -288,8 +288,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                                 controlled={data.controlledState}
                                                                                 node={selectedNode}
                                                                             />
-                                                                        ),
-                                                                    },
+                                                                        )
+                                                                    }
                                                                 ])}
                                                                 selectedTabKey={tab}
                                                                 onTabSelected={selected => this.appContext.apis.navigation.goto('.', {tab: selected})}
@@ -304,7 +304,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                             {
                                                                 title: 'SUMMARY',
                                                                 key: 'summary',
-                                                                content: <ApplicationSummary app={application} updateApp={app => this.updateApp(app)} />,
+                                                                content: <ApplicationSummary app={application} updateApp={app => this.updateApp(app)} />
                                                             },
                                                             {
                                                                 title: 'PARAMETERS',
@@ -322,7 +322,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                             <ApplicationParameters save={app => this.updateApp(app)} application={application} details={details} />
                                                                         )}
                                                                     </DataLoader>
-                                                                ),
+                                                                )
                                                             },
                                                             {
                                                                 title: 'MANIFEST',
@@ -335,11 +335,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                             const spec = JSON.parse(JSON.stringify(application.spec));
                                                                             return services.applications.updateSpec(
                                                                                 application.metadata.name,
-                                                                                jsonMergePatch.apply(spec, JSON.parse(patch)),
+                                                                                jsonMergePatch.apply(spec, JSON.parse(patch))
                                                                             );
                                                                         }}
                                                                     />
-                                                                ),
+                                                                )
                                                             },
                                                             {
                                                                 icon: 'fa fa-file-medical',
@@ -351,13 +351,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                         load={async () => await services.applications.managedResources(application.metadata.name)}>
                                                                         {managedResources => <ApplicationResourcesDiff states={managedResources} />}
                                                                     </DataLoader>
-                                                                ),
+                                                                )
                                                             },
                                                             {
                                                                 title: 'EVENTS',
                                                                 key: 'event',
-                                                                content: <ApplicationResourceEvents applicationName={application.metadata.name} />,
-                                                            },
+                                                                content: <ApplicationResourceEvents applicationName={application.metadata.name} />
+                                                            }
                                                         ]}
                                                         selectedTabKey={tab}
                                                         onTabSelected={selected => this.appContext.apis.navigation.goto('.', {tab: selected})}
@@ -399,35 +399,35 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
             {
                 iconClassName: 'fa fa-info-circle',
                 title: <span className='show-for-medium'>App Details</span>,
-                action: () => this.selectNode(fullName),
+                action: () => this.selectNode(fullName)
             },
             {
                 iconClassName: 'fa fa-file-medical',
                 title: <span className='show-for-medium'>App Diff</span>,
                 action: () => this.selectNode(fullName, 0, 'diff'),
-                disabled: app.status.sync.status === SyncStatuses.Synced,
+                disabled: app.status.sync.status === SyncStatuses.Synced
             },
             {
                 iconClassName: 'fa fa-sync',
                 title: <span className='show-for-medium'>Sync</span>,
-                action: () => this.showDeploy('all'),
+                action: () => this.showDeploy('all')
             },
             {
                 iconClassName: 'fa fa-info-circle',
                 title: <span className='show-for-medium'>Sync Status</span>,
                 action: () => this.setOperationStatusVisible(true),
-                disabled: !app.status.operationState,
+                disabled: !app.status.operationState
             },
             {
                 iconClassName: 'fa fa-history',
                 title: <span className='show-for-medium'>History and rollback</span>,
                 action: () => this.setRollbackPanelVisible(0),
-                disabled: !app.status.operationState,
+                disabled: !app.status.operationState
             },
             {
                 iconClassName: 'fa fa-times-circle',
                 title: <span className='show-for-medium'>Delete</span>,
-                action: () => this.deleteApplication(),
+                action: () => this.deleteApplication()
             },
             {
                 iconClassName: classNames('fa fa-redo', {'status-icon--spin': !!refreshing}),
@@ -438,16 +438,16 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             items={[
                                 {
                                     title: 'Hard Refresh',
-                                    action: () => !refreshing && services.applications.get(app.metadata.name, 'hard'),
-                                },
+                                    action: () => !refreshing && services.applications.get(app.metadata.name, 'hard')
+                                }
                             ]}
                             anchor={() => <i className='fa fa-caret-down' />}
                         />
                     </React.Fragment>
                 ),
                 disabled: !!refreshing,
-                action: () => !refreshing && services.applications.get(app.metadata.name, 'normal'),
-            },
+                action: () => !refreshing && services.applications.get(app.metadata.name, 'normal')
+            }
         ];
     }
 
@@ -474,12 +474,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                 })
                 .repeat()
                 .retryWhen(errors => errors.delay(500)),
-            this.refreshRequested.filter(e => e !== null).flatMap(() => services.applications.get(name).then(app => ({app, watchEvent: true}))),
+            this.refreshRequested.filter(e => e !== null).flatMap(() => services.applications.get(name).then(app => ({app, watchEvent: true})))
         ).flatMap(appInfo => {
             const app = appInfo.app;
             const fallbackTree: appModels.ApplicationTree = {
                 nodes: app.status.resources.map(res => ({...res, parentRefs: [], info: [], resourceVersion: '', uid: ''})),
-                orphanedNodes: [],
+                orphanedNodes: []
             };
             const treeSource = new Observable<{application: appModels.Application; tree: appModels.ApplicationTree}>(observer => {
                 services.applications
@@ -573,7 +573,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         } catch (e) {
             this.appContext.apis.notifications.show({
                 content: <ErrorNotification title='Unable to rollback application' e={e} />,
-                type: NotificationType.Error,
+                type: NotificationType.Error
             });
         }
     }
@@ -592,8 +592,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                 ...((isRoot && [
                     {
                         title: 'Sync',
-                        action: () => this.showDeploy(nodeKey(resource)),
-                    },
+                        action: () => this.showDeploy(nodeKey(resource))
+                    }
                 ]) ||
                     []),
                 {
@@ -620,14 +620,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                     } catch (e) {
                                         this.appContext.apis.notifications.show({
                                             content: <ErrorNotification title='Unable to delete resource' e={e} />,
-                                            type: NotificationType.Error,
+                                            type: NotificationType.Error
                                         });
                                     }
-                                },
-                            },
+                                }
+                            }
                         );
-                    },
-                },
+                    }
+                }
             ];
             const resourceActions = services.applications
                 .getResourceActions(application.metadata.name, resource)
@@ -640,7 +640,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                 try {
                                     const confirmed = await this.appContext.apis.popup.confirm(
                                         `Execute '${action.name}' action?`,
-                                        `Are you sure you want to execute '${action.name}' action?`,
+                                        `Are you sure you want to execute '${action.name}' action?`
                                     );
                                     if (confirmed) {
                                         await services.applications.runResourceAction(application.metadata.name, resource, action.name);
@@ -648,12 +648,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                 } catch (e) {
                                     this.appContext.apis.notifications.show({
                                         content: <ErrorNotification title='Unable to execute resource action' e={e} />,
-                                        type: NotificationType.Error,
+                                        type: NotificationType.Error
                                     });
                                 }
-                            },
-                        })),
-                    ),
+                            }
+                        }))
+                    )
                 )
                 .catch(() => items);
             menuItems = Observable.merge(Observable.from([items]), Observable.fromPromise(resourceActions));
@@ -697,7 +697,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                     <div className='application-resource-events'>
                         <EventsList events={events} />
                     </div>
-                ),
+                )
             });
         }
         if (node.kind === 'Pod' && state) {
@@ -705,13 +705,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                 {
                     offset: 0,
                     title: 'INIT CONTAINERS',
-                    containers: state.spec.initContainers || [],
+                    containers: state.spec.initContainers || []
                 },
                 {
                     offset: (state.spec.initContainers || []).length,
                     title: 'CONTAINERS',
-                    containers: state.spec.containers || [],
-                },
+                    containers: state.spec.containers || []
+                }
             ];
             tabs = tabs.concat([
                 {
@@ -741,8 +741,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                 </div>
                             </div>
                         </div>
-                    ),
-                },
+                    )
+                }
             ]);
         }
         return tabs;

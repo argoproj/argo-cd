@@ -18,7 +18,7 @@ export const ApplicationNodeInfo = (props: {
     const attributes: {title: string; value: any}[] = [
         {title: 'KIND', value: props.node.kind},
         {title: 'NAME', value: props.node.name},
-        {title: 'NAMESPACE', value: props.node.namespace},
+        {title: 'NAMESPACE', value: props.node.namespace}
     ];
     if ((props.node.images || []).length) {
         attributes.push({
@@ -31,7 +31,7 @@ export const ApplicationNodeInfo = (props: {
                         </span>
                     ))}
                 </div>
-            ),
+            )
         });
     }
     if (props.live) {
@@ -60,7 +60,7 @@ export const ApplicationNodeInfo = (props: {
                     <span>
                         <ComparisonStatusIcon status={props.controlled.summary.status} resource={props.controlled.summary} label={true} />
                     </span>
-                ),
+                )
             } as any);
         }
         if (props.controlled.summary.health !== undefined) {
@@ -70,7 +70,7 @@ export const ApplicationNodeInfo = (props: {
                     <span>
                         <HealthStatusIcon state={props.controlled.summary.health} /> {props.controlled.summary.health.status}
                     </span>
-                ),
+                )
             } as any);
             if (props.controlled.summary.health.message) {
                 attributes.push({title: 'HEALTH DETAILS', value: props.controlled.summary.health.message});
@@ -88,15 +88,15 @@ export const ApplicationNodeInfo = (props: {
                     hideModeButtons={!props.live}
                     onSave={(patch, patchType) => services.applications.patchResource(props.application.metadata.name, props.node, patch, patchType)}
                 />
-            ),
-        },
+            )
+        }
     ];
     if (props.controlled && !props.controlled.summary.hook) {
         tabs.push({
             key: 'diff',
             icon: 'fa fa-file-medical',
             title: 'Diff',
-            content: <ApplicationResourcesDiff states={[props.controlled.state]} />,
+            content: <ApplicationResourcesDiff states={[props.controlled.state]} />
         });
     }
 

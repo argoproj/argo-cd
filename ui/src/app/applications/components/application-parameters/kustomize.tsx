@@ -6,7 +6,7 @@ import {format, parse} from './kustomize-image';
 
 export const ImageTagFieldEditor = ReactFormField((props: {metadata: {value: string}; fieldApi: FieldApi; className: string}) => {
     const {
-        fieldApi: {getValue, setValue},
+        fieldApi: {getValue, setValue}
     } = props;
     const origImage = parse(props.metadata.value);
     const val = getValue();

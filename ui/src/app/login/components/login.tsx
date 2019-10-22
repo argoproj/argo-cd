@@ -24,7 +24,7 @@ interface State {
 
 export class Login extends React.Component<RouteComponentProps<{}>, State> {
     public static contextTypes = {
-        apis: PropTypes.object,
+        apis: PropTypes.object
     };
 
     public static getDerivedStateFromProps(props: RouteComponentProps<{}>): Partial<State> {
@@ -41,7 +41,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
 
     public async componentDidMount() {
         this.setState({
-            authSettings: await services.authService.settings(),
+            authSettings: await services.authService.settings()
         });
     }
 
@@ -77,7 +77,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                         onSubmit={(params: LoginForm) => this.login(params.username, params.password, this.state.returnUrl)}
                         validateError={(params: LoginForm) => ({
                             username: !params.username && 'Username is required',
-                            password: !params.password && 'Password is required',
+                            password: !params.password && 'Password is required'
                         })}>
                         {formApi => (
                             <form role='form' className='width-control' onSubmit={formApi.submitForm}>

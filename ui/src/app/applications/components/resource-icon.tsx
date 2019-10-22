@@ -33,7 +33,7 @@ const imgNameByKind = new Map<string, string>([
     ['StatefulSet', 'sts'],
     ['Service', 'svc'],
     ['User', 'user'],
-    ['Volume', 'vol'],
+    ['Volume', 'vol']
 ]);
 
 export const ResourceIcon = ({kind}: {kind: string}) => {

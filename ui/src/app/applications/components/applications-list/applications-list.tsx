@@ -29,7 +29,7 @@ const APP_FIELDS = [
     'spec',
     'status.sync.status',
     'status.health',
-    'status.summary',
+    'status.summary'
 ];
 const APP_LIST_FIELDS = APP_FIELDS.map(field => `items.${field}`);
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
@@ -62,8 +62,8 @@ function loadApplications(selector: string): Observable<models.Application[]> {
                     return {applications, updated: true};
                 })
                 .filter(item => item.updated)
-                .map(item => item.applications),
-        ),
+                .map(item => item.applications)
+        )
     );
 }
 
@@ -132,7 +132,7 @@ function filterApps(applications: models.Application[], pref: AppsListPreference
             (pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status)) &&
             (pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status)) &&
             (pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => minimatch(app.spec.destination.namespace, ns))) &&
-            (pref.clustersFilter.length === 0 || pref.clustersFilter.some(server => minimatch(app.spec.destination.server, server))),
+            (pref.clustersFilter.length === 0 || pref.clustersFilter.some(server => minimatch(app.spec.destination.server, server)))
     );
 }
 
@@ -191,15 +191,15 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                     {
                                         title: 'New App',
                                         iconClassName: 'fa fa-plus',
-                                        action: () => ctx.navigation.goto('.', {new: '{}'}),
+                                        action: () => ctx.navigation.goto('.', {new: '{}'})
                                     },
                                     {
                                         title: 'Sync Apps',
                                         iconClassName: 'fa fa-sync',
-                                        action: () => ctx.navigation.goto('.', {syncApps: true}),
-                                    },
-                                ],
-                            },
+                                        action: () => ctx.navigation.goto('.', {syncApps: true})
+                                    }
+                                ]
+                            }
                         }))}>
                         <div className='applications-list'>
                             <ViewPref>
@@ -271,7 +271,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                     health: newPref.healthFilter.join(','),
                                                                     namespace: newPref.namespacesFilter.join(','),
                                                                     cluster: newPref.clustersFilter.join(','),
-                                                                    labels: newPref.labelsFilter.join(','),
+                                                                    labels: newPref.labelsFilter.join(',')
                                                                 });
                                                             }}
                                                         />
@@ -364,7 +364,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         } catch (e) {
                                             ctx.notifications.show({
                                                 content: <ErrorNotification title='Unable to create application' e={e} />,
-                                                type: NotificationType.Error,
+                                                type: NotificationType.Error
                                             });
                                         }
                                     }}

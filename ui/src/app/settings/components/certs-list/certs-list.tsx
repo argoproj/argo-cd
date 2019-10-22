@@ -25,7 +25,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
     public static contextTypes = {
         router: PropTypes.object,
         apis: PropTypes.object,
-        history: PropTypes.object,
+        history: PropTypes.object
     };
 
     private formApiTLS: FormApi;
@@ -43,14 +43,14 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                         items: [
                             {
                                 title: 'Add TLS certificate',
-                                action: () => (this.showAddTLSCertificate = true),
+                                action: () => (this.showAddTLSCertificate = true)
                             },
                             {
                                 title: 'Add SSH known hosts',
-                                action: () => (this.showAddSSHKnownHosts = true),
-                            },
-                        ],
-                    },
+                                action: () => (this.showAddSSHKnownHosts = true)
+                            }
+                        ]
+                    }
                 }}>
                 <div className='certs-list'>
                     <div className='argo-container'>
@@ -85,8 +85,8 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                                                             items={[
                                                                 {
                                                                     title: 'Remove',
-                                                                    action: () => this.removeCert(cert.serverName, cert.certType, cert.certSubType),
-                                                                },
+                                                                    action: () => this.removeCert(cert.serverName, cert.certType, cert.certSubType)
+                                                                }
                                                             ]}
                                                         />
                                                     </div>
@@ -129,11 +129,11 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                         getApi={api => (this.formApiTLS = api)}
                         preSubmit={(params: NewTLSCertParams) => ({
                             serverName: params.serverName,
-                            certData: btoa(params.certData),
+                            certData: btoa(params.certData)
                         })}
                         validateError={(params: NewTLSCertParams) => ({
                             serverName: !params.serverName && 'Repository server name is required',
-                            certData: !params.certData && 'Certificate data is required',
+                            certData: !params.certData && 'Certificate data is required'
                         })}>
                         {formApiTLS => (
                             <form onSubmit={formApiTLS.submitForm} role='form' className='certs-list width-control' encType='multipart/form-data'>
@@ -172,10 +172,10 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                         onSubmit={params => this.addSSHKnownHosts(params as NewSSHKnownHostParams)}
                         getApi={api => (this.formApiSSH = api)}
                         preSubmit={(params: NewSSHKnownHostParams) => ({
-                            certData: btoa(params.certData),
+                            certData: btoa(params.certData)
                         })}
                         validateError={(params: NewSSHKnownHostParams) => ({
-                            certData: !params.certData && 'SSH known hosts data is required',
+                            certData: !params.certData && 'SSH known hosts data is required'
                         })}>
                         {formApiSSH => (
                             <form onSubmit={formApiSSH.submitForm} role='form' className='certs-list width-control' encType='multipart/form-data'>
@@ -203,7 +203,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
         } catch (e) {
             this.appContext.apis.notifications.show({
                 content: <ErrorNotification title='Unable to add TLS certificate' e={e} />,
-                type: NotificationType.Error,
+                type: NotificationType.Error
             });
         }
     }
@@ -228,7 +228,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                                     certType: 'ssh',
                                     certSubType: knownHosts[1],
                                     certData: btoa(knownHosts[2]),
-                                    certInfo: '',
+                                    certInfo: ''
                                 });
                             }
                         }
@@ -243,7 +243,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
         } catch (e) {
             this.appContext.apis.notifications.show({
                 content: <ErrorNotification title='Unable to add SSH known hosts data' e={e} />,
-                type: NotificationType.Error,
+                type: NotificationType.Error
             });
         }
     }

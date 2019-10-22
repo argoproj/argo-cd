@@ -51,7 +51,7 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                                         action: () => {
                                             pref.pageSizes[preferencesKey] = count;
                                             services.viewPreferences.updatePreferences(pref);
-                                        },
+                                        }
                                     }))}
                                 />
                             </div>

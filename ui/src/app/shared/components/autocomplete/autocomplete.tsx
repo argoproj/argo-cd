@@ -31,7 +31,7 @@ export const Autocomplete = (props: AutocompleteProps) => {
         } else {
             return {
                 value: item.value,
-                label: item.label || item.value,
+                label: item.label || item.value
             };
         }
     });
@@ -82,7 +82,7 @@ export const Autocomplete = (props: AutocompleteProps) => {
                                 el.setState({
                                     menuTop,
                                     menuLeft: rect.left + marginLeft,
-                                    menuWidth: rect.width + marginLeft + marginRight,
+                                    menuWidth: rect.width + marginLeft + marginRight
                                 });
                             }
                         };
@@ -95,7 +95,7 @@ export const Autocomplete = (props: AutocompleteProps) => {
                             if (el && el.refs.input) {
                                 el.setMenuPositions();
                             }
-                        },
+                        }
                     });
                 }
             }}

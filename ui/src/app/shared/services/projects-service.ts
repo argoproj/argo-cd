@@ -63,7 +63,7 @@ function paramsToProjRole(params: ProjectRoleParams): models.ProjectRole {
         description: params.description,
         policies: newPolicies,
         jwtTokens: params.jwtTokens,
-        groups: params.groups,
+        groups: params.groups
     };
 }
 
@@ -78,8 +78,8 @@ function paramsToProj(params: ProjectParams) {
             syncWindows: params.syncWindows,
             clusterResourceWhitelist: params.clusterResourceWhitelist,
             namespaceResourceBlacklist: params.namespaceResourceBlacklist,
-            orphanedResources: (params.orphanedResourcesEnabled && {warn: !!params.orphanedResourcesWarn}) || null,
-        },
+            orphanedResources: (params.orphanedResourcesEnabled && {warn: !!params.orphanedResourcesWarn}) || null
+        }
     };
 }
 

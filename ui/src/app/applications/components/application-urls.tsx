@@ -16,7 +16,7 @@ export const ApplicationURLs = ({urls}: {urls: string[]}) => {
                             anchor={() => <i className='fa fa-caret-down' />}
                             items={urls.map(item => ({
                                 title: item,
-                                action: () => window.open(item),
+                                action: () => window.open(item)
                             }))}
                         />
                     )}

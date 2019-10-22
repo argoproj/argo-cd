@@ -28,13 +28,13 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
     }
     const cntByCategory = (application.status.conditions || []).reduce(
         (map, next) => map.set(utils.getConditionCategory(next), (map.get(utils.getConditionCategory(next)) || 0) + 1),
-        new Map<string, number>(),
+        new Map<string, number>()
     );
     let appOperationState = application.status.operationState;
     if (application.metadata.deletionTimestamp) {
         appOperationState = {
             phase: models.OperationPhases.Running,
-            startedAt: application.metadata.deletionTimestamp,
+            startedAt: application.metadata.deletionTimestamp
         } as models.OperationState;
         showOperation = null;
     } else if (application.operation) {
@@ -42,8 +42,8 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
             phase: models.OperationPhases.Running,
             startedAt: new Date().toISOString(),
             operation: {
-                sync: {},
-            } as models.Operation,
+                sync: {}
+            } as models.Operation
         } as models.OperationState;
     }
 
@@ -94,7 +94,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                         {tooltip(
                             'Whether or not your last app sync was successful. It has been ' +
                                 daysSinceLastSynchronized +
-                                ' days since last sync. Click for the status of that sync.',
+                                ' days since last sync. Click for the status of that sync.'
                         )}
                     </div>
                     {appOperationState.syncResult && (
@@ -139,7 +139,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                                             'The aggregate state of sync windows for this app. ' +
                                                 'Red: no syncs allowed. ' +
                                                 'Yellow: manual syncs allowed. ' +
-                                                'Green: all syncs allowed',
+                                                'Green: all syncs allowed'
                                         )}
                                     </React.Fragment>
                                 )}

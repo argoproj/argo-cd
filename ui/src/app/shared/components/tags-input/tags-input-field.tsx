@@ -4,7 +4,7 @@ import {TagsInput} from './tags-input';
 
 export const TagsInputField = ReactForm.FormField((props: {options: string[]; noTagsLabel?: string; fieldApi: ReactForm.FieldApi; className: string}) => {
     const {
-        fieldApi: {getValue, setValue},
+        fieldApi: {getValue, setValue}
     } = props;
     const tags = (getValue() || []) as Array<string>;
 

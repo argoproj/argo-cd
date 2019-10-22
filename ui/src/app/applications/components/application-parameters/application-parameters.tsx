@@ -12,7 +12,7 @@ import {VarsInputField} from './vars-input-field';
 
 const TextWithMetadataField = ReactFormField((props: {metadata: {value: string}; fieldApi: FieldApi; className: string}) => {
     const {
-        fieldApi: {getValue, setValue},
+        fieldApi: {getValue, setValue}
     } = props;
     const metadata = getValue() || props.metadata;
 
@@ -44,7 +44,7 @@ function getParamsEditableItems(
         original: string;
         metadata: {name: string; value: string};
     }[],
-    component: React.ComponentType = TextWithMetadataField,
+    component: React.ComponentType = TextWithMetadataField
 ) {
     return params
         .sort(overridesFirst)
@@ -68,7 +68,7 @@ function getParamsEditableItems(
                                 field={fieldItemPath}
                                 component={component}
                                 componentProps={{
-                                    metadata: param.metadata,
+                                    metadata: param.metadata
                                 }}
                             />
                         )}
@@ -96,7 +96,7 @@ function getParamsEditableItems(
                         )}
                     </React.Fragment>
                 );
-            },
+            }
         }))
         .sort((first, second) => {
             const firstSortBy = first.key || first.title;
@@ -129,7 +129,7 @@ export const ApplicationParameters = (props: {
                     component={FormSelect}
                     componentProps={{options: Object.keys(props.details.ksonnet.environments)}}
                 />
-            ),
+            )
         });
         const paramsByComponentName = new Map<string, models.KsonnetParameter>();
         ((props.details.ksonnet && props.details.ksonnet.parameters) || []).forEach(param => paramsByComponentName.set(`${param.component}-${param.name}`, param));
@@ -154,20 +154,20 @@ export const ApplicationParameters = (props: {
                     }
                     const value = (overrideIndex > -1 && source.ksonnet.parameters[overrideIndex].value) || original;
                     return {key: componentName, overrideIndex, original, metadata: {name: param.name, component: param.component, value}};
-                }),
-            ),
+                })
+            )
         );
     } else if (props.details.type === 'Kustomize' && props.details.kustomize) {
         attributes.push({
             title: 'NAME PREFIX',
             view: app.spec.source.kustomize && app.spec.source.kustomize.namePrefix,
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.kustomize.namePrefix' component={Text} />,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.kustomize.namePrefix' component={Text} />
         });
 
         attributes.push({
             title: 'NAME SUFFIX',
             view: app.spec.source.kustomize && app.spec.source.kustomize.nameSuffix,
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.kustomize.nameSuffix' component={Text} />,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.kustomize.nameSuffix' component={Text} />
         });
 
         const srcImages = ((props.details && props.details.kustomize && props.details.kustomize.images) || []).map(val => kustomize.parse(val));
@@ -197,8 +197,8 @@ export const ApplicationParameters = (props: {
                         const value = (overrideIndex > -1 && kustomize.format(images[overrideIndex])) || original;
                         return {overrideIndex, original, metadata: {name, value}};
                     }),
-                    ImageTagFieldEditor,
-                ),
+                    ImageTagFieldEditor
+                )
             );
         }
     } else if (props.details.type === 'Helm' && props.details.helm) {
@@ -212,10 +212,10 @@ export const ApplicationParameters = (props: {
                     component={TagsInputField}
                     componentProps={{
                         options: props.details.helm.valueFiles,
-                        noTagsLabel: 'No values files selected',
+                        noTagsLabel: 'No values files selected'
                     }}
                 />
-            ),
+            )
         });
         attributes.push({
             title: 'VALUES',
@@ -238,7 +238,7 @@ export const ApplicationParameters = (props: {
                         </div>
                     )}
                 </div>
-            ),
+            )
         });
         const paramsByName = new Map<string, models.HelmParameter>();
         (props.details.helm.parameters || []).forEach(param => paramsByName.set(param.name, param));
@@ -260,8 +260,8 @@ export const ApplicationParameters = (props: {
                     }
                     const value = (overrideIndex > -1 && source.helm.parameters[overrideIndex].value) || original;
                     return {overrideIndex, original, metadata: {name, value}};
-                }),
-            ),
+                })
+            )
         );
     } else if (props.details.type === 'Plugin') {
         attributes.push({
@@ -273,19 +273,19 @@ export const ApplicationParameters = (props: {
                         <FormField formApi={formApi} field='spec.source.plugin.name' component={FormSelect} componentProps={{options: (settings.plugins || []).map(p => p.name)}} />
                     )}
                 </DataLoader>
-            ),
+            )
         });
         attributes.push({
             title: 'ENV',
             view: app.spec.source.plugin && (app.spec.source.plugin.env || []).map(i => `${i.name}='${i.value}'`).join(' '),
-            edit: (formApi: FormApi) => <FormField field='spec.source.plugin.env' formApi={formApi} component={ArrayInputField} />,
+            edit: (formApi: FormApi) => <FormField field='spec.source.plugin.env' formApi={formApi} component={ArrayInputField} />
         });
     } else if (props.details.type === 'Directory') {
         const directory = app.spec.source.directory || ({} as ApplicationSourceDirectory);
         attributes.push({
             title: 'DIRECTORY RECURSE',
             view: (!!directory.recurse).toString(),
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.directory.recurse' component={CheckboxField} />,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.directory.recurse' component={CheckboxField} />
         });
         attributes.push({
             title: 'TOP-LEVEL ARGUMENTS',
@@ -294,7 +294,7 @@ export const ApplicationParameters = (props: {
                     {i.name}='{i.value}' {i.code && 'code'}
                 </p>
             )),
-            edit: (formApi: FormApi) => <FormField field='spec.source.directory.jsonnet.tlas' formApi={formApi} component={VarsInputField} />,
+            edit: (formApi: FormApi) => <FormField field='spec.source.directory.jsonnet.tlas' formApi={formApi} component={VarsInputField} />
         });
         attributes.push({
             title: 'EXTERNAL VARIABLES',
@@ -303,7 +303,7 @@ export const ApplicationParameters = (props: {
                     {i.name}='{i.value}' {i.code && 'code'}
                 </p>
             )),
-            edit: (formApi: FormApi) => <FormField field='spec.source.directory.jsonnet.extVars' formApi={formApi} component={VarsInputField} />,
+            edit: (formApi: FormApi) => <FormField field='spec.source.directory.jsonnet.extVars' formApi={formApi} component={VarsInputField} />
         });
     }
 

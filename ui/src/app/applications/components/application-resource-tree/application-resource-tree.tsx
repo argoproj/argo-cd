@@ -56,7 +56,7 @@ const NODE_TYPES = {
     filteredIndicator: 'filtered_indicator',
     externalTraffic: 'external_traffic',
     externalLoadBalancer: 'external_load_balancer',
-    internalTraffic: 'internal_traffic',
+    internalTraffic: 'internal_traffic'
 };
 
 const BASE_COLORS = [
@@ -65,7 +65,7 @@ const BASE_COLORS = [
     '#F4C030', // orange
     '#FF6262', // red
     '#4B0082', // purple
-    '#964B00', // brown
+    '#964B00' // brown
 ];
 
 // generate lots of colors with different darkness
@@ -74,8 +74,8 @@ const TRAFFIC_COLORS = [0, 0.25, 0.4, 0.6]
         BASE_COLORS.map(item =>
             color(item)
                 .darken(darken)
-                .hex(),
-        ),
+                .hex()
+        )
     )
     .reduce((first, second) => first.concat(second), []);
 
@@ -167,7 +167,7 @@ function renderLoadBalancerNode(node: dagre.Node & {label: string; color: string
                 left: node.x,
                 top: node.y,
                 width: node.width,
-                height: node.height,
+                height: node.height
             }}>
             <div className='application-resource-tree__node-kind-icon'>
                 <i title={node.kind} className={`icon fa fa-network-wired`} style={{color: node.color}} />
@@ -194,13 +194,13 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
             onClick={() => props.onNodeClick && props.onNodeClick(fullName)}
             className={classNames('application-resource-tree__node', {
                 active: fullName === props.selectedNodeFullName,
-                'application-resource-tree__node--orphaned': node.orphaned,
+                'application-resource-tree__node--orphaned': node.orphaned
             })}
             style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
             {!appNode && <NodeUpdateAnimation resourceVersion={node.resourceVersion} />}
             <div
                 className={classNames('application-resource-tree__node-kind-icon', {
-                    'application-resource-tree__node-kind-icon--big': rootNode,
+                    'application-resource-tree__node-kind-icon--big': rootNode
                 })}>
                 <ResourceIcon kind={node.kind} />
             </div>
@@ -208,7 +208,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 <span className='application-resource-tree__node-title'>{node.name}</span>
                 <div
                     className={classNames('application-resource-tree__node-status-icon', {
-                        'application-resource-tree__node-status-icon--offset': rootNode,
+                        'application-resource-tree__node-status-icon--offset': rootNode
                     })}>
                     {node.hook && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                     {healthState != null && <HealthStatusIcon state={healthState} />}
@@ -257,7 +257,7 @@ function findNetworkTargets(nodes: ResourceTreeNode[], networkingInfo: models.Re
                     return Object.keys(networkingInfo.targetLabels).every(key => networkingInfo.targetLabels[key] === target.networkingInfo.labels[key]);
                 }
                 return false;
-            }),
+            })
         );
     }
     return result;
@@ -282,10 +282,10 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 ? [
                       {
                           name: 'Parameter overrides',
-                          value: `${overridesCount} parameter override(s)`,
-                      },
+                          value: `${overridesCount} parameter override(s)`
+                      }
                   ]
-                : [],
+                : []
     };
 
     const statusByKey = new Map<string, models.ResourceStatus>();
@@ -349,9 +349,9 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 internalRoots
                     .map(root => treeNodeKey(root))
                     .concat(
-                        externalRoots.map(root => root.networkingInfo.ingress.map(ingress => ingress.hostname || ingress.ip)).reduce((first, second) => first.concat(second), []),
-                    ),
-            ),
+                        externalRoots.map(root => root.networkingInfo.ingress.map(ingress => ingress.hostname || ingress.ip)).reduce((first, second) => first.concat(second), [])
+                    )
+            )
         );
         // assign unique color to each traffic source
         sources.forEach((key, i) => colorsBySource.set(key, TRAFFIC_COLORS[i % TRAFFIC_COLORS.length]));
@@ -368,7 +368,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                         width: NODE_WIDTH,
                         type: NODE_TYPES.externalLoadBalancer,
                         label: key,
-                        color: colorsBySource.get(key),
+                        color: colorsBySource.get(key)
                     });
                     graph.setEdge(loadBalancerNodeKey, treeNodeKey(root), {colors: [colorsBySource.get(key)]});
                     graph.setEdge(EXTERNAL_TRAFFIC_NODE, loadBalancerNodeKey, {colors: [colorsBySource.get(key)]});
@@ -467,7 +467,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                                         left: xMid - distance / 2,
                                         top: yMid,
                                         backgroundImage: edge.backgroundImage,
-                                        transform: `translate(150px, 35px) rotate(${angle}deg)`,
+                                        transform: `translate(150px, 35px) rotate(${angle}deg)`
                                     }}
                                 />
                             );

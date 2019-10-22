@@ -32,7 +32,7 @@ export const services: Services = {
     repocreds: new RepoCredsService(),
     projects: new ProjectsService(),
     viewPreferences: new ViewPreferencesService(),
-    version: new VersionService(),
+    version: new VersionService()
 };
 
 export {ProjectParams, ProjectRoleParams, CreateJWTTokenParams, DeleteJWTTokenParams, JWTTokenResponse} from './projects-service';

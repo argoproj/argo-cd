@@ -69,14 +69,14 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                 } catch (e) {
                                                     ctx.notifications.show({
                                                         content: <ErrorNotification title='Unable to delete project' e={e} />,
-                                                        type: NotificationType.Error,
+                                                        type: NotificationType.Error
                                                     });
                                                 }
                                             }
-                                        },
-                                    },
-                                ],
-                            },
+                                        }
+                                    }
+                                ]
+                            }
                         }}>
                         <DataLoader load={() => services.projects.get(this.props.match.params.name)} ref={loader => (this.loader = loader)}>
                             {proj => (
@@ -91,23 +91,23 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                     {
                                                         key: 'summary',
                                                         title: 'Summary',
-                                                        content: this.summaryTab(proj),
+                                                        content: this.summaryTab(proj)
                                                     },
                                                     {
                                                         key: 'roles',
                                                         title: 'Roles',
-                                                        content: this.rolesTab(proj, ctx),
+                                                        content: this.rolesTab(proj, ctx)
                                                     },
                                                     {
                                                         key: 'windows',
                                                         title: 'Windows',
-                                                        content: this.SyncWindowsTab(proj, ctx),
+                                                        content: this.SyncWindowsTab(proj, ctx)
                                                     },
                                                     {
                                                         key: 'events',
                                                         title: 'Events',
-                                                        content: this.eventsTab(proj),
-                                                    },
+                                                        content: this.eventsTab(proj)
+                                                    }
                                                 ]}
                                             />
                                             <SlidingPanel
@@ -137,7 +137,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                             syncWindows: proj.spec.syncWindows || [],
                                                             orphanedResourcesEnabled: !!proj.spec.orphanedResources,
                                                             orphanedResourcesWarn:
-                                                                proj.spec.orphanedResources && (proj.spec.orphanedResources.warn === undefined || proj.spec.orphanedResources.warn),
+                                                                proj.spec.orphanedResources && (proj.spec.orphanedResources.warn === undefined || proj.spec.orphanedResources.warn)
                                                         }}
                                                         getApi={api => (this.projectFormApi = api)}
                                                         submit={async projParams => {
@@ -148,7 +148,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                             } catch (e) {
                                                                 ctx.notifications.show({
                                                                     content: <ErrorNotification title='Unable to edit project' e={e} />,
-                                                                    type: NotificationType.Error,
+                                                                    type: NotificationType.Error
                                                                 });
                                                             }
                                                         }}
@@ -180,7 +180,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                                 onClick={async () => {
                                                                     const confirmed = await ctx.popup.confirm(
                                                                         'Delete project role',
-                                                                        'Are you sure you want to delete project role?',
+                                                                        'Are you sure you want to delete project role?'
                                                                     );
                                                                     if (confirmed) {
                                                                         try {
@@ -190,7 +190,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                                         } catch (e) {
                                                                             ctx.notifications.show({
                                                                                 content: <ErrorNotification title='Unable to delete project role' e={e} />,
-                                                                                type: NotificationType.Error,
+                                                                                type: NotificationType.Error
                                                                             });
                                                                         }
                                                                     }
@@ -211,7 +211,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                             role:
                                                                 params.get('newRole') === null && proj.spec.roles !== undefined
                                                                     ? proj.spec.roles.find(x => params.get('editRole') === x.name)
-                                                                    : undefined,
+                                                                    : undefined
                                                         }}
                                                         getApi={(api: FormApi) => (this.projectRoleFormApi = api)}
                                                         submit={async (projRoleParams: ProjectRoleParams) => {
@@ -222,7 +222,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                             } catch (e) {
                                                                 ctx.notifications.show({
                                                                     content: <ErrorNotification title='Unable to edit project' e={e} />,
-                                                                    type: NotificationType.Error,
+                                                                    type: NotificationType.Error
                                                                 });
                                                             }
                                                         }}
@@ -274,7 +274,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                                         } catch (e) {
                                                                             ctx.notifications.show({
                                                                                 content: <ErrorNotification title='Unable to delete sync window' e={e} />,
-                                                                                type: NotificationType.Error,
+                                                                                type: NotificationType.Error
                                                                             });
                                                                         }
                                                                     }
@@ -297,7 +297,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                             id:
                                                                 params.get('newWindow') === null && proj.spec.syncWindows !== undefined
                                                                     ? Number(params.get('editWindow'))
-                                                                    : undefined,
+                                                                    : undefined
                                                         }}
                                                         getApi={(api: FormApi) => (this.projectSyncWindowsFormApi = api)}
                                                         submit={async (projectSyncWindowsParams: ProjectSyncWindowsParams) => {
@@ -308,7 +308,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                             } catch (e) {
                                                                 ctx.notifications.show({
                                                                     content: <ErrorNotification title='Unable to edit project' e={e} />,
-                                                                    type: NotificationType.Error,
+                                                                    type: NotificationType.Error
                                                                 });
                                                             }
                                                         }}
@@ -333,7 +333,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
         } catch (e) {
             notifications.show({
                 content: <ErrorNotification title='Unable to delete JWT token' e={e} />,
-                type: NotificationType.Error,
+                type: NotificationType.Error
             });
         }
     }
@@ -346,7 +346,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
         } catch (e) {
             notifications.show({
                 content: <ErrorNotification title='Unable to create JWT token' e={e} />,
-                type: NotificationType.Error,
+                type: NotificationType.Error
             });
         }
     }
@@ -409,7 +409,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                     'effect would be if it was assigned to an application, namespace or cluster. ' +
                                                     'Red: no syncs allowed. ' +
                                                     'Yellow: manual syncs allowed. ' +
-                                                    'Green: all syncs allowed',
+                                                    'Green: all syncs allowed'
                                             )}
                                         </div>
                                         <div className='columns small-2'>

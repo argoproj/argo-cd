@@ -25,7 +25,7 @@ export class RepositoriesService {
         tlsClientCertData,
         tlsClientCertKey,
         insecure,
-        enableLfs,
+        enableLfs
     }: {
         type: string;
         name: string;
@@ -49,7 +49,7 @@ export class RepositoriesService {
         url,
         sshPrivateKey,
         insecure,
-        enableLfs,
+        enableLfs
     }: {
         type: string;
         name: string;

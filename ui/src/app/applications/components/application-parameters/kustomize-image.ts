@@ -37,7 +37,7 @@ export function parse(arg: string): Image {
             name: parts[0],
             newName: overwrite.name,
             newTag: overwrite.tag,
-            digest: overwrite.digest,
+            digest: overwrite.digest
         };
     }
 

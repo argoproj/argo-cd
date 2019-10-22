@@ -64,9 +64,9 @@ const MonacoEditorLazy = React.lazy(() =>
         };
 
         return {
-            default: component,
+            default: component
         };
-    }),
+    })
 );
 
 export const MonacoEditor = (props: MonacoProps) => (

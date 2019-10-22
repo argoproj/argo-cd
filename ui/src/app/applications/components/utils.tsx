@@ -52,7 +52,7 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
         } catch (e) {
             apis.notifications.show({
                 content: <ErrorNotification title='Unable to delete application' e={e} />,
-                type: NotificationType.Error,
+                type: NotificationType.Error
             });
         }
     }
@@ -66,7 +66,7 @@ export async function createApplication(app: appModels.Application, notification
     } catch (e) {
         notifications.show({
             content: <ErrorNotification title='Unable to create application' e={e} />,
-            type: NotificationType.Error,
+            type: NotificationType.Error
         });
     }
     return false;

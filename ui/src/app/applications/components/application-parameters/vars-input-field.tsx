@@ -21,7 +21,7 @@ const VarInputEditor = (item: Var, onChange: (item: Var) => any) => (
 
 export const VarsInputField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
     const {
-        fieldApi: {getValue, setValue},
+        fieldApi: {getValue, setValue}
     } = props;
     const val = getValue() || [];
     return <ArrayInput editor={VarInputEditor} items={val} onChange={setValue} valid={hasNameAndValue} />;

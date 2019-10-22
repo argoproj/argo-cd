@@ -22,7 +22,7 @@ export const PodsLogsViewer = (props: {applicationName: string; pod: models.Reso
                         services.applications
                             .getContainerLogs(props.applicationName, props.pod.metadata.namespace, props.pod.metadata.name, container.name)
                             .map(item => item.content + '\n'),
-                    shouldRepeat: () => isRunning,
+                    shouldRepeat: () => isRunning
                 }}
             />
         </div>

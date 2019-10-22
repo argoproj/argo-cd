@@ -31,14 +31,14 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                             const selectedApps = getSelectedApps(params);
                             ctx.notifications.show({
                                 content: `Syncing ${selectedApps.length} app(s)`,
-                                type: NotificationType.Success,
+                                type: NotificationType.Success
                             });
                             const syncStrategy = (params.applyOnly ? {apply: {force: params.force}} : {hook: {force: params.force}}) as models.SyncStrategy;
                             for (const app of selectedApps) {
                                 await services.applications.sync(app.metadata.name, app.spec.source.targetRevision, params.prune, params.dryRun, syncStrategy, null).catch(e => {
                                     ctx.notifications.show({
                                         content: <ErrorNotification title={`Unable to sync ${app.metadata.name}`} e={e} />,
-                                        type: NotificationType.Error,
+                                        type: NotificationType.Error
                                     });
                                 });
                             }

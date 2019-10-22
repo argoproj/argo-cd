@@ -53,7 +53,7 @@ export class YamlEditor<T> extends React.Component<
                                                 } catch (e) {
                                                     ctx.notifications.show({
                                                         content: <ErrorNotification title='Unable to save changes' e={e} />,
-                                                        type: NotificationType.Error,
+                                                        type: NotificationType.Error
                                                     });
                                                 }
                                             }}
@@ -88,7 +88,7 @@ export class YamlEditor<T> extends React.Component<
                         options: {readOnly: !this.state.editing, minimap: {enabled: false}},
                         getApi: api => {
                             this.model = api.getModel() as monacoEditor.editor.ITextModel;
-                        },
+                        }
                     }}
                 />
             </div>

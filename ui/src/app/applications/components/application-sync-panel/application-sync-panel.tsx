@@ -37,10 +37,10 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                         <Form
                             defaultValues={{
                                 revision: application.spec.source.targetRevision || 'HEAD',
-                                resources: appResources.map((_, i) => i === syncResIndex || syncResIndex === -1),
+                                resources: appResources.map((_, i) => i === syncResIndex || syncResIndex === -1)
                             }}
                             validateError={values => ({
-                                resources: values.resources.every((item: boolean) => !item) && 'Select at least one resource',
+                                resources: values.resources.every((item: boolean) => !item) && 'Select at least one resource'
                             })}
                             onSubmit={async (params: any) => {
                                 let resources = appResources.filter((_, i) => params.resources[i]);
@@ -58,7 +58,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                 } catch (e) {
                                     ctx.notifications.show({
                                         content: <ErrorNotification title='Unable to deploy revision' e={e} />,
-                                        type: NotificationType.Error,
+                                        type: NotificationType.Error
                                     });
                                 }
                             }}
@@ -94,7 +94,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                 onClick={() =>
                                                     formApi.setValue(
                                                         'resources',
-                                                        application.status.resources.map((resource: models.ResourceStatus) => resource.status === models.SyncStatuses.OutOfSync),
+                                                        application.status.resources.map((resource: models.ResourceStatus) => resource.status === models.SyncStatuses.OutOfSync)
                                                     )
                                                 }>
                                                 out of sync

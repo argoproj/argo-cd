@@ -9,7 +9,7 @@ import {services} from '../services';
 export class Page extends React.Component<{title: string; toolbar?: Toolbar | Observable<Toolbar>}> {
     public static contextTypes = {
         router: PropTypes.object,
-        history: PropTypes.object,
+        history: PropTypes.object
     };
 
     public render() {
@@ -30,7 +30,7 @@ export class Page extends React.Component<{title: string; toolbar?: Toolbar | Ob
                                 <a key='login' onClick={() => this.goToLogin(false)}>
                                     Login
                                 </a>
-                            ),
+                            )
                         ];
                         return toolbar;
                     })

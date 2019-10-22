@@ -102,7 +102,7 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
                         labels.set(label, values);
                     }
                     values.add(app.metadata.labels[label]);
-                }),
+                })
             );
         return (
             <div className={classNames('applications-list__filters-container', {'applications-list__filters-container--expanded': this.state.expanded})}>
@@ -169,7 +169,7 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
                                     <TagsInput
                                         placeholder='https://kubernetes.default.svc'
                                         autocomplete={Array.from(new Set(applications.map(app => app.spec.destination.server).filter(item => !!item))).filter(
-                                            ns => pref.clustersFilter.indexOf(ns) === -1,
+                                            ns => pref.clustersFilter.indexOf(ns) === -1
                                         )}
                                         tags={pref.clustersFilter}
                                         onChange={selected => onChange({...pref, clustersFilter: selected})}
@@ -182,7 +182,7 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
                                     <TagsInput
                                         placeholder='*-us-west-*'
                                         autocomplete={Array.from(new Set(applications.map(app => app.spec.destination.namespace).filter(item => !!item))).filter(
-                                            ns => pref.namespacesFilter.indexOf(ns) === -1,
+                                            ns => pref.namespacesFilter.indexOf(ns) === -1
                                         )}
                                         tags={pref.namespacesFilter}
                                         onChange={selected => onChange({...pref, namespacesFilter: selected})}

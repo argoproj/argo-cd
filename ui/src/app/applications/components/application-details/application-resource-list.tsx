@@ -8,7 +8,7 @@ import {ComparisonStatusIcon, HealthStatusIcon, nodeKey} from '../utils';
 export const ApplicationResourceList = ({
     resources,
     onNodeClick,
-    nodeMenu,
+    nodeMenu
 }: {
     resources: models.ResourceStatus[];
     onNodeClick?: (fullName: string) => any;
@@ -61,7 +61,7 @@ export const ApplicationResourceList = ({
                                             info: null,
                                             uid: '',
                                             resourceVersion: null,
-                                            parentRefs: [],
+                                            parentRefs: []
                                         })
                                     }
                                 </DropDown>

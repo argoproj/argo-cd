@@ -14,7 +14,7 @@ export class RepoCredsService {
         username,
         password,
         tlsClientCertData,
-        tlsClientCertKey,
+        tlsClientCertKey
     }: {
         url: string;
         username: string;

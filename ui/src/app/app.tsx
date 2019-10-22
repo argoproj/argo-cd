@@ -26,30 +26,30 @@ const routes: {[path: string]: {component: React.ComponentType<RouteComponentPro
     '/applications': {component: applications.component},
     '/settings': {component: settings.component},
     '/user-info': {component: userInfo.component},
-    '/help': {component: help.component},
+    '/help': {component: help.component}
 };
 
 const navItems = [
     {
         title: 'Manage your applications, and diagnose health problems.',
         path: '/applications',
-        iconClassName: 'argo-icon-application',
+        iconClassName: 'argo-icon-application'
     },
     {
         title: 'Manage your repositories, projects, settings',
         path: '/settings',
-        iconClassName: 'argo-icon-settings',
+        iconClassName: 'argo-icon-settings'
     },
     {
         title: 'User Info',
         path: '/user-info',
-        iconClassName: 'fa fa-user-circle',
+        iconClassName: 'fa fa-user-circle'
     },
     {
         title: 'Read the documentation, and get help and assistance.',
         path: '/help',
-        iconClassName: 'argo-icon-docs',
-    },
+        iconClassName: 'argo-icon-docs'
+    }
 ];
 
 async function isExpiredSSO() {
@@ -86,7 +86,7 @@ requests.onError.subscribe(async err => {
 export class App extends React.Component<{}, {popupProps: PopupProps; error: Error}> {
     public static childContextTypes = {
         history: PropTypes.object,
-        apis: PropTypes.object,
+        apis: PropTypes.object
     };
 
     public static getDerivedStateFromError(error: Error) {

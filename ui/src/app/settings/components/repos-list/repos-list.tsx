@@ -49,7 +49,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
     public static contextTypes = {
         router: PropTypes.object,
         apis: PropTypes.object,
-        history: PropTypes.object,
+        history: PropTypes.object
     };
 
     private formApiSSH: FormApi;
@@ -77,22 +77,22 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                             {
                                 iconClassName: 'fa fa-plus',
                                 title: 'Connect Repo using SSH',
-                                action: () => (this.showConnectSSHRepo = true),
+                                action: () => (this.showConnectSSHRepo = true)
                             },
                             {
                                 iconClassName: 'fa fa-plus',
                                 title: 'Connect Repo using HTTPS',
-                                action: () => (this.showConnectHTTPSRepo = true),
+                                action: () => (this.showConnectHTTPSRepo = true)
                             },
                             {
                                 iconClassName: 'fa fa-redo',
                                 title: 'Refresh list',
                                 action: () => {
                                     this.refreshRepoList();
-                                },
-                            },
-                        ],
-                    },
+                                }
+                            }
+                        ]
+                    }
                 }}>
                 <div className='repos-list'>
                     <div className='argo-container'>
@@ -133,13 +133,13 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                                                     title: 'Create application',
                                                                     action: () =>
                                                                         this.appContext.apis.navigation.goto('/applications', {
-                                                                            new: JSON.stringify({spec: {source: {repoURL: repo.repo}}}),
-                                                                        }),
+                                                                            new: JSON.stringify({spec: {source: {repoURL: repo.repo}}})
+                                                                        })
                                                                 },
                                                                 {
                                                                     title: 'Disconnect',
-                                                                    action: () => this.disconnectRepo(repo.repo),
-                                                                },
+                                                                    action: () => this.disconnectRepo(repo.repo)
+                                                                }
                                                             ]}
                                                         />
                                                     </div>
@@ -234,7 +234,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                             url: (!params.url && 'Repo URL is required') || (this.credsTemplate && !this.isHTTPSUrl(params.url) && 'Not a valid HTTPS URL'),
                             name: params.type === 'helm' && !params.name && 'Name is required',
                             password: !params.password && params.username && 'Password is required if username is given.',
-                            tlsClientCertKey: !params.tlsClientCertKey && params.tlsClientCertData && 'TLS client cert key is required if TLS client cert is given.',
+                            tlsClientCertKey: !params.tlsClientCertKey && params.tlsClientCertData && 'TLS client cert key is required if TLS client cert is given.'
                         })}>
                         {formApi => (
                             <form onSubmit={formApi.submitForm} role='form' className='repos-list width-control'>
@@ -309,7 +309,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                         getApi={api => (this.formApiSSH = api)}
                         defaultValues={{type: 'git'}}
                         validateError={(params: NewSSHRepoParams) => ({
-                            url: !params.url && 'Repo URL is required',
+                            url: !params.url && 'Repo URL is required'
                         })}>
                         {formApi => (
                             <form onSubmit={formApi.submitForm} role='form' className='repos-list width-control'>
@@ -355,12 +355,12 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
             this.repoLoader.reload();
             this.appContext.apis.notifications.show({
                 content: 'Successfully reloaded list of repositories',
-                type: NotificationType.Success,
+                type: NotificationType.Success
             });
         } catch (e) {
             this.appContext.apis.notifications.show({
                 content: <ErrorNotification title='Could not refresh list of repositories' e={e} />,
-                type: NotificationType.Error,
+                type: NotificationType.Error
             });
         }
     }
@@ -389,7 +389,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
             } catch (e) {
                 this.appContext.apis.notifications.show({
                     content: <ErrorNotification title='Unable to connect SSH repository' e={e} />,
-                    type: NotificationType.Error,
+                    type: NotificationType.Error
                 });
             }
         }
@@ -403,7 +403,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                 username: params.username,
                 password: params.password,
                 tlsClientCertData: params.tlsClientCertData,
-                tlsClientCertKey: params.tlsClientCertKey,
+                tlsClientCertKey: params.tlsClientCertKey
             });
         } else {
             try {
@@ -413,7 +413,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
             } catch (e) {
                 this.appContext.apis.notifications.show({
                     content: <ErrorNotification title='Unable to connect HTTPS repository' e={e} />,
-                    type: NotificationType.Error,
+                    type: NotificationType.Error
                 });
             }
         }
@@ -427,7 +427,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
         } catch (e) {
             this.appContext.apis.notifications.show({
                 content: <ErrorNotification title='Unable to create HTTPS credentials' e={e} />,
-                type: NotificationType.Error,
+                type: NotificationType.Error
             });
         }
     }
@@ -440,7 +440,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
         } catch (e) {
             this.appContext.apis.notifications.show({
                 content: <ErrorNotification title='Unable to create SSH credentials' e={e} />,
-                type: NotificationType.Error,
+                type: NotificationType.Error
             });
         }
     }

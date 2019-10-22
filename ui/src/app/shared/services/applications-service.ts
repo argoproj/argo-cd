@@ -155,7 +155,7 @@ export class ApplicationsService {
                 resourceName: resource.name,
                 version: resource.version,
                 kind: resource.kind,
-                group: resource.group,
+                group: resource.group
             })
             .then(res => res.body as {manifest: string})
             .then(res => JSON.parse(res.manifest) as models.State);
@@ -169,7 +169,7 @@ export class ApplicationsService {
                 resourceName: resource.name,
                 version: resource.version,
                 kind: resource.kind,
-                group: resource.group,
+                group: resource.group
             })
             .then(res => (res.body.actions as models.ResourceAction[]) || []);
     }
@@ -182,7 +182,7 @@ export class ApplicationsService {
                 resourceName: resource.name,
                 version: resource.version,
                 kind: resource.kind,
-                group: resource.group,
+                group: resource.group
             })
             .send(JSON.stringify(action))
             .then(res => (res.body.actions as models.ResourceAction[]) || []);
@@ -198,7 +198,7 @@ export class ApplicationsService {
                 version: resource.version,
                 kind: resource.kind,
                 group: resource.group,
-                patchType,
+                patchType
             })
             .send(JSON.stringify(patch))
             .then(res => res.body as {manifest: string})
@@ -215,7 +215,7 @@ export class ApplicationsService {
                 version: resource.version,
                 kind: resource.kind,
                 group: resource.group,
-                force,
+                force
             })
             .send()
             .then(() => true);
@@ -234,14 +234,14 @@ export class ApplicationsService {
             namespace: string;
             name: string;
             uid: string;
-        },
+        }
     ): Promise<models.Event[]> {
         return requests
             .get(`/applications/${applicationName}/events`)
             .query({
                 resourceUID: resource.uid,
                 resourceNamespace: resource.namespace,
-                resourceName: resource.name,
+                resourceName: resource.name
             })
             .send()
             .then(res => (res.body as models.EventList).items || []);
@@ -260,14 +260,14 @@ export class ApplicationsService {
                 apiVersion: 'argoproj.io/v1alpha1',
                 kind: 'Application',
                 spec: {
-                    project: 'default',
+                    project: 'default'
                 },
                 status: {
                     resources: [],
-                    summary: {},
-                },
+                    summary: {}
+                }
             },
-            data,
+            data
         );
 
         return data as models.Application;

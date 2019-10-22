@@ -95,14 +95,14 @@ export function hasNameAndValue(item: {name?: string; value?: string}) {
 
 export const ArrayInputField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
     const {
-        fieldApi: {getValue, setValue},
+        fieldApi: {getValue, setValue}
     } = props;
     return <ArrayInput editor={NameValueEditor} items={getValue() || []} onChange={setValue} valid={hasNameAndValue} />;
 });
 
 export const MapInputField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
     const {
-        fieldApi: {getValue, setValue},
+        fieldApi: {getValue, setValue}
     } = props;
     const items = new Array<NameValue>();
     const map = getValue() || {};

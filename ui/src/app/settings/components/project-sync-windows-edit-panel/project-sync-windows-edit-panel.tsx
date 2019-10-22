@@ -11,7 +11,7 @@ import {
     ProjectSyncWindowApplicationsEdit,
     ProjectSyncWindowClusterEdit,
     ProjectSyncWindowNamespaceEdit,
-    ProjectSyncWindowScheduleEdit,
+    ProjectSyncWindowScheduleEdit
 } from '../project-sync-windows-edit/project-sync-windows-edit';
 
 interface ProjectSyncWindowsDefaultParams {
@@ -30,7 +30,7 @@ interface ProjectSyncWindowsEditPanelProps {
 export const ProjectSyncWindowsEditPanel = (props: ProjectSyncWindowsEditPanelProps) => {
     if (props.defaultParams.window === undefined) {
         const w = {
-            schedule: '* * * * *',
+            schedule: '* * * * *'
         } as models.SyncWindow;
         props.defaultParams.window = w;
     }
@@ -41,11 +41,11 @@ export const ProjectSyncWindowsEditPanel = (props: ProjectSyncWindowsEditPanelPr
                 getApi={props.getApi}
                 defaultValues={{
                     projName: props.defaultParams.projName,
-                    window: props.defaultParams.window,
+                    window: props.defaultParams.window
                 }}
                 validateError={(params: ProjectSyncWindowsParams) => ({
                     projName: !params.projName && 'Project name is required',
-                    window: !params.window && 'Window is required',
+                    window: !params.window && 'Window is required'
                 })}>
                 {api => (
                     <form onSubmit={api.submitForm} role='form' className='width-control'>

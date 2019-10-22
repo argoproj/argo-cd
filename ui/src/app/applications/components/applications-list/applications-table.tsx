@@ -80,7 +80,7 @@ export const ApplicationsTable = (props: {
                                     items={[
                                         {title: 'Sync', action: () => props.syncApplication(app.metadata.name)},
                                         {title: 'Refresh', action: () => props.refreshApplication(app.metadata.name)},
-                                        {title: 'Delete', action: () => props.deleteApplication(app.metadata.name)},
+                                        {title: 'Delete', action: () => props.deleteApplication(app.metadata.name)}
                                     ]}
                                 />
                             </div>

@@ -25,37 +25,37 @@ export const ApplicationsSummary = ({applications}: {applications: models.Applic
     const attributes = [
         {
             title: 'APPLICATIONS:',
-            value: applications.length,
+            value: applications.length
         },
         {
             title: 'SYNCED:',
-            value: applications.filter(app => app.status.sync.status === 'Synced').length,
+            value: applications.filter(app => app.status.sync.status === 'Synced').length
         },
         {
             title: 'HEALTHY:',
-            value: applications.filter(app => app.status.health.status === 'Healthy').length,
+            value: applications.filter(app => app.status.health.status === 'Healthy').length
         },
         {
             title: 'CLUSTERS:',
-            value: new Set(applications.map(app => app.spec.destination.server)).size,
+            value: new Set(applications.map(app => app.spec.destination.server)).size
         },
         {
             title: 'NAMESPACES:',
-            value: new Set(applications.map(app => app.spec.destination.namespace)).size,
-        },
+            value: new Set(applications.map(app => app.spec.destination.namespace)).size
+        }
     ];
 
     const charts = [
         {
             title: 'Sync',
             data: Array.from(sync.keys()).map(key => ({title: key, value: sync.get(key), color: syncColors.get(key as models.SyncStatusCode)})),
-            legend: syncColors as Map<string, string>,
+            legend: syncColors as Map<string, string>
         },
         {
             title: 'Health',
             data: Array.from(health.keys()).map(key => ({title: key, value: health.get(key), color: healthColors.get(key as models.HealthStatusCode)})),
-            legend: healthColors as Map<string, string>,
-        },
+            legend: healthColors as Map<string, string>
+        }
     ];
     return (
         <div className='white-box applications-list__summary'>

@@ -20,7 +20,7 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
             getApi={props.getApi}
             defaultValues={{sourceRepos: [], destinations: [], roles: [], syncWindows: [], clusterResourceWhitelist: [], namespaceResourceBlacklist: [], ...props.defaultParams}}
             validateError={(params: ProjectParams) => ({
-                name: !params.name && 'Project name is required',
+                name: !params.name && 'Project name is required'
             })}
             preSubmit={(params: ProjectParams) => {
                 params.clusterResourceWhitelist.forEach((obj: models.GroupKind) => {
@@ -51,7 +51,7 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
                                                 field={`sourceRepos[${i}]`}
                                                 component={AutocompleteField}
                                                 componentProps={{
-                                                    items: repos,
+                                                    items: repos
                                                 }}
                                             />
                                             <i className='fa fa-times' onClick={() => api.setValue('sourceRepos', removeEl(api.values.sourceRepos, i))} />
@@ -82,7 +82,7 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
                                                 options={clusters
                                                     .map(cluster => ({
                                                         value: cluster.server,
-                                                        title: clusterTitle(cluster),
+                                                        title: clusterTitle(cluster)
                                                     }))
                                                     .concat({value: '*', title: '*'})}
                                             />

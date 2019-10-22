@@ -14,7 +14,7 @@ import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage} from '../util
 
 const urlPattern = new RegExp(
     '^(https?:\\/\\/)?((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|((\\d{1,3}\\.){3}\\d{1,3}))' + '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*(\\?[;&a-z\\d%_.~+=-]*)?(\\#[-a-z\\d_]*)?$',
-    'i',
+    'i'
 );
 
 function swap(array: any[], a: number, b: number) {
@@ -35,14 +35,14 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                 <DataLoader load={() => services.projects.list().then(projs => projs.map(item => item.metadata.name))}>
                     {projects => <FormField formApi={formApi} field='spec.project' component={FormSelect} componentProps={{options: projects}} />}
                 </DataLoader>
-            ),
+            )
         },
         {
             title: 'LABELS',
             view: Object.keys(app.metadata.labels || {})
                 .map(label => `${label}=${app.metadata.labels[label]}`)
                 .join(' '),
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='metadata.labels' component={MapInputField} />,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='metadata.labels' component={MapInputField} />
         },
         {
             title: 'CLUSTER',
@@ -53,23 +53,23 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                         services.clusters.list().then(clusters =>
                             clusters.map(cluster => ({
                                 title: clusterTitle(cluster),
-                                value: cluster.server,
-                            })),
+                                value: cluster.server
+                            }))
                         )
                     }>
                     {clusters => <FormField formApi={formApi} field='spec.destination.server' componentProps={{options: clusters}} component={FormSelect} />}
                 </DataLoader>
-            ),
+            )
         },
         {
             title: 'NAMESPACE',
             view: app.spec.destination.namespace,
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.destination.namespace' component={Text} />,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.destination.namespace' component={Text} />
         },
         {
             title: 'REPO URL',
             view: <Repo url={app.spec.source.repoURL} />,
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.repoURL' component={Text} />,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.repoURL' component={Text} />
         },
         ...(isHelm
             ? [
@@ -93,7 +93,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                                               component={AutocompleteField}
                                               componentProps={{
                                                   items: charts.map(chart => chart.name),
-                                                  filterSuggestions: true,
+                                                  filterSuggestions: true
                                               }}
                                           />
                                       </div>
@@ -110,7 +110,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                                                       field='spec.source.targetRevision'
                                                       component={AutocompleteField}
                                                       componentProps={{
-                                                          items: versions,
+                                                          items: versions
                                                       }}
                                                   />
                                               </div>
@@ -119,20 +119,20 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                                   </div>
                               )}
                           </DataLoader>
-                      ),
-                  },
+                      )
+                  }
               ]
             : [
                   {
                       title: 'TARGET REVISION',
                       view: <Revision repoUrl={app.spec.source.repoURL} revision={app.spec.source.targetRevision || 'HEAD'} />,
-                      edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.targetRevision' component={Text} componentProps={{placeholder: 'HEAD'}} />,
+                      edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.targetRevision' component={Text} componentProps={{placeholder: 'HEAD'}} />
                   },
                   {
                       title: 'PATH',
                       view: app.spec.source.path,
-                      edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.path' component={Text} />,
-                  },
+                      edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.path' component={Text} />
+                  }
               ]),
         {
             title: 'STATUS',
@@ -140,7 +140,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                 <span>
                     <ComparisonStatusIcon status={app.status.sync.status} /> {app.status.sync.status} {syncStatusMessage(app)}
                 </span>
-            ),
+            )
         },
         {
             title: 'HEALTH',
@@ -148,8 +148,8 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                 <span>
                     <HealthStatusIcon state={app.status.health} /> {app.status.health.status}
                 </span>
-            ),
-        },
+            )
+        }
     ];
 
     const urls = app.status.summary.externalURLs || [];
@@ -164,7 +164,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                         </a>
                     ))}
                 </React.Fragment>
-            ),
+            )
         });
     }
 
@@ -179,7 +179,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                         </span>
                     ))}
                 </div>
-            ),
+            )
         });
     }
 
@@ -256,7 +256,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                         }}
                     />
                 </React.Fragment>
-            ),
+            )
         }))
         .concat({
             key: '-1',
@@ -271,7 +271,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                 </button>
             ),
             view: null as any,
-            edit: null,
+            edit: null
         });
     const [badgeType, setBadgeType] = React.useState('URL');
     const badgeURL = `${location.protocol}//${location.host}/api/badge?name=${props.app.metadata.name}`;
@@ -284,7 +284,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                 validate={input => ({
                     'spec.project': !input.spec.project && 'Project name is required',
                     'spec.destination.server': !input.spec.destination.server && 'Cluster is required',
-                    'spec.destination.namespace': !input.spec.destination.namespace && 'Namespace is required',
+                    'spec.destination.namespace': !input.spec.destination.namespace && 'Namespace is required'
                 })}
                 values={app}
                 title={app.metadata.name.toLocaleUpperCase()}
@@ -328,7 +328,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                                                             'Disable Prune Resources?',
                                                             'Are you sure you want to disable resource pruning during automated application synchronization?',
                                                             false,
-                                                            app.spec.syncPolicy.automated.selfHeal,
+                                                            app.spec.syncPolicy.automated.selfHeal
                                                         )
                                                     }>
                                                     Disable
@@ -342,7 +342,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                                                             'Enable Prune Resources?',
                                                             'Are you sure you want to enable resource pruning during automated application synchronization?',
                                                             true,
-                                                            app.spec.syncPolicy.automated.selfHeal,
+                                                            app.spec.syncPolicy.automated.selfHeal
                                                         )
                                                     }>
                                                     Enable
@@ -362,7 +362,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                                                             'Disable Self Heal?',
                                                             'Are you sure you want to disable automated self healing?',
                                                             app.spec.syncPolicy.automated.prune,
-                                                            false,
+                                                            false
                                                         )
                                                     }>
                                                     Disable
@@ -376,7 +376,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                                                             'Enable Self Heal?',
                                                             'Are you sure you want to enable automated self healing?',
                                                             app.spec.syncPolicy.automated.prune,
-                                                            true,
+                                                            true
                                                         )
                                                     }>
                                                     Enable

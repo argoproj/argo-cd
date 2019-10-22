@@ -36,7 +36,7 @@ export const ApplicationResourcesDiff = (props: ApplicationResourcesDiffProps) =
                         b: target ? jsYaml.safeDump(target, {indent: 2}) : '',
                         hook: state.hook,
                         // doubles as sort order
-                        name: (state.group || '') + '/' + state.kind + '/' + state.namespace + '/' + state.name,
+                        name: (state.group || '') + '/' + state.kind + '/' + state.namespace + '/' + state.name
                     };
                 })
                 .filter(i => !i.hook)
@@ -64,8 +64,8 @@ ${formatLines(diffLines(i.a, i.b), {context, aname: `a/${name}}`, bname: `b/${i.
                                 services.viewPreferences.updatePreferences({
                                     appDetails: {
                                         ...pref.appDetails,
-                                        compactDiff: !pref.appDetails.compactDiff,
-                                    },
+                                        compactDiff: !pref.appDetails.compactDiff
+                                    }
                                 })
                             }
                         />
@@ -77,8 +77,8 @@ ${formatLines(diffLines(i.a, i.b), {context, aname: `a/${name}}`, bname: `b/${i.
                                 services.viewPreferences.updatePreferences({
                                     appDetails: {
                                         ...pref.appDetails,
-                                        inlineDiff: !pref.appDetails.inlineDiff,
-                                    },
+                                        inlineDiff: !pref.appDetails.inlineDiff
+                                    }
                                 })
                             }
                         />
@@ -90,8 +90,8 @@ ${formatLines(diffLines(i.a, i.b), {context, aname: `a/${name}}`, bname: `b/${i.
                                 services.viewPreferences.updatePreferences({
                                     appDetails: {
                                         ...pref.appDetails,
-                                        hideDefaultedFields: !pref.appDetails.hideDefaultedFields,
-                                    },
+                                        hideDefaultedFields: !pref.appDetails.hideDefaultedFields
+                                    }
                                 })
                             }
                         />

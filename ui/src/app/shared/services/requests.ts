@@ -17,7 +17,7 @@ enum ReadyState {
     CONNECTING = 0,
     OPEN = 1,
     CLOSED = 2,
-    DONE = 4,
+    DONE = 4
 }
 
 const agent: superagent.SuperAgentStatic = superagentPromise(superagent, global.Promise);
@@ -82,5 +82,5 @@ export default {
                 eventSource.close();
             };
         });
-    },
+    }
 };
