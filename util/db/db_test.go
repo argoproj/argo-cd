@@ -296,33 +296,35 @@ func TestUpdateRepositoryWithManagedSecrets(t *testing.T) {
 }
 
 func TestGetClusterSuccessful(t *testing.T) {
-	clusterURL := "https://mycluster"
+	server := "my-cluster"
+	name := "my-name"
 	clientset := getClientset(nil, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mycluster-443",
 			Namespace: testNamespace,
 			Labels: map[string]string{
 				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 			},
 		},
 		Data: map[string][]byte{
-			"server": []byte(clusterURL),
+			"server": []byte(server),
+			"name":   []byte(name),
 			"config": []byte("{}"),
 		},
 	})
 
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
-	cluster, err := db.GetCluster(context.Background(), clusterURL)
-	assert.Nil(t, err)
-	assert.Equal(t, clusterURL, cluster.Server)
+	cluster, err := db.GetCluster(context.Background(), server)
+	assert.NoError(t, err)
+	assert.Equal(t, server, cluster.Server)
+	assert.Equal(t, name, cluster.Name)
 }
 
 func TestGetNonExistingCluster(t *testing.T) {
-	clusterURL := "https://mycluster"
+	server := "https://mycluster"
 	clientset := getClientset(nil)
 
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
-	_, err := db.GetCluster(context.Background(), clusterURL)
+	_, err := db.GetCluster(context.Background(), server)
 	assert.NotNil(t, err)
 	status, ok := status.FromError(err)
 	assert.True(t, ok)
@@ -330,19 +332,19 @@ func TestGetNonExistingCluster(t *testing.T) {
 }
 
 func TestCreateClusterSuccessful(t *testing.T) {
-	clusterURL := "https://mycluster"
+	server := "https://mycluster"
 	clientset := getClientset(nil)
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 
 	_, err := db.CreateCluster(context.Background(), &v1alpha1.Cluster{
-		Server: clusterURL,
+		Server: server,
 	})
 	assert.Nil(t, err)
 
 	secret, err := clientset.CoreV1().Secrets(testNamespace).Get("cluster-mycluster-3274446258", metav1.GetOptions{})
 	assert.Nil(t, err)
 
-	assert.Equal(t, clusterURL, string(secret.Data["server"]))
+	assert.Equal(t, server, string(secret.Data["server"]))
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
 }
 
