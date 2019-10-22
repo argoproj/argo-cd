@@ -793,6 +793,16 @@ message RevisionMetadata {
   optional string message = 4;
 }
 
+message RuleCondition {
+  optional string kind = 1;
+
+  optional string key = 2;
+
+  optional string operator = 3;
+
+  repeated string values = 4;
+}
+
 // SyncOperation contains sync operation details.
 message SyncOperation {
   // Revision is the revision in which to sync the application to.
@@ -900,17 +910,11 @@ message SyncWindow {
   // Duration is the amount of time the sync window will be open
   optional string duration = 3;
 
-  // Applications contains a list of applications that the window will apply to
-  repeated string applications = 4;
-
-  // Namespaces contains a list of namespaces that the window will apply to
-  repeated string namespaces = 5;
-
-  // Clusters contains a list of clusters that the window will apply to
-  repeated string clusters = 6;
+  // Rules used for assigning applications to windows
+  repeated WindowRule rules = 4;
 
   // ManualSync enables manual syncs when they would otherwise be blocked
-  optional bool manualSync = 7;
+  optional bool manualSync = 5;
 }
 
 // TLSClientConfig contains settings to enable transport layer security
@@ -934,5 +938,9 @@ message TLSClientConfig {
   // CAData holds PEM-encoded bytes (typically read from a root certificates bundle).
   // CAData takes precedence over CAFile
   optional bytes caData = 5;
+}
+
+message WindowRule {
+  repeated RuleCondition conditions = 1;
 }
 

@@ -8,9 +8,7 @@ import * as models from '../../../shared/models';
 
 import { ProjectSyncWindowsParams } from '../../../shared/services/projects-service';
 import {
-    ProjectSyncWindowApplicationsEdit,
-    ProjectSyncWindowClusterEdit,
-    ProjectSyncWindowNamespaceEdit,
+    ProjectSyncWindowRulesEdit,
     ProjectSyncWindowScheduleEdit,
 } from '../project-sync-windows-edit/project-sync-windows-edit';
 
@@ -66,15 +64,7 @@ export const ProjectSyncWindowsEditPanel = (props: ProjectSyncWindowsEditPanelPr
                     <div className='argo-form-row'>
                         <FormField formApi={api} label='Enable manual sync' field='window.manualSync' component={CheckboxField}/>
                     </div>
-                    <ProjectSyncWindowApplicationsEdit
-                        projName={api.values.projName}
-                        window={api.values.window}
-                        formApi={api}/>
-                    <ProjectSyncWindowNamespaceEdit
-                        projName={api.values.projName}
-                        window={api.values.window}
-                        formApi={api}/>
-                    <ProjectSyncWindowClusterEdit
+                    <ProjectSyncWindowRulesEdit
                         projName={api.values.projName}
                         window={api.values.window}
                         formApi={api}/>

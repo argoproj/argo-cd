@@ -1071,37 +1071,46 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 
 func TestAppProjectSpec_AddWindow(t *testing.T) {
 	proj := newTestProjectWithSyncWindows()
+	rules := WindowRules{
+		WindowRule{
+			Conditions: []RuleCondition{
+				{
+					Kind:     ConditionKindLabel,
+					Key:      "appType",
+					Operator: ConditionOperatorIn,
+					Values:   []string{"webserver"},
+				},
+			},
+		},
+	}
 	tests := []struct {
 		name string
 		p    *AppProject
 		k    string
 		s    string
 		d    string
-		a    []string
-		n    []string
-		c    []string
+		r    WindowRules
 		m    bool
 		want string
 	}{
-		{"MissingKind", proj, "", "* * * * *", "11", []string{"app1"}, []string{}, []string{}, false, "error"},
-		{"MissingSchedule", proj, "allow", "", "", []string{"app1"}, []string{}, []string{}, false, "error"},
-		{"MissingDuration", proj, "allow", "* * * * *", "", []string{"app1"}, []string{}, []string{}, false, "error"},
-		{"BadSchedule", proj, "allow", "* * *", "1h", []string{"app1"}, []string{}, []string{}, false, "error"},
-		{"BadDuration", proj, "deny", "* * * * *", "33mm", []string{"app1"}, []string{}, []string{}, false, "error"},
-		{"WorkingApplication", proj, "allow", "1 * * * *", "1h", []string{"app1"}, []string{}, []string{}, false, "noError"},
-		{"WorkingNamespace", proj, "deny", "3 * * * *", "1h", []string{}, []string{}, []string{"cluster"}, false, "noError"},
+		{"MissingKind", proj, "", "* * * * *", "11", rules, false, "error"},
+		{"MissingSchedule", proj, "allow", "", "", rules, false, "error"},
+		{"MissingDuration", proj, "allow", "* * * * *", "", rules, false, "error"},
+		{"BadSchedule", proj, "allow", "* * *", "1h", rules, false, "error"},
+		{"BadDuration", proj, "deny", "* * * * *", "33mm", rules, false, "error"},
+		{"WorkingApplication", proj, "allow", "1 * * * *", "1h", rules, false, "noError"},
+		{"WorkingNamespace", proj, "deny", "3 * * * *", "1h", rules, false, "noError"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			switch tt.want {
 			case "error":
-				assert.Error(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m))
+				assert.Error(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.r, tt.m))
 			case "noError":
-				assert.NoError(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m))
+				assert.NoError(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.r, tt.m))
 				assert.NoError(t, tt.p.Spec.DeleteWindow(0))
 			}
 		})
-
 	}
 }
 
@@ -1124,33 +1133,89 @@ func TestAppProjectSpec_DeleteWindow(t *testing.T) {
 func TestSyncWindows_Matches(t *testing.T) {
 	proj := newTestProjectWithSyncWindows()
 	app := newTestApp()
-	t.Run("MatchNamespace", func(t *testing.T) {
-		proj.Spec.SyncWindows[0].Namespaces = []string{"default"}
+	t.Run("MatchLabelInAndNotInCombined", func(t *testing.T) {
+		proj.Spec.SyncWindows[0].Rules = WindowRules{
+			WindowRule{
+				Conditions: []RuleCondition{
+					{
+						Kind:     ConditionKindLabel,
+						Key:      "appType",
+						Operator: ConditionOperatorIn,
+						Values:   []string{"webserver"},
+					},
+					{
+						Kind:     ConditionKindLabel,
+						Key:      "env",
+						Operator: ConditionOperatorNotIn,
+						Values:   []string{"production"},
+					},
+				},
+			},
+		}
+		app.Labels = map[string]string{"appType": "webserver", "env": "dev"}
 		windows := proj.Spec.SyncWindows.Matches(app)
 		assert.Equal(t, 1, len(*windows))
-		proj.Spec.SyncWindows[0].Namespaces = nil
 	})
-	t.Run("MatchCluster", func(t *testing.T) {
-		proj.Spec.SyncWindows[0].Clusters = []string{"cluster1"}
+	t.Run("MatchLabelExists", func(t *testing.T) {
+		proj.Spec.SyncWindows[0].Rules = WindowRules{
+			WindowRule{
+				Conditions: []RuleCondition{
+					{
+						Kind:     ConditionKindLabel,
+						Key:      "appType",
+						Operator: ConditionOperatorExists,
+					},
+				},
+			},
+		}
+		app.Labels = map[string]string{"appType": "webserver"}
 		windows := proj.Spec.SyncWindows.Matches(app)
 		assert.Equal(t, 1, len(*windows))
-		proj.Spec.SyncWindows[0].Clusters = nil
 	})
-	t.Run("MatchAppName", func(t *testing.T) {
-		proj.Spec.SyncWindows[0].Applications = []string{"test-app"}
+	t.Run("TestApplicationMatchUsingRules", func(t *testing.T) {
+		proj.Spec.SyncWindows[0].Rules = WindowRules{
+			WindowRule{
+				Conditions: []RuleCondition{
+					{
+						Kind:     ConditionKindApplication,
+						Operator: ConditionOperatorIn,
+						Values:   []string{"test-app"},
+					},
+				},
+			},
+		}
 		windows := proj.Spec.SyncWindows.Matches(app)
 		assert.Equal(t, 1, len(*windows))
-		proj.Spec.SyncWindows[0].Applications = nil
 	})
-	t.Run("MatchWildcardAppName", func(t *testing.T) {
-		proj.Spec.SyncWindows[0].Applications = []string{"test-*"}
+	t.Run("TestNamespaceMatchUsingRules", func(t *testing.T) {
+		proj.Spec.SyncWindows[0].Rules = WindowRules{
+			WindowRule{
+				Conditions: []RuleCondition{
+					{
+						Kind:     ConditionKindNamespace,
+						Operator: ConditionOperatorNotIn,
+						Values:   []string{"public"},
+					},
+				},
+			},
+		}
 		windows := proj.Spec.SyncWindows.Matches(app)
 		assert.Equal(t, 1, len(*windows))
-		proj.Spec.SyncWindows[0].Applications = nil
 	})
-	t.Run("NoMatch", func(t *testing.T) {
+	t.Run("TestClusterMatchUsingRules", func(t *testing.T) {
+		proj.Spec.SyncWindows[0].Rules = WindowRules{
+			WindowRule{
+				Conditions: []RuleCondition{
+					{
+						Kind:     ConditionKindCluster,
+						Operator: ConditionOperatorIn,
+						Values:   []string{"cluster1"},
+					},
+				},
+			},
+		}
 		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Nil(t, windows)
+		assert.Equal(t, 1, len(*windows))
 	})
 }
 
@@ -1346,35 +1411,25 @@ func TestSyncWindow_Active(t *testing.T) {
 }
 
 func TestSyncWindow_Update(t *testing.T) {
-	e := SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h", Applications: []string{"app1"}}
-	t.Run("AddApplication", func(t *testing.T) {
-		err := e.Update("", "", []string{"app1", "app2"}, []string{}, []string{})
+	e := SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
+	t.Run("ChangeKind", func(t *testing.T) {
+		err := e.Update("deny", "", "")
 		assert.NoError(t, err)
-		assert.Equal(t, []string{"app1", "app2"}, e.Applications)
-	})
-	t.Run("AddNamespace", func(t *testing.T) {
-		err := e.Update("", "", []string{}, []string{"namespace1"}, []string{})
-		assert.NoError(t, err)
-		assert.Equal(t, []string{"namespace1"}, e.Namespaces)
-	})
-	t.Run("AddCluster", func(t *testing.T) {
-		err := e.Update("", "", []string{}, []string{}, []string{"cluster1"})
-		assert.NoError(t, err)
-		assert.Equal(t, []string{"cluster1"}, e.Clusters)
-	})
-	t.Run("MissingConfig", func(t *testing.T) {
-		err := e.Update("", "", []string{}, []string{}, []string{})
-		assert.EqualError(t, err, "cannot update: require one or more of schedule, duration, application, namespace, or cluster")
+		assert.Equal(t, "deny", e.Kind)
 	})
 	t.Run("ChangeDuration", func(t *testing.T) {
-		err := e.Update("", "10h", []string{}, []string{}, []string{})
+		err := e.Update("", "", "4h")
 		assert.NoError(t, err)
-		assert.Equal(t, "10h", e.Duration)
+		assert.Equal(t, "4h", e.Duration)
 	})
 	t.Run("ChangeSchedule", func(t *testing.T) {
-		err := e.Update("* 1 0 0 *", "", []string{}, []string{}, []string{})
+		err := e.Update("", "0 0 * * *", "")
 		assert.NoError(t, err)
-		assert.Equal(t, "* 1 0 0 *", e.Schedule)
+		assert.Equal(t, "0 0 * * *", e.Schedule)
+	})
+	t.Run("MissingConfig", func(t *testing.T) {
+		err := e.Update("", "", "")
+		assert.EqualError(t, err, "cannot update: require one or more of kind, schedule or duration")
 	})
 }
 
@@ -1400,17 +1455,75 @@ func TestSyncWindow_Validate(t *testing.T) {
 	})
 }
 
-func TestApplicationStatus_GetConditions(t *testing.T) {
-	status := ApplicationStatus{
-		Conditions: []ApplicationCondition{
-			{Type: ApplicationConditionInvalidSpecError},
-			{Type: ApplicationConditionRepeatedResourceWarning},
-		},
-	}
-	conditions := status.GetConditions(map[ApplicationConditionType]bool{
-		ApplicationConditionInvalidSpecError: true,
+func TestWindowRule_Match(t *testing.T) {
+	proj := newTestProjectWithSyncWindows()
+	app := newTestApp()
+	t.Run("AppMatches", func(t *testing.T) {
+		assert.True(t, proj.Spec.SyncWindows[0].Rules[0].Match(app))
 	})
-	assert.EqualValues(t, []ApplicationCondition{{Type: ApplicationConditionInvalidSpecError}}, conditions)
+	t.Run("NoMatch", func(t *testing.T) {
+		proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Values = []string{"changed-name"}
+		assert.False(t, proj.Spec.SyncWindows[0].Rules[0].Match(app))
+	})
+}
+
+func TestRuleCondition_Match(t *testing.T) {
+	proj := newTestProjectWithSyncWindows()
+	app := newTestApp()
+
+	t.Run("ApplicationMatches", func(t *testing.T) {
+		assert.True(t, proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Match(app))
+	})
+	t.Run("ApplicationMatches", func(t *testing.T) {
+		proj.Spec.SyncWindows[0].Rules = WindowRules{
+			WindowRule{
+				Conditions: []RuleCondition{
+					{
+						Kind:     ConditionKindNamespace,
+						Operator: ConditionOperatorIn,
+						Values:   []string{"default"},
+					},
+				},
+			},
+		}
+		assert.True(t, proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Match(app))
+	})
+	t.Run("ApplicationMatches", func(t *testing.T) {
+		proj.Spec.SyncWindows[0].Rules = WindowRules{
+			WindowRule{
+				Conditions: []RuleCondition{
+					{
+						Kind:     ConditionKindCluster,
+						Operator: ConditionOperatorIn,
+						Values:   []string{"cluster1"},
+					},
+				},
+			},
+		}
+		assert.True(t, proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Match(app))
+	})
+}
+
+func TestRuleCondition_MatchExists(t *testing.T) {
+	proj := newTestProjectWithSyncWindows()
+	app := newTestApp()
+
+	t.Run("MatchExists", func(t *testing.T) {
+		proj.Spec.SyncWindows[0].Rules = WindowRules{
+			WindowRule{
+				Conditions: []RuleCondition{
+					{
+						Kind:     ConditionKindLabel,
+						Key:      "appType",
+						Operator: ConditionOperatorExists,
+					},
+				},
+			},
+		}
+		app.Labels = map[string]string{"appType": "webserver"}
+		assert.True(t, proj.Spec.SyncWindows[0].Rules[0].Conditions[0].MatchExists(app))
+	})
+
 }
 
 func newTestProjectWithSyncWindows() *AppProject {
@@ -1418,12 +1531,23 @@ func newTestProjectWithSyncWindows() *AppProject {
 		ObjectMeta: metav1.ObjectMeta{Name: "my-proj"},
 		Spec:       AppProjectSpec{SyncWindows: SyncWindows{}}}
 
+	rules := WindowRules{
+		WindowRule{
+			Conditions: []RuleCondition{
+				{
+					Kind:     ConditionKindApplication,
+					Operator: ConditionOperatorIn,
+					Values:   []string{"test-app"},
+				},
+			},
+		},
+	}
+
 	window := &SyncWindow{
-		Kind:         "allow",
-		Schedule:     "* * * * *",
-		Duration:     "1h",
-		Applications: []string{"app1"},
-		Namespaces:   []string{"public"},
+		Kind:     "allow",
+		Schedule: "* * * * *",
+		Duration: "1h",
+		Rules:    rules,
 	}
 	p.Spec.SyncWindows = append(p.Spec.SyncWindows, window)
 	return p
@@ -1440,6 +1564,19 @@ func newTestApp() *Application {
 		},
 	}
 	return a
+}
+
+func TestApplicationStatus_GetConditions(t *testing.T) {
+	status := ApplicationStatus{
+		Conditions: []ApplicationCondition{
+			{Type: ApplicationConditionInvalidSpecError},
+			{Type: ApplicationConditionRepeatedResourceWarning},
+		},
+	}
+	conditions := status.GetConditions(map[ApplicationConditionType]bool{
+		ApplicationConditionInvalidSpecError: true,
+	})
+	assert.EqualValues(t, []ApplicationCondition{{Type: ApplicationConditionInvalidSpecError}}, conditions)
 }
 
 func testCond(t ApplicationConditionType, msg string, lastTransitionTime *metav1.Time) ApplicationCondition {

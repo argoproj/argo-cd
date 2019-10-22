@@ -562,7 +562,21 @@ export interface SyncWindow {
     applications: string[];
     namespaces: string[];
     clusters: string[];
+    rules: WindowRules;
     manualSync: boolean;
+}
+
+export type WindowRules = WindowRule[];
+
+export interface WindowRule {
+    conditions: RuleCondition[];
+}
+
+export interface RuleCondition {
+    kind: string;
+    key?: string;
+    operator: string;
+    values?: string[];
 }
 
 export interface Project {

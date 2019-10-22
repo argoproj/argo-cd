@@ -1,7 +1,7 @@
 import { Tooltip } from 'argo-ui';
 import * as React from 'react';
 import * as ReactForm from 'react-form';
-import {SyncWindow} from '../../../shared/models';
+import {RuleCondition, SyncWindow, WindowRule} from '../../../shared/models';
 
 interface ProjectSyncWindowProps {
     projName: string;
@@ -17,144 +17,8 @@ function helpTip(text: string) {
     );
 }
 
-export const ProjectSyncWindowApplicationsEdit = (props: ProjectSyncWindowProps) => (
-    <React.Fragment>
-        <h6>Applications</h6>
-        <div>Manage applications assigned to this window ("*" for any)</div>
-        <div className='argo-table-list__row'>
-            {(props.window.applications || []).map((a, i) => (
-                <Attribute key={i} field={['window.applications', i]}
-                        formApi={props.formApi}
-                        projName={props.projName}
-                        deleteApp={() => props.formApi.setValue('window.applications', removeEl(props.window.applications, i))}
-                />
-            ))}
-            <div className='row'>
-                <div className='columns small-6'>
-                    <a onClick={() => {
-                        const newA = '';
-                        props.formApi.setValue('window.applications', (props.formApi.values.window.applications || []).concat(newA));
-                    }}>Add Application</a>
-                </div>
-            </div>
-        </div>
-    </React.Fragment>
-);
-
-export const ProjectSyncWindowNamespaceEdit = (props: ProjectSyncWindowProps) => (
-    <React.Fragment>
-        <h6>Namespaces</h6>
-        <div>Manage namespaces assigned to this window ("*" for any)</div>
-        <div className='argo-table-list__row'>
-            {(props.window.namespaces || []).map((n, i) => (
-                <Attribute key={i} field={['window.namespaces', i]}
-                           formApi={props.formApi}
-                           projName={props.projName}
-                           deleteApp={() => props.formApi.setValue('window.namespaces', removeEl(props.window.namespaces, i))}
-                />
-            ))}
-            <div className='row'>
-                <div className='columns small-6'>
-                    <a onClick={() => {
-                        const newN = '';
-                        props.formApi.setValue('window.namespaces', (props.formApi.values.window.namespaces || []).concat(newN));
-                    }}>Add Namespace</a>
-                </div>
-            </div>
-        </div>
-    </React.Fragment>
-);
-
-export const ProjectSyncWindowClusterEdit = (props: ProjectSyncWindowProps) => (
-    <React.Fragment>
-        <h6>Clusters</h6>
-        <div>Manage clusters assigned to this window ("*" for any)</div>
-        <div className='argo-table-list__row'>
-            {(props.window.clusters || []).map((c, i) => (
-                <Attribute key={i} field={['window.clusters', i]}
-                           formApi={props.formApi}
-                           projName={props.projName}
-                           deleteApp={() => props.formApi.setValue('window.clusters', removeEl(props.window.clusters, i))}
-                />
-            ))}
-            <div className='row'>
-                <div className='columns small-6'>
-                    <a onClick={() => {
-                        const newC = '';
-                        props.formApi.setValue('window.clusters', (props.formApi.values.window.clusters || []).concat(newC));
-                    }}>Add Cluster</a>
-                </div>
-            </div>
-        </div>
-    </React.Fragment>
-);
-
-interface AttributeProps {
-    projName: string;
-    roleName: string;
-    fieldApi: ReactForm.FieldApi;
-    deleteApp: () => void;
-}
-
-function removeEl(items: any[], index: number) {
-    items.splice(index, 1);
-    return items;
-}
-
-class AttributeWrapper extends React.Component<AttributeProps, any> {
-
-    public render() {
-        return (
-                <div className='row'>
-                    <div className='columns small-6'>
-                        <input className='argo-field' value={this.getApplication()} onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                            this.setApplication(e.target.value);
-                        }}/>
-                    </div>
-                    <div className='columns small-1'>
-                        <i className='fa fa-times' onClick={() => this.props.deleteApp()} style={{cursor: 'pointer'}}/>
-                    </div>
-                </div>
-        );
-    }
-
-    private getApplication(): string {
-        return this.props.fieldApi.getValue();
-    }
-
-    private setApplication(application: string) {
-        this.props.fieldApi.setValue(application);
-    }
-}
-
-const Attribute = ReactForm.FormField(AttributeWrapper);
-
 function generateSchedule(minute?: string, hour?: string, dom?: string, month?: string, dow?: string): string {
     return `${minute} ${hour} ${dom} ${month} ${dow}`;
-}
-
-export const ProjectSyncWindowScheduleEdit = (props: ProjectSyncWindowProps) => (
-    <React.Fragment>
-        <h6>Schedule</h6>
-        <div className='argo-table-list__head'>
-            <div className='row'>
-                <div className='columns small-2'>Minute{helpTip('The minute/minutes assigned to the schedule')}</div>
-                <div className='columns small-2'>Hour{helpTip('The hour/hours assigned to the schedule')}</div>
-                <div className='columns small-2'>Day Of The Month{helpTip('The day/days of the month assigned to the schedule')}</div>
-                <div className='columns small-2'>Month{helpTip('The month/months assigned to the schedule.')}</div>
-                <div className='columns small-2'>Day Of the Week{helpTip('The day/days of the week assigned to the schedule')}</div>
-            </div>
-        </div>
-        <div className='row project-sync-windows-panel__form-row'>
-            <Schedule key='schedule' field={'window.schedule'}
-                    formApi={props.formApi}
-            />
-        </div>
-    </React.Fragment>
-);
-
-interface ScheduleProps {
-    fieldApi: ReactForm.FieldApi;
 }
 
 function generateRange(limit: number, zeroStart: boolean): string[] {
@@ -213,6 +77,30 @@ function setRanges(config: string[]): string {
         }
     }
     return values.join(',');
+}
+
+export const ProjectSyncWindowScheduleEdit = (props: ProjectSyncWindowProps) => (
+    <React.Fragment>
+        <h6>Schedule</h6>
+        <div className='argo-table-list__head'>
+            <div className='row'>
+                <div className='columns small-2'>Minute{helpTip('The minute/minutes assigned to the schedule')}</div>
+                <div className='columns small-2'>Hour{helpTip('The hour/hours assigned to the schedule')}</div>
+                <div className='columns small-2'>Day Of The Month{helpTip('The day/days of the month assigned to the schedule')}</div>
+                <div className='columns small-2'>Month{helpTip('The month/months assigned to the schedule.')}</div>
+                <div className='columns small-2'>Day Of the Week{helpTip('The day/days of the week assigned to the schedule')}</div>
+            </div>
+        </div>
+        <div className='row project-sync-windows-panel__form-row'>
+            <Schedule key='schedule' field={'window.schedule'}
+                      formApi={props.formApi}
+            />
+        </div>
+    </React.Fragment>
+);
+
+interface ScheduleProps {
+    fieldApi: ReactForm.FieldApi;
 }
 
 class ScheduleWrapper extends React.Component<ScheduleProps, any> {
@@ -361,3 +249,219 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
 }
 
 const Schedule = ReactForm.FormField(ScheduleWrapper);
+
+function newRule(): WindowRule {
+    const r = {
+        conditions: [],
+    } as WindowRule;
+    const c = {
+        kind: 'application',
+        operator: 'in',
+        values: [],
+    } as RuleCondition;
+    r.conditions.push(c);
+
+    return r;
+}
+
+export const ProjectSyncWindowRulesEdit = (props: ProjectSyncWindowProps) => (
+    <React.Fragment>
+        <h6>Rules</h6>
+        <div className='argo-table-list argo-table-list--clickable'>
+            <div className='argo-table-list__head'>
+                <div className='row'>
+                    <div className='columns small-1'>
+                        ID
+                    </div>
+                    <div className='columns small-11'>
+                        RULE
+                    </div>
+                </div>
+            </div>
+            {(props.window.rules || []).map((rule, i) => (
+                <div className='argo-table-list__row' key={`${i}`} >
+                    <div className='row'>
+                        <div className='columns small-1' >{i}</div>
+                        <div className='columns small-11'>
+                            <Rule key={i} field={['window.rules', i]}
+                                  formApi={props.formApi}
+                            />
+                        </div>
+                    </div>
+                </div>
+            ))}
+            <div className='columns small-3'>
+                <a onClick={() => {
+                    props.formApi.setValue('window.rules', (props.formApi.values.window.rules || []).concat(newRule()));
+                }}>Add Rule</a>
+            </div>
+        </div>
+    </React.Fragment>
+);
+
+interface RuleProps {
+    projName: string;
+    roleName: string;
+    fieldApi: ReactForm.FieldApi;
+}
+
+class RuleWrapper extends React.Component<RuleProps, any> {
+
+    public render() {
+        return (
+            <div>
+                {(this.props.fieldApi.getValue().conditions.map((comp: RuleCondition, i: number) => (
+                    <div className='row'>
+                        <div className='columns small-2'>
+                            <select className='argo-field' value={this.getKind(comp)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                                this.setKind(i, e.target.value);
+                            }}>
+                                <option key='application'>application</option>
+                                <option key='namespace'>namespace</option>
+                                <option key='cluster'>cluster</option>
+                                <option key='label'>label</option>
+                            </select>
+                        </div>
+                        {comp.kind === 'label' && (
+                            <div className='columns small-2'>
+                                <input className='argo-field' value={this.getKey(comp)} onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                    this.setKey(i, e.target.value);
+                                }}/>
+                            </div>
+                        )}
+                        <div className='columns small-2'>
+                            <select className='argo-field' value={this.getOperator(comp)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                                this.setOperator(i, e.target.value);
+                            }}>
+                                <option key='in'>in</option>
+                                <option key='notIn'>notIn</option>
+                                <option key='exists'>exists</option>
+                            </select>
+                        </div>
+                        {comp.operator !== 'exists' && (
+                            <div className='columns small-5'>
+                                <input className='argo-field' value={this.getValues(comp)} onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                    this.setValues(i, e.target.value);
+                                }}/>
+                            </div>
+                        )}
+                        <div className='columns small-1'>
+                            <i className='fa fa-times' onClick={() => this.deleteCondition(i)} style={{cursor: 'pointer'}}/>
+                        </div>
+                    </div>
+                )))}
+                <div className='columns small-3'>
+                    <a onClick={() => {
+                        this.newCondition();
+                    }}>Add Condition</a>
+                </div>
+            </div>
+        );
+    }
+
+    private getKey(c: RuleCondition): string {
+        if (this.props.fieldApi.getValue() !== undefined) {
+            if (c.key !== undefined) {
+                return c.key;
+            }
+        }
+        return '';
+    }
+
+    private setKey(i: number, v: string): string {
+        if (this.props.fieldApi.getValue() !== undefined) {
+            const rule = this.props.fieldApi.getValue();
+            rule.conditions[i].key = v;
+            this.props.fieldApi.setValue(rule);
+        }
+        return;
+    }
+
+    private getKind(c: RuleCondition): string {
+        if (this.props.fieldApi.getValue() !== undefined) {
+            if (c.kind !== undefined) {
+                return c.kind;
+            }
+        }
+        return '';
+    }
+
+    private setKind(i: number, v: string): string {
+        if (this.props.fieldApi.getValue() !== undefined) {
+            const rule = this.props.fieldApi.getValue();
+            rule.conditions[i].kind = v;
+            if (v !== 'label') {
+                rule.conditions[i].key = undefined;
+            }
+            this.props.fieldApi.setValue(rule);
+        }
+        return;
+    }
+
+    private getOperator(c: RuleCondition): string {
+        if (this.props.fieldApi.getValue() !== undefined) {
+            if (c.operator !== undefined) {
+                return c.operator;
+            }
+        }
+        return '';
+    }
+
+    private setOperator(i: number, v: string): string {
+        if (this.props.fieldApi.getValue() !== undefined) {
+            const rule = this.props.fieldApi.getValue();
+            rule.conditions[i].operator = v;
+            if (v === 'exists') {
+                rule.conditions[i].values = undefined;
+            }
+            this.props.fieldApi.setValue(rule);
+        }
+        return;
+    }
+
+    private getValues(c: RuleCondition): string {
+        if (this.props.fieldApi.getValue() !== undefined) {
+            if (c.values !== undefined) {
+                return c.values.join(',');
+            }
+        }
+        return '';
+    }
+
+    private setValues(i: number, v: string): string {
+        if (this.props.fieldApi.getValue() !== undefined) {
+            const rule = this.props.fieldApi.getValue();
+            rule.conditions[i].values = v.split(',');
+            this.props.fieldApi.setValue(rule);
+        }
+        return;
+    }
+
+    private newCondition() {
+        if (this.props.fieldApi.getValue() !== undefined) {
+            const rule = this.props.fieldApi.getValue();
+            const c = {
+                kind: 'application',
+                operator: 'in',
+                values: [],
+            } as RuleCondition;
+            rule.conditions.push(c);
+            this.props.fieldApi.setValue(rule);
+        }
+        return;
+    }
+
+    private deleteCondition(i: number): string {
+        if (this.props.fieldApi.getValue() !== undefined) {
+            const rule = this.props.fieldApi.getValue();
+            rule.conditions.splice(i, 1);
+            if (rule.conditions.length === 0) {
+                rule.conditions = [];
+            }
+            this.props.fieldApi.setValue(rule);
+        }
+        return;
+    }
+}
+
+const Rule = ReactForm.FormField(RuleWrapper);

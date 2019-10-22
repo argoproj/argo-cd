@@ -2,20 +2,19 @@ package commands
 
 import (
 	"context"
-	"os"
-
-	"github.com/spf13/cobra"
-
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 
-	"strconv"
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	projectpkg "github.com/argoproj/argo-cd/pkg/apiclient/project"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 )
 
@@ -35,15 +34,34 @@ func NewProjectWindowsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	roleCommand.AddCommand(NewProjectWindowsDeleteCommand(clientOpts))
 	roleCommand.AddCommand(NewProjectWindowsListCommand(clientOpts))
 	roleCommand.AddCommand(NewProjectWindowsUpdateCommand(clientOpts))
+	roleCommand.AddCommand(NewProjectWindowsRulesCommand(clientOpts))
+	return roleCommand
+}
+
+// NewProjectWindowsRuleCommand returns a new instance of the `argocd proj windows rules` command
+func NewProjectWindowsRulesCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	roleCommand := &cobra.Command{
+		Use:   "rules",
+		Short: "Manage a project's sync windows rules",
+		Run: func(c *cobra.Command, args []string) {
+			c.HelpFunc()(c, args)
+			os.Exit(1)
+		},
+	}
+	roleCommand.AddCommand(NewProjectWindowsRulesAddCommand(clientOpts))
+	roleCommand.AddCommand(NewProjectWindowsRulesDeleteCommand(clientOpts))
+	roleCommand.AddCommand(NewProjectWindowsRulesListCommand(clientOpts))
+	roleCommand.AddCommand(NewProjectWindowsRulesAddConditionCommand(clientOpts))
+	roleCommand.AddCommand(NewProjectWindowsRulesDeleteConditionCommand(clientOpts))
 	return roleCommand
 }
 
 // NewProjectSyncWindowsDisableManualSyncCommand returns a new instance of an `argocd proj windows disable-manual-sync` command
 func NewProjectWindowsDisableManualSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "disable-manual-sync PROJECT ID",
+		Use:   "disable-manual-sync PROJECT WINDOW_ID",
 		Short: "Disable manual sync for a sync window",
-		Long:  "Disable manual sync for a sync window. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
+		Long:  "Disable manual sync for a sync window. Requires window ID which can be found by running \"argocd proj windows list PROJECT\"",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
@@ -51,7 +69,7 @@ func NewProjectWindowsDisableManualSyncCommand(clientOpts *argocdclient.ClientOp
 			}
 
 			projName := args[0]
-			id, err := strconv.Atoi(args[1])
+			windowID, err := strconv.Atoi(args[1])
 			errors.CheckError(err)
 
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
@@ -61,7 +79,7 @@ func NewProjectWindowsDisableManualSyncCommand(clientOpts *argocdclient.ClientOp
 			errors.CheckError(err)
 
 			for i, window := range proj.Spec.SyncWindows {
-				if id == i {
+				if windowID == i {
 					window.ManualSync = false
 				}
 			}
@@ -76,9 +94,9 @@ func NewProjectWindowsDisableManualSyncCommand(clientOpts *argocdclient.ClientOp
 // NewProjectWindowsEnableManualSyncCommand returns a new instance of an `argocd proj windows enable-manual-sync` command
 func NewProjectWindowsEnableManualSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "enable-manual-sync PROJECT ID",
+		Use:   "enable-manual-sync PROJECT WINDOW_ID",
 		Short: "Enable manual sync for a sync window",
-		Long:  "Enable manual sync for a sync window. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
+		Long:  "Enable manual sync for a sync window. To get WINDOW_ID run \"argocd proj windows list PROJECT\"",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
@@ -86,7 +104,7 @@ func NewProjectWindowsEnableManualSyncCommand(clientOpts *argocdclient.ClientOpt
 			}
 
 			projName := args[0]
-			id, err := strconv.Atoi(args[1])
+			windowID, err := strconv.Atoi(args[1])
 			errors.CheckError(err)
 
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
@@ -96,7 +114,7 @@ func NewProjectWindowsEnableManualSyncCommand(clientOpts *argocdclient.ClientOpt
 			errors.CheckError(err)
 
 			for i, window := range proj.Spec.SyncWindows {
-				if id == i {
+				if windowID == i {
 					window.ManualSync = true
 				}
 			}
@@ -111,13 +129,11 @@ func NewProjectWindowsEnableManualSyncCommand(clientOpts *argocdclient.ClientOpt
 // NewProjectWindowsAddWindowCommand returns a new instance of an `argocd proj windows add` command
 func NewProjectWindowsAddWindowCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		kind         string
-		schedule     string
-		duration     string
-		applications []string
-		namespaces   []string
-		clusters     []string
-		manualSync   bool
+		kind       string
+		schedule   string
+		duration   string
+		manualSync bool
+		conditions []string
 	)
 	var command = &cobra.Command{
 		Use:   "add PROJECT",
@@ -134,7 +150,10 @@ func NewProjectWindowsAddWindowCommand(clientOpts *argocdclient.ClientOptions) *
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
-			err = proj.Spec.AddWindow(kind, schedule, duration, applications, namespaces, clusters, manualSync)
+			rule := generateRule(conditions)
+			rules := argoappv1.WindowRules{rule}
+
+			err = proj.Spec.AddWindow(kind, schedule, duration, rules, manualSync)
 			errors.CheckError(err)
 
 			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
@@ -144,19 +163,18 @@ func NewProjectWindowsAddWindowCommand(clientOpts *argocdclient.ClientOptions) *
 	command.Flags().StringVarP(&kind, "kind", "k", "", "Sync window kind, either allow or deny")
 	command.Flags().StringVar(&schedule, "schedule", "", "Sync window schedule in cron format. (e.g. --schedule \"0 22 * * *\")")
 	command.Flags().StringVar(&duration, "duration", "", "Sync window duration. (e.g. --duration 1h)")
-	command.Flags().StringSliceVar(&applications, "applications", []string{}, "Applications that the schedule will be applied to. Comma separated, wildcards supported (e.g. --applications prod-\\*,website)")
-	command.Flags().StringSliceVar(&namespaces, "namespaces", []string{}, "Namespaces that the schedule will be applied to. Comma separated, wildcards supported (e.g. --namespaces default,\\*-prod)")
-	command.Flags().StringSliceVar(&clusters, "clusters", []string{}, "Clusters that the schedule will be applied to. Comma separated, wildcards supported (e.g. --clusters prod,staging)")
+	command.Flags().StringArrayVar(&conditions, "condition", []string{}, "Condition for matching the rule, support for multiple conditions per rule. (e.g. --condition \"application in (web-*,db1)\")")
 	command.Flags().BoolVar(&manualSync, "manual-sync", false, "Allow manual syncs for both deny and allow windows")
 
 	return command
 }
 
-// NewProjectWindowsAddWindowCommand returns a new instance of an `argocd proj windows delete` command
+// NewProjectWindowsDeleteCommand returns a new instance of an `argocd proj windows delete` command
 func NewProjectWindowsDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "delete PROJECT ID",
-		Short: "Delete a sync window from a project. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
+		Use:   "delete PROJECT WINDOW_ID",
+		Short: "delete a sync window.",
+		Long:  "delete a sync window. To get WINDOW_ID run \"argocd proj windows list PROJECT\"",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
@@ -164,7 +182,7 @@ func NewProjectWindowsDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 			}
 
 			projName := args[0]
-			id, err := strconv.Atoi(args[1])
+			windowID, err := strconv.Atoi(args[1])
 			errors.CheckError(err)
 
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
@@ -173,7 +191,7 @@ func NewProjectWindowsDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
-			err = proj.Spec.DeleteWindow(id)
+			err = proj.Spec.DeleteWindow(windowID)
 			errors.CheckError(err)
 
 			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
@@ -186,16 +204,14 @@ func NewProjectWindowsDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 // NewProjectWindowsUpdateCommand returns a new instance of an `argocd proj windows update` command
 func NewProjectWindowsUpdateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		schedule     string
-		duration     string
-		applications []string
-		namespaces   []string
-		clusters     []string
+		kind     string
+		schedule string
+		duration string
 	)
 	var command = &cobra.Command{
-		Use:   "update PROJECT ID",
+		Use:   "update PROJECT WINDOW_ID",
 		Short: "Update a project sync window",
-		Long:  "Update a project sync window. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
+		Long:  "Update a project sync window. To get WINDOW_ID run \"argocd proj windows list PROJECT\"",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
@@ -203,7 +219,7 @@ func NewProjectWindowsUpdateCommand(clientOpts *argocdclient.ClientOptions) *cob
 			}
 
 			projName := args[0]
-			id, err := strconv.Atoi(args[1])
+			windowID, err := strconv.Atoi(args[1])
 			errors.CheckError(err)
 
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
@@ -213,8 +229,8 @@ func NewProjectWindowsUpdateCommand(clientOpts *argocdclient.ClientOptions) *cob
 			errors.CheckError(err)
 
 			for i, window := range proj.Spec.SyncWindows {
-				if id == i {
-					err := window.Update(schedule, duration, applications, namespaces, clusters)
+				if windowID == i {
+					err := window.Update(kind, schedule, duration)
 					if err != nil {
 						errors.CheckError(err)
 					}
@@ -225,11 +241,9 @@ func NewProjectWindowsUpdateCommand(clientOpts *argocdclient.ClientOptions) *cob
 			errors.CheckError(err)
 		},
 	}
+	command.Flags().StringVar(&kind, "kind", "", "Sync window kind, either allow or deny")
 	command.Flags().StringVar(&schedule, "schedule", "", "Sync window schedule in cron format. (e.g. --schedule \"0 22 * * *\")")
 	command.Flags().StringVar(&duration, "duration", "", "Sync window duration. (e.g. --duration 1h)")
-	command.Flags().StringSliceVar(&applications, "applications", []string{}, "Applications that the schedule will be applied to. Comma separated, wildcards supported (e.g. --applications prod-\\*,website)")
-	command.Flags().StringSliceVar(&namespaces, "namespaces", []string{}, "Namespaces that the schedule will be applied to. Comma separated, wildcards supported (e.g. --namespaces default,\\*-prod)")
-	command.Flags().StringSliceVar(&clusters, "clusters", []string{}, "Clusters that the schedule will be applied to. Comma separated, wildcards supported (e.g. --clusters prod,staging)")
 	return command
 }
 
@@ -256,12 +270,207 @@ func NewProjectWindowsListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	return command
 }
 
+// NewProjectWindowsRulesAddCommand returns a new instance of an `argocd proj windows rule add` command
+func NewProjectWindowsRulesAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		conditions []string
+	)
+	var command = &cobra.Command{
+		Use:   "add PROJECT WINDOW_ID",
+		Short: "Add a rule to a sync windows.",
+		Long:  "Add a rule. To get WINDOW_ID run \"argocd proj windows list PROJECT\"",
+		Example: `
+	# Add a rule to a window which will match application name.
+	argocd proj windows rules add default 0 --condition "application in web1,db1"
+
+	# Add a rule to a window which will match application name and cluster.
+	argocd proj windows rules add default 0 --condition "application in web1,db1" --condition "cluster in in-cluster"
+
+	# Add a rule to a window that will check that a label exists and the namespace matches the prefix "dev-".
+	argocd proj windows rules add default 0 --condition "stateful exists" --condition "namespace in dev-*"
+`,
+
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+
+			projName := args[0]
+			windowID, err := strconv.Atoi(args[1])
+			errors.CheckError(err)
+
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer util.Close(conn)
+
+			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			rule := generateRule(conditions)
+			proj.Spec.SyncWindows[windowID].Rules = append(proj.Spec.SyncWindows[windowID].Rules, rule)
+			errors.CheckError(err)
+
+			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
+		},
+	}
+	command.Flags().StringArrayVar(&conditions, "condition", []string{}, "rule conditions")
+	return command
+}
+
+// NewProjectWindowsRulesDeleteCommand returns a new instance of an `argocd proj windows rule delete` command
+func NewProjectWindowsRulesDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "delete PROJECT WINDOW_ID RULE_ID",
+		Short: "Delete a rule from a sync window.",
+		Long: "Delete a rule. To get WINDOW_ID and RULE_ID run \"argocd proj windows list PROJECT\" " +
+			"and \"argocd proj windows rules list PROJECT WINDOW_ID\"",
+		Example: `
+	# Delete rule with ID 1 from a window with the ID of 0 in the default project
+	argocd proj windows rules delete default 0 1
+`,
+
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 3 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+
+			projName := args[0]
+			windowID, err := strconv.Atoi(args[1])
+			errors.CheckError(err)
+			ruleID, err := strconv.Atoi(args[2])
+			errors.CheckError(err)
+
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer util.Close(conn)
+
+			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			err = proj.Spec.SyncWindows[windowID].DeleteRule(ruleID)
+			errors.CheckError(err)
+
+			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
+		},
+	}
+	return command
+}
+
+// NewProjectWindowsListRulesCommand returns a new instance of an `argocd proj windows rules list` command
+func NewProjectWindowsRulesListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "list PROJECT WINDOW_ID",
+		Short: "List rules that belong to a sync window.",
+		Long:  "List rules. To get WINDOW_ID run \"argocd proj windows list PROJECT\"",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+
+			projName := args[0]
+			windowID, err := strconv.Atoi(args[1])
+			errors.CheckError(err)
+
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer util.Close(conn)
+
+			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			printSyncWindowRules(proj, windowID)
+		},
+	}
+	return command
+}
+
+// NewProjectWindowsRulesAddConditionCommand returns a new instance of an `argocd proj windows rule add-condition` command
+func NewProjectWindowsRulesAddConditionCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		conditions []string
+	)
+	var command = &cobra.Command{
+		Use:   "add-condition PROJECT WINDOW_ID RULE_ID",
+		Short: "Add a condition to a rule.",
+		Long: "Add a condition to an existing rule. To get WINDOW_ID and RULE_ID run \"argocd proj windows list PROJECT\" " +
+			"and \"argocd proj windows rules list PROJECT WINDOW_ID\"",
+
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 3 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+
+			projName := args[0]
+			windowID, err := strconv.Atoi(args[1])
+			errors.CheckError(err)
+			ruleID, err := strconv.Atoi(args[2])
+			errors.CheckError(err)
+
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer util.Close(conn)
+
+			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			rule := generateRule(conditions)
+			proj.Spec.SyncWindows[windowID].Rules[ruleID].Conditions = append(proj.Spec.SyncWindows[windowID].Rules[ruleID].Conditions, rule.Conditions...)
+			errors.CheckError(err)
+
+			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
+		},
+	}
+	command.Flags().StringArrayVar(&conditions, "condition", []string{}, "rule conditions")
+	return command
+}
+
+// NewProjectWindowsRulesDeleteConditionCommand returns a new instance of an `argocd proj windows rule delete-condition` command
+func NewProjectWindowsRulesDeleteConditionCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "delete-condition PROJECT WINDOW_ID RULE_ID CONDITION_ID",
+		Short: "Delete a condition from a rule.",
+		Long: "Delete a condition from a rule. To get WINDOW_ID, RULE_ID and CONDITION_ID run \"argocd proj windows list PROJECT\" " +
+			"and \"argocd proj windows rules list PROJECT WINDOW_ID\"",
+
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 4 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+
+			projName := args[0]
+			windowID, err := strconv.Atoi(args[1])
+			errors.CheckError(err)
+			ruleID, err := strconv.Atoi(args[2])
+			errors.CheckError(err)
+			conditionID, err := strconv.Atoi(args[3])
+			errors.CheckError(err)
+
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer util.Close(conn)
+
+			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			err = proj.Spec.SyncWindows[windowID].Rules[ruleID].DeleteCondition(conditionID)
+			errors.CheckError(err)
+
+			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
+		},
+	}
+	return command
+}
+
 // Print table of sync window data
-func printSyncWindows(proj *v1alpha1.AppProject) {
+func printSyncWindows(proj *argoappv1.AppProject) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	var fmtStr string
-	headers := []interface{}{"ID", "STATUS", "KIND", "SCHEDULE", "DURATION", "APPLICATIONS", "NAMESPACES", "CLUSTERS", "MANUALSYNC"}
-	fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
+	headers := []interface{}{"ID", "STATUS", "KIND", "SCHEDULE", "DURATION", "RULES", "MANUALSYNC"}
+	fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
 	fmt.Fprintf(w, fmtStr, headers...)
 	if proj.Spec.SyncWindows.HasWindows() {
 		for i, window := range proj.Spec.SyncWindows {
@@ -271,9 +480,7 @@ func printSyncWindows(proj *v1alpha1.AppProject) {
 				window.Kind,
 				window.Schedule,
 				window.Duration,
-				formatListOutput(window.Applications),
-				formatListOutput(window.Namespaces),
-				formatListOutput(window.Clusters),
+				strconv.Itoa(len(window.Rules)),
 				formatManualOutput(window.ManualSync),
 			}
 			fmt.Fprintf(w, fmtStr, vals...)
@@ -282,15 +489,44 @@ func printSyncWindows(proj *v1alpha1.AppProject) {
 	_ = w.Flush()
 }
 
-func formatListOutput(list []string) string {
+// Print table of sync window data
+func printSyncWindowRules(proj *argoappv1.AppProject, index int) {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	var fmtStr string
+	headers := []interface{}{"ID", "RULE"}
+	fmtStr = "%s\t%s\n"
+	fmt.Fprintf(w, fmtStr, headers...)
+	if proj.Spec.SyncWindows.HasWindows() {
+		var conditions []string
+		for i, rule := range proj.Spec.SyncWindows[index].Rules {
+			for _, comp := range rule.Conditions {
+				conditions = append(conditions, formatConditionOutput(comp))
+			}
+			vals := []interface{}{
+				strconv.Itoa(i),
+				strings.Join(conditions, " AND "),
+			}
+			fmt.Fprintf(w, fmtStr, vals...)
+			conditions = []string{}
+		}
+	}
+	_ = w.Flush()
+}
+
+func formatConditionOutput(c argoappv1.RuleCondition) string {
 	var o string
-	if len(list) == 0 {
-		o = "-"
+	if c.Key != "" {
+		if c.Operator == argoappv1.ConditionOperatorExists {
+			o = c.Kind + " " + c.Key + " " + c.Operator
+		} else {
+			o = c.Kind + " " + c.Key + " " + c.Operator + " (" + strings.Join(c.Values, ", ") + ")"
+		}
 	} else {
-		o = strings.Join(list, ",")
+		o = c.Kind + " " + c.Operator + " (" + strings.Join(c.Values, ", ") + ")"
 	}
 	return o
 }
+
 func formatBoolOutput(active bool) string {
 	var o string
 	if active {
@@ -308,4 +544,50 @@ func formatManualOutput(active bool) string {
 		o = "Disabled"
 	}
 	return o
+}
+
+func generateRule(conditions []string) argoappv1.WindowRule {
+	var rule argoappv1.WindowRule
+	var values string
+	for _, comp := range conditions {
+		f := strings.Split(comp, " ")
+		kind := f[0]
+		operator := f[1]
+		if strings.HasSuffix(comp, argoappv1.ConditionOperatorExists) {
+			if len(f) != 2 {
+				log.Fatalf("field mismatch expected 2 got %v", len(f))
+			}
+		} else if len(f) != 3 {
+			log.Fatalf("field mismatch expected 3 got %v", len(f))
+		} else {
+			values = f[2]
+		}
+		switch operator {
+		case argoappv1.ConditionOperatorIn:
+			break
+		case argoappv1.ConditionOperatorNotIn:
+			break
+		case argoappv1.ConditionOperatorExists:
+			break
+		default:
+			log.Fatalf("operator %v not supported", operator)
+		}
+		nc := argoappv1.RuleCondition{
+			Operator: operator,
+			Values:   strings.Split(values, ","),
+		}
+		switch kind {
+		case argoappv1.ConditionKindApplication:
+			nc.Kind = kind
+		case argoappv1.ConditionKindNamespace:
+			nc.Kind = kind
+		case argoappv1.ConditionKindCluster:
+			nc.Kind = kind
+		default:
+			nc.Kind = argoappv1.ConditionKindLabel
+			nc.Key = kind
+		}
+		rule.Conditions = append(rule.Conditions, nc)
+	}
+	return rule
 }
