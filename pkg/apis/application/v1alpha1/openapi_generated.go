@@ -74,6 +74,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceStatus":                   schema_pkg_apis_application_v1alpha1_ResourceStatus(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionHistory":                  schema_pkg_apis_application_v1alpha1_RevisionHistory(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionMetadata":                 schema_pkg_apis_application_v1alpha1_RevisionMetadata(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Sync":                             schema_pkg_apis_application_v1alpha1_Sync(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperation":                    schema_pkg_apis_application_v1alpha1_SyncOperation(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperationResource":            schema_pkg_apis_application_v1alpha1_SyncOperationResource(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperationResult":              schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref),
@@ -348,7 +349,8 @@ func schema_pkg_apis_application_v1alpha1_Application(ref common.ReferenceCallba
 					},
 					"operation": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Operation"),
+							Description: "DEPRECATED",
+							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Operation"),
 						},
 					},
 				},
@@ -917,7 +919,8 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 					},
 					"operationState": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OperationState"),
+							Description: "DEPRECATED",
+							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OperationState"),
 						},
 					},
 					"observedAt": {
@@ -2809,6 +2812,50 @@ func schema_pkg_apis_application_v1alpha1_RevisionMetadata(ref common.ReferenceC
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_Sync(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperation"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncStatus"),
+						},
+					},
+				},
+				Required: []string{"metadata", "spec"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperation", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 

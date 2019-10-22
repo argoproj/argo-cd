@@ -43,7 +43,8 @@ type Application struct {
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
 	Spec              ApplicationSpec   `json:"spec" protobuf:"bytes,2,opt,name=spec"`
 	Status            ApplicationStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
-	Operation         *Operation        `json:"operation,omitempty" protobuf:"bytes,4,opt,name=operation"`
+	// DEPRECATED
+	Operation *Operation `json:"operation,omitempty" protobuf:"bytes,4,opt,name=operation"`
 }
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
@@ -357,16 +358,17 @@ type ApplicationDestination struct {
 
 // ApplicationStatus contains information about application sync, health status
 type ApplicationStatus struct {
-	Resources      []ResourceStatus       `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
-	Sync           SyncStatus             `json:"sync,omitempty" protobuf:"bytes,2,opt,name=sync"`
-	Health         HealthStatus           `json:"health,omitempty" protobuf:"bytes,3,opt,name=health"`
-	History        []RevisionHistory      `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
-	Conditions     []ApplicationCondition `json:"conditions,omitempty" protobuf:"bytes,5,opt,name=conditions"`
-	ReconciledAt   *metav1.Time           `json:"reconciledAt,omitempty" protobuf:"bytes,6,opt,name=reconciledAt"`
-	OperationState *OperationState        `json:"operationState,omitempty" protobuf:"bytes,7,opt,name=operationState"`
-	ObservedAt     *metav1.Time           `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
-	SourceType     ApplicationSourceType  `json:"sourceType,omitempty" protobuf:"bytes,9,opt,name=sourceType"`
-	Summary        ApplicationSummary     `json:"summary,omitempty" protobuf:"bytes,10,opt,name=summary"`
+	Resources    []ResourceStatus       `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
+	Sync         SyncStatus             `json:"sync,omitempty" protobuf:"bytes,2,opt,name=sync"`
+	Health       HealthStatus           `json:"health,omitempty" protobuf:"bytes,3,opt,name=health"`
+	History      []RevisionHistory      `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
+	Conditions   []ApplicationCondition `json:"conditions,omitempty" protobuf:"bytes,5,opt,name=conditions"`
+	ReconciledAt *metav1.Time           `json:"reconciledAt,omitempty" protobuf:"bytes,6,opt,name=reconciledAt"`
+	// DEPRECATED
+	OperationState *OperationState       `json:"operationState,omitempty" protobuf:"bytes,7,opt,name=operationState"`
+	ObservedAt     *metav1.Time          `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
+	SourceType     ApplicationSourceType `json:"sourceType,omitempty" protobuf:"bytes,9,opt,name=sourceType"`
+	Summary        ApplicationSummary    `json:"summary,omitempty" protobuf:"bytes,10,opt,name=summary"`
 }
 
 // Operation contains requested operation parameters.
@@ -387,6 +389,17 @@ func (r SyncOperationResource) HasIdentity(name string, gvk schema.GroupVersionK
 		return true
 	}
 	return false
+}
+
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:path=syncs,shortName=sync;syncs
+type Sync struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
+	Spec              SyncOperation `json:"spec" protobuf:"bytes,2,opt,name=spec"`
+	Status            SyncStatus    `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
 
 // SyncOperation contains sync operation details.

@@ -85,6 +85,7 @@ message Application {
 
   optional ApplicationStatus status = 3;
 
+  // DEPRECATED
   optional Operation operation = 4;
 }
 
@@ -244,6 +245,7 @@ message ApplicationStatus {
 
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time reconciledAt = 6;
 
+  // DEPRECATED
   optional OperationState operationState = 7;
 
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time observedAt = 8;
@@ -791,6 +793,18 @@ message RevisionMetadata {
   // probably the commit message,
   // this is truncated to the first newline or 64 characters (which ever comes first)
   optional string message = 4;
+}
+
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:path=syncs,shortName=sync;syncs
+message Sync {
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+
+  optional SyncOperation spec = 2;
+
+  optional SyncStatus status = 3;
 }
 
 // SyncOperation contains sync operation details.

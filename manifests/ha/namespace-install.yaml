@@ -380,6 +380,7 @@ spec:
               type: string
           type: object
         operation:
+          description: DEPRECATED
           properties:
             sync:
               properties:
@@ -1053,6 +1054,7 @@ spec:
               format: date-time
               type: string
             operationState:
+              description: DEPRECATED
               properties:
                 finishedAt:
                   description: FinishedAt contains time of operation completion

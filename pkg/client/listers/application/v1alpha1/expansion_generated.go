@@ -17,3 +17,11 @@ type ApplicationListerExpansion interface{}
 // ApplicationNamespaceListerExpansion allows custom methods to be added to
 // ApplicationNamespaceLister.
 type ApplicationNamespaceListerExpansion interface{}
+
+// SyncListerExpansion allows custom methods to be added to
+// SyncLister.
+type SyncListerExpansion interface{}
+
+// SyncNamespaceListerExpansion allows custom methods to be added to
+// SyncNamespaceLister.
+type SyncNamespaceListerExpansion interface{}

@@ -12,6 +12,8 @@ type Interface interface {
 	AppProjects() AppProjectInformer
 	// Applications returns a ApplicationInformer.
 	Applications() ApplicationInformer
+	// Syncs returns a SyncInformer.
+	Syncs() SyncInformer
 }
 
 type version struct {
@@ -33,4 +35,9 @@ func (v *version) AppProjects() AppProjectInformer {
 // Applications returns a ApplicationInformer.
 func (v *version) Applications() ApplicationInformer {
 	return &applicationInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// Syncs returns a SyncInformer.
+func (v *version) Syncs() SyncInformer {
+	return &syncInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
