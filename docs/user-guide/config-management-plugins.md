@@ -31,13 +31,9 @@ More config management plugin examples are available in [argocd-example-apps](ht
 
 Commands have access to
 
-(1) The system environment variables
-(2) Argo CD  environment variables:
-
-* `ARGOCD_APP_NAME` - name of application
-* `ARGOCD_APP_NAMESPACE` - destination application namespace.
-
-(3) Variables in the application spec:
+1. The system environment variables
+2. [Standard build environment](build-environment.md)
+3. Variables in the application spec:
 
 > v1.2
 

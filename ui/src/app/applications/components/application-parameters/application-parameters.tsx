@@ -4,10 +4,11 @@ import {FieldApi, FormApi, FormField as ReactFormField, Text, TextArea} from 're
 
 import {ArrayInputField, CheckboxField, EditablePanel, EditablePanelItem, Expandable, TagsInputField} from '../../../shared/components';
 import * as models from '../../../shared/models';
-import {AuthSettings} from '../../../shared/models';
+import {ApplicationSourceDirectory, AuthSettings} from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ImageTagFieldEditor} from './kustomize';
 import * as kustomize from './kustomize-image';
+import { VarsInputField } from './vars-input-field';
 
 const TextWithMetadataField = ReactFormField((props: {metadata: { value: string }, fieldApi: FieldApi, className: string }) => {
     const { fieldApi: {getValue, setValue}} = props;
@@ -228,11 +229,26 @@ export const ApplicationParameters = (props: {
             ),
         });
     } else if (props.details.type === 'Directory') {
+        const directory = app.spec.source.directory || {} as ApplicationSourceDirectory;
         attributes.push({
             title: 'DIRECTORY RECURSE',
-            view: (!!(app.spec.source.directory && app.spec.source.directory.recurse)).toString(),
+            view: (!!directory.recurse).toString(),
             edit: (formApi: FormApi) => (
                 <FormField formApi={formApi} field='spec.source.directory.recurse' component={CheckboxField}/>
+            ),
+        });
+        attributes.push({
+            title: 'TOP-LEVEL ARGUMENTS',
+            view: (directory.jsonnet && directory.jsonnet.tlas || []).map((i, j) => <p key={j}>{i.name}='{i.value}' {i.code && 'code'}</p>),
+            edit: (formApi: FormApi) => (
+                <FormField field='spec.source.directory.jsonnet.tlas' formApi={formApi} component={VarsInputField}/>
+            ),
+        });
+        attributes.push({
+            title: 'EXTERNAL VARIABLES',
+            view: (directory.jsonnet && directory.jsonnet.extVars || []).map((i, j) => <p key={j}>{i.name}='{i.value}' {i.code && 'code'}</p>),
+            edit: (formApi: FormApi) => (
+                <FormField field='spec.source.directory.jsonnet.extVars' formApi={formApi} component={VarsInputField}/>
             ),
         });
     }
