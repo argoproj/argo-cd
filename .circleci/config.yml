@@ -195,9 +195,7 @@ jobs:
       ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
     steps:
       - e2e:
-          tags: group0
-      - e2e:
-          tags: group1
+          tags: "group0 group1"
   e2e-part-2:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
