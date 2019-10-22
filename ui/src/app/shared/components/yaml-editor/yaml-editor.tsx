@@ -57,8 +57,7 @@ export class YamlEditor<T> extends React.Component<
                                                     });
                                                 }
                                             }}
-                                            className='argo-button argo-button--base'
-                                        >
+                                            className='argo-button argo-button--base'>
                                             Save
                                         </button>{' '}
                                         <button
@@ -69,8 +68,7 @@ export class YamlEditor<T> extends React.Component<
                                                     props.onCancel();
                                                 }
                                             }}
-                                            className='argo-button argo-button--base-o'
-                                        >
+                                            className='argo-button argo-button--base-o'>
                                             Cancel
                                         </button>
                                     </React.Fragment>

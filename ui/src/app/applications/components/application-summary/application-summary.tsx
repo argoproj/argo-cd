@@ -56,8 +56,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                                 value: cluster.server,
                             })),
                         )
-                    }
-                >
+                    }>
                     {clusters => <FormField formApi={formApi} field='spec.destination.server' componentProps={{options: clusters}} component={FormSelect} />}
                 </DataLoader>
             ),
@@ -84,8 +83,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                       edit: (formApi: FormApi) => (
                           <DataLoader
                               input={{repoURL: formApi.getFormState().values.spec.source.repoURL}}
-                              load={src => services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())}
-                          >
+                              load={src => services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())}>
                               {(charts: models.HelmChart[]) => (
                                   <div className='row'>
                                       <div className='columns small-10'>
@@ -104,8 +102,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                                           load={async data => {
                                               const chartInfo = data.charts.find(chart => chart.name === data.chart);
                                               return (chartInfo && chartInfo.versions) || new Array<string>();
-                                          }}
-                                      >
+                                          }}>
                                           {(versions: string[]) => (
                                               <div className='columns small-2'>
                                                   <FormField
@@ -269,8 +266,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                     className='argo-button argo-button--base'
                     onClick={() => {
                         setAdjustedCount(adjustedCount + 1);
-                    }}
-                >
+                    }}>
                     ADD NEW ITEM
                 </button>
             ),
@@ -311,8 +307,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                                             className='argo-button argo-button--base'
                                             onClick={() =>
                                                 setAutoSync(ctx, 'Enable Auto-Sync?', 'Are you sure you want to enable automated application synchronization?', false, false)
-                                            }
-                                        >
+                                            }>
                                             Enable Auto-Sync
                                         </button>
                                     )}
@@ -335,8 +330,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                                                             false,
                                                             app.spec.syncPolicy.automated.selfHeal,
                                                         )
-                                                    }
-                                                >
+                                                    }>
                                                     Disable
                                                 </button>
                                             )) || (
@@ -350,8 +344,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                                                             true,
                                                             app.spec.syncPolicy.automated.selfHeal,
                                                         )
-                                                    }
-                                                >
+                                                    }>
                                                     Enable
                                                 </button>
                                             )}
@@ -371,8 +364,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                                                             app.spec.syncPolicy.automated.prune,
                                                             false,
                                                         )
-                                                    }
-                                                >
+                                                    }>
                                                     Disable
                                                 </button>
                                             )) || (
@@ -386,8 +378,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                                                             app.spec.syncPolicy.automated.prune,
                                                             true,
                                                         )
-                                                    }
-                                                >
+                                                    }>
                                                     Enable
                                                 </button>
                                             )}

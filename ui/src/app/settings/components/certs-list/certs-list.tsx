@@ -51,8 +51,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                             },
                         ],
                     },
-                }}
-            >
+                }}>
                 <div className='certs-list'>
                     <div className='argo-container'>
                         <DataLoader load={() => services.certs.list()} ref={loader => (this.loader = loader)}>
@@ -123,8 +122,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                                 Cancel
                             </button>
                         </div>
-                    }
-                >
+                    }>
                     <h4>Create TLS repository certificate</h4>
                     <Form
                         onSubmit={params => this.addTLSCertificate(params as NewTLSCertParams)}
@@ -136,8 +134,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                         validateError={(params: NewTLSCertParams) => ({
                             serverName: !params.serverName && 'Repository server name is required',
                             certData: !params.certData && 'Certificate data is required',
-                        })}
-                    >
+                        })}>
                         {formApiTLS => (
                             <form onSubmit={formApiTLS.submitForm} role='form' className='certs-list width-control' encType='multipart/form-data'>
                                 <div className='argo-form-row'>
@@ -162,8 +159,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                                 Cancel
                             </button>
                         </div>
-                    }
-                >
+                    }>
                     <h4>Create SSH known host entries</h4>
                     <p>
                         Paste SSH known hosts data in the text area below, one entry per line. You can use output from e.g. <code>ssh-keyscan</code> or the contents of an{' '}
@@ -180,8 +176,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                         })}
                         validateError={(params: NewSSHKnownHostParams) => ({
                             certData: !params.certData && 'SSH known hosts data is required',
-                        })}
-                    >
+                        })}>
                         {formApiSSH => (
                             <form onSubmit={formApiSSH.submitForm} role='form' className='certs-list width-control' encType='multipart/form-data'>
                                 <div className='argo-form-row'>

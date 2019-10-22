@@ -8,8 +8,7 @@ export const ApplicationResourceEvents = (props: {applicationName: string; resou
     <div className='application-resource-events'>
         <DataLoader
             load={() => (props.resource ? services.applications.resourceEvents(props.applicationName, props.resource) : services.applications.events(props.applicationName))}
-            loadingRenderer={() => <MockupList height={50} marginTop={10} />}
-        >
+            loadingRenderer={() => <MockupList height={50} marginTop={10} />}>
             {events => <EventsList events={events} />}
         </DataLoader>
     </div>

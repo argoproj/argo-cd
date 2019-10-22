@@ -168,8 +168,7 @@ export class App extends React.Component<{}, {popupProps: PopupProps; error: Err
                                                 ) : (
                                                     <Layout
                                                         navItems={navItems}
-                                                        version={() => <DataLoader load={() => services.version.version()}>{msg => msg.Version}</DataLoader>}
-                                                    >
+                                                        version={() => <DataLoader load={() => services.version.version()}>{msg => msg.Version}</DataLoader>}>
                                                         <route.component {...routeProps} />
                                                     </Layout>
                                                 )

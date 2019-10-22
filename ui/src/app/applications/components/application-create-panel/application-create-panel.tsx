@@ -120,8 +120,7 @@ export const ApplicationCreatePanel = (props: {
                             ),
                         services.repos.list(),
                     ]).then(([projects, clusters, reposInfo]) => ({projects, clusters, reposInfo}))
-                }
-            >
+                }>
                 {({projects, clusters, reposInfo}) => {
                     const repos = reposInfo.map(info => info.repo).sort();
                     const app = deepMerge(DEFAULT_APP, props.app || {});
@@ -158,8 +157,7 @@ export const ApplicationCreatePanel = (props: {
                                     defaultValues={app}
                                     formDidUpdate={state => props.onAppChanged(state.values as any)}
                                     onSubmit={props.createApp}
-                                    getApi={props.getFormApi}
-                                >
+                                    getApi={props.getFormApi}>
                                     {api => {
                                         const generalPanel = () => (
                                             <div className='white-box'>
@@ -245,8 +243,7 @@ export const ApplicationCreatePanel = (props: {
                                                                             .then(apps => Array.from(new Set(apps.map(item => item.path))).sort())
                                                                             .catch(() => new Array<string>())) ||
                                                                     new Array<string>()
-                                                                }
-                                                            >
+                                                                }>
                                                                 {(apps: string[]) => (
                                                                     <FormField
                                                                         formApi={api}
@@ -268,8 +265,7 @@ export const ApplicationCreatePanel = (props: {
                                                         load={async src =>
                                                             (src.repoURL && services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())) ||
                                                             new Array<models.HelmChart>()
-                                                        }
-                                                    >
+                                                        }>
                                                         {(charts: models.HelmChart[]) => {
                                                             const selectedChart = charts.find(chart => chart.name === api.getFormState().values.spec.source.chart);
                                                             return (
@@ -342,8 +338,7 @@ export const ApplicationCreatePanel = (props: {
                                                             details: {},
                                                         };
                                                     }
-                                                }}
-                                            >
+                                                }}>
                                                 {(details: models.RepoAppDetails) => {
                                                     const type = (explicitPathType && explicitPathType.path === app.spec.source.path && explicitPathType.type) || details.type;
                                                     if (details.type !== type) {

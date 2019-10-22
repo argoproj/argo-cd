@@ -79,8 +79,7 @@ function getParamsEditableItems(
                                     removedOverrides[i] = true;
                                     setRemovedOverrides(removedOverrides);
                                 }}
-                                style={labelStyle}
-                            >
+                                style={labelStyle}>
                                 Remove override
                             </a>
                         )}
@@ -91,8 +90,7 @@ function getParamsEditableItems(
                                     removedOverrides[i] = false;
                                     setRemovedOverrides(removedOverrides);
                                 }}
-                                style={labelStyle}
-                            >
+                                style={labelStyle}>
                                 Keep override
                             </a>
                         )}

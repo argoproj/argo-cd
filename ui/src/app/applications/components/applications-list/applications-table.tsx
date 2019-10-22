@@ -33,8 +33,7 @@ export const ApplicationsTable = (props: {
                         key={app.metadata.name}
                         className={`argo-table-list__row
                 applications-list__entry applications-list__entry--comparison-${app.status.sync.status}
-                applications-list__entry--health-${app.status.health.status}`}
-                    >
+                applications-list__entry--health-${app.status.health.status}`}>
                         <div className='row applications-list__table-row' onClick={e => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, {event: e})}>
                             <div className='columns small-4'>
                                 <div className='row'>

@@ -25,8 +25,7 @@ export class TagsInput extends React.Component<TagsInputProps, {tags: string[]; 
         return (
             <div
                 className={classNames('tags-input argo-field', {'tags-input--focused': this.state.focused || !!this.state.input})}
-                onClick={() => this.inputEl && this.inputEl.focus()}
-            >
+                onClick={() => this.inputEl && this.inputEl.focus()}>
                 {this.state.tags.map((tag, i) => (
                     <span className='tags-input__tag' key={tag}>
                         {tag}{' '}

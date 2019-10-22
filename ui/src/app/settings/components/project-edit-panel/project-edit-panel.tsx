@@ -28,8 +28,7 @@ export const ProjectEditPanel = (props: {nameReadonly?: boolean; defaultParams?:
                     obj.kind = obj.kind.trim();
                 });
                 return params;
-            }}
-        >
+            }}>
             {api => (
                 <form onSubmit={api.submitForm} role='form' className='width-control'>
                     <h4>Summary:</h4>

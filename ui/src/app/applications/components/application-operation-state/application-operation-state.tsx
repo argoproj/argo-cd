@@ -54,8 +54,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                                 });
                             }
                         }
-                    }}
-                >
+                    }}>
                     Terminate
                 </button>
             ),

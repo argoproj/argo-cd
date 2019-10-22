@@ -116,8 +116,7 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                         }
                         return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || ''};
                     })
-                }
-            >
+                }>
                 {pref => children(pref)}
             </DataLoader>
         )}
@@ -201,8 +200,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                     },
                                 ],
                             },
-                        }))}
-                    >
+                        }))}>
                         <div className='applications-list'>
                             <ViewPref>
                                 {pref => (
@@ -213,8 +211,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                             <div className='argo-container'>
                                                 <MockupList height={100} marginTop={30} />
                                             </div>
-                                        )}
-                                    >
+                                        )}>
                                         {(applications: models.Application[]) =>
                                             applications.length === 0 && (pref.labelsFilter || []).length === 0 ? (
                                                 <EmptyState icon='argo-icon-application'>
@@ -299,8 +296,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                     </EmptyState>
                                                                 )}
                                                                 data={filterApps(applications, pref, pref.search)}
-                                                                onPageChange={page => ctx.navigation.goto('.', {page})}
-                                                            >
+                                                                onPageChange={page => ctx.navigation.goto('.', {page})}>
                                                                 {data =>
                                                                     (pref.view === 'tiles' && (
                                                                         <ApplicationTiles
@@ -336,8 +332,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                             const syncApp = params.get('syncApp');
                                             return (syncApp && Observable.fromPromise(services.applications.get(syncApp))) || Observable.from([null]);
                                         })
-                                    }
-                                >
+                                    }>
                                     {app => (
                                         <ApplicationSyncPanel key='syncPanel' application={app} selectedResource={'all'} hide={() => ctx.navigation.goto('.', {syncApp: null})} />
                                     )}
@@ -356,8 +351,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         Cancel
                                     </button>
                                 </div>
-                            }
-                        >
+                            }>
                             {appInput && (
                                 <ApplicationCreatePanel
                                     getFormApi={api => {

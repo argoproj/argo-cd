@@ -127,8 +127,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 input={application}
                 load={async () => {
                     return await services.applications.getApplicationSyncWindowState(application.metadata.name);
-                }}
-            >
+                }}>
                 {data => (
                     <React.Fragment>
                         <div className='application-status-panel__item columns small-2' style={{position: 'relative'}}>

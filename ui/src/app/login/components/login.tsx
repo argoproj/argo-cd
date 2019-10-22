@@ -78,8 +78,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                         validateError={(params: LoginForm) => ({
                             username: !params.username && 'Username is required',
                             password: !params.password && 'Password is required',
-                        })}
-                    >
+                        })}>
                         {formApi => (
                             <form role='form' className='width-control' onSubmit={formApi.submitForm}>
                                 <div className='argo-form-row'>

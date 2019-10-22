@@ -59,8 +59,7 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                                                 this.setState({edit: true});
                                                 this.onModeSwitch();
                                             }}
-                                            className='argo-button argo-button--base'
-                                        >
+                                            className='argo-button argo-button--base'>
                                             Edit
                                         </button>
                                     )}
@@ -69,8 +68,7 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                                             <button
                                                 disabled={this.state.saving}
                                                 onClick={() => !this.state.saving && this.formApi.submitForm(null)}
-                                                className='argo-button argo-button--base'
-                                            >
+                                                className='argo-button argo-button--base'>
                                                 Save
                                             </button>{' '}
                                             <button
@@ -78,8 +76,7 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                                                     this.setState({edit: false});
                                                     this.onModeSwitch();
                                                 }}
-                                                className='argo-button argo-button--base-o'
-                                            >
+                                                className='argo-button argo-button--base-o'>
                                                 Cancel
                                             </button>
                                         </React.Fragment>
@@ -123,8 +120,7 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                                         }
                                     }}
                                     defaultValues={this.props.values}
-                                    validateError={this.props.validate}
-                                >
+                                    validateError={this.props.validate}>
                                     {api => (
                                         <React.Fragment>
                                             {this.props.items.map(item => (

@@ -77,8 +77,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                     },
                                 ],
                             },
-                        }}
-                    >
+                        }}>
                         <DataLoader load={() => services.projects.get(this.props.match.params.name)} ref={loader => (this.loader = loader)}>
                             {proj => (
                                 <Query>
@@ -123,8 +122,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                             Update
                                                         </button>
                                                     </div>
-                                                }
-                                            >
+                                                }>
                                                 {params.get('edit') === 'true' && (
                                                     <ProjectEditPanel
                                                         nameReadonly={true}
@@ -171,8 +169,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                                 this.setState({token: ''});
                                                                 ctx.navigation.goto('.', {editRole: null, newRole: null});
                                                             }}
-                                                            className='argo-button argo-button--base-o'
-                                                        >
+                                                            className='argo-button argo-button--base-o'>
                                                             Cancel
                                                         </button>{' '}
                                                         <button onClick={() => this.projectRoleFormApi.submitForm(null)} className='argo-button argo-button--base'>
@@ -198,14 +195,12 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                                         }
                                                                     }
                                                                 }}
-                                                                className='argo-button argo-button--base'
-                                                            >
+                                                                className='argo-button argo-button--base'>
                                                                 Delete
                                                             </button>
                                                         ) : null}
                                                     </div>
-                                                }
-                                            >
+                                                }>
                                                 {(params.get('editRole') !== null || params.get('newRole') === 'true') && (
                                                     <ProjectRoleEditPanel
                                                         nameReadonly={params.get('newRole') === null ? true : false}
@@ -253,8 +248,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                                 this.setState({token: ''});
                                                                 ctx.navigation.goto('.', {editWindow: null, newWindow: null});
                                                             }}
-                                                            className='argo-button argo-button--base-o'
-                                                        >
+                                                            className='argo-button argo-button--base-o'>
                                                             Cancel
                                                         </button>{' '}
                                                         <button
@@ -264,8 +258,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                                 }
                                                                 this.projectSyncWindowsFormApi.submitForm(null);
                                                             }}
-                                                            className='argo-button argo-button--base'
-                                                        >
+                                                            className='argo-button argo-button--base'>
                                                             {params.get('newWindow') != null ? 'Create' : 'Update'}
                                                         </button>{' '}
                                                         {params.get('newWindow') === null ? (
@@ -286,14 +279,12 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                                         }
                                                                     }
                                                                 }}
-                                                                className='argo-button argo-button--base'
-                                                            >
+                                                                className='argo-button argo-button--base'>
                                                                 Delete
                                                             </button>
                                                         ) : null}
                                                     </div>
-                                                }
-                                            >
+                                                }>
                                                 {(params.get('editWindow') !== null || params.get('newWindow') === 'true') && (
                                                     <ProjectSyncWindowsEditPanel
                                                         defaultParams={{
@@ -406,8 +397,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                         input={proj.spec.syncWindows}
                         load={async () => {
                             return await services.projects.getSyncWindows(proj.metadata.name);
-                        }}
-                    >
+                        }}>
                         {data => (
                             <div className='argo-table-list argo-table-list--clickable'>
                                 <div className='argo-table-list__head'>

@@ -50,8 +50,7 @@ export const ApplicationResourceList = ({
                                         <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
                                             <i className='fa fa-ellipsis-v' />
                                         </button>
-                                    )}
-                                >
+                                    )}>
                                     {() =>
                                         nodeMenu({
                                             name: res.name,

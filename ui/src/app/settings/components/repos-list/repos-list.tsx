@@ -93,8 +93,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                             },
                         ],
                     },
-                }}
-            >
+                }}>
                 <div className='repos-list'>
                     <div className='argo-container'>
                         <DataLoader load={() => services.repos.list()} ref={loader => (this.repoLoader = loader)}>
@@ -210,8 +209,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                 onClick={() => {
                                     this.credsTemplate = false;
                                     this.formApiHTTPS.submitForm(null);
-                                }}
-                            >
+                                }}>
                                 Connect
                             </button>{' '}
                             <button
@@ -219,16 +217,14 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                 onClick={() => {
                                     this.credsTemplate = true;
                                     this.formApiHTTPS.submitForm(null);
-                                }}
-                            >
+                                }}>
                                 Save as credentials template
                             </button>{' '}
                             <button onClick={() => (this.showConnectHTTPSRepo = false)} className='argo-button argo-button--base-o'>
                                 Cancel
                             </button>
                         </div>
-                    }
-                >
+                    }>
                     <h4>Connect repo using HTTPS</h4>
                     <Form
                         onSubmit={params => this.connectHTTPSRepo(params as NewHTTPSRepoParams)}
@@ -239,8 +235,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                             name: params.type === 'helm' && !params.name && 'Name is required',
                             password: !params.password && params.username && 'Password is required if username is given.',
                             tlsClientCertKey: !params.tlsClientCertKey && params.tlsClientCertData && 'TLS client cert key is required if TLS client cert is given.',
-                        })}
-                    >
+                        })}>
                         {formApi => (
                             <form onSubmit={formApi.submitForm} role='form' className='repos-list width-control'>
                                 <div className='argo-form-row'>
@@ -292,8 +287,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                 onClick={() => {
                                     this.credsTemplate = false;
                                     this.formApiSSH.submitForm(null);
-                                }}
-                            >
+                                }}>
                                 Connect
                             </button>{' '}
                             <button
@@ -301,16 +295,14 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                 onClick={() => {
                                     this.credsTemplate = true;
                                     this.formApiSSH.submitForm(null);
-                                }}
-                            >
+                                }}>
                                 Save as credentials template
                             </button>{' '}
                             <button onClick={() => (this.showConnectSSHRepo = false)} className='argo-button argo-button--base-o'>
                                 Cancel
                             </button>
                         </div>
-                    }
-                >
+                    }>
                     <h4>Connect repo using SSH</h4>
                     <Form
                         onSubmit={params => this.connectSSHRepo(params as NewSSHRepoParams)}
@@ -318,8 +310,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                         defaultValues={{type: 'git'}}
                         validateError={(params: NewSSHRepoParams) => ({
                             url: !params.url && 'Repo URL is required',
-                        })}
-                    >
+                        })}>
                         {formApi => (
                             <form onSubmit={formApi.submitForm} role='form' className='repos-list width-control'>
                                 <div className='argo-form-row'>

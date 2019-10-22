@@ -40,8 +40,7 @@ export const ProjectSyncWindowApplicationsEdit = (props: ProjectSyncWindowProps)
                         onClick={() => {
                             const newA = '';
                             props.formApi.setValue('window.applications', (props.formApi.values.window.applications || []).concat(newA));
-                        }}
-                    >
+                        }}>
                         Add Application
                     </a>
                 </div>
@@ -70,8 +69,7 @@ export const ProjectSyncWindowNamespaceEdit = (props: ProjectSyncWindowProps) =>
                         onClick={() => {
                             const newN = '';
                             props.formApi.setValue('window.namespaces', (props.formApi.values.window.namespaces || []).concat(newN));
-                        }}
-                    >
+                        }}>
                         Add Namespace
                     </a>
                 </div>
@@ -100,8 +98,7 @@ export const ProjectSyncWindowClusterEdit = (props: ProjectSyncWindowProps) => (
                         onClick={() => {
                             const newC = '';
                             props.formApi.setValue('window.clusters', (props.formApi.values.window.clusters || []).concat(newC));
-                        }}
-                    >
+                        }}>
                         Add Cluster
                     </a>
                 </div>
@@ -257,8 +254,7 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
                                 }
                             }
                             this.setValues(minuteValues, 0);
-                        }}
-                    >
+                        }}>
                         <option key='wildcard' value='*'>
                             Every Minute
                         </option>
@@ -283,8 +279,7 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
                                 }
                             }
                             this.setValues(hourValues, 1);
-                        }}
-                    >
+                        }}>
                         <option key='wildcard' value='*'>
                             Every Hour
                         </option>
@@ -309,8 +304,7 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
                                 }
                             }
                             this.setValues(domValues, 2);
-                        }}
-                    >
+                        }}>
                         <option key='wildcard' value='*'>
                             Every Day
                         </option>
@@ -335,8 +329,7 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
                                 }
                             }
                             this.setValues(monthValues, 3);
-                        }}
-                    >
+                        }}>
                         <option key='wildcard' value='*'>
                             Every Month
                         </option>
@@ -394,8 +387,7 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
                                 }
                             }
                             this.setValues(dowValues, 4);
-                        }}
-                    >
+                        }}>
                         <option key='wildcard' value='*'>
                             Sunday-Saturday
                         </option>

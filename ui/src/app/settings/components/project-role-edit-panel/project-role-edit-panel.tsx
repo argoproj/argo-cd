@@ -43,8 +43,7 @@ export const ProjectRoleEditPanel = (props: ProjectRoleEditPanelProps) => {
                 validateError={(params: ProjectRoleParams) => ({
                     projName: !params.projName && 'Project name is required',
                     roleName: !params.roleName && 'Role name is required',
-                })}
-            >
+                })}>
                 {api => (
                     <form onSubmit={api.submitForm} role='form' className='width-control'>
                         <div className='argo-form-row'>

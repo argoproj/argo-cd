@@ -54,8 +54,7 @@ export const ProjectRoleJWTTokens = (props: ProjectRoleJWTTokensProps) => {
                         defaultValues={{expiresIn: ''}}
                         validateError={(params: any) => ({
                             expiresIn: !validExpiresIn(params.expiresIn) && 'Must be in the "[0-9]+[smhd]" format',
-                        })}
-                    >
+                        })}>
                         {api => (
                             <form onSubmit={api.submitForm} role='form' className='width-control'>
                                 <div className='argo-table-list'>

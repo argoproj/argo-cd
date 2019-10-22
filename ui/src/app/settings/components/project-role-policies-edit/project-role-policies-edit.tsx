@@ -53,8 +53,7 @@ export const ProjectRolePoliciesEdit = (props: ProjectRolePoliciesProps) => (
                                     onClick={() => {
                                         const newPolicy = generatePolicy(props.projName, props.roleName);
                                         props.formApi.setValue('policies', (props.formApi.values.policies || []).concat(newPolicy));
-                                    }}
-                                >
+                                    }}>
                                     Add policy
                                 </a>
                             </div>

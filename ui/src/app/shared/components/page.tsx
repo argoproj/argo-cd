@@ -34,8 +34,7 @@ export class Page extends React.Component<{title: string; toolbar?: Toolbar | Ob
                         ];
                         return toolbar;
                     })
-                }
-            >
+                }>
                 {toolbar => <ArgoPage title={this.props.title} children={this.props.children} toolbar={toolbar} />}
             </DataLoader>
         );

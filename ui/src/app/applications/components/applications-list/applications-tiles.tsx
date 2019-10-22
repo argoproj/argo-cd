@@ -26,8 +26,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                         <div
                             className={`argo-table-list__row
                     applications-list__entry applications-list__entry--comparison-${app.status.sync.status}
-                    applications-list__entry--health-${app.status.health.status}`}
-                        >
+                    applications-list__entry--health-${app.status.health.status}`}>
                             <div className='row' onClick={e => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, {event: e})}>
                                 <div className='columns small-12 applications-list__info'>
                                     <div className='applications-list__external-link'>
@@ -54,8 +53,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                                 </div>
                                                             ))}
                                                     </div>
-                                                }
-                                            >
+                                                }>
                                                 <span>
                                                     {Object.keys(app.metadata.labels || {})
                                                         .map(label => `${label}=${app.metadata.labels[label]}`)
@@ -103,8 +101,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                 onClick={e => {
                                                     e.stopPropagation();
                                                     syncApplication(app.metadata.name);
-                                                }}
-                                            >
+                                                }}>
                                                 <i className='fa fa-sync' /> Sync
                                             </a>
                                             &nbsp;
@@ -114,8 +111,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                 onClick={e => {
                                                     e.stopPropagation();
                                                     refreshApplication(app.metadata.name);
-                                                }}
-                                            >
+                                                }}>
                                                 <i className={classNames('fa fa-redo', {'status-icon--spin': AppUtils.isAppRefreshing(app)})} />{' '}
                                                 <span className='show-for-xlarge'>Refresh</span>
                                             </a>
@@ -125,8 +121,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                 onClick={e => {
                                                     e.stopPropagation();
                                                     deleteApplication(app.metadata.name);
-                                                }}
-                                            >
+                                                }}>
                                                 <i className='fa fa-times-circle' /> Delete
                                             </a>
                                         </div>

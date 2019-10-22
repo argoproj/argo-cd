@@ -46,8 +46,7 @@ export const ProjectSyncWindowsEditPanel = (props: ProjectSyncWindowsEditPanelPr
                 validateError={(params: ProjectSyncWindowsParams) => ({
                     projName: !params.projName && 'Project name is required',
                     window: !params.window && 'Window is required',
-                })}
-            >
+                })}>
                 {api => (
                     <form onSubmit={api.submitForm} role='form' className='width-control'>
                         <div className='argo-form-row'>

@@ -9,8 +9,7 @@ export const ApplicationURLs = ({urls}: {urls: string[]}) => {
                     onClick={e => {
                         e.stopPropagation();
                         window.open(urls[0]);
-                    }}
-                >
+                    }}>
                     <i className='fa fa-external-link-alt' />{' '}
                     {urls.length > 1 && (
                         <DropDownMenu

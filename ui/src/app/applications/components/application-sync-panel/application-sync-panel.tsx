@@ -32,8 +32,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                 Cancel
                             </button>
                         </div>
-                    }
-                >
+                    }>
                     {isVisible && (
                         <Form
                             defaultValues={{
@@ -63,8 +62,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                     });
                                 }
                             }}
-                            getApi={setForm}
-                        >
+                            getApi={setForm}>
                             {formApi => (
                                 <form role='form' className='width-control' onSubmit={formApi.submitForm}>
                                     <h6>
@@ -98,8 +96,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                         'resources',
                                                         application.status.resources.map((resource: models.ResourceStatus) => resource.status === models.SyncStatuses.OutOfSync),
                                                     )
-                                                }
-                                            >
+                                                }>
                                                 out of sync
                                             </a>{' '}
                                             / <a onClick={() => formApi.setValue('resources', formApi.values.resources.map(() => false))}>none</a>

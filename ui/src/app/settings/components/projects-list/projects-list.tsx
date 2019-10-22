@@ -20,8 +20,7 @@ export class ProjectsList extends React.Component {
                         toolbar={{
                             breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Projects'}],
                             actionMenu: {className: 'fa fa-plus', items: [{title: 'New Project', action: () => ctx.navigation.goto('.', {add: true})}]},
-                        }}
-                    >
+                        }}>
                         <div className='projects argo-container'>
                             <DataLoader load={() => services.projects.list()} ref={loader => (this.loader = loader)}>
                                 {projects =>
@@ -62,8 +61,7 @@ export class ProjectsList extends React.Component {
                                                 Create
                                             </button>
                                         </div>
-                                    }
-                                >
+                                    }>
                                     <ProjectEditPanel
                                         getApi={api => (this.formApi = api)}
                                         submit={async projParams => {

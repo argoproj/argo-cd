@@ -25,8 +25,7 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                 Cancel
                             </button>
                         </div>
-                    }
-                >
+                    }>
                     <Form
                         onSubmit={async (params: any) => {
                             const selectedApps = getSelectedApps(params);
@@ -44,8 +43,7 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                 });
                             }
                         }}
-                        getApi={setForm}
-                    >
+                        getApi={setForm}>
                         {formApi => (
                             <React.Fragment>
                                 <div className='argo-form-row'>
@@ -73,8 +71,7 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                         <a
                                             onClick={() =>
                                                 apps.forEach(app => formApi.setValue('app/' + app.metadata.name, app.status.sync.status === models.SyncStatuses.OutOfSync))
-                                            }
-                                        >
+                                            }>
                                             out of sync
                                         </a>
                                         /<a onClick={() => apps.forEach(app => formApi.setValue('app/' + app.metadata.name, false))}>none</a>

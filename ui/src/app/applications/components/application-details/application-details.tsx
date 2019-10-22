@@ -99,8 +99,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                 }
                                 return {...items[0], pref};
                             })
-                        }
-                    >
+                        }>
                         {({application, tree, pref}: {application: appModels.Application; tree: appModels.ApplicationTree; pref: AppDetailsPreferences}) => {
                             tree.nodes = tree.nodes || [];
                             const kindsSet = new Set<string>(tree.nodes.map(item => item.kind));
@@ -189,8 +188,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     </div>
                                                 </React.Fragment>
                                             ),
-                                        }}
-                                    >
+                                        }}>
                                         <div className='application-details__status-panel'>
                                             <ApplicationStatusPanel
                                                 application={application}
@@ -235,8 +233,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                             page={this.state.page}
                                                             data={filteredRes}
                                                             onPageChange={page => this.setState({page})}
-                                                            preferencesKey='application-details'
-                                                        >
+                                                            preferencesKey='application-details'>
                                                             {data => (
                                                                 <ApplicationResourceList
                                                                     onNodeClick={fullName => this.selectNode(fullName)}
@@ -276,8 +273,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                 [];
 
                                                             return {controlledState, liveState, events};
-                                                        }}
-                                                    >
+                                                        }}>
                                                         {data => (
                                                             <Tabs
                                                                 navTransparent={true}
@@ -321,8 +317,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                             services.repos
                                                                                 .appDetails(src)
                                                                                 .catch(() => ({type: 'Directory' as appModels.AppSourceType, path: application.spec.source.path}))
-                                                                        }
-                                                                    >
+                                                                        }>
                                                                         {(details: appModels.RepoAppDetails) => (
                                                                             <ApplicationParameters save={app => this.updateApp(app)} application={application} details={details} />
                                                                         )}
@@ -353,8 +348,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                 content: (
                                                                     <DataLoader
                                                                         key='diff'
-                                                                        load={async () => await services.applications.managedResources(application.metadata.name)}
-                                                                    >
+                                                                        load={async () => await services.applications.managedResources(application.metadata.name)}>
                                                                         {managedResources => <ApplicationResourcesDiff states={managedResources} />}
                                                                     </DataLoader>
                                                                 ),
@@ -678,8 +672,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         item.action();
                                         document.body.click();
                                     }
-                                }}
-                            >
+                                }}>
                                 {item.iconClassName && <i className={item.iconClassName} />} {item.title}
                             </li>
                         ))}
@@ -735,8 +728,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 <div
                                                     className='application-details__container'
                                                     key={container.name}
-                                                    onClick={() => this.selectNode(this.selectedNodeKey, group.offset + i, 'logs')}
-                                                >
+                                                    onClick={() => this.selectNode(this.selectedNodeKey, group.offset + i, 'logs')}>
                                                     {group.offset + i === this.selectedNodeInfo.container && <i className='fa fa-angle-right' />}
                                                     <span title={container.name}>{container.name}</span>
                                                 </div>

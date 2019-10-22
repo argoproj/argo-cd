@@ -31,8 +31,7 @@ export const RevisionMetadataPanel = (props: {applicationName: string; source: A
                         </span>
                     }
                     placement='bottom'
-                    allowHTML={true}
-                >
+                    allowHTML={true}>
                     <div className='application-status-panel__item-name'>
                         {m.author && (
                             <React.Fragment>

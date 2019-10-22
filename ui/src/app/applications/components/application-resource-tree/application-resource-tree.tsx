@@ -168,8 +168,7 @@ function renderLoadBalancerNode(node: dagre.Node & {label: string; color: string
                 top: node.y,
                 width: node.width,
                 height: node.height,
-            }}
-        >
+            }}>
             <div className='application-resource-tree__node-kind-icon'>
                 <i title={node.kind} className={`icon fa fa-network-wired`} style={{color: node.color}} />
             </div>
@@ -197,14 +196,12 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 active: fullName === props.selectedNodeFullName,
                 'application-resource-tree__node--orphaned': node.orphaned,
             })}
-            style={{left: node.x, top: node.y, width: node.width, height: node.height}}
-        >
+            style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
             {!appNode && <NodeUpdateAnimation resourceVersion={node.resourceVersion} />}
             <div
                 className={classNames('application-resource-tree__node-kind-icon', {
                     'application-resource-tree__node-kind-icon--big': rootNode,
-                })}
-            >
+                })}>
                 <ResourceIcon kind={node.kind} />
             </div>
             <div className='application-resource-tree__node-content'>
@@ -212,8 +209,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 <div
                     className={classNames('application-resource-tree__node-status-icon', {
                         'application-resource-tree__node-status-icon--offset': rootNode,
-                    })}
-                >
+                    })}>
                     {node.hook && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                     {healthState != null && <HealthStatusIcon state={healthState} />}
                     {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus} resource={!rootNode && node} />}
@@ -241,8 +237,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                             <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
                                 <i className='fa fa-ellipsis-v' />
                             </button>
-                        )}
-                    >
+                        )}>
                         {() => props.nodeMenu(node)}
                     </DropDown>
                 </div>
@@ -439,8 +434,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         )) || (
             <div
                 className={classNames('application-resource-tree', {'application-resource-tree--network': props.useNetworkingHierarchy})}
-                style={{width: size.width + 150, height: size.height + 250}}
-            >
+                style={{width: size.width + 150, height: size.height + 250}}>
                 {graphNodes.map(key => {
                     const node = graph.node(key);
                     const nodeType = node.type;

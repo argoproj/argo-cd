@@ -80,8 +80,7 @@ export function ArrayInput<T>(props: Props<T>) {
                         onClick={() => {
                             addItem(newItem);
                             setNewItem({} as T);
-                        }}
-                    >
+                        }}>
                         <i style={{cursor: 'pointer'}} className='fa fa-plus' />
                     </button>
                 </div>
