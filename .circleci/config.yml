@@ -195,7 +195,7 @@ jobs:
       ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
     steps:
       - e2e:
-          pkgs: "group0 group1"
+          pkgs: "test/e2e/app_autosync test/e2e/app_deletion test/e2e/app_management test/e2e/app_of_apps test/e2e/cli test/e2e/cluster test/e2e/cluster_objects test/e2e/custom_tool test/e2e/delarative test/e2e/deployment test/e2e/diff test/e2e/git_submodule"
   e2e-part-2:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
@@ -206,7 +206,7 @@ jobs:
       ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
     steps:
       - e2e:
-          pkgs: group2
+          pkgs: "test/e2e/helm test/e2e/hook test/e2e/jsonnet"
   e2e-part-3:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
@@ -217,7 +217,7 @@ jobs:
       ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
     steps:
       - e2e:
-          pkgs: group3
+          pkgs: "test/e2e/kustomize test/e2e/project_management test/e2e/pruning_required test/e2e/repo_creds test/e2e/repo_management test/e2e/selective_sync test/e2e/ssh_repo test/e2e/sync_options test/e2e/sync_waves test/e2e/testdata test/e2e/user_info"
   ui:
     docker:
       - image: node:11.15.0
