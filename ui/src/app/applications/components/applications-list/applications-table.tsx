@@ -53,7 +53,7 @@ export const ApplicationsTable = (props: {
                         </div>
                         <div className='row'>
                             <div className='show-for-xxlarge columns small-2'>Destination:</div>
-                            <div className='columns small-12 xxlarge-10'><Cluster url={app.spec.destination.server}/>/{app.spec.destination.namespace}</div>
+                            <div className='columns small-12 xxlarge-10'><Cluster server={app.spec.destination.server}/>/{app.spec.destination.namespace}</div>
                         </div>
                     </div>
                     <div className='columns small-2'>
