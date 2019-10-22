@@ -324,7 +324,7 @@ class RuleWrapper extends React.Component<RuleProps, any> {
                         </div>
                         {comp.kind === 'label' && (
                             <div className='columns small-2'>
-                                <input className='argo-field' value={this.getKey(comp)} onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                <input className='argo-field' spellCheck={false} value={this.getKey(comp)} onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                                     this.setKey(i, e.target.value);
                                 }}/>
                             </div>
@@ -340,7 +340,7 @@ class RuleWrapper extends React.Component<RuleProps, any> {
                         </div>
                         {comp.operator !== 'exists' && (
                             <div className='columns small-5'>
-                                <input className='argo-field' value={this.getValues(comp)} onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                <input className='argo-field' spellCheck={false} value={this.getValues(comp)} onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                                     this.setValues(i, e.target.value);
                                 }}/>
                             </div>
@@ -371,7 +371,7 @@ class RuleWrapper extends React.Component<RuleProps, any> {
     private setKey(i: number, v: string): string {
         if (this.props.fieldApi.getValue() !== undefined) {
             const rule = this.props.fieldApi.getValue();
-            rule.conditions[i].key = v;
+            rule.conditions[i].key = v.replace(/\s/g, '');
             this.props.fieldApi.setValue(rule);
         }
         return;
@@ -431,7 +431,7 @@ class RuleWrapper extends React.Component<RuleProps, any> {
     private setValues(i: number, v: string): string {
         if (this.props.fieldApi.getValue() !== undefined) {
             const rule = this.props.fieldApi.getValue();
-            rule.conditions[i].values = v.split(',');
+            rule.conditions[i].values = v.replace(/\s/g, '').split(',');
             this.props.fieldApi.setValue(rule);
         }
         return;
