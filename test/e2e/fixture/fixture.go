@@ -486,7 +486,7 @@ func AddFile(path, contents string) {
 // create the resource by creating using "kubectl apply", with bonus templating
 func Declarative(filename string, values interface{}) (string, error) {
 
-	bytes, err := ioutil.ReadFile(path.Join("testdata", filename))
+	bytes, err := ioutil.ReadFile(path.Join("../testdata", filename))
 	CheckError(err)
 
 	tmpFile, err := ioutil.TempFile("", "")
@@ -500,7 +500,7 @@ func Declarative(filename string, values interface{}) (string, error) {
 func CreateSubmoduleRepos(repoType string) {
 
 	// set-up submodule repo
-	FailOnErr(Run("", "cp", "-Rf", "testdata/git-submodule/", submoduleDirectory()))
+	FailOnErr(Run("", "cp", "-Rf", "../testdata/git-submodule/", submoduleDirectory()))
 	FailOnErr(Run(submoduleDirectory(), "chmod", "777", "."))
 	FailOnErr(Run(submoduleDirectory(), "git", "init"))
 	FailOnErr(Run(submoduleDirectory(), "git", "add", "."))
@@ -511,7 +511,7 @@ func CreateSubmoduleRepos(repoType string) {
 	FailOnErr(Run(submoduleParentDirectory(), "chmod", "777", "."))
 	FailOnErr(Run(submoduleParentDirectory(), "git", "init"))
 	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "."))
-	FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", "../../submodule.git", "submodule/test"))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", "../submodule.git", "submodule/test"))
 	if repoType == "ssh" {
 		FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeSSHSubmodule)))
 	} else if repoType == "https" {

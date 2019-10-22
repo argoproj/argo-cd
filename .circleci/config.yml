@@ -50,7 +50,7 @@ commands:
             - go-v17-master
   e2e:
     parameters:
-      tags:
+      pkgs:
         type: string
     steps:
       - run:
@@ -117,8 +117,8 @@ commands:
           command: |
             set -eux
 
-            for tag in << parameters.tags >> ; do
-              PATH=dist:$PATH make test-e2e E2E_TAGS=$tag
+            for pkg in << parameters.pkgs >> ; do
+              PATH=dist:$PATH make test-e2e E2E_PKG=$pkg
             done
           environment:
             ARGOCD_OPTS: "--server localhost:8080 --plaintext"
@@ -195,7 +195,7 @@ jobs:
       ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
     steps:
       - e2e:
-          tags: "group0 group1"
+          pkgs: "group0 group1"
   e2e-part-2:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
@@ -206,7 +206,7 @@ jobs:
       ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
     steps:
       - e2e:
-          tags: group2
+          pkgs: group2
   e2e-part-3:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
@@ -217,7 +217,7 @@ jobs:
       ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
     steps:
       - e2e:
-          tags: group3
+          pkgs: group3
   ui:
     docker:
       - image: node:11.15.0

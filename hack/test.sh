@@ -13,4 +13,4 @@ report() {
 
 trap 'report' EXIT
 
-eval go test -v $* 2>&1 | tee $TEST_RESULTS/test.out
+go test -v $* 2>&1 | tee $TEST_RESULTS/test.out

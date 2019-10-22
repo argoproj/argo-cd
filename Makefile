@@ -24,8 +24,8 @@ IMAGE_NAMESPACE?=
 STATIC_BUILD?=true
 # build development images
 DEV_IMAGE?=false
-# the build tags on e2e tests, note that "group0" is first, and therefore should contain flaky tests
-E2E_TAGS='group0 !group0'
+# the e2e package to test
+E2E_PKG/=./test/e2e
 
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
@@ -176,7 +176,7 @@ test:
 
 .PHONY: test-e2e
 test-e2e:
-	./hack/test.sh "-tags='$(E2E_TAGS)'" -timeout 15m ./test/e2e
+	./hack/test.sh -timeout 15m `go list $(E2E_PKG)/...`
 
 .PHONY: start-e2e
 start-e2e: cli
