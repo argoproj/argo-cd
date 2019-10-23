@@ -15,12 +15,12 @@ commands:
     steps:
       - restore_cache:
           keys:
-            - vendor-v4-{{ checksum "Gopkg.lock" }}
+            - vendor-v4-{{ checksum "go.mod" }}
       - run:
           name: Run dep ensure
           command: dep ensure -v
       - save_cache:
-          key: vendor-v4-{{ checksum "Gopkg.lock" }}
+          key: vendor-v4-{{ checksum "go.mod" }}
           paths:
             - vendor
   install_golang:
@@ -73,7 +73,7 @@ jobs:
             # We exclude the Swagger resources; CircleCI doesn't generate them correctly.
             # When this fails, it will, create a patch file you can apply locally to fix it.
             # To troubleshoot builds: https://argoproj.github.io/argo-cd/developer-guide/ci/
-            git diff --exit-code -- . ':!Gopkg.lock'  ':!assets/swagger.json' | tee codegen.patch
+            git diff --exit-code -- . ':!go.sum'  ':!assets/swagger.json' | tee codegen.patch
       - store_artifacts:
           path: codegen.patch
           destination: .

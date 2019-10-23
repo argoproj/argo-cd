@@ -98,18 +98,7 @@ RUN NODE_ENV='production' yarn build
 ####################################################################################################
 FROM golang:1.12.6 as argocd-build
 
-COPY --from=builder /usr/local/bin/dep /usr/local/bin/dep
 COPY --from=builder /usr/local/bin/packr /usr/local/bin/packr
-
-# A dummy directory is created under $GOPATH/src/dummy so we are able to use dep
-# to install all the packages of our dep lock file
-COPY Gopkg.toml ${GOPATH}/src/dummy/Gopkg.toml
-COPY Gopkg.lock ${GOPATH}/src/dummy/Gopkg.lock
-
-RUN cd ${GOPATH}/src/dummy && \
-    dep ensure -vendor-only && \
-    mv vendor/* ${GOPATH}/src/ && \
-    rmdir vendor
 
 # Perform the build
 WORKDIR /go/src/github.com/argoproj/argo-cd
