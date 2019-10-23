@@ -267,7 +267,7 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			case "wide", "":
 				printCertTable(certificates.Items, sortOrder)
 			default:
-				errors.CheckError(fmt.Errof("unknown output format: %s", output))
+				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
 
 		},
