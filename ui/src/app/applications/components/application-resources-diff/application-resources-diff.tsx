@@ -17,36 +17,38 @@ export interface ApplicationResourcesDiffProps {
 
 export const ApplicationResourcesDiff = (props: ApplicationResourcesDiffProps) => (
     <DataLoader key='resource-diff' load={() => services.viewPreferences.getPreferences()}>
-        {(pref) => {
-            const diffText = props.states.map((state) => {
-                let live = state.liveState;
-                if (pref.appDetails.hideDefaultedFields && live) {
-                    live = removeDefaultedFields(state.targetState, live);
-                }
+        {pref => {
+            const diffText = props.states
+                .map(state => {
+                    let live = state.liveState;
+                    if (pref.appDetails.hideDefaultedFields && live) {
+                        live = removeDefaultedFields(state.targetState, live);
+                    }
 
-                const liveCopy = JSON.parse(JSON.stringify(live || {}));
-                let target: any = null;
-                if (state.targetState) {
-                    target = state.diff ? jsonDiffPatch.patch(liveCopy, JSON.parse(state.diff)) : liveCopy;
-                }
+                    const liveCopy = JSON.parse(JSON.stringify(live || {}));
+                    let target: any = null;
+                    if (state.targetState) {
+                        target = state.diff ? jsonDiffPatch.patch(liveCopy, JSON.parse(state.diff)) : liveCopy;
+                    }
 
-                return {
-                    a: live ? jsYaml.safeDump(live, {indent: 2}) : '',
-                    b: target ? jsYaml.safeDump(target, {indent: 2}) : '',
-                    hook: state.hook,
-                    // doubles as sort order
-                    name: (state.group || '') + '/' + state.kind + '/' + state.namespace + '/' + state.name,
-                };
-            })
-                .filter((i) => !i.hook)
-                .filter((i) => i.a !== i.b)
-                .map((i) => {
-                const context = pref.appDetails.compactDiff ? 2 : Number.MAX_SAFE_INTEGER;
-                // react-diff-view, awesome as it is, does not accept unidiff format, you must add a git header section
-                return `diff --git a/${i.name} b/${i.name}
+                    return {
+                        a: live ? jsYaml.safeDump(live, {indent: 2}) : '',
+                        b: target ? jsYaml.safeDump(target, {indent: 2}) : '',
+                        hook: state.hook,
+                        // doubles as sort order
+                        name: (state.group || '') + '/' + state.kind + '/' + state.namespace + '/' + state.name
+                    };
+                })
+                .filter(i => !i.hook)
+                .filter(i => i.a !== i.b)
+                .map(i => {
+                    const context = pref.appDetails.compactDiff ? 2 : Number.MAX_SAFE_INTEGER;
+                    // react-diff-view, awesome as it is, does not accept unidiff format, you must add a git header section
+                    return `diff --git a/${i.name} b/${i.name}
 index 6829b8a2..4c565f1b 100644
 ${formatLines(diffLines(i.a, i.b), {context, aname: `a/${name}}`, bname: `b/${i.name}`})}`;
-            }).join('\n');
+                })
+                .join('\n');
             // assume that if you only have one file, we don't need the file path
             const whiteBox = props.states.length > 1 ? 'white-box' : '';
             const showPath = props.states.length > 1;
@@ -55,41 +57,56 @@ ${formatLines(diffLines(i.a, i.b), {context, aname: `a/${name}}`, bname: `b/${i.
             return (
                 <div className='application-resources-diff'>
                     <div className={whiteBox + ' application-resources-diff__checkboxes'}>
-                        <Checkbox id='compactDiff' checked={pref.appDetails.compactDiff}
-                                  onChange={() => services.viewPreferences.updatePreferences({
-                                      appDetails: {
-                                          ...pref.appDetails,
-                                          compactDiff: !pref.appDetails.compactDiff,
-                                      },
-                                  })}/>
+                        <Checkbox
+                            id='compactDiff'
+                            checked={pref.appDetails.compactDiff}
+                            onChange={() =>
+                                services.viewPreferences.updatePreferences({
+                                    appDetails: {
+                                        ...pref.appDetails,
+                                        compactDiff: !pref.appDetails.compactDiff
+                                    }
+                                })
+                            }
+                        />
                         <label htmlFor='compactDiff'>Compact diff</label>
-                        <Checkbox id='inlineDiff' checked={pref.appDetails.inlineDiff}
-                                  onChange={() => services.viewPreferences.updatePreferences({
-                                      appDetails: {
-                                          ...pref.appDetails,
-                                          inlineDiff: !pref.appDetails.inlineDiff,
-                                      },
-                                  })}/>
+                        <Checkbox
+                            id='inlineDiff'
+                            checked={pref.appDetails.inlineDiff}
+                            onChange={() =>
+                                services.viewPreferences.updatePreferences({
+                                    appDetails: {
+                                        ...pref.appDetails,
+                                        inlineDiff: !pref.appDetails.inlineDiff
+                                    }
+                                })
+                            }
+                        />
                         <label htmlFor='inlineDiff'>Inline Diff</label>
-                        <Checkbox id='hideDefaultedFields' checked={pref.appDetails.hideDefaultedFields}
-                                  onChange={() => services.viewPreferences.updatePreferences({
-                                      appDetails: {
-                                          ...pref.appDetails,
-                                          hideDefaultedFields: !pref.appDetails.hideDefaultedFields,
-                                      },
-                                  })}/>
+                        <Checkbox
+                            id='hideDefaultedFields'
+                            checked={pref.appDetails.hideDefaultedFields}
+                            onChange={() =>
+                                services.viewPreferences.updatePreferences({
+                                    appDetails: {
+                                        ...pref.appDetails,
+                                        hideDefaultedFields: !pref.appDetails.hideDefaultedFields
+                                    }
+                                })
+                            }
+                        />
                         <label htmlFor='hideDefaultedFields'>Hide default fields</label>
                     </div>
-                    {files.sort((a: any, b: any) => a.newPath.localeCompare(b.newPath)).map((file: any) => (
-                        <div key={file.newPath} className={whiteBox + ' application-component-diff__diff'}>
-                            {showPath && (
-                                <p className='application-resources-diff__diff__title'>{file.newPath}</p>
-                            )}
-                            <Diff viewType={viewType} diffType={file.type} hunks={file.hunks}>
-                                {(hunks: any) => hunks.map((hunk: any) => (<Hunk key={hunk.content} hunk={hunk}/>))}
-                            </Diff>
-                        </div>
-                    ))}
+                    {files
+                        .sort((a: any, b: any) => a.newPath.localeCompare(b.newPath))
+                        .map((file: any) => (
+                            <div key={file.newPath} className={whiteBox + ' application-component-diff__diff'}>
+                                {showPath && <p className='application-resources-diff__diff__title'>{file.newPath}</p>}
+                                <Diff viewType={viewType} diffType={file.type} hunks={file.hunks}>
+                                    {(hunks: any) => hunks.map((hunk: any) => <Hunk key={hunk.content} hunk={hunk} />)}
+                                </Diff>
+                            </div>
+                        ))}
                 </div>
             );
         }}

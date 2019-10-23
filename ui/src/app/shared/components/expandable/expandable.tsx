@@ -14,16 +14,14 @@ export const Expandable = (props: Props) => {
     if (!expanded) {
         style.maxHeight = props.height || 100;
     } else {
-        style.maxHeight = contentEl.current && contentEl.current.clientHeight || 10000;
+        style.maxHeight = (contentEl.current && contentEl.current.clientHeight) || 10000;
     }
 
     return (
         <div style={style} className={classNames('expandable', {'expandable--collapsed': !expanded})}>
-            <div ref={contentEl}>
-                {props.children}
-            </div>
+            <div ref={contentEl}>{props.children}</div>
             <a onClick={() => setExpanded(!expanded)}>
-                <i className={classNames('expandable__handle fa', { 'fa-chevron-down': !expanded, 'fa-chevron-up': expanded })}/>
+                <i className={classNames('expandable__handle fa', {'fa-chevron-down': !expanded, 'fa-chevron-up': expanded})} />
             </a>
         </div>
     );
