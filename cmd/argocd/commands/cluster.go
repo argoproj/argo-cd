@@ -211,7 +211,7 @@ func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		},
 	}
 	// we have json as default to not break backwards-compatibility
-	command.Flags().StringVarP(&output, "output", "o", "json", "Output format. One of: yaml|json|wide|server")
+	command.Flags().StringVarP(&output, "output", "o", "json", "Output format. One of: json|yaml|wide|server")
 	return command
 }
 
@@ -310,7 +310,7 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			}
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: yaml|json|wide|server")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|server")
 	return command
 }
 
