@@ -1,6 +1,14 @@
 # Changelog
 
-## v1.3-rc1 (2019-10-16)
+## v1.3.0-rc2 (2019-20-23)
+
+- Issue #2339 - Controller should compare with latest git revision if app has changed (#2543)
+- Unknown child app should not affect app health (#2544)
+- Redact secrets in dex logs (#2538)
+- Allows Helm parameters that contains arrays or maps.  (#2525)
+- Set cookie policy to SameSite=lax and httpOnly (#2498)
+
+## v1.3.0-rc1 (2019-10-16)
 
 #### New Features
 
@@ -153,6 +161,13 @@ There may be instances when you want to control the times during which an Argo C
 * dthomson25 <!-- num=2 -->
 * jannfis <!-- num=8 -->
 * ssbtn <!-- num=2 -->
+
+## v1.2.4 (2019-10-23)
+
+- Issue #2185 - Manual sync don't trigger hooks (#2477)
+- Issue #2339 - Controller should compare with latest git revision if app has changed (#2543)
+- Unknown child app should not affect app health (#2544)
+- Redact secrets in dex logs (#2538)
 
 ## v1.2.3 (2019-10-1)
 * Make argo-cd docker images openshift friendly (#2362) (@duboisf)
