@@ -7,24 +7,24 @@ export interface Image {
     digest?: string;
 }
 
-function parseOverwrite(arg: string, overwriteImage: boolean): { name: string; digest?: string, tag?: string } {
+function parseOverwrite(arg: string, overwriteImage: boolean): {name: string; digest?: string; tag?: string} {
     // match <image>@<digest>
     const parts = arg.split('@');
     if (parts.length > 1) {
-        return { name: parts[0], digest: parts[1]};
+        return {name: parts[0], digest: parts[1]};
     }
 
     // match <image>:<tag>
     const groups = pattern.exec(arg);
     if (groups && groups.length === 3) {
-        return { name: groups[1], tag: groups[2]};
+        return {name: groups[1], tag: groups[2]};
     }
 
     // match <image>
     if (arg.length > 0 && overwriteImage) {
-        return { name: arg };
+        return {name: arg};
     }
-    return { name: arg };
+    return {name: arg};
 }
 
 export function parse(arg: string): Image {
@@ -37,7 +37,7 @@ export function parse(arg: string): Image {
             name: parts[0],
             newName: overwrite.name,
             newTag: overwrite.tag,
-            digest: overwrite.digest,
+            digest: overwrite.digest
         };
     }
 

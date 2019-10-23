@@ -1,7 +1,7 @@
-import { FormField } from 'argo-ui';
+import {FormField} from 'argo-ui';
 import * as React from 'react';
 import * as ReactForm from 'react-form';
-import { Form, Text } from 'react-form';
+import {Form, Text} from 'react-form';
 
 interface ProjectRoleGroupsProps {
     projName: string;
@@ -15,37 +15,42 @@ export const ProjectRoleGroupsEdit = (props: ProjectRoleGroupsProps) => (
     <React.Fragment>
         <h4>Groups</h4>
         <div>OIDC group names to bind to this role</div>
-        {(
+        {
             <div className='argo-table-list'>
                 <div className='argo-table-list__row'>
-                {(props.groups || []) .map((groupName, i) => (
-                    <Group key={i} field={['groups', i]}
-                        formApi={props.formApi}
-                        projName={props.projName}
-                        roleName={props.roleName}
-                        groupName={groupName}
-                        deleteGroup={() => props.formApi.setValue('groups', removeEl(props.groups, i))}
-                    />
-                ))}
+                    {(props.groups || []).map((groupName, i) => (
+                        <Group
+                            key={i}
+                            field={['groups', i]}
+                            formApi={props.formApi}
+                            projName={props.projName}
+                            roleName={props.roleName}
+                            groupName={groupName}
+                            deleteGroup={() => props.formApi.setValue('groups', removeEl(props.groups, i))}
+                        />
+                    ))}
                 </div>
             </div>
-        )}
+        }
 
         <Form>
-            {(api) => (
+            {api => (
                 <div className='argo-table-list'>
                     <div className='argo-table-list__row'>
                         <div className='row'>
                             <div className='columns small-9'>
-                            <FormField formApi={api} label='' field='groupName' component={Text}/>
+                                <FormField formApi={api} label='' field='groupName' component={Text} />
                             </div>
                             <div className='columns small-3'>
-                            <a onClick={() => {
-                                if (api.values.groupName.length > 0) {
-                                    props.formApi.setValue('groups', (props.formApi.values.groups || []).concat(api.values.groupName));
-                                    api.values.groupName = '';
-                                }
-                            }}>Add group</a>
+                                <a
+                                    onClick={() => {
+                                        if (api.values.groupName.length > 0) {
+                                            props.formApi.setValue('groups', (props.formApi.values.groups || []).concat(api.values.groupName));
+                                            api.values.groupName = '';
+                                        }
+                                    }}>
+                                    Add group
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -69,15 +74,12 @@ function removeEl(items: any[], index: number) {
 }
 
 class GroupWrapper extends React.Component<GroupProps, any> {
-
     public render() {
         return (
             <div className='row'>
-                <div className='columns small-11'>
-                    {this.props.groupName}
-                </div>
+                <div className='columns small-11'>{this.props.groupName}</div>
                 <div className='columns small-1'>
-                    <i className='fa fa-times' onClick={() => this.props.deleteGroup()} style={{cursor: 'pointer'}}/>
+                    <i className='fa fa-times' onClick={() => this.props.deleteGroup()} style={{cursor: 'pointer'}} />
                 </div>
             </div>
         );

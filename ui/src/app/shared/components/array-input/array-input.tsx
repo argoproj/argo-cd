@@ -44,63 +44,54 @@ export class ArrayInput extends React.Component<Props, State> {
 
     public render() {
         const addItem = (i: Item) => {
-            this.setState((s) => {
+            this.setState(s => {
                 s.items.push(i);
                 this.props.onChange(s.items);
                 return {items: s.items, newItem: {name: '', value: ''}};
             });
         };
         const replaceItem = (i: Item, j: number) => {
-            this.setState((s) => {
+            this.setState(s => {
                 s.items[j] = i;
                 this.props.onChange(s.items);
                 return s;
             });
         };
         const removeItem = (j: number) => {
-            this.setState((s) => {
+            this.setState(s => {
                 s.items.splice(j, 1);
                 this.props.onChange(s.items);
                 return s;
             });
         };
         const setName = (name: string) => {
-            this.setState((s) => ({items: s.items, newItem: {name, value: s.newItem.value}}));
+            this.setState(s => ({items: s.items, newItem: {name, value: s.newItem.value}}));
         };
         const setValue = (value: string) => {
-            this.setState((s) => ({items: s.items, newItem: {name: s.newItem.name, value}}));
+            this.setState(s => ({items: s.items, newItem: {name: s.newItem.name, value}}));
         };
         return (
             <div className='argo-field' style={{border: 0}}>
                 <div>
                     {this.state.items.map((i, j) => (
                         <div key={`item-${j}`}>
-                            <input value={this.state.items[j].name}
-                                   onChange={(e) => replaceItem({name: e.target.value, value: i.value}, j)}/>
+                            <input value={this.state.items[j].name} onChange={e => replaceItem({name: e.target.value, value: i.value}, j)} />
+                            &nbsp; = &nbsp;
+                            <input value={this.state.items[j].value} onChange={e => replaceItem({name: i.name, value: e.target.value}, j)} />
                             &nbsp;
-                            =
-                            &nbsp;
-                            <input value={this.state.items[j].value}
-                                   onChange={(e) => replaceItem({name: i.name, value: e.target.value}, j)}/>
-                            &nbsp;
-                            <button >
-                                <i className='fa fa-times' style={{cursor: 'pointer'}} onClick={() => removeItem(j)}/>
+                            <button>
+                                <i className='fa fa-times' style={{cursor: 'pointer'}} onClick={() => removeItem(j)} />
                             </button>
                         </div>
                     ))}
                 </div>
                 <div>
-                    <input placeholder='Name' value={this.state.newItem.name}
-                           onChange={(e) => setName(e.target.value)}/>
+                    <input placeholder='Name' value={this.state.newItem.name} onChange={e => setName(e.target.value)} />
+                    &nbsp; = &nbsp;
+                    <input placeholder='Value' value={this.state.newItem.value} onChange={e => setValue(e.target.value)} />
                     &nbsp;
-                    =
-                    &nbsp;
-                    <input placeholder='Value' value={this.state.newItem.value}
-                           onChange={(e) => setValue(e.target.value)}/>
-                    &nbsp;
-                    <button disabled={this.state.newItem.name === '' || this.state.newItem.value === ''}
-                            onClick={() => addItem(this.state.newItem)}>
-                        <i style={{cursor: 'pointer'}} className='fa fa-plus'/>
+                    <button disabled={this.state.newItem.name === '' || this.state.newItem.value === ''} onClick={() => addItem(this.state.newItem)}>
+                        <i style={{cursor: 'pointer'}} className='fa fa-plus' />
                     </button>
                 </div>
             </div>
@@ -108,21 +99,28 @@ export class ArrayInput extends React.Component<Props, State> {
     }
 }
 
-export const ArrayInputField = ReactForm.FormField((props: { fieldApi: ReactForm.FieldApi }) => {
-    const {fieldApi: {getValue, setValue}} = props;
-    return <ArrayInput items={getValue() || []} onChange={setValue}/>;
+export const ArrayInputField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
+    const {
+        fieldApi: {getValue, setValue}
+    } = props;
+    return <ArrayInput items={getValue() || []} onChange={setValue} />;
 });
 
-export const MapInputField = ReactForm.FormField((props: { fieldApi: ReactForm.FieldApi }) => {
-    const {fieldApi: {getValue, setValue}} = props;
+export const MapInputField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
+    const {
+        fieldApi: {getValue, setValue}
+    } = props;
     const items = new Array<Item>();
     const map = getValue() || {};
-    Object.keys(map).forEach((key) => items.push({ name: key, value: map[key] }));
+    Object.keys(map).forEach(key => items.push({name: key, value: map[key]}));
     return (
-        <ArrayInput items={items} onChange={(array) => {
-            const newMap = {} as any;
-            array.forEach((item) => newMap[item.name] = item.value);
-            setValue(newMap);
-        }}/>
+        <ArrayInput
+            items={items}
+            onChange={array => {
+                const newMap = {} as any;
+                array.forEach(item => (newMap[item.name] = item.value));
+                setValue(newMap);
+            }}
+        />
     );
 });

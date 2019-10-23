@@ -14,13 +14,17 @@ export const clusterTitle = (cluster: models.Cluster) => {
 
 const clusterHTML = (cluster: models.Cluster, showUrl: boolean) => {
     const text = showUrl ? clusterTitle(cluster) : clusterName(cluster.name);
-    return <Tooltip content={cluster.server}><span>{text}</span></Tooltip>;
+    return (
+        <Tooltip content={cluster.server}>
+            <span>{text}</span>
+        </Tooltip>
+    );
 };
 
 async function getCluster(clusters: Promise<models.Cluster[]>, url: string): Promise<models.Cluster> {
     let cluster: models.Cluster;
     if (clusters) {
-        cluster = await clusters.then((items) => items.find((item) => item.server === url));
+        cluster = await clusters.then(items => items.find(item => item.server === url));
     } else {
         try {
             cluster = await services.clusters.get(url);
@@ -33,7 +37,7 @@ async function getCluster(clusters: Promise<models.Cluster[]>, url: string): Pro
             connectionState: null,
             name: url,
             server: url,
-            serverVersion: null,
+            serverVersion: null
         };
     }
     return cluster;
@@ -41,11 +45,12 @@ async function getCluster(clusters: Promise<models.Cluster[]>, url: string): Pro
 
 export const ClusterCtx = React.createContext<Promise<Array<models.Cluster>>>(null);
 
-export const Cluster = (props: {url: string; showUrl?: boolean; }) => (
+export const Cluster = (props: {url: string; showUrl?: boolean}) => (
     <ClusterCtx.Consumer>
-    {(clusters) => (
-        <DataLoader input={props.url} loadingRenderer={() => <span>{props.url}</span>}
-            load={(url) => getCluster(clusters, url)}>{(cluster: models.Cluster) => clusterHTML(cluster, props.showUrl)}</DataLoader>
-    )}
+        {clusters => (
+            <DataLoader input={props.url} loadingRenderer={() => <span>{props.url}</span>} load={url => getCluster(clusters, url)}>
+                {(cluster: models.Cluster) => clusterHTML(cluster, props.showUrl)}
+            </DataLoader>
+        )}
     </ClusterCtx.Consumer>
 );

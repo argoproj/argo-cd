@@ -1,38 +1,45 @@
-import { DataLoader, Tab, Tabs } from 'argo-ui';
+import {DataLoader, Tab, Tabs} from 'argo-ui';
 import * as React from 'react';
 
-import { YamlEditor } from '../../../shared/components';
+import {YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
-import { services } from '../../../shared/services';
-import { ApplicationResourcesDiff } from '../application-resources-diff/application-resources-diff';
-import { ComparisonStatusIcon, getPodStateReason, HealthStatusIcon } from '../utils';
+import {services} from '../../../shared/services';
+import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
+import {ComparisonStatusIcon, getPodStateReason, HealthStatusIcon} from '../utils';
 
 require('./application-node-info.scss');
 
 export const ApplicationNodeInfo = (props: {
-    application: models.Application,
-    node: models.ResourceNode,
-    live: models.State,
-    controlled: { summary: models.ResourceStatus, state: models.ResourceDiff },
+    application: models.Application;
+    node: models.ResourceNode;
+    live: models.State;
+    controlled: {summary: models.ResourceStatus; state: models.ResourceDiff};
 }) => {
-    const attributes: {title: string, value: any}[] = [
+    const attributes: {title: string; value: any}[] = [
         {title: 'KIND', value: props.node.kind},
         {title: 'NAME', value: props.node.name},
-        {title: 'NAMESPACE', value: props.node.namespace},
+        {title: 'NAMESPACE', value: props.node.namespace}
     ];
     if ((props.node.images || []).length) {
-        attributes.push({title: 'IMAGES', value: (
-            <div className='application-node-info__labels'>
-                {(props.node.images || []).sort().map((image) => (<span className='application-node-info__label' key={image}>{image}</span>))}
-            </div>
-        ) });
+        attributes.push({
+            title: 'IMAGES',
+            value: (
+                <div className='application-node-info__labels'>
+                    {(props.node.images || []).sort().map(image => (
+                        <span className='application-node-info__label' key={image}>
+                            {image}
+                        </span>
+                    ))}
+                </div>
+            )
+        });
     }
     if (props.live) {
         if (props.node.kind === 'Pod') {
             const {reason, message} = getPodStateReason(props.live);
-            attributes.push({title: 'STATE', value: reason });
+            attributes.push({title: 'STATE', value: reason});
             if (message) {
-                attributes.push({title: 'STATE DETAILS', value: message });
+                attributes.push({title: 'STATE DETAILS', value: message});
             }
         } else if (props.node.kind === 'Service') {
             attributes.push({title: 'TYPE', value: props.live.spec.type});
@@ -47,34 +54,49 @@ export const ApplicationNodeInfo = (props: {
 
     if (props.controlled) {
         if (!props.controlled.summary.hook) {
-            attributes.push({title: 'STATUS', value: (
-                <span><ComparisonStatusIcon status={props.controlled.summary.status} resource={props.controlled.summary} label={true}/></span>
-            )} as any);
+            attributes.push({
+                title: 'STATUS',
+                value: (
+                    <span>
+                        <ComparisonStatusIcon status={props.controlled.summary.status} resource={props.controlled.summary} label={true} />
+                    </span>
+                )
+            } as any);
         }
         if (props.controlled.summary.health !== undefined) {
-            attributes.push({title: 'HEALTH', value: (
-                <span><HealthStatusIcon state={props.controlled.summary.health}/> {props.controlled.summary.health.status}</span>
-            )} as any);
+            attributes.push({
+                title: 'HEALTH',
+                value: (
+                    <span>
+                        <HealthStatusIcon state={props.controlled.summary.health} /> {props.controlled.summary.health.status}
+                    </span>
+                )
+            } as any);
             if (props.controlled.summary.health.message) {
                 attributes.push({title: 'HEALTH DETAILS', value: props.controlled.summary.health.message});
             }
         }
     }
 
-    const tabs: Tab[] = [{
-        key: 'manifest',
-        title: 'Manifest',
-        content: (
-        <YamlEditor input={props.live} hideModeButtons={!props.live} onSave={(patch, patchType) =>
-            services.applications.patchResource(props.application.metadata.name, props.node, patch, patchType)
-        }/>),
-    }];
+    const tabs: Tab[] = [
+        {
+            key: 'manifest',
+            title: 'Manifest',
+            content: (
+                <YamlEditor
+                    input={props.live}
+                    hideModeButtons={!props.live}
+                    onSave={(patch, patchType) => services.applications.patchResource(props.application.metadata.name, props.node, patch, patchType)}
+                />
+            )
+        }
+    ];
     if (props.controlled && !props.controlled.summary.hook) {
         tabs.push({
             key: 'diff',
             icon: 'fa fa-file-medical',
             title: 'Diff',
-            content: <ApplicationResourcesDiff states={[props.controlled.state]}/>,
+            content: <ApplicationResourcesDiff states={[props.controlled.state]} />
         });
     }
 
@@ -82,11 +104,9 @@ export const ApplicationNodeInfo = (props: {
         <div>
             <div className='white-box'>
                 <div className='white-box__details'>
-                    {attributes.map((attr) => (
+                    {attributes.map(attr => (
                         <div className='row white-box__details-row' key={attr.title}>
-                            <div className='columns small-3'>
-                                {attr.title}
-                            </div>
+                            <div className='columns small-3'>{attr.title}</div>
                             <div className='columns small-9'>{attr.value}</div>
                         </div>
                     ))}
@@ -95,9 +115,15 @@ export const ApplicationNodeInfo = (props: {
 
             <div className='application-node-info__manifest'>
                 <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                {(pref) => <Tabs selectedTabKey={tabs.length > 1 && pref.appDetails.resourceView || 'manifest'} tabs={tabs}  onTabSelected={(selected) => {
-                        services.viewPreferences.updatePreferences({ appDetails: { ...pref.appDetails, resourceView: selected as any } });
-                }} />}
+                    {pref => (
+                        <Tabs
+                            selectedTabKey={(tabs.length > 1 && pref.appDetails.resourceView) || 'manifest'}
+                            tabs={tabs}
+                            onTabSelected={selected => {
+                                services.viewPreferences.updatePreferences({appDetails: {...pref.appDetails, resourceView: selected as any}});
+                            }}
+                        />
+                    )}
                 </DataLoader>
             </div>
         </div>

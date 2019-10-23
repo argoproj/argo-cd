@@ -1,4 +1,4 @@
-import { Tooltip } from 'argo-ui';
+import {Tooltip} from 'argo-ui';
 import * as React from 'react';
 import * as ReactForm from 'react-form';
 import {RuleCondition, SyncWindow, WindowRule} from '../../../shared/models';
@@ -12,7 +12,10 @@ interface ProjectSyncWindowProps {
 function helpTip(text: string) {
     return (
         <Tooltip content={text}>
-            <span style={{fontSize: 'smaller'}}> <i className='fa fa-question-circle'/></span>
+            <span style={{fontSize: 'smaller'}}>
+                {' '}
+                <i className='fa fa-question-circle' />
+            </span>
         </Tooltip>
     );
 }
@@ -59,7 +62,7 @@ function setRanges(config: string[]): string {
         if (ranges.length === 0) {
             ranges[0] = [config[i]];
         } else {
-            if ((parseInt(config[i], 10) - 1) === parseInt(config[i - 1], 10)) {
+            if (parseInt(config[i], 10) - 1 === parseInt(config[i - 1], 10)) {
                 ranges[ranges.length - 1].push(config[i]);
             } else {
                 ranges[ranges.length] = [config[i]];
@@ -92,9 +95,7 @@ export const ProjectSyncWindowScheduleEdit = (props: ProjectSyncWindowProps) => 
             </div>
         </div>
         <div className='row project-sync-windows-panel__form-row'>
-            <Schedule key='schedule' field={'window.schedule'}
-                      formApi={props.formApi}
-            />
+            <Schedule key='schedule' field={'window.schedule'} formApi={props.formApi} />
         </div>
     </React.Fragment>
 );
@@ -104,106 +105,183 @@ interface ScheduleProps {
 }
 
 class ScheduleWrapper extends React.Component<ScheduleProps, any> {
-
     public render() {
         return (
             <React.Fragment>
                 <div className='columns small-2'>
-                    <select className='argo-field' size={8} name='minute' multiple={true}  value={this.getValues(0)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                        const minuteOptions = e.target.options;
-                        const minuteValues = [];
-                        for (let i = 0, l = minuteOptions.length; i < l; i++) {
-                            if (minuteOptions[i].selected) {
-                                minuteValues.push(minuteOptions[i].value);
+                    <select
+                        className='argo-field'
+                        size={8}
+                        name='minute'
+                        multiple={true}
+                        value={this.getValues(0)}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                            const minuteOptions = e.target.options;
+                            const minuteValues = [];
+                            for (let i = 0, l = minuteOptions.length; i < l; i++) {
+                                if (minuteOptions[i].selected) {
+                                    minuteValues.push(minuteOptions[i].value);
+                                }
                             }
-                        }
-                        this.setValues(minuteValues, 0);
-                    }}>
-                        <option key='wildcard' value='*'>Every Minute</option>
-                        {generateRange(60, true).map((m) => (
+                            this.setValues(minuteValues, 0);
+                        }}>
+                        <option key='wildcard' value='*'>
+                            Every Minute
+                        </option>
+                        {generateRange(60, true).map(m => (
                             <option key={m}>{m}</option>
                         ))}
                     </select>
                 </div>
                 <div className='columns small-2'>
-                    <select className='argo-field' size={8} name='hours' multiple={true} value={this.getValues(1)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                        const hourOptions = e.target.options;
-                        const hourValues = [];
-                        for (let i = 0, l = hourOptions.length; i < l; i++) {
-                            if (hourOptions[i].selected) {
-                                hourValues.push(hourOptions[i].value);
+                    <select
+                        className='argo-field'
+                        size={8}
+                        name='hours'
+                        multiple={true}
+                        value={this.getValues(1)}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                            const hourOptions = e.target.options;
+                            const hourValues = [];
+                            for (let i = 0, l = hourOptions.length; i < l; i++) {
+                                if (hourOptions[i].selected) {
+                                    hourValues.push(hourOptions[i].value);
+                                }
                             }
-                        }
-                        this.setValues(hourValues, 1);
-                    }}>
-                        <option key='wildcard' value='*'>Every Hour</option>
-                        {generateRange(24, true).map((m) => (
+                            this.setValues(hourValues, 1);
+                        }}>
+                        <option key='wildcard' value='*'>
+                            Every Hour
+                        </option>
+                        {generateRange(24, true).map(m => (
                             <option key={m}>{m}</option>
                         ))}
                     </select>
                 </div>
                 <div className='columns small-2'>
-                    <select className='argo-field' size={8} name='dom' multiple={true} value={this.getValues(2)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                        const domOptions = e.target.options;
-                        const domValues = [];
-                        for (let i = 0, l = domOptions.length; i < l; i++) {
-                            if (domOptions[i].selected) {
-                                domValues.push(domOptions[i].value);
+                    <select
+                        className='argo-field'
+                        size={8}
+                        name='dom'
+                        multiple={true}
+                        value={this.getValues(2)}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                            const domOptions = e.target.options;
+                            const domValues = [];
+                            for (let i = 0, l = domOptions.length; i < l; i++) {
+                                if (domOptions[i].selected) {
+                                    domValues.push(domOptions[i].value);
+                                }
                             }
-                        }
-                        this.setValues(domValues, 2);
-                    }}>
-                        <option key='wildcard' value='*'>Every Day</option>
-                        {generateRange(31, false).map((m) => (
+                            this.setValues(domValues, 2);
+                        }}>
+                        <option key='wildcard' value='*'>
+                            Every Day
+                        </option>
+                        {generateRange(31, false).map(m => (
                             <option key={m}>{m}</option>
                         ))}
                     </select>
                 </div>
                 <div className='columns small-2'>
-                    <select className='argo-field' size={8} name='month' multiple={true} value={this.getValues(3)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                        const monthOptions = e.target.options;
-                        const monthValues = [];
-                        for (let i = 0, l = monthOptions.length; i < l; i++) {
-                            if (monthOptions[i].selected) {
-                                monthValues.push(monthOptions[i].value);
+                    <select
+                        className='argo-field'
+                        size={8}
+                        name='month'
+                        multiple={true}
+                        value={this.getValues(3)}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                            const monthOptions = e.target.options;
+                            const monthValues = [];
+                            for (let i = 0, l = monthOptions.length; i < l; i++) {
+                                if (monthOptions[i].selected) {
+                                    monthValues.push(monthOptions[i].value);
+                                }
                             }
-                        }
-                        this.setValues(monthValues, 3);
-                    }}>
-                        <option key='wildcard' value='*'>Every Month</option>
-                        <option key='1' value='1'>Jan</option>
-                        <option key='2' value='2'>Feb</option>
-                        <option key='3' value='3'>Mar</option>
-                        <option key='4' value='4'>Apr</option>
-                        <option key='5' value='5'>May</option>
-                        <option key='6' value='6'>Jun</option>
-                        <option key='7' value='7'>Jul</option>
-                        <option key='8' value='8'>Aug</option>
-                        <option key='9' value='9'>Sep</option>
-                        <option key='10' value='10'>Oct</option>
-                        <option key='11' value='11'>Nov</option>
-                        <option key='12' value='12'>Dec</option>
+                            this.setValues(monthValues, 3);
+                        }}>
+                        <option key='wildcard' value='*'>
+                            Every Month
+                        </option>
+                        <option key='1' value='1'>
+                            Jan
+                        </option>
+                        <option key='2' value='2'>
+                            Feb
+                        </option>
+                        <option key='3' value='3'>
+                            Mar
+                        </option>
+                        <option key='4' value='4'>
+                            Apr
+                        </option>
+                        <option key='5' value='5'>
+                            May
+                        </option>
+                        <option key='6' value='6'>
+                            Jun
+                        </option>
+                        <option key='7' value='7'>
+                            Jul
+                        </option>
+                        <option key='8' value='8'>
+                            Aug
+                        </option>
+                        <option key='9' value='9'>
+                            Sep
+                        </option>
+                        <option key='10' value='10'>
+                            Oct
+                        </option>
+                        <option key='11' value='11'>
+                            Nov
+                        </option>
+                        <option key='12' value='12'>
+                            Dec
+                        </option>
                     </select>
                 </div>
                 <div className='columns small-2'>
-                    <select className='argo-field' size={8} name='dow' multiple={true} value={this.getValues(4)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                        const dowOptions = e.target.options;
-                        const dowValues = [];
-                        for (let i = 0, l = dowOptions.length; i < l; i++) {
-                            if (dowOptions[i].selected) {
-                                dowValues.push(dowOptions[i].value);
+                    <select
+                        className='argo-field'
+                        size={8}
+                        name='dow'
+                        multiple={true}
+                        value={this.getValues(4)}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                            const dowOptions = e.target.options;
+                            const dowValues = [];
+                            for (let i = 0, l = dowOptions.length; i < l; i++) {
+                                if (dowOptions[i].selected) {
+                                    dowValues.push(dowOptions[i].value);
+                                }
                             }
-                        }
-                        this.setValues(dowValues, 4);
-                    }}>
-                        <option key='wildcard' value='*'>Sunday-Saturday</option>
-                        <option key='0' value='0'>Sun</option>
-                        <option key='1' value='1'>Mon</option>
-                        <option key='2' value='2'>Tue</option>
-                        <option key='3' value='3'>Wed</option>
-                        <option key='4' value='4'>Thu</option>
-                        <option key='5' value='5'>Fri</option>
-                        <option key='6' value='6'>Sat</option>
+                            this.setValues(dowValues, 4);
+                        }}>
+                        <option key='wildcard' value='*'>
+                            Sunday-Saturday
+                        </option>
+                        <option key='0' value='0'>
+                            Sun
+                        </option>
+                        <option key='1' value='1'>
+                            Mon
+                        </option>
+                        <option key='2' value='2'>
+                            Tue
+                        </option>
+                        <option key='3' value='3'>
+                            Wed
+                        </option>
+                        <option key='4' value='4'>
+                            Thu
+                        </option>
+                        <option key='5' value='5'>
+                            Fri
+                        </option>
+                        <option key='6' value='6'>
+                            Sat
+                        </option>
                     </select>
                 </div>
             </React.Fragment>
@@ -245,19 +323,18 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
         }
         return;
     }
-
 }
 
 const Schedule = ReactForm.FormField(ScheduleWrapper);
 
 function newRule(): WindowRule {
     const r = {
-        conditions: [],
+        conditions: []
     } as WindowRule;
     const c = {
         kind: 'application',
         operator: 'in',
-        values: [],
+        values: []
     } as RuleCondition;
     r.conditions.push(c);
 
@@ -270,30 +347,27 @@ export const ProjectSyncWindowRulesEdit = (props: ProjectSyncWindowProps) => (
         <div className='argo-table-list argo-table-list--clickable'>
             <div className='argo-table-list__head'>
                 <div className='row'>
-                    <div className='columns small-1'>
-                        ID
-                    </div>
-                    <div className='columns small-11'>
-                        RULE
-                    </div>
+                    <div className='columns small-1'>ID</div>
+                    <div className='columns small-11'>RULE</div>
                 </div>
             </div>
             {(props.window.rules || []).map((rule, i) => (
-                <div className='argo-table-list__row' key={`${i}`} >
+                <div className='argo-table-list__row' key={`${i}`}>
                     <div className='row'>
-                        <div className='columns small-1' >{i}</div>
+                        <div className='columns small-1'>{i}</div>
                         <div className='columns small-11'>
-                            <Rule key={i} field={['window.rules', i]}
-                                  formApi={props.formApi}
-                            />
+                            <Rule key={i} field={['window.rules', i]} formApi={props.formApi} />
                         </div>
                     </div>
                 </div>
             ))}
             <div className='columns small-3'>
-                <a onClick={() => {
-                    props.formApi.setValue('window.rules', (props.formApi.values.window.rules || []).concat(newRule()));
-                }}>Add Rule</a>
+                <a
+                    onClick={() => {
+                        props.formApi.setValue('window.rules', (props.formApi.values.window.rules || []).concat(newRule()));
+                    }}>
+                    Add Rule
+                </a>
             </div>
         </div>
     </React.Fragment>
@@ -306,16 +380,18 @@ interface RuleProps {
 }
 
 class RuleWrapper extends React.Component<RuleProps, any> {
-
     public render() {
         return (
             <div>
-                {(this.props.fieldApi.getValue().conditions.map((comp: RuleCondition, i: number) => (
+                {this.props.fieldApi.getValue().conditions.map((comp: RuleCondition, i: number) => (
                     <div className='row'>
                         <div className='columns small-2'>
-                            <select className='argo-field' value={this.getKind(comp)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                                this.setKind(i, e.target.value);
-                            }}>
+                            <select
+                                className='argo-field'
+                                value={this.getKind(comp)}
+                                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                                    this.setKind(i, e.target.value);
+                                }}>
                                 <option key='application'>application</option>
                                 <option key='namespace'>namespace</option>
                                 <option key='cluster'>cluster</option>
@@ -324,15 +400,23 @@ class RuleWrapper extends React.Component<RuleProps, any> {
                         </div>
                         {comp.kind === 'label' && (
                             <div className='columns small-2'>
-                                <input className='argo-field' spellCheck={false} value={this.getKey(comp)} onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                                    this.setKey(i, e.target.value);
-                                }}/>
+                                <input
+                                    className='argo-field'
+                                    spellCheck={false}
+                                    value={this.getKey(comp)}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                        this.setKey(i, e.target.value);
+                                    }}
+                                />
                             </div>
                         )}
                         <div className='columns small-2'>
-                            <select className='argo-field' value={this.getOperator(comp)} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                                this.setOperator(i, e.target.value);
-                            }}>
+                            <select
+                                className='argo-field'
+                                value={this.getOperator(comp)}
+                                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                                    this.setOperator(i, e.target.value);
+                                }}>
                                 <option key='in'>in</option>
                                 <option key='notIn'>notIn</option>
                                 <option key='exists'>exists</option>
@@ -340,20 +424,28 @@ class RuleWrapper extends React.Component<RuleProps, any> {
                         </div>
                         {comp.operator !== 'exists' && (
                             <div className='columns small-5'>
-                                <input className='argo-field' spellCheck={false} value={this.getValues(comp)} onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                                    this.setValues(i, e.target.value);
-                                }}/>
+                                <input
+                                    className='argo-field'
+                                    spellCheck={false}
+                                    value={this.getValues(comp)}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                        this.setValues(i, e.target.value);
+                                    }}
+                                />
                             </div>
                         )}
                         <div className='columns small-1'>
-                            <i className='fa fa-times' onClick={() => this.deleteCondition(i)} style={{cursor: 'pointer'}}/>
+                            <i className='fa fa-times' onClick={() => this.deleteCondition(i)} style={{cursor: 'pointer'}} />
                         </div>
                     </div>
-                )))}
+                ))}
                 <div className='columns small-3'>
-                    <a onClick={() => {
-                        this.newCondition();
-                    }}>Add Condition</a>
+                    <a
+                        onClick={() => {
+                            this.newCondition();
+                        }}>
+                        Add Condition
+                    </a>
                 </div>
             </div>
         );
@@ -443,7 +535,7 @@ class RuleWrapper extends React.Component<RuleProps, any> {
             const c = {
                 kind: 'application',
                 operator: 'in',
-                values: [],
+                values: []
             } as RuleCondition;
             rule.conditions.push(c);
             this.props.fieldApi.setValue(rule);
