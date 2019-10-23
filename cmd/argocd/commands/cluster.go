@@ -2,7 +2,6 @@ package commands
 
 import (
 	"context"
-	//"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -10,7 +9,6 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	//"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
