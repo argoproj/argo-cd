@@ -4153,11 +4153,6 @@
             "type": "string"
           }
         },
-        "noValidate": {
-          "type": "boolean",
-          "format": "boolean",
-          "title": "NoValidate will perform a `kubectl apply --validate=false`"
-        },
         "prune": {
           "type": "boolean",
           "format": "boolean",
@@ -4179,6 +4174,11 @@
         },
         "syncStrategy": {
           "$ref": "#/definitions/v1alpha1SyncStrategy"
+        },
+        "validate": {
+          "description": "Validate does `kubectl apply --validate=false`. Defaults to true.",
+          "type": "boolean",
+          "format": "boolean"
         }
       }
     },
@@ -4224,10 +4224,10 @@
         "automated": {
           "$ref": "#/definitions/v1alpha1SyncPolicyAutomated"
         },
-        "noValidate": {
+        "validate": {
+          "description": "Validate does `kubectl apply --validate=false`. Defaults to true.",
           "type": "boolean",
-          "format": "boolean",
-          "title": "NoValidate does `kubectl apply --validate=false`"
+          "format": "boolean"
         }
       }
     },

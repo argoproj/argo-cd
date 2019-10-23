@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 )
 
 func TestAppProject_IsSourcePermitted(t *testing.T) {
@@ -1635,4 +1636,12 @@ func assertConditions(t *testing.T, expected []ApplicationCondition, actual []Ap
 		assert.Equal(t, expected[i].Type, actual[i].Type)
 		assert.Equal(t, expected[i].Message, actual[i].Message)
 	}
+}
+
+func TestSyncPolicy_IsValidate(t *testing.T) {
+	var p *SyncPolicy
+	assert.True(t, p.IsValidate())
+	assert.True(t, (&SyncPolicy{}).IsValidate())
+	assert.True(t, (&SyncPolicy{Validate: pointer.BoolPtr(true)}).IsValidate())
+	assert.False(t, (&SyncPolicy{Validate: pointer.BoolPtr(false)}).IsValidate())
 }

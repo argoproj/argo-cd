@@ -1560,6 +1560,11 @@ func (in *SyncOperation) DeepCopyInto(out *SyncOperation) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.Validate != nil {
+		in, out := &in.Validate, &out.Validate
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
@@ -1623,6 +1628,11 @@ func (in *SyncPolicy) DeepCopyInto(out *SyncPolicy) {
 	if in.Automated != nil {
 		in, out := &in.Automated, &out.Automated
 		*out = new(SyncPolicyAutomated)
+		**out = **in
+	}
+	if in.Validate != nil {
+		in, out := &in.Validate, &out.Validate
+		*out = new(bool)
 		**out = **in
 	}
 	return

@@ -393,9 +393,6 @@ spec:
                   items:
                     type: string
                   type: array
-                noValidate:
-                  description: NoValidate will perform a `kubectl apply --validate=false`
-                  type: boolean
                 prune:
                   description: Prune deletes resources that are no longer tracked
                     in git
@@ -608,6 +605,10 @@ spec:
                           type: boolean
                       type: object
                   type: object
+                validate:
+                  description: Validate does `kubectl apply --validate=false`. Defaults
+                    to true.
+                  type: boolean
               type: object
           type: object
         spec:
@@ -839,8 +840,9 @@ spec:
                       description: 'SelfHeal enables auto-syncing if  (default: false)'
                       type: boolean
                   type: object
-                noValidate:
-                  description: NoValidate does `kubectl apply --validate=false`
+                validate:
+                  description: Validate does `kubectl apply --validate=false`. Defaults
+                    to true.
                   type: boolean
               type: object
           required:
@@ -1083,9 +1085,6 @@ spec:
                           items:
                             type: string
                           type: array
-                        noValidate:
-                          description: NoValidate will perform a `kubectl apply --validate=false`
-                          type: boolean
                         prune:
                           description: Prune deletes resources that are no longer
                             tracked in git
@@ -1310,6 +1309,10 @@ spec:
                                   type: boolean
                               type: object
                           type: object
+                        validate:
+                          description: Validate does `kubectl apply --validate=false`.
+                            Defaults to true.
+                          type: boolean
                       type: object
                   type: object
                 phase:

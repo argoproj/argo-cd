@@ -542,8 +542,7 @@ func (sc *syncContext) ensureCRDReady(name string) {
 }
 
 // applyObject performs a `kubectl apply` of a single resource
-func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun, force, noValidate bool) (v1alpha1.ResultCode, string) {
-	validate := !noValidate && !resource.HasAnnotationOption(targetObj, common.AnnotationSyncOptions, "Validate=false")
+func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun, force, validate bool) (v1alpha1.ResultCode, string) {
 	message, err := sc.kubectl.ApplyResource(sc.config, targetObj, targetObj.GetNamespace(), dryRun, force, validate)
 	if err != nil {
 		return v1alpha1.ResultCodeSyncFailed, err.Error()
@@ -734,7 +733,8 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
 				go func(t *syncTask) {
 					defer createWg.Done()
 					sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t}).Debug("applying")
-					result, message := sc.applyObject(t.targetObj, dryRun, sc.syncOp.SyncStrategy.Force(), sc.syncOp.NoValidate)
+					validate := sc.syncOp.IsValidate() && !resource.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, "Validate=false")
+					result, message := sc.applyObject(t.targetObj, dryRun, sc.syncOp.SyncStrategy.Force(), validate)
 					if result == v1alpha1.ResultCodeSyncFailed {
 						runState = failed
 					}
