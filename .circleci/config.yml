@@ -118,7 +118,7 @@ commands:
             set -eux
 
             E2E_PKGS=$(for pkg in << parameters.pkgs >> ; do
-              echo ./test/e2e/$PKG
+              echo ./test/e2e/$pkg
             done | tr "\n" " ")
             xargs PATH=dist:$PATH make test-e2e E2E_PKGS="$E2E_PKGS"
           environment:
