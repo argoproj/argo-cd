@@ -209,7 +209,8 @@ func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			}
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: yaml|json|wide|server")
+	// we have json as default to not break backwards-compatibility
+	command.Flags().StringVarP(&output, "output", "o", "json", "Output format. One of: yaml|json|wide|server")
 	return command
 }
 
@@ -222,15 +223,17 @@ func strWithDefault(value string, def string) string {
 
 func printClusterDetails(clusters []*argoappv1.Cluster) {
 	for _, cluster := range clusters {
-		fmt.Printf("Server URL:               %s\n", cluster.Server)
-		fmt.Printf("Server Name:              %s\n", strWithDefault(cluster.Name, "-"))
-		fmt.Printf("Server Version:           %s\n", cluster.ServerVersion)
-		fmt.Printf("TLS configuration\n")
-		fmt.Printf("   Client cert:           %v\n", string(cluster.Config.TLSClientConfig.CertData) != "")
-		fmt.Printf("   Cert validation:       %v\n", cluster.Config.TLSClientConfig.Insecure == false)
-		fmt.Printf("Basic authentication:     %v\n", cluster.Config.Username != "")
-		fmt.Printf("oAuth authentication:     %v\n", cluster.Config.BearerToken != "")
-		fmt.Printf("AWS authentication:       %v\n", cluster.Config.AWSAuthConfig != nil)
+		fmt.Printf("Cluster information\n\n")
+		fmt.Printf("  Server URL:            %s\n", cluster.Server)
+		fmt.Printf("  Server Name:           %s\n", strWithDefault(cluster.Name, "-"))
+		fmt.Printf("  Server Version:        %s\n", cluster.ServerVersion)
+		fmt.Printf("\nTLS configuration\n\n")
+		fmt.Printf("  Client cert:           %v\n", string(cluster.Config.TLSClientConfig.CertData) != "")
+		fmt.Printf("  Cert validation:       %v\n", !cluster.Config.TLSClientConfig.Insecure)
+		fmt.Printf("\nAuthentication\n\n")
+		fmt.Printf("  Basic authentication:  %v\n", cluster.Config.Username != "")
+		fmt.Printf("  oAuth authentication:  %v\n", cluster.Config.BearerToken != "")
+		fmt.Printf("  AWS authentication:    %v\n", cluster.Config.AWSAuthConfig != nil)
 		fmt.Println()
 	}
 }
