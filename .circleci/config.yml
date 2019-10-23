@@ -121,7 +121,7 @@ commands:
               echo ./test/e2e/$pkg
             done | tr "\n" " ")
             PATH=dist:$PATH 
-            xargs make test-e2e E2E_PKGS="$E2E_PKGS"
+            make test-e2e E2E_PKGS="$E2E_PKGS"
           environment:
             ARGOCD_OPTS: "--server localhost:8080 --plaintext"
             ARGOCD_E2E_EXPECT_TIMEOUT: "30"

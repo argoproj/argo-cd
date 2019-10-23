@@ -176,7 +176,7 @@ test:
 
 .PHONY: test-e2e
 test-e2e:
-	./hack/test.sh -timeout 15m $(E2E_PKGS)
+	./hack/test.sh -parallel 1 -timeout 15m $(E2E_PKGS)
 
 .PHONY: start-e2e
 start-e2e: cli
