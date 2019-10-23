@@ -448,7 +448,7 @@ func testEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode 
 	expect.
 		Expect(HealthIs(statusCode)).
 		And(func(app *Application) {
-			diffOutput, err := RunCli("app", "diff", app.Name, "--local", path.Join("testdata", appPath))
+			diffOutput, err := RunCli("app", "diff", app.Name, "--local", path.Join("../testdata", appPath))
 			assert.Empty(t, diffOutput)
 			assert.NoError(t, err)
 		})
@@ -565,7 +565,7 @@ func TestLocalManifestSync(t *testing.T) {
 			assert.Contains(t, res, "image: gcr.io/heptio-images/ks-guestbook-demo:0.2")
 		}).
 		Given().
-		LocalPath("./testdata/guestbook_local").
+		LocalPath("../testdata/guestbook_local").
 		When().
 		Sync().
 		Then().
@@ -599,7 +599,7 @@ func TestNoLocalSyncWithAutosyncEnabled(t *testing.T) {
 			_, err := RunCli("app", "set", app.Name, "--sync-policy", "automated")
 			assert.NoError(t, err)
 
-			_, err = RunCli("app", "sync", app.Name, "--local", "./testdata/guestbook_local")
+			_, err = RunCli("app", "sync", app.Name, "--local", "../testdata/guestbook_local")
 			assert.Error(t, err)
 		})
 }
