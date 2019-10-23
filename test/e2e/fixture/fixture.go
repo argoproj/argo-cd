@@ -40,8 +40,10 @@ const (
 	ArgoCDNamespace  = "argocd-e2e"
 
 	// ensure all repos are in one directory tree, so we can easily clean them up
-	TmpDir  = "/tmp/argo-e2e"
-	repoDir = "testdata.git"
+	TmpDir             = "/tmp/argo-e2e"
+	repoDir            = "testdata.git"
+	submoduleDir       = "submodule.git"
+	submoduleParentDir = "submoduleParent.git"
 
 	GuestbookPath = "guestbook"
 )
@@ -62,13 +64,17 @@ var (
 type RepoURLType string
 
 const (
-	RepoURLTypeFile            = "file"
-	RepoURLTypeHTTPS           = "https"
-	RepoURLTypeHTTPSClientCert = "https-cc"
-	RepoURLTypeSSH             = "ssh"
-	RepoURLTypeHelm            = "helm"
-	GitUsername                = "admin"
-	GitPassword                = "password"
+	RepoURLTypeFile                 = "file"
+	RepoURLTypeHTTPS                = "https"
+	RepoURLTypeHTTPSClientCert      = "https-cc"
+	RepoURLTypeHTTPSSubmodule       = "https-sub"
+	RepoURLTypeHTTPSSubmoduleParent = "https-par"
+	RepoURLTypeSSH                  = "ssh"
+	RepoURLTypeSSHSubmodule         = "ssh-sub"
+	RepoURLTypeSSHSubmoduleParent   = "ssh-par"
+	RepoURLTypeHelm                 = "helm"
+	GitUsername                     = "admin"
+	GitPassword                     = "password"
 )
 
 // getKubeConfig creates new kubernetes client config using specified config path and config overrides variables
@@ -132,17 +138,36 @@ func repoDirectory() string {
 	return path.Join(TmpDir, repoDir)
 }
 
+func submoduleDirectory() string {
+	return path.Join(TmpDir, submoduleDir)
+}
+
+func submoduleParentDirectory() string {
+	return path.Join(TmpDir, submoduleParentDir)
+}
+
 func RepoURL(urlType RepoURLType) string {
 	switch urlType {
 	// Git server via SSH
 	case RepoURLTypeSSH:
 		return "ssh://root@localhost:2222/tmp/argo-e2e/testdata.git"
+	// Git submodule repo
+	case RepoURLTypeSSHSubmodule:
+		return "ssh://root@localhost:2222/tmp/argo-e2e/submodule.git"
+		// Git submodule parent repo
+	case RepoURLTypeSSHSubmoduleParent:
+		return "ssh://root@localhost:2222/tmp/argo-e2e/submoduleParent.git"
 	// Git server via HTTPS
 	case RepoURLTypeHTTPS:
 		return "https://localhost:9443/argo-e2e/testdata.git"
 	// Git server via HTTPS - Client Cert protected
 	case RepoURLTypeHTTPSClientCert:
 		return "https://localhost:9444/argo-e2e/testdata.git"
+	case RepoURLTypeHTTPSSubmodule:
+		return "https://localhost:9443/argo-e2e/submodule.git"
+		// Git submodule parent repo
+	case RepoURLTypeHTTPSSubmoduleParent:
+		return "https://localhost:9443/argo-e2e/submoduleParent.git"
 	// Default - file based Git repository
 	case RepoURLTypeHelm:
 		return "https://localhost:9444/argo-e2e/testdata.git/helm-repo"
@@ -470,4 +495,28 @@ func Declarative(filename string, values interface{}) (string, error) {
 	CheckError(err)
 
 	return Run("", "kubectl", "-n", ArgoCDNamespace, "apply", "-f", tmpFile.Name())
+}
+
+func CreateSubmoduleRepos(repoType string) {
+
+	// set-up submodule repo
+	FailOnErr(Run("", "cp", "-Rf", "testdata/git-submodule/", submoduleDirectory()))
+	FailOnErr(Run(submoduleDirectory(), "chmod", "777", "."))
+	FailOnErr(Run(submoduleDirectory(), "git", "init"))
+	FailOnErr(Run(submoduleDirectory(), "git", "add", "."))
+	FailOnErr(Run(submoduleDirectory(), "git", "commit", "-q", "-m", "initial commit"))
+
+	// set-up submodule parent repo
+	FailOnErr(Run("", "mkdir", submoduleParentDirectory()))
+	FailOnErr(Run(submoduleParentDirectory(), "chmod", "777", "."))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "init"))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "."))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", "../submodule.git", "submodule/test"))
+	if repoType == "ssh" {
+		FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeSSHSubmodule)))
+	} else if repoType == "https" {
+		FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeHTTPSSubmodule)))
+	}
+	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "--all"))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "commit", "-q", "-m", "commit with submodule"))
 }

@@ -54,7 +54,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 		systemNamespace string
 	)
 	var command = &cobra.Command{
-		Use:   "add",
+		Use:   "add CONTEXT",
 		Short: fmt.Sprintf("%s cluster add CONTEXT", cliName),
 		Run: func(c *cobra.Command, args []string) {
 			var configAccess clientcmd.ConfigAccess = pathOpts
@@ -65,9 +65,10 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			}
 			config, err := configAccess.GetStartingConfig()
 			errors.CheckError(err)
-			clstContext := config.Contexts[args[0]]
+			contextName := args[0]
+			clstContext := config.Contexts[contextName]
 			if clstContext == nil {
-				log.Fatalf("Context %s does not exist in kubeconfig", args[0])
+				log.Fatalf("Context %s does not exist in kubeconfig", contextName)
 			}
 
 			overrides := clientcmd.ConfigOverrides{
@@ -93,7 +94,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
-			clst := NewCluster(args[0], conf, managerBearerToken, awsAuthConf)
+			clst := NewCluster(contextName, conf, managerBearerToken, awsAuthConf)
 			if inCluster {
 				clst.Server = common.KubernetesInternalAPIServerAddr
 			}
@@ -101,9 +102,9 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				Cluster: clst,
 				Upsert:  upsert,
 			}
-			clst, err = clusterIf.Create(context.Background(), &clstCreateReq)
+			_, err = clusterIf.Create(context.Background(), &clstCreateReq)
 			errors.CheckError(err)
-			fmt.Printf("Cluster '%s' added\n", clst.Name)
+			fmt.Printf("Cluster '%s' added\n", clst.Server)
 		},
 	}
 	command.PersistentFlags().StringVar(&pathOpts.LoadingRules.ExplicitPath, pathOpts.ExplicitFileFlag, pathOpts.LoadingRules.ExplicitPath, "use a particular kubeconfig file")

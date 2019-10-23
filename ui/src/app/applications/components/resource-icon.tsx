@@ -33,18 +33,16 @@ const imgNameByKind = new Map<string, string>([
     ['StatefulSet', 'sts'],
     ['Service', 'svc'],
     ['User', 'user'],
-    ['Volume', 'vol'],
+    ['Volume', 'vol']
 ]);
 
-export const ResourceIcon = ({kind}: { kind: string }) => {
+export const ResourceIcon = ({kind}: {kind: string}) => {
     const img = imgNameByKind.get(kind);
     if (img !== undefined) {
-        return (
-            <img src={'assets/images/resources/' + img + '.svg'} alt={kind} style={{padding: '2px', width: '40px', height: '32px'}}/>
-        );
+        return <img src={'assets/images/resources/' + img + '.svg'} alt={kind} style={{padding: '2px', width: '40px', height: '32px'}} />;
     }
     if (kind === 'Application') {
-        return <i title={kind} className={`icon argo-icon-application`}/>;
+        return <i title={kind} className={`icon argo-icon-application`} />;
     }
-    return <i title={kind} className='icon fa fa-cogs'/>;
+    return <i title={kind} className='icon fa fa-cogs' />;
 };

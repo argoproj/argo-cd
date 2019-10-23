@@ -601,6 +601,24 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 		assert.Equal(t, argoappv1.RefreshTypeHard, refreshType)
 		assert.Equal(t, CompareWithLatest, compareWith)
 	}
+
+	{
+		app := app.DeepCopy()
+		// ensure that CompareWithLatest level is used if application source has changed
+		ctrl.requestAppRefresh(app.Name, ComparisonWithNothing)
+		// sample app source change
+		app.Spec.Source.Helm = &argoappv1.ApplicationSourceHelm{
+			Parameters: []argoappv1.HelmParameter{{
+				Name:  "foo",
+				Value: "bar",
+			}},
+		}
+
+		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour)
+		assert.True(t, needRefresh)
+		assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
+		assert.Equal(t, CompareWithLatest, compareWith)
+	}
 }
 
 func TestRefreshAppConditions(t *testing.T) {

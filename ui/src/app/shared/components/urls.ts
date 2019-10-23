@@ -21,12 +21,11 @@ export function repoUrl(url: string): string {
 }
 
 export function revisionUrl(url: string, revision: string): string {
-
     const parsed = GitUrlParse(url);
 
     if (!supportedSource(parsed)) {
         return null;
     }
 
-    return `${protocol(parsed.protocol)}://${parsed.resource}/${parsed.owner}/${parsed.name}/${(url.indexOf('bitbucket') >= 0 ? 'commits' : 'commit')}/${revision || 'HEAD'}`;
+    return `${protocol(parsed.protocol)}://${parsed.resource}/${parsed.owner}/${parsed.name}/${url.indexOf('bitbucket') >= 0 ? 'commits' : 'commit'}/${revision || 'HEAD'}`;
 }

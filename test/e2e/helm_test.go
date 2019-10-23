@@ -148,10 +148,10 @@ func TestHelmSet(t *testing.T) {
 		Path("helm").
 		When().
 		Create().
-		AppSet("--helm-set", "foo=bar", "--helm-set", "foo=baz").
+		AppSet("--helm-set", "foo=bar", "--helm-set", "foo=baz", "--helm-set", "app=$ARGOCD_APP_NAME").
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "baz"}}, app.Spec.Source.Helm.Parameters)
+			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "baz"}, {Name: "app", Value: "$ARGOCD_APP_NAME"}}, app.Spec.Source.Helm.Parameters)
 		})
 }
 
@@ -160,10 +160,41 @@ func TestHelmSetString(t *testing.T) {
 		Path("helm").
 		When().
 		Create().
-		AppSet("--helm-set-string", "foo=bar", "--helm-set-string", "foo=baz").
+		AppSet("--helm-set-string", "foo=bar", "--helm-set-string", "foo=baz", "--helm-set-string", "app=$ARGOCD_APP_NAME").
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "baz", ForceString: true}}, app.Spec.Source.Helm.Parameters)
+			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "baz", ForceString: true}, {Name: "app", Value: "$ARGOCD_APP_NAME", ForceString: true}}, app.Spec.Source.Helm.Parameters)
+		})
+}
+
+// ensure we can use envsubst in "set" variables
+func TestHelmSetEnv(t *testing.T) {
+	Given(t).
+		Path("helm-values").
+		When().
+		Create().
+		AppSet("--helm-set", "foo=$ARGOCD_APP_NAME").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Equal(t, Name(), FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
+		})
+}
+
+func TestHelmSetStringEnv(t *testing.T) {
+	Given(t).
+		Path("helm-values").
+		When().
+		Create().
+		AppSet("--helm-set-string", "foo=$ARGOCD_APP_NAME").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Equal(t, Name(), FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
 		})
 }
 
