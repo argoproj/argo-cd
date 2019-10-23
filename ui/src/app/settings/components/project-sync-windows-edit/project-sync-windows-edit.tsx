@@ -505,6 +505,7 @@ class RuleWrapper extends React.Component<RuleProps, any> {
             rule.conditions[i].operator = v;
             if (v === 'exists') {
                 rule.conditions[i].values = undefined;
+                rule.conditions[i].kind = 'label';
             }
             this.props.fieldApi.setValue(rule);
         }
