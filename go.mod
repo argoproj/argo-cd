@@ -3,6 +3,7 @@ module github.com/argoproj/argo-cd
 go 1.13
 
 require (
+	bou.ke/monkey v1.0.1
 	cloud.google.com/go v0.34.0
 	github.com/Knetic/govaluate v3.0.0+incompatible
 	github.com/Masterminds/semver v1.4.2
