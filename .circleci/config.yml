@@ -117,9 +117,10 @@ commands:
           command: |
             set -eux
 
-            for pkg in << parameters.pkgs >> ; do
-              PATH=dist:$PATH make test-e2e E2E_PKG=./test/e2e/$pkg
-            done
+            E2E_PKGS=$(for pkg in << parameters.pkgs >> ; do
+              echo ./test/e2e/$PKG
+            done | tr "\n" " ")
+            xargs PATH=dist:$PATH make test-e2e E2E_PKGS="$E2E_PKGS"
           environment:
             ARGOCD_OPTS: "--server localhost:8080 --plaintext"
             ARGOCD_E2E_EXPECT_TIMEOUT: "30"
