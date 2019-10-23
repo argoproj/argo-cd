@@ -28,6 +28,8 @@ LINT_GOGC?=off
 LINT_CONCURRENCY?=8
 # Set timeout for linter
 LINT_DEADLINE?=4m0s
+CODEGEN=true
+LINT=true
 
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
@@ -74,7 +76,7 @@ codegen-local: protogen clientgen openapigen manifests-local
 
 .PHONY: codegen
 codegen: dev-tools-image
-	$(call run-in-dev-tool,make codegen-local)
+	@if [ "$(CODGEN)" = "true" ]; then $(call run-in-dev-tool,make codegen-local) ; fi
 
 .PHONY: cli
 cli: clean-debug
@@ -161,7 +163,7 @@ lint-local: build
 
 .PHONY: lint
 lint: dev-tools-image
-	$(call run-in-dev-tool,make lint-local LINT_CONCURRENCY=$(LINT_CONCURRENCY) LINT_DEADLINE=$(LINT_DEADLINE) LINT_GOGC=$(LINT_GOGC))
+	@if [ "$(LINT)" = "true" ]; then $(call run-in-dev-tool,make lint-local LINT_CONCURRENCY=$(LINT_CONCURRENCY) LINT_DEADLINE=$(LINT_DEADLINE) LINT_GOGC=$(LINT_GOGC)); fi
 
 .PHONY: build
 build:
