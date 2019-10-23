@@ -1,9 +1,9 @@
 import * as React from 'react';
 import * as models from '../models';
 
-import { COLORS } from './colors';
+import {COLORS} from './colors';
 
-export const ConnectionStateIcon = (props: { state: models.ConnectionState }) => {
+export const ConnectionStateIcon = (props: {state: models.ConnectionState}) => {
     let className = '';
     let color = '';
 
@@ -21,5 +21,5 @@ export const ConnectionStateIcon = (props: { state: models.ConnectionState }) =>
             color = COLORS.connection_status.unknown;
             break;
     }
-    return <i title={props.state.message || props.state.status} className={className} style={{ color }} />;
+    return <i title={props.state.message || props.state.status} className={className} style={{color}} />;
 };

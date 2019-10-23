@@ -1,7 +1,7 @@
 import * as React from 'react';
 import {revisionUrl} from './urls';
 
-export const Revision = ({repoUrl, revision, children}: { repoUrl: string, revision: string, children?: React.ReactNode }) => {
+export const Revision = ({repoUrl, revision, children}: {repoUrl: string; revision: string; children?: React.ReactNode}) => {
     revision = revision || '';
     const url = revisionUrl(repoUrl, revision);
     const content = children || revision.substr(0, 7);

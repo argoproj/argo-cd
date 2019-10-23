@@ -1,14 +1,4 @@
-import {
-    DataLoader,
-    Layout,
-    NavigationManager,
-    Notifications,
-    NotificationsManager,
-    PageContext,
-    Popup,
-    PopupManager,
-    PopupProps,
-} from 'argo-ui';
+import {DataLoader, Layout, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps} from 'argo-ui';
 import {createBrowserHistory} from 'history';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -28,41 +18,46 @@ import userInfo from './user-info';
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
 const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
-export const history = createBrowserHistory({ basename: base });
+export const history = createBrowserHistory({basename: base});
 requests.setApiRoot(`${base}api/v1`);
 
-const routes: {[path: string]: { component: React.ComponentType<RouteComponentProps<any>>, noLayout?: boolean } } = {
-    '/login': { component: login.component as any, noLayout: true },
-    '/applications': { component: applications.component },
-    '/settings': { component: settings.component },
-    '/user-info': { component: userInfo.component },
-    '/help': { component: help.component },
+const routes: {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean}} = {
+    '/login': {component: login.component as any, noLayout: true},
+    '/applications': {component: applications.component},
+    '/settings': {component: settings.component},
+    '/user-info': {component: userInfo.component},
+    '/help': {component: help.component}
 };
 
-const navItems = [{
-    title: 'Manage your applications, and diagnose health problems.',
-    path: '/applications',
-    iconClassName: 'argo-icon-application',
-}, {
-    title: 'Manage your repositories, projects, settings',
-    path: '/settings',
-    iconClassName: 'argo-icon-settings',
-}, {
-    title: 'User Info',
-    path: '/user-info',
-    iconClassName: 'fa fa-user-circle',
-}, {
-    title: 'Read the documentation, and get help and assistance.',
-    path: '/help',
-    iconClassName: 'argo-icon-docs',
-}];
+const navItems = [
+    {
+        title: 'Manage your applications, and diagnose health problems.',
+        path: '/applications',
+        iconClassName: 'argo-icon-application'
+    },
+    {
+        title: 'Manage your repositories, projects, settings',
+        path: '/settings',
+        iconClassName: 'argo-icon-settings'
+    },
+    {
+        title: 'User Info',
+        path: '/user-info',
+        iconClassName: 'fa fa-user-circle'
+    },
+    {
+        title: 'Read the documentation, and get help and assistance.',
+        path: '/help',
+        iconClassName: 'argo-icon-docs'
+    }
+];
 
 async function isExpiredSSO() {
     try {
         const {loggedIn, iss} = await services.users.get();
         if (loggedIn && iss !== 'argocd') {
             const authSettings = await services.authService.settings();
-            return (authSettings.dexConfig && authSettings.dexConfig.connectors || []).length > 0 || authSettings.oidcConfig;
+            return ((authSettings.dexConfig && authSettings.dexConfig.connectors) || []).length > 0 || authSettings.oidcConfig;
         }
     } catch {
         return false;
@@ -70,12 +65,15 @@ async function isExpiredSSO() {
     return false;
 }
 
-requests.onError.subscribe(async (err) => {
+requests.onError.subscribe(async err => {
     if (err.status === 401) {
         if (!history.location.pathname.startsWith('/login')) {
             // Query for basehref and remove trailing /.
             // If basehref is the default `/` it will become an empty string.
-            const basehref = document.querySelector('head > base').getAttribute('href').replace(/\/$/, '');
+            const basehref = document
+                .querySelector('head > base')
+                .getAttribute('href')
+                .replace(/\/$/, '');
             if (await isExpiredSSO()) {
                 window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
             } else {
@@ -85,14 +83,14 @@ requests.onError.subscribe(async (err) => {
     }
 });
 
-export class App extends React.Component<{}, { popupProps: PopupProps, error: Error }> {
+export class App extends React.Component<{}, {popupProps: PopupProps; error: Error}> {
     public static childContextTypes = {
         history: PropTypes.object,
-        apis: PropTypes.object,
+        apis: PropTypes.object
     };
 
     public static getDerivedStateFromError(error: Error) {
-        return { error };
+        return {error};
     }
 
     private popupManager: PopupManager;
@@ -101,15 +99,15 @@ export class App extends React.Component<{}, { popupProps: PopupProps, error: Er
 
     constructor(props: {}) {
         super(props);
-        this.state = { popupProps: null, error: null };
+        this.state = {popupProps: null, error: null};
         this.popupManager = new PopupManager();
         this.notificationsManager = new NotificationsManager();
         this.navigationManager = new NavigationManager(history);
     }
 
     public async componentDidMount() {
-        this.popupManager.popupProps.subscribe((popupProps) => this.setState({ popupProps }));
-        const { trackingID, anonymizeUsers } = await services.authService.settings().then((item) => item.googleAnalytics || {  trackingID: '', anonymizeUsers: true });
+        this.popupManager.popupProps.subscribe(popupProps => this.setState({popupProps}));
+        const {trackingID, anonymizeUsers} = await services.authService.settings().then(item => item.googleAnalytics || {trackingID: '', anonymizeUsers: true});
         const {loggedIn, username} = await services.users.get();
         if (trackingID) {
             const ga = await import('react-ga');
@@ -134,7 +132,10 @@ export class App extends React.Component<{}, { popupProps: PopupProps, error: Er
             return (
                 <React.Fragment>
                     <p>Something went wrong!</p>
-                    <p>Consider submitting an issue <a href={url}>here</a>.</p><br />
+                    <p>
+                        Consider submitting an issue <a href={url}>here</a>.
+                    </p>
+                    <br />
                     <p>Stacktrace:</p>
                     <pre>{stack}</pre>
                 </React.Fragment>
@@ -144,47 +145,60 @@ export class App extends React.Component<{}, { popupProps: PopupProps, error: Er
         return (
             <React.Fragment>
                 <Helmet>
-                    <link rel='icon' type='image/png' href={`${base}assets/favicon/favicon-32x32.png`} sizes='32x32'/>
-                    <link rel='icon' type='image/png' href={`${base}assets/favicon/favicon-16x16.png`} sizes='16x16'/>
+                    <link rel='icon' type='image/png' href={`${base}assets/favicon/favicon-32x32.png`} sizes='32x32' />
+                    <link rel='icon' type='image/png' href={`${base}assets/favicon/favicon-16x16.png`} sizes='16x16' />
                 </Helmet>
                 <PageContext.Provider value={{title: 'Argo CD'}}>
-                <Provider value={{history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager}}>
-                    {this.state.popupProps && <Popup {...this.state.popupProps}/>}
-                    <Router history={history}>
-                        <Switch>
-                            <Redirect exact={true} path='/' to='/applications'/>
-                            {Object.keys(routes).map((path) => {
-                                const route = routes[path];
-                                return <Route key={path} path={path} render={(routeProps) => (
-                                    route.noLayout ? (
-                                        <div>
-                                            <route.component {...routeProps}/>
-                                        </div>
-                                    ) : (
-                                        <Layout navItems={navItems} version={() => <DataLoader load={() => services.version.version()}>{(msg) => msg.Version}</DataLoader>}>
-                                            <route.component {...routeProps}/>
-                                        </Layout>
-                                    )
-                                )}/>;
-                            })}
-                            <Redirect path='*' to='/'/>
-                        </Switch>
-                    </Router>
-                    <DataLoader load={() => services.authService.settings()}>{(s) => (
-                        s.help && s.help.chatUrl && <div style={{position: 'fixed', right: 10, bottom: 10}}>
-                            <a href={s.help.chatUrl} className='argo-button argo-button--special'>
-                                <i className='fas fa-comment-alt'/> {s.help.chatText}
-                            </a>
-                        </div> || null
-                    )}</DataLoader>
-                </Provider>
+                    <Provider value={{history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager}}>
+                        {this.state.popupProps && <Popup {...this.state.popupProps} />}
+                        <Router history={history}>
+                            <Switch>
+                                <Redirect exact={true} path='/' to='/applications' />
+                                {Object.keys(routes).map(path => {
+                                    const route = routes[path];
+                                    return (
+                                        <Route
+                                            key={path}
+                                            path={path}
+                                            render={routeProps =>
+                                                route.noLayout ? (
+                                                    <div>
+                                                        <route.component {...routeProps} />
+                                                    </div>
+                                                ) : (
+                                                    <Layout
+                                                        navItems={navItems}
+                                                        version={() => <DataLoader load={() => services.version.version()}>{msg => msg.Version}</DataLoader>}>
+                                                        <route.component {...routeProps} />
+                                                    </Layout>
+                                                )
+                                            }
+                                        />
+                                    );
+                                })}
+                                <Redirect path='*' to='/' />
+                            </Switch>
+                        </Router>
+                        <DataLoader load={() => services.authService.settings()}>
+                            {s =>
+                                (s.help && s.help.chatUrl && (
+                                    <div style={{position: 'fixed', right: 10, bottom: 10}}>
+                                        <a href={s.help.chatUrl} className='argo-button argo-button--special'>
+                                            <i className='fas fa-comment-alt' /> {s.help.chatText}
+                                        </a>
+                                    </div>
+                                )) ||
+                                null
+                            }
+                        </DataLoader>
+                    </Provider>
                 </PageContext.Provider>
-                <Notifications notifications={this.notificationsManager.notifications}/>
+                <Notifications notifications={this.notificationsManager.notifications} />
             </React.Fragment>
         );
     }
 
     public getChildContext() {
-        return { history, apis: { popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager } };
+        return {history, apis: {popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager}};
     }
 }

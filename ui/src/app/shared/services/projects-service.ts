@@ -55,21 +55,21 @@ function paramsToProjRole(params: ProjectRoleParams): models.ProjectRole {
         if (params.policies !== '') {
             newPolicies = params.policies.split('\n');
         }
-     } else {
-         newPolicies = params.policies;
-     }
+    } else {
+        newPolicies = params.policies;
+    }
     return {
         name: params.roleName,
         description: params.description,
         policies: newPolicies,
         jwtTokens: params.jwtTokens,
-        groups: params.groups,
+        groups: params.groups
     };
 }
 
 function paramsToProj(params: ProjectParams) {
     return {
-        metadata: { name: params.name },
+        metadata: {name: params.name},
         spec: {
             description: params.description,
             sourceRepos: params.sourceRepos,
@@ -78,18 +78,21 @@ function paramsToProj(params: ProjectParams) {
             syncWindows: params.syncWindows,
             clusterResourceWhitelist: params.clusterResourceWhitelist,
             namespaceResourceBlacklist: params.namespaceResourceBlacklist,
-            orphanedResources: params.orphanedResourcesEnabled && { warn: !!params.orphanedResourcesWarn } || null,
-        },
+            orphanedResources: (params.orphanedResourcesEnabled && {warn: !!params.orphanedResourcesWarn}) || null
+        }
     };
 }
 
 export class ProjectsService {
     public list(): Promise<models.Project[]> {
-        return requests.get('/projects').then((res) => res.body as models.ProjectList).then((list) => list.items || []);
+        return requests
+            .get('/projects')
+            .then(res => res.body as models.ProjectList)
+            .then(list => list.items || []);
     }
 
     public get(name: string): Promise<models.Project> {
-        return requests.get(`/projects/${name}`).then((res) => res.body as models.Project);
+        return requests.get(`/projects/${name}`).then(res => res.body as models.Project);
     }
 
     public delete(name: string): Promise<boolean> {
@@ -97,17 +100,26 @@ export class ProjectsService {
     }
 
     public create(params: ProjectParams): Promise<models.Project> {
-        return requests.post('/projects').send({project: paramsToProj(params)}).then((res) => res.body as models.Project);
+        return requests
+            .post('/projects')
+            .send({project: paramsToProj(params)})
+            .then(res => res.body as models.Project);
     }
 
     public async update(params: ProjectParams): Promise<models.Project> {
         const proj = await this.get(params.name);
         const update = paramsToProj(params);
-        return requests.put(`/projects/${params.name}`).send({project: {...proj, spec: update.spec }}).then((res) => res.body as models.Project);
+        return requests
+            .put(`/projects/${params.name}`)
+            .send({project: {...proj, spec: update.spec}})
+            .then(res => res.body as models.Project);
     }
 
     public getSyncWindows(name: string): Promise<models.SyncWindowsState> {
-        return requests.get(`/projects/${name}/syncwindows`).query({name}).then((res) => res.body as models.SyncWindowsState);
+        return requests
+            .get(`/projects/${name}/syncwindows`)
+            .query({name})
+            .then(res => res.body as models.SyncWindowsState);
     }
 
     public async updateWindow(params: ProjectSyncWindowsParams): Promise<models.Project> {
@@ -116,7 +128,7 @@ export class ProjectsService {
         if (proj.spec.syncWindows === undefined) {
             updatedSpec.syncWindows = [];
         }
-        if (params.id === undefined || (!(params.id in proj.spec.syncWindows))) {
+        if (params.id === undefined || !(params.id in proj.spec.syncWindows)) {
             updatedSpec.syncWindows = updatedSpec.syncWindows.concat(params.window);
         } else {
             if (params.deleteWindow) {
@@ -126,7 +138,10 @@ export class ProjectsService {
             }
         }
 
-        return requests.put(`/projects/${params.projName}`).send({project: {...proj, spec: updatedSpec }}).then((res) => res.body as models.Project);
+        return requests
+            .put(`/projects/${params.projName}`)
+            .send({project: {...proj, spec: updatedSpec}})
+            .then(res => res.body as models.Project);
     }
 
     public async updateRole(params: ProjectRoleParams): Promise<models.Project> {
@@ -154,18 +169,30 @@ export class ProjectsService {
             }
             updatedSpec.roles = updatedSpec.roles.concat(updatedRole);
         }
-        return requests.put(`/projects/${params.projName}`).send({project: {...proj, spec: updatedSpec }}).then((res) => res.body as models.Project);
+        return requests
+            .put(`/projects/${params.projName}`)
+            .send({project: {...proj, spec: updatedSpec}})
+            .then(res => res.body as models.Project);
     }
 
     public async createJWTToken(params: CreateJWTTokenParams): Promise<JWTTokenResponse> {
-        return requests.post(`/projects/${params.project}/roles/${params.role}/token`).send(params).then((res) => res.body as JWTTokenResponse);
+        return requests
+            .post(`/projects/${params.project}/roles/${params.role}/token`)
+            .send(params)
+            .then(res => res.body as JWTTokenResponse);
     }
 
     public async deleteJWTToken(params: DeleteJWTTokenParams): Promise<boolean> {
-        return requests.delete(`/projects/${params.project}/roles/${params.role}/token/${params.iat}`).send().then(() => true);
+        return requests
+            .delete(`/projects/${params.project}/roles/${params.role}/token/${params.iat}`)
+            .send()
+            .then(() => true);
     }
 
     public events(projectName: string): Promise<models.Event[]> {
-        return requests.get(`/projects/${projectName}/events`).send().then((res) => (res.body as models.EventList).items || []);
+        return requests
+            .get(`/projects/${projectName}/events`)
+            .send()
+            .then(res => (res.body as models.EventList).items || []);
     }
 }

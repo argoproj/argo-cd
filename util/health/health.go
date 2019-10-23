@@ -65,7 +65,7 @@ func ignoreLiveObjectHealth(liveObj *unstructured.Unstructured, resHealth appv1.
 			return true
 		}
 		gvk := liveObj.GroupVersionKind()
-		if gvk.Group == "argoproj.io" && gvk.Kind == "Application" && resHealth.Status == appv1.HealthStatusMissing {
+		if gvk.Group == "argoproj.io" && gvk.Kind == "Application" && (resHealth.Status == appv1.HealthStatusMissing || resHealth.Status == appv1.HealthStatusUnknown) {
 			// Covers the app-of-apps corner case where child app is deployed but that app itself
 			// has a status of 'Missing', which we don't want to cause the parent's health status
 			// to also be Missing

@@ -88,7 +88,10 @@
     "@types/jest": "^24.0.13",
     "add": "^2.0.6",
     "jest": "^24.8.0",
+    "prettier": "^1.18.2",
     "ts-jest": "^24.0.2",
+    "tslint-config-prettier": "^1.18.0",
+    "tslint-plugin-prettier": "^2.0.1",
     "yarn": "^1.16.0"
   }
 }
