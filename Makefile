@@ -172,11 +172,11 @@ build:
 
 .PHONY: test
 test:
-	 ./hack/test.sh -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`
+	 go test -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`
 
 .PHONY: test-e2e
 test-e2e:
-	./hack/test.sh -parallel 1 -timeout 15m $(E2E_PKGS)
+	go test -timeout 15m $(E2E_PKGS)
 
 .PHONY: start-e2e
 start-e2e: cli
