@@ -1,12 +1,12 @@
-import { FormField } from 'argo-ui';
+import {FormField} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
-import { Form, Text } from 'react-form';
-import { RouteComponentProps } from 'react-router';
+import {Form, Text} from 'react-form';
+import {RouteComponentProps} from 'react-router';
 
-import { AppContext } from '../../shared/context';
-import { AuthSettings } from '../../shared/models';
-import { services } from '../../shared/services';
+import {AppContext} from '../../shared/context';
+import {AuthSettings} from '../../shared/models';
+import {services} from '../../shared/services';
 
 require('./login.scss');
 
@@ -15,28 +15,33 @@ export interface LoginForm {
     password: string;
 }
 
-interface State {authSettings: AuthSettings; loginError: string; returnUrl: string; ssoLoginError: string; }
+interface State {
+    authSettings: AuthSettings;
+    loginError: string;
+    returnUrl: string;
+    ssoLoginError: string;
+}
 
 export class Login extends React.Component<RouteComponentProps<{}>, State> {
     public static contextTypes = {
-        apis: PropTypes.object,
+        apis: PropTypes.object
     };
 
     public static getDerivedStateFromProps(props: RouteComponentProps<{}>): Partial<State> {
         const search = new URLSearchParams(props.history.location.search);
         const returnUrl = search.get('return_url') || '';
         const ssoLoginError = search.get('sso_error') || '';
-        return { ssoLoginError, returnUrl };
+        return {ssoLoginError, returnUrl};
     }
 
     constructor(props: RouteComponentProps<{}>) {
         super(props);
-        this.state = { authSettings: null, loginError: null, returnUrl: null, ssoLoginError: null };
+        this.state = {authSettings: null, loginError: null, returnUrl: null, ssoLoginError: null};
     }
 
     public async componentDidMount() {
         this.setState({
-            authSettings: await services.authService.settings(),
+            authSettings: await services.authService.settings()
         });
     }
 
@@ -45,58 +50,55 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
         return (
             <div className='login'>
                 <div className='login__content'>
-                    <div className='login__text'>
-                        Let's get stuff deployed!
-                    </div>
-                    <div className='argo__logo'/>
+                    <div className='login__text'>Let's get stuff deployed!</div>
+                    <div className='argo__logo' />
                 </div>
                 <div className='login__box'>
                     <div className='login__logo width-control'>
-                        <img className='logo-image' src='assets/images/argo_o.svg' alt='argo'/>
+                        <img className='logo-image' src='assets/images/argo_o.svg' alt='argo' />
                     </div>
-                    {authSettings && (authSettings.dexConfig && (authSettings.dexConfig.connectors || []).length > 0 || authSettings.oidcConfig) && (
+                    {authSettings && ((authSettings.dexConfig && (authSettings.dexConfig.connectors || []).length > 0) || authSettings.oidcConfig) && (
                         <div className='login__box_saml width-control'>
                             <a href={`auth/login?return_url=${encodeURIComponent(this.state.returnUrl)}`}>
                                 <button className='argo-button argo-button--base argo-button--full-width argo-button--xlg'>
-                                    {authSettings.oidcConfig && (
-                                        <span>Login via {authSettings.oidcConfig.name}</span>
-                                    ) || authSettings.dexConfig.connectors.length > 0 && (
-                                        <span>Login via {authSettings.dexConfig.connectors[0].name}</span>
-                                    ) || (
-                                        <span>SSO Login</span>
-                                    )}
+                                    {(authSettings.oidcConfig && <span>Login via {authSettings.oidcConfig.name}</span>) ||
+                                        (authSettings.dexConfig.connectors.length > 0 && <span>Login via {authSettings.dexConfig.connectors[0].name}</span>) || (
+                                            <span>SSO Login</span>
+                                        )}
                                 </button>
                             </a>
                             {this.state.ssoLoginError && <div className='argo-form-row__error-msg'>{this.state.ssoLoginError}</div>}
-                            <div className='login__saml-separator'><span>or</span></div>
+                            <div className='login__saml-separator'>
+                                <span>or</span>
+                            </div>
                         </div>
                     )}
                     <Form
                         onSubmit={(params: LoginForm) => this.login(params.username, params.password, this.state.returnUrl)}
                         validateError={(params: LoginForm) => ({
                             username: !params.username && 'Username is required',
-                            password: !params.password && 'Password is required',
+                            password: !params.password && 'Password is required'
                         })}>
-                        {(formApi) => (
+                        {formApi => (
                             <form role='form' className='width-control' onSubmit={formApi.submitForm}>
-                            <div className='argo-form-row'>
-                                <FormField formApi={formApi} label='Username' field='username' component={Text}/>
-                            </div>
-                            <div className='argo-form-row'>
-                                <FormField formApi={formApi} label='Password' field='password' component={Text} componentProps={{type: 'password'}}/>
-                                {this.state.loginError && <div className='argo-form-row__error-msg'>{this.state.loginError}</div>}
-                            </div>
-                            <div className='login__form-row'>
-                                <button className='argo-button argo-button--full-width argo-button--xlg' type='submit'>
-                                    Sign In
-                                </button>
-                            </div>
-                        </form>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Username' field='username' component={Text} />
+                                </div>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Password' field='password' component={Text} componentProps={{type: 'password'}} />
+                                    {this.state.loginError && <div className='argo-form-row__error-msg'>{this.state.loginError}</div>}
+                                </div>
+                                <div className='login__form-row'>
+                                    <button className='argo-button argo-button--full-width argo-button--xlg' type='submit'>
+                                        Sign In
+                                    </button>
+                                </div>
+                            </form>
                         )}
                     </Form>
                     <div className='login__footer'>
                         <a href='https://argoproj.io' target='_blank'>
-                            <img className='logo-image' src='assets/images/argologo.svg' alt='argo'/>
+                            <img className='logo-image' src='assets/images/argologo.svg' alt='argo' />
                         </a>
                     </div>
                 </div>
@@ -107,7 +109,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
     private async login(username: string, password: string, returnURL: string) {
         try {
             this.setState({loginError: ''});
-            this.appContext.apis.navigation.goto('.', { sso_error: null });
+            this.appContext.apis.navigation.goto('.', {sso_error: null});
             await services.users.login(username, password);
             if (returnURL) {
                 const url = new URL(returnURL);

@@ -1,8 +1,8 @@
-import { Checkbox } from 'argo-ui';
+import {Checkbox} from 'argo-ui';
 import * as React from 'react';
 import * as ReactForm from 'react-form';
 
-import { ArrayInput, hasNameAndValue, NameValueEditor } from '../../../shared/components';
+import {ArrayInput, hasNameAndValue, NameValueEditor} from '../../../shared/components';
 
 export interface Var {
     name: string;
@@ -14,13 +14,15 @@ const VarInputEditor = (item: Var, onChange: (item: Var) => any) => (
     <React.Fragment>
         {NameValueEditor(item, onChange)}
         &nbsp;
-        <Checkbox checked={!!item.code} onChange={(val) => onChange({...item, code: val})} />
+        <Checkbox checked={!!item.code} onChange={val => onChange({...item, code: val})} />
         &nbsp;
     </React.Fragment>
 );
 
-export const VarsInputField = ReactForm.FormField((props: { fieldApi: ReactForm.FieldApi }) => {
-    const {fieldApi: {getValue, setValue}} = props;
+export const VarsInputField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
+    const {
+        fieldApi: {getValue, setValue}
+    } = props;
     const val = getValue() || [];
-    return <ArrayInput editor={VarInputEditor} items={val} onChange={setValue} valid={hasNameAndValue}/>;
+    return <ArrayInput editor={VarInputEditor} items={val} onChange={setValue} valid={hasNameAndValue} />;
 });
