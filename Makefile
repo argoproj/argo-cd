@@ -24,8 +24,6 @@ IMAGE_NAMESPACE?=
 STATIC_BUILD?=true
 # build development images
 DEV_IMAGE?=false
-# the e2e package to test
-E2E_PKGS?=`find . -mindepth 3 -maxdepth 3 ! -name fixture ! -name testdata -type d -path './test/e2e/*'`
 
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
@@ -176,7 +174,7 @@ test:
 
 .PHONY: test-e2e
 test-e2e:
-	./hack/test.sh -parallel 1 -timeout 15m $(E2E_PKGS)
+	./hack/test.sh -parallel 2 -timeout 15m ./test/e2e
 
 .PHONY: start-e2e
 start-e2e: cli
