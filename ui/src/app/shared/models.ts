@@ -181,7 +181,6 @@ export interface ApplicationSourceKsonnet {
 }
 
 export interface EnvEntry {
-export interface PluginEnv {
     name: string;
     value: string;
 }
