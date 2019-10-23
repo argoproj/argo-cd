@@ -1,9 +1,10 @@
 {
     "extends": [
-        "tslint:recommended", "tslint-react"
+        "tslint:recommended", "tslint-react", "tslint-plugin-prettier", "tslint-config-prettier"
     ],
     "jsRules": {},
     "rules": {
+        "prettier": true,
         "quotemark": [true, "single"],
         "no-var-requires": false,
         "interface-name": false,

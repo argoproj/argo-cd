@@ -98,6 +98,17 @@ func (e Env) Environ() []string {
 	return environ
 }
 
+// does an operation similar to `envstubst` tool,
+// but unlike envsubst it does not change missing names into empty string
+// see https://linux.die.net/man/1/envsubst
+func (e Env) Envsubst(s string) string {
+	for _, v := range e {
+		s = strings.ReplaceAll(s, fmt.Sprintf("$%s", v.Name), v.Value)
+		s = strings.ReplaceAll(s, fmt.Sprintf("${%s}", v.Name), v.Value)
+	}
+	return s
+}
+
 // ApplicationSource contains information about github repository, path within repository and target application environment.
 type ApplicationSource struct {
 	// RepoURL is the repository URL of the application manifests
@@ -275,6 +286,15 @@ type JsonnetVar struct {
 	Name  string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	Value string `json:"value" protobuf:"bytes,2,opt,name=value"`
 	Code  bool   `json:"code,omitempty" protobuf:"bytes,3,opt,name=code"`
+}
+
+func NewJsonnetVar(s string, code bool) JsonnetVar {
+	parts := strings.SplitN(s, "=", 2)
+	if len(parts) == 2 {
+		return JsonnetVar{Name: parts[0], Value: parts[1], Code: code}
+	} else {
+		return JsonnetVar{Name: s, Code: code}
+	}
 }
 
 // ApplicationSourceJsonnet holds jsonnet specific options

@@ -1002,6 +1002,13 @@ func TestEnv_IsZero(t *testing.T) {
 	}
 }
 
+func TestEnv_Envsubst(t *testing.T) {
+	env := Env{&EnvEntry{"FOO", "bar"}}
+	assert.Equal(t, "", env.Envsubst(""))
+	assert.Equal(t, "bar", env.Envsubst("$FOO"))
+	assert.Equal(t, "bar", env.Envsubst("${FOO}"))
+}
+
 func TestEnv_Environ(t *testing.T) {
 	tests := []struct {
 		name string
@@ -1667,17 +1674,11 @@ func newTestApp() *Application {
 	return a
 }
 
-func TestApplicationStatus_GetConditions(t *testing.T) {
-	status := ApplicationStatus{
-		Conditions: []ApplicationCondition{
-			{Type: ApplicationConditionInvalidSpecError},
-			{Type: ApplicationConditionRepeatedResourceWarning},
-		},
-	}
-	conditions := status.GetConditions(map[ApplicationConditionType]bool{
-		ApplicationConditionInvalidSpecError: true,
-	})
-	assert.EqualValues(t, []ApplicationCondition{{Type: ApplicationConditionInvalidSpecError}}, conditions)
+func TestNewJsonnetVar(t *testing.T) {
+	assert.Equal(t, JsonnetVar{}, NewJsonnetVar("", false))
+	assert.Equal(t, JsonnetVar{Name: "a"}, NewJsonnetVar("a=", false))
+	assert.Equal(t, JsonnetVar{Name: "a", Code: true}, NewJsonnetVar("a=", true))
+	assert.Equal(t, JsonnetVar{Name: "a", Value: "b", Code: true}, NewJsonnetVar("a=b", true))
 }
 
 func testCond(t ApplicationConditionType, msg string, lastTransitionTime *metav1.Time) ApplicationCondition {

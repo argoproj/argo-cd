@@ -24,8 +24,6 @@ type Context struct {
 	destServer             string
 	env                    string
 	parameters             []string
-	jsonnetTLAStr          []string
-	jsonnetTLACode         []string
 	namePrefix             string
 	nameSuffix             string
 	resource               string
@@ -36,6 +34,7 @@ type Context struct {
 	project                string
 	revision               string
 	force                  bool
+	directoryRecurse       bool
 }
 
 func Given(t *testing.T) *Context {
@@ -54,12 +53,12 @@ func (c *Context) CustomSSHKnownHostsAdded() *Context {
 }
 
 func (c *Context) HTTPSRepoURLAdded(withCreds bool) *Context {
-	repos.AddHTTPSRepo(false, withCreds)
+	repos.AddHTTPSRepo(false, withCreds, fixture.RepoURLTypeHTTPS)
 	return c
 }
 
 func (c *Context) HTTPSInsecureRepoURLAdded(withCreds bool) *Context {
-	repos.AddHTTPSRepo(true, withCreds)
+	repos.AddHTTPSRepo(true, withCreds, fixture.RepoURLTypeHTTPS)
 	return c
 }
 
@@ -73,13 +72,25 @@ func (c *Context) HTTPSRepoURLWithClientCertAdded() *Context {
 	return c
 }
 
+func (c *Context) SubmoduleHTTPSRepoURLAdded(withCreds bool) *Context {
+	fixture.CreateSubmoduleRepos("https")
+	repos.AddHTTPSRepo(false, withCreds, fixture.RepoURLTypeHTTPSSubmoduleParent)
+	return c
+}
+
 func (c *Context) SSHRepoURLAdded(withCreds bool) *Context {
-	repos.AddSSHRepo(false, withCreds)
+	repos.AddSSHRepo(false, withCreds, fixture.RepoURLTypeSSH)
 	return c
 }
 
 func (c *Context) SSHInsecureRepoURLAdded(withCreds bool) *Context {
-	repos.AddSSHRepo(true, withCreds)
+	repos.AddSSHRepo(true, withCreds, fixture.RepoURLTypeSSH)
+	return c
+}
+
+func (c *Context) SubmoduleSSHRepoURLAdded(withCreds bool) *Context {
+	fixture.CreateSubmoduleRepos("ssh")
+	repos.AddSSHRepo(false, withCreds, fixture.RepoURLTypeSSHSubmoduleParent)
 	return c
 }
 
@@ -123,6 +134,11 @@ func (c *Context) Path(path string) *Context {
 	return c
 }
 
+func (c *Context) Recurse() *Context {
+	c.directoryRecurse = true
+	return c
+}
+
 func (c *Context) Chart(chart string) *Context {
 	c.chart = chart
 	return c
@@ -150,16 +166,6 @@ func (c *Context) Env(env string) *Context {
 
 func (c *Context) Parameter(parameter string) *Context {
 	c.parameters = append(c.parameters, parameter)
-	return c
-}
-
-func (c *Context) JsonnetTLAStrParameter(parameter string) *Context {
-	c.jsonnetTLAStr = append(c.jsonnetTLAStr, parameter)
-	return c
-}
-
-func (c *Context) JsonnetTLACodeParameter(parameter string) *Context {
-	c.jsonnetTLACode = append(c.jsonnetTLACode, parameter)
 	return c
 }
 

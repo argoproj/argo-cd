@@ -1,5 +1,7 @@
 # Ksonnet
 
+!!! tip Warning "Ksonnet is defunct and no longer supported."
+
 ## Environments
 Ksonnet has a first class concept of an "environment." To create an application from a ksonnet
 app directory, an environment must be specified. For example, the following command creates the
@@ -32,4 +34,6 @@ When overriding ksonnet parameters in Argo CD, the component name should also be
 argocd app set guestbook-default -p guestbook-ui=image=gcr.io/heptio-images/ks-guestbook-demo:0.1
 ```
 
+## Build Environment
 
+We do not support the [standard build environment](build-environment.md) for Ksonnet.

@@ -46,7 +46,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
         },
         {
             title: 'CLUSTER',
-            view: <Cluster url={app.spec.destination.server} showUrl={true} />,
+            view: <Cluster server={app.spec.destination.server} showUrl={true} />,
             edit: (formApi: FormApi) => (
                 <DataLoader
                     load={() =>
