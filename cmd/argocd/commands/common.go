@@ -30,7 +30,7 @@ func PrintResource(resource interface{}, output string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(yamlBytes))
+		fmt.Print(string(yamlBytes))
 	}
 	return nil
 }
@@ -62,7 +62,7 @@ func PrintResourceList(resources interface{}, output string, single bool) error 
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(yamlBytes))
+		fmt.Print(string(yamlBytes))
 	}
 	return nil
 }
