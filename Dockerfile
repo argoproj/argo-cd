@@ -26,7 +26,6 @@ WORKDIR /tmp
 ADD hack/install.sh .
 ADD hack/installers installers
 
-RUN ./install.sh dep-linux
 RUN ./install.sh packr-linux
 RUN ./install.sh kubectl-linux
 RUN ./install.sh ksonnet-linux
