@@ -705,6 +705,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#build-environment" title="Build Environment" class="md-nav__link">
+    Build Environment
+  </a>
+  
+</li>
+      
       
       
       
@@ -724,6 +731,18 @@
   <li class="md-nav__item">
     <a href="../ksonnet/" title="Ksonnet" class="md-nav__link">
       Ksonnet
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../jsonnet/" title="Jsonnet" class="md-nav__link">
+      Jsonnet
     </a>
   </li>
 
@@ -844,6 +863,18 @@
   <li class="md-nav__item">
     <a href="../parameters/" title="Parameter Overrides" class="md-nav__link">
       Parameter Overrides
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../build-environment/" title="Build Environment" class="md-nav__link">
+      Build Environment
     </a>
   </li>
 
@@ -1197,6 +1228,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#build-environment" title="Build Environment" class="md-nav__link">
+    Build Environment
+  </a>
+  
+</li>
+      
       
       
       
@@ -1366,6 +1404,24 @@ regenerated every time the comparison is made, any application which makes use o
 function will always be in an <code>OutOfSync</code> state. This can be mitigated by explicitly setting a
 value, in the values.yaml such that the value is stable between each comparison. For example:</p>
 <div class="codehilite"><pre><span></span>argocd app <span class="nb">set</span> redis -p <span class="nv">password</span><span class="o">=</span>abc123
+</pre></div>
+
+
+<h2 id="build-environment">Build Environment<a class="headerlink" href="#build-environment" title="Permanent link">&para;</a></h2>
+<p>Helm apps have access to the <a href="../build-environment/">standard build environment</a> via substitution as parameters. </p>
+<p>E.g. via the CLI:</p>
+<div class="codehilite"><pre><span></span>argocd app create APPNAME <span class="se">\</span>
+  --helm-set-string <span class="s1">&#39;app=${ARGOCD_APP_NAME}&#39;</span>
+</pre></div>
+
+
+<p>Or via declarative syntax:</p>
+<div class="codehilite"><pre><span></span>  <span class="nt">spec</span><span class="p">:</span>
+    <span class="nt">source</span><span class="p">:</span>
+      <span class="nt">helm</span><span class="p">:</span>
+        <span class="nt">parameters</span><span class="p">:</span>
+        <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">app</span>
+          <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">$ARGOCD_APP_NAME</span>
 </pre></div>
                 
                   

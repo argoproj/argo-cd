@@ -655,6 +655,18 @@
 
 
   <li class="md-nav__item">
+    <a href="../jsonnet/" title="Jsonnet" class="md-nav__link">
+      Jsonnet
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../config-management-plugins/" title="Plugins" class="md-nav__link">
       Plugins
     </a>
@@ -840,6 +852,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#git-submodules" title="Git Submodules" class="md-nav__link">
+    Git Submodules
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#declarative-configuration" title="Declarative Configuration" class="md-nav__link">
     Declarative Configuration
   </a>
@@ -925,6 +944,18 @@
   <li class="md-nav__item">
     <a href="../parameters/" title="Parameter Overrides" class="md-nav__link">
       Parameter Overrides
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../build-environment/" title="Build Environment" class="md-nav__link">
+      Build Environment
     </a>
   </li>
 
@@ -1353,6 +1384,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#git-submodules" title="Git Submodules" class="md-nav__link">
+    Git Submodules
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#declarative-configuration" title="Declarative Configuration" class="md-nav__link">
     Declarative Configuration
   </a>
@@ -1712,6 +1750,8 @@ vs-ssh.visualstudio.com  ssh   ssh-rsa              SHA256:ohD8VZEXGWo6Ez8GSEJQ9
 <p class="admonition-title">This does not work for Kustomize remote bases or custom plugins</p>
 <p>For Kustomize support, see <a href="https://github.com/argoproj/argo-cd/issues/827">#827</a>.</p>
 </div>
+<h2 id="git-submodules">Git Submodules<a class="headerlink" href="#git-submodules" title="Permanent link">&para;</a></h2>
+<p>Submodules are supported and will be picked up automatically. If the submodule repository requires authentication then the credentials will need to match the credentials of the parent repository. Set ARGOCD_GIT_MODULES_ENABLED=false to disable submodule support</p>
 <h2 id="declarative-configuration">Declarative Configuration<a class="headerlink" href="#declarative-configuration" title="Permanent link">&para;</a></h2>
 <p>See <a href="../../operator-manual/declarative-setup#Repositories">declarative setup</a></p>
                 
