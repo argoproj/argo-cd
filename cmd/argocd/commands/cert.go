@@ -8,6 +8,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/errors"
@@ -239,6 +240,7 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		certType        string
 		hostNamePattern string
 		sortOrder       string
+		output          string
 	)
 	var command = &cobra.Command{
 		Use:   "list",
@@ -258,11 +260,22 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			defer util.Close(conn)
 			certificates, err := certIf.ListCertificates(context.Background(), &certificatepkg.RepositoryCertificateQuery{HostNamePattern: hostNamePattern, CertType: certType})
 			errors.CheckError(err)
-			printCertTable(certificates.Items, sortOrder)
+
+			switch output {
+			case "yaml", "json":
+				err := PrintResourceList(certificates.Items, output, false)
+				errors.CheckError(err)
+			case "wide", "":
+				printCertTable(certificates.Items, sortOrder)
+			default:
+				log.Fatalf("Unknown output format: %s", output)
+			}
+
 		},
 	}
 
-	command.Flags().StringVar(&sortOrder, "sort", "", "set display sort order, valid: 'hostname', 'type'")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
+	command.Flags().StringVar(&sortOrder, "sort", "", "set display sort order for output format wide. One of: hostname|type")
 	command.Flags().StringVar(&certType, "cert-type", "", "only list certificates of given type, valid: 'ssh','https'")
 	command.Flags().StringVar(&hostNamePattern, "hostname-pattern", "", "only list certificates for hosts matching given glob-pattern")
 	return command

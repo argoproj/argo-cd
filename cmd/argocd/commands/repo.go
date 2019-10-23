@@ -240,14 +240,21 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			}
 			repos, err := repoIf.ListRepositories(context.Background(), &repositorypkg.RepoQuery{ForceRefresh: forceRefresh})
 			errors.CheckError(err)
-			if output == "url" {
+			switch output {
+			case "yaml", "json":
+				err := PrintResourceList(repos.Items, output, false)
+				errors.CheckError(err)
+			case "url":
 				printRepoUrls(repos.Items)
-			} else {
+				// wide is the default
+			case "wide", "":
 				printRepoTable(repos.Items)
+			default:
+				log.Fatalf("Unknown output format: %s", output)
 			}
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|url")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|url")
 	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status")
 	return command
 }

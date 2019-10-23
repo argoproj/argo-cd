@@ -246,15 +246,10 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			windows := proj.Spec.SyncWindows.Matches(app)
 
 			switch output {
-			case "yaml":
-				yamlBytes, err := yaml.Marshal(app)
+			case "yaml", "json":
+				err := PrintResource(app, output)
 				errors.CheckError(err)
-				fmt.Println(string(yamlBytes))
-			case "json":
-				jsonBytes, err := json.MarshalIndent(app, "", "  ")
-				errors.CheckError(err)
-				fmt.Println(string(jsonBytes))
-			case "":
+			case "wide", "":
 				aURL := appURL(acdClient, app.Name)
 				printAppSummaryTable(app, aURL, windows)
 
@@ -283,7 +278,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			}
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: yaml, json")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: yaml|json|wide")
 	command.Flags().BoolVar(&showOperation, "show-operation", false, "Show application operation")
 	command.Flags().BoolVar(&showParams, "show-params", false, "Show application parameters and overrides")
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
@@ -1130,14 +1125,9 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				appList = argo.FilterByProjects(appList, projects)
 			}
 			switch output {
-			case "yaml":
-				yamlBytes, err := yaml.Marshal(appList)
+			case "yaml", "json":
+				err := PrintResourceList(appList, output, false)
 				errors.CheckError(err)
-				fmt.Println(string(yamlBytes))
-			case "json":
-				jsonBytes, err := json.MarshalIndent(appList, "", "  ")
-				errors.CheckError(err)
-				fmt.Println(string(jsonBytes))
 			case "name":
 				printApplicationNames(appList)
 			default:

@@ -527,14 +527,20 @@ func NewProjectListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			defer util.Close(conn)
 			projects, err := projIf.List(context.Background(), &projectpkg.ProjectQuery{})
 			errors.CheckError(err)
-			if output == "name" {
+			switch output {
+			case "yaml", "json":
+				err := PrintResourceList(projects.Items, output, false)
+				errors.CheckError(err)
+			case "name":
 				printProjectNames(projects.Items)
-			} else {
+			case "wide", "":
 				printProjectTable(projects.Items)
+			default:
+				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|name")
 	return command
 }
 
@@ -580,9 +586,60 @@ func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
 	fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, formatOrphanedResources(p))
 }
 
+func printProject(p *v1alpha1.AppProject) {
+	const printProjFmtStr = "%-34s%s\n"
+
+	fmt.Printf(printProjFmtStr, "Name:", p.Name)
+	fmt.Printf(printProjFmtStr, "Description:", p.Spec.Description)
+
+	// Print destinations
+	dest0 := "<none>"
+	if len(p.Spec.Destinations) > 0 {
+		dest0 = fmt.Sprintf("%s,%s", p.Spec.Destinations[0].Server, p.Spec.Destinations[0].Namespace)
+	}
+	fmt.Printf(printProjFmtStr, "Destinations:", dest0)
+	for i := 1; i < len(p.Spec.Destinations); i++ {
+		fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s,%s", p.Spec.Destinations[i].Server, p.Spec.Destinations[i].Namespace))
+	}
+
+	// Print sources
+	src0 := "<none>"
+	if len(p.Spec.SourceRepos) > 0 {
+		src0 = p.Spec.SourceRepos[0]
+	}
+	fmt.Printf(printProjFmtStr, "Repositories:", src0)
+	for i := 1; i < len(p.Spec.SourceRepos); i++ {
+		fmt.Printf(printProjFmtStr, "", p.Spec.SourceRepos[i])
+	}
+
+	// Print whitelisted cluster resources
+	cwl0 := "<none>"
+	if len(p.Spec.ClusterResourceWhitelist) > 0 {
+		cwl0 = fmt.Sprintf("%s/%s", p.Spec.ClusterResourceWhitelist[0].Group, p.Spec.ClusterResourceWhitelist[0].Kind)
+	}
+	fmt.Printf(printProjFmtStr, "Whitelisted Cluster Resources:", cwl0)
+	for i := 1; i < len(p.Spec.ClusterResourceWhitelist); i++ {
+		fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s/%s", p.Spec.ClusterResourceWhitelist[i].Group, p.Spec.ClusterResourceWhitelist[i].Kind))
+	}
+
+	// Print blacklisted namespaced resources
+	rbl0 := "<none>"
+	if len(p.Spec.NamespaceResourceBlacklist) > 0 {
+		rbl0 = fmt.Sprintf("%s/%s", p.Spec.NamespaceResourceBlacklist[0].Group, p.Spec.NamespaceResourceBlacklist[0].Kind)
+	}
+	fmt.Printf(printProjFmtStr, "Blacklisted Namespaced Resources:", rbl0)
+	for i := 1; i < len(p.Spec.NamespaceResourceBlacklist); i++ {
+		fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s/%s", p.Spec.NamespaceResourceBlacklist[i].Group, p.Spec.NamespaceResourceBlacklist[i].Kind))
+	}
+	fmt.Printf(printProjFmtStr, "Orphaned Resources:", formatOrphanedResources(p))
+
+}
+
 // NewProjectGetCommand returns a new instance of an `argocd proj get` command
 func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	const printProjFmtStr = "%-34s%s\n"
+	var (
+		output string
+	)
 	var command = &cobra.Command{
 		Use:   "get PROJECT",
 		Short: "Get project details",
@@ -596,51 +653,19 @@ func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			defer util.Close(conn)
 			p, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
-			fmt.Printf(printProjFmtStr, "Name:", p.Name)
-			fmt.Printf(printProjFmtStr, "Description:", p.Spec.Description)
 
-			// Print destinations
-			dest0 := "<none>"
-			if len(p.Spec.Destinations) > 0 {
-				dest0 = fmt.Sprintf("%s,%s", p.Spec.Destinations[0].Server, p.Spec.Destinations[0].Namespace)
+			switch output {
+			case "yaml", "json":
+				err := PrintResource(p, output)
+				errors.CheckError(err)
+			case "wide", "":
+				printProject(p)
+			default:
+				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
-			fmt.Printf(printProjFmtStr, "Destinations:", dest0)
-			for i := 1; i < len(p.Spec.Destinations); i++ {
-				fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s,%s", p.Spec.Destinations[i].Server, p.Spec.Destinations[i].Namespace))
-			}
-
-			// Print sources
-			src0 := "<none>"
-			if len(p.Spec.SourceRepos) > 0 {
-				src0 = p.Spec.SourceRepos[0]
-			}
-			fmt.Printf(printProjFmtStr, "Repositories:", src0)
-			for i := 1; i < len(p.Spec.SourceRepos); i++ {
-				fmt.Printf(printProjFmtStr, "", p.Spec.SourceRepos[i])
-			}
-
-			// Print whitelisted cluster resources
-			cwl0 := "<none>"
-			if len(p.Spec.ClusterResourceWhitelist) > 0 {
-				cwl0 = fmt.Sprintf("%s/%s", p.Spec.ClusterResourceWhitelist[0].Group, p.Spec.ClusterResourceWhitelist[0].Kind)
-			}
-			fmt.Printf(printProjFmtStr, "Whitelisted Cluster Resources:", cwl0)
-			for i := 1; i < len(p.Spec.ClusterResourceWhitelist); i++ {
-				fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s/%s", p.Spec.ClusterResourceWhitelist[i].Group, p.Spec.ClusterResourceWhitelist[i].Kind))
-			}
-
-			// Print blacklisted namespaced resources
-			rbl0 := "<none>"
-			if len(p.Spec.NamespaceResourceBlacklist) > 0 {
-				rbl0 = fmt.Sprintf("%s/%s", p.Spec.NamespaceResourceBlacklist[0].Group, p.Spec.NamespaceResourceBlacklist[0].Kind)
-			}
-			fmt.Printf(printProjFmtStr, "Blacklisted Namespaced Resources:", rbl0)
-			for i := 1; i < len(p.Spec.NamespaceResourceBlacklist); i++ {
-				fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s/%s", p.Spec.NamespaceResourceBlacklist[i].Group, p.Spec.NamespaceResourceBlacklist[i].Kind))
-			}
-			fmt.Printf(printProjFmtStr, "Orphaned Resources:", formatOrphanedResources(p))
 		},
 	}
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
 	return command
 }
 
