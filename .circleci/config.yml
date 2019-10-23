@@ -217,7 +217,7 @@ jobs:
       ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
     steps:
       - e2e:
-          pkgs: "kustomize project_management pruning_required repo_creds repo_management selective_sync ssh_repo sync_options sync_waves testdata user_info"
+          pkgs: "kustomize project_management pruning_required repo_creds repo_management selective_sync ssh_repo sync_options sync_waves user_info"
   ui:
     docker:
       - image: node:11.15.0
