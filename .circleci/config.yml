@@ -48,10 +48,70 @@ commands:
             - go-v18-master
             - go-v17-{{ .Branch }}
             - go-v17-master
+jobs:
+  codegen:
+    docker:
+      - image: circleci/golang:1.12
+    working_directory: /go/src/github.com/argoproj/argo-cd
+    steps:
+      - checkout
+      - restore_cache:
+          keys: [codegen-v2]
+      - run: ./hack/install.sh codegen-go-tools
+      - run: sudo ./hack/install.sh codegen-tools
+      - run: dep ensure
+      - save_cache:
+          key: codegen-v2
+          paths: [vendor, /tmp/dl, /go/pkg]
+      - run: helm init --client-only
+      - run: make codegen-local
+      - run:
+          name: Check nothing has changed
+          command: |
+            set -xo pipefail
+            # This makes sure you ran `make pre-commit` before you pushed.
+            # We exclude the Swagger resources; CircleCI doesn't generate them correctly.
+            # When this fails, it will, create a patch file you can apply locally to fix it.
+            # To troubleshoot builds: https://argoproj.github.io/argo-cd/developer-guide/ci/
+            git diff --exit-code -- . ':!Gopkg.lock'  ':!assets/swagger.json' | tee codegen.patch
+      - store_artifacts:
+          path: codegen.patch
+          destination: .
+  test:
+    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
+    machine:
+      image: circleci/classic:201808-01
+    steps:
+      - restore_go_cache
+      - install_golang
+      - checkout
+      - restore_cache:
+          key: test-dl-v1
+      - run: sudo ./hack/install.sh kubectl-linux kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
+      - save_cache:
+          key: test-dl-v1
+          paths: [/tmp/dl]
+      - configure_git
+      - run: go get github.com/jstemmer/go-junit-report
+      - dep_ensure
+      - save_go_cache
+      - run: make test
+      - run:
+          name: Uploading code coverage
+          command: bash <(curl -s https://codecov.io/bash) -f coverage.out
+      - store_test_results:
+          path: test-results
+      - store_artifacts:
+          path: test-results
+          destination: .
   e2e:
-    parameters:
-      pkgs:
-        type: string
+    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
+    machine:
+      image: circleci/classic:201808-01
+    environment:
+      ARGOCD_FAKE_IN_CLUSTER: "true"
+      ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
+      ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
     steps:
       - run:
           name: Install and start K3S v0.5.0
@@ -114,14 +174,7 @@ commands:
           command: go run ./cmd/argocd-application-controller/main.go --loglevel debug --redis localhost:6379 --repo-server localhost:8081 --kubeconfig ~/.kube/config
           background: true
       - run:
-          command: |
-            set -eux
-
-            E2E_PKGS=$(for pkg in << parameters.pkgs >> ; do
-              echo ./test/e2e/$pkg
-            done | tr "\n" " ")
-            PATH=dist:$PATH 
-            make test-e2e E2E_PKGS="$E2E_PKGS"
+          command: PATH=dist:$PATH make test-e2e
           environment:
             ARGOCD_OPTS: "--server localhost:8080 --plaintext"
             ARGOCD_E2E_EXPECT_TIMEOUT: "30"
@@ -131,95 +184,6 @@ commands:
       - store_artifacts:
           path: test-results
           destination: .
-jobs:
-  codegen:
-    docker:
-      - image: circleci/golang:1.12
-    working_directory: /go/src/github.com/argoproj/argo-cd
-    steps:
-      - checkout
-      - restore_cache:
-          keys: [codegen-v2]
-      - run: ./hack/install.sh codegen-go-tools
-      - run: sudo ./hack/install.sh codegen-tools
-      - run: dep ensure
-      - save_cache:
-          key: codegen-v2
-          paths: [vendor, /tmp/dl, /go/pkg]
-      - run: helm init --client-only
-      - run: make codegen-local
-      - run:
-          name: Check nothing has changed
-          command: |
-            set -xo pipefail
-            # This makes sure you ran `make pre-commit` before you pushed.
-            # We exclude the Swagger resources; CircleCI doesn't generate them correctly.
-            # When this fails, it will, create a patch file you can apply locally to fix it.
-            # To troubleshoot builds: https://argoproj.github.io/argo-cd/developer-guide/ci/
-            git diff --exit-code -- . ':!Gopkg.lock'  ':!assets/swagger.json' | tee codegen.patch
-      - store_artifacts:
-          path: codegen.patch
-          destination: .
-  test:
-    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
-    machine:
-      image: circleci/classic:201808-01
-    steps:
-      - restore_go_cache
-      - install_golang
-      - checkout
-      - restore_cache:
-          key: test-dl-v1
-      - run: sudo ./hack/install.sh kubectl-linux kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
-      - save_cache:
-          key: test-dl-v1
-          paths: [/tmp/dl]
-      - configure_git
-      - run: go get github.com/jstemmer/go-junit-report
-      - dep_ensure
-      - save_go_cache
-      - run: make test
-      - run:
-          name: Uploading code coverage
-          command: bash <(curl -s https://codecov.io/bash) -f coverage.out
-      - store_test_results:
-          path: test-results
-      - store_artifacts:
-          path: test-results
-          destination: .
-  e2e-part-1:
-    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
-    machine:
-      image: circleci/classic:201808-01
-    environment:
-      ARGOCD_FAKE_IN_CLUSTER: "true"
-      ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
-      ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
-    steps:
-      - e2e:
-          pkgs: "app_autosync app_deletion app_management app_of_apps cli cluster cluster_objects custom_tool delarative deployment diff git_submodule"
-  e2e-part-2:
-    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
-    machine:
-      image: circleci/classic:201808-01
-    environment:
-      ARGOCD_FAKE_IN_CLUSTER: "true"
-      ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
-      ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
-    steps:
-      - e2e:
-          pkgs: "helm hook jsonnet"
-  e2e-part-3:
-    working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
-    machine:
-      image: circleci/classic:201808-01
-    environment:
-      ARGOCD_FAKE_IN_CLUSTER: "true"
-      ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
-      ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
-    steps:
-      - e2e:
-          pkgs: "kustomize project_management pruning_required repo_creds repo_management selective_sync ssh_repo sync_options sync_waves user_info"
   ui:
     docker:
       - image: node:11.15.0
@@ -241,11 +205,9 @@ workflows:
   version: 2
   workflow:
     jobs:
+      - test
       - codegen
       - ui:
           requires:
             - codegen
-      - test
-      - e2e-part-1
-      - e2e-part-2
-      - e2e-part-3
+      - e2e
