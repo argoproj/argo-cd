@@ -8,7 +8,6 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/errors"
@@ -268,7 +267,7 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			case "wide", "":
 				printCertTable(certificates.Items, sortOrder)
 			default:
-				log.Fatalf("Unknown output format: %s", output)
+				errors.CheckError(fmt.Errof("unknown output format: %s", output))
 			}
 
 		},

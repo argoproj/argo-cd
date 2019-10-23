@@ -205,6 +205,7 @@ func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			case "wide", "":
 				printClusterDetails(clusters)
 			default:
+				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
 		},
 	}
@@ -304,7 +305,7 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			case "wide", "":
 				printClusterTable(clusters.Items)
 			default:
-				log.Fatalf("Unknown output format: %s", output)
+				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
 		},
 	}

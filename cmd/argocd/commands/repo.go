@@ -250,7 +250,7 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			case "wide", "":
 				printRepoTable(repos.Items)
 			default:
-				log.Fatalf("Unknown output format: %s", output)
+				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
 		},
 	}

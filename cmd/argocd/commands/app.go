@@ -274,7 +274,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					_ = w.Flush()
 				}
 			default:
-				log.Fatalf("Unknown output format: %s", output)
+				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
 		},
 	}
@@ -1130,8 +1130,10 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 			case "name":
 				printApplicationNames(appList)
-			default:
+			case "wide", "":
 				printApplicationTable(appList, &output)
+			default:
+				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
 		},
 	}

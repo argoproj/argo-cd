@@ -294,7 +294,7 @@ func NewProjectRoleListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			case "wide", "":
 				printProjectRoleListTable(project.Spec.Roles)
 			default:
-				errors.CheckError(fmt.Errorf("invalid output format: %s", output))
+				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
 		},
 	}
