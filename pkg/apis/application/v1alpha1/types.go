@@ -1303,60 +1303,8 @@ func (p *AppProject) ValidateProject() error {
 		roleNames[role.Name] = true
 	}
 
-	if p.Spec.SyncWindows.HasWindows() {
-		existingWindows := make(map[string]bool)
-		for _, window := range p.Spec.SyncWindows {
-			if _, ok := existingWindows[window.Kind+window.Schedule+window.Duration]; ok {
-				return status.Errorf(codes.AlreadyExists, "window '%s':'%s':'%s' already exists, update or edit",
-					window.Kind, window.Schedule, window.Duration)
-			}
-			err := window.Validate()
-			if err != nil {
-				return err
-			}
-			if len(window.Rules) == 0 {
-				return status.Errorf(codes.OutOfRange, "window '%s':'%s':'%s' requires rules",
-					window.Kind, window.Schedule, window.Duration)
-			}
-			for _, r := range window.Rules {
-				for _, c := range r.Conditions {
-					if c.Kind == "" {
-						return status.Errorf(codes.InvalidArgument, "window '%s':'%s':'%s' condition missing kind field",
-							window.Kind, window.Schedule, window.Duration)
-					}
-					if c.Operator == "" {
-						return status.Errorf(codes.InvalidArgument, "window '%s':'%s':'%s' condition missing operator field",
-							window.Kind, window.Schedule, window.Duration)
-					}
-					if c.Kind == ConditionKindLabel {
-						if c.Key == "" {
-							return status.Errorf(codes.InvalidArgument, "window '%s':'%s':'%s' if kind is '%s' then key cannot be empty",
-								window.Kind, window.Schedule, window.Duration, c.Kind)
-						}
-					} else {
-						if c.Key != "" {
-							return status.Errorf(codes.InvalidArgument, "window '%s':'%s':'%s' if kind is '%s' then key must be empty",
-								window.Kind, window.Schedule, window.Duration, c.Kind)
-						}
-					}
-					if c.Operator != ConditionOperatorExists {
-						if len(c.Values) == 0 {
-							return status.Errorf(codes.InvalidArgument, "window '%s':'%s':'%s' operator '%s' requires values",
-								window.Kind, window.Schedule, window.Duration, c.Operator)
-						} else {
-							for _, v := range c.Values {
-								if v == "" {
-									return status.Errorf(codes.InvalidArgument, "window '%s':'%s':'%s' condition values array cannot contain empty strings",
-										window.Kind, window.Schedule, window.Duration)
-								}
-							}
-						}
-					}
-				}
-			}
-
-			existingWindows[window.Kind+window.Schedule+window.Duration] = true
-		}
+	if err := p.Spec.SyncWindows.Validate(); err != nil {
+		return err
 	}
 
 	if err := p.validatePolicySyntax(); err != nil {
@@ -1548,6 +1496,11 @@ type SyncWindow struct {
 	ManualSync bool `json:"manualSync,omitempty" protobuf:"bytes,5,opt,name=manualSync"`
 }
 
+const (
+	SyncWindowKindAllow = "allow"
+	SyncWindowKindDeny  = "deny"
+)
+
 func (s *SyncWindows) HasWindows() bool {
 	return s != nil && len(*s) > 0
 }
@@ -1577,7 +1530,7 @@ func (s *SyncWindows) InactiveAllows() *SyncWindows {
 		var inactive SyncWindows
 		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 		for _, w := range *s {
-			if w.Kind == "allow" {
+			if w.Kind == SyncWindowKindAllow {
 				schedule, sErr := specParser.Parse(w.Schedule)
 				duration, dErr := time.ParseDuration(w.Duration)
 				now := time.Now()
@@ -1698,7 +1651,7 @@ func (w *SyncWindows) hasAllow() bool {
 		return false
 	}
 	for _, a := range *w {
-		if a.Kind == "allow" {
+		if a.Kind == SyncWindowKindAllow {
 			return true
 		}
 	}
@@ -1746,21 +1699,8 @@ func (w *SyncWindow) Update(k string, s string, d string) error {
 	return nil
 }
 
-func (w *SyncWindow) AddRule(rule WindowRule) {
-	w.Rules = append(w.Rules, rule)
-}
-
-func (w *SyncWindow) DeleteRule(id int) error {
-	if len(w.Rules) > id {
-		w.Rules = append(w.Rules[:id], w.Rules[id+1:]...)
-	} else {
-		return fmt.Errorf("window with id '%s' not found", strconv.Itoa(id))
-	}
-	return nil
-}
-
 func (w *SyncWindow) Validate() error {
-	if w.Kind != "allow" && w.Kind != "deny" {
+	if w.Kind != SyncWindowKindAllow && w.Kind != SyncWindowKindDeny {
 		return fmt.Errorf("kind '%s' mismatch: can only be allow or deny", w.Kind)
 	}
 	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
@@ -1771,6 +1711,52 @@ func (w *SyncWindow) Validate() error {
 	_, err = time.ParseDuration(w.Duration)
 	if err != nil {
 		return fmt.Errorf("cannot parse duration '%s': %s", w.Duration, err)
+	}
+
+	if len(w.Rules) == 0 {
+		return status.Errorf(codes.OutOfRange, "window requires rules")
+	}
+	for _, r := range w.Rules {
+		for _, c := range r.Conditions {
+			if err := c.Validate(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (w *SyncWindows) Validate() error {
+	if w == nil {
+		return nil
+	}
+	existingWindows := make(map[string]bool)
+	for _, window := range *w {
+
+		if _, ok := existingWindows[window.Kind+window.Schedule+window.Duration]; ok {
+			return status.Errorf(codes.AlreadyExists, "window '%s':'%s':'%s' already exists, update or edit",
+				window.Kind, window.Schedule, window.Duration)
+		}
+
+		err := window.Validate()
+		if err != nil {
+			return err
+		}
+
+		existingWindows[window.Kind+window.Schedule+window.Duration] = true
+	}
+	return nil
+}
+
+func (w *SyncWindow) AddRule(rule WindowRule) {
+	w.Rules = append(w.Rules, rule)
+}
+
+func (w *SyncWindow) DeleteRule(id int) error {
+	if len(w.Rules) > id {
+		w.Rules = append(w.Rules[:id], w.Rules[id+1:]...)
+	} else {
+		return fmt.Errorf("window with id '%s' not found", strconv.Itoa(id))
 	}
 	return nil
 }
@@ -1789,6 +1775,18 @@ type WindowRules []WindowRule
 
 type WindowRule struct {
 	Conditions []RuleCondition `json:"conditions,omitempty" protobuf:"bytes,1,opt,name=conditions"`
+}
+
+func (r *WindowRule) Validate() error {
+	if r == nil {
+		return nil
+	}
+	for _, c := range r.Conditions {
+		if err := c.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *WindowRule) Match(app *Application) bool {
@@ -1829,6 +1827,40 @@ type RuleCondition struct {
 	Key      string   `json:"key,omitempty" protobuf:"bytes,2,opt,name=key"`
 	Operator string   `json:"operator,omitempty" protobuf:"bytes,3,opt,name=operator"`
 	Values   []string `json:"values,omitempty" protobuf:"bytes,4,opt,name=values"`
+}
+
+func (c *RuleCondition) Validate() error {
+	if c == nil {
+		return nil
+	}
+
+	if c.Kind == "" {
+		return status.Error(codes.InvalidArgument, "condition missing kind field")
+	}
+	if c.Operator == "" {
+		return status.Error(codes.InvalidArgument, "condition missing operator field")
+	}
+	if c.Kind == ConditionKindLabel {
+		if c.Key == "" {
+			return status.Errorf(codes.InvalidArgument, "if kind is '%s' then key cannot be empty", c.Kind)
+		}
+	} else {
+		if c.Key != "" {
+			return status.Errorf(codes.InvalidArgument, "if kind is '%s' then key must be empty", c.Kind)
+		}
+	}
+	if c.Operator != ConditionOperatorExists {
+		if len(c.Values) == 0 {
+			return status.Errorf(codes.InvalidArgument, "operator '%s' requires values", c.Operator)
+		} else {
+			for _, v := range c.Values {
+				if v == "" {
+					return status.Error(codes.InvalidArgument, "condition values array cannot contain empty strings")
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func (f *RuleCondition) Match(app *Application) bool {

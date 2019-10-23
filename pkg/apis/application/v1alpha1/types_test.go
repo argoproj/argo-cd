@@ -1052,56 +1052,12 @@ func TestApplicationSourceKustomize_MergeImage(t *testing.T) {
 	})
 }
 
-func TestAppProject_ValidateProject(t *testing.T) {
+func TestSyncWindows_Validate(t *testing.T) {
 	t.Run("SyncWindowDuplicateWindow", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
 		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, proj.Spec.SyncWindows...)
-		err := proj.ValidateProject()
+		err := proj.Spec.SyncWindows.Validate()
 		assert.Contains(t, err.Error(), "already exists, update or edit")
-	})
-	t.Run("SyncWindowEmptyRules", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		proj.Spec.SyncWindows[0].Rules = WindowRules{}
-		err := proj.ValidateProject()
-		assert.Contains(t, err.Error(), "requires rules")
-	})
-	t.Run("SyncWindowRuleConditionMissingKind", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Kind = ""
-		err := proj.ValidateProject()
-		assert.Contains(t, err.Error(), "condition missing kind field")
-	})
-	t.Run("SyncWindowRuleConditionMissingOperator", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Operator = ""
-		err := proj.ValidateProject()
-		assert.Contains(t, err.Error(), "condition missing operator field")
-	})
-	t.Run("SyncWindowRuleConditionLabelMissingKey", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Key = ""
-		proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Kind = "label"
-		err := proj.ValidateProject()
-		assert.Contains(t, err.Error(), "if kind is 'label' then key cannot be empty")
-	})
-	t.Run("SyncWindowRuleConditionApplicationWithKey", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Key = "shouldNotBeHere"
-		proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Kind = "application"
-		err := proj.ValidateProject()
-		assert.Contains(t, err.Error(), "if kind is 'application' then key must be empty")
-	})
-	t.Run("SyncWindowRuleConditionMissingValues", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Values = []string{}
-		err := proj.ValidateProject()
-		assert.Contains(t, err.Error(), "requires values")
-	})
-	t.Run("SyncWindowRuleConditionValuesContainsEmptyString", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Values = []string{"val1", ""}
-		err := proj.ValidateProject()
-		assert.Contains(t, err.Error(), "condition values array cannot contain empty strings")
 	})
 }
 
@@ -1493,7 +1449,8 @@ func TestSyncWindow_Update(t *testing.T) {
 }
 
 func TestSyncWindow_Validate(t *testing.T) {
-	window := &SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
+	proj := newTestProjectWithSyncWindows()
+	window := proj.Spec.SyncWindows[0]
 	t.Run("Validates", func(t *testing.T) {
 		assert.NoError(t, window.Validate())
 	})
@@ -1511,6 +1468,18 @@ func TestSyncWindow_Validate(t *testing.T) {
 		window.Schedule = "* * * * *"
 		window.Duration = "1000days"
 		assert.Error(t, window.Validate())
+	})
+	t.Run("BadCondition", func(t *testing.T) {
+		window.Kind = "allow"
+		window.Schedule = "* * * * *"
+		window.Duration = "1h"
+		window.Rules[0].Conditions[0].Kind = ""
+		assert.Error(t, window.Validate())
+	})
+	t.Run("SyncWindowEmptyRules", func(t *testing.T) {
+		window.Rules = WindowRules{}
+		err := window.Validate()
+		assert.Contains(t, err.Error(), "requires rules")
 	})
 }
 
@@ -1533,6 +1502,53 @@ func TestWindowRule_Match(t *testing.T) {
 	t.Run("NoMatch", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Rules[0].Conditions[0].Values = []string{"changed-name"}
 		assert.False(t, proj.Spec.SyncWindows[0].Rules[0].Match(app))
+	})
+}
+
+func TestRuleCondition_Validate(t *testing.T) {
+	t.Run("SyncWindowRuleConditionMissingKind", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		condition := proj.Spec.SyncWindows[0].Rules[0].Conditions[0]
+		condition.Kind = ""
+		err := condition.Validate()
+		assert.Contains(t, err.Error(), "condition missing kind field")
+	})
+	t.Run("SyncWindowRuleConditionMissingOperator", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		condition := proj.Spec.SyncWindows[0].Rules[0].Conditions[0]
+		condition.Operator = ""
+		err := condition.Validate()
+		assert.Contains(t, err.Error(), "condition missing operator field")
+	})
+	t.Run("SyncWindowRuleConditionLabelMissingKey", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		condition := proj.Spec.SyncWindows[0].Rules[0].Conditions[0]
+		condition.Key = ""
+		condition.Kind = "label"
+		err := condition.Validate()
+		assert.Contains(t, err.Error(), "if kind is 'label' then key cannot be empty")
+	})
+	t.Run("SyncWindowRuleConditionApplicationWithKey", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		condition := proj.Spec.SyncWindows[0].Rules[0].Conditions[0]
+		condition.Key = "shouldNotBeHere"
+		condition.Kind = "application"
+		err := condition.Validate()
+		assert.Contains(t, err.Error(), "if kind is 'application' then key must be empty")
+	})
+	t.Run("SyncWindowRuleConditionMissingValues", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		condition := proj.Spec.SyncWindows[0].Rules[0].Conditions[0]
+		condition.Values = []string{}
+		err := condition.Validate()
+		assert.Contains(t, err.Error(), "requires values")
+	})
+	t.Run("SyncWindowRuleConditionValuesContainsEmptyString", func(t *testing.T) {
+		proj := newTestProjectWithSyncWindows()
+		condition := proj.Spec.SyncWindows[0].Rules[0].Conditions[0]
+		condition.Values = []string{"val1", ""}
+		err := condition.Validate()
+		assert.Contains(t, err.Error(), "condition values array cannot contain empty strings")
 	})
 }
 
