@@ -44,8 +44,6 @@ const (
 	repoDir            = "testdata.git"
 	submoduleDir       = "submodule.git"
 	submoduleParentDir = "submoduleParent.git"
-
-	GuestbookPath = "guestbook"
 )
 
 var (

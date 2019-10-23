@@ -13,7 +13,7 @@ import (
 func TestCannotAddAppFromPrivateRepoWithoutCfg(t *testing.T) {
 	Given(t).
 		RepoURLType(fixture.RepoURLTypeHTTPS).
-		Path(fixture.GuestbookPath).
+		Path("guestbook").
 		When().
 		IgnoreErrors().
 		Create().
@@ -25,7 +25,7 @@ func TestCannotAddAppFromPrivateRepoWithoutCfg(t *testing.T) {
 func TestCannotAddAppFromClientCertRepoWithoutCfg(t *testing.T) {
 	Given(t).
 		RepoURLType(fixture.RepoURLTypeHTTPSClientCert).
-		Path(fixture.GuestbookPath).
+		Path("guestbook").
 		When().
 		IgnoreErrors().
 		Create().
