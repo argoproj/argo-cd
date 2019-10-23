@@ -103,7 +103,8 @@ COPY --from=builder /usr/local/bin/packr /usr/local/bin/packr
 # Perform the build
 WORKDIR /go/src/github.com/argoproj/argo-cd
 COPY . .
-RUN make cli server controller repo-server argocd-util && \
+RUN GO111MODULE=on go mod vendor && \
+    make cli server controller repo-server argocd-util && \
     make CLI_NAME=argocd-darwin-amd64 GOOS=darwin cli
 
 
