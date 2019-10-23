@@ -21,6 +21,12 @@ name the file corresponding to the title of your proposal, and place it in the
 
 A good starting point to understand the structure is the [GitOps Engine Design spec](specs/design.md).
 
+## Governance
+
+This project is licensed under the [Apache 2 license](LICENSE).
+
+The GitOps Engine follows the [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md).
+
 ## Get involved
 
 If you are as excited about GitOps and one common engine for it as much as we are, please get in touch. If you want to write code that's great, if you want to share feedback, ideas and use-cases, that's great too.
