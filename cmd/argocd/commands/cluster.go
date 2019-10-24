@@ -33,6 +33,16 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		},
+		Example: `
+List all known clusters in JSON format:
+  $ argocd cluster list -o json
+Add a target cluster configuration to ArgoCD. The context must exist in your kubectl config:
+  $ argocd cluster add example-cluster
+Get specific details about a cluster in plain text (wide) format:
+  $ argocd cluster get example-cluster -o wide
+Remove a target cluster context from ArgoCD
+  $ argocd cluster rm example-cluster
+`,
 	}
 
 	command.AddCommand(NewClusterAddCommand(clientOpts, pathOpts))

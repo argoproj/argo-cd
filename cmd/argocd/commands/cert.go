@@ -29,6 +29,20 @@ func NewCertCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		},
+		Example: `
+Add a TLS certificate for cd.example.com to ArgoCD cert store from a file
+  $ argocd cert add-tls --from ~/mycert.pem cd.example.com
+Add a TLS certificate for cd.example.com to ArgoCD via stdin
+  $ cat ~/mycert.pem | argocd cert add-tls cd.example.com
+Add SSH known host entries for cd.example.com to ArgoCD by scanning host
+  $ ssh-keyscan cd.example.com | argocd cert add-ssh --batch
+List all known TLS certificates
+  $ argocd cert list --cert-type https
+Remove all TLS certificates for cd.example.com
+  $ argocd cert rm --cert-type https cd.example.com
+Remove all certificates and SSH known host entries for cd.example.com
+  $ argocd cert rm cd.example.com
+`,
 	}
 
 	command.AddCommand(NewCertAddSSHCommand(clientOpts))
