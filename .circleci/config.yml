@@ -206,9 +206,7 @@ workflows:
   workflow:
     jobs:
       - test
-      - codegen:
-          requires:
-            - test
+      - codegen
       - ui:
           requires:
             - codegen
