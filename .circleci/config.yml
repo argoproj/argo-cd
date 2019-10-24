@@ -119,7 +119,7 @@ commands:
             mkdir -p test-results
             trap 'go-junit-report < test-results/test.out > test-results/junit.xml' EXIT
             for pkg in << parameters.pkgs >> ; do
-              PATH=dist:$PATH make test-e2e E2E_PKG="$pkg" >> test-results/test.out
+              PATH=dist:$PATH make test-e2e E2E_PKG=./test/e2e/$pkg >> test-results/test.out
             done
           environment:
             ARGOCD_OPTS: "--server localhost:8080 --plaintext"
