@@ -11,16 +11,16 @@ commands:
             git config --global user.name "Your Name"
             echo "export PATH=/home/circleci/.go_workspace/src/github.com/argoproj/argo-cd/hack:\$PATH" | tee -a $BASH_ENV
             echo "export GIT_ASKPASS=git-ask-pass.sh" | tee -a $BASH_ENV
-  dep_ensure:
+  restore_vendor:
     steps:
       - restore_cache:
           keys:
+            - vendor-v5-{{ checksum "Gopkg.lock" }}
             - vendor-v4-{{ checksum "Gopkg.lock" }}
-      - run:
-          name: Run dep ensure
-          command: dep ensure -v
+  save_vendor:
+    steps:
       - save_cache:
-          key: vendor-v4-{{ checksum "Gopkg.lock" }}
+          key: vendor-v5-{{ checksum "Gopkg.lock" }}
           paths:
             - vendor
   install_golang:
@@ -93,9 +93,11 @@ jobs:
           paths: [/tmp/dl]
       - configure_git
       - run: go get github.com/jstemmer/go-junit-report
-      - dep_ensure
-      - save_go_cache
+      - restore_vendor
+      - run: dep ensure
       - run: make test
+      - save_vendor
+      - save_go_cache
       - run:
           name: Uploading code coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
@@ -133,9 +135,11 @@ jobs:
       - save_cache:
           key: e2e-dl-v10
           paths: [/tmp/dl]
-      - dep_ensure
+      - restore_vendor
+      - run: dep ensure
       - configure_git
       - run: make cli
+      - save_vendor
       - run:
           name: Create namespace
           command: |
