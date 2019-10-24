@@ -55,6 +55,10 @@ required = [
   branch = "release-11.0"
   name = "k8s.io/client-go"
 
+[[override]]
+  name = "github.com/casbin/casbin"
+  version = "1.9.1"
+
 [[constraint]]
   name = "github.com/stretchr/testify"
   version = "1.2.2"
