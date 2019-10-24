@@ -35,7 +35,7 @@ Print the full version of client and server in JSON format
   $ argocd version -o json
 Print only client and server core version strings in YAML format
   $ argocd version --short -o yaml
-`
+`,
 		Run: func(cmd *cobra.Command, args []string) {
 			var (
 				versionIf  version.VersionServiceClient
