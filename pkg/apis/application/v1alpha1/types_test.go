@@ -258,8 +258,6 @@ func TestAppProject_InvalidPolicyRules(t *testing.T) {
 		errmsg string
 	}
 	badPolicies := []badPolicy{
-		// should have spaces
-		{"p,proj:my-proj:my-role,applications,get,my-proj/*,allow", "syntax"},
 		// incorrect form
 		{"g, proj:my-proj:my-role, applications, get, my-proj/*, allow", "must be of the form: 'p, sub, res, act, obj, eft'"},
 		{"p, not, enough, parts", "must be of the form: 'p, sub, res, act, obj, eft'"},
@@ -300,6 +298,7 @@ func TestAppProject_ValidPolicyRules(t *testing.T) {
 	err := p.ValidateProject()
 	assert.NoError(t, err)
 	goodPolicies := []string{
+		"p,proj:my-proj:my-role,applications,get,my-proj/*,allow",
 		"p, proj:my-proj:my-role, applications, get, my-proj/*, allow",
 		"p, proj:my-proj:my-role, applications, get, my-proj/*, deny",
 		"p, proj:my-proj:my-role, applications, get, my-proj/foo, allow",
