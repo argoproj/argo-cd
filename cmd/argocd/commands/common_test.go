@@ -55,6 +55,10 @@ func captureOutput(f func() error) (string, error) {
 	os.Stdout = w
 	err = f()
 	w.Close()
+	if err != nil {
+		os.Stdout = stdout
+		return "", err
+	}
 	str, err := ioutil.ReadAll(r)
 	os.Stdout = stdout
 	if err != nil {
