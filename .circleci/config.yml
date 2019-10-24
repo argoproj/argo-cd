@@ -117,12 +117,12 @@ commands:
           command: |
             set -eux
             mkdir -p test-results
-            trap 'go-junit-report < test-results/test.out > $TEST_RESULTS/junit.xml' EXIT
+            trap 'go-junit-report < test-results/test.out > test-results/junit.xml' EXIT
             E2E_PKGS=$(for pkg in << parameters.pkgs >> ; do
               echo ./test/e2e/$pkg
             done | tr "\n" " ")
             PATH=dist:$PATH 
-            make test-e2e E2E_PKGS="$E2E_PKGS" >> test.out
+            make test-e2e E2E_PKGS="$E2E_PKGS" >> test-results/test.out
           environment:
             ARGOCD_OPTS: "--server localhost:8080 --plaintext"
             ARGOCD_E2E_EXPECT_TIMEOUT: "30"
@@ -182,8 +182,8 @@ jobs:
       - run: |
           sh -oux
           mkdir -p test-results
-          trap 'go-junit-report < test-results/test.out > $TEST_RESULTS/junit.xml' EXIT
-          make test > test-result/test.out
+          trap 'go-junit-report < test-results/test.out > test-results/junit.xml' EXIT
+          make test > test-results/test.out
       - run:
           name: Uploading code coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
