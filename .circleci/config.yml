@@ -30,6 +30,7 @@ commands:
           command: |
             go get golang.org/dl/go1.12.6
             [ -e /home/circleci/sdk/go1.12.6 ] || go1.12.6 download
+            go env
             echo "export GOPATH=/home/circleci/.go_workspace" | tee -a $BASH_ENV
             echo "export PATH=/home/circleci/sdk/go1.12.6/bin:\$PATH" | tee -a $BASH_ENV
   save_go_cache:
