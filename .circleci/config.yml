@@ -200,7 +200,7 @@ jobs:
       ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
     steps:
       - e2e:
-          pkgs: "app_autosync app_deletion app_management app_of_apps cli cluster cluster_objects"
+          pkgs: "app_autosync app_deletion app_management app_of_apps cli cluster cluster_objects jsonnet"
   e2e-part-2:
     working_directory: /home/circleci/.go_workspace/src/github.com/argoproj/argo-cd
     machine:
@@ -222,7 +222,7 @@ jobs:
       ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
     steps:
       - e2e:
-          pkgs: "jsonnet kustomize project_management pruning_required repo_creds repo_management selective_sync ssh_repo sync_options sync_waves user_info"
+          pkgs: "kustomize project_management pruning_required repo_creds repo_management selective_sync ssh_repo sync_options sync_waves user_info"
   ui:
     docker:
       - image: node:11.15.0
