@@ -31,6 +31,8 @@ func PrintResource(resource interface{}, output string) error {
 			return err
 		}
 		fmt.Print(string(yamlBytes))
+	default:
+		return fmt.Errorf("unknown output format: %s", output)
 	}
 	return nil
 }
@@ -63,6 +65,8 @@ func PrintResourceList(resources interface{}, output string, single bool) error 
 			return err
 		}
 		fmt.Print(string(yamlBytes))
+	default:
+		return fmt.Errorf("unknown output format: %s", output)
 	}
 	return nil
 }
