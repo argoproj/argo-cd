@@ -41,6 +41,14 @@ func Test_generateRule(t *testing.T) {
 		assert.Equal(t, rule.Conditions[0].Key, "")
 		assert.Equal(t, rule.Conditions[0].Values[0], "thisNamespace")
 	})
+	t.Run("GenerateClusterRule", func(t *testing.T) {
+		rule, err := generateRule([]string{"cluster in thisCluster"})
+		assert.Nil(t, err)
+		assert.Equal(t, rule.Conditions[0].Kind, argoappv1.ConditionKindCluster)
+		assert.Equal(t, rule.Conditions[0].Operator, argoappv1.ConditionOperatorIn)
+		assert.Equal(t, rule.Conditions[0].Key, "")
+		assert.Equal(t, rule.Conditions[0].Values[0], "thisCluster")
+	})
 	t.Run("GenerateTooManyFieldsIn", func(t *testing.T) {
 		_, err := generateRule([]string{"cluster is in thisCluster"})
 		assert.Contains(t, err.Error(), "field mismatch expected 3 got 4")

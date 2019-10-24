@@ -4139,6 +4139,7 @@
     },
     "v1alpha1RuleCondition": {
       "type": "object",
+      "title": "RuleCondition contains the configuration used to assign applications to sync windows",
       "properties": {
         "key": {
           "type": "string"
@@ -4366,9 +4367,11 @@
     },
     "v1alpha1WindowRule": {
       "type": "object",
+      "title": "WindowRule contains a list of conditions used to assign applications to sync windows",
       "properties": {
         "conditions": {
           "type": "array",
+          "title": "Conditions is a list of checks that make up a window rule",
           "items": {
             "$ref": "#/definitions/v1alpha1RuleCondition"
           }

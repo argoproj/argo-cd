@@ -508,6 +508,8 @@ spec:
                     items:
                       properties:
                         conditions:
+                          description: Conditions is a list of checks that make up
+                            a window rule
                           items:
                             properties:
                               key:

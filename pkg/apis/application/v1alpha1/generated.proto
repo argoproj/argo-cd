@@ -793,6 +793,7 @@ message RevisionMetadata {
   optional string message = 4;
 }
 
+// RuleCondition contains the configuration used to assign applications to sync windows
 message RuleCondition {
   optional string kind = 1;
 
@@ -940,7 +941,9 @@ message TLSClientConfig {
   optional bytes caData = 5;
 }
 
+// WindowRule contains a list of conditions used to assign applications to sync windows
 message WindowRule {
+  // Conditions is a list of checks that make up a window rule
   repeated RuleCondition conditions = 1;
 }
 

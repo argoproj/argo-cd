@@ -1501,10 +1501,12 @@ const (
 	SyncWindowKindDeny  = "deny"
 )
 
+// HasWindows checks that a project has sync windows
 func (s *SyncWindows) HasWindows() bool {
 	return s != nil && len(*s) > 0
 }
 
+// Active checks if there are any active sync windows
 func (s *SyncWindows) Active() *SyncWindows {
 	if s.HasWindows() {
 		var active SyncWindows
@@ -1525,6 +1527,7 @@ func (s *SyncWindows) Active() *SyncWindows {
 	return nil
 }
 
+// InactiveAllows checks if there are any allow sync windows that are not active
 func (s *SyncWindows) InactiveAllows() *SyncWindows {
 	if s.HasWindows() {
 		var inactive SyncWindows
@@ -1547,6 +1550,7 @@ func (s *SyncWindows) InactiveAllows() *SyncWindows {
 	return nil
 }
 
+// AddWindow adds a new sync window to a project
 func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, rules WindowRules, ms bool) error {
 	if len(rules) == 0 {
 		return fmt.Errorf("cannot create window: require kind, schedule, duration and at least one rule")
@@ -1571,6 +1575,7 @@ func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, rules Win
 
 }
 
+// DeleteWindow deletes a sync window from a project
 func (s *AppProjectSpec) DeleteWindow(id int) error {
 	if len(s.SyncWindows) > id {
 		s.SyncWindows = append(s.SyncWindows[:id], s.SyncWindows[id+1:]...)
@@ -1580,6 +1585,7 @@ func (s *AppProjectSpec) DeleteWindow(id int) error {
 	return nil
 }
 
+// Matches generates a list of sync windows that have been assigned to an application
 func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 	if w.HasWindows() {
 		var matchingWindows SyncWindows
@@ -1597,6 +1603,7 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 	return nil
 }
 
+// CanSync determines if there are any sync windows that are preventing or allowing syncs
 func (w *SyncWindows) CanSync(isManual bool) bool {
 	if !w.HasWindows() {
 		return true
@@ -1670,6 +1677,7 @@ func (w *SyncWindows) manualEnabled() bool {
 	return false
 }
 
+// Active determines if a sync window is active or not
 func (w SyncWindow) Active() bool {
 	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 	schedule, _ := specParser.Parse(w.Schedule)
@@ -1679,6 +1687,7 @@ func (w SyncWindow) Active() bool {
 	return nextWindow.Before(now)
 }
 
+// Update will update the kind, schedule or duration of a sync window
 func (w *SyncWindow) Update(k string, s string, d string) error {
 	if len(k) == 0 && len(s) == 0 && len(d) == 0 {
 		return fmt.Errorf("cannot update: require one or more of kind, schedule or duration")
@@ -1699,6 +1708,7 @@ func (w *SyncWindow) Update(k string, s string, d string) error {
 	return nil
 }
 
+// Validate checks that a sync window contains valid configuration
 func (w *SyncWindow) Validate() error {
 	if w.Kind != SyncWindowKindAllow && w.Kind != SyncWindowKindDeny {
 		return fmt.Errorf("kind '%s' mismatch: can only be allow or deny", w.Kind)
@@ -1726,6 +1736,7 @@ func (w *SyncWindow) Validate() error {
 	return nil
 }
 
+// Validate checks all sync windows in a project for valid configuration
 func (w *SyncWindows) Validate() error {
 	if w == nil {
 		return nil
@@ -1748,10 +1759,7 @@ func (w *SyncWindows) Validate() error {
 	return nil
 }
 
-func (w *SyncWindow) AddRule(rule WindowRule) {
-	w.Rules = append(w.Rules, rule)
-}
-
+// DeleteRule will delete a window rule from a sync window
 func (w *SyncWindow) DeleteRule(id int) error {
 	if len(w.Rules) > id {
 		w.Rules = append(w.Rules[:id], w.Rules[id+1:]...)
@@ -1771,12 +1779,16 @@ const (
 	ConditionKindLabel       = "label"
 )
 
+// WindowRules is a list of rules used to assign applications to sync windows
 type WindowRules []WindowRule
 
+// WindowRule contains a list of conditions used to assign applications to sync windows
 type WindowRule struct {
+	// Conditions is a list of checks that make up a window rule
 	Conditions []RuleCondition `json:"conditions,omitempty" protobuf:"bytes,1,opt,name=conditions"`
 }
 
+// Validate checks that a window rule contains valid configuration
 func (r *WindowRule) Validate() error {
 	if r == nil {
 		return nil
@@ -1789,6 +1801,7 @@ func (r *WindowRule) Validate() error {
 	return nil
 }
 
+// Match checks if a window rule matches an application
 func (r *WindowRule) Match(app *Application) bool {
 	if r == nil {
 		return false
@@ -1813,6 +1826,7 @@ func (r *WindowRule) Match(app *Application) bool {
 	return conditionCount == len(r.Conditions)
 }
 
+// DeleteCondition deletes a rule condition from a window rule
 func (r *WindowRule) DeleteCondition(id int) error {
 	if len(r.Conditions) > id {
 		r.Conditions = append(r.Conditions[:id], r.Conditions[id+1:]...)
@@ -1822,6 +1836,7 @@ func (r *WindowRule) DeleteCondition(id int) error {
 	return nil
 }
 
+// RuleCondition contains the configuration used to assign applications to sync windows
 type RuleCondition struct {
 	Kind     string   `json:"kind,omitempty" protobuf:"bytes,1,opt,name=kind"`
 	Key      string   `json:"key,omitempty" protobuf:"bytes,2,opt,name=key"`
@@ -1829,6 +1844,7 @@ type RuleCondition struct {
 	Values   []string `json:"values,omitempty" protobuf:"bytes,4,opt,name=values"`
 }
 
+// Validate checks if a rule condition contains valid configuration
 func (c *RuleCondition) Validate() error {
 	if c == nil {
 		return nil
@@ -1863,6 +1879,7 @@ func (c *RuleCondition) Validate() error {
 	return nil
 }
 
+// Match checks if the rule condition matches an application
 func (f *RuleCondition) Match(app *Application) bool {
 	var check string
 	switch f.Kind {
@@ -1889,6 +1906,7 @@ func (f *RuleCondition) Match(app *Application) bool {
 	return false
 }
 
+// MatchExists checks if an application has a specific label
 func (f *RuleCondition) MatchExists(app *Application) bool {
 	switch f.Kind {
 	case ConditionKindLabel:
