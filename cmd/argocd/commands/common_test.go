@@ -8,23 +8,20 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Be careful with tabs vs. spaces in the following expected formats. Indents 
+// Be careful with tabs vs. spaces in the following expected formats. Indents
 // should all be spaces, no tabs.
-const expectYamlSingle = 
-`bar: ""
+const expectYamlSingle = `bar: ""
 baz: foo
 foo: bar
 `
 
-const expectJsonSingle = 
-`{
+const expectJsonSingle = `{
   "bar": "",
   "baz": "foo",
   "foo": "bar"
 }
 `
-const expectYamlList = 
-`one:
+const expectYamlList = `one:
   bar: ""
   baz: foo
   foo: bar
@@ -34,8 +31,7 @@ two:
   foo: bar
 `
 
-const expectJsonList = 
-`{
+const expectJsonList = `{
   "one": {
     "bar": "",
     "baz": "foo",
@@ -49,10 +45,8 @@ const expectJsonList =
 }
 `
 
-
-
 // Rather dirty hack to capture stdout from PrintResource() and PrintResourceList()
-func captureOutput(f func()(error)) (string, error) {
+func captureOutput(f func() error) (string, error) {
 	stdout := os.Stdout
 	r, w, err := os.Pipe()
 	if err != nil {
@@ -69,22 +63,21 @@ func captureOutput(f func()(error)) (string, error) {
 	return string(str), err
 }
 
-
 func Test_PrintResource(t *testing.T) {
-	testResource := map[string] string {
+	testResource := map[string]string{
 		"foo": "bar",
 		"bar": "",
 		"baz": "foo",
 	}
 
-	str, err := captureOutput(func()(error) {
+	str, err := captureOutput(func() error {
 		err := PrintResource(testResource, "yaml")
 		return err
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, str, expectYamlSingle)
 
-	str, err = captureOutput(func()(error) {
+	str, err = captureOutput(func() error {
 		err := PrintResource(testResource, "json")
 		return err
 	})
@@ -96,7 +89,7 @@ func Test_PrintResource(t *testing.T) {
 }
 
 func Test_PrintResourceList(t *testing.T) {
-	testResource := map[string] map[string]string {
+	testResource := map[string]map[string]string{
 		"one": {
 			"foo": "bar",
 			"bar": "",
@@ -112,28 +105,28 @@ func Test_PrintResourceList(t *testing.T) {
 	testResource2 := make([]map[string]string, 0)
 	testResource2 = append(testResource2, testResource["one"])
 
-	str, err := captureOutput(func()(error) {
+	str, err := captureOutput(func() error {
 		err := PrintResourceList(testResource, "yaml", false)
 		return err
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, str, expectYamlList)
 
-	str, err = captureOutput(func()(error) {
+	str, err = captureOutput(func() error {
 		err := PrintResourceList(testResource, "json", false)
 		return err
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, str, expectJsonList)
 
-	str, err = captureOutput(func()(error) {
+	str, err = captureOutput(func() error {
 		err := PrintResourceList(testResource2, "yaml", true)
 		return err
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, str, expectYamlSingle)
 
-	str, err = captureOutput(func()(error) {
+	str, err = captureOutput(func() error {
 		err := PrintResourceList(testResource2, "json", true)
 		return err
 	})
