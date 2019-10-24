@@ -15,12 +15,11 @@ commands:
     steps:
       - restore_cache:
           keys:
-            - vendor-v5-{{ checksum "Gopkg.lock" }}
-            - vendor-v4-{{ checksum "Gopkg.lock" }}
+            - vendor-v1-{{ checksum "Gopkg.lock" }}-{{ .Environment.CIRCLE_JOB }}
   save_vendor:
     steps:
       - save_cache:
-          key: vendor-v5-{{ checksum "Gopkg.lock" }}
+          key: vendor-v1-{{ checksum "Gopkg.lock" }}-{{ .Environment.CIRCLE_JOB }}
           paths:
             - vendor
   install_golang:
@@ -36,19 +35,17 @@ commands:
   save_go_cache:
     steps:
       - save_cache:
-          key: go-v18-{{ .Branch }}
+          key: go-v1-{{ .Branch }}-{{ .Environment.CIRCLE_JOB }}
+          # https://circleci.com/docs/2.0/language-go/
           paths:
-            - /home/circleci/.go_workspace
             - /home/circleci/.cache/go-build
             - /home/circleci/sdk/go1.12.6
   restore_go_cache:
     steps:
       - restore_cache:
           keys:
-            - go-v18-{{ .Branch }}
-            - go-v18-master
-            - go-v17-{{ .Branch }}
-            - go-v17-master
+            - go-v1-{{ .Branch }}-{{ .Environment.CIRCLE_JOB }}
+            - go-v1-master-{{ .Environment.CIRCLE_JOB }}
 jobs:
   codegen:
     docker:
@@ -140,7 +137,6 @@ jobs:
       - run: dep ensure
       - configure_git
       - run: make cli
-      - save_vendor
       - run:
           name: Create namespace
           command: |
