@@ -47,11 +47,11 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 	)
 
 	// For better readability and easier formatting
-	var repocredsAddExamples = `
-Add credentials with user/pass authentication to use for all repositories under https://git.example.com/repos
-  $ argocd repocreds add https://git.example.com/repos/ --username git --password secret
-Add credentials with SSH private key authentication to use for all repositories under https://git.example.com/repos
-  $ argocd repocreds add https://git.example.com/repos/ --ssh-private-key-path ~/.ssh/id_rsa
+	var repocredsAddExamples = `  # Add credentials with user/pass authentication to use for all repositories under https://git.example.com/repos
+  argocd repocreds add https://git.example.com/repos/ --username git --password secret
+
+  # Add credentials with SSH private key authentication to use for all repositories under https://git.example.com/repos
+  argocd repocreds add https://git.example.com/repos/ --ssh-private-key-path ~/.ssh/id_rsa
 `
 
 	var command = &cobra.Command{

@@ -26,15 +26,17 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	versionCmd := cobra.Command{
 		Use:   "version",
 		Short: fmt.Sprintf("Print version information"),
-		Example: `
-Print the full version of client and server to stdout
-  $ argocd version
-Print only full version of the client - no connection to server will be made
-  $ argocd version --client
-Print the full version of client and server in JSON format
-  $ argocd version -o json
-Print only client and server core version strings in YAML format
-  $ argocd version --short -o yaml
+		Example: `  # Print the full version of client and server to stdout
+  argocd version
+
+  # Print only full version of the client - no connection to server will be made
+  argocd version --client
+
+  # Print the full version of client and server in JSON format
+  argocd version -o json
+
+  # Print only client and server core version strings in YAML format
+  argocd version --short -o yaml
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 			var (
