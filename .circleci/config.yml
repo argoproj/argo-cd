@@ -180,6 +180,8 @@ jobs:
             ARGOCD_OPTS: "--server localhost:8080 --plaintext"
             ARGOCD_E2E_EXPECT_TIMEOUT: "30"
             ARGOCD_E2E_K3S: "true"
+      - save_vendor
+      - save_go_cache
       - store_test_results:
           path: test-results
       - store_artifacts:
