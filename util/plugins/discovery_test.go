@@ -7,7 +7,6 @@ import (
 )
 
 func TestDiscover(t *testing.T) {
-	plugins, err := Discover()
-	assert.NoError(t, err)
+	plugins:= Discover()
 	assert.ElementsMatch(t, []string{"test-dummy", "helm-v3"}, plugins)
 }

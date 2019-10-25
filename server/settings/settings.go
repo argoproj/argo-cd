@@ -94,17 +94,14 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 	return &set, nil
 }
 
-func (s *Server) plugins() ([]*settingspkg.Plugin, error) {
-	in, err := plugins.Discover()
-	if err != nil {
-		return nil, err
-	}
+func (s *Server) plugins() []*settingspkg.Plugin {
+	in := plugins.Discover()
 	out := make([]*settingspkg.Plugin, len(in))
 	for i, p := range in {
 		out[i] = &settingspkg.Plugin{Name: p}
 
 	}
-	return out, nil
+	return out
 }
 
 // AuthFuncOverride disables authentication for settings service

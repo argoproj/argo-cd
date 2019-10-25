@@ -4,10 +4,13 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	log "github.com/sirupsen/logrus"
 )
 
-func Discover() ([]string, error) {
-	var plugins []string
+var plugins []string
+
+func init() {
 	for _, path := range []string{
 		os.Getenv("ARGOCD_PLUGINS"),
 		filepath.Join(os.Getenv("GOPATH"), "src/github.com/argoproj/argo-cd/plugins/bin"),
@@ -17,11 +20,15 @@ func Discover() ([]string, error) {
 			if os.IsNotExist(err) {
 				continue
 			}
-			return nil, err
+			log.Fatal(err)
 		}
 		for _, j := range infos {
 			plugins = append(plugins, j.Name())
 		}
 	}
-	return plugins, nil
+	log.Infof("loaded %v", plugins)
+}
+
+func Discover() []string {
+	return plugins
 }

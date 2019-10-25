@@ -570,12 +570,8 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	kustomizeOptions := appv1.KustomizeOptions{
 		BuildOptions: buildOptions,
 	}
-	plugins, err := plugins.Discover()
-	if err != nil {
-		return err
-	}
 
-	conditions, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, &kustomizeOptions, plugins, s.kubectl)
+	conditions, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, &kustomizeOptions, plugins.Discover(), s.kubectl)
 	if err != nil {
 		return err
 	}
