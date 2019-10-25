@@ -6,6 +6,7 @@ import (
 
 	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/plugins"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -94,13 +95,13 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 }
 
 func (s *Server) plugins() ([]*settingspkg.Plugin, error) {
-	in, err := s.mgr.GetConfigManagementPlugins()
+	in, err := plugins.Discover()
 	if err != nil {
 		return nil, err
 	}
 	out := make([]*settingspkg.Plugin, len(in))
 	for i, p := range in {
-		out[i] = &settingspkg.Plugin{Name: p.Name}
+		out[i] = &settingspkg.Plugin{Name: p}
 
 	}
 	return out, nil

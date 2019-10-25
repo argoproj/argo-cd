@@ -303,21 +303,6 @@ func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
 	return label, nil
 }
 
-func (mgr *SettingsManager) GetConfigManagementPlugins() ([]v1alpha1.ConfigManagementPlugin, error) {
-	argoCDCM, err := mgr.getConfigMap()
-	if err != nil {
-		return nil, err
-	}
-	plugins := make([]v1alpha1.ConfigManagementPlugin, 0)
-	if value, ok := argoCDCM.Data[configManagementPluginsKey]; ok {
-		err := yaml.Unmarshal([]byte(value), &plugins)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return plugins, nil
-}
-
 // GetResourceOverrides loads Resource Overrides from argocd-cm ConfigMap
 func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.ResourceOverride, error) {
 	argoCDCM, err := mgr.getConfigMap()

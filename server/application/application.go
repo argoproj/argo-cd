@@ -40,6 +40,7 @@ import (
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/lua"
+	"github.com/argoproj/argo-cd/util/plugins"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
@@ -186,11 +187,6 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	if err != nil {
 		return nil, err
 	}
-
-	plugins, err := s.plugins()
-	if err != nil {
-		return nil, err
-	}
 	// If source is Kustomize add build options
 	buildOptions, err := s.settingsMgr.GetKustomizeBuildOptions()
 	if err != nil {
@@ -215,7 +211,6 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		Namespace:         a.Spec.Destination.Namespace,
 		ApplicationSource: &a.Spec.Source,
 		Repos:             helmRepos,
-		Plugins:           plugins,
 		KustomizeOptions:  &kustomizeOptions,
 		KubeVersion:       cluster.ServerVersion,
 	})
@@ -575,7 +570,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	kustomizeOptions := appv1.KustomizeOptions{
 		BuildOptions: buildOptions,
 	}
-	plugins, err := s.plugins()
+	plugins, err := plugins.Discover()
 	if err != nil {
 		return err
 	}
@@ -1207,18 +1202,6 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		return nil, err
 	}
 	return &application.ApplicationResponse{}, nil
-}
-
-func (s *Server) plugins() ([]*v1alpha1.ConfigManagementPlugin, error) {
-	plugins, err := s.settingsMgr.GetConfigManagementPlugins()
-	if err != nil {
-		return nil, err
-	}
-	tools := make([]*v1alpha1.ConfigManagementPlugin, len(plugins))
-	for i, plugin := range plugins {
-		tools[i] = &plugin
-	}
-	return tools, nil
 }
 
 func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.ApplicationSyncWindowsQuery) (*application.ApplicationSyncWindowsResponse, error) {

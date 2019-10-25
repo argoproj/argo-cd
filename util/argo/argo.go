@@ -167,7 +167,7 @@ func ValidateRepo(
 	repoClientset apiclient.Clientset,
 	db db.ArgoDB,
 	kustomizeOptions *argoappv1.KustomizeOptions,
-	plugins []*argoappv1.ConfigManagementPlugin,
+	plugins []string,
 	kubectl kube.Kubectl,
 ) ([]argoappv1.ApplicationCondition, error) {
 	spec := &app.Spec
@@ -323,7 +323,7 @@ func verifyGenerateManifests(
 	app *argoappv1.Application,
 	repoClient apiclient.RepoServerServiceClient,
 	kustomizeOptions *argoappv1.KustomizeOptions,
-	plugins []*argoappv1.ConfigManagementPlugin,
+	plugins []string,
 	kubeVersion string,
 ) []argoappv1.ApplicationCondition {
 	spec := &app.Spec
@@ -346,7 +346,6 @@ func verifyGenerateManifests(
 		AppLabelValue:     app.Name,
 		Namespace:         spec.Destination.Namespace,
 		ApplicationSource: &spec.Source,
-		Plugins:           plugins,
 		KustomizeOptions:  kustomizeOptions,
 		KubeVersion:       kubeVersion,
 	}

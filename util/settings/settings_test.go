@@ -69,25 +69,6 @@ func TestGetResourceFilter(t *testing.T) {
 		ResourceInclusions: []FilteredResource{{APIGroups: []string{"group2"}, Kinds: []string{"kind2"}, Clusters: []string{"cluster2"}}},
 	}, filter)
 }
-func TestGetConfigManagementPlugins(t *testing.T) {
-	data := map[string]string{
-		"configManagementPlugins": `
-      - name: kasane
-        init:
-          command: [kasane, update]
-        generate:
-          command: [kasane, show]`,
-	}
-	_, settingsManager := fixtures(data)
-	plugins, err := settingsManager.GetConfigManagementPlugins()
-	assert.NoError(t, err)
-	assert.ElementsMatch(t, []v1alpha1.ConfigManagementPlugin{{
-		Name:     "kasane",
-		Init:     &v1alpha1.Command{Command: []string{"kasane", "update"}},
-		Generate: v1alpha1.Command{Command: []string{"kasane", "show"}},
-	}}, plugins)
-}
-
 func TestGetAppInstanceLabelKey(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		"application.instanceLabelKey": "testLabel",

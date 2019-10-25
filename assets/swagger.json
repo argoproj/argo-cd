@@ -3227,6 +3227,10 @@
         },
         "name": {
           "type": "string"
+        },
+        "spec": {
+          "type": "string",
+          "title": "inline YAML-in-YAML spec"
         }
       }
     },

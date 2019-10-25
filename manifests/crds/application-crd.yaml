@@ -546,8 +546,7 @@ spec:
                       description: Path is a directory path within the Git repository
                       type: string
                     plugin:
-                      description: ConfigManagementPlugin holds config management
-                        plugin specific options
+                      description: Plugin holds plugin specific options
                       properties:
                         env:
                           items:
@@ -564,6 +563,9 @@ spec:
                             type: object
                           type: array
                         name:
+                          type: string
+                        spec:
+                          description: inline YAML-in-YAML spec
                           type: string
                       type: object
                     repoURL:
@@ -790,8 +792,7 @@ spec:
                   description: Path is a directory path within the Git repository
                   type: string
                 plugin:
-                  description: ConfigManagementPlugin holds config management plugin
-                    specific options
+                  description: Plugin holds plugin specific options
                   properties:
                     env:
                       items:
@@ -808,6 +809,9 @@ spec:
                         type: object
                       type: array
                     name:
+                      type: string
+                    spec:
+                      description: inline YAML-in-YAML spec
                       type: string
                   type: object
                 repoURL:
@@ -1010,8 +1014,7 @@ spec:
                         description: Path is a directory path within the Git repository
                         type: string
                       plugin:
-                        description: ConfigManagementPlugin holds config management
-                          plugin specific options
+                        description: Plugin holds plugin specific options
                         properties:
                           env:
                             items:
@@ -1028,6 +1031,9 @@ spec:
                               type: object
                             type: array
                           name:
+                            type: string
+                          spec:
+                            description: inline YAML-in-YAML spec
                             type: string
                         type: object
                       repoURL:
@@ -1240,8 +1246,7 @@ spec:
                                 repository
                               type: string
                             plugin:
-                              description: ConfigManagementPlugin holds config management
-                                plugin specific options
+                              description: Plugin holds plugin specific options
                               properties:
                                 env:
                                   items:
@@ -1258,6 +1263,9 @@ spec:
                                     type: object
                                   type: array
                                 name:
+                                  type: string
+                                spec:
+                                  description: inline YAML-in-YAML spec
                                   type: string
                               type: object
                             repoURL:
@@ -1493,8 +1501,7 @@ spec:
                           description: Path is a directory path within the Git repository
                           type: string
                         plugin:
-                          description: ConfigManagementPlugin holds config management
-                            plugin specific options
+                          description: Plugin holds plugin specific options
                           properties:
                             env:
                               items:
@@ -1511,6 +1518,9 @@ spec:
                                 type: object
                               type: array
                             name:
+                              type: string
+                            spec:
+                              description: inline YAML-in-YAML spec
                               type: string
                           type: object
                         repoURL:
@@ -1727,8 +1737,7 @@ spec:
                           description: Path is a directory path within the Git repository
                           type: string
                         plugin:
-                          description: ConfigManagementPlugin holds config management
-                            plugin specific options
+                          description: Plugin holds plugin specific options
                           properties:
                             env:
                               items:
@@ -1745,6 +1754,9 @@ spec:
                                 type: object
                               type: array
                             name:
+                              type: string
+                            spec:
+                              description: inline YAML-in-YAML spec
                               type: string
                           type: object
                         repoURL:

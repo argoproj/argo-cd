@@ -15,15 +15,7 @@ import (
 func TestCustomToolWithGitCreds(t *testing.T) {
 	Given(t).
 		// path does not matter, we ignore it
-		ConfigManagementPlugin(
-			ConfigManagementPlugin{
-				Name: Name(),
-				Generate: Command{
-					Command: []string{"sh", "-c"},
-					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"GitAskpass\": \"$GIT_ASKPASS\", \"GitUsername\": \"$GIT_USERNAME\", \"GitPassword\": \"$GIT_PASSWORD\"}}}"`},
-				},
-			},
-		).
+		ConfigManagementPlugin("test-dummy").
 		CustomCACertAdded().
 		// add the private repo with credentials
 		HTTPSRepoURLAdded(true).
@@ -57,15 +49,7 @@ func TestCustomToolWithGitCreds(t *testing.T) {
 func TestCustomToolWithGitCredsTemplate(t *testing.T) {
 	Given(t).
 		// path does not matter, we ignore it
-		ConfigManagementPlugin(
-			ConfigManagementPlugin{
-				Name: Name(),
-				Generate: Command{
-					Command: []string{"sh", "-c"},
-					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"GitAskpass\": \"$GIT_ASKPASS\", \"GitUsername\": \"$GIT_USERNAME\", \"GitPassword\": \"$GIT_PASSWORD\"}}}"`},
-				},
-			},
-		).
+		ConfigManagementPlugin("test-dummy").
 		CustomCACertAdded().
 		// add the git creds template
 		HTTPSCredentialsUserPassAdded().
@@ -101,15 +85,7 @@ func TestCustomToolWithGitCredsTemplate(t *testing.T) {
 func TestCustomToolWithEnv(t *testing.T) {
 	Given(t).
 		// path does not matter, we ignore it
-		ConfigManagementPlugin(
-			ConfigManagementPlugin{
-				Name: Name(),
-				Generate: Command{
-					Command: []string{"sh", "-c"},
-					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\", \"Bar\": \"baz\"}}}"`},
-				},
-			},
-		).
+		ConfigManagementPlugin("test-dummy").
 		// does not matter what the path is
 		Path("guestbook").
 		When().

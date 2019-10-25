@@ -126,7 +126,7 @@ type ApplicationSource struct {
 	Ksonnet *ApplicationSourceKsonnet `json:"ksonnet,omitempty" protobuf:"bytes,9,opt,name=ksonnet"`
 	// Directory holds path/directory specific options
 	Directory *ApplicationSourceDirectory `json:"directory,omitempty" protobuf:"bytes,10,opt,name=directory"`
-	// ConfigManagementPlugin holds config management plugin specific options
+	// Plugin holds plugin specific options
 	Plugin *ApplicationSourcePlugin `json:"plugin,omitempty" protobuf:"bytes,11,opt,name=plugin"`
 	// Chart is a Helm chart name
 	Chart string `json:"chart,omitempty" protobuf:"bytes,12,opt,name=chart"`
@@ -341,10 +341,12 @@ func (d *ApplicationSourceDirectory) IsZero() bool {
 type ApplicationSourcePlugin struct {
 	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
 	Env  `json:"env,omitempty" protobuf:"bytes,2,opt,name=env"`
+	// inline YAML-in-YAML spec
+	Spec string `json:"spec,omitempty" protobuf:"bytes,3,opt,name=spec"`
 }
 
 func (c *ApplicationSourcePlugin) IsZero() bool {
-	return c == nil || c.Name == "" && c.Env.IsZero()
+	return c == nil || c.Name == "" && c.Env.IsZero() && c.Spec == ""
 }
 
 // ApplicationDestination contains deployment destination information
@@ -1795,19 +1797,6 @@ type ProjectRole struct {
 type JWTToken struct {
 	IssuedAt  int64 `json:"iat" protobuf:"int64,1,opt,name=iat"`
 	ExpiresAt int64 `json:"exp,omitempty" protobuf:"int64,2,opt,name=exp"`
-}
-
-// Command holds binary path and arguments list
-type Command struct {
-	Command []string `json:"command,omitempty" protobuf:"bytes,1,name=command"`
-	Args    []string `json:"args,omitempty" protobuf:"bytes,2,rep,name=args"`
-}
-
-// ConfigManagementPlugin contains config management plugin configuration
-type ConfigManagementPlugin struct {
-	Name     string   `json:"name" protobuf:"bytes,1,name=name"`
-	Init     *Command `json:"init,omitempty" protobuf:"bytes,2,name=init"`
-	Generate Command  `json:"generate" protobuf:"bytes,3,name=generate"`
 }
 
 // KustomizeOptions are options for kustomize to use when building manifests

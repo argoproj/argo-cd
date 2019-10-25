@@ -228,17 +228,6 @@ func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
 	})
 }
 
-func SetConfigManagementPlugins(plugin ...v1alpha1.ConfigManagementPlugin) {
-	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
-		yamlBytes, err := yaml.Marshal(plugin)
-		if err != nil {
-			return err
-		}
-		cm.Data["configManagementPlugins"] = string(yamlBytes)
-		return nil
-	})
-}
-
 func SetResourceFilter(filters settings.ResourcesFilter) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		exclusions, err := yaml.Marshal(filters.ResourceExclusions)

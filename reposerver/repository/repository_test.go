@@ -266,16 +266,9 @@ func TestRunCustomTool(t *testing.T) {
 		Namespace:     "test-namespace",
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Plugin: &argoappv1.ApplicationSourcePlugin{
-				Name: "test",
+				Name: "test-dummy",
 			},
 		},
-		Plugins: []*argoappv1.ConfigManagementPlugin{{
-			Name: "test",
-			Generate: argoappv1.Command{
-				Command: []string{"sh", "-c"},
-				Args:    []string{`echo "{\"kind\": \"FakeObject\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"GIT_ASKPASS\": \"$GIT_ASKPASS\", \"GIT_USERNAME\": \"$GIT_USERNAME\", \"GIT_PASSWORD\": \"$GIT_PASSWORD\"}}}"`},
-			},
-		}},
 		Repo: &argoappv1.Repository{
 			Username: "foo", Password: "bar",
 		},

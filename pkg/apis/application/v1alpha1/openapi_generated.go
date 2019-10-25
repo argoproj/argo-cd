@@ -36,10 +36,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Cluster":                          schema_pkg_apis_application_v1alpha1_Cluster(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterConfig":                    schema_pkg_apis_application_v1alpha1_ClusterConfig(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ClusterList":                      schema_pkg_apis_application_v1alpha1_ClusterList(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Command":                          schema_pkg_apis_application_v1alpha1_Command(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ComparedTo":                       schema_pkg_apis_application_v1alpha1_ComparedTo(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ComponentParameter":               schema_pkg_apis_application_v1alpha1_ComponentParameter(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConfigManagementPlugin":           schema_pkg_apis_application_v1alpha1_ConfigManagementPlugin(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConnectionState":                  schema_pkg_apis_application_v1alpha1_ConnectionState(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.EnvEntry":                         schema_pkg_apis_application_v1alpha1_EnvEntry(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HealthStatus":                     schema_pkg_apis_application_v1alpha1_HealthStatus(ref),
@@ -524,7 +522,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSource(ref common.Reference
 					},
 					"plugin": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ConfigManagementPlugin holds config management plugin specific options",
+							Description: "Plugin holds plugin specific options",
 							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourcePlugin"),
 						},
 					},
@@ -780,6 +778,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourcePlugin(ref common.Ref
 									},
 								},
 							},
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Description: "inline YAML-in-YAML spec",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},
@@ -1183,45 +1188,6 @@ func schema_pkg_apis_application_v1alpha1_ClusterList(ref common.ReferenceCallba
 	}
 }
 
-func schema_pkg_apis_application_v1alpha1_Command(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "Command holds binary path and arguments list",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"command": {
-						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
-									},
-								},
-							},
-						},
-					},
-					"args": {
-						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
 func schema_pkg_apis_application_v1alpha1_ComparedTo(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1277,38 +1243,6 @@ func schema_pkg_apis_application_v1alpha1_ComponentParameter(ref common.Referenc
 				Required: []string{"name", "value"},
 			},
 		},
-	}
-}
-
-func schema_pkg_apis_application_v1alpha1_ConfigManagementPlugin(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "ConfigManagementPlugin contains config management plugin configuration",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"name": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"init": {
-						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Command"),
-						},
-					},
-					"generate": {
-						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Command"),
-						},
-					},
-				},
-				Required: []string{"name", "generate"},
-			},
-		},
-		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Command"},
 	}
 }
 

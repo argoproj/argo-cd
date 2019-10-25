@@ -115,16 +115,6 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		revision = source.TargetRevision
 	}
 
-	plugins, err := m.settingsMgr.GetConfigManagementPlugins()
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	tools := make([]*appv1.ConfigManagementPlugin, len(plugins))
-	for i := range plugins {
-		tools[i] = &plugins[i]
-	}
-
 	buildOptions, err := m.settingsMgr.GetKustomizeBuildOptions()
 	if err != nil {
 		return nil, nil, nil, err
@@ -146,7 +136,6 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		AppLabelValue:     app.Name,
 		Namespace:         app.Spec.Destination.Namespace,
 		ApplicationSource: &source,
-		Plugins:           tools,
 		KustomizeOptions: &appv1.KustomizeOptions{
 			BuildOptions: buildOptions,
 		},

@@ -301,7 +301,7 @@ func GenerateManifests(appPath, revision string, q *apiclient.ManifestRequest) (
 		k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), repoURL)
 		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions)
 	case v1alpha1.ApplicationSourceTypePlugin:
-		targetObjs, err = runConfigManagementPlugin(appPath, env, q, q.Repo.GetGitCreds())
+		targetObjs, err = runPlugin(appPath, env, q, q.Repo.GetGitCreds())
 	case v1alpha1.ApplicationSourceTypeDirectory:
 		var directory *v1alpha1.ApplicationSourceDirectory
 		if directory = q.ApplicationSource.Directory; directory == nil {
@@ -541,47 +541,20 @@ func makeJsonnetVm(sourceJsonnet v1alpha1.ApplicationSourceJsonnet, env *v1alpha
 	return vm
 }
 
-func runCommand(command v1alpha1.Command, path string, env []string) (string, error) {
-	if len(command.Command) == 0 {
-		return "", fmt.Errorf("Command is empty")
-	}
-	cmd := exec.Command(command.Command[0], append(command.Command[1:], command.Args...)...)
-	cmd.Env = env
-	cmd.Dir = path
-	return argoexec.RunCommandExt(cmd, config.CmdOpts())
-}
-
-func findPlugin(plugins []*v1alpha1.ConfigManagementPlugin, name string) *v1alpha1.ConfigManagementPlugin {
-	for _, plugin := range plugins {
-		if plugin.Name == name {
-			return plugin
-		}
-	}
-	return nil
-}
-
-func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
-	plugin := findPlugin(q.Plugins, q.ApplicationSource.Plugin.Name)
-	if plugin == nil {
-		return nil, fmt.Errorf("Config management plugin with name '%s' is not supported.", q.ApplicationSource.Plugin.Name)
-	}
-	env := append(os.Environ(), envVars.Environ()...)
+func runPlugin(appPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
+	cmd := exec.Command(q.ApplicationSource.Plugin.Name, "template")
+	cmd.Env = append(os.Environ(), envVars.Environ()...)
 	if creds != nil {
 		closer, environ, err := creds.Environ()
 		if err != nil {
 			return nil, err
 		}
 		defer func() { _ = closer.Close() }()
-		env = append(env, environ...)
+		cmd.Env = append(cmd.Env, environ...)
 	}
-	env = append(env, q.ApplicationSource.Plugin.Env.Environ()...)
-	if plugin.Init != nil {
-		_, err := runCommand(*plugin.Init, appPath, env)
-		if err != nil {
-			return nil, err
-		}
-	}
-	out, err := runCommand(plugin.Generate, appPath, env)
+	cmd.Env = append(cmd.Env, q.ApplicationSource.Plugin.Env.Environ()...)
+	cmd.Dir = appPath
+	out, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
 	if err != nil {
 		return nil, err
 	}
