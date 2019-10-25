@@ -859,6 +859,30 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:5372ed388f189f6204f1864a2bae1ce9bbdf33f47528ffc776d31a649e3978aa"
+  name = "github.com/xeipuuv/gojsonpointer"
+  packages = ["."]
+  pruneopts = ""
+  revision = "02993c407bfbf5f6dae44c4f4b1cf6a39b5fc5bb"
+
+[[projects]]
+  branch = "master"
+  digest = "1:604f98a38394d2805a78c462396a4992b93fdd5b7306130add330f1a99ac6b0a"
+  name = "github.com/xeipuuv/gojsonreference"
+  packages = ["."]
+  pruneopts = ""
+  revision = "bd5ef7bd5415a7ac448318e64f11a24cd21e594b"
+
+[[projects]]
+  digest = "1:d8392d33ffa61de4bbc62ca31af50f80a64e416ae132fb14709a4222a9cd326f"
+  name = "github.com/xeipuuv/gojsonschema"
+  packages = ["."]
+  pruneopts = ""
+  revision = "82fcdeb203eb6ab2a67d0a623d9c19e5e5a64927"
+  version = "v1.2.0"
+
+[[projects]]
+  branch = "master"
   digest = "1:3cf699a0df65293cc8fd2339606950d3e2f6d02a435703951d1da411a23f7cef"
   name = "github.com/yudai/gojsondiff"
   packages = [
@@ -1656,6 +1680,7 @@
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/mock",
     "github.com/vmihailenco/msgpack",
+    "github.com/xeipuuv/gojsonschema",
     "github.com/yudai/gojsondiff",
     "github.com/yudai/gojsondiff/formatter",
     "github.com/yuin/gopher-lua",

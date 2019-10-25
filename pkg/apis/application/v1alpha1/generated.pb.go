@@ -6446,7 +6446,7 @@ func (this *AppProject) String() string {
 	}
 	s := strings.Join([]string{`&AppProject{`,
 		`ObjectMeta:` + strings.Replace(strings.Replace(this.ObjectMeta.String(), "ObjectMeta", "v1.ObjectMeta", 1), `&`, ``, 1) + `,`,
-		`Spec:` + strings.Replace(strings.Replace(this.Spec.String(), "AppProjectSpec", "AppProjectSpec", 1), `&`, ``, 1) + `,`,
+		`Schema:` + strings.Replace(strings.Replace(this.Spec.String(), "AppProjectSpec", "AppProjectSpec", 1), `&`, ``, 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -6620,7 +6620,7 @@ func (this *ApplicationSourcePlugin) String() string {
 	s := strings.Join([]string{`&ApplicationSourcePlugin{`,
 		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
 		`Env:` + strings.Replace(fmt.Sprintf("%v", this.Env), "EnvEntry", "EnvEntry", 1) + `,`,
-		`Spec:` + fmt.Sprintf("%v", this.Spec) + `,`,
+		`Schema:` + fmt.Sprintf("%v", this.Spec) + `,`,
 		`}`,
 	}, "")
 	return s

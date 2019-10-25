@@ -15,9 +15,9 @@ func main() {
 		},
 	}
 	cmd.AddCommand(&cobra.Command{
-		Use: "get spec",
+		Use: "schema",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println(``)
+			fmt.Println(`{}`)
 		},
 	})
 	cmd.AddCommand(&cobra.Command{
