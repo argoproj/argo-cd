@@ -2,7 +2,10 @@ import * as React from 'react';
 
 import * as monacoEditor from 'monaco-editor';
 
-export interface EditorInput { text: string; language?: string; }
+export interface EditorInput {
+    text: string;
+    language?: string;
+}
 
 export interface MonacoProps {
     minHeight?: number;
@@ -19,50 +22,55 @@ function IsEqualInput(first?: EditorInput, second?: EditorInput) {
 
 const DEFAULT_LINE_HEIGHT = 18;
 
-const MonacoEditorLazy = React.lazy(() => import('monaco-editor').then((monaco) => {
-    require('monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution.js');
+const MonacoEditorLazy = React.lazy(() =>
+    import('monaco-editor').then(monaco => {
+        require('monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution.js');
 
-    const component = (props: MonacoProps) => {
-        const [ height, setHeight ] = React.useState(0);
+        const component = (props: MonacoProps) => {
+            const [height, setHeight] = React.useState(0);
 
-        return (
-            <div style={{ height: `${ Math.max(props.minHeight || 0, height)}px` }} ref={(el) => {
-                if (el) {
-                    const container = el as {
-                        editorApi?: monacoEditor.editor.IEditor;
-                        prevEditorInput?: EditorInput;
-                    };
-                    if (props.editor) {
-                        if (!container.editorApi) {
-                            container.editorApi = monaco.editor.create(el, props.editor.options);
+            return (
+                <div
+                    style={{height: `${Math.max(props.minHeight || 0, height)}px`}}
+                    ref={el => {
+                        if (el) {
+                            const container = el as {
+                                editorApi?: monacoEditor.editor.IEditor;
+                                prevEditorInput?: EditorInput;
+                            };
+                            if (props.editor) {
+                                if (!container.editorApi) {
+                                    container.editorApi = monaco.editor.create(el, props.editor.options);
+                                }
+
+                                const model = monaco.editor.createModel(props.editor.input.text, props.editor.input.language);
+                                const lineCount = model.getLineCount();
+                                setHeight(lineCount * DEFAULT_LINE_HEIGHT);
+
+                                if (!IsEqualInput(container.prevEditorInput, props.editor.input)) {
+                                    container.prevEditorInput = props.editor.input;
+                                    container.editorApi.setModel(model);
+                                }
+                                container.editorApi.updateOptions(props.editor.options);
+                                container.editorApi.layout();
+                                if (props.editor.getApi) {
+                                    props.editor.getApi(container.editorApi);
+                                }
+                            }
                         }
+                    }}
+                />
+            );
+        };
 
-                        const model = monaco.editor.createModel(props.editor.input.text, props.editor.input.language);
-                        const lineCount = model.getLineCount();
-                        setHeight(lineCount * DEFAULT_LINE_HEIGHT);
-
-                        if (!IsEqualInput(container.prevEditorInput, props.editor.input)) {
-                            container.prevEditorInput = props.editor.input;
-                            container.editorApi.setModel(model);
-                        }
-                        container.editorApi.updateOptions(props.editor.options);
-                        container.editorApi.layout();
-                        if (props.editor.getApi) {
-                            props.editor.getApi(container.editorApi);
-                        }
-                    }
-                }
-            }}/>
-        );
-    };
-
-    return {
-        default: component,
-    };
-}));
+        return {
+            default: component
+        };
+    })
+);
 
 export const MonacoEditor = (props: MonacoProps) => (
     <React.Suspense fallback={<div>Loading...</div>}>
-        <MonacoEditorLazy {...props}/>
+        <MonacoEditorLazy {...props} />
     </React.Suspense>
 );

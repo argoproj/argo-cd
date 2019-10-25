@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"regexp"
 	"syscall"
 
 	"github.com/ghodss/yaml"
@@ -108,7 +109,7 @@ func NewRunDexCommand() *cobra.Command {
 				} else {
 					err = ioutil.WriteFile("/tmp/dex.yaml", dexCfgBytes, 0644)
 					errors.CheckError(err)
-					log.Info(string(dexCfgBytes))
+					log.Info(redactor(string(dexCfgBytes)))
 					cmd = exec.Command("dex", "serve", "/tmp/dex.yaml")
 					cmd.Stdout = os.Stdout
 					cmd.Stderr = os.Stderr
@@ -556,6 +557,11 @@ func NewClusterConfig() *cobra.Command {
 	}
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
 	return command
+}
+
+func redactor(dirtyString string) string {
+	dirtyString = regexp.MustCompile("(clientSecret: )[^ \n]*").ReplaceAllString(dirtyString, "$1********")
+	return regexp.MustCompile("(secret: )[^ \n]*").ReplaceAllString(dirtyString, "$1********")
 }
 
 func main() {

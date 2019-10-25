@@ -258,8 +258,6 @@ func TestAppProject_InvalidPolicyRules(t *testing.T) {
 		errmsg string
 	}
 	badPolicies := []badPolicy{
-		// should have spaces
-		{"p,proj:my-proj:my-role,applications,get,my-proj/*,allow", "syntax"},
 		// incorrect form
 		{"g, proj:my-proj:my-role, applications, get, my-proj/*, allow", "must be of the form: 'p, sub, res, act, obj, eft'"},
 		{"p, not, enough, parts", "must be of the form: 'p, sub, res, act, obj, eft'"},
@@ -300,6 +298,7 @@ func TestAppProject_ValidPolicyRules(t *testing.T) {
 	err := p.ValidateProject()
 	assert.NoError(t, err)
 	goodPolicies := []string{
+		"p,proj:my-proj:my-role,applications,get,my-proj/*,allow",
 		"p, proj:my-proj:my-role, applications, get, my-proj/*, allow",
 		"p, proj:my-proj:my-role, applications, get, my-proj/*, deny",
 		"p, proj:my-proj:my-role, applications, get, my-proj/foo, allow",
@@ -1002,6 +1001,13 @@ func TestEnv_IsZero(t *testing.T) {
 	}
 }
 
+func TestEnv_Envsubst(t *testing.T) {
+	env := Env{&EnvEntry{"FOO", "bar"}}
+	assert.Equal(t, "", env.Envsubst(""))
+	assert.Equal(t, "bar", env.Envsubst("$FOO"))
+	assert.Equal(t, "bar", env.Envsubst("${FOO}"))
+}
+
 func TestEnv_Environ(t *testing.T) {
 	tests := []struct {
 		name string
@@ -1440,6 +1446,13 @@ func newTestApp() *Application {
 		},
 	}
 	return a
+}
+
+func TestNewJsonnetVar(t *testing.T) {
+	assert.Equal(t, JsonnetVar{}, NewJsonnetVar("", false))
+	assert.Equal(t, JsonnetVar{Name: "a"}, NewJsonnetVar("a=", false))
+	assert.Equal(t, JsonnetVar{Name: "a", Code: true}, NewJsonnetVar("a=", true))
+	assert.Equal(t, JsonnetVar{Name: "a", Value: "b", Code: true}, NewJsonnetVar("a=b", true))
 }
 
 func testCond(t ApplicationConditionType, msg string, lastTransitionTime *metav1.Time) ApplicationCondition {

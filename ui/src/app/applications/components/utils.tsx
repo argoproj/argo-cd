@@ -23,7 +23,7 @@ export function isSameNode(first: NodeId, second: NodeId) {
 
 export async function deleteApplication(appName: string, apis: ContextApis): Promise<boolean> {
     let cascade = false;
-    const confirmationForm = class extends React.Component<{}, { cascade: boolean }> {
+    const confirmationForm = class extends React.Component<{}, {cascade: boolean}> {
         constructor(props: any) {
             super(props);
             this.state = {cascade: true};
@@ -33,8 +33,9 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
             return (
                 <div>
                     <p>Are you sure you want to delete the application '{appName}'?</p>
-                    <p><Checkbox checked={this.state.cascade}
-                                 onChange={(val) => this.setState({cascade: val})}/> Cascade</p>
+                    <p>
+                        <Checkbox checked={this.state.cascade} onChange={val => this.setState({cascade: val})} /> Cascade
+                    </p>
                 </div>
             );
         }
@@ -50,8 +51,8 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
             return true;
         } catch (e) {
             apis.notifications.show({
-                content: <ErrorNotification title='Unable to delete application' e={e}/>,
-                type: NotificationType.Error,
+                content: <ErrorNotification title='Unable to delete application' e={e} />,
+                type: NotificationType.Error
             });
         }
     }
@@ -64,14 +65,14 @@ export async function createApplication(app: appModels.Application, notification
         return true;
     } catch (e) {
         notifications.show({
-            content: <ErrorNotification title='Unable to create application' e={e}/>,
-            type: NotificationType.Error,
+            content: <ErrorNotification title='Unable to create application' e={e} />,
+            type: NotificationType.Error
         });
     }
     return false;
 }
 
-export const OperationPhaseIcon = ({phase}: { phase: appModels.OperationPhase }) => {
+export const OperationPhaseIcon = ({phase}: {phase: appModels.OperationPhase}) => {
     let className = '';
     let color = '';
 
@@ -93,10 +94,10 @@ export const OperationPhaseIcon = ({phase}: { phase: appModels.OperationPhase })
             color = COLORS.operation.running;
             break;
     }
-    return <i title={phase} className={className} style={{color}}/>;
+    return <i title={phase} className={className} style={{color}} />;
 };
 
-export const ComparisonStatusIcon = ({status, resource, label}: { status: appModels.SyncStatusCode, resource?: { requiresPruning?: boolean }, label?: boolean }) => {
+export const ComparisonStatusIcon = ({status, resource, label}: {status: appModels.SyncStatusCode; resource?: {requiresPruning?: boolean}; label?: boolean}) => {
     let className = 'fa fa-question-circle';
     let color = COLORS.sync.unknown;
     let title: string = status;
@@ -118,7 +119,11 @@ export const ComparisonStatusIcon = ({status, resource, label}: { status: appMod
             className = 'fa fa-circle-notch fa-spin';
             break;
     }
-    return <React.Fragment><i title={title} className={className} style={{color}}/> {label && title}</React.Fragment>;
+    return (
+        <React.Fragment>
+            <i title={title} className={className} style={{color}} /> {label && title}
+        </React.Fragment>
+    );
 };
 
 export function syncStatusMessage(app: appModels.Application) {
@@ -129,20 +134,28 @@ export function syncStatusMessage(app: appModels.Application) {
     switch (app.status.sync.status) {
         case appModels.SyncStatuses.Synced:
             return (
-                <span>To <Revision repoUrl={app.spec.source.repoURL}
-                                   revision={app.spec.source.targetRevision || 'latest'}>{rev}</Revision> </span>
+                <span>
+                    To{' '}
+                    <Revision repoUrl={app.spec.source.repoURL} revision={app.spec.source.targetRevision || 'latest'}>
+                        {rev}
+                    </Revision>{' '}
+                </span>
             );
         case appModels.SyncStatuses.OutOfSync:
             return (
-                <span>From <Revision repoUrl={app.spec.source.repoURL}
-                                     revision={app.spec.source.targetRevision || 'latest'}>{rev}</Revision> </span>
+                <span>
+                    From{' '}
+                    <Revision repoUrl={app.spec.source.repoURL} revision={app.spec.source.targetRevision || 'latest'}>
+                        {rev}
+                    </Revision>{' '}
+                </span>
             );
         default:
             return <span>{rev}</span>;
     }
 }
 
-export const HealthStatusIcon = ({state}: { state: appModels.HealthStatus }) => {
+export const HealthStatusIcon = ({state}: {state: appModels.HealthStatus}) => {
     let color = COLORS.health.unknown;
     let icon = 'fa-question-circle';
 
@@ -168,10 +181,10 @@ export const HealthStatusIcon = ({state}: { state: appModels.HealthStatus }) => 
     if (state.message) {
         title = `${state.status}: ${state.message};`;
     }
-    return <i title={title} className={'fa ' + icon} style={{color}}/>;
+    return <i title={title} className={'fa ' + icon} style={{color}} />;
 };
 
-export const ResourceResultIcon = ({resource}: { resource: appModels.ResourceResult }) => {
+export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResult}) => {
     let color = COLORS.sync_result.unknown;
     let icon = 'fa-question-circle';
 
@@ -197,7 +210,7 @@ export const ResourceResultIcon = ({resource}: { resource: appModels.ResourceRes
         if (resource.message) {
             title = `${resource.status}: ${resource.message};`;
         }
-        return <i title={title} className={'fa ' + icon} style={{color}}/>;
+        return <i title={title} className={'fa ' + icon} style={{color}} />;
     }
     if (resource.hookType && resource.hookPhase) {
         let className = '';
@@ -227,7 +240,7 @@ export const ResourceResultIcon = ({resource}: { resource: appModels.ResourceRes
         if (resource.message) {
             title = `${resource.hookPhase}: ${resource.message};`;
         }
-        return <i title={title} className={className} style={{color}}/>;
+        return <i title={title} className={className} style={{color}} />;
     }
     return null;
 };
@@ -236,14 +249,14 @@ export function getOperationType(application: appModels.Application) {
     if (application.metadata.deletionTimestamp) {
         return 'deletion';
     }
-    const operation = application.operation || application.status.operationState && application.status.operationState.operation;
+    const operation = application.operation || (application.status.operationState && application.status.operationState.operation);
     if (operation && operation.sync) {
         return 'synchronization';
     }
     return 'unknown operation';
 }
 
-export function getPodStateReason(pod: appModels.State): { message: string; reason: string } {
+export function getPodStateReason(pod: appModels.State): {message: string; reason: string} {
     let reason = pod.status.phase;
     let message = '';
     if (pod.status.reason) {
@@ -275,7 +288,7 @@ export function getPodStateReason(pod: appModels.State): { message: string; reas
 
     if (!initializing) {
         let hasRunning = false;
-        for (const container of (pod.status.containerStatuses || [])) {
+        for (const container of pod.status.containerStatuses || []) {
             if (container.state.waiting && container.state.waiting.reason) {
                 reason = container.state.waiting.reason;
                 message = container.state.waiting.message;
@@ -345,15 +358,15 @@ export function isAppRefreshing(app: appModels.Application) {
 }
 
 export function refreshLinkAttrs(app: appModels.Application) {
-    return { disabled: isAppRefreshing(app) };
+    return {disabled: isAppRefreshing(app)};
 }
 
-export const SyncWindowStatusIcon = ({state, window}: { state: appModels.SyncWindowsState, window: appModels.SyncWindow }) => {
+export const SyncWindowStatusIcon = ({state, window}: {state: appModels.SyncWindowsState; window: appModels.SyncWindow}) => {
     let className = '';
     let color = '';
     let current = '';
 
-    if (state.windows === undefined ) {
+    if (state.windows === undefined) {
         current = 'Inactive';
     } else {
         for (const w of state.windows) {
@@ -388,10 +401,14 @@ export const SyncWindowStatusIcon = ({state, window}: { state: appModels.SyncWin
             break;
     }
 
-    return <React.Fragment><i title={current} className={className} style={{color}}/> {current}</React.Fragment>;
+    return (
+        <React.Fragment>
+            <i title={current} className={className} style={{color}} /> {current}
+        </React.Fragment>
+    );
 };
 
-export const ApplicationSyncWindowStatusIcon = ({project, state}: { project: string, state: appModels.ApplicationSyncWindowState }) => {
+export const ApplicationSyncWindowStatusIcon = ({project, state}: {project: string; state: appModels.ApplicationSyncWindowState}) => {
     let className = '';
     let color = '';
     let deny = false;
@@ -416,7 +433,7 @@ export const ApplicationSyncWindowStatusIcon = ({project, state}: { project: str
         allow = true;
     }
 
-    if ((deny) || (!deny && !allow && inactiveAllow)) {
+    if (deny || (!deny && !allow && inactiveAllow)) {
         className = 'fa fa-stop-circle';
         if (state.canSync) {
             color = COLORS.sync_window.manual;
@@ -429,8 +446,8 @@ export const ApplicationSyncWindowStatusIcon = ({project, state}: { project: str
     }
 
     return (
-    <a href={`/settings/projects/${project}?tab=windows`} style={{color}}>
-        <i className={className} style={{color}}/> SyncWindow
-    </a>
+        <a href={`/settings/projects/${project}?tab=windows`} style={{color}}>
+            <i className={className} style={{color}} /> SyncWindow
+        </a>
     );
 };

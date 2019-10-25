@@ -344,6 +344,10 @@ argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-ke
 !!! warning "This does not work for Kustomize remote bases or custom plugins"
     For Kustomize support, see [#827](https://github.com/argoproj/argo-cd/issues/827).
 
+## Git Submodules
+
+Submodules are supported and will be picked up automatically. If the submodule repository requires authentication then the credentials will need to match the credentials of the parent repository. Set ARGOCD_GIT_MODULES_ENABLED=false to disable submodule support
+
 ## Declarative Configuration
 
 See [declarative setup](../../operator-manual/declarative-setup#Repositories)

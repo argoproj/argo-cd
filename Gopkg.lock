@@ -94,12 +94,14 @@
   revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
 
 [[projects]]
-  digest = "1:e04162bd6a6d4950541bae744c968108e14913b1cebccf29f7650b573f44adb3"
+  digest = "1:6e2b0748ea11cffebe87b4a671a44ecfb243141cdd5df54cb44b7e8e93cb7ea3"
   name = "github.com/casbin/casbin"
   packages = [
     ".",
     "config",
     "effect",
+    "errors",
+    "log",
     "model",
     "persist",
     "persist/file-adapter",
@@ -108,8 +110,8 @@
     "util",
   ]
   pruneopts = ""
-  revision = "d71629e497929858300c38cd442098c178121c30"
-  version = "v1.5.0"
+  revision = "aaed1b7a7eac65d37ec4e15e308429fdf0bd6a9e"
+  version = "v1.9.1"
 
 [[projects]]
   branch = "v2"

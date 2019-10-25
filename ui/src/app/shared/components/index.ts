@@ -1,4 +1,4 @@
-export { DataLoader, ErrorNotification } from 'argo-ui';
+export {DataLoader, ErrorNotification} from 'argo-ui';
 
 export * from './array-input/array-input';
 export * from './expandable/expandable';

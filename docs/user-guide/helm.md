@@ -113,3 +113,25 @@ value, in the values.yaml such that the value is stable between each comparison.
 ```bash
 argocd app set redis -p password=abc123
 ```
+
+## Build Environment
+
+Helm apps have access to the [standard build environment](build-environment.md) via substitution as parameters. 
+
+E.g. via the CLI:
+
+```bash
+argocd app create APPNAME \
+  --helm-set-string 'app=${ARGOCD_APP_NAME}'
+```
+
+Or via declarative syntax:
+
+```yaml
+  spec:
+    source:
+      helm:
+        parameters:
+        - name: app
+          value: $ARGOCD_APP_NAME
+```

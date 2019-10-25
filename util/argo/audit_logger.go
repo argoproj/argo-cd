@@ -5,6 +5,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 
 	"fmt"
@@ -24,16 +25,24 @@ type EventInfo struct {
 	Reason string
 }
 
+type ObjectRef struct {
+	Name            string
+	Namespace       string
+	ResourceVersion string
+	UID             types.UID
+}
+
 const (
 	EventReasonStatusRefreshed    = "StatusRefreshed"
 	EventReasonResourceCreated    = "ResourceCreated"
 	EventReasonResourceUpdated    = "ResourceUpdated"
 	EventReasonResourceDeleted    = "ResourceDeleted"
+	EventReasonResourceActionRan  = "ResourceActionRan"
 	EventReasonOperationStarted   = "OperationStarted"
 	EventReasonOperationCompleted = "OperationCompleted"
 )
 
-func (l *AuditLogger) logEvent(objMeta metav1.ObjectMeta, gvk schema.GroupVersionKind, info EventInfo, message string, logFields map[string]string) {
+func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, info EventInfo, message string, logFields map[string]string) {
 	logCtx := log.WithFields(log.Fields{
 		"type":   info.Type,
 		"reason": info.Reason,
@@ -74,7 +83,7 @@ func (l *AuditLogger) logEvent(objMeta metav1.ObjectMeta, gvk schema.GroupVersio
 		Reason:         info.Reason,
 	}
 	logCtx.Info(message)
-	_, err := l.kIf.CoreV1().Events(l.ns).Create(&event)
+	_, err := l.kIf.CoreV1().Events(objMeta.Namespace).Create(&event)
 	if err != nil {
 		logCtx.Errorf("Unable to create audit event: %v", err)
 		return
@@ -82,14 +91,40 @@ func (l *AuditLogger) logEvent(objMeta metav1.ObjectMeta, gvk schema.GroupVersio
 }
 
 func (l *AuditLogger) LogAppEvent(app *v1alpha1.Application, info EventInfo, message string) {
-	l.logEvent(app.ObjectMeta, v1alpha1.ApplicationSchemaGroupVersionKind, info, message, map[string]string{
+	objectMeta := ObjectRef{
+		Name:            app.ObjectMeta.Name,
+		Namespace:       app.ObjectMeta.Namespace,
+		ResourceVersion: app.ObjectMeta.ResourceVersion,
+		UID:             app.ObjectMeta.UID,
+	}
+	l.logEvent(objectMeta, v1alpha1.ApplicationSchemaGroupVersionKind, info, message, map[string]string{
 		"dest-server":    app.Spec.Destination.Server,
 		"dest-namespace": app.Spec.Destination.Namespace,
 	})
 }
 
+func (l *AuditLogger) LogResourceEvent(res *v1alpha1.ResourceNode, info EventInfo, message string) {
+	objectMeta := ObjectRef{
+		Name:            res.ResourceRef.Name,
+		Namespace:       res.ResourceRef.Namespace,
+		ResourceVersion: res.ResourceRef.Version,
+		UID:             types.UID(res.ResourceRef.UID),
+	}
+	l.logEvent(objectMeta, schema.GroupVersionKind{
+		Group:   res.Group,
+		Version: res.Version,
+		Kind:    res.Kind,
+	}, info, message, nil)
+}
+
 func (l *AuditLogger) LogAppProjEvent(proj *v1alpha1.AppProject, info EventInfo, message string) {
-	l.logEvent(proj.ObjectMeta, v1alpha1.AppProjectSchemaGroupVersionKind, info, message, nil)
+	objectMeta := ObjectRef{
+		Name:            proj.ObjectMeta.Name,
+		Namespace:       proj.ObjectMeta.Namespace,
+		ResourceVersion: proj.ObjectMeta.ResourceVersion,
+		UID:             proj.ObjectMeta.UID,
+	}
+	l.logEvent(objectMeta, v1alpha1.AppProjectSchemaGroupVersionKind, info, message, nil)
 }
 
 func NewAuditLogger(ns string, kIf kubernetes.Interface, component string) *AuditLogger {

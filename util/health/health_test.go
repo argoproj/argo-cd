@@ -115,6 +115,7 @@ func TestAppOfAppsHealth(t *testing.T) {
 	}
 
 	missingApp, missingStatus := newAppLiveObj("foo", appv1.HealthStatusMissing)
+	unknownApp, unknownStatus := newAppLiveObj("fooz", appv1.HealthStatusUnknown)
 	healthyApp, healthyStatus := newAppLiveObj("bar", appv1.HealthStatusHealthy)
 	degradedApp, degradedStatus := newAppLiveObj("baz", appv1.HealthStatusDegraded)
 
@@ -123,6 +124,15 @@ func TestAppOfAppsHealth(t *testing.T) {
 		missingAndHealthyStatuses := []appv1.ResourceStatus{missingStatus, healthyStatus}
 		missingAndHealthyLiveObjects := []*unstructured.Unstructured{missingApp, healthyApp}
 		healthStatus, err := SetApplicationHealth(missingAndHealthyStatuses, missingAndHealthyLiveObjects, nil, noFilter)
+		assert.NoError(t, err)
+		assert.Equal(t, appv1.HealthStatusHealthy, healthStatus.Status)
+	}
+
+	// verify unknown child app does not affect app health
+	{
+		unknownAndHealthyStatuses := []appv1.ResourceStatus{unknownStatus, healthyStatus}
+		unknownAndHealthyLiveObjects := []*unstructured.Unstructured{unknownApp, healthyApp}
+		healthStatus, err := SetApplicationHealth(unknownAndHealthyStatuses, unknownAndHealthyLiveObjects, nil, noFilter)
 		assert.NoError(t, err)
 		assert.Equal(t, appv1.HealthStatusHealthy, healthStatus.Status)
 	}

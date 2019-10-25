@@ -35,6 +35,7 @@ nav:
       - operator-manual/rbac.md
     - operator-manual/security.md
     - operator-manual/cluster-bootstrapping.md
+    - operator-manual/secret-management.md
     - operator-manual/high_availability.md
     - operator-manual/disaster_recovery.md
     - operator-manual/webhook.md
@@ -47,6 +48,7 @@ nav:
     - user-guide/kustomize.md
     - user-guide/helm.md
     - user-guide/ksonnet.md
+    - user-guide/jsonnet.md
     - user-guide/config-management-plugins.md
     - user-guide/tool_detection.md
     - user-guide/projects.md
@@ -57,6 +59,7 @@ nav:
     - user-guide/compare-options.md
     - user-guide/sync-options.md
     - user-guide/parameters.md
+    - user-guide/build-environment.md
     - user-guide/tracking_strategies.md
     - user-guide/resource_hooks.md
     - user-guide/selective_sync.md

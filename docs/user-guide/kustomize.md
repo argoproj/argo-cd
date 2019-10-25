@@ -35,3 +35,7 @@ metadata:
 data:
     kustomize.buildOptions: --load_restrictor none
 ```
+
+## Build Environment
+
+Kustomize does not support parameters and therefore cannot support the standard [build environment](build-environment.md).
