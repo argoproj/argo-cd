@@ -81,9 +81,9 @@ func (a *Actions) CreateFromFile(handler func(app *Application)) *Actions {
 			NameSuffix: a.context.nameSuffix,
 		}
 	}
-	if a.context.configManagementPlugin != "" {
+	if a.context.plugin != "" {
 		app.Spec.Source.Plugin = &ApplicationSourcePlugin{
-			Name: a.context.configManagementPlugin,
+			Name: a.context.plugin,
 		}
 	}
 
@@ -141,8 +141,8 @@ func (a *Actions) Create(args ...string) *Actions {
 		args = append(args, "--namesuffix", a.context.nameSuffix)
 	}
 
-	if a.context.configManagementPlugin != "" {
-		args = append(args, "--config-management-plugin", a.context.configManagementPlugin)
+	if a.context.plugin != "" {
+		args = append(args, "--config-management-plugin", a.context.plugin)
 	}
 
 	if a.context.revision != "" {

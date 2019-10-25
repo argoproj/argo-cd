@@ -15,7 +15,7 @@ import (
 func TestCustomToolWithGitCreds(t *testing.T) {
 	Given(t).
 		// path does not matter, we ignore it
-		ConfigManagementPlugin("test-dummy").
+		Plugin("test-dummy").
 		CustomCACertAdded().
 		// add the private repo with credentials
 		HTTPSRepoURLAdded(true).
@@ -49,7 +49,7 @@ func TestCustomToolWithGitCreds(t *testing.T) {
 func TestCustomToolWithGitCredsTemplate(t *testing.T) {
 	Given(t).
 		// path does not matter, we ignore it
-		ConfigManagementPlugin("test-dummy").
+		Plugin("test-dummy").
 		CustomCACertAdded().
 		// add the git creds template
 		HTTPSCredentialsUserPassAdded().
@@ -85,7 +85,7 @@ func TestCustomToolWithGitCredsTemplate(t *testing.T) {
 func TestCustomToolWithEnv(t *testing.T) {
 	Given(t).
 		// path does not matter, we ignore it
-		ConfigManagementPlugin("test-dummy").
+		Plugin("test-dummy").
 		// does not matter what the path is
 		Path("guestbook").
 		When().

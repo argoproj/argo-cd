@@ -19,22 +19,22 @@ type Context struct {
 	chart       string
 	repoURLType fixture.RepoURLType
 	// seconds
-	timeout                int
-	name                   string
-	destServer             string
-	env                    string
-	parameters             []string
-	namePrefix             string
-	nameSuffix             string
-	resource               string
-	prune                  bool
-	configManagementPlugin string
-	async                  bool
-	localPath              string
-	project                string
-	revision               string
-	force                  bool
-	directoryRecurse       bool
+	timeout          int
+	name             string
+	destServer       string
+	env              string
+	parameters       []string
+	namePrefix       string
+	nameSuffix       string
+	resource         string
+	prune            bool
+	plugin           string
+	async            bool
+	localPath        string
+	project          string
+	revision         string
+	force            bool
+	directoryRecurse bool
 }
 
 func Given(t *testing.T) *Context {
@@ -196,8 +196,8 @@ func (c *Context) ResourceFilter(filter settings.ResourcesFilter) *Context {
 }
 
 // this both configures the plugin, but forces use of it
-func (c *Context) ConfigManagementPlugin(plugin string) *Context {
-	c.configManagementPlugin = plugin
+func (c *Context) Plugin(plugin string) *Context {
+	c.plugin = plugin
 	return c
 }
 

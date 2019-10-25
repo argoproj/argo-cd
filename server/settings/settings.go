@@ -49,11 +49,6 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 	if err != nil {
 		return nil, err
 	}
-	plugins, err := s.plugins()
-	if err != nil {
-		return nil, err
-	}
-
 	set := settingspkg.Settings{
 		URL:                argoCDSettings.URL,
 		AppLabelKey:        appInstanceLabelKey,
@@ -70,7 +65,7 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 			ChatUrl:  help.ChatURL,
 			ChatText: help.ChatText,
 		},
-		Plugins: plugins,
+		Plugins: s.plugins(),
 	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg settingspkg.DexConfig

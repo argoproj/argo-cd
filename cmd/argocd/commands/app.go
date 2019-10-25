@@ -121,7 +121,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	argocd app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo=0.1
 	
 	# Create a app using a custom tool:
-	argocd app create ksane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
+	argocd app create ksane --repo https://github.com/argoproj/argocd-example-apps.git --path plugin/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
 `,
 		Run: func(c *cobra.Command, args []string) {
 			var app argoappv1.Application
@@ -500,8 +500,8 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			setHelmOpt(&spec.Source, helmOpts{helmSetStrings: appOpts.helmSetStrings})
 		case "directory-recurse":
 			spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: appOpts.directoryRecurse}
-		case "config-management-plugin":
-			spec.Source.Plugin = &argoappv1.ApplicationSourcePlugin{Name: appOpts.configManagementPlugin}
+		case "plugin":
+			spec.Source.Plugin = &argoappv1.ApplicationSourcePlugin{Name: appOpts.plugin}
 		case "dest-server":
 			spec.Destination.Server = appOpts.destServer
 		case "dest-namespace":
@@ -661,31 +661,31 @@ func setJsonnetOptExtVar(src *argoappv1.ApplicationSource, jsonnetExtVar []strin
 }
 
 type appOptions struct {
-	repoURL                string
-	appPath                string
-	chart                  string
-	env                    string
-	revision               string
-	destServer             string
-	destNamespace          string
-	parameters             []string
-	valuesFiles            []string
-	releaseName            string
-	helmSets               []string
-	helmSetStrings         []string
-	project                string
-	syncPolicy             string
-	autoPrune              bool
-	selfHeal               bool
-	namePrefix             string
-	nameSuffix             string
-	directoryRecurse       bool
-	configManagementPlugin string
-	jsonnetTlaStr          []string
-	jsonnetTlaCode         []string
-	jsonnetExtVarStr       []string
-	jsonnetExtVarCode      []string
-	kustomizeImages        []string
+	repoURL           string
+	appPath           string
+	chart             string
+	env               string
+	revision          string
+	destServer        string
+	destNamespace     string
+	parameters        []string
+	valuesFiles       []string
+	releaseName       string
+	helmSets          []string
+	helmSetStrings    []string
+	project           string
+	syncPolicy        string
+	autoPrune         bool
+	selfHeal          bool
+	namePrefix        string
+	nameSuffix        string
+	directoryRecurse  bool
+	plugin            string
+	jsonnetTlaStr     []string
+	jsonnetTlaCode    []string
+	jsonnetExtVarStr  []string
+	jsonnetExtVarCode []string
+	kustomizeImages   []string
 }
 
 func addAppFlags(command *cobra.Command, opts *appOptions) {
@@ -708,7 +708,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
 	command.Flags().StringVar(&opts.nameSuffix, "namesuffix", "", "Kustomize namesuffix")
 	command.Flags().BoolVar(&opts.directoryRecurse, "directory-recurse", false, "Recurse directory")
-	command.Flags().StringVar(&opts.configManagementPlugin, "config-management-plugin", "", "Config management plugin name")
+	command.Flags().StringVar(&opts.plugin, "plugin", "", "Plugin")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaStr, "jsonnet-tla-str", []string{}, "Jsonnet top level string arguments")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaCode, "jsonnet-tla-code", []string{}, "Jsonnet top level code arguments")
 	command.Flags().StringArrayVar(&opts.jsonnetExtVarStr, "jsonnet-ext-var-str", []string{}, "Jsonnet string ext var")

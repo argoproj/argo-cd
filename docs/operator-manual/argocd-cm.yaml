@@ -160,14 +160,6 @@ data:
       clusters:
       - "*.local"
 
-  # Configuration to add a config management plugin.
-  configManagementPlugins: |
-    - name: kasane
-      init:
-        command: [kasane, update]
-      generate:
-        command: [kasane, show]
-
   # Build options/parameters to use with `kustomize build` (optional)
   kustomize.buildOptions: --load_restrictor none
 

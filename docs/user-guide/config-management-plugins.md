@@ -17,6 +17,8 @@ data:
         args: ["sample args"]
 ```
 
+TODO
+
 The `generate` command must print a valid YAML stream to stdout. Both `init` and `generate` commands are executed inside the application source directory.
 
  * Create an application and specify required config management plugin name.
