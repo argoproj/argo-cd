@@ -11,16 +11,15 @@ commands:
             git config --global user.name "Your Name"
             echo "export PATH=/home/circleci/.go_workspace/src/github.com/argoproj/argo-cd/hack:\$PATH" | tee -a $BASH_ENV
             echo "export GIT_ASKPASS=git-ask-pass.sh" | tee -a $BASH_ENV
-  dep_ensure:
+  restore_vendor:
     steps:
       - restore_cache:
           keys:
-            - vendor-v4-{{ checksum "Gopkg.lock" }}
-      - run:
-          name: Run dep ensure
-          command: dep ensure -v
+            - vendor-v1-{{ checksum "Gopkg.lock" }}-{{ .Environment.CIRCLE_JOB }}
+  save_vendor:
+    steps:
       - save_cache:
-          key: vendor-v4-{{ checksum "Gopkg.lock" }}
+          key: vendor-v1-{{ checksum "Gopkg.lock" }}-{{ .Environment.CIRCLE_JOB }}
           paths:
             - vendor
   install_golang:
@@ -30,24 +29,23 @@ commands:
           command: |
             go get golang.org/dl/go1.12.6
             [ -e /home/circleci/sdk/go1.12.6 ] || go1.12.6 download
+            go env
             echo "export GOPATH=/home/circleci/.go_workspace" | tee -a $BASH_ENV
             echo "export PATH=/home/circleci/sdk/go1.12.6/bin:\$PATH" | tee -a $BASH_ENV
   save_go_cache:
     steps:
       - save_cache:
-          key: go-v18-{{ .Branch }}
+          key: go-v1-{{ .Branch }}-{{ .Environment.CIRCLE_JOB }}
+          # https://circleci.com/docs/2.0/language-go/
           paths:
-            - /home/circleci/.go_workspace
             - /home/circleci/.cache/go-build
             - /home/circleci/sdk/go1.12.6
   restore_go_cache:
     steps:
       - restore_cache:
           keys:
-            - go-v18-{{ .Branch }}
-            - go-v18-master
-            - go-v17-{{ .Branch }}
-            - go-v17-master
+            - go-v1-{{ .Branch }}-{{ .Environment.CIRCLE_JOB }}
+            - go-v1-master-{{ .Environment.CIRCLE_JOB }}
 jobs:
   codegen:
     docker:
@@ -93,9 +91,11 @@ jobs:
           paths: [/tmp/dl]
       - configure_git
       - run: go get github.com/jstemmer/go-junit-report
-      - dep_ensure
-      - save_go_cache
+      - restore_vendor
+      - run: dep ensure
       - run: make test
+      - save_vendor
+      - save_go_cache
       - run:
           name: Uploading code coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
@@ -133,7 +133,8 @@ jobs:
       - save_cache:
           key: e2e-dl-v10
           paths: [/tmp/dl]
-      - dep_ensure
+      - restore_vendor
+      - run: dep ensure
       - configure_git
       - run: make cli
       - run:
@@ -179,6 +180,8 @@ jobs:
             ARGOCD_OPTS: "--server localhost:8080 --plaintext"
             ARGOCD_E2E_EXPECT_TIMEOUT: "30"
             ARGOCD_E2E_K3S: "true"
+      - save_vendor
+      - save_go_cache
       - store_test_results:
           path: test-results
       - store_artifacts:
@@ -206,9 +209,7 @@ workflows:
   workflow:
     jobs:
       - test
-      - codegen:
-          requires:
-            - test
+      - codegen
       - ui:
           requires:
             - codegen
