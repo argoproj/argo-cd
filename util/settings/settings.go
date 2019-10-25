@@ -197,8 +197,6 @@ const (
 	resourceExclusionsKey = "resource.exclusions"
 	// resourceInclusions is the key to the list of explicitly watched resources
 	resourceInclusionsKey = "resource.inclusions"
-	// configManagementPluginsKey is the key to the list of config management plugins
-	configManagementPluginsKey = "configManagementPlugins"
 	// kustomizeBuildOptions is a string of kustomize build parameters
 	kustomizeBuildOptions = "kustomize.buildOptions"
 	// anonymousUserEnabledKey is the key which enables or disables anonymous user

@@ -14,7 +14,7 @@ func Discover() ([]string, error) {
 	} {
 		infos, err := ioutil.ReadDir(path)
 		if err != nil {
-			if os.IsNotExist(err){
+			if os.IsNotExist(err) {
 				continue
 			}
 			return nil, err

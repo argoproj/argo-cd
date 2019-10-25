@@ -240,7 +240,7 @@ func ValidateRepo(
 	if err != nil {
 		return nil, err
 	}
-	conditions = append(conditions, verifyGenerateManifests(ctx, repo, helmRepos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion)...)
+	conditions = append(conditions, verifyGenerateManifests(ctx, repo, helmRepos, app, repoClient, kustomizeOptions, cluster.ServerVersion)...)
 
 	return conditions, nil
 }
@@ -323,7 +323,6 @@ func verifyGenerateManifests(
 	app *argoappv1.Application,
 	repoClient apiclient.RepoServerServiceClient,
 	kustomizeOptions *argoappv1.KustomizeOptions,
-	plugins []string,
 	kubeVersion string,
 ) []argoappv1.ApplicationCondition {
 	spec := &app.Spec
