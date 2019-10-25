@@ -40,7 +40,6 @@ import (
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/lua"
-	"github.com/argoproj/argo-cd/util/plugins"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
@@ -571,7 +570,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		BuildOptions: buildOptions,
 	}
 
-	conditions, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, &kustomizeOptions, plugins.Discover(), s.kubectl)
+	conditions, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, &kustomizeOptions, s.kubectl)
 	if err != nil {
 		return err
 	}

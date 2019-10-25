@@ -167,7 +167,6 @@ func ValidateRepo(
 	repoClientset apiclient.Clientset,
 	db db.ArgoDB,
 	kustomizeOptions *argoappv1.KustomizeOptions,
-	plugins []string,
 	kubectl kube.Kubectl,
 ) ([]argoappv1.ApplicationCondition, error) {
 	spec := &app.Spec

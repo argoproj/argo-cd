@@ -8,7 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var plugins []string
+var plugins = make(map[string]string)
 
 func init() {
 	for _, path := range []string{
@@ -23,12 +23,20 @@ func init() {
 			log.Fatal(err)
 		}
 		for _, j := range infos {
-			plugins = append(plugins, j.Name())
+			plugins[j.Name()] = filepath.Join(path, j.Name())
 		}
 	}
 	log.Infof("loaded %v", plugins)
 }
 
-func Discover() []string {
-	return plugins
+func Names() []string {
+	var names []string
+	for name := range plugins {
+		names = append(names, name)
+	}
+	return names
+}
+
+func Path(name string) string {
+	return plugins[name]
 }

@@ -37,6 +37,7 @@ import (
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"
+	"github.com/argoproj/argo-cd/util/plugins"
 	"github.com/argoproj/argo-cd/util/text"
 )
 
@@ -542,7 +543,7 @@ func makeJsonnetVm(sourceJsonnet v1alpha1.ApplicationSourceJsonnet, env *v1alpha
 }
 
 func runPlugin(appPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
-	cmd := exec.Command(q.ApplicationSource.Plugin.Name, "template")
+	cmd := exec.Command(plugins.Path(q.ApplicationSource.Plugin.Name), "template")
 	cmd.Env = append(os.Environ(), envVars.Environ()...)
 	if creds != nil {
 		closer, environ, err := creds.Environ()

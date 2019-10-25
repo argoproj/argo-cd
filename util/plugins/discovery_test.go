@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestDiscover(t *testing.T) {
-	plugins := Discover()
-	assert.ElementsMatch(t, []string{"test-dummy", "helm-v3"}, plugins)
+func TestNames(t *testing.T) {
+	names := Names()
+	assert.Len(t, names, 2)
 }

@@ -90,10 +90,10 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 }
 
 func (s *Server) plugins() []*settingspkg.Plugin {
-	in := plugins.Discover()
-	out := make([]*settingspkg.Plugin, len(in))
-	for i, p := range in {
-		out[i] = &settingspkg.Plugin{Name: p}
+	names := plugins.Names()
+	out := make([]*settingspkg.Plugin, len(names))
+	for i, name := range names {
+		out[i] = &settingspkg.Plugin{Name: name}
 
 	}
 	return out
