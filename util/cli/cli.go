@@ -12,7 +12,6 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"syscall"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -91,7 +90,7 @@ func PromptMessage(message, value string) string {
 func PromptPassword(password string) string {
 	for password == "" {
 		fmt.Print("Password: ")
-		passwordRaw, err := terminal.ReadPassword(syscall.Stdin)
+		passwordRaw, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 		errors.CheckError(err)
 		password = string(passwordRaw)
 		fmt.Print("\n")
@@ -120,13 +119,13 @@ func AskToProceed(message string) bool {
 func ReadAndConfirmPassword() (string, error) {
 	for {
 		fmt.Print("*** Enter new password: ")
-		password, err := terminal.ReadPassword(syscall.Stdin)
+		password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			return "", err
 		}
 		fmt.Print("\n")
 		fmt.Print("*** Confirm new password: ")
-		confirmPassword, err := terminal.ReadPassword(syscall.Stdin)
+		confirmPassword, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			return "", err
 		}
