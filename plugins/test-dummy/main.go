@@ -23,16 +23,22 @@ func main() {
 	cmd.AddCommand(&cobra.Command{
 		Use: "template",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Print(`kind: ConfigMap
+			fmt.Printf(`kind: ConfigMap
 apiVersion: v1
 metadata:
-  name: $ARGOCD_APP_NAME
-  namespace: $ARGOCD_APP_NAMESPACE
+  name: %s
+  namespace: %s
   annotations:
-    GitAskpass: $GIT_ASKPASS
-    GitUsername: $GIT_USERNAME
-    GitPassword: $GIT_PASSWORD
-`)
+    GitAskpass: %s
+    GitUsername: %s
+    GitPassword: %s
+`,
+				os.Getenv("ARGOCD_APP_NAME"),
+				os.Getenv("ARGOCD_APP_NAMESPACE"),
+				os.Getenv("GIT_ASKPASS"),
+				os.Getenv("GIT_USERNAME"),
+				os.Getenv("GIT_PASSWORD"),
+			)
 		},
 	})
 

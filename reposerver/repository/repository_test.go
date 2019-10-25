@@ -280,11 +280,11 @@ func TestRunCustomTool(t *testing.T) {
 	obj := &unstructured.Unstructured{}
 	assert.Nil(t, json.Unmarshal([]byte(res.Manifests[0]), obj))
 
-	assert.Equal(t, obj.GetName(), "test-app")
-	assert.Equal(t, obj.GetNamespace(), "test-namespace")
-	assert.Equal(t, "git-ask-pass.sh", obj.GetAnnotations()["GIT_ASKPASS"])
-	assert.Equal(t, "foo", obj.GetAnnotations()["GIT_USERNAME"])
-	assert.Equal(t, "bar", obj.GetAnnotations()["GIT_PASSWORD"])
+	assert.Equal(t, "test-app", obj.GetName())
+	assert.Equal(t, "test-namespace", obj.GetNamespace())
+	assert.Equal(t, "git-ask-pass.sh", obj.GetAnnotations()["GitAskpass"])
+	assert.Equal(t, "foo", obj.GetAnnotations()["GitUsername"])
+	assert.Equal(t, "bar", obj.GetAnnotations()["GitPassword"])
 }
 
 func TestGenerateFromUTF16(t *testing.T) {
