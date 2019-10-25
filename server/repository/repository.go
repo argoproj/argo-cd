@@ -222,7 +222,10 @@ func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest)
 			return nil, status.Errorf(codes.InvalidArgument, "existing repository spec is different; use upsert flag to force update")
 		}
 	}
-	return &appsv1.Repository{Repo: repo.Repo, Type: repo.Type, Name: repo.Name}, err
+	if err != nil {
+		return nil, err
+	}
+	return &appsv1.Repository{Repo: repo.Repo, Type: repo.Type, Name: repo.Name}, nil
 }
 
 // Update updates a repository
