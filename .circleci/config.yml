@@ -59,7 +59,7 @@ jobs:
           keys: [codegen-v2]
       - run: ./hack/install.sh codegen-go-tools
       - run: sudo ./hack/install.sh codegen-tools
-      - run: go mod vendor
+      - run: GO111MODULE=on go mod vendor
       - save_cache:
           key: codegen-v2
           paths: [vendor, /tmp/dl, /go/pkg]
