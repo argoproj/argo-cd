@@ -11,14 +11,14 @@ commands:
             git config --global user.name "Your Name"
             echo "export PATH=/home/circleci/.go_workspace/src/github.com/argoproj/argo-cd/hack:\$PATH" | tee -a $BASH_ENV
             echo "export GIT_ASKPASS=git-ask-pass.sh" | tee -a $BASH_ENV
-  dep_ensure:
+  mod_vendor:
     steps:
       - restore_cache:
           keys:
             - vendor-v4-{{ checksum "go.mod" }}
       - run:
-          name: Run dep ensure
-          command: dep ensure -v
+          name: Run go mod vendor
+          command: go mod vendor
       - save_cache:
           key: vendor-v4-{{ checksum "go.mod" }}
           paths:
@@ -59,7 +59,7 @@ jobs:
           keys: [codegen-v2]
       - run: ./hack/install.sh codegen-go-tools
       - run: sudo ./hack/install.sh codegen-tools
-      - run: dep ensure
+      - run: go mod vendor
       - save_cache:
           key: codegen-v2
           paths: [vendor, /tmp/dl, /go/pkg]
@@ -87,13 +87,13 @@ jobs:
       - checkout
       - restore_cache:
           key: test-dl-v1
-      - run: sudo ./hack/install.sh kubectl-linux kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
+      - run: sudo ./hack/install.sh kubectl-linux kubectx-linux ksonnet-linux helm-linux kustomize-linux
       - save_cache:
           key: test-dl-v1
           paths: [/tmp/dl]
       - configure_git
       - run: go get github.com/jstemmer/go-junit-report
-      - dep_ensure
+      - mod_vendor
       - save_go_cache
       - run: make test
       - run:
@@ -128,12 +128,12 @@ jobs:
       - checkout
       - restore_cache:
           keys: [e2e-dl-v1]
-      - run: sudo ./hack/install.sh kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
+      - run: sudo ./hack/install.sh kubectx-linux ksonnet-linux helm-linux kustomize-linux
       - run: go get github.com/jstemmer/go-junit-report
       - save_cache:
           key: e2e-dl-v10
           paths: [/tmp/dl]
-      - dep_ensure
+      - mod_vendor
       - configure_git
       - run: make cli
       - run:
