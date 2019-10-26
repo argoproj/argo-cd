@@ -27,7 +27,7 @@ var plugins = make(map[string]Plugin)
 func init() {
 	for _, path := range []string{
 		os.Getenv("ARGOCD_PLUGINS"),
-		filepath.Join(os.Getenv("GOPATH"), "src/github.com/argoproj/argo-cd/plugins/bin"),
+		filepath.Join(os.Getenv("GOPATH"), "src/github.com/argoproj/argo-cd/plugins/bin/"),
 	} {
 		infos, err := ioutil.ReadDir(path)
 		if err != nil {
@@ -37,13 +37,13 @@ func init() {
 			log.Fatal(err)
 		}
 		for _, j := range infos {
-			path := filepath.Join(path, j.Name())
-			output, err := exec.RunCommand(path, config.CmdOpts(), "schema")
+			cmdPath := filepath.Join(path, j.Name())
+			output, err := exec.RunCommand(cmdPath, config.CmdOpts(), "schema")
 			if err != nil {
 				log.Fatal(err)
 			}
 			plugins[j.Name()] = Plugin{
-				Path:   path,
+				Path:   cmdPath,
 				Schema: output,
 				Loader: gojsonschema.NewStringLoader(output),
 			}

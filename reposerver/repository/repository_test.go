@@ -274,7 +274,7 @@ func TestRunCustomTool(t *testing.T) {
 		},
 	})
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, 1, len(res.Manifests))
 
 	obj := &unstructured.Unstructured{}
