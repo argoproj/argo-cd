@@ -26,15 +26,13 @@ func main() {
 			fmt.Printf(`kind: ConfigMap
 apiVersion: v1
 metadata:
-  name: %s
-  namespace: %s
+  name: "%s"
   annotations:
-    GitAskpass: %s
-    GitUsername: %s
-    GitPassword: %s
+    GitAskpass: "%s"
+    GitUsername: "%s"
+    GitPassword: "%s"
 `,
 				os.Getenv("ARGOCD_APP_NAME"),
-				os.Getenv("ARGOCD_APP_NAMESPACE"),
 				os.Getenv("GIT_ASKPASS"),
 				os.Getenv("GIT_USERNAME"),
 				os.Getenv("GIT_PASSWORD"),
