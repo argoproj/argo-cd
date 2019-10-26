@@ -465,6 +465,22 @@
   version = "v0.1.0"
 
 [[projects]]
+  digest = "1:2e98fe7d2032c815587c2a25c827b44ecee87c2e8819856a291b86ea70737b8e"
+  name = "github.com/gorilla/csrf"
+  packages = ["."]
+  pruneopts = ""
+  revision = "7b29b05df5ae7dc777b92fab3dadee1b15d15ed6"
+  version = "v1.6.1"
+
+[[projects]]
+  digest = "1:51a1d17ba9fe6648d9fdd5b822baa616d6ec7f28c8669c2091126d206796b5ae"
+  name = "github.com/gorilla/securecookie"
+  packages = ["."]
+  pruneopts = ""
+  revision = "e59506cc896acb7f7bf732d4fdf5e25f7ccd8983"
+  version = "v1.1.1"
+
+[[projects]]
   digest = "1:09aa5dd1332b93c96bde671bafb053249dc813febf7d5ca84e8f382ba255d67d"
   name = "github.com/gorilla/websocket"
   packages = ["."]
@@ -1629,6 +1645,7 @@
     "github.com/golang/protobuf/ptypes/empty",
     "github.com/google/go-jsonnet",
     "github.com/google/shlex",
+    "github.com/gorilla/csrf",
     "github.com/grpc-ecosystem/go-grpc-middleware",
     "github.com/grpc-ecosystem/go-grpc-middleware/auth",
     "github.com/grpc-ecosystem/go-grpc-middleware/logging",
