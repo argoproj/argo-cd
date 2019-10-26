@@ -291,7 +291,7 @@ func GenerateManifests(appPath, revision string, q *apiclient.ManifestRequest) (
 	if q.Repo != nil {
 		repoURL = q.Repo.Repo
 	}
-	env := newEnv(q, revision)
+	env := newEnv(q, revision, text.SemVer(q.KubeVersion))
 
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeKsonnet:
@@ -361,7 +361,7 @@ func GenerateManifests(appPath, revision string, q *apiclient.ManifestRequest) (
 	return &res, nil
 }
 
-func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
+func newEnv(q *apiclient.ManifestRequest, revision, kubeVersion string) *v1alpha1.Env {
 	return &v1alpha1.Env{
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: q.AppLabelValue},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: q.Namespace},
@@ -369,6 +369,7 @@ func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: q.Repo.Repo},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: q.ApplicationSource.Path},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: q.ApplicationSource.TargetRevision},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_KUBE_VERSION", Value: kubeVersion},
 	}
 }
 

@@ -39,7 +39,6 @@ metadata:
 			)
 		},
 	})
-
 	err := cmd.Execute()
 	if err != nil {
 		fmt.Println(err)
