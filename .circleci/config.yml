@@ -18,7 +18,7 @@ commands:
             - vendor-v4-{{ checksum "go.mod" }}
       - run:
           name: Run go mod vendor
-          command: go mod vendor
+          command: GO111MODULE=on go mod vendor
       - save_cache:
           key: vendor-v4-{{ checksum "go.mod" }}
           paths:
