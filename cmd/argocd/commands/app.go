@@ -1040,6 +1040,8 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		cascade bool
+		wait    bool
+		timeout int
 	)
 	var command = &cobra.Command{
 		Use:   "delete APPNAME",
@@ -1049,8 +1051,10 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
+
 			for _, appName := range args {
 				appDeleteReq := applicationpkg.ApplicationDeleteRequest{
 					Name: &appName,
@@ -1058,13 +1062,42 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				if c.Flag("cascade").Changed {
 					appDeleteReq.Cascade = &cascade
 				}
+
 				_, err := appIf.Delete(context.Background(), &appDeleteReq)
 				errors.CheckError(err)
+
+				if c.Flag("wait").Changed {
+					err = waitForAppDeletion(appIf, appName, timeout)
+					errors.CheckError(err)
+				}
 			}
 		},
 	}
 	command.Flags().BoolVar(&cascade, "cascade", true, "Perform a cascaded deletion of all application resources")
+	command.Flags().BoolVar(&wait, "wait", false, "Will cause the command to only return once the application has been deleted")
+	command.Flags().IntVar(&timeout, "timeout", 60, "Time to spend waiting for application to delete, default 60s")
+
 	return command
+}
+
+func waitForAppDeletion(c applicationpkg.ApplicationServiceClient, appName string, timeout int) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
+	defer cancel()
+
+	for {
+		_, err := c.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
+		if err != nil {
+			if strings.HasSuffix(err.Error(), "not found") {
+				return nil
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("wait timed out after %ds waiting for app %s to be deleted", timeout, appName)
+		default:
+			time.Sleep(1 * time.Second)
+		}
+	}
 }
 
 // Print simple list of application names
