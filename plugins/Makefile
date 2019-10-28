@@ -1,4 +1,4 @@
-all: bin/helm-v3 bin/test-dummy
+build: bin/helm-v3 bin/test-dummy
 
 bin/helm-v3:
 	go build -o bin/helm-v3 ./helm-v3

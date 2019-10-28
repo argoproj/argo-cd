@@ -176,8 +176,12 @@ test:
 test-e2e:
 	./hack/test.sh -timeout 15m ./test/e2e
 
+.PHONY: plugins
+plugins:
+	cd plugins && make
+
 .PHONY: start-e2e
-start-e2e: cli
+start-e2e: cli plugins
 	killall goreman || true
 	# check we can connect to Docker to start Redis
 	docker version
