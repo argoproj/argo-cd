@@ -1,0 +1,69 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+metadata:
+  annotations:
+    rollout.argoproj.io/revision: '5'
+  creationTimestamp: '2019-10-28T18:13:01Z'
+  generateName: canary-demo-analysis-template-6c6bb7cf6f-
+  generation: 6
+  labels:
+    rollout-type: Background
+    rollouts-pod-template-hash: 6c6bb7cf6f
+  name: canary-demo-analysis-template-6c6bb7cf6f-btpgc
+  namespace: default
+  ownerReferences:
+    - apiVersion: argoproj.io/v1alpha1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Rollout
+      name: canary-demo
+      uid: 9c889596-eea8-11e9-a9e2-42010aa800b2
+  resourceVersion: '28523030'
+  selfLink: >-
+    /apis/argoproj.io/v1alpha1/namespaces/default/analysisruns/canary-demo-analysis-template-6c6bb7cf6f-btpgc
+  uid: 93c6dbc7-f9ae-11e9-a15b-42010aa80033
+spec:
+  analysisSpec:
+    metrics:
+      - failureCondition: result < 92
+        interval: 10
+        name: memory-usage
+        provider:
+          prometheus:
+            address: 'http://prometheus-operator-prometheus.prometheus-operator:9090'
+            query: >
+              sum(rate(nginx_ingress_controller_requests{ingress="canary-demo-preview",status!~"[4-5].*"}[2m]))
+              /
+              sum(rate(nginx_ingress_controller_requests{ingress="canary-demo-preview"}[2m]))
+        successCondition: result > 95
+  arguments:
+    - name: canaryPodHash
+      value: 6c6bb7cf6f
+status:
+  metricResults:
+    - consecutiveError: 5
+      error: 5
+      measurements:
+        - finishedAt: '2019-10-28T18:13:01Z'
+          startedAt: '2019-10-28T18:13:01Z'
+          status: Error
+          value: '[0.9832775919732442]'
+        - finishedAt: '2019-10-28T18:13:11Z'
+          startedAt: '2019-10-28T18:13:11Z'
+          status: Error
+          value: '[0.9832775919732442]'
+        - finishedAt: '2019-10-28T18:13:21Z'
+          startedAt: '2019-10-28T18:13:21Z'
+          status: Error
+          value: '[0.9722530521642618]'
+        - finishedAt: '2019-10-28T18:13:31Z'
+          startedAt: '2019-10-28T18:13:31Z'
+          status: Error
+          value: '[0.9722530521642618]'
+        - finishedAt: '2019-10-28T18:13:41Z'
+          startedAt: '2019-10-28T18:13:41Z'
+          status: Error
+          value: '[0.9722530521642618]'
+      name: memory-usage
+      status: Error
+  status: Error

@@ -1,0 +1,53 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+metadata:
+  annotations:
+    rollout.argoproj.io/revision: '5'
+  creationTimestamp: '2019-10-28T18:23:23Z'
+  generateName: canary-demo-analysis-template-6c6bb7cf6f-
+  generation: 2
+  labels:
+    rollout-type: Background
+    rollouts-pod-template-hash: 6c6bb7cf6f
+  name: canary-demo-analysis-template-6c6bb7cf6f-9k5rj
+  namespace: default
+  ownerReferences:
+    - apiVersion: argoproj.io/v1alpha1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Rollout
+      name: canary-demo
+      uid: 9c889596-eea8-11e9-a9e2-42010aa800b2
+  resourceVersion: '28526435'
+  selfLink: >-
+    /apis/argoproj.io/v1alpha1/namespaces/default/analysisruns/canary-demo-analysis-template-6c6bb7cf6f-9k5rj
+  uid: 06b41145-f9b0-11e9-a15b-42010aa80033
+spec:
+  analysisSpec:
+    metrics:
+      - failureCondition: len(result) > 0
+        interval: 10
+        name: memory-usage
+        provider:
+          prometheus:
+            address: 'http://prometheus-operator-prometheus.prometheus-operator:9090'
+            query: >
+              sum(rate(nginx_ingress_controller_requests{ingress="canary-demo-preview",status!~"[4-5].*"}[2m]))
+              /
+              sum(rate(nginx_ingress_controller_requests{ingress="canary-demo-preview"}[2m]))
+        successCondition: len(result) > 0
+  arguments:
+    - name: canaryPodHash
+      value: 6c6bb7cf6f
+status:
+  metricResults:
+    - count: 1
+      failed: 1
+      measurements:
+        - finishedAt: '2019-10-28T18:23:23Z'
+          startedAt: '2019-10-28T18:23:23Z'
+          status: Failed
+          value: '[0.9768211920529802]'
+      name: memory-usage
+      status: Failed
+  status: Failed
