@@ -147,7 +147,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string) (string, ut
 		if len(infos) != 1 {
 			return "", nil, fmt.Errorf("expected 1 file, found %v", len(infos))
 		}
-		err = os.Rename(infos[0].Name(), chartPath)
+		err = os.Rename(filepath.Join(tempDest, infos[0].Name()), chartPath)
 		if err != nil {
 			return "", nil, err
 		}
