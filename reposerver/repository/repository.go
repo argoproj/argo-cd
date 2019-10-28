@@ -544,7 +544,7 @@ func makeJsonnetVm(sourceJsonnet v1alpha1.ApplicationSourceJsonnet, env *v1alpha
 }
 
 func runPlugin(appPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
-	cmd := exec.Command(plugins.Get(q.ApplicationSource.Plugin.Name).Path, "template")
+	cmd := exec.Command(plugins.Get(q.ApplicationSource.Plugin.Name).Path, "template", ".")
 	cmd.Env = append(os.Environ(), envVars.Environ()...)
 	if creds != nil {
 		closer, environ, err := creds.Environ()

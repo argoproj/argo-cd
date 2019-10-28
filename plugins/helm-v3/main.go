@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -24,6 +25,54 @@ type Spec struct {
 	ReleaseName string
 	Values      string
 }
+type Properties map[string]Schema
+
+type Schema struct {
+	Type       string `json:"type,omitempty"`
+	Title      string `json:"title,omitempty"`
+	Format     string `json:"format,omitempty"`
+	Properties `json:"properties,omitempty"`
+	Items      *Schema `json:"items,omitempty"`
+}
+
+var schema = Schema{
+	Type:  "object",
+	Title: "HelmAppSpec contains helm app name  in source repo",
+	Properties: Properties{
+		"name": Schema{
+			Type: "object",
+		},
+		"parameters": Schema{
+			Type:  "object",
+			Title: "HelmParameter is a parameter to a helm template",
+			Properties: Properties{
+				"forceString": {
+					Type:   "boolean",
+					Format: "boolean",
+					Title:  "ForceString determines whether to tell Helm to interpret booleans and numbers as strings",
+				},
+				"name": {
+					Type:  "string",
+					Title: "Name is the name of the helm parameter",
+				},
+				"value": {
+					Type:  "string",
+					Title: "Value is the value for the helm parameter",
+				},
+			},
+		},
+		"valueFiles": {
+			Type: "array",
+			Items: &Schema{
+				Type: "string",
+			},
+		},
+		"values": {
+			Type:  "string",
+			Title: "the contents of values.yaml",
+		},
+	},
+}
 
 func main() {
 	cmd := cobra.Command{
@@ -35,48 +84,9 @@ func main() {
 	cmd.AddCommand(&cobra.Command{
 		Use: "schema",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println(`{
-  "type": "object",
-  "title": "HelmAppSpec contains helm app name  in source repo",
-  "properties": {
-    "name": {
-      "type": "string"
-    },
-    "parameters": {
-      "type": "array",
-      "title": "the output of 'helm inspect values''",
-      "items": {
-        "type": "object",
-        "title": "HelmParameter is a parameter to a helm template",
-        "properties": {
-          "forceString": {
-            "type": "boolean",
-            "format": "boolean",
-            "title": "ForceString determines whether to tell Helm to interpret booleans and numbers as strings"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name is the name of the helm parameter"
-          },
-          "value": {
-            "type": "string",
-            "title": "Value is the value for the helm parameter"
-          }
-        }
-      }
-    },
-    "valueFiles": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "values": {
-      "type": "string",
-      "title": "the contents of values.yaml"
-    }
-  }
-}`)
+			output, err := json.Marshal(schema)
+			errors.CheckError(err)
+			fmt.Println(string(output))
 		},
 	})
 	cmd.AddCommand(&cobra.Command{
