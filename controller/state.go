@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strconv"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -293,7 +295,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	}
 
 	// do best effort loading live and target state to present as much information about app state as possible
-	failedToLoadObjs := false
+	// ARGOCD_FAILED_TO_LOAD_OBJS is intended for testing purposes - i.e. simulate failure
+	failedToLoadObjs, _ := strconv.ParseBool(os.Getenv("ARGOCD_FAILED_TO_LOAD_OBJS"))
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
 
 	logCtx := log.WithField("application", app.Name)
