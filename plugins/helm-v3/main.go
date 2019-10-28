@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
+	"k8s.io/kubernetes/pkg/util/slice"
 
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/util/helm"
@@ -25,24 +27,25 @@ type Spec struct {
 	ReleaseName string
 	Values      string
 }
-type Properties map[string]Schema
+type Properties map[string]*Schema
 
 type Schema struct {
-	Type       string `json:"type,omitempty"`
-	Title      string `json:"title,omitempty"`
-	Format     string `json:"format,omitempty"`
-	Properties `json:"properties,omitempty"`
-	Items      *Schema `json:"items,omitempty"`
+	Type       string     `json:"type,omitempty"`
+	Title      string     `json:"title,omitempty"`
+	Format     string     `json:"format,omitempty"`
+	Properties Properties `json:"properties,omitempty"`
+	Items      *Schema    `json:"items,omitempty"`
+	Enum       []string   `json:"enum,omitempty"`
 }
 
 var schema = Schema{
 	Type:  "object",
 	Title: "HelmAppSpec contains helm app name  in source repo",
 	Properties: Properties{
-		"name": Schema{
+		"name": &Schema{
 			Type: "object",
 		},
-		"parameters": Schema{
+		"parameters": &Schema{
 			Type:  "object",
 			Title: "HelmParameter is a parameter to a helm template",
 			Properties: Properties{
@@ -84,6 +87,33 @@ func main() {
 	cmd.AddCommand(&cobra.Command{
 		Use: "schema",
 		Run: func(cmd *cobra.Command, args []string) {
+			path := args[0]
+			h, err := helm.NewHelmApp(path, nil)
+			errors.CheckError(err)
+			defer h.Dispose()
+			err = h.Init()
+			errors.CheckError(err)
+
+			files, err := ioutil.ReadDir(path)
+			errors.CheckError(err)
+			for _, i := range files {
+				n := i.Name()
+				if !i.IsDir() && strings.HasPrefix(n, "values") && strings.HasSuffix(n, ".yaml") {
+					schema.Properties["valueFiles"].Enum = append(schema.Properties["valueFiles"].Enum, n)
+				}
+			}
+			parameters, err := h.GetParameters([]string{"values.yaml"})
+			errors.CheckError(err)
+
+			for name, value := range parameters {
+				schema.Properties["parameters"].Enum = append(schema.Properties["parameters"].Enum, name)
+				schema.Properties["parameters"].Title = fmt.Sprintf("%s, %s=%s", schema.Properties["parameters"].Title, name, value)
+			}
+
+			for name := range schema.Properties {
+				slice.SortStrings(schema.Properties[name].Enum)
+			}
+
 			output, err := json.Marshal(schema)
 			errors.CheckError(err)
 			fmt.Println(string(output))
