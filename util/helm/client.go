@@ -130,25 +130,24 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string) (string, ut
 
 		// (1) because `helm fetch` downloads an arbitrary file name, we download to an empty temp directory
 		tempDest, err := ioutil.TempDir("", "helm")
-		defer func() { _ = os.RemoveAll(tempDest) }()
 		if err != nil {
 			return "", nil, err
 		}
+		defer func() { _ = os.RemoveAll(tempDest) }()
 		_, err = helmCmd.Fetch(c.repoURL, chart, version, tempDest, c.creds)
 		if err != nil {
 			return "", nil, err
 		}
 		// (2) then we assume that the only file downloaded into the directory is the tgz file
 		// and we move that to where we want it
-		err = filepath.Walk(tempDest, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			if strings.HasSuffix(path, ".tgz") {
-				return os.Rename(path, chartPath)
-			}
-			return nil
-		})
+		infos, err := ioutil.ReadDir(tempDest)
+		if err != nil {
+			return "", nil, err
+		}
+		if len(infos) != 1 {
+			return "", nil, fmt.Errorf("expected 1 file, found %v", len(infos))
+		}
+		err = os.Rename(infos[0].Name(), chartPath)
 		if err != nil {
 			return "", nil, err
 		}
