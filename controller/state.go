@@ -420,7 +420,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 			Version:         gvk.Version,
 			Group:           gvk.Group,
 			Hook:            hookutil.IsHook(obj),
-			RequiresPruning: targetObj == nil && liveObj != nil,
+			RequiresPruning: !failedToLoadObjs && !resource.NoPrune(liveObj) && targetObj == nil && liveObj != nil,
 		}
 
 		diffResult := diffResults.Diffs[i]

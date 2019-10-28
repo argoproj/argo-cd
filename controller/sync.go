@@ -558,7 +558,7 @@ func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun 
 func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dryRun bool) (v1alpha1.ResultCode, string) {
 	if !prune {
 		return v1alpha1.ResultCodePruneSkipped, "ignored (requires pruning)"
-	} else if resource.HasAnnotationOption(liveObj, common.AnnotationSyncOptions, "Prune=false") {
+	} else if resource.NoPrune(liveObj) {
 		return v1alpha1.ResultCodePruneSkipped, "ignored (no prune)"
 	} else {
 		if dryRun {
