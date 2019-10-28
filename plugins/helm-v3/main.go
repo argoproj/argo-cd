@@ -9,9 +9,21 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/argoproj/argo-cd/errors"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/helm"
 )
+
+type HelmParameter struct {
+	ForceString bool
+	Name        string
+	Value       string
+}
+
+type Spec struct {
+	ValueFiles  []string
+	Parameters  []HelmParameter
+	ReleaseName string
+	Values      string
+}
 
 func main() {
 	cmd := cobra.Command{
@@ -72,7 +84,7 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			bytes, err := ioutil.ReadAll(os.Stdin)
 			errors.CheckError(err)
-			source := &v1alpha1.ApplicationSourceHelm{}
+			source := &Spec{}
 			err = yaml.Unmarshal(bytes, source)
 			errors.CheckError(err)
 			app, err := helm.NewHelmApp(".", nil)
