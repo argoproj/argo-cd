@@ -420,7 +420,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 			Version:         gvk.Version,
 			Group:           gvk.Group,
 			Hook:            hookutil.IsHook(obj),
-			RequiresPruning: !failedToLoadObjs && !resource.NoPrune(liveObj) && targetObj == nil && liveObj != nil,
+			RequiresPruning: targetObj == nil && liveObj != nil,
 		}
 
 		diffResult := diffResults.Diffs[i]
@@ -439,6 +439,10 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 			}
 		} else {
 			resState.Status = v1alpha1.SyncStatusCodeSynced
+		}
+		// we can't say anything about the status if we were unable to get the target objects
+		if failedToLoadObjs {
+			resState.Status = v1alpha1.SyncStatusCodeUnknown
 		}
 		managedResources[i] = managedResource{
 			Name:      resState.Name,
