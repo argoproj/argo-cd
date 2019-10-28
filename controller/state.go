@@ -63,7 +63,6 @@ type AppStateManager interface {
 }
 
 type comparisonResult struct {
-	reconciledAt     metav1.Time
 	syncStatus       *v1alpha1.SyncStatus
 	healthStatus     *v1alpha1.HealthStatus
 	resources        []v1alpha1.ResourceStatus
@@ -277,13 +276,11 @@ func (m *appStateManager) getComparisonSettings(app *appv1.Application) (string,
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
 func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, noCache bool, localManifests []string) *comparisonResult {
-	reconciledAt := metav1.Now()
 	appLabelKey, resourceOverrides, diffNormalizer, err := m.getComparisonSettings(app)
 
 	// return unknown comparison result if basic comparison settings cannot be loaded
 	if err != nil {
 		return &comparisonResult{
-			reconciledAt: reconciledAt,
 			syncStatus: &v1alpha1.SyncStatus{
 				ComparedTo: appv1.ComparedTo{Source: source, Destination: app.Spec.Destination},
 				Status:     appv1.SyncStatusCodeUnknown,
@@ -477,7 +474,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	}
 
 	compRes := comparisonResult{
-		reconciledAt:     reconciledAt,
 		syncStatus:       &syncStatus,
 		healthStatus:     healthStatus,
 		resources:        resourceSummaries,
