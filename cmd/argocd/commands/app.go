@@ -1032,7 +1032,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	}
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
 	command.Flags().BoolVar(&hardRefresh, "hard-refresh", false, "Refresh application data as well as target manifests cache")
-	command.Flags().StringVar(&local, "local", "", "Compare live app to a local ksonnet app")
+	command.Flags().StringVar(&local, "local", "", "Compare live app to a local manifests")
 	return command
 }
 
