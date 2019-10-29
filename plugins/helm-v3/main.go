@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -77,6 +78,93 @@ var schema = Schema{
 	},
 }
 
+func runDiscover(root string) []string {
+	apps := make([]string, 0)
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		if strings.HasSuffix(filepath.Base(path), "Chart.yaml") {
+			rel, _ := filepath.Rel(root, filepath.Dir(path))
+			apps = append(apps, rel)
+		}
+		return nil
+	})
+	errors.CheckError(err)
+	return apps
+}
+
+func runSchema(path string) {
+	h, err := helm.NewHelmApp(path, nil)
+	errors.CheckError(err)
+	defer h.Dispose()
+	err = h.Init()
+	errors.CheckError(err)
+
+	files, err := ioutil.ReadDir(path)
+	errors.CheckError(err)
+	for _, i := range files {
+		n := i.Name()
+		if !i.IsDir() && strings.HasPrefix(n, "values") && strings.HasSuffix(n, ".yaml") {
+			schema.Properties["valueFiles"].Enum = append(schema.Properties["valueFiles"].Enum, n)
+		}
+	}
+	parameters, err := h.GetParameters([]string{"values.yaml"})
+	errors.CheckError(err)
+
+	for name, value := range parameters {
+		schema.Properties["parameters"].Enum = append(schema.Properties["parameters"].Enum, name)
+		schema.Properties["parameters"].Title = fmt.Sprintf("%s, %s=%s", schema.Properties["parameters"].Title, name, value)
+	}
+
+	for name := range schema.Properties {
+		slice.SortStrings(schema.Properties[name].Enum)
+	}
+
+	output, err := json.Marshal(schema)
+	errors.CheckError(err)
+	fmt.Println(string(output))
+}
+
+func runTemplate(path string) {
+	bytes, err := ioutil.ReadAll(os.Stdin)
+	errors.CheckError(err)
+	source := &Spec{}
+	err = yaml.Unmarshal(bytes, source)
+	errors.CheckError(err)
+	app, err := helm.NewHelmApp(path, nil)
+	errors.CheckError(err)
+	set := map[string]string{}
+	setString := map[string]string{}
+	for _, p := range source.Parameters {
+		if p.ForceString {
+			setString[p.Name] = p.Value
+		} else {
+			set[p.Name] = p.Value
+		}
+	}
+	if source.Values != "" {
+		f, err := ioutil.TempFile(".", "helm-v3")
+		defer func() { _ = os.RemoveAll(f.Name()) }()
+		errors.CheckError(err)
+		err = ioutil.WriteFile(f.Name(), []byte(source.Values), 777)
+		errors.CheckError(err)
+	}
+	output, err := app.Template(&helm.TemplateOpts{
+		Name:        os.Getenv("ARGOCD_APP_NAME"),
+		Namespace:   os.Getenv("ARGOCD_APP_NAMESPACE"),
+		KubeVersion: os.Getenv("ARGOCD_KUBE_VERSON"),
+		Set:         set,
+		SetString:   setString,
+		Values:      source.ValueFiles,
+	})
+	errors.CheckError(err)
+	fmt.Println(output)
+}
+
 func main() {
 	cmd := cobra.Command{
 		Use: "helm-v3",
@@ -84,79 +172,16 @@ func main() {
 			c.HelpFunc()(c, args)
 		},
 	}
-	cmd.AddCommand(&cobra.Command{
-		Use: "schema",
-		Run: func(cmd *cobra.Command, args []string) {
-			path := args[0]
-			h, err := helm.NewHelmApp(path, nil)
-			errors.CheckError(err)
-			defer h.Dispose()
-			err = h.Init()
-			errors.CheckError(err)
-
-			files, err := ioutil.ReadDir(path)
-			errors.CheckError(err)
-			for _, i := range files {
-				n := i.Name()
-				if !i.IsDir() && strings.HasPrefix(n, "values") && strings.HasSuffix(n, ".yaml") {
-					schema.Properties["valueFiles"].Enum = append(schema.Properties["valueFiles"].Enum, n)
-				}
-			}
-			parameters, err := h.GetParameters([]string{"values.yaml"})
-			errors.CheckError(err)
-
-			for name, value := range parameters {
-				schema.Properties["parameters"].Enum = append(schema.Properties["parameters"].Enum, name)
-				schema.Properties["parameters"].Title = fmt.Sprintf("%s, %s=%s", schema.Properties["parameters"].Title, name, value)
-			}
-
-			for name := range schema.Properties {
-				slice.SortStrings(schema.Properties[name].Enum)
-			}
-
-			output, err := json.Marshal(schema)
-			errors.CheckError(err)
-			fmt.Println(string(output))
-		},
-	})
-	cmd.AddCommand(&cobra.Command{
-		Use: "template",
-		Run: func(cmd *cobra.Command, args []string) {
-			bytes, err := ioutil.ReadAll(os.Stdin)
-			errors.CheckError(err)
-			source := &Spec{}
-			err = yaml.Unmarshal(bytes, source)
-			errors.CheckError(err)
-			app, err := helm.NewHelmApp(".", nil)
-			errors.CheckError(err)
-			set := map[string]string{}
-			setString := map[string]string{}
-			for _, p := range source.Parameters {
-				if p.ForceString {
-					setString[p.Name] = p.Value
-				} else {
-					set[p.Name] = p.Value
-				}
-			}
-			if source.Values != "" {
-				f, err := ioutil.TempFile(".", "helm-v3")
-				defer func() { _ = os.RemoveAll(f.Name()) }()
-				errors.CheckError(err)
-				err = ioutil.WriteFile(f.Name(), []byte(source.Values), 777)
-				errors.CheckError(err)
-			}
-			output, err := app.Template(&helm.TemplateOpts{
-				Name:        os.Getenv("ARGOCD_APP_NAME"),
-				Namespace:   os.Getenv("ARGOCD_APP_NAMESPACE"),
-				KubeVersion: os.Getenv("ARGOCD_KUBE_VERSON"),
-				Set:         set,
-				SetString:   setString,
-				Values:      source.ValueFiles,
-			})
-			errors.CheckError(err)
-			fmt.Println(output)
-		},
-	})
-	err := cmd.Execute()
-	errors.CheckError(err)
+	cmd.AddCommand(&cobra.Command{Use: "discover", Run: func(cmd *cobra.Command, args []string) {
+		for _, path := range runDiscover(args[0]) {
+			fmt.Println(path)
+		}
+	}})
+	cmd.AddCommand(&cobra.Command{Use: "schema", Run: func(cmd *cobra.Command, args []string) {
+		runSchema(args[0])
+	}})
+	cmd.AddCommand(&cobra.Command{Use: "template", Run: func(cmd *cobra.Command, args []string) {
+		runTemplate(args[0])
+	}})
+	errors.CheckError(cmd.Execute())
 }

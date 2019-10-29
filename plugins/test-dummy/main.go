@@ -15,6 +15,11 @@ func main() {
 		},
 	}
 	cmd.AddCommand(&cobra.Command{
+		Use: "discover",
+		Run: func(cmd *cobra.Command, args []string) {
+		},
+	})
+	cmd.AddCommand(&cobra.Command{
 		Use: "schema",
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Println(`{}`)

@@ -4,12 +4,25 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"github.com/argoproj/pkg/exec"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/argoproj/argo-cd/util/config"
 )
 
 type Plugin struct {
+	Name string
 	Path string
+}
+
+func (p Plugin) Discover(path string) ([]string, error) {
+	output, err := exec.RunCommand(p.Path, config.CmdOpts(), "discover", path)
+	if err != nil {
+		return nil, err
+	}
+	return strings.Split(strings.TrimSuffix(output, "\n"), "\n"), nil
 }
 
 var plugins map[string]Plugin
@@ -29,11 +42,15 @@ func lazyInit() {
 				log.Warn(err)
 			}
 			for _, j := range infos {
-				plugins[j.Name()] = Plugin{Path: filepath.Join(path, j.Name())}
+				plugins[j.Name()] = Plugin{Name: j.Name(), Path: filepath.Join(path, j.Name())}
 			}
 		}
 		log.Infof("plugins loaded %v", Names())
 	}
+}
+func Plugins() map[string]Plugin {
+	lazyInit()
+	return plugins
 }
 
 func Names() []string {

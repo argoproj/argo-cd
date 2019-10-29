@@ -6,7 +6,13 @@ import (
 	"strings"
 
 	"github.com/argoproj/argo-cd/util/kustomize"
+	"github.com/argoproj/argo-cd/util/plugins"
 )
+
+type App struct {
+	Type string
+	Path string
+}
 
 func Discover(root string) (map[string]string, error) {
 	apps := make(map[string]string)
@@ -33,6 +39,15 @@ func Discover(root string) (map[string]string, error) {
 		}
 		return nil
 	})
+	for _, plugin := range plugins.Plugins() {
+		pluginApps, err := plugin.Discover(root)
+		if err != nil {
+			return nil, err
+		}
+		for _, path := range pluginApps {
+			apps[path] = "Plugin"
+		}
+	}
 	return apps, err
 }
 
