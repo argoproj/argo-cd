@@ -10,3 +10,4 @@ cmd/**/debug
 debug.test
 coverage.out
 test-results
+plugins/bin
