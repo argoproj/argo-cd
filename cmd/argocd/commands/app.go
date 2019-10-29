@@ -1272,7 +1272,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				timeout:           timeout,
 				selectedResources: parseSelectedResources(resources),
 			}
-			if !watch.sync && !watch.health && !watch.operation && !watch.suspended {
+			if !watch.sync && !watch.health && !watch.operation && !watch.suspended && !watch.delete {
 				appStatusOpts.watch = watchOpts{
 					sync:      true,
 					health:    true,
@@ -1304,6 +1304,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVarP(&selector, "selector", "l", "", "Wait for apps by label")
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%sKIND%sNAME. Fields may be blank. This option may be specified repeatedly", resourceFieldDelimiter, resourceFieldDelimiter))
 	command.Flags().BoolVar(&watch.operation, "operation", false, "Wait for pending operations")
+	command.Flags().BoolVar(&watch.delete, "delete", false, "wait for application to be deleted")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	return command
 }
@@ -1669,12 +1670,8 @@ func waitOnApplicationStatus(opts applicationStatusOpts) (*argoappv1.Application
 		}
 	}
 
-	delete := make(chan bool, 1)
 	if opts.timeout != 0 {
 		time.AfterFunc(time.Duration(opts.timeout)*time.Second, func() {
-			if opts.watch.delete {
-				delete <- false
-			}
 			cancel()
 		})
 	}
@@ -1688,21 +1685,6 @@ func waitOnApplicationStatus(opts applicationStatusOpts) (*argoappv1.Application
 	defer util.Close(conn)
 	app, err := appClient.Get(ctx, &applicationpkg.ApplicationQuery{Name: &opts.appName})
 	errors.CheckError(err)
-
-	if opts.watch.delete {
-		go func() {
-			for {
-				time.Sleep(3 * time.Second)
-				_, err := appClient.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &opts.appName})
-				if err != nil {
-					if strings.HasSuffix(err.Error(), "not found") {
-						delete <- true
-						cancel()
-					}
-				}
-			}
-		}()
-	}
 
 	for appEvent := range appEventCh {
 		app = &appEvent.Application
@@ -1742,7 +1724,7 @@ func waitOnApplicationStatus(opts applicationStatusOpts) (*argoappv1.Application
 					return nil, fmt.Errorf("Application '%s' health state has transitioned from %s to %s", opts.appName, prevState.Health, newState.Health)
 				}
 				if opts.watch.delete {
-					if newState.Health == "Missing" {
+					if newState.Health == argoappv1.HealthStatusMissing {
 						newState.Message = strings.Replace(newState.Message, "created", "deleted", 1)
 						doPrint = prevState.Merge(newState)
 					}
@@ -1758,18 +1740,18 @@ func waitOnApplicationStatus(opts applicationStatusOpts) (*argoappv1.Application
 			}
 		}
 		_ = w.Flush()
-	}
-	select {
-	case complete := <-delete:
-		if complete {
-			return nil, nil
-		} else {
-			return nil, fmt.Errorf("Timed out (%ds) waiting for app %q to be deleted", opts.timeout, opts.appName)
+		if opts.watch.delete {
+			fmt.Println("inside check")
+			_, err := appClient.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &opts.appName})
+			if err != nil {
+				if strings.HasSuffix(err.Error(), "not found") {
+					return nil, nil
+				}
+			}
 		}
-	default:
-		printFinalStatus(app)
-		return nil, fmt.Errorf("Timed out (%ds) waiting for app %q match desired state", opts.timeout, opts.appName)
 	}
+	printFinalStatus(app)
+	return nil, fmt.Errorf("Timed out (%ds) waiting for app %q match desired state", opts.timeout, opts.appName)
 }
 
 // setParameterOverrides updates an existing or appends a new parameter override in the application
