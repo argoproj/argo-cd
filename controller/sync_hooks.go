@@ -3,8 +3,6 @@ package controller
 import (
 	"fmt"
 
-	"github.com/argoproj/argo-cd/util/health"
-
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -20,7 +18,7 @@ func getOperationPhase(hook *unstructured.Unstructured) (operation v1alpha1.Oper
 	if isBatchJob(gvk) {
 		return getStatusFromBatchJob(hook)
 	} else if isArgoWorkflow(gvk) {
-		return health.GetStatusFromArgoWorkflow(hook)
+		return getGenericPhase(hook)
 	} else if isPod(gvk) {
 		return getStatusFromPod(hook)
 	} else {
@@ -117,4 +115,28 @@ func getStatusFromPod(hook *unstructured.Unstructured) (v1alpha1.OperationPhase,
 		return v1alpha1.OperationError, ""
 	}
 	return v1alpha1.OperationRunning, ""
+}
+
+func getGenericPhase(obj *unstructured.Unstructured) (operation v1alpha1.OperationPhase, message string) {
+	r := struct {
+		Status struct {
+			Phase   string
+			Message string
+		}
+	}{}
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &r)
+	if err != nil {
+		return v1alpha1.OperationError, err.Error()
+	}
+	switch r.Status.Phase {
+	case "Pending", "Running":
+		return v1alpha1.OperationRunning, r.Status.Message
+	case "Succeeded":
+		return v1alpha1.OperationSucceeded, r.Status.Message
+	case "Failed":
+		return v1alpha1.OperationFailed, r.Status.Message
+	case "Error":
+		return v1alpha1.OperationError, r.Status.Message
+	}
+	return v1alpha1.OperationSucceeded, r.Status.Message
 }

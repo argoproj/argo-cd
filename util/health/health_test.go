@@ -15,78 +15,23 @@ import (
 )
 
 func assertAppHealth(t *testing.T, yamlPath string, expectedStatus appv1.HealthStatusCode) {
-	health := getHealthStatus(yamlPath, t)
-	assert.NotNil(t, health)
-	assert.Equal(t, expectedStatus, health.Status)
-}
-
-func getHealthStatus(yamlPath string, t *testing.T) *appv1.HealthStatus {
 	yamlBytes, err := ioutil.ReadFile(yamlPath)
-	assert.Nil(t, err)
-	var obj unstructured.Unstructured
-	err = yaml.Unmarshal(yamlBytes, &obj)
-	assert.Nil(t, err)
-	health, err := GetResourceHealth(&obj, nil)
-	assert.Nil(t, err)
-	return health
-}
-
-func TestDeploymentHealth(t *testing.T) {
-	assertAppHealth(t, "../kube/testdata/nginx.yaml", appv1.HealthStatusHealthy)
-	assertAppHealth(t, "./testdata/deployment-progressing.yaml", appv1.HealthStatusProgressing)
-	assertAppHealth(t, "./testdata/deployment-suspended.yaml", appv1.HealthStatusSuspended)
-	assertAppHealth(t, "./testdata/deployment-degraded.yaml", appv1.HealthStatusDegraded)
-}
-
-func TestStatefulSetHealth(t *testing.T) {
-	assertAppHealth(t, "./testdata/statefulset.yaml", appv1.HealthStatusHealthy)
-}
-
-func TestPVCHealth(t *testing.T) {
-	assertAppHealth(t, "./testdata/pvc-bound.yaml", appv1.HealthStatusHealthy)
-	assertAppHealth(t, "./testdata/pvc-pending.yaml", appv1.HealthStatusProgressing)
-}
-
-func TestServiceHealth(t *testing.T) {
-	assertAppHealth(t, "./testdata/svc-clusterip.yaml", appv1.HealthStatusHealthy)
-	assertAppHealth(t, "./testdata/svc-loadbalancer.yaml", appv1.HealthStatusHealthy)
-	assertAppHealth(t, "./testdata/svc-loadbalancer-unassigned.yaml", appv1.HealthStatusProgressing)
-	assertAppHealth(t, "./testdata/svc-loadbalancer-nonemptylist.yaml", appv1.HealthStatusHealthy)
-}
-
-func TestIngressHealth(t *testing.T) {
-	assertAppHealth(t, "./testdata/ingress.yaml", appv1.HealthStatusHealthy)
-	assertAppHealth(t, "./testdata/ingress-unassigned.yaml", appv1.HealthStatusProgressing)
-	assertAppHealth(t, "./testdata/ingress-nonemptylist.yaml", appv1.HealthStatusHealthy)
+	if assert.NoError(t, err, yamlPath) {
+		var obj unstructured.Unstructured
+		err = yaml.Unmarshal(yamlBytes, &obj)
+		if assert.NoError(t, err, yamlPath) {
+			health, err := GetResourceHealth(&obj, nil)
+			if assert.NoError(t, err, yamlPath) {
+				if assert.NotNil(t, health, yamlPath) {
+					assert.Equal(t, expectedStatus, health.Status, yamlPath)
+				}
+			}
+		}
+	}
 }
 
 func TestCRD(t *testing.T) {
-	assert.Nil(t, getHealthStatus("./testdata/knative-service.yaml", t))
-}
-
-func TestJob(t *testing.T) {
-	assertAppHealth(t, "./testdata/job-running.yaml", appv1.HealthStatusProgressing)
-	assertAppHealth(t, "./testdata/job-failed.yaml", appv1.HealthStatusDegraded)
-	assertAppHealth(t, "./testdata/job-succeeded.yaml", appv1.HealthStatusHealthy)
-}
-
-func TestPod(t *testing.T) {
-	assertAppHealth(t, "./testdata/pod-pending.yaml", appv1.HealthStatusProgressing)
-	assertAppHealth(t, "./testdata/pod-running-not-ready.yaml", appv1.HealthStatusProgressing)
-	assertAppHealth(t, "./testdata/pod-crashloop.yaml", appv1.HealthStatusDegraded)
-	assertAppHealth(t, "./testdata/pod-imagepullbackoff.yaml", appv1.HealthStatusDegraded)
-	assertAppHealth(t, "./testdata/pod-error.yaml", appv1.HealthStatusDegraded)
-	assertAppHealth(t, "./testdata/pod-running-restart-always.yaml", appv1.HealthStatusHealthy)
-	assertAppHealth(t, "./testdata/pod-running-restart-never.yaml", appv1.HealthStatusProgressing)
-	assertAppHealth(t, "./testdata/pod-running-restart-onfailure.yaml", appv1.HealthStatusProgressing)
-	assertAppHealth(t, "./testdata/pod-failed.yaml", appv1.HealthStatusDegraded)
-	assertAppHealth(t, "./testdata/pod-succeeded.yaml", appv1.HealthStatusHealthy)
-	assertAppHealth(t, "./testdata/pod-deletion.yaml", appv1.HealthStatusProgressing)
-}
-
-func TestApplication(t *testing.T) {
-	assertAppHealth(t, "./testdata/application-healthy.yaml", appv1.HealthStatusHealthy)
-	assertAppHealth(t, "./testdata/application-degraded.yaml", appv1.HealthStatusDegraded)
+	assertAppHealth(t, "./testdata/knative-service.yaml", appv1.HealthStatusUnknown)
 }
 
 func TestAppOfAppsHealth(t *testing.T) {
@@ -189,49 +134,6 @@ func TestSetApplicationHealth(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, appv1.HealthStatusHealthy, healthStatus.Status)
 }
-
-func TestAPIService(t *testing.T) {
-	assertAppHealth(t, "./testdata/apiservice-v1-true.yaml", appv1.HealthStatusHealthy)
-	assertAppHealth(t, "./testdata/apiservice-v1-false.yaml", appv1.HealthStatusProgressing)
-	assertAppHealth(t, "./testdata/apiservice-v1beta1-true.yaml", appv1.HealthStatusHealthy)
-	assertAppHealth(t, "./testdata/apiservice-v1beta1-false.yaml", appv1.HealthStatusProgressing)
-}
-
-func TestGetStatusFromArgoWorkflow(t *testing.T) {
-	sampleWorkflow := unstructured.Unstructured{Object: map[string]interface{}{
-		"spec": map[string]interface{}{
-			"entrypoint":    "sampleEntryPoint",
-			"extraneousKey": "we are agnostic to extraneous keys",
-		},
-		"status": map[string]interface{}{
-			"phase":   "Running",
-			"message": "This node is running",
-		},
-	},
-	}
-
-	status, message := GetStatusFromArgoWorkflow(&sampleWorkflow)
-	assert.Equal(t, appv1.OperationRunning, status)
-	assert.Equal(t, "This node is running", message)
-
-	sampleWorkflow = unstructured.Unstructured{Object: map[string]interface{}{
-		"spec": map[string]interface{}{
-			"entrypoint":    "sampleEntryPoint",
-			"extraneousKey": "we are agnostic to extraneous keys",
-		},
-		"status": map[string]interface{}{
-			"phase":   "Succeeded",
-			"message": "This node is has succeeded",
-		},
-	},
-	}
-
-	status, message = GetStatusFromArgoWorkflow(&sampleWorkflow)
-	assert.Equal(t, appv1.OperationSucceeded, status)
-	assert.Equal(t, "This node is has succeeded", message)
-
-}
-
 func noFilter(obj *unstructured.Unstructured) bool {
 	return true
 }

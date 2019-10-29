@@ -1,0 +1,4 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+status:
+  status: Error
