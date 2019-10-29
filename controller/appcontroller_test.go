@@ -2,8 +2,8 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -724,7 +724,7 @@ func TestRefreshAppConditions(t *testing.T) {
 }
 
 func TestUpdateReconciledAt(t *testing.T) {
-	app := newFakeApp()
+	app := newFakeApp(fakeAppWithDestServer)
 	reconciledAt := metav1.NewTime(time.Now().Add(-1 * time.Second))
 	app.Status = argoappv1.ApplicationStatus{ReconciledAt: &reconciledAt}
 	app.Status.Sync = argoappv1.SyncStatus{ComparedTo: argoappv1.ComparedTo{Source: app.Spec.Source, Destination: app.Spec.Destination}}

@@ -2044,7 +2044,7 @@ func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 // IsDestinationPermitted validates if the provided application's destination is one of the allowed destinations for the project
 func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
 	for _, item := range proj.Spec.Destinations {
-		if globMatch(item.Server, dst.Server) && globMatch(item.Name, dst.Name) && globMatch(item.Namespace, dst.Namespace) {
+		if globMatch(item.Server, dst.Server) && globMatch(item.Namespace, dst.Namespace) {
 			return true
 		}
 	}
