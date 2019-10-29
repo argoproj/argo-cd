@@ -354,7 +354,6 @@ func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 
 	assert.Equal(t, argoappv1.HealthStatusUnknown, compRes.healthStatus.Status)
 	assert.Equal(t, argoappv1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
-	assert.NotNil(t, compRes.reconciledAt)
 }
 
 func TestSetManagedResourcesKnownOrphanedResourceExceptions(t *testing.T) {
