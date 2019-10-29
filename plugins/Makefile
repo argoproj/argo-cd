@@ -1,10 +1,9 @@
-build: bin/helm-v3 bin/test-dummy
+build: helm-v3 test-dummy
 
-bin/helm-v3:
+.PHONY: helm-v3
+helm-v3:
 	go build -o bin/helm-v3 ./helm-v3
 
-bin/test-dummy:
+.PHONY: test-dummy
+test-dummy:
 	go build -o bin/test-dummy ./test-dummy
-
-clean:
-	rm bin/*
