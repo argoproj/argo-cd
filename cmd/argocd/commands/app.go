@@ -1741,7 +1741,6 @@ func waitOnApplicationStatus(opts applicationStatusOpts) (*argoappv1.Application
 		}
 		_ = w.Flush()
 		if opts.watch.delete {
-			fmt.Println("inside check")
 			_, err := appClient.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &opts.appName})
 			if err != nil {
 				if strings.HasSuffix(err.Error(), "not found") {
