@@ -1046,6 +1046,18 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	var command = &cobra.Command{
 		Use:   "delete APPNAME",
 		Short: "Delete an application",
+		Example: `
+  # Delete an app and all resources created by the app
+  argocd app delete app1
+
+  # Delete only the app manifest and leave all resources untouched
+  argocd app delete app2 --cascade false
+
+  # Wait for app to be deleted before returning
+  argocd app delete app3 --wait
+
+  # Wait for 60s for app to be deleted before returning
+  argocd app delete app4 --wait --timeout 60`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
@@ -1660,7 +1672,9 @@ func waitOnApplicationStatus(opts applicationStatusOpts) (*argoappv1.Application
 	delete := make(chan bool, 1)
 	if opts.timeout != 0 {
 		time.AfterFunc(time.Duration(opts.timeout)*time.Second, func() {
-			delete <- false
+			if opts.watch.delete {
+				delete <- false
+			}
 			cancel()
 		})
 	}
