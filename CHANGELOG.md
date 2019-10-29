@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.3.0-rc2 (2019-20-23)
+## v1.3.0-rc2 (2019-10-23)
 
 - Issue #2339 - Controller should compare with latest git revision if app has changed (#2543)
 - Unknown child app should not affect app health (#2544)

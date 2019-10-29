@@ -327,6 +327,7 @@ export interface SyncStatus {
 export interface ApplicationCondition {
     type: string;
     message: string;
+    lastTransitionTime: string;
 }
 
 export interface ApplicationSummary {
