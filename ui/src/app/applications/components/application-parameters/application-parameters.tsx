@@ -2,7 +2,14 @@ import {DataLoader, FormField, FormSelect, getNestedField} from 'argo-ui';
 import * as React from 'react';
 import {FieldApi, FormApi, FormField as ReactFormField, Text, TextArea} from 'react-form';
 
-import {ArrayInputField, CheckboxField, EditablePanel, EditablePanelItem, Expandable, TagsInputField} from '../../../shared/components';
+import {
+    ArrayInputField,
+    CheckboxField,
+    EditablePanel,
+    EditablePanelItem,
+    Expandable,
+    TagsInputField,
+} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {ApplicationSourceDirectory, AuthSettings} from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -274,6 +281,17 @@ export const ApplicationParameters = (props: {
                     )}
                 </DataLoader>
             )
+        });
+        attributes.push({
+            title: 'SPEC',
+            view: app.spec.source.plugin && app.spec.source.plugin.spec,
+            edit: (formApi: FormApi) => (
+                <DataLoader load={() => services.authService.settings()}>
+                    {(settings: AuthSettings) => (
+                        <FormField formApi={formApi} field='spec.source.plugin.spec' component={Text}/>
+                    )}
+                </DataLoader>
+            ),
         });
         attributes.push({
             title: 'ENV',

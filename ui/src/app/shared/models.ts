@@ -188,6 +188,7 @@ export interface EnvEntry {
 export interface ApplicationSourcePlugin {
     name: string;
     env: EnvEntry[];
+    spec?: string;
 }
 
 export interface JsonnetVar {
@@ -495,6 +496,7 @@ export interface KustomizeAppSpec {
 export interface PluginAppSpec {
     name: string;
     env: EnvEntry[];
+    spec?: string;
 }
 
 export interface ObjectReference {

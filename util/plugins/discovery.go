@@ -22,7 +22,11 @@ func (p Plugin) Discover(path string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return strings.Split(strings.TrimSuffix(output, "\n"), "\n"), nil
+	split := strings.Split(output, "\n")
+	if len(split) == 1 && split[0] == "" {
+		return nil, nil
+	}
+	return split, nil
 }
 
 var plugins map[string]Plugin
