@@ -72,11 +72,14 @@ export async function createApplication(app: appModels.Application, notification
     return false;
 }
 
-export const OperationPhaseIcon = ({phase}: {phase: appModels.OperationPhase}) => {
+export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
+    const operationState = getAppOperationState(app);
+    if (operationState === undefined) {
+        return <React.Fragment />;
+    }
     let className = '';
     let color = '';
-
-    switch (phase) {
+    switch (operationState.phase) {
         case appModels.OperationPhases.Succeeded:
             className = 'fa fa-check-circle';
             color = COLORS.operation.success;
@@ -94,7 +97,7 @@ export const OperationPhaseIcon = ({phase}: {phase: appModels.OperationPhase}) =
             color = COLORS.operation.running;
             break;
     }
-    return <i title={phase} className={className} style={{color}} />;
+    return <i title={operationState.phase} className={className} style={{color}} />;
 };
 
 export const ComparisonStatusIcon = ({status, resource, label}: {status: appModels.SyncStatusCode; resource?: {requiresPruning?: boolean}; label?: boolean}) => {
@@ -245,16 +248,49 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
     return null;
 };
 
+export const getAppOperationState = (app: appModels.Application): appModels.OperationState => {
+    if (app.metadata.deletionTimestamp) {
+        return {
+            phase: appModels.OperationPhases.Running,
+            startedAt: app.metadata.deletionTimestamp
+        } as appModels.OperationState;
+    } else if (app.operation) {
+        return {
+            phase: appModels.OperationPhases.Running,
+            startedAt: new Date().toISOString(),
+            operation: {
+                sync: {}
+            }
+        } as appModels.OperationState;
+    } else {
+        return app.status.operationState;
+    }
+};
+
 export function getOperationType(application: appModels.Application) {
     if (application.metadata.deletionTimestamp) {
-        return 'deletion';
+        return 'Delete';
     }
     const operation = application.operation || (application.status.operationState && application.status.operationState.operation);
     if (operation && operation.sync) {
-        return 'synchronization';
+        return 'Sync';
     }
-    return 'unknown operation';
+    return 'Unknown';
 }
+
+export const OperationState = ({app}: {app: appModels.Application}) => {
+    const appOperationState = getAppOperationState(app);
+    if (appOperationState === undefined) {
+        return <React.Fragment />;
+    }
+    return (
+        <React.Fragment>
+            <OperationPhaseIcon app={app} />
+            &nbsp;
+            {getOperationType(app)}
+        </React.Fragment>
+    );
+};
 
 export function getPodStateReason(pod: appModels.State): {message: string; reason: string} {
     let reason = pod.status.phase;

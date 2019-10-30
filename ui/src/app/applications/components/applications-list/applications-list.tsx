@@ -26,9 +26,13 @@ const APP_FIELDS = [
     'metadata.labels',
     'metadata.resourceVersion',
     'metadata.creationTimestamp',
+    'metadata.deletionTimestamp',
     'spec',
+    'operation.sync',
     'status.sync.status',
     'status.health',
+    'status.operationState.phase',
+    'status.operationState.operation.sync',
     'status.summary'
 ];
 const APP_LIST_FIELDS = APP_FIELDS.map(field => `items.${field}`);
