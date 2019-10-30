@@ -50,13 +50,14 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	)
 
 	// For better readability and easier formatting
-	var repoAddExamples = `
-Add a SSH repository using a private key for authentication, ignoring the server's host key:
-  $ argocd repo add git@git.example.com/repos/repo --insecure-ignore-host-key --ssh-private-key-path ~/id_rsa
-Add a HTTPS repository using username/password and TLS client certificates:
-  $ argocd repo add https://git.example.com/repos/repo --username git --password secret --tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key
-Add a HTTPS repository using username/password without verifying the server's TLS certificate
-	$ argocd repo add https://git.example.com/repos/repo --username git --password secret --insecure-skip-server-verification
+	var repoAddExamples = `  # Add a SSH repository using a private key for authentication, ignoring the server's host key:
+  argocd repo add git@git.example.com/repos/repo --insecure-ignore-host-key --ssh-private-key-path ~/id_rsa
+
+  # Add a HTTPS repository using username/password and TLS client certificates:
+  argocd repo add https://git.example.com/repos/repo --username git --password secret --tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key
+
+  # Add a HTTPS repository using username/password without verifying the server's TLS certificate
+  argocd repo add https://git.example.com/repos/repo --username git --password secret --insecure-skip-server-verification
 `
 
 	var command = &cobra.Command{
@@ -240,14 +241,21 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			}
 			repos, err := repoIf.ListRepositories(context.Background(), &repositorypkg.RepoQuery{ForceRefresh: forceRefresh})
 			errors.CheckError(err)
-			if output == "url" {
+			switch output {
+			case "yaml", "json":
+				err := PrintResourceList(repos.Items, output, false)
+				errors.CheckError(err)
+			case "url":
 				printRepoUrls(repos.Items)
-			} else {
+				// wide is the default
+			case "wide", "":
 				printRepoTable(repos.Items)
+			default:
+				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|url")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|url")
 	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status")
 	return command
 }
