@@ -72,11 +72,14 @@ export async function createApplication(app: appModels.Application, notification
     return false;
 }
 
-export const OperationPhaseIcon = ({phase}: {phase: appModels.OperationPhase}) => {
+export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
+    const operationState = getAppOperationState(app);
+    if (operationState === undefined) {
+        return <React.Fragment />;
+    }
     let className = '';
     let color = '';
-
-    switch (phase) {
+    switch (operationState.phase) {
         case appModels.OperationPhases.Succeeded:
             className = 'fa fa-check-circle';
             color = COLORS.operation.success;
@@ -94,7 +97,7 @@ export const OperationPhaseIcon = ({phase}: {phase: appModels.OperationPhase}) =
             color = COLORS.operation.running;
             break;
     }
-    return <i title={phase} className={className} style={{color}} />;
+    return <i title={operationState.phase} className={className} style={{color}} />;
 };
 
 export const ComparisonStatusIcon = ({status, resource, label}: {status: appModels.SyncStatusCode; resource?: {requiresPruning?: boolean}; label?: boolean}) => {
@@ -277,14 +280,15 @@ export function getOperationType(application: appModels.Application) {
 
 export const OperationState = ({app}: {app: appModels.Application}) => {
     const appOperationState = getAppOperationState(app);
-    return appOperationState ? (
+    if (appOperationState === undefined) {
+        return <React.Fragment />;
+    }
+    return (
         <React.Fragment>
-            <OperationPhaseIcon phase={appOperationState.phase} />
+            <OperationPhaseIcon app={app} />
             &nbsp;
             {getOperationType(app)}
         </React.Fragment>
-    ) : (
-        <React.Fragment />
     );
 };
 

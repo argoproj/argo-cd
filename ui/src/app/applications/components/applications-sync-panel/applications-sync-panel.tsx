@@ -4,7 +4,7 @@ import {Checkbox, Form, FormApi} from 'react-form';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon, OperationPhaseIcon} from '../utils';
 
 export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: models.Application[]; hide: () => void}) => {
     const [form, setForm] = React.useState<FormApi>(null);
@@ -87,6 +87,8 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                                 <ComparisonStatusIcon status={app.status.sync.status} />
                                                 &nbsp;
                                                 <HealthStatusIcon state={app.status.health} />
+                                                &nbsp;
+                                                <OperationPhaseIcon app={app} />
                                                 <br />
                                             </label>
                                         ))}
