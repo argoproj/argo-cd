@@ -7,6 +7,7 @@ import * as models from '../../../shared/models';
 
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
+import {OperationState} from '../utils';
 
 require('./applications-tiles.scss');
 
@@ -68,6 +69,8 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                             <AppUtils.HealthStatusIcon state={app.status.health} /> {app.status.health.status}
                                             &nbsp;
                                             <AppUtils.ComparisonStatusIcon status={app.status.sync.status} /> {app.status.sync.status}
+                                            &nbsp;
+                                            <OperationState app={app} />
                                         </div>
                                     </div>
                                     <div className='row'>
