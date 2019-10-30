@@ -277,14 +277,14 @@ export function getOperationType(application: appModels.Application) {
 
 export const OperationState = ({app}: {app: appModels.Application}) => {
     const appOperationState = getAppOperationState(app);
-    return (
-        appOperationState && (
-            <React.Fragment>
-                <OperationPhaseIcon phase={appOperationState.phase} />
-                &nbsp;
-                {getOperationType(app)}
-            </React.Fragment>
-        )
+    return appOperationState ? (
+        <React.Fragment>
+            <OperationPhaseIcon phase={appOperationState.phase} />
+            &nbsp;
+            {getOperationType(app)}
+        </React.Fragment>
+    ) : (
+        <React.Fragment />
     );
 };
 
