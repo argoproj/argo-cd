@@ -12,6 +12,7 @@ import (
 	argoexec "github.com/argoproj/pkg/exec"
 
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/security"
 )
 
@@ -39,6 +40,7 @@ func (c Cmd) run(args ...string) (string, error) {
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, fmt.Sprintf("HELM_HOME=%s", c.helmHome))
 	return argoexec.RunCommandExt(cmd, argoexec.CmdOpts{
+		Timeout:  config.CmdOpts().Timeout,
 		Redactor: redactor,
 	})
 }
