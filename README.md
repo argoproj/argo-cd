@@ -30,3 +30,5 @@ The GitOps Engine follows the [CNCF Code of Conduct](https://github.com/cncf/fou
 ## Get involved
 
 If you are as excited about GitOps and one common engine for it as much as we are, please get in touch. If you want to write code that's great, if you want to share feedback, ideas and use-cases, that's great too.
+
+Find us on the [#gitops channel](https://kubernetes.slack.com/messages/gitops) on Kubernetes Slack (get an [invite here](https://kubernetes.slack.com/)).
