@@ -284,7 +284,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                 key='syncsPanel'
                                                                 show={syncAppsInput}
                                                                 hide={() => ctx.navigation.goto('.', {syncApps: null})}
-                                                                apps={applications}
+                                                                apps={filterApps(applications, pref, pref.search)}
                                                             />
                                                         )}
                                                     </div>

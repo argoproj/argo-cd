@@ -29,6 +29,10 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                     <Form
                         onSubmit={async (params: any) => {
                             const selectedApps = getSelectedApps(params);
+                            if (selectedApps.length === 0) {
+                                ctx.notifications.show({content: `No apps selected`, type: NotificationType.Error});
+                                return;
+                            }
                             ctx.notifications.show({
                                 content: `Syncing ${selectedApps.length} app(s)`,
                                 type: NotificationType.Success
@@ -42,6 +46,7 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                     });
                                 });
                             }
+                            hide();
                         }}
                         getApi={setForm}>
                         {formApi => (
