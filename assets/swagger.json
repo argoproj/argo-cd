@@ -2304,19 +2304,6 @@
         }
       }
     },
-    "repositoryKustomizeAppSpec": {
-      "type": "object",
-      "title": "KustomizeAppSpec contains kustomize images",
-      "properties": {
-        "images": {
-          "description": "images is a list of available images.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      }
-    },
     "repositoryManifestResponse": {
       "type": "object",
       "properties": {
@@ -2362,8 +2349,8 @@
         "ksonnet": {
           "$ref": "#/definitions/repositoryKsonnetAppSpec"
         },
-        "kustomize": {
-          "$ref": "#/definitions/repositoryKustomizeAppSpec"
+        "plugin": {
+          "type": "string"
         },
         "type": {
           "type": "string"
