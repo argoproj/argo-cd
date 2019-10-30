@@ -989,6 +989,9 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil {
 		a.Spec.SyncPolicy.Automated = nil
 		a, err = appIf.Update(a)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var deploymentInfo *appv1.RevisionHistory
