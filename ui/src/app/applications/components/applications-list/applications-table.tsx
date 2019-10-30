@@ -71,9 +71,7 @@ export const ApplicationsTable = (props: {
                             <div className='columns small-2'>
                                 <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span>
                                 <br />
-                                <AppUtils.ComparisonStatusIcon status={app.status.sync.status} /> <span>{app.status.sync.status}</span>
-                                {' '}
-                                <OperationState app={app} />
+                                <AppUtils.ComparisonStatusIcon status={app.status.sync.status} /> <span>{app.status.sync.status}</span> <OperationState app={app} />
                                 <DropDownMenu
                                     anchor={() => (
                                         <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
