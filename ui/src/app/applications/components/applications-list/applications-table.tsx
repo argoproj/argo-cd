@@ -72,7 +72,7 @@ export const ApplicationsTable = (props: {
                                 <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span>
                                 <br />
                                 <AppUtils.ComparisonStatusIcon status={app.status.sync.status} /> <span>{app.status.sync.status}</span>
-                                <br />
+                                {' '}
                                 <OperationState app={app} />
                                 <DropDownMenu
                                     anchor={() => (
