@@ -13,8 +13,6 @@ import {
 import * as models from '../../../shared/models';
 import {ApplicationSourceDirectory, AuthSettings} from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {ImageTagFieldEditor} from './kustomize';
-import * as kustomize from './kustomize-image';
 import {VarsInputField} from './vars-input-field';
 
 const TextWithMetadataField = ReactFormField((props: {metadata: {value: string}; fieldApi: FieldApi; className: string}) => {
@@ -164,50 +162,6 @@ export const ApplicationParameters = (props: {
                 })
             )
         );
-    } else if (props.details.type === 'Kustomize' && props.details.kustomize) {
-        attributes.push({
-            title: 'NAME PREFIX',
-            view: app.spec.source.kustomize && app.spec.source.kustomize.namePrefix,
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.kustomize.namePrefix' component={Text} />
-        });
-
-        attributes.push({
-            title: 'NAME SUFFIX',
-            view: app.spec.source.kustomize && app.spec.source.kustomize.nameSuffix,
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.kustomize.nameSuffix' component={Text} />
-        });
-
-        const srcImages = ((props.details && props.details.kustomize && props.details.kustomize.images) || []).map(val => kustomize.parse(val));
-        const images = ((source.kustomize && source.kustomize.images) || []).map(val => kustomize.parse(val));
-
-        if (srcImages.length > 0) {
-            const imagesByName = new Map<string, kustomize.Image>();
-            srcImages.forEach(img => imagesByName.set(img.name, img));
-
-            const overridesByName = new Map<string, number>();
-            images.forEach((override, i) => overridesByName.set(override.name, i));
-
-            attributes = attributes.concat(
-                getParamsEditableItems(
-                    app,
-                    'IMAGES',
-                    'spec.source.kustomize.images',
-                    removedOverrides,
-                    setRemovedOverrides,
-                    distinct(imagesByName.keys(), overridesByName.keys()).map(name => {
-                        const param = imagesByName.get(name);
-                        const original = param && kustomize.format(param);
-                        let overrideIndex = overridesByName.get(name);
-                        if (overrideIndex === undefined) {
-                            overrideIndex = -1;
-                        }
-                        const value = (overrideIndex > -1 && kustomize.format(images[overrideIndex])) || original;
-                        return {overrideIndex, original, metadata: {name, value}};
-                    }),
-                    ImageTagFieldEditor
-                )
-            );
-        }
     } else if (props.details.type === 'Helm' && props.details.helm) {
         attributes.push({
             title: 'VALUES FILES',

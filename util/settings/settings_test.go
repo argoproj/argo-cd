@@ -97,25 +97,6 @@ func TestGetResourceOverrides(t *testing.T) {
 	}, webHookOverrides)
 }
 
-func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
-	t.Run("Empty", func(t *testing.T) {
-		_, settingsManager := fixtures(map[string]string{})
-
-		options, err := settingsManager.GetKustomizeBuildOptions()
-
-		assert.NoError(t, err)
-		assert.Empty(t, options)
-	})
-	t.Run("Set", func(t *testing.T) {
-		_, settingsManager := fixtures(map[string]string{"kustomize.buildOptions": "foo"})
-
-		options, err := settingsManager.GetKustomizeBuildOptions()
-
-		assert.NoError(t, err)
-		assert.Equal(t, "foo", options)
-	})
-}
-
 func TestGetGoogleAnalytics(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		"ga.trackingid": "123",

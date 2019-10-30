@@ -54,8 +54,8 @@ message RepoAppDetailsResponse {
 	string type = 1;
 	KsonnetAppSpec ksonnet = 2;
 	HelmAppSpec helm = 3;
-	KustomizeAppSpec kustomize = 4;
-	DirectoryAppSpec directory = 5;
+    DirectoryAppSpec directory = 4;
+    string plugin = 5;
 }
 
 message RepoServerRevisionMetadataRequest {
@@ -81,12 +81,6 @@ message HelmAppSpec {
 	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.HelmParameter parameters = 4;
 	// the contents of values.yaml
 	string values = 5;
-}
-
-// KustomizeAppSpec contains kustomize images
-message KustomizeAppSpec {
-	// images is a list of available images.
-	repeated string images = 3;
 }
 
 message KsonnetEnvironment {

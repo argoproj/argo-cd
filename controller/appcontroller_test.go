@@ -430,7 +430,6 @@ func TestNormalizeApplication(t *testing.T) {
 	}
 	app := newFakeApp()
 	app.Spec.Project = ""
-	app.Spec.Source.Kustomize = &argoappv1.ApplicationSourceKustomize{NamePrefix: "foo-"}
 	data := fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{

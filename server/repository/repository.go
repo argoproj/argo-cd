@@ -162,16 +162,11 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if err != nil {
 		return nil, err
 	}
-	buildOptions, err := s.settings.GetKustomizeBuildOptions()
-	if err != nil {
-		return nil, err
-	}
 	return repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 		Repo:   repo,
 		Source: q.Source,
 		Repos:  helmRepos,
 		PluginOptions: &appsv1.PluginOptions{
-			BuildOptions: buildOptions,
 		},
 	})
 }

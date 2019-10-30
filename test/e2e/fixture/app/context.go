@@ -24,8 +24,6 @@ type Context struct {
 	destServer       string
 	env              string
 	parameters       []string
-	namePrefix       string
-	nameSuffix       string
 	resource         string
 	prune            bool
 	plugin           string
@@ -172,16 +170,6 @@ func (c *Context) Parameter(parameter string) *Context {
 // group:kind:name
 func (c *Context) SelectedResource(resource string) *Context {
 	c.resource = resource
-	return c
-}
-
-func (c *Context) NamePrefix(namePrefix string) *Context {
-	c.namePrefix = namePrefix
-	return c
-}
-
-func (c *Context) NameSuffix(nameSuffix string) *Context {
-	c.nameSuffix = nameSuffix
 	return c
 }
 

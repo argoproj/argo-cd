@@ -26,7 +26,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourceHelm":            schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourceJsonnet":         schema_pkg_apis_application_v1alpha1_ApplicationSourceJsonnet(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourceKsonnet":         schema_pkg_apis_application_v1alpha1_ApplicationSourceKsonnet(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourceKustomize":       schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourcePlugin":          schema_pkg_apis_application_v1alpha1_ApplicationSourcePlugin(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSpec":                  schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationStatus":                schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref),
@@ -502,12 +501,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSource(ref common.Reference
 							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourceHelm"),
 						},
 					},
-					"kustomize": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Kustomize holds kustomize specific options",
-							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourceKustomize"),
-						},
-					},
 					"ksonnet": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Ksonnet holds ksonnet specific options",
@@ -538,7 +531,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSource(ref common.Reference
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourceDirectory", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourceHelm", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourceKsonnet", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourceKustomize", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourcePlugin"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourceDirectory", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourceHelm", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourceKsonnet", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourcePlugin"},
 	}
 }
 
@@ -696,62 +689,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKsonnet(ref common.Re
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.KsonnetParameter"},
-	}
-}
-
-func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "ApplicationSourceKustomize holds kustomize specific options",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"namePrefix": {
-						SchemaProps: spec.SchemaProps{
-							Description: "NamePrefix is a prefix appended to resources for kustomize apps",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"nameSuffix": {
-						SchemaProps: spec.SchemaProps{
-							Description: "NameSuffix is a suffix appended to resources for kustomize apps",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"images": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Images are kustomize image overrides",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
-									},
-								},
-							},
-						},
-					},
-					"commonLabels": {
-						SchemaProps: spec.SchemaProps{
-							Description: "CommonLabels adds additional kustomize commonLabels",
-							Type:        []string{"object"},
-							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
 	}
 }
 

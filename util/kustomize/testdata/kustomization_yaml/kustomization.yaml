@@ -1,8 +1,0 @@
-resources:
-- ./deployment.yaml
-- ./statefullset.yaml
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-images:
-- name: k8s.gcr.io/nginx-slim
-  newTag: "0.9"

@@ -29,6 +29,14 @@ func (p Plugin) Discover(path string) ([]string, error) {
 	return split, nil
 }
 
+func (p Plugin) Version() (string, error) {
+	output, err := exec.RunCommand(p.Path, config.CmdOpts(), "version")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(output), nil
+}
+
 var plugins map[string]Plugin
 
 func lazyInit() {

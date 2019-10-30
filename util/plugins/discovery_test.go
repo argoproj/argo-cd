@@ -8,7 +8,7 @@ import (
 
 func TestNames(t *testing.T) {
 	names := Names()
-	assert.Len(t, names, 2)
+	assert.Len(t, names, 3)
 }
 
 func TestGet(t *testing.T) {

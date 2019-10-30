@@ -186,14 +186,6 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	if err != nil {
 		return nil, err
 	}
-	// If source is Kustomize add build options
-	buildOptions, err := s.settingsMgr.GetKustomizeBuildOptions()
-	if err != nil {
-		return nil, err
-	}
-	pluginOptions := appv1.PluginOptions{
-		BuildOptions: buildOptions,
-	}
 	cluster, err := s.db.GetCluster(context.Background(), a.Spec.Destination.Server)
 	if err != nil {
 		return nil, err
@@ -210,7 +202,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		Namespace:         a.Spec.Destination.Namespace,
 		ApplicationSource: &a.Spec.Source,
 		Repos:             helmRepos,
-		PluginOptions:     &pluginOptions,
+		PluginOptions:     &appv1.PluginOptions{},
 		KubeVersion:       cluster.ServerVersion,
 	})
 	if err != nil {
@@ -562,13 +554,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		}
 	}
 
-	buildOptions, err := s.settingsMgr.GetKustomizeBuildOptions()
-	if err != nil {
-		return err
-	}
-	pluginOptions := appv1.PluginOptions{
-		BuildOptions: buildOptions,
-	}
+	pluginOptions := appv1.PluginOptions{}
 
 	conditions, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, &pluginOptions, s.kubectl)
 	if err != nil {

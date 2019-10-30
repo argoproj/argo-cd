@@ -36,7 +36,6 @@ import (
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/kustomize"
 	"github.com/argoproj/argo-cd/util/plugins"
 	"github.com/argoproj/argo-cd/util/text"
 )
@@ -287,10 +286,7 @@ func GenerateManifests(appPath, revision string, q *apiclient.ManifestRequest) (
 	if err != nil {
 		return nil, err
 	}
-	repoURL := ""
-	if q.Repo != nil {
-		repoURL = q.Repo.Repo
-	}
+
 	env := newEnv(q, revision, text.SemVer(q.KubeVersion), q.Repos)
 
 	switch appSourceType {
@@ -298,9 +294,6 @@ func GenerateManifests(appPath, revision string, q *apiclient.ManifestRequest) (
 		targetObjs, dest, err = ksShow(q.AppLabelKey, appPath, q.ApplicationSource.Ksonnet)
 	case v1alpha1.ApplicationSourceTypeHelm:
 		targetObjs, err = helmTemplate(appPath, env, q)
-	case v1alpha1.ApplicationSourceTypeKustomize:
-		k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), repoURL)
-		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.PluginOptions)
 	case v1alpha1.ApplicationSourceTypePlugin:
 		targetObjs, err = runPlugin(appPath, env, q, q.Repo.GetGitCreds())
 	case v1alpha1.ApplicationSourceTypeDirectory:
@@ -657,14 +650,8 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 					Value: v,
 				})
 			}
-		case v1alpha1.ApplicationSourceTypeKustomize:
-			res.Kustomize = &apiclient.KustomizeAppSpec{}
-			k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), q.Repo.Repo)
-			_, images, err := k.Build(nil, q.PluginOptions)
-			if err != nil {
-				return err
-			}
-			res.Kustomize.Images = images
+		case v1alpha1.ApplicationSourceTypePlugin:
+			// TODO
 		}
 		_ = s.cache.SetAppDetails(revision, q.Source, res)
 		return nil

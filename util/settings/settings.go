@@ -65,8 +65,6 @@ type ArgoCDSettings struct {
 	WebhookGogsSecret string `json:"webhookGogsSecret,omitempty"`
 	// Secrets holds all secrets in argocd-secret as a map[string]string
 	Secrets map[string]string `json:"secrets,omitempty"`
-	// KustomizeBuildOptions is a string of kustomize build parameters
-	KustomizeBuildOptions string
 	// Indicates if anonymous user is enabled or not
 	AnonymousUserEnabled bool
 }
@@ -197,8 +195,6 @@ const (
 	resourceExclusionsKey = "resource.exclusions"
 	// resourceInclusions is the key to the list of explicitly watched resources
 	resourceInclusionsKey = "resource.inclusions"
-	// kustomizeBuildOptions is a string of kustomize build parameters
-	kustomizeBuildOptions = "kustomize.buildOptions"
 	// anonymousUserEnabledKey is the key which enables or disables anonymous user
 	anonymousUserEnabledKey = "users.anonymous.enabled"
 )
@@ -316,15 +312,6 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 	}
 
 	return resourceOverrides, nil
-}
-
-// GetKustomizeBuildOptions loads the kustomize build options from argocd-cm ConfigMap
-func (mgr *SettingsManager) GetKustomizeBuildOptions() (string, error) {
-	argoCDCM, err := mgr.getConfigMap()
-	if err != nil {
-		return "", err
-	}
-	return argoCDCM.Data[kustomizeBuildOptions], nil
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials

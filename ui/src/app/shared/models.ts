@@ -154,8 +154,6 @@ export interface ApplicationSource {
 
     helm?: ApplicationSourceHelm;
 
-    kustomize?: ApplicationSourceKustomize;
-
     ksonnet?: ApplicationSourceKsonnet;
 
     plugin?: ApplicationSourcePlugin;
@@ -167,12 +165,6 @@ export interface ApplicationSourceHelm {
     valueFiles: string[];
     values?: string;
     parameters: HelmParameter[];
-}
-
-export interface ApplicationSourceKustomize {
-    namePrefix: string;
-    nameSuffix: string;
-    images: string[];
 }
 
 export interface ApplicationSourceKsonnet {
@@ -459,14 +451,13 @@ export interface HelmChart {
     versions: string[];
 }
 
-export type AppSourceType = 'Helm' | 'Kustomize' | 'Ksonnet' | 'Directory' | 'Plugin';
+export type AppSourceType = 'Helm' | 'Ksonnet' | 'Directory' | 'Plugin';
 
 export interface RepoAppDetails {
     type: AppSourceType;
     path: string;
     ksonnet?: KsonnetAppSpec;
     helm?: HelmAppSpec;
-    kustomize?: KustomizeAppSpec;
     plugin?: PluginAppSpec;
     directory?: {};
 }
@@ -487,11 +478,6 @@ export interface HelmAppSpec {
     valueFiles: string[];
     values?: string;
     parameters: HelmParameter[];
-}
-
-export interface KustomizeAppSpec {
-    path: string;
-    images?: string[];
 }
 
 export interface PluginAppSpec {

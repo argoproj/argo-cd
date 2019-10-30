@@ -9,6 +9,7 @@ package version;
 import "google/api/annotations.proto";
 import "google/protobuf/empty.proto";
 
+
 // VersionMessage represents version of the Argo CD API server
 message VersionMessage {
 	string Version = 1;
@@ -20,9 +21,9 @@ message VersionMessage {
 	string Compiler = 7;
 	string Platform = 8;
 	string KsonnetVersion = 9;
-	string KustomizeVersion = 10;
-	string HelmVersion = 11;
-	string KubectlVersion = 12;
+	string HelmVersion = 10;
+	string KubectlVersion = 11;
+	map<string, string> pluginVersions = 12;
 }
 
 // VersionService returns the version of the API server.

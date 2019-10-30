@@ -3090,9 +3090,6 @@
         "ksonnet": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceKsonnet"
         },
-        "kustomize": {
-          "$ref": "#/definitions/v1alpha1ApplicationSourceKustomize"
-        },
         "path": {
           "type": "string",
           "title": "Path is a directory path within the Git repository"
@@ -3184,34 +3181,6 @@
           "items": {
             "$ref": "#/definitions/v1alpha1KsonnetParameter"
           }
-        }
-      }
-    },
-    "v1alpha1ApplicationSourceKustomize": {
-      "type": "object",
-      "title": "ApplicationSourceKustomize holds kustomize specific options",
-      "properties": {
-        "commonLabels": {
-          "type": "object",
-          "title": "CommonLabels adds additional kustomize commonLabels",
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "images": {
-          "type": "array",
-          "title": "Images are kustomize image overrides",
-          "items": {
-            "type": "string"
-          }
-        },
-        "namePrefix": {
-          "type": "string",
-          "title": "NamePrefix is a prefix appended to resources for kustomize apps"
-        },
-        "nameSuffix": {
-          "type": "string",
-          "title": "NameSuffix is a suffix appended to resources for kustomize apps"
         }
       }
     },
@@ -4393,14 +4362,17 @@
         "KubectlVersion": {
           "type": "string"
         },
-        "KustomizeVersion": {
-          "type": "string"
-        },
         "Platform": {
           "type": "string"
         },
         "Version": {
           "type": "string"
+        },
+        "pluginVersions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     }

@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/argoproj/argo-cd/util/kustomize"
 	"github.com/argoproj/argo-cd/util/plugins"
 )
 
@@ -33,9 +32,6 @@ func Discover(root string) (map[string]string, error) {
 		}
 		if strings.HasSuffix(base, "Chart.yaml") {
 			apps[dir] = "Helm"
-		}
-		if kustomize.IsKustomization(base) {
-			apps[dir] = "Kustomize"
 		}
 		return nil
 	})

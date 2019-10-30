@@ -132,9 +132,6 @@ message ApplicationSource {
   // Helm holds helm specific options
   optional ApplicationSourceHelm helm = 7;
 
-  // Kustomize holds kustomize specific options
-  optional ApplicationSourceKustomize kustomize = 8;
-
   // Ksonnet holds ksonnet specific options
   optional ApplicationSourceKsonnet ksonnet = 9;
 
@@ -185,21 +182,6 @@ message ApplicationSourceKsonnet {
 
   // Parameters are a list of ksonnet component parameter override values
   repeated KsonnetParameter parameters = 2;
-}
-
-// ApplicationSourceKustomize holds kustomize specific options
-message ApplicationSourceKustomize {
-  // NamePrefix is a prefix appended to resources for kustomize apps
-  optional string namePrefix = 1;
-
-  // NameSuffix is a suffix appended to resources for kustomize apps
-  optional string nameSuffix = 2;
-
-  // Images are kustomize image overrides
-  repeated string images = 3;
-
-  // CommonLabels adds additional kustomize commonLabels
-  map<string, string> commonLabels = 4;
 }
 
 // ApplicationSourcePlugin holds config management plugin specific options

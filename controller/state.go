@@ -114,10 +114,6 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		revision = source.TargetRevision
 	}
 
-	buildOptions, err := m.settingsMgr.GetKustomizeBuildOptions()
-	if err != nil {
-		return nil, nil, nil, err
-	}
 	cluster, err := m.db.GetCluster(context.Background(), app.Spec.Destination.Server)
 	if err != nil {
 		return nil, nil, nil, err
@@ -135,10 +131,8 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		AppLabelValue:     app.Name,
 		Namespace:         app.Spec.Destination.Namespace,
 		ApplicationSource: &source,
-		PluginOptions: &appv1.PluginOptions{
-			BuildOptions: buildOptions,
-		},
-		KubeVersion: cluster.ServerVersion,
+		PluginOptions:     &appv1.PluginOptions{},
+		KubeVersion:       cluster.ServerVersion,
 	})
 	if err != nil {
 		return nil, nil, nil, err

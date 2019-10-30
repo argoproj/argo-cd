@@ -411,9 +411,6 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 	// 3. If any app sources are their zero values, then nil out the pointers to the source spec.
 	// This makes it easier for users to switch between app source types if they are not using
 	// any of the source-specific parameters.
-	if spec.Source.Kustomize != nil && spec.Source.Kustomize.IsZero() {
-		spec.Source.Kustomize = nil
-	}
 	if spec.Source.Helm != nil && spec.Source.Helm.IsZero() {
 		spec.Source.Helm = nil
 	}

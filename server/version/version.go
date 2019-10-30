@@ -4,20 +4,19 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"golang.org/x/net/context"
 
-	"github.com/argoproj/argo-cd/util/helm"
-	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/kustomize"
-
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apiclient/version"
+	"github.com/argoproj/argo-cd/util/helm"
 	ksutil "github.com/argoproj/argo-cd/util/ksonnet"
+	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/plugins"
 )
 
 type Server struct {
-	ksonnetVersion   string
-	kustomizeVersion string
-	helmVersion      string
-	kubectlVersion   string
+	ksonnetVersion string
+	helmVersion    string
+	kubectlVersion string
+	pluginVersions map[string]string
 }
 
 // Version returns the version of the API server
@@ -29,13 +28,6 @@ func (s *Server) Version(context.Context, *empty.Empty) (*version.VersionMessage
 			return nil, err
 		}
 		s.ksonnetVersion = ksonnetVersion
-	}
-	if s.kustomizeVersion == "" {
-		kustomizeVersion, err := kustomize.Version()
-		if err != nil {
-			return nil, err
-		}
-		s.kustomizeVersion = kustomizeVersion
 	}
 	if s.helmVersion == "" {
 		helmVersion, err := helm.Version()
@@ -51,19 +43,28 @@ func (s *Server) Version(context.Context, *empty.Empty) (*version.VersionMessage
 		}
 		s.kubectlVersion = kubectlVersion
 	}
+	if len(s.pluginVersions) == 0 {
+		for name, plugin := range plugins.Plugins() {
+			v, err := plugin.Version()
+			if err != nil {
+				return nil, err
+			}
+			s.pluginVersions[name] = v
+		}
+	}
 	return &version.VersionMessage{
-		Version:          vers.Version,
-		BuildDate:        vers.BuildDate,
-		GitCommit:        vers.GitCommit,
-		GitTag:           vers.GitTag,
-		GitTreeState:     vers.GitTreeState,
-		GoVersion:        vers.GoVersion,
-		Compiler:         vers.Compiler,
-		Platform:         vers.Platform,
-		KsonnetVersion:   s.ksonnetVersion,
-		KustomizeVersion: s.kustomizeVersion,
-		HelmVersion:      s.helmVersion,
-		KubectlVersion:   s.kubectlVersion,
+		Version:        vers.Version,
+		BuildDate:      vers.BuildDate,
+		GitCommit:      vers.GitCommit,
+		GitTag:         vers.GitTag,
+		GitTreeState:   vers.GitTreeState,
+		GoVersion:      vers.GoVersion,
+		Compiler:       vers.Compiler,
+		Platform:       vers.Platform,
+		KsonnetVersion: s.ksonnetVersion,
+		HelmVersion:    s.helmVersion,
+		KubectlVersion: s.kubectlVersion,
+		PluginVersions: s.pluginVersions,
 	}, nil
 }
 

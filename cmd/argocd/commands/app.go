@@ -377,9 +377,6 @@ func printAppSourceDetails(appSrc *argoappv1.ApplicationSource) {
 	if appSrc.Helm != nil && len(appSrc.Helm.ValueFiles) > 0 {
 		fmt.Printf(printOpFmtStr, "Helm Values:", strings.Join(appSrc.Helm.ValueFiles, ","))
 	}
-	if appSrc.Kustomize != nil && appSrc.Kustomize.NamePrefix != "" {
-		fmt.Printf(printOpFmtStr, "Name Prefix:", appSrc.Kustomize.NamePrefix)
-	}
 }
 
 func printAppConditions(w io.Writer, app *argoappv1.Application) {
@@ -508,12 +505,6 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			spec.Destination.Namespace = appOpts.destNamespace
 		case "project":
 			spec.Project = appOpts.project
-		case "nameprefix":
-			setKustomizeOpt(&spec.Source, kustomizeOpts{namePrefix: appOpts.namePrefix})
-		case "namesuffix":
-			setKustomizeOpt(&spec.Source, kustomizeOpts{nameSuffix: appOpts.nameSuffix})
-		case "kustomize-image":
-			setKustomizeOpt(&spec.Source, kustomizeOpts{images: appOpts.kustomizeImages})
 		case "jsonnet-tla-str":
 			setJsonnetOpt(&spec.Source, appOpts.jsonnetTlaStr, false)
 		case "jsonnet-tla-code":
@@ -560,26 +551,6 @@ func setKsonnetOpt(src *argoappv1.ApplicationSource, env *string) {
 	}
 	if src.Ksonnet.IsZero() {
 		src.Ksonnet = nil
-	}
-}
-
-type kustomizeOpts struct {
-	namePrefix string
-	nameSuffix string
-	images     []string
-}
-
-func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
-	if src.Kustomize == nil {
-		src.Kustomize = &argoappv1.ApplicationSourceKustomize{}
-	}
-	src.Kustomize.NamePrefix = opts.namePrefix
-	src.Kustomize.NameSuffix = opts.nameSuffix
-	for _, image := range opts.images {
-		src.Kustomize.MergeImage(argoappv1.KustomizeImage(image))
-	}
-	if src.Kustomize.IsZero() {
-		src.Kustomize = nil
 	}
 }
 
@@ -677,15 +648,12 @@ type appOptions struct {
 	syncPolicy        string
 	autoPrune         bool
 	selfHeal          bool
-	namePrefix        string
-	nameSuffix        string
 	directoryRecurse  bool
 	plugin            string
 	jsonnetTlaStr     []string
 	jsonnetTlaCode    []string
 	jsonnetExtVarStr  []string
 	jsonnetExtVarCode []string
-	kustomizeImages   []string
 }
 
 func addAppFlags(command *cobra.Command, opts *appOptions) {
@@ -705,15 +673,12 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: automated, none)")
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
 	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing when sync is automated")
-	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
-	command.Flags().StringVar(&opts.nameSuffix, "namesuffix", "", "Kustomize namesuffix")
 	command.Flags().BoolVar(&opts.directoryRecurse, "directory-recurse", false, "Recurse directory")
 	command.Flags().StringVar(&opts.plugin, "plugin", "", "Plugin")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaStr, "jsonnet-tla-str", []string{}, "Jsonnet top level string arguments")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaCode, "jsonnet-tla-code", []string{}, "Jsonnet top level code arguments")
 	command.Flags().StringArrayVar(&opts.jsonnetExtVarStr, "jsonnet-ext-var-str", []string{}, "Jsonnet string ext var")
 	command.Flags().StringArrayVar(&opts.jsonnetExtVarCode, "jsonnet-ext-var-code", []string{}, "Jsonnet ext var")
-	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
 }
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command

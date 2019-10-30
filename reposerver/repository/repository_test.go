@@ -244,20 +244,6 @@ func TestGenerateNullList(t *testing.T) {
 	assert.Equal(t, 2, len(res1.Manifests))
 }
 
-func TestIdentifyAppSourceTypeByAppDirWithKustomizations(t *testing.T) {
-	sourceType, err := GetAppSourceType(&argoappv1.ApplicationSource{}, "./testdata/kustomization_yaml")
-	assert.Nil(t, err)
-	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
-
-	sourceType, err = GetAppSourceType(&argoappv1.ApplicationSource{}, "./testdata/kustomization_yml")
-	assert.Nil(t, err)
-	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
-
-	sourceType, err = GetAppSourceType(&argoappv1.ApplicationSource{}, "./testdata/Kustomization")
-	assert.Nil(t, err)
-	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
-}
-
 func TestRunCustomTool(t *testing.T) {
 	service := newService(".")
 
@@ -330,23 +316,6 @@ func TestGetAppDetailsHelm(t *testing.T) {
 	assert.EqualValues(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
 }
 
-func TestGetAppDetailsKustomize(t *testing.T) {
-	service := newService("../..")
-
-	res, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
-		Repo: &argoappv1.Repository{},
-		Source: &argoappv1.ApplicationSource{
-			Path: "./util/kustomize/testdata/kustomization_yaml",
-		},
-	})
-
-	assert.NoError(t, err)
-
-	assert.Equal(t, "Kustomize", res.Type)
-	assert.NotNil(t, res.Kustomize)
-	assert.EqualValues(t, []string{"nginx:1.15.4", "k8s.gcr.io/nginx-slim:0.8"}, res.Kustomize.Images)
-}
-
 func TestGetAppDetailsKsonnet(t *testing.T) {
 	service := newService("../..")
 
@@ -412,6 +381,8 @@ func Test_newEnv(t *testing.T) {
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: "https://github.com/my-org/my-repo"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: "my-path"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: "my-target-revision"},
+		&argoappv1.EnvEntry{Name: "ARGOCD_KUBE_VERSION", Value: "my-kube-version"},
+		&argoappv1.EnvEntry{Name: "ARGOCD_REPOS", Value: "[]"},
 	}, newEnv(&apiclient.ManifestRequest{
 		AppLabelValue: "my-app-name",
 		Namespace:     "my-namespace",
@@ -420,5 +391,5 @@ func Test_newEnv(t *testing.T) {
 			Path:           "my-path",
 			TargetRevision: "my-target-revision",
 		},
-	}, "my-revision"))
+	}, "my-revision", "my-kube-version", nil))
 }

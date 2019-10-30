@@ -10,16 +10,16 @@ func TestDiscover(t *testing.T) {
 	apps, err := Discover("./testdata")
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]string{
-		"foo": "Kustomize",
+		"foo": "Plugin",
 		"bar": "Ksonnet",
-		"baz": "helm",
+		"baz": "Plugin",
 	}, apps)
 }
 
 func TestAppType(t *testing.T) {
 	appType, err := AppType("./testdata/foo")
 	assert.NoError(t, err)
-	assert.Equal(t, "Kustomize", appType)
+	assert.Equal(t, "Plugin", appType)
 
 	appType, err = AppType("./testdata/bar")
 	assert.NoError(t, err)
@@ -27,7 +27,7 @@ func TestAppType(t *testing.T) {
 
 	appType, err = AppType("./testdata/baz")
 	assert.NoError(t, err)
-	assert.Equal(t, "helm", appType)
+	assert.Equal(t, "Plugin", appType)
 
 	appType, err = AppType("./testdata")
 	assert.NoError(t, err)

@@ -120,8 +120,6 @@ type ApplicationSource struct {
 	TargetRevision string `json:"targetRevision,omitempty" protobuf:"bytes,4,opt,name=targetRevision"`
 	// Helm holds helm specific options
 	Helm *ApplicationSourceHelm `json:"helm,omitempty" protobuf:"bytes,7,opt,name=helm"`
-	// Kustomize holds kustomize specific options
-	Kustomize *ApplicationSourceKustomize `json:"kustomize,omitempty" protobuf:"bytes,8,opt,name=kustomize"`
 	// Ksonnet holds ksonnet specific options
 	Ksonnet *ApplicationSourceKsonnet `json:"ksonnet,omitempty" protobuf:"bytes,9,opt,name=ksonnet"`
 	// Directory holds path/directory specific options
@@ -142,7 +140,6 @@ func (a *ApplicationSource) IsZero() bool {
 			a.Path == "" &&
 			a.TargetRevision == "" &&
 			a.Helm.IsZero() &&
-			a.Kustomize.IsZero() &&
 			a.Ksonnet.IsZero() &&
 			a.Directory.IsZero() &&
 			a.Plugin.IsZero()
@@ -152,7 +149,6 @@ type ApplicationSourceType string
 
 const (
 	ApplicationSourceTypeHelm      ApplicationSourceType = "Helm"
-	ApplicationSourceTypeKustomize ApplicationSourceType = "Kustomize"
 	ApplicationSourceTypeKsonnet   ApplicationSourceType = "Ksonnet"
 	ApplicationSourceTypeDirectory ApplicationSourceType = "Directory"
 	ApplicationSourceTypePlugin    ApplicationSourceType = "Plugin"
@@ -217,68 +213,6 @@ func (in *ApplicationSourceHelm) AddParameter(p HelmParameter) {
 
 func (h *ApplicationSourceHelm) IsZero() bool {
 	return h == nil || (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && h.Values == ""
-}
-
-type KustomizeImage string
-
-func (i KustomizeImage) delim() string {
-	for _, d := range []string{"=", ":", "@"} {
-		if strings.Contains(string(i), d) {
-			return d
-		}
-	}
-	return ":"
-}
-
-// if the image name matches (i.e. up to the first delimiter)
-func (i KustomizeImage) Match(j KustomizeImage) bool {
-	delim := j.delim()
-	if !strings.Contains(string(j), delim) {
-		return false
-	}
-	return strings.HasPrefix(string(i), strings.Split(string(j), delim)[0])
-}
-
-type KustomizeImages []KustomizeImage
-
-// find the image or -1
-func (images KustomizeImages) Find(image KustomizeImage) int {
-	for i, a := range images {
-		if a.Match(image) {
-			return i
-		}
-	}
-	return -1
-}
-
-// ApplicationSourceKustomize holds kustomize specific options
-type ApplicationSourceKustomize struct {
-	// NamePrefix is a prefix appended to resources for kustomize apps
-	NamePrefix string `json:"namePrefix,omitempty" protobuf:"bytes,1,opt,name=namePrefix"`
-	// NameSuffix is a suffix appended to resources for kustomize apps
-	NameSuffix string `json:"nameSuffix,omitempty" protobuf:"bytes,2,opt,name=nameSuffix"`
-	// Images are kustomize image overrides
-	Images KustomizeImages `json:"images,omitempty" protobuf:"bytes,3,opt,name=images"`
-	// CommonLabels adds additional kustomize commonLabels
-	CommonLabels map[string]string `json:"commonLabels,omitempty" protobuf:"bytes,4,opt,name=commonLabels"`
-}
-
-func (k *ApplicationSourceKustomize) IsZero() bool {
-	return k == nil ||
-		k.NamePrefix == "" &&
-			k.NameSuffix == "" &&
-			len(k.Images) == 0 &&
-			len(k.CommonLabels) == 0
-}
-
-// either updates or adds the images
-func (k *ApplicationSourceKustomize) MergeImage(image KustomizeImage) {
-	i := k.Images.Find(image)
-	if i >= 0 {
-		k.Images[i] = image
-	} else {
-		k.Images = append(k.Images, image)
-	}
 }
 
 // JsonnetVar is a jsonnet variable
@@ -1934,9 +1868,6 @@ func (source *ApplicationSource) Equals(other ApplicationSource) bool {
 
 func (source *ApplicationSource) ExplicitType() (*ApplicationSourceType, error) {
 	var appTypes []ApplicationSourceType
-	if source.Kustomize != nil {
-		appTypes = append(appTypes, ApplicationSourceTypeKustomize)
-	}
 	if source.Helm != nil {
 		appTypes = append(appTypes, ApplicationSourceTypeHelm)
 	}
