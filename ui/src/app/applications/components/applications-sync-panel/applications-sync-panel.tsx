@@ -46,6 +46,7 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                     });
                                 });
                             }
+                            hide();
                         }}
                         getApi={setForm}>
                         {formApi => (
