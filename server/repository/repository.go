@@ -170,7 +170,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		Repo:   repo,
 		Source: q.Source,
 		Repos:  helmRepos,
-		KustomizeOptions: &appsv1.KustomizeOptions{
+		PluginOptions: &appsv1.PluginOptions{
 			BuildOptions: buildOptions,
 		},
 	})

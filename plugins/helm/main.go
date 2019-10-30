@@ -13,6 +13,7 @@ import (
 	"k8s.io/kubernetes/pkg/util/slice"
 
 	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/plugins/util/schema"
 	"github.com/argoproj/argo-cd/util/helm"
 )
 
@@ -28,28 +29,18 @@ type Spec struct {
 	ReleaseName string
 	Values      string
 }
-type Properties map[string]*Schema
 
-type Schema struct {
-	Type       string     `json:"type,omitempty"`
-	Title      string     `json:"title,omitempty"`
-	Format     string     `json:"format,omitempty"`
-	Properties Properties `json:"properties,omitempty"`
-	Items      *Schema    `json:"items,omitempty"`
-	Enum       []string   `json:"enum,omitempty"`
-}
-
-var schema = Schema{
+var templateSchema = schema.Schema{
 	Type:  "object",
 	Title: "HelmAppSpec contains helm app name  in source repo",
-	Properties: Properties{
-		"name": &Schema{
+	Properties: schema.Properties{
+		"name": &schema.Schema{
 			Type: "object",
 		},
-		"parameters": &Schema{
+		"parameters": &schema.Schema{
 			Type:  "object",
 			Title: "HelmParameter is a parameter to a helm template",
-			Properties: Properties{
+			Properties: schema.Properties{
 				"forceString": {
 					Type:   "boolean",
 					Format: "boolean",
@@ -67,7 +58,7 @@ var schema = Schema{
 		},
 		"valueFiles": {
 			Type: "array",
-			Items: &Schema{
+			Items: &schema.Schema{
 				Type: "string",
 			},
 		},
@@ -109,22 +100,22 @@ func runSchema(path string) {
 	for _, i := range files {
 		n := i.Name()
 		if !i.IsDir() && strings.HasPrefix(n, "values") && strings.HasSuffix(n, ".yaml") {
-			schema.Properties["valueFiles"].Enum = append(schema.Properties["valueFiles"].Enum, n)
+			templateSchema.Properties["valueFiles"].Enum = append(templateSchema.Properties["valueFiles"].Enum, n)
 		}
 	}
 	parameters, err := h.GetParameters([]string{"values.yaml"})
 	errors.CheckError(err)
 
 	for name, value := range parameters {
-		schema.Properties["parameters"].Enum = append(schema.Properties["parameters"].Enum, name)
-		schema.Properties["parameters"].Title = fmt.Sprintf("%s, %s=%s", schema.Properties["parameters"].Title, name, value)
+		templateSchema.Properties["parameters"].Enum = append(templateSchema.Properties["parameters"].Enum, name)
+		templateSchema.Properties["parameters"].Title = fmt.Sprintf("%s, %s=%s", templateSchema.Properties["parameters"].Title, name, value)
 	}
 
-	for name := range schema.Properties {
-		slice.SortStrings(schema.Properties[name].Enum)
+	for name := range templateSchema.Properties {
+		slice.SortStrings(templateSchema.Properties[name].Enum)
 	}
 
-	output, err := json.Marshal(schema)
+	output, err := json.Marshal(templateSchema)
 	errors.CheckError(err)
 	fmt.Println(string(output))
 }
@@ -132,25 +123,25 @@ func runSchema(path string) {
 func runTemplate(path string) {
 	bytes, err := ioutil.ReadAll(os.Stdin)
 	errors.CheckError(err)
-	source := &Spec{}
-	err = yaml.Unmarshal(bytes, source)
+	spec := &Spec{}
+	err = yaml.Unmarshal(bytes, spec)
 	errors.CheckError(err)
 	app, err := helm.NewHelmApp(path, nil)
 	errors.CheckError(err)
 	set := map[string]string{}
 	setString := map[string]string{}
-	for _, p := range source.Parameters {
+	for _, p := range spec.Parameters {
 		if p.ForceString {
 			setString[p.Name] = p.Value
 		} else {
 			set[p.Name] = p.Value
 		}
 	}
-	if source.Values != "" {
-		f, err := ioutil.TempFile(".", "helm-v3")
+	if spec.Values != "" {
+		f, err := ioutil.TempFile(".", "helm")
 		defer func() { _ = os.RemoveAll(f.Name()) }()
 		errors.CheckError(err)
-		err = ioutil.WriteFile(f.Name(), []byte(source.Values), 777)
+		err = ioutil.WriteFile(f.Name(), []byte(spec.Values), 777)
 		errors.CheckError(err)
 	}
 	output, err := app.Template(&helm.TemplateOpts{
@@ -159,7 +150,7 @@ func runTemplate(path string) {
 		KubeVersion: os.Getenv("ARGOCD_KUBE_VERSON"),
 		Set:         set,
 		SetString:   setString,
-		Values:      source.ValueFiles,
+		Values:      spec.ValueFiles,
 	})
 	errors.CheckError(err)
 	fmt.Println(output)
@@ -167,7 +158,7 @@ func runTemplate(path string) {
 
 func main() {
 	cmd := cobra.Command{
-		Use: "helm-v3",
+		Use: "helm",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},

@@ -423,12 +423,6 @@ message KsonnetParameter {
   optional string value = 3;
 }
 
-// KustomizeOptions are options for kustomize to use when building manifests
-message KustomizeOptions {
-  // BuildOptions is a string of build parameters to use when calling `kustomize build`
-  optional string buildOptions = 1;
-}
-
 // Operation contains requested operation parameters.
 message Operation {
   optional SyncOperation sync = 1;
@@ -459,6 +453,12 @@ message OperationState {
 message OrphanedResourcesMonitorSettings {
   // Warn indicates if warning condition should be created for apps which have orphaned resources
   optional bool warn = 1;
+}
+
+// PluginOptions are options for kustomize to use when building manifests
+message PluginOptions {
+  // BuildOptions is a string of build parameters to use when calling `kustomize build`
+  optional string buildOptions = 1;
 }
 
 // ProjectRole represents a role that has access to a project

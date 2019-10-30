@@ -300,7 +300,7 @@ func GenerateManifests(appPath, revision string, q *apiclient.ManifestRequest) (
 		targetObjs, err = helmTemplate(appPath, env, q)
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), repoURL)
-		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions)
+		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.PluginOptions)
 	case v1alpha1.ApplicationSourceTypePlugin:
 		targetObjs, err = runPlugin(appPath, env, q, q.Repo.GetGitCreds())
 	case v1alpha1.ApplicationSourceTypeDirectory:
@@ -660,7 +660,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		case v1alpha1.ApplicationSourceTypeKustomize:
 			res.Kustomize = &apiclient.KustomizeAppSpec{}
 			k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), q.Repo.Repo)
-			_, images, err := k.Build(nil, q.KustomizeOptions)
+			_, images, err := k.Build(nil, q.PluginOptions)
 			if err != nil {
 				return err
 			}

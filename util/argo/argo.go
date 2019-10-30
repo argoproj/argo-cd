@@ -166,7 +166,7 @@ func ValidateRepo(
 	app *argoappv1.Application,
 	repoClientset apiclient.Clientset,
 	db db.ArgoDB,
-	kustomizeOptions *argoappv1.KustomizeOptions,
+	pluginOptions *argoappv1.PluginOptions,
 	kubectl kube.Kubectl,
 ) ([]argoappv1.ApplicationCondition, error) {
 	spec := &app.Spec
@@ -212,10 +212,10 @@ func ValidateRepo(
 
 	// get the app details, and populate the Ksonnet stuff from it
 	appDetails, err := repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
-		Repo:             repo,
-		Source:           &spec.Source,
-		Repos:            helmRepos,
-		KustomizeOptions: kustomizeOptions,
+		Repo:          repo,
+		Source:        &spec.Source,
+		Repos:         helmRepos,
+		PluginOptions: pluginOptions,
 	})
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
@@ -239,7 +239,7 @@ func ValidateRepo(
 	if err != nil {
 		return nil, err
 	}
-	conditions = append(conditions, verifyGenerateManifests(ctx, repo, helmRepos, app, repoClient, kustomizeOptions, cluster.ServerVersion)...)
+	conditions = append(conditions, verifyGenerateManifests(ctx, repo, helmRepos, app, repoClient, pluginOptions, cluster.ServerVersion)...)
 
 	return conditions, nil
 }
@@ -321,7 +321,7 @@ func verifyGenerateManifests(
 	helmRepos argoappv1.Repositories,
 	app *argoappv1.Application,
 	repoClient apiclient.RepoServerServiceClient,
-	kustomizeOptions *argoappv1.KustomizeOptions,
+	pluginOptions *argoappv1.PluginOptions,
 	kubeVersion string,
 ) []argoappv1.ApplicationCondition {
 	spec := &app.Spec
@@ -344,7 +344,7 @@ func verifyGenerateManifests(
 		AppLabelValue:     app.Name,
 		Namespace:         spec.Destination.Namespace,
 		ApplicationSource: &spec.Source,
-		KustomizeOptions:  kustomizeOptions,
+		PluginOptions:     pluginOptions,
 		KubeVersion:       kubeVersion,
 	}
 	req.Repo.CopyCredentialsFromRepo(repoRes)

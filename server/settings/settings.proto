@@ -23,7 +23,7 @@ message Settings {
     map<string, github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ResourceOverride> resourceOverrides = 5;
     bool statusBadgeEnabled = 6;
     GoogleAnalyticsConfig googleAnalytics = 7;
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 8;
+    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.PluginOptions pluginOptions = 8;
     // Help settings
     Help help = 9;
     repeated Plugin plugins = 10;

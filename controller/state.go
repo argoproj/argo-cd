@@ -135,7 +135,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		AppLabelValue:     app.Name,
 		Namespace:         app.Spec.Destination.Namespace,
 		ApplicationSource: &source,
-		KustomizeOptions: &appv1.KustomizeOptions{
+		PluginOptions: &appv1.PluginOptions{
 			BuildOptions: buildOptions,
 		},
 		KubeVersion: cluster.ServerVersion,

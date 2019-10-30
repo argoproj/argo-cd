@@ -1801,8 +1801,8 @@ type JWTToken struct {
 	ExpiresAt int64 `json:"exp,omitempty" protobuf:"int64,2,opt,name=exp"`
 }
 
-// KustomizeOptions are options for kustomize to use when building manifests
-type KustomizeOptions struct {
+// PluginOptions are options for kustomize to use when building manifests
+type PluginOptions struct {
 	// BuildOptions is a string of build parameters to use when calling `kustomize build`
 	BuildOptions string `protobuf:"bytes,1,opt,name=buildOptions"`
 }

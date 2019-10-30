@@ -18,7 +18,7 @@ message ManifestRequest {
     string namespace = 8;
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSource applicationSource = 10;
     repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repos = 11;
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 13;
+    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.PluginOptions pluginOptions = 13;
     string kubeVersion = 14;
 }
 
@@ -46,7 +46,7 @@ message RepoServerAppDetailsQuery {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSource source = 2;
     repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repos = 3;
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 4;
+    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.PluginOptions pluginOptions = 4;
 }
 
 // RepoAppDetailsResponse application details

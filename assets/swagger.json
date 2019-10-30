@@ -2074,11 +2074,11 @@
         "help": {
           "$ref": "#/definitions/clusterHelp"
         },
-        "kustomizeOptions": {
-          "$ref": "#/definitions/v1alpha1KustomizeOptions"
-        },
         "oidcConfig": {
           "$ref": "#/definitions/clusterOIDCConfig"
+        },
+        "pluginOptions": {
+          "$ref": "#/definitions/v1alpha1PluginOptions"
         },
         "plugins": {
           "type": "array",
@@ -3565,16 +3565,6 @@
         }
       }
     },
-    "v1alpha1KustomizeOptions": {
-      "type": "object",
-      "title": "KustomizeOptions are options for kustomize to use when building manifests",
-      "properties": {
-        "buildOptions": {
-          "type": "string",
-          "title": "BuildOptions is a string of build parameters to use when calling `kustomize build`"
-        }
-      }
-    },
     "v1alpha1Operation": {
       "description": "Operation contains requested operation parameters.",
       "type": "object",
@@ -3618,6 +3608,16 @@
           "type": "boolean",
           "format": "boolean",
           "title": "Warn indicates if warning condition should be created for apps which have orphaned resources"
+        }
+      }
+    },
+    "v1alpha1PluginOptions": {
+      "type": "object",
+      "title": "PluginOptions are options for kustomize to use when building manifests",
+      "properties": {
+        "buildOptions": {
+          "type": "string",
+          "title": "BuildOptions is a string of build parameters to use when calling `kustomize build`"
         }
       }
     },

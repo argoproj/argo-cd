@@ -1,8 +1,12 @@
-build: helm-v3 test-dummy
+build: helm kustomize test-dummy
 
-.PHONY: helm-v3
-helm-v3:
-	go build -o bin/helm-v3 ./helm-v3
+.PHONY: helm
+helm:
+	go build -o bin/helm ./helm
+
+.PHONY: kustomize
+kustomize:
+	go build -o bin/kustomize ./kustomize
 
 .PHONY: test-dummy
 test-dummy:

@@ -17,7 +17,7 @@ func TestGet(t *testing.T) {
 		assert.NotNil(t, plugin)
 	})
 	t.Run("Helm", func(t *testing.T) {
-		plugin := Get("helm-v3")
+		plugin := Get("helm")
 		assert.NotNil(t, plugin)
 	})
 }
