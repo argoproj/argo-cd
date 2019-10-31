@@ -190,7 +190,7 @@ export const ApplicationCreatePanel = (props: {
                                             <div className='white-box'>
                                                 <p>SOURCE</p>
                                                 <div className='row argo-form-row'>
-                                                    <div className='columns small-11'>
+                                                    <div className='columns small-10'>
                                                         <FormField
                                                             formApi={api}
                                                             label='Repository URL'
@@ -199,7 +199,7 @@ export const ApplicationCreatePanel = (props: {
                                                             componentProps={{items: repos}}
                                                         />
                                                     </div>
-                                                    <div className='columns small-1'>
+                                                    <div className='columns small-2'>
                                                         <div style={{paddingTop: '1.5em'}}>
                                                             {(repoInfo && (
                                                                 <React.Fragment>
@@ -261,7 +261,7 @@ export const ApplicationCreatePanel = (props: {
                                                     </React.Fragment>
                                                 )) || (
                                                     <DataLoader
-                                                        input={{repoURL: app.spec.source.repoURL, revision: app.spec.source.targetRevision}}
+                                                        input={{repoURL: app.spec.source.repoURL}}
                                                         load={async src =>
                                                             (src.repoURL && services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())) ||
                                                             new Array<models.HelmChart>()
@@ -270,7 +270,7 @@ export const ApplicationCreatePanel = (props: {
                                                             const selectedChart = charts.find(chart => chart.name === api.getFormState().values.spec.source.chart);
                                                             return (
                                                                 <div className='row argo-form-row'>
-                                                                    <div className='columns small-11'>
+                                                                    <div className='columns small-10'>
                                                                         <FormField
                                                                             formApi={api}
                                                                             label='Chart'
@@ -282,7 +282,7 @@ export const ApplicationCreatePanel = (props: {
                                                                             }}
                                                                         />
                                                                     </div>
-                                                                    <div className='columns small-1'>
+                                                                    <div className='columns small-2'>
                                                                         <FormField
                                                                             formApi={api}
                                                                             field='spec.source.targetRevision'
