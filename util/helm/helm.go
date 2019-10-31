@@ -88,6 +88,7 @@ func (h *helm) Dispose() {
 func Version() (string, error) {
 	cmd := exec.Command("helm", "version", "--client")
 	out, err := argoexec.RunCommandExt(cmd, argoexec.CmdOpts{
+		Timeout:  config.CmdOpts().Timeout,
 		Redactor: redactor,
 	})
 	if err != nil {

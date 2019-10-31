@@ -21,6 +21,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/config"
 )
 
 var (
@@ -128,22 +129,41 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string) (string, ut
 			return "", nil, err
 		}
 
-		// download chart tar file into persistent helm repository directory
-		_, err = helmCmd.Fetch(c.repoURL, chart, version, c.creds)
+		// (1) because `helm fetch` downloads an arbitrary file name, we download to an empty temp directory
+		tempDest, err := ioutil.TempDir("", "helm")
+		if err != nil {
+			return "", nil, err
+		}
+		defer func() { _ = os.RemoveAll(tempDest) }()
+		_, err = helmCmd.Fetch(c.repoURL, chart, version, tempDest, c.creds)
+		if err != nil {
+			return "", nil, err
+		}
+		// (2) then we assume that the only file downloaded into the directory is the tgz file
+		// and we move that to where we want it
+		infos, err := ioutil.ReadDir(tempDest)
+		if err != nil {
+			return "", nil, err
+		}
+		if len(infos) != 1 {
+			return "", nil, fmt.Errorf("expected 1 file, found %v", len(infos))
+		}
+		err = os.Rename(filepath.Join(tempDest, infos[0].Name()), chartPath)
 		if err != nil {
 			return "", nil, err
 		}
 	}
 	// untar helm chart into throw away temp directory which should be deleted as soon as no longer needed
-	tempDir, err := ioutil.TempDir("", "")
+	tempDir, err := ioutil.TempDir("", "helm")
 	if err != nil {
 		return "", nil, err
 	}
 	cmd := exec.Command("tar", "-zxvf", chartPath)
 	cmd.Dir = tempDir
-	_, err = argoexec.RunCommandExt(cmd, argoexec.CmdOpts{})
+	_, err = argoexec.RunCommandExt(cmd, config.CmdOpts())
 	if err != nil {
 		_ = os.RemoveAll(tempDir)
+		return "", nil, err
 	}
 	return path.Join(tempDir, chart), util.NewCloser(func() error {
 		return os.RemoveAll(tempDir)

@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -672,4 +673,64 @@ func TestRefreshAppConditions(t *testing.T) {
 		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
 		assert.Equal(t, "Application referencing project wrong project which does not exist", app.Status.Conditions[0].Message)
 	})
+}
+
+func TestUpdateReconciledAt(t *testing.T) {
+	app := newFakeApp()
+	reconciledAt := metav1.NewTime(time.Now().Add(-1 * time.Second))
+	app.Status = argoappv1.ApplicationStatus{ReconciledAt: &reconciledAt}
+	app.Status.Sync = argoappv1.SyncStatus{ComparedTo: argoappv1.ComparedTo{Source: app.Spec.Source, Destination: app.Spec.Destination}}
+	ctrl := newFakeController(&fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	})
+	key, _ := cache.MetaNamespaceKeyFunc(app)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.ReactionChain = nil
+	receivedPatch := map[string]interface{}{}
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		return true, nil, nil
+	})
+
+	t.Run("UpdatedOnFullReconciliation", func(t *testing.T) {
+		receivedPatch = map[string]interface{}{}
+		ctrl.requestAppRefresh(app.Name, CompareWithLatest)
+		ctrl.appRefreshQueue.Add(key)
+
+		ctrl.processAppRefreshQueueItem()
+
+		_, updated, err := unstructured.NestedString(receivedPatch, "status", "reconciledAt")
+		assert.NoError(t, err)
+		assert.True(t, updated)
+
+		_, updated, err = unstructured.NestedString(receivedPatch, "status", "observedAt")
+		assert.NoError(t, err)
+		assert.True(t, updated)
+	})
+
+	t.Run("NotUpdatedOnPartialReconciliation", func(t *testing.T) {
+		receivedPatch = map[string]interface{}{}
+		ctrl.appRefreshQueue.Add(key)
+		ctrl.requestAppRefresh(app.Name, CompareWithRecent)
+
+		ctrl.processAppRefreshQueueItem()
+
+		_, updated, err := unstructured.NestedString(receivedPatch, "status", "reconciledAt")
+		assert.NoError(t, err)
+		assert.False(t, updated)
+
+		_, updated, err = unstructured.NestedString(receivedPatch, "status", "observedAt")
+		assert.NoError(t, err)
+		assert.True(t, updated)
+	})
+
 }

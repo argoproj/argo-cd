@@ -285,14 +285,20 @@ func NewProjectRoleListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			project, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
-			if output == "name" {
+			switch output {
+			case "json", "yaml":
+				err := PrintResourceList(project.Spec.Roles, output, false)
+				errors.CheckError(err)
+			case "name":
 				printProjectRoleListName(project.Spec.Roles)
-			} else {
+			case "wide", "":
 				printProjectRoleListTable(project.Spec.Roles)
+			default:
+				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|name")
 	return command
 }
 

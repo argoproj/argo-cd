@@ -6,7 +6,7 @@ import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import * as utils from '../utils';
-import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage} from '../utils';
+import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, getAppOperationState, HealthStatusIcon, OperationState, syncStatusMessage} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
 
 require('./application-status-panel.scss');
@@ -30,21 +30,9 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
         (map, next) => map.set(utils.getConditionCategory(next), (map.get(utils.getConditionCategory(next)) || 0) + 1),
         new Map<string, number>()
     );
-    let appOperationState = application.status.operationState;
+    const appOperationState = getAppOperationState(application);
     if (application.metadata.deletionTimestamp) {
-        appOperationState = {
-            phase: models.OperationPhases.Running,
-            startedAt: application.metadata.deletionTimestamp
-        } as models.OperationState;
         showOperation = null;
-    } else if (application.operation) {
-        appOperationState = {
-            phase: models.OperationPhases.Running,
-            startedAt: new Date().toISOString(),
-            operation: {
-                sync: {}
-            } as models.Operation
-        } as models.OperationState;
     }
 
     const tooltip = (title: string) => (
@@ -88,8 +76,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 <div className='application-status-panel__item columns small-4 '>
                     <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
                         <a onClick={() => showOperation && showOperation()}>
-                            {utils.getOperationType(application)}
-                            <utils.OperationPhaseIcon phase={appOperationState.phase} />
+                            <OperationState app={application} />
                         </a>
                         {tooltip(
                             'Whether or not your last app sync was successful. It has been ' +
