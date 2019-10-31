@@ -7,10 +7,13 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/kubernetes/pkg/kubectl/util/slice"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apiclient/account"
+	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util/password"
+	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -19,14 +22,12 @@ import (
 type Server struct {
 	sessionMgr  *session.SessionManager
 	settingsMgr *settings.SettingsManager
+	enf         *rbac.Enforcer
 }
 
 // NewServer returns a new instance of the Session service
-func NewServer(sessionMgr *session.SessionManager, settingsMgr *settings.SettingsManager) *Server {
-	return &Server{
-		sessionMgr:  sessionMgr,
-		settingsMgr: settingsMgr,
-	}
+func NewServer(sessionMgr *session.SessionManager, settingsMgr *settings.SettingsManager, enf *rbac.Enforcer) *Server {
+	return &Server{sessionMgr, settingsMgr, enf}
 
 }
 
@@ -62,4 +63,19 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 	log.Infof("user '%s' updated password", sub)
 	return &account.UpdatePasswordResponse{}, nil
 
+}
+
+func (s *Server) CanI(ctx context.Context, r *account.CanIRequest) (*account.CanIResponse, error) {
+	if !slice.ContainsString(rbacpolicy.Actions, r.Action, nil) {
+		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbacpolicy.Actions, r.Action)
+	}
+	if !slice.ContainsString(rbacpolicy.Resources, r.Resource, nil) {
+		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbacpolicy.Resources, r.Resource)
+	}
+	ok := s.enf.Enforce(ctx.Value("claims"), r.Resource, r.Action, r.Subresource)
+	if ok {
+		return &account.CanIResponse{Value: "yes"}, nil
+	} else {
+		return &account.CanIResponse{Value: "no"}, nil
+	}
 }
