@@ -20,7 +20,7 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                         <div>
                             <button className='argo-button argo-button--base' onClick={() => form.submitForm(null)}>
                                 Sync
-                            </button>
+                            </button>{' '}
                             <button onClick={() => hide()} className='argo-button argo-button--base-o'>
                                 Cancel
                             </button>

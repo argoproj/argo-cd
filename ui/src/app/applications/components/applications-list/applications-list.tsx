@@ -12,6 +12,7 @@ import {AppsListPreferences, AppsListViewType, services} from '../../../shared/s
 import {ApplicationCreatePanel} from '../application-create-panel/application-create-panel';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
+import * as LabelSelector from '../label-selector';
 import * as AppUtils from '../utils';
 import {ApplicationsFilter} from './applications-filter';
 import {ApplicationsSummary} from './applications-summary';
@@ -38,12 +39,12 @@ const APP_FIELDS = [
 const APP_LIST_FIELDS = APP_FIELDS.map(field => `items.${field}`);
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
 
-function loadApplications(selector: string): Observable<models.Application[]> {
-    return Observable.fromPromise(services.applications.list([], {fields: APP_LIST_FIELDS, selector})).flatMap(applications =>
+function loadApplications(): Observable<models.Application[]> {
+    return Observable.fromPromise(services.applications.list([], {fields: APP_LIST_FIELDS})).flatMap(applications =>
         Observable.merge(
             Observable.from([applications]),
             services.applications
-                .watch(null, {fields: APP_WATCH_FIELDS, selector})
+                .watch(null, {fields: APP_WATCH_FIELDS})
                 .map(appChange => {
                     const index = applications.findIndex(item => item.metadata.name === appChange.application.metadata.name);
                     if (index > -1 && appChange.application.metadata.resourceVersion === applications[index].metadata.resourceVersion) {
@@ -116,6 +117,7 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                             viewPref.labelsFilter = params
                                 .get('labels')
                                 .split(',')
+                                .map(decodeURIComponent)
                                 .filter(item => !!item);
                         }
                         return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || ''};
@@ -136,7 +138,8 @@ function filterApps(applications: models.Application[], pref: AppsListPreference
             (pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status)) &&
             (pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status)) &&
             (pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => minimatch(app.spec.destination.namespace, ns))) &&
-            (pref.clustersFilter.length === 0 || pref.clustersFilter.some(server => minimatch(app.spec.destination.server, server)))
+            (pref.clustersFilter.length === 0 || pref.clustersFilter.some(server => minimatch(app.spec.destination.server, server))) &&
+            (pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels)))
     );
 }
 
@@ -209,8 +212,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                             <ViewPref>
                                 {pref => (
                                     <DataLoader
-                                        input={(pref.labelsFilter || []).join(',')}
-                                        load={selector => loadApplications(selector)}
+                                        load={() => loadApplications()}
                                         loadingRenderer={() => (
                                             <div className='argo-container'>
                                                 <MockupList height={100} marginTop={30} />
@@ -275,7 +277,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                     health: newPref.healthFilter.join(','),
                                                                     namespace: newPref.namespacesFilter.join(','),
                                                                     cluster: newPref.clustersFilter.join(','),
-                                                                    labels: newPref.labelsFilter.join(',')
+                                                                    labels: newPref.labelsFilter.map(encodeURIComponent).join(',')
                                                                 });
                                                             }}
                                                         />
