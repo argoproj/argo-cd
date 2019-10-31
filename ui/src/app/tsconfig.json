@@ -1,6 +1,6 @@
 {
     "compilerOptions": {
-        "outDir": "./dist/app",
+        "outDir": "./../../dist/app",
         "sourceMap": true,
         "noImplicitAny": true,
         "module": "esnext",
@@ -16,10 +16,10 @@
         ]
     },
     "include": [
-        "./src/app/**/*"
+        "./**/*"
     ],
     "exclude": [
-        "../../node_modules",
+        "node_modules",
         "./**/*.test.ts"
     ]
 }
