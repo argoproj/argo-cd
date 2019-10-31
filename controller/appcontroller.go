@@ -804,6 +804,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		revision = app.Status.Sync.Revision
 	}
 
+	observedAt := metav1.Now()
 	compareResult := ctrl.appStateManager.CompareAppState(app, revision, app.Spec.Source, refreshType == appv1.RefreshTypeHard, localManifests)
 
 	ctrl.normalizeApplication(origApp, app)
@@ -837,8 +838,10 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		}
 	}
 
-	app.Status.ObservedAt = &compareResult.reconciledAt
-	app.Status.ReconciledAt = &compareResult.reconciledAt
+	if app.Status.ReconciledAt == nil || comparisonLevel == CompareWithLatest {
+		app.Status.ReconciledAt = &observedAt
+	}
+	app.Status.ObservedAt = &observedAt
 	app.Status.Sync = *compareResult.syncStatus
 	app.Status.Health = *compareResult.healthStatus
 	app.Status.Resources = compareResult.resources

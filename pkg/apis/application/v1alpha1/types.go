@@ -357,16 +357,18 @@ type ApplicationDestination struct {
 
 // ApplicationStatus contains information about application sync, health status
 type ApplicationStatus struct {
-	Resources      []ResourceStatus       `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
-	Sync           SyncStatus             `json:"sync,omitempty" protobuf:"bytes,2,opt,name=sync"`
-	Health         HealthStatus           `json:"health,omitempty" protobuf:"bytes,3,opt,name=health"`
-	History        []RevisionHistory      `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
-	Conditions     []ApplicationCondition `json:"conditions,omitempty" protobuf:"bytes,5,opt,name=conditions"`
-	ReconciledAt   *metav1.Time           `json:"reconciledAt,omitempty" protobuf:"bytes,6,opt,name=reconciledAt"`
-	OperationState *OperationState        `json:"operationState,omitempty" protobuf:"bytes,7,opt,name=operationState"`
-	ObservedAt     *metav1.Time           `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
-	SourceType     ApplicationSourceType  `json:"sourceType,omitempty" protobuf:"bytes,9,opt,name=sourceType"`
-	Summary        ApplicationSummary     `json:"summary,omitempty" protobuf:"bytes,10,opt,name=summary"`
+	Resources  []ResourceStatus       `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
+	Sync       SyncStatus             `json:"sync,omitempty" protobuf:"bytes,2,opt,name=sync"`
+	Health     HealthStatus           `json:"health,omitempty" protobuf:"bytes,3,opt,name=health"`
+	History    []RevisionHistory      `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
+	Conditions []ApplicationCondition `json:"conditions,omitempty" protobuf:"bytes,5,opt,name=conditions"`
+	// ReconciledAt indicates when the application state was reconciled using the latest git version
+	ReconciledAt   *metav1.Time    `json:"reconciledAt,omitempty" protobuf:"bytes,6,opt,name=reconciledAt"`
+	OperationState *OperationState `json:"operationState,omitempty" protobuf:"bytes,7,opt,name=operationState"`
+	// ObservedAt indicates when the application state was updated without querying latest git state
+	ObservedAt *metav1.Time          `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
+	SourceType ApplicationSourceType `json:"sourceType,omitempty" protobuf:"bytes,9,opt,name=sourceType"`
+	Summary    ApplicationSummary    `json:"summary,omitempty" protobuf:"bytes,10,opt,name=summary"`
 }
 
 // Operation contains requested operation parameters.

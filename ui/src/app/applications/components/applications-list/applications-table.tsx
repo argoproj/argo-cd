@@ -1,12 +1,13 @@
 import {DropDownMenu, Tooltip} from 'argo-ui';
 import * as React from 'react';
-const GitUrlParse = require('git-url-parse');
-
 import {Cluster} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
+import {OperationState} from '../utils';
+
+const GitUrlParse = require('git-url-parse');
 
 require('./applications-table.scss');
 
@@ -70,7 +71,7 @@ export const ApplicationsTable = (props: {
                             <div className='columns small-2'>
                                 <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span>
                                 <br />
-                                <AppUtils.ComparisonStatusIcon status={app.status.sync.status} /> <span>{app.status.sync.status}</span>
+                                <AppUtils.ComparisonStatusIcon status={app.status.sync.status} /> <span>{app.status.sync.status}</span> <OperationState app={app} />
                                 <DropDownMenu
                                     anchor={() => (
                                         <button className='argo-button argo-button--light argo-button--lg argo-button--short'>

@@ -35,11 +35,12 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [KintoHub](https://www.kintohub.com/)
 1. [KompiTech GmbH](https://www.kompitech.com/)
 1. [Lytt](https://www.lytt.co/)
-1. [Mambu](https://www.mambu.com/) 
+1. [Mambu](https://www.mambu.com/)
 1. [Mirantis](https://mirantis.com/)
 1. [OpenSaaS Studio](https://opensaas.studio)
 1. [Optoro](https://www.optoro.com/)
 1. [Riskified](https://www.riskified.com/)
+1. [Red Hat](https://www.redhat.com/)
 1. [Saildrone](https://www.saildrone.com/)
 1. [Tesla](https://tesla.com/)
 1. [tZERO](https://www.tzero.com/)
@@ -47,6 +48,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [Twilio SendGrid](https://sendgrid.com)
 1. [Yieldlab](https://www.yieldlab.de/)
 1. [UBIO](https://ub.io/)
+1. [Universidad Mesoamericana](https://www.umes.edu.gt/)
 1. [Volvo Cars](https://www.volvocars.com/)
 
 ## Documentation

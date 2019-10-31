@@ -242,10 +242,12 @@ message ApplicationStatus {
 
   repeated ApplicationCondition conditions = 5;
 
+  // ReconciledAt indicates when the application state was reconciled using the latest git version
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time reconciledAt = 6;
 
   optional OperationState operationState = 7;
 
+  // ObservedAt indicates when the application state was updated without querying latest git state
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time observedAt = 8;
 
   optional string sourceType = 9;
