@@ -17,7 +17,21 @@ message UpdatePasswordRequest {
 
 message UpdatePasswordResponse {}
 
+message CanIRequest {
+	string resource = 1;
+	string action = 2;
+	string subresource = 3;
+}
+
+message CanIResponse {
+	string value = 1;
+}
+
 service AccountService {
+
+	rpc CanI(CanIRequest) returns (CanIResponse) {
+		option (google.api.http).get = "/api/v1/account/can-i/{resource}/{action}/{subresource}";
+	}
 
    	// UpdatePassword updates an account's password to a new value
 	rpc UpdatePassword(UpdatePasswordRequest) returns (UpdatePasswordResponse) {
