@@ -4,13 +4,12 @@ import {Timestamp} from '../../../shared/components/timestamp';
 import {RevisionMetadata} from '../../../shared/models';
 import {services} from '../../../shared/services';
 
-export const RevisionMetadataPanel = (props: {appName: string; type: string, revision: string}) => {
+export const RevisionMetadataPanel = (props: {appName: string; type: string; revision: string}) => {
     if (props.type === 'helm') {
-        return <React.Fragment/>;
+        return <React.Fragment />;
     }
     return (
-        <DataLoader input={props}
-                    load={input => services.applications.revisionMetadata(input.appName, props.revision)}>
+        <DataLoader input={props} load={input => services.applications.revisionMetadata(input.appName, props.revision)}>
             {(m: RevisionMetadata) => (
                 <Tooltip
                     content={
