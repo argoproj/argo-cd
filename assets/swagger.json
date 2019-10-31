@@ -2330,7 +2330,8 @@
           "type": "string"
         },
         "revision": {
-          "type": "string"
+          "type": "string",
+          "title": "resolved revision"
         },
         "server": {
           "type": "string"

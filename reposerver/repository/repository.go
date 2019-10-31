@@ -173,6 +173,7 @@ func (s *Service) runRepoOperation(
 	}
 	return operation(appPath, revision)
 }
+
 func (s *Service) GenerateManifest(c context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
 	var res *apiclient.ManifestResponse
 
