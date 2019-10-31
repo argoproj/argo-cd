@@ -134,7 +134,7 @@ export function syncStatusMessage(app: appModels.Application) {
     if (app.status.sync.revision) {
         if (!app.spec.source.chart) {
             rev += ' (' + app.status.sync.revision + ')';
-        } else if (app.status.sync.revision.length >= 7 && !app.status.sync.revision.startsWith(app.spec.source.targetRevision) {
+        } else if (app.status.sync.revision.length >= 7 && !app.status.sync.revision.startsWith(app.spec.source.targetRevision)) {
             rev += ' (' + app.status.sync.revision.substr(0, 7) + ')';
         }
     }
