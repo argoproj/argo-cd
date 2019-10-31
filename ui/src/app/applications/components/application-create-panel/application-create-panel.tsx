@@ -4,6 +4,7 @@ import * as React from 'react';
 import {FieldApi, Form, FormApi, FormField as ReactFormField, Text} from 'react-form';
 import {AutocompleteField, clusterTitle, YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
+import {RevisionHelpIcon} from '../../../shared/revision-help-icon';
 import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
 
@@ -232,6 +233,7 @@ export const ApplicationCreatePanel = (props: {
                                                     <React.Fragment>
                                                         <div className='argo-form-row'>
                                                             <FormField formApi={api} label='Revision' field='spec.source.targetRevision' component={Text} />
+                                                            <RevisionHelpIcon type='git' />
                                                         </div>
                                                         <div className='argo-form-row'>
                                                             <DataLoader
@@ -291,6 +293,7 @@ export const ApplicationCreatePanel = (props: {
                                                                                 items: (selectedChart && selectedChart.versions) || []
                                                                             }}
                                                                         />
+                                                                        <RevisionHelpIcon type='helm' />
                                                                     </div>
                                                                 </div>
                                                             );

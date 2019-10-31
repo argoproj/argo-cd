@@ -1,8 +1,8 @@
-import {Tooltip} from 'argo-ui';
 import * as React from 'react';
 import {DataLoader} from '../../../shared/components';
 import {Revision} from '../../../shared/components/revision';
 import {Timestamp} from '../../../shared/components/timestamp';
+import {HelpIcon} from '../../../shared/help-icon';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import * as utils from '../utils';
@@ -35,15 +35,6 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
         showOperation = null;
     }
 
-    const tooltip = (title: string) => (
-        <Tooltip content={title}>
-            <span style={{fontSize: 'smaller'}}>
-                {' '}
-                <i className='fa fa-question-circle help-tip' />
-            </span>
-        </Tooltip>
-    );
-
     return (
         <div className='application-status-panel row'>
             <div className='application-status-panel__item columns small-2'>
@@ -51,7 +42,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                     <HealthStatusIcon state={application.status.health} />
                     &nbsp;
                     {application.status.health.status}
-                    {tooltip('The health status of your app')}
+                    <HelpIcon title='The health status of your app' />
                 </div>
                 <div className='application-status-panel__item-name'>{application.status.health.message}</div>
             </div>
@@ -60,7 +51,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                     <ComparisonStatusIcon status={application.status.sync.status} />
                     &nbsp;
                     {application.status.sync.status}
-                    {tooltip('Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.')}
+                    <HelpIcon title='Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.' />
                 </div>
                 <div className='application-status-panel__item-name'>{syncStatusMessage(application)}</div>
                 <div className='application-status-panel__item-name'>
@@ -75,11 +66,13 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                         <a onClick={() => showOperation && showOperation()}>
                             <OperationState app={application} />
                         </a>
-                        {tooltip(
-                            'Whether or not your last app sync was successful. It has been ' +
+                        <HelpIcon
+                            title={
+                                'Whether or not your last app sync was successful. It has been ' +
                                 daysSinceLastSynchronized +
                                 ' days since last sync. Click for the status of that sync.'
-                        )}
+                            }
+                        />
                     </div>
                     {appOperationState.syncResult && (
                         <div className='application-status-panel__item-name'>
@@ -120,12 +113,14 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                                 {data.assignedWindows && (
                                     <React.Fragment>
                                         <ApplicationSyncWindowStatusIcon project={application.spec.project} state={data} />
-                                        {tooltip(
-                                            'The aggregate state of sync windows for this app. ' +
+                                        <HelpIcon
+                                            title={
+                                                'The aggregate state of sync windows for this app. ' +
                                                 'Red: no syncs allowed. ' +
                                                 'Yellow: manual syncs allowed. ' +
                                                 'Green: all syncs allowed'
-                                        )}
+                                            }
+                                        />
                                     </React.Fragment>
                                 )}
                             </div>
