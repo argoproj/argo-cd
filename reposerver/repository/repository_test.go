@@ -27,7 +27,7 @@ import (
 	helmmocks "github.com/argoproj/argo-cd/util/helm/mocks"
 )
 
-func newServiceWithMocks(root string) (*Service, *gitmocks.Client, *helmmocks.Client) {
+func newServiceWithMocks(root string) (*Service, *gitmocks.Client) {
 	service := NewService(metrics.NewMetricsServer(), cache.NewCache(
 		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
 		1*time.Minute,
@@ -59,11 +59,11 @@ func newServiceWithMocks(root string) (*Service, *gitmocks.Client, *helmmocks.Cl
 	service.newHelmClient = func(repoURL string, creds helm.Creds) helm.Client {
 		return helmClient
 	}
-	return service, gitClient, helmClient
+	return service, gitClient
 }
 
 func newService(root string) *Service {
-	service, _, _ := newServiceWithMocks(root)
+	service, _ := newServiceWithMocks(root)
 	return service
 }
 
@@ -89,7 +89,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 
 // ensure we can use a semver constraint range (>= 1.0.0) and get back the correct chart (1.0.0)
 func TestHelmManifestFromChartRepo(t *testing.T) {
-	service, _, _ := newServiceWithMocks(".")
+	service := newService(".")
 	source := &argoappv1.ApplicationSource{Chart: "my-chart", TargetRevision: ">= 1.0.0"}
 	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: source, NoCache: true}
 	response, err := service.GenerateManifest(context.Background(), request)
@@ -99,7 +99,7 @@ func TestHelmManifestFromChartRepo(t *testing.T) {
 		Manifests:  []string{"{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"my-map\"}}"},
 		Namespace:  "",
 		Server:     "",
-		Revision:   ">= 1.0.0",
+		Revision:   "1.1.0",
 		SourceType: "Helm",
 	}, response)
 }
@@ -381,7 +381,7 @@ func TestGetAppDetailsKsonnet(t *testing.T) {
 }
 
 func TestGetHelmCharts(t *testing.T) {
-	service, _, _ := newServiceWithMocks("../..")
+	service := newService("../..")
 	res, err := service.GetHelmCharts(context.Background(), &apiclient.HelmChartsRequest{Repo: &argoappv1.Repository{}})
 	assert.NoError(t, err)
 	assert.Len(t, res.Items, 1)
@@ -392,7 +392,7 @@ func TestGetHelmCharts(t *testing.T) {
 }
 
 func TestGetRevisionMetadata(t *testing.T) {
-	service, gitClient, _ := newServiceWithMocks("../..")
+	service, gitClient := newServiceWithMocks("../..")
 	now := time.Now()
 
 	gitClient.On("RevisionMetadata", mock.Anything).Return(&git.RevisionMetadata{

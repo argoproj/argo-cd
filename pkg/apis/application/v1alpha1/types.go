@@ -745,7 +745,8 @@ type ComparedTo struct {
 type SyncStatus struct {
 	Status     SyncStatusCode `json:"status" protobuf:"bytes,1,opt,name=status,casttype=SyncStatusCode"`
 	ComparedTo ComparedTo     `json:"comparedTo,omitempty" protobuf:"bytes,2,opt,name=comparedTo"`
-	Revision   string         `json:"revision,omitempty" protobuf:"bytes,3,opt,name=revision"`
+	// Revision is the revision that we want to be in-sync with.
+	Revision string `json:"revision,omitempty" protobuf:"bytes,3,opt,name=revision"`
 }
 
 type HealthStatus struct {

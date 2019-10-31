@@ -114,9 +114,15 @@ func (s *Service) runRepoOperation(
 	settings operationSettings) error {
 
 	var gitClient git.Client
+	var helmClient helm.Client
 	var err error
-	revision := source.TargetRevision
-	if !source.IsHelm() {
+	revision := ""
+	if source.IsHelm() {
+		helmClient, revision, err = s.newHelmClientResolveRevision(repo, source.TargetRevision, source.Chart)
+		if err != nil {
+			return err
+		}
+	} else {
 		gitClient, revision, err = s.newClientResolveRevision(repo, source.TargetRevision)
 		if err != nil {
 			return err
@@ -136,23 +142,7 @@ func (s *Service) runRepoOperation(
 	}
 
 	if source.IsHelm() {
-		helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds())
-		constraints, err := semver.NewConstraint(revision)
-		if err != nil {
-			return err
-		}
-		index, err := helmClient.GetIndex()
-		if err != nil {
-			return err
-		}
-		entries, err := index.GetEntries(source.Chart)
-		if err != nil {
-			return err
-		}
-		version, err := entries.MaxVersion(constraints)
-		if err != nil {
-			return err
-		}
+		version := semver.MustParse(revision)
 		if settings.noCache {
 			err = helmClient.CleanChartCache(source.Chart, version)
 			if err != nil {
@@ -183,7 +173,6 @@ func (s *Service) runRepoOperation(
 	}
 	return operation(appPath, revision)
 }
-
 func (s *Service) GenerateManifest(c context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
 	var res *apiclient.ManifestResponse
 
@@ -774,6 +763,27 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 		return nil, "", err
 	}
 	return gitClient, commitSHA, nil
+}
+
+func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string) (helm.Client, string, error) {
+	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds())
+	constraints, err := semver.NewConstraint(revision)
+	if err != nil {
+		return nil, "", err
+	}
+	index, err := helmClient.GetIndex()
+	if err != nil {
+		return nil, "", err
+	}
+	entries, err := index.GetEntries(chart)
+	if err != nil {
+		return nil, "", err
+	}
+	version, err := entries.MaxVersion(constraints)
+	if err != nil {
+		return nil, "", err
+	}
+	return helmClient, version.String(), nil
 }
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
