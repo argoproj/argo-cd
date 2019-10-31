@@ -5,13 +5,6 @@ import {ApplicationSource, RevisionMetadata} from '../../../shared/models';
 import {services} from '../../../shared/services';
 
 export const RevisionMetadataPanel = (props: {applicationName: string; source: ApplicationSource}) => {
-    if (props.source.chart) {
-        return (
-            <div className='application-status-panel__item-name'>
-                Helm Chart {props.source.chart} v{props.source.targetRevision}
-            </div>
-        );
-    }
     return (
         <DataLoader input={props} load={input => services.applications.revisionMetadata(input.applicationName, props.source.targetRevision || '')}>
             {(m: RevisionMetadata) => (

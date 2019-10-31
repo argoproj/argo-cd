@@ -785,7 +785,14 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
 		return nil, err
 	}
-	repo, err := s.db.GetRepository(ctx, a.Spec.Source.RepoURL)
+
+	var getRepo func(ctb context.Context, url string) (*appv1.Repository, error)
+	if a.Spec.Source.IsHelm() {
+		getRepo = s.db.GetHelmRepository
+	} else {
+		getRepo = s.db.GetRepository
+	}
+	repo, err := getRepo(ctx, a.Spec.Source.RepoURL)
 	if err != nil {
 		return nil, err
 	}
@@ -795,6 +802,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	}
 	defer util.Close(conn)
 	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{Repo: repo, Revision: q.GetRevision()})
+
 }
 
 func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQuery) (*application.ManagedResourcesResponse, error) {
