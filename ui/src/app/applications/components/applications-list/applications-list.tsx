@@ -33,19 +33,19 @@ const APP_FIELDS = [
     'status.health',
     'status.operationState.phase',
     'status.operationState.operation.sync',
-    'status.summary'
+    'status.summary',
 ];
-const APP_LIST_FIELDS = APP_FIELDS.map(field => `items.${field}`);
-const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
+const APP_LIST_FIELDS = APP_FIELDS.map((field) => `items.${field}`);
+const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map((field) => `result.application.${field}`)];
 
 function loadApplications(selector: string): Observable<models.Application[]> {
-    return Observable.fromPromise(services.applications.list([], {fields: APP_LIST_FIELDS, selector})).flatMap(applications =>
+    return Observable.fromPromise(services.applications.list([], {fields: APP_LIST_FIELDS, selector})).flatMap((applications) =>
         Observable.merge(
             Observable.from([applications]),
             services.applications
                 .watch(null, {fields: APP_WATCH_FIELDS, selector})
-                .map(appChange => {
-                    const index = applications.findIndex(item => item.metadata.name === appChange.application.metadata.name);
+                .map((appChange) => {
+                    const index = applications.findIndex((item) => item.metadata.name === appChange.application.metadata.name);
                     if (index > -1 && appChange.application.metadata.resourceVersion === applications[index].metadata.resourceVersion) {
                         return {applications, updated: false};
                     }
@@ -65,49 +65,49 @@ function loadApplications(selector: string): Observable<models.Application[]> {
                     }
                     return {applications, updated: true};
                 })
-                .filter(item => item.updated)
-                .map(item => item.applications)
-        )
+                .filter((item) => item.updated)
+                .map((item) => item.applications),
+        ),
     );
 }
 
 const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string}) => React.ReactNode}) => (
     <ObservableQuery>
-        {q => (
+        {(q) => (
             <DataLoader
                 load={() =>
-                    Observable.combineLatest(services.viewPreferences.getPreferences().map(item => item.appList), q).map(items => {
+                    Observable.combineLatest(services.viewPreferences.getPreferences().map((item) => item.appList), q).map((items) => {
                         const params = items[1];
                         const viewPref: AppsListPreferences = {...items[0]};
                         if (params.get('proj') != null) {
                             viewPref.projectsFilter = params
                                 .get('proj')
                                 .split(',')
-                                .filter(item => !!item);
+                                .filter((item) => !!item);
                         }
                         if (params.get('sync') != null) {
                             viewPref.syncFilter = params
                                 .get('sync')
                                 .split(',')
-                                .filter(item => !!item);
+                                .filter((item) => !!item);
                         }
                         if (params.get('health') != null) {
                             viewPref.healthFilter = params
                                 .get('health')
                                 .split(',')
-                                .filter(item => !!item);
+                                .filter((item) => !!item);
                         }
                         if (params.get('namespace') != null) {
                             viewPref.namespacesFilter = params
                                 .get('namespace')
                                 .split(',')
-                                .filter(item => !!item);
+                                .filter((item) => !!item);
                         }
                         if (params.get('cluster') != null) {
                             viewPref.clustersFilter = params
                                 .get('cluster')
                                 .split(',')
-                                .filter(item => !!item);
+                                .filter((item) => !!item);
                         }
                         if (params.get('view') != null) {
                             viewPref.view = params.get('view') as AppsListViewType;
@@ -116,12 +116,12 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                             viewPref.labelsFilter = params
                                 .get('labels')
                                 .split(',')
-                                .filter(item => !!item);
+                                .filter((item) => !!item);
                         }
                         return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || ''};
                     })
                 }>
-                {pref => children(pref)}
+                {(pref) => children(pref)}
             </DataLoader>
         )}
     </ObservableQuery>
@@ -129,14 +129,14 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
 
 function filterApps(applications: models.Application[], pref: AppsListPreferences, search: string) {
     return applications.filter(
-        app =>
+        (app) =>
             (search === '' || app.metadata.name.includes(search)) &&
             (pref.projectsFilter.length === 0 || pref.projectsFilter.includes(app.spec.project)) &&
             (pref.reposFilter.length === 0 || pref.reposFilter.includes(app.spec.source.repoURL)) &&
             (pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status)) &&
             (pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status)) &&
-            (pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => minimatch(app.spec.destination.namespace, ns))) &&
-            (pref.clustersFilter.length === 0 || pref.clustersFilter.some(server => minimatch(app.spec.destination.server, server)))
+            (pref.namespacesFilter.length === 0 || pref.namespacesFilter.some((ns) => minimatch(app.spec.destination.namespace, ns))) &&
+            (pref.clustersFilter.length === 0 || pref.clustersFilter.some((server) => minimatch(app.spec.destination.server, server))),
     );
 }
 
@@ -158,10 +158,10 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     return (
         <ClusterCtx.Provider value={clusters}>
             <Consumer>
-                {ctx => (
+                {(ctx) => (
                     <Page
                         title='Applications'
-                        toolbar={services.viewPreferences.getPreferences().map(pref => ({
+                        toolbar={services.viewPreferences.getPreferences().map((pref) => ({
                             breadcrumbs: [{title: 'Applications', path: '/applications'}],
                             tools: (
                                 <React.Fragment key='app-list-tools'>
@@ -195,22 +195,22 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                     {
                                         title: 'New App',
                                         iconClassName: 'fa fa-plus',
-                                        action: () => ctx.navigation.goto('.', {new: '{}'})
+                                        action: () => ctx.navigation.goto('.', {new: '{}'}),
                                     },
                                     {
                                         title: 'Sync Apps',
                                         iconClassName: 'fa fa-sync',
-                                        action: () => ctx.navigation.goto('.', {syncApps: true})
-                                    }
-                                ]
-                            }
+                                        action: () => ctx.navigation.goto('.', {syncApps: true}),
+                                    },
+                                ],
+                            },
                         }))}>
                         <div className='applications-list'>
                             <ViewPref>
-                                {pref => (
+                                {(pref) => (
                                     <DataLoader
                                         input={(pref.labelsFilter || []).join(',')}
-                                        load={selector => loadApplications(selector)}
+                                        load={(selector) => loadApplications(selector)}
                                         loadingRenderer={() => (
                                             <div className='argo-container'>
                                                 <MockupList height={100} marginTop={30} />
@@ -229,7 +229,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                 <div className='row'>
                                                     <div className='columns small-12 xxlarge-2'>
                                                         <Query>
-                                                            {q => (
+                                                            {(q) => (
                                                                 <div className='applications-list__search'>
                                                                     <i className='fa fa-search' />
                                                                     {q.get('search') && (
@@ -237,10 +237,10 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                     )}
                                                                     <Autocomplete
                                                                         filterSuggestions={true}
-                                                                        renderInput={inputProps => (
+                                                                        renderInput={(inputProps) => (
                                                                             <input
                                                                                 {...inputProps}
-                                                                                onFocus={e => {
+                                                                                onFocus={(e) => {
                                                                                     e.target.select();
                                                                                     if (inputProps.onFocus) {
                                                                                         inputProps.onFocus(e);
@@ -249,17 +249,17 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                                 className='argo-field'
                                                                             />
                                                                         )}
-                                                                        renderItem={item => (
+                                                                        renderItem={(item) => (
                                                                             <React.Fragment>
                                                                                 <i className='icon argo-icon-application' /> {item.label}
                                                                             </React.Fragment>
                                                                         )}
-                                                                        onSelect={val => {
+                                                                        onSelect={(val) => {
                                                                             ctx.navigation.goto(`./${val}`);
                                                                         }}
-                                                                        onChange={e => ctx.navigation.goto('.', {search: e.target.value}, {replace: true})}
+                                                                        onChange={(e) => ctx.navigation.goto('.', {search: e.target.value}, {replace: true})}
                                                                         value={q.get('search') || ''}
-                                                                        items={applications.map(app => app.metadata.name)}
+                                                                        items={applications.map((app) => app.metadata.name)}
                                                                     />
                                                                 </div>
                                                             )}
@@ -267,7 +267,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                         <ApplicationsFilter
                                                             applications={applications}
                                                             pref={pref}
-                                                            onChange={newPref => {
+                                                            onChange={(newPref) => {
                                                                 services.viewPreferences.updatePreferences({appList: newPref});
                                                                 ctx.navigation.goto('.', {
                                                                     proj: newPref.projectsFilter.join(','),
@@ -275,7 +275,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                     health: newPref.healthFilter.join(','),
                                                                     namespace: newPref.namespacesFilter.join(','),
                                                                     cluster: newPref.clustersFilter.join(','),
-                                                                    labels: newPref.labelsFilter.join(',')
+                                                                    labels: newPref.labelsFilter.join(','),
                                                                 });
                                                             }}
                                                         />
@@ -300,21 +300,21 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                     </EmptyState>
                                                                 )}
                                                                 data={filterApps(applications, pref, pref.search)}
-                                                                onPageChange={page => ctx.navigation.goto('.', {page})}>
-                                                                {data =>
+                                                                onPageChange={(page) => ctx.navigation.goto('.', {page})}>
+                                                                {(data) =>
                                                                     (pref.view === 'tiles' && (
                                                                         <ApplicationTiles
                                                                             applications={data}
-                                                                            syncApplication={appName => ctx.navigation.goto('.', {syncApp: appName})}
-                                                                            refreshApplication={appName => services.applications.get(appName, 'normal')}
-                                                                            deleteApplication={appName => AppUtils.deleteApplication(appName, ctx)}
+                                                                            syncApplication={(appName) => ctx.navigation.goto('.', {syncApp: appName})}
+                                                                            refreshApplication={(appName) => services.applications.get(appName, 'normal')}
+                                                                            deleteApplication={(appName) => AppUtils.deleteApplication(appName, ctx)}
                                                                         />
                                                                     )) || (
                                                                         <ApplicationsTable
                                                                             applications={data}
-                                                                            syncApplication={appName => ctx.navigation.goto('.', {syncApp: appName})}
-                                                                            refreshApplication={appName => services.applications.get(appName, 'normal')}
-                                                                            deleteApplication={appName => AppUtils.deleteApplication(appName, ctx)}
+                                                                            syncApplication={(appName) => ctx.navigation.goto('.', {syncApp: appName})}
+                                                                            refreshApplication={(appName) => services.applications.get(appName, 'normal')}
+                                                                            deleteApplication={(appName) => AppUtils.deleteApplication(appName, ctx)}
                                                                         />
                                                                     )
                                                                 }
@@ -329,15 +329,15 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                             </ViewPref>
                         </div>
                         <ObservableQuery>
-                            {q => (
+                            {(q) => (
                                 <DataLoader
                                     load={() =>
-                                        q.flatMap(params => {
+                                        q.flatMap((params) => {
                                             const syncApp = params.get('syncApp');
                                             return (syncApp && Observable.fromPromise(services.applications.get(syncApp))) || Observable.from([null]);
                                         })
                                     }>
-                                    {app => (
+                                    {(app) => (
                                         <ApplicationSyncPanel key='syncPanel' application={app} selectedResource={'all'} hide={() => ctx.navigation.goto('.', {syncApp: null})} />
                                     )}
                                 </DataLoader>
@@ -358,22 +358,22 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                             }>
                             {appInput && (
                                 <ApplicationCreatePanel
-                                    getFormApi={api => {
+                                    getFormApi={(api) => {
                                         setCreateApi(api);
                                     }}
-                                    createApp={async app => {
+                                    createApp={async (app) => {
                                         try {
                                             await services.applications.create(app);
                                             ctx.navigation.goto('.', {new: null});
                                         } catch (e) {
                                             ctx.notifications.show({
                                                 content: <ErrorNotification title='Unable to create application' e={e} />,
-                                                type: NotificationType.Error
+                                                type: NotificationType.Error,
                                             });
                                         }
                                     }}
                                     app={appInput}
-                                    onAppChanged={app => ctx.navigation.goto('.', {new: JSON.stringify(app)}, {replace: true})}
+                                    onAppChanged={(app) => ctx.navigation.goto('.', {new: JSON.stringify(app)}, {replace: true})}
                                 />
                             )}
                         </SlidingPanel>
