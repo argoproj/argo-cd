@@ -36,12 +36,10 @@ func TestIndex(t *testing.T) {
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", Creds{})
 	version, err := semver.NewVersion("0.7.1")
-	if assert.NoError(t, err) {
-		path, closer, err := client.ExtractChart("argo-cd", *version)
-		defer util.Close(closer)
-		assert.NoError(t, err)
-		info, err := os.Stat(path)
-		assert.NoError(t, err)
-		assert.True(t, info.IsDir())
-	}
+	path, closer, err := client.ExtractChart("argo-cd", version)
+	defer util.Close(closer)
+	assert.NoError(t, err)
+	info, err := os.Stat(path)
+	assert.NoError(t, err)
+	assert.True(t, info.IsDir())
 }

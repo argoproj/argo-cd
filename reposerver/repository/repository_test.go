@@ -323,6 +323,7 @@ func TestListApps(t *testing.T) {
 		"invalid-kustomize":  "Kustomize",
 		"kustomization_yaml": "Kustomize",
 		"kustomization_yml":  "Kustomize",
+		"my-chart":           "Helm",
 	}
 	assert.Equal(t, expectedApps, res.Apps)
 }
@@ -386,8 +387,8 @@ func TestGetHelmCharts(t *testing.T) {
 	assert.Len(t, res.Items, 1)
 
 	item := res.Items[0]
-	assert.Equal(t, "mychart", item.Name)
-	assert.EqualValues(t, []string{"v1", "v2"}, item.Versions)
+	assert.Equal(t, "my-chart", item.Name)
+	assert.EqualValues(t, []string{"1.0.0", "1.1.0"}, item.Versions)
 }
 
 func TestGetRevisionMetadata(t *testing.T) {
