@@ -42,14 +42,6 @@ func (db *db) getHelmRepo(repoURL string, helmRepositories []settings.HelmRepoCr
 	return repo, err
 }
 
-func (db *db) GetHelmRepository(ctx context.Context, url string) (*v1alpha1.Repository, error) {
-	helmRepositories, err := db.settingsMgr.GetHelmRepositories()
-	if err != nil {
-		return nil, err
-	}
-	return db.getHelmRepo(url, helmRepositories)
-}
-
 // ListHelmRepoURLs lists configured helm repositories
 func (db *db) ListHelmRepositories(ctx context.Context) ([]*v1alpha1.Repository, error) {
 	helmRepositories, err := db.settingsMgr.GetHelmRepositories()

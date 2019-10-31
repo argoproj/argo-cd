@@ -6,7 +6,14 @@ import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import * as utils from '../utils';
-import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, getAppOperationState, HealthStatusIcon, OperationState, syncStatusMessage} from '../utils';
+import {
+    ApplicationSyncWindowStatusIcon,
+    ComparisonStatusIcon,
+    getAppOperationState,
+    HealthStatusIcon,
+    OperationState,
+    syncStatusMessage,
+} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
 
 require('./application-status-panel.scss');
@@ -65,10 +72,9 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 <div className='application-status-panel__item-name'>{syncStatusMessage(application)}</div>
                 <div className='application-status-panel__item-name'>
                     {application.status && application.status.sync && application.status.sync.revision && (
-                        <RevisionMetadataPanel
-                            applicationName={application.metadata.name}
-                            source={{...application.spec.source, targetRevision: application.status.sync.revision}}
-                        />
+                        <RevisionMetadataPanel appName={application.metadata.name}
+                                               type={application.spec.source.chart && 'helm'}
+                                               revision={application.status.sync.revision}/>
                     )}
                 </div>
             </div>
@@ -93,10 +99,9 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                         {appOperationState.phase} <Timestamp date={appOperationState.finishedAt || appOperationState.startedAt} />
                     </div>
                     {appOperationState.syncResult && (
-                        <RevisionMetadataPanel
-                            applicationName={application.metadata.name}
-                            source={{...application.spec.source, targetRevision: appOperationState.syncResult.revision}}
-                        />
+                        <RevisionMetadataPanel appName={application.metadata.name}
+                                               type={application.spec.source.chart && 'helm'}
+                                               revision={appOperationState.syncResult.revision}/>
                     )}
                 </div>
             )}

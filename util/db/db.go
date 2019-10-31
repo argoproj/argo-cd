@@ -54,8 +54,6 @@ type ArgoDB interface {
 	// CreateRepoCertificate creates a new certificate entry
 	RemoveRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appv1.RepositoryCertificateList, error)
 
-	// GetHelmRepository returns the helm repostiory
-	GetHelmRepository(ctx context.Context, url string) (*appv1.Repository, error)
 	// ListHelmRepositories lists repositories
 	ListHelmRepositories(ctx context.Context) ([]*appv1.Repository, error)
 }
