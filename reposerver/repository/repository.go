@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/Masterminds/semver"
 	"github.com/TomOnTime/utfutil"
 	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/ghodss/yaml"
@@ -136,13 +137,29 @@ func (s *Service) runRepoOperation(
 
 	if source.IsHelm() {
 		helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds())
+		constraints, err := semver.NewConstraint(revision)
+		if err != nil {
+			return err
+		}
+		index, err := helmClient.GetIndex()
+		if err != nil {
+			return err
+		}
+		entries, err := index.GetEntries(source.Chart)
+		if err != nil {
+			return err
+		}
+		version, err := entries.MaxVersion(constraints)
+		if err != nil {
+			return err
+		}
 		if settings.noCache {
-			err = helmClient.CleanChartCache(source.Chart, revision)
+			err = helmClient.CleanChartCache(source.Chart, version)
 			if err != nil {
 				return err
 			}
 		}
-		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision)
+		chartPath, closer, err := helmClient.ExtractChart(source.Chart, version)
 		if err != nil {
 			return err
 		}
