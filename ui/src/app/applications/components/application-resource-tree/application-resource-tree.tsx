@@ -193,7 +193,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
         <div
             onClick={() => props.onNodeClick && props.onNodeClick(fullName)}
             className={classNames('application-resource-tree__node', {
-                active: fullName === props.selectedNodeFullName,
+                'active': fullName === props.selectedNodeFullName,
                 'application-resource-tree__node--orphaned': node.orphaned
             })}
             style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
