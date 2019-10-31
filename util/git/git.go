@@ -24,7 +24,7 @@ func removeSuffix(s, suffix string) string {
 
 var (
 	commitSHARegex = regexp.MustCompile("^[0-9A-Fa-f]{40}$")
-	sshURLRegex    = regexp.MustCompile("^(ssh://)?([^/@:]*?)@.*")
+	sshURLRegex    = regexp.MustCompile("^(ssh://)?([^/:]*?)@[^@]+$")
 	httpsURLRegex  = regexp.MustCompile("^(https://).*")
 )
 
