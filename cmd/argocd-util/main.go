@@ -74,6 +74,7 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewImportCommand())
 	command.AddCommand(NewExportCommand())
 	command.AddCommand(NewClusterConfig())
+	command.AddCommand(NewProjectsCommand())
 
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	return command
@@ -220,6 +221,7 @@ func NewImportCommand() *cobra.Command {
 				os.Exit(1)
 			}
 			config, err := clientConfig.ClientConfig()
+			errors.CheckError(err)
 			config.QPS = 100
 			config.Burst = 50
 			errors.CheckError(err)
