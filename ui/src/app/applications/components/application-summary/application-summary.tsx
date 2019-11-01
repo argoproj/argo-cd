@@ -1,7 +1,6 @@
 import {DropDownMenu, FormField, FormSelect, PopupApi} from 'argo-ui';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
-import {AutocompleteField, Cluster, clusterTitle, DataLoader, EditablePanel, EditablePanelItem, MapInputField, Repo, Revision, RevisionHelpIcon} from '../../../shared/components';
 import {
     AutocompleteField,
     Cluster,
@@ -12,6 +11,7 @@ import {
     MapInputField,
     Repo,
     Revision,
+    RevisionHelpIcon,
     ValueArrayInputField
 } from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
