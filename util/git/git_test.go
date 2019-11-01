@@ -82,6 +82,23 @@ func TestIsSSHURLUserName(t *testing.T) {
 	isSSH, user = IsSSHURL("john@john-server.org:29418/project")
 	assert.True(t, isSSH)
 	assert.Equal(t, "john", user)
+
+	isSSH, user = IsSSHURL("john@doe.org@john-server.org:29418/project")
+	assert.True(t, isSSH)
+	assert.Equal(t, "john@doe.org", user)
+
+	isSSH, user = IsSSHURL("ssh://john@doe.org@john-server.org:29418/project")
+	assert.True(t, isSSH)
+	assert.Equal(t, "john@doe.org", user)
+
+	isSSH, user = IsSSHURL("john@doe.org@john-server.org:project")
+	assert.True(t, isSSH)
+	assert.Equal(t, "john@doe.org", user)
+
+	isSSH, user = IsSSHURL("john@doe.org@john-server.org:29418/project")
+	assert.True(t, isSSH)
+	assert.Equal(t, "john@doe.org", user)
+
 }
 
 func TestSameURL(t *testing.T) {
