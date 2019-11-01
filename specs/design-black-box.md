@@ -72,10 +72,121 @@ specific ConfigMaps/Secrets.
 
 ## Design Details
 
-### Public API
+The proposed design is based on the PoC that contains draft implementation and provides the base idea of a target design. PoC is available in
+[argo-cd#fargo/engine](https://github.com/alexmt/argo-cd/tree/fargo/engine) and [flux#fargo](https://github.com/alexmt/flux/tree/fargo) 
 
-To be documented during POC implementation.
+The GitOps engine API consists of three main packages:
+* The `utils` package. It consist of loosely coupled packages that implements K8S resource diffing, health assessment, etc
+* The `app` package that Application data structure definition and CRUD client interface.
+* The `engine` package that leverages `utils` and uses provided set of Applications as a configuration source.
 
+```
+gitops-engine
+|-- pkg
+|   |-- utils
+|   |   |-- diff   # provides Kubernetes resource diffing functionality
+|   |   |-- kube   # provides utility methods to interact with Kubernetes
+|   |   |-- lue    # provides utility methods to run Lua scripts
+|   |   |-- apps   # provides utility methods to manipulate Applications (e.g. start sync operation, wait for sync operation, force reconciliation)
+|   |   `-- health # provides Kubernetes resources health assessment
+|   |-- app
+|   |   |-- apis       # contains data structures that describe Application
+|   |   `-- client     # contains client that provides Application CRUD operations
+|   `-- engine     # the engine implementation
+```
+
+The engine is responsible for reconciliation only which includes:
+- Interacting with the Kubernetes API: load and maintain the cluster state; pushing required changes to the Kubernetes API.
+- Reconciliation logic: based on provides target resource definition find which resources should be updated/deleted/created.
+- Syncing logic: determine the order in which resources should be modified; features like sync hooks, waves, etc.
+
+The manifests generation is out of scope and should be implemented by the Engine consumer.
+
+### Engine API
+
+The engine API includes Application data structure/client and `Engine` golang interface that allows configuring reconciliation process:
+
+**Engine interface** - provides set of that allows updating reconciliation settings and subscribe to engine events.
+```golang
+type Engine interface {
+	// Run starts reconciliation loop using specified number of processors for reconciliation and operation execution.
+	Run(ctx context.Context, statusProcessors int, operationProcessors int)
+
+	// SetReconciliationSettings updates reconciliation settings
+	SetReconciliationSettings(settings ReconciliationSettings)
+
+	// OnBeforeSync registers callback that is executed before each sync operation.
+	OnBeforeSync(callback func(appName string, tasks []SyncTaskInfo) ([]SyncTaskInfo, error)) Unsubscribe
+
+	// OnSyncCompleted registers callback that is executed after each sync operation.
+	OnSyncCompleted(callback func(appName string, state appv1.OperationState) error) Unsubscribe
+
+	// OnClusterCacheInitialized registers that that is executed when cluster cache initialization is completed.
+	OnClusterCacheInitialized(callback func(server string)) Unsubscribe
+
+	// OnResourceUpdated registers that that is executed when cluster resource got updated.
+	OnResourceUpdated(callback func(cluster string, un *unstructured.Unstructured)) Unsubscribe
+
+	// OnResourceRemoved registers that that is executed when cluster resource got removed.
+	OnResourceRemoved(callback func(cluster string, key kube.ResourceKey)) Unsubscribe
+
+	// OnAppEvent registers callback that is executed on every application event.
+	OnAppEvent(callback func(app *appv1.Application, info EventInfo, message string)) Unsubscribe
+}
+
+type Unsubscribe func()
+```
+
+**ReconciliationSettings data structure** - holds reconciliation settings
+```golang
+type ReconciliationSettings struct {
+	// AppInstanceLabelKey holds label key which is automatically added to every resource managed by the application
+	AppInstanceLabelKey string
+	// ResourcesFilter holds settigns which allows to configure list of managed resource APIs
+	ResourcesFilter resource.ResourcesFilter
+	// ResourceOverrides holds settings which customize resource diffing logic
+	ResourceOverrides map[string]appv1.ResourceOverride
+}
+```
+
+**CredentialsStore** provides access to cluster credentials
+```golang
+type CredentialsStore interface {
+	GetCluster(ctx context.Context, name string) (*appv1.Cluster, error)
+	WatchClusters(ctx context.Context, callback func(event *ClusterEvent)) error
+}
+```
+
+**ManifestGenerator** an golang interface that must be implemented by the GitOps engine consumer.
+```golang
+type ManifestResponse struct {
+    // Generated manifests
+    Manifests  []string
+    // Resolved Git revision
+	Revision   string
+}
+
+type ManifestGenerator interface {
+	Generate(ctx context.Context, app *appv1.Application, revision string, noCache bool) (*ManifestResponse, error)
+}
+```
+
+**Engine instantiation** in order to create engine the consumer must provide the cluster credentials store and manifest generator as well as reconciliation settings. The code snippets
+below contains `NewEngine` function definition and usage example:
+
+```golang
+func NewEngine(settings ReconciliationSettings, creds CredentialsStore, manifests ManifestGenerator)
+```
+
+```golang
+myManifests := manifests{}
+myClusters := clusters{}
+engine := NewEngine(ReconciliationSettings{}, myManifests, myClusters)
+engine.OnBeforeSync(func(appName string, tasks []SyncTaskInfo) ([]SyncTaskInfo, error) {
+    // customize syncing process by returning update list of sync tasks or fail to prevent syncing
+    return tasks, nil
+})
+```
 
 ## Alternatives
 
