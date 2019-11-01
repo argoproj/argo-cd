@@ -26,7 +26,7 @@ export interface NameValue {
     value: string;
 }
 
-export const NameValueEditor = (item: NameValue, onChange: (item: NameValue) => any) => (
+export const NameValueEditor = (item: NameValue, onChange: (item: NameValue) => void) => (
     <React.Fragment>
         <input placeholder='Name' value={item.name || ''} onChange={e => onChange({...item, name: e.target.value})} title='Name' />
         &nbsp; = &nbsp;
@@ -35,7 +35,14 @@ export const NameValueEditor = (item: NameValue, onChange: (item: NameValue) => 
     </React.Fragment>
 );
 
+export const ValueEditor = (item: string, onChange: (item: string) => void) => (
+    <React.Fragment>
+        <input placeholder='Value' value={item || ''} onChange={e => onChange(e.target.value)} title='Value' />
+    </React.Fragment>
+);
+
 interface Props<T> {
+    templateItem: T;
     items: T[];
     onChange: (items: T[]) => void;
     editor: (item: T, onChange: (updated: T) => any) => React.ReactNode;
@@ -58,7 +65,7 @@ export function ArrayInput<T>(props: Props<T>) {
         items.splice(i, 1);
         props.onChange(items);
     };
-    const [newItem, setNewItem] = React.useState({} as T);
+    const [newItem, setNewItem] = React.useState(props.templateItem);
 
     return (
         <div className='argo-field' style={{border: 0}}>
@@ -79,7 +86,7 @@ export function ArrayInput<T>(props: Props<T>) {
                         disabled={!props.valid(newItem)}
                         onClick={() => {
                             addItem(newItem);
-                            setNewItem({} as T);
+                            setNewItem(props.templateItem);
                         }}>
                         <i style={{cursor: 'pointer'}} className='fa fa-plus' />
                     </button>
@@ -97,7 +104,14 @@ export const ArrayInputField = ReactForm.FormField((props: {fieldApi: ReactForm.
     const {
         fieldApi: {getValue, setValue}
     } = props;
-    return <ArrayInput editor={NameValueEditor} items={getValue() || []} onChange={setValue} valid={hasNameAndValue} />;
+    return <ArrayInput editor={NameValueEditor} items={getValue() || []} onChange={setValue} valid={hasNameAndValue} templateItem={{}} />;
+});
+
+export const ValueArrayInputField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
+    const {
+        fieldApi: {getValue, setValue}
+    } = props;
+    return <ArrayInput editor={ValueEditor} items={getValue() || []} onChange={setValue} valid={item => item !== ''} templateItem='' />;
 });
 
 export const MapInputField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
@@ -117,6 +131,7 @@ export const MapInputField = ReactForm.FormField((props: {fieldApi: ReactForm.Fi
                 array.forEach(item => (newMap[item.name] = item.value));
                 setValue(newMap);
             }}
+            templateItem={{name: '', value: ''}}
         />
     );
 });

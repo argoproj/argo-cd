@@ -1,16 +1,25 @@
 import {DropDownMenu, FormField, FormSelect, PopupApi} from 'argo-ui';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
-
-require('./application-summary.scss');
-
-import {AutocompleteField, Cluster, clusterTitle, DataLoader, EditablePanel, EditablePanelItem} from '../../../shared/components';
-import {MapInputField, Repo, Revision} from '../../../shared/components';
+import {
+    AutocompleteField,
+    Cluster,
+    clusterTitle,
+    DataLoader,
+    EditablePanel,
+    EditablePanelItem,
+    MapInputField,
+    Repo,
+    Revision,
+    ValueArrayInputField
+} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
 import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage} from '../utils';
+
+require('./application-summary.scss');
 
 const urlPattern = new RegExp(
     '^(https?:\\/\\/)?((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|((\\d{1,3}\\.){3}\\d{1,3}))' + '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*(\\?[;&a-z\\d%_.~+=-]*)?(\\#[-a-z\\d_]*)?$',
@@ -135,6 +144,11 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                   }
               ]),
         {
+            title: 'SYNC OPTIONS',
+            view: ((app.spec.syncPolicy || {}).syncOptions || []).join(', '),
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.syncPolicy.syncOptions' component={ValueArrayInputField} />
+        },
+        {
             title: 'STATUS',
             view: (
                 <span>
@@ -187,7 +201,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
         const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);
         if (confirmed) {
             const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
-            updatedApp.spec.syncPolicy = {automated: {prune, selfHeal}};
+            updatedApp.spec.syncPolicy.automated = {prune, selfHeal};
             props.updateApp(updatedApp);
         }
     }
@@ -196,7 +210,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
         const confirmed = await ctx.popup.confirm('Disable Auto-Sync?', 'Are you sure you want to disable automated application synchronization');
         if (confirmed) {
             const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
-            updatedApp.spec.syncPolicy = {automated: null};
+            updatedApp.spec.syncPolicy.automated = null;
             props.updateApp(updatedApp);
         }
     }
