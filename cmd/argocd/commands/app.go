@@ -1039,8 +1039,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					}
 
 					foundDiffs = true
-					err = diff.PrintDiff(item.key.Name, target, live)
-					errors.CheckError(err)
+					_ = diff.PrintDiff(item.key.Name, target, live)
 				}
 			}
 			if foundDiffs {

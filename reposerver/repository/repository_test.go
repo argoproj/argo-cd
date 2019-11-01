@@ -3,12 +3,12 @@ package repository
 import (
 	"context"
 	"encoding/json"
-	"path"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/Masterminds/semver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	v1 "k8s.io/api/apps/v1"
@@ -17,10 +17,9 @@ import (
 
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/reposerver/cache"
 	"github.com/argoproj/argo-cd/reposerver/metrics"
 	"github.com/argoproj/argo-cd/util"
-
-	"github.com/argoproj/argo-cd/reposerver/cache"
 	cacheutil "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/git"
 	gitmocks "github.com/argoproj/argo-cd/util/git/mocks"
@@ -28,7 +27,7 @@ import (
 	helmmocks "github.com/argoproj/argo-cd/util/helm/mocks"
 )
 
-func newServiceWithMocks(root string) (*Service, *gitmocks.Client, *helmmocks.Client) {
+func newServiceWithMocks(root string) (*Service, *gitmocks.Client) {
 	service := NewService(metrics.NewMetricsServer(), cache.NewCache(
 		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
 		1*time.Minute,
@@ -46,11 +45,13 @@ func newServiceWithMocks(root string) (*Service, *gitmocks.Client, *helmmocks.Cl
 	gitClient.On("CommitSHA").Return(mock.Anything, nil)
 	gitClient.On("Root").Return(root)
 
-	helmClient.On("ExtractChart", mock.Anything, mock.Anything).Return(func(chart string, version string) string {
-		return path.Join(root, chart)
-	}, util.NewCloser(func() error {
-		return nil
-	}), nil)
+	chart := "my-chart"
+	version := semver.MustParse("1.1.0")
+	helmClient.On("GetIndex").Return(&helm.Index{Entries: map[string]helm.Entries{
+		chart: {{Version: "1.0.0"}, {Version: version.String()}},
+	}}, nil)
+	helmClient.On("ExtractChart", chart, version).Return("./testdata/my-chart", util.NopCloser, nil)
+	helmClient.On("CleanChartCache", chart, version).Return(nil)
 
 	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool) (client git.Client, e error) {
 		return gitClient, nil
@@ -58,55 +59,61 @@ func newServiceWithMocks(root string) (*Service, *gitmocks.Client, *helmmocks.Cl
 	service.newHelmClient = func(repoURL string, creds helm.Creds) helm.Client {
 		return helmClient
 	}
-	return service, gitClient, helmClient
+	return service, gitClient
 }
 
 func newService(root string) *Service {
-	service, _, _ := newServiceWithMocks(root)
+	service, _ := newServiceWithMocks(root)
 	return service
 }
 
 func TestGenerateYamlManifestInDir(t *testing.T) {
 	service := newService("../..")
 
-	for srcType, src := range map[string]argoappv1.ApplicationSource{
-		"Git":  {Path: "manifests/base"},
-		"Helm": {Chart: "manifests/base"},
-	} {
-		t.Run(srcType, func(t *testing.T) {
-			q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
+	src := argoappv1.ApplicationSource{Path: "manifests/base"}
+	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
 
-			// update this value if we add/remove manifests
-			const countOfManifests = 25
+	// update this value if we add/remove manifests
+	const countOfManifests = 25
 
-			res1, err := service.GenerateManifest(context.Background(), &q)
+	res1, err := service.GenerateManifest(context.Background(), &q)
 
-			assert.Nil(t, err)
-			assert.Equal(t, countOfManifests, len(res1.Manifests))
+	assert.NoError(t, err)
+	assert.Equal(t, countOfManifests, len(res1.Manifests))
 
-			// this will test concatenated manifests to verify we split YAMLs correctly
-			res2, err := GenerateManifests("./testdata/concatenated", "", &q)
-			assert.Nil(t, err)
-			assert.Equal(t, 3, len(res2.Manifests))
-		})
-	}
+	// this will test concatenated manifests to verify we split YAMLs correctly
+	res2, err := GenerateManifests("./testdata/concatenated", "", &q)
+	assert.NoError(t, err)
+	assert.Equal(t, 3, len(res2.Manifests))
+}
+
+// ensure we can use a semver constraint range (>= 1.0.0) and get back the correct chart (1.0.0)
+func TestHelmManifestFromChartRepo(t *testing.T) {
+	service := newService(".")
+	source := &argoappv1.ApplicationSource{Chart: "my-chart", TargetRevision: ">= 1.0.0"}
+	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: source, NoCache: true}
+	response, err := service.GenerateManifest(context.Background(), request)
+	assert.NoError(t, err)
+	assert.NotNil(t, response)
+	assert.Equal(t, &apiclient.ManifestResponse{
+		Manifests:  []string{"{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"my-map\"}}"},
+		Namespace:  "",
+		Server:     "",
+		Revision:   "1.1.0",
+		SourceType: "Helm",
+	}, response)
 }
 
 func TestRecurseManifestsInDir(t *testing.T) {
 	service := newService(".")
 
-	for srcType, src := range map[string]argoappv1.ApplicationSource{
-		"Git":  {Path: "./testdata/recurse", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}},
-		"Helm": {Chart: "./testdata/recurse", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}},
-	} {
-		t.Run(srcType, func(t *testing.T) {
-			q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
+	src := argoappv1.ApplicationSource{Path: "./testdata/recurse", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}
 
-			res1, err := service.GenerateManifest(context.Background(), &q)
-			assert.Nil(t, err)
-			assert.Equal(t, 2, len(res1.Manifests))
-		})
-	}
+	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
+
+	res1, err := service.GenerateManifest(context.Background(), &q)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(res1.Manifests))
 }
 
 func TestGenerateJsonnetManifestInDir(t *testing.T) {
@@ -316,6 +323,7 @@ func TestListApps(t *testing.T) {
 		"invalid-kustomize":  "Kustomize",
 		"kustomization_yaml": "Kustomize",
 		"kustomization_yml":  "Kustomize",
+		"my-chart":           "Helm",
 	}
 	assert.Equal(t, expectedApps, res.Apps)
 }
@@ -373,22 +381,18 @@ func TestGetAppDetailsKsonnet(t *testing.T) {
 }
 
 func TestGetHelmCharts(t *testing.T) {
-	service, _, helmClient := newServiceWithMocks("../..")
-	helmClient.On("GetIndex").Return(&helm.Index{Entries: map[string][]helm.Entry{
-		"mychart": {{Version: "v1"}, {Version: "v2"}},
-	}}, nil)
-
+	service := newService("../..")
 	res, err := service.GetHelmCharts(context.Background(), &apiclient.HelmChartsRequest{Repo: &argoappv1.Repository{}})
 	assert.NoError(t, err)
 	assert.Len(t, res.Items, 1)
 
 	item := res.Items[0]
-	assert.Equal(t, "mychart", item.Name)
-	assert.EqualValues(t, []string{"v1", "v2"}, item.Versions)
+	assert.Equal(t, "my-chart", item.Name)
+	assert.EqualValues(t, []string{"1.0.0", "1.1.0"}, item.Versions)
 }
 
 func TestGetRevisionMetadata(t *testing.T) {
-	service, gitClient, _ := newServiceWithMocks("../..")
+	service, gitClient := newServiceWithMocks("../..")
 	now := time.Now()
 
 	gitClient.On("RevisionMetadata", mock.Anything).Return(&git.RevisionMetadata{

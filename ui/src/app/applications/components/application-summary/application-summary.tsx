@@ -1,6 +1,7 @@
 import {DropDownMenu, FormField, FormSelect, PopupApi} from 'argo-ui';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
+import {AutocompleteField, Cluster, clusterTitle, DataLoader, EditablePanel, EditablePanelItem, MapInputField, Repo, Revision, RevisionHelpIcon} from '../../../shared/components';
 import {
     AutocompleteField,
     Cluster,
@@ -122,6 +123,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                                                           items: versions
                                                       }}
                                                   />
+                                                  <RevisionHelpIcon type='helm' />
                                               </div>
                                           )}
                                       </DataLoader>
@@ -135,7 +137,12 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                   {
                       title: 'TARGET REVISION',
                       view: <Revision repoUrl={app.spec.source.repoURL} revision={app.spec.source.targetRevision || 'HEAD'} />,
-                      edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.targetRevision' component={Text} componentProps={{placeholder: 'HEAD'}} />
+                      edit: (formApi: FormApi) => (
+                          <React.Fragment>
+                              <FormField formApi={formApi} field='spec.source.targetRevision' component={Text} componentProps={{placeholder: 'HEAD'}} />
+                              <RevisionHelpIcon type='git' />{' '}
+                          </React.Fragment>
+                      )
                   },
                   {
                       title: 'PATH',

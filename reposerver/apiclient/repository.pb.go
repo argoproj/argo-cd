@@ -29,7 +29,8 @@ const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
 // ManifestRequest is a query for manifest generation.
 type ManifestRequest struct {
-	Repo                 *v1alpha1.Repository               `protobuf:"bytes,1,opt,name=repo" json:"repo,omitempty"`
+	Repo *v1alpha1.Repository `protobuf:"bytes,1,opt,name=repo" json:"repo,omitempty"`
+	// revision, potentially un-resolved
 	Revision             string                             `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
 	NoCache              bool                               `protobuf:"varint,3,opt,name=noCache,proto3" json:"noCache,omitempty"`
 	AppLabelKey          string                             `protobuf:"bytes,4,opt,name=appLabelKey,proto3" json:"appLabelKey,omitempty"`
@@ -49,7 +50,7 @@ func (m *ManifestRequest) Reset()         { *m = ManifestRequest{} }
 func (m *ManifestRequest) String() string { return proto.CompactTextString(m) }
 func (*ManifestRequest) ProtoMessage()    {}
 func (*ManifestRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_71f9012dc2cfcf2b, []int{0}
+	return fileDescriptor_repository_bb1e21dedf091fbd, []int{0}
 }
 func (m *ManifestRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -156,9 +157,10 @@ func (m *ManifestRequest) GetKubeVersion() string {
 }
 
 type ManifestResponse struct {
-	Manifests            []string `protobuf:"bytes,1,rep,name=manifests" json:"manifests,omitempty"`
-	Namespace            string   `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
-	Server               string   `protobuf:"bytes,3,opt,name=server,proto3" json:"server,omitempty"`
+	Manifests []string `protobuf:"bytes,1,rep,name=manifests" json:"manifests,omitempty"`
+	Namespace string   `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	Server    string   `protobuf:"bytes,3,opt,name=server,proto3" json:"server,omitempty"`
+	// resolved revision
 	Revision             string   `protobuf:"bytes,4,opt,name=revision,proto3" json:"revision,omitempty"`
 	SourceType           string   `protobuf:"bytes,6,opt,name=sourceType,proto3" json:"sourceType,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -170,7 +172,7 @@ func (m *ManifestResponse) Reset()         { *m = ManifestResponse{} }
 func (m *ManifestResponse) String() string { return proto.CompactTextString(m) }
 func (*ManifestResponse) ProtoMessage()    {}
 func (*ManifestResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_71f9012dc2cfcf2b, []int{1}
+	return fileDescriptor_repository_bb1e21dedf091fbd, []int{1}
 }
 func (m *ManifestResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -247,7 +249,7 @@ func (m *ListAppsRequest) Reset()         { *m = ListAppsRequest{} }
 func (m *ListAppsRequest) String() string { return proto.CompactTextString(m) }
 func (*ListAppsRequest) ProtoMessage()    {}
 func (*ListAppsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_71f9012dc2cfcf2b, []int{2}
+	return fileDescriptor_repository_bb1e21dedf091fbd, []int{2}
 }
 func (m *ListAppsRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -302,7 +304,7 @@ func (m *AppList) Reset()         { *m = AppList{} }
 func (m *AppList) String() string { return proto.CompactTextString(m) }
 func (*AppList) ProtoMessage()    {}
 func (*AppList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_71f9012dc2cfcf2b, []int{3}
+	return fileDescriptor_repository_bb1e21dedf091fbd, []int{3}
 }
 func (m *AppList) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -353,7 +355,7 @@ func (m *RepoServerAppDetailsQuery) Reset()         { *m = RepoServerAppDetailsQ
 func (m *RepoServerAppDetailsQuery) String() string { return proto.CompactTextString(m) }
 func (*RepoServerAppDetailsQuery) ProtoMessage()    {}
 func (*RepoServerAppDetailsQuery) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_71f9012dc2cfcf2b, []int{4}
+	return fileDescriptor_repository_bb1e21dedf091fbd, []int{4}
 }
 func (m *RepoServerAppDetailsQuery) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -426,7 +428,7 @@ func (m *RepoAppDetailsResponse) Reset()         { *m = RepoAppDetailsResponse{}
 func (m *RepoAppDetailsResponse) String() string { return proto.CompactTextString(m) }
 func (*RepoAppDetailsResponse) ProtoMessage()    {}
 func (*RepoAppDetailsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_71f9012dc2cfcf2b, []int{5}
+	return fileDescriptor_repository_bb1e21dedf091fbd, []int{5}
 }
 func (m *RepoAppDetailsResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -504,7 +506,7 @@ func (m *RepoServerRevisionMetadataRequest) Reset()         { *m = RepoServerRev
 func (m *RepoServerRevisionMetadataRequest) String() string { return proto.CompactTextString(m) }
 func (*RepoServerRevisionMetadataRequest) ProtoMessage()    {}
 func (*RepoServerRevisionMetadataRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_71f9012dc2cfcf2b, []int{6}
+	return fileDescriptor_repository_bb1e21dedf091fbd, []int{6}
 }
 func (m *RepoServerRevisionMetadataRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -562,7 +564,7 @@ func (m *KsonnetAppSpec) Reset()         { *m = KsonnetAppSpec{} }
 func (m *KsonnetAppSpec) String() string { return proto.CompactTextString(m) }
 func (*KsonnetAppSpec) ProtoMessage()    {}
 func (*KsonnetAppSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_71f9012dc2cfcf2b, []int{7}
+	return fileDescriptor_repository_bb1e21dedf091fbd, []int{7}
 }
 func (m *KsonnetAppSpec) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -629,7 +631,7 @@ func (m *HelmAppSpec) Reset()         { *m = HelmAppSpec{} }
 func (m *HelmAppSpec) String() string { return proto.CompactTextString(m) }
 func (*HelmAppSpec) ProtoMessage()    {}
 func (*HelmAppSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_71f9012dc2cfcf2b, []int{8}
+	return fileDescriptor_repository_bb1e21dedf091fbd, []int{8}
 }
 func (m *HelmAppSpec) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -699,7 +701,7 @@ func (m *KustomizeAppSpec) Reset()         { *m = KustomizeAppSpec{} }
 func (m *KustomizeAppSpec) String() string { return proto.CompactTextString(m) }
 func (*KustomizeAppSpec) ProtoMessage()    {}
 func (*KustomizeAppSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_71f9012dc2cfcf2b, []int{9}
+	return fileDescriptor_repository_bb1e21dedf091fbd, []int{9}
 }
 func (m *KustomizeAppSpec) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -751,7 +753,7 @@ func (m *KsonnetEnvironment) Reset()         { *m = KsonnetEnvironment{} }
 func (m *KsonnetEnvironment) String() string { return proto.CompactTextString(m) }
 func (*KsonnetEnvironment) ProtoMessage()    {}
 func (*KsonnetEnvironment) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_71f9012dc2cfcf2b, []int{10}
+	return fileDescriptor_repository_bb1e21dedf091fbd, []int{10}
 }
 func (m *KsonnetEnvironment) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -815,7 +817,7 @@ func (m *KsonnetEnvironmentDestination) Reset()         { *m = KsonnetEnvironmen
 func (m *KsonnetEnvironmentDestination) String() string { return proto.CompactTextString(m) }
 func (*KsonnetEnvironmentDestination) ProtoMessage()    {}
 func (*KsonnetEnvironmentDestination) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_71f9012dc2cfcf2b, []int{11}
+	return fileDescriptor_repository_bb1e21dedf091fbd, []int{11}
 }
 func (m *KsonnetEnvironmentDestination) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -869,7 +871,7 @@ func (m *DirectoryAppSpec) Reset()         { *m = DirectoryAppSpec{} }
 func (m *DirectoryAppSpec) String() string { return proto.CompactTextString(m) }
 func (*DirectoryAppSpec) ProtoMessage()    {}
 func (*DirectoryAppSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_71f9012dc2cfcf2b, []int{12}
+	return fileDescriptor_repository_bb1e21dedf091fbd, []int{12}
 }
 func (m *DirectoryAppSpec) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -909,7 +911,7 @@ func (m *HelmChartsRequest) Reset()         { *m = HelmChartsRequest{} }
 func (m *HelmChartsRequest) String() string { return proto.CompactTextString(m) }
 func (*HelmChartsRequest) ProtoMessage()    {}
 func (*HelmChartsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_71f9012dc2cfcf2b, []int{13}
+	return fileDescriptor_repository_bb1e21dedf091fbd, []int{13}
 }
 func (m *HelmChartsRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -957,7 +959,7 @@ func (m *HelmChart) Reset()         { *m = HelmChart{} }
 func (m *HelmChart) String() string { return proto.CompactTextString(m) }
 func (*HelmChart) ProtoMessage()    {}
 func (*HelmChart) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_71f9012dc2cfcf2b, []int{14}
+	return fileDescriptor_repository_bb1e21dedf091fbd, []int{14}
 }
 func (m *HelmChart) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1011,7 +1013,7 @@ func (m *HelmChartsResponse) Reset()         { *m = HelmChartsResponse{} }
 func (m *HelmChartsResponse) String() string { return proto.CompactTextString(m) }
 func (*HelmChartsResponse) ProtoMessage()    {}
 func (*HelmChartsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_71f9012dc2cfcf2b, []int{15}
+	return fileDescriptor_repository_bb1e21dedf091fbd, []int{15}
 }
 func (m *HelmChartsResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -4978,10 +4980,10 @@ var (
 )
 
 func init() {
-	proto.RegisterFile("reposerver/repository/repository.proto", fileDescriptor_repository_71f9012dc2cfcf2b)
+	proto.RegisterFile("reposerver/repository/repository.proto", fileDescriptor_repository_bb1e21dedf091fbd)
 }
 
-var fileDescriptor_repository_71f9012dc2cfcf2b = []byte{
+var fileDescriptor_repository_bb1e21dedf091fbd = []byte{
 	// 1160 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xc4, 0x57, 0xdd, 0x6e, 0x1b, 0x45,
 	0x14, 0xce, 0xda, 0xce, 0x8f, 0x8f, 0xfb, 0xe3, 0x4c, 0x4b, 0x59, 0x4c, 0x6a, 0x99, 0x15, 0xa0,
