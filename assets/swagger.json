@@ -4218,7 +4218,7 @@
         },
         "syncOptions": {
           "type": "array",
-          "title": "SyncOptions provide per-sync sync-options",
+          "title": "SyncOptions provide per-sync sync-options, e.g. Validate=false",
           "items": {
             "type": "string"
           }

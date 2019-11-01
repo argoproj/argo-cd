@@ -820,7 +820,7 @@ message SyncOperation {
   // Manifests is an optional field that overrides sync source with a local directory for development
   repeated string manifests = 8;
 
-  // SyncOptions provide per-sync sync-options
+  // SyncOptions provide per-sync sync-options, e.g. Validate=false
   repeated string syncOptions = 9;
 }
 

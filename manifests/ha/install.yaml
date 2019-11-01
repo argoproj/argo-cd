@@ -580,7 +580,7 @@ spec:
                   - repoURL
                   type: object
                 syncOptions:
-                  description: SyncOptions provide per-sync sync-options
+                  description: SyncOptions provide per-sync sync-options, e.g. Validate=false
                   items:
                     type: string
                   type: array
@@ -1286,7 +1286,8 @@ spec:
                           - repoURL
                           type: object
                         syncOptions:
-                          description: SyncOptions provide per-sync sync-options
+                          description: SyncOptions provide per-sync sync-options,
+                            e.g. Validate=false
                           items:
                             type: string
                           type: array
