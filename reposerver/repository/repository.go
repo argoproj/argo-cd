@@ -142,7 +142,10 @@ func (s *Service) runRepoOperation(
 	}
 
 	if source.IsHelm() {
-		version := semver.MustParse(revision)
+		version, err := semver.NewVersion(revision)
+		if err != nil {
+			return err
+		}
 		if settings.noCache {
 			err = helmClient.CleanChartCache(source.Chart, version)
 			if err != nil {
