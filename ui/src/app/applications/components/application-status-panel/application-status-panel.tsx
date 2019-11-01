@@ -1,8 +1,8 @@
+import {HelpIcon} from 'argo-ui';
 import * as React from 'react';
 import {DataLoader} from '../../../shared/components';
 import {Revision} from '../../../shared/components/revision';
 import {Timestamp} from '../../../shared/components/timestamp';
-import {HelpIcon} from '../../../shared/help-icon';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import * as utils from '../utils';

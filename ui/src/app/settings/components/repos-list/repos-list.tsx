@@ -1,4 +1,4 @@
-import {DropDownMenu, FormField, FormSelect, NotificationType, SlidingPanel} from 'argo-ui';
+import {DropDownMenu, FormField, FormSelect, HelpIcon, NotificationType, SlidingPanel} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Form, FormApi, Text, TextArea} from 'react-form';
@@ -6,7 +6,6 @@ import {RouteComponentProps} from 'react-router';
 
 import {CheckboxField, ConnectionStateIcon, DataLoader, EmptyState, ErrorNotification, Page, Repo} from '../../../shared/components';
 import {AppContext} from '../../../shared/context';
-import {HelpIcon} from '../../../shared/help-icon';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
