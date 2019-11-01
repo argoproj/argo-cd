@@ -2881,11 +2881,18 @@ func schema_pkg_apis_application_v1alpha1_SyncOperation(ref common.ReferenceCall
 							},
 						},
 					},
-					"validate": {
+					"syncOptions": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Validate does `kubectl apply --validate=false`. Defaults to true.",
-							Type:        []string{"boolean"},
-							Format:      "",
+							Description: "SyncOptions provide per-sync sync-options",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
 						},
 					},
 				},
@@ -2983,11 +2990,18 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicy(ref common.ReferenceCallbac
 							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncPolicyAutomated"),
 						},
 					},
-					"validate": {
+					"syncOptions": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Validate does `kubectl apply --validate=false`. Defaults to true.",
-							Type:        []string{"boolean"},
-							Format:      "",
+							Description: "Options allow youe to specify whole app sync-options",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
 						},
 					},
 				},

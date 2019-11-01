@@ -16,7 +16,6 @@ import (
 	"k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/rest"
 	testcore "k8s.io/client-go/testing"
-	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -372,7 +371,7 @@ func TestSyncValidate(t *testing.T) {
 	pod := test.NewPod()
 	pod.SetNamespace(test.FakeArgoCDNamespace)
 	syncCtx.compareResult = &comparisonResult{managedResources: []managedResource{{Target: pod, Live: pod}}}
-	syncCtx.syncOp.Validate = pointer.BoolPtr(false)
+	syncCtx.syncOp.SyncOptions = SyncOptions{"Validate=false"}
 
 	syncCtx.sync()
 

@@ -520,13 +520,35 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		case "sync-policy":
 			switch appOpts.syncPolicy {
 			case "automated":
-				spec.SyncPolicy = &argoappv1.SyncPolicy{
-					Automated: &argoappv1.SyncPolicyAutomated{},
+				if spec.SyncPolicy == nil {
+					spec.SyncPolicy = &argoappv1.SyncPolicy{}
 				}
+				spec.SyncPolicy.Automated = &argoappv1.SyncPolicyAutomated{}
 			case "none":
-				spec.SyncPolicy = nil
+				if spec.SyncPolicy != nil {
+					spec.SyncPolicy.Automated = nil
+				}
+				if spec.SyncPolicy.IsZero() {
+					spec.SyncPolicy = nil
+				}
 			default:
 				log.Fatalf("Invalid sync-policy: %s", appOpts.syncPolicy)
+			}
+		case "sync-option":
+			if spec.SyncPolicy == nil {
+				spec.SyncPolicy = &argoappv1.SyncPolicy{}
+			}
+			for _, option := range appOpts.syncOptions {
+				// `!` means remove the option
+				if strings.HasPrefix(option, "!") {
+					option = strings.TrimPrefix(option, "!")
+					spec.SyncPolicy.SyncOptions = spec.SyncPolicy.SyncOptions.RemoveOption(option)
+				} else {
+					spec.SyncPolicy.SyncOptions = spec.SyncPolicy.SyncOptions.AddOption(option)
+				}
+			}
+			if spec.SyncPolicy.IsZero() {
+				spec.SyncPolicy = nil
 			}
 		}
 	})
@@ -670,6 +692,7 @@ type appOptions struct {
 	helmSetStrings         []string
 	project                string
 	syncPolicy             string
+	syncOptions            []string
 	autoPrune              bool
 	selfHeal               bool
 	namePrefix             string
@@ -698,6 +721,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringArrayVar(&opts.helmSetStrings, "helm-set-string", []string{}, "Helm set STRING values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
 	command.Flags().StringVar(&opts.project, "project", "", "Application project name")
 	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: automated, none)")
+	command.Flags().StringArrayVar(&opts.syncOptions, "sync-option", []string{}, "Add or remove a sync options, e.g add `Prune=false`. Remove using `!` prefix, e.g. `!Prune=false`")
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
 	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing when sync is automated")
 	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")

@@ -733,7 +733,7 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
 				go func(t *syncTask) {
 					defer createWg.Done()
 					sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t}).Debug("applying")
-					validate := sc.syncOp.IsValidate() && !resource.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, "Validate=false")
+					validate := !(sc.syncOp.SyncOptions.HasOption("Validate=false") || resource.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, "Validate=false"))
 					result, message := sc.applyObject(t.targetObj, dryRun, sc.syncOp.SyncStrategy.Force(), validate)
 					if result == v1alpha1.ResultCodeSyncFailed {
 						runState = failed

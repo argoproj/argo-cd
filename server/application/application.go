@@ -953,16 +953,16 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 			return nil, status.Errorf(codes.FailedPrecondition, err.Error())
 		}
 	}
-	var validate *bool
+	var syncOptions appv1.SyncOptions
 	if a.Spec.SyncPolicy != nil {
-		validate = a.Spec.SyncPolicy.Validate
+		syncOptions = a.Spec.SyncPolicy.SyncOptions
 	}
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
 			Revision:     revision,
 			Prune:        syncReq.Prune,
 			DryRun:       syncReq.DryRun,
-			Validate:     validate,
+			SyncOptions:  syncOptions,
 			SyncStrategy: syncReq.Strategy,
 			Resources:    syncReq.Resources,
 			Manifests:    syncReq.Manifests,
@@ -1011,9 +1011,9 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 		return nil, status.Errorf(codes.FailedPrecondition, "cannot rollback to revision deployed with Argo CD v0.11 or lower. sync to revision instead.")
 	}
 
-	var validate *bool
+	var syncOptions appv1.SyncOptions
 	if a.Spec.SyncPolicy != nil {
-		validate = a.Spec.SyncPolicy.Validate
+		syncOptions = a.Spec.SyncPolicy.SyncOptions
 	}
 
 	// Rollback is just a convenience around Sync
@@ -1022,7 +1022,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 			Revision:     deploymentInfo.Revision,
 			DryRun:       rollbackReq.DryRun,
 			Prune:        rollbackReq.Prune,
-			Validate:     validate,
+			SyncOptions:  syncOptions,
 			SyncStrategy: &appv1.SyncStrategy{Apply: &appv1.SyncStrategyApply{}},
 			Source:       &deploymentInfo.Source,
 		},

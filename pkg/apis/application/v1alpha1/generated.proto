@@ -820,8 +820,8 @@ message SyncOperation {
   // Manifests is an optional field that overrides sync source with a local directory for development
   repeated string manifests = 8;
 
-  // Validate does `kubectl apply --validate=false`. Defaults to true.
-  optional bool validate = 9;
+  // SyncOptions provide per-sync sync-options
+  repeated string syncOptions = 9;
 }
 
 // SyncOperationResource contains resources to sync.
@@ -850,8 +850,8 @@ message SyncPolicy {
   // Automated will keep an application synced to the target revision
   optional SyncPolicyAutomated automated = 1;
 
-  // Validate does `kubectl apply --validate=false`. Defaults to true.
-  optional bool validate = 2;
+  // Options allow youe to specify whole app sync-options
+  repeated string syncOptions = 2;
 }
 
 // SyncPolicyAutomated controls the behavior of an automated sync

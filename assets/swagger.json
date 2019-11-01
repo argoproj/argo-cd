@@ -4216,13 +4216,15 @@
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
         },
+        "syncOptions": {
+          "type": "array",
+          "title": "SyncOptions provide per-sync sync-options",
+          "items": {
+            "type": "string"
+          }
+        },
         "syncStrategy": {
           "$ref": "#/definitions/v1alpha1SyncStrategy"
-        },
-        "validate": {
-          "description": "Validate does `kubectl apply --validate=false`. Defaults to true.",
-          "type": "boolean",
-          "format": "boolean"
         }
       }
     },
@@ -4268,10 +4270,12 @@
         "automated": {
           "$ref": "#/definitions/v1alpha1SyncPolicyAutomated"
         },
-        "validate": {
-          "description": "Validate does `kubectl apply --validate=false`. Defaults to true.",
-          "type": "boolean",
-          "format": "boolean"
+        "syncOptions": {
+          "type": "array",
+          "title": "Options allow youe to specify whole app sync-options",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
