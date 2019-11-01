@@ -30,6 +30,11 @@ type OIDCState struct {
 	ReturnURL string `json:"returnURL"`
 }
 
+type ClusterInfo struct {
+	appv1.ConnectionState
+	Version string
+}
+
 // NewCache creates new instance of Cache
 func NewCache(cacheClient CacheClient) *Cache {
 	return &Cache{client: cacheClient}
@@ -153,13 +158,13 @@ func (c *Cache) SetAppResourcesTree(appName string, resourcesTree *appv1.Applica
 	return c.setItem(appResourcesTreeKey(appName), resourcesTree, appStateCacheExpiration, resourcesTree == nil)
 }
 
-func (c *Cache) GetClusterConnectionState(server string) (appv1.ConnectionState, error) {
-	res := appv1.ConnectionState{}
+func (c *Cache) GetClusterInfo(server string) (ClusterInfo, error) {
+	res := ClusterInfo{}
 	err := c.getItem(clusterConnectionStateKey(server), &res)
 	return res, err
 }
 
-func (c *Cache) SetClusterConnectionState(server string, state *appv1.ConnectionState) error {
+func (c *Cache) SetClusterInfo(server string, state *ClusterInfo) error {
 	return c.setItem(clusterConnectionStateKey(server), &state, connectionStatusCacheExpiration, state == nil)
 }
 
