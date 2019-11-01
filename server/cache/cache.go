@@ -31,6 +31,11 @@ type OIDCState struct {
 	ReturnURL string `json:"returnURL"`
 }
 
+type ClusterInfo struct {
+	appv1.ConnectionState
+	Version string
+}
+
 func AddCacheFlagsToCmd(cmd *cobra.Command) func() (*Cache, error) {
 	var connectionStatusCacheExpiration time.Duration
 	var oidcCacheExpiration time.Duration
@@ -62,8 +67,8 @@ func clusterConnectionStateKey(server string) string {
 	return fmt.Sprintf("cluster|%s|connection-state", server)
 }
 
-func (c *Cache) GetClusterConnectionState(server string) (appv1.ConnectionState, error) {
-	res := appv1.ConnectionState{}
+func (c *Cache) GetClusterInfo(server string) (ClusterInfo, error) {
+	res := ClusterInfo{}
 	err := c.cache.GetItem(clusterConnectionStateKey(server), &res)
 	return res, err
 }
@@ -82,7 +87,7 @@ func (c *Cache) GetRepoConnectionState(repo string) (appv1.ConnectionState, erro
 	return res, err
 }
 
-func (c *Cache) SetClusterConnectionState(server string, state *appv1.ConnectionState) error {
+func (c *Cache) SetClusterInfo(server string, state *ClusterInfo) error {
 	return c.cache.SetItem(clusterConnectionStateKey(server), &state, c.connectionStatusCacheExpiration, state == nil)
 }
 
