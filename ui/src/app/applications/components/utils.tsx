@@ -131,8 +131,12 @@ export const ComparisonStatusIcon = ({status, resource, label}: {status: appMode
 
 export function syncStatusMessage(app: appModels.Application) {
     let rev = app.spec.source.targetRevision || 'latest';
-    if (app.status.sync.revision && (app.status.sync.revision.length >= 7 && !app.status.sync.revision.startsWith(app.spec.source.targetRevision))) {
-        rev += ' (' + app.status.sync.revision.substr(0, 7) + ')';
+    if (app.status.sync.revision) {
+        if (app.spec.source.chart) {
+            rev += ' (' + app.status.sync.revision + ')';
+        } else if (app.status.sync.revision.length >= 7 && !app.status.sync.revision.startsWith(app.spec.source.targetRevision)) {
+            rev += ' (' + app.status.sync.revision.substr(0, 7) + ')';
+        }
     }
     switch (app.status.sync.status) {
         case appModels.SyncStatuses.Synced:

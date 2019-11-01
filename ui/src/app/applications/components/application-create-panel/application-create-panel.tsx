@@ -2,7 +2,7 @@ import {Checkbox, DataLoader, DropDownMenu, FormField, Select} from 'argo-ui';
 import * as deepMerge from 'deepmerge';
 import * as React from 'react';
 import {FieldApi, Form, FormApi, FormField as ReactFormField, Text} from 'react-form';
-import {AutocompleteField, clusterTitle, YamlEditor} from '../../../shared/components';
+import {AutocompleteField, clusterTitle, RevisionHelpIcon, YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
@@ -190,7 +190,7 @@ export const ApplicationCreatePanel = (props: {
                                             <div className='white-box'>
                                                 <p>SOURCE</p>
                                                 <div className='row argo-form-row'>
-                                                    <div className='columns small-11'>
+                                                    <div className='columns small-10'>
                                                         <FormField
                                                             formApi={api}
                                                             label='Repository URL'
@@ -199,7 +199,7 @@ export const ApplicationCreatePanel = (props: {
                                                             componentProps={{items: repos}}
                                                         />
                                                     </div>
-                                                    <div className='columns small-1'>
+                                                    <div className='columns small-2'>
                                                         <div style={{paddingTop: '1.5em'}}>
                                                             {(repoInfo && (
                                                                 <React.Fragment>
@@ -232,6 +232,7 @@ export const ApplicationCreatePanel = (props: {
                                                     <React.Fragment>
                                                         <div className='argo-form-row'>
                                                             <FormField formApi={api} label='Revision' field='spec.source.targetRevision' component={Text} />
+                                                            <RevisionHelpIcon type='git' />
                                                         </div>
                                                         <div className='argo-form-row'>
                                                             <DataLoader
@@ -261,7 +262,7 @@ export const ApplicationCreatePanel = (props: {
                                                     </React.Fragment>
                                                 )) || (
                                                     <DataLoader
-                                                        input={{repoURL: app.spec.source.repoURL, revision: app.spec.source.targetRevision}}
+                                                        input={{repoURL: app.spec.source.repoURL}}
                                                         load={async src =>
                                                             (src.repoURL && services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())) ||
                                                             new Array<models.HelmChart>()
@@ -270,7 +271,7 @@ export const ApplicationCreatePanel = (props: {
                                                             const selectedChart = charts.find(chart => chart.name === api.getFormState().values.spec.source.chart);
                                                             return (
                                                                 <div className='row argo-form-row'>
-                                                                    <div className='columns small-11'>
+                                                                    <div className='columns small-10'>
                                                                         <FormField
                                                                             formApi={api}
                                                                             label='Chart'
@@ -282,7 +283,7 @@ export const ApplicationCreatePanel = (props: {
                                                                             }}
                                                                         />
                                                                     </div>
-                                                                    <div className='columns small-1'>
+                                                                    <div className='columns small-2'>
                                                                         <FormField
                                                                             formApi={api}
                                                                             field='spec.source.targetRevision'
@@ -291,6 +292,7 @@ export const ApplicationCreatePanel = (props: {
                                                                                 items: (selectedChart && selectedChart.versions) || []
                                                                             }}
                                                                         />
+                                                                        <RevisionHelpIcon type='helm' />
                                                                     </div>
                                                                 </div>
                                                             );

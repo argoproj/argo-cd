@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver"
 	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
@@ -25,18 +26,8 @@ import (
 )
 
 var (
-	indexCache = cache.New(5*time.Minute, 5*time.Minute)
 	globalLock = util.NewKeyLock()
 )
-
-type Entry struct {
-	Version string
-	Created time.Time
-}
-
-type Index struct {
-	Entries map[string][]Entry
-}
 
 type Creds struct {
 	Username string
@@ -47,8 +38,8 @@ type Creds struct {
 }
 
 type Client interface {
-	CleanChartCache(chart string, version string) error
-	ExtractChart(chart string, version string) (string, util.Closer, error)
+	CleanChartCache(chart string, version *semver.Version) error
+	ExtractChart(chart string, version *semver.Version) (string, util.Closer, error)
 	GetIndex() (*Index, error)
 }
 
@@ -94,11 +85,11 @@ func (c *nativeHelmChart) helmChartRepoPath() error {
 	return nil
 }
 
-func (c *nativeHelmChart) CleanChartCache(chart string, version string) error {
+func (c *nativeHelmChart) CleanChartCache(chart string, version *semver.Version) error {
 	return os.RemoveAll(c.getChartPath(chart, version))
 }
 
-func (c *nativeHelmChart) ExtractChart(chart string, version string) (string, util.Closer, error) {
+func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (string, util.Closer, error) {
 	err := c.helmChartRepoPath()
 	if err != nil {
 		return "", nil, err
@@ -135,7 +126,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string) (string, ut
 			return "", nil, err
 		}
 		defer func() { _ = os.RemoveAll(tempDest) }()
-		_, err = helmCmd.Fetch(c.repoURL, chart, version, tempDest, c.creds)
+		_, err = helmCmd.Fetch(c.repoURL, chart, version.String(), tempDest, c.creds)
 		if err != nil {
 			return "", nil, err
 		}
@@ -246,6 +237,6 @@ func newTLSConfig(creds Creds) (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
-func (c *nativeHelmChart) getChartPath(chart string, version string) string {
-	return path.Join(c.repoPath, fmt.Sprintf("%s-%s.tgz", chart, version))
+func (c *nativeHelmChart) getChartPath(chart string, version *semver.Version) string {
+	return path.Join(c.repoPath, fmt.Sprintf("%s-%v.tgz", chart, version))
 }
