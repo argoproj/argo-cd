@@ -124,7 +124,7 @@ type ArgoCDServer struct {
 	settings       *settings_util.ArgoCDSettings
 	log            *log.Entry
 	sessionMgr     *util_session.SessionManager
-	settingsMgr    *settings_util.SettingsManager
+	settingsMgr    settings_util.SettingsManager
 	enf            *rbac.Enforcer
 	projInformer   cache.SharedIndexInformer
 	policyEnforcer *rbacpolicy.RBACPolicyEnforcer

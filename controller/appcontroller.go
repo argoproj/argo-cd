@@ -84,7 +84,7 @@ type ApplicationController struct {
 	selfHealTimeout           time.Duration
 	repoClientset             apiclient.Clientset
 	db                        db.ArgoDB
-	settingsMgr               *settings_util.SettingsManager
+	settingsMgr               settings_util.SettingsManager
 	refreshRequestedApps      map[string]CompareWith
 	refreshRequestedAppsMutex *sync.Mutex
 	metricsServer             *metrics.MetricsServer
@@ -99,7 +99,7 @@ type ApplicationControllerConfig struct {
 // NewApplicationController creates new instance of ApplicationController.
 func NewApplicationController(
 	namespace string,
-	settingsMgr *settings_util.SettingsManager,
+	settingsMgr settings_util.SettingsManager,
 	kubeClientset kubernetes.Interface,
 	applicationClientset appclientset.Interface,
 	repoClientset apiclient.Clientset,

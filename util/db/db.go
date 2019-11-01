@@ -61,11 +61,11 @@ type ArgoDB interface {
 type db struct {
 	ns            string
 	kubeclientset kubernetes.Interface
-	settingsMgr   *settings.SettingsManager
+	settingsMgr   settings.SettingsManager
 }
 
 // NewDB returns a new instance of the argo database
-func NewDB(namespace string, settingsMgr *settings.SettingsManager, kubeclientset kubernetes.Interface) ArgoDB {
+func NewDB(namespace string, settingsMgr settings.SettingsManager, kubeclientset kubernetes.Interface) ArgoDB {
 	return &db{
 		settingsMgr:   settingsMgr,
 		ns:            namespace,

@@ -16,7 +16,7 @@ import (
 )
 
 //NewHandler creates handler serving to do api/badge endpoint
-func NewHandler(appClientset versioned.Interface, settingsMrg *settings.SettingsManager, namespace string) http.Handler {
+func NewHandler(appClientset versioned.Interface, settingsMrg settings.SettingsManager, namespace string) http.Handler {
 	return &Handler{appClientset: appClientset, namespace: namespace, settingsMgr: settingsMrg}
 }
 
@@ -24,7 +24,7 @@ func NewHandler(appClientset versioned.Interface, settingsMrg *settings.Settings
 type Handler struct {
 	namespace    string
 	appClientset versioned.Interface
-	settingsMgr  *settings.SettingsManager
+	settingsMgr  settings.SettingsManager
 }
 
 const (

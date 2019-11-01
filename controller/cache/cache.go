@@ -56,7 +56,7 @@ func GetTargetObjKey(a *appv1.Application, un *unstructured.Unstructured, isName
 func NewLiveStateCache(
 	db db.ArgoDB,
 	appInformer cache.SharedIndexInformer,
-	settingsMgr *settings.SettingsManager,
+	settingsMgr settings.SettingsManager,
 	kubectl kube.Kubectl,
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler) LiveStateCache {
@@ -81,7 +81,7 @@ type liveStateCache struct {
 	appInformer       cache.SharedIndexInformer
 	onObjectUpdated   ObjectUpdatedHandler
 	kubectl           kube.Kubectl
-	settingsMgr       *settings.SettingsManager
+	settingsMgr       settings.SettingsManager
 	metricsServer     *metrics.MetricsServer
 	cacheSettingsLock *sync.Mutex
 	cacheSettings     *cacheSettings

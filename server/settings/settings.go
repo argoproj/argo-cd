@@ -11,11 +11,11 @@ import (
 
 // Server provides a Settings service
 type Server struct {
-	mgr *settings.SettingsManager
+	mgr settings.SettingsManager
 }
 
 // NewServer returns a new instance of the Settings service
-func NewServer(mgr *settings.SettingsManager) *Server {
+func NewServer(mgr settings.SettingsManager) *Server {
 	return &Server{
 		mgr: mgr,
 	}

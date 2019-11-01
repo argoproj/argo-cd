@@ -28,7 +28,7 @@ type Server struct {
 	repoClientset apiclient.Clientset
 	enf           *rbac.Enforcer
 	cache         *servercache.Cache
-	settings      *settings.SettingsManager
+	settings      settings.SettingsManager
 }
 
 // NewServer returns a new instance of the Repository service
@@ -37,7 +37,7 @@ func NewServer(
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
 	cache *servercache.Cache,
-	settings *settings.SettingsManager,
+	settings settings.SettingsManager,
 ) *Server {
 	return &Server{
 		db:            db,

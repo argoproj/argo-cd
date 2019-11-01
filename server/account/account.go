@@ -21,12 +21,12 @@ import (
 // Server provides a Session service
 type Server struct {
 	sessionMgr  *session.SessionManager
-	settingsMgr *settings.SettingsManager
+	settingsMgr settings.SettingsManager
 	enf         *rbac.Enforcer
 }
 
 // NewServer returns a new instance of the Session service
-func NewServer(sessionMgr *session.SessionManager, settingsMgr *settings.SettingsManager, enf *rbac.Enforcer) *Server {
+func NewServer(sessionMgr *session.SessionManager, settingsMgr settings.SettingsManager, enf *rbac.Enforcer) *Server {
 	return &Server{sessionMgr, settingsMgr, enf}
 
 }

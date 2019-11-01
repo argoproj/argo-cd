@@ -13,7 +13,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-func fixtures(data map[string]string) (*fake.Clientset, *SettingsManager) {
+func fixtures(data map[string]string) (*fake.Clientset, SettingsManager) {
 	kubeClient := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,

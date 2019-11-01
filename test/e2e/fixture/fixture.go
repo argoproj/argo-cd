@@ -55,7 +55,7 @@ var (
 	KubeClientset       kubernetes.Interface
 	AppClientset        appclientset.Interface
 	ArgoCDClientset     argocdclient.Client
-	settingsManager     *settings.SettingsManager
+	settingsManager     settings.SettingsManager
 	apiServerAddress    string
 	token               string
 	plainText           bool

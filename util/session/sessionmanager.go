@@ -24,7 +24,7 @@ import (
 
 // SessionManager generates and validates JWT tokens for login sessions.
 type SessionManager struct {
-	settingsMgr *settings.SettingsManager
+	settingsMgr settings.SettingsManager
 	client      *http.Client
 	prov        oidcutil.Provider
 }
@@ -40,7 +40,7 @@ const (
 )
 
 // NewSessionManager creates a new session manager from Argo CD settings
-func NewSessionManager(settingsMgr *settings.SettingsManager, dexServerAddr string) *SessionManager {
+func NewSessionManager(settingsMgr settings.SettingsManager, dexServerAddr string) *SessionManager {
 	s := SessionManager{
 		settingsMgr: settingsMgr,
 	}

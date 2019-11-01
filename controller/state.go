@@ -86,7 +86,7 @@ func (cr *comparisonResult) targetObjs() []*unstructured.Unstructured {
 type appStateManager struct {
 	metricsServer  *metrics.MetricsServer
 	db             db.ArgoDB
-	settingsMgr    *settings.SettingsManager
+	settingsMgr    settings.SettingsManager
 	appclientset   appclientset.Interface
 	projInformer   cache.SharedIndexInformer
 	kubectl        kubeutil.Kubectl
@@ -532,7 +532,7 @@ func NewAppStateManager(
 	repoClientset apiclient.Clientset,
 	namespace string,
 	kubectl kubeutil.Kubectl,
-	settingsMgr *settings.SettingsManager,
+	settingsMgr settings.SettingsManager,
 	liveStateCache statecache.LiveStateCache,
 	projInformer cache.SharedIndexInformer,
 	metricsServer *metrics.MetricsServer,

@@ -56,7 +56,7 @@ type Server struct {
 	enf           *rbac.Enforcer
 	projectLock   *util.KeyLock
 	auditLogger   *argo.AuditLogger
-	settingsMgr   *settings.SettingsManager
+	settingsMgr   settings.SettingsManager
 	cache         *servercache.Cache
 }
 
@@ -71,7 +71,7 @@ func NewServer(
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
 	projectLock *util.KeyLock,
-	settingsMgr *settings.SettingsManager,
+	settingsMgr settings.SettingsManager,
 ) application.ApplicationServiceServer {
 
 	return &Server{

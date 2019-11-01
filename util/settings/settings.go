@@ -205,8 +205,36 @@ const (
 	anonymousUserEnabledKey = "users.anonymous.enabled"
 )
 
-// SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
-type SettingsManager struct {
+type SettingsManager interface {
+	GetSecretsLister() (v1listers.SecretLister, error)
+	getConfigMap() (*apiv1.ConfigMap, error)
+	GetConfigMapByName(configMapName string) (*apiv1.ConfigMap, error)
+	GetResourcesFilter() (*ResourcesFilter, error)
+	GetAppInstanceLabelKey() (string, error)
+	GetConfigManagementPlugins() ([]v1alpha1.ConfigManagementPlugin, error)
+	GetResourceOverrides() (map[string]v1alpha1.ResourceOverride, error)
+	GetKustomizeBuildOptions() (string, error)
+	GetHelmRepositories() ([]HelmRepoCredentials, error)
+	GetRepositories() ([]Repository, error)
+	SaveRepositories(repos []Repository) error
+	SaveRepositoryCredentials(creds []RepositoryCredentials) error
+	GetRepositoryCredentials() ([]RepositoryCredentials, error)
+	GetGoogleAnalytics() (*GoogleAnalytics, error)
+	GetHelp() (*Help, error)
+	GetSettings() (*ArgoCDSettings, error)
+	initialize(ctx context.Context) error
+	ensureSynced(forceResync bool) error
+	SaveSettings(settings *ArgoCDSettings) error
+	SaveSSHKnownHostsData(ctx context.Context, knownHostsList []string) error
+	SaveTLSCertificateData(ctx context.Context, tlsCertificates map[string]string) error
+	ResyncInformers() error
+	Subscribe(subCh chan<- *ArgoCDSettings)
+	Unsubscribe(subCh chan<- *ArgoCDSettings)
+	InitializeSettings(insecureModeEnabled bool) (*ArgoCDSettings, error)
+}
+
+// settingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
+type settingsManager struct {
 	ctx        context.Context
 	clientset  kubernetes.Interface
 	secrets    v1listers.SecretLister
@@ -227,7 +255,7 @@ func (e *incompleteSettingsError) Error() string {
 	return e.message
 }
 
-func (mgr *SettingsManager) GetSecretsLister() (v1listers.SecretLister, error) {
+func (mgr *settingsManager) GetSecretsLister() (v1listers.SecretLister, error) {
 	err := mgr.ensureSynced(false)
 	if err != nil {
 		return nil, err
@@ -235,7 +263,7 @@ func (mgr *SettingsManager) GetSecretsLister() (v1listers.SecretLister, error) {
 	return mgr.secrets, nil
 }
 
-func (mgr *SettingsManager) getConfigMap() (*apiv1.ConfigMap, error) {
+func (mgr *settingsManager) getConfigMap() (*apiv1.ConfigMap, error) {
 	err := mgr.ensureSynced(false)
 	if err != nil {
 		return nil, err
@@ -253,7 +281,7 @@ func (mgr *SettingsManager) getConfigMap() (*apiv1.ConfigMap, error) {
 // Returns the ConfigMap with the given name from the cluster.
 // The ConfigMap must be labeled with "app.kubernetes.io/part-of: argocd" in
 // order to be retrievable.
-func (mgr *SettingsManager) GetConfigMapByName(configMapName string) (*apiv1.ConfigMap, error) {
+func (mgr *settingsManager) GetConfigMapByName(configMapName string) (*apiv1.ConfigMap, error) {
 	err := mgr.ensureSynced(false)
 	if err != nil {
 		return nil, err
@@ -265,7 +293,7 @@ func (mgr *SettingsManager) GetConfigMapByName(configMapName string) (*apiv1.Con
 	return configMap, err
 }
 
-func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
+func (mgr *settingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		return nil, err
@@ -291,7 +319,7 @@ func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
 	return rf, nil
 }
 
-func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
+func (mgr *settingsManager) GetAppInstanceLabelKey() (string, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		return "", err
@@ -303,7 +331,7 @@ func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
 	return label, nil
 }
 
-func (mgr *SettingsManager) GetConfigManagementPlugins() ([]v1alpha1.ConfigManagementPlugin, error) {
+func (mgr *settingsManager) GetConfigManagementPlugins() ([]v1alpha1.ConfigManagementPlugin, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		return nil, err
@@ -319,7 +347,7 @@ func (mgr *SettingsManager) GetConfigManagementPlugins() ([]v1alpha1.ConfigManag
 }
 
 // GetResourceOverrides loads Resource Overrides from argocd-cm ConfigMap
-func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.ResourceOverride, error) {
+func (mgr *settingsManager) GetResourceOverrides() (map[string]v1alpha1.ResourceOverride, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		return nil, err
@@ -336,7 +364,7 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 }
 
 // GetKustomizeBuildOptions loads the kustomize build options from argocd-cm ConfigMap
-func (mgr *SettingsManager) GetKustomizeBuildOptions() (string, error) {
+func (mgr *settingsManager) GetKustomizeBuildOptions() (string, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		return "", err
@@ -345,7 +373,7 @@ func (mgr *SettingsManager) GetKustomizeBuildOptions() (string, error) {
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
-func (mgr *SettingsManager) GetHelmRepositories() ([]HelmRepoCredentials, error) {
+func (mgr *settingsManager) GetHelmRepositories() ([]HelmRepoCredentials, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		return nil, err
@@ -361,7 +389,7 @@ func (mgr *SettingsManager) GetHelmRepositories() ([]HelmRepoCredentials, error)
 	return helmRepositories, nil
 }
 
-func (mgr *SettingsManager) GetRepositories() ([]Repository, error) {
+func (mgr *settingsManager) GetRepositories() ([]Repository, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		return nil, err
@@ -377,7 +405,7 @@ func (mgr *SettingsManager) GetRepositories() ([]Repository, error) {
 	return repositories, nil
 }
 
-func (mgr *SettingsManager) SaveRepositories(repos []Repository) error {
+func (mgr *settingsManager) SaveRepositories(repos []Repository) error {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		return err
@@ -395,7 +423,7 @@ func (mgr *SettingsManager) SaveRepositories(repos []Repository) error {
 	return err
 }
 
-func (mgr *SettingsManager) SaveRepositoryCredentials(creds []RepositoryCredentials) error {
+func (mgr *settingsManager) SaveRepositoryCredentials(creds []RepositoryCredentials) error {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		return err
@@ -413,7 +441,7 @@ func (mgr *SettingsManager) SaveRepositoryCredentials(creds []RepositoryCredenti
 	return err
 }
 
-func (mgr *SettingsManager) GetRepositoryCredentials() ([]RepositoryCredentials, error) {
+func (mgr *settingsManager) GetRepositoryCredentials() ([]RepositoryCredentials, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		return nil, err
@@ -431,7 +459,7 @@ func (mgr *SettingsManager) GetRepositoryCredentials() ([]RepositoryCredentials,
 	return creds, nil
 }
 
-func (mgr *SettingsManager) GetGoogleAnalytics() (*GoogleAnalytics, error) {
+func (mgr *settingsManager) GetGoogleAnalytics() (*GoogleAnalytics, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		return nil, err
@@ -442,7 +470,7 @@ func (mgr *SettingsManager) GetGoogleAnalytics() (*GoogleAnalytics, error) {
 	}, nil
 }
 
-func (mgr *SettingsManager) GetHelp() (*Help, error) {
+func (mgr *settingsManager) GetHelp() (*Help, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		return nil, err
@@ -458,7 +486,7 @@ func (mgr *SettingsManager) GetHelp() (*Help, error) {
 }
 
 // GetSettings retrieves settings from the ArgoCDConfigMap and secret.
-func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
+func (mgr *settingsManager) GetSettings() (*ArgoCDSettings, error) {
 	err := mgr.ensureSynced(false)
 	if err != nil {
 		return nil, err
@@ -483,7 +511,7 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	return &settings, nil
 }
 
-func (mgr *SettingsManager) initialize(ctx context.Context) error {
+func (mgr *settingsManager) initialize(ctx context.Context) error {
 	tweakConfigMap := func(options *metav1.ListOptions) {
 		//cmFieldSelector := fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", common.ArgoCDConfigMapName))
 		cmLabelSelector := fields.ParseSelectorOrDie("app.kubernetes.io/part-of=argocd")
@@ -541,7 +569,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	return nil
 }
 
-func (mgr *SettingsManager) ensureSynced(forceResync bool) error {
+func (mgr *settingsManager) ensureSynced(forceResync bool) error {
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
 	if !forceResync && mgr.secrets != nil && mgr.configmaps != nil {
@@ -626,7 +654,7 @@ func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secr
 }
 
 // SaveSettings serializes ArgoCDSettings and upserts it into K8s secret/configmap
-func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
+func (mgr *settingsManager) SaveSettings(settings *ArgoCDSettings) error {
 	err := mgr.ensureSynced(false)
 	if err != nil {
 		return err
@@ -731,7 +759,7 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 }
 
 // Save the SSH known host data into the corresponding ConfigMap
-func (mgr *SettingsManager) SaveSSHKnownHostsData(ctx context.Context, knownHostsList []string) error {
+func (mgr *settingsManager) SaveSSHKnownHostsData(ctx context.Context, knownHostsList []string) error {
 	err := mgr.ensureSynced(false)
 	if err != nil {
 		return err
@@ -756,7 +784,7 @@ func (mgr *SettingsManager) SaveSSHKnownHostsData(ctx context.Context, knownHost
 	return mgr.ResyncInformers()
 }
 
-func (mgr *SettingsManager) SaveTLSCertificateData(ctx context.Context, tlsCertificates map[string]string) error {
+func (mgr *settingsManager) SaveTLSCertificateData(ctx context.Context, tlsCertificates map[string]string) error {
 	err := mgr.ensureSynced(false)
 	if err != nil {
 		return err
@@ -776,20 +804,17 @@ func (mgr *SettingsManager) SaveTLSCertificateData(ctx context.Context, tlsCerti
 	return mgr.ResyncInformers()
 }
 
-// NewSettingsManager generates a new SettingsManager pointer and returns it
-func NewSettingsManager(ctx context.Context, clientset kubernetes.Interface, namespace string) *SettingsManager {
-
-	mgr := &SettingsManager{
+// NewSettingsManager generates a new settingsManager pointer and returns it
+func NewSettingsManager(ctx context.Context, clientset kubernetes.Interface, namespace string) SettingsManager {
+	return &settingsManager{
 		ctx:       ctx,
 		clientset: clientset,
 		namespace: namespace,
 		mutex:     &sync.Mutex{},
 	}
-
-	return mgr
 }
 
-func (mgr *SettingsManager) ResyncInformers() error {
+func (mgr *settingsManager) ResyncInformers() error {
 	return mgr.ensureSynced(true)
 }
 
@@ -909,7 +934,7 @@ func (a *ArgoCDSettings) DexOAuth2ClientSecret() string {
 }
 
 // Subscribe registers a channel in which to subscribe to settings updates
-func (mgr *SettingsManager) Subscribe(subCh chan<- *ArgoCDSettings) {
+func (mgr *settingsManager) Subscribe(subCh chan<- *ArgoCDSettings) {
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
 	mgr.subscribers = append(mgr.subscribers, subCh)
@@ -917,7 +942,7 @@ func (mgr *SettingsManager) Subscribe(subCh chan<- *ArgoCDSettings) {
 }
 
 // Unsubscribe unregisters a channel from receiving of settings updates
-func (mgr *SettingsManager) Unsubscribe(subCh chan<- *ArgoCDSettings) {
+func (mgr *settingsManager) Unsubscribe(subCh chan<- *ArgoCDSettings) {
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
 	for i, ch := range mgr.subscribers {
@@ -929,7 +954,7 @@ func (mgr *SettingsManager) Unsubscribe(subCh chan<- *ArgoCDSettings) {
 	}
 }
 
-func (mgr *SettingsManager) notifySubscribers(newSettings *ArgoCDSettings) {
+func (mgr *settingsManager) notifySubscribers(newSettings *ArgoCDSettings) {
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
 	if len(mgr.subscribers) > 0 {
@@ -946,7 +971,7 @@ func isIncompleteSettingsError(err error) bool {
 }
 
 // InitializeSettings is used to initialize empty admin password, signature, certificate etc if missing
-func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoCDSettings, error) {
+func (mgr *settingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoCDSettings, error) {
 	cdSettings, err := mgr.GetSettings()
 	if err != nil && !isIncompleteSettingsError(err) {
 		return nil, err
