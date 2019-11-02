@@ -99,7 +99,7 @@ spec:
   tls:
   - hosts:
     - argocd.example.com
-    secretName: argocd-secret
+    secretName: argocd-secret # do not change, this is provided by Argo CD
 ```
 
 gRPC Ingress:
@@ -122,7 +122,7 @@ spec:
   tls:
   - hosts:
     - grpc.argocd.example.com
-    secretName: argocd-secret
+    secretName: argocd-secret # do not change, this is provided by Argo CD
 ```
 
 The API server should then be run with TLS disabled. Edit the `argocd-server` deployment to add the
