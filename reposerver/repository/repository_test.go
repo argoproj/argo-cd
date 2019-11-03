@@ -88,6 +88,19 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	}
 }
 
+func TestGenerateManifestsUseExactRevision(t *testing.T) {
+	service, gitClient, _ := newServiceWithMocks(".")
+
+	src := argoappv1.ApplicationSource{Path: "./testdata/recurse", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}
+
+	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, Revision: "abc"}
+
+	res1, err := service.GenerateManifest(context.Background(), &q)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(res1.Manifests))
+	assert.Equal(t, gitClient.Calls[0].Arguments[0], "abc")
+}
+
 func TestRecurseManifestsInDir(t *testing.T) {
 	service := newService(".")
 

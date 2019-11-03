@@ -111,6 +111,7 @@ type operationSettings struct {
 // runRepoOperation downloads either git folder or helm chart and executes specified operation
 func (s *Service) runRepoOperation(
 	c context.Context,
+	revision string,
 	repo *v1alpha1.Repository,
 	source *v1alpha1.ApplicationSource,
 	getCached func(revision string) bool,
@@ -119,9 +120,9 @@ func (s *Service) runRepoOperation(
 
 	var gitClient git.Client
 	var err error
-	revision := source.TargetRevision
+	revision = util.FirstNonEmpty(revision, source.TargetRevision)
 	if !source.IsHelm() {
-		gitClient, revision, err = s.newClientResolveRevision(repo, source.TargetRevision)
+		gitClient, revision, err = s.newClientResolveRevision(repo, revision)
 		if err != nil {
 			return err
 		}
@@ -188,7 +189,7 @@ func (s *Service) GenerateManifest(c context.Context, q *apiclient.ManifestReque
 		}
 		return false
 	}
-	err := s.runRepoOperation(c, q.Repo, q.ApplicationSource, getCached, func(appPath string, revision string) error {
+	err := s.runRepoOperation(c, q.Revision, q.Repo, q.ApplicationSource, getCached, func(appPath string, revision string) error {
 		var err error
 		res, err = GenerateManifests(appPath, q)
 		if err != nil {
@@ -584,7 +585,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		return false
 	}
 
-	err := s.runRepoOperation(ctx, q.Repo, q.Source, getCached, func(appPath string, revision string) error {
+	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, getCached, func(appPath string, revision string) error {
 		appSourceType, err := GetAppSourceType(q.Source, appPath)
 		if err != nil {
 			return err
