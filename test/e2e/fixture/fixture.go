@@ -213,28 +213,6 @@ func updateSettingConfigMap(updater func(cm *corev1.ConfigMap) error) {
 	errors.CheckError(err)
 }
 
-func updateTLSCertsConfigMap(updater func(cm *corev1.ConfigMap) error) {
-	cm, err := KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Get(common.ArgoCDTLSCertsConfigMapName, v1.GetOptions{})
-	errors.CheckError(err)
-	if cm.Data == nil {
-		cm.Data = make(map[string]string)
-	}
-	errors.CheckError(updater(cm))
-	_, err = KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Update(cm)
-	errors.CheckError(err)
-}
-
-func updateSSHKnownHostsConfigMap(updater func(cm *corev1.ConfigMap) error) {
-	cm, err := KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Get(common.ArgoCDKnownHostsConfigMapName, v1.GetOptions{})
-	errors.CheckError(err)
-	if cm.Data == nil {
-		cm.Data = make(map[string]string)
-	}
-	errors.CheckError(updater(cm))
-	_, err = KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Update(cm)
-	errors.CheckError(err)
-}
-
 func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		if len(overrides) > 0 {
@@ -277,17 +255,6 @@ func SetResourceFilter(filters settings.ResourcesFilter) {
 	})
 }
 
-func SetRepos(repos ...settings.Repository) {
-	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
-		yamlBytes, err := yaml.Marshal(repos)
-		if err != nil {
-			return err
-		}
-		cm.Data["repositories"] = string(yamlBytes)
-		return nil
-	})
-}
-
 func SetHelmRepos(repos ...settings.HelmRepoCredentials) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		yamlBytes, err := yaml.Marshal(repos)
@@ -295,31 +262,6 @@ func SetHelmRepos(repos ...settings.HelmRepoCredentials) {
 			return err
 		}
 		cm.Data["helm.repositories"] = string(yamlBytes)
-		return nil
-	})
-}
-
-func SetRepoCredentials(repos ...settings.RepositoryCredentials) {
-	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
-		yamlBytes, err := yaml.Marshal(repos)
-		if err != nil {
-			return err
-		}
-		cm.Data["repository.credentials"] = string(yamlBytes)
-		return nil
-	})
-}
-
-func SetTLSCerts() {
-	updateTLSCertsConfigMap(func(cm *corev1.ConfigMap) error {
-		cm.Data = map[string]string{}
-		return nil
-	})
-}
-
-func SetSSHKnownHosts() {
-	updateSSHKnownHostsConfigMap(func(cm *corev1.ConfigMap) error {
-		cm.Data = map[string]string{}
 		return nil
 	})
 }
@@ -351,38 +293,17 @@ func EnsureCleanState(t *testing.T) {
 	FailOnErr(Run("", "kubectl", "delete", "crd", "-l", testingLabel+"=true", "--wait=false"))
 
 	// reset settings
-	s, err := settingsManager.GetSettings()
-	CheckError(err)
-	CheckError(settingsManager.SaveSettings(&settings.ArgoCDSettings{
-		// changing theses causes a restart
-		AdminPasswordHash:            s.AdminPasswordHash,
-		AdminPasswordMtime:           s.AdminPasswordMtime,
-		ServerSignature:              s.ServerSignature,
-		Certificate:                  s.Certificate,
-		DexConfig:                    s.DexConfig,
-		OIDCConfigRAW:                s.OIDCConfigRAW,
-		URL:                          s.URL,
-		WebhookGitHubSecret:          s.WebhookGitHubSecret,
-		WebhookGitLabSecret:          s.WebhookGitLabSecret,
-		WebhookBitbucketUUID:         s.WebhookBitbucketUUID,
-		WebhookBitbucketServerSecret: s.WebhookBitbucketServerSecret,
-		WebhookGogsSecret:            s.WebhookGogsSecret,
-		KustomizeBuildOptions:        s.KustomizeBuildOptions,
-		Secrets:                      s.Secrets,
-	}))
-	SetResourceOverrides(make(map[string]v1alpha1.ResourceOverride))
-	SetConfigManagementPlugins()
-	SetRepoCredentials()
-	SetRepos()
-	SetHelmRepos()
-	SetResourceFilter(settings.ResourcesFilter{})
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data = map[string]string{}
+		return nil
+	})
+
 	SetProjectSpec("default", v1alpha1.AppProjectSpec{
 		OrphanedResources:        nil,
 		SourceRepos:              []string{"*"},
 		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
 		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
 	})
-	SetTLSCerts()
 
 	// remove tmp dir
 	CheckError(os.RemoveAll(TmpDir))

@@ -12,6 +12,7 @@ import (
 	argoexec "github.com/argoproj/pkg/exec"
 
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/security"
 )
 
@@ -39,6 +40,7 @@ func (c Cmd) run(args ...string) (string, error) {
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, fmt.Sprintf("HELM_HOME=%s", c.helmHome))
 	return argoexec.RunCommandExt(cmd, argoexec.CmdOpts{
+		Timeout:  config.CmdOpts().Timeout,
 		Redactor: redactor,
 	})
 }
@@ -117,31 +119,31 @@ func writeToTmp(data []byte) (string, io.Closer, error) {
 	}), nil
 }
 
-func (c *Cmd) Fetch(repo, chartName string, version string, opts Creds) (string, error) {
-	args := []string{"fetch"}
+func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds) (string, error) {
+	args := []string{"fetch", "--destination", destination}
 
 	if version != "" {
 		args = append(args, "--version", version)
 	}
-	if opts.Username != "" {
-		args = append(args, "--username", opts.Username)
+	if creds.Username != "" {
+		args = append(args, "--username", creds.Username)
 	}
-	if opts.Password != "" {
-		args = append(args, "--password", opts.Password)
+	if creds.Password != "" {
+		args = append(args, "--password", creds.Password)
 	}
-	if opts.CAPath != "" {
-		args = append(args, "--ca-file", opts.CAPath)
+	if creds.CAPath != "" {
+		args = append(args, "--ca-file", creds.CAPath)
 	}
-	if len(opts.CertData) > 0 {
-		filePath, closer, err := writeToTmp(opts.CertData)
+	if len(creds.CertData) > 0 {
+		filePath, closer, err := writeToTmp(creds.CertData)
 		if err != nil {
 			return "", err
 		}
 		defer util.Close(closer)
 		args = append(args, "--cert-file", filePath)
 	}
-	if len(opts.KeyData) > 0 {
-		filePath, closer, err := writeToTmp(opts.KeyData)
+	if len(creds.KeyData) > 0 {
+		filePath, closer, err := writeToTmp(creds.KeyData)
 		if err != nil {
 			return "", err
 		}

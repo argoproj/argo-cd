@@ -1050,6 +1050,8 @@ spec:
                 type: object
               type: array
             observedAt:
+              description: ObservedAt indicates when the application state was updated
+                without querying latest git state
               format: date-time
               type: string
             operationState:
@@ -1535,6 +1537,8 @@ spec:
               - startedAt
               type: object
             reconciledAt:
+              description: ReconciledAt indicates when the application state was reconciled
+                using the latest git version
               format: date-time
               type: string
             resources:

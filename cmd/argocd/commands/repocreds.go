@@ -47,11 +47,11 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 	)
 
 	// For better readability and easier formatting
-	var repocredsAddExamples = `
-Add credentials with user/pass authentication to use for all repositories under https://git.example.com/repos
-  $ argocd repocreds add https://git.example.com/repos/ --username git --password secret
-Add credentials with SSH private key authentication to use for all repositories under https://git.example.com/repos
-  $ argocd repocreds add https://git.example.com/repos/ --ssh-private-key-path ~/.ssh/id_rsa
+	var repocredsAddExamples = `  # Add credentials with user/pass authentication to use for all repositories under https://git.example.com/repos
+  argocd repocreds add https://git.example.com/repos/ --username git --password secret
+
+  # Add credentials with SSH private key authentication to use for all repositories under https://git.example.com/repos
+  argocd repocreds add https://git.example.com/repos/ --ssh-private-key-path ~/.ssh/id_rsa
 `
 
 	var command = &cobra.Command{
@@ -134,7 +134,7 @@ Add credentials with SSH private key authentication to use for all repositories 
 // NewRepoCredsRemoveCommand returns a new instance of an `argocd repo list` command
 func NewRepoCredsRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "rm REPO",
+		Use:   "rm CREDSURL",
 		Short: "Remove repository credentials",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
@@ -155,7 +155,7 @@ func NewRepoCredsRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 // Print the repository credentials as table
 func printRepoCredsTable(repos []appsv1.RepoCreds) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "URL_PATTERN\tUSERNAME\tSSH_CREDS\tTLS_CREDS\n")
+	fmt.Fprintf(w, "URL PATTERN\tUSERNAME\tSSH_CREDS\tTLS_CREDS\n")
 	for _, r := range repos {
 		if r.Username == "" {
 			r.Username = "-"
@@ -185,13 +185,19 @@ func NewRepoCredsListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 			defer util.Close(conn)
 			repos, err := repoIf.ListRepositoryCredentials(context.Background(), &repocredspkg.RepoCredsQuery{})
 			errors.CheckError(err)
-			if output == "url" {
+			switch output {
+			case "yaml", "json":
+				err := PrintResourceList(repos.Items, output, false)
+				errors.CheckError(err)
+			case "url":
 				printRepoCredsUrls(repos.Items)
-			} else {
+			case "wide", "":
 				printRepoCredsTable(repos.Items)
+			default:
+				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|url")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|url")
 	return command
 }

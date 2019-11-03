@@ -1,4 +1,4 @@
-import {DropDownMenu, FormField, FormSelect, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
+import {DropDownMenu, FormField, FormSelect, HelpIcon, NotificationType, SlidingPanel} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Form, FormApi, Text, TextArea} from 'react-form';
@@ -59,14 +59,6 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
     private credsLoader: DataLoader;
 
     public render() {
-        const tooltip = (title: string) => (
-            <Tooltip content={title}>
-                <span style={{fontSize: 'smaller'}}>
-                    {' '}
-                    <i className='fa fa-question-circle help-tip' />
-                </span>
-            </Tooltip>
-        );
         return (
             <Page
                 title='Repositories'
@@ -265,11 +257,11 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                     <React.Fragment>
                                         <div className='argo-form-row'>
                                             <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField} />
-                                            {tooltip('This setting is ignored when creating as credential template.')}
+                                            <HelpIcon title='This setting is ignored when creating as credential template.' />
                                         </div>
                                         <div className='argo-form-row'>
                                             <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField} />
-                                            {tooltip('This setting is ignored when creating as credential template.')}
+                                            <HelpIcon title='This setting is ignored when creating as credential template.' />
                                         </div>
                                     </React.Fragment>
                                 )}
@@ -324,11 +316,11 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                 </div>
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField} />
-                                    {tooltip('This setting is ignored when creating as credential template.')}
+                                    <HelpIcon title='This setting is ignored when creating as credential template.' />
                                 </div>
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField} />
-                                    {tooltip('This setting is ignored when creating as credential template.')}
+                                    <HelpIcon title='This setting is ignored when creating as credential template.' />
                                 </div>
                             </form>
                         )}
