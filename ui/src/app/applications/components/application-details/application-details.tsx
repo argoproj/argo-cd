@@ -522,7 +522,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             const resourceActions = services.applications.getResourceActions(application.metadata.name, resource)
                 .then((actions) => items.concat(actions.map((action) => ({
                     title: action.name,
-                    disabled: !action.available,
+                    disabled: !!action.disabled,
                     action: async () => {
                         try {
                             const confirmed = await this.appContext.apis.popup.confirm(
