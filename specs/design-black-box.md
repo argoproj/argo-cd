@@ -95,7 +95,7 @@ gitops-engine
 |   `-- engine     # the engine implementation
 ```
 
-The engine is responsible for reconciliation only which includes:
+The engine is responsible for the reconciliation of Kubernetes resources, which includes:
 - Interacting with the Kubernetes API: load and maintain the cluster state; pushing required changes to the Kubernetes API.
 - Reconciliation logic: based on provides target resource definition find which resources should be updated/deleted/created.
 - Syncing logic: determine the order in which resources should be modified; features like sync hooks, waves, etc.
