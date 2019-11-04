@@ -21,9 +21,10 @@ const (
 	ArgoCDTLSCertsConfigMapName = "argocd-tls-certs-cm"
 )
 
-// Default system namespace
+// Some default configurables
 const (
 	DefaultSystemNamespace = "kube-system"
+	DefaultRepoType        = "git"
 )
 
 // Default listener ports for ArgoCD components

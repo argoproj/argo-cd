@@ -90,7 +90,7 @@ func TestDeclarativeHelmInvalidValuesFile(t *testing.T) {
 func TestHelmRepo(t *testing.T) {
 	Given(t).
 		CustomCACertAdded().
-		HelmRepoAdded("").
+		HelmRepoAdded("custom-repo").
 		RepoURLType(RepoURLTypeHelm).
 		Chart("helm").
 		Revision("1.0.0").
