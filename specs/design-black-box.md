@@ -163,7 +163,7 @@ type ManifestResponse struct {
     // Generated manifests
     Manifests  []string
     // Resolved Git revision
-	Revision   string
+    Revision   string
 }
 
 type ManifestGenerator interface {
