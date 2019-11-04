@@ -3,6 +3,7 @@ import * as LabelSelector from './label-selector';
 test('exists', () => {
     expect(LabelSelector.match('test', {test: 'hello'})).toBeTruthy();
     expect(LabelSelector.match('test1', {test: 'hello'})).toBeFalsy();
+    expect(LabelSelector.match('app.kubernetes.io/instance', {'app.kubernetes.io/instance': 'hello'})).toBeTruthy();
 });
 
 test('not exists', () => {

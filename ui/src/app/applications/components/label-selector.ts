@@ -4,13 +4,13 @@ const operators: {[type: string]: operatorFn} = {
     '!=': (labels, key, values) => labels[key] !== values[0],
     '==': (labels, key, values) => labels[key] === values[0],
     '=': (labels, key, values) => labels[key] === values[0],
-    'notin': (labels, key, values) => !values.includes(labels[key]),
-    'in': (labels, key, values) => values.includes(labels[key]),
-    'gt': (labels, key, values) => parseFloat(labels[key]) > parseFloat(values[0]),
-    'lt': (labels, key, values) => parseFloat(labels[key]) < parseFloat(values[0])
+    '[\\W]notin[\\W]': (labels, key, values) => !values.includes(labels[key]),
+    '[\\W]in[\\W]': (labels, key, values) => values.includes(labels[key]),
+    '[\\W]gt[\\W]': (labels, key, values) => parseFloat(labels[key]) > parseFloat(values[0]),
+    '[\\W]lt[\\W]': (labels, key, values) => parseFloat(labels[key]) < parseFloat(values[0])
 };
 
-function split(input: string, delimiter: string): string[] {
+function split(input: string, delimiter: string | RegExp): string[] {
     return input
         .split(delimiter)
         .map(part => part.trim())
@@ -22,7 +22,7 @@ export type LabelSelector = (labels: {[name: string]: string}) => boolean;
 export function parse(selector: string): LabelSelector {
     for (const type of Object.keys(operators)) {
         const operator = operators[type];
-        const parts = split(selector, type);
+        const parts = split(selector, new RegExp(type));
         if (parts.length > 1) {
             const values = split(parts[1], ',');
             return labels => operator(labels, parts[0], values);
