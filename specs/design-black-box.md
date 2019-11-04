@@ -97,7 +97,7 @@ gitops-engine
 
 The engine is responsible for the reconciliation of Kubernetes resources, which includes:
 - Interacting with the Kubernetes API: load and maintain the cluster state; pushing required changes to the Kubernetes API.
-- Reconciliation logic: based on provides target resource definition find which resources should be updated/deleted/created.
+- Reconciliation logic: match target K8S cluster resources with the resources stored in Git and decide which resources should be updated/deleted/created.
 - Syncing logic: determine the order in which resources should be modified; features like sync hooks, waves, etc.
 
 The manifests generation is out of scope and should be implemented by the Engine consumer.
@@ -106,7 +106,7 @@ The manifests generation is out of scope and should be implemented by the Engine
 
 The engine API includes Application data structure/client and `Engine` golang interface that allows configuring reconciliation process:
 
-**Engine interface** - provides set of that allows updating reconciliation settings and subscribe to engine events.
+**Engine interface** - provides set of features that allows updating reconciliation settings and subscribe to engine events.
 ```golang
 type Engine interface {
 	// Run starts reconciliation loop using specified number of processors for reconciliation and operation execution.
