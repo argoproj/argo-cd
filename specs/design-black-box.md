@@ -121,7 +121,7 @@ type Engine interface {
 	// OnSyncCompleted registers callback that is executed after each sync operation.
 	OnSyncCompleted(callback func(appName string, state appv1.OperationState) error) Unsubscribe
 
-	// OnClusterCacheInitialized registers that that is executed when cluster cache initialization is completed.
+	// OnClusterCacheInitialized registers a callback that is executed when cluster cache initialization is completed.
 	OnClusterCacheInitialized(callback func(server string)) Unsubscribe
 
 	// OnResourceUpdated registers that that is executed when cluster resource got updated.
