@@ -86,7 +86,7 @@ gitops-engine
 |   |-- utils
 |   |   |-- diff   # provides Kubernetes resource diffing functionality
 |   |   |-- kube   # provides utility methods to interact with Kubernetes
-|   |   |-- lue    # provides utility methods to run Lua scripts
+|   |   |-- lua    # provides utility methods to run Lua scripts
 |   |   |-- apps   # provides utility methods to manipulate Applications (e.g. start sync operation, wait for sync operation, force reconciliation)
 |   |   `-- health # provides Kubernetes resources health assessment
 |   |-- app
