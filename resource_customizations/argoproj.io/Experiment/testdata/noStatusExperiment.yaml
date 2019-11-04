@@ -31,17 +31,3 @@ spec:
           containers:
             - image: 'argoproj/rollouts-demo:blue'
               name: guestbook
-    - name: canary
-      selector:
-        matchLabels:
-          app: rollouts-demo
-          color: yellow
-      template:
-        metadata:
-          labels:
-            app: rollouts-demo
-            color: yellow
-        spec:
-          containers:
-            - image: 'argoproj/rollouts-demo:yellow'
-              name: guestbook

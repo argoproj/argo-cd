@@ -71,6 +71,11 @@ if obj.status ~= nil then
         hs.message = condition.message
         return hs
       end
+      if condition.type == "RolloutAborted" then
+        hs.status = "Degraded"
+        hs.message = condition.message
+        return hs
+      end
       if condition.type == "Progressing" and condition.reason == "ProgressDeadlineExceeded" then
         hs.status = "Degraded"
         hs.message = condition.message

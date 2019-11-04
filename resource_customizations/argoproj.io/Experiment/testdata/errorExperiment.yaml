@@ -1,13 +1,8 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Experiment
 metadata:
-  creationTimestamp: "2019-10-27T09:28:05Z"
-  generation: 636
   name: experiment-error-template-missing
   namespace: jesse-test
-  resourceVersion: "28275212"
-  selfLink: /apis/argoproj.io/v1alpha1/namespaces/jesse-test/experiments/experiment-error-template-missing
-  uid: 14658b55-f89c-11e9-a15b-42010aa80033
 spec:
   analyses:
   - name: does-not-exist

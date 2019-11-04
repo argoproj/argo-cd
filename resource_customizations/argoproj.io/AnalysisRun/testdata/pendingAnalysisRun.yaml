@@ -2,8 +2,6 @@ apiVersion: argoproj.io/v1alpha1
 kind: AnalysisRun
 metadata:
   name: analysis-template
-  labels:
-    "app.kubernetes.io/instance": rollouts-canary
 spec:
   metrics:
   - name: memory-usage
