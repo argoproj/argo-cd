@@ -124,7 +124,7 @@ type Engine interface {
 	// OnClusterCacheInitialized registers a callback that is executed when cluster cache initialization is completed.
 	OnClusterCacheInitialized(callback func(server string)) Unsubscribe
 
-	// OnResourceUpdated registers that that is executed when cluster resource got updated.
+	// OnResourceUpdated registers a callback that is executed when cluster resource got updated.
 	OnResourceUpdated(callback func(cluster string, un *unstructured.Unstructured)) Unsubscribe
 
 	// OnResourceRemoved registers a callback that is executed when a cluster resource gets removed.
