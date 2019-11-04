@@ -127,7 +127,7 @@ type Engine interface {
 	// OnResourceUpdated registers that that is executed when cluster resource got updated.
 	OnResourceUpdated(callback func(cluster string, un *unstructured.Unstructured)) Unsubscribe
 
-	// OnResourceRemoved registers that that is executed when cluster resource got removed.
+	// OnResourceRemoved registers a callback that is executed when a cluster resource gets removed.
 	OnResourceRemoved(callback func(cluster string, key kube.ResourceKey)) Unsubscribe
 
 	// OnAppEvent registers callback that is executed on every application event.
