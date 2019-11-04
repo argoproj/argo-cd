@@ -10,6 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
@@ -50,14 +51,20 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	)
 
 	// For better readability and easier formatting
-	var repoAddExamples = `  # Add a SSH repository using a private key for authentication, ignoring the server's host key:
-  argocd repo add git@git.example.com/repos/repo --insecure-ignore-host-key --ssh-private-key-path ~/id_rsa
+	var repoAddExamples = `  # Add a Git repository via SSH using a private key for authentication, ignoring the server's host key:
+  argocd repo add git@git.example.com:repos/repo --insecure-ignore-host-key --ssh-private-key-path ~/id_rsa
 
-  # Add a HTTPS repository using username/password and TLS client certificates:
+  # Add a private Git repository via HTTPS using username/password and TLS client certificates:
   argocd repo add https://git.example.com/repos/repo --username git --password secret --tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key
 
-  # Add a HTTPS repository using username/password without verifying the server's TLS certificate
+  # Add a private Git repository via HTTPS using username/password without verifying the server's TLS certificate
   argocd repo add https://git.example.com/repos/repo --username git --password secret --insecure-skip-server-verification
+
+  # Add a public Helm repository named 'stable' via HTTPS
+  argocd repo add https://kubernetes-charts.storage.googleapis.com --type helm --name stable  
+
+  # Add a private Helm repository named 'stable' via HTTPS
+  argocd repo add https://kubernetes-charts.storage.googleapis.com --type helm --name stable --username test --password test
 `
 
 	var command = &cobra.Command{
@@ -116,6 +123,10 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			repo.Insecure = insecureSkipServerVerification
 			repo.EnableLFS = enableLfs
 
+			if repo.Type == "helm" && repo.Name == "" {
+				errors.CheckError(fmt.Errorf("Must specify --name for repos of type 'helm'"))
+			}
+
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
 			defer util.Close(conn)
 
@@ -156,8 +167,8 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			fmt.Printf("repository '%s' added\n", createdRepo.Repo)
 		},
 	}
-	command.Flags().StringVar(&repo.Type, "type", "", "type of the repository, \"git\" or \"helm\"")
-	command.Flags().StringVar(&repo.Name, "name", "", "name of the repository")
+	command.Flags().StringVar(&repo.Type, "type", common.DefaultRepoType, "type of the repository, \"git\" or \"helm\"")
+	command.Flags().StringVar(&repo.Name, "name", "", "name of the repository, mandatory for repositories of type helm")
 	command.Flags().StringVar(&repo.Username, "username", "", "username to the repository")
 	command.Flags().StringVar(&repo.Password, "password", "", "password to the repository")
 	command.Flags().StringVar(&sshPrivateKeyPath, "ssh-private-key-path", "", "path to the private ssh key (e.g. ~/.ssh/id_rsa)")
