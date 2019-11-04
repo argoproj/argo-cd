@@ -157,7 +157,7 @@ type CredentialsStore interface {
 }
 ```
 
-**ManifestGenerator** an golang interface that must be implemented by the GitOps engine consumer.
+**ManifestGenerator** a Golang interface that must be implemented by the GitOps engine consumer.
 ```golang
 type ManifestResponse struct {
     // Generated manifests
