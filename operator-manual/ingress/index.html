@@ -406,6 +406,19 @@
     Option 1: SSL-Passthrough
   </a>
   
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ssl-passthrough-with-cert-manager-and-lets-encrypt" title="SSL-Passthrough with cert-manager and Let's Encrypt" class="md-nav__link">
+    SSL-Passthrough with cert-manager and Let's Encrypt
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -1205,6 +1218,19 @@
     Option 1: SSL-Passthrough
   </a>
   
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ssl-passthrough-with-cert-manager-and-lets-encrypt" title="SSL-Passthrough with cert-manager and Let's Encrypt" class="md-nav__link">
+    SSL-Passthrough with cert-manager and Let's Encrypt
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -1306,6 +1332,33 @@ must be used to passthrough TLS connections and terminate TLS at the Argo CD API
 and responds appropriately. Note that the <code>nginx.ingress.kubernetes.io/ssl-passthrough</code> annotation
 requires that the <code>--enable-ssl-passthrough</code> flag be added to the command line arguments to
 <code>nginx-ingress-controller</code>.</p>
+<h4 id="ssl-passthrough-with-cert-manager-and-lets-encrypt">SSL-Passthrough with cert-manager and Let's Encrypt<a class="headerlink" href="#ssl-passthrough-with-cert-manager-and-lets-encrypt" title="Permanent link">&para;</a></h4>
+<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">extensions/v1beta1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server-ingress</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+  <span class="nt">annotations</span><span class="p">:</span>
+    <span class="nt">certmanager.k8s.io/cluster-issuer</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">letsencrypt-prod</span>
+    <span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+    <span class="nt">kubernetes.io/tls-acme</span><span class="p">:</span> <span class="s">&quot;true&quot;</span>
+    <span class="nt">nginx.ingress.kubernetes.io/ssl-passthrough</span><span class="p">:</span> <span class="s">&quot;true&quot;</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">rules</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd.example.com</span>
+    <span class="nt">http</span><span class="p">:</span>
+      <span class="nt">paths</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">backend</span><span class="p">:</span>
+          <span class="nt">serviceName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server</span>
+          <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https</span>
+        <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/</span>
+  <span class="nt">tls</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">hosts</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">argocd.example.com</span>
+    <span class="nt">secretName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-secret</span> <span class="c1"># do not change, this is provided by Argo CD</span>
+</pre></div>
+
+
 <h3 id="option-2-multiple-ingress-objects-and-hosts">Option 2: Multiple Ingress Objects And Hosts<a class="headerlink" href="#option-2-multiple-ingress-objects-and-hosts" title="Permanent link">&para;</a></h3>
 <p>Since ingress-nginx Ingress supports only a single protocol per Ingress object, an alternative
 way would be to define two Ingress objects. One for HTTP/HTTPS, and the other for gRPC:</p>
@@ -1329,7 +1382,7 @@ way would be to define two Ingress objects. One for HTTP/HTTPS, and the other fo
   <span class="nt">tls</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">hosts</span><span class="p">:</span>
     <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">argocd.example.com</span>
-    <span class="nt">secretName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-secret</span>
+    <span class="nt">secretName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-secret</span> <span class="c1"># do not change, this is provided by Argo CD</span>
 </pre></div>
 
 
@@ -1352,7 +1405,7 @@ way would be to define two Ingress objects. One for HTTP/HTTPS, and the other fo
   <span class="nt">tls</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">hosts</span><span class="p">:</span>
     <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">grpc.argocd.example.com</span>
-    <span class="nt">secretName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-secret</span>
+    <span class="nt">secretName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-secret</span> <span class="c1"># do not change, this is provided by Argo CD</span>
 </pre></div>
 
 
