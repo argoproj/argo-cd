@@ -38,14 +38,28 @@ func TestGetPodInfo(t *testing.T) {
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{Labels: map[string]string{"app": "guestbook"}}, node.networkingInfo)
 }
 
-func TestGetServiceInfo(t *testing.T) {
+func TestGetDeploymentInfo(t *testing.T) {
 	node := &node{}
-	populateNodeInfo(testService, node)
-	assert.Equal(t, 0, len(node.info))
-	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
-		TargetLabels: map[string]string{"app": "guestbook"},
-		Ingress:      []v1.LoadBalancerIngress{{Hostname: "localhost"}},
-	}, node.networkingInfo)
+	populateNodeInfo(testDeploy, node)
+	assert.Empty(t, node.info)
+	assert.Empty(t, node.networkingInfo)
+	assert.Equal(t, []string{"alpine:latest"}, node.images)
+}
+
+func TestGetReplicaSetInfo(t *testing.T) {
+	node := &node{}
+	populateNodeInfo(testRS, node)
+	assert.Equal(t, []v1alpha1.InfoItem{{Name: "Revision", Value: "Rev:2",}}, node.info)
+	assert.Empty(t, node.networkingInfo)
+	assert.Equal(t, []string{"alpine:latest"}, node.images)
+}
+
+func TestGetJobInfo(t *testing.T) {
+	node := &node{}
+	populateNodeInfo(testJob, node)
+	assert.Empty(t, node.info)
+	assert.Empty(t, node.networkingInfo)
+	assert.Equal(t, []string{"alpine:latest"}, node.images)
 }
 
 func TestGetIngressInfo(t *testing.T) {

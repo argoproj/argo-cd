@@ -189,6 +189,14 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
     }
     const appNode = isAppNode(node);
     const rootNode = !node.root;
+
+    function trunc(text: string) {
+        if (text.length < 20) {
+            return text;
+        }
+        return '...' + text.slice(text.length - 17);
+    }
+
     return (
         <div
             onClick={() => props.onNodeClick && props.onNodeClick(fullName)}
@@ -222,6 +230,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 </div>
             </div>
             <div className='application-resource-tree__node-labels'>
+                {node.images && <span>{trunc(node.images[0])}</span>}
                 {(node.info || []).map((tag, i) => (
                     <span title={`${tag.name}:${tag.value}`} key={i}>
                         {tag.value}

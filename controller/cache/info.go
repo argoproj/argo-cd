@@ -3,6 +3,8 @@ package cache
 import (
 	"fmt"
 
+	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -12,15 +14,28 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/resource"
+	"github.com/argoproj/argo-cd/util/resource/syncwaves"
 )
 
 func populateNodeInfo(un *unstructured.Unstructured, node *node) {
 
-	gvk := un.GroupVersionKind()
-	revision := resource.GetRevision(un)
-	if revision > 0 {
-		node.info = append(node.info, v1alpha1.InfoItem{Name: "Revision", Value: fmt.Sprintf("Rev:%v", revision)})
+	// revision
+	{
+		revision := resource.GetRevision(un)
+		if revision > 0 {
+			node.info = append(node.info, v1alpha1.InfoItem{Name: "Revision", Value: fmt.Sprintf("Rev:%v", revision)})
+		}
 	}
+	// sync wave
+	{
+		wave := syncwaves.Wave(un)
+		if wave != 0 {
+			node.info = append(node.info, v1alpha1.InfoItem{Name: "SyncWave", Value: fmt.Sprintf("Wave:%v", wave)})
+
+		}
+	}
+
+	gvk := un.GroupVersionKind()
 	switch gvk.Group {
 	case "":
 		switch gvk.Kind {
@@ -31,10 +46,22 @@ func populateNodeInfo(un *unstructured.Unstructured, node *node) {
 			populateServiceInfo(un, node)
 			return
 		}
-	case "extensions", "networking.k8s.io":
+	case "batch":
 		switch gvk.Kind {
+		case kube.JobKind:
+			populateJobInfo(un, node)
+			return
+		}
+	case "apps", "extensions", "networking.k8s.io":
+		switch gvk.Kind {
+		case kube.DeploymentKind:
+			populateDeploymentInfo(un, node)
+			return
 		case kube.IngressKind:
 			populateIngressInfo(un, node)
+			return
+		case kube.ReplicaSetKind:
+			populateReplicaSetInfo(un, node)
 			return
 		}
 	}
@@ -158,6 +185,42 @@ func populateIngressInfo(un *unstructured.Unstructured, node *node) {
 	node.networkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, Ingress: ingress, ExternalURLs: urls}
 }
 
+func populateDeploymentInfo(un *unstructured.Unstructured, node *node) {
+	deployment := &appsv1.Deployment{}
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &deployment)
+	if err != nil {
+		return
+	}
+	populateImagesFromSpec(deployment.Spec.Template.Spec, node)
+}
+
+func populateReplicaSetInfo(un *unstructured.Unstructured, node *node) {
+	rs := &appsv1.ReplicaSet{}
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &rs)
+	if err != nil {
+		return
+	}
+	populateImagesFromSpec(rs.Spec.Template.Spec, node)
+}
+
+func populateJobInfo(un *unstructured.Unstructured, node *node) {
+	job := &batchv1.Job{}
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &job)
+	if err != nil {
+		return
+	}
+	populateImagesFromSpec(job.Spec.Template.Spec, node)
+}
+
+func populateImagesFromSpec(spec v1.PodSpec, node *node) {
+	var images []string
+	// ordering is important, we want to have the most significant image first
+	for _, c := range append(spec.Containers, spec.InitContainers...) {
+		images = append(images, c.Image)
+	}
+	node.setImages(images)
+}
+
 func populatePodInfo(un *unstructured.Unstructured, node *node) {
 	pod := v1.Pod{}
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &pod)
@@ -172,19 +235,7 @@ func populatePodInfo(un *unstructured.Unstructured, node *node) {
 	if pod.Status.Reason != "" {
 		reason = pod.Status.Reason
 	}
-
-	imagesSet := make(map[string]bool)
-	for _, container := range pod.Spec.InitContainers {
-		imagesSet[container.Image] = true
-	}
-	for _, container := range pod.Spec.Containers {
-		imagesSet[container.Image] = true
-	}
-
-	node.images = nil
-	for image := range imagesSet {
-		node.images = append(node.images, image)
-	}
+	populateImagesFromSpec(pod.Spec, node)
 
 	initializing := false
 	for i := range pod.Status.InitContainerStatuses {

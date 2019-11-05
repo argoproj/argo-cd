@@ -140,3 +140,15 @@ func (n *node) iterateChildren(ns map[kube.ResourceKey]*node, parents map[kube.R
 		}
 	}
 }
+
+func (n *node) setImages(images []string) {
+	imagesSet := make(map[string]bool)
+	n.images = nil
+	for _, image := range images {
+		_, ok := imagesSet[image]
+		if !ok {
+			n.images = append(n.images, image)
+		}
+		imagesSet[image] = true
+	}
+}

@@ -67,7 +67,21 @@ var (
       kind: Deployment
       name: helm-guestbook
       uid: "3"
-    resourceVersion: "123"`)
+    resourceVersion: "123"
+  spec:
+    template:
+      spec:
+        containers:
+           - image: "alpine:latest"`)
+
+	testJob = strToUnstructured(`
+  apiVersion: batch/v1
+  kind: Job
+  spec:
+    template:
+      spec:
+        containers:
+          - image: 'alpine:latest'`)
 
 	testDeploy = strToUnstructured(`
   apiVersion: apps/v1
@@ -78,7 +92,13 @@ var (
     uid: "3"
     name: helm-guestbook
     namespace: default
-    resourceVersion: "123"`)
+    resourceVersion: "123"
+  spec:
+    template:
+      spec:
+        containers:
+          - image: "alpine:latest"
+`)
 
 	testService = strToUnstructured(`
   apiVersion: v1
@@ -250,6 +270,7 @@ func TestGetChildren(t *testing.T) {
 		ResourceVersion: "123",
 		Health:          &appv1.HealthStatus{Status: appv1.HealthStatusHealthy},
 		Info:            []appv1.InfoItem{{Name: "Revision", Value: "Rev:2"}},
+		Images:          []string{"alpine:latest"},
 		ParentRefs:      []appv1.ResourceRef{{Group: "apps", Version: "", Kind: "Deployment", Namespace: "default", Name: "helm-guestbook", UID: "3"}},
 	}}, rsChildren...), deployChildren)
 }
