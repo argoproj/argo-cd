@@ -41,6 +41,9 @@ spec:
     # directory
     directory:
       recurse: true
+      # A list of globs to ignore
+      ignore:
+        - "*/my-map.yaml"
       jsonnet:
         # A list of Jsonnet External Variables
         extVars:

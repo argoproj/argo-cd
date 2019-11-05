@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gobwas/glob"
 	"github.com/robfig/cron"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -327,13 +328,48 @@ func (k *ApplicationSourceKsonnet) IsZero() bool {
 	return k == nil || k.Environment == "" && len(k.Parameters) == 0
 }
 
+type Ignore []string
+
+func (ig Ignore) Matches(path string) (bool, error) {
+	for _, pattern := range ig {
+		globber, err := glob.Compile(pattern)
+		if err != nil {
+			return false, err
+		}
+		if globber.Match(path) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (ig Ignore) Add(pattern string) Ignore {
+	for _, p := range ig {
+		if p == pattern {
+			return ig
+		}
+	}
+	return append(ig, pattern)
+}
+
+func (ig Ignore) Remove(pattern string) Ignore {
+	for i, j := range ig {
+		if j == pattern {
+			return append(ig[:i], ig[i+1:]...)
+		}
+	}
+
+	return ig
+}
+
 type ApplicationSourceDirectory struct {
 	Recurse bool                     `json:"recurse,omitempty" protobuf:"bytes,1,opt,name=recurse"`
 	Jsonnet ApplicationSourceJsonnet `json:"jsonnet,omitempty" protobuf:"bytes,2,opt,name=jsonnet"`
+	Ignore  Ignore                   `json:"ignore,omitempty" protobuf:"bytes,3,opt,name=ignore"`
 }
 
 func (d *ApplicationSourceDirectory) IsZero() bool {
-	return d == nil || !d.Recurse && d.Jsonnet.IsZero()
+	return d == nil || !d.Recurse && d.Jsonnet.IsZero() && len(d.Ignore) == 0
 }
 
 // ApplicationSourcePlugin holds config management plugin specific options

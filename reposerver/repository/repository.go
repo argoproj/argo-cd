@@ -470,6 +470,13 @@ func findManifests(appPath string, env *v1alpha1.Env, directory v1alpha1.Applica
 		if !manifestFile.MatchString(f.Name()) {
 			return nil
 		}
+		ignore, err := directory.Ignore.Matches(path)
+		if err != nil {
+			return err
+		}
+		if ignore {
+			return nil
+		}
 		out, err := utfutil.ReadFile(path, utfutil.UTF8)
 		if err != nil {
 			return err

@@ -203,6 +203,7 @@ interface ApplicationSourceJsonnet {
 
 export interface ApplicationSourceDirectory {
     recurse: boolean;
+    ignore: string[];
     jsonnet?: ApplicationSourceJsonnet;
 }
 

@@ -91,10 +91,6 @@ func (a *Actions) CreateFromFile(handler func(app *Application)) *Actions {
 		log.Fatal("Application parameters or json tlas are not supported")
 	}
 
-	if a.context.directoryRecurse {
-		app.Spec.Source.Directory = &ApplicationSourceDirectory{Recurse: true}
-	}
-
 	handler(app)
 	data := json.MustMarshal(app)
 	tmpFile, err := ioutil.TempFile("", "")

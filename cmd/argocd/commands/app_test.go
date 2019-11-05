@@ -3,6 +3,7 @@ package commands
 import (
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -33,5 +34,51 @@ func Test_setHelmOpt(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setHelmOpt(&src, helmOpts{helmSetStrings: []string{"foo=bar"}})
 		assert.Equal(t, []v1alpha1.HelmParameter{{Name: "foo", Value: "bar", ForceString: true}}, src.Helm.Parameters)
+	})
+}
+
+type appOptionsFixture struct {
+	spec    *v1alpha1.ApplicationSpec
+	command *cobra.Command
+	options *appOptions
+}
+
+func (f *appOptionsFixture) SetFlag(key, value string) error {
+	err := f.command.Flags().Set(key, value)
+	if err != nil {
+		return err
+	}
+	_ = setAppSpecOptions(f.command.Flags(), f.spec, f.options)
+	return err
+}
+
+func newAppOptionsFixture() *appOptionsFixture {
+	fixture := &appOptionsFixture{
+		spec:    &v1alpha1.ApplicationSpec{},
+		command: &cobra.Command{},
+		options: &appOptions{},
+	}
+	addAppFlags(fixture.command, fixture.options)
+	return fixture
+}
+
+func Test_setAppSpecOptions(t *testing.T) {
+	f := newAppOptionsFixture()
+	t.Run("DirectoryRecurse", func(t *testing.T) {
+		assert.NoError(t, f.SetFlag("directory-recurse", "true"))
+		assert.NotNil(t, f.spec.Source.Directory)
+		assert.True(t, f.spec.Source.Directory.Recurse)
+
+		assert.NoError(t, f.SetFlag("directory-recurse", "false"))
+		assert.Nil(t, f.spec.Source.Directory)
+	})
+	t.Run("DirectoryIgnore", func(t *testing.T) {
+		assert.NoError(t, f.SetFlag("directory-ignore", "foo.yaml"))
+		if assert.NotNil(t, f.spec.Source.Directory) {
+			assert.Len(t, f.spec.Source.Directory.Ignore, 1)
+		}
+
+		assert.NoError(t, f.SetFlag("directory-ignore", "!foo.yaml"))
+		assert.Nil(t, f.spec.Source.Directory)
 	})
 }

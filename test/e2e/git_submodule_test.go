@@ -15,11 +15,10 @@ func TestGitSubmoduleSSHSupport(t *testing.T) {
 	Given(t).
 		RepoURLType(fixture.RepoURLTypeSSHSubmoduleParent).
 		Path("submodule").
-		Recurse().
 		CustomSSHKnownHostsAdded().
 		SubmoduleSSHRepoURLAdded(true).
 		When().
-		CreateFromFile(func(app *Application) {}).
+		CreateFromFile(func(app *Application) { app.Spec.Source.Directory = &ApplicationSourceDirectory{Recurse: true} }).
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -30,11 +29,10 @@ func TestGitSubmoduleHTTPSSupport(t *testing.T) {
 	Given(t).
 		RepoURLType(fixture.RepoURLTypeHTTPSSubmoduleParent).
 		Path("submodule").
-		Recurse().
 		CustomCACertAdded().
 		SubmoduleHTTPSRepoURLAdded(true).
 		When().
-		CreateFromFile(func(app *Application) {}).
+		CreateFromFile(func(app *Application) { app.Spec.Source.Directory = &ApplicationSourceDirectory{Recurse: true} }).
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).

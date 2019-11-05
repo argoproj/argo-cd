@@ -117,16 +117,42 @@ func TestGenerateManifestsUseExactRevision(t *testing.T) {
 	assert.Equal(t, gitClient.Calls[0].Arguments[0], "abc")
 }
 
-func TestRecurseManifestsInDir(t *testing.T) {
+func TestGenerateDirectoryManifests(t *testing.T) {
 	service := newService(".")
+	t.Run("Recurse", func(t *testing.T) {
+		src := &argoappv1.ApplicationSource{
+			Path:      "./testdata/recurse",
+			Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true},
+		}
+		q := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: src}
+		res, err := service.GenerateManifest(context.Background(), q)
+		assert.NoError(t, err)
+		assert.Len(t, res.Manifests, 2)
 
-	src := argoappv1.ApplicationSource{Path: "./testdata/recurse", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}
-
-	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
-
-	res1, err := service.GenerateManifest(context.Background(), &q)
-	assert.Nil(t, err)
-	assert.Equal(t, 2, len(res1.Manifests))
+	})
+	t.Run("NoIgnore", func(t *testing.T) {
+		src := &argoappv1.ApplicationSource{
+			Path:      "./testdata/recurse",
+			Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true},
+		}
+		q := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: src}
+		res, err := service.GenerateManifest(context.Background(), q)
+		assert.NoError(t, err)
+		assert.Len(t, res.Manifests, 2)
+	})
+	t.Run("Ignore", func(t *testing.T) {
+		src := &argoappv1.ApplicationSource{
+			Path: "./testdata/recurse",
+			Directory: &argoappv1.ApplicationSourceDirectory{
+				Recurse: true,
+				Ignore:  []string{"*/bar.yaml"},
+			},
+		}
+		q := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: src}
+		res, err := service.GenerateManifest(context.Background(), q)
+		assert.NoError(t, err)
+		assert.Len(t, res.Manifests, 1)
+	})
 }
 
 func TestGenerateJsonnetManifestInDir(t *testing.T) {

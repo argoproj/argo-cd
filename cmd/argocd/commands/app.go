@@ -181,10 +181,10 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			fmt.Printf("application '%s' created\n", created.ObjectMeta.Name)
 		},
 	}
-	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set (DEPRECATED)")
+	command.Flags().StringVar(&appName, "name", "", "A name for the `app`, ignored if a file is set (DEPRECATED)")
 	command.Flags().BoolVar(&upsert, "upsert", false, "Allows to override application with the same name even if supplied application spec is different from existing spec")
 	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the app")
-	command.Flags().StringArrayVarP(&labels, "label", "l", []string{}, "Labels to apply to the app")
+	command.Flags().StringArrayVarP(&labels, "label", "l", []string{}, "The `label` to apply to the app")
 	// Only complete files with appropriate extension.
 	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
 	if err != nil {
@@ -278,7 +278,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			}
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output `format`. One of: json|yaml|wide")
 	command.Flags().BoolVar(&showOperation, "show-operation", false, "Show application operation")
 	command.Flags().BoolVar(&showParams, "show-params", false, "Show application parameters and overrides")
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
@@ -493,8 +493,29 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			setHelmOpt(&spec.Source, helmOpts{helmSets: appOpts.helmSets})
 		case "helm-set-string":
 			setHelmOpt(&spec.Source, helmOpts{helmSetStrings: appOpts.helmSetStrings})
+		case "directory-ignore":
+			if spec.Source.Directory == nil {
+				spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{}
+			}
+			for _, i := range appOpts.directoryIgnore {
+				if strings.HasPrefix(i, "!") {
+					i = strings.TrimPrefix(i, "!")
+					spec.Source.Directory.Ignore = spec.Source.Directory.Ignore.Remove(i)
+				} else {
+					spec.Source.Directory.Ignore = spec.Source.Directory.Ignore.Add(i)
+				}
+			}
+			if spec.Source.Directory.IsZero() {
+				spec.Source.Directory = nil
+			}
 		case "directory-recurse":
-			spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: appOpts.directoryRecurse}
+			if spec.Source.Directory == nil {
+				spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{}
+			}
+			spec.Source.Directory.Recurse = appOpts.directoryRecurse
+			if spec.Source.Directory.IsZero() {
+				spec.Source.Directory = nil
+			}
 		case "config-management-plugin":
 			spec.Source.Plugin = &argoappv1.ApplicationSourcePlugin{Name: appOpts.configManagementPlugin}
 		case "dest-server":
@@ -675,6 +696,7 @@ type appOptions struct {
 	namePrefix             string
 	nameSuffix             string
 	directoryRecurse       bool
+	directoryIgnore        []string
 	configManagementPlugin string
 	jsonnetTlaStr          []string
 	jsonnetTlaCode         []string
@@ -684,31 +706,32 @@ type appOptions struct {
 }
 
 func addAppFlags(command *cobra.Command, opts *appOptions) {
-	command.Flags().StringVar(&opts.repoURL, "repo", "", "Repository URL, ignored if a file is set")
-	command.Flags().StringVar(&opts.appPath, "path", "", "Path in repository to the app directory, ignored if a file is set")
-	command.Flags().StringVar(&opts.chart, "helm-chart", "", "Helm Chart name")
-	command.Flags().StringVar(&opts.env, "env", "", "Application environment to monitor")
-	command.Flags().StringVar(&opts.revision, "revision", "", "The tracking source branch, tag, or commit the application will sync to")
-	command.Flags().StringVar(&opts.destServer, "dest-server", "", "K8s cluster URL (e.g. https://kubernetes.default.svc)")
-	command.Flags().StringVar(&opts.destNamespace, "dest-namespace", "", "K8s target namespace (overrides the namespace specified in the ksonnet app.yaml)")
+	command.Flags().StringVar(&opts.repoURL, "repo", "", "Repository `URL`, ignored if a file is set")
+	command.Flags().StringVar(&opts.appPath, "path", "", "The `path` in repository to the app directory, ignored if a file is set")
+	command.Flags().StringVar(&opts.chart, "helm-chart", "", "Helm `chart` name")
+	command.Flags().StringVar(&opts.env, "env", "", "Application `env`ironment to monitor")
+	command.Flags().StringVar(&opts.revision, "revision", "", "The `revision` is the tracking source branch, tag, or commit the application will sync to")
+	command.Flags().StringVar(&opts.destServer, "dest-server", "", "K8s cluster `URL` (e.g. https://kubernetes.default.svc)")
+	command.Flags().StringVar(&opts.destNamespace, "dest-namespace", "", "K8s target `namespace` (overrides the namespace specified in the ksonnet app.yaml)")
 	command.Flags().StringArrayVarP(&opts.parameters, "parameter", "p", []string{}, "set a parameter override (e.g. -p guestbook=image=example/guestbook:latest)")
-	command.Flags().StringArrayVar(&opts.valuesFiles, "values", []string{}, "Helm values file(s) to use")
-	command.Flags().StringVar(&opts.releaseName, "release-name", "", "Helm release-name")
-	command.Flags().StringArrayVar(&opts.helmSets, "helm-set", []string{}, "Helm set values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
-	command.Flags().StringArrayVar(&opts.helmSetStrings, "helm-set-string", []string{}, "Helm set STRING values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
-	command.Flags().StringVar(&opts.project, "project", "", "Application project name")
-	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: automated, none)")
+	command.Flags().StringArrayVar(&opts.valuesFiles, "values", []string{}, "Helm values `file`(s) to use")
+	command.Flags().StringVar(&opts.releaseName, "release-name", "", "Helm `release-name`")
+	command.Flags().StringArrayVar(&opts.helmSets, "helm-set", []string{}, "Helm set `value`s on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
+	command.Flags().StringArrayVar(&opts.helmSetStrings, "helm-set-string", []string{}, "Helm set STRING `value`s on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
+	command.Flags().StringVar(&opts.project, "project", "", "Application `project` name")
+	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync `policy` (one of: automated, none)")
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
 	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing when sync is automated")
-	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
-	command.Flags().StringVar(&opts.nameSuffix, "namesuffix", "", "Kustomize namesuffix")
+	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize name`prefix`")
+	command.Flags().StringVar(&opts.nameSuffix, "namesuffix", "", "Kustomize name`suffix`")
 	command.Flags().BoolVar(&opts.directoryRecurse, "directory-recurse", false, "Recurse directory")
-	command.Flags().StringVar(&opts.configManagementPlugin, "config-management-plugin", "", "Config management plugin name")
-	command.Flags().StringArrayVar(&opts.jsonnetTlaStr, "jsonnet-tla-str", []string{}, "Jsonnet top level string arguments")
-	command.Flags().StringArrayVar(&opts.jsonnetTlaCode, "jsonnet-tla-code", []string{}, "Jsonnet top level code arguments")
-	command.Flags().StringArrayVar(&opts.jsonnetExtVarStr, "jsonnet-ext-var-str", []string{}, "Jsonnet string ext var")
-	command.Flags().StringArrayVar(&opts.jsonnetExtVarCode, "jsonnet-ext-var-code", []string{}, "Jsonnet ext var")
-	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
+	command.Flags().StringArrayVar(&opts.directoryIgnore, "directory-ignore", []string{}, "Ignore directory `glob` pattern (e.g. --directory-ignore '*/map.yaml'). Prefix with '!' to remove a pattern (e.g. --directory-ignore '!*/map.yaml')")
+	command.Flags().StringVar(&opts.configManagementPlugin, "config-management-plugin", "", "Config management `plugin` name")
+	command.Flags().StringArrayVar(&opts.jsonnetTlaStr, "jsonnet-tla-str", []string{}, "Jsonnet top level string `argument`s")
+	command.Flags().StringArrayVar(&opts.jsonnetTlaCode, "jsonnet-tla-code", []string{}, "Jsonnet top level code `argument`s")
+	command.Flags().StringArrayVar(&opts.jsonnetExtVarStr, "jsonnet-ext-var-str", []string{}, "Jsonnet string ext `var`")
+	command.Flags().StringArrayVar(&opts.jsonnetExtVarCode, "jsonnet-ext-var-code", []string{}, "Jsonnet ext `var`")
+	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize `image`s (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
 }
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
@@ -782,8 +805,8 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			errors.CheckError(err)
 		},
 	}
-	command.Flags().StringArrayVarP(&parameters, "parameter", "p", []string{}, "unset a parameter override (e.g. -p guestbook=image)")
-	command.Flags().StringArrayVar(&valuesFiles, "values", []string{}, "unset one or more helm values files")
+	command.Flags().StringArrayVarP(&parameters, "parameter", "p", []string{}, "unset a `parameter` override (e.g. -p guestbook=image)")
+	command.Flags().StringArrayVar(&valuesFiles, "values", []string{}, "unset one or more helm values `file`s")
 	return command
 }
 
@@ -1136,9 +1159,9 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name|json|yaml")
-	command.Flags().StringVarP(&selector, "selector", "l", "", "List apps by label")
-	command.Flags().StringArrayVarP(&projects, "project", "p", []string{}, "Filter by project name")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output `format`. One of: wide|name|json|yaml")
+	command.Flags().StringVarP(&selector, "selector", "l", "", "List apps by `label`")
+	command.Flags().StringArrayVarP(&projects, "project", "p", []string{}, "Filter by `project` name")
 	return command
 }
 
@@ -1257,8 +1280,8 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&watchSync, "sync", false, "Wait for sync")
 	command.Flags().BoolVar(&watchHealth, "health", false, "Wait for health")
 	command.Flags().BoolVar(&watchSuspended, "suspended", false, "Wait for suspended")
-	command.Flags().StringVarP(&selector, "selector", "l", "", "Wait for apps by label")
-	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%sKIND%sNAME. Fields may be blank. This option may be specified repeatedly", resourceFieldDelimiter, resourceFieldDelimiter))
+	command.Flags().StringVarP(&selector, "selector", "l", "", "Wait for apps by `label`")
+	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific `resource`s as GROUP%sKIND%sNAME. Fields may be blank. This option may be specified repeatedly", resourceFieldDelimiter, resourceFieldDelimiter))
 	command.Flags().BoolVar(&watchOperations, "operation", false, "Wait for pending operations")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	return command
@@ -1429,15 +1452,15 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	}
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Preview apply without affecting cluster")
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
-	command.Flags().StringVar(&revision, "revision", "", "Sync to a specific revision. Preserves parameter overrides")
-	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%sKIND%sNAME. Fields may be blank. This option may be specified repeatedly", resourceFieldDelimiter, resourceFieldDelimiter))
-	command.Flags().StringVarP(&selector, "selector", "l", "", "Sync apps that match this label")
-	command.Flags().StringArrayVar(&labels, "label", []string{}, fmt.Sprintf("Sync only specific resources with a label. This option may be specified repeatedly."))
+	command.Flags().StringVar(&revision, "revision", "", "Sync to a specific `revision`. Preserves parameter overrides")
+	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific `resource`s as GROUP%sKIND%sNAME. Fields may be blank. This option may be specified repeatedly", resourceFieldDelimiter, resourceFieldDelimiter))
+	command.Flags().StringVarP(&selector, "selector", "l", "", "Sync apps that match this `label`")
+	command.Flags().StringArrayVar(&labels, "label", []string{}, fmt.Sprintf("Sync only specific resources with a `label`. This option may be specified repeatedly."))
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
-	command.Flags().StringVar(&strategy, "strategy", "", "Sync strategy (one of: apply|hook)")
+	command.Flags().StringVar(&strategy, "strategy", "", "Sync `strategy` (one of: apply|hook)")
 	command.Flags().BoolVar(&force, "force", false, "Use a force apply")
 	command.Flags().BoolVar(&async, "async", false, "Do not wait for application to sync before continuing")
-	command.Flags().StringVar(&local, "local", "", "Path to a local directory. When this flag is present no git queries will be made")
+	command.Flags().StringVar(&local, "local", "", "Path to a local `directory`. When this flag is present no git queries will be made")
 	return command
 }
 
@@ -1785,7 +1808,7 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			}
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|id")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output `format`. One of: wide|id")
 	return command
 }
 
@@ -1923,7 +1946,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 		},
 	}
 	command.Flags().StringVar(&source, "source", "git", "Source of manifests. One of: live|git")
-	command.Flags().StringVar(&revision, "revision", "", "Show manifests at a specific revision")
+	command.Flags().StringVar(&revision, "revision", "", "Show manifests at a specific `revision`")
 	return command
 }
 

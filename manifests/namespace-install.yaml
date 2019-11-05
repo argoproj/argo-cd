@@ -427,6 +427,10 @@ spec:
                     directory:
                       description: Directory holds path/directory specific options
                       properties:
+                        ignore:
+                          items:
+                            type: string
+                          type: array
                         jsonnet:
                           properties:
                             extVars:
@@ -672,6 +676,10 @@ spec:
                 directory:
                   description: Directory holds path/directory specific options
                   properties:
+                    ignore:
+                      items:
+                        type: string
+                      type: array
                     jsonnet:
                       properties:
                         extVars:
@@ -890,6 +898,10 @@ spec:
                       directory:
                         description: Directory holds path/directory specific options
                         properties:
+                          ignore:
+                            items:
+                              type: string
+                            type: array
                           jsonnet:
                             properties:
                               extVars:
@@ -1115,6 +1127,10 @@ spec:
                               description: Directory holds path/directory specific
                                 options
                               properties:
+                                ignore:
+                                  items:
+                                    type: string
+                                  type: array
                                 jsonnet:
                                   properties:
                                     extVars:
@@ -1372,6 +1388,10 @@ spec:
                         directory:
                           description: Directory holds path/directory specific options
                           properties:
+                            ignore:
+                              items:
+                                type: string
+                              type: array
                             jsonnet:
                               properties:
                                 extVars:
@@ -1608,6 +1628,10 @@ spec:
                         directory:
                           description: Directory holds path/directory specific options
                           properties:
+                            ignore:
+                              items:
+                                type: string
+                              type: array
                             jsonnet:
                               properties:
                                 extVars:

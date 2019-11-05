@@ -24,5 +24,5 @@ export const VarsInputField = ReactForm.FormField((props: {fieldApi: ReactForm.F
         fieldApi: {getValue, setValue}
     } = props;
     const val = getValue() || [];
-    return <ArrayInput editor={VarInputEditor} items={val} onChange={setValue} valid={hasNameAndValue} />;
+    return <ArrayInput editor={VarInputEditor} items={val} onChange={setValue} valid={hasNameAndValue} templateItem={{name: '', value: ''}} />;
 });

@@ -2,7 +2,7 @@ import {DataLoader, FormField, FormSelect, getNestedField} from 'argo-ui';
 import * as React from 'react';
 import {FieldApi, FormApi, FormField as ReactFormField, Text, TextArea} from 'react-form';
 
-import {ArrayInputField, CheckboxField, EditablePanel, EditablePanelItem, Expandable, TagsInputField} from '../../../shared/components';
+import {ArrayInputField, CheckboxField, EditablePanel, EditablePanelItem, Expandable, TagsInputField, ValueArrayInputField} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {ApplicationSourceDirectory, AuthSettings} from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -286,6 +286,11 @@ export const ApplicationParameters = (props: {
             title: 'DIRECTORY RECURSE',
             view: (!!directory.recurse).toString(),
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.directory.recurse' component={CheckboxField} />
+        });
+        attributes.push({
+            title: 'DIRECTORY IGNORE',
+            view: (directory.ignore || []).join(','),
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.directory.ignore' component={ValueArrayInputField} />
         });
         attributes.push({
             title: 'TOP-LEVEL ARGUMENTS',

@@ -152,6 +152,8 @@ message ApplicationSourceDirectory {
   optional bool recurse = 1;
 
   optional ApplicationSourceJsonnet jsonnet = 2;
+
+  repeated string ignore = 3;
 }
 
 // ApplicationSourceHelm holds helm specific options

@@ -940,12 +940,40 @@ func TestApplicationSourceDirectory_IsZero(t *testing.T) {
 		{"Empty", &ApplicationSourceDirectory{}, true},
 		{"Recurse", &ApplicationSourceDirectory{Recurse: true}, false},
 		{"Jsonnet", &ApplicationSourceDirectory{Jsonnet: ApplicationSourceJsonnet{ExtVars: []JsonnetVar{{}}}}, false},
+		{"Ignore", &ApplicationSourceDirectory{Ignore: []string{""}}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, tt.source.IsZero())
 		})
 	}
+}
+
+func TestApplicationSourceDirectory_Ignores(t *testing.T) {
+	t.Run("Empty", func(t *testing.T) {
+		ignore, err := Ignore{}.Matches("foo.yaml")
+		assert.NoError(t, err)
+		assert.False(t, ignore)
+	})
+	t.Run("YAML", func(t *testing.T) {
+		ignore, err := Ignore{"foo.yaml"}.Matches("foo.yaml")
+		assert.NoError(t, err)
+		assert.True(t, ignore)
+	})
+	t.Run("Everything", func(t *testing.T) {
+		ignore, err := Ignore{"*"}.Matches("foo.yaml")
+		assert.NoError(t, err)
+		assert.True(t, ignore)
+	})
+	t.Run("Add", func(t *testing.T) {
+		assert.Len(t, Ignore{}.Add("foo.yaml"), 1)
+	})
+	t.Run("AddDupe", func(t *testing.T) {
+		assert.Len(t, Ignore{}.Add("foo.yaml").Add("foo.yaml"), 1)
+	})
+	t.Run("Remove", func(t *testing.T) {
+		assert.Len(t, Ignore{}.Add("foo.yaml").Remove("foo.yaml"), 0)
+	})
 }
 
 func TestApplicationSourcePlugin_IsZero(t *testing.T) {

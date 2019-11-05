@@ -34,7 +34,6 @@ type Context struct {
 	project                string
 	revision               string
 	force                  bool
-	directoryRecurse       bool
 }
 
 func Given(t *testing.T) *Context {
@@ -131,11 +130,6 @@ func (c *Context) Name(name string) *Context {
 
 func (c *Context) Path(path string) *Context {
 	c.path = path
-	return c
-}
-
-func (c *Context) Recurse() *Context {
-	c.directoryRecurse = true
 	return c
 }
 
