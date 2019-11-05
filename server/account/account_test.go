@@ -47,7 +47,7 @@ func newTestAccountServer(ctx context.Context) (*fake.Clientset, *Server, *sessi
 	})
 	settingsMgr := settings.NewSettingsManager(ctx, kubeclientset, testNamespace)
 	sessionMgr := sessionutil.NewSessionManager(settingsMgr, "")
-	return kubeclientset, NewServer(sessionMgr, settingsMgr), session.NewServer(sessionMgr, nil)
+	return kubeclientset, NewServer(sessionMgr, settingsMgr, nil), session.NewServer(sessionMgr, nil)
 }
 
 func TestUpdatePassword(t *testing.T) {

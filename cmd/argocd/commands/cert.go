@@ -29,6 +29,24 @@ func NewCertCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		},
+		Example: `  # Add a TLS certificate for cd.example.com to ArgoCD cert store from a file
+  argocd cert add-tls --from ~/mycert.pem cd.example.com
+
+  # Add a TLS certificate for cd.example.com to ArgoCD via stdin
+  cat ~/mycert.pem | argocd cert add-tls cd.example.com
+
+  # Add SSH known host entries for cd.example.com to ArgoCD by scanning host
+  ssh-keyscan cd.example.com | argocd cert add-ssh --batch
+
+  # List all known TLS certificates
+  argocd cert list --cert-type https
+
+  # Remove all TLS certificates for cd.example.com
+  argocd cert rm --cert-type https cd.example.com
+
+  # Remove all certificates and SSH known host entries for cd.example.com
+  argocd cert rm cd.example.com
+`,
 	}
 
 	command.AddCommand(NewCertAddSSHCommand(clientOpts))
@@ -239,6 +257,7 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		certType        string
 		hostNamePattern string
 		sortOrder       string
+		output          string
 	)
 	var command = &cobra.Command{
 		Use:   "list",
@@ -258,11 +277,22 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			defer util.Close(conn)
 			certificates, err := certIf.ListCertificates(context.Background(), &certificatepkg.RepositoryCertificateQuery{HostNamePattern: hostNamePattern, CertType: certType})
 			errors.CheckError(err)
-			printCertTable(certificates.Items, sortOrder)
+
+			switch output {
+			case "yaml", "json":
+				err := PrintResourceList(certificates.Items, output, false)
+				errors.CheckError(err)
+			case "wide", "":
+				printCertTable(certificates.Items, sortOrder)
+			default:
+				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
+			}
+
 		},
 	}
 
-	command.Flags().StringVar(&sortOrder, "sort", "", "set display sort order, valid: 'hostname', 'type'")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
+	command.Flags().StringVar(&sortOrder, "sort", "", "set display sort order for output format wide. One of: hostname|type")
 	command.Flags().StringVar(&certType, "cert-type", "", "only list certificates of given type, valid: 'ssh','https'")
 	command.Flags().StringVar(&hostNamePattern, "hostname-pattern", "", "only list certificates for hosts matching given glob-pattern")
 	return command

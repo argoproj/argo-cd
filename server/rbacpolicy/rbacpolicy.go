@@ -13,12 +13,14 @@ import (
 )
 
 const (
+	// please add new items to Resources
 	ResourceClusters     = "clusters"
 	ResourceProjects     = "projects"
 	ResourceApplications = "applications"
 	ResourceRepositories = "repositories"
 	ResourceCertificates = "certificates"
 
+	// please add new items to Actions
 	ActionGet      = "get"
 	ActionCreate   = "create"
 	ActionUpdate   = "update"
@@ -30,6 +32,21 @@ const (
 
 var (
 	defaultScopes = []string{"groups"}
+	Resources     = []string{
+		ResourceClusters,
+		ResourceProjects,
+		ResourceApplications,
+		ResourceRepositories,
+		ResourceCertificates,
+	}
+	Actions = []string{
+		ActionGet,
+		ActionCreate,
+		ActionUpdate,
+		ActionDelete,
+		ActionSync,
+		ActionOverride,
+	}
 )
 
 // RBACPolicyEnforcer provides an RBAC Claims Enforcer which additionally consults AppProject

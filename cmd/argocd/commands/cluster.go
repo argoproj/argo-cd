@@ -9,7 +9,6 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -34,6 +33,18 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		},
+		Example: `  # List all known clusters in JSON format:
+  argocd cluster list -o json
+
+  # Add a target cluster configuration to ArgoCD. The context must exist in your kubectl config:
+  argocd cluster add example-cluster
+
+  # Get specific details about a cluster in plain text (wide) format:
+  argocd cluster get example-cluster -o wide
+
+  #	Remove a target cluster context from ArgoCD
+  argocd cluster rm example-cluster
+`,
 	}
 
 	command.AddCommand(NewClusterAddCommand(clientOpts, pathOpts))
@@ -180,6 +191,9 @@ func NewCluster(name string, conf *rest.Config, managerBearerToken string, awsAu
 
 // NewClusterGetCommand returns a new instance of an `argocd cluster get` command
 func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		output string
+	)
 	var command = &cobra.Command{
 		Use:   "get CLUSTER",
 		Short: "Get cluster information",
@@ -190,16 +204,50 @@ func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
+			clusters := make([]*argoappv1.Cluster, 0)
 			for _, clusterName := range args {
 				clst, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: clusterName})
 				errors.CheckError(err)
-				yamlBytes, err := yaml.Marshal(clst)
+				clusters = append(clusters, clst)
+			}
+			switch output {
+			case "yaml", "json":
+				err := PrintResourceList(clusters, output, true)
 				errors.CheckError(err)
-				fmt.Printf("%v", string(yamlBytes))
+			case "wide", "":
+				printClusterDetails(clusters)
+			default:
+				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
 		},
 	}
+	// we have yaml as default to not break backwards-compatibility
+	command.Flags().StringVarP(&output, "output", "o", "yaml", "Output format. One of: json|yaml|wide|server")
 	return command
+}
+
+func strWithDefault(value string, def string) string {
+	if value == "" {
+		return def
+	}
+	return value
+}
+
+func printClusterDetails(clusters []*argoappv1.Cluster) {
+	for _, cluster := range clusters {
+		fmt.Printf("Cluster information\n\n")
+		fmt.Printf("  Server URL:            %s\n", cluster.Server)
+		fmt.Printf("  Server Name:           %s\n", strWithDefault(cluster.Name, "-"))
+		fmt.Printf("  Server Version:        %s\n", cluster.ServerVersion)
+		fmt.Printf("\nTLS configuration\n\n")
+		fmt.Printf("  Client cert:           %v\n", string(cluster.Config.TLSClientConfig.CertData) != "")
+		fmt.Printf("  Cert validation:       %v\n", !cluster.Config.TLSClientConfig.Insecure)
+		fmt.Printf("\nAuthentication\n\n")
+		fmt.Printf("  Basic authentication:  %v\n", cluster.Config.Username != "")
+		fmt.Printf("  oAuth authentication:  %v\n", cluster.Config.BearerToken != "")
+		fmt.Printf("  AWS authentication:    %v\n", cluster.Config.AWSAuthConfig != nil)
+		fmt.Println()
+	}
 }
 
 // NewClusterRemoveCommand returns a new instance of an `argocd cluster list` command
@@ -260,14 +308,20 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			defer util.Close(conn)
 			clusters, err := clusterIf.List(context.Background(), &clusterpkg.ClusterQuery{})
 			errors.CheckError(err)
-			if output == "server" {
+			switch output {
+			case "yaml", "json":
+				err := PrintResourceList(clusters.Items, output, false)
+				errors.CheckError(err)
+			case "server":
 				printClusterServers(clusters.Items)
-			} else {
+			case "wide", "":
 				printClusterTable(clusters.Items)
+			default:
+				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|server")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|server")
 	return command
 }
 

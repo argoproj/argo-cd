@@ -15,27 +15,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver"
 	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/config"
 )
 
 var (
-	indexCache = cache.New(5*time.Minute, 5*time.Minute)
 	globalLock = util.NewKeyLock()
 )
-
-type Entry struct {
-	Version string
-	Created time.Time
-}
-
-type Index struct {
-	Entries map[string][]Entry
-}
 
 type Creds struct {
 	Username string
@@ -46,8 +38,8 @@ type Creds struct {
 }
 
 type Client interface {
-	CleanChartCache(chart string, version string) error
-	ExtractChart(chart string, version string) (string, util.Closer, error)
+	CleanChartCache(chart string, version *semver.Version) error
+	ExtractChart(chart string, version *semver.Version) (string, util.Closer, error)
 	GetIndex() (*Index, error)
 }
 
@@ -93,11 +85,11 @@ func (c *nativeHelmChart) helmChartRepoPath() error {
 	return nil
 }
 
-func (c *nativeHelmChart) CleanChartCache(chart string, version string) error {
+func (c *nativeHelmChart) CleanChartCache(chart string, version *semver.Version) error {
 	return os.RemoveAll(c.getChartPath(chart, version))
 }
 
-func (c *nativeHelmChart) ExtractChart(chart string, version string) (string, util.Closer, error) {
+func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (string, util.Closer, error) {
 	err := c.helmChartRepoPath()
 	if err != nil {
 		return "", nil, err
@@ -128,22 +120,41 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string) (string, ut
 			return "", nil, err
 		}
 
-		// download chart tar file into persistent helm repository directory
-		_, err = helmCmd.Fetch(c.repoURL, chart, version, c.creds)
+		// (1) because `helm fetch` downloads an arbitrary file name, we download to an empty temp directory
+		tempDest, err := ioutil.TempDir("", "helm")
+		if err != nil {
+			return "", nil, err
+		}
+		defer func() { _ = os.RemoveAll(tempDest) }()
+		_, err = helmCmd.Fetch(c.repoURL, chart, version.String(), tempDest, c.creds)
+		if err != nil {
+			return "", nil, err
+		}
+		// (2) then we assume that the only file downloaded into the directory is the tgz file
+		// and we move that to where we want it
+		infos, err := ioutil.ReadDir(tempDest)
+		if err != nil {
+			return "", nil, err
+		}
+		if len(infos) != 1 {
+			return "", nil, fmt.Errorf("expected 1 file, found %v", len(infos))
+		}
+		err = os.Rename(filepath.Join(tempDest, infos[0].Name()), chartPath)
 		if err != nil {
 			return "", nil, err
 		}
 	}
 	// untar helm chart into throw away temp directory which should be deleted as soon as no longer needed
-	tempDir, err := ioutil.TempDir("", "")
+	tempDir, err := ioutil.TempDir("", "helm")
 	if err != nil {
 		return "", nil, err
 	}
 	cmd := exec.Command("tar", "-zxvf", chartPath)
 	cmd.Dir = tempDir
-	_, err = argoexec.RunCommandExt(cmd, argoexec.CmdOpts{})
+	_, err = argoexec.RunCommandExt(cmd, config.CmdOpts())
 	if err != nil {
 		_ = os.RemoveAll(tempDir)
+		return "", nil, err
 	}
 	return path.Join(tempDir, chart), util.NewCloser(func() error {
 		return os.RemoveAll(tempDir)
@@ -226,6 +237,6 @@ func newTLSConfig(creds Creds) (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
-func (c *nativeHelmChart) getChartPath(chart string, version string) string {
-	return path.Join(c.repoPath, fmt.Sprintf("%s-%s.tgz", chart, version))
+func (c *nativeHelmChart) getChartPath(chart string, version *semver.Version) string {
+	return path.Join(c.repoPath, fmt.Sprintf("%s-%v.tgz", chart, version))
 }

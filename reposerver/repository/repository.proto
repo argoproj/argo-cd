@@ -11,6 +11,7 @@ import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.prot
 // ManifestRequest is a query for manifest generation.
 message ManifestRequest {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
+    // revision, potentially un-resolved
     string revision = 2;
     bool noCache = 3;
     string appLabelKey = 4;
@@ -27,6 +28,7 @@ message ManifestResponse {
     repeated string manifests = 1;
     string namespace = 2;
     string server = 3;
+    // resolved revision
     string revision = 4;
     string sourceType = 6;
 }

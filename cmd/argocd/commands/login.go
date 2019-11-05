@@ -259,11 +259,12 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 	}
 	fmt.Printf("Performing %s flow login: %s\n", grantType, url)
 	time.Sleep(1 * time.Second)
-	err = open.Run(url)
+	err = open.Start(url)
 	errors.CheckError(err)
 	go func() {
+		log.Debugf("Listen: %s", srv.Addr)
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-			log.Fatalf("listen: %s\n", err)
+			log.Fatalf("Temporary HTTP server failed: %s", err)
 		}
 	}()
 	errMsg := <-completionChan
