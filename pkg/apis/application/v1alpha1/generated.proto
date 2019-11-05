@@ -153,6 +153,7 @@ message ApplicationSourceDirectory {
 
   optional ApplicationSourceJsonnet jsonnet = 2;
 
+  // Ignore is a list of glob patterns to ignore.
   repeated string ignore = 3;
 }
 

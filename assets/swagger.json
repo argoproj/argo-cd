@@ -3159,6 +3159,7 @@
       "type": "object",
       "properties": {
         "ignore": {
+          "description": "Ignore is a list of glob patterns to ignore.",
           "type": "array",
           "items": {
             "type": "string"

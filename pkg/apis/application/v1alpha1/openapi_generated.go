@@ -563,7 +563,8 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceDirectory(ref common.
 					},
 					"ignore": {
 						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
+							Description: "Ignore is a list of glob patterns to ignore.",
+							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{

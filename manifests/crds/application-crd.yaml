@@ -427,6 +427,7 @@ spec:
                       description: Directory holds path/directory specific options
                       properties:
                         ignore:
+                          description: Ignore is a list of glob patterns to ignore.
                           items:
                             type: string
                           type: array
@@ -676,6 +677,7 @@ spec:
                   description: Directory holds path/directory specific options
                   properties:
                     ignore:
+                      description: Ignore is a list of glob patterns to ignore.
                       items:
                         type: string
                       type: array
@@ -898,6 +900,7 @@ spec:
                         description: Directory holds path/directory specific options
                         properties:
                           ignore:
+                            description: Ignore is a list of glob patterns to ignore.
                             items:
                               type: string
                             type: array
@@ -1127,6 +1130,8 @@ spec:
                                 options
                               properties:
                                 ignore:
+                                  description: Ignore is a list of glob patterns to
+                                    ignore.
                                   items:
                                     type: string
                                   type: array
@@ -1388,6 +1393,7 @@ spec:
                           description: Directory holds path/directory specific options
                           properties:
                             ignore:
+                              description: Ignore is a list of glob patterns to ignore.
                               items:
                                 type: string
                               type: array
@@ -1628,6 +1634,7 @@ spec:
                           description: Directory holds path/directory specific options
                           properties:
                             ignore:
+                              description: Ignore is a list of glob patterns to ignore.
                               items:
                                 type: string
                               type: array
