@@ -71,7 +71,7 @@ if obj.status ~= nil then
         hs.message = condition.message
         return hs
       end
-      if condition.type == "RolloutAborted" then
+      if condition.type == "Progressing" and condition.reason == "RolloutAborted" then
         hs.status = "Degraded"
         hs.message = condition.message
         return hs
@@ -93,7 +93,7 @@ if obj.status ~= nil then
       if replicasHS ~= nil then
         return replicasHS
       end
-      if obj.status.blueGreen ~= nil and obj.status.blueGreen.activeSelector ~= nil and obj.status.currentPodHash ~= nil and obj.status.blueGreen.activeSelector == obj.status.currentPodHash then
+      if obj.status.blueGreen ~= nil and obj.status.blueGreen.activeSelector ~= nil and obj.status.blueGreen.activeSelector == obj.status.currentPodHash then
         hs.status = "Healthy"
         hs.message = "The active Service is serving traffic to the current pod spec"
         return hs

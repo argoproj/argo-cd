@@ -11,6 +11,10 @@ tests:
     status: Degraded
     message: ReplicaSet "guestbook-bluegreen-helm-guestbook-6b8cf6f7db" has timed out progressing.
   inputPath: testdata/degraded_rolloutTimeout.yaml
+- healthStatus:
+    status: Degraded
+    message: Rollout is aborted
+  inputPath: testdata/degraded_abortedRollout.yaml
 #BlueGreen
 - healthStatus:
     status: Healthy
