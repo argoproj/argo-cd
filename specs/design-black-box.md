@@ -124,7 +124,8 @@ type Engine interface {
 	// OnSyncCompleted registers callback that is executed after each sync operation.
 	OnSyncCompleted(callback func(appName string, state OperationState) error) Unsubscribe
 
-	// OnClusterCacheInitialized registers a callback that is executed when cluster cache initialization is completed.
+    // OnClusterCacheInitialized registers a callback that is executed when cluster cache initialization is completed.
+    // Callback is useful to wait unit cluster cache is fully initialized before starting to use cached data.
 	OnClusterCacheInitialized(callback func(server string)) Unsubscribe
 
 	// OnResourceUpdated registers a callback that is executed when cluster resource got updated.
@@ -167,7 +168,7 @@ type ReconciliationSettings struct {
 	// ResourcesFilter holds settigns which allows to configure list of managed resource APIs
 	ResourcesFilter resource.ResourcesFilter
 	// ResourceOverrides holds settings which customize resource diffing logic
-	ResourceOverrides map[string]appv1.ResourceOverride
+	ResourceOverrides map[scheme.GroupKind]appv1.ResourceOverride
 }
 
 // provides access to cluster credentials
