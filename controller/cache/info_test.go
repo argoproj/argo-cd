@@ -49,7 +49,7 @@ func TestGetDeploymentInfo(t *testing.T) {
 func TestGetReplicaSetInfo(t *testing.T) {
 	node := &node{}
 	populateNodeInfo(testRS, node)
-	assert.Equal(t, []v1alpha1.InfoItem{{Name: "Revision", Value: "Rev:2",}}, node.info)
+	assert.Equal(t, []v1alpha1.InfoItem{{Name: "Revision", Value: "Rev:2"}}, node.info)
 	assert.Empty(t, node.networkingInfo)
 	assert.Equal(t, []string{"alpine:latest"}, node.images)
 }
