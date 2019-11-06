@@ -77,22 +77,22 @@ The proposed design is based on the PoC that contains draft implementation and p
 
 The GitOps engine API consists of three main packages:
 * The `utils` package. It consist of loosely coupled packages that implements K8S resource diffing, health assessment, etc
-* The `app` package that Application data structure definition and CRUD client interface.
+* The `syncunit` package that contains SyncUnit data structure definition and CRUD client interface.
 * The `engine` package that leverages `utils` and uses provided set of Applications as a configuration source.
 
 ```
 gitops-engine
 |-- pkg
 |   |-- utils
-|   |   |-- diff   # provides Kubernetes resource diffing functionality
-|   |   |-- kube   # provides utility methods to interact with Kubernetes
-|   |   |-- lua    # provides utility methods to run Lua scripts
-|   |   |-- apps   # provides utility methods to manipulate Applications (e.g. start sync operation, wait for sync operation, force reconciliation)
-|   |   `-- health # provides Kubernetes resources health assessment
-|   |-- app
-|   |   |-- apis       # contains data structures that describe Application
-|   |   `-- client     # contains client that provides Application CRUD operations
-|   `-- engine     # the engine implementation
+|   |   |-- diff        # provides Kubernetes resource diffing functionality
+|   |   |-- kube        # provides utility methods to interact with Kubernetes
+|   |   |-- lua         # provides utility methods to run Lua scripts
+|   |   |-- syncunits   # provides utility methods to manipulate SyncUnits (e.g. start sync operation, wait for sync operation, force reconciliation)
+|   |   `-- health      # provides Kubernetes resources health assessment
+|   |-- syncunit
+|   |   |-- apis       # contains data structures that describe SyncUnits
+|   |   `-- client     # contains client that provides SyncUnit CRUD operations
+|   `-- engine         # the engine implementation
 ```
 
 The engine is responsible for the reconciliation of Kubernetes resources, which includes:
@@ -104,7 +104,10 @@ The manifests generation is out of scope and should be implemented by the Engine
 
 ### Engine API
 
-The engine API includes Application data structure/client and `Engine` golang interface that allows configuring reconciliation process:
+The engine API includes three main parts:
+- `Engine` golang interface
+- `SyncUnit` data structure and `SyncUnitStore` interface which provides access to the units.
+- Set of data structures which allows configuring reconciliation process.
 
 **Engine interface** - provides set of features that allows updating reconciliation settings and subscribe to engine events.
 ```golang
@@ -119,7 +122,7 @@ type Engine interface {
 	OnBeforeSync(callback func(appName string, tasks []SyncTaskInfo) ([]SyncTaskInfo, error)) Unsubscribe
 
 	// OnSyncCompleted registers callback that is executed after each sync operation.
-	OnSyncCompleted(callback func(appName string, state appv1.OperationState) error) Unsubscribe
+	OnSyncCompleted(callback func(appName string, state OperationState) error) Unsubscribe
 
 	// OnClusterCacheInitialized registers a callback that is executed when cluster cache initialization is completed.
 	OnClusterCacheInitialized(callback func(server string)) Unsubscribe
@@ -130,14 +133,33 @@ type Engine interface {
 	// OnResourceRemoved registers a callback that is executed when a cluster resource gets removed.
 	OnResourceRemoved(callback func(cluster string, key kube.ResourceKey)) Unsubscribe
 
-	// OnAppEvent registers callback that is executed on every application event.
-	OnAppEvent(callback func(app *appv1.Application, info EventInfo, message string)) Unsubscribe
+	// OnUnitEvent registers callback that is executed on every sync unit event.
+	OnUnitEvent(callback func(id string, info EventInfo, message string)) Unsubscribe
 }
 
 type Unsubscribe func()
 ```
 
-**ReconciliationSettings data structure** - holds reconciliation settings
+**SyncUnit data structure** - allows engine accessing units and update status.
+
+```golang
+type SyncUnit struct {
+	ID         string
+	Status      UnitStatus
+	Source      ManifestSource
+	Destination ManifestDestination
+	Operation   *Operation
+}
+
+type SyncUnitStore interface {
+	List() ([]SyncUnit, error)
+	Get(id string) (SyncUnit, error)
+	SetStatus(id string, status UnitStatus) (SyncUnit, error)
+	SetOperation(id string, operation *Operation) error
+}
+```
+
+**Settings data structures** - holds reconciliation settings and cluster credentials.
 ```golang
 type ReconciliationSettings struct {
 	// AppInstanceLabelKey holds label key which is automatically added to every resource managed by the application
@@ -147,10 +169,8 @@ type ReconciliationSettings struct {
 	// ResourceOverrides holds settings which customize resource diffing logic
 	ResourceOverrides map[string]appv1.ResourceOverride
 }
-```
 
-**CredentialsStore** provides access to cluster credentials
-```golang
+// provides access to cluster credentials
 type CredentialsStore interface {
 	GetCluster(ctx context.Context, name string) (*appv1.Cluster, error)
 	WatchClusters(ctx context.Context, callback func(event *ClusterEvent)) error
