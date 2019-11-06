@@ -116,9 +116,9 @@ data:
     cliClientID: vvvvwwwwxxxxyyyyzzzz
 ```
 
-NOTES:
-
-* The callback address should be the /auth/callback endpoint of your Argo CD URL (e.g. https://argocd.example.com/auth/callback).
+!!! note
+    The callback address should be the /auth/callback endpoint of your Argo CD URL 
+    (e.g. https://argocd.example.com/auth/callback).
 
 ### Requesting additional ID token claims
 
