@@ -112,7 +112,7 @@ export const ComparisonStatusIcon = ({status, resource, label}: {status: appMode
             break;
         case appModels.SyncStatuses.OutOfSync:
             const requiresPruning = resource && resource.requiresPruning;
-            className = requiresPruning ? 'fa fa-times-circle' : 'fa fa-exclamation-circle';
+            className = requiresPruning ? 'fa fa-times-circle' : 'fa fa-arrow-alt-circle-up';
             if (requiresPruning) {
                 title = `${title} (requires pruning)`;
             }

@@ -1,0 +1,121 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Application 1`] = `
+<i
+  className="icon argo-icon-application"
+  title="Application"
+/>
+`;
+
+exports[`ConfigMap 1`] = `
+<img
+  alt="ConfigMap"
+  src="assets/images/resources/cm.svg"
+  style={
+    Object {
+      "height": "32px",
+      "padding": "2px",
+      "width": "40px",
+    }
+  }
+/>
+`;
+
+exports[`OneWord 1`] = `
+<div
+  style={
+    Object {
+      "display": "inline-block",
+      "height": "32px",
+      "padding": "2px 4px",
+      "width": "40px",
+    }
+  }
+>
+  <i
+    className="icon fa fa-circle"
+    title="OneWord"
+  />
+  <div
+    style={
+      Object {
+        "color": "white",
+        "left": "10px",
+        "margin": "auto",
+        "position": "absolute",
+        "textAlign": "center",
+        "top": "10px",
+        "width": "40px",
+      }
+    }
+  >
+    OW
+  </div>
+</div>
+`;
+
+exports[`ThreeWordsTotal 1`] = `
+<div
+  style={
+    Object {
+      "display": "inline-block",
+      "height": "32px",
+      "padding": "2px 4px",
+      "width": "40px",
+    }
+  }
+>
+  <i
+    className="icon fa fa-circle"
+    title="ThreeWordsTotal"
+  />
+  <div
+    style={
+      Object {
+        "color": "white",
+        "left": "10px",
+        "margin": "auto",
+        "position": "absolute",
+        "textAlign": "center",
+        "top": "10px",
+        "width": "40px",
+      }
+    }
+  >
+    TW
+  </div>
+</div>
+`;
+
+exports[`TwoWords 1`] = `
+<div
+  style={
+    Object {
+      "display": "inline-block",
+      "height": "32px",
+      "padding": "2px 4px",
+      "width": "40px",
+    }
+  }
+>
+  <i
+    className="icon fa fa-circle"
+    title="TwoWords"
+  />
+  <div
+    style={
+      Object {
+        "color": "white",
+        "left": "10px",
+        "margin": "auto",
+        "position": "absolute",
+        "textAlign": "center",
+        "top": "10px",
+        "width": "40px",
+      }
+    }
+  >
+    TW
+  </div>
+</div>
+`;

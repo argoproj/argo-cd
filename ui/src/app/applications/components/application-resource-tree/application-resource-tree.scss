@@ -121,9 +121,11 @@
     }
 
     &__node-kind-icon {
+        text-align: center;
         position: absolute;
-        left: 10px;
+        left: 0;
         top: 8px;
+        width: 60px;
         line-height: 1;
         color: $argo-color-gray-5;
 
@@ -161,22 +163,23 @@
         }
     }
 
+    &__node-kind {
+        font-size: 0.7em;
+    }
+
+    &__node-content {
+        padding: 10px;
+        line-height: 0.95;
+    }
+
     &__node-title {
-        line-height: 52px;
         font-size: 0.8em;
     }
 
     &__node-status-icon {
         font-size: 0.8em;
-        position: absolute;
-        left: 0;
-        bottom: -5px;
         i {
             margin-right: 2px;
-        }
-
-        &--offset {
-            left: 40px;
         }
     }
 }

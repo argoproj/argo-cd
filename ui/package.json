@@ -10,6 +10,7 @@
     "test": "jest"
   },
   "dependencies": {
+    "@babel/core": "^7.0.0-0",
     "@types/classnames": "^2.2.3",
     "@types/cookie": "^0.3.1",
     "@types/dagre": "^0.7.40",
@@ -85,10 +86,15 @@
     "@types/react-dom": "16.8.2"
   },
   "devDependencies": {
+    "@babel/preset-env": "^7.7.1",
+    "@babel/preset-react": "^7.7.0",
     "@types/jest": "^24.0.13",
+    "@types/react-test-renderer": "^16.8.3",
     "add": "^2.0.6",
-    "jest": "^24.8.0",
+    "babel-jest": "^24.9.0",
+    "jest": "^24.9.0",
     "prettier": "^1.18.2",
+    "react-test-renderer": "16.8.3",
     "ts-jest": "^24.0.2",
     "tslint-config-prettier": "^1.18.0",
     "tslint-plugin-prettier": "^2.0.1",
