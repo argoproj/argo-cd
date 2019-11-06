@@ -61,17 +61,22 @@ func getModification(modification string, resource string, scope string, permiss
 	return nil, fmt.Errorf("modification %s is not supported", modification)
 }
 
-func saveProject(updated v1alpha1.AppProject, orig v1alpha1.AppProject, projectsIf appclient.AppProjectInterface, dryRun bool) {
+func saveProject(updated v1alpha1.AppProject, orig v1alpha1.AppProject, projectsIf appclient.AppProjectInterface, dryRun bool) error {
 	fmt.Printf("===== %s ======\n", updated.Name)
 	target, err := kube.ToUnstructured(&updated)
 	errors.CheckError(err)
 	live, err := kube.ToUnstructured(&orig)
-	errors.CheckError(err)
+	if err != nil {
+		return err
+	}
 	_ = diff.PrintDiff(updated.Name, target, live)
 	if !dryRun {
 		_, err = projectsIf.Update(&updated)
-		errors.CheckError(err)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func formatPolicy(proj string, role string, permission string) string {
@@ -96,7 +101,7 @@ func NewUpdatePolicyRuleCommand() *cobra.Command {
 		dryRun       bool
 	)
 	var command = &cobra.Command{
-		Use:   "update-role-policy PROJECT_SELECTOR ROLENAME_PATTERN MODIFICATION ACTION",
+		Use:   "update-role-policy PROJECT_GLOB MODIFICATION ACTION",
 		Short: "Implement bulk project role update. Useful to back-fill existing project policies or remove obsolete actions.",
 		Example: `  #Add policy that allows executing any action (action/*) to roles which name matches to *deployer* in all projects  
   argocd-util projects update-role-policy '*' set 'action/*' --role '*deployer*' --resource applications --scope '*' --permission allow
@@ -109,10 +114,8 @@ func NewUpdatePolicyRuleCommand() *cobra.Command {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			projPattern := args[0]
+			projectGlob := args[0]
 			modificationType := args[1]
-			modification, err := getModification(modificationType, resource, scope, permission)
-			errors.CheckError(err)
 			action := args[2]
 
 			config, err := clientConfig.ClientConfig()
@@ -123,46 +126,13 @@ func NewUpdatePolicyRuleCommand() *cobra.Command {
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 			appclients := appclientset.NewForConfigOrDie(config)
-			projects, err := appclients.ArgoprojV1alpha1().AppProjects(namespace).List(v1.ListOptions{})
+
+			modification, err := getModification(modificationType, resource, scope, permission)
 			errors.CheckError(err)
+			projIf := appclients.ArgoprojV1alpha1().AppProjects(namespace)
 
-			for _, proj := range projects.Items {
-				if !globMatch(projPattern, proj.Name) {
-					continue
-				}
-				origProj := proj.DeepCopy()
-				updated := false
-				for i, role := range proj.Spec.Roles {
-					if !globMatch(rolePattern, role.Name) {
-						continue
-					}
-					actionPolicyIndex := -1
-					for i := range role.Policies {
-						parts := split(role.Policies[i], ",")
-						if len(parts) != 6 || parts[3] != action {
-							continue
-						}
-						actionPolicyIndex = i
-						break
-					}
-					policyPermission := modification(proj.Name, action)
-					if actionPolicyIndex == -1 && policyPermission != "" {
-						updated = true
-						role.Policies = append(role.Policies, formatPolicy(proj.Name, role.Name, policyPermission))
-					} else if actionPolicyIndex > -1 && policyPermission == "" {
-						updated = true
-						role.Policies = append(role.Policies[:actionPolicyIndex], role.Policies[actionPolicyIndex+1:]...)
-					} else if actionPolicyIndex > -1 && policyPermission != "" {
-						updated = true
-						role.Policies[actionPolicyIndex] = formatPolicy(proj.Name, role.Name, policyPermission)
-					}
-					proj.Spec.Roles[i] = role
-				}
-				if updated {
-					saveProject(proj, *origProj, appclients.ArgoprojV1alpha1().AppProjects(namespace), dryRun)
-				}
-			}
-
+			err = updateProjects(projIf, projectGlob, rolePattern, action, modification, dryRun)
+			errors.CheckError(err)
 		},
 	}
 	command.Flags().StringVar(&resource, "resource", "", "Resource e.g. 'applications'")
@@ -172,4 +142,51 @@ func NewUpdatePolicyRuleCommand() *cobra.Command {
 	command.Flags().BoolVar(&dryRun, "dry-run", true, "Dry run")
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
 	return command
+}
+
+func updateProjects(projIf appclient.AppProjectInterface, projectGlob string, rolePattern string, action string, modification func(string, string) string, dryRun bool) error {
+	projects, err := projIf.List(v1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, proj := range projects.Items {
+		if !globMatch(projectGlob, proj.Name) {
+			continue
+		}
+		origProj := proj.DeepCopy()
+		updated := false
+		for i, role := range proj.Spec.Roles {
+			if !globMatch(rolePattern, role.Name) {
+				continue
+			}
+			actionPolicyIndex := -1
+			for i := range role.Policies {
+				parts := split(role.Policies[i], ",")
+				if len(parts) != 6 || parts[3] != action {
+					continue
+				}
+				actionPolicyIndex = i
+				break
+			}
+			policyPermission := modification(proj.Name, action)
+			if actionPolicyIndex == -1 && policyPermission != "" {
+				updated = true
+				role.Policies = append(role.Policies, formatPolicy(proj.Name, role.Name, policyPermission))
+			} else if actionPolicyIndex > -1 && policyPermission == "" {
+				updated = true
+				role.Policies = append(role.Policies[:actionPolicyIndex], role.Policies[actionPolicyIndex+1:]...)
+			} else if actionPolicyIndex > -1 && policyPermission != "" {
+				updated = true
+				role.Policies[actionPolicyIndex] = formatPolicy(proj.Name, role.Name, policyPermission)
+			}
+			proj.Spec.Roles[i] = role
+		}
+		if updated {
+			err = saveProject(proj, *origProj, projIf, dryRun)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
