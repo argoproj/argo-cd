@@ -8,8 +8,8 @@ effort to resolve such differences it is proposed contributing missing features 
 
 ## Proposal
 
-It is proposed to use Argo CD application controller as the base for the GitOps engine and contribute a set of Flux features into it. There are two main reasons to try using Argo CD as
-a base:
+It is proposed to use Argo CD application controller as the base for the GitOps engine and contribute a set of Flux features into it. There are two main reasons to try using
+Argo CD as a base:
 - Argo CD uses the _Application_ abstraction to represent the desired state and target the Kubernetes cluster. This abstraction works for both Argo CD and Flux.
 - The Argo CD controller leverages Kubernetes watch APIs instead of polling. This enables Argo CD features such as Health assessment, UI and could provide better performance to
 Flux as well.
@@ -22,8 +22,8 @@ The following Flux features are missing in Argo CD:
 
 These features must be contributed to Argo-Flux GitOps engine implementation before Flux starts using it.
 
-Flux additionally provides the ability to monitor Docker registry and automatically push changes to the Git repository when a new image is released. Both teams feel the this should not
-be a part of GitOps engine. So it is proposed to keep the feature only in Flux for now and then work together to move it into a separate component that would work for both Flux
+Flux additionally provides the ability to monitor Docker registry and automatically push changes to the Git repository when a new image is released. Both teams feel the this should
+not be a part of GitOps engine. So it is proposed to keep the feature only in Flux for now and then work together to move it into a separate component that would work for both Flux
 and Argo CD.
 
 ### Hypothesis and assumptions
@@ -32,7 +32,8 @@ The proposed solution is based on the assumption that despite implementation dif
 ultimately extract the set of manifests from Git and use "kubectl apply" to change the cluster state. The minor differences are expected but we can resolve them by introducing new
 knobs.
 
-Also, the proposed approach is based on the assumption that Argo CD engine is flexible enough to cover all Flux use-cases, reproduce Flux's behavior with minor differences and can be easily integrated into Argo CD.
+Also, the proposed approach is based on the assumption that Argo CD engine is flexible enough to cover all Flux use-cases, reproduce Flux's behavior with minor differences and can
+be easily integrated into Argo CD.
 
 However, there is a risk that there will be too many differences and it might be not feasible to support all of them. To get early feedback, we will start with a Proof-of-Concept 
 (PoC from now on) implementation which will serve as an experiment to assess the feasibility of the approach.
@@ -192,8 +193,8 @@ type ManifestGenerator interface {
 }
 ```
 
-**Engine instantiation** in order to create engine the consumer must provide the cluster credentials store and manifest generator as well as reconciliation settings. The code snippets
-below contains `NewEngine` function definition and usage example:
+**Engine instantiation** in order to create engine the consumer must provide the cluster credentials store and manifest generator as well as reconciliation settings.
+The code snippets below contains `NewEngine` function definition and usage example:
 
 ```golang
 func NewEngine(settings ReconciliationSettings, creds CredentialsStore, manifests ManifestGenerator)
