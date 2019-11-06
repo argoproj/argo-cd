@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-cd/common"
 	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
@@ -93,10 +94,15 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 	items := appsv1.Repositories{}
 	for _, repo := range repos {
 		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, repo.Repo) {
+			// For backwards compatibility, if we have no repo type set assume a default
+			rType := repo.Type
+			if rType == "" {
+				rType = common.DefaultRepoType
+			}
 			// remove secrets
 			items = append(items, &appsv1.Repository{
 				Repo:      repo.Repo,
-				Type:      repo.Type,
+				Type:      rType,
 				Name:      repo.Name,
 				Username:  repo.Username,
 				Insecure:  repo.IsInsecure(),
