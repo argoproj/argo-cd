@@ -85,11 +85,11 @@ export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
             color = COLORS.operation.success;
             break;
         case appModels.OperationPhases.Error:
-            className = 'fa fa-times';
+            className = 'fa fa-times-circle';
             color = COLORS.operation.error;
             break;
         case appModels.OperationPhases.Failed:
-            className = 'fa fa-times';
+            className = 'fa fa-times-circle';
             color = COLORS.operation.failed;
             break;
         default:
@@ -112,7 +112,7 @@ export const ComparisonStatusIcon = ({status, resource, label}: {status: appMode
             break;
         case appModels.SyncStatuses.OutOfSync:
             const requiresPruning = resource && resource.requiresPruning;
-            className = requiresPruning ? 'fa fa-times-circle' : 'fa fa-times';
+            className = requiresPruning ? 'fa fa-times-circle' : 'fa fa-exclamation-circle';
             if (requiresPruning) {
                 title = `${title} (requires pruning)`;
             }
@@ -169,11 +169,11 @@ export const HealthStatusIcon = ({state}: {state: appModels.HealthStatus}) => {
     switch (state.status) {
         case appModels.HealthStatuses.Healthy:
             color = COLORS.health.healthy;
-            icon = 'fa-heartbeat';
+            icon = 'fa-heart';
             break;
         case appModels.HealthStatuses.Suspended:
             color = COLORS.health.suspended;
-            icon = 'fa-heartbeat';
+            icon = 'fa-heart';
             break;
         case appModels.HealthStatuses.Degraded:
             color = COLORS.health.degraded;
@@ -199,18 +199,18 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
         switch (resource.status) {
             case appModels.ResultCodes.Synced:
                 color = COLORS.sync_result.synced;
-                icon = 'fa-heartbeat';
+                icon = 'fa-heart';
                 break;
             case appModels.ResultCodes.Pruned:
                 color = COLORS.sync_result.pruned;
-                icon = 'fa-heartbeat';
+                icon = 'fa-heart';
                 break;
             case appModels.ResultCodes.SyncFailed:
                 color = COLORS.sync_result.failed;
                 icon = 'fa-heart-broken';
                 break;
             case appModels.ResultCodes.PruneSkipped:
-                icon = 'fa-heartbeat';
+                icon = 'fa-heart';
                 break;
         }
         let title: string = resource.message;
@@ -236,7 +236,7 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
                 break;
             case appModels.OperationPhases.Succeeded:
                 color = COLORS.operation.success;
-                className = 'fa fa-heartbeat';
+                className = 'fa fa-heart';
                 break;
             case appModels.OperationPhases.Terminating:
                 color = COLORS.operation.terminating;
@@ -282,9 +282,12 @@ export function getOperationType(application: appModels.Application) {
     return 'Unknown';
 }
 
-export const OperationState = ({app}: {app: appModels.Application}) => {
+export const OperationState = ({app, quiet}: {app: appModels.Application; quiet?: boolean}) => {
     const appOperationState = getAppOperationState(app);
     if (appOperationState === undefined) {
+        return <React.Fragment />;
+    }
+    if (quiet && appOperationState.phase !== appModels.OperationPhases.Running) {
         return <React.Fragment />;
     }
     return (

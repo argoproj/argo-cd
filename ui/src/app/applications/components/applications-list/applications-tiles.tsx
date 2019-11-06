@@ -70,7 +70,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                             &nbsp;
                                             <AppUtils.ComparisonStatusIcon status={app.status.sync.status} /> {app.status.sync.status}
                                             &nbsp;
-                                            <OperationState app={app} />
+                                            <OperationState app={app} quiet={true} />
                                         </div>
                                     </div>
                                     <div className='row'>
