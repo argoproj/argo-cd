@@ -180,12 +180,12 @@ func IsKustomization(path string) bool {
 }
 
 func Version() (string, error) {
-	cmd := exec.Command("kustomize", "version", "--short")
+	cmd := exec.Command("kustomize", "version")
 	out, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
 	if err != nil {
 		return "", fmt.Errorf("could not get kustomize version: %s", err)
 	}
-	return strings.TrimSpace("v" + out), nil
+	return strings.TrimSpace(out), nil
 }
 
 func getImageParameters(objs []*unstructured.Unstructured) []Image {
