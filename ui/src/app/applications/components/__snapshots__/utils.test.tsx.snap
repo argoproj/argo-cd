@@ -212,18 +212,6 @@ exports[`ResourceResultIcon.SyncFailed 1`] = `
 />
 `;
 
-exports[`ResourceResultIcon.SyncFailed.Message 1`] = `
-<i
-  className="fa fa-heart-broken"
-  style={
-    Object {
-      "color": "#E96D76",
-    }
-  }
-  title="SyncFailed: my-message;"
-/>
-`;
-
 exports[`ResourceResultIcon.Synced 1`] = `
 <i
   className="fa fa-heart"
