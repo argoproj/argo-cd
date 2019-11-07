@@ -8,8 +8,8 @@ effort to resolve such differences it is proposed contributing missing features 
 
 ## Proposal
 
-It is proposed to use Argo CD application controller as the base for the GitOps engine and contribute a set of Flux features into it. There are two main reasons to try using Argo CD as
-a base:
+It is proposed to use Argo CD application controller as the base for the GitOps engine and contribute a set of Flux features into it. There are two main reasons to try using
+Argo CD as a base:
 - Argo CD uses the _Application_ abstraction to represent the desired state and target the Kubernetes cluster. This abstraction works for both Argo CD and Flux.
 - The Argo CD controller leverages Kubernetes watch APIs instead of polling. This enables Argo CD features such as Health assessment, UI and could provide better performance to
 Flux as well.
@@ -22,8 +22,8 @@ The following Flux features are missing in Argo CD:
 
 These features must be contributed to Argo-Flux GitOps engine implementation before Flux starts using it.
 
-Flux additionally provides the ability to monitor Docker registry and automatically push changes to the Git repository when a new image is released. Both teams feel the this should not
-be a part of GitOps engine. So it is proposed to keep the feature only in Flux for now and then work together to move it into a separate component that would work for both Flux
+Flux additionally provides the ability to monitor Docker registry and automatically push changes to the Git repository when a new image is released. Both teams feel the this should
+not be a part of GitOps engine. So it is proposed to keep the feature only in Flux for now and then work together to move it into a separate component that would work for both Flux
 and Argo CD.
 
 ### Hypothesis and assumptions
@@ -32,7 +32,8 @@ The proposed solution is based on the assumption that despite implementation dif
 ultimately extract the set of manifests from Git and use "kubectl apply" to change the cluster state. The minor differences are expected but we can resolve them by introducing new
 knobs.
 
-Also, the proposed approach is based on the assumption that Argo CD engine is flexible enough to cover all Flux use-cases, reproduce Flux's behavior with minor differences and can be easily integrated into Argo CD.
+Also, the proposed approach is based on the assumption that Argo CD engine is flexible enough to cover all Flux use-cases, reproduce Flux's behavior with minor differences and can
+be easily integrated into Argo CD.
 
 However, there is a risk that there will be too many differences and it might be not feasible to support all of them. To get early feedback, we will start with a Proof-of-Concept 
 (PoC from now on) implementation which will serve as an experiment to assess the feasibility of the approach.
@@ -72,10 +73,144 @@ specific ConfigMaps/Secrets.
 
 ## Design Details
 
-### Public API
+The proposed design is based on the PoC that contains draft implementation and provides the base idea of a target design. PoC is available in
+[argo-cd#fargo/engine](https://github.com/alexmt/argo-cd/tree/fargo/engine) and [flux#fargo](https://github.com/alexmt/flux/tree/fargo) 
 
-To be documented during POC implementation.
+The GitOps engine API consists of three main packages:
+* The `utils` package. It consist of loosely coupled packages that implements K8S resource diffing, health assessment, etc
+* The `sync<Term>` package that contains Sync<Term> data structure definition and CRUD client interface.
+* The `engine` package that leverages `utils` and uses provided set of Applications as a configuration source.
 
+```
+gitops-engine
+|-- pkg
+|   |-- utils
+|   |   |-- diff        # provides Kubernetes resource diffing functionality
+|   |   |-- kube        # provides utility methods to interact with Kubernetes
+|   |   |-- lua         # provides utility methods to run Lua scripts
+|   |   |-- sync<Term>   # provides utility methods to manipulate Sync<Term> (e.g. start sync operation, wait for sync operation, force reconciliation)
+|   |   `-- health      # provides Kubernetes resources health assessment
+|   |-- sync<Term>
+|   |   |-- apis       # contains data structures that describe Sync<Term>
+|   |   `-- client     # contains client that provides Sync<Term> CRUD operations
+|   `-- engine         # the engine implementation
+```
+
+The engine is responsible for the reconciliation of Kubernetes resources, which includes:
+- Interacting with the Kubernetes API: load and maintain the cluster state; pushing required changes to the Kubernetes API.
+- Reconciliation logic: match target K8S cluster resources with the resources stored in Git and decide which resources should be updated/deleted/created.
+- Syncing logic: determine the order in which resources should be modified; features like sync hooks, waves, etc.
+
+The manifests generation is out of scope and should be implemented by the Engine consumer.
+
+### Engine API
+
+> `Sync<Term>` is a place holder to a real name. The name is still under discussion
+
+The engine API includes three main parts:
+- `Engine` golang interface
+- `Sync<Term>` data structure and `Sync<Term>Store` interface which provides access to the units.
+- Set of data structures which allows configuring reconciliation process.
+
+**Engine interface** - provides set of features that allows updating reconciliation settings and subscribe to engine events.
+```golang
+type Engine interface {
+	// Run starts reconciliation loop using specified number of processors for reconciliation and operation execution.
+	Run(ctx context.Context, statusProcessors int, operationProcessors int)
+
+	// SetReconciliationSettings updates reconciliation settings
+	SetReconciliationSettings(settings ReconciliationSettings)
+
+	// OnBeforeSync registers callback that is executed before each sync operation.
+	OnBeforeSync(callback func(appName string, tasks []SyncTaskInfo) ([]SyncTaskInfo, error)) Unsubscribe
+
+	// OnSyncCompleted registers callback that is executed after each sync operation.
+	OnSyncCompleted(callback func(appName string, state OperationState) error) Unsubscribe
+
+    // OnClusterCacheInitialized registers a callback that is executed when cluster cache initialization is completed.
+    // Callback is useful to wait until cluster cache is fully initialized before starting to use cached data.
+	OnClusterCacheInitialized(callback func(server string)) Unsubscribe
+
+	// OnResourceUpdated registers a callback that is executed when cluster resource got updated.
+	OnResourceUpdated(callback func(cluster string, un *unstructured.Unstructured)) Unsubscribe
+
+	// OnResourceRemoved registers a callback that is executed when a cluster resource gets removed.
+	OnResourceRemoved(callback func(cluster string, key kube.ResourceKey)) Unsubscribe
+
+	// On<Term>Event registers callback that is executed on every sync <Term> event.
+	On<Term>Event(callback func(id string, info EventInfo, message string)) Unsubscribe
+}
+
+type Unsubscribe func()
+```
+
+**Sync<Term> data structure** - allows engine accessing sync <Term> and update status.
+
+```golang
+type Sync<Term> struct {
+	ID         string
+	Status      Status
+	Source      ManifestSource
+	Destination ManifestDestination
+	Operation   *Operation
+}
+
+type Sync<Term>Store interface {
+	List() ([]Sync<Term>, error)
+	Get(id string) (Sync<Term>, error)
+	SetStatus(id string, status Status) (Sync<Term>, error)
+	SetOperation(id string, operation *Operation) error
+}
+```
+
+**Settings data structures** - holds reconciliation settings and cluster credentials.
+```golang
+type ReconciliationSettings struct {
+	// AppInstanceLabelKey holds label key which is automatically added to every resource managed by the application
+	AppInstanceLabelKey string
+	// ResourcesFilter holds settigns which allows to configure list of managed resource APIs
+	ResourcesFilter resource.ResourcesFilter
+	// ResourceOverrides holds settings which customize resource diffing logic
+	ResourceOverrides map[scheme.GroupKind]appv1.ResourceOverride
+}
+
+// provides access to cluster credentials
+type CredentialsStore interface {
+	GetCluster(ctx context.Context, name string) (*appv1.Cluster, error)
+	WatchClusters(ctx context.Context, callback func(event *ClusterEvent)) error
+}
+```
+
+**ManifestGenerator** a Golang interface that must be implemented by the GitOps engine consumer.
+```golang
+type ManifestResponse struct {
+    // Generated manifests
+    Manifests  []string
+    // Resolved Git revision
+    Revision   string
+}
+
+type ManifestGenerator interface {
+	Generate(ctx context.Context, app *appv1.Application, revision string, noCache bool) (*ManifestResponse, error)
+}
+```
+
+**Engine instantiation** in order to create engine the consumer must provide the cluster credentials store and manifest generator as well as reconciliation settings.
+The code snippets below contains `NewEngine` function definition and usage example:
+
+```golang
+func NewEngine(settings ReconciliationSettings, creds CredentialsStore, manifests ManifestGenerator)
+```
+
+```golang
+myManifests := manifests{}
+myClusters := clusters{}
+engine := NewEngine(ReconciliationSettings{}, myManifests, myClusters)
+engine.OnBeforeSync(func(appName string, tasks []SyncTaskInfo) ([]SyncTaskInfo, error) {
+    // customize syncing process by returning update list of sync tasks or fail to prevent syncing
+    return tasks, nil
+})
+```
 
 ## Alternatives
 
