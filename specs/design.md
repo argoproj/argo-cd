@@ -25,5 +25,5 @@ The GitOps Engine:
 ## Proposals
 
 Teams have considered two ways to extract common functionality into the GitOps engine:
-1. [White box](./design-white-box.md). Identify components that are used in both projects and move them one by one into GitOps engine repository.
-1. [Black box](./design-black-box.md). Take one project as a base and contribute missing features from another project. As a result of this exercise, we should get a feature-complete component that covers the use cases of both projects.
+1. [Bottom-up](./design-bottom-up.md). Identify components that are used in both projects and move them one by one into GitOps engine repository.
+1. [Top-down](./design-top-down.md). Take a whole sub-system of one project and make it customizable enough to be suitable for both Argo CD and Flux.

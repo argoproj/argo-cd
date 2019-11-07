@@ -1,30 +1,39 @@
-# GitOps Engine Design - Black Box
+# GitOps Engine Design - Top Down
 
 ## Summary
 
-During the elaboration of [White box](./design-white-box.md) option, it was discovered that some components are similar at a high-level but still have a lot of differences in 
-design and implementation. This is not surprising because code was developed by different teams and with a focus on different use-cases. Given that it would require a lot of
-effort to resolve such differences it is proposed contributing missing features of one project into an engine of another and use that engine in both projects.
+During the elaboration of [Bottom Up](./design-bottom-up.md) option, we've discovered that this
+approach is challenging. Although components are similar at a high-level there is
+still a lot of differences in design and implementation, so it is hard to re-use either of them in
+both projects without redesign. This is not surprising because code was developed
+by different teams and with a focus on different use-cases. To speed-up the process it is
+proposed to take a whole sub-system of one project and make it customizable enough to
+be suitable for both Argo CD and Flux.
 
 ## Proposal
 
-It is proposed to use Argo CD application controller as the base for the GitOps engine and contribute a set of Flux features into it. There are two main reasons to try using
-Argo CD as a base:
-- Argo CD uses the _Application_ abstraction to represent the desired state and target the Kubernetes cluster. This abstraction works for both Argo CD and Flux.
-- The Argo CD controller leverages Kubernetes watch APIs instead of polling. This enables Argo CD features such as Health assessment, UI and could provide better performance to
-Flux as well.
+It is proposed to extract of Argo CD application controller subsystem, that is responsible for
+interacting with Kubernetes and resources reconciliation and syncing. The sub-system should be refactored
+and used in both Argo CD and Flux. During refactoring we should make sure that it supports all 
+customizations that are required to keep Flux behavior untouched.There are two main reasons to try using
+Argo CD as a base for reconciliation engine:
+- Argo CD uses the _Application_ abstraction to represent the desired state and target the Kubernetes cluster.
+This abstraction works for both Argo CD and Flux.
+- The Argo CD controller leverages Kubernetes watch APIs instead of polling. This enables Argo CD features
+such as Health assessment, UI and could provide better performance to Flux as well.
 
-The following Flux features are missing in Argo CD:
+### Manifest Generation
 
-- Manifest generation using .flux.yaml files.
-- GPG commit signatures verification - an ability to verify the commit signature before pushing changes to the Kubernetes.
-- Namespace mode - an ability to control only given namespace in the target cluster. Currently, Argo CD requires read access in all namespaces.
+The manifest generation logic is very different in Argo CD and Flux: Argo CD focuses on providing first class
+support for existing config management tools while Flux provides a flexible way to connect any config
+management tool using .flux.yaml files. I think we should merge manifest generation step by step, after core
+of GitOps engine is established.
 
-These features must be contributed to Argo-Flux GitOps engine implementation before Flux starts using it.
+### Repository Access
 
-Flux additionally provides the ability to monitor Docker registry and automatically push changes to the Git repository when a new image is released. Both teams feel the this should
-not be a part of GitOps engine. So it is proposed to keep the feature only in Flux for now and then work together to move it into a separate component that would work for both Flux
-and Argo CD.
+Flux has much more Git related features than Argo CD. I think we might do the same exercise as a next step:
+generalize Flux's Git access, commit verification, write back features and contribute to the engine as
+a whole sub-system.
 
 ### Hypothesis and assumptions
 
@@ -42,7 +51,8 @@ However, there is a risk that there will be too many differences and it might be
 
 To consider the PoC successful (and with the exception of features excluded from the PoC to save time), 
 all the following must hold true:
-1. All the Flux unit and end-to-end tests must pass. The existing tests are limited, so we may decide to include additional ones.
+1. All the Flux unit and end-to-end tests must pass. The existing tests are limited, so we may decide to
+include additional ones.
 2. The UX of Flux must remain unchanged. That includes:
    - The flags of `fluxd` and `fluxctl` must  be respected and can be used in the same way as before
      resulting in the same configuration behavioural changes.
@@ -214,4 +224,4 @@ engine.OnBeforeSync(func(appName string, tasks []SyncTaskInfo) ([]SyncTaskInfo, 
 
 ## Alternatives
 
-[White box](./design-white-box.md)
+[Bottom-up](./design-bottom-up.md)
