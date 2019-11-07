@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+metadata:
+  name: canary-demo-analysis-template-6c6bb7cf6f-zvcmx
+  namespace: default
+spec:
+  analysisSpec:
+    metrics:
+      - failureCondition: len(result) == 0
+        name: memory-usage
+        provider:
+          prometheus:
+            address: 'http://prometheus-operator-prometheus.prometheus-operator:9090'
+            query: >
+              sum(rate(nginx_ingress_controller_requests{ingress="canary-demo-preview",status!~"[4-5].*"}[2m]))
+              /
+              sum(rate(nginx_ingress_controller_requests{ingress="canary-demo-preview"}[2m]))
+        successCondition: len(result) > 0
+status:
+  metricResults:
+    - count: 1
+      measurements:
+        - finishedAt: '2019-10-28T18:20:37Z'
+          startedAt: '2019-10-28T18:20:37Z'
+          phase: Successful
+          value: '[0.965324384787472]'
+      name: memory-usage
+      phase: Successful
+      successful: 1
+  phase: Successful

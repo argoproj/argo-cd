@@ -10,22 +10,9 @@ function checkReplicasStatus(obj)
     hs.message = "Waiting for roll out to finish: More replicas need to be updated"
     return hs
   end
-  if replicasStatus > updatedReplicas then
-    hs.status = "Progressing"
-    hs.message = "Waiting for roll out to finish: old replicas are pending termination"
-    return hs
-  end
-  if availableReplicas < updatedReplicas then
-    hs.status = "Progressing"
-    hs.message = "Waiting for roll out to finish: updated replicas are still becoming available"
-    return hs
-  end
-  if updatedReplicas < replicasCount then
-    hs.status = "Progressing"
-    hs.message = "Waiting for roll out to finish: More replicas need to be updated"
-    return hs
-  end
-  if replicasStatus > updatedReplicas then
+  -- Since the scale down delay can be very high, BlueGreen does not wait for all the old replicas to scale
+  -- down before marking itself healthy. As a result, only evaluate this condition if the strategy is canary.
+  if obj.spec.strategy.canary ~= nil and replicasStatus > updatedReplicas then
     hs.status = "Progressing"
     hs.message = "Waiting for roll out to finish: old replicas are pending termination"
     return hs
@@ -71,6 +58,11 @@ if obj.status ~= nil then
         hs.message = condition.message
         return hs
       end
+      if condition.type == "Progressing" and condition.reason == "RolloutAborted" then
+        hs.status = "Degraded"
+        hs.message = condition.message
+        return hs
+      end
       if condition.type == "Progressing" and condition.reason == "ProgressDeadlineExceeded" then
         hs.status = "Degraded"
         hs.message = condition.message
@@ -88,7 +80,7 @@ if obj.status ~= nil then
       if replicasHS ~= nil then
         return replicasHS
       end
-      if obj.status.blueGreen ~= nil and obj.status.blueGreen.activeSelector ~= nil and obj.status.currentPodHash ~= nil and obj.status.blueGreen.activeSelector == obj.status.currentPodHash then
+      if obj.status.blueGreen ~= nil and obj.status.blueGreen.activeSelector ~= nil and obj.status.blueGreen.activeSelector == obj.status.currentPodHash then
         hs.status = "Healthy"
         hs.message = "The active Service is serving traffic to the current pod spec"
         return hs

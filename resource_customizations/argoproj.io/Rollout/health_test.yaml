@@ -11,6 +11,10 @@ tests:
     status: Degraded
     message: ReplicaSet "guestbook-bluegreen-helm-guestbook-6b8cf6f7db" has timed out progressing.
   inputPath: testdata/degraded_rolloutTimeout.yaml
+- healthStatus:
+    status: Degraded
+    message: Rollout is aborted
+  inputPath: testdata/degraded_abortedRollout.yaml
 #BlueGreen
 - healthStatus:
     status: Healthy
@@ -30,10 +34,6 @@ tests:
   inputPath: testdata/bluegreen/progressing_addingMoreReplicas.yaml
 - healthStatus:
     status: Progressing
-    message: "Waiting for roll out to finish: old replicas are pending termination"
-  inputPath: testdata/bluegreen/progressing_killingOldReplicas.yaml
-- healthStatus:
-    status: Progressing
     message: "Waiting for roll out to finish: updated replicas are still becoming available"
   inputPath: testdata/bluegreen/progressing_waitingUntilAvailable.yaml
 #Canary
@@ -41,6 +41,10 @@ tests:
     status: Progressing
     message: Waiting for rollout to finish steps
   inputPath: testdata/canary/progressing_setWeightStep.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for roll out to finish: old replicas are pending termination"
+  inputPath: testdata/canary/progressing_killingOldReplicas.yaml
 - healthStatus:
     status: Suspended
     message: Rollout is paused
