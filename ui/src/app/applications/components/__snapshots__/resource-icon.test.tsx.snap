@@ -21,6 +21,40 @@ exports[`ConfigMap 1`] = `
 />
 `;
 
+exports[`FourWords 1`] = `
+<div
+  style={
+    Object {
+      "display": "inline-block",
+      "height": "32px",
+      "padding": "2px 4px",
+      "width": "40px",
+    }
+  }
+>
+  <i
+    className="icon fa fa-circle"
+    title="FourWordsFooBar"
+  />
+  <div
+    style={
+      Object {
+        "color": "white",
+        "fontSize": "0.6em",
+        "left": "10px",
+        "margin": "auto",
+        "position": "absolute",
+        "textAlign": "center",
+        "top": "14px",
+        "width": "40px",
+      }
+    }
+  >
+    FWFB
+  </div>
+</div>
+`;
+
 exports[`OneWord 1`] = `
 <div
   style={
@@ -40,6 +74,7 @@ exports[`OneWord 1`] = `
     style={
       Object {
         "color": "white",
+        "fontSize": "1em",
         "left": "10px",
         "margin": "auto",
         "position": "absolute",
@@ -54,7 +89,7 @@ exports[`OneWord 1`] = `
 </div>
 `;
 
-exports[`ThreeWordsTotal 1`] = `
+exports[`ThreeWords 1`] = `
 <div
   style={
     Object {
@@ -67,22 +102,23 @@ exports[`ThreeWordsTotal 1`] = `
 >
   <i
     className="icon fa fa-circle"
-    title="ThreeWordsTotal"
+    title="ThreeWordsFoo"
   />
   <div
     style={
       Object {
         "color": "white",
+        "fontSize": "0.6em",
         "left": "10px",
         "margin": "auto",
         "position": "absolute",
         "textAlign": "center",
-        "top": "10px",
+        "top": "14px",
         "width": "40px",
       }
     }
   >
-    TW
+    TWF
   </div>
 </div>
 `;
@@ -106,6 +142,7 @@ exports[`TwoWords 1`] = `
     style={
       Object {
         "color": "white",
+        "fontSize": "1em",
         "left": "10px",
         "margin": "auto",
         "position": "absolute",

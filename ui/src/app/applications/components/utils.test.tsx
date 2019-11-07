@@ -1,6 +1,14 @@
 import * as renderer from 'react-test-renderer';
 import * as React from 'react';
-import {Application, HealthStatuses, OperationPhases, ResultCodes, SyncStatuses} from '../../shared/models';
+import {
+    Application,
+    HealthStatus,
+    HealthStatuses,
+    OperationPhases,
+    ResourceResult,
+    ResultCodes,
+    SyncStatuses,
+} from '../../shared/models';
 import {
     ComparisonStatusIcon,
     getAppOperationState,
@@ -11,10 +19,12 @@ import {
     ResourceResultIcon,
 } from './utils';
 
-test('getAppOperationState.DeletionTimestamp', () => {
-    const state = getAppOperationState({metadata: {deletionTimestamp: new Date(0)}} as Application);
+const zero = new Date(0).toISOString();
 
-    expect(state).toStrictEqual({phase: OperationPhases.Running, startedAt: new Date(0)});
+test('getAppOperationState.DeletionTimestamp', () => {
+    const state = getAppOperationState({metadata: {deletionTimestamp: zero}} as Application);
+
+    expect(state).toStrictEqual({phase: OperationPhases.Running, startedAt: zero});
 });
 
 test('getAppOperationState.Operation', () => {
@@ -28,14 +38,14 @@ test('getAppOperationState.Operation', () => {
 test('getAppOperationState.Status', () => {
     const state = getAppOperationState({
         metadata: {},
-        status: {operationState: {phase: OperationPhases.Error, startedAt: new Date(0).toISOString()}},
+        status: {operationState: {phase: OperationPhases.Error, startedAt: zero}},
     } as Application);
 
     expect(state.phase).toBe(OperationPhases.Error);
 });
 
 test('getOperationType.Delete', () => {
-    const state = getOperationType({metadata: {deletionTimestamp: new Date(0)}} as Application);
+    const state = getOperationType({metadata: {deletionTimestamp: zero.toString()}} as Application);
 
     expect(state).toBe('Delete');
 });
@@ -124,61 +134,94 @@ test('ComparisonStatusIcon.Unknown', () => {
     expect(tree).toMatchSnapshot();
 });
 
-test('HealthStatusIcon.Healthy', () => {
-    const tree = renderer.create(<HealthStatusIcon state={HealthStatuses.Healthy}/>).toJSON();
+test('HealthStatusIcon.Unknown', () => {
+    const tree = renderer.create(<HealthStatusIcon
+        state={{status: HealthStatuses.Unknown} as HealthStatus}/>).toJSON();
+
+    expect(tree).toMatchSnapshot();
+});
+test('HealthStatusIcon.Progressing', () => {
+    const tree = renderer.create(<HealthStatusIcon
+        state={{status: HealthStatuses.Progressing} as HealthStatus}/>).toJSON();
 
     expect(tree).toMatchSnapshot();
 });
 
 test('HealthStatusIcon.Suspended', () => {
-    const tree = renderer.create(<HealthStatusIcon state={HealthStatuses.Suspended}/>).toJSON();
+    const tree = renderer.create(<HealthStatusIcon
+        state={{status: HealthStatuses.Suspended} as HealthStatus}/>).toJSON();
+
+    expect(tree).toMatchSnapshot();
+});
+
+test('HealthStatusIcon.Healthy', () => {
+    const tree = renderer.create(<HealthStatusIcon state={{status: HealthStatuses.Healthy} as HealthStatus}/>).toJSON();
+
+    expect(tree).toMatchSnapshot();
+});
+
+test('HealthStatusIcon.Degraded', () => {
+    const tree = renderer.create(<HealthStatusIcon
+        state={{status: HealthStatuses.Degraded} as HealthStatus}/>).toJSON();
+
+    expect(tree).toMatchSnapshot();
+});
+test('HealthStatusIcon.Missing', () => {
+    const tree = renderer.create(<HealthStatusIcon
+        state={{status: HealthStatuses.Missing} as HealthStatus}/>).toJSON();
 
     expect(tree).toMatchSnapshot();
 });
 
 test('ResourceResultIcon.Synced', () => {
     const tree = renderer.create(<ResourceResultIcon
-        resource={{status: ResultCodes.Synced, message: 'my-message'}}/>).toJSON();
+        resource={{status: ResultCodes.Synced, message: 'my-message'} as ResourceResult}/>).toJSON();
 
     expect(tree).toMatchSnapshot();
 });
 
 test('ResourceResultIcon.Pruned', () => {
-    const tree = renderer.create(<ResourceResultIcon resource={{status: ResultCodes.Pruned}}/>).toJSON();
+    const tree = renderer.create(<ResourceResultIcon
+        resource={{status: ResultCodes.Pruned} as ResourceResult}/>).toJSON();
 
     expect(tree).toMatchSnapshot();
 });
 
 test('ResourceResultIcon.SyncFailed', () => {
-    const tree = renderer.create(<ResourceResultIcon resource={{status: ResultCodes.SyncFailed}}/>).toJSON();
+    const tree = renderer.create(<ResourceResultIcon
+        resource={{status: ResultCodes.SyncFailed} as ResourceResult}/>).toJSON();
 
     expect(tree).toMatchSnapshot();
 });
 
 test('ResourceResultIcon.Hook.Running', () => {
     const tree = renderer.create(<ResourceResultIcon
-        resource={{hookType: 'Sync', hookPhase: OperationPhases.Running, message: 'my-message'}}/>).toJSON();
+        resource={{
+            hookType: 'Sync',
+            hookPhase: OperationPhases.Running,
+            message: 'my-message',
+        } as ResourceResult}/>).toJSON();
 
     expect(tree).toMatchSnapshot();
 });
 
 test('ResourceResultIcon.Hook.Failed', () => {
     const tree = renderer.create(<ResourceResultIcon
-        resource={{hookType: 'Sync', hookPhase: OperationPhases.Failed}}/>).toJSON();
+        resource={{hookType: 'Sync', hookPhase: OperationPhases.Failed} as ResourceResult}/>).toJSON();
 
     expect(tree).toMatchSnapshot();
 });
 
 test('ResourceResultIcon.Hook.Error', () => {
     const tree = renderer.create(<ResourceResultIcon
-        resource={{hookType: 'Sync', hookPhase: OperationPhases.Error}}/>).toJSON();
+        resource={{hookType: 'Sync', hookPhase: OperationPhases.Error} as ResourceResult}/>).toJSON();
 
     expect(tree).toMatchSnapshot();
 });
 
 test('ResourceResultIcon.Hook.Succeeded', () => {
     const tree = renderer.create(<ResourceResultIcon
-        resource={{hookType: 'Sync', hookPhase: OperationPhases.Succeeded}}/>).toJSON();
+        resource={{hookType: 'Sync', hookPhase: OperationPhases.Succeeded} as ResourceResult}/>).toJSON();
 
     expect(tree).toMatchSnapshot();
 });
@@ -186,7 +229,7 @@ test('ResourceResultIcon.Hook.Succeeded', () => {
 
 test('ResourceResultIcon.Hook.Terminating', () => {
     const tree = renderer.create(<ResourceResultIcon
-        resource={{hookType: 'Sync', hookPhase: OperationPhases.Terminating}}/>).toJSON();
+        resource={{hookType: 'Sync', hookPhase: OperationPhases.Terminating} as ResourceResult}/>).toJSON();
 
     expect(tree).toMatchSnapshot();
 });

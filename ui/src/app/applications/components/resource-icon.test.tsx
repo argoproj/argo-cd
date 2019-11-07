@@ -26,8 +26,14 @@ test('TwoWords', () => {
     expect(tree).toMatchSnapshot();
 });
 
-test('ThreeWordsTotal', () => {
-    const tree = renderer.create(<ResourceIcon kind='ThreeWordsTotal' />).toJSON();
+test('ThreeWords', () => {
+    const tree = renderer.create(<ResourceIcon kind='ThreeWordsFoo'/>).toJSON();
+
+    expect(tree).toMatchSnapshot();
+});
+
+test('FourWords', () => {
+    const tree = renderer.create(<ResourceIcon kind='FourWordsFooBar'/>).toJSON();
 
     expect(tree).toMatchSnapshot();
 });

@@ -1,22 +1,9 @@
 import {ResourceLabel} from './resource-label';
 
-test('ConfigMap', () => {
+test('BuiltIn', () => {
     expect(ResourceLabel({kind: 'ConfigMap'})).toBe('cm');
 });
 
-test('Word', () => {
+test('CustomResource', () => {
     expect(ResourceLabel({kind: 'Word'})).toBe('word');
 });
-
-test('LongWord', () => {
-    expect(ResourceLabel({kind: 'Longword'})).toBe('longwor');
-});
-
-test('TwoWords', () => {
-    expect(ResourceLabel({kind: 'TwoWords'})).toBe('t-words');
-});
-
-test('ThreeWordsTotal', () => {
-    expect(ResourceLabel({kind: 'ThreeWordsTotal'})).toBe('twt');
-});
-

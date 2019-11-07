@@ -45,7 +45,31 @@ Array [
 ]
 `;
 
+exports[`HealthStatusIcon.Degraded 1`] = `
+<i
+  className="fa fa-heart-broken"
+  style={
+    Object {
+      "color": "#E96D76",
+    }
+  }
+  title="Degraded"
+/>
+`;
+
 exports[`HealthStatusIcon.Healthy 1`] = `
+<i
+  className="fa fa-heart"
+  style={
+    Object {
+      "color": "#18BE94",
+    }
+  }
+  title="Healthy"
+/>
+`;
+
+exports[`HealthStatusIcon.Missing 1`] = `
 <i
   className="fa fa-question-circle"
   style={
@@ -53,17 +77,43 @@ exports[`HealthStatusIcon.Healthy 1`] = `
       "color": "#CCD6DD",
     }
   }
+  title="Missing"
+/>
+`;
+
+exports[`HealthStatusIcon.Progressing 1`] = `
+<i
+  className="fa fa fa-circle-notch fa-spin"
+  style={
+    Object {
+      "color": "#0DADEA",
+    }
+  }
+  title="Progressing"
 />
 `;
 
 exports[`HealthStatusIcon.Suspended 1`] = `
 <i
+  className="fa fa-heart"
+  style={
+    Object {
+      "color": "#CCD6DD",
+    }
+  }
+  title="Suspended"
+/>
+`;
+
+exports[`HealthStatusIcon.Unknown 1`] = `
+<i
   className="fa fa-question-circle"
   style={
     Object {
       "color": "#CCD6DD",
     }
   }
+  title="Unknown"
 />
 `;
 

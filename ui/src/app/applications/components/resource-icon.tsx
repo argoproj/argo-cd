@@ -9,6 +9,8 @@ export const ResourceIcon = ({kind}: {kind: string}) => {
     if (kind === 'Application') {
         return <i title={kind} className={`icon argo-icon-application`} />;
     }
+    const initials = kind.replace(/[a-z]/g, '');
+    const n = initials.length;
     return (
         <div style={{display: 'inline-block', padding: '2px 4px', width: '40px', height: '32px'}}>
             <i title={kind} className='icon fa fa-circle' />
@@ -16,13 +18,14 @@ export const ResourceIcon = ({kind}: {kind: string}) => {
                 style={{
                     position: 'absolute',
                     left: '10px',
-                    top: '10px',
+                    top: `${n <= 2 ? 10 : 14}px`,
                     width: '40px',
                     margin: 'auto',
                     color: 'white',
-                    textAlign: 'center'
+                    textAlign: 'center',
+                    fontSize: `${n <= 2 ? 1 : 0.6}em`
                 }}>
-                {kind.replace(/[a-z]/g, '').substring(0, 2)}
+                {initials}
             </div>
         </div>
     );
