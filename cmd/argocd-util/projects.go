@@ -103,10 +103,10 @@ func NewUpdatePolicyRuleCommand() *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "update-role-policy PROJECT_GLOB MODIFICATION ACTION",
 		Short: "Implement bulk project role update. Useful to back-fill existing project policies or remove obsolete actions.",
-		Example: `  #Add policy that allows executing any action (action/*) to roles which name matches to *deployer* in all projects  
+		Example: `  # Add policy that allows executing any action (action/*) to roles which name matches to *deployer* in all projects  
   argocd-util projects update-role-policy '*' set 'action/*' --role '*deployer*' --resource applications --scope '*' --permission allow
 
-  #Remove policy that which manages running (action/*) from all roles which name matches *deployer* in all projects
+  # Remove policy that which manages running (action/*) from all roles which name matches *deployer* in all projects
   argocd-util projects update-role-policy '*' remove override --role '*deployer*'
 `,
 		Run: func(c *cobra.Command, args []string) {
