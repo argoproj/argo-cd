@@ -1,0 +1,273 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ComparisonStatusIcon.OutOfSync 1`] = `
+Array [
+  <i
+    className="fa fa-times"
+    style={
+      Object {
+        "color": "#f4c030",
+      }
+    }
+    title="OutOfSync"
+  />,
+  " ",
+]
+`;
+
+exports[`ComparisonStatusIcon.Synced 1`] = `
+Array [
+  <i
+    className="fa fa-check-circle"
+    style={
+      Object {
+        "color": "#18BE94",
+      }
+    }
+    title="Synced"
+  />,
+  " ",
+]
+`;
+
+exports[`ComparisonStatusIcon.Unknown 1`] = `
+Array [
+  <i
+    className="fa fa-circle-notch fa-spin"
+    style={
+      Object {
+        "color": "#CCD6DD",
+      }
+    }
+    title="Unknown"
+  />,
+  " ",
+]
+`;
+
+exports[`HealthStatusIcon.Degraded 1`] = `
+<i
+  className="fa fa-heart-broken"
+  style={
+    Object {
+      "color": "#E96D76",
+    }
+  }
+  title="Degraded"
+/>
+`;
+
+exports[`HealthStatusIcon.Healthy 1`] = `
+<i
+  className="fa fa-heartbeat"
+  style={
+    Object {
+      "color": "#18BE94",
+    }
+  }
+  title="Healthy"
+/>
+`;
+
+exports[`HealthStatusIcon.Missing 1`] = `
+<i
+  className="fa fa-question-circle"
+  style={
+    Object {
+      "color": "#CCD6DD",
+    }
+  }
+  title="Missing"
+/>
+`;
+
+exports[`HealthStatusIcon.Progressing 1`] = `
+<i
+  className="fa fa fa-circle-notch fa-spin"
+  style={
+    Object {
+      "color": "#0DADEA",
+    }
+  }
+  title="Progressing"
+/>
+`;
+
+exports[`HealthStatusIcon.Suspended 1`] = `
+<i
+  className="fa fa-heartbeat"
+  style={
+    Object {
+      "color": "#CCD6DD",
+    }
+  }
+  title="Suspended"
+/>
+`;
+
+exports[`HealthStatusIcon.Unknown 1`] = `
+<i
+  className="fa fa-question-circle"
+  style={
+    Object {
+      "color": "#CCD6DD",
+    }
+  }
+  title="Unknown"
+/>
+`;
+
+exports[`OperationPhaseIcon.Error 1`] = `
+<i
+  className="fa fa-times"
+  style={
+    Object {
+      "color": "#E96D76",
+    }
+  }
+  title="Error"
+/>
+`;
+
+exports[`OperationPhaseIcon.Failed 1`] = `
+<i
+  className="fa fa-times"
+  style={
+    Object {
+      "color": "#E96D76",
+    }
+  }
+  title="Failed"
+/>
+`;
+
+exports[`OperationPhaseIcon.Running 1`] = `
+<i
+  className="fa fa-circle-notch fa-spin"
+  style={
+    Object {
+      "color": "#0DADEA",
+    }
+  }
+  title="Running"
+/>
+`;
+
+exports[`OperationPhaseIcon.Succeeded 1`] = `
+<i
+  className="fa fa-check-circle"
+  style={
+    Object {
+      "color": "#18BE94",
+    }
+  }
+  title="Succeeded"
+/>
+`;
+
+exports[`OperationState.Default 1`] = `
+Array [
+  <i
+    className="fa fa-circle-notch fa-spin"
+    style={
+      Object {
+        "color": "#0DADEA",
+      }
+    }
+  />,
+  " ",
+  "Unknown",
+]
+`;
+
+exports[`OperationState.undefined 1`] = `null`;
+
+exports[`ResourceResultIcon.Hook.Error 1`] = `
+<i
+  className="fa fa-heart-broken"
+  style={
+    Object {
+      "color": "#E96D76",
+    }
+  }
+/>
+`;
+
+exports[`ResourceResultIcon.Hook.Failed 1`] = `
+<i
+  className="fa fa-heart-broken"
+  style={
+    Object {
+      "color": "#E96D76",
+    }
+  }
+/>
+`;
+
+exports[`ResourceResultIcon.Hook.Running 1`] = `
+<i
+  className="fa fa-circle-notch fa-spin"
+  style={
+    Object {
+      "color": "#0DADEA",
+    }
+  }
+  title="Running: my-message;"
+/>
+`;
+
+exports[`ResourceResultIcon.Hook.Succeeded 1`] = `
+<i
+  className="fa fa-heartbeat"
+  style={
+    Object {
+      "color": "#18BE94",
+    }
+  }
+/>
+`;
+
+exports[`ResourceResultIcon.Hook.Terminating 1`] = `
+<i
+  className="fa fa-circle-notch fa-spin"
+  style={
+    Object {
+      "color": "#0DADEA",
+    }
+  }
+/>
+`;
+
+exports[`ResourceResultIcon.Pruned 1`] = `
+<i
+  className="fa fa-heartbeat"
+  style={
+    Object {
+      "color": "#CCD6DD",
+    }
+  }
+/>
+`;
+
+exports[`ResourceResultIcon.SyncFailed 1`] = `
+<i
+  className="fa fa-heart-broken"
+  style={
+    Object {
+      "color": "#E96D76",
+    }
+  }
+/>
+`;
+
+exports[`ResourceResultIcon.Synced 1`] = `
+<i
+  className="fa fa-heartbeat"
+  style={
+    Object {
+      "color": "#18BE94",
+    }
+  }
+  title="Synced: my-message;"
+/>
+`;

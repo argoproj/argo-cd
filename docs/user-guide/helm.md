@@ -116,6 +116,8 @@ argocd app set redis -p password=abc123
 
 ## Build Environment
 
+> v1.3
+
 Helm apps have access to the [standard build environment](build-environment.md) via substitution as parameters. 
 
 E.g. via the CLI:
