@@ -1,6 +1,5 @@
 {
     "compilerOptions": {
-        "esModuleInterop": true,
         "outDir": "./../../dist/app",
         "sourceMap": true,
         "noImplicitAny": true,

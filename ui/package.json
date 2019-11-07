@@ -10,7 +10,6 @@
     "test": "jest"
   },
   "dependencies": {
-    "@babel/core": "^7.0.0-0",
     "@types/classnames": "^2.2.3",
     "@types/cookie": "^0.3.1",
     "@types/dagre": "^0.7.40",
@@ -86,6 +85,7 @@
     "@types/react-dom": "16.8.2"
   },
   "devDependencies": {
+    "@babel/core": "^7.0.0-0",
     "@babel/preset-env": "^7.7.1",
     "@babel/preset-react": "^7.7.0",
     "@types/jest": "^24.0.13",
