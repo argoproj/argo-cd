@@ -4,10 +4,7 @@ import (
 	"io/ioutil"
 	"path"
 	"path/filepath"
-	"regexp"
 	"testing"
-
-	"github.com/Masterminds/semver"
 
 	"github.com/argoproj/pkg/exec"
 	"github.com/stretchr/testify/assert"
@@ -106,7 +103,5 @@ func TestParseKustomizeBuildOptions(t *testing.T) {
 func TestVersion(t *testing.T) {
 	ver, err := Version()
 	assert.NoError(t, err)
-
-	re := regexp.MustCompile(semver.SemVerRegex)
-	assert.True(t, re.MatchString(ver))
+	assert.NotEmpty(t, ver)
 }
