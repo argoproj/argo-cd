@@ -8,6 +8,10 @@ test('Word', () => {
     expect(ResourceLabel({kind: 'Word'})).toBe('word');
 });
 
+test('LongWord', () => {
+    expect(ResourceLabel({kind: 'Longword'})).toBe('longwor');
+});
+
 test('TwoWords', () => {
     expect(ResourceLabel({kind: 'TwoWords'})).toBe('t-words');
 });

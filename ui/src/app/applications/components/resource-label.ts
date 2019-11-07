@@ -15,7 +15,7 @@ export const ResourceLabel = ({kind}: {kind: string}) => {
         case 1:
             return trunc(words[0], 7);
         case 2:
-            return initials[0] + '-' + trunc(words[1], 5);
+            return trunc(initials[0] + '-' + words[1], 7);
         default:
             return trunc(initials.join(''), 7);
     }
