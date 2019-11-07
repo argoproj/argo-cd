@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/Masterminds/semver"
+
 	"github.com/argoproj/pkg/exec"
 	"github.com/stretchr/testify/assert"
 
@@ -104,7 +106,7 @@ func TestParseKustomizeBuildOptions(t *testing.T) {
 func TestVersion(t *testing.T) {
 	ver, err := Version()
 	assert.NoError(t, err)
-	SemverRegexValidation := `^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$`
-	re := regexp.MustCompile(SemverRegexValidation)
+
+	re := regexp.MustCompile(semver.SemVerRegex)
 	assert.True(t, re.MatchString(ver))
 }
