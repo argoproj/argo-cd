@@ -166,8 +166,6 @@ test('HealthStatusIcon.Missing', () => {
     expect(tree).toMatchSnapshot();
 });
 
-// TODO Degraded
-
 test('ResourceResultIcon.Synced', () => {
     const tree = renderer.create(<ResourceResultIcon
         resource={{status: ResultCodes.Synced, message: 'my-message'} as ResourceResult}/>).toJSON();

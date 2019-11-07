@@ -57,18 +57,6 @@ exports[`HealthStatusIcon.Degraded 1`] = `
 />
 `;
 
-exports[`HealthStatusIcon.Degraded 2`] = `
-<i
-  className="fa fa-heart-broken"
-  style={
-    Object {
-      "color": "#E96D76",
-    }
-  }
-  title="Degraded"
-/>
-`;
-
 exports[`HealthStatusIcon.Healthy 1`] = `
 <i
   className="fa fa-heartbeat"
