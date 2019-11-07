@@ -24,8 +24,8 @@ status:
       measurements:
         - finishedAt: '2019-10-28T18:24:31Z'
           startedAt: '2019-10-28T18:24:31Z'
-          status: Inconclusive
+          phase: Inconclusive
           value: '[0.9744444444444443]'
       name: memory-usage
-      status: Inconclusive
-  status: Inconclusive
+      phase: Inconclusive
+  phase: Inconclusive

@@ -22,9 +22,9 @@ status:
       measurements:
         - finishedAt: '2019-10-28T18:20:37Z'
           startedAt: '2019-10-28T18:20:37Z'
-          status: Successful
+          phase: Successful
           value: '[0.965324384787472]'
       name: memory-usage
-      status: Successful
+      phase: Successful
       successful: 1
-  status: Successful
+  phase: Successful

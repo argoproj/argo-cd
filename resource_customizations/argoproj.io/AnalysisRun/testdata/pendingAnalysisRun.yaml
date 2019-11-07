@@ -14,4 +14,4 @@ spec:
         query: |    
           sum(rate(nginx_ingress_controller_requests{ingress="canary-demo-preview",status!~"[4-5].*"}[2m])) / sum(rate(nginx_ingress_controller_requests{ingress="canary-demo-preview"}[2m]))
 status:
-  status: Pending
+  phase: Pending

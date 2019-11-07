@@ -24,24 +24,24 @@ status:
       measurements:
         - finishedAt: '2019-10-28T18:13:01Z'
           startedAt: '2019-10-28T18:13:01Z'
-          status: Error
+          phase: Error
           value: '[0.9832775919732442]'
         - finishedAt: '2019-10-28T18:13:11Z'
           startedAt: '2019-10-28T18:13:11Z'
-          status: Error
+          phase: Error
           value: '[0.9832775919732442]'
         - finishedAt: '2019-10-28T18:13:21Z'
           startedAt: '2019-10-28T18:13:21Z'
-          status: Error
+          phase: Error
           value: '[0.9722530521642618]'
         - finishedAt: '2019-10-28T18:13:31Z'
           startedAt: '2019-10-28T18:13:31Z'
-          status: Error
+          phase: Error
           value: '[0.9722530521642618]'
         - finishedAt: '2019-10-28T18:13:41Z'
           startedAt: '2019-10-28T18:13:41Z'
-          status: Error
+          phase: Error
           value: '[0.9722530521642618]'
       name: memory-usage
-      status: Error
-  status: Error
+      phase: Error
+  phase: Error

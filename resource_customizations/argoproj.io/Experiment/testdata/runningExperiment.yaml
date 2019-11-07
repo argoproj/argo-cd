@@ -27,14 +27,14 @@ status:
       lastUpdateTime: '2019-10-28T20:15:02Z'
       message: Experiment "example-experiment" is running.
       reason: NewReplicaSetAvailable
-      status: 'True'
+      phase: 'True'
       type: Progressing
-  status: Running
+  phase: Running
   templateStatuses:
     - availableReplicas: 1
       lastTransitionTime: '2019-10-28T20:15:02Z'
       name: baseline
       readyReplicas: 1
       replicas: 1
-      status: Running
+      phase: Running
       updatedReplicas: 1

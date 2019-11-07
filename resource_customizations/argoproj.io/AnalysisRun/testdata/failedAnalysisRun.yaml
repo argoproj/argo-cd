@@ -24,8 +24,8 @@ status:
       measurements:
         - finishedAt: '2019-10-28T18:23:23Z'
           startedAt: '2019-10-28T18:23:23Z'
-          status: Failed
+          phase: Failed
           value: '[0.9768211920529802]'
       name: memory-usage
-      status: Failed
-  status: Failed
+      phase: Failed
+  phase: Failed

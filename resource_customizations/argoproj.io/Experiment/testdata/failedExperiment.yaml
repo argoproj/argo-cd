@@ -27,28 +27,28 @@ status:
   analysisRuns:
     - analysisRun: example-experiment-test-57vl8
       name: test
-      status: Failed
+      phase: Failed
   availableAt: '2019-10-28T20:58:00Z'
   conditions:
     - lastTransitionTime: '2019-10-28T20:57:58Z'
       lastUpdateTime: '2019-10-28T20:58:01Z'
       message: Experiment "example-experiment" is running.
       reason: NewReplicaSetAvailable
-      status: 'True'
+      phase: 'True'
       type: Progressing
-  status: Failed
+  phase: Failed
   templateStatuses:
     - availableReplicas: 0
       lastTransitionTime: '2019-10-28T20:58:01Z'
       name: baseline
       readyReplicas: 0
       replicas: 0
-      status: Successful
+      phase: Successful
       updatedReplicas: 0
     - availableReplicas: 0
       lastTransitionTime: '2019-10-28T20:58:01Z'
       name: canary
       readyReplicas: 0
       replicas: 0
-      status: Successful
+      phase: Successful
       updatedReplicas: 0

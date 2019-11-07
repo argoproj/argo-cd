@@ -41,21 +41,21 @@ status:
       lastUpdateTime: '2019-10-28T20:20:54Z'
       message: Experiment "example-experiment" has successfully ran and completed.
       reason: ExperimentCompleted
-      status: 'False'
+      phase: 'False'
       type: Progressing
-  status: Successful
+  phase: Successful
   templateStatuses:
     - availableReplicas: 1
       lastTransitionTime: '2019-10-28T20:15:02Z'
       name: baseline
       readyReplicas: 1
       replicas: 1
-      status: Successful
+      phase: Successful
       updatedReplicas: 1
     - availableReplicas: 1
       lastTransitionTime: '2019-10-28T20:15:01Z'
       name: canary
       readyReplicas: 1
       replicas: 1
-      status: Successful
+      phase: Successful
       updatedReplicas: 1

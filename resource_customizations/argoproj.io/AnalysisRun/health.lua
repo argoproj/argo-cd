@@ -1,26 +1,26 @@
 hs = {}
 if obj.status ~= nil then
-    if obj.status.status == "Pending" then
+    if obj.status.phase == "Pending" then
         hs.status = "Progressing"
         hs.message = "Analysis run is running"
     end
-    if obj.status.status == "Running" then
+    if obj.status.phase == "Running" then
         hs.status = "Progressing"
         hs.message = "Analysis run is running"
     end
-    if obj.status.status == "Successful" then
+    if obj.status.phase == "Successful" then
         hs.status = "Healthy"
         hs.message = "Analysis run completed successfully"
     end
-    if obj.status.status == "Failed" then
+    if obj.status.phase == "Failed" then
         hs.status = "Degraded"
         hs.message = "Analysis run failed"
     end
-    if obj.status.status == "Error" then
+    if obj.status.phase == "Error" then
         hs.status = "Degraded"
         hs.message = "Analysis run had an error"
     end
-    if obj.status.status == "Inconclusive" then
+    if obj.status.phase == "Inconclusive" then
         hs.status = "Unknown"
         hs.message = "Analysis run was inconclusive"
     end
