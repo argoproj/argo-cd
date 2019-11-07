@@ -492,16 +492,17 @@ func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.Res
 		}
 		token := sessionResp.Token
 		if token != "" {
-			token, err := zjwt.ZJWT(token)
+			var err error
+			token, err = zjwt.ZJWT(token)
 			if err != nil {
 				return err
 			}
-			cookie, err := httputil.MakeCookieMetadata(common.AuthCookieName, token, flags...)
-			if err != nil {
-				return err
-			}
-			w.Header().Set("Set-Cookie", cookie)
 		}
+		cookie, err := httputil.MakeCookieMetadata(common.AuthCookieName, token, flags...)
+		if err != nil {
+			return err
+		}
+		w.Header().Set("Set-Cookie", cookie)
 	}
 	return nil
 }

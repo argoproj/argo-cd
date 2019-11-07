@@ -25,31 +25,36 @@ func (s *Server) Version(context.Context, *empty.Empty) (*version.VersionMessage
 	vers := common.GetVersion()
 	if s.ksonnetVersion == "" {
 		ksonnetVersion, err := ksutil.Version()
-		if err != nil {
-			return nil, err
+		if err == nil {
+			s.ksonnetVersion = ksonnetVersion
+		} else {
+			s.ksonnetVersion = err.Error()
 		}
-		s.ksonnetVersion = ksonnetVersion
 	}
 	if s.kustomizeVersion == "" {
 		kustomizeVersion, err := kustomize.Version()
-		if err != nil {
-			return nil, err
+		if err == nil {
+			s.kustomizeVersion = kustomizeVersion
+		} else {
+			s.kustomizeVersion = err.Error()
 		}
-		s.kustomizeVersion = kustomizeVersion
+
 	}
 	if s.helmVersion == "" {
 		helmVersion, err := helm.Version()
-		if err != nil {
-			return nil, err
+		if err == nil {
+			s.helmVersion = helmVersion
+		} else {
+			s.helmVersion = err.Error()
 		}
-		s.helmVersion = helmVersion
 	}
 	if s.kubectlVersion == "" {
 		kubectlVersion, err := kube.Version()
-		if err != nil {
-			return nil, err
+		if err == nil {
+			s.kubectlVersion = kubectlVersion
+		} else {
+			s.kubectlVersion = err.Error()
 		}
-		s.kubectlVersion = kubectlVersion
 	}
 	return &version.VersionMessage{
 		Version:          vers.Version,

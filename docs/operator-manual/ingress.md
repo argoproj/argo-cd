@@ -45,6 +45,34 @@ and responds appropriately. Note that the `nginx.ingress.kubernetes.io/ssl-passt
 requires that the `--enable-ssl-passthrough` flag be added to the command line arguments to
 `nginx-ingress-controller`.
 
+#### SSL-Passthrough with cert-manager and Let's Encrypt
+
+```yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: argocd-server-ingress
+  namespace: argocd
+  annotations:
+    certmanager.k8s.io/cluster-issuer: letsencrypt-prod
+    kubernetes.io/ingress.class: nginx
+    kubernetes.io/tls-acme: "true"
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+spec:
+  rules:
+  - host: argocd.example.com
+    http:
+      paths:
+      - backend:
+          serviceName: argocd-server
+          servicePort: https
+        path: /
+  tls:
+  - hosts:
+    - argocd.example.com
+    secretName: argocd-secret # do not change, this is provided by Argo CD
+```
+
 ### Option 2: Multiple Ingress Objects And Hosts
 
 Since ingress-nginx Ingress supports only a single protocol per Ingress object, an alternative
@@ -71,7 +99,7 @@ spec:
   tls:
   - hosts:
     - argocd.example.com
-    secretName: argocd-secret
+    secretName: argocd-secret # do not change, this is provided by Argo CD
 ```
 
 gRPC Ingress:
@@ -94,7 +122,7 @@ spec:
   tls:
   - hosts:
     - grpc.argocd.example.com
-    secretName: argocd-secret
+    secretName: argocd-secret # do not change, this is provided by Argo CD
 ```
 
 The API server should then be run with TLS disabled. Edit the `argocd-server` deployment to add the

@@ -616,7 +616,7 @@ export interface ResourceActionParam {
 export interface ResourceAction {
     name: string;
     params: ResourceActionParam[];
-    available: boolean;
+    disabled: boolean;
 }
 
 export interface SyncWindowsState {
