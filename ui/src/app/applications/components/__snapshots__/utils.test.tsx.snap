@@ -69,6 +69,18 @@ exports[`HealthStatusIcon.Healthy 1`] = `
 />
 `;
 
+exports[`HealthStatusIcon.Missing 1`] = `
+<i
+  className="fa fa-question-circle"
+  style={
+    Object {
+      "color": "#CCD6DD",
+    }
+  }
+  title="Missing"
+/>
+`;
+
 exports[`HealthStatusIcon.Progressing 1`] = `
 <i
   className="fa fa fa-circle-notch fa-spin"
@@ -90,6 +102,18 @@ exports[`HealthStatusIcon.Suspended 1`] = `
     }
   }
   title="Suspended"
+/>
+`;
+
+exports[`HealthStatusIcon.Unknown 1`] = `
+<i
+  className="fa fa-question-circle"
+  style={
+    Object {
+      "color": "#CCD6DD",
+    }
+  }
+  title="Unknown"
 />
 `;
 
