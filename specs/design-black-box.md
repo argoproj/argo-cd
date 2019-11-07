@@ -78,7 +78,7 @@ The proposed design is based on the PoC that contains draft implementation and p
 
 The GitOps engine API consists of three main packages:
 * The `utils` package. It consist of loosely coupled packages that implements K8S resource diffing, health assessment, etc
-* The `syncunit` package that contains SyncUnit data structure definition and CRUD client interface.
+* The `sync<Term>` package that contains Sync<Term> data structure definition and CRUD client interface.
 * The `engine` package that leverages `utils` and uses provided set of Applications as a configuration source.
 
 ```
@@ -88,11 +88,11 @@ gitops-engine
 |   |   |-- diff        # provides Kubernetes resource diffing functionality
 |   |   |-- kube        # provides utility methods to interact with Kubernetes
 |   |   |-- lua         # provides utility methods to run Lua scripts
-|   |   |-- syncunits   # provides utility methods to manipulate SyncUnits (e.g. start sync operation, wait for sync operation, force reconciliation)
+|   |   |-- sync<Term>   # provides utility methods to manipulate Sync<Term> (e.g. start sync operation, wait for sync operation, force reconciliation)
 |   |   `-- health      # provides Kubernetes resources health assessment
-|   |-- syncunit
-|   |   |-- apis       # contains data structures that describe SyncUnits
-|   |   `-- client     # contains client that provides SyncUnit CRUD operations
+|   |-- sync<Term>
+|   |   |-- apis       # contains data structures that describe Sync<Term>
+|   |   `-- client     # contains client that provides Sync<Term> CRUD operations
 |   `-- engine         # the engine implementation
 ```
 
@@ -105,9 +105,11 @@ The manifests generation is out of scope and should be implemented by the Engine
 
 ### Engine API
 
+> `Sync<Term>` is a place holder to a real name. The name is still under discussion
+
 The engine API includes three main parts:
 - `Engine` golang interface
-- `SyncUnit` data structure and `SyncUnitStore` interface which provides access to the units.
+- `Sync<Term>` data structure and `Sync<Term>Store` interface which provides access to the units.
 - Set of data structures which allows configuring reconciliation process.
 
 **Engine interface** - provides set of features that allows updating reconciliation settings and subscribe to engine events.
@@ -126,7 +128,7 @@ type Engine interface {
 	OnSyncCompleted(callback func(appName string, state OperationState) error) Unsubscribe
 
     // OnClusterCacheInitialized registers a callback that is executed when cluster cache initialization is completed.
-    // Callback is useful to wait unit cluster cache is fully initialized before starting to use cached data.
+    // Callback is useful to wait until cluster cache is fully initialized before starting to use cached data.
 	OnClusterCacheInitialized(callback func(server string)) Unsubscribe
 
 	// OnResourceUpdated registers a callback that is executed when cluster resource got updated.
@@ -135,28 +137,28 @@ type Engine interface {
 	// OnResourceRemoved registers a callback that is executed when a cluster resource gets removed.
 	OnResourceRemoved(callback func(cluster string, key kube.ResourceKey)) Unsubscribe
 
-	// OnUnitEvent registers callback that is executed on every sync unit event.
-	OnUnitEvent(callback func(id string, info EventInfo, message string)) Unsubscribe
+	// On<Term>Event registers callback that is executed on every sync <Term> event.
+	On<Term>Event(callback func(id string, info EventInfo, message string)) Unsubscribe
 }
 
 type Unsubscribe func()
 ```
 
-**SyncUnit data structure** - allows engine accessing units and update status.
+**Sync<Term> data structure** - allows engine accessing sync <Term> and update status.
 
 ```golang
-type SyncUnit struct {
+type Sync<Term> struct {
 	ID         string
-	Status      UnitStatus
+	Status      Status
 	Source      ManifestSource
 	Destination ManifestDestination
 	Operation   *Operation
 }
 
-type SyncUnitStore interface {
-	List() ([]SyncUnit, error)
-	Get(id string) (SyncUnit, error)
-	SetStatus(id string, status UnitStatus) (SyncUnit, error)
+type Sync<Term>Store interface {
+	List() ([]Sync<Term>, error)
+	Get(id string) (Sync<Term>, error)
+	SetStatus(id string, status Status) (Sync<Term>, error)
 	SetOperation(id string, operation *Operation) error
 }
 ```
