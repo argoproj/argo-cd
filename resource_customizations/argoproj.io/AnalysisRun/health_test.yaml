@@ -1,7 +1,7 @@
 tests:
 - healthStatus:
     status: Progressing
-    message: "Waiting for analysis run to finish: status is pending."
+    message: "Analysis run is running"
   inputPath: testdata/pendingAnalysisRun.yaml
 - healthStatus:
     status: Progressing
@@ -9,21 +9,21 @@ tests:
   inputPath: testdata/noStatusAnalysisRun.yaml
 - healthStatus:
     status: Progressing
-    message: "Waiting for analysis run to finish: status is running."
+    message: "Analysis run is running"
   inputPath: testdata/runningAnalysisRun.yaml
 - healthStatus:
     status: Healthy
-    message: "Waiting for analysis run to finish: status is successful."
+    message: "Analysis run completed successfully"
   inputPath: testdata/successfulAnalysisRun.yaml
 - healthStatus:
     status: Degraded
-    message: "Waiting for analysis run to finish: status is failed."
+    message: "Analysis run failed"
   inputPath: testdata/failedAnalysisRun.yaml
 - healthStatus:
     status: Degraded
-    message: "Waiting for analysis run to finish: status is error."
+    message: "Analysis run had an error"
   inputPath: testdata/errorAnalysisRun.yaml
 - healthStatus:
-    status: Suspended
-    message: "Waiting for analysis run to finish: status is inconclusive."
+    status: Unknown
+    message: "Analysis run was inconclusive"
   inputPath: testdata/inconclusiveAnalysisRun.yaml
