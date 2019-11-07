@@ -111,7 +111,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 				Destinations: data.projDest,
 			},
 		}
-		assert.Equal(t, proj.IsDestinationPermitted(data.appDest), data.isPermitted)
+		assert.Equal(t, proj.IsDestinationPermitted(data.appDest.Server, data.appDest.Namespace), data.isPermitted)
 	}
 }
 

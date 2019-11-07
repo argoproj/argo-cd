@@ -38,7 +38,7 @@ const (
 	crdReadinessTimeout = time.Duration(3) * time.Second
 )
 
-var syncIdPrefix uint64 = 0
+var syncIDPrefix uint64 = 0
 
 type syncContext struct {
 	resourceOverrides   map[string]v1alpha1.ResourceOverride
@@ -167,8 +167,8 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	atomic.AddUint64(&syncIdPrefix, 1)
-	syncId := fmt.Sprintf("%05d-%s", syncIdPrefix, rand.RandString(5))
+	atomic.AddUint64(&syncIDPrefix, 1)
+	syncID := fmt.Sprintf("%05d-%s", syncIDPrefix, rand.RandString(5))
 	syncCtx := syncContext{
 		resourceOverrides:   resourceOverrides,
 		appName:             app.Name,
@@ -180,12 +180,12 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		extensionsclientset: extensionsclientset,
 		kubectl:             m.kubectl,
 		namespace:           app.Spec.Destination.Namespace,
-		server:              app.Spec.Destination.Server,
+		server:              clst.Server, //take from cluster secret because app Destination.Server could be empty if name is used
 		syncOp:              &syncOp,
 		syncRes:             syncRes,
 		syncResources:       syncResources,
 		opState:             state,
-		log:                 log.WithFields(log.Fields{"application": app.Name, "syncId": syncId}),
+		log:                 log.WithFields(log.Fields{"application": app.Name, "syncId": syncID}),
 	}
 
 	start := time.Now()
@@ -487,7 +487,7 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 				sc.setResourceResult(task, v1alpha1.ResultCodeSyncFailed, "", fmt.Sprintf("Resource %s:%s is not permitted in project %s.", task.group(), task.kind(), sc.proj.Name))
 				successful = false
 			}
-			if serverRes.Namespaced && !sc.proj.IsDestinationPermitted(v1alpha1.ApplicationDestination{Namespace: task.namespace(), Server: sc.server}) {
+			if serverRes.Namespaced && !sc.proj.IsDestinationPermitted(sc.server, task.namespace()) {
 				sc.setResourceResult(task, v1alpha1.ResultCodeSyncFailed, "", fmt.Sprintf("namespace %v is not permitted in project '%s'", task.namespace(), sc.proj.Name))
 				successful = false
 			}

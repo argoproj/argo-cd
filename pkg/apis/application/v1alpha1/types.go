@@ -2042,9 +2042,10 @@ func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 }
 
 // IsDestinationPermitted validates if the provided application's destination is one of the allowed destinations for the project
-func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
+// Need to stop taking server from Destination because it can be empty when cluster name is used
+func (proj AppProject) IsDestinationPermitted(server string, namespace string) bool {
 	for _, item := range proj.Spec.Destinations {
-		if globMatch(item.Server, dst.Server) && globMatch(item.Namespace, dst.Namespace) {
+		if globMatch(item.Server, server) && globMatch(item.Namespace, namespace) {
 			return true
 		}
 	}

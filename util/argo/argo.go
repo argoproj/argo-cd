@@ -289,17 +289,20 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		})
 	}
 	if (spec.Destination.Server != "" || spec.Destination.Name != "") && spec.Destination.Namespace != "" {
-		if !proj.IsDestinationPermitted(spec.Destination) {
+		// Ensure the k8s cluster the app is referencing, is configured in Argo CD
+		// Take the server name from cluster secret, because on App Destination it might be empty when cluster name is used
+		c, err := db.GetCluster(ctx, &argoappv1.ClusterQuery{
+			Server: spec.Destination.Server,
+			Name:   spec.Destination.Name,
+		})
+
+		if !proj.IsDestinationPermitted(c.Server, spec.Destination.Namespace) {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
 				Message: fmt.Sprintf("application destination %v is not permitted in project '%s'", spec.Destination, spec.Project),
 			})
 		}
-		// Ensure the k8s cluster the app is referencing, is configured in Argo CD
-		_, err := db.GetCluster(ctx, &argoappv1.ClusterQuery{
-			Server: spec.Destination.Server,
-			Name:   spec.Destination.Name,
-		})
+
 		if err != nil {
 			if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
 				conditions = append(conditions, argoappv1.ApplicationCondition{

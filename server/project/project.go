@@ -22,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
+	"github.com/argoproj/argo-cd/util/db"
 	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
@@ -41,12 +42,13 @@ type Server struct {
 	auditLogger   *argo.AuditLogger
 	projectLock   *util.KeyLock
 	sessionMgr    *session.SessionManager
+	db            db.ArgoDB
 }
 
 // NewServer returns a new instance of the Project service
-func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock *util.KeyLock, sessionMgr *session.SessionManager) *Server {
+func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock *util.KeyLock, sessionMgr *session.SessionManager, db db.ArgoDB) *Server {
 	auditLogger := argo.NewAuditLogger(ns, kubeclientset, "argocd-server")
-	return &Server{enf: enf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr}
+	return &Server{enf: enf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr, db: db}
 }
 
 // CreateToken creates a new token to access a project
@@ -246,7 +248,11 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		if oldProj.IsSourcePermitted(a.Spec.Source) {
 			srcValidatedApps = append(srcValidatedApps, a)
 		}
-		if oldProj.IsDestinationPermitted(a.Spec.Destination) {
+		url, err := s.getServerUrl(ctx, a.Spec.Destination)
+		if err != nil {
+			return nil, err
+		}
+		if oldProj.IsDestinationPermitted(url, a.Spec.Destination.Namespace) {
 			dstValidatedApps = append(dstValidatedApps, a)
 		}
 	}
@@ -260,7 +266,11 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		}
 	}
 	for _, a := range dstValidatedApps {
-		if !q.Project.IsDestinationPermitted(a.Spec.Destination) {
+		url, err := s.getServerUrl(ctx, a.Spec.Destination)
+		if err != nil {
+			return nil, err
+		}
+		if !q.Project.IsDestinationPermitted(url, a.Spec.Destination.Namespace) {
 			invalidDstCount++
 		}
 	}
@@ -281,6 +291,24 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		s.logEvent(res, ctx, argo.EventReasonResourceUpdated, "updated project")
 	}
 	return res, err
+}
+
+// getServerUrl returns the server from the cluster secret, because on Destination it will be empty when cluster name is used
+func (s *Server) getServerUrl(ctx context.Context, d v1alpha1.ApplicationDestination) (string, error) {
+
+	if d.Server == "" && d.Name == "" {
+		return "", nil
+	}
+	cq := &v1alpha1.ClusterQuery{
+		Server: d.Server,
+		Name:   d.Name,
+	}
+
+	c, err := s.db.GetCluster(ctx, cq)
+	if err != nil {
+		return "", err
+	}
+	return c.Server, nil
 }
 
 // Delete deletes a project
