@@ -456,7 +456,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	)))
 	grpcS := grpc.NewServer(sOpts...)
 	db := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
-	kubectl := kube.KubectlCmd{}
+	kubectl := &kube.KubectlCmd{}
 	clusterService := cluster.NewServer(db, a.enf, a.Cache, kubectl)
 	repoService := repository.NewServer(a.RepoClientset, db, a.enf, a.Cache, a.settingsMgr)
 	repoCredsService := repocreds.NewServer(a.RepoClientset, db, a.enf, a.settingsMgr)
