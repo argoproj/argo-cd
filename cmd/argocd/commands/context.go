@@ -8,8 +8,6 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/spf13/pflag"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -30,22 +28,21 @@ func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 			errors.CheckError(err)
 
-			deletePresentContext := false
-			c.Flags().Visit(func(f *pflag.Flag) {
-				if f.Name == "delete" {
-					deletePresentContext = true
+			if delete {
+				var ctxName string
+				if len(args) == 0 {
+					ctxName = localCfg.CurrentContext
+				} else {
+					ctxName = args[0]
 				}
-			})
+				err := deleteContext(ctxName, clientOpts.ConfigPath)
+				errors.CheckError(err)
+				return
+			}
 
 			if len(args) == 0 {
-				if deletePresentContext {
-					err := deleteContext(localCfg.CurrentContext, clientOpts.ConfigPath)
-					errors.CheckError(err)
-					return
-				} else {
-					printArgoCDContexts(clientOpts.ConfigPath)
-					return
-				}
+				printArgoCDContexts(clientOpts.ConfigPath)
+				return
 			}
 
 			ctxName := args[0]
