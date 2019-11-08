@@ -269,6 +269,10 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	log.Infof("argocd %s serving on port %d (url: %s, tls: %v, namespace: %s, sso: %v)",
 		common.GetVersion(), port, a.settings.URL, a.useTLS(), a.Namespace, a.settings.IsSSOConfigured())
 
+	if a.DisableAuth {
+		log.Warnf("API authentication is disabled -- do not use in production")
+	}
+
 	go a.projInformer.Run(ctx.Done())
 	go func() { a.checkServeErr("grpcS", grpcS.Serve(grpcL)) }()
 	go func() { a.checkServeErr("httpS", httpS.Serve(httpL)) }()
@@ -579,26 +583,27 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 
 	gwForwarder := runtime.WithForwardResponseOption(csrfAddResponseHeaderFunc)
 	gwIncomingHeader := runtime.WithIncomingHeaderMatcher(csrfPassTokenHeaderFunc)
-	gwmux := runtime.NewServeMux(gwMuxOpts, gwCookieOpts, gwForwarder, gwIncomingHeader)
 
 	// Our HTTP JSON API is CSRF protected, so we add Gorilla CSRF middleware
 	//
 	// Client must either send the "Authorization" header (API usage from non-browser clients) or a valid
 	// CSRF token in "X-CSRF-Token" header to pass CSRF protection middleware.
 	//
-	var protmux http.Handler
+	var gwmux *runtime.ServeMux
+
 	if a.ArgoCDServerOpts.DisableCsrf {
 		log.Warnf("CSRF protection is disabled -- do not use this in production")
-		protmux = gwmux
+		gwmux = runtime.NewServeMux(gwMuxOpts, gwCookieOpts)
+		mux.Handle("/api/", gwmux)
 	} else {
 		// We need 32-byte non-changing key, so we just re-use the key used to sign JWT
+		gwmux = runtime.NewServeMux(gwMuxOpts, gwCookieOpts, gwForwarder, gwIncomingHeader)
 		csrfKey := a.settings.ServerSignature[0:31]
-		protmux = csrf.Protect(csrfKey,
+		protmux := csrf.Protect(csrfKey,
 			csrf.Secure(a.useTLS()),
 		)(gwmux)
+		mux.Handle("/api/", protmux)
 	}
-
-	mux.Handle("/api/", protmux)
 
 	mustRegisterGWHandler(accountpkg.RegisterAccountServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
