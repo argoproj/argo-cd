@@ -601,6 +601,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		csrfKey := a.settings.ServerSignature[0:31]
 		protmux := csrf.Protect(csrfKey,
 			csrf.Secure(a.useTLS()),
+			csrf.Path("/api/v1"),
 		)(gwmux)
 		mux.Handle("/api/", protmux)
 	}
