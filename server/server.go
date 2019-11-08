@@ -20,6 +20,7 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	golang_proto "github.com/golang/protobuf/proto"
+	"github.com/gorilla/csrf"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
@@ -550,8 +551,41 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	// we use our own Marshaler
 	gwMuxOpts := runtime.WithMarshalerOption(runtime.MIMEWildcard, new(jsonutil.JSONMarshaler))
 	gwCookieOpts := runtime.WithForwardResponseOption(a.translateGrpcCookieHeader)
-	gwmux := runtime.NewServeMux(gwMuxOpts, gwCookieOpts)
-	mux.Handle("/api/", gwmux)
+
+	// This function adds the X-CSRF-Token header to the HTTP response so the browser can supply it
+	// with POST/PUT/DELETE requests.
+	//
+	// gorilla-csrf uses context from a http.Request object, so we have to supply an empty request
+	// with the current context set in our grpc-gateway setup for gorilla to create a proper token.
+	csrfAddResponseHeaderFunc := func(ctx context.Context, w http.ResponseWriter, resp golang_proto.Message) error {
+		r := http.Request{}
+		w.Header().Set("X-CSRF-Token", csrf.Token(r.WithContext(ctx)))
+		return nil
+	}
+
+	// This function makes the X-CSRF-Token available to gRPC, so it can send it back with the
+	// response.
+	//
+	csrfPassTokenHeaderFunc := func(key string) (string, bool) {
+		if strings.ToLower(key) == "x-csrf-token" {
+			return key, true
+		}
+		return key, false
+	}
+
+	gwForwarder := runtime.WithForwardResponseOption(csrfAddResponseHeaderFunc)
+	gwIncomingHeader := runtime.WithIncomingHeaderMatcher(csrfPassTokenHeaderFunc)
+	gwmux := runtime.NewServeMux(gwMuxOpts, gwCookieOpts, gwForwarder, gwIncomingHeader)
+
+	// Our HTTP JSON API is CSRF protected, so we add Gorilla CSRF middleware
+	//
+	// Client must either send the "Authorization" header (API usage from non-browser clients) or a valid
+	// CSRF token in "X-CSRF-Token" header to pass CSRF protection middleware.
+	//
+	protmux := csrf.Protect([]byte("12345678901234567890123456789012"), csrf.Secure(false))(gwmux)
+	mux.Handle("/api/", protmux)
+
+	mustRegisterGWHandler(accountpkg.RegisterAccountServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(clusterpkg.RegisterClusterServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(applicationpkg.RegisterApplicationServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
@@ -813,7 +847,28 @@ func (s *handlerSwitcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	} else if contentHandler, ok := s.contentTypeToHandler[r.Header.Get("content-type")]; ok {
 		contentHandler.ServeHTTP(w, r)
 	} else {
-		s.handler.ServeHTTP(w, r)
+		// If we have a valid authorization header for API access, skip CSRF protection for this request
+		// This is accomplished by setting the key gorilla.csrf.Skip in the request's context.
+		//
+		// We don't validate the JWT token here - this is done at API level. But we make sure that the
+		// request does not carry a cookie named "argocd.token" as sent by the browser. This would
+		// circumvent CSRF protection.
+		//
+		// API access from scripts or other clients therefore MUST always set "Authorization" header
+		// and MUST NOT send the JWT in a cookie (or MUST ALSO send the X-CSRF-Token header along)
+		//
+		// We do allow a POST on /api/v1/session to get a valid JWT token without having to also
+		// supply the X-CSRF-Token header, as long as the argocd.token is not set.
+		//
+		ctx := r.Context()
+		if _, err := r.Cookie("argocd.token"); err != nil {
+			if authHdr := r.Header.Get("Authorization"); strings.HasPrefix(authHdr, "Bearer ") {
+				ctx = context.WithValue(ctx, "gorilla.csrf.Skip", true)
+			} else if r.URL.Path == "/api/v1/session" && r.Method == "POST" {
+				ctx = context.WithValue(ctx, "gorilla.csrf.Skip", true)
+			}
+		}
+		s.handler.ServeHTTP(w, r.WithContext(ctx))
 	}
 }
 
