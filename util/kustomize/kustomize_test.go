@@ -4,7 +4,6 @@ import (
 	"io/ioutil"
 	"path"
 	"path/filepath"
-	"regexp"
 	"testing"
 
 	"github.com/argoproj/pkg/exec"
@@ -104,7 +103,5 @@ func TestParseKustomizeBuildOptions(t *testing.T) {
 func TestVersion(t *testing.T) {
 	ver, err := Version()
 	assert.NoError(t, err)
-	SemverRegexValidation := `^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$`
-	re := regexp.MustCompile(SemverRegexValidation)
-	assert.True(t, re.MatchString(ver))
+	assert.NotEmpty(t, ver)
 }

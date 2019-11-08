@@ -12,7 +12,7 @@ interface QueryOptions {
 
 function optionsToSearch(options?: QueryOptions) {
     if (options) {
-        return {fields: (options.exclude ? '-' : '') + options.fields.join(','), selector: options.selector};
+        return {fields: (options.exclude ? '-' : '') + options.fields.join(','), selector: options.selector || ''};
     }
     return {};
 }

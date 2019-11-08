@@ -4,9 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/argoproj/argo-cd/pkg/apiclient/session"
 
 	"google.golang.org/grpc/metadata"
 
@@ -478,4 +481,32 @@ func Test_getToken(t *testing.T) {
 		assert.Empty(t, getToken(metadata.New(map[string]string{"grpcgateway-cookie": "argocd.token=invalid"})))
 		assert.Equal(t, token, getToken(metadata.New(map[string]string{"grpcgateway-cookie": "argocd.token=" + token})))
 	})
+}
+
+func TestTranslateGrpcCookieHeader(t *testing.T) {
+	argoCDOpts := ArgoCDServerOpts{
+		Namespace:     test.FakeArgoCDNamespace,
+		KubeClientset: fake.NewSimpleClientset(test.NewFakeConfigMap(), test.NewFakeSecret()),
+		AppClientset:  apps.NewSimpleClientset(),
+	}
+	argocd := NewServer(context.Background(), argoCDOpts)
+
+	t.Run("TokenIsNotEmpty", func(t *testing.T) {
+		recorder := httptest.NewRecorder()
+		err := argocd.translateGrpcCookieHeader(context.Background(), recorder, &session.SessionResponse{
+			Token: "xyz",
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, "argocd.token=xyz; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
+	})
+
+	t.Run("TokenIsEmpty", func(t *testing.T) {
+		recorder := httptest.NewRecorder()
+		err := argocd.translateGrpcCookieHeader(context.Background(), recorder, &session.SessionResponse{
+			Token: "",
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, "argocd.token=; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
+	})
+
 }

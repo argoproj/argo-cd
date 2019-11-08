@@ -4,6 +4,8 @@ Any file matching `*.jsonnet` in a directory app is treated as a Jsonnet file.
 
 ## Build Environment
 
+> v1.3
+
 Jsonnet apps have access to the [standard build environment](build-environment.md) via substitution into *TLAs* and *external variables*.
 
 E.g. via the CLI:
