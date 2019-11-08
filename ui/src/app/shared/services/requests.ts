@@ -1,5 +1,6 @@
 import * as superagent from 'superagent';
 const superagentPromise = require('superagent-promise');
+const csrfHeaderName = 'X-Csrf-Token';
 import {BehaviorSubject, Observable, Observer} from 'rxjs';
 
 type Callback = (data: any) => void;
@@ -36,7 +37,15 @@ export default {
         apiRoot = val;
     },
     agent,
+    csrfHeaderName,
     onError: onError.asObservable().filter(err => err != null),
+
+    // Get CSRF Token by performing GET request. Returns token as string.
+    async getCsrfToken(): Promise<string> {
+        const resp = await initHandlers(agent.get(`${apiRoot}/session/userinfo`));
+        return resp.get(csrfHeaderName);
+    },
+
     get(url: string) {
         return initHandlers(agent.get(`${apiRoot}${url}`));
     },

@@ -74,30 +74,38 @@ export class ApplicationsService {
             .then(res => res.body as models.ManifestResponse);
     }
 
-    public updateSpec(appName: string, spec: models.ApplicationSpec): Promise<models.ApplicationSpec> {
+    public async updateSpec(appName: string, spec: models.ApplicationSpec): Promise<models.ApplicationSpec> {
+        const csrfToken = await requests.getCsrfToken();
         return requests
             .put(`/applications/${appName}/spec`)
+            .set(requests.csrfHeaderName, csrfToken)
             .send(spec)
             .then(res => res.body as models.ApplicationSpec);
     }
 
-    public update(app: models.Application): Promise<models.Application> {
+    public async update(app: models.Application): Promise<models.Application> {
+        const csrfToken = await requests.getCsrfToken();
         return requests
             .put(`/applications/${app.metadata.name}`)
+            .set(requests.csrfHeaderName, csrfToken)
             .send(app)
             .then(res => res.body as models.Application);
     }
 
-    public create(app: models.Application): Promise<models.Application> {
+    public async create(app: models.Application): Promise<models.Application> {
+        const csrfToken = await requests.getCsrfToken();
         return requests
             .post(`/applications`)
+            .set(requests.csrfHeaderName, csrfToken)
             .send(app)
             .then(res => this.parseAppFields(res.body));
     }
 
-    public delete(name: string, cascade: boolean): Promise<boolean> {
+    public async delete(name: string, cascade: boolean): Promise<boolean> {
+        const csrfToken = await requests.getCsrfToken();
         return requests
             .delete(`/applications/${name}`)
+            .set(requests.csrfHeaderName, csrfToken)
             .query({cascade})
             .send({})
             .then(() => true);
@@ -126,16 +134,20 @@ export class ApplicationsService {
             });
     }
 
-    public sync(name: string, revision: string, prune: boolean, dryRun: boolean, strategy: models.SyncStrategy, resources: models.SyncOperationResource[]): Promise<boolean> {
+    public async sync(name: string, revision: string, prune: boolean, dryRun: boolean, strategy: models.SyncStrategy, resources: models.SyncOperationResource[]): Promise<boolean> {
+        const csrfToken = await requests.getCsrfToken();
         return requests
             .post(`/applications/${name}/sync`)
+            .set(requests.csrfHeaderName, csrfToken)
             .send({revision, prune: !!prune, dryRun: !!dryRun, strategy, resources})
             .then(() => true);
     }
 
-    public rollback(name: string, id: number): Promise<boolean> {
+    public async rollback(name: string, id: number): Promise<boolean> {
+        const csrfToken = await requests.getCsrfToken();
         return requests
             .post(`/applications/${name}/rollback`)
+            .set(requests.csrfHeaderName, csrfToken)
             .send({id})
             .then(() => true);
     }
@@ -174,9 +186,11 @@ export class ApplicationsService {
             .then(res => (res.body.actions as models.ResourceAction[]) || []);
     }
 
-    public runResourceAction(name: string, resource: models.ResourceNode, action: string): Promise<models.ResourceAction[]> {
+    public async runResourceAction(name: string, resource: models.ResourceNode, action: string): Promise<models.ResourceAction[]> {
+        const csrfToken = await requests.getCsrfToken();
         return requests
             .post(`/applications/${name}/resource/actions`)
+            .set(requests.csrfHeaderName, csrfToken)
             .query({
                 namespace: resource.namespace,
                 resourceName: resource.name,
@@ -188,9 +202,11 @@ export class ApplicationsService {
             .then(res => (res.body.actions as models.ResourceAction[]) || []);
     }
 
-    public patchResource(name: string, resource: models.ResourceNode, patch: string, patchType: string): Promise<models.State> {
+    public async patchResource(name: string, resource: models.ResourceNode, patch: string, patchType: string): Promise<models.State> {
+        const csrfToken = await requests.getCsrfToken();
         return requests
             .post(`/applications/${name}/resource`)
+            .set(requests.csrfHeaderName, csrfToken)
             .query({
                 name: resource.name,
                 namespace: resource.namespace,
@@ -205,9 +221,11 @@ export class ApplicationsService {
             .then(res => JSON.parse(res.manifest) as models.State);
     }
 
-    public deleteResource(applicationName: string, resource: models.ResourceNode, force: boolean): Promise<any> {
+    public async deleteResource(applicationName: string, resource: models.ResourceNode, force: boolean): Promise<any> {
+        const csrfToken = await requests.getCsrfToken();
         return requests
             .delete(`/applications/${applicationName}/resource`)
+            .set(requests.csrfHeaderName, csrfToken)
             .query({
                 name: resource.name,
                 namespace: resource.namespace,
@@ -247,9 +265,11 @@ export class ApplicationsService {
             .then(res => (res.body as models.EventList).items || []);
     }
 
-    public terminateOperation(applicationName: string): Promise<boolean> {
+    public async terminateOperation(applicationName: string): Promise<boolean> {
+        const csrfToken = await requests.getCsrfToken();
         return requests
             .delete(`/applications/${applicationName}/operation`)
+            .set(requests.csrfHeaderName, csrfToken)
             .send()
             .then(() => true);
     }

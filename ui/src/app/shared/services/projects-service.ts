@@ -95,13 +95,19 @@ export class ProjectsService {
         return requests.get(`/projects/${name}`).then(res => res.body as models.Project);
     }
 
-    public delete(name: string): Promise<boolean> {
-        return requests.delete(`/projects/${name}`).then(() => true);
+    public async delete(name: string): Promise<boolean> {
+        const csrfToken = await requests.getCsrfToken();
+        return requests
+            .delete(`/projects/${name}`)
+            .set(requests.csrfHeaderName, csrfToken)
+            .then(() => true);
     }
 
-    public create(params: ProjectParams): Promise<models.Project> {
+    public async create(params: ProjectParams): Promise<models.Project> {
+        const csrfToken = await requests.getCsrfToken();
         return requests
             .post('/projects')
+            .set(requests.csrfHeaderName, csrfToken)
             .send({project: paramsToProj(params)})
             .then(res => res.body as models.Project);
     }
@@ -109,8 +115,10 @@ export class ProjectsService {
     public async update(params: ProjectParams): Promise<models.Project> {
         const proj = await this.get(params.name);
         const update = paramsToProj(params);
+        const csrfToken = await requests.getCsrfToken();
         return requests
             .put(`/projects/${params.name}`)
+            .set(requests.csrfHeaderName, csrfToken)
             .send({project: {...proj, spec: update.spec}})
             .then(res => res.body as models.Project);
     }
@@ -137,9 +145,10 @@ export class ProjectsService {
                 updatedSpec.syncWindows[params.id] = params.window;
             }
         }
-
+        const csrfToken = await requests.getCsrfToken();
         return requests
             .put(`/projects/${params.projName}`)
+            .set(requests.csrfHeaderName, csrfToken)
             .send({project: {...proj, spec: updatedSpec}})
             .then(res => res.body as models.Project);
     }
@@ -169,22 +178,28 @@ export class ProjectsService {
             }
             updatedSpec.roles = updatedSpec.roles.concat(updatedRole);
         }
+        const csrfToken = await requests.getCsrfToken();
         return requests
             .put(`/projects/${params.projName}`)
+            .set(requests.csrfHeaderName, csrfToken)
             .send({project: {...proj, spec: updatedSpec}})
             .then(res => res.body as models.Project);
     }
 
     public async createJWTToken(params: CreateJWTTokenParams): Promise<JWTTokenResponse> {
+        const csrfToken = await requests.getCsrfToken();
         return requests
             .post(`/projects/${params.project}/roles/${params.role}/token`)
+            .set(requests.csrfHeaderName, csrfToken)
             .send(params)
             .then(res => res.body as JWTTokenResponse);
     }
 
     public async deleteJWTToken(params: DeleteJWTTokenParams): Promise<boolean> {
+        const csrfToken = await requests.getCsrfToken();
         return requests
             .delete(`/projects/${params.project}/roles/${params.role}/token/${params.iat}`)
+            .set(requests.csrfHeaderName, csrfToken)
             .send()
             .then(() => true);
     }
