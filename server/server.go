@@ -117,6 +117,9 @@ var (
 	baseHRefRegex    = regexp.MustCompile(`<base href="(.*)">`)
 )
 
+// Key in context that defines whether to skip CSRF checks
+const csrfSkipKey = "gorilla.csrf.Skip"
+
 // ArgoCDServer is the API server for Argo CD
 type ArgoCDServer struct {
 	ArgoCDServerOpts
@@ -136,6 +139,7 @@ type ArgoCDServer struct {
 
 type ArgoCDServerOpts struct {
 	DisableAuth         bool
+	DisableCsrf         bool
 	Insecure            bool
 	ListenPort          int
 	MetricsPort         int
@@ -582,7 +586,18 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	// Client must either send the "Authorization" header (API usage from non-browser clients) or a valid
 	// CSRF token in "X-CSRF-Token" header to pass CSRF protection middleware.
 	//
-	protmux := csrf.Protect([]byte("12345678901234567890123456789012"), csrf.Secure(false))(gwmux)
+	var protmux http.Handler
+	if a.ArgoCDServerOpts.DisableCsrf {
+		log.Warnf("CSRF protection is disabled -- do not use this in production")
+		protmux = gwmux
+	} else {
+		// We need 32-byte non-changing key, so we just re-use the key used to sign JWT
+		csrfKey := a.settings.ServerSignature[0:31]
+		protmux = csrf.Protect(csrfKey,
+			csrf.Secure(a.useTLS()),
+		)(gwmux)
+	}
+
 	mux.Handle("/api/", protmux)
 
 	mustRegisterGWHandler(accountpkg.RegisterAccountServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
@@ -861,13 +876,15 @@ func (s *handlerSwitcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// supply the X-CSRF-Token header, as long as the argocd.token is not set.
 		//
 		ctx := r.Context()
-		if _, err := r.Cookie("argocd.token"); err != nil {
+		if _, err := r.Cookie(common.AuthCookieName); err != nil {
 			if authHdr := r.Header.Get("Authorization"); strings.HasPrefix(authHdr, "Bearer ") {
-				ctx = context.WithValue(ctx, "gorilla.csrf.Skip", true)
+				ctx = context.WithValue(ctx, csrfSkipKey, true)
 			} else if r.URL.Path == "/api/v1/session" && r.Method == "POST" {
-				ctx = context.WithValue(ctx, "gorilla.csrf.Skip", true)
+				ctx = context.WithValue(ctx, csrfSkipKey, true)
 			}
 		}
+
+		// gorilla-csrf takes care that this request is properly protected
 		s.handler.ServeHTTP(w, r.WithContext(ctx))
 	}
 }
