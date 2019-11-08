@@ -1252,8 +1252,20 @@ var validActions = map[string]bool{
 	"*":        true,
 }
 
+var validActionPatterns = []*regexp.Regexp{
+	regexp.MustCompile("action/.*"),
+}
+
 func isValidAction(action string) bool {
-	return validActions[action]
+	if validActions[action] {
+		return true
+	}
+	for i := range validActionPatterns {
+		if validActionPatterns[i].MatchString(action) {
+			return true
+		}
+	}
+	return false
 }
 
 func validatePolicy(proj string, role string, policy string) error {
