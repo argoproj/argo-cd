@@ -246,7 +246,7 @@ func NewFakeSecret(policy ...string) *apiv1.Secret {
 		},
 		Data: map[string][]byte{
 			"admin.password":   []byte("test"),
-			"server.secretkey": []byte("test"),
+			"server.secretkey": []byte("1234567890123456789012345678901234567890"),
 		},
 	}
 	return &secret
