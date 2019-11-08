@@ -134,6 +134,9 @@ func (s *Service) runRepoOperation(
 		return nil
 	}
 
+	s.metricsServer.IncPendingRepoRequest(repo.Repo)
+	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
+
 	if settings.sem != nil {
 		err = settings.sem.Acquire(c, 1)
 		if err != nil {
