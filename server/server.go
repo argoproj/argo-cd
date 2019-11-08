@@ -599,12 +599,16 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	} else {
 		// We need 32-byte non-changing key, so we just re-use the key used to sign JWT
 		gwmux = runtime.NewServeMux(gwMuxOpts, gwCookieOpts, gwForwarder, gwIncomingHeader)
-		csrfKey := a.settings.ServerSignature[0:31]
-		protmux := csrf.Protect(csrfKey,
-			csrf.Secure(a.useTLS()),
-			csrf.Path("/api/v1"),
-		)(gwmux)
-		mux.Handle("/api/", protmux)
+		if a.settings.ServerSignature != nil && len(a.settings.ServerSignature) >= 32 {
+			csrfKey := a.settings.ServerSignature[0:31]
+			protmux := csrf.Protect(csrfKey,
+				csrf.Secure(a.useTLS()),
+				csrf.Path("/api/v1"),
+			)(gwmux)
+			mux.Handle("/api/", protmux)
+		} else {
+			panic("server.secretkey must be at least 32 byte long -- consider another value or --disable-csrf")
+		}
 	}
 
 	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
