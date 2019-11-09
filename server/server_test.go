@@ -1,9 +1,12 @@
 package server
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -510,4 +513,135 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 		assert.Equal(t, "argocd.token=; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
 	})
 
+}
+
+// Ensure CSRF key is available when set in Secret
+func Test_CSRFKeyIsAvailableFromSettings(t *testing.T) {
+	s := fakeServer(false)
+	assert.False(t, s.DisableCsrf)
+	assert.NotNil(t, s.settings.CsrfKey)
+	assert.Len(t, s.settings.CsrfKey, 32)
+}
+
+func TestCsrfProtection(t *testing.T) {
+	s := fakeServer(false)
+	cancelInformer := test.StartInformer(s.projInformer)
+	defer cancelInformer()
+	port, err := test.GetFreePort()
+	assert.NoError(t, err)
+	metricsPort, err := test.GetFreePort()
+	assert.NoError(t, err)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go s.Run(ctx, port, metricsPort)
+	defer func() { time.Sleep(3 * time.Second) }()
+
+	err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
+	assert.NoError(t, err)
+
+	client := http.Client{}
+	serverURL := fmt.Sprintf("http://127.0.0.1:%d", port)
+
+	usertoken := ""
+	csrftoken := ""
+	csrfCookieValue := ""
+
+	// GET verb should always be allowed
+	{
+		req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/session/userinfo", serverURL), nil)
+		assert.NoError(t, err)
+		resp, err := client.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, 200, resp.StatusCode)
+		csrftoken = resp.Header.Get("X-CSRF-Token")
+		assert.NotEmpty(t, csrftoken)
+		for _, cookie := range resp.Cookies() {
+			if cookie.Name == "_gorilla_csrf" {
+				csrfCookieValue = cookie.Value
+			}
+		}
+		assert.NotEmpty(t, csrfCookieValue)
+	}
+
+	// POST on /api/v1/session should be fine, as long as we have no authentication cookie
+	{
+		userdata := []byte(`{ "username": "admin", "password": "test" }`)
+		assert.NoError(t, err)
+		req, err := http.NewRequest("POST", fmt.Sprintf("%s/api/v1/session", serverURL), bytes.NewBuffer(userdata))
+		assert.NoError(t, err)
+		resp, err := client.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, 200, resp.StatusCode)
+		rawBody, err := ioutil.ReadAll(resp.Body)
+		assert.NoError(t, err)
+		if rawBody != nil {
+			body := make(map[string]string)
+			err := json.Unmarshal(rawBody, &body)
+			assert.NoError(t, err)
+			usertoken = body["token"]
+			fmt.Printf("Extracted token %s", usertoken)
+		}
+	}
+
+	// All these methods should be answered with HTTP 403 - Forbidden
+	for _, method := range []string{"POST", "DELETE", "PUT"} {
+		req, err := http.NewRequest(method, fmt.Sprintf("%s/api/v1/repositories", serverURL), bytes.NewBuffer([]byte("{}")))
+		assert.NoError(t, err)
+		resp, err := client.Do(req)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.Equal(t, 403, resp.StatusCode)
+	}
+
+	// For mimicing browser requests
+	authCookie := http.Cookie{
+		Name: "argocd.token",
+		Value: usertoken,
+		Path: "/",
+		Secure: false,
+		HttpOnly: true,
+	}
+
+	csrfCookie := http.Cookie{
+		Name: "_gorilla_csrf",
+		Value: csrfCookieValue,
+	}
+
+	// All these methods should be answered with HTTP 403 - Forbidden, despite being authenticated with the cookie
+	// This mimics CSRF browser request with auth cookie set
+	for _, method := range []string{"POST", "DELETE", "PUT"} {
+		req, err := http.NewRequest(method, fmt.Sprintf("%s/api/v1/repositories", serverURL), bytes.NewBuffer([]byte("{}")))
+		assert.NoError(t, err)
+		req.AddCookie(&authCookie)
+		req.AddCookie(&csrfCookie)
+		resp, err := client.Do(req)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.Equal(t, 403, resp.StatusCode)
+	}
+
+	// The following requests are properly authenticated - to the API and to the CSRF protection
+	// HTTP codes != 200 are expected from the API layer because the requests are invalid, but we do not expect a 403 forbidden
+	for _, method := range []string{"POST", "DELETE", "PUT"} {
+		req, err := http.NewRequest(method, fmt.Sprintf("%s/api/v1/repositories", serverURL), bytes.NewBuffer([]byte("{}")))
+		assert.NoError(t, err)
+		req.AddCookie(&authCookie)
+		req.AddCookie(&csrfCookie)
+		req.Header.Add("X-CSRF-Token", csrftoken)
+		resp, err := client.Do(req)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.NotEqual(t, 403, resp.StatusCode)
+	}
+
+	// The following ensures that non-browser API clients can actually perform requests without CSRF headers
+	for _, method := range []string{"POST", "DELETE", "PUT"} {
+		req, err := http.NewRequest(method, fmt.Sprintf("%s/api/v1/repositories", serverURL), bytes.NewBuffer([]byte("{}")))
+		assert.NoError(t, err)
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", csrftoken))
+		resp, err := client.Do(req)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.NotEqual(t, 403, resp.StatusCode)
+	}
 }
