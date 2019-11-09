@@ -1,0 +1,54 @@
+package cmd
+
+import (
+	"os"
+	"os/exec"
+	"os/signal"
+	"strings"
+	"syscall"
+)
+
+const key = "ARGS"
+const delimiter = "★"
+
+func Invoke(name string, args ...string) {
+	cmd := exec.Command(name, args...)
+	cmd.Env = append(os.Environ(), key+"="+strings.Join(os.Args[1:], delimiter))
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
+	if err != nil {
+		if ee, ok := err.(*exec.ExitError); ok {
+			os.Exit(ee.ExitCode())
+		} else {
+			panic(err)
+		}
+	}
+	os.Exit(0)
+}
+
+func Wrap(block func() error) {
+	sigs := make(chan os.Signal, 1)
+	done := make(chan bool, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		_ = <-sigs
+		done <- true
+	}()
+	// fmt.Printf("%v", os.Args)
+	args := os.Getenv(key)
+	if len(args) > 0 {
+		os.Args = append(os.Args[0:1], strings.Split(args, delimiter)...)
+	} else {
+		os.Args = os.Args[0:1]
+	}
+	// fmt.Printf("%v", os.Args)
+	go func() {
+		err := block()
+		if err != nil {
+			panic(err)
+		}
+		done <- true
+	}()
+	<-done
+}

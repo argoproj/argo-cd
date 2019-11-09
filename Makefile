@@ -76,6 +76,11 @@ codegen: dev-tools-image
 cli: clean-debug
 	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
 
+.PHONY: e2e-cli
+e2e-cli:
+	go build -o dist/argocd ./test/e2e/cmd/argocd
+	go test -coverpkg="github.com/argoproj/argo-cd/cmd/argocd/..." -c -tags e2efixtures -o dist/argocd.test ./test/e2e/cmd/argocd
+
 .PHONY: release-cli
 release-cli: clean-debug image
 	docker create --name tmp-argocd-linux $(IMAGE_PREFIX)argocd:$(IMAGE_TAG)
@@ -107,13 +112,28 @@ manifests:
 server: clean-debug
 	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-server ./cmd/argocd-server
 
+.PHONY: e2e-server
+e2e-server:
+	go build -o dist/argocd-server ./test/e2e/cmd/argocd-server
+	go test -coverpkg="github.com/argoproj/argo-cd/server/..." -c -tags e2efixtures -o dist/argocd-server.test ./test/e2e/cmd/argocd-server
+
 .PHONY: repo-server
 repo-server:
 	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-repo-server ./cmd/argocd-repo-server
 
+.PHONY: e2e-repo-server
+e2e-repo-server:
+	go build -o dist/argocd-repo-server ./test/e2e/cmd/argocd-repo-server
+	go test -coverpkg="github.com/argoproj/argo-cd/reposerver/..." -c -tags e2efixtures -o dist/argocd-repo-server.test ./test/e2e/cmd/argocd-repo-server
+
 .PHONY: controller
 controller:
 	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-application-controller ./cmd/argocd-application-controller
+
+.PHONY: e2e-controller
+e2e-controller:
+	go build -o dist/argocd-application-controller ./test/e2e/cmd/argocd-application-controller
+	go test -coverpkg="github.com/argoproj/argo-cd/controller/..." -c -tags e2efixtures -o dist/argocd-application-controller.test ./test/e2e/cmd/argocd-application-controller
 
 .PHONY: packr
 packr:
@@ -176,20 +196,24 @@ test:
 test-e2e:
 	./hack/test.sh -timeout 15m ./test/e2e
 
-.PHONY: start-e2e
-start-e2e: cli
-	killall goreman || true
-	# check we can connect to Docker to start Redis
-	docker version
+.PHONY: e2e-ns
+e2e-ns:
 	kubectl create ns argocd-e2e || true
 	kubectl config set-context --current --namespace=argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
-	# set paths for locally managed ssh known hosts and tls certs data
+
+.PHONY e2e-clis
+e2e-clis: e2e-cli e2e-server e2e-repo-server e2e-controller
+
+.PHONY: start-e2e
+start-e2e: clean e2e-clis e2e-ns
+	killall goreman || true
+	ARGOCD_FAKE_IN_CLUSTER=true \
 	ARGOCD_SSH_DATA_PATH=/tmp/argo-e2e/app/config/ssh \
 	ARGOCD_TLS_DATA_PATH=/tmp/argo-e2e/app/config/tls \
 	ARGOCD_E2E_DISABLE_AUTH=false \
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
-		goreman start
+		goreman -set-ports=false -f Procfile.e2e start
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes
 .PHONY: clean-debug
@@ -208,7 +232,7 @@ start:
 	kubectl create ns argocd || true
 	kubens argocd
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
-		goreman start
+		goreman --set-ports=false start
 
 .PHONY: pre-commit
 pre-commit: dep-ensure codegen build lint test
