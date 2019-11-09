@@ -55,7 +55,7 @@ commands:
           command: bash <(curl -s https://codecov.io/bash) -f *.out -F {{ .Environment.CIRCLE_JOB }}
           when: always
 jobs:
-  codegen:
+  cfodegen:
     docker:
       - image: circleci/golang:1.12
     working_directory: /go/src/github.com/argoproj/argo-cd
@@ -187,9 +187,10 @@ jobs:
             ARGOCD_E2E_K3S: "true"
       - save_vendor
       - save_go_cache
-      - run: pkill argocd-repo-server
-      - run: pkill argocd-server
-      - run: pkill argocd-application-controller
+      - run:
+          name: Kill services
+          command: pkill argocd-repo-server argocd-server argocd-application-controller
+          when: always
       - upload_codecov
       - store_test_results:
           path: test-results
@@ -211,7 +212,10 @@ jobs:
           key: yarn-packages-v4-{{ checksum "yarn.lock" }}
           paths: [~/.cache/yarn, node_modules]
       - run: yarn test
-      - run: ./node_modules/.bin/codecov -p .. -F {{ .Environment.CIRCLE_JOB }}
+      - run:
+          name: Upload code coverage
+          command: ./node_modules/.bin/codecov -p .. -F {{ .Environment.CIRCLE_JOB }}
+          when: always
       - run: yarn build
       - run: yarn lint
 workflows:
