@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"bufio"
+	"fmt"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -14,9 +16,25 @@ const delimiter = "★"
 func Invoke(name string, args ...string) {
 	cmd := exec.Command(name, args...)
 	cmd.Env = append(os.Environ(), key+"="+strings.Join(os.Args[1:], delimiter))
-	cmd.Stdout = os.Stdout
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		panic(err)
+	}
 	cmd.Stderr = os.Stderr
-	err := cmd.Run()
+
+	if err := cmd.Start(); err != nil {
+		panic(err)
+	}
+
+	in := bufio.NewScanner(stdout)
+
+	for in.Scan() {
+		line := in.Text()
+		if !strings.HasPrefix(line, "coverage: ") {
+			fmt.Println(line)
+		}
+	}
+	err = in.Err()
 	if err != nil {
 		if ee, ok := err.(*exec.ExitError); ok {
 			os.Exit(ee.ExitCode())

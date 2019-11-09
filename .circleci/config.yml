@@ -189,7 +189,11 @@ jobs:
       - save_go_cache
       - run:
           name: Kill services
-          command: pkill argocd-repo-server argocd-server argocd-application-controller
+          command: |
+            set -eux
+            pkill argocd-application-controller
+            pkill argocd-server
+            pkill argocd-repo-server
           when: always
       - upload_codecov
       - store_test_results:
