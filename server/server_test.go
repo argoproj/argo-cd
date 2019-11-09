@@ -523,6 +523,37 @@ func Test_CSRFKeyIsAvailableFromSettings(t *testing.T) {
 	assert.Len(t, s.settings.CsrfKey, 32)
 }
 
+func Test_CSRFProtection_Disabled(t *testing.T) {
+	s := fakeServer(true)
+	cancelInformer := test.StartInformer(s.projInformer)
+	defer cancelInformer()
+	port, err := test.GetFreePort()
+	assert.NoError(t, err)
+	metricsPort, err := test.GetFreePort()
+	assert.NoError(t, err)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go s.Run(ctx, port, metricsPort)
+	defer func() { time.Sleep(3 * time.Second) }()
+
+	err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
+	assert.NoError(t, err)
+
+	client := http.Client{}
+	serverURL := fmt.Sprintf("http://127.0.0.1:%d", port)
+
+	// With CSRF protection disabled, these requests should get through to the API
+	// All HTTP status codes except 403 are fine for us
+	for _, method := range []string{"POST", "DELETE", "PUT"} {
+		req, err := http.NewRequest(method, fmt.Sprintf("%s/api/v1/repositories", serverURL), bytes.NewBuffer([]byte("{}")))
+		assert.NoError(t, err)
+		resp, err := client.Do(req)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.NotEqual(t, 403, resp.StatusCode)
+	}
+}
+
 func TestCsrfProtection(t *testing.T) {
 	s := fakeServer(false)
 	cancelInformer := test.StartInformer(s.projInformer)
@@ -595,15 +626,15 @@ func TestCsrfProtection(t *testing.T) {
 
 	// For mimicing browser requests
 	authCookie := http.Cookie{
-		Name: "argocd.token",
-		Value: usertoken,
-		Path: "/",
-		Secure: false,
+		Name:     "argocd.token",
+		Value:    usertoken,
+		Path:     "/",
+		Secure:   false,
 		HttpOnly: true,
 	}
 
 	csrfCookie := http.Cookie{
-		Name: "_gorilla_csrf",
+		Name:  "_gorilla_csrf",
 		Value: csrfCookieValue,
 	}
 
