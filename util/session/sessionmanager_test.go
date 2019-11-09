@@ -39,6 +39,7 @@ func TestSessionManager(t *testing.T) {
 		Data: map[string][]byte{
 			"admin.password":   []byte(bcrypt),
 			"server.secretkey": []byte(defaultSecretKey),
+			"server.csrfkey":   []byte("12345678901234567890123456789012"),
 		},
 	})
 

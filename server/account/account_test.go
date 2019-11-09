@@ -43,6 +43,7 @@ func newTestAccountServer(ctx context.Context) (*fake.Clientset, *Server, *sessi
 		Data: map[string][]byte{
 			"admin.password":   []byte(bcrypt),
 			"server.secretkey": []byte("test"),
+			"server.csrfkey":   []byte("12345678901234567890123456789012"),
 		},
 	})
 	settingsMgr := settings.NewSettingsManager(ctx, kubeclientset, testNamespace)
