@@ -55,7 +55,7 @@ commands:
           command: bash <(curl -s https://codecov.io/bash) -f *.out -F {{ .Environment.CIRCLE_JOB }}
           when: always
 jobs:
-  cfodegen:
+  codegen:
     docker:
       - image: circleci/golang:1.12
     working_directory: /go/src/github.com/argoproj/argo-cd
