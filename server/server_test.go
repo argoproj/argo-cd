@@ -542,6 +542,24 @@ func Test_CSRFProtection_Disabled(t *testing.T) {
 	client := http.Client{}
 	serverURL := fmt.Sprintf("http://127.0.0.1:%d", port)
 
+	// With CRSF protection disabled, server should neither send CSRF header nor cookie
+	{
+		cookieSent := false
+		req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/session/userinfo", serverURL), nil)
+		assert.NoError(t, err)
+		resp, err := client.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, 200, resp.StatusCode)
+		csrftoken := resp.Header.Get("X-CSRF-Token")
+		assert.Empty(t, csrftoken)
+		for _, cookie := range resp.Cookies() {
+			if cookie.Name == "_gorilla_csrf" {
+				cookieSent = true
+			}
+		}
+		assert.False(t, cookieSent)
+	}
+
 	// With CSRF protection disabled, these requests should get through to the API
 	// All HTTP status codes except 403 are fine for us
 	for _, method := range []string{"POST", "DELETE", "PUT"} {
@@ -577,7 +595,7 @@ func TestCsrfProtection(t *testing.T) {
 	csrftoken := ""
 	csrfCookieValue := ""
 
-	// GET verb should always be allowed
+	// GET verb should always be allowed. Also, CSRF token and cookie should be sent
 	{
 		req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/session/userinfo", serverURL), nil)
 		assert.NoError(t, err)
