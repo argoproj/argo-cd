@@ -303,7 +303,7 @@ type ApplicationSourceJsonnet struct {
 	// TLAS is a list of Jsonnet Top-level Arguments
 	TLAs []JsonnetVar `json:"tlas,omitempty" protobuf:"bytes,2,opt,name=tlas"`
 	// JPaths is a list of Jsonnet additional library search dirs
-	JPaths []string `json:"jpaths,omitempty, protobuf:" protobuf:"bytes,3,rep,name=jpaths"`
+	JPaths []string `json:"jpaths,omitempty, protobuf:"bytes,3,opt,name=jpaths"`
 }
 
 func (j *ApplicationSourceJsonnet) IsZero() bool {
