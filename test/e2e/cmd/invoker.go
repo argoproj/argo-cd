@@ -32,7 +32,7 @@ func Wrap(block func() error) {
 	done := make(chan bool, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
-		_ = <-sigs
+		<-sigs
 		done <- true
 	}()
 	// fmt.Printf("%v", os.Args)

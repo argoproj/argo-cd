@@ -35,7 +35,7 @@ commands:
   save_go_cache:
     steps:
       - save_cache:
-          key: go-v1-{{ .Branch }}-{{ .Environment.CIRCLE_JOB }}
+          key: go-v2-{{ .Branch }}-{{ .Environment.CIRCLE_JOB }}
           # https://circleci.com/docs/2.0/language-go/
           paths:
             - /home/circleci/.cache/go-build
@@ -44,6 +44,8 @@ commands:
     steps:
       - restore_cache:
           keys:
+            - go-v2-{{ .Branch }}-{{ .Environment.CIRCLE_JOB }}
+            - go-v2-master-{{ .Environment.CIRCLE_JOB }}
             - go-v1-{{ .Branch }}-{{ .Environment.CIRCLE_JOB }}
             - go-v1-master-{{ .Environment.CIRCLE_JOB }}
   upload_codecov:
@@ -177,13 +179,16 @@ jobs:
           command: ./dist/argocd-application-controller --loglevel debug --redis localhost:6379 --repo-server localhost:8081 --kubeconfig ~/.kube/config
           background: true
       - run:
-          command: PATH=dist:$PATH make test-e2e
+          command: PATH=$(pwd)/dist:$PATH make test-e2e
           environment:
             ARGOCD_OPTS: "--server localhost:8080 --plaintext"
             ARGOCD_E2E_EXPECT_TIMEOUT: "30"
             ARGOCD_E2E_K3S: "true"
       - save_vendor
       - save_go_cache
+      - run: pkill argocd-repo-server
+      - run: pkill argocd-server
+      - run: pkill argocd-application-controller
       - upload_codecov
       - store_test_results:
           path: test-results
