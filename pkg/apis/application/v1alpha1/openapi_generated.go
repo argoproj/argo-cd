@@ -658,6 +658,20 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceJsonnet(ref common.Re
 							},
 						},
 					},
+					"jpaths": {
+						SchemaProps: spec.SchemaProps{
+							Description: "JPaths is a list of Jsonnet additional library search dirs",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},

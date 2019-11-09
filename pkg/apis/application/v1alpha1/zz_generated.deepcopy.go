@@ -344,6 +344,11 @@ func (in *ApplicationSourceJsonnet) DeepCopyInto(out *ApplicationSourceJsonnet) 
 		*out = make([]JsonnetVar, len(*in))
 		copy(*out, *in)
 	}
+	if in.JPaths != nil {
+		in, out := &in.JPaths, &out.JPaths
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

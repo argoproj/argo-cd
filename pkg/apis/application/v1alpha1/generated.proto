@@ -176,6 +176,9 @@ message ApplicationSourceJsonnet {
 
   // TLAS is a list of Jsonnet Top-level Arguments
   repeated JsonnetVar tlas = 2;
+
+  // JPaths is a list of Jsonnet additional library search dirs
+  repeated string jpaths = 3;
 }
 
 // ApplicationSourceKsonnet holds ksonnet specific options
