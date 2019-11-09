@@ -58,7 +58,9 @@ metadata:
     kubernetes.io/ingress.class: nginx
     kubernetes.io/tls-acme: "true"
     nginx.ingress.kubernetes.io/ssl-passthrough: "true"
-    # If you face to a redirect loop. You need to enforce your nginx ingress use HTTPS protocol connect to backend. 
+    # If you encounter a redirect loop or are getting a 307 response code 
+    # then you need to force the nginx ingress to connect to the backend using HTTPS.
+    #
     # nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
 spec:
   rules:
