@@ -661,9 +661,7 @@ func setJsonnetOptJPath(src *argoappv1.ApplicationSource, jpath []string) {
 	if src.Directory == nil {
 		src.Directory = &argoappv1.ApplicationSourceDirectory{}
 	}
-	for _, p := range jpath {
-		src.Directory.Jsonnet.JPaths = append(src.Directory.Jsonnet.JPaths, p)
-	}
+	src.Directory.Jsonnet.JPaths = append(src.Directory.Jsonnet.JPaths, jpath...)
 }
 
 type appOptions struct {
