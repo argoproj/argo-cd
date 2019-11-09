@@ -486,8 +486,12 @@ func findManifests(appPath string, env *v1alpha1.Env, directory v1alpha1.Applica
 			objs = append(objs, &obj)
 		} else if strings.HasSuffix(f.Name(), ".jsonnet") {
 			vm := makeJsonnetVm(directory.Jsonnet, env)
+			var jpaths []string
+			for _, p := range directory.Jsonnet.JPaths {
+				jpaths = append(jpaths, filepath.Join(appPath, p))
+			}
 			vm.Importer(&jsonnet.FileImporter{
-				JPaths: []string{appPath},
+				JPaths: jpaths,
 			})
 			jsonStr, err := vm.EvaluateSnippet(f.Name(), string(out))
 			if err != nil {
