@@ -30,7 +30,7 @@ func Invoke(name string, args ...string) {
 
 	for in.Scan() {
 		line := in.Text()
-		if !strings.HasPrefix(line, "coverage: ") {
+		if !strings.HasPrefix(line, "coverage: ") && line != "PASS" {
 			fmt.Println(line)
 		}
 	}

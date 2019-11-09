@@ -119,7 +119,6 @@ jobs:
       ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
       ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
     steps:
-      - run: pkill --helpgit
       - run:
           name: Install and start K3S v0.5.0
           command: |
