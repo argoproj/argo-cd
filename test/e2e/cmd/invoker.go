@@ -21,13 +21,10 @@ func Invoke(name string, args ...string) {
 		panic(err)
 	}
 	cmd.Stderr = os.Stderr
-
 	if err := cmd.Start(); err != nil {
 		panic(err)
 	}
-
 	in := bufio.NewScanner(stdout)
-
 	for in.Scan() {
 		line := in.Text()
 		if !strings.HasPrefix(line, "coverage: ") && line != "PASS" {
@@ -35,6 +32,10 @@ func Invoke(name string, args ...string) {
 		}
 	}
 	err = in.Err()
+	if err != nil {
+		panic(err)
+	}
+	err = cmd.Wait()
 	if err != nil {
 		if ee, ok := err.(*exec.ExitError); ok {
 			os.Exit(ee.ExitCode())

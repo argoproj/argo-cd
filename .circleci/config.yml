@@ -142,7 +142,10 @@ jobs:
       - restore_vendor
       - run: dep ensure
       - configure_git
-      - run: make e2e-clis
+      - run:
+          command: |
+            make e2e-clis
+            echo "export PATH=$(pwd)/dist:\$PATH"| tee -a $BASH_ENV
       - run:
           name: Create namespace
           command: |
@@ -164,11 +167,11 @@ jobs:
           background: true
       - run:
           name: Start repo server
-          command: ./dist/argocd-repo-server --loglevel debug --redis localhost:6379
+          command: argocd-repo-server --loglevel debug --redis localhost:6379
           background: true
       - run:
           name: Start API server
-          command: ./dist/argocd-server --loglevel debug --redis localhost:6379 --insecure --dex-server http://localhost:5556 --repo-server localhost:8081 --staticassets ../argo-cd-ui/dist/app
+          command: argocd-server --loglevel debug --redis localhost:6379 --insecure --dex-server http://localhost:5556 --repo-server localhost:8081 --staticassets ../argo-cd-ui/dist/app
           background: true
       - run:
           name: Start Test Git
@@ -177,10 +180,10 @@ jobs:
       - run: until curl -v http://localhost:8080/healthz; do sleep 10; done
       - run:
           name: Start controller
-          command: ./dist/argocd-application-controller --loglevel debug --redis localhost:6379 --repo-server localhost:8081 --kubeconfig ~/.kube/config
+          command: argocd-application-controller --loglevel debug --redis localhost:6379 --repo-server localhost:8081 --kubeconfig ~/.kube/config
           background: true
       - run:
-          command: PATH=$(pwd)/dist:$PATH make test-e2e
+          command: make test-e2e
           environment:
             ARGOCD_OPTS: "--server localhost:8080 --plaintext"
             ARGOCD_E2E_EXPECT_TIMEOUT: "30"
