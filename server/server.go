@@ -565,7 +565,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	// with the current context set in our grpc-gateway setup for gorilla to create a proper token.
 	csrfAddResponseHeaderFunc := func(ctx context.Context, w http.ResponseWriter, resp golang_proto.Message) error {
 		r := http.Request{}
-		token := csfr.Token(r.WithContext(ctx))
+		token := csrf.Token(r.WithContext(ctx))
 		if token != "" {
 			w.Header().Set("X-CSRF-Token", token)
 		}
