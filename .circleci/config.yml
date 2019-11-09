@@ -52,7 +52,8 @@ commands:
     steps:
       - run:
           name: Uploading code coverage
-          command: bash <(curl -s https://codecov.io/bash) -f coverage.out
+          command: bash <(curl -s https://codecov.io/bash) -f *.out -F {{ .Environment.CIRCLE_JOB }}
+          when: always
 jobs:
   codegen:
     docker:
@@ -210,7 +211,7 @@ jobs:
           key: yarn-packages-v4-{{ checksum "yarn.lock" }}
           paths: [~/.cache/yarn, node_modules]
       - run: yarn test
-      - run: ./node_modules/.bin/codecov -p ..
+      - run: ./node_modules/.bin/codecov -p .. -F {{ .Environment.CIRCLE_JOB }}
       - run: yarn build
       - run: yarn lint
 workflows:
