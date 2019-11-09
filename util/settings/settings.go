@@ -50,6 +50,8 @@ type ArgoCDSettings struct {
 	OIDCConfigRAW string `json:"oidcConfig,omitempty"`
 	// ServerSignature holds the key used to generate JWT tokens.
 	ServerSignature []byte `json:"serverSignature,omitempty"`
+	// CsrfKey holds the 32-byte long key used to create CSRF tokens
+	CsrfKey []byte `json:"csrfKey,omitempty"`
 	// Certificate holds the certificate/private key for the Argo CD API server.
 	// If nil, will run insecure without TLS.
 	Certificate *tls.Certificate `json:"-"`
@@ -153,6 +155,8 @@ const (
 	settingAdminPasswordMtimeKey = "admin.passwordMtime"
 	// settingServerSignatureKey designates the key for a server secret key inside a Kubernetes secret.
 	settingServerSignatureKey = "server.secretkey"
+	// settingsCsrfKey designates the key for creating API CSRF protectiion tokens inside a Kubernetes secret
+	settingCsrfKey = "server.csrfkey"
 	// gaTrackingID holds Google Analytics tracking id
 	gaTrackingID = "ga.trackingid"
 	// the URL for getting chat help, this will typically be your Slack channel for support
@@ -588,6 +592,18 @@ func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secr
 	} else {
 		errs = append(errs, &incompleteSettingsError{message: "server.secretkey is missing"})
 	}
+
+	csrfKey, ok := argoCDSecret.Data[settingCsrfKey]
+	if ok {
+		if len(csrfKey) != 32 {
+			errs = append(errs, &incompleteSettingsError{message: fmt.Sprintf("server.csrfkey must be exactly 32 bytes long, but has %d bytes", len(csrfKey))})
+		} else {
+			settings.CsrfKey = csrfKey
+		}
+	} else {
+		errs = append(errs, &incompleteSettingsError{message: "server.csrfkey is missing"})
+	}
+
 	if githubWebhookSecret := argoCDSecret.Data[settingsWebhookGitHubSecretKey]; len(githubWebhookSecret) > 0 {
 		settings.WebhookGitHubSecret = string(githubWebhookSecret)
 	}
@@ -694,6 +710,7 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 	}
 
 	argoCDSecret.Data[settingServerSignatureKey] = settings.ServerSignature
+	argoCDSecret.Data[settingCsrfKey] = settings.CsrfKey
 	argoCDSecret.Data[settingAdminPasswordHashKey] = []byte(settings.AdminPasswordHash)
 	argoCDSecret.Data[settingAdminPasswordMtimeKey] = []byte(settings.AdminPasswordMtime.Format(time.RFC3339))
 	if settings.WebhookGitHubSecret != "" {
@@ -956,12 +973,21 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 	}
 	if cdSettings.ServerSignature == nil {
 		// set JWT signature
-		signature, err := util.MakeSignature(32)
+		signature, err := util.MakeSignature(32, true)
 		if err != nil {
 			return nil, err
 		}
 		cdSettings.ServerSignature = signature
 		log.Info("Initialized server signature")
+	}
+	// Generate key for creating/validating CSRF token
+	if cdSettings.CsrfKey == nil {
+		key, err := util.MakeSignature(32, false)
+		if err != nil {
+			return nil, err
+		}
+		cdSettings.CsrfKey = key
+		log.Info("Initialized CSRF key")
 	}
 	if cdSettings.AdminPasswordHash == "" {
 		defaultPassword, err := os.Hostname()

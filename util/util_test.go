@@ -14,7 +14,7 @@ func TestNopCloser(t *testing.T) {
 
 func TestMakeSignature(t *testing.T) {
 	for size := 1; size <= 64; size++ {
-		s, err := util.MakeSignature(size)
+		s, err := util.MakeSignature(size, true)
 		if err != nil {
 			t.Errorf("Could not generate signature of size %d: %v", size, err)
 		}

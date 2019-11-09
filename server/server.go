@@ -117,9 +117,6 @@ var (
 	baseHRefRegex    = regexp.MustCompile(`<base href="(.*)">`)
 )
 
-// Key in context that defines whether to skip CSRF checks
-const csrfSkipKey = "gorilla.csrf.Skip"
-
 // ArgoCDServer is the API server for Argo CD
 type ArgoCDServer struct {
 	ArgoCDServerOpts
@@ -599,8 +596,8 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	} else {
 		// We need 32-byte non-changing key, so we just re-use the key used to sign JWT
 		gwmux = runtime.NewServeMux(gwMuxOpts, gwCookieOpts, gwForwarder, gwIncomingHeader)
-		if a.settings.ServerSignature != nil && len(a.settings.ServerSignature) >= 32 {
-			csrfKey := a.settings.ServerSignature[0:31]
+		if a.settings.CsrfKey != nil && len(a.settings.CsrfKey) == 32 {
+			csrfKey := a.settings.CsrfKey
 			protmux := csrf.Protect(csrfKey,
 				csrf.Secure(a.useTLS()),
 				csrf.Path("/api/v1"),
@@ -885,17 +882,16 @@ func (s *handlerSwitcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// We do allow a POST on /api/v1/session to get a valid JWT token without having to also
 		// supply the X-CSRF-Token header, as long as the argocd.token is not set.
 		//
-		ctx := r.Context()
 		if _, err := r.Cookie(common.AuthCookieName); err != nil {
 			if authHdr := r.Header.Get("Authorization"); strings.HasPrefix(authHdr, "Bearer ") {
-				ctx = context.WithValue(ctx, csrfSkipKey, true)
+				r = csrf.UnsafeSkipCheck(r)
 			} else if r.URL.Path == "/api/v1/session" && r.Method == "POST" {
-				ctx = context.WithValue(ctx, csrfSkipKey, true)
+				r = csrf.UnsafeSkipCheck(r)
 			}
 		}
 
 		// gorilla-csrf takes care that this request is properly protected
-		s.handler.ServeHTTP(w, r.WithContext(ctx))
+		s.handler.ServeHTTP(w, r)
 	}
 }
 

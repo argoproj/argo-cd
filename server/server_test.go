@@ -30,7 +30,7 @@ import (
 	"github.com/argoproj/argo-cd/util/rbac"
 )
 
-func fakeServer() *ArgoCDServer {
+func fakeServer(disableCsrf bool) *ArgoCDServer {
 	cm := test.NewFakeConfigMap()
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
@@ -42,6 +42,7 @@ func fakeServer() *ArgoCDServer {
 		AppClientset:  appClientSet,
 		Insecure:      true,
 		DisableAuth:   true,
+		DisableCsrf:   disableCsrf,
 	}
 	return NewServer(context.Background(), argoCDOpts)
 }
@@ -334,13 +335,13 @@ func TestRevokedToken(t *testing.T) {
 }
 
 func TestCertsAreNotGeneratedInInsecureMode(t *testing.T) {
-	s := fakeServer()
+	s := fakeServer(false)
 	assert.True(t, s.Insecure)
 	assert.Nil(t, s.settings.Certificate)
 }
 
 func TestUserAgent(t *testing.T) {
-	s := fakeServer()
+	s := fakeServer(false)
 	cancelInformer := test.StartInformer(s.projInformer)
 	defer cancelInformer()
 	port, err := test.GetFreePort()
