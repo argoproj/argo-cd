@@ -202,7 +202,7 @@ e2e-ns:
 	kubectl config set-context --current --namespace=argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
 
-.PHONY e2e-clis
+.PHONY: e2e-clis
 e2e-clis: e2e-cli e2e-server e2e-repo-server e2e-controller
 
 .PHONY: start-e2e
