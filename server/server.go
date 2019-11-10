@@ -855,6 +855,13 @@ type handlerSwitcher struct {
 	contentTypeToHandler map[string]http.Handler
 }
 
+// Add JSON API paths to unauthenticatedPatterns slice that allow unauthenticated
+// GET requests, so that they will not return X-CSRF-Token header on response.
+var unauthenticatedPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`/api/version.*`),
+	regexp.MustCompile(`/api/v1/settings.*`),
+}
+
 func (s *handlerSwitcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if urlHandler, ok := s.urlToHandler[r.URL.Path]; ok {
 		urlHandler.ServeHTTP(w, r)
@@ -879,6 +886,18 @@ func (s *handlerSwitcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				r = csrf.UnsafeSkipCheck(r)
 			} else if r.URL.Path == "/api/v1/session" && r.Method == "POST" {
 				r = csrf.UnsafeSkipCheck(r)
+			}
+		}
+
+		// We do not want to send X-CSRF-Token on unauthenticated requests, so we skip CSRF checks
+		// on safe requests to our unauthenticated URLs
+		switch strings.ToUpper(r.Method) {
+		case "GET", "HEAD", "OPTIONS", "TRACE":
+			for _, pattern := range unauthenticatedPatterns {
+				if pattern.MatchString(r.URL.Path) {
+					r = csrf.UnsafeSkipCheck(r)
+					break
+				}
 			}
 		}
 
