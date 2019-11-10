@@ -631,7 +631,6 @@ func TestCsrfProtection(t *testing.T) {
 		}
 	}
 
-
 	// POST on /api/v1/session should be fine, as long as we have no authentication cookie
 	{
 		userdata := []byte(`{ "username": "admin", "password": "test" }`)
