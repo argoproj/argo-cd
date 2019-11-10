@@ -539,6 +539,9 @@ func Test_CSRFProtection_Disabled(t *testing.T) {
 	err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
 	assert.NoError(t, err)
 
+	// ALlow server a few milliseconds to settle
+	time.Sleep(500 * time.Millisecond)
+
 	client := http.Client{}
 	serverURL := fmt.Sprintf("http://127.0.0.1:%d", port)
 
@@ -587,6 +590,9 @@ func TestCsrfProtection(t *testing.T) {
 
 	err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
 	assert.NoError(t, err)
+
+	// ALlow server a few milliseconds to settle
+	time.Sleep(500 * time.Millisecond)
 
 	client := http.Client{}
 	serverURL := fmt.Sprintf("http://127.0.0.1:%d", port)
