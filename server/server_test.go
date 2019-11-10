@@ -33,7 +33,7 @@ import (
 	"github.com/argoproj/argo-cd/util/rbac"
 )
 
-func fakeServer(disableCsrf bool) *ArgoCDServer {
+func fakeServer(disableAuth bool, disableCsrf bool) *ArgoCDServer {
 	cm := test.NewFakeConfigMap()
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
@@ -44,7 +44,7 @@ func fakeServer(disableCsrf bool) *ArgoCDServer {
 		KubeClientset: kubeclientset,
 		AppClientset:  appClientSet,
 		Insecure:      true,
-		DisableAuth:   true,
+		DisableAuth:   disableAuth,
 		DisableCsrf:   disableCsrf,
 	}
 	return NewServer(context.Background(), argoCDOpts)
@@ -338,13 +338,13 @@ func TestRevokedToken(t *testing.T) {
 }
 
 func TestCertsAreNotGeneratedInInsecureMode(t *testing.T) {
-	s := fakeServer(false)
+	s := fakeServer(true, false)
 	assert.True(t, s.Insecure)
 	assert.Nil(t, s.settings.Certificate)
 }
 
 func TestUserAgent(t *testing.T) {
-	s := fakeServer(false)
+	s := fakeServer(true, false)
 	cancelInformer := test.StartInformer(s.projInformer)
 	defer cancelInformer()
 	port, err := test.GetFreePort()
@@ -517,14 +517,14 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 
 // Ensure CSRF key is available when set in Secret
 func Test_CSRFKeyIsAvailableFromSettings(t *testing.T) {
-	s := fakeServer(false)
+	s := fakeServer(true, false)
 	assert.False(t, s.DisableCsrf)
 	assert.NotNil(t, s.settings.CsrfKey)
 	assert.Len(t, s.settings.CsrfKey, 32)
 }
 
 func Test_CSRFProtection_Disabled(t *testing.T) {
-	s := fakeServer(true)
+	s := fakeServer(true, true)
 	cancelInformer := test.StartInformer(s.projInformer)
 	defer cancelInformer()
 	port, err := test.GetFreePort()
@@ -540,7 +540,7 @@ func Test_CSRFProtection_Disabled(t *testing.T) {
 	assert.NoError(t, err)
 
 	// ALlow server a few milliseconds to settle
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(1 * time.Second)
 
 	client := http.Client{}
 	serverURL := fmt.Sprintf("http://127.0.0.1:%d", port)
@@ -576,7 +576,7 @@ func Test_CSRFProtection_Disabled(t *testing.T) {
 }
 
 func TestCsrfProtection(t *testing.T) {
-	s := fakeServer(false)
+	s := fakeServer(false, false)
 	cancelInformer := test.StartInformer(s.projInformer)
 	defer cancelInformer()
 	port, err := test.GetFreePort()
@@ -592,7 +592,7 @@ func TestCsrfProtection(t *testing.T) {
 	assert.NoError(t, err)
 
 	// ALlow server a few milliseconds to settle
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(1 * time.Second)
 
 	client := http.Client{}
 	serverURL := fmt.Sprintf("http://127.0.0.1:%d", port)
@@ -601,15 +601,15 @@ func TestCsrfProtection(t *testing.T) {
 	csrftoken := ""
 	csrfCookieValue := ""
 
-	// GET verb should always be allowed. Also, CSRF token and cookie should be sent
+	// GET verb should always be allowed, but token should not be sent on unauthorized request
 	{
 		req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/session/userinfo", serverURL), nil)
 		assert.NoError(t, err)
 		resp, err := client.Do(req)
 		assert.NoError(t, err)
-		assert.Equal(t, 200, resp.StatusCode)
+		assert.Equal(t, 401, resp.StatusCode)
 		csrftoken = resp.Header.Get("X-CSRF-Token")
-		assert.NotEmpty(t, csrftoken)
+		assert.Empty(t, csrftoken)
 		for _, cookie := range resp.Cookies() {
 			if cookie.Name == "_gorilla_csrf" {
 				csrfCookieValue = cookie.Value
@@ -617,6 +617,20 @@ func TestCsrfProtection(t *testing.T) {
 		}
 		assert.NotEmpty(t, csrfCookieValue)
 	}
+
+	// Unauthenticated API endpoints should not send CSRF token
+	{
+		for _, endpoint := range NoCsrfHeaderPattern {
+			req, err := http.NewRequest("GET", fmt.Sprintf("%s/%s", serverURL, endpoint), nil)
+			assert.NoError(t, err)
+			resp, err := client.Do(req)
+			assert.NoError(t, err)
+			assert.NotEqual(t, 401, resp.StatusCode)
+			csrftoken = resp.Header.Get("X-CSRF-Token")
+			assert.Empty(t, csrftoken)
+		}
+	}
+
 
 	// POST on /api/v1/session should be fine, as long as we have no authentication cookie
 	{
@@ -638,6 +652,33 @@ func TestCsrfProtection(t *testing.T) {
 		}
 	}
 
+	// For mimicing browser requests
+	authCookie := http.Cookie{
+		Name:     "argocd.token",
+		Value:    usertoken,
+		Path:     "/",
+		Secure:   false,
+		HttpOnly: true,
+	}
+
+	// GET verb should always be allowed, and token should be sent if request is authorized
+	{
+		req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/session/userinfo", serverURL), nil)
+		assert.NoError(t, err)
+		req.AddCookie(&authCookie)
+		resp, err := client.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, 200, resp.StatusCode)
+		csrftoken = resp.Header.Get("X-CSRF-Token")
+		assert.NotEmpty(t, csrftoken)
+		for _, cookie := range resp.Cookies() {
+			if cookie.Name == "_gorilla_csrf" {
+				csrfCookieValue = cookie.Value
+			}
+		}
+		assert.NotEmpty(t, csrfCookieValue)
+	}
+
 	// All these methods should be answered with HTTP 403 - Forbidden
 	for _, method := range []string{"POST", "DELETE", "PUT"} {
 		req, err := http.NewRequest(method, fmt.Sprintf("%s/api/v1/repositories", serverURL), bytes.NewBuffer([]byte("{}")))
@@ -646,15 +687,6 @@ func TestCsrfProtection(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, resp)
 		assert.Equal(t, 403, resp.StatusCode)
-	}
-
-	// For mimicing browser requests
-	authCookie := http.Cookie{
-		Name:     "argocd.token",
-		Value:    usertoken,
-		Path:     "/",
-		Secure:   false,
-		HttpOnly: true,
 	}
 
 	csrfCookie := http.Cookie{
@@ -693,7 +725,7 @@ func TestCsrfProtection(t *testing.T) {
 	for _, method := range []string{"POST", "DELETE", "PUT"} {
 		req, err := http.NewRequest(method, fmt.Sprintf("%s/api/v1/repositories", serverURL), bytes.NewBuffer([]byte("{}")))
 		assert.NoError(t, err)
-		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", csrftoken))
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", usertoken))
 		resp, err := client.Do(req)
 		assert.NoError(t, err)
 		assert.NotNil(t, resp)
