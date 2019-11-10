@@ -486,7 +486,7 @@ func findManifests(appPath string, env *v1alpha1.Env, directory v1alpha1.Applica
 			objs = append(objs, &obj)
 		} else if strings.HasSuffix(f.Name(), ".jsonnet") {
 			vm := makeJsonnetVm(directory.Jsonnet, env)
-			var jpaths []string
+			jpaths := []string{appPath}
 			for _, p := range directory.Jsonnet.JPaths {
 				jpaths = append(jpaths, filepath.Join(appPath, p))
 			}
