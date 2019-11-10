@@ -572,18 +572,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		return nil
 	}
 
-	// This function makes the X-CSRF-Token available to gRPC, so it can send it back with the
-	// response.
-	//
-	csrfPassTokenHeaderFunc := func(key string) (string, bool) {
-		if strings.ToLower(key) == "x-csrf-token" {
-			return key, true
-		}
-		return key, false
-	}
-
 	gwForwarder := runtime.WithForwardResponseOption(csrfAddResponseHeaderFunc)
-	gwIncomingHeader := runtime.WithIncomingHeaderMatcher(csrfPassTokenHeaderFunc)
 
 	// Our HTTP JSON API is CSRF protected, so we add Gorilla CSRF middleware
 	//
@@ -598,7 +587,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		mux.Handle("/api/", gwmux)
 	} else {
 		// We need 32-byte non-changing key, so we just re-use the key used to sign JWT
-		gwmux = runtime.NewServeMux(gwMuxOpts, gwCookieOpts, gwForwarder, gwIncomingHeader)
+		gwmux = runtime.NewServeMux(gwMuxOpts, gwCookieOpts, gwForwarder)
 		if a.settings.CsrfKey != nil && len(a.settings.CsrfKey) == 32 {
 			csrfKey := a.settings.CsrfKey
 			protmux := csrf.Protect(csrfKey,
