@@ -29,13 +29,11 @@ func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			errors.CheckError(err)
 
 			if delete {
-				var ctxName string
 				if len(args) == 0 {
-					ctxName = localCfg.CurrentContext
-				} else {
-					ctxName = args[0]
+					fmt.Printf("Specify a context\n")
+					return
 				}
-				err := deleteContext(ctxName, clientOpts.ConfigPath)
+				err := deleteContext(args[0], clientOpts.ConfigPath)
 				errors.CheckError(err)
 				return
 			}
@@ -97,7 +95,7 @@ func deleteContext(context, configPath string) error {
 		errors.CheckError(err)
 	} else {
 		if localCfg.CurrentContext == context {
-			localCfg.CurrentContext = localCfg.Contexts[0].Name
+			localCfg.CurrentContext = ""
 		}
 		err = localconfig.ValidateLocalConfig(*localCfg)
 		if err != nil {
