@@ -456,7 +456,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	)))
 	grpcS := grpc.NewServer(sOpts...)
 	db := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
-	kubectl := kube.KubectlCmd{}
+	kubectl := &kube.KubectlCmd{}
 	clusterService := cluster.NewServer(db, a.enf, a.Cache, kubectl)
 	repoService := repository.NewServer(a.RepoClientset, db, a.enf, a.Cache, a.settingsMgr)
 	repoCredsService := repocreds.NewServer(a.RepoClientset, db, a.enf, a.settingsMgr)
@@ -492,16 +492,17 @@ func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.Res
 		}
 		token := sessionResp.Token
 		if token != "" {
-			token, err := zjwt.ZJWT(token)
+			var err error
+			token, err = zjwt.ZJWT(token)
 			if err != nil {
 				return err
 			}
-			cookie, err := httputil.MakeCookieMetadata(common.AuthCookieName, token, flags...)
-			if err != nil {
-				return err
-			}
-			w.Header().Set("Set-Cookie", cookie)
 		}
+		cookie, err := httputil.MakeCookieMetadata(common.AuthCookieName, token, flags...)
+		if err != nil {
+			return err
+		}
+		w.Header().Set("Set-Cookie", cookie)
 	}
 	return nil
 }

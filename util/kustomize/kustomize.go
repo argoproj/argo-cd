@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -186,16 +185,7 @@ func Version() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("could not get kustomize version: %s", err)
 	}
-	re := regexp.MustCompile(`Version:kustomize/([a-zA-Z0-9\.]+)`)
-	matches := re.FindStringSubmatch(out)
-	if len(matches) != 2 {
-		return "", errors.New("could not get kustomize version")
-	}
-	version := matches[1]
-	if version[0] != 'v' {
-		version = "v" + version
-	}
-	return strings.TrimSpace(version), nil
+	return strings.TrimSpace(out), nil
 }
 
 func getImageParameters(objs []*unstructured.Unstructured) []Image {

@@ -1,5 +1,4 @@
 import {DataLoader, Page as ArgoPage, Toolbar, Utils} from 'argo-ui';
-import {parse} from 'cookie';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Observable} from 'rxjs';
@@ -21,16 +20,19 @@ export class Page extends React.Component<{title: string; toolbar?: Toolbar | Ob
                         toolbar = toolbar || {};
                         toolbar.tools = [
                             toolbar.tools,
-                            // this is a crummy check, as the token maybe expired, but it is better than flashing user interface
-                            parse(document.cookie)['argocd.token'] ? (
-                                <a key='logout' onClick={() => this.goToLogin(true)}>
-                                    Logout
-                                </a>
-                            ) : (
-                                <a key='login' onClick={() => this.goToLogin(false)}>
-                                    Login
-                                </a>
-                            )
+                            <DataLoader key='loginPanel' load={() => services.users.get()}>
+                                {info =>
+                                    info.loggedIn ? (
+                                        <a key='logout' onClick={() => this.goToLogin(true)}>
+                                            Logout
+                                        </a>
+                                    ) : (
+                                        <a key='login' onClick={() => this.goToLogin(false)}>
+                                            Login
+                                        </a>
+                                    )
+                                }
+                            </DataLoader>
                         ];
                         return toolbar;
                     })

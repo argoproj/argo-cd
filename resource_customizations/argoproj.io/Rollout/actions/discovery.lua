@@ -3,8 +3,8 @@ actions["resume"] = {["disabled"] = false}
 
 local paused = false
 
-if obj.status ~= nil and obj.status.verifyingPreview ~= nil then
-    paused = obj.status.verifyingPreview
+if obj.status ~= nil and obj.status.pauseConditions ~= nil then
+    paused = table.getn(obj.status.pauseConditions) > 0
 elseif obj.spec.paused ~= nil then
     paused = obj.spec.paused
 end

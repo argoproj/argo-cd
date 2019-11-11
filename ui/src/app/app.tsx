@@ -67,18 +67,25 @@ async function isExpiredSSO() {
 
 requests.onError.subscribe(async err => {
     if (err.status === 401) {
-        if (!history.location.pathname.startsWith('/login')) {
-            // Query for basehref and remove trailing /.
-            // If basehref is the default `/` it will become an empty string.
-            const basehref = document
-                .querySelector('head > base')
-                .getAttribute('href')
-                .replace(/\/$/, '');
-            if (await isExpiredSSO()) {
-                window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
-            } else {
-                history.push(`${basehref}/login?return_url=${encodeURIComponent(location.href)}`);
-            }
+        if (history.location.pathname.startsWith('/login')) {
+            return;
+        }
+
+        const isSSO = await isExpiredSSO();
+        // location might change after async method call, so we need to check again.
+        if (history.location.pathname.startsWith('/login')) {
+            return;
+        }
+        // Query for basehref and remove trailing /.
+        // If basehref is the default `/` it will become an empty string.
+        const basehref = document
+            .querySelector('head > base')
+            .getAttribute('href')
+            .replace(/\/$/, '');
+        if (isSSO) {
+            window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
+        } else {
+            history.push(`${basehref}/login?return_url=${encodeURIComponent(location.href)}`);
         }
     }
 });
