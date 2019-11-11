@@ -111,7 +111,7 @@ func (s *Service) runRepoOperation(
 	repo *v1alpha1.Repository,
 	source *v1alpha1.ApplicationSource,
 	getCached func(revision string) bool,
-	operation func(appPath string, revision string) error,
+	operation func(appRoot, appPath string, revision string) error,
 	settings operationSettings) error {
 
 	var gitClient git.Client
@@ -161,7 +161,8 @@ func (s *Service) runRepoOperation(
 			return err
 		}
 		defer util.Close(closer)
-		return operation(chartPath, revision)
+		// helm chart doesn't need appRoot,
+		return operation(chartPath, chartPath, revision)
 	}
 	s.repoLock.Lock(gitClient.Root())
 	defer s.repoLock.Unlock(gitClient.Root())
@@ -174,11 +175,12 @@ func (s *Service) runRepoOperation(
 	if err != nil {
 		return err
 	}
-	appPath, err := argopath.Path(gitClient.Root(), source.Path)
+	appRoot := gitClient.Root()
+	appPath, err := argopath.Path(appRoot, source.Path)
 	if err != nil {
 		return err
 	}
-	return operation(appPath, revision)
+	return operation(appRoot, appPath, revision)
 }
 
 func (s *Service) GenerateManifest(c context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
@@ -197,9 +199,9 @@ func (s *Service) GenerateManifest(c context.Context, q *apiclient.ManifestReque
 		}
 		return false
 	}
-	err := s.runRepoOperation(c, q.Revision, q.Repo, q.ApplicationSource, getCached, func(appPath string, revision string) error {
+	err := s.runRepoOperation(c, q.Revision, q.Repo, q.ApplicationSource, getCached, func(appRoot, appPath string, revision string) error {
 		var err error
-		res, err = GenerateManifests(appPath, revision, q)
+		res, err = GenerateManifests(appRoot, appPath, revision, q)
 		if err != nil {
 			return err
 		}
@@ -292,7 +294,7 @@ func helmTemplate(appPath string, env *v1alpha1.Env, q *apiclient.ManifestReques
 }
 
 // GenerateManifests generates manifests from a path
-func GenerateManifests(appPath, revision string, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
+func GenerateManifests(appRoot, appPath, revision string, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
 	var targetObjs []*unstructured.Unstructured
 	var dest *v1alpha1.ApplicationDestination
 
@@ -321,7 +323,7 @@ func GenerateManifests(appPath, revision string, q *apiclient.ManifestRequest) (
 		if directory = q.ApplicationSource.Directory; directory == nil {
 			directory = &v1alpha1.ApplicationSourceDirectory{}
 		}
-		targetObjs, err = findManifests(appPath, env, *directory)
+		targetObjs, err = findManifests(appRoot, appPath, env, *directory)
 	}
 	if err != nil {
 		return nil, err
@@ -456,7 +458,7 @@ func ksShow(appLabelKey, appPath string, ksonnetOpts *v1alpha1.ApplicationSource
 var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 
 // findManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
-func findManifests(appPath string, env *v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory) ([]*unstructured.Unstructured, error) {
+func findManifests(appRoot, appPath string, env *v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory) ([]*unstructured.Unstructured, error) {
 	var objs []*unstructured.Unstructured
 	err := filepath.Walk(appPath, func(path string, f os.FileInfo, err error) error {
 		if err != nil {
@@ -488,7 +490,11 @@ func findManifests(appPath string, env *v1alpha1.Env, directory v1alpha1.Applica
 			vm := makeJsonnetVm(directory.Jsonnet, env)
 			jpaths := []string{appPath}
 			for _, p := range directory.Jsonnet.JPaths {
-				jpaths = append(jpaths, filepath.Join(appPath, p))
+				jpath := filepath.Join(appPath, p)
+				if !strings.HasPrefix(jpath, filepath.Clean(appRoot)) {
+					return status.Errorf(codes.FailedPrecondition, "%s: jsonnet jpath outside root", p)
+				}
+				jpaths = append(jpaths, jpath)
 			}
 			vm.Importer(&jsonnet.FileImporter{
 				JPaths: jpaths,
@@ -623,7 +629,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		return false
 	}
 
-	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, getCached, func(appPath string, revision string) error {
+	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, getCached, func(appRoot, appPath string, revision string) error {
 		appSourceType, err := GetAppSourceType(q.Source, appPath)
 		if err != nil {
 			return err
