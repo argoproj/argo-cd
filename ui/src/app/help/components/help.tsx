@@ -27,6 +27,10 @@ export const Help = () => (
                             <a href={`download/argocd-darwin-amd64`} className='argo-button argo-button--base'>
                                 <i className='fab fa-apple' /> macOS
                             </a>
+                            &nbsp;
+                            <a href={`download/argocd-windows-amd64.exe`} className='argo-button argo-button--base'>
+                                <i className='fab fa-windows' /> Windows
+                            </a>
                         </div>
                     </div>
                     <div className='columns large-4 small-6'>
