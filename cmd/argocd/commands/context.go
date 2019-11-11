@@ -20,7 +20,7 @@ import (
 func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var delete bool
 	var command = &cobra.Command{
-		Use:     "context",
+		Use:     "context [CONTEXT]",
 		Aliases: []string{"ctx"},
 		Short:   "Switch between contexts",
 		Run: func(c *cobra.Command, args []string) {
@@ -30,8 +30,8 @@ func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 			if delete {
 				if len(args) == 0 {
-					fmt.Printf("Specify a context\n")
-					return
+					c.HelpFunc()(c, args)
+					os.Exit(1)
 				}
 				err := deleteContext(args[0], clientOpts.ConfigPath)
 				errors.CheckError(err)
