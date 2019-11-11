@@ -55,7 +55,7 @@ Ensure dependencies are up to date first:
 
 ```shell
 dep ensure
-make dev-builder-image
+make dev-tools-image
 make install-lint-tools
 ```
 
