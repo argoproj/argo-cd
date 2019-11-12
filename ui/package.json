@@ -29,6 +29,7 @@
     "@types/superagent": "^3.5.7",
     "argo-ui": "https://github.com/argoproj/argo-ui.git",
     "babel-loader": "^8.0.6",
+    "babel-preset-env": "^1.7.0",
     "classnames": "^2.2.5",
     "color": "^3.1.0",
     "cookie": "^0.3.1",
