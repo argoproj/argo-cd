@@ -91,7 +91,6 @@
     "@types/react-test-renderer": "^16.8.3",
     "add": "^2.0.6",
     "babel-jest": "^24.9.0",
-    "babel-preset-env": "^1.7.0",
     "codecov": "^3.6.1",
     "identity-obj-proxy": "^3.0.0",
     "jest": "^24.9.0",
