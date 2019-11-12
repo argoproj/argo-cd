@@ -199,6 +199,7 @@ jobs:
             killall argocd-server
             killall argocd-repo-server
           when: always
+      - run: ls
       - upload_codecov
       - store_test_results:
           path: test-results
