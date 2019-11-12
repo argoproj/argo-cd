@@ -1,0 +1,58 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ProgressPopup.0% 1`] = `
+<div
+  className="popup-overlay"
+>
+  <div
+    className="popup-container"
+  >
+    <div
+      className="row popup-container__header"
+    >
+      <span>
+        
+         
+        <i
+          className="argo-icon-close"
+          onClick={[Function]}
+        />
+      </span>
+    </div>
+    <div
+      className="row popup-container__body"
+    >
+      <div
+        className="columns large-12"
+      >
+        <div
+          style={
+            Object {
+              "background": "#CCD6DD",
+              "borderRadius": "5px",
+              "height": "10px",
+              "margin": "15px auto",
+              "width": "100%",
+            }
+          }
+        >
+          <div
+            style={
+              Object {
+                "background": "#18BE94",
+                "borderRadius": "inherit",
+                "height": "100%",
+                "transition": "width 0.1s ease-in",
+                "width": "0%",
+              }
+            }
+          />
+        </div>
+      </div>
+    </div>
+    <div
+      className="row popup-container__footer"
+    />
+  </div>
+</div>
+`;
