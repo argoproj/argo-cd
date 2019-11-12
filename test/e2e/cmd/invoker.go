@@ -16,6 +16,7 @@ const delimiter = "★"
 func Invoke(name string, args ...string) {
 	cmd := exec.Command(name, args...)
 	cmd.Env = append(os.Environ(), key+"="+strings.Join(os.Args[1:], delimiter))
+	cmd.Stdin = os.Stdin
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		panic(err)
