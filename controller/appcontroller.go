@@ -464,7 +464,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 	if app.Operation != nil {
 		ctrl.processRequestedAppOperation(app)
 	} else if app.DeletionTimestamp != nil && app.CascadedDeletion() {
-		err = ctrl.finalizeApplicationDeletion(app)
+		_, err = ctrl.finalizeApplicationDeletion(app)
 		if err != nil {
 			ctrl.setAppCondition(app, appv1.ApplicationCondition{
 				Type:    appv1.ApplicationConditionDeletionError,
@@ -492,7 +492,7 @@ func (ctrl *ApplicationController) isPermittedForDelete(app *appv1.Application, 
 	return permitted
 }
 
-func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Application) error {
+func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Application) ([]*unstructured.Unstructured, error) {
 	logCtx := log.WithField("application", app.Name)
 	logCtx.Infof("Deleting resources")
 	// Get refreshed application info, since informer app copy might be stale
@@ -501,12 +501,12 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		if !apierr.IsNotFound(err) {
 			logCtx.Errorf("Unable to get refreshed application info prior deleting resources: %v", err)
 		}
-		return nil
+		return nil, nil
 	}
 
 	objsMap, err := ctrl.stateCache.GetManagedLiveObjs(app, []*unstructured.Unstructured{})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	objs := make([]*unstructured.Unstructured, 0)
 	for k := range objsMap {
@@ -517,7 +517,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 
 	cluster, err := ctrl.db.GetCluster(context.Background(), app.Spec.Destination.Server)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, cluster.RESTConfig())
 
@@ -526,29 +526,29 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		return ctrl.kubectl.DeleteResource(config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), false)
 	})
 	if err != nil {
-		return err
+		return objs, err
 	}
 
 	objsMap, err = ctrl.stateCache.GetManagedLiveObjs(app, []*unstructured.Unstructured{})
 	if err != nil {
-		return err
+		return objs, err
 	}
 	for k, obj := range objsMap {
-		if !shouldBeDeleted(app, obj) {
+		if !shouldBeDeleted(app, obj) || !ctrl.isPermittedForDelete(app, obj) {
 			delete(objsMap, k)
 		}
 	}
 	if len(objsMap) > 0 {
 		logCtx.Infof("%d objects remaining for deletion", len(objsMap))
-		return nil
+		return objs, nil
 	}
 	err = ctrl.cache.SetAppManagedResources(app.Name, nil)
 	if err != nil {
-		return err
+		return objs, err
 	}
 	err = ctrl.cache.SetAppResourcesTree(app.Name, nil)
 	if err != nil {
-		return err
+		return objs, err
 	}
 	app.SetCascadedDeletion(false)
 	var patch []byte
@@ -559,11 +559,11 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	})
 	_, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(app.Name, types.MergePatchType, patch)
 	if err != nil {
-		return err
+		return objs, err
 	}
 
-	logCtx.Info("Successfully deleted resources")
-	return nil
+	logCtx.Infof("Successfully deleted %d resources", len(objs))
+	return objs, nil
 }
 
 func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condition appv1.ApplicationCondition) {

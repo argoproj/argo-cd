@@ -428,7 +428,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, nil, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app)
+		_, err := ctrl.finalizeApplicationDeletion(app)
 		assert.NoError(t, err)
 		assert.True(t, patched)
 	}
@@ -480,16 +480,29 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			},
 		})
 
-		err := ctrl.finalizeApplicationDeletion(app)
+		patched := false
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patched = true
+			return true, nil, nil
+		})
+		objs, err := ctrl.finalizeApplicationDeletion(app)
 		assert.NoError(t, err)
+		assert.True(t, patched)
 		objsMap, err := ctrl.stateCache.GetManagedLiveObjs(app, []*unstructured.Unstructured{})
 		if err != nil {
 			assert.NoError(t, err)
 		}
-		// objsMap should still contain the "stray" CM entry
-		assert.Len(t, objsMap, 1)
-		for _, v := range objsMap {
-			assert.Equal(t, "test-cm", v.GetName())
+		// Managed objects must be empty
+		assert.Empty(t, objsMap)
+		// Loop through all deleted objects, ensure that test-cm is none of them
+		for _, o := range objs {
+			assert.NotEqual(t, "test-cm", o.GetName())
 		}
 	}
 }
