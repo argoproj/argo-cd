@@ -478,14 +478,18 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 }
 
 // shouldbeDeleted returns whether a given resource obj should be deleted on cascade delete of application app
-func (ctrl *ApplicationController) shouldBeDeleted(app *appv1.Application, obj *unstructured.Unstructured) bool {
+func shouldBeDeleted(app *appv1.Application, obj *unstructured.Unstructured) bool {
+	return !kube.IsCRD(obj) && !isSelfReferencedApp(app, kube.GetObjectRef(obj))
+}
+
+// Checks whether an object is permitted to be deleted according to the project restrictions
+func (ctrl *ApplicationController) isPermittedForDelete(app *appv1.Application, obj *unstructured.Unstructured) bool {
 	permitted := false
-	// we only delete resources we are permitted to if restrictions exists through a project
 	if proj, err := ctrl.getAppProj(app); err == nil {
 		dest := appv1.ApplicationDestination{Namespace: obj.GetNamespace(), Server: app.Spec.Destination.Server}
 		permitted = proj.IsDestinationPermitted(dest)
 	}
-	return permitted && !kube.IsCRD(obj) && !isSelfReferencedApp(app, kube.GetObjectRef(obj))
+	return permitted
 }
 
 func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Application) error {
@@ -506,7 +510,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	}
 	objs := make([]*unstructured.Unstructured, 0)
 	for k := range objsMap {
-		if objsMap[k].GetDeletionTimestamp() == nil && ctrl.shouldBeDeleted(app, objsMap[k]) {
+		if objsMap[k].GetDeletionTimestamp() == nil && shouldBeDeleted(app, objsMap[k]) && ctrl.isPermittedForDelete(app, objsMap[k]) {
 			objs = append(objs, objsMap[k])
 		}
 	}
@@ -530,7 +534,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		return err
 	}
 	for k, obj := range objsMap {
-		if !ctrl.shouldBeDeleted(app, obj) {
+		if !shouldBeDeleted(app, obj) {
 			delete(objsMap, k)
 		}
 	}
