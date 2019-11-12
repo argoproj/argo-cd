@@ -194,9 +194,10 @@ jobs:
           name: Kill services
           command: |
             set -eux
-            pkill argocd-application-controller
-            pkill argocd-server
-            pkill argocd-repo-server
+            ps
+            killall argocd-application-controller
+            killall argocd-server
+            killall argocd-repo-server
           when: always
       - upload_codecov
       - store_test_results:
