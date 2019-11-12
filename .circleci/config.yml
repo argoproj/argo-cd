@@ -194,7 +194,7 @@ jobs:
           name: Kill services
           command: |
             set -eux
-            ps
+            ps -aef
             killall argocd-application-controller
             killall argocd-server
             killall argocd-repo-server
