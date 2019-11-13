@@ -5,7 +5,7 @@ export const ProgressBar = (props: {percentage: number}) => {
     return (
         <div
             style={{
-                width: '100%',
+                width: '90%',
                 height: '10px',
                 margin: '15px auto',
                 background: COLORS.sync.unknown,
