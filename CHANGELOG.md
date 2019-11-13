@@ -1,6 +1,6 @@
 # Changelog
 
-### v1.3.0 (2019-11-13)
+## v1.3.0 (2019-11-13)
 
 $ ght relnote release-1.2..v1.3.0
 #### Enhancements
