@@ -1817,6 +1817,19 @@ type KustomizeOptions struct {
 	BuildOptions string `protobuf:"bytes,1,opt,name=buildOptions"`
 }
 
+// HelmOptions are options for Helm to use when building manifests
+type HelmOptions struct {
+	// DirectoryEnforcerLevel is a level of how strict to enforce directory sanity
+	DirectoryEnforcerLevel HelmDirectoryEnforcerLevel `protobuf:"bytes,1,opt,name=directoryEnforcerLevel"`
+}
+
+type HelmDirectoryEnforcerLevel string
+
+const (
+	EnforcerLevelStrict HelmDirectoryEnforcerLevel = "Strict"
+	EnforcerLevelRepo   HelmDirectoryEnforcerLevel = "Repo"
+)
+
 // ProjectPoliciesString returns Casbin formated string of a project's policies for each role
 func (proj *AppProject) ProjectPoliciesString() string {
 	var policies []string

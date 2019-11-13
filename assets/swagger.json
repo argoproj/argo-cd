@@ -2115,6 +2115,9 @@
         "googleAnalytics": {
           "$ref": "#/definitions/clusterGoogleAnalyticsConfig"
         },
+        "helmOptions": {
+          "$ref": "#/definitions/v1alpha1HelmOptions"
+        },
         "help": {
           "$ref": "#/definitions/clusterHelp"
         },
@@ -3514,6 +3517,16 @@
         },
         "status": {
           "type": "string"
+        }
+      }
+    },
+    "v1alpha1HelmOptions": {
+      "type": "object",
+      "title": "HelmOptions are options for Helm to use when building manifests",
+      "properties": {
+        "directoryEnforcerLevel": {
+          "type": "string",
+          "title": "DirectoryEnforcerLevel is a level of how strict to enforce directory sanity"
         }
       }
     },

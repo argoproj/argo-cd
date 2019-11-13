@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-cd/util/security"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -222,12 +223,20 @@ func getHelmRepos(repositories []*v1alpha1.Repository) []helm.HelmRepository {
 }
 
 func helmTemplate(appPath string, env *v1alpha1.Env, q *apiclient.ManifestRequest) ([]*unstructured.Unstructured, error) {
+
+	var baseDirectoryPath string
+	if q.HelmOptions != nil && q.HelmOptions.DirectoryEnforcerLevel == v1alpha1.EnforcerLevelStrict {
+		baseDirectoryPath = appPath
+	} else {
+		baseDirectoryPath = security.SubtractRelativeFromAbsolutePath(appPath, q.ApplicationSource.Path)
+	}
 	templateOpts := &helm.TemplateOpts{
-		Name:        q.AppLabelValue,
-		Namespace:   q.Namespace,
-		KubeVersion: text.SemVer(q.KubeVersion),
-		Set:         map[string]string{},
-		SetString:   map[string]string{},
+		Name:              q.AppLabelValue,
+		Namespace:         q.Namespace,
+		KubeVersion:       text.SemVer(q.KubeVersion),
+		Set:               map[string]string{},
+		SetString:         map[string]string{},
+		BaseDirectoryPath: baseDirectoryPath,
 	}
 	appHelm := q.ApplicationSource.Helm
 	if appHelm != nil {

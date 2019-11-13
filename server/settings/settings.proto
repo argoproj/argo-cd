@@ -27,6 +27,7 @@ message Settings {
     // Help settings
     Help help = 9;
     repeated Plugin plugins = 10;
+    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.HelmOptions helmOptions = 11;
 }
 
 message GoogleAnalyticsConfig {

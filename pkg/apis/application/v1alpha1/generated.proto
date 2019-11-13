@@ -384,6 +384,12 @@ message HealthStatus {
   optional string message = 2;
 }
 
+// HelmOptions are options for Helm to use when building manifests
+message HelmOptions {
+  // DirectoryEnforcerLevel is a level of how strict to enforce directory sanity
+  optional string directoryEnforcerLevel = 1;
+}
+
 // HelmParameter is a parameter to a helm template
 message HelmParameter {
   // Name is the name of the helm parameter

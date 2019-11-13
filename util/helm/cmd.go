@@ -164,12 +164,13 @@ func (c *Cmd) inspectValues(values string) (string, error) {
 }
 
 type TemplateOpts struct {
-	Name        string
-	Namespace   string
-	KubeVersion string
-	Set         map[string]string
-	SetString   map[string]string
-	Values      []string
+	Name              string
+	Namespace         string
+	KubeVersion       string
+	Set               map[string]string
+	SetString         map[string]string
+	Values            []string
+	BaseDirectoryPath string
 }
 
 var (
@@ -196,14 +197,18 @@ func (c *Cmd) template(chart string, opts *TemplateOpts) (string, error) {
 		args = append(args, "--set-string", key+"="+cleanSetParameters(val))
 	}
 	for _, val := range opts.Values {
-		absWorkDir, err := filepath.Abs(c.WorkDir)
+		absBaseDir, err := filepath.Abs(opts.BaseDirectoryPath)
 		if err != nil {
 			return "", err
 		}
 		if !filepath.IsAbs(val) {
+			absWorkDir, err := filepath.Abs(c.WorkDir)
+			if err != nil {
+				return "", err
+			}
 			val = filepath.Join(absWorkDir, val)
 		}
-		cleanVal, err := security.EnforceToCurrentRoot(absWorkDir, val)
+		cleanVal, err := security.EnforceToCurrentRoot(absBaseDir, val)
 		if err != nil {
 			return "", err
 		}
