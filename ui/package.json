@@ -73,7 +73,7 @@
     "tslint-react": "^3.4.0",
     "typescript": "^3.4.5",
     "unidiff": "^1.0.2",
-    "webpack": "^4.29.5",
+    "webpack": "^4.41.2",
     "webpack-cli": "^3.2.3",
     "webpack-dev-server": "^3.2.1"
   },
@@ -82,7 +82,7 @@
     "@types/react-dom": "16.8.2"
   },
   "devDependencies": {
-    "@babel/core": "^7.0.0-0",
+    "@babel/core": "^7.7.2",
     "@babel/preset-env": "^7.7.1",
     "@babel/preset-react": "^7.7.0",
     "@babel/preset-typescript": "^7.7.2",
@@ -90,7 +90,7 @@
     "@types/react-test-renderer": "^16.8.3",
     "add": "^2.0.6",
     "babel-jest": "^24.9.0",
-    "babel-preset-env": "^1.7.0",
+    "babel-loader": "^8.0.6",
     "codecov": "^3.6.1",
     "identity-obj-proxy": "^3.0.0",
     "jest": "^24.9.0",
