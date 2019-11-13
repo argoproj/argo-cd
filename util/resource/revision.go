@@ -17,5 +17,11 @@ func GetRevision(obj *unstructured.Unstructured) int64 {
 			return revision
 		}
 	}
+
+	text, ok := obj.UnstructuredContent()["revision"].(int64)
+	if ok {
+		return text
+	}
+
 	return 0
 }
