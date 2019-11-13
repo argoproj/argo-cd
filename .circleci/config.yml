@@ -195,9 +195,9 @@ jobs:
           command: |
             set -eux
             ps -aef
-            killall argocd-application-controller
-            killall argocd-server
-            killall argocd-repo-server
+            pkill -u circleci argocd-application-controller
+            pkill -u circleci argocd-server
+            pkill -u circleci argocd-repo-server
           when: always
       - run: ls
       - upload_codecov

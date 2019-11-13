@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
-	"os"
+	"time"
 
 	"github.com/argoproj/argo-cd/test/e2e/cmd"
 )
 
 func main() {
-	cmd.Invoke("argocd.test", fmt.Sprintf("-test.coverprofile=../../coverage.argocd.%v.out", os.Getpid()))
+	cmd.Invoke("argocd.test", fmt.Sprintf("-test.coverprofile=../../coverage.argocd.%v.out", time.Now().Second()))
 }
