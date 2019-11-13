@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"strings"
 	"text/tabwriter"
 
 	"github.com/ghodss/yaml"
@@ -121,7 +120,8 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var namespace string
 	var resourceName string
-	var kindArg string
+	var kind string
+	var group string
 	var all bool
 	var command = &cobra.Command{
 		Use:   "run APPNAME ACTION",
@@ -130,7 +130,9 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 
 	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource")
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
-	command.Flags().StringVar(&kindArg, "kind", "", "Kind")
+	command.Flags().StringVar(&kind, "kind", "", "Kind")
+	command.Flags().StringVar(&group, "group", "", "Group")
+	errors.CheckError(command.MarkFlagRequired("kind"))
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to run the action on multiple matching resources")
 
 	command.Run = func(c *cobra.Command, args []string) {
@@ -146,31 +148,14 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 		ctx := context.Background()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
-
-		var group string
-		var kind string
-		var actionNameOnly string
-		// Backwards comparability for running resume actions
-		if actionName == "resume" && kindArg == "Rollout" {
-			group = "argoproj.io"
-			kind = "Rollout"
-			actionNameOnly = "resume"
-			commandTail := ""
-			if resourceName != "" {
-				commandTail += " --resource-name " + resourceName
+		filteredObjects := filterResources(command, resources.Items, group, kind, namespace, resourceName, all)
+		var resGroup = filteredObjects[0].GroupVersionKind().Group
+		for i := range filteredObjects[1:] {
+			if filteredObjects[i].GroupVersionKind().Group != resGroup {
+				log.Fatal("Ambiguous resource group. Use flag --group to specify resource group explicitly.")
 			}
-			if namespace != "" {
-				commandTail += " --namespace " + namespace
-			}
-			if all {
-				commandTail += " --all"
-			}
-			fmt.Printf("\nWarning: this syntax for running the \"resume\" action has been deprecated. Please run the action as\n\n\targocd app actions run %s argoproj.io/Rollout/resume%s\n\n", appName, commandTail)
-		} else {
-			group, kind, actionNameOnly = parseActionName(actionName)
 		}
 
-		filteredObjects := filterResources(command, resources.Items, group, kind, namespace, resourceName, all)
 		for i := range filteredObjects {
 			obj := filteredObjects[i]
 			gvk := obj.GroupVersionKind()
@@ -181,18 +166,10 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 				ResourceName: objResourceName,
 				Group:        gvk.Group,
 				Kind:         gvk.Kind,
-				Action:       actionNameOnly,
+				Action:       actionName,
 			})
 			errors.CheckError(err)
 		}
 	}
 	return command
-}
-
-func parseActionName(action string) (string, string, string) {
-	actionSplit := strings.Split(action, "/")
-	if len(actionSplit) != 3 {
-		log.Fatal("Action name is malformed")
-	}
-	return actionSplit[0], actionSplit[1], actionSplit[2]
 }
