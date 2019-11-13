@@ -196,8 +196,9 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	if err != nil {
 		return nil, err
 	}
-	kustomizeOptions := appv1.KustomizeOptions{
-		BuildOptions: buildOptions,
+	helmDirectoryEnforcerLevel, err := s.settingsMgr.GetHelmDirectoryEnforcerLevel()
+	if err != nil {
+		return nil, err
 	}
 	cluster, err := s.db.GetCluster(context.Background(), a.Spec.Destination.Server)
 	if err != nil {
@@ -216,8 +217,13 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		ApplicationSource: &a.Spec.Source,
 		Repos:             helmRepos,
 		Plugins:           plugins,
-		KustomizeOptions:  &kustomizeOptions,
-		KubeVersion:       cluster.ServerVersion,
+		KustomizeOptions:  &appv1.KustomizeOptions{
+			BuildOptions: buildOptions,
+		},
+		HelmOptions: &appv1.HelmOptions{
+			DirectoryEnforcerLevel: helmDirectoryEnforcerLevel,
+		},
+		KubeVersion: cluster.ServerVersion,
 	})
 	if err != nil {
 		return nil, err
@@ -575,12 +581,19 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	kustomizeOptions := appv1.KustomizeOptions{
 		BuildOptions: buildOptions,
 	}
+	helmDirectoryEnforcerLevel, err := s.settingsMgr.GetHelmDirectoryEnforcerLevel()
+	if err != nil {
+		return err
+	}
+	helmOptions := appv1.HelmOptions{
+		DirectoryEnforcerLevel: helmDirectoryEnforcerLevel,
+	}
 	plugins, err := s.plugins()
 	if err != nil {
 		return err
 	}
 
-	conditions, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, &kustomizeOptions, plugins, s.kubectl)
+	conditions, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, &kustomizeOptions, &helmOptions, plugins, s.kubectl)
 	if err != nil {
 		return err
 	}

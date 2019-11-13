@@ -223,7 +223,6 @@ func getHelmRepos(repositories []*v1alpha1.Repository) []helm.HelmRepository {
 }
 
 func helmTemplate(appPath string, env *v1alpha1.Env, q *apiclient.ManifestRequest) ([]*unstructured.Unstructured, error) {
-
 	var baseDirectoryPath string
 	if q.HelmOptions != nil && q.HelmOptions.DirectoryEnforcerLevel == v1alpha1.EnforcerLevelStrict {
 		baseDirectoryPath = appPath
