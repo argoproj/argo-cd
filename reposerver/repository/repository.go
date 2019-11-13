@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-cd/util/security"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/argoproj/argo-cd/util/security"
 
 	"github.com/Masterminds/semver"
 	"github.com/TomOnTime/utfutil"

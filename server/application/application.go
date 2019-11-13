@@ -217,7 +217,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		ApplicationSource: &a.Spec.Source,
 		Repos:             helmRepos,
 		Plugins:           plugins,
-		KustomizeOptions:  &appv1.KustomizeOptions{
+		KustomizeOptions: &appv1.KustomizeOptions{
 			BuildOptions: buildOptions,
 		},
 		HelmOptions: &appv1.HelmOptions{

@@ -27,8 +27,8 @@ func SubtractRelativeFromAbsolutePath(abs, rel string) string {
 	if rel[0] != '/' {
 		rel = "/" + rel
 	}
-	if rel[len(rel) - 1] == '/' {
-		rel = rel[:len(rel) - 1]
+	if rel[len(rel)-1] == '/' {
+		rel = rel[:len(rel)-1]
 	}
 	return abs[:strings.LastIndex(abs, rel)]
 }

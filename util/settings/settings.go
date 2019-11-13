@@ -68,7 +68,7 @@ type ArgoCDSettings struct {
 	// KustomizeBuildOptions is a string of kustomize build parameters
 	KustomizeBuildOptions string `json:"kustomizeBuildOptions,omitempty"`
 	// HelmDirectoryEnforcerLevel is a level of how strict to enforce directory sanity
-	HelmDirectoryEnforcerLevel string `json:"kustomizeBuildOptions,omitempty"`
+	HelmDirectoryEnforcerLevel string `json:"helmDirectoryEnforcerLevel,omitempty"`
 	// Indicates if anonymous user is enabled or not
 	AnonymousUserEnabled bool `json:"anonymousUserEnabled,omitempty"`
 }
@@ -365,7 +365,6 @@ func (mgr *SettingsManager) GetHelmDirectoryEnforcerLevel() (v1alpha1.HelmDirect
 		return v1alpha1.EnforcerLevelRepo, nil
 	}
 }
-
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
 func (mgr *SettingsManager) GetHelmRepositories() ([]HelmRepoCredentials, error) {
