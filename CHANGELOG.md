@@ -1,8 +1,23 @@
 # Changelog
 
+
+<!--
+
+https://github.com/alexec/github-toolkit
+
+Examples: 
+
+    ght relnote release-1.2..v1.3.0-rc1
+    ght relnote v1.3.0-rc1..v1.3.0-rc2
+    ght relnote v1.3.0-rc2..v1.3.0-rc3
+    ght relnote v1.3.0-rc4..v1.3.0-rc4
+    ght relnote v1.3.0-rc3..v1.3.0-rc4
+    ght relnote v1.3.0-rc4..v1.3.0-rc5
+    ght relnote v1.3.0-rc5..v1.3.0-rc6
+-->
+
 ## v1.3.0 (2019-11-13)
 
-$ ght relnote release-1.2..v1.3.0
 #### Enhancements
 
 * #1099 [UI] Add application labels to Applications list and Applications details page
