@@ -268,7 +268,7 @@ $ ght relnote release-1.2..v1.3.0
 * jannfis <!-- num=10 -->
 * ssbtn <!-- num=2 -->
 
-## v1.3.0-rc5
+## v1.3.0-rc5 (2015-11-11)
 
 #### Enhancements
 
@@ -303,7 +303,7 @@ $ ght relnote release-1.2..v1.3.0
 * David Hong <!-- num=1 -->
 * dthomson25 <!-- num=1 -->
 
-## v1.3.0-rc4
+## v1.3.0-rc4 (2019-11-03)
 
 #### Enhancements
 
@@ -334,7 +334,7 @@ $ ght relnote release-1.2..v1.3.0
 * Alexander Matyushentsev <!-- num=6 -->
 * jannfis <!-- num=1 -->
 
-## v1.3.0-rc3
+## v1.3.0-rc3 (2019-10-29)
 
 #### Bug Fixes
 
