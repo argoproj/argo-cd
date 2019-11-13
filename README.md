@@ -33,6 +33,15 @@ If you are as excited about GitOps and one common engine for it as much as we ar
 
 Find us on the [#gitops channel](https://kubernetes.slack.com/messages/gitops) on Kubernetes Slack (get an [invite here](https://kubernetes.slack.com/)).
 
+### Contributing to the effort
+
+At this stage we are interested in feedback, use-cases and help on the GitOps Engine.
+
+If you want to immediately kick the tires, you can try out using builds of either [Argo CD][argo-poc] or [Flux CD][flux-poc] powered by the GitOps Engine.
+
+[argo-poc]: https://github.com/argoproj/argo-cd/tree/gitops-engine-poc#what-is-gitops-engine-poc-branch
+[flux-poc]: https://github.com/fluxcd/flux/tree/gitops-engine-poc#what-is-gitops-engine-poc-branch
+
 ### Slack Ask-Us-Anything
 
 We tried to summarise all relevant information here on Github. There's still very likely something we missed or which might be unclear, so we thought we'd bring together everyone behind this in one place and host an ask-us-anything session, where you can dive right into the big questions and the nuts and bolts of this announcement together with us.
