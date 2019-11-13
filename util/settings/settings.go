@@ -199,8 +199,8 @@ const (
 	resourceInclusionsKey = "resource.inclusions"
 	// configManagementPluginsKey is the key to the list of config management plugins
 	configManagementPluginsKey = "configManagementPlugins"
-	// kustomizeBuildOptions is a string of kustomize build parameters
-	kustomizeBuildOptions = "kustomize.buildOptions"
+	// kustomizeBuildOptionsKey is a string of kustomize build parameters
+	kustomizeBuildOptionsKey = "kustomize.buildOptions"
 	// anonymousUserEnabledKey is the key which enables or disables anonymous user
 	anonymousUserEnabledKey = "users.anonymous.enabled"
 )
@@ -341,7 +341,7 @@ func (mgr *SettingsManager) GetKustomizeBuildOptions() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return argoCDCM.Data[kustomizeBuildOptions], nil
+	return argoCDCM.Data[kustomizeBuildOptionsKey], nil
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
@@ -563,6 +563,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
 	settings.URL = argoCDCM.Data[settingURLKey]
+	settings.KustomizeBuildOptions = argoCDCM.Data[kustomizeBuildOptionsKey]
 	settings.StatusBadgeEnabled = argoCDCM.Data[statusBadgeEnabledKey] == "true"
 	settings.AnonymousUserEnabled = argoCDCM.Data[anonymousUserEnabledKey] == "true"
 }
