@@ -586,7 +586,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		gwmux = runtime.NewServeMux(gwMuxOpts, gwCookieOpts)
 		mux.Handle("/api/", gwmux)
 	} else {
-		// We need 32-byte non-changing which we use from server.csrfkey in argocd-secret
+		// We need 32-byte non-changing key which we use from server.csrfkey in argocd-secret
 		gwmux = runtime.NewServeMux(gwMuxOpts, gwCookieOpts, gwForwarder)
 		if a.settings.CsrfKey != nil && len(a.settings.CsrfKey) == 32 {
 			csrfKey := a.settings.CsrfKey
@@ -596,7 +596,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 			)(gwmux)
 			mux.Handle("/api/", protmux)
 		} else {
-			panic("server.csrfkey must be at exactly 32 byte long -- consider another value or --disable-csrf")
+			panic("server.csrfkey must be exactly 32 byte long -- consider another value or --disable-csrf")
 		}
 	}
 
