@@ -196,7 +196,8 @@ jobs:
             set -eux
             ps -aef | grep argocd-application-controller | grep -v grep | awk '{print $2}'
           when: always
-      - run: ls
+      - run:
+          command: ls
           when: always
       - upload_codecov
       - store_test_results:
