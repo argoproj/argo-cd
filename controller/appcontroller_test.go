@@ -410,10 +410,25 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 func TestFinalizeAppDeletion(t *testing.T) {
 	// Ensure app can be deleted cascading
 	{
+		defaultProj := argoappv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "default",
+				Namespace: test.FakeArgoCDNamespace,
+			},
+			Spec: argoappv1.AppProjectSpec{
+				SourceRepos: []string{"*"},
+				Destinations: []argoappv1.ApplicationDestination{
+					{
+						Server:    "*",
+						Namespace: "*",
+					},
+				},
+			},
+		}
 		app := newFakeApp()
 		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
 		appObj := kube.MustToUnstructured(&app)
-		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
 			kube.GetResourceKey(appObj): appObj,
 		}})
 

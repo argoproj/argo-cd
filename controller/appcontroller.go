@@ -483,13 +483,13 @@ func shouldBeDeleted(app *appv1.Application, obj *unstructured.Unstructured) boo
 }
 
 // Checks whether an object is permitted to be deleted according to the project restrictions
-func (ctrl *ApplicationController) isPermittedForDelete(app *appv1.Application, obj *unstructured.Unstructured) bool {
-	permitted := false
-	if proj, err := ctrl.getAppProj(app); err == nil {
+func (ctrl *ApplicationController) isPermittedForDelete(app *appv1.Application, obj *unstructured.Unstructured) (bool, error) {
+	if proj, err := ctrl.getAppProj(app); err != nil {
+		return false, err
+	} else {
 		dest := appv1.ApplicationDestination{Namespace: obj.GetNamespace(), Server: app.Spec.Destination.Server}
-		permitted = proj.IsDestinationPermitted(dest)
+		return proj.IsDestinationPermitted(dest), nil
 	}
-	return permitted
 }
 
 func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Application) ([]*unstructured.Unstructured, error) {
@@ -510,7 +510,11 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	}
 	objs := make([]*unstructured.Unstructured, 0)
 	for k := range objsMap {
-		if objsMap[k].GetDeletionTimestamp() == nil && shouldBeDeleted(app, objsMap[k]) && ctrl.isPermittedForDelete(app, objsMap[k]) {
+		permitted, err := ctrl.isPermittedForDelete(app, objsMap[k])
+		if err != nil {
+			return nil, err
+		}
+		if permitted && objsMap[k].GetDeletionTimestamp() == nil && shouldBeDeleted(app, objsMap[k]) {
 			objs = append(objs, objsMap[k])
 		}
 	}
@@ -534,7 +538,11 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		return objs, err
 	}
 	for k, obj := range objsMap {
-		if !shouldBeDeleted(app, obj) || !ctrl.isPermittedForDelete(app, obj) {
+		permitted, err := ctrl.isPermittedForDelete(app, obj)
+		if err != nil {
+			return objs, err
+		}
+		if !shouldBeDeleted(app, obj) || !permitted {
 			delete(objsMap, k)
 		}
 	}
