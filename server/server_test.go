@@ -486,6 +486,9 @@ func Test_StaticHeaders(t *testing.T) {
 		err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
 		assert.NoError(t, err)
 
+		// Allow server startup
+		time.Sleep(1 * time.Second)
+
 		client := http.Client{}
 		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", port)
 		req, err := http.NewRequest("GET", url, nil)
@@ -513,6 +516,9 @@ func Test_StaticHeaders(t *testing.T) {
 		err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
 		assert.NoError(t, err)
 
+		// Allow server startup
+		time.Sleep(1 * time.Second)
+
 		client := http.Client{}
 		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", port)
 		req, err := http.NewRequest("GET", url, nil)
@@ -539,6 +545,9 @@ func Test_StaticHeaders(t *testing.T) {
 
 		err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
 		assert.NoError(t, err)
+
+		// Allow server startup
+		time.Sleep(1 * time.Second)
 
 		client := http.Client{}
 		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", port)
