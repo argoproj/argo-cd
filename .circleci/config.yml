@@ -194,7 +194,7 @@ jobs:
           name: Kill services
           command: |
             set -eux
-            ps -aef | grep argocd-application-controller | grep -v grep | awk '{print #2}' | xargs kill
+            ps -aef | grep argocd-application-controller | grep -v grep | awk '{print $2}' | xargs kill
             pkill -u circleci argocd-server
             pkill -u circleci argocd-repo-server
           when: always
