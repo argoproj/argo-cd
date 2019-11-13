@@ -194,10 +194,14 @@ jobs:
           name: Kill services
           command: |
             set -eux
-            ps -aef | grep argocd-application-controller | grep -v grep | awk '{print $2}'
+            ps -aef | grep argocd-application-controller\|argocd-server\|argocd-repo-server | grep -v grep
+             # | awk '{print $2}' | xargs kill
           when: always
       - run:
-          command: ls
+          command: |
+            ls
+            cat *.out > coverage.out
+
           when: always
       - upload_codecov
       - store_test_results:
