@@ -361,8 +361,10 @@ func (mgr *SettingsManager) GetHelmDirectoryEnforcerLevel() (v1alpha1.HelmDirect
 	switch enforcerLevel {
 	case v1alpha1.EnforcerLevelRepo, v1alpha1.EnforcerLevelStrict:
 		return enforcerLevel, nil
-	default:
+	case "":
 		return v1alpha1.EnforcerLevelRepo, nil
+	default:
+		return "", fmt.Errorf("unknown DirectoryEnforcerLevel '%s'", enforcerLevel)
 	}
 }
 
