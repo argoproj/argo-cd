@@ -32,7 +32,7 @@ Check the versions:
 ```bash
 go version ;# must be v1.12.x
 helm version ;# must be v2.13.x
-kustomize version ;# must be v3.10.x
+kustomize version ;# must be v3.1.x
 ```
 
 Set up environment variables (e.g. is `~/.bashrc`):
