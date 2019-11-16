@@ -57,6 +57,6 @@ We tried to summarise all relevant information here on Github. There's still ver
 
 We're looking forward to seeing you there! Bring your friends and bring your questions!
 
-[kube-slack]: https://kubernetes.slack.com/
+[kube-slack]: https://slack.k8s.io/
 [gitops-slack]: https://kubernetes.slack.com/messages/gitops
 [tz-convert]: https://www.timeanddate.com/worldclock/fixedtime.html?msg=GitOps+Engine+Slack+AMA&iso=20191125T09&p1=224&ah=1
