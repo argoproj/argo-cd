@@ -61,9 +61,6 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		KustomizeOptions: &v1alpha1.KustomizeOptions{
 			BuildOptions: argoCDSettings.KustomizeBuildOptions,
 		},
-		HelmOptions: &v1alpha1.HelmOptions{
-			DirectoryEnforcerLevel: v1alpha1.HelmDirectoryEnforcerLevel(argoCDSettings.HelmDirectoryEnforcerLevel),
-		},
 		GoogleAnalytics: &settingspkg.GoogleAnalyticsConfig{
 			TrackingID:     gaSettings.TrackingID,
 			AnonymizeUsers: gaSettings.AnonymizeUsers,

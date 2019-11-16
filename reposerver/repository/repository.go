@@ -224,24 +224,13 @@ func getHelmRepos(repositories []*v1alpha1.Repository) []helm.HelmRepository {
 }
 
 func helmTemplate(appPath string, env *v1alpha1.Env, q *apiclient.ManifestRequest) ([]*unstructured.Unstructured, error) {
-	var baseDirectoryPath string
-	if q.HelmOptions != nil {
-		switch q.HelmOptions.DirectoryEnforcerLevel {
-		case v1alpha1.EnforcerLevelStrict:
-			baseDirectoryPath = appPath
-		case v1alpha1.EnforcerLevelRepo, "":
-			baseDirectoryPath = security.SubtractRelativeFromAbsolutePath(appPath, q.ApplicationSource.Path)
-		default:
-			return nil, fmt.Errorf("unknown DirectoryEnforcerLevel '%s'", q.HelmOptions.DirectoryEnforcerLevel)
-		}
-	}
 	templateOpts := &helm.TemplateOpts{
 		Name:              q.AppLabelValue,
 		Namespace:         q.Namespace,
 		KubeVersion:       text.SemVer(q.KubeVersion),
 		Set:               map[string]string{},
 		SetString:         map[string]string{},
-		BaseDirectoryPath: baseDirectoryPath,
+		BaseDirectoryPath: security.SubtractRelativeFromAbsolutePath(appPath, q.ApplicationSource.Path),
 	}
 	appHelm := q.ApplicationSource.Helm
 	if appHelm != nil {

@@ -67,8 +67,6 @@ type ArgoCDSettings struct {
 	Secrets map[string]string `json:"secrets,omitempty"`
 	// KustomizeBuildOptions is a string of kustomize build parameters
 	KustomizeBuildOptions string `json:"kustomizeBuildOptions,omitempty"`
-	// HelmDirectoryEnforcerLevel is a level of how strict to enforce directory sanity
-	HelmDirectoryEnforcerLevel string `json:"helmDirectoryEnforcerLevel,omitempty"`
 	// Indicates if anonymous user is enabled or not
 	AnonymousUserEnabled bool `json:"anonymousUserEnabled,omitempty"`
 }
@@ -205,8 +203,6 @@ const (
 	kustomizeBuildOptionsKey = "kustomize.buildOptions"
 	// anonymousUserEnabledKey is the key which enables or disables anonymous user
 	anonymousUserEnabledKey = "users.anonymous.enabled"
-	// helmDirectoryEnforcerLevelKey is the level to enforce directory traversals in Helm
-	helmDirectoryEnforcerLevelKey = "helm.directoryEnforcerLevel"
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -349,23 +345,6 @@ func (mgr *SettingsManager) GetKustomizeBuildOptions() (string, error) {
 		return value, nil
 	}
 	return "", nil
-}
-
-// GetHelmDirectoryEnforcerLevel loads the helm directory enforcer level from argocd-cm ConfigMap
-func (mgr *SettingsManager) GetHelmDirectoryEnforcerLevel() (v1alpha1.HelmDirectoryEnforcerLevel, error) {
-	argoCDCM, err := mgr.getConfigMap()
-	if err != nil {
-		return "", err
-	}
-	enforcerLevel := v1alpha1.HelmDirectoryEnforcerLevel(argoCDCM.Data[helmDirectoryEnforcerLevelKey])
-	switch enforcerLevel {
-	case v1alpha1.EnforcerLevelRepo, v1alpha1.EnforcerLevelStrict:
-		return enforcerLevel, nil
-	case "":
-		return v1alpha1.EnforcerLevelRepo, nil
-	default:
-		return "", fmt.Errorf("unknown DirectoryEnforcerLevel '%s'", enforcerLevel)
-	}
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
@@ -588,7 +567,6 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
 	settings.URL = argoCDCM.Data[settingURLKey]
 	settings.KustomizeBuildOptions = argoCDCM.Data[kustomizeBuildOptionsKey]
-	settings.HelmDirectoryEnforcerLevel = argoCDCM.Data[helmDirectoryEnforcerLevelKey]
 	settings.StatusBadgeEnabled = argoCDCM.Data[statusBadgeEnabledKey] == "true"
 	settings.AnonymousUserEnabled = argoCDCM.Data[anonymousUserEnabledKey] == "true"
 }

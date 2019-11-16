@@ -167,7 +167,6 @@ func ValidateRepo(
 	repoClientset apiclient.Clientset,
 	db db.ArgoDB,
 	kustomizeOptions *argoappv1.KustomizeOptions,
-	helmOptions *argoappv1.HelmOptions,
 	plugins []*argoappv1.ConfigManagementPlugin,
 	kubectl kube.Kubectl,
 ) ([]argoappv1.ApplicationCondition, error) {
@@ -241,7 +240,7 @@ func ValidateRepo(
 	if err != nil {
 		return nil, err
 	}
-	conditions = append(conditions, verifyGenerateManifests(ctx, repo, helmRepos, app, repoClient, kustomizeOptions, helmOptions, plugins, cluster.ServerVersion)...)
+	conditions = append(conditions, verifyGenerateManifests(ctx, repo, helmRepos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion)...)
 
 	return conditions, nil
 }
@@ -324,7 +323,6 @@ func verifyGenerateManifests(
 	app *argoappv1.Application,
 	repoClient apiclient.RepoServerServiceClient,
 	kustomizeOptions *argoappv1.KustomizeOptions,
-	helmOptions *argoappv1.HelmOptions,
 	plugins []*argoappv1.ConfigManagementPlugin,
 	kubeVersion string,
 ) []argoappv1.ApplicationCondition {
@@ -350,7 +348,6 @@ func verifyGenerateManifests(
 		ApplicationSource: &spec.Source,
 		Plugins:           plugins,
 		KustomizeOptions:  kustomizeOptions,
-		HelmOptions:       helmOptions,
 		KubeVersion:       kubeVersion,
 	}
 	req.Repo.CopyCredentialsFromRepo(repoRes)

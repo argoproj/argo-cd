@@ -814,7 +814,7 @@ func liveObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstructu
 }
 
 func getLocalObjects(app *argoappv1.Application, local, appLabelKey, kubeVersion string) []*unstructured.Unstructured {
-	manifestStrings := getLocalObjectsString(app, local, appLabelKey, kubeVersion, nil, nil)
+	manifestStrings := getLocalObjectsString(app, local, appLabelKey, kubeVersion, nil)
 	objs := make([]*unstructured.Unstructured, len(manifestStrings))
 	for i := range manifestStrings {
 		obj := unstructured.Unstructured{}
@@ -825,7 +825,7 @@ func getLocalObjects(app *argoappv1.Application, local, appLabelKey, kubeVersion
 	return objs
 }
 
-func getLocalObjectsString(app *argoappv1.Application, local, appLabelKey, kubeVersion string, kustomizeOptions *argoappv1.KustomizeOptions, helmOptions *argoappv1.HelmOptions) []string {
+func getLocalObjectsString(app *argoappv1.Application, local, appLabelKey, kubeVersion string, kustomizeOptions *argoappv1.KustomizeOptions) []string {
 	res, err := repository.GenerateManifests(local, app.Spec.Source.TargetRevision, &repoapiclient.ManifestRequest{
 		Repo:              &argoappv1.Repository{Repo: app.Spec.Source.RepoURL},
 		AppLabelKey:       appLabelKey,
@@ -833,7 +833,6 @@ func getLocalObjectsString(app *argoappv1.Application, local, appLabelKey, kubeV
 		Namespace:         app.Spec.Destination.Namespace,
 		ApplicationSource: &app.Spec.Source,
 		KustomizeOptions:  kustomizeOptions,
-		HelmOptions:       helmOptions,
 		KubeVersion:       kubeVersion,
 	})
 	errors.CheckError(err)
@@ -1384,7 +1383,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: app.Spec.Destination.Server})
 					errors.CheckError(err)
 					util.Close(conn)
-					localObjsStrings = getLocalObjectsString(app, local, cluster.ServerVersion, argoSettings.AppLabelKey, argoSettings.KustomizeOptions, argoSettings.HelmOptions)
+					localObjsStrings = getLocalObjectsString(app, local, cluster.ServerVersion, argoSettings.AppLabelKey, argoSettings.KustomizeOptions)
 				}
 
 				syncReq := applicationpkg.ApplicationSyncRequest{

@@ -128,10 +128,6 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	helmDirectoryEnforcerLevel, err := m.settingsMgr.GetHelmDirectoryEnforcerLevel()
-	if err != nil {
-		return nil, nil, nil, err
-	}
 	cluster, err := m.db.GetCluster(context.Background(), app.Spec.Destination.Server)
 	if err != nil {
 		return nil, nil, nil, err
@@ -152,9 +148,6 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		Plugins:           tools,
 		KustomizeOptions: &appv1.KustomizeOptions{
 			BuildOptions: buildOptions,
-		},
-		HelmOptions: &appv1.HelmOptions{
-			DirectoryEnforcerLevel: helmDirectoryEnforcerLevel,
 		},
 		KubeVersion: cluster.ServerVersion,
 	})

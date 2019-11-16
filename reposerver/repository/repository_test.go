@@ -217,31 +217,8 @@ func TestGenerateHelmWithValues(t *testing.T) {
 
 }
 
-// This tests against a path traversal attack. The requested value file (`../minio/values.yaml`) is outside the
-// app path (`./util/helm/testdata/redis`) and since the EnforcerLevel is Strict, it should be blocked
-func TestGenerateHelmWithValuesDirectoryTraversalStrict(t *testing.T) {
-	service := newService("../..")
-
-	_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-		Repo:          &argoappv1.Repository{},
-		AppLabelValue: "test",
-		ApplicationSource: &argoappv1.ApplicationSource{
-			Path: "./util/helm/testdata/redis",
-			Helm: &argoappv1.ApplicationSourceHelm{
-				ValueFiles: []string{"../minio/values.yaml"},
-				Values:     `cluster: {slaveCount: 2}`,
-			},
-		},
-		HelmOptions: &argoappv1.HelmOptions{
-			DirectoryEnforcerLevel: argoappv1.EnforcerLevelStrict,
-		},
-	})
-	assert.Error(t, err, "should be on or under current directory")
-}
-
 // The requested value file (`../minio/values.yaml`) is outside the app path (`./util/helm/testdata/redis`), however
-// since the EnforcerLevel is set to Repo and the requested value is sill under the repo directory
-// (`~/go/src/github.com/argoproj/argo-cd`), it is allowed
+// since the requested value is sill under the repo directory (`~/go/src/github.com/argoproj/argo-cd`), it is allowed
 func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 	service := newService("../..")
 
@@ -254,9 +231,6 @@ func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 				ValueFiles: []string{"../minio/values.yaml"},
 				Values:     `cluster: {slaveCount: 2}`,
 			},
-		},
-		HelmOptions: &argoappv1.HelmOptions{
-			DirectoryEnforcerLevel: argoappv1.EnforcerLevelRepo,
 		},
 	})
 	assert.NoError(t, err)
