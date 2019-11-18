@@ -57,6 +57,7 @@ Ensure dependencies are up to date first:
 dep ensure
 make dev-tools-image
 make install-lint-tools
+go get github.com/mattn/goreman
 ```
 
 Common make targets:
