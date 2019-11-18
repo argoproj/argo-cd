@@ -50,7 +50,10 @@ func ZJWT(text string) (string, error) {
 		return "", err
 	}
 	var buf bytes.Buffer
-	w := gzip.NewWriter(&buf)
+	w, err := gzip.NewWriterLevel(&buf, gzip.BestCompression)
+	if err != nil {
+		return "", err
+	}
 	_, err = w.Write(decodedPayload)
 	if err != nil {
 		return "", err
