@@ -24,7 +24,7 @@ Install:
 Brew users can quickly install the lot:
 
 ```bash
-brew install go git-lfs kubectl kubectx dep ksonnet/tap/ks kubernetes-helm kustomize
+brew install go git-lfs kubectl kubectx dep ksonnet/tap/ks helm@2 kustomize
 ```
 
 Check the versions:

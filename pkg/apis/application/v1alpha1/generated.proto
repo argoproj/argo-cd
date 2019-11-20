@@ -167,6 +167,9 @@ message ApplicationSourceHelm {
 
   // Values is Helm values, typically defined as a block
   optional string values = 4;
+
+  // FileParameters are file parameters to the helm template
+  repeated HelmFileParameter fileParameters = 5;
 }
 
 // ApplicationSourceJsonnet holds jsonnet specific options
@@ -392,6 +395,15 @@ message HealthStatus {
   optional string status = 1;
 
   optional string message = 2;
+}
+
+// HelmFileParameter is a file parameter to a helm template
+message HelmFileParameter {
+  // Name is the name of the helm parameter
+  optional string name = 1;
+
+  // Path is the path value for the helm parameter
+  optional string path = 2;
 }
 
 // HelmParameter is a parameter to a helm template

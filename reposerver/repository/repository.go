@@ -234,6 +234,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		KubeVersion: text.SemVer(q.KubeVersion),
 		Set:         map[string]string{},
 		SetString:   map[string]string{},
+		SetFile:     map[string]string{},
 	}
 
 	appHelm := q.ApplicationSource.Helm
@@ -291,6 +292,9 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 				templateOpts.Set[p.Name] = p.Value
 			}
 		}
+		for _, p := range appHelm.FileParameters {
+			templateOpts.SetFile[p.Name] = p.Path
+		}
 	}
 	if templateOpts.Name == "" {
 		templateOpts.Name = q.AppLabelValue
@@ -300,6 +304,9 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	}
 	for i, j := range templateOpts.SetString {
 		templateOpts.SetString[i] = env.Envsubst(j)
+	}
+	for i, j := range templateOpts.SetFile {
+		templateOpts.SetFile[i] = env.Envsubst(j)
 	}
 	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos))
 	if err != nil {
@@ -731,6 +738,12 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 					Value: v,
 				})
 			}
+			for _, v := range fileParameters(q) {
+				res.Helm.FileParameters = append(res.Helm.FileParameters, &v1alpha1.HelmFileParameter{
+					Name: v.Name,
+					Path: v.Path, //filepath.Join(appPath, v.Path),
+				})
+			}
 		case v1alpha1.ApplicationSourceTypeKustomize:
 			res.Kustomize = &apiclient.KustomizeAppSpec{}
 			k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), q.Repo.Repo)
@@ -795,6 +808,13 @@ func valueFiles(q *apiclient.RepoServerAppDetailsQuery) []string {
 		return nil
 	}
 	return q.Source.Helm.ValueFiles
+}
+
+func fileParameters(q *apiclient.RepoServerAppDetailsQuery) []v1alpha1.HelmFileParameter {
+	if q.Source.Helm == nil {
+		return nil
+	}
+	return q.Source.Helm.FileParameters
 }
 
 func (s *Service) newClient(repo *v1alpha1.Repository) (git.Client, error) {

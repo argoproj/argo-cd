@@ -841,6 +841,19 @@ func TestApplicationSourceHelm_AddParameter(t *testing.T) {
 	})
 }
 
+func TestApplicationSourceHelm_AddFileParameter(t *testing.T) {
+	src := ApplicationSourceHelm{}
+	t.Run("Add", func(t *testing.T) {
+		src.AddFileParameter(HelmFileParameter{Name: "foo", Path: "bar"})
+		assert.ElementsMatch(t, []HelmFileParameter{{Name: "foo", Path: "bar"}}, src.FileParameters)
+
+	})
+	t.Run("Replace", func(t *testing.T) {
+		src.AddFileParameter(HelmFileParameter{Name: "foo", Path: "baz"})
+		assert.ElementsMatch(t, []HelmFileParameter{{Name: "foo", Path: "baz"}}, src.FileParameters)
+	})
+}
+
 func TestNewHelmParameter(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
 		_, err := NewHelmParameter("garbage", false)
@@ -869,6 +882,7 @@ func TestApplicationSourceHelm_IsZero(t *testing.T) {
 		{"ValueFiles", &ApplicationSourceHelm{ValueFiles: []string{""}}, false},
 		{"Parameters", &ApplicationSourceHelm{Parameters: []HelmParameter{{}}}, false},
 		{"ReleaseName", &ApplicationSourceHelm{ReleaseName: "foa"}, false},
+		{"FileParameters", &ApplicationSourceHelm{FileParameters: []HelmFileParameter{{}}}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

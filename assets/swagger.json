@@ -85,7 +85,7 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "ListMixin8",
+        "operationId": "List",
         "parameters": [
           {
             "type": "string",
@@ -135,7 +135,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "CreateMixin8",
+        "operationId": "Create",
         "parameters": [
           {
             "name": "body",
@@ -162,7 +162,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "UpdateMixin8",
+        "operationId": "Update",
         "parameters": [
           {
             "type": "string",
@@ -293,7 +293,7 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "GetMixin8",
+        "operationId": "Get",
         "parameters": [
           {
             "type": "string",
@@ -343,7 +343,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "DeleteMixin8",
+        "operationId": "Delete",
         "parameters": [
           {
             "type": "string",
@@ -982,7 +982,7 @@
           "ClusterService"
         ],
         "summary": "List returns list of clusters",
-        "operationId": "List",
+        "operationId": "ListMixin3",
         "parameters": [
           {
             "type": "string",
@@ -1004,7 +1004,7 @@
           "ClusterService"
         ],
         "summary": "Create creates a cluster",
-        "operationId": "Create",
+        "operationId": "CreateMixin3",
         "parameters": [
           {
             "name": "body",
@@ -1031,7 +1031,7 @@
           "ClusterService"
         ],
         "summary": "Update updates a cluster",
-        "operationId": "Update",
+        "operationId": "UpdateMixin3",
         "parameters": [
           {
             "type": "string",
@@ -1064,7 +1064,7 @@
           "ClusterService"
         ],
         "summary": "Get returns a cluster by server address",
-        "operationId": "GetMixin2",
+        "operationId": "GetMixin3",
         "parameters": [
           {
             "type": "string",
@@ -1087,7 +1087,7 @@
           "ClusterService"
         ],
         "summary": "Delete deletes a cluster",
-        "operationId": "Delete",
+        "operationId": "DeleteMixin3",
         "parameters": [
           {
             "type": "string",
@@ -1137,7 +1137,7 @@
           "ProjectService"
         ],
         "summary": "List returns list of projects",
-        "operationId": "ListMixin6",
+        "operationId": "ListMixin4",
         "parameters": [
           {
             "type": "string",
@@ -1159,7 +1159,7 @@
           "ProjectService"
         ],
         "summary": "Create a new project.",
-        "operationId": "CreateMixin6",
+        "operationId": "CreateMixin4",
         "parameters": [
           {
             "name": "body",
@@ -1186,7 +1186,7 @@
           "ProjectService"
         ],
         "summary": "Get returns a project by name",
-        "operationId": "GetMixin6",
+        "operationId": "GetMixin4",
         "parameters": [
           {
             "type": "string",
@@ -1209,7 +1209,7 @@
           "ProjectService"
         ],
         "summary": "Delete deletes a project",
-        "operationId": "DeleteMixin6",
+        "operationId": "DeleteMixin4",
         "parameters": [
           {
             "type": "string",
@@ -1284,7 +1284,7 @@
           "ProjectService"
         ],
         "summary": "Update updates a project",
-        "operationId": "UpdateMixin6",
+        "operationId": "UpdateMixin4",
         "parameters": [
           {
             "type": "string",
@@ -1744,7 +1744,7 @@
           "SessionService"
         ],
         "summary": "Create a new JWT for authentication and set a cookie if using HTTP.",
-        "operationId": "CreateMixin10",
+        "operationId": "CreateMixin7",
         "parameters": [
           {
             "name": "body",
@@ -1769,7 +1769,7 @@
           "SessionService"
         ],
         "summary": "Delete an existing JWT cookie if using HTTP.",
-        "operationId": "DeleteMixin10",
+        "operationId": "DeleteMixin7",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -1803,7 +1803,7 @@
           "SettingsService"
         ],
         "summary": "Get returns Argo CD settings",
-        "operationId": "Get",
+        "operationId": "GetMixin9",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -2301,6 +2301,13 @@
       "type": "object",
       "title": "HelmAppSpec contains helm app name  in source repo",
       "properties": {
+        "fileParameters": {
+          "type": "array",
+          "title": "helm file parameters",
+          "items": {
+            "$ref": "#/definitions/v1alpha1HelmFileParameter"
+          }
+        },
         "name": {
           "type": "string"
         },
@@ -3118,6 +3125,13 @@
       "type": "object",
       "title": "ApplicationSourceHelm holds helm specific options",
       "properties": {
+        "fileParameters": {
+          "type": "array",
+          "title": "FileParameters are file parameters to the helm template",
+          "items": {
+            "$ref": "#/definitions/v1alpha1HelmFileParameter"
+          }
+        },
         "parameters": {
           "type": "array",
           "title": "Parameters are parameters to the helm template",
@@ -3473,6 +3487,20 @@
         },
         "status": {
           "type": "string"
+        }
+      }
+    },
+    "v1alpha1HelmFileParameter": {
+      "type": "object",
+      "title": "HelmFileParameter is a file parameter to a helm template",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name is the name of the helm parameter"
+        },
+        "path": {
+          "type": "string",
+          "title": "Path is the path value for the helm parameter"
         }
       }
     },

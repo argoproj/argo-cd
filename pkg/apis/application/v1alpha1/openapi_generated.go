@@ -43,6 +43,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConnectionState":                  schema_pkg_apis_application_v1alpha1_ConnectionState(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.EnvEntry":                         schema_pkg_apis_application_v1alpha1_EnvEntry(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HealthStatus":                     schema_pkg_apis_application_v1alpha1_HealthStatus(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HelmFileParameter":                schema_pkg_apis_application_v1alpha1_HelmFileParameter(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HelmParameter":                    schema_pkg_apis_application_v1alpha1_HelmParameter(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Info":                             schema_pkg_apis_application_v1alpha1_Info(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.InfoItem":                         schema_pkg_apis_application_v1alpha1_InfoItem(ref),
@@ -617,11 +618,24 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 							Format:      "",
 						},
 					},
+					"fileParameters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FileParameters are file parameters to the helm template",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HelmFileParameter"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HelmParameter"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HelmFileParameter", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HelmParameter"},
 	}
 }
 
@@ -1411,6 +1425,33 @@ func schema_pkg_apis_application_v1alpha1_HealthStatus(ref common.ReferenceCallb
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
 							Format: "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_HelmFileParameter(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "HelmFileParameter is a file parameter to a helm template",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name is the name of the helm parameter",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"path": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Path is the path value for the helm parameter",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},

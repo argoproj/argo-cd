@@ -34,4 +34,9 @@ func Test_setHelmOpt(t *testing.T) {
 		setHelmOpt(&src, helmOpts{helmSetStrings: []string{"foo=bar"}})
 		assert.Equal(t, []v1alpha1.HelmParameter{{Name: "foo", Value: "bar", ForceString: true}}, src.Helm.Parameters)
 	})
+	t.Run("HelmSetFiles", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setHelmOpt(&src, helmOpts{helmSetFiles: []string{"foo=bar"}})
+		assert.Equal(t, []v1alpha1.HelmFileParameter{{Name: "foo", Path: "bar"}}, src.Helm.FileParameters)
+	})
 }

@@ -127,6 +127,21 @@ spec:
                     helm:
                       description: Helm holds helm specific options
                       properties:
+                        fileParameters:
+                          description: FileParameters are file parameters to the helm
+                            template
+                          items:
+                            description: HelmFileParameter is a file parameter to
+                              a helm template
+                            properties:
+                              name:
+                                description: Name is the name of the helm parameter
+                                type: string
+                              path:
+                                description: Path is the path value for the helm parameter
+                                type: string
+                            type: object
+                          type: array
                         parameters:
                           description: Parameters are parameters to the helm template
                           items:
@@ -392,6 +407,21 @@ spec:
                 helm:
                   description: Helm holds helm specific options
                   properties:
+                    fileParameters:
+                      description: FileParameters are file parameters to the helm
+                        template
+                      items:
+                        description: HelmFileParameter is a file parameter to a helm
+                          template
+                        properties:
+                          name:
+                            description: Name is the name of the helm parameter
+                            type: string
+                          path:
+                            description: Path is the path value for the helm parameter
+                            type: string
+                        type: object
+                      type: array
                     parameters:
                       description: Parameters are parameters to the helm template
                       items:
@@ -627,6 +657,22 @@ spec:
                       helm:
                         description: Helm holds helm specific options
                         properties:
+                          fileParameters:
+                            description: FileParameters are file parameters to the
+                              helm template
+                            items:
+                              description: HelmFileParameter is a file parameter to
+                                a helm template
+                              properties:
+                                name:
+                                  description: Name is the name of the helm parameter
+                                  type: string
+                                path:
+                                  description: Path is the path value for the helm
+                                    parameter
+                                  type: string
+                              type: object
+                            type: array
                           parameters:
                             description: Parameters are parameters to the helm template
                             items:
@@ -866,6 +912,23 @@ spec:
                             helm:
                               description: Helm holds helm specific options
                               properties:
+                                fileParameters:
+                                  description: FileParameters are file parameters
+                                    to the helm template
+                                  items:
+                                    description: HelmFileParameter is a file parameter
+                                      to a helm template
+                                    properties:
+                                      name:
+                                        description: Name is the name of the helm
+                                          parameter
+                                        type: string
+                                      path:
+                                        description: Path is the path value for the
+                                          helm parameter
+                                        type: string
+                                    type: object
+                                  type: array
                                 parameters:
                                   description: Parameters are parameters to the helm
                                     template
@@ -1133,6 +1196,22 @@ spec:
                         helm:
                           description: Helm holds helm specific options
                           properties:
+                            fileParameters:
+                              description: FileParameters are file parameters to the
+                                helm template
+                              items:
+                                description: HelmFileParameter is a file parameter
+                                  to a helm template
+                                properties:
+                                  name:
+                                    description: Name is the name of the helm parameter
+                                    type: string
+                                  path:
+                                    description: Path is the path value for the helm
+                                      parameter
+                                    type: string
+                                type: object
+                              type: array
                             parameters:
                               description: Parameters are parameters to the helm template
                               items:
@@ -1390,6 +1469,22 @@ spec:
                         helm:
                           description: Helm holds helm specific options
                           properties:
+                            fileParameters:
+                              description: FileParameters are file parameters to the
+                                helm template
+                              items:
+                                description: HelmFileParameter is a file parameter
+                                  to a helm template
+                                properties:
+                                  name:
+                                    description: Name is the name of the helm parameter
+                                    type: string
+                                  path:
+                                    description: Path is the path value for the helm
+                                      parameter
+                                    type: string
+                                type: object
+                              type: array
                             parameters:
                               description: Parameters are parameters to the helm template
                               items:

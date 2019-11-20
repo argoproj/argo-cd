@@ -162,6 +162,7 @@ type TemplateOpts struct {
 	KubeVersion string
 	Set         map[string]string
 	SetString   map[string]string
+	SetFile     map[string]string
 	Values      []string
 }
 
@@ -187,6 +188,9 @@ func (c *Cmd) template(chart string, opts *TemplateOpts) (string, error) {
 	}
 	for key, val := range opts.SetString {
 		args = append(args, "--set-string", key+"="+cleanSetParameters(val))
+	}
+	for key, val := range opts.SetFile {
+		args = append(args, "--set-file", key+"="+cleanSetParameters(val))
 	}
 	for _, val := range opts.Values {
 		args = append(args, "--values", val)

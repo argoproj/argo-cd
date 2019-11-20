@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"syscall"
 
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
@@ -54,7 +53,7 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 
 			if currentPassword == "" {
 				fmt.Print("*** Enter current password: ")
-				password, err := terminal.ReadPassword(syscall.Stdin)
+				password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 				errors.CheckError(err)
 				currentPassword = string(password)
 				fmt.Print("\n")
