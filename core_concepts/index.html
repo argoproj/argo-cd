@@ -370,9 +370,28 @@
           
 
 
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-5" type="checkbox" id="nav-5-5">
+    
+    <label class="md-nav__link" for="nav-5-5">
+      Single Sign On (SSO) & Role-Based Access Control (RBAC)
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
+      <label class="md-nav__title" for="nav-5-5">
+        Single Sign On (SSO) & Role-Based Access Control (RBAC)
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
   <li class="md-nav__item">
-    <a href="../operator-manual/sso/" title="SSO Configuration" class="md-nav__link">
-      SSO Configuration
+    <a href="../operator-manual/sso/" title="SSO Overview" class="md-nav__link">
+      SSO Overview
     </a>
   </li>
 
@@ -383,9 +402,62 @@
 
 
   <li class="md-nav__item">
-    <a href="../operator-manual/rbac/" title="RBAC" class="md-nav__link">
-      RBAC
+    <a href="../operator-manual/sso/auth0/" title="Auth0" class="md-nav__link">
+      Auth0
     </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../operator-manual/sso/microsoft/" title="Microsoft" class="md-nav__link">
+      Microsoft
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../operator-manual/sso/okta/" title="Okta" class="md-nav__link">
+      Okta
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../operator-manual/sso/onelogin/" title="OneLogin" class="md-nav__link">
+      OneLogin
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../operator-manual/rbac/" title="RBAC Configuration" class="md-nav__link">
+      RBAC Configuration
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
   </li>
 
         
@@ -409,6 +481,18 @@
   <li class="md-nav__item">
     <a href="../operator-manual/cluster-bootstrapping/" title="Cluster Bootstrapping" class="md-nav__link">
       Cluster Bootstrapping
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../operator-manual/secret-management/" title="Secret Management" class="md-nav__link">
+      Secret Management
     </a>
   </li>
 
@@ -575,6 +659,18 @@
 
 
   <li class="md-nav__item">
+    <a href="../user-guide/jsonnet/" title="Jsonnet" class="md-nav__link">
+      Jsonnet
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../user-guide/config-management-plugins/" title="Plugins" class="md-nav__link">
       Plugins
     </a>
@@ -685,6 +781,18 @@
   <li class="md-nav__item">
     <a href="../user-guide/parameters/" title="Parameter Overrides" class="md-nav__link">
       Parameter Overrides
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../user-guide/build-environment/" title="Build Environment" class="md-nav__link">
+      Build Environment
     </a>
   </li>
 
@@ -1005,13 +1113,13 @@
 <ul>
 <li><strong>Application</strong> A group of Kubernetes resources as defined by a manifest. This is a Custom Resource Definition (CRD).</li>
 <li><strong>Application source type</strong> Which <strong>Tool</strong> is used to build the application.</li>
-<li><strong>Target state</strong> The desired state of an application, as represented by files in a Git repository. </li>
+<li><strong>Target state</strong> The desired state of an application, as represented by files in a Git repository.</li>
 <li><strong>Live state</strong> The live state of that application. What pods etc are deployed.</li>
-<li><strong>Sync status</strong> Whether or not the live state matches the target state. Is the deployed application the same as Git says it should be? </li>
-<li><strong>Sync</strong> The process of making an application move to its target state. E.g. by applying changes to a Kubernetes cluster. </li>
+<li><strong>Sync status</strong> Whether or not the live state matches the target state. Is the deployed application the same as Git says it should be?</li>
+<li><strong>Sync</strong> The process of making an application move to its target state. E.g. by applying changes to a Kubernetes cluster.</li>
 <li><strong>Sync operation status</strong> Whether or not a sync succeeded.</li>
 <li><strong>Refresh</strong> Compare the latest code in Git with the live state. Figure out what is different.</li>
-<li><strong>Health</strong> The health the application, is it running correctly? Can it serve requests? </li>
+<li><strong>Health</strong> The health of the application, is it running correctly? Can it serve requests?</li>
 <li><strong>Tool</strong> A tool to create manifests from a directory of files. E.g. Kustomize or Ksonnet. See <strong>Application Source Type</strong>.</li>
 <li><strong>Configuration management tool</strong> See <strong>Tool</strong>.</li>
 <li><strong>Configuration management plugin</strong> A custom tool.</li>

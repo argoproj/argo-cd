@@ -361,9 +361,28 @@
           
 
 
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-5" type="checkbox" id="nav-5-5">
+    
+    <label class="md-nav__link" for="nav-5-5">
+      Single Sign On (SSO) & Role-Based Access Control (RBAC)
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
+      <label class="md-nav__title" for="nav-5-5">
+        Single Sign On (SSO) & Role-Based Access Control (RBAC)
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
   <li class="md-nav__item">
-    <a href="../../operator-manual/sso/" title="SSO Configuration" class="md-nav__link">
-      SSO Configuration
+    <a href="../../operator-manual/sso/" title="SSO Overview" class="md-nav__link">
+      SSO Overview
     </a>
   </li>
 
@@ -374,9 +393,62 @@
 
 
   <li class="md-nav__item">
-    <a href="../../operator-manual/rbac/" title="RBAC" class="md-nav__link">
-      RBAC
+    <a href="../../operator-manual/sso/auth0/" title="Auth0" class="md-nav__link">
+      Auth0
     </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/sso/microsoft/" title="Microsoft" class="md-nav__link">
+      Microsoft
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/sso/okta/" title="Okta" class="md-nav__link">
+      Okta
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/sso/onelogin/" title="OneLogin" class="md-nav__link">
+      OneLogin
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/rbac/" title="RBAC Configuration" class="md-nav__link">
+      RBAC Configuration
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
   </li>
 
         
@@ -400,6 +472,18 @@
   <li class="md-nav__item">
     <a href="../../operator-manual/cluster-bootstrapping/" title="Cluster Bootstrapping" class="md-nav__link">
       Cluster Bootstrapping
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/secret-management/" title="Secret Management" class="md-nav__link">
+      Secret Management
     </a>
   </li>
 
@@ -568,6 +652,18 @@
 
 
   <li class="md-nav__item">
+    <a href="../jsonnet/" title="Jsonnet" class="md-nav__link">
+      Jsonnet
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../config-management-plugins/" title="Plugins" class="md-nav__link">
       Plugins
     </a>
@@ -678,6 +774,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#credential-templates" class="md-nav__link">
+    Credential templates
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#self-signed-untrusted-tls-certificates" class="md-nav__link">
     Self-signed &amp; Untrusted TLS Certificates
   </a>
@@ -742,6 +845,13 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#git-submodules" class="md-nav__link">
+    Git Submodules
+  </a>
   
 </li>
       
@@ -831,6 +941,18 @@
   <li class="md-nav__item">
     <a href="../parameters/" title="Parameter Overrides" class="md-nav__link">
       Parameter Overrides
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../build-environment/" title="Build Environment" class="md-nav__link">
+      Build Environment
     </a>
   </li>
 
@@ -1184,6 +1306,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#credential-templates" class="md-nav__link">
+    Credential templates
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#self-signed-untrusted-tls-certificates" class="md-nav__link">
     Self-signed &amp; Untrusted TLS Certificates
   </a>
@@ -1248,6 +1377,13 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#git-submodules" class="md-nav__link">
+    Git Submodules
+  </a>
   
 </li>
       
@@ -1378,6 +1514,51 @@
 </blockquote>
 <p>The Argo CD UI don't support configuring SSH credentials. The SSH credentials can only be configured using the Argo CD CLI:</p>
 <div class="codehilite"><pre><span></span><span class="n">argocd</span><span class="w"> </span><span class="n">repo</span><span class="w"> </span><span class="k">add</span><span class="w"> </span><span class="n">git</span><span class="nv">@github</span><span class="p">.</span><span class="nl">com</span><span class="p">:</span><span class="n">argoproj</span><span class="o">/</span><span class="n">argocd</span><span class="o">-</span><span class="n">example</span><span class="o">-</span><span class="n">apps</span><span class="p">.</span><span class="n">git</span><span class="w"> </span><span class="c1">--ssh-private-key-path ~/.ssh/id_rsa</span>
+</pre></div>
+
+
+<h2 id="credential-templates">Credential templates<a class="headerlink" href="#credential-templates" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p>previous to v1.4</p>
+</blockquote>
+<p>Credential templates are available only via declarative setup, see <a href="../../operator-manual/declarative-setup#repository-credentials">Repository credentials</a> in Operator Manual.</p>
+<blockquote>
+<p>v1.4 and later</p>
+</blockquote>
+<p>You can also set up credentials to serve as templates for connecting repositories, without having to repeat credential configuration. For example, if you setup credential templates for the URL prefix <code>https://github.com/argoproj</code>, these credentials will be used for all repositories with this URL as prefix (e.g. <code>https://github.com/argoproj/argocd-example-apps</code>) that do not have their own credentials configured.</p>
+<p>To set up a credential template using the Web UI, simply fill in all relevant credential information in the <strong>Connect repo using SSH</strong> or <strong>Connect repo using HTTPS</strong> dialogues (as described above), but select <strong>Save as credential template</strong> instead of <strong>Connect</strong> to save the credential template. Be sure to only enter the prefix URL (i.e. <code>https://github.com/argoproj</code>) instead of the complete repository URL (i.e. <code>https://github.com/argoproj/argocd-example-apps</code>) in the field <strong>Repository URL</strong></p>
+<p>To manage credential templates using the CLI, use the <code>repocreds</code> sub-command, for example <code>argocd repocreds add https://github.com/argoproj --username youruser --password yourpass</code> would setup a credential template for the URL prefix <code>https://github.com/argoproj</code> using the specified username/password combination. Similar to the <code>repo</code> sub-command, you can also list and remove repository credentials using the <code>argocd repocreds list</code> and <code>argocd repocreds rm</code> commands, respectively.</p>
+<p>In order for ArgoCD to use a credential template for any given repository, the following conditions must be met:</p>
+<ul>
+<li>The repository must either not be configured at all, or if configured, must not contain any credential information </li>
+<li>The URL configured for a credential template (e.g. <code>https://github.com/argoproj</code>) must match as prefix for the repository URL (e.g. <code>https://github.com/argoproj/argocd-example-apps</code>). </li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Repositories that require authentication can be added using CLI or Web UI without specifying credentials only after a matching repository credential has been set up</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Matching credential template URL prefixes is done on a <em>best match</em> effort, so the longest (best) match will take precedence. The order of definition is not important, as opposed to pre v1.4 configuration.</p>
+</div>
+<p>The following is an example CLI session, depicting repository credential set-up:</p>
+<div class="codehilite"><pre><span></span><span class="c1"># Try to add a private repository without specifying credentials, will fail</span>
+$ argocd repo add https://docker-build/repos/argocd-example-apps
+FATA<span class="o">[</span><span class="m">0000</span><span class="o">]</span> rpc error: <span class="nv">code</span> <span class="o">=</span> Unknown <span class="nv">desc</span> <span class="o">=</span> authentication required 
+
+<span class="c1"># Setup a credential template for all repos under https://docker-build/repos</span>
+$ argocd repocreds add https://docker-build/repos --username <span class="nb">test</span> --password <span class="nb">test</span>
+repository credentials <span class="k">for</span> <span class="s1">&#39;https://docker-build/repos&#39;</span> added
+
+<span class="c1"># Repeat first step, add repo without specifying credentials</span>
+<span class="c1"># URL for template matches, will succeed</span>
+$ argocd repo add https://docker-build/repos/argocd-example-apps
+repository <span class="s1">&#39;https://docker-build/repos/argocd-example-apps&#39;</span> added
+
+<span class="c1"># Add another repo under https://docker-build/repos, specifying invalid creds</span>
+<span class="c1"># Will fail, because it will not use the template (has own creds)</span>
+$ argocd repo add https://docker-build/repos/example-apps-part-two --username <span class="nb">test</span> --password invalid
+FATA<span class="o">[</span><span class="m">0000</span><span class="o">]</span> rpc error: <span class="nv">code</span> <span class="o">=</span> Unknown <span class="nv">desc</span> <span class="o">=</span> authentication required
 </pre></div>
 
 
@@ -1566,6 +1747,8 @@ vs-ssh.visualstudio.com  ssh   ssh-rsa              SHA256:ohD8VZEXGWo6Ez8GSEJQ9
 <p class="admonition-title">This does not work for Kustomize remote bases or custom plugins</p>
 <p>For Kustomize support, see <a href="https://github.com/argoproj/argo-cd/issues/827">#827</a>.</p>
 </div>
+<h2 id="git-submodules">Git Submodules<a class="headerlink" href="#git-submodules" title="Permanent link">&para;</a></h2>
+<p>Submodules are supported and will be picked up automatically. If the submodule repository requires authentication then the credentials will need to match the credentials of the parent repository. Set ARGOCD_GIT_MODULES_ENABLED=false to disable submodule support</p>
 <h2 id="declarative-configuration">Declarative Configuration<a class="headerlink" href="#declarative-configuration" title="Permanent link">&para;</a></h2>
 <p>See <a href="../../operator-manual/declarative-setup#Repositories">declarative setup</a></p>
                 

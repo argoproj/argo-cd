@@ -361,9 +361,28 @@
           
 
 
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-5" type="checkbox" id="nav-5-5">
+    
+    <label class="md-nav__link" for="nav-5-5">
+      Single Sign On (SSO) & Role-Based Access Control (RBAC)
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
+      <label class="md-nav__title" for="nav-5-5">
+        Single Sign On (SSO) & Role-Based Access Control (RBAC)
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
   <li class="md-nav__item">
-    <a href="../../operator-manual/sso/" title="SSO Configuration" class="md-nav__link">
-      SSO Configuration
+    <a href="../../operator-manual/sso/" title="SSO Overview" class="md-nav__link">
+      SSO Overview
     </a>
   </li>
 
@@ -374,9 +393,62 @@
 
 
   <li class="md-nav__item">
-    <a href="../../operator-manual/rbac/" title="RBAC" class="md-nav__link">
-      RBAC
+    <a href="../../operator-manual/sso/auth0/" title="Auth0" class="md-nav__link">
+      Auth0
     </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/sso/microsoft/" title="Microsoft" class="md-nav__link">
+      Microsoft
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/sso/okta/" title="Okta" class="md-nav__link">
+      Okta
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/sso/onelogin/" title="OneLogin" class="md-nav__link">
+      OneLogin
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/rbac/" title="RBAC Configuration" class="md-nav__link">
+      RBAC Configuration
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
   </li>
 
         
@@ -400,6 +472,18 @@
   <li class="md-nav__item">
     <a href="../../operator-manual/cluster-bootstrapping/" title="Cluster Bootstrapping" class="md-nav__link">
       Cluster Bootstrapping
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/secret-management/" title="Secret Management" class="md-nav__link">
+      Secret Management
     </a>
   </li>
 
@@ -572,6 +656,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#build-environment" class="md-nav__link">
+    Build Environment
+  </a>
+  
+</li>
+      
       
       
       
@@ -603,6 +694,18 @@
   <li class="md-nav__item">
     <a href="../ksonnet/" title="Ksonnet" class="md-nav__link">
       Ksonnet
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../jsonnet/" title="Jsonnet" class="md-nav__link">
+      Jsonnet
     </a>
   </li>
 
@@ -723,6 +826,18 @@
   <li class="md-nav__item">
     <a href="../parameters/" title="Parameter Overrides" class="md-nav__link">
       Parameter Overrides
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../build-environment/" title="Build Environment" class="md-nav__link">
+      Build Environment
     </a>
   </li>
 
@@ -1042,6 +1157,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#build-environment" class="md-nav__link">
+    Build Environment
+  </a>
+  
+</li>
+      
       
       
       
@@ -1065,6 +1187,7 @@
 <p>You have three configuration options for Kustomize:</p>
 <ul>
 <li><code>namePrefix</code> is a prefix appended to resources for Kustomize apps</li>
+<li><code>nameSuffix</code> is a suffix appended to resources for Kustomize apps</li>
 <li><code>images</code> is a list of Kustomize image overrides</li>
 </ul>
 <p>To use Kustomize with an overlay, point your path to the overlay.</p>
@@ -1089,6 +1212,10 @@
 <span class="nt">data</span><span class="p">:</span>
     <span class="nt">kustomize.buildOptions</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">--load_restrictor none</span>
 </pre></div>
+
+
+<h2 id="build-environment">Build Environment<a class="headerlink" href="#build-environment" title="Permanent link">&para;</a></h2>
+<p>Kustomize does not support parameters and therefore cannot support the standard <a href="../build-environment/">build environment</a>.</p>
                 
                   
                 

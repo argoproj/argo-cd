@@ -391,6 +391,19 @@
     Option 1: SSL-Passthrough
   </a>
   
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ssl-passthrough-with-cert-manager-and-lets-encrypt" class="md-nav__link">
+    SSL-Passthrough with cert-manager and Let's Encrypt
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -449,9 +462,28 @@
           
 
 
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-5" type="checkbox" id="nav-5-5">
+    
+    <label class="md-nav__link" for="nav-5-5">
+      Single Sign On (SSO) & Role-Based Access Control (RBAC)
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
+      <label class="md-nav__title" for="nav-5-5">
+        Single Sign On (SSO) & Role-Based Access Control (RBAC)
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
   <li class="md-nav__item">
-    <a href="../sso/" title="SSO Configuration" class="md-nav__link">
-      SSO Configuration
+    <a href="../sso/" title="SSO Overview" class="md-nav__link">
+      SSO Overview
     </a>
   </li>
 
@@ -462,9 +494,62 @@
 
 
   <li class="md-nav__item">
-    <a href="../rbac/" title="RBAC" class="md-nav__link">
-      RBAC
+    <a href="../sso/auth0/" title="Auth0" class="md-nav__link">
+      Auth0
     </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../sso/microsoft/" title="Microsoft" class="md-nav__link">
+      Microsoft
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../sso/okta/" title="Okta" class="md-nav__link">
+      Okta
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../sso/onelogin/" title="OneLogin" class="md-nav__link">
+      OneLogin
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../rbac/" title="RBAC Configuration" class="md-nav__link">
+      RBAC Configuration
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
   </li>
 
         
@@ -488,6 +573,18 @@
   <li class="md-nav__item">
     <a href="../cluster-bootstrapping/" title="Cluster Bootstrapping" class="md-nav__link">
       Cluster Bootstrapping
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../secret-management/" title="Secret Management" class="md-nav__link">
+      Secret Management
     </a>
   </li>
 
@@ -654,6 +751,18 @@
 
 
   <li class="md-nav__item">
+    <a href="../../user-guide/jsonnet/" title="Jsonnet" class="md-nav__link">
+      Jsonnet
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../../user-guide/config-management-plugins/" title="Plugins" class="md-nav__link">
       Plugins
     </a>
@@ -764,6 +873,18 @@
   <li class="md-nav__item">
     <a href="../../user-guide/parameters/" title="Parameter Overrides" class="md-nav__link">
       Parameter Overrides
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/build-environment/" title="Build Environment" class="md-nav__link">
+      Build Environment
     </a>
   </li>
 
@@ -1082,6 +1203,19 @@
     Option 1: SSL-Passthrough
   </a>
   
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ssl-passthrough-with-cert-manager-and-lets-encrypt" class="md-nav__link">
+    SSL-Passthrough with cert-manager and Let's Encrypt
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -1183,6 +1317,37 @@ must be used to passthrough TLS connections and terminate TLS at the Argo CD API
 and responds appropriately. Note that the <code>nginx.ingress.kubernetes.io/ssl-passthrough</code> annotation
 requires that the <code>--enable-ssl-passthrough</code> flag be added to the command line arguments to
 <code>nginx-ingress-controller</code>.</p>
+<h4 id="ssl-passthrough-with-cert-manager-and-lets-encrypt">SSL-Passthrough with cert-manager and Let's Encrypt<a class="headerlink" href="#ssl-passthrough-with-cert-manager-and-lets-encrypt" title="Permanent link">&para;</a></h4>
+<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">extensions/v1beta1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server-ingress</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+  <span class="nt">annotations</span><span class="p">:</span>
+    <span class="nt">certmanager.k8s.io/cluster-issuer</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">letsencrypt-prod</span>
+    <span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+    <span class="nt">kubernetes.io/tls-acme</span><span class="p">:</span> <span class="s">&quot;true&quot;</span>
+    <span class="nt">nginx.ingress.kubernetes.io/ssl-passthrough</span><span class="p">:</span> <span class="s">&quot;true&quot;</span>
+    <span class="c1"># If you encounter a redirect loop or are getting a 307 response code </span>
+    <span class="c1"># then you need to force the nginx ingress to connect to the backend using HTTPS.</span>
+    <span class="c1">#</span>
+    <span class="c1"># nginx.ingress.kubernetes.io/backend-protocol: &quot;HTTPS&quot;</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">rules</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd.example.com</span>
+    <span class="nt">http</span><span class="p">:</span>
+      <span class="nt">paths</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">backend</span><span class="p">:</span>
+          <span class="nt">serviceName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server</span>
+          <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https</span>
+        <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/</span>
+  <span class="nt">tls</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">hosts</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">argocd.example.com</span>
+    <span class="nt">secretName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-secret</span> <span class="c1"># do not change, this is provided by Argo CD</span>
+</pre></div>
+
+
 <h3 id="option-2-multiple-ingress-objects-and-hosts">Option 2: Multiple Ingress Objects And Hosts<a class="headerlink" href="#option-2-multiple-ingress-objects-and-hosts" title="Permanent link">&para;</a></h3>
 <p>Since ingress-nginx Ingress supports only a single protocol per Ingress object, an alternative
 way would be to define two Ingress objects. One for HTTP/HTTPS, and the other for gRPC:</p>
@@ -1206,7 +1371,7 @@ way would be to define two Ingress objects. One for HTTP/HTTPS, and the other fo
   <span class="nt">tls</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">hosts</span><span class="p">:</span>
     <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">argocd.example.com</span>
-    <span class="nt">secretName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-secret</span>
+    <span class="nt">secretName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-secret</span> <span class="c1"># do not change, this is provided by Argo CD</span>
 </pre></div>
 
 
@@ -1229,7 +1394,7 @@ way would be to define two Ingress objects. One for HTTP/HTTPS, and the other fo
   <span class="nt">tls</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">hosts</span><span class="p">:</span>
     <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">grpc.argocd.example.com</span>
-    <span class="nt">secretName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-secret</span>
+    <span class="nt">secretName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-secret</span> <span class="c1"># do not change, this is provided by Argo CD</span>
 </pre></div>
 
 
@@ -1369,13 +1534,13 @@ Example nginx.conf with URL rewrite:</p>
           </a>
         
         
-          <a href="../sso/" title="SSO Configuration" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+          <a href="../sso/" title="SSO Overview" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
               <span class="md-flex__ellipsis">
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                SSO Configuration
+                SSO Overview
               </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink">

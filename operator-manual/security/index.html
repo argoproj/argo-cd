@@ -363,9 +363,28 @@
           
 
 
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-5" type="checkbox" id="nav-5-5">
+    
+    <label class="md-nav__link" for="nav-5-5">
+      Single Sign On (SSO) & Role-Based Access Control (RBAC)
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
+      <label class="md-nav__title" for="nav-5-5">
+        Single Sign On (SSO) & Role-Based Access Control (RBAC)
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
   <li class="md-nav__item">
-    <a href="../sso/" title="SSO Configuration" class="md-nav__link">
-      SSO Configuration
+    <a href="../sso/" title="SSO Overview" class="md-nav__link">
+      SSO Overview
     </a>
   </li>
 
@@ -376,9 +395,62 @@
 
 
   <li class="md-nav__item">
-    <a href="../rbac/" title="RBAC" class="md-nav__link">
-      RBAC
+    <a href="../sso/auth0/" title="Auth0" class="md-nav__link">
+      Auth0
     </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../sso/microsoft/" title="Microsoft" class="md-nav__link">
+      Microsoft
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../sso/okta/" title="Okta" class="md-nav__link">
+      Okta
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../sso/onelogin/" title="OneLogin" class="md-nav__link">
+      OneLogin
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../rbac/" title="RBAC Configuration" class="md-nav__link">
+      RBAC Configuration
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
   </li>
 
         
@@ -509,6 +581,18 @@
   <li class="md-nav__item">
     <a href="../cluster-bootstrapping/" title="Cluster Bootstrapping" class="md-nav__link">
       Cluster Bootstrapping
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../secret-management/" title="Secret Management" class="md-nav__link">
+      Secret Management
     </a>
   </li>
 
@@ -675,6 +759,18 @@
 
 
   <li class="md-nav__item">
+    <a href="../../user-guide/jsonnet/" title="Jsonnet" class="md-nav__link">
+      Jsonnet
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../../user-guide/config-management-plugins/" title="Plugins" class="md-nav__link">
       Plugins
     </a>
@@ -785,6 +881,18 @@
   <li class="md-nav__item">
     <a href="../../user-guide/parameters/" title="Parameter Overrides" class="md-nav__link">
       Parameter Overrides
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/build-environment/" title="Build Environment" class="md-nav__link">
+      Build Environment
     </a>
   </li>
 
@@ -1216,7 +1324,7 @@ in one of the following ways:</p>
 </ol>
 <h2 id="authorization">Authorization<a class="headerlink" href="#authorization" title="Permanent link">&para;</a></h2>
 <p>Authorization is performed by iterating the list of group membership in a user's JWT groups claims,
-and comparing each group against the roles/rules in the <a href="../rbac/">RBAC</a> policy. Any matched rule
+and comparing each group against the roles/rules in the <a href="../rbac">RBAC</a> policy. Any matched rule
 permits access to the API request.</p>
 <h2 id="tls">TLS<a class="headerlink" href="#tls" title="Permanent link">&para;</a></h2>
 <p>All network communication is performed over TLS including service-to-service communication between
@@ -1252,17 +1360,20 @@ argocd cluster add CONTEXTNAME
 <p>To revoke Argo CD's access to a managed cluster, delete the RBAC artifacts against the <em><em>managed</em></em>
 cluster, and remove the cluster entry from Argo CD:</p>
 <div class="codehilite"><pre><span></span><span class="c1"># run using a kubeconfig for the externally managed cluster</span>
-kubectl delete sa argocd-manager -n kube-system 
+kubectl delete sa argocd-manager -n kube-system
 kubectl delete clusterrole argocd-manager-role
 kubectl delete clusterrolebinding argocd-manager-role-binding
 argocd cluster rm https://your-kubernetes-cluster-addr
 </pre></div>
 
 
+<!-- markdownlint-disable MD027 -->
+
 <blockquote>
 <p>NOTE: for AWS EKS clusters, <a href="https://github.com/kubernetes-sigs/aws-iam-authenticator">aws-iam-authenticator</a>
   is used to authenticate to the external cluster, which uses IAM roles in lieu of locally stored
-  tokens, so token rotation is not needed, and revokation is handled through IAM.</p>
+  tokens, so token rotation is not needed, and revokation is handled through IAM.
+<!-- markdownlint-enable MD027 --></p>
 </blockquote>
 <h2 id="cluster-rbac">Cluster RBAC<a class="headerlink" href="#cluster-rbac" title="Permanent link">&para;</a></h2>
 <p>By default, Argo CD uses a <a href="https://github.com/argoproj/argo-cd/blob/master/manifests/base/application-controller/argocd-application-controller-role.yaml">clusteradmin level role</a>
@@ -1282,7 +1393,7 @@ kubectl edit clusterrole argocd-manager-role
 </pre></div>
 
 
-<p>To fine-tune privileges which Argo CD has against its own cluster (i.e. https://kubernetes.default.svc),
+<p>To fine-tune privileges which Argo CD has against its own cluster (i.e. <code>https://kubernetes.default.svc</code>),
 edit the following cluster roles where Argo CD is running in:</p>
 <div class="codehilite"><pre><span></span><span class="c1"># run using a kubeconfig to the cluster Argo CD is running in</span>
 kubectl edit clusterrole argocd-server
@@ -1292,7 +1403,7 @@ kubectl edit clusterrole argocd-application-controller
 
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
-<p>If you want to deny ArgoCD access to a kind of resource then add it as an <a href="../declarative-setup/#resource-exclusion">excluded resource</a>. </p>
+<p>If you want to deny ArgoCD access to a kind of resource then add it as an <a href="../declarative-setup/#resource-exclusion">excluded resource</a>.</p>
 </div>
 <h2 id="auditing">Auditing<a class="headerlink" href="#auditing" title="Permanent link">&para;</a></h2>
 <p>As a GitOps deployment tool, the Git commit history provides a natural audit log of what changes
@@ -1350,7 +1461,7 @@ at three minute intervals, just fast-tracked by the webhook event.</p>
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
         
-          <a href="../rbac/" title="RBAC" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+          <a href="../rbac/" title="RBAC Configuration" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
             <div class="md-flex__cell md-flex__cell--shrink">
               <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
             </div>
@@ -1359,7 +1470,7 @@ at three minute intervals, just fast-tracked by the webhook event.</p>
                 <span class="md-footer-nav__direction">
                   Previous
                 </span>
-                RBAC
+                RBAC Configuration
               </span>
             </div>
           </a>

@@ -361,9 +361,28 @@
           
 
 
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-5" type="checkbox" id="nav-5-5">
+    
+    <label class="md-nav__link" for="nav-5-5">
+      Single Sign On (SSO) & Role-Based Access Control (RBAC)
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
+      <label class="md-nav__title" for="nav-5-5">
+        Single Sign On (SSO) & Role-Based Access Control (RBAC)
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
   <li class="md-nav__item">
-    <a href="../operator-manual/sso/" title="SSO Configuration" class="md-nav__link">
-      SSO Configuration
+    <a href="../operator-manual/sso/" title="SSO Overview" class="md-nav__link">
+      SSO Overview
     </a>
   </li>
 
@@ -374,9 +393,62 @@
 
 
   <li class="md-nav__item">
-    <a href="../operator-manual/rbac/" title="RBAC" class="md-nav__link">
-      RBAC
+    <a href="../operator-manual/sso/auth0/" title="Auth0" class="md-nav__link">
+      Auth0
     </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../operator-manual/sso/microsoft/" title="Microsoft" class="md-nav__link">
+      Microsoft
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../operator-manual/sso/okta/" title="Okta" class="md-nav__link">
+      Okta
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../operator-manual/sso/onelogin/" title="OneLogin" class="md-nav__link">
+      OneLogin
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../operator-manual/rbac/" title="RBAC Configuration" class="md-nav__link">
+      RBAC Configuration
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
   </li>
 
         
@@ -400,6 +472,18 @@
   <li class="md-nav__item">
     <a href="../operator-manual/cluster-bootstrapping/" title="Cluster Bootstrapping" class="md-nav__link">
       Cluster Bootstrapping
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../operator-manual/secret-management/" title="Secret Management" class="md-nav__link">
+      Secret Management
     </a>
   </li>
 
@@ -566,6 +650,18 @@
 
 
   <li class="md-nav__item">
+    <a href="../user-guide/jsonnet/" title="Jsonnet" class="md-nav__link">
+      Jsonnet
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../user-guide/config-management-plugins/" title="Plugins" class="md-nav__link">
       Plugins
     </a>
@@ -676,6 +772,18 @@
   <li class="md-nav__item">
     <a href="../user-guide/parameters/" title="Parameter Overrides" class="md-nav__link">
       Parameter Overrides
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../user-guide/build-environment/" title="Build Environment" class="md-nav__link">
+      Build Environment
     </a>
   </li>
 
@@ -1122,14 +1230,14 @@
 <li><a href="https://kubernetes.io/docs/setup/minikube/">minikube</a> or Docker for Desktop</li>
 </ul>
 <p>Brew users can quickly install the lot:</p>
-<div class="codehilite"><pre><span></span>brew install go git-lfs kubectl kubectx dep ksonnet/tap/ks kubernetes-helm kustomize kustomize
+<div class="codehilite"><pre><span></span>brew install go git-lfs kubectl kubectx dep ksonnet/tap/ks kubernetes-helm kustomize
 </pre></div>
 
 
 <p>Check the versions:</p>
-<div class="codehilite"><pre><span></span><span class="k">go</span><span class="w"> </span><span class="n">version</span><span class="w"> </span><span class="p">;</span><span class="err">#</span><span class="w"> </span><span class="n">must</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">v1</span><span class="mf">.12</span><span class="p">.</span><span class="n">x</span><span class="w"></span>
-<span class="n">helm</span><span class="w"> </span><span class="n">version</span><span class="w"> </span><span class="p">;</span><span class="err">#</span><span class="w"> </span><span class="n">must</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">v2</span><span class="mf">.13</span><span class="p">.</span><span class="n">x</span><span class="w"></span>
-<span class="n">kustomize</span><span class="w"> </span><span class="n">version</span><span class="w"> </span><span class="p">;</span><span class="err">#</span><span class="w"> </span><span class="n">must</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">v3</span><span class="mf">.10</span><span class="p">.</span><span class="n">x</span><span class="w"></span>
+<div class="codehilite"><pre><span></span>go version <span class="p">;</span><span class="c1"># must be v1.12.x</span>
+helm version <span class="p">;</span><span class="c1"># must be v2.13.x</span>
+kustomize version <span class="p">;</span><span class="c1"># must be v3.1.x</span>
 </pre></div>
 
 
@@ -1148,8 +1256,9 @@
 <h2 id="building">Building<a class="headerlink" href="#building" title="Permanent link">&para;</a></h2>
 <p>Ensure dependencies are up to date first:</p>
 <div class="codehilite"><pre><span></span>dep ensure
-make dev-builder-image
+make dev-tools-image
 make install-lint-tools
+go get github.com/mattn/goreman
 </pre></div>
 
 
@@ -1173,7 +1282,7 @@ kubectl -n argocd scale deployment/argocd-redis --replicas <span class="m">0</sp
 
 
 <p>Download Yarn dependencies and Compile:</p>
-<div class="codehilite"><pre><span></span>~/go/src/github.com/argoproj/argo-cd/ui 
+<div class="codehilite"><pre><span></span>~/go/src/github.com/argoproj/argo-cd/ui
 yarn install
 yarn build
 </pre></div>
@@ -1190,7 +1299,7 @@ make start
 </pre></div>
 
 
-<p>You can open the UI: http://localhost:4000</p>
+<p>You can open the UI: <a href="http://localhost:4000">http://localhost:4000</a></p>
 <p>As an alternative to using the above command line parameters each time you call <code>argocd</code> CLI, you can set the following environment variables:</p>
 <div class="codehilite"><pre><span></span><span class="nb">export</span> <span class="nv">ARGOCD_SERVER</span><span class="o">=</span><span class="m">127</span>.0.0.1:8080
 <span class="nb">export</span> <span class="nv">ARGOCD_OPTS</span><span class="o">=</span><span class="s2">&quot;--plaintext --insecure&quot;</span>

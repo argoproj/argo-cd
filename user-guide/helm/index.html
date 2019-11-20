@@ -361,9 +361,28 @@
           
 
 
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5-5" type="checkbox" id="nav-5-5">
+    
+    <label class="md-nav__link" for="nav-5-5">
+      Single Sign On (SSO) & Role-Based Access Control (RBAC)
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="2">
+      <label class="md-nav__title" for="nav-5-5">
+        Single Sign On (SSO) & Role-Based Access Control (RBAC)
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
   <li class="md-nav__item">
-    <a href="../../operator-manual/sso/" title="SSO Configuration" class="md-nav__link">
-      SSO Configuration
+    <a href="../../operator-manual/sso/" title="SSO Overview" class="md-nav__link">
+      SSO Overview
     </a>
   </li>
 
@@ -374,9 +393,62 @@
 
 
   <li class="md-nav__item">
-    <a href="../../operator-manual/rbac/" title="RBAC" class="md-nav__link">
-      RBAC
+    <a href="../../operator-manual/sso/auth0/" title="Auth0" class="md-nav__link">
+      Auth0
     </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/sso/microsoft/" title="Microsoft" class="md-nav__link">
+      Microsoft
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/sso/okta/" title="Okta" class="md-nav__link">
+      Okta
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/sso/onelogin/" title="OneLogin" class="md-nav__link">
+      OneLogin
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/rbac/" title="RBAC Configuration" class="md-nav__link">
+      RBAC Configuration
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
   </li>
 
         
@@ -400,6 +472,18 @@
   <li class="md-nav__item">
     <a href="../../operator-manual/cluster-bootstrapping/" title="Cluster Bootstrapping" class="md-nav__link">
       Cluster Bootstrapping
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/secret-management/" title="Secret Management" class="md-nav__link">
+      Secret Management
     </a>
   </li>
 
@@ -618,6 +702,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#build-environment" class="md-nav__link">
+    Build Environment
+  </a>
+  
+</li>
+      
       
       
       
@@ -637,6 +728,18 @@
   <li class="md-nav__item">
     <a href="../ksonnet/" title="Ksonnet" class="md-nav__link">
       Ksonnet
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../jsonnet/" title="Jsonnet" class="md-nav__link">
+      Jsonnet
     </a>
   </li>
 
@@ -757,6 +860,18 @@
   <li class="md-nav__item">
     <a href="../parameters/" title="Parameter Overrides" class="md-nav__link">
       Parameter Overrides
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../build-environment/" title="Build Environment" class="md-nav__link">
+      Build Environment
     </a>
   </li>
 
@@ -1110,6 +1225,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#build-environment" class="md-nav__link">
+    Build Environment
+  </a>
+  
+</li>
+      
       
       
       
@@ -1156,7 +1278,7 @@ in the form of <code>-p PARAM=VALUE</code>. For example:</p>
 
 
 <h2 id="helm-release-name">Helm Release Name<a class="headerlink" href="#helm-release-name" title="Permanent link">&para;</a></h2>
-<p>By default the Helm release name is equal to the Application name to which it belongs. Sometimes, especially on a centralised ArgoCD, 
+<p>By default the Helm release name is equal to the Application name to which it belongs. Sometimes, especially on a centralised ArgoCD,
 you may want to override that  name, and it is possible with the <code>release-name</code> flag on the cli:</p>
 <div class="codehilite"><pre><span></span>argocd app <span class="nb">set</span> helm-guestbook --release-name myRelease
 </pre></div>
@@ -1178,8 +1300,8 @@ you may want to override that  name, and it is possible with the <code>release-n
 <p>v1.3 or later</p>
 </blockquote>
 <p>Helm hooks are similar to <a href="../resource_hooks/">Argo CD hooks</a>. In Helm, a hook
-is any normal Kubernetes resource annotated with the <code>helm.sh/hook</code> annotation. </p>
-<p>Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Argo CD's own hook annotations: </p>
+is any normal Kubernetes resource annotated with the <code>helm.sh/hook</code> annotation.</p>
+<p>Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Argo CD's own hook annotations:</p>
 <table>
 <thead>
 <tr>
@@ -1253,12 +1375,12 @@ is any normal Kubernetes resource annotated with the <code>helm.sh/hook</code> a
 </div>
 <h3 id="hook-tips">Hook Tips<a class="headerlink" href="#hook-tips" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Make your hook idempotent. </li>
+<li>Make your hook idempotent.</li>
 <li>Annotate <code>crd-install</code> with <code>hook-weight: "-2"</code> to make sure it runs to success before any install or upgrade hooks.</li>
 <li>Annotate  <code>pre-install</code> and <code>post-install</code> with <code>hook-weight: "-1"</code>. This will make sure it runs to success before any upgrade hooks.</li>
 <li>Annotate <code>pre-upgrade</code> and <code>post-upgrade</code> with <code>hook-delete-policy: before-hook-creation</code> to make sure it runs on every sync.</li>
 </ul>
-<p>Read more about <a href="../resource_hooks/">Argo hooks</a> and <a href="https://github.com/kubernetes/helm/blob/master/docs/charts_hooks.md">Helm hooks</a>. </p>
+<p>Read more about <a href="../resource_hooks/">Argo hooks</a> and <a href="https://github.com/kubernetes/helm/blob/master/docs/charts_hooks.md">Helm hooks</a>.</p>
 <h2 id="random-data">Random Data<a class="headerlink" href="#random-data" title="Permanent link">&para;</a></h2>
 <p>Helm templating has the ability to generate random data during chart rendering via the
 <code>randAlphaNum</code> function. Many helm charts from the <a href="https://github.com/helm/charts">charts repository</a>
@@ -1279,6 +1401,27 @@ regenerated every time the comparison is made, any application which makes use o
 function will always be in an <code>OutOfSync</code> state. This can be mitigated by explicitly setting a
 value, in the values.yaml such that the value is stable between each comparison. For example:</p>
 <div class="codehilite"><pre><span></span>argocd app <span class="nb">set</span> redis -p <span class="nv">password</span><span class="o">=</span>abc123
+</pre></div>
+
+
+<h2 id="build-environment">Build Environment<a class="headerlink" href="#build-environment" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p>v1.3</p>
+</blockquote>
+<p>Helm apps have access to the <a href="../build-environment/">standard build environment</a> via substitution as parameters. </p>
+<p>E.g. via the CLI:</p>
+<div class="codehilite"><pre><span></span>argocd app create APPNAME <span class="se">\</span>
+  --helm-set-string <span class="s1">&#39;app=${ARGOCD_APP_NAME}&#39;</span>
+</pre></div>
+
+
+<p>Or via declarative syntax:</p>
+<div class="codehilite"><pre><span></span>  <span class="nt">spec</span><span class="p">:</span>
+    <span class="nt">source</span><span class="p">:</span>
+      <span class="nt">helm</span><span class="p">:</span>
+        <span class="nt">parameters</span><span class="p">:</span>
+        <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">app</span>
+          <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">$ARGOCD_APP_NAME</span>
 </pre></div>
                 
                   
