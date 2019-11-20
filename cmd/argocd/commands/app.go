@@ -107,19 +107,19 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		Example: `
 	# Create a directory app
 	argocd app create guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --directory-recurse
-	
+
 	# Create a Jsonnet app
 	argocd app create jsonnet-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path jsonnet-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --jsonnet-ext-str replicas=2
-	
+
 	# Create a Helm app
 	argocd app create helm-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path helm-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --helm-set replicaCount=2
-	
+
 	# Create a Helm app from a Helm repo
 	argocd app create nginx-ingress --repo https://kubernetes-charts.storage.googleapis.com --helm-chart nginx-ingress --revision 1.24.3 --dest-namespace default --dest-server https://kubernetes.default.svc
-	
+
 	# Create a Kustomize app
 	argocd app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo=0.1
-	
+
 	# Create a app using a custom tool:
 	argocd app create ksane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
 `,
@@ -246,15 +246,10 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			windows := proj.Spec.SyncWindows.Matches(app)
 
 			switch output {
-			case "yaml":
-				yamlBytes, err := yaml.Marshal(app)
+			case "yaml", "json":
+				err := PrintResource(app, output)
 				errors.CheckError(err)
-				fmt.Println(string(yamlBytes))
-			case "json":
-				jsonBytes, err := json.MarshalIndent(app, "", "  ")
-				errors.CheckError(err)
-				fmt.Println(string(jsonBytes))
-			case "":
+			case "wide", "":
 				aURL := appURL(acdClient, app.Name)
 				printAppSummaryTable(app, aURL, windows)
 
@@ -279,11 +274,11 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					_ = w.Flush()
 				}
 			default:
-				log.Fatalf("Unknown output format: %s", output)
+				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: yaml, json")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
 	command.Flags().BoolVar(&showOperation, "show-operation", false, "Show application operation")
 	command.Flags().BoolVar(&showParams, "show-params", false, "Show application parameters and overrides")
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
@@ -383,9 +378,9 @@ func printAppSourceDetails(appSrc *argoappv1.ApplicationSource) {
 }
 
 func printAppConditions(w io.Writer, app *argoappv1.Application) {
-	_, _ = fmt.Fprintf(w, "CONDITION\tMESSAGE\n")
+	_, _ = fmt.Fprintf(w, "CONDITION\tMESSAGE\tLAST TRANSITION\n")
 	for _, item := range app.Status.Conditions {
-		_, _ = fmt.Fprintf(w, "%s\t%s\n", item.Type, item.Message)
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n", item.Type, item.Message, item.LastTransitionTime)
 	}
 }
 
@@ -1020,8 +1015,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					}
 
 					foundDiffs = true
-					err = diff.PrintDiff(item.key.Name, target, live)
-					errors.CheckError(err)
+					_ = diff.PrintDiff(item.key.Name, target, live)
 				}
 			}
 			if foundDiffs {
@@ -1032,7 +1026,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	}
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
 	command.Flags().BoolVar(&hardRefresh, "hard-refresh", false, "Refresh application data as well as target manifests cache")
-	command.Flags().StringVar(&local, "local", "", "Compare live app to a local ksonnet app")
+	command.Flags().StringVar(&local, "local", "", "Compare live app to a local manifests")
 	return command
 }
 
@@ -1161,18 +1155,15 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				appList = argo.FilterByProjects(appList, projects)
 			}
 			switch output {
-			case "yaml":
-				yamlBytes, err := yaml.Marshal(appList)
+			case "yaml", "json":
+				err := PrintResourceList(appList, output, false)
 				errors.CheckError(err)
-				fmt.Println(string(yamlBytes))
-			case "json":
-				jsonBytes, err := json.MarshalIndent(appList, "", "  ")
-				errors.CheckError(err)
-				fmt.Println(string(jsonBytes))
 			case "name":
 				printApplicationNames(appList)
-			default:
+			case "wide", "":
 				printApplicationTable(appList, &output)
+			default:
+				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
 		},
 	}
@@ -1258,8 +1249,8 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   argocd app wait my-app
 
   # Wait for multiple apps
-  argocd app wait my-app other-app 
-  
+  argocd app wait my-app other-app
+
   # Wait for apps by label, in this example we waiting for apps that are children of another app (aka app-of-apps)
   argocd app wait -l app.kubernetes.io/instance=apps`,
 		Run: func(c *cobra.Command, args []string) {
@@ -2139,7 +2130,7 @@ func filterResources(command *cobra.Command, resources []*argoappv1.ResourceDiff
 		if resourceName != "" && resourceName != obj.GetName() {
 			continue
 		}
-		if kind != "" && kind != gvk.Kind {
+		if kind != gvk.Kind {
 			continue
 		}
 		copy := obj.DeepCopy()

@@ -1,24 +1,28 @@
 discoveryTests:
-- inputPath: testdata/paused_rollout.yaml
+- inputPath: testdata/pre_v0.6_paused_rollout.yaml
   result:
     - name: resume
       disabled: false
-- inputPath: testdata/v0.2_paused_rollout.yaml
-  result:
-    - name: resume
-      disabled: false
-- inputPath: testdata/not_paused_rollout.yaml
+- inputPath: testdata/pre_v0.6_not_paused_rollout.yaml
   result:
     - name: resume
       disabled: true
-- inputPath: testdata/nil_paused_rollout.yaml
+- inputPath: testdata/pre_v0.6_nil_paused_rollout.yaml
+  result:
+    - name: resume
+      disabled: true
+- inputPath: testdata/has_pause_condition_rollout.yaml
+  result:
+    - name: resume
+      disabled: false
+- inputPath: testdata/no_pause_condition_rollout.yaml
   result:
     - name: resume
       disabled: true
 actionTests:
 - action: resume
-  inputPath: testdata/paused_rollout.yaml
-  expectedOutputPath: testdata/not_paused_rollout.yaml
+  inputPath: testdata/pre_v0.6_paused_rollout.yaml
+  expectedOutputPath: testdata/pre_v0.6_not_paused_rollout.yaml
 - action: resume
-  inputPath: testdata/v0.2_paused_rollout.yaml
-  expectedOutputPath: testdata/v0.2_not_paused_rollout.yaml
+  inputPath: testdata/has_pause_condition_rollout.yaml
+  expectedOutputPath: testdata/no_pause_condition_rollout.yaml

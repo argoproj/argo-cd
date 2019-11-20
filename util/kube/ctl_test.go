@@ -15,15 +15,14 @@ import (
 func TestConvertToVersion(t *testing.T) {
 	callbackExecuted := false
 	closerExecuted := false
-	kubectl := KubectlCmd{
-		func(command string) (util.Closer, error) {
-			callbackExecuted = true
-			return util.NewCloser(func() error {
-				closerExecuted = true
-				return nil
-			}), nil
-		},
-	}
+	kubectl := KubectlCmd{}
+	kubectl.SetOnKubectlRun(func(command string) (util.Closer, error) {
+		callbackExecuted = true
+		return util.NewCloser(func() error {
+			closerExecuted = true
+			return nil
+		}), nil
+	})
 
 	yamlBytes, err := ioutil.ReadFile("testdata/nginx.yaml")
 	assert.Nil(t, err)

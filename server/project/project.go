@@ -49,13 +49,25 @@ func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appcl
 	return &Server{enf: enf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr}
 }
 
+func validateProject(proj *v1alpha1.AppProject) error {
+	err := proj.ValidateProject()
+	if err != nil {
+		return err
+	}
+	err = rbac.ValidatePolicy(proj.ProjectPoliciesString())
+	if err != nil {
+		return status.Errorf(codes.InvalidArgument, "policy syntax error: %s", err.Error())
+	}
+	return nil
+}
+
 // CreateToken creates a new token to access a project
 func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateRequest) (*project.ProjectTokenResponse, error) {
 	prj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
-	err = prj.ValidateProject()
+	err = validateProject(prj)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +116,7 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 	if err != nil {
 		return nil, err
 	}
-	err = prj.ValidateProject()
+	err = validateProject(prj)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +153,7 @@ func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*
 		return nil, err
 	}
 	q.Project.NormalizePolicies()
-	err := q.Project.ValidateProject()
+	err := validateProject(q.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +212,7 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		return nil, err
 	}
 	q.Project.NormalizePolicies()
-	err := q.Project.ValidateProject()
+	err := validateProject(q.Project)
 	if err != nil {
 		return nil, err
 	}

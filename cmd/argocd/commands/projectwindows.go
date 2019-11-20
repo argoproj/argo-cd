@@ -235,6 +235,9 @@ func NewProjectWindowsUpdateCommand(clientOpts *argocdclient.ClientOptions) *cob
 
 // NewProjectWindowsListCommand returns a new instance of an `argocd proj windows list` command
 func NewProjectWindowsListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		output string
+	)
 	var command = &cobra.Command{
 		Use:   "list PROJECT",
 		Short: "List project sync windows",
@@ -249,10 +252,18 @@ func NewProjectWindowsListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
-
-			printSyncWindows(proj)
+			switch output {
+			case "yaml", "json":
+				err := PrintResourceList(proj.Spec.SyncWindows, output, false)
+				errors.CheckError(err)
+			case "wide", "":
+				printSyncWindows(proj)
+			default:
+				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
+			}
 		},
 	}
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
 	return command
 }
 

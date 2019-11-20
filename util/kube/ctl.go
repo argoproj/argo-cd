@@ -108,7 +108,7 @@ func isSupportedVerb(apiResource *metav1.APIResource, verb string) bool {
 	return false
 }
 
-func (k KubectlCmd) GetAPIResources(config *rest.Config, resourceFilter ResourceFilter) ([]APIResourceInfo, error) {
+func (k *KubectlCmd) GetAPIResources(config *rest.Config, resourceFilter ResourceFilter) ([]APIResourceInfo, error) {
 	apiResIfs, err := filterAPIResources(config, resourceFilter, func(apiResource *metav1.APIResource) bool {
 		return isSupportedVerb(apiResource, listVerb) && isSupportedVerb(apiResource, watchVerb)
 	}, "")
@@ -119,7 +119,7 @@ func (k KubectlCmd) GetAPIResources(config *rest.Config, resourceFilter Resource
 }
 
 // GetResource returns resource
-func (k KubectlCmd) GetResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
+func (k *KubectlCmd) GetResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
 	dynamicIf, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -138,7 +138,7 @@ func (k KubectlCmd) GetResource(config *rest.Config, gvk schema.GroupVersionKind
 }
 
 // PatchResource patches resource
-func (k KubectlCmd) PatchResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error) {
+func (k *KubectlCmd) PatchResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error) {
 	dynamicIf, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -157,7 +157,7 @@ func (k KubectlCmd) PatchResource(config *rest.Config, gvk schema.GroupVersionKi
 }
 
 // DeleteResource deletes resource
-func (k KubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error {
+func (k *KubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error {
 	dynamicIf, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return err
@@ -184,7 +184,7 @@ func (k KubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVersionK
 }
 
 // ApplyResource performs an apply of a unstructured resource
-func (k KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) (string, error) {
+func (k *KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) (string, error) {
 	log.Infof("Applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), config.Host, namespace)
 	f, err := ioutil.TempFile(util.TempDir, "")
 	if err != nil {
@@ -329,7 +329,7 @@ func Version() (string, error) {
 }
 
 // ConvertToVersion converts an unstructured object into the specified group/version
-func (k KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group string, version string) (*unstructured.Unstructured, error) {
+func (k *KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group string, version string) (*unstructured.Unstructured, error) {
 	gvk := obj.GroupVersionKind()
 	if gvk.Group == group && gvk.Version == version {
 		return obj.DeepCopy(), nil
@@ -375,7 +375,7 @@ func (k KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group strin
 	return &convertedObj, nil
 }
 
-func (k KubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
+func (k *KubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
 	client, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
 		return "", err
@@ -387,6 +387,6 @@ func (k KubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
 	return fmt.Sprintf("%s.%s", v.Major, v.Minor), nil
 }
 
-func (k KubectlCmd) SetOnKubectlRun(onKubectlRun func(command string) (util.Closer, error)) {
+func (k *KubectlCmd) SetOnKubectlRun(onKubectlRun func(command string) (util.Closer, error)) {
 	k.OnKubectlRun = onKubectlRun
 }

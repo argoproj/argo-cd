@@ -4,5 +4,6 @@
   "printWidth": 180,
   "singleQuote": true,
   "tabWidth": 4,
-  "jsxBracketSameLine": true
+  "jsxBracketSameLine": true,
+  "quoteProps": "consistent"
 }

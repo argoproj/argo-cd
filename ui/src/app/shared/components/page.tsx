@@ -1,10 +1,16 @@
 import {DataLoader, Page as ArgoPage, Toolbar, Utils} from 'argo-ui';
-import {parse} from 'cookie';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
-import {Observable} from 'rxjs';
+import {BehaviorSubject, Observable} from 'rxjs';
 import {AppContext} from '../context';
 import {services} from '../services';
+
+const mostRecentLoggedIn = new BehaviorSubject<boolean>(false);
+
+function isLoggedIn(): Observable<boolean> {
+    services.users.get().then(info => mostRecentLoggedIn.next(info.loggedIn));
+    return mostRecentLoggedIn;
+}
 
 export class Page extends React.Component<{title: string; toolbar?: Toolbar | Observable<Toolbar>}> {
     public static contextTypes = {
@@ -21,16 +27,19 @@ export class Page extends React.Component<{title: string; toolbar?: Toolbar | Ob
                         toolbar = toolbar || {};
                         toolbar.tools = [
                             toolbar.tools,
-                            // this is a crummy check, as the token maybe expired, but it is better than flashing user interface
-                            parse(document.cookie)['argocd.token'] ? (
-                                <a key='logout' onClick={() => this.goToLogin(true)}>
-                                    Logout
-                                </a>
-                            ) : (
-                                <a key='login' onClick={() => this.goToLogin(false)}>
-                                    Login
-                                </a>
-                            )
+                            <DataLoader key='loginPanel' load={() => isLoggedIn()}>
+                                {loggedIn =>
+                                    loggedIn ? (
+                                        <a key='logout' onClick={() => this.goToLogin(true)}>
+                                            Logout
+                                        </a>
+                                    ) : (
+                                        <a key='login' onClick={() => this.goToLogin(false)}>
+                                            Login
+                                        </a>
+                                    )
+                                }
+                            </DataLoader>
                         ];
                         return toolbar;
                     })

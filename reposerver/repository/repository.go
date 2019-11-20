@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/Masterminds/semver"
 	"github.com/TomOnTime/utfutil"
 	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/ghodss/yaml"
@@ -106,6 +107,7 @@ type operationSettings struct {
 // runRepoOperation downloads either git folder or helm chart and executes specified operation
 func (s *Service) runRepoOperation(
 	c context.Context,
+	revision string,
 	repo *v1alpha1.Repository,
 	source *v1alpha1.ApplicationSource,
 	getCached func(revision string) bool,
@@ -113,10 +115,16 @@ func (s *Service) runRepoOperation(
 	settings operationSettings) error {
 
 	var gitClient git.Client
+	var helmClient helm.Client
 	var err error
-	revision := source.TargetRevision
-	if !source.IsHelm() {
-		gitClient, revision, err = s.newClientResolveRevision(repo, source.TargetRevision)
+	revision = util.FirstNonEmpty(revision, source.TargetRevision)
+	if source.IsHelm() {
+		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart)
+		if err != nil {
+			return err
+		}
+	} else {
+		gitClient, revision, err = s.newClientResolveRevision(repo, revision)
 		if err != nil {
 			return err
 		}
@@ -125,6 +133,9 @@ func (s *Service) runRepoOperation(
 	if !settings.noCache && getCached(revision) {
 		return nil
 	}
+
+	s.metricsServer.IncPendingRepoRequest(repo.Repo)
+	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 	if settings.sem != nil {
 		err = settings.sem.Acquire(c, 1)
@@ -135,14 +146,17 @@ func (s *Service) runRepoOperation(
 	}
 
 	if source.IsHelm() {
-		helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds())
+		version, err := semver.NewVersion(revision)
+		if err != nil {
+			return err
+		}
 		if settings.noCache {
-			err = helmClient.CleanChartCache(source.Chart, revision)
+			err = helmClient.CleanChartCache(source.Chart, version)
 			if err != nil {
 				return err
 			}
 		}
-		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision)
+		chartPath, closer, err := helmClient.ExtractChart(source.Chart, version)
 		if err != nil {
 			return err
 		}
@@ -183,7 +197,7 @@ func (s *Service) GenerateManifest(c context.Context, q *apiclient.ManifestReque
 		}
 		return false
 	}
-	err := s.runRepoOperation(c, q.Repo, q.ApplicationSource, getCached, func(appPath string, revision string) error {
+	err := s.runRepoOperation(c, q.Revision, q.Repo, q.ApplicationSource, getCached, func(appPath string, revision string) error {
 		var err error
 		res, err = GenerateManifests(appPath, revision, q)
 		if err != nil {
@@ -605,7 +619,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		return false
 	}
 
-	err := s.runRepoOperation(ctx, q.Repo, q.Source, getCached, func(appPath string, revision string) error {
+	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, getCached, func(appPath string, revision string) error {
 		appSourceType, err := GetAppSourceType(q.Source, appPath)
 		if err != nil {
 			return err
@@ -757,6 +771,27 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 		return nil, "", err
 	}
 	return gitClient, commitSHA, nil
+}
+
+func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string) (helm.Client, string, error) {
+	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds())
+	constraints, err := semver.NewConstraint(revision)
+	if err != nil {
+		return nil, "", fmt.Errorf("invalid revision '%s': %v", revision, err)
+	}
+	index, err := helmClient.GetIndex()
+	if err != nil {
+		return nil, "", err
+	}
+	entries, err := index.GetEntries(chart)
+	if err != nil {
+		return nil, "", err
+	}
+	version, err := entries.MaxVersion(constraints)
+	if err != nil {
+		return nil, "", err
+	}
+	return helmClient, version.String(), nil
 }
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision

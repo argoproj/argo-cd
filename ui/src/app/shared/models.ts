@@ -326,6 +326,7 @@ export interface SyncStatus {
 export interface ApplicationCondition {
     type: string;
     message: string;
+    lastTransitionTime: string;
 }
 
 export interface ApplicationSummary {
@@ -609,7 +610,7 @@ export interface ResourceActionParam {
 export interface ResourceAction {
     name: string;
     params: ResourceActionParam[];
-    available: boolean;
+    disabled: boolean;
 }
 
 export interface SyncWindowsState {
