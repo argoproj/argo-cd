@@ -15,9 +15,3 @@ coverage:
       default:
         # allow test coverage to drop by 2%, assume that it's typically due to CI problems
         threshold: 2
-      e2e:
-        flags: e2e
-      test:
-        flags: test
-      ui:
-        flags: ui

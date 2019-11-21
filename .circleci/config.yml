@@ -52,7 +52,7 @@ commands:
     steps:
       - run:
           name: Uploading code coverage
-          command: bash <(curl -s https://codecov.io/bash) -f *.out -F {{ .Environment.CIRCLE_JOB }}
+          command: bash <(curl -s https://codecov.io/bash) -f *.out
           when: always
 jobs:
   codegen:
@@ -223,7 +223,7 @@ jobs:
       - run: yarn test
       - run:
           name: Upload code coverage
-          command: ./node_modules/.bin/codecov -p .. -F {{ .Environment.CIRCLE_JOB }}
+          command: ./node_modules/.bin/codecov -p ..
           when: always
       - run: NODE_ENV='production' yarn build
       - run: yarn lint
