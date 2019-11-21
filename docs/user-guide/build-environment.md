@@ -1,6 +1,6 @@
 # Build Environment
 
-> v1.3
+> v1.4
 
 [Custom tools](config-management-plugins.md), [Helm](helm.md), and [Jsonnet](jsonnet.md) support the following build env vars:
 
