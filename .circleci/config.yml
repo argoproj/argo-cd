@@ -225,7 +225,7 @@ jobs:
           name: Upload code coverage
           command: ./node_modules/.bin/codecov -p .. -F {{ .Environment.CIRCLE_JOB }}
           when: always
-      - run: yarn build
+      - run: NODE_ENV='production' yarn build
       - run: yarn lint
 workflows:
   version: 2

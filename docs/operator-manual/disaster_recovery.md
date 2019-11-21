@@ -23,3 +23,6 @@ Import from a backup:
 ```bash
 docker run -v ~/.kube:/home/argocd/.kube --rm argoproj/argocd:$VERSION argocd-util import - < backup.yaml
 ```
+
+!!! note
+    If you are running Argo CD on a namespace different than default remember to pass the namespace parameter (-n <namespace>). 'argocd-util export' will not fail if you run it in the wrong namespace.

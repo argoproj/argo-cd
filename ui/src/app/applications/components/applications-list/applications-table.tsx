@@ -1,4 +1,4 @@
-import {DropDownMenu, Tooltip} from 'argo-ui';
+import {DropDownMenu} from 'argo-ui';
 import * as React from 'react';
 import {Cluster} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
@@ -6,19 +6,7 @@ import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
 import {OperationState} from '../utils';
-
-const GitUrlParse = require('git-url-parse');
-
 require('./applications-table.scss');
-
-function shortRepo(repo: string) {
-    const url = GitUrlParse(repo);
-    return (
-        <Tooltip content={repo}>
-            <span>{url.pathname.slice(1)}</span>
-        </Tooltip>
-    );
-}
 
 export const ApplicationsTable = (props: {
     applications: models.Application[];
@@ -52,7 +40,7 @@ export const ApplicationsTable = (props: {
                                 <div className='row'>
                                     <div className='show-for-xxlarge columns small-2'>Source:</div>
                                     <div className='columns small-12 xxlarge-10' style={{position: 'relative'}}>
-                                        {shortRepo(app.spec.source.repoURL)}/{app.spec.source.path}
+                                        {app.spec.source.repoURL}/{app.spec.source.path || app.spec.source.chart}
                                         <div className='applications-table__meta'>
                                             <span>{app.spec.source.targetRevision || 'HEAD'}</span>
                                             {Object.keys(app.metadata.labels || {}).map(label => (

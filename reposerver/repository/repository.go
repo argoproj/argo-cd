@@ -777,7 +777,7 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds())
 	constraints, err := semver.NewConstraint(revision)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("invalid revision '%s': %v", revision, err)
 	}
 	index, err := helmClient.GetIndex()
 	if err != nil {
