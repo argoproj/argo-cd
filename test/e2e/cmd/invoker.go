@@ -55,14 +55,12 @@ func Wrap(block func() error) {
 		<-sigs
 		done <- true
 	}()
-	// fmt.Printf("%v", os.Args)
 	args := os.Getenv(key)
 	if len(args) > 0 {
 		os.Args = append(os.Args[0:1], strings.Split(args, delimiter)...)
 	} else {
 		os.Args = os.Args[0:1]
 	}
-	// fmt.Printf("%v", os.Args)
 	go func() {
 		err := block()
 		if err != nil {
