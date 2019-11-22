@@ -180,6 +180,15 @@ function renderLoadBalancerNode(node: dagre.Node & {label: string; color: string
     );
 }
 
+export const describeNode = (node: ResourceTreeNode) => {
+    const lines = [`Kind: ${node.kind}`, `Namespace: ${node.namespace}`, `Name: ${node.name}`];
+    if (node.images) {
+        lines.push('Images:');
+        node.images.forEach(i => lines.push(`- ${i}`));
+    }
+    return lines.join('\n');
+};
+
 function renderResourceNode(props: ApplicationResourceTreeProps, id: string, node: (ResourceTreeNode) & dagre.Node) {
     const fullName = nodeKey(node);
     let comparisonStatus: models.SyncStatusCode = null;
@@ -197,7 +206,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 'active': fullName === props.selectedNodeFullName,
                 'application-resource-tree__node--orphaned': node.orphaned
             })}
-            title={`Kind: ${node.kind}\nNamespace: ${node.namespace}\nName: ${node.name}\n${node.images && 'Images: \n - ' + node.images.join('\n - ')}`}
+            title={describeNode(node)}
             style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
             {!appNode && <NodeUpdateAnimation resourceVersion={node.resourceVersion} />}
             <div
