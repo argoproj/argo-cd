@@ -8,8 +8,9 @@ import (
 )
 
 type MetricsServer struct {
-	handler           http.Handler
-	gitRequestCounter *prometheus.CounterVec
+	handler                  http.Handler
+	gitRequestCounter        *prometheus.CounterVec
+	repoPendingRequestsGauge *prometheus.GaugeVec
 }
 
 type GitRequestType string
@@ -34,9 +35,19 @@ func NewMetricsServer() *MetricsServer {
 	)
 	registry.MustRegister(gitRequestCounter)
 
+	repoPendingRequestsGauge := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "argocd_repo_pending_request_total",
+			Help: "Number of pending requests requiring repository lock",
+		},
+		[]string{"repo"},
+	)
+	registry.MustRegister(repoPendingRequestsGauge)
+
 	return &MetricsServer{
-		handler:           promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
-		gitRequestCounter: gitRequestCounter,
+		handler:                  promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
+		gitRequestCounter:        gitRequestCounter,
+		repoPendingRequestsGauge: repoPendingRequestsGauge,
 	}
 }
 
@@ -47,4 +58,12 @@ func (m *MetricsServer) GetHandler() http.Handler {
 // IncGitRequest increments the git requests counter
 func (m *MetricsServer) IncGitRequest(repo string, requestType GitRequestType) {
 	m.gitRequestCounter.WithLabelValues(repo, string(requestType)).Inc()
+}
+
+func (m *MetricsServer) IncPendingRepoRequest(repo string) {
+	m.repoPendingRequestsGauge.WithLabelValues(repo).Inc()
+}
+
+func (m *MetricsServer) DecPendingRepoRequest(repo string) {
+	m.repoPendingRequestsGauge.WithLabelValues(repo).Dec()
 }

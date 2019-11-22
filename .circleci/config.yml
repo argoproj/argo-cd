@@ -203,7 +203,7 @@ jobs:
           paths: [~/.cache/yarn, node_modules]
       - run: yarn test
       - run: ./node_modules/.bin/codecov -p ..
-      - run: yarn build
+      - run: NODE_ENV='production' yarn build
       - run: yarn lint
 workflows:
   version: 2

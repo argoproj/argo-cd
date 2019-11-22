@@ -1,0 +1,33 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Revision.Branch.Children 1`] = `
+<a
+  href="http://github.com/my-org/my-repo/commit/long-branch-name"
+>
+  foo
+</a>
+`;
+
+exports[`Revision.Branch.NoChildren 1`] = `
+<a
+  href="http://github.com/my-org/my-repo/commit/long-branch-name"
+>
+  long-branch-name
+</a>
+`;
+
+exports[`Revision.SHA1.Children 1`] = `
+<a
+  href="http://github.com/my-org/my-repo/commit/24eb0b24099b2e9afff72558724e88125eaa0176"
+>
+  foo
+</a>
+`;
+
+exports[`Revision.SHA1.NoChildren 1`] = `
+<a
+  href="http://github.com/my-org/my-repo/commit/24eb0b24099b2e9afff72558724e88125eaa0176"
+>
+  24eb0b2
+</a>
+`;

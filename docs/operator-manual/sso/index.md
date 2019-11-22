@@ -116,6 +116,10 @@ data:
     cliClientID: vvvvwwwwxxxxyyyyzzzz
 ```
 
+!!! note
+    The callback address should be the /auth/callback endpoint of your Argo CD URL 
+    (e.g. https://argocd.example.com/auth/callback).
+
 ### Requesting additional ID token claims
 
 Not all OIDC providers support a special `groups` scope. E.g. Okta, OneLogin and Microsoft do support a special

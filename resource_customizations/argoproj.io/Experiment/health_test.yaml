@@ -1,0 +1,25 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Experiment is pending"
+  inputPath: testdata/pendingExperiment.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for experiment to finish: status has not been reconciled."
+  inputPath: testdata/noStatusExperiment.yaml
+- healthStatus:
+    status: Progressing
+    message: "Experiment is running"
+  inputPath: testdata/runningExperiment.yaml
+- healthStatus:
+    status: Healthy
+    message: "Experiment is successful"
+  inputPath: testdata/successfulExperiment.yaml
+- healthStatus:
+    status: Degraded
+    message: "Experiment has failed"
+  inputPath: testdata/failedExperiment.yaml
+- healthStatus:
+    status: Degraded
+    message: "Experiment had an error"
+  inputPath: testdata/errorExperiment.yaml
