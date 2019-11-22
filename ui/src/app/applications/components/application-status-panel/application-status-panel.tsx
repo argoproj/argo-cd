@@ -48,9 +48,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
             </div>
             <div className='application-status-panel__item columns small-2' style={{position: 'relative'}}>
                 <div className='application-status-panel__item-value'>
-                    <ComparisonStatusIcon status={application.status.sync.status} />
-                    &nbsp;
-                    {application.status.sync.status}
+                    <ComparisonStatusIcon status={application.status.sync.status} label={true} />
                     <HelpIcon title='Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.' />
                 </div>
                 <div className='application-status-panel__item-name'>{syncStatusMessage(application)}</div>

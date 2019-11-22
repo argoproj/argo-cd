@@ -9,7 +9,7 @@ Array [
         "color": "#f4c030",
       }
     }
-    title="OutOfSync"
+    title="Out of sync"
   />,
   " ",
 ]
@@ -24,7 +24,7 @@ Array [
         "color": "#18BE94",
       }
     }
-    title="Synced"
+    title="In sync"
   />,
   " ",
 ]
@@ -117,55 +117,7 @@ exports[`HealthStatusIcon.Unknown 1`] = `
 />
 `;
 
-exports[`OperationPhaseIcon.Error 1`] = `
-<i
-  className="fa fa-times-circle"
-  style={
-    Object {
-      "color": "#E96D76",
-    }
-  }
-  title="Error"
-/>
-`;
-
-exports[`OperationPhaseIcon.Failed 1`] = `
-<i
-  className="fa fa-times-circle"
-  style={
-    Object {
-      "color": "#E96D76",
-    }
-  }
-  title="Failed"
-/>
-`;
-
-exports[`OperationPhaseIcon.Running 1`] = `
-<i
-  className="fa fa-circle-notch fa-spin"
-  style={
-    Object {
-      "color": "#0DADEA",
-    }
-  }
-  title="Running"
-/>
-`;
-
-exports[`OperationPhaseIcon.Succeeded 1`] = `
-<i
-  className="fa fa-check-circle"
-  style={
-    Object {
-      "color": "#18BE94",
-    }
-  }
-  title="Succeeded"
-/>
-`;
-
-exports[`OperationState.Default 1`] = `
+exports[`OperationState.Deleting 1`] = `
 Array [
   <i
     className="fa fa-circle-notch fa-spin"
@@ -174,8 +126,89 @@ Array [
         "color": "#0DADEA",
       }
     }
+    title="Deleting"
   />,
-  " ",
+  " ",
+  "Deleting",
+]
+`;
+
+exports[`OperationState.Sync OK 1`] = `
+Array [
+  <i
+    className="fa fa-check-circle"
+    style={
+      Object {
+        "color": "#18BE94",
+      }
+    }
+    title="Sync OK"
+  />,
+  " ",
+  "Sync OK",
+]
+`;
+
+exports[`OperationState.Sync error 1`] = `
+Array [
+  <i
+    className="fa fa-times-circle"
+    style={
+      Object {
+        "color": "#E96D76",
+      }
+    }
+    title="Sync error"
+  />,
+  " ",
+  "Sync error",
+]
+`;
+
+exports[`OperationState.Sync failed 1`] = `
+Array [
+  <i
+    className="fa fa-times-circle"
+    style={
+      Object {
+        "color": "#E96D76",
+      }
+    }
+    title="Sync failed"
+  />,
+  " ",
+  "Sync failed",
+]
+`;
+
+exports[`OperationState.Syncing 1`] = `
+Array [
+  <i
+    className="fa fa-circle-notch fa-spin"
+    style={
+      Object {
+        "color": "#0DADEA",
+      }
+    }
+    title="Syncing"
+  />,
+  " ",
+  "Syncing",
+]
+`;
+
+exports[`OperationState.Unknown 1`] = `
+Array [
+  <i
+    className="fa fa-circle-notch fa-spin"
+    style={
+      Object {
+        "color": "#0DADEA",
+      }
+    }
+    title="Unknown"
+  />,
+  " ",
   "Unknown",
 ]
 `;
