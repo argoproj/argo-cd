@@ -9,7 +9,7 @@ Array [
         "color": "#f4c030",
       }
     }
-    title="Out of sync"
+    title="OutOfSync"
   />,
   " ",
 ]
@@ -24,7 +24,7 @@ Array [
         "color": "#18BE94",
       }
     }
-    title="In sync"
+    title="Synced"
   />,
   " ",
 ]

@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import {Checkbox, NotificationsApi, NotificationType} from 'argo-ui';
+import {Checkbox, NotificationType} from 'argo-ui';
 import {COLORS, ErrorNotification, Revision} from '../../shared/components';
 import {ContextApis} from '../../shared/context';
 import * as appModels from '../../shared/models';
@@ -96,7 +96,7 @@ export const ComparisonStatusIcon = ({status, resource, label}: {status: appMode
         case appModels.SyncStatuses.Synced:
             className = 'fa fa-check-circle';
             color = COLORS.sync.synced;
-            title = 'In sync';
+            title = 'Synced';
             break;
         case appModels.SyncStatuses.OutOfSync:
             const requiresPruning = resource && resource.requiresPruning;
@@ -105,7 +105,7 @@ export const ComparisonStatusIcon = ({status, resource, label}: {status: appMode
                 title = `${title} (requires pruning)`;
             }
             color = COLORS.sync.out_of_sync;
-            title = 'Out of sync';
+            title = 'OutOfSync';
             break;
         case appModels.SyncStatuses.Unknown:
             className = 'fa fa-circle-notch fa-spin';
@@ -119,7 +119,7 @@ export const ComparisonStatusIcon = ({status, resource, label}: {status: appMode
 };
 
 export function syncStatusMessage(app: appModels.Application) {
-    let rev = app.spec.source.targetRevision || 'latest';
+    let rev = app.spec.source.targetRevision;
     if (app.status.sync.revision) {
         if (app.spec.source.chart) {
             rev += ' (' + app.status.sync.revision + ')';
@@ -132,7 +132,7 @@ export function syncStatusMessage(app: appModels.Application) {
             return (
                 <span>
                     To{' '}
-                    <Revision repoUrl={app.spec.source.repoURL} revision={app.spec.source.targetRevision || 'latest'}>
+                    <Revision repoUrl={app.spec.source.repoURL} revision={app.spec.source.targetRevision}>
                         {rev}
                     </Revision>{' '}
                 </span>
@@ -141,7 +141,7 @@ export function syncStatusMessage(app: appModels.Application) {
             return (
                 <span>
                     From{' '}
-                    <Revision repoUrl={app.spec.source.repoURL} revision={app.spec.source.targetRevision || 'latest'}>
+                    <Revision repoUrl={app.spec.source.repoURL} revision={app.spec.source.targetRevision}>
                         {rev}
                     </Revision>{' '}
                 </span>
