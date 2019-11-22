@@ -1033,11 +1033,11 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 // NewApplicationDeleteCommand returns a new instance of an `argocd app delete` command
 func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		cascade bool
-		selector    string
+		cascade  bool
+		selector string
 	)
 	var command = &cobra.Command{
-		Use:   "delete APPNAME",
+		Use:   "delete [APPNAME... | -l SELECTOR]",
 		Short: "Delete an application",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 && selector == "" {
@@ -1046,18 +1046,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			}
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			appNames := args
-			if selector != "" {
-				list, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: selector})
-				errors.CheckError(err)
-				// unlike list, we'd want to fail if nothing was found
-				if len(list.Items) == 0 {
-					log.Fatalf("no apps match selector %v", selector)
-				}
-				for _, i := range list.Items {
-					appNames = append(appNames, i.Name)
-				}
-			}
+			appNames := appNames(args, selector, appIf)
 			for _, appName := range appNames {
 				appDeleteReq := applicationpkg.ApplicationDeleteRequest{
 					Name: &appName,
@@ -1073,6 +1062,23 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	command.Flags().BoolVar(&cascade, "cascade", true, "Perform a cascaded deletion of all application resources")
 	command.Flags().StringVarP(&selector, "selector", "l", "", "Delete apps by label")
 	return command
+}
+
+// combine app names from args with app names from the selector
+func appNames(args []string, selector string, appIf applicationpkg.ApplicationServiceClient) []string {
+	appNames := args
+	if selector != "" {
+		list, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: selector})
+		errors.CheckError(err)
+		// unlike list, we fail if nothing was found
+		if len(list.Items) == 0 {
+			log.Fatalf("no apps match selector %v", selector)
+		}
+		for _, i := range list.Items {
+			appNames = append(appNames, i.Name)
+		}
+	}
+	return appNames
 }
 
 // Print simple list of application names
@@ -1229,7 +1235,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		resources       []string
 	)
 	var command = &cobra.Command{
-		Use:   "wait [APPNAME.. | -l selector]",
+		Use:   "wait [APPNAME.. | -l SELECTOR]",
 		Short: "Wait for an application to reach a synced and healthy state",
 		Example: `  # Wait for an app
   argocd app wait my-app
@@ -1251,18 +1257,10 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				watchSuspended = false
 			}
 			selectedResources := parseSelectedResources(resources)
-			appNames := args
 			acdClient := argocdclient.NewClientOrDie(clientOpts)
 			closer, appIf := acdClient.NewApplicationClientOrDie()
 			defer util.Close(closer)
-			if selector != "" {
-				list, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: selector})
-				errors.CheckError(err)
-				for _, i := range list.Items {
-					appNames = append(appNames, i.Name)
-				}
-			}
-			for _, appName := range appNames {
+			for _, appName := range appNames(args, selector, appIf) {
 				_, err := waitOnApplicationStatus(acdClient, appName, timeout, watchSync, watchHealth, watchOperations, watchSuspended, selectedResources)
 				errors.CheckError(err)
 			}
@@ -1302,7 +1300,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		local     string
 	)
 	var command = &cobra.Command{
-		Use:   "sync [APPNAME... | -l selector]",
+		Use:   "sync [APPNAME.. | -l SELECTOR]",
 		Short: "Sync an application to its target state",
 		Example: `  # Sync an app
   argocd app sync my-app
@@ -1329,20 +1327,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			selectedLabels, err := label.Parse(labels)
 			errors.CheckError(err)
 
-			appNames := args
-			if selector != "" {
-				list, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: selector})
-				errors.CheckError(err)
-				// unlike list, we'd want to fail if nothing was found
-				if len(list.Items) == 0 {
-					log.Fatalf("no apps match selector %v", selector)
-				}
-				for _, i := range list.Items {
-					appNames = append(appNames, i.Name)
-				}
-			}
-
-			for _, appName := range appNames {
+			for _, appName := range appNames(args, selector, appIf) {
 
 				if len(selectedLabels) > 0 {
 					ctx := context.Background()
