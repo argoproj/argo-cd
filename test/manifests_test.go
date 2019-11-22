@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	. "strings"
 	"testing"
 
 	argoexec "github.com/argoproj/pkg/exec"
@@ -16,7 +15,7 @@ func TestBuildManifests(t *testing.T) {
 
 	out, err := argoexec.RunCommand("kustomize", argoexec.CmdOpts{}, "version")
 	assert.NoError(t, err)
-	assert.True(t, Contains(out, "Version:kustomize/v3"), "kustomize should be version 3")
+	assert.Contains(t,out, "Version:3", "kustomize should be version 3")
 
 	err = filepath.Walk("../manifests", func(path string, f os.FileInfo, err error) error {
 		if err != nil {
