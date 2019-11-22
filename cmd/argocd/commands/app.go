@@ -1034,18 +1034,31 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		cascade bool
+		selector    string
 	)
 	var command = &cobra.Command{
 		Use:   "delete APPNAME",
 		Short: "Delete an application",
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) == 0 {
+			if len(args) == 0 && selector == "" {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			for _, appName := range args {
+			appNames := args
+			if selector != "" {
+				list, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: selector})
+				errors.CheckError(err)
+				// unlike list, we'd want to fail if nothing was found
+				if len(list.Items) == 0 {
+					log.Fatalf("no apps match selector %v", selector)
+				}
+				for _, i := range list.Items {
+					appNames = append(appNames, i.Name)
+				}
+			}
+			for _, appName := range appNames {
 				appDeleteReq := applicationpkg.ApplicationDeleteRequest{
 					Name: &appName,
 				}
@@ -1058,6 +1071,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		},
 	}
 	command.Flags().BoolVar(&cascade, "cascade", true, "Perform a cascaded deletion of all application resources")
+	command.Flags().StringVarP(&selector, "selector", "l", "", "Delete apps by label")
 	return command
 }
 
