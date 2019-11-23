@@ -10,9 +10,6 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
-
-	"github.com/argoproj/argo-cd/util/helm"
-
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -42,6 +39,7 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/rbac"
