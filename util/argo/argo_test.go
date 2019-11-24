@@ -48,7 +48,8 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 	appClientset := appclientset.NewSimpleClientset(testProj)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	informer := v1alpha1.NewAppProjectInformer(appClientset, namespace, 0, cache.Indexers{})
+	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
+	informer := v1alpha1.NewAppProjectInformer(appClientset, namespace, 0, indexers)
 	go informer.Run(ctx.Done())
 	cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
 	proj, err := GetAppProject(&testApp.Spec, applisters.NewAppProjectLister(informer.GetIndexer()), namespace)
