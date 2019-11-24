@@ -320,7 +320,7 @@ func (a *Actions) Delete(cascade bool) *Actions {
 
 func (a *Actions) DeleteWait() *Actions {
 	a.context.t.Helper()
-	a.runCli("app", "delete", a.context.name, "--cascade=true","--wait")
+	a.runCli("app", "delete", a.context.name, "--cascade=true", "--wait")
 	return a
 }
 
