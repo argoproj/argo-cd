@@ -33,7 +33,7 @@ The GitOps Engine follows the [CNCF Code of Conduct](https://github.com/cncf/fou
 
 If you are as excited about GitOps and one common engine for it as much as we are, please get in touch. If you want to write code that's great, if you want to share feedback, ideas and use-cases, that's great too.
 
-Find us on the [#gitops channel](https://kubernetes.slack.com/messages/gitops) on Kubernetes Slack (get an [invite here][kube-slack]).
+Find us on the [#gitops channel][gitops-slack] on Kubernetes Slack (get an [invite here][kube-slack]).
 
 ### Meetings
 
@@ -50,15 +50,13 @@ If you want to immediately kick the tires, you can try out using builds of eithe
 [argo-poc]: https://github.com/argoproj/argo-cd/tree/gitops-engine-poc#what-is-gitops-engine-poc-branch
 [flux-poc]: https://github.com/fluxcd/flux/tree/gitops-engine-poc#what-is-gitops-engine-poc-branch
 
-### Slack Ask-Us-Anything
 
-We tried to summarise all relevant information here on Github. There's still very likely something we missed or which might be unclear, so we thought we'd bring together everyone behind this in one place and host an ask-us-anything session, where you can dive right into the big questions and the nuts and bolts of this announcement together with us.
+### Events
 
-- **When:** 25th Nov 2019, 09:00 Pacific time (convert to your timezone [here][tz-convert])
-- **Where:** [#gitops channel][gitops-slack] on Kubernetes Slack (get an invite [here][kube-slack])
+Join us at the following events to learn more about the project:
 
-We're looking forward to seeing you there! Bring your friends and bring your questions!
+- November 26, 10:00 - 11:00am PT: [Weave Online User Group - Join the online call with members from the Flux CD and Argo CD project](https://www.meetup.com/Weave-User-Group/events/266410126/)
+- December 3, 10:00 - 11:00am PT: [Weave Online User Group - Join the online call with members from the Flux CD and Argo CD project](https://www.meetup.com/Weave-User-Group/events/266411987/)
 
 [kube-slack]: https://slack.k8s.io/
 [gitops-slack]: https://kubernetes.slack.com/messages/gitops
-[tz-convert]: https://www.timeanddate.com/worldclock/fixedtime.html?msg=GitOps+Engine+Slack+AMA&iso=20191125T09&p1=224&ah=1
