@@ -27,6 +27,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/tracer"
 
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/util/cli"
@@ -572,6 +573,7 @@ func redactor(dirtyString string) string {
 }
 
 func main() {
+	tracer.Init("argocd-util")
 	if err := NewCommand().Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)

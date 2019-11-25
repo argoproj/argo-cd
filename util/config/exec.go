@@ -25,7 +25,7 @@ func initTimeout() {
 }
 
 func RunCommandExt(ctx context.Context, cmd *exec.Cmd, opts argoexec.CmdOpts) (string, error) {
-	span, _ := opentracing.StartSpanFromContext(ctx, "exec "+cmd.Path+" "+cmd.Args[0])
+	span, _ := opentracing.StartSpanFromContext(ctx, "exec "+cmd.Args[0]+" "+cmd.Args[1])
 	defer span.Finish()
 	return argoexec.RunCommandExt(cmd, opts)
 }

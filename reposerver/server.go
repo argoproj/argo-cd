@@ -6,6 +6,7 @@ import (
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	grpc_opentracing "github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
+	"github.com/opentracing/opentracing-go"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -19,7 +20,6 @@ import (
 	"github.com/argoproj/argo-cd/server/version"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
-	"github.com/argoproj/argo-cd/util/tracer"
 )
 
 // ArgoCDRepoServer is the repo server implementation
@@ -55,12 +55,12 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	streamInterceptors := []grpc.StreamServerInterceptor{
 		grpc_logrus.StreamServerInterceptor(serverLog),
 		grpc_util.PanicLoggerStreamServerInterceptor(serverLog),
-		grpc_opentracing.StreamServerInterceptor(grpc_opentracing.WithTracer(tracer.Tracer)),
+		grpc_opentracing.StreamServerInterceptor(grpc_opentracing.WithTracer(opentracing.GlobalTracer())),
 	}
 	unaryInterceptors := []grpc.UnaryServerInterceptor{
 		grpc_logrus.UnaryServerInterceptor(serverLog),
 		grpc_util.PanicLoggerUnaryServerInterceptor(serverLog),
-		grpc_opentracing.UnaryServerInterceptor(grpc_opentracing.WithTracer(tracer.Tracer)),
+		grpc_opentracing.UnaryServerInterceptor(grpc_opentracing.WithTracer(opentracing.GlobalTracer())),
 	}
 
 	return &ArgoCDRepoServer{

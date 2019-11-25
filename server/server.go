@@ -16,6 +16,7 @@ import (
 	"time"
 
 	grpc_opentracing "github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
+	"github.com/opentracing/opentracing-go"
 	"gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
 
@@ -90,7 +91,6 @@ import (
 	settings_util "github.com/argoproj/argo-cd/util/settings"
 	"github.com/argoproj/argo-cd/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
-	"github.com/argoproj/argo-cd/util/tracer"
 	"github.com/argoproj/argo-cd/util/webhook"
 )
 
@@ -444,7 +444,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		}),
 		grpc_util.ErrorCodeStreamServerInterceptor(),
 		grpc_util.PanicLoggerStreamServerInterceptor(a.log),
-		grpc_opentracing.StreamServerInterceptor(grpc_opentracing.WithTracer(tracer.Tracer)),
+		grpc_opentracing.StreamServerInterceptor(grpc_opentracing.WithTracer(opentracing.GlobalTracer())),
 	)))
 	sOpts = append(sOpts, grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
 		bug21955WorkaroundInterceptor,
@@ -457,7 +457,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		}),
 		grpc_util.ErrorCodeUnaryServerInterceptor(),
 		grpc_util.PanicLoggerUnaryServerInterceptor(a.log),
-		grpc_opentracing.UnaryServerInterceptor(grpc_opentracing.WithTracer(tracer.Tracer)),
+		grpc_opentracing.UnaryServerInterceptor(grpc_opentracing.WithTracer(opentracing.GlobalTracer())),
 	)))
 	grpcS := grpc.NewServer(sOpts...)
 	db := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
@@ -548,9 +548,9 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		dOpts = append(dOpts, grpc.WithInsecure())
 	}
 	dOpts = append(dOpts, grpc.WithStreamInterceptor(grpc_middleware.ChainStreamClient(
-		grpc_opentracing.StreamClientInterceptor(grpc_opentracing.WithTracer(tracer.Tracer)),
+		grpc_opentracing.StreamClientInterceptor(grpc_opentracing.WithTracer(opentracing.GlobalTracer())),
 	)), grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(
-		grpc_opentracing.UnaryClientInterceptor(grpc_opentracing.WithTracer(tracer.Tracer)),
+		grpc_opentracing.UnaryClientInterceptor(grpc_opentracing.WithTracer(opentracing.GlobalTracer())),
 	)))
 
 	// HTTP 1.1+JSON Server

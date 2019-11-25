@@ -1,7 +1,6 @@
 package tracer
 
 import (
-	"os"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -12,15 +11,7 @@ import (
 	"github.com/uber/jaeger-lib/metrics"
 )
 
-var Tracer opentracing.Tracer
-
-func init() {
-	serviceName := os.Getenv("JAEGER_SERVICE_NAME")
-
-	if serviceName == "" {
-		serviceName = "unnamed"
-	}
-
+func Init(serviceName string) {
 	cfg := jaegercfg.Configuration{
 		ServiceName: serviceName,
 		Sampler: &jaegercfg.SamplerConfig{
@@ -39,6 +30,5 @@ func init() {
 		log.Fatal(err)
 	}
 	opentracing.SetGlobalTracer(tracer)
-	Tracer = tracer
 	log.Infof("tracing enabled for %s", serviceName)
 }

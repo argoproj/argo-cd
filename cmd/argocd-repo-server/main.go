@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/stats"
 	"github.com/argoproj/argo-cd/util/tls"
+	"github.com/argoproj/argo-cd/util/tracer"
 )
 
 const (
@@ -77,6 +78,7 @@ func newCommand() *cobra.Command {
 }
 
 func main() {
+	tracer.Init("repo-server")
 	if err := newCommand().Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
