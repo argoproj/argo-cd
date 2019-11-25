@@ -1,6 +1,7 @@
 package lua
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -55,7 +56,7 @@ func StrToUnstructured(jsonStr string) *unstructured.Unstructured {
 func TestExecuteNewHealthStatusFunction(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	status, err := vm.ExecuteHealthLua(testObj, newHealthStatusFunction)
+	status, err := vm.ExecuteHealthLua(context.TODO(), testObj, newHealthStatusFunction)
 	assert.Nil(t, err)
 	expectedHealthStatus := &appv1.HealthStatus{
 		Status:  "Healthy",
@@ -70,7 +71,7 @@ const osLuaScript = `os.getenv("HOME")`
 func TestFailExternalLibCall(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	_, err := vm.ExecuteHealthLua(testObj, osLuaScript)
+	_, err := vm.ExecuteHealthLua(context.TODO(), testObj, osLuaScript)
 	assert.Error(t, err, "")
 	assert.IsType(t, &lua.ApiError{}, err)
 }
@@ -80,7 +81,7 @@ const returnInt = `return 1`
 func TestFailLuaReturnNonTable(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	_, err := vm.ExecuteHealthLua(testObj, returnInt)
+	_, err := vm.ExecuteHealthLua(context.TODO(), testObj, returnInt)
 	assert.Equal(t, fmt.Errorf(incorrectReturnType, "table", "number"), err)
 }
 
@@ -92,7 +93,7 @@ return healthStatus
 func TestInvalidHealthStatusStatus(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	status, err := vm.ExecuteHealthLua(testObj, invalidHealthStatusStatus)
+	status, err := vm.ExecuteHealthLua(context.TODO(), testObj, invalidHealthStatusStatus)
 	assert.Nil(t, err)
 	expectedStatus := &appv1.HealthStatus{
 		Status:  appv1.HealthStatusUnknown,
@@ -106,7 +107,7 @@ const infiniteLoop = `while true do ; end`
 func TestHandleInfiniteLoop(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	_, err := vm.ExecuteHealthLua(testObj, infiniteLoop)
+	_, err := vm.ExecuteHealthLua(context.TODO(), testObj, infiniteLoop)
 	assert.IsType(t, &lua.ApiError{}, err)
 }
 
@@ -228,7 +229,7 @@ return a
 func TestExecuteResourceActionDiscovery(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	actions, err := vm.ExecuteResourceActionDiscovery(testObj, validDiscoveryLua)
+	actions, err := vm.ExecuteResourceActionDiscovery(context.TODO(), testObj, validDiscoveryLua)
 	assert.Nil(t, err)
 	expectedActions := []appv1.ResourceAction{
 		{
@@ -256,7 +257,7 @@ return a`
 func TestExecuteResourceActionDiscoveryInvalidResourceAction(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	actions, err := vm.ExecuteResourceActionDiscovery(testObj, discoveryLuaWithInvalidResourceAction)
+	actions, err := vm.ExecuteResourceActionDiscovery(context.TODO(), testObj, discoveryLuaWithInvalidResourceAction)
 	assert.Error(t, err)
 	assert.Nil(t, actions)
 }
@@ -269,7 +270,7 @@ return a
 func TestExecuteResourceActionDiscoveryInvalidReturn(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	actions, err := vm.ExecuteResourceActionDiscovery(testObj, invalidDiscoveryLua)
+	actions, err := vm.ExecuteResourceActionDiscovery(context.TODO(), testObj, invalidDiscoveryLua)
 	assert.Nil(t, actions)
 	assert.Error(t, err)
 
@@ -296,7 +297,7 @@ func TestExecuteResourceAction(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	expectedObj := StrToUnstructured(expectedUpdatedObj)
 	vm := VM{}
-	newObj, err := vm.ExecuteResourceAction(testObj, validActionLua)
+	newObj, err := vm.ExecuteResourceAction(context.TODO(), testObj, validActionLua)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedObj, newObj)
 }
@@ -304,7 +305,7 @@ func TestExecuteResourceAction(t *testing.T) {
 func TestExecuteResourceActionNonTableReturn(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	_, err := vm.ExecuteResourceAction(testObj, returnInt)
+	_, err := vm.ExecuteResourceAction(context.TODO(), testObj, returnInt)
 	assert.Errorf(t, err, incorrectReturnType, "table", "number")
 }
 
@@ -316,7 +317,7 @@ return newObj
 func TestExecuteResourceActionInvalidUnstructured(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	_, err := vm.ExecuteResourceAction(testObj, invalidTableReturn)
+	_, err := vm.ExecuteResourceAction(context.TODO(), testObj, invalidTableReturn)
 	assert.Error(t, err)
 }
 
@@ -371,7 +372,7 @@ func TestCleanPatch(t *testing.T) {
 	testObj := StrToUnstructured(objWithEmptyStruct)
 	expectedObj := StrToUnstructured(expectedUpdatedObjWithEmptyStruct)
 	vm := VM{}
-	newObj, err := vm.ExecuteResourceAction(testObj, pausedToFalseLua)
+	newObj, err := vm.ExecuteResourceAction(context.TODO(), testObj, pausedToFalseLua)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedObj, newObj)
 

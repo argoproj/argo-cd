@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"context"
 	"io/ioutil"
 	"regexp"
 	"testing"
@@ -16,7 +17,7 @@ func TestConvertToVersion(t *testing.T) {
 	callbackExecuted := false
 	closerExecuted := false
 	kubectl := KubectlCmd{}
-	kubectl.SetOnKubectlRun(func(command string) (util.Closer, error) {
+	kubectl.SetOnKubectlRun(func(ctx context.Context, command string) (util.Closer, error) {
 		callbackExecuted = true
 		return util.NewCloser(func() error {
 			closerExecuted = true
@@ -31,7 +32,7 @@ func TestConvertToVersion(t *testing.T) {
 	assert.Nil(t, err)
 
 	// convert an extensions/v1beta1 object into an apps/v1
-	newObj, err := kubectl.ConvertToVersion(&obj, "apps", "v1")
+	newObj, err := kubectl.ConvertToVersion(context.TODO(), &obj, "apps", "v1")
 	assert.Nil(t, err)
 	gvk := newObj.GroupVersionKind()
 	assert.Equal(t, "apps", gvk.Group)
@@ -40,7 +41,7 @@ func TestConvertToVersion(t *testing.T) {
 	assert.True(t, closerExecuted)
 
 	// converting it again should not have any affect
-	newObj, err = kubectl.ConvertToVersion(&obj, "apps", "v1")
+	newObj, err = kubectl.ConvertToVersion(context.TODO(), &obj, "apps", "v1")
 	assert.Nil(t, err)
 	gvk = newObj.GroupVersionKind()
 	assert.Equal(t, "apps", gvk.Group)
@@ -51,7 +52,7 @@ func TestRunKubectl(t *testing.T) {
 	callbackExecuted := false
 	closerExecuted := false
 	kubectl := KubectlCmd{
-		func(command string) (util.Closer, error) {
+		func(ctx context.Context, command string) (util.Closer, error) {
 			callbackExecuted = true
 			return util.NewCloser(func() error {
 				closerExecuted = true
@@ -60,7 +61,7 @@ func TestRunKubectl(t *testing.T) {
 		},
 	}
 
-	_, _ = kubectl.runKubectl("/dev/null", "default", []string{"command-name"}, nil, false)
+	_, _ = kubectl.runKubectl(context.TODO(), "/dev/null", "default", []string{"command-name"}, nil, false)
 	assert.True(t, callbackExecuted)
 	assert.True(t, closerExecuted)
 }
