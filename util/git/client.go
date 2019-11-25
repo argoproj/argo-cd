@@ -1,6 +1,7 @@
 package git
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"math"
@@ -41,13 +42,13 @@ type RevisionMetadata struct {
 type Client interface {
 	Root() string
 	Init() error
-	Fetch() error
-	Checkout(revision string) error
+	Fetch(ctx context.Context) error
+	Checkout(ctx context.Context, revision string) error
 	LsRemote(revision string) (string, error)
-	LsFiles(path string) ([]string, error)
-	LsLargeFiles() ([]string, error)
-	CommitSHA() (string, error)
-	RevisionMetadata(revision string) (*RevisionMetadata, error)
+	LsFiles(ctx context.Context, path string) ([]string, error)
+	LsLargeFiles(ctx context.Context) ([]string, error)
+	CommitSHA(ctx context.Context) (string, error)
+	RevisionMetadata(ctx context.Context, revision string) (*RevisionMetadata, error)
 }
 
 // nativeGitClient implements Client interface using git CLI
@@ -246,13 +247,13 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 }
 
 // Fetch fetches latest updates from origin
-func (m *nativeGitClient) Fetch() error {
-	err := m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
+func (m *nativeGitClient) Fetch(ctx context.Context) error {
+	err := m.runCredentialedCmd(ctx, "git", "fetch", "origin", "--tags", "--force")
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if err == nil && m.IsLFSEnabled() {
-		largeFiles, err := m.LsLargeFiles()
+		largeFiles, err := m.LsLargeFiles(ctx)
 		if err == nil && len(largeFiles) > 0 {
-			err = m.runCredentialedCmd("git", "lfs", "fetch", "--all")
+			err = m.runCredentialedCmd(ctx, "git", "lfs", "fetch", "--all")
 			if err != nil {
 				return err
 			}
@@ -262,8 +263,8 @@ func (m *nativeGitClient) Fetch() error {
 }
 
 // LsFiles lists the local working tree, including only files that are under source control
-func (m *nativeGitClient) LsFiles(path string) ([]string, error) {
-	out, err := m.runCmd("ls-files", "--full-name", "-z", "--", path)
+func (m *nativeGitClient) LsFiles(ctx context.Context, path string) ([]string, error) {
+	out, err := m.runCmd(ctx, "ls-files", "--full-name", "-z", "--", path)
 	if err != nil {
 		return nil, err
 	}
@@ -273,8 +274,8 @@ func (m *nativeGitClient) LsFiles(path string) ([]string, error) {
 }
 
 // LsLargeFiles lists all files that have references to LFS storage
-func (m *nativeGitClient) LsLargeFiles() ([]string, error) {
-	out, err := m.runCmd("lfs", "ls-files", "-n")
+func (m *nativeGitClient) LsLargeFiles(ctx context.Context) ([]string, error) {
+	out, err := m.runCmd(ctx, "lfs", "ls-files", "-n")
 	if err != nil {
 		return nil, err
 	}
@@ -283,19 +284,19 @@ func (m *nativeGitClient) LsLargeFiles() ([]string, error) {
 }
 
 // Checkout checkout specified git sha
-func (m *nativeGitClient) Checkout(revision string) error {
+func (m *nativeGitClient) Checkout(ctx context.Context, revision string) error {
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
 	}
-	if _, err := m.runCmd("checkout", "--force", revision); err != nil {
+	if _, err := m.runCmd(ctx, "checkout", "--force", revision); err != nil {
 		return err
 	}
 	// We must populate LFS content by using lfs checkout, if we have at least
 	// one LFS reference in the current revision.
 	if m.IsLFSEnabled() {
-		if largeFiles, err := m.LsLargeFiles(); err == nil {
+		if largeFiles, err := m.LsLargeFiles(ctx); err == nil {
 			if len(largeFiles) > 0 {
-				if _, err := m.runCmd("lfs", "checkout"); err != nil {
+				if _, err := m.runCmd(ctx, "lfs", "checkout"); err != nil {
 					return err
 				}
 			}
@@ -305,12 +306,12 @@ func (m *nativeGitClient) Checkout(revision string) error {
 	}
 	if _, err := os.Stat(m.root + "/.gitmodules"); !os.IsNotExist(err) {
 		if submoduleEnabled := os.Getenv(common.EnvGitSubmoduleEnabled); submoduleEnabled != "false" {
-			if err := m.runCredentialedCmd("git", "submodule", "update", "--init", "--recursive"); err != nil {
+			if err := m.runCredentialedCmd(ctx, "git", "submodule", "update", "--init", "--recursive"); err != nil {
 				return err
 			}
 		}
 	}
-	if _, err := m.runCmd("clean", "-fdx"); err != nil {
+	if _, err := m.runCmd(ctx, "clean", "-fdx"); err != nil {
 		return err
 	}
 	return nil
@@ -403,8 +404,8 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 }
 
 // CommitSHA returns current commit sha from `git rev-parse HEAD`
-func (m *nativeGitClient) CommitSHA() (string, error) {
-	out, err := m.runCmd("rev-parse", "HEAD")
+func (m *nativeGitClient) CommitSHA(ctx context.Context) (string, error) {
+	out, err := m.runCmd(ctx, "rev-parse", "HEAD")
 	if err != nil {
 		return "", err
 	}
@@ -412,8 +413,8 @@ func (m *nativeGitClient) CommitSHA() (string, error) {
 }
 
 // returns the meta-data for the commit
-func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, error) {
-	out, err := m.runCmd("show", "-s", "--format=%an <%ae>|%at|%B", revision)
+func (m *nativeGitClient) RevisionMetadata(ctx context.Context, revision string) (*RevisionMetadata, error) {
+	out, err := m.runCmd(ctx, "show", "-s", "--format=%an <%ae>|%at|%B", revision)
 	if err != nil {
 		return nil, err
 	}
@@ -425,7 +426,7 @@ func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, 
 	authorDateUnixTimestamp, _ := strconv.ParseInt(segments[1], 10, 64)
 	message := strings.TrimSpace(segments[2])
 
-	out, err = m.runCmd("tag", "--points-at", revision)
+	out, err = m.runCmd(ctx, "tag", "--points-at", revision)
 	if err != nil {
 		return nil, err
 	}
@@ -435,13 +436,13 @@ func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, 
 }
 
 // runCmd is a convenience function to run a command in a given directory and return its output
-func (m *nativeGitClient) runCmd(args ...string) (string, error) {
+func (m *nativeGitClient) runCmd(ctx context.Context, args ...string) (string, error) {
 	cmd := exec.Command("git", args...)
-	return m.runCmdOutput(cmd)
+	return m.runCmdOutput(ctx, cmd)
 }
 
 // runCredentialedCmd is a convenience function to run a git command with username/password credentials
-func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) error {
+func (m *nativeGitClient) runCredentialedCmd(ctx context.Context, command string, args ...string) error {
 	cmd := exec.Command(command, args...)
 	closer, environ, err := m.creds.Environ()
 	if err != nil {
@@ -449,11 +450,11 @@ func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) err
 	}
 	defer func() { _ = closer.Close() }()
 	cmd.Env = append(cmd.Env, environ...)
-	_, err = m.runCmdOutput(cmd)
+	_, err = m.runCmdOutput(ctx, cmd)
 	return err
 }
 
-func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
+func (m *nativeGitClient) runCmdOutput(ctx context.Context, cmd *exec.Cmd) (string, error) {
 	cmd.Dir = m.root
 	cmd.Env = append(cmd.Env, os.Environ()...)
 	// Set $HOME to nowhere, so we can be execute Git regardless of any external
@@ -482,5 +483,5 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 			}
 		}
 	}
-	return argoconfig.RunCommandExt(cmd, argoconfig.CmdOpts())
+	return argoconfig.RunCommandExt(ctx, cmd, argoconfig.CmdOpts())
 }

@@ -1,6 +1,7 @@
 package git
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -246,13 +247,13 @@ func TestLFSClient(t *testing.T) {
 	err = client.Init()
 	assert.NoError(t, err)
 
-	err = client.Fetch()
+	err = client.Fetch(context.TODO())
 	assert.NoError(t, err)
 
-	err = client.Checkout(commitSHA)
+	err = client.Checkout(context.TODO(), commitSHA)
 	assert.NoError(t, err)
 
-	largeFiles, err := client.LsLargeFiles()
+	largeFiles, err := client.LsLargeFiles(context.TODO())
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(largeFiles))
 
@@ -303,17 +304,17 @@ func TestNewFactory(t *testing.T) {
 		err = client.Init()
 		assert.NoError(t, err)
 
-		err = client.Fetch()
+		err = client.Fetch(context.TODO())
 		assert.NoError(t, err)
 
 		// Do a second fetch to make sure we can treat `already up-to-date` error as not an error
-		err = client.Fetch()
+		err = client.Fetch(context.TODO())
 		assert.NoError(t, err)
 
-		err = client.Checkout(commitSHA)
+		err = client.Checkout(context.TODO(), commitSHA)
 		assert.NoError(t, err)
 
-		revisionMetadata, err := client.RevisionMetadata(commitSHA)
+		revisionMetadata, err := client.RevisionMetadata(context.TODO(), commitSHA)
 		assert.NoError(t, err)
 		assert.NotNil(t, revisionMetadata)
 		assert.Regexp(t, "^.*<.*>$", revisionMetadata.Author)
@@ -321,7 +322,7 @@ func TestNewFactory(t *testing.T) {
 		assert.NotEmpty(t, revisionMetadata.Date)
 		assert.NotEmpty(t, revisionMetadata.Message)
 
-		commitSHA2, err := client.CommitSHA()
+		commitSHA2, err := client.CommitSHA(context.TODO())
 		assert.NoError(t, err)
 
 		assert.Equal(t, commitSHA, commitSHA2)

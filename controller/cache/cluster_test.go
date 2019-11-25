@@ -287,7 +287,7 @@ func TestChildDeletedEvent(t *testing.T) {
 	err := cluster.ensureSynced(context.TODO())
 	assert.Nil(t, err)
 
-	cluster.processEvent(context.TODO(),watch.Deleted, testPod)
+	cluster.processEvent(context.TODO(), watch.Deleted, testPod)
 
 	rsChildren := getChildren(cluster, testRS)
 	assert.Equal(t, []appv1.ResourceNode{}, rsChildren)
@@ -393,7 +393,7 @@ func TestUpdateResourceTags(t *testing.T) {
 			},
 		}},
 	}
-	cluster.processEvent(context.TODO(),watch.Modified, mustToUnstructured(pod))
+	cluster.processEvent(context.TODO(), watch.Modified, mustToUnstructured(pod))
 
 	podNode = cluster.nodes[kube.GetResourceKey(mustToUnstructured(pod))]
 
@@ -413,7 +413,7 @@ func TestUpdateAppResource(t *testing.T) {
 	err := cluster.ensureSynced(context.TODO())
 	assert.Nil(t, err)
 
-	cluster.processEvent(context.TODO(),watch.Modified, mustToUnstructured(testPod))
+	cluster.processEvent(context.TODO(), watch.Modified, mustToUnstructured(testPod))
 
 	assert.Contains(t, updatesReceived, "helm-guestbook: false")
 }
@@ -457,7 +457,7 @@ func TestWatchCacheUpdated(t *testing.T) {
 
 	podGroupKind := testPod.GroupVersionKind().GroupKind()
 
-	cluster.replaceResourceCache(context.TODO(),podGroupKind, "updated-list-version", []unstructured.Unstructured{*updated, *added})
+	cluster.replaceResourceCache(context.TODO(), podGroupKind, "updated-list-version", []unstructured.Unstructured{*updated, *added})
 
 	_, ok := cluster.nodes[kube.GetResourceKey(removed)]
 	assert.False(t, ok)
@@ -474,7 +474,7 @@ func TestGetDuplicatedChildren(t *testing.T) {
 	extensionsRS := testRS.DeepCopy()
 	extensionsRS.SetGroupVersionKind(schema.GroupVersionKind{Group: "extensions", Kind: kube.ReplicaSetKind, Version: "v1beta1"})
 	cluster := newCluster(testDeploy, testRS, extensionsRS)
-	err := cluster.ensureSynced(context.TODO(),)
+	err := cluster.ensureSynced(context.TODO())
 
 	assert.Nil(t, err)
 

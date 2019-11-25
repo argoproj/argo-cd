@@ -55,7 +55,7 @@ type clusterInfo struct {
 	cacheSettingsSrc func() *cacheSettings
 }
 
-func (c *clusterInfo) replaceResourceCache(ctx context.Context,gk schema.GroupKind, resourceVersion string, objs []unstructured.Unstructured) {
+func (c *clusterInfo) replaceResourceCache(ctx context.Context, gk schema.GroupKind, resourceVersion string, objs []unstructured.Unstructured) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	info, ok := c.apisMeta[gk]
@@ -69,7 +69,7 @@ func (c *clusterInfo) replaceResourceCache(ctx context.Context,gk schema.GroupKi
 			obj := &objs[i]
 			key := kube.GetResourceKey(&objs[i])
 			existingNode, exists := c.nodes[key]
-			c.onNodeUpdated(ctx,exists, existingNode, obj, key)
+			c.onNodeUpdated(ctx, exists, existingNode, obj, key)
 		}
 
 		for key, existingNode := range c.nodes {
@@ -112,7 +112,7 @@ func isServiceAccountTokenSecret(un *unstructured.Unstructured) (bool, metav1.Ow
 	return ref.Name != "" && ref.UID != "", ref
 }
 
-func (c *clusterInfo) createObjInfo(ctx context.Context,un *unstructured.Unstructured, appInstanceLabel string) *node {
+func (c *clusterInfo) createObjInfo(ctx context.Context, un *unstructured.Unstructured, appInstanceLabel string) *node {
 	ownerRefs := un.GetOwnerReferences()
 	// Special case for endpoint. Remove after https://github.com/kubernetes/kubernetes/issues/28483 is fixed
 	if un.GroupVersionKind().Group == "" && un.GetKind() == kube.EndpointsKind && len(un.GetOwnerReferences()) == 0 {
@@ -185,7 +185,7 @@ func (c *clusterInfo) synced() bool {
 	return time.Now().Before(c.syncTime.Add(clusterSyncTimeout))
 }
 
-func (c *clusterInfo) stopWatching(ctx context.Context,gk schema.GroupKind) {
+func (c *clusterInfo) stopWatching(ctx context.Context, gk schema.GroupKind) {
 	c.syncLock.Lock()
 	defer c.syncLock.Unlock()
 	if info, ok := c.apisMeta[gk]; ok {
@@ -236,7 +236,7 @@ func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo,
 				if err != nil {
 					return err
 				}
-				c.replaceResourceCache(ctx,api.GroupKind, list.GetResourceVersion(), list.Items)
+				c.replaceResourceCache(ctx, api.GroupKind, list.GetResourceVersion(), list.Items)
 			}
 			return nil
 		})
@@ -247,7 +247,7 @@ func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo,
 
 		w, err := api.Interface.Watch(metav1.ListOptions{ResourceVersion: info.resourceVersion})
 		if errors.IsNotFound(err) {
-			c.stopWatching(ctx,api.GroupKind)
+			c.stopWatching(ctx, api.GroupKind)
 			return nil
 		}
 
@@ -271,7 +271,7 @@ func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo,
 				if ok {
 					obj := event.Object.(*unstructured.Unstructured)
 					info.resourceVersion = obj.GetResourceVersion()
-					c.processEvent(ctx,event.Type, obj)
+					c.processEvent(ctx, event.Type, obj)
 					if kube.IsCRD(obj) {
 						if event.Type == watch.Deleted {
 							group, groupOk, groupErr := unstructured.NestedString(obj.Object, "spec", "group")
@@ -279,7 +279,7 @@ func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo,
 
 							if groupOk && groupErr == nil && kindOk && kindErr == nil {
 								gk := schema.GroupKind{Group: group, Kind: kind}
-								c.stopWatching(ctx,gk)
+								c.stopWatching(ctx, gk)
 							}
 						} else {
 							err = runSynced(c.syncLock, func() error {
@@ -455,7 +455,7 @@ func (c *clusterInfo) getManagedLiveObjs(ctx context.Context, a *appv1.Applicati
 		}
 
 		if managedObj != nil {
-			converted, err := c.kubectl.ConvertToVersion(ctx,managedObj, targetObj.GroupVersionKind().Group, targetObj.GroupVersionKind().Version)
+			converted, err := c.kubectl.ConvertToVersion(ctx, managedObj, targetObj.GroupVersionKind().Group, targetObj.GroupVersionKind().Version)
 			if err != nil {
 				// fallback to loading resource from kubernetes if conversion fails
 				log.Warnf("Failed to convert resource: %v", err)
@@ -482,7 +482,7 @@ func (c *clusterInfo) getManagedLiveObjs(ctx context.Context, a *appv1.Applicati
 	return managedObjs, nil
 }
 
-func (c *clusterInfo) processEvent(ctx context.Context,event watch.EventType, un *unstructured.Unstructured) {
+func (c *clusterInfo) processEvent(ctx context.Context, event watch.EventType, un *unstructured.Unstructured) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	key := kube.GetResourceKey(un)
@@ -492,11 +492,11 @@ func (c *clusterInfo) processEvent(ctx context.Context,event watch.EventType, un
 			c.onNodeRemoved(key, existingNode)
 		}
 	} else if event != watch.Deleted {
-		c.onNodeUpdated(ctx,exists, existingNode, un, key)
+		c.onNodeUpdated(ctx, exists, existingNode, un, key)
 	}
 }
 
-func (c *clusterInfo) onNodeUpdated(ctx context.Context,exists bool, existingNode *node, un *unstructured.Unstructured, key kube.ResourceKey) {
+func (c *clusterInfo) onNodeUpdated(ctx context.Context, exists bool, existingNode *node, un *unstructured.Unstructured, key kube.ResourceKey) {
 	nodes := make([]*node, 0)
 	if exists {
 		nodes = append(nodes, existingNode)

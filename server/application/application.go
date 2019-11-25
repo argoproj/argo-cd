@@ -281,7 +281,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 	} else {
 		namespace = q.ResourceNamespace
 		var config *rest.Config
-		config, err = s.getApplicationClusterConfig(ctx,*q.Name)
+		config, err = s.getApplicationClusterConfig(ctx, *q.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -600,7 +600,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	return nil
 }
 
-func (s *Server) getApplicationClusterConfig(ctx context.Context,applicationName string) (*rest.Config, error) {
+func (s *Server) getApplicationClusterConfig(ctx context.Context, applicationName string) (*rest.Config, error) {
 	server, _, err := s.getApplicationDestination(applicationName)
 	if err != nil {
 		return nil, err
@@ -1116,7 +1116,7 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 		return nil, err
 	}
 
-	availableActions, err := s.getAvailableActions(ctx,resourceOverrides, obj)
+	availableActions, err := s.getAvailableActions(ctx, resourceOverrides, obj)
 	if err != nil {
 		return nil, err
 	}
@@ -1124,7 +1124,7 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 	return &application.ResourceActionsListResponse{Actions: availableActions}, nil
 }
 
-func (s *Server) getAvailableActions(ctx context.Context,resourceOverrides map[string]appv1.ResourceOverride, obj *unstructured.Unstructured) ([]appv1.ResourceAction, error) {
+func (s *Server) getAvailableActions(ctx context.Context, resourceOverrides map[string]appv1.ResourceOverride, obj *unstructured.Unstructured) ([]appv1.ResourceAction, error) {
 	luaVM := lua.VM{
 		ResourceOverrides: resourceOverrides,
 	}
@@ -1136,7 +1136,7 @@ func (s *Server) getAvailableActions(ctx context.Context,resourceOverrides map[s
 	if discoveryScript == "" {
 		return []appv1.ResourceAction{}, nil
 	}
-	availableActions, err := luaVM.ExecuteResourceActionDiscovery(ctx,obj, discoveryScript)
+	availableActions, err := luaVM.ExecuteResourceActionDiscovery(ctx, obj, discoveryScript)
 	if err != nil {
 		return nil, err
 	}
@@ -1176,7 +1176,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		return nil, err
 	}
 
-	newObj, err := luaVM.ExecuteResourceAction(ctx,liveObj, action.ActionLua)
+	newObj, err := luaVM.ExecuteResourceAction(ctx, liveObj, action.ActionLua)
 	if err != nil {
 		return nil, err
 	}

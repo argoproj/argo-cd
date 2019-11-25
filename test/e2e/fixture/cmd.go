@@ -20,5 +20,5 @@ func RunWithStdin(stdin, workDir, name string, args ...string) (string, error) {
 	cmd.Env = os.Environ()
 	cmd.Dir = workDir
 
-	return config.Exec(cmd, argoexec.CmdOpts{})
+	return argoexec.RunCommandExt(cmd, argoexec.CmdOpts{})
 }

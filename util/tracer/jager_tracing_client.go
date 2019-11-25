@@ -14,7 +14,7 @@ import (
 
 var Tracer opentracing.Tracer
 
-func init() () {
+func init() {
 	serviceName := os.Getenv("JAEGER_SERVICE_NAME")
 
 	if serviceName == "" {

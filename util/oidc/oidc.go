@@ -124,7 +124,7 @@ func NewClientApp(settings *settings.ArgoCDSettings, cache *servercache.Cache, d
 	return &a, nil
 }
 
-func (a *ClientApp) oauth2Config(ctx context.Context,scopes []string) (*oauth2.Config, error) {
+func (a *ClientApp) oauth2Config(ctx context.Context, scopes []string) (*oauth2.Config, error) {
 	endpoint, err := a.provider.Endpoint(ctx)
 	if err != nil {
 		return nil, err
@@ -183,7 +183,7 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		scopes = config.RequestedScopes
 		opts = AppendClaimsAuthenticationRequestParameter(opts, config.RequestedIDTokenClaims)
 	}
-	oauth2Config, err := a.oauth2Config(ctx ,GetScopesOrDefault(scopes))
+	oauth2Config, err := a.oauth2Config(ctx, GetScopesOrDefault(scopes))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

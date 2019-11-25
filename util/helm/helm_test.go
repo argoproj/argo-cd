@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"context"
 	"os"
 	"regexp"
 	"testing"
@@ -15,7 +16,7 @@ import (
 )
 
 func template(h Helm, opts *TemplateOpts) ([]*unstructured.Unstructured, error) {
-	out, err := h.Template(opts)
+	out, err := h.Template(context.TODO(), opts)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +76,7 @@ func TestHelmTemplateValues(t *testing.T) {
 func TestHelmGetParams(t *testing.T) {
 	h, err := NewHelmApp("./testdata/redis", nil)
 	assert.NoError(t, err)
-	params, err := h.GetParameters([]string{})
+	params, err := h.GetParameters(context.TODO(), []string{})
 	assert.Nil(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
@@ -85,7 +86,7 @@ func TestHelmGetParams(t *testing.T) {
 func TestHelmGetParamsValueFiles(t *testing.T) {
 	h, err := NewHelmApp("./testdata/redis", nil)
 	assert.NoError(t, err)
-	params, err := h.GetParameters([]string{"values-production.yaml"})
+	params, err := h.GetParameters(context.TODO(), []string{"values-production.yaml"})
 	assert.Nil(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
@@ -100,13 +101,13 @@ func TestHelmDependencyBuild(t *testing.T) {
 	defer clean()
 	h, err := NewHelmApp("./testdata/wordpress", nil)
 	assert.NoError(t, err)
-	err = h.Init()
+	err = h.Init(context.TODO())
 	assert.NoError(t, err)
-	_, err = h.Template(&TemplateOpts{Name: "wordpress"})
+	_, err = h.Template(context.TODO(), &TemplateOpts{Name: "wordpress"})
 	assert.Error(t, err)
-	err = h.DependencyBuild()
+	err = h.DependencyBuild(context.TODO())
 	assert.NoError(t, err)
-	_, err = h.Template(&TemplateOpts{Name: "wordpress"})
+	_, err = h.Template(context.TODO(), &TemplateOpts{Name: "wordpress"})
 	assert.NoError(t, err)
 }
 
@@ -158,7 +159,7 @@ func TestHelmArgCleaner(t *testing.T) {
 }
 
 func TestVersion(t *testing.T) {
-	ver, err := Version()
+	ver, err := Version(context.TODO())
 	assert.NoError(t, err)
 	SemverRegexValidation := `^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$`
 	re := regexp.MustCompile(SemverRegexValidation)

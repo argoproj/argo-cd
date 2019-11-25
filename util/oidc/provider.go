@@ -23,7 +23,7 @@ type Provider interface {
 
 	ParseConfig(ctx context.Context) (*OIDCConfiguration, error)
 
-	Verify(ctx context.Context,clientID, tokenString string) (*gooidc.IDToken, error)
+	Verify(ctx context.Context, clientID, tokenString string) (*gooidc.IDToken, error)
 }
 
 type providerImpl struct {

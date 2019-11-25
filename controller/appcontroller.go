@@ -231,7 +231,7 @@ func (ctrl *ApplicationController) setAppManagedResources(ctx context.Context, a
 	if err != nil {
 		return nil, err
 	}
-	tree, err := ctrl.getResourceTree(ctx,a, managedResources)
+	tree, err := ctrl.getResourceTree(ctx, a, managedResources)
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +263,7 @@ func (ctrl *ApplicationController) getResourceTree(ctx context.Context, a *appv1
 	orphanedNodesMap := make(map[kube.ResourceKey]appv1.ResourceNode)
 	warnOrphaned := true
 	if proj.Spec.OrphanedResources != nil {
-		orphanedNodesMap, err = ctrl.stateCache.GetNamespaceTopLevelResources(ctx,a.Spec.Destination.Server, a.Spec.Destination.Namespace)
+		orphanedNodesMap, err = ctrl.stateCache.GetNamespaceTopLevelResources(ctx, a.Spec.Destination.Server, a.Spec.Destination.Namespace)
 		if err != nil {
 			return nil, err
 		}
@@ -465,9 +465,9 @@ func (ctrl *ApplicationController) processAppOperationQueueItem(ctx context.Cont
 		return
 	}
 	if app.Operation != nil {
-		ctrl.processRequestedAppOperation(ctx,app)
+		ctrl.processRequestedAppOperation(ctx, app)
 	} else if app.DeletionTimestamp != nil && app.CascadedDeletion() {
-		err = ctrl.finalizeApplicationDeletion(ctx,app)
+		err = ctrl.finalizeApplicationDeletion(ctx, app)
 		if err != nil {
 			ctrl.setAppCondition(app, appv1.ApplicationCondition{
 				Type:    appv1.ApplicationConditionDeletionError,
@@ -591,7 +591,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(ctx context.Cont
 			} else {
 				state.Message = fmt.Sprintf("%v", r)
 			}
-			ctrl.setOperationState(ctx,app, state)
+			ctrl.setOperationState(ctx, app, state)
 		}
 	}()
 	if isOperationInProgress(app) {
@@ -613,7 +613,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(ctx context.Cont
 		logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
 	} else {
 		state = &appv1.OperationState{Phase: appv1.OperationRunning, Operation: *app.Operation, StartedAt: metav1.Now()}
-		ctrl.setOperationState(ctx,app, state)
+		ctrl.setOperationState(ctx, app, state)
 		logCtx.Infof("Initialized new operation: %v", *app.Operation)
 	}
 
@@ -634,7 +634,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(ctx context.Cont
 		}
 	}
 
-	ctrl.setOperationState(ctx,app, state)
+	ctrl.setOperationState(ctx, app, state)
 	if state.Phase.Completed() {
 		// if we just completed an operation, force a refresh so that UI will report up-to-date
 		// sync/health information
@@ -711,7 +711,7 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 	}, "Update application operation state", ctx, updateOperationStateTimeout)
 }
 
-func (ctrl *ApplicationController) processAppRefreshQueueItem(ctx context.Context, ) (processNext bool) {
+func (ctrl *ApplicationController) processAppRefreshQueueItem(ctx context.Context) (processNext bool) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "processAppRefreshQueueItem")
 	defer span.Finish()
 
@@ -769,7 +769,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem(ctx context.Contex
 		if err := ctrl.cache.GetAppManagedResources(app.Name, &managedResources); err != nil {
 			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fallback to full reconciliation")
 		} else {
-			if tree, err := ctrl.getResourceTree(ctx,app, managedResources); err != nil {
+			if tree, err := ctrl.getResourceTree(ctx, app, managedResources); err != nil {
 				app.Status.SetConditions(
 					[]appv1.ApplicationCondition{
 						{
@@ -795,7 +795,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem(ctx context.Contex
 		}
 	}
 
-	hasErrors := ctrl.refreshAppConditions(ctx,app)
+	hasErrors := ctrl.refreshAppConditions(ctx, app)
 	if hasErrors {
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = appv1.HealthStatusUnknown
@@ -818,7 +818,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem(ctx context.Contex
 
 	ctrl.normalizeApplication(origApp, app)
 
-	tree, err := ctrl.setAppManagedResources(ctx,app, compareResult)
+	tree, err := ctrl.setAppManagedResources(ctx, app, compareResult)
 	if err != nil {
 		logCtx.Errorf("Failed to cache app resources: %v", err)
 	} else {

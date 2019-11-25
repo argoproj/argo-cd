@@ -547,9 +547,9 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	} else {
 		dOpts = append(dOpts, grpc.WithInsecure())
 	}
-	dOpts = append(dOpts,  grpc.WithStreamInterceptor(grpc_middleware.ChainStreamClient(
+	dOpts = append(dOpts, grpc.WithStreamInterceptor(grpc_middleware.ChainStreamClient(
 		grpc_opentracing.StreamClientInterceptor(grpc_opentracing.WithTracer(tracer.Tracer)),
-	)),grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(
+	)), grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(
 		grpc_opentracing.UnaryClientInterceptor(grpc_opentracing.WithTracer(tracer.Tracer)),
 	)))
 
@@ -771,7 +771,7 @@ func (a *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, error) {
 	if tokenString == "" {
 		return nil, ErrNoSession
 	}
-	claims, err := a.sessionMgr.VerifyToken(ctx,tokenString)
+	claims, err := a.sessionMgr.VerifyToken(ctx, tokenString)
 	if err != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}

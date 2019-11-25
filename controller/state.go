@@ -183,7 +183,7 @@ func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, []*un
 
 func DeduplicateTargetObjects(
 	ctx context.Context,
-server string,
+	server string,
 	namespace string,
 	objs []*unstructured.Unstructured,
 	infoProvider ResourceInfoProvider,
@@ -192,7 +192,7 @@ server string,
 	targetByKey := make(map[kubeutil.ResourceKey][]*unstructured.Unstructured)
 	for i := range objs {
 		obj := objs[i]
-		isNamespaced, err := infoProvider.IsNamespaced(ctx,server, obj.GroupVersionKind().GroupKind())
+		isNamespaced, err := infoProvider.IsNamespaced(ctx, server, obj.GroupVersionKind().GroupKind())
 		if err != nil {
 			return objs, nil, err
 		}
@@ -319,7 +319,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 		manifestInfo = nil
 	}
 
-	targetObjs, dedupConditions, err := DeduplicateTargetObjects(ctx,app.Spec.Destination.Server, app.Spec.Destination.Namespace, targetObjs, m.liveStateCache)
+	targetObjs, dedupConditions, err := DeduplicateTargetObjects(ctx, app.Spec.Destination.Server, app.Spec.Destination.Namespace, targetObjs, m.liveStateCache)
 	if err != nil {
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 	}
@@ -344,7 +344,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	}
 
 	logCtx.Debugf("Generated config manifests")
-	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(ctx,app, targetObjs)
+	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(ctx, app, targetObjs)
 	dedupLiveResources(targetObjs, liveObjByKey)
 	if err != nil {
 		liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
@@ -369,7 +369,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	for i, obj := range targetObjs {
 		gvk := obj.GroupVersionKind()
 		ns := util.FirstNonEmpty(obj.GetNamespace(), app.Spec.Destination.Namespace)
-		if namespaced, err := m.liveStateCache.IsNamespaced(ctx,app.Spec.Destination.Server, obj.GroupVersionKind().GroupKind()); err == nil && !namespaced {
+		if namespaced, err := m.liveStateCache.IsNamespaced(ctx, app.Spec.Destination.Server, obj.GroupVersionKind().GroupKind()); err == nil && !namespaced {
 			ns = ""
 		}
 		key := kubeutil.NewResourceKey(gvk.Group, gvk.Kind, ns, obj.GetName())
@@ -470,7 +470,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 		syncStatus.Revision = manifestInfo.Revision
 	}
 
-	healthStatus, err := health.SetApplicationHealth(ctx,resourceSummaries, GetLiveObjs(managedResources), resourceOverrides, func(obj *unstructured.Unstructured) bool {
+	healthStatus, err := health.SetApplicationHealth(ctx, resourceSummaries, GetLiveObjs(managedResources), resourceOverrides, func(obj *unstructured.Unstructured) bool {
 		return !isSelfReferencedApp(app, kubeutil.GetObjectRef(obj))
 	})
 

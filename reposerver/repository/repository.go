@@ -82,7 +82,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	s.repoLock.Lock(gitClient.Root())
 	defer s.repoLock.Unlock(gitClient.Root())
 
-	commitSHA, err = checkoutRevision(gitClient, commitSHA)
+	commitSHA, err = checkoutRevision(ctx, gitClient, commitSHA)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ type operationSettings struct {
 
 // runRepoOperation downloads either git folder or helm chart and executes specified operation
 func (s *Service) runRepoOperation(
-	c context.Context,
+	ctx context.Context,
 	revision string,
 	repo *v1alpha1.Repository,
 	source *v1alpha1.ApplicationSource,
@@ -137,7 +137,7 @@ func (s *Service) runRepoOperation(
 	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 	if settings.sem != nil {
-		err = settings.sem.Acquire(c, 1)
+		err = settings.sem.Acquire(ctx, 1)
 		if err != nil {
 			return err
 		}
@@ -155,7 +155,7 @@ func (s *Service) runRepoOperation(
 				return err
 			}
 		}
-		chartPath, closer, err := helmClient.ExtractChart(source.Chart, version)
+		chartPath, closer, err := helmClient.ExtractChart(ctx, source.Chart, version)
 		if err != nil {
 			return err
 		}
@@ -169,7 +169,7 @@ func (s *Service) runRepoOperation(
 		return nil
 	}
 
-	revision, err = checkoutRevision(gitClient, revision)
+	revision, err = checkoutRevision(ctx, gitClient, revision)
 	if err != nil {
 		return err
 	}
@@ -180,7 +180,7 @@ func (s *Service) runRepoOperation(
 	return operation(appPath, revision)
 }
 
-func (s *Service) GenerateManifest(c context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
+func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
 	var res *apiclient.ManifestResponse
 
 	getCached := func(revision string) bool {
@@ -196,9 +196,9 @@ func (s *Service) GenerateManifest(c context.Context, q *apiclient.ManifestReque
 		}
 		return false
 	}
-	err := s.runRepoOperation(c, q.Revision, q.Repo, q.ApplicationSource, getCached, func(appPath string, revision string) error {
+	err := s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, getCached, func(appPath string, revision string) error {
 		var err error
-		res, err = GenerateManifests(appPath, revision, q)
+		res, err = GenerateManifests(ctx, appPath, revision, q)
 		if err != nil {
 			return err
 		}
@@ -220,7 +220,7 @@ func getHelmRepos(repositories []*v1alpha1.Repository) []helm.HelmRepository {
 	return repos
 }
 
-func helmTemplate(appPath string, env *v1alpha1.Env, q *apiclient.ManifestRequest) ([]*unstructured.Unstructured, error) {
+func helmTemplate(ctx context.Context, appPath string, env *v1alpha1.Env, q *apiclient.ManifestRequest) ([]*unstructured.Unstructured, error) {
 	templateOpts := &helm.TemplateOpts{
 		Name:        q.AppLabelValue,
 		Namespace:   q.Namespace,
@@ -269,20 +269,20 @@ func helmTemplate(appPath string, env *v1alpha1.Env, q *apiclient.ManifestReques
 		return nil, err
 	}
 	defer h.Dispose()
-	err = h.Init()
+	err = h.Init(ctx)
 	if err != nil {
 		return nil, err
 	}
-	out, err := h.Template(templateOpts)
+	out, err := h.Template(ctx, templateOpts)
 	if err != nil {
 		if !helm.IsMissingDependencyErr(err) {
 			return nil, err
 		}
-		err = h.DependencyBuild()
+		err = h.DependencyBuild(ctx)
 		if err != nil {
 			return nil, err
 		}
-		out, err = h.Template(templateOpts)
+		out, err = h.Template(ctx, templateOpts)
 		if err != nil {
 			return nil, err
 		}
@@ -291,7 +291,7 @@ func helmTemplate(appPath string, env *v1alpha1.Env, q *apiclient.ManifestReques
 }
 
 // GenerateManifests generates manifests from a path
-func GenerateManifests(appPath, revision string, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
+func GenerateManifests(ctx context.Context, appPath, revision string, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
 	var targetObjs []*unstructured.Unstructured
 	var dest *v1alpha1.ApplicationDestination
 
@@ -307,14 +307,14 @@ func GenerateManifests(appPath, revision string, q *apiclient.ManifestRequest) (
 
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeKsonnet:
-		targetObjs, dest, err = ksShow(q.AppLabelKey, appPath, q.ApplicationSource.Ksonnet)
+		targetObjs, dest, err = ksShow(ctx, q.AppLabelKey, appPath, q.ApplicationSource.Ksonnet)
 	case v1alpha1.ApplicationSourceTypeHelm:
-		targetObjs, err = helmTemplate(appPath, env, q)
+		targetObjs, err = helmTemplate(ctx, appPath, env, q)
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), repoURL)
-		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions)
+		targetObjs, _, err = k.Build(ctx, q.ApplicationSource.Kustomize, q.KustomizeOptions)
 	case v1alpha1.ApplicationSourceTypePlugin:
-		targetObjs, err = runConfigManagementPlugin(appPath, env, q, q.Repo.GetGitCreds())
+		targetObjs, err = runConfigManagementPlugin(ctx, appPath, env, q, q.Repo.GetGitCreds())
 	case v1alpha1.ApplicationSourceTypeDirectory:
 		var directory *v1alpha1.ApplicationSourceDirectory
 		if directory = q.ApplicationSource.Directory; directory == nil {
@@ -421,7 +421,7 @@ func isNullList(obj *unstructured.Unstructured) bool {
 }
 
 // ksShow runs `ks show` in an app directory after setting any component parameter overrides
-func ksShow(appLabelKey, appPath string, ksonnetOpts *v1alpha1.ApplicationSourceKsonnet) ([]*unstructured.Unstructured, *v1alpha1.ApplicationDestination, error) {
+func ksShow(ctx context.Context, appLabelKey, appPath string, ksonnetOpts *v1alpha1.ApplicationSourceKsonnet) ([]*unstructured.Unstructured, *v1alpha1.ApplicationDestination, error) {
 	ksApp, err := ksonnet.NewKsonnetApp(appPath)
 	if err != nil {
 		return nil, nil, status.Errorf(codes.FailedPrecondition, "unable to load application from %s: %v", appPath, err)
@@ -430,7 +430,7 @@ func ksShow(appLabelKey, appPath string, ksonnetOpts *v1alpha1.ApplicationSource
 		return nil, nil, status.Errorf(codes.InvalidArgument, "Ksonnet environment not set")
 	}
 	for _, override := range ksonnetOpts.Parameters {
-		err = ksApp.SetComponentParams(ksonnetOpts.Environment, override.Component, override.Name, override.Value)
+		err = ksApp.SetComponentParams(ctx, ksonnetOpts.Environment, override.Component, override.Name, override.Value)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -439,7 +439,7 @@ func ksShow(appLabelKey, appPath string, ksonnetOpts *v1alpha1.ApplicationSource
 	if err != nil {
 		return nil, nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
-	targetObjs, err := ksApp.Show(ksonnetOpts.Environment)
+	targetObjs, err := ksApp.Show(ctx, ksonnetOpts.Environment)
 	if err == nil && appLabelKey == common.LabelKeyLegacyApplicationName {
 		// Address https://github.com/ksonnet/ksonnet/issues/707
 		for _, d := range targetObjs {
@@ -554,14 +554,14 @@ func makeJsonnetVm(sourceJsonnet v1alpha1.ApplicationSourceJsonnet, env *v1alpha
 	return vm
 }
 
-func runCommand(command v1alpha1.Command, path string, env []string) (string, error) {
+func runCommand(ctx context.Context, command v1alpha1.Command, path string, env []string) (string, error) {
 	if len(command.Command) == 0 {
 		return "", fmt.Errorf("Command is empty")
 	}
 	cmd := exec.Command(command.Command[0], append(command.Command[1:], command.Args...)...)
 	cmd.Env = env
 	cmd.Dir = path
-	return config.RunCommandExt(cmd, config.CmdOpts())
+	return config.RunCommandExt(ctx, cmd, config.CmdOpts())
 }
 
 func findPlugin(plugins []*v1alpha1.ConfigManagementPlugin, name string) *v1alpha1.ConfigManagementPlugin {
@@ -573,7 +573,7 @@ func findPlugin(plugins []*v1alpha1.ConfigManagementPlugin, name string) *v1alph
 	return nil
 }
 
-func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
+func runConfigManagementPlugin(ctx context.Context, appPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
 	plugin := findPlugin(q.Plugins, q.ApplicationSource.Plugin.Name)
 	if plugin == nil {
 		return nil, fmt.Errorf("Config management plugin with name '%s' is not supported.", q.ApplicationSource.Plugin.Name)
@@ -589,12 +589,12 @@ func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclie
 	}
 	env = append(env, q.ApplicationSource.Plugin.Env.Environ()...)
 	if plugin.Init != nil {
-		_, err := runCommand(*plugin.Init, appPath, env)
+		_, err := runCommand(ctx, *plugin.Init, appPath, env)
 		if err != nil {
 			return nil, err
 		}
 	}
-	out, err := runCommand(plugin.Generate, appPath, env)
+	out, err := runCommand(ctx, plugin.Generate, appPath, env)
 	if err != nil {
 		return nil, err
 	}
@@ -645,7 +645,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 			if q.Source.Ksonnet != nil {
 				env = q.Source.Ksonnet.Environment
 			}
-			params, err := ksApp.ListParams(env)
+			params, err := ksApp.ListParams(ctx, env)
 			if err != nil {
 				return err
 			}
@@ -671,7 +671,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 				return err
 			}
 			defer h.Dispose()
-			err = h.Init()
+			err = h.Init(ctx)
 			if err != nil {
 				return err
 			}
@@ -684,7 +684,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 				}
 				res.Helm.Values = string(bytes)
 			}
-			params, err := h.GetParameters(valueFiles(q))
+			params, err := h.GetParameters(ctx, valueFiles(q))
 			if err != nil {
 				return err
 			}
@@ -697,7 +697,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		case v1alpha1.ApplicationSourceTypeKustomize:
 			res.Kustomize = &apiclient.KustomizeAppSpec{}
 			k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), q.Repo.Repo)
-			_, images, err := k.Build(nil, q.KustomizeOptions)
+			_, images, err := k.Build(ctx, nil, q.KustomizeOptions)
 			if err != nil {
 				return err
 			}
@@ -728,11 +728,11 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 		}
 	}
 
-	commitSHA, err = checkoutRevision(gitClient, commitSHA)
+	commitSHA, err = checkoutRevision(ctx, gitClient, commitSHA)
 	if err != nil {
 		return nil, err
 	}
-	m, err := gitClient.RevisionMetadata(commitSHA)
+	m, err := gitClient.RevisionMetadata(ctx, commitSHA)
 	if err != nil {
 		return nil, err
 	}
@@ -795,20 +795,20 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
-func checkoutRevision(gitClient git.Client, commitSHA string) (string, error) {
+func checkoutRevision(ctx context.Context, gitClient git.Client, commitSHA string) (string, error) {
 	err := gitClient.Init()
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
 	}
-	err = gitClient.Fetch()
+	err = gitClient.Fetch(ctx)
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "Failed to fetch git repo: %v", err)
 	}
-	err = gitClient.Checkout(commitSHA)
+	err = gitClient.Checkout(ctx, commitSHA)
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "Failed to checkout %s: %v", commitSHA, err)
 	}
-	return gitClient.CommitSHA()
+	return gitClient.CommitSHA(ctx)
 }
 
 func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequest) (*apiclient.HelmChartsResponse, error) {

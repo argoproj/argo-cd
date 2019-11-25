@@ -14,9 +14,9 @@ var c = &clusterInfo{cacheSettingsSrc: func() *cacheSettings {
 }}
 
 func TestIsParentOf(t *testing.T) {
-	child := c.createObjInfo(context.TODO(),testPod, "")
-	parent := c.createObjInfo(context.TODO(),testRS, "")
-	grandParent := c.createObjInfo(context.TODO(),testDeploy, "")
+	child := c.createObjInfo(context.TODO(), testPod, "")
+	parent := c.createObjInfo(context.TODO(), testRS, "")
+	grandParent := c.createObjInfo(context.TODO(), testDeploy, "")
 
 	assert.True(t, parent.isParentOf(child))
 	assert.False(t, grandParent.isParentOf(child))
@@ -26,14 +26,14 @@ func TestIsParentOfSameKindDifferentGroupAndUID(t *testing.T) {
 	rs := testRS.DeepCopy()
 	rs.SetAPIVersion("somecrd.io/v1")
 	rs.SetUID("123")
-	child := c.createObjInfo(context.TODO(),testPod, "")
-	invalidParent := c.createObjInfo(context.TODO(),rs, "")
+	child := c.createObjInfo(context.TODO(), testPod, "")
+	invalidParent := c.createObjInfo(context.TODO(), rs, "")
 
 	assert.False(t, invalidParent.isParentOf(child))
 }
 
 func TestIsServiceParentOfEndPointWithTheSameName(t *testing.T) {
-	nonMatchingNameEndPoint := c.createObjInfo(context.TODO(),strToUnstructured(`
+	nonMatchingNameEndPoint := c.createObjInfo(context.TODO(), strToUnstructured(`
 apiVersion: v1
 kind: Endpoints
 metadata:
@@ -41,7 +41,7 @@ metadata:
   namespace: default
 `), "")
 
-	matchingNameEndPoint := c.createObjInfo(context.TODO(),strToUnstructured(`
+	matchingNameEndPoint := c.createObjInfo(context.TODO(), strToUnstructured(`
 apiVersion: v1
 kind: Endpoints
 metadata:
@@ -49,7 +49,7 @@ metadata:
   namespace: default
 `), "")
 
-	parent := c.createObjInfo(context.TODO(),testService, "")
+	parent := c.createObjInfo(context.TODO(), testService, "")
 
 	assert.True(t, parent.isParentOf(matchingNameEndPoint))
 	assert.Equal(t, parent.ref.UID, matchingNameEndPoint.ownerRefs[0].UID)
@@ -57,7 +57,7 @@ metadata:
 }
 
 func TestIsServiceAccoountParentOfSecret(t *testing.T) {
-	serviceAccount := c.createObjInfo(context.TODO(),strToUnstructured(`
+	serviceAccount := c.createObjInfo(context.TODO(), strToUnstructured(`
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -67,7 +67,7 @@ metadata:
 secrets:
 - name: default-token-123
 `), "")
-	tokenSecret := c.createObjInfo(context.TODO(),strToUnstructured(`
+	tokenSecret := c.createObjInfo(context.TODO(), strToUnstructured(`
 apiVersion: v1
 kind: Secret
 metadata:

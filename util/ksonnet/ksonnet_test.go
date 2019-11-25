@@ -1,6 +1,7 @@
 package ksonnet
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"path/filepath"
@@ -37,7 +38,7 @@ func TestKsonnet(t *testing.T) {
 func TestShow(t *testing.T) {
 	ksApp, err := NewKsonnetApp(filepath.Join(testDataDir, testAppName))
 	assert.Nil(t, err)
-	objs, err := ksApp.Show(testEnvName)
+	objs, err := ksApp.Show(context.TODO(), testEnvName)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(objs))
 	for _, obj := range objs {
@@ -48,7 +49,7 @@ func TestShow(t *testing.T) {
 }
 
 func TestVersion(t *testing.T) {
-	ver, err := Version()
+	ver, err := Version(context.TODO())
 	assert.NoError(t, err)
 	SemverRegexValidation := `^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$`
 	re := regexp.MustCompile(SemverRegexValidation)

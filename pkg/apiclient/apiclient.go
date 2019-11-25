@@ -397,9 +397,9 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 	var dialOpts []grpc.DialOption
 	dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(endpointCredentials))
 	dialOpts = append(dialOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize)))
-	dialOpts = append(dialOpts,  grpc.WithStreamInterceptor(grpc_middleware.ChainStreamClient(
+	dialOpts = append(dialOpts, grpc.WithStreamInterceptor(grpc_middleware.ChainStreamClient(
 		grpc_opentracing.StreamClientInterceptor(grpc_opentracing.WithTracer(tracer.Tracer)),
-	)),grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(
+	)), grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(
 		grpc_opentracing.UnaryClientInterceptor(grpc_opentracing.WithTracer(tracer.Tracer)),
 	)))
 

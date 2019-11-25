@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -35,7 +36,7 @@ func TestIndex(t *testing.T) {
 
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", Creds{})
-	path, closer, err := client.ExtractChart("argo-cd", semver.MustParse("0.7.1"))
+	path, closer, err := client.ExtractChart(context.TODO(), "argo-cd", semver.MustParse("0.7.1"))
 	assert.NoError(t, err)
 	defer util.Close(closer)
 	info, err := os.Stat(path)

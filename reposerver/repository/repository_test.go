@@ -39,10 +39,10 @@ func newServiceWithMocks(root string) (*Service, *gitmocks.Client) {
 		panic(err)
 	}
 	gitClient.On("Init").Return(nil)
-	gitClient.On("Fetch").Return(nil)
+	gitClient.On("Fetch", mock.Anything).Return(nil)
 	gitClient.On("Checkout", mock.Anything).Return(nil)
 	gitClient.On("LsRemote", mock.Anything).Return(mock.Anything, nil)
-	gitClient.On("CommitSHA").Return(mock.Anything, nil)
+	gitClient.On("CommitSHA", mock.Anything).Return(mock.Anything, nil)
 	gitClient.On("Root").Return(root)
 
 	chart := "my-chart"
@@ -50,7 +50,7 @@ func newServiceWithMocks(root string) (*Service, *gitmocks.Client) {
 	helmClient.On("GetIndex").Return(&helm.Index{Entries: map[string]helm.Entries{
 		chart: {{Version: "1.0.0"}, {Version: version.String()}},
 	}}, nil)
-	helmClient.On("ExtractChart", chart, version).Return("./testdata/my-chart", util.NopCloser, nil)
+	helmClient.On("ExtractChart", mock.Anything, chart, version).Return("./testdata/my-chart", util.NopCloser, nil)
 	helmClient.On("CleanChartCache", chart, version).Return(nil)
 
 	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool) (client git.Client, e error) {
@@ -82,7 +82,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	assert.Equal(t, countOfManifests, len(res1.Manifests))
 
 	// this will test concatenated manifests to verify we split YAMLs correctly
-	res2, err := GenerateManifests("./testdata/concatenated", "", &q)
+	res2, err := GenerateManifests(context.TODO(), "./testdata/concatenated", "", &q)
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(res2.Manifests))
 }
@@ -319,7 +319,7 @@ func TestGenerateFromUTF16(t *testing.T) {
 		Repo:              &argoappv1.Repository{},
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
-	res1, err := GenerateManifests("./testdata/utf-16", "", &q)
+	res1, err := GenerateManifests(context.TODO(), "./testdata/utf-16", "", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res1.Manifests))
 }

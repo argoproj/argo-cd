@@ -471,7 +471,7 @@ func TestPersistRevisionHistory(t *testing.T) {
 	opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{},
 	}}
-	ctrl.appStateManager.SyncAppState(context.TODO(),app, opState)
+	ctrl.appStateManager.SyncAppState(context.TODO(), app, opState)
 	// Ensure we record spec.source into sync result
 	assert.Equal(t, app.Spec.Source, opState.SyncResult.Source)
 
@@ -520,7 +520,7 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 			Source: &source,
 		},
 	}}
-	ctrl.appStateManager.SyncAppState(context.TODO(),app, opState)
+	ctrl.appStateManager.SyncAppState(context.TODO(), app, opState)
 	// Ensure we record opState's source into sync result
 	assert.Equal(t, source, opState.SyncResult.Source)
 

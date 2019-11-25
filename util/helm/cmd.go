@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -34,22 +35,22 @@ var redactor = func(text string) string {
 	return regexp.MustCompile("(--username|--password) [^ ]*").ReplaceAllString(text, "$1 ******")
 }
 
-func (c Cmd) run(args ...string) (string, error) {
+func (c Cmd) run(ctx context.Context, args ...string) (string, error) {
 	cmd := exec.Command("helm", args...)
 	cmd.Dir = c.WorkDir
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, fmt.Sprintf("HELM_HOME=%s", c.helmHome))
-	return config.RunCommandExt(cmd, argoexec.CmdOpts{
+	return config.RunCommandExt(ctx, cmd, argoexec.CmdOpts{
 		Timeout:  config.CmdOpts().Timeout,
 		Redactor: redactor,
 	})
 }
 
-func (c *Cmd) Init() (string, error) {
-	return c.run("init", "--client-only", "--skip-refresh")
+func (c *Cmd) Init(ctx context.Context) (string, error) {
+	return c.run(ctx, "init", "--client-only", "--skip-refresh")
 }
 
-func (c *Cmd) RepoAdd(name, url string, opts Creds) (string, error) {
+func (c *Cmd) RepoAdd(ctx context.Context, name, url string, opts Creds) (string, error) {
 
 	tmp, err := ioutil.TempDir("", "helm")
 	if err != nil {
@@ -97,11 +98,11 @@ func (c *Cmd) RepoAdd(name, url string, opts Creds) (string, error) {
 
 	args = append(args, name, url)
 
-	return c.run(args...)
+	return c.run(ctx, args...)
 }
 
-func (c *Cmd) RepoUpdate() (string, error) {
-	return c.run("repo", "update")
+func (c *Cmd) RepoUpdate(ctx context.Context) (string, error) {
+	return c.run(ctx, "repo", "update")
 }
 
 func writeToTmp(data []byte) (string, io.Closer, error) {
@@ -119,7 +120,7 @@ func writeToTmp(data []byte) (string, io.Closer, error) {
 	}), nil
 }
 
-func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds) (string, error) {
+func (c *Cmd) Fetch(ctx context.Context, repo, chartName, version, destination string, creds Creds) (string, error) {
 	args := []string{"fetch", "--destination", destination}
 
 	if version != "" {
@@ -152,15 +153,15 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds) (
 	}
 
 	args = append(args, "--repo", repo, chartName)
-	return c.run(args...)
+	return c.run(ctx, args...)
 }
 
-func (c *Cmd) dependencyBuild() (string, error) {
-	return c.run("dependency", "build")
+func (c *Cmd) dependencyBuild(ctx context.Context) (string, error) {
+	return c.run(ctx, "dependency", "build")
 }
 
-func (c *Cmd) inspectValues(values string) (string, error) {
-	return c.run("inspect", "values", values)
+func (c *Cmd) inspectValues(ctx context.Context, values string) (string, error) {
+	return c.run(ctx, "inspect", "values", values)
 }
 
 type TemplateOpts struct {
@@ -180,7 +181,7 @@ func cleanSetParameters(val string) string {
 	return re.ReplaceAllString(val, `$1\,`)
 }
 
-func (c *Cmd) template(chart string, opts *TemplateOpts) (string, error) {
+func (c *Cmd) template(ctx context.Context, chart string, opts *TemplateOpts) (string, error) {
 	args := []string{"template", chart, "--name", opts.Name}
 
 	if opts.Namespace != "" {
@@ -210,7 +211,7 @@ func (c *Cmd) template(chart string, opts *TemplateOpts) (string, error) {
 		args = append(args, "--values", cleanVal)
 	}
 
-	return c.run(args...)
+	return c.run(ctx, args...)
 }
 
 func (c *Cmd) Close() {

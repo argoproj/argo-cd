@@ -1,6 +1,10 @@
 package metrics
 
-import "github.com/argoproj/argo-cd/util/git"
+import (
+	"context"
+
+	"github.com/argoproj/argo-cd/util/git"
+)
 
 type gitClientWrapper struct {
 	repo          string
@@ -12,9 +16,9 @@ func WrapGitClient(repo string, metricsServer *MetricsServer, client git.Client)
 	return &gitClientWrapper{repo: repo, client: client, metricsServer: metricsServer}
 }
 
-func (w *gitClientWrapper) Fetch() error {
+func (w *gitClientWrapper) Fetch(ctx context.Context) error {
 	w.metricsServer.IncGitRequest(w.repo, GitRequestTypeFetch)
-	return w.client.Fetch()
+	return w.client.Fetch(ctx)
 }
 
 func (w *gitClientWrapper) LsRemote(revision string) (string, error) {
@@ -26,20 +30,20 @@ func (w *gitClientWrapper) LsRemote(revision string) (string, error) {
 	return sha, err
 }
 
-func (w *gitClientWrapper) LsFiles(path string) ([]string, error) {
-	return w.client.LsFiles(path)
+func (w *gitClientWrapper) LsFiles(ctx context.Context, path string) ([]string, error) {
+	return w.client.LsFiles(ctx, path)
 }
 
-func (w *gitClientWrapper) LsLargeFiles() ([]string, error) {
-	return w.client.LsLargeFiles()
+func (w *gitClientWrapper) LsLargeFiles(ctx context.Context) ([]string, error) {
+	return w.client.LsLargeFiles(ctx)
 }
 
-func (w *gitClientWrapper) Checkout(revision string) error {
-	return w.client.Checkout(revision)
+func (w *gitClientWrapper) Checkout(ctx context.Context, revision string) error {
+	return w.client.Checkout(ctx, revision)
 }
 
-func (w *gitClientWrapper) CommitSHA() (string, error) {
-	return w.client.CommitSHA()
+func (w *gitClientWrapper) CommitSHA(ctx context.Context) (string, error) {
+	return w.client.CommitSHA(ctx)
 }
 
 func (w *gitClientWrapper) Root() string {
@@ -50,6 +54,6 @@ func (w *gitClientWrapper) Init() error {
 	return w.client.Init()
 }
 
-func (w *gitClientWrapper) RevisionMetadata(revision string) (*git.RevisionMetadata, error) {
-	return w.client.RevisionMetadata(revision)
+func (w *gitClientWrapper) RevisionMetadata(ctx context.Context, revision string) (*git.RevisionMetadata, error) {
+	return w.client.RevisionMetadata(ctx, revision)
 }

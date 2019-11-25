@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,7 +16,7 @@ func Test_cmd_redactor(t *testing.T) {
 func TestCmd_template_kubeVersion(t *testing.T) {
 	cmd, err := NewCmd(".")
 	assert.NoError(t, err)
-	s, err := cmd.template("testdata/redis", &TemplateOpts{
+	s, err := cmd.template(context.TODO(), "testdata/redis", &TemplateOpts{
 		KubeVersion: "1.14",
 	})
 	assert.NoError(t, err)
@@ -25,20 +26,20 @@ func TestCmd_template_kubeVersion(t *testing.T) {
 func TestCmd_template_PathTraversal(t *testing.T) {
 	cmd, err := NewCmd("./testdata/redis")
 	assert.NoError(t, err)
-	s, err := cmd.template(".", &TemplateOpts{
+	s, err := cmd.template(context.TODO(), ".", &TemplateOpts{
 		KubeVersion: "1.14",
 		Values:      []string{"values.yaml"},
 	})
 	assert.NoError(t, err)
 	assert.NotEmpty(t, s)
 
-	_, err = cmd.template(".", &TemplateOpts{
+	_, err = cmd.template(context.TODO(), ".", &TemplateOpts{
 		KubeVersion: "1.14",
 		Values:      []string{"../minio/values.yaml"},
 	})
 	assert.Error(t, err)
 
-	s, err = cmd.template(".", &TemplateOpts{
+	s, err = cmd.template(context.TODO(), ".", &TemplateOpts{
 		KubeVersion: "1.14",
 		Values:      []string{"../minio/../redis/values.yaml"},
 	})

@@ -221,7 +221,7 @@ func (k *KubectlCmd) ApplyResource(ctx context.Context, config *rest.Config, obj
 				return "", err
 			}
 		}
-		outReconcile, err := k.runKubectl(ctx,f.Name(), namespace, []string{"auth", "reconcile"}, manifestBytes, dryRun)
+		outReconcile, err := k.runKubectl(ctx, f.Name(), namespace, []string{"auth", "reconcile"}, manifestBytes, dryRun)
 		if err != nil {
 			return "", err
 		}
@@ -238,7 +238,7 @@ func (k *KubectlCmd) ApplyResource(ctx context.Context, config *rest.Config, obj
 	if !validate {
 		applyArgs = append(applyArgs, "--validate=false")
 	}
-	outApply, err := k.runKubectl(ctx,f.Name(), namespace, applyArgs, manifestBytes, dryRun)
+	outApply, err := k.runKubectl(ctx, f.Name(), namespace, applyArgs, manifestBytes, dryRun)
 	if err != nil {
 		return "", err
 	}
@@ -264,7 +264,7 @@ func (k *KubectlCmd) processKubectlRun(ctx context.Context, args []string) (util
 		if len(args) > 0 {
 			cmd = args[0]
 		}
-		return k.OnKubectlRun(ctx,cmd)
+		return k.OnKubectlRun(ctx, cmd)
 	}
 	return util.NewCloser(func() error {
 		return nil
@@ -273,7 +273,7 @@ func (k *KubectlCmd) processKubectlRun(ctx context.Context, args []string) (util
 }
 
 func (k *KubectlCmd) runKubectl(ctx context.Context, kubeconfigPath string, namespace string, args []string, manifestBytes []byte, dryRun bool) (string, error) {
-	closer, err := k.processKubectlRun(ctx,args)
+	closer, err := k.processKubectlRun(ctx, args)
 	if err != nil {
 		return "", err
 	}
@@ -304,16 +304,16 @@ func (k *KubectlCmd) runKubectl(ctx context.Context, kubeconfigPath string, name
 		log.Debug(string(redactedBytes))
 	}
 	cmd.Stdin = bytes.NewReader(manifestBytes)
-	out, err := config.RunCommandExt(cmd, config.CmdOpts())
+	out, err := config.RunCommandExt(ctx, cmd, config.CmdOpts())
 	if err != nil {
 		return "", convertKubectlError(err)
 	}
 	return out, nil
 }
 
-func Version() (string, error) {
+func Version(ctx context.Context) (string, error) {
 	cmd := exec.Command("kubectl", "version", "--client")
-	out, err := config.RunCommandExt(cmd, config.CmdOpts())
+	out, err := config.RunCommandExt(ctx, cmd, config.CmdOpts())
 	if err != nil {
 		return "", fmt.Errorf("could not get kubectl version: %s", err)
 	}
@@ -350,7 +350,7 @@ func (k *KubectlCmd) ConvertToVersion(ctx context.Context, obj *unstructured.Uns
 	}
 	defer util.DeleteFile(f.Name())
 
-	closer, err := k.processKubectlRun(ctx,[]string{"convert"})
+	closer, err := k.processKubectlRun(ctx, []string{"convert"})
 	if err != nil {
 		return nil, err
 	}
@@ -359,7 +359,7 @@ func (k *KubectlCmd) ConvertToVersion(ctx context.Context, obj *unstructured.Uns
 	outputVersion := fmt.Sprintf("%s/%s", group, version)
 	cmd := exec.Command("kubectl", "convert", "--output-version", outputVersion, "-o", "json", "--local=true", "-f", f.Name())
 	cmd.Stdin = bytes.NewReader(manifestBytes)
-	out, err := config.RunCommandExt(cmd, config.CmdOpts())
+	out, err := config.RunCommandExt(ctx, cmd, config.CmdOpts())
 	if err != nil {
 		return nil, convertKubectlError(err)
 	}

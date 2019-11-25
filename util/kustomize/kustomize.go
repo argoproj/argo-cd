@@ -1,6 +1,7 @@
 package kustomize
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"os"
@@ -27,7 +28,7 @@ type Image = string
 // Kustomize provides wrapper functionality around the `kustomize` command.
 type Kustomize interface {
 	// Build returns a list of unstructured objects from a `kustomize build` command and extract supported parameters
-	Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions) ([]*unstructured.Unstructured, []Image, error)
+	Build(ctx context.Context, opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions) ([]*unstructured.Unstructured, []Image, error)
 }
 
 // NewKustomizeApp create a new wrapper to run commands on the `kustomize` command-line tool.
@@ -48,13 +49,13 @@ type kustomize struct {
 	repo string
 }
 
-func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions) ([]*unstructured.Unstructured, []Image, error) {
+func (k *kustomize) Build(ctx context.Context, opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions) ([]*unstructured.Unstructured, []Image, error) {
 
 	if opts != nil {
 		if opts.NamePrefix != "" {
 			cmd := exec.Command("kustomize", "edit", "set", "nameprefix", "--", opts.NamePrefix)
 			cmd.Dir = k.path
-			_, err := config.RunCommandExt(cmd, config.CmdOpts())
+			_, err := config.RunCommandExt(ctx, cmd, config.CmdOpts())
 			if err != nil {
 				return nil, nil, err
 			}
@@ -62,7 +63,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		if opts.NameSuffix != "" {
 			cmd := exec.Command("kustomize", "edit", "set", "namesuffix", "--", opts.NameSuffix)
 			cmd.Dir = k.path
-			_, err := config.RunCommandExt(cmd, config.CmdOpts())
+			_, err := config.RunCommandExt(ctx, cmd, config.CmdOpts())
 			if err != nil {
 				return nil, nil, err
 			}
@@ -76,7 +77,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			}
 			cmd := exec.Command("kustomize", args...)
 			cmd.Dir = k.path
-			_, err := config.RunCommandExt(cmd, config.CmdOpts())
+			_, err := config.RunCommandExt(ctx, cmd, config.CmdOpts())
 			if err != nil {
 				return nil, nil, err
 			}
@@ -95,7 +96,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			args = append(args, arg)
 			cmd := exec.Command("kustomize", args...)
 			cmd.Dir = k.path
-			_, err := config.RunCommandExt(cmd, config.CmdOpts())
+			_, err := config.RunCommandExt(ctx, cmd, config.CmdOpts())
 			if err != nil {
 				return nil, nil, err
 			}
@@ -139,7 +140,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	}
 
 	cmd.Env = append(cmd.Env, environ...)
-	out, err := config.RunCommandExt(cmd, config.CmdOpts())
+	out, err := config.RunCommandExt(ctx, cmd, config.CmdOpts())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -178,9 +179,9 @@ func IsKustomization(path string) bool {
 	return false
 }
 
-func Version() (string, error) {
+func Version(ctx context.Context) (string, error) {
 	cmd := exec.Command("kustomize", "version")
-	out, err := config.RunCommandExt(cmd, config.CmdOpts())
+	out, err := config.RunCommandExt(ctx, cmd, config.CmdOpts())
 	if err != nil {
 		return "", fmt.Errorf("could not get kustomize version: %s", err)
 	}

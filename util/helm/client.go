@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
@@ -38,7 +39,7 @@ type Creds struct {
 
 type Client interface {
 	CleanChartCache(chart string, version *semver.Version) error
-	ExtractChart(chart string, version *semver.Version) (string, util.Closer, error)
+	ExtractChart(ctx context.Context, chart string, version *semver.Version) (string, util.Closer, error)
 	GetIndex() (*Index, error)
 }
 
@@ -88,7 +89,7 @@ func (c *nativeHelmChart) CleanChartCache(chart string, version *semver.Version)
 	return os.RemoveAll(c.getChartPath(chart, version))
 }
 
-func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (string, util.Closer, error) {
+func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, version *semver.Version) (string, util.Closer, error) {
 	err := c.helmChartRepoPath()
 	if err != nil {
 		return "", nil, err
@@ -109,12 +110,12 @@ func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (s
 		}
 		defer helmCmd.Close()
 
-		_, err = helmCmd.Init()
+		_, err = helmCmd.Init(ctx)
 		if err != nil {
 			return "", nil, err
 		}
 
-		_, err = helmCmd.RepoUpdate()
+		_, err = helmCmd.RepoUpdate(ctx)
 		if err != nil {
 			return "", nil, err
 		}
@@ -125,7 +126,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (s
 			return "", nil, err
 		}
 		defer func() { _ = os.RemoveAll(tempDest) }()
-		_, err = helmCmd.Fetch(c.repoURL, chart, version.String(), tempDest, c.creds)
+		_, err = helmCmd.Fetch(ctx, c.repoURL, chart, version.String(), tempDest, c.creds)
 		if err != nil {
 			return "", nil, err
 		}
@@ -150,7 +151,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (s
 	}
 	cmd := exec.Command("tar", "-zxvf", chartPath)
 	cmd.Dir = tempDir
-	_, err = config.RunCommandExt(cmd, config.CmdOpts())
+	_, err = config.RunCommandExt(ctx, cmd, config.CmdOpts())
 	if err != nil {
 		_ = os.RemoveAll(tempDir)
 		return "", nil, err

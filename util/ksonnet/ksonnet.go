@@ -1,6 +1,7 @@
 package ksonnet
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -44,22 +45,22 @@ type KsonnetApp interface {
 	Root() string
 
 	// Show returns a list of unstructured objects that would be applied to an environment
-	Show(environment string) ([]*unstructured.Unstructured, error)
+	Show(ctx context.Context, environment string) ([]*unstructured.Unstructured, error)
 
 	// Destination returns the deployment destination for an environment
 	Destination(environment string) (*v1alpha1.ApplicationDestination, error)
 
 	// ListParams returns list of ksonnet parameters
-	ListParams(environment string) ([]*v1alpha1.KsonnetParameter, error)
+	ListParams(ctx context.Context, environment string) ([]*v1alpha1.KsonnetParameter, error)
 
 	// SetComponentParams updates component parameter in specified environment.
-	SetComponentParams(environment string, component string, param string, value string) error
+	SetComponentParams(ctx context.Context, environment string, component string, param string, value string) error
 }
 
 // Version returns the version of ksonnet used when running ksonnet commands
-func Version() (string, error) {
+func Version(ctx context.Context) (string, error) {
 	ksApp := ksonnetApp{}
-	out, err := ksApp.ksCmd("", "version")
+	out, err := ksApp.ksCmd(ctx, "", "version")
 	if err != nil {
 		return "", fmt.Errorf("unable to determine ksonnet version: %v", err)
 	}
@@ -98,11 +99,11 @@ func (k *ksonnetApp) appYamlPath() (string, error) {
 	return p, nil
 }
 
-func (k *ksonnetApp) ksCmd(args ...string) (string, error) {
+func (k *ksonnetApp) ksCmd(ctx context.Context, args ...string) (string, error) {
 	cmd := exec.Command("ks", args...)
 	cmd.Dir = k.Root()
 
-	return config.RunCommandExt(cmd, config.CmdOpts())
+	return config.RunCommandExt(ctx, cmd, config.CmdOpts())
 }
 
 func (k *ksonnetApp) Root() string {
@@ -110,8 +111,8 @@ func (k *ksonnetApp) Root() string {
 }
 
 // Show generates a concatenated list of Kubernetes manifests in the given environment.
-func (k *ksonnetApp) Show(environment string) ([]*unstructured.Unstructured, error) {
-	out, err := k.ksCmd("show", environment)
+func (k *ksonnetApp) Show(ctx context.Context, environment string) ([]*unstructured.Unstructured, error) {
+	out, err := k.ksCmd(ctx, "show", environment)
 	if err != nil {
 		return nil, fmt.Errorf("`ks show` failed: %v", err)
 	}
@@ -132,12 +133,12 @@ func (k *ksonnetApp) Destination(environment string) (*v1alpha1.ApplicationDesti
 }
 
 // ListParams returns list of ksonnet parameters
-func (k *ksonnetApp) ListParams(environment string) ([]*v1alpha1.KsonnetParameter, error) {
+func (k *ksonnetApp) ListParams(ctx context.Context, environment string) ([]*v1alpha1.KsonnetParameter, error) {
 	args := []string{"param", "list", "--output", "json"}
 	if environment != "" {
 		args = append(args, "--env", environment)
 	}
-	out, err := k.ksCmd(args...)
+	out, err := k.ksCmd(ctx, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +166,7 @@ func (k *ksonnetApp) ListParams(environment string) ([]*v1alpha1.KsonnetParamete
 }
 
 // SetComponentParams updates component parameter in specified environment.
-func (k *ksonnetApp) SetComponentParams(environment string, component string, param string, value string) error {
-	_, err := k.ksCmd("param", "set", component, param, value, "--env", environment)
+func (k *ksonnetApp) SetComponentParams(ctx context.Context, environment string, component string, param string, value string) error {
+	_, err := k.ksCmd(ctx, "param", "set", component, param, value, "--env", environment)
 	return err
 }

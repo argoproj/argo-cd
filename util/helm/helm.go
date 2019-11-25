@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -25,13 +26,13 @@ type HelmRepository struct {
 // Helm provides wrapper functionality around the `helm` command.
 type Helm interface {
 	// Template returns a list of unstructured objects from a `helm template` command
-	Template(opts *TemplateOpts) (string, error)
+	Template(ctx context.Context, opts *TemplateOpts) (string, error)
 	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
-	GetParameters(valuesFiles []string) (map[string]string, error)
+	GetParameters(ctx context.Context, valuesFiles []string) (map[string]string, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
-	DependencyBuild() error
+	DependencyBuild(ctx context.Context) error
 	// Init runs `helm init --client-only`
-	Init() error
+	Init(ctx context.Context) error
 	// Dispose deletes temp resources
 	Dispose()
 }
@@ -55,29 +56,29 @@ func IsMissingDependencyErr(err error) bool {
 	return strings.Contains(err.Error(), "found in requirements.yaml, but missing in charts")
 }
 
-func (h *helm) Template(templateOpts *TemplateOpts) (string, error) {
-	out, err := h.cmd.template(".", templateOpts)
+func (h *helm) Template(ctx context.Context, templateOpts *TemplateOpts) (string, error) {
+	out, err := h.cmd.template(ctx, ".", templateOpts)
 	if err != nil {
 		return "", err
 	}
 	return out, nil
 }
 
-func (h *helm) DependencyBuild() error {
+func (h *helm) DependencyBuild(ctx context.Context) error {
 	for _, repo := range h.repos {
-		_, err := h.cmd.RepoAdd(repo.Name, repo.Repo, repo.Creds)
+		_, err := h.cmd.RepoAdd(ctx, repo.Name, repo.Repo, repo.Creds)
 
 		if err != nil {
 			return err
 		}
 	}
 	h.repos = nil
-	_, err := h.cmd.dependencyBuild()
+	_, err := h.cmd.dependencyBuild(ctx)
 	return err
 }
 
-func (h *helm) Init() error {
-	_, err := h.cmd.Init()
+func (h *helm) Init(ctx context.Context) error {
+	_, err := h.cmd.Init(ctx)
 	return err
 }
 
@@ -85,9 +86,9 @@ func (h *helm) Dispose() {
 	h.cmd.Close()
 }
 
-func Version() (string, error) {
+func Version(ctx context.Context) (string, error) {
 	cmd := exec.Command("helm", "version", "--client")
-	out, err := config.RunCommandExt(cmd, argoexec.CmdOpts{
+	out, err := config.RunCommandExt(ctx, cmd, argoexec.CmdOpts{
 		Timeout:  config.CmdOpts().Timeout,
 		Redactor: redactor,
 	})
@@ -106,8 +107,8 @@ func Version() (string, error) {
 	return strings.TrimSpace(version), nil
 }
 
-func (h *helm) GetParameters(valuesFiles []string) (map[string]string, error) {
-	out, err := h.cmd.inspectValues(".")
+func (h *helm) GetParameters(ctx context.Context, valuesFiles []string) (map[string]string, error) {
+	out, err := h.cmd.inspectValues(ctx, ".")
 	if err != nil {
 		return nil, err
 	}

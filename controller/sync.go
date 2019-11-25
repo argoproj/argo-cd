@@ -249,7 +249,7 @@ func (sc *syncContext) sync() {
 			}
 		} else {
 			// this must be calculated on the live object
-			healthStatus, err := health.GetResourceHealth(sc.context,task.liveObj, sc.resourceOverrides)
+			healthStatus, err := health.GetResourceHealth(sc.context, task.liveObj, sc.resourceOverrides)
 			if err == nil {
 				log.WithFields(log.Fields{"task": task, "healthStatus": healthStatus}).Debug("attempting to update health of running task")
 				if healthStatus == nil {
@@ -546,7 +546,7 @@ func (sc *syncContext) ensureCRDReady(name string) {
 // applyObject performs a `kubectl apply` of a single resource
 func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun bool, force bool) (v1alpha1.ResultCode, string) {
 	validate := !resource.HasAnnotationOption(targetObj, common.AnnotationSyncOptions, "Validate=false")
-	message, err := sc.kubectl.ApplyResource(sc.context,sc.config, targetObj, targetObj.GetNamespace(), dryRun, force, validate)
+	message, err := sc.kubectl.ApplyResource(sc.context, sc.config, targetObj, targetObj.GetNamespace(), dryRun, force, validate)
 	if err != nil {
 		return v1alpha1.ResultCodeSyncFailed, err.Error()
 	}

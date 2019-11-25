@@ -361,7 +361,7 @@ func modifyProjectResourceCmd(cmdUse, cmdDesc string, clientOpts *argocdclient.C
 				os.Exit(1)
 			}
 			projName, group, kind := args[0], args[1], args[2]
-			span, ctx := opentracing.StartSpanFromContext(context.Background(), "proj " + cmdUse)
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "proj "+cmdUse)
 			defer span.Finish()
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)

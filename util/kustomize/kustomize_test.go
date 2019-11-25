@@ -1,6 +1,7 @@
 package kustomize
 
 import (
+	"context"
 	"io/ioutil"
 	"path"
 	"path/filepath"
@@ -44,7 +45,7 @@ func TestKustomizeBuild(t *testing.T) {
 			"app.kubernetes.io/part-of":    "argo-cd-tests",
 		},
 	}
-	objs, images, err := kustomize.Build(&kustomizeSource, nil)
+	objs, images, err := kustomize.Build(context.TODO(), &kustomizeSource, nil)
 	assert.Nil(t, err)
 	if err != nil {
 		assert.Equal(t, len(objs), 2)
@@ -101,7 +102,7 @@ func TestParseKustomizeBuildOptions(t *testing.T) {
 }
 
 func TestVersion(t *testing.T) {
-	ver, err := Version()
+	ver, err := Version(context.TODO())
 	assert.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }

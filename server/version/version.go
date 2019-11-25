@@ -21,10 +21,10 @@ type Server struct {
 }
 
 // Version returns the version of the API server
-func (s *Server) Version(context.Context, *empty.Empty) (*version.VersionMessage, error) {
+func (s *Server) Version(ctx context.Context, empty *empty.Empty) (*version.VersionMessage, error) {
 	vers := common.GetVersion()
 	if s.ksonnetVersion == "" {
-		ksonnetVersion, err := ksutil.Version()
+		ksonnetVersion, err := ksutil.Version(ctx)
 		if err == nil {
 			s.ksonnetVersion = ksonnetVersion
 		} else {
@@ -32,7 +32,7 @@ func (s *Server) Version(context.Context, *empty.Empty) (*version.VersionMessage
 		}
 	}
 	if s.kustomizeVersion == "" {
-		kustomizeVersion, err := kustomize.Version()
+		kustomizeVersion, err := kustomize.Version(ctx)
 		if err == nil {
 			s.kustomizeVersion = kustomizeVersion
 		} else {
@@ -41,7 +41,7 @@ func (s *Server) Version(context.Context, *empty.Empty) (*version.VersionMessage
 
 	}
 	if s.helmVersion == "" {
-		helmVersion, err := helm.Version()
+		helmVersion, err := helm.Version(ctx)
 		if err == nil {
 			s.helmVersion = helmVersion
 		} else {
@@ -49,7 +49,7 @@ func (s *Server) Version(context.Context, *empty.Empty) (*version.VersionMessage
 		}
 	}
 	if s.kubectlVersion == "" {
-		kubectlVersion, err := kube.Version()
+		kubectlVersion, err := kube.Version(ctx)
 		if err == nil {
 			s.kubectlVersion = kubectlVersion
 		} else {

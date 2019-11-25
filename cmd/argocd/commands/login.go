@@ -49,7 +49,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 			server := args[0]
 			span, ctx := opentracing.StartSpanFromContext(context.Background(), "login")
 			defer span.Finish()
-			tlsTestResult, err := grpc_util.TestTLS(ctx,server)
+			tlsTestResult, err := grpc_util.TestTLS(ctx, server)
 			errors.CheckError(err)
 			if !tlsTestResult.TLS {
 				if !globalClientOpts.PlainText {
@@ -85,7 +85,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 			var tokenString string
 			var refreshToken string
 			if !sso {
-				tokenString = passwordLogin(ctx,acdClient, username, password)
+				tokenString = passwordLogin(ctx, acdClient, username, password)
 			} else {
 				span, ctx := opentracing.StartSpanFromContext(context.Background(), "login")
 				defer span.Finish()
