@@ -2,9 +2,10 @@ package config
 
 import (
 	"os"
+	"os/exec"
 	"time"
 
-	"github.com/argoproj/pkg/exec"
+	argoexec "github.com/argoproj/pkg/exec"
 )
 
 var timeout time.Duration
@@ -21,6 +22,10 @@ func initTimeout() {
 	}
 }
 
-func CmdOpts() exec.CmdOpts {
-	return exec.CmdOpts{Timeout: timeout}
+func RunCommandExt(cmd *exec.Cmd, opts argoexec.CmdOpts) (string, error) {
+	return argoexec.RunCommandExt(cmd, opts)
+}
+
+func CmdOpts() argoexec.CmdOpts {
+	return argoexec.CmdOpts{Timeout: timeout}
 }

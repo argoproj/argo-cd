@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
-	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
@@ -151,7 +150,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (s
 	}
 	cmd := exec.Command("tar", "-zxvf", chartPath)
 	cmd.Dir = tempDir
-	_, err = argoexec.RunCommandExt(cmd, config.CmdOpts())
+	_, err = config.RunCommandExt(cmd, config.CmdOpts())
 	if err != nil {
 		_ = os.RemoveAll(tempDir)
 		return "", nil, err

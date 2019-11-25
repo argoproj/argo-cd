@@ -482,5 +482,5 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 			}
 		}
 	}
-	return argoexec.RunCommandExt(cmd, argoconfig.CmdOpts())
+	return argoconfig.RunCommandExt(cmd, argoconfig.CmdOpts())
 }

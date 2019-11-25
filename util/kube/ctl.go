@@ -304,7 +304,7 @@ func (k *KubectlCmd) runKubectl(ctx context.Context, kubeconfigPath string, name
 		log.Debug(string(redactedBytes))
 	}
 	cmd.Stdin = bytes.NewReader(manifestBytes)
-	out, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
+	out, err := config.RunCommandExt(cmd, config.CmdOpts())
 	if err != nil {
 		return "", convertKubectlError(err)
 	}
@@ -313,7 +313,7 @@ func (k *KubectlCmd) runKubectl(ctx context.Context, kubeconfigPath string, name
 
 func Version() (string, error) {
 	cmd := exec.Command("kubectl", "version", "--client")
-	out, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
+	out, err := config.RunCommandExt(cmd, config.CmdOpts())
 	if err != nil {
 		return "", fmt.Errorf("could not get kubectl version: %s", err)
 	}
@@ -359,7 +359,7 @@ func (k *KubectlCmd) ConvertToVersion(ctx context.Context, obj *unstructured.Uns
 	outputVersion := fmt.Sprintf("%s/%s", group, version)
 	cmd := exec.Command("kubectl", "convert", "--output-version", outputVersion, "-o", "json", "--local=true", "-f", f.Name())
 	cmd.Stdin = bytes.NewReader(manifestBytes)
-	out, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
+	out, err := config.RunCommandExt(cmd, config.CmdOpts())
 	if err != nil {
 		return nil, convertKubectlError(err)
 	}

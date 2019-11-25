@@ -39,7 +39,7 @@ func (c Cmd) run(args ...string) (string, error) {
 	cmd.Dir = c.WorkDir
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, fmt.Sprintf("HELM_HOME=%s", c.helmHome))
-	return argoexec.RunCommandExt(cmd, argoexec.CmdOpts{
+	return config.RunCommandExt(cmd, argoexec.CmdOpts{
 		Timeout:  config.CmdOpts().Timeout,
 		Redactor: redactor,
 	})

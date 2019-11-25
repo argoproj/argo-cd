@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/ghodss/yaml"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -103,7 +102,7 @@ func (k *ksonnetApp) ksCmd(args ...string) (string, error) {
 	cmd := exec.Command("ks", args...)
 	cmd.Dir = k.Root()
 
-	return argoexec.RunCommandExt(cmd, config.CmdOpts())
+	return config.RunCommandExt(cmd, config.CmdOpts())
 }
 
 func (k *ksonnetApp) Root() string {
