@@ -547,11 +547,6 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	} else {
 		dOpts = append(dOpts, grpc.WithInsecure())
 	}
-	dOpts = append(dOpts, grpc.WithStreamInterceptor(grpc_middleware.ChainStreamClient(
-		grpc_opentracing.StreamClientInterceptor(grpc_opentracing.WithTracer(opentracing.GlobalTracer())),
-	)), grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(
-		grpc_opentracing.UnaryClientInterceptor(grpc_opentracing.WithTracer(opentracing.GlobalTracer())),
-	)))
 
 	// HTTP 1.1+JSON Server
 	// grpc-ecosystem/grpc-gateway is used to proxy HTTP requests to the corresponding gRPC call

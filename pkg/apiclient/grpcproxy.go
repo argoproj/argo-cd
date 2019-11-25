@@ -12,8 +12,6 @@ import (
 	"strconv"
 	"strings"
 
-	grpc_opentracing "github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
-	"github.com/opentracing/opentracing-go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -167,8 +165,6 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 
 			}
 		}),
-		grpc.StreamInterceptor(grpc_opentracing.StreamServerInterceptor(grpc_opentracing.WithTracer(opentracing.GlobalTracer()))),
-		grpc.UnaryInterceptor(grpc_opentracing.UnaryServerInterceptor(grpc_opentracing.WithTracer(opentracing.GlobalTracer()))),
 	)
 	go func() {
 		err := proxySrv.Serve(ln)

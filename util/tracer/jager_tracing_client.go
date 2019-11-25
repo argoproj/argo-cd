@@ -30,5 +30,5 @@ func Init(serviceName string) {
 		log.Fatal(err)
 	}
 	opentracing.SetGlobalTracer(tracer)
-	log.Infof("tracing enabled for %s", serviceName)
+	log.Debugf("tracing enabled for %s", serviceName)
 }
