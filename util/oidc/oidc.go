@@ -1,6 +1,7 @@
 package oidc
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -12,6 +13,7 @@ import (
 
 	gooidc "github.com/coreos/go-oidc"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/opentracing/opentracing-go"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
@@ -122,8 +124,8 @@ func NewClientApp(settings *settings.ArgoCDSettings, cache *servercache.Cache, d
 	return &a, nil
 }
 
-func (a *ClientApp) oauth2Config(scopes []string) (*oauth2.Config, error) {
-	endpoint, err := a.provider.Endpoint()
+func (a *ClientApp) oauth2Config(ctx context.Context,scopes []string) (*oauth2.Config, error) {
+	endpoint, err := a.provider.Endpoint(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +169,10 @@ func (a *ClientApp) verifyAppState(state string) (*servercache.OIDCState, error)
 // HandleLogin formulates the proper OAuth2 URL (auth code or implicit) and redirects the user to
 // the IDp login & consent page
 func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
-	oidcConf, err := a.provider.ParseConfig()
+	span, ctx := opentracing.StartSpanFromContext(context.Background(), "handle-login")
+	defer span.Finish()
+
+	oidcConf, err := a.provider.ParseConfig(ctx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -178,7 +183,7 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		scopes = config.RequestedScopes
 		opts = AppendClaimsAuthenticationRequestParameter(opts, config.RequestedIDTokenClaims)
 	}
-	oauth2Config, err := a.oauth2Config(GetScopesOrDefault(scopes))
+	oauth2Config, err := a.oauth2Config(ctx ,GetScopesOrDefault(scopes))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -202,7 +207,7 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 // HandleCallback is the callback handler for an OAuth2 login flow
 func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
-	oauth2Config, err := a.oauth2Config(nil)
+	oauth2Config, err := a.oauth2Config(r.Context(), nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -224,8 +229,8 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	ctx := gooidc.ClientContext(r.Context(), a.client)
-	token, err := oauth2Config.Exchange(ctx, code)
+	clientCtx := gooidc.ClientContext(r.Context(), a.client)
+	token, err := oauth2Config.Exchange(clientCtx, code)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to get token: %v", err), http.StatusInternalServerError)
 		return
@@ -235,7 +240,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "no id_token in token response", http.StatusInternalServerError)
 		return
 	}
-	idToken, err := a.provider.Verify(a.clientID, idTokenRAW)
+	idToken, err := a.provider.Verify(r.Context(), a.clientID, idTokenRAW)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("invalid session token: %v", err), http.StatusInternalServerError)
 		return

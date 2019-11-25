@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 
+	"github.com/opentracing/opentracing-go"
 	"github.com/spf13/cobra"
 
 	"fmt"
@@ -53,11 +54,12 @@ func NewProjectWindowsDisableManualSyncCommand(clientOpts *argocdclient.ClientOp
 			projName := args[0]
 			id, err := strconv.Atoi(args[1])
 			errors.CheckError(err)
-
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "windows disable-manual-sync")
+			defer span.Finish()
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
 			for i, window := range proj.Spec.SyncWindows {
@@ -66,7 +68,7 @@ func NewProjectWindowsDisableManualSyncCommand(clientOpts *argocdclient.ClientOp
 				}
 			}
 
-			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
 		},
 	}
@@ -88,11 +90,12 @@ func NewProjectWindowsEnableManualSyncCommand(clientOpts *argocdclient.ClientOpt
 			projName := args[0]
 			id, err := strconv.Atoi(args[1])
 			errors.CheckError(err)
-
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "windows enable-manual-sync")
+			defer span.Finish()
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
 			for i, window := range proj.Spec.SyncWindows {
@@ -101,7 +104,7 @@ func NewProjectWindowsEnableManualSyncCommand(clientOpts *argocdclient.ClientOpt
 				}
 			}
 
-			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
 		},
 	}
@@ -128,16 +131,18 @@ func NewProjectWindowsAddWindowCommand(clientOpts *argocdclient.ClientOptions) *
 				os.Exit(1)
 			}
 			projName := args[0]
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "windows add")
+			defer span.Finish()
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
 			err = proj.Spec.AddWindow(kind, schedule, duration, applications, namespaces, clusters, manualSync)
 			errors.CheckError(err)
 
-			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
 		},
 	}
@@ -166,17 +171,18 @@ func NewProjectWindowsDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 			projName := args[0]
 			id, err := strconv.Atoi(args[1])
 			errors.CheckError(err)
-
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "windows delete")
+			defer span.Finish()
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
 			err = proj.Spec.DeleteWindow(id)
 			errors.CheckError(err)
 
-			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
 		},
 	}
@@ -205,11 +211,12 @@ func NewProjectWindowsUpdateCommand(clientOpts *argocdclient.ClientOptions) *cob
 			projName := args[0]
 			id, err := strconv.Atoi(args[1])
 			errors.CheckError(err)
-
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "windows update")
+			defer span.Finish()
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
 			for i, window := range proj.Spec.SyncWindows {
@@ -221,7 +228,7 @@ func NewProjectWindowsUpdateCommand(clientOpts *argocdclient.ClientOptions) *cob
 				}
 			}
 
-			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
 		},
 	}
@@ -247,10 +254,12 @@ func NewProjectWindowsListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 				os.Exit(1)
 			}
 			projName := args[0]
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "windows list")
+			defer span.Finish()
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 			switch output {
 			case "yaml", "json":

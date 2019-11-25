@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	grpc_opentracing "github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
 	"gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
 
@@ -89,6 +90,7 @@ import (
 	settings_util "github.com/argoproj/argo-cd/util/settings"
 	"github.com/argoproj/argo-cd/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
+	"github.com/argoproj/argo-cd/util/tracer"
 	"github.com/argoproj/argo-cd/util/webhook"
 )
 
@@ -442,6 +444,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		}),
 		grpc_util.ErrorCodeStreamServerInterceptor(),
 		grpc_util.PanicLoggerStreamServerInterceptor(a.log),
+		grpc_opentracing.StreamServerInterceptor(grpc_opentracing.WithTracer(tracer.Tracer)),
 	)))
 	sOpts = append(sOpts, grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
 		bug21955WorkaroundInterceptor,
@@ -454,6 +457,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		}),
 		grpc_util.ErrorCodeUnaryServerInterceptor(),
 		grpc_util.PanicLoggerUnaryServerInterceptor(a.log),
+		grpc_opentracing.UnaryServerInterceptor(grpc_opentracing.WithTracer(tracer.Tracer)),
 	)))
 	grpcS := grpc.NewServer(sOpts...)
 	db := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
@@ -543,6 +547,11 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	} else {
 		dOpts = append(dOpts, grpc.WithInsecure())
 	}
+	dOpts = append(dOpts,  grpc.WithStreamInterceptor(grpc_middleware.ChainStreamClient(
+		grpc_opentracing.StreamClientInterceptor(grpc_opentracing.WithTracer(tracer.Tracer)),
+	)),grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(
+		grpc_opentracing.UnaryClientInterceptor(grpc_opentracing.WithTracer(tracer.Tracer)),
+	)))
 
 	// HTTP 1.1+JSON Server
 	// grpc-ecosystem/grpc-gateway is used to proxy HTTP requests to the corresponding gRPC call
@@ -762,7 +771,7 @@ func (a *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, error) {
 	if tokenString == "" {
 		return nil, ErrNoSession
 	}
-	claims, err := a.sessionMgr.VerifyToken(tokenString)
+	claims, err := a.sessionMgr.VerifyToken(ctx,tokenString)
 	if err != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}

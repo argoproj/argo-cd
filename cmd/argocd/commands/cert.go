@@ -2,12 +2,14 @@ package commands
 
 import (
 	"context"
+	"crypto/x509"
 	"fmt"
 	"os"
 	"sort"
 	"strings"
 	"text/tabwriter"
 
+	"github.com/opentracing/opentracing-go"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/errors"
@@ -16,8 +18,6 @@ import (
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 	certutil "github.com/argoproj/argo-cd/util/cert"
-
-	"crypto/x509"
 )
 
 // NewCertCommand returns a new instance of an `argocd repo` command
@@ -72,7 +72,8 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "cert add-tls")
+			defer span.Finish()
 			var certificateArray []string
 			var err error
 
@@ -116,7 +117,7 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 					CertType:   "https",
 					CertData:   []byte(strings.Join(certificateArray, "\n")),
 				})
-				certificates, err := certIf.CreateCertificate(context.Background(), &certificatepkg.RepositoryCertificateCreateRequest{
+				certificates, err := certIf.CreateCertificate(ctx, &certificatepkg.RepositoryCertificateCreateRequest{
 					Certificates: &appsv1.RepositoryCertificateList{
 						Items: certificateList,
 					},
@@ -147,7 +148,8 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		Use:   "add-ssh --batch",
 		Short: "Add SSH known host entries for repository servers",
 		Run: func(c *cobra.Command, args []string) {
-
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "cert add-ssh")
+			defer span.Finish()
 			conn, certIf := argocdclient.NewClientOrDie(clientOpts).NewCertClientOrDie()
 			defer util.Close(conn)
 
@@ -189,7 +191,7 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			}
 
 			certList := &appsv1.RepositoryCertificateList{Items: certificates}
-			response, err := certIf.CreateCertificate(context.Background(), &certificatepkg.RepositoryCertificateCreateRequest{
+			response, err := certIf.CreateCertificate(ctx, &certificatepkg.RepositoryCertificateCreateRequest{
 				Certificates: certList,
 				Upsert:       upsert,
 			})
@@ -218,6 +220,8 @@ func NewCertRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "cert rm")
+			defer span.Finish()
 			conn, certIf := argocdclient.NewClientOrDie(clientOpts).NewCertClientOrDie()
 			defer util.Close(conn)
 			hostNamePattern := args[0]
@@ -235,7 +239,7 @@ func NewCertRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				CertType:        certType,
 				CertSubType:     certSubType,
 			}
-			removed, err := certIf.DeleteCertificate(context.Background(), &certQuery)
+			removed, err := certIf.DeleteCertificate(ctx, &certQuery)
 			errors.CheckError(err)
 			if len(removed.Items) > 0 {
 				for _, cert := range removed.Items {
@@ -272,10 +276,11 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 					os.Exit(1)
 				}
 			}
-
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "cert list")
+			defer span.Finish()
 			conn, certIf := argocdclient.NewClientOrDie(clientOpts).NewCertClientOrDie()
 			defer util.Close(conn)
-			certificates, err := certIf.ListCertificates(context.Background(), &certificatepkg.RepositoryCertificateQuery{HostNamePattern: hostNamePattern, CertType: certType})
+			certificates, err := certIf.ListCertificates(ctx, &certificatepkg.RepositoryCertificateQuery{HostNamePattern: hostNamePattern, CertType: certType})
 			errors.CheckError(err)
 
 			switch output {

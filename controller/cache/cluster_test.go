@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -195,7 +196,7 @@ func TestGetNamespaceResources(t *testing.T) {
 `)
 
 	cluster := newCluster(defaultNamespaceTopLevel1, defaultNamespaceTopLevel2, kubesystemNamespaceTopLevel2)
-	err := cluster.ensureSynced()
+	err := cluster.ensureSynced(context.TODO())
 	assert.Nil(t, err)
 
 	resources := cluster.getNamespaceTopLevelResources("default")
@@ -210,7 +211,7 @@ func TestGetNamespaceResources(t *testing.T) {
 
 func TestGetChildren(t *testing.T) {
 	cluster := newCluster(testPod, testRS, testDeploy)
-	err := cluster.ensureSynced()
+	err := cluster.ensureSynced(context.TODO())
 	assert.Nil(t, err)
 
 	rsChildren := getChildren(cluster, testRS)
@@ -256,7 +257,7 @@ func TestGetChildren(t *testing.T) {
 
 func TestGetManagedLiveObjs(t *testing.T) {
 	cluster := newCluster(testPod, testRS, testDeploy)
-	err := cluster.ensureSynced()
+	err := cluster.ensureSynced(context.TODO())
 	assert.Nil(t, err)
 
 	targetDeploy := strToUnstructured(`
@@ -267,7 +268,7 @@ metadata:
   labels:
     app: helm-guestbook`)
 
-	managedObjs, err := cluster.getManagedLiveObjs(&appv1.Application{
+	managedObjs, err := cluster.getManagedLiveObjs(context.TODO(), &appv1.Application{
 		ObjectMeta: metav1.ObjectMeta{Name: "helm-guestbook"},
 		Spec: appv1.ApplicationSpec{
 			Destination: appv1.ApplicationDestination{
@@ -283,10 +284,10 @@ metadata:
 
 func TestChildDeletedEvent(t *testing.T) {
 	cluster := newCluster(testPod, testRS, testDeploy)
-	err := cluster.ensureSynced()
+	err := cluster.ensureSynced(context.TODO())
 	assert.Nil(t, err)
 
-	cluster.processEvent(watch.Deleted, testPod)
+	cluster.processEvent(context.TODO(),watch.Deleted, testPod)
 
 	rsChildren := getChildren(cluster, testRS)
 	assert.Equal(t, []appv1.ResourceNode{}, rsChildren)
@@ -294,7 +295,7 @@ func TestChildDeletedEvent(t *testing.T) {
 
 func TestProcessNewChildEvent(t *testing.T) {
 	cluster := newCluster(testPod, testRS, testDeploy)
-	err := cluster.ensureSynced()
+	err := cluster.ensureSynced(context.TODO())
 	assert.Nil(t, err)
 
 	newPod := strToUnstructured(`
@@ -311,7 +312,7 @@ func TestProcessNewChildEvent(t *testing.T) {
       uid: "2"
     resourceVersion: "123"`)
 
-	cluster.processEvent(watch.Added, newPod)
+	cluster.processEvent(context.TODO(), watch.Added, newPod)
 
 	rsChildren := getChildren(cluster, testRS)
 	sort.Slice(rsChildren, func(i, j int) bool {
@@ -375,7 +376,7 @@ func TestUpdateResourceTags(t *testing.T) {
 	}
 	cluster := newCluster(mustToUnstructured(pod))
 
-	err := cluster.ensureSynced()
+	err := cluster.ensureSynced(context.TODO())
 	assert.Nil(t, err)
 
 	podNode := cluster.nodes[kube.GetResourceKey(mustToUnstructured(pod))]
@@ -392,7 +393,7 @@ func TestUpdateResourceTags(t *testing.T) {
 			},
 		}},
 	}
-	cluster.processEvent(watch.Modified, mustToUnstructured(pod))
+	cluster.processEvent(context.TODO(),watch.Modified, mustToUnstructured(pod))
 
 	podNode = cluster.nodes[kube.GetResourceKey(mustToUnstructured(pod))]
 
@@ -409,10 +410,10 @@ func TestUpdateAppResource(t *testing.T) {
 		}
 	}
 
-	err := cluster.ensureSynced()
+	err := cluster.ensureSynced(context.TODO())
 	assert.Nil(t, err)
 
-	cluster.processEvent(watch.Modified, mustToUnstructured(testPod))
+	cluster.processEvent(context.TODO(),watch.Modified, mustToUnstructured(testPod))
 
 	assert.Contains(t, updatesReceived, "helm-guestbook: false")
 }
@@ -425,7 +426,7 @@ func TestCircularReference(t *testing.T) {
 		APIVersion: testPod.GetAPIVersion(),
 	}})
 	cluster := newCluster(testPod, testRS, dep)
-	err := cluster.ensureSynced()
+	err := cluster.ensureSynced(context.TODO())
 
 	assert.Nil(t, err)
 
@@ -447,7 +448,7 @@ func TestWatchCacheUpdated(t *testing.T) {
 	updated.SetResourceVersion("updated-pod-version")
 
 	cluster := newCluster(removed, updated)
-	err := cluster.ensureSynced()
+	err := cluster.ensureSynced(context.TODO())
 
 	assert.Nil(t, err)
 
@@ -456,7 +457,7 @@ func TestWatchCacheUpdated(t *testing.T) {
 
 	podGroupKind := testPod.GroupVersionKind().GroupKind()
 
-	cluster.replaceResourceCache(podGroupKind, "updated-list-version", []unstructured.Unstructured{*updated, *added})
+	cluster.replaceResourceCache(context.TODO(),podGroupKind, "updated-list-version", []unstructured.Unstructured{*updated, *added})
 
 	_, ok := cluster.nodes[kube.GetResourceKey(removed)]
 	assert.False(t, ok)
@@ -473,7 +474,7 @@ func TestGetDuplicatedChildren(t *testing.T) {
 	extensionsRS := testRS.DeepCopy()
 	extensionsRS.SetGroupVersionKind(schema.GroupVersionKind{Group: "extensions", Kind: kube.ReplicaSetKind, Version: "v1beta1"})
 	cluster := newCluster(testDeploy, testRS, extensionsRS)
-	err := cluster.ensureSynced()
+	err := cluster.ensureSynced(context.TODO(),)
 
 	assert.Nil(t, err)
 

@@ -10,6 +10,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/ghodss/yaml"
+	"github.com/opentracing/opentracing-go"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/errors"
@@ -60,7 +61,8 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 		appName := args[0]
 		conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 		defer util.Close(conn)
-		ctx := context.Background()
+		span, ctx := opentracing.StartSpanFromContext(context.Background(), "app list")
+		defer span.Finish()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
 		filteredObjects := filterResources(command, resources.Items, group, kind, namespace, resourceName, true)
@@ -145,7 +147,8 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 
 		conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 		defer util.Close(conn)
-		ctx := context.Background()
+		span, ctx := opentracing.StartSpanFromContext(context.Background(), "app run")
+		defer span.Finish()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
 		filteredObjects := filterResources(command, resources.Items, group, kind, namespace, resourceName, all)
@@ -160,7 +163,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 			obj := filteredObjects[i]
 			gvk := obj.GroupVersionKind()
 			objResourceName := obj.GetName()
-			_, err := appIf.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{
+			_, err := appIf.RunResourceAction(ctx, &applicationpkg.ResourceActionRunRequest{
 				Name:         &appName,
 				Namespace:    obj.GetNamespace(),
 				ResourceName: objResourceName,

@@ -199,7 +199,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	kustomizeOptions := appv1.KustomizeOptions{
 		BuildOptions: buildOptions,
 	}
-	cluster, err := s.db.GetCluster(context.Background(), a.Spec.Destination.Server)
+	cluster, err := s.db.GetCluster(ctx, a.Spec.Destination.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -281,7 +281,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 	} else {
 		namespace = q.ResourceNamespace
 		var config *rest.Config
-		config, err = s.getApplicationClusterConfig(*q.Name)
+		config, err = s.getApplicationClusterConfig(ctx,*q.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -600,12 +600,12 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	return nil
 }
 
-func (s *Server) getApplicationClusterConfig(applicationName string) (*rest.Config, error) {
+func (s *Server) getApplicationClusterConfig(ctx context.Context,applicationName string) (*rest.Config, error) {
 	server, _, err := s.getApplicationDestination(applicationName)
 	if err != nil {
 		return nil, err
 	}
-	clst, err := s.db.GetCluster(context.Background(), server)
+	clst, err := s.db.GetCluster(ctx, server)
 	if err != nil {
 		return nil, err
 	}
@@ -662,7 +662,7 @@ func (s *Server) getAppResource(ctx context.Context, action string, q *applicati
 	if found == nil {
 		return nil, nil, nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", q.Kind, q.Group, q.ResourceName, *q.Name)
 	}
-	config, err := s.getApplicationClusterConfig(*q.Name)
+	config, err := s.getApplicationClusterConfig(ctx, *q.Name)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -1116,7 +1116,7 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 		return nil, err
 	}
 
-	availableActions, err := s.getAvailableActions(resourceOverrides, obj)
+	availableActions, err := s.getAvailableActions(ctx,resourceOverrides, obj)
 	if err != nil {
 		return nil, err
 	}
@@ -1124,7 +1124,7 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 	return &application.ResourceActionsListResponse{Actions: availableActions}, nil
 }
 
-func (s *Server) getAvailableActions(resourceOverrides map[string]appv1.ResourceOverride, obj *unstructured.Unstructured) ([]appv1.ResourceAction, error) {
+func (s *Server) getAvailableActions(ctx context.Context,resourceOverrides map[string]appv1.ResourceOverride, obj *unstructured.Unstructured) ([]appv1.ResourceAction, error) {
 	luaVM := lua.VM{
 		ResourceOverrides: resourceOverrides,
 	}
@@ -1136,7 +1136,7 @@ func (s *Server) getAvailableActions(resourceOverrides map[string]appv1.Resource
 	if discoveryScript == "" {
 		return []appv1.ResourceAction{}, nil
 	}
-	availableActions, err := luaVM.ExecuteResourceActionDiscovery(obj, discoveryScript)
+	availableActions, err := luaVM.ExecuteResourceActionDiscovery(ctx,obj, discoveryScript)
 	if err != nil {
 		return nil, err
 	}
@@ -1176,7 +1176,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		return nil, err
 	}
 
-	newObj, err := luaVM.ExecuteResourceAction(liveObj, action.ActionLua)
+	newObj, err := luaVM.ExecuteResourceAction(ctx,liveObj, action.ActionLua)
 	if err != nil {
 		return nil, err
 	}

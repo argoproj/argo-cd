@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/opentracing/opentracing-go"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/common"
@@ -45,11 +46,13 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				conn       io.Closer
 				err        error
 			)
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "version")
+			defer span.Finish()
 			if !client {
 				// Get Server version
 				conn, versionIf = argocdclient.NewClientOrDie(clientOpts).NewVersionClientOrDie()
 				defer util.Close(conn)
-				serverVers, err = versionIf.Version(context.Background(), &empty.Empty{})
+				serverVers, err = versionIf.Version(ctx, &empty.Empty{})
 				errors.CheckError(err)
 			}
 			switch output {

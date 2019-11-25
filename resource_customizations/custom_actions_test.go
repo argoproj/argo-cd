@@ -1,6 +1,7 @@
 package resource_customizations
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -65,7 +66,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 				obj := getObj(filepath.Join(dir, test.InputPath))
 				discoveryLua, err := vm.GetResourceActionDiscovery(obj)
 				assert.NoError(t, err)
-				result, err := vm.ExecuteResourceActionDiscovery(obj, discoveryLua)
+				result, err := vm.ExecuteResourceActionDiscovery(context.TODO(),obj, discoveryLua)
 				assert.NoError(t, err)
 				assert.Equal(t, test.Result, result)
 			})
@@ -86,7 +87,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 
 				// freeze time so that lua test has predictable time output (will return 0001-01-01T00:00:00Z)
 				patch := monkey.Patch(time.Now, func() time.Time { return time.Time{} })
-				result, err := vm.ExecuteResourceAction(obj, action.ActionLua)
+				result, err := vm.ExecuteResourceAction(context.TODO(),obj, action.ActionLua)
 				patch.Unpatch()
 
 				assert.NoError(t, err)

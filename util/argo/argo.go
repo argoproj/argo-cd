@@ -228,7 +228,7 @@ func ValidateRepo(
 
 	enrichSpec(spec, appDetails)
 
-	cluster, err := db.GetCluster(context.Background(), spec.Destination.Server)
+	cluster, err := db.GetCluster(ctx, spec.Destination.Server)
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,

@@ -19,11 +19,11 @@ import (
 // case of dex reverse proxy), which presents a chicken-and-egg problem of (1) serving dex over
 // HTTP, and (2) querying the OIDC provider (ourself) to initialize the OIDC client.
 type Provider interface {
-	Endpoint() (*oauth2.Endpoint, error)
+	Endpoint(ctx context.Context) (*oauth2.Endpoint, error)
 
-	ParseConfig() (*OIDCConfiguration, error)
+	ParseConfig(ctx context.Context) (*OIDCConfiguration, error)
 
-	Verify(clientID, tokenString string) (*gooidc.IDToken, error)
+	Verify(ctx context.Context,clientID, tokenString string) (*gooidc.IDToken, error)
 }
 
 type providerImpl struct {
@@ -41,11 +41,11 @@ func NewOIDCProvider(issuerURL string, client *http.Client) Provider {
 }
 
 // oidcProvider lazily initializes, memoizes, and returns the OIDC provider.
-func (p *providerImpl) provider() (*gooidc.Provider, error) {
+func (p *providerImpl) provider(ctx context.Context) (*gooidc.Provider, error) {
 	if p.goOIDCProvider != nil {
 		return p.goOIDCProvider, nil
 	}
-	prov, err := p.newGoOIDCProvider()
+	prov, err := p.newGoOIDCProvider(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -55,10 +55,10 @@ func (p *providerImpl) provider() (*gooidc.Provider, error) {
 
 // newGoOIDCProvider creates a new instance of go-oidc.Provider querying the well known oidc
 // configuration path (http://example-argocd.com/api/dex/.well-known/openid-configuration)
-func (p *providerImpl) newGoOIDCProvider() (*gooidc.Provider, error) {
+func (p *providerImpl) newGoOIDCProvider(ctx context.Context) (*gooidc.Provider, error) {
 	log.Infof("Initializing OIDC provider (issuer: %s)", p.issuerURL)
-	ctx := gooidc.ClientContext(context.Background(), p.client)
-	prov, err := gooidc.NewProvider(ctx, p.issuerURL)
+	clientCtx := gooidc.ClientContext(ctx, p.client)
+	prov, err := gooidc.NewProvider(clientCtx, p.issuerURL)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to query provider %q: %v", p.issuerURL, err)
 	}
@@ -67,9 +67,8 @@ func (p *providerImpl) newGoOIDCProvider() (*gooidc.Provider, error) {
 	return prov, nil
 }
 
-func (p *providerImpl) Verify(clientID, tokenString string) (*gooidc.IDToken, error) {
-	ctx := context.Background()
-	prov, err := p.provider()
+func (p *providerImpl) Verify(ctx context.Context, clientID, tokenString string) (*gooidc.IDToken, error) {
+	prov, err := p.provider(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +85,7 @@ func (p *providerImpl) Verify(clientID, tokenString string) (*gooidc.IDToken, er
 		if !strings.Contains(err.Error(), "failed to verify signature") {
 			return nil, err
 		}
-		newProvider, retryErr := p.newGoOIDCProvider()
+		newProvider, retryErr := p.newGoOIDCProvider(ctx)
 		if retryErr != nil {
 			// return original error if we fail to re-initialize OIDC
 			return nil, err
@@ -104,8 +103,8 @@ func (p *providerImpl) Verify(clientID, tokenString string) (*gooidc.IDToken, er
 	return idToken, nil
 }
 
-func (p *providerImpl) Endpoint() (*oauth2.Endpoint, error) {
-	prov, err := p.provider()
+func (p *providerImpl) Endpoint(ctx context.Context) (*oauth2.Endpoint, error) {
+	prov, err := p.provider(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -114,8 +113,8 @@ func (p *providerImpl) Endpoint() (*oauth2.Endpoint, error) {
 }
 
 // ParseConfig parses the OIDC Config into the concrete datastructure
-func (p *providerImpl) ParseConfig() (*OIDCConfiguration, error) {
-	prov, err := p.provider()
+func (p *providerImpl) ParseConfig(ctx context.Context) (*OIDCConfiguration, error) {
+	prov, err := p.provider(ctx)
 	if err != nil {
 		return nil, err
 	}

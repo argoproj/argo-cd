@@ -153,7 +153,7 @@ func (mgr *SessionManager) VerifyUsernamePassword(username, password string) err
 
 // VerifyToken verifies if a token is correct. Tokens can be issued either from us or by an IDP.
 // We choose how to verify based on the issuer.
-func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, error) {
+func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) (jwt.Claims, error) {
 	parser := &jwt.Parser{
 		SkipClaimsValidation: true,
 	}
@@ -172,7 +172,7 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, error) {
 		if err != nil {
 			return nil, err
 		}
-		idToken, err := prov.Verify(claims.Audience, tokenString)
+		idToken, err := prov.Verify(ctx, claims.Audience, tokenString)
 		if err != nil {
 			return nil, err
 		}

@@ -5,9 +5,8 @@ package mocks
 import (
 	context "context"
 
-	mock "github.com/stretchr/testify/mock"
-
 	kube "github.com/argoproj/argo-cd/util/kube"
+	mock "github.com/stretchr/testify/mock"
 
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -21,13 +20,13 @@ type LiveStateCache struct {
 	mock.Mock
 }
 
-// GetManagedLiveObjs provides a mock function with given fields: a, targetObjs
-func (_m *LiveStateCache) GetManagedLiveObjs(a *v1alpha1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
-	ret := _m.Called(a, targetObjs)
+// GetManagedLiveObjs provides a mock function with given fields: ctx, a, targetObjs
+func (_m *LiveStateCache) GetManagedLiveObjs(ctx context.Context, a *v1alpha1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
+	ret := _m.Called(ctx, a, targetObjs)
 
 	var r0 map[kube.ResourceKey]*unstructured.Unstructured
-	if rf, ok := ret.Get(0).(func(*v1alpha1.Application, []*unstructured.Unstructured) map[kube.ResourceKey]*unstructured.Unstructured); ok {
-		r0 = rf(a, targetObjs)
+	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.Application, []*unstructured.Unstructured) map[kube.ResourceKey]*unstructured.Unstructured); ok {
+		r0 = rf(ctx, a, targetObjs)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[kube.ResourceKey]*unstructured.Unstructured)
@@ -35,8 +34,8 @@ func (_m *LiveStateCache) GetManagedLiveObjs(a *v1alpha1.Application, targetObjs
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(*v1alpha1.Application, []*unstructured.Unstructured) error); ok {
-		r1 = rf(a, targetObjs)
+	if rf, ok := ret.Get(1).(func(context.Context, *v1alpha1.Application, []*unstructured.Unstructured) error); ok {
+		r1 = rf(ctx, a, targetObjs)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -44,13 +43,13 @@ func (_m *LiveStateCache) GetManagedLiveObjs(a *v1alpha1.Application, targetObjs
 	return r0, r1
 }
 
-// GetNamespaceTopLevelResources provides a mock function with given fields: server, namespace
-func (_m *LiveStateCache) GetNamespaceTopLevelResources(server string, namespace string) (map[kube.ResourceKey]v1alpha1.ResourceNode, error) {
-	ret := _m.Called(server, namespace)
+// GetNamespaceTopLevelResources provides a mock function with given fields: ctx, server, namespace
+func (_m *LiveStateCache) GetNamespaceTopLevelResources(ctx context.Context, server string, namespace string) (map[kube.ResourceKey]v1alpha1.ResourceNode, error) {
+	ret := _m.Called(ctx, server, namespace)
 
 	var r0 map[kube.ResourceKey]v1alpha1.ResourceNode
-	if rf, ok := ret.Get(0).(func(string, string) map[kube.ResourceKey]v1alpha1.ResourceNode); ok {
-		r0 = rf(server, namespace)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) map[kube.ResourceKey]v1alpha1.ResourceNode); ok {
+		r0 = rf(ctx, server, namespace)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[kube.ResourceKey]v1alpha1.ResourceNode)
@@ -58,8 +57,8 @@ func (_m *LiveStateCache) GetNamespaceTopLevelResources(server string, namespace
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string) error); ok {
-		r1 = rf(server, namespace)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, server, namespace)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -72,20 +71,20 @@ func (_m *LiveStateCache) Invalidate() {
 	_m.Called()
 }
 
-// IsNamespaced provides a mock function with given fields: server, gk
-func (_m *LiveStateCache) IsNamespaced(server string, gk schema.GroupKind) (bool, error) {
-	ret := _m.Called(server, gk)
+// IsNamespaced provides a mock function with given fields: ctx, server, gk
+func (_m *LiveStateCache) IsNamespaced(ctx context.Context, server string, gk schema.GroupKind) (bool, error) {
+	ret := _m.Called(ctx, server, gk)
 
 	var r0 bool
-	if rf, ok := ret.Get(0).(func(string, schema.GroupKind) bool); ok {
-		r0 = rf(server, gk)
+	if rf, ok := ret.Get(0).(func(context.Context, string, schema.GroupKind) bool); ok {
+		r0 = rf(ctx, server, gk)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, schema.GroupKind) error); ok {
-		r1 = rf(server, gk)
+	if rf, ok := ret.Get(1).(func(context.Context, string, schema.GroupKind) error); ok {
+		r1 = rf(ctx, server, gk)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -93,13 +92,13 @@ func (_m *LiveStateCache) IsNamespaced(server string, gk schema.GroupKind) (bool
 	return r0, r1
 }
 
-// IterateHierarchy provides a mock function with given fields: server, key, action
-func (_m *LiveStateCache) IterateHierarchy(server string, key kube.ResourceKey, action func(v1alpha1.ResourceNode, string)) error {
-	ret := _m.Called(server, key, action)
+// IterateHierarchy provides a mock function with given fields: ctx, server, key, action
+func (_m *LiveStateCache) IterateHierarchy(ctx context.Context, server string, key kube.ResourceKey, action func(v1alpha1.ResourceNode, string)) error {
+	ret := _m.Called(ctx, server, key, action)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, kube.ResourceKey, func(v1alpha1.ResourceNode, string)) error); ok {
-		r0 = rf(server, key, action)
+	if rf, ok := ret.Get(0).(func(context.Context, string, kube.ResourceKey, func(v1alpha1.ResourceNode, string)) error); ok {
+		r0 = rf(ctx, server, key, action)
 	} else {
 		r0 = ret.Error(0)
 	}

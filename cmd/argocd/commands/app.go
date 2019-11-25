@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/ghodss/yaml"
+	"github.com/opentracing/opentracing-go"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -124,6 +125,8 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	argocd app create ksane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
 `,
 		Run: func(c *cobra.Command, args []string) {
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "app create")
+			defer span.Finish()
 			var app argoappv1.Application
 			argocdClient := argocdclient.NewClientOrDie(clientOpts)
 			if fileURL == "-" {
@@ -176,7 +179,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				Application: app,
 				Upsert:      &upsert,
 			}
-			created, err := appIf.Create(context.Background(), &appCreateRequest)
+			created, err := appIf.Create(ctx, &appCreateRequest)
 			errors.CheckError(err)
 			fmt.Printf("application '%s' created\n", created.ObjectMeta.Name)
 		},
@@ -231,16 +234,18 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "app get")
+			defer span.Finish()
 			acdClient := argocdclient.NewClientOrDie(clientOpts)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appName := args[0]
-			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName, Refresh: getRefreshType(refresh, hardRefresh)})
+			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName, Refresh: getRefreshType(refresh, hardRefresh)})
 			errors.CheckError(err)
 
 			pConn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(pConn)
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: app.Spec.Project})
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: app.Spec.Project})
 			errors.CheckError(err)
 
 			windows := proj.Spec.SyncWindows.Matches(app)
@@ -445,7 +450,8 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			ctx := context.Background()
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "app set")
+			defer span.Finish()
 			appName := args[0]
 			argocdClient := argocdclient.NewClientOrDie(clientOpts)
 			conn, appIf := argocdClient.NewApplicationClientOrDie()
@@ -725,10 +731,12 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "app unset")
+			defer span.Finish()
 			appName := args[0]
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
+			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
 
 			updated := false
@@ -775,7 +783,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				}
 			}
 
-			_, err = appIf.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{
+			_, err = appIf.UpdateSpec(ctx, &applicationpkg.ApplicationUpdateSpecRequest{
 				Name: &app.Name,
 				Spec: app.Spec,
 			})
@@ -846,11 +854,11 @@ type resourceInfoProvider struct {
 
 // Infer if obj is namespaced or not from corresponding live objects list. If corresponding live object has namespace then target object is also namespaced.
 // If live object is missing then it does not matter if target is namespaced or not.
-func (p *resourceInfoProvider) IsNamespaced(server string, gk schema.GroupKind) (bool, error) {
+func (p *resourceInfoProvider) IsNamespaced(ctx context.Context, server string, gk schema.GroupKind) (bool, error) {
 	return p.namespacedByGk[gk], nil
 }
 
-func groupLocalObjs(localObs []*unstructured.Unstructured, liveObjs []*unstructured.Unstructured, appNamespace string) map[kube.ResourceKey]*unstructured.Unstructured {
+func groupLocalObjs(ctx context.Context,localObs []*unstructured.Unstructured, liveObjs []*unstructured.Unstructured, appNamespace string) map[kube.ResourceKey]*unstructured.Unstructured {
 	namespacedByGk := make(map[schema.GroupKind]bool)
 	for i := range liveObjs {
 		if liveObjs[i] != nil {
@@ -858,7 +866,7 @@ func groupLocalObjs(localObs []*unstructured.Unstructured, liveObjs []*unstructu
 			namespacedByGk[schema.GroupKind{Group: key.Group, Kind: key.Kind}] = key.Namespace != ""
 		}
 	}
-	localObs, _, err := controller.DeduplicateTargetObjects("", appNamespace, localObs, &resourceInfoProvider{namespacedByGk: namespacedByGk})
+	localObs, _, err := controller.DeduplicateTargetObjects(ctx,"", appNamespace, localObs, &resourceInfoProvider{namespacedByGk: namespacedByGk})
 	errors.CheckError(err)
 	objByKey := make(map[kube.ResourceKey]*unstructured.Unstructured)
 	for i := range localObs {
@@ -887,14 +895,15 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(2)
 			}
-
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "app diff")
+			defer span.Finish()
 			clientset := argocdclient.NewClientOrDie(clientOpts)
 			conn, appIf := clientset.NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appName := args[0]
-			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName, Refresh: getRefreshType(refresh, hardRefresh)})
+			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName, Refresh: getRefreshType(refresh, hardRefresh)})
 			errors.CheckError(err)
-			resources, err := appIf.ManagedResources(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &appName})
+			resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 			errors.CheckError(err)
 			liveObjs, err := liveObjects(resources.Items)
 			errors.CheckError(err)
@@ -906,16 +915,16 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			conn, settingsIf := clientset.NewSettingsClientOrDie()
 			defer util.Close(conn)
-			argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
+			argoSettings, err := settingsIf.Get(ctx, &settingspkg.SettingsQuery{})
 			errors.CheckError(err)
 
 			if local != "" {
 				conn, clusterIf := clientset.NewClusterClientOrDie()
 				defer util.Close(conn)
-				cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: app.Spec.Destination.Server})
+				cluster, err := clusterIf.Get(ctx, &clusterpkg.ClusterQuery{Server: app.Spec.Destination.Server})
 				errors.CheckError(err)
 				util.Close(conn)
-				localObjs := groupLocalObjs(getLocalObjects(app, local, argoSettings.AppLabelKey, cluster.ServerVersion), liveObjs, app.Spec.Destination.Namespace)
+				localObjs := groupLocalObjs(ctx,getLocalObjects(app, local, argoSettings.AppLabelKey, cluster.ServerVersion), liveObjs, app.Spec.Destination.Namespace)
 				for _, res := range resources.Items {
 					var live = &unstructured.Unstructured{}
 					err := json.Unmarshal([]byte(res.LiveState), &live)
@@ -1043,6 +1052,8 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "app delete")
+			defer span.Finish()
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			for _, appName := range args {
@@ -1052,7 +1063,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				if c.Flag("cascade").Changed {
 					appDeleteReq.Cascade = &cascade
 				}
-				_, err := appIf.Delete(context.Background(), &appDeleteReq)
+				_, err := appIf.Delete(ctx, &appDeleteReq)
 				errors.CheckError(err)
 			}
 		},
@@ -1115,9 +1126,11 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   # List apps by label, in this example we listing apps that are children of another app (aka app-of-apps)
   argocd app list -l app.kubernetes.io/instance=my-app`,
 		Run: func(c *cobra.Command, args []string) {
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "app list")
+			defer span.Finish()
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			apps, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: selector})
+			apps, err := appIf.List(ctx, &applicationpkg.ApplicationQuery{Selector: selector})
 			errors.CheckError(err)
 			appList := apps.Items
 			if len(projects) != 0 {
@@ -1230,6 +1243,8 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "app wait")
+			defer span.Finish()
 			if !watchSync && !watchHealth && !watchOperations && !watchSuspended {
 				watchSync = true
 				watchHealth = true
@@ -1242,7 +1257,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			closer, appIf := acdClient.NewApplicationClientOrDie()
 			defer util.Close(closer)
 			if selector != "" {
-				list, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: selector})
+				list, err := appIf.List(ctx, &applicationpkg.ApplicationQuery{Selector: selector})
 				errors.CheckError(err)
 				for _, i := range list.Items {
 					appNames = append(appNames, i.Name)
@@ -1316,8 +1331,11 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			errors.CheckError(err)
 
 			appNames := args
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "app sync")
+			defer span.Finish()
+
 			if selector != "" {
-				list, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: selector})
+				list, err := appIf.List(ctx, &applicationpkg.ApplicationQuery{Selector: selector})
 				errors.CheckError(err)
 				// unlike list, we'd want to fail if nothing was found
 				if len(list.Items) == 0 {
@@ -1331,8 +1349,6 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			for _, appName := range appNames {
 
 				if len(selectedLabels) > 0 {
-					ctx := context.Background()
-
 					q := applicationpkg.ApplicationManifestQuery{
 						Name:     &appName,
 						Revision: revision,
@@ -1366,7 +1382,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 				var localObjsStrings []string
 				if local != "" {
-					app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
+					app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
 					errors.CheckError(err)
 					if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
 						log.Fatal("Cannot use local sync when Automatic Sync Policy is enabled")
@@ -1374,13 +1390,13 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 					errors.CheckError(err)
 					conn, settingsIf := acdClient.NewSettingsClientOrDie()
-					argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
+					argoSettings, err := settingsIf.Get(ctx, &settingspkg.SettingsQuery{})
 					errors.CheckError(err)
 					util.Close(conn)
 
 					conn, clusterIf := acdClient.NewClusterClientOrDie()
 					defer util.Close(conn)
-					cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: app.Spec.Destination.Server})
+					cluster, err := clusterIf.Get(ctx, &clusterpkg.ClusterQuery{Server: app.Spec.Destination.Server})
 					errors.CheckError(err)
 					util.Close(conn)
 					localObjsStrings = getLocalObjectsString(app, local, argoSettings.AppLabelKey, cluster.ServerVersion, argoSettings.KustomizeOptions)
@@ -1570,6 +1586,8 @@ const waitFormatString = "%s\t%5s\t%10s\t%10s\t%20s\t%8s\t%7s\t%10s\t%s\n"
 func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout uint, watchSync bool, watchHealth bool, watchOperation bool, watchSuspended bool, selectedResources []argoappv1.SyncOperationResource) (*argoappv1.Application, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	span, ctx := opentracing.StartSpanFromContext(ctx, "app history")
+	defer span.Finish()
 
 	// refresh controls whether or not we refresh the app before printing the final status.
 	// We only want to do this when an operation is in progress, since operations are the only
@@ -1581,7 +1599,7 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 		if refresh {
 			conn, appClient := acdClient.NewApplicationClientOrDie()
 			refreshType := string(argoappv1.RefreshTypeNormal)
-			app, err = appClient.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName, Refresh: &refreshType})
+			app, err = appClient.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName, Refresh: &refreshType})
 			errors.CheckError(err)
 			_ = conn.Close()
 		}
@@ -1776,7 +1794,9 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appName := args[0]
-			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "app history")
+			defer span.Finish()
+			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
 			if output == "id" {
 				printApplicationHistoryIds(app.Status.History)
@@ -1809,7 +1829,8 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			acdClient := argocdclient.NewClientOrDie(clientOpts)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer util.Close(conn)
-			ctx := context.Background()
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "app rollback")
+			defer span.Finish()
 			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
 			var depInfo *argoappv1.RevisionHistory
@@ -1882,8 +1903,9 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 			appName := args[0]
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			ctx := context.Background()
-			resources, err := appIf.ManagedResources(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &appName})
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "app manifests")
+			defer span.Finish()
+			resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 			errors.CheckError(err)
 
 			var unstructureds []*unstructured.Unstructured
@@ -1940,7 +1962,8 @@ func NewApplicationTerminateOpCommand(clientOpts *argocdclient.ClientOptions) *c
 			appName := args[0]
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			ctx := context.Background()
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "app terminate-op")
+			defer span.Finish()
 			_, err := appIf.TerminateOperation(ctx, &applicationpkg.OperationTerminateRequest{Name: &appName})
 			errors.CheckError(err)
 			fmt.Printf("Application '%s' operation terminating\n", appName)
@@ -1958,10 +1981,12 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "app edit")
+			defer span.Finish()
 			appName := args[0]
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
+			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
 			appData, err := json.Marshal(app.Spec)
 			errors.CheckError(err)
@@ -1978,7 +2003,7 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				if err != nil {
 					return err
 				}
-				_, err = appIf.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: updatedSpec})
+				_, err = appIf.UpdateSpec(ctx, &applicationpkg.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: updatedSpec})
 				if err != nil {
 					return fmt.Errorf("Failed to update application spec:\n%v", err)
 				}
@@ -2007,11 +2032,13 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "app patch")
+			defer span.Finish()
 			appName := args[0]
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 
-			patchedApp, err := appIf.Patch(context.Background(), &applicationpkg.ApplicationPatchRequest{
+			patchedApp, err := appIf.Patch(ctx, &applicationpkg.ApplicationPatchRequest{
 				Name:      &appName,
 				Patch:     patch,
 				PatchType: patchType,
@@ -2097,7 +2124,8 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 
 		conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 		defer util.Close(conn)
-		ctx := context.Background()
+		span, ctx := opentracing.StartSpanFromContext(context.Background(), "app patch-resource")
+		defer span.Finish()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
 		objectsToPatch := filterResources(command, resources.Items, group, kind, namespace, resourceName, all)

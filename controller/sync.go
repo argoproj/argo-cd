@@ -41,6 +41,7 @@ const (
 var syncIdPrefix uint64 = 0
 
 type syncContext struct {
+	context             context.Context
 	resourceOverrides   map[string]v1alpha1.ResourceOverride
 	appName             string
 	proj                *v1alpha1.AppProject
@@ -61,7 +62,7 @@ type syncContext struct {
 	lock sync.Mutex
 }
 
-func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState) {
+func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Application, state *v1alpha1.OperationState) {
 	// Sync requests might be requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
 	// This can change meaning when resuming operations (e.g a hook sync). After calculating a
 	// concrete git commit SHA, the SHA is remembered in the status.operationState.syncResult field.
@@ -106,7 +107,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		revision = syncOp.Revision
 	}
 
-	compareResult := m.CompareAppState(app, revision, source, false, syncOp.Manifests)
+	compareResult := m.CompareAppState(ctx, app, revision, source, false, syncOp.Manifests)
 
 	// If there are any comparison or spec errors error conditions do not perform the operation
 	if errConditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{
@@ -122,7 +123,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	// what we should be syncing to when resuming operations.
 	syncRes.Revision = compareResult.syncStatus.Revision
 
-	clst, err := m.db.GetCluster(context.Background(), app.Spec.Destination.Server)
+	clst, err := m.db.GetCluster(ctx, app.Spec.Destination.Server)
 	if err != nil {
 		state.Phase = v1alpha1.OperationError
 		state.Message = err.Error()
@@ -167,6 +168,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	atomic.AddUint64(&syncIdPrefix, 1)
 	syncId := fmt.Sprintf("%05d-%s", syncIdPrefix, rand.RandString(5))
 	syncCtx := syncContext{
+		context:             ctx,
 		resourceOverrides:   resourceOverrides,
 		appName:             app.Name,
 		proj:                proj,
@@ -247,7 +249,7 @@ func (sc *syncContext) sync() {
 			}
 		} else {
 			// this must be calculated on the live object
-			healthStatus, err := health.GetResourceHealth(task.liveObj, sc.resourceOverrides)
+			healthStatus, err := health.GetResourceHealth(sc.context,task.liveObj, sc.resourceOverrides)
 			if err == nil {
 				log.WithFields(log.Fields{"task": task, "healthStatus": healthStatus}).Debug("attempting to update health of running task")
 				if healthStatus == nil {
@@ -544,7 +546,7 @@ func (sc *syncContext) ensureCRDReady(name string) {
 // applyObject performs a `kubectl apply` of a single resource
 func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun bool, force bool) (v1alpha1.ResultCode, string) {
 	validate := !resource.HasAnnotationOption(targetObj, common.AnnotationSyncOptions, "Validate=false")
-	message, err := sc.kubectl.ApplyResource(sc.config, targetObj, targetObj.GetNamespace(), dryRun, force, validate)
+	message, err := sc.kubectl.ApplyResource(sc.context,sc.config, targetObj, targetObj.GetNamespace(), dryRun, force, validate)
 	if err != nil {
 		return v1alpha1.ResultCodeSyncFailed, err.Error()
 	}

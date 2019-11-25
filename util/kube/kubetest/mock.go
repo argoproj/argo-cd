@@ -1,6 +1,8 @@
 package kubetest
 
 import (
+	"context"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -43,7 +45,7 @@ func (k *MockKubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVer
 	return command.Err
 }
 
-func (k *MockKubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) (string, error) {
+func (k *MockKubectlCmd) ApplyResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) (string, error) {
 	k.LastValidate = validate
 	command, ok := k.Commands[obj.GetName()]
 	if !ok {
@@ -53,7 +55,7 @@ func (k *MockKubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Un
 }
 
 // ConvertToVersion converts an unstructured object into the specified group/version
-func (k *MockKubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error) {
+func (k *MockKubectlCmd) ConvertToVersion(ctx context.Context, obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error) {
 	return obj, nil
 }
 
@@ -61,5 +63,5 @@ func (k *MockKubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
 	return "", nil
 }
 
-func (k *MockKubectlCmd) SetOnKubectlRun(onKubectlRun func(command string) (util.Closer, error)) {
+func (k *MockKubectlCmd) SetOnKubectlRun(onKubectlRun func(ctx context.Context, command string) (util.Closer, error)) {
 }

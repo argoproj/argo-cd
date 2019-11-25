@@ -2,7 +2,7 @@ package reposerver
 
 import (
 	"crypto/tls"
-
+	grpc_opentracing "github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
 	versionpkg "github.com/argoproj/argo-cd/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	reposervercache "github.com/argoproj/argo-cd/reposerver/cache"
@@ -11,7 +11,7 @@ import (
 	"github.com/argoproj/argo-cd/server/version"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
-
+	"github.com/argoproj/argo-cd/util/tracer"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	log "github.com/sirupsen/logrus"
@@ -50,8 +50,16 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	tlsConfCustomizer(tlsConfig)
 
 	serverLog := log.NewEntry(log.StandardLogger())
-	streamInterceptors := []grpc.StreamServerInterceptor{grpc_logrus.StreamServerInterceptor(serverLog), grpc_util.PanicLoggerStreamServerInterceptor(serverLog)}
-	unaryInterceptors := []grpc.UnaryServerInterceptor{grpc_logrus.UnaryServerInterceptor(serverLog), grpc_util.PanicLoggerUnaryServerInterceptor(serverLog)}
+	streamInterceptors := []grpc.StreamServerInterceptor{
+		grpc_logrus.StreamServerInterceptor(serverLog),
+		grpc_util.PanicLoggerStreamServerInterceptor(serverLog),
+		grpc_opentracing.StreamServerInterceptor(grpc_opentracing.WithTracer(tracer.Tracer)),
+	}
+	unaryInterceptors := []grpc.UnaryServerInterceptor{
+		grpc_logrus.UnaryServerInterceptor(serverLog),
+		grpc_util.PanicLoggerUnaryServerInterceptor(serverLog),
+		grpc_opentracing.UnaryServerInterceptor(grpc_opentracing.WithTracer(tracer.Tracer)),
+	}
 
 	return &ArgoCDRepoServer{
 		log:              serverLog,

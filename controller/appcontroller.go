@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	v1 "k8s.io/api/core/v1"
@@ -132,6 +133,7 @@ func NewApplicationController(
 	if kubectlParallelismLimit > 0 {
 		ctrl.kubectlSemaphore = semaphore.NewWeighted(kubectlParallelismLimit)
 	}
+
 	kubectl.SetOnKubectlRun(ctrl.onKubectlRun)
 	appInformer, appLister, err := ctrl.newApplicationInformerAndLister()
 	if err != nil {
@@ -155,10 +157,10 @@ func NewApplicationController(
 	return &ctrl, nil
 }
 
-func (ctrl *ApplicationController) onKubectlRun(command string) (util.Closer, error) {
+func (ctrl *ApplicationController) onKubectlRun(ctx context.Context, command string) (util.Closer, error) {
 	ctrl.metricsServer.IncKubectlExec(command)
 	if ctrl.kubectlSemaphore != nil {
-		if err := ctrl.kubectlSemaphore.Acquire(context.Background(), 1); err != nil {
+		if err := ctrl.kubectlSemaphore.Acquire(ctx, 1); err != nil {
 			return nil, err
 		}
 		ctrl.metricsServer.IncKubectlExecPending(command)
@@ -224,12 +226,12 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 	}
 }
 
-func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, comparisonResult *comparisonResult) (*appv1.ApplicationTree, error) {
+func (ctrl *ApplicationController) setAppManagedResources(ctx context.Context, a *appv1.Application, comparisonResult *comparisonResult) (*appv1.ApplicationTree, error) {
 	managedResources, err := ctrl.managedResources(comparisonResult)
 	if err != nil {
 		return nil, err
 	}
-	tree, err := ctrl.getResourceTree(a, managedResources)
+	tree, err := ctrl.getResourceTree(ctx,a, managedResources)
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +253,7 @@ func isKnownOrphanedResourceExclusion(key kube.ResourceKey) bool {
 	return false
 }
 
-func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managedResources []*appv1.ResourceDiff) (*appv1.ApplicationTree, error) {
+func (ctrl *ApplicationController) getResourceTree(ctx context.Context, a *appv1.Application, managedResources []*appv1.ResourceDiff) (*appv1.ApplicationTree, error) {
 	nodes := make([]appv1.ResourceNode, 0)
 
 	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace)
@@ -261,7 +263,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	orphanedNodesMap := make(map[kube.ResourceKey]appv1.ResourceNode)
 	warnOrphaned := true
 	if proj.Spec.OrphanedResources != nil {
-		orphanedNodesMap, err = ctrl.stateCache.GetNamespaceTopLevelResources(a.Spec.Destination.Server, a.Spec.Destination.Namespace)
+		orphanedNodesMap, err = ctrl.stateCache.GetNamespaceTopLevelResources(ctx,a.Spec.Destination.Server, a.Spec.Destination.Namespace)
 		if err != nil {
 			return nil, err
 		}
@@ -293,7 +295,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 				},
 			})
 		} else {
-			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, kube.GetResourceKey(live), func(child appv1.ResourceNode, appName string) {
+			err := ctrl.stateCache.IterateHierarchy(ctx, a.Spec.Destination.Server, kube.GetResourceKey(live), func(child appv1.ResourceNode, appName string) {
 				nodes = append(nodes, child)
 			})
 			if err != nil {
@@ -304,7 +306,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	orphanedNodes := make([]appv1.ResourceNode, 0)
 	for k := range orphanedNodesMap {
 		if k.Namespace != "" && proj.IsResourcePermitted(metav1.GroupKind{Group: k.Group, Kind: k.Kind}, true) && !isKnownOrphanedResourceExclusion(k) {
-			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, k, func(child appv1.ResourceNode, appName string) {
+			err := ctrl.stateCache.IterateHierarchy(ctx, a.Spec.Destination.Server, k, func(child appv1.ResourceNode, appName string) {
 				belongToAnotherApp := false
 				if appName != "" {
 					if _, exists, err := ctrl.appInformer.GetIndexer().GetByKey(ctrl.namespace + "/" + appName); exists && err == nil {
@@ -403,14 +405,14 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 
 	for i := 0; i < statusProcessors; i++ {
 		go wait.Until(func() {
-			for ctrl.processAppRefreshQueueItem() {
+			for ctrl.processAppRefreshQueueItem(ctx) {
 			}
 		}, time.Second, ctx.Done())
 	}
 
 	for i := 0; i < operationProcessors; i++ {
 		go wait.Until(func() {
-			for ctrl.processAppOperationQueueItem() {
+			for ctrl.processAppOperationQueueItem(ctx) {
 			}
 		}, time.Second, ctx.Done())
 	}
@@ -434,7 +436,7 @@ func (ctrl *ApplicationController) isRefreshRequested(appName string) (bool, Com
 	return ok, level
 }
 
-func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext bool) {
+func (ctrl *ApplicationController) processAppOperationQueueItem(ctx context.Context) (processNext bool) {
 	appKey, shutdown := ctrl.appOperationQueue.Get()
 	if shutdown {
 		processNext = false
@@ -463,9 +465,9 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		return
 	}
 	if app.Operation != nil {
-		ctrl.processRequestedAppOperation(app)
+		ctrl.processRequestedAppOperation(ctx,app)
 	} else if app.DeletionTimestamp != nil && app.CascadedDeletion() {
-		err = ctrl.finalizeApplicationDeletion(app)
+		err = ctrl.finalizeApplicationDeletion(ctx,app)
 		if err != nil {
 			ctrl.setAppCondition(app, appv1.ApplicationCondition{
 				Type:    appv1.ApplicationConditionDeletionError,
@@ -482,7 +484,7 @@ func shouldBeDeleted(app *appv1.Application, obj *unstructured.Unstructured) boo
 	return !kube.IsCRD(obj) && !isSelfReferencedApp(app, kube.GetObjectRef(obj))
 }
 
-func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Application) error {
+func (ctrl *ApplicationController) finalizeApplicationDeletion(ctx context.Context, app *appv1.Application) error {
 	logCtx := log.WithField("application", app.Name)
 	logCtx.Infof("Deleting resources")
 	// Get refreshed application info, since informer app copy might be stale
@@ -494,7 +496,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		return nil
 	}
 
-	objsMap, err := ctrl.stateCache.GetManagedLiveObjs(app, []*unstructured.Unstructured{})
+	objsMap, err := ctrl.stateCache.GetManagedLiveObjs(ctx, app, []*unstructured.Unstructured{})
 	if err != nil {
 		return err
 	}
@@ -505,7 +507,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		}
 	}
 
-	cluster, err := ctrl.db.GetCluster(context.Background(), app.Spec.Destination.Server)
+	cluster, err := ctrl.db.GetCluster(ctx, app.Spec.Destination.Server)
 	if err != nil {
 		return err
 	}
@@ -519,7 +521,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		return err
 	}
 
-	objsMap, err = ctrl.stateCache.GetManagedLiveObjs(app, []*unstructured.Unstructured{})
+	objsMap, err = ctrl.stateCache.GetManagedLiveObjs(ctx, app, []*unstructured.Unstructured{})
 	if err != nil {
 		return err
 	}
@@ -573,7 +575,10 @@ func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condi
 	}
 }
 
-func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Application) {
+func (ctrl *ApplicationController) processRequestedAppOperation(ctx context.Context, app *appv1.Application) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "processRequestedAppOperation")
+	defer span.Finish()
+
 	logCtx := log.WithField("application", app.Name)
 	var state *appv1.OperationState
 	// Recover from any unexpected panics and automatically set the status to be failed
@@ -586,7 +591,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			} else {
 				state.Message = fmt.Sprintf("%v", r)
 			}
-			ctrl.setOperationState(app, state)
+			ctrl.setOperationState(ctx,app, state)
 		}
 	}()
 	if isOperationInProgress(app) {
@@ -608,11 +613,11 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
 	} else {
 		state = &appv1.OperationState{Phase: appv1.OperationRunning, Operation: *app.Operation, StartedAt: metav1.Now()}
-		ctrl.setOperationState(app, state)
+		ctrl.setOperationState(ctx,app, state)
 		logCtx.Infof("Initialized new operation: %v", *app.Operation)
 	}
 
-	ctrl.appStateManager.SyncAppState(app, state)
+	ctrl.appStateManager.SyncAppState(ctx, app, state)
 
 	if state.Phase == appv1.OperationRunning {
 		// It's possible for an app to be terminated while we were operating on it. We do not want
@@ -629,7 +634,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		}
 	}
 
-	ctrl.setOperationState(app, state)
+	ctrl.setOperationState(ctx,app, state)
 	if state.Phase.Completed() {
 		// if we just completed an operation, force a refresh so that UI will report up-to-date
 		// sync/health information
@@ -643,7 +648,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	}
 }
 
-func (ctrl *ApplicationController) setOperationState(app *appv1.Application, state *appv1.OperationState) {
+func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *appv1.Application, state *appv1.OperationState) {
 	util.RetryUntilSucceed(func() error {
 		if state.Phase == "" {
 			// expose any bugs where we neglect to set phase
@@ -703,10 +708,13 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			ctrl.metricsServer.IncSync(app, state)
 		}
 		return nil
-	}, "Update application operation state", context.Background(), updateOperationStateTimeout)
+	}, "Update application operation state", ctx, updateOperationStateTimeout)
 }
 
-func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext bool) {
+func (ctrl *ApplicationController) processAppRefreshQueueItem(ctx context.Context, ) (processNext bool) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "processAppRefreshQueueItem")
+	defer span.Finish()
+
 	appKey, shutdown := ctrl.appRefreshQueue.Get()
 	if shutdown {
 		processNext = false
@@ -761,7 +769,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		if err := ctrl.cache.GetAppManagedResources(app.Name, &managedResources); err != nil {
 			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fallback to full reconciliation")
 		} else {
-			if tree, err := ctrl.getResourceTree(app, managedResources); err != nil {
+			if tree, err := ctrl.getResourceTree(ctx,app, managedResources); err != nil {
 				app.Status.SetConditions(
 					[]appv1.ApplicationCondition{
 						{
@@ -787,7 +795,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		}
 	}
 
-	hasErrors := ctrl.refreshAppConditions(app)
+	hasErrors := ctrl.refreshAppConditions(ctx,app)
 	if hasErrors {
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = appv1.HealthStatusUnknown
@@ -806,11 +814,11 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 
 	observedAt := metav1.Now()
-	compareResult := ctrl.appStateManager.CompareAppState(app, revision, app.Spec.Source, refreshType == appv1.RefreshTypeHard, localManifests)
+	compareResult := ctrl.appStateManager.CompareAppState(ctx, app, revision, app.Spec.Source, refreshType == appv1.RefreshTypeHard, localManifests)
 
 	ctrl.normalizeApplication(origApp, app)
 
-	tree, err := ctrl.setAppManagedResources(app, compareResult)
+	tree, err := ctrl.setAppManagedResources(ctx,app, compareResult)
 	if err != nil {
 		logCtx.Errorf("Failed to cache app resources: %v", err)
 	} else {
@@ -884,7 +892,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	return false, refreshType, compareWith
 }
 
-func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) bool {
+func (ctrl *ApplicationController) refreshAppConditions(ctx context.Context, app *appv1.Application) bool {
 	errorConditions := make([]appv1.ApplicationCondition, 0)
 	proj, err := ctrl.getAppProj(app)
 	if err != nil {
@@ -900,7 +908,7 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 			})
 		}
 	} else {
-		specConditions, err := argo.ValidatePermissions(context.Background(), &app.Spec, proj, ctrl.db)
+		specConditions, err := argo.ValidatePermissions(ctx, &app.Spec, proj, ctrl.db)
 		if err != nil {
 			errorConditions = append(errorConditions, appv1.ApplicationCondition{
 				Type:    appv1.ApplicationConditionUnknownError,

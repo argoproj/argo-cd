@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/ghodss/yaml"
+	"github.com/opentracing/opentracing-go"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
@@ -74,7 +75,8 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 			conn, usrIf := acdClient.NewAccountClientOrDie()
 			defer util.Close(conn)
 
-			ctx := context.Background()
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "update-password")
+			defer span.Finish()
 			_, err := usrIf.UpdatePassword(ctx, &updatePasswordRequest)
 			errors.CheckError(err)
 			fmt.Printf("Password updated\n")
@@ -86,7 +88,7 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 			errors.CheckError(err)
 			claims, err := configCtx.User.Claims()
 			errors.CheckError(err)
-			tokenString := passwordLogin(acdClient, claims.Subject, newPassword)
+			tokenString := passwordLogin(ctx,acdClient, claims.Subject, newPassword)
 			localCfg.UpsertUser(localconfig.User{
 				Name:      localCfg.CurrentContext,
 				AuthToken: tokenString,
@@ -118,7 +120,8 @@ func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			conn, client := argocdclient.NewClientOrDie(clientOpts).NewSessionClientOrDie()
 			defer util.Close(conn)
 
-			ctx := context.Background()
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "account get-user-info")
+			defer span.Finish()
 			response, err := client.GetUserInfo(ctx, &session.GetUserInfoRequest{})
 			errors.CheckError(err)
 
@@ -173,7 +176,8 @@ Resources: %v
 			conn, client := argocdclient.NewClientOrDie(clientOpts).NewAccountClientOrDie()
 			defer util.Close(conn)
 
-			ctx := context.Background()
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "account can-i")
+			defer span.Finish()
 			response, err := client.CanI(ctx, &accountpkg.CanIRequest{
 				Action:      args[0],
 				Resource:    args[1],

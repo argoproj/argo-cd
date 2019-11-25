@@ -53,13 +53,13 @@ func GetLiveObjs(res []managedResource) []*unstructured.Unstructured {
 }
 
 type ResourceInfoProvider interface {
-	IsNamespaced(server string, gk schema.GroupKind) (bool, error)
+	IsNamespaced(ctx context.Context, server string, gk schema.GroupKind) (bool, error)
 }
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
-	CompareAppState(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, noCache bool, localObjects []string) *comparisonResult
-	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
+	CompareAppState(ctx context.Context, app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, noCache bool, localObjects []string) *comparisonResult
+	SyncAppState(ctx context.Context, app *v1alpha1.Application, state *v1alpha1.OperationState)
 }
 
 type comparisonResult struct {
@@ -95,12 +95,12 @@ type appStateManager struct {
 	namespace      string
 }
 
-func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
-	helmRepos, err := m.db.ListHelmRepositories(context.Background())
+func (m *appStateManager) getRepoObjs(ctx context.Context, app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
+	helmRepos, err := m.db.ListHelmRepositories(ctx)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	repo, err := m.db.GetRepository(context.Background(), source.RepoURL)
+	repo, err := m.db.GetRepository(ctx, source.RepoURL)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -128,7 +128,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	cluster, err := m.db.GetCluster(context.Background(), app.Spec.Destination.Server)
+	cluster, err := m.db.GetCluster(ctx, app.Spec.Destination.Server)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -136,7 +136,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+	manifestInfo, err := repoClient.GenerateManifest(ctx, &apiclient.ManifestRequest{
 		Repo:              repo,
 		Repos:             helmRepos,
 		Revision:          revision,
@@ -182,7 +182,8 @@ func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, []*un
 }
 
 func DeduplicateTargetObjects(
-	server string,
+	ctx context.Context,
+server string,
 	namespace string,
 	objs []*unstructured.Unstructured,
 	infoProvider ResourceInfoProvider,
@@ -191,7 +192,7 @@ func DeduplicateTargetObjects(
 	targetByKey := make(map[kubeutil.ResourceKey][]*unstructured.Unstructured)
 	for i := range objs {
 		obj := objs[i]
-		isNamespaced, err := infoProvider.IsNamespaced(server, obj.GroupVersionKind().GroupKind())
+		isNamespaced, err := infoProvider.IsNamespaced(ctx,server, obj.GroupVersionKind().GroupKind())
 		if err != nil {
 			return objs, nil, err
 		}
@@ -275,7 +276,7 @@ func (m *appStateManager) getComparisonSettings(app *appv1.Application) (string,
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
-func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, noCache bool, localManifests []string) *comparisonResult {
+func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, noCache bool, localManifests []string) *comparisonResult {
 	appLabelKey, resourceOverrides, diffNormalizer, err := m.getComparisonSettings(app)
 
 	// return unknown comparison result if basic comparison settings cannot be loaded
@@ -302,7 +303,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	now := metav1.Now()
 
 	if len(localManifests) == 0 {
-		targetObjs, hooks, manifestInfo, err = m.getRepoObjs(app, source, appLabelKey, revision, noCache)
+		targetObjs, hooks, manifestInfo, err = m.getRepoObjs(ctx, app, source, appLabelKey, revision, noCache)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
@@ -318,7 +319,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		manifestInfo = nil
 	}
 
-	targetObjs, dedupConditions, err := DeduplicateTargetObjects(app.Spec.Destination.Server, app.Spec.Destination.Namespace, targetObjs, m.liveStateCache)
+	targetObjs, dedupConditions, err := DeduplicateTargetObjects(ctx,app.Spec.Destination.Server, app.Spec.Destination.Namespace, targetObjs, m.liveStateCache)
 	if err != nil {
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 	}
@@ -343,7 +344,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	}
 
 	logCtx.Debugf("Generated config manifests")
-	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(app, targetObjs)
+	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(ctx,app, targetObjs)
 	dedupLiveResources(targetObjs, liveObjByKey)
 	if err != nil {
 		liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
@@ -368,7 +369,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	for i, obj := range targetObjs {
 		gvk := obj.GroupVersionKind()
 		ns := util.FirstNonEmpty(obj.GetNamespace(), app.Spec.Destination.Namespace)
-		if namespaced, err := m.liveStateCache.IsNamespaced(app.Spec.Destination.Server, obj.GroupVersionKind().GroupKind()); err == nil && !namespaced {
+		if namespaced, err := m.liveStateCache.IsNamespaced(ctx,app.Spec.Destination.Server, obj.GroupVersionKind().GroupKind()); err == nil && !namespaced {
 			ns = ""
 		}
 		key := kubeutil.NewResourceKey(gvk.Group, gvk.Kind, ns, obj.GetName())
@@ -469,7 +470,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		syncStatus.Revision = manifestInfo.Revision
 	}
 
-	healthStatus, err := health.SetApplicationHealth(resourceSummaries, GetLiveObjs(managedResources), resourceOverrides, func(obj *unstructured.Unstructured) bool {
+	healthStatus, err := health.SetApplicationHealth(ctx,resourceSummaries, GetLiveObjs(managedResources), resourceOverrides, func(obj *unstructured.Unstructured) bool {
 		return !isSelfReferencedApp(app, kubeutil.GetObjectRef(obj))
 	})
 

@@ -1,6 +1,7 @@
 package health
 
 import (
+	"context"
 	"io/ioutil"
 	"testing"
 
@@ -26,7 +27,7 @@ func getHealthStatus(yamlPath string, t *testing.T) *appv1.HealthStatus {
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	assert.Nil(t, err)
-	health, err := GetResourceHealth(&obj, nil)
+	health, err := GetResourceHealth(context.TODO(),&obj, nil)
 	assert.Nil(t, err)
 	return health
 }
@@ -123,7 +124,7 @@ func TestAppOfAppsHealth(t *testing.T) {
 	{
 		missingAndHealthyStatuses := []appv1.ResourceStatus{missingStatus, healthyStatus}
 		missingAndHealthyLiveObjects := []*unstructured.Unstructured{missingApp, healthyApp}
-		healthStatus, err := SetApplicationHealth(missingAndHealthyStatuses, missingAndHealthyLiveObjects, nil, noFilter)
+		healthStatus, err := SetApplicationHealth(context.TODO(),missingAndHealthyStatuses, missingAndHealthyLiveObjects, nil, noFilter)
 		assert.NoError(t, err)
 		assert.Equal(t, appv1.HealthStatusHealthy, healthStatus.Status)
 	}
@@ -132,7 +133,7 @@ func TestAppOfAppsHealth(t *testing.T) {
 	{
 		unknownAndHealthyStatuses := []appv1.ResourceStatus{unknownStatus, healthyStatus}
 		unknownAndHealthyLiveObjects := []*unstructured.Unstructured{unknownApp, healthyApp}
-		healthStatus, err := SetApplicationHealth(unknownAndHealthyStatuses, unknownAndHealthyLiveObjects, nil, noFilter)
+		healthStatus, err := SetApplicationHealth(context.TODO(),unknownAndHealthyStatuses, unknownAndHealthyLiveObjects, nil, noFilter)
 		assert.NoError(t, err)
 		assert.Equal(t, appv1.HealthStatusHealthy, healthStatus.Status)
 	}
@@ -141,7 +142,7 @@ func TestAppOfAppsHealth(t *testing.T) {
 	{
 		degradedAndHealthyStatuses := []appv1.ResourceStatus{degradedStatus, healthyStatus}
 		degradedAndHealthyLiveObjects := []*unstructured.Unstructured{degradedApp, healthyApp}
-		healthStatus, err := SetApplicationHealth(degradedAndHealthyStatuses, degradedAndHealthyLiveObjects, nil, noFilter)
+		healthStatus, err := SetApplicationHealth(context.TODO(),degradedAndHealthyStatuses, degradedAndHealthyLiveObjects, nil, noFilter)
 		assert.NoError(t, err)
 		assert.Equal(t, appv1.HealthStatusDegraded, healthStatus.Status)
 	}
@@ -179,13 +180,13 @@ func TestSetApplicationHealth(t *testing.T) {
 		&runningPod,
 		&failedJob,
 	}
-	healthStatus, err := SetApplicationHealth(resources, liveObjs, nil, noFilter)
+	healthStatus, err := SetApplicationHealth(context.TODO(),resources, liveObjs, nil, noFilter)
 	assert.NoError(t, err)
 	assert.Equal(t, appv1.HealthStatusDegraded, healthStatus.Status)
 
 	// now mark the job as a hook and retry. it should ignore the hook and consider the app healthy
 	failedJob.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
-	healthStatus, err = SetApplicationHealth(resources, liveObjs, nil, noFilter)
+	healthStatus, err = SetApplicationHealth(context.TODO(),resources, liveObjs, nil, noFilter)
 	assert.NoError(t, err)
 	assert.Equal(t, appv1.HealthStatusHealthy, healthStatus.Status)
 }

@@ -109,16 +109,16 @@ func newFakeController(data *fakeData) *ApplicationController {
 	mockStateCache := mockstatecache.LiveStateCache{}
 	ctrl.appStateManager.(*appStateManager).liveStateCache = &mockStateCache
 	ctrl.stateCache = &mockStateCache
-	mockStateCache.On("IsNamespaced", mock.Anything, mock.Anything).Return(true, nil)
-	mockStateCache.On("GetManagedLiveObjs", mock.Anything, mock.Anything).Return(data.managedLiveObjs, nil)
+	mockStateCache.On("IsNamespaced", mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
+	mockStateCache.On("GetManagedLiveObjs", mock.Anything, mock.Anything, mock.Anything).Return(data.managedLiveObjs, nil)
 	response := make(map[kube.ResourceKey]argoappv1.ResourceNode)
 	for k, v := range data.namespacedResources {
 		response[k] = v.ResourceNode
 	}
-	mockStateCache.On("GetNamespaceTopLevelResources", mock.Anything, mock.Anything).Return(response, nil)
-	mockStateCache.On("IterateHierarchy", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		key := args[1].(kube.ResourceKey)
-		action := args[2].(func(child argoappv1.ResourceNode, appName string))
+	mockStateCache.On("GetNamespaceTopLevelResources", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
+	mockStateCache.On("IterateHierarchy", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		key := args[2].(kube.ResourceKey)
+		action := args[3].(func(child argoappv1.ResourceNode, appName string))
 		appName := ""
 		if res, ok := data.namespacedResources[key]; ok {
 			appName = res.AppName
@@ -406,7 +406,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		patched = true
 		return true, nil, nil
 	})
-	err := ctrl.finalizeApplicationDeletion(app)
+	err := ctrl.finalizeApplicationDeletion(context.TODO(),app)
 	assert.NoError(t, err)
 	assert.True(t, patched)
 }
@@ -458,7 +458,7 @@ func TestNormalizeApplication(t *testing.T) {
 			}
 			return true, nil, nil
 		})
-		ctrl.processAppRefreshQueueItem()
+		ctrl.processAppRefreshQueueItem(context.TODO(),)
 		assert.True(t, normalized)
 	}
 
@@ -480,7 +480,7 @@ func TestNormalizeApplication(t *testing.T) {
 			}
 			return true, nil, nil
 		})
-		ctrl.processAppRefreshQueueItem()
+		ctrl.processAppRefreshQueueItem(context.TODO(),)
 		assert.False(t, normalized)
 	}
 }
@@ -538,7 +538,7 @@ func TestSetOperationStateOnDeletedApp(t *testing.T) {
 		patched = true
 		return true, nil, apierr.NewNotFound(schema.GroupResource{}, "my-app")
 	})
-	ctrl.setOperationState(newFakeApp(), &argoappv1.OperationState{Phase: argoappv1.OperationSucceeded})
+	ctrl.setOperationState(context.TODO(),newFakeApp(), &argoappv1.OperationState{Phase: argoappv1.OperationSucceeded})
 	assert.True(t, patched)
 }
 
@@ -643,7 +643,7 @@ func TestRefreshAppConditions(t *testing.T) {
 		app := newFakeApp()
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
 
-		hasErrors := ctrl.refreshAppConditions(app)
+		hasErrors := ctrl.refreshAppConditions(context.TODO(),app)
 		assert.False(t, hasErrors)
 		assert.Len(t, app.Status.Conditions, 0)
 	})
@@ -654,7 +654,7 @@ func TestRefreshAppConditions(t *testing.T) {
 
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
 
-		hasErrors := ctrl.refreshAppConditions(app)
+		hasErrors := ctrl.refreshAppConditions(context.TODO(),app)
 		assert.False(t, hasErrors)
 		assert.Len(t, app.Status.Conditions, 1)
 		assert.Equal(t, argoappv1.ApplicationConditionExcludedResourceWarning, app.Status.Conditions[0].Type)
@@ -667,7 +667,7 @@ func TestRefreshAppConditions(t *testing.T) {
 
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
 
-		hasErrors := ctrl.refreshAppConditions(app)
+		hasErrors := ctrl.refreshAppConditions(context.TODO(),app)
 		assert.True(t, hasErrors)
 		assert.Len(t, app.Status.Conditions, 1)
 		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
@@ -706,7 +706,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 		ctrl.requestAppRefresh(app.Name, CompareWithLatest)
 		ctrl.appRefreshQueue.Add(key)
 
-		ctrl.processAppRefreshQueueItem()
+		ctrl.processAppRefreshQueueItem(context.TODO(),)
 
 		_, updated, err := unstructured.NestedString(receivedPatch, "status", "reconciledAt")
 		assert.NoError(t, err)
@@ -722,7 +722,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 		ctrl.appRefreshQueue.Add(key)
 		ctrl.requestAppRefresh(app.Name, CompareWithRecent)
 
-		ctrl.processAppRefreshQueueItem()
+		ctrl.processAppRefreshQueueItem(context.TODO(),)
 
 		_, updated, err := unstructured.NestedString(receivedPatch, "status", "reconciledAt")
 		assert.NoError(t, err)

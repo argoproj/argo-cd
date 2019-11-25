@@ -4,13 +4,16 @@ import (
 	"crypto/tls"
 	"time"
 
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
+	grpc_opentracing "github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
 	"github.com/argoproj/argo-cd/util"
 	argogrpc "github.com/argoproj/argo-cd/util/grpc"
+	"github.com/argoproj/argo-cd/util/tracer"
 )
 
 // Clientset represets repository server api clients
@@ -31,7 +34,14 @@ func (c *clientSet) NewRepoServerClient() (util.Closer, RepoServerServiceClient,
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})),
 		grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)),
-		grpc.WithUnaryInterceptor(grpc_retry.UnaryClientInterceptor(retryOpts...))}
+		grpc.WithUnaryInterceptor(grpc_retry.UnaryClientInterceptor(retryOpts...)),
+		grpc.WithStreamInterceptor(grpc_middleware.ChainStreamClient(
+			grpc_opentracing.StreamClientInterceptor(grpc_opentracing.WithTracer(tracer.Tracer)),
+		)),
+		grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(
+			grpc_opentracing.UnaryClientInterceptor(grpc_opentracing.WithTracer(tracer.Tracer)),
+		)),
+	}
 	if c.timeoutSeconds > 0 {
 		opts = append(opts, grpc.WithUnaryInterceptor(argogrpc.WithTimeout(time.Duration(c.timeoutSeconds)*time.Second)))
 	}

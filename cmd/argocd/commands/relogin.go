@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/coreos/go-oidc"
+	"github.com/opentracing/opentracing-go"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -32,6 +33,8 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "relogin")
+			defer span.Finish()
 			localCfg, err := localconfig.ReadLocalConfig(globalClientOpts.ConfigPath)
 			errors.CheckError(err)
 			if localCfg == nil {
@@ -54,12 +57,11 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 			errors.CheckError(err)
 			if claims.Issuer == session.SessionManagerClaimsIssuer {
 				fmt.Printf("Relogging in as '%s'\n", claims.Subject)
-				tokenString = passwordLogin(acdClient, claims.Subject, password)
+				tokenString = passwordLogin(ctx,acdClient, claims.Subject, password)
 			} else {
 				fmt.Println("Reinitiating SSO login")
 				setConn, setIf := acdClient.NewSettingsClientOrDie()
 				defer util.Close(setConn)
-				ctx := context.Background()
 				httpClient, err := acdClient.HTTPClient()
 				errors.CheckError(err)
 				ctx = oidc.ClientContext(ctx, httpClient)

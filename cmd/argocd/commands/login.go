@@ -10,6 +10,7 @@ import (
 
 	"github.com/coreos/go-oidc"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/opentracing/opentracing-go"
 	log "github.com/sirupsen/logrus"
 	"github.com/skratchdot/open-golang/open"
 	"github.com/spf13/cobra"
@@ -46,7 +47,9 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 				os.Exit(1)
 			}
 			server := args[0]
-			tlsTestResult, err := grpc_util.TestTLS(server)
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "login")
+			defer span.Finish()
+			tlsTestResult, err := grpc_util.TestTLS(ctx,server)
 			errors.CheckError(err)
 			if !tlsTestResult.TLS {
 				if !globalClientOpts.PlainText {
@@ -82,9 +85,10 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 			var tokenString string
 			var refreshToken string
 			if !sso {
-				tokenString = passwordLogin(acdClient, username, password)
+				tokenString = passwordLogin(ctx,acdClient, username, password)
 			} else {
-				ctx := context.Background()
+				span, ctx := opentracing.StartSpanFromContext(context.Background(), "login")
+				defer span.Finish()
 				httpClient, err := acdClient.HTTPClient()
 				errors.CheckError(err)
 				ctx = oidc.ClientContext(ctx, httpClient)
@@ -280,7 +284,7 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 	return tokenString, refreshToken
 }
 
-func passwordLogin(acdClient argocdclient.Client, username, password string) string {
+func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username, password string) string {
 	username, password = cli.PromptCredentials(username, password)
 	sessConn, sessionIf := acdClient.NewSessionClientOrDie()
 	defer util.Close(sessConn)
@@ -288,7 +292,7 @@ func passwordLogin(acdClient argocdclient.Client, username, password string) str
 		Username: username,
 		Password: password,
 	}
-	createdSession, err := sessionIf.Create(context.Background(), &sessionRequest)
+	createdSession, err := sessionIf.Create(ctx, &sessionRequest)
 	errors.CheckError(err)
 	return createdSession.Token
 }

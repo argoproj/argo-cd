@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/ghodss/yaml"
+	"github.com/opentracing/opentracing-go"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	apiv1 "k8s.io/api/core/v1"
@@ -93,8 +94,10 @@ func NewRunDexCommand() *cobra.Command {
 			errors.CheckError(err)
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "rundex")
+			defer span.Finish()
 			kubeClientset := kubernetes.NewForConfigOrDie(config)
-			settingsMgr := settings.NewSettingsManager(context.Background(), kubeClientset, namespace)
+			settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, namespace)
 			prevSettings, err := settingsMgr.GetSettings()
 			errors.CheckError(err)
 			updateCh := make(chan *settings.ArgoCDSettings, 1)
@@ -157,8 +160,10 @@ func NewGenDexConfigCommand() *cobra.Command {
 			errors.CheckError(err)
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "gendexcfg")
+			defer span.Finish()
 			kubeClientset := kubernetes.NewForConfigOrDie(config)
-			settingsMgr := settings.NewSettingsManager(context.Background(), kubeClientset, namespace)
+			settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, namespace)
 			settings, err := settingsMgr.GetSettings()
 			errors.CheckError(err)
 			dexCfgBytes, err := dex.GenerateDexConfigYAML(settings)
@@ -549,7 +554,9 @@ func NewClusterConfig() *cobra.Command {
 			kubeclientset, err := kubernetes.NewForConfig(conf)
 			errors.CheckError(err)
 
-			cluster, err := db.NewDB(namespace, settings.NewSettingsManager(context.Background(), kubeclientset, namespace), kubeclientset).GetCluster(context.Background(), serverUrl)
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "kubeconfig")
+			defer span.Finish()
+			cluster, err := db.NewDB(namespace, settings.NewSettingsManager(ctx, kubeclientset, namespace), kubeclientset).GetCluster(ctx, serverUrl)
 			errors.CheckError(err)
 			err = kube.WriteKubeConfig(cluster.RESTConfig(), namespace, output)
 			errors.CheckError(err)

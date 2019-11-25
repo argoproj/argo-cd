@@ -112,7 +112,7 @@ func init() {
 	CheckError(err)
 	defer util.Close(closer)
 
-	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: "admin", Password: adminPassword})
+	sessionResponse, err := client.Create(ctx, &sessionpkg.SessionCreateRequest{Username: "admin", Password: adminPassword})
 	CheckError(err)
 
 	ArgoCDClientset, err = argocdclient.NewClient(&argocdclient.ClientOptions{
@@ -123,7 +123,7 @@ func init() {
 	})
 	CheckError(err)
 
-	settingsManager = settings.NewSettingsManager(context.Background(), KubeClientset, "argocd-e2e")
+	settingsManager = settings.NewSettingsManager(ctx, KubeClientset, "argocd-e2e")
 	token = sessionResponse.Token
 	plainText = !tlsTestResult.TLS
 

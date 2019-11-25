@@ -7,6 +7,7 @@ import (
 	"os"
 	"text/tabwriter"
 
+	"github.com/opentracing/opentracing-go"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -79,6 +80,8 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 			// Repository URL
 			repo.Repo = args[0]
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "repo add")
+			defer span.Finish()
 
 			// Specifying ssh-private-key-path is only valid for SSH repositories
 			if sshPrivateKeyPath != "" {
@@ -154,7 +157,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				TlsClientCertKey:  repo.TLSClientCertKey,
 				Insecure:          repo.IsInsecure(),
 			}
-			_, err := repoIf.ValidateAccess(context.Background(), &repoAccessReq)
+			_, err := repoIf.ValidateAccess(ctx, &repoAccessReq)
 			errors.CheckError(err)
 
 			repoCreateReq := repositorypkg.RepoCreateRequest{
@@ -162,7 +165,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				Upsert: upsert,
 			}
 
-			createdRepo, err := repoIf.CreateRepository(context.Background(), &repoCreateReq)
+			createdRepo, err := repoIf.CreateRepository(ctx, &repoCreateReq)
 			errors.CheckError(err)
 			fmt.Printf("repository '%s' added\n", createdRepo.Repo)
 		},
@@ -191,10 +194,12 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "repo rm")
+			defer span.Finish()
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
 			defer util.Close(conn)
 			for _, repoURL := range args {
-				_, err := repoIf.DeleteRepository(context.Background(), &repositorypkg.RepoQuery{Repo: repoURL})
+				_, err := repoIf.DeleteRepository(ctx, &repositorypkg.RepoQuery{Repo: repoURL})
 				errors.CheckError(err)
 			}
 		},
@@ -250,7 +255,9 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				err := fmt.Errorf("--refresh must be one of: 'hard'")
 				errors.CheckError(err)
 			}
-			repos, err := repoIf.ListRepositories(context.Background(), &repositorypkg.RepoQuery{ForceRefresh: forceRefresh})
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "repo list")
+			defer span.Finish()
+			repos, err := repoIf.ListRepositories(ctx, &repositorypkg.RepoQuery{ForceRefresh: forceRefresh})
 			errors.CheckError(err)
 			switch output {
 			case "yaml", "json":

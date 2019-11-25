@@ -7,6 +7,7 @@ import (
 	"os"
 	"text/tabwriter"
 
+	"github.com/opentracing/opentracing-go"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -66,6 +67,8 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 
 			// Repository URL
 			repo.URL = args[0]
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "repocreds add")
+			defer span.Finish()
 
 			// Specifying ssh-private-key-path is only valid for SSH repositories
 			if sshPrivateKeyPath != "" {
@@ -117,7 +120,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 				Upsert: upsert,
 			}
 
-			createdRepo, err := repoIf.CreateRepositoryCredentials(context.Background(), &repoCreateReq)
+			createdRepo, err := repoIf.CreateRepositoryCredentials(ctx, &repoCreateReq)
 			errors.CheckError(err)
 			fmt.Printf("repository credentials for '%s' added\n", createdRepo.URL)
 		},
@@ -141,10 +144,12 @@ func NewRepoCredsRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "repocreds rm")
+			defer span.Finish()
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoCredsClientOrDie()
 			defer util.Close(conn)
 			for _, repoURL := range args {
-				_, err := repoIf.DeleteRepositoryCredentials(context.Background(), &repocredspkg.RepoCredsDeleteRequest{Url: repoURL})
+				_, err := repoIf.DeleteRepositoryCredentials(ctx, &repocredspkg.RepoCredsDeleteRequest{Url: repoURL})
 				errors.CheckError(err)
 			}
 		},
@@ -181,9 +186,11 @@ func NewRepoCredsListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 		Use:   "list",
 		Short: "List configured repository credentials",
 		Run: func(c *cobra.Command, args []string) {
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "repocreds list")
+			defer span.Finish()
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoCredsClientOrDie()
 			defer util.Close(conn)
-			repos, err := repoIf.ListRepositoryCredentials(context.Background(), &repocredspkg.RepoCredsQuery{})
+			repos, err := repoIf.ListRepositoryCredentials(ctx, &repocredspkg.RepoCredsQuery{})
 			errors.CheckError(err)
 			switch output {
 			case "yaml", "json":

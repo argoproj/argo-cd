@@ -40,7 +40,7 @@ type VM struct {
 	UseOpenLibs bool
 }
 
-func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState, error) {
+func (vm VM) runLua(ctx context.Context, obj *unstructured.Unstructured, script string) (*lua.LState, error) {
 	l := lua.NewState(lua.Options{
 		SkipOpenLibs: !vm.UseOpenLibs,
 	})
@@ -67,7 +67,7 @@ func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState,
 	// preload our 'safe' version of the os library. Allows the 'local os = require("os")' to work
 	l.PreloadModule(lua.OsLibName, SafeOsLoader)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	l.SetContext(ctx)
 	objectValue := decodeValue(l, obj.Object)
@@ -77,8 +77,8 @@ func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState,
 }
 
 // ExecuteHealthLua runs the lua script to generate the health status of a resource
-func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*appv1.HealthStatus, error) {
-	l, err := vm.runLua(obj, script)
+func (vm VM) ExecuteHealthLua(ctx context.Context, obj *unstructured.Unstructured, script string) (*appv1.HealthStatus, error) {
+	l, err := vm.runLua(ctx, obj, script)
 	if err != nil {
 		return nil, err
 	}
@@ -114,8 +114,8 @@ func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (string, error) {
 	return vm.getPredefinedLuaScripts(key, healthScriptFile)
 }
 
-func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string) (*unstructured.Unstructured, error) {
-	l, err := vm.runLua(obj, script)
+func (vm VM) ExecuteResourceAction(ctx context.Context, obj *unstructured.Unstructured, script string) (*unstructured.Unstructured, error) {
+	l, err := vm.runLua(ctx, obj, script)
 	if err != nil {
 		return nil, err
 	}
@@ -191,8 +191,8 @@ func cleanReturnedArray(newObj, obj []interface{}) []interface{} {
 	return arrayToReturn
 }
 
-func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, script string) ([]appv1.ResourceAction, error) {
-	l, err := vm.runLua(obj, script)
+func (vm VM) ExecuteResourceActionDiscovery(ctx context.Context, obj *unstructured.Unstructured, script string) ([]appv1.ResourceAction, error) {
+	l, err := vm.runLua(ctx, obj, script)
 	if err != nil {
 		return nil, err
 	}

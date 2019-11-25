@@ -17,6 +17,9 @@ import (
 
 	"github.com/coreos/go-oidc"
 	"github.com/dgrijalva/jwt-go"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_opentracing "github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
+	"github.com/opentracing/opentracing-go"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
@@ -43,6 +46,7 @@ import (
 	"github.com/argoproj/argo-cd/util/localconfig"
 	oidcutil "github.com/argoproj/argo-cd/util/oidc"
 	tls_util "github.com/argoproj/argo-cd/util/tls"
+	"github.com/argoproj/argo-cd/util/tracer"
 )
 
 const (
@@ -284,7 +288,9 @@ func (c *client) refreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, co
 	}
 
 	log.Debug("Auth token no longer valid. Refreshing")
-	rawIDToken, refreshToken, err := c.redeemRefreshToken()
+	span, ctx := opentracing.StartSpanFromContext(context.Background(), "refresh auth token")
+	defer span.Finish()
+	rawIDToken, refreshToken, err := c.redeemRefreshToken(ctx)
 	if err != nil {
 		return err
 	}
@@ -303,7 +309,7 @@ func (c *client) refreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, co
 }
 
 // redeemRefreshToken performs the exchange of a refresh_token for a new id_token and refresh_token
-func (c *client) redeemRefreshToken() (string, string, error) {
+func (c *client) redeemRefreshToken(ctx context.Context) (string, string, error) {
 	setConn, setIf, err := c.NewSettingsClient()
 	if err != nil {
 		return "", "", err
@@ -313,7 +319,7 @@ func (c *client) redeemRefreshToken() (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
-	ctx := oidc.ClientContext(context.Background(), httpClient)
+	ctx = oidc.ClientContext(ctx, httpClient)
 	acdSet, err := setIf.Get(ctx, &settingspkg.SettingsQuery{})
 	if err != nil {
 		return "", "", err
@@ -391,6 +397,11 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 	var dialOpts []grpc.DialOption
 	dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(endpointCredentials))
 	dialOpts = append(dialOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize)))
+	dialOpts = append(dialOpts,  grpc.WithStreamInterceptor(grpc_middleware.ChainStreamClient(
+		grpc_opentracing.StreamClientInterceptor(grpc_opentracing.WithTracer(tracer.Tracer)),
+	)),grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(
+		grpc_opentracing.UnaryClientInterceptor(grpc_opentracing.WithTracer(tracer.Tracer)),
+	)))
 
 	ctx := context.Background()
 

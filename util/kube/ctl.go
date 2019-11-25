@@ -2,6 +2,7 @@ package kube
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,18 +28,18 @@ import (
 )
 
 type Kubectl interface {
-	ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) (string, error)
-	ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
+	ApplyResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) (string, error)
+	ConvertToVersion(ctx context.Context, obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
 	DeleteResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error
 	GetResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
 	PatchResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error)
 	GetAPIResources(config *rest.Config, resourceFilter ResourceFilter) ([]APIResourceInfo, error)
 	GetServerVersion(config *rest.Config) (string, error)
-	SetOnKubectlRun(onKubectlRun func(command string) (util.Closer, error))
+	SetOnKubectlRun(onKubectlRun func(ctx context.Context, command string) (util.Closer, error))
 }
 
 type KubectlCmd struct {
-	OnKubectlRun func(command string) (util.Closer, error)
+	OnKubectlRun func(ctx context.Context, command string) (util.Closer, error)
 }
 
 type APIResourceInfo struct {
@@ -184,7 +185,7 @@ func (k *KubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVersion
 }
 
 // ApplyResource performs an apply of a unstructured resource
-func (k *KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) (string, error) {
+func (k *KubectlCmd) ApplyResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) (string, error) {
 	log.Infof("Applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), config.Host, namespace)
 	f, err := ioutil.TempFile(util.TempDir, "")
 	if err != nil {
@@ -220,7 +221,7 @@ func (k *KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstru
 				return "", err
 			}
 		}
-		outReconcile, err := k.runKubectl(f.Name(), namespace, []string{"auth", "reconcile"}, manifestBytes, dryRun)
+		outReconcile, err := k.runKubectl(ctx,f.Name(), namespace, []string{"auth", "reconcile"}, manifestBytes, dryRun)
 		if err != nil {
 			return "", err
 		}
@@ -237,7 +238,7 @@ func (k *KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstru
 	if !validate {
 		applyArgs = append(applyArgs, "--validate=false")
 	}
-	outApply, err := k.runKubectl(f.Name(), namespace, applyArgs, manifestBytes, dryRun)
+	outApply, err := k.runKubectl(ctx,f.Name(), namespace, applyArgs, manifestBytes, dryRun)
 	if err != nil {
 		return "", err
 	}
@@ -257,13 +258,13 @@ func convertKubectlError(err error) error {
 	return fmt.Errorf(errorStr)
 }
 
-func (k *KubectlCmd) processKubectlRun(args []string) (util.Closer, error) {
+func (k *KubectlCmd) processKubectlRun(ctx context.Context, args []string) (util.Closer, error) {
 	if k.OnKubectlRun != nil {
 		cmd := "unknown"
 		if len(args) > 0 {
 			cmd = args[0]
 		}
-		return k.OnKubectlRun(cmd)
+		return k.OnKubectlRun(ctx,cmd)
 	}
 	return util.NewCloser(func() error {
 		return nil
@@ -271,8 +272,8 @@ func (k *KubectlCmd) processKubectlRun(args []string) (util.Closer, error) {
 	}), nil
 }
 
-func (k *KubectlCmd) runKubectl(kubeconfigPath string, namespace string, args []string, manifestBytes []byte, dryRun bool) (string, error) {
-	closer, err := k.processKubectlRun(args)
+func (k *KubectlCmd) runKubectl(ctx context.Context, kubeconfigPath string, namespace string, args []string, manifestBytes []byte, dryRun bool) (string, error) {
+	closer, err := k.processKubectlRun(ctx,args)
 	if err != nil {
 		return "", err
 	}
@@ -329,7 +330,7 @@ func Version() (string, error) {
 }
 
 // ConvertToVersion converts an unstructured object into the specified group/version
-func (k *KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group string, version string) (*unstructured.Unstructured, error) {
+func (k *KubectlCmd) ConvertToVersion(ctx context.Context, obj *unstructured.Unstructured, group string, version string) (*unstructured.Unstructured, error) {
 	gvk := obj.GroupVersionKind()
 	if gvk.Group == group && gvk.Version == version {
 		return obj.DeepCopy(), nil
@@ -349,7 +350,7 @@ func (k *KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group stri
 	}
 	defer util.DeleteFile(f.Name())
 
-	closer, err := k.processKubectlRun([]string{"convert"})
+	closer, err := k.processKubectlRun(ctx,[]string{"convert"})
 	if err != nil {
 		return nil, err
 	}
@@ -387,6 +388,6 @@ func (k *KubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
 	return fmt.Sprintf("%s.%s", v.Major, v.Minor), nil
 }
 
-func (k *KubectlCmd) SetOnKubectlRun(onKubectlRun func(command string) (util.Closer, error)) {
+func (k *KubectlCmd) SetOnKubectlRun(onKubectlRun func(ctx context.Context, command string) (util.Closer, error)) {
 	k.OnKubectlRun = onKubectlRun
 }
