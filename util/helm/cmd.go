@@ -6,14 +6,12 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 
 	argoexec "github.com/argoproj/pkg/exec"
 
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/config"
-	"github.com/argoproj/argo-cd/util/security"
 )
 
 // A thin wrapper around the "helm" command, adding logging and error translation.
@@ -170,7 +168,6 @@ type TemplateOpts struct {
 	Set               map[string]string
 	SetString         map[string]string
 	Values            []string
-	BaseDirectoryPath string
 }
 
 var (
@@ -197,22 +194,7 @@ func (c *Cmd) template(chart string, opts *TemplateOpts) (string, error) {
 		args = append(args, "--set-string", key+"="+cleanSetParameters(val))
 	}
 	for _, val := range opts.Values {
-		absBaseDir, err := filepath.Abs(opts.BaseDirectoryPath)
-		if err != nil {
-			return "", err
-		}
-		if !filepath.IsAbs(val) {
-			absWorkDir, err := filepath.Abs(c.WorkDir)
-			if err != nil {
-				return "", err
-			}
-			val = filepath.Join(absWorkDir, val)
-		}
-		cleanVal, err := security.EnforceToCurrentRoot(absBaseDir, val)
-		if err != nil {
-			return "", err
-		}
-		args = append(args, "--values", cleanVal)
+		args = append(args, "--values", val)
 	}
 
 	return c.run(args...)
