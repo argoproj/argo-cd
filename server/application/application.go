@@ -161,9 +161,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationManifestQuery) (*apiclient.ManifestResponse, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "GetManifests")
 	defer span.Finish()
-	span2, _ := opentracing.StartSpanFromContext(ctx, "GetApplication")
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
-	span2.Finish()
 	if err != nil {
 		return nil, err
 	}

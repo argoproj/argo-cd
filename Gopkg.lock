@@ -485,6 +485,7 @@
     "retry",
     "tags",
     "tags/logrus",
+    "tracing/opentracing",
     "util/backoffutils",
     "util/metautils",
   ]
@@ -652,6 +653,18 @@
   pruneopts = ""
   revision = "4b7aa43c6742a2c18fdef89dd197aaae7dac7ccd"
   version = "1.0.1"
+
+[[projects]]
+  digest = "1:1fc4897d3cc482d070651563c16a51489296cd9150e6d53fb7ff4d59a24334bc"
+  name = "github.com/opentracing/opentracing-go"
+  packages = [
+    ".",
+    "ext",
+    "log",
+  ]
+  pruneopts = ""
+  revision = "659c90643e714681897ec2521c60567dd21da733"
+  version = "v1.1.0"
 
 [[projects]]
   digest = "1:4c0404dc03d974acd5fcd8b8d3ce687b13bd169db032b89275e8b9d77b98ce8c"
@@ -839,6 +852,40 @@
   version = "v1.2.2"
 
 [[projects]]
+  digest = "1:9507116982a7ad025457cfaa147643e20c02530ad31df9978cc1e5a2c64de307"
+  name = "github.com/uber/jaeger-client-go"
+  packages = [
+    ".",
+    "config",
+    "internal/baggage",
+    "internal/baggage/remote",
+    "internal/spanlog",
+    "internal/throttler",
+    "internal/throttler/remote",
+    "log",
+    "rpcmetrics",
+    "thrift",
+    "thrift-gen/agent",
+    "thrift-gen/baggage",
+    "thrift-gen/jaeger",
+    "thrift-gen/sampling",
+    "thrift-gen/zipkincore",
+    "transport",
+    "utils",
+  ]
+  pruneopts = ""
+  revision = "5b163d27fabddbb0e7fae4548c8933c379210610"
+  version = "v2.20.1"
+
+[[projects]]
+  digest = "1:6afbf06917cb67a1a895aecd38ff31bd691f4fad239e5ce468f2265359bee7b7"
+  name = "github.com/uber/jaeger-lib"
+  packages = ["metrics"]
+  pruneopts = ""
+  revision = "a87ae9d84fb038a8d79266298970720be7c80fcd"
+  version = "v2.2.0"
+
+[[projects]]
   digest = "1:51cf0fca93f4866709ceaf01b750e51d997c299a7bd2edf7ccd79e3b428754ae"
   name = "github.com/vmihailenco/msgpack"
   packages = [
@@ -890,6 +937,14 @@
   revision = "732aa6820ec4fb93d60c4057dd574c33db8ad4e7"
 
 [[projects]]
+  digest = "1:44da3f221472d00188fa0d9bdae0c0abbdd45eebe8b8a6f5bdf22d24affff760"
+  name = "go.uber.org/atomic"
+  packages = ["."]
+  pruneopts = ""
+  revision = "40ae6a40a970ef4cdbffa7b24b280e316db8accc"
+  version = "v1.5.1"
+
+[[projects]]
   branch = "master"
   digest = "1:2ea6df0f542cc95a5e374e9cdd81eaa599ed0d55366eef92d2f6b9efa2795c07"
   name = "golang.org/x/crypto"
@@ -915,6 +970,17 @@
   ]
   pruneopts = ""
   revision = "432090b8f568c018896cd8a0fb0345872bbac6ce"
+
+[[projects]]
+  branch = "master"
+  digest = "1:465c831311f144be27d64ae3cb416b243ff67e73407852bc4265d09efbb66283"
+  name = "golang.org/x/lint"
+  packages = [
+    ".",
+    "golint",
+  ]
+  pruneopts = ""
+  revision = "fdd1cda4f05fd1fd86124f0ef9ce31a0b72c8448"
 
 [[projects]]
   branch = "master"
@@ -1012,6 +1078,9 @@
   name = "golang.org/x/tools"
   packages = [
     "go/ast/astutil",
+    "go/gcexportdata",
+    "go/gcimporter15",
+    "go/types/typeutil",
     "imports",
   ]
   pruneopts = ""
@@ -1636,6 +1705,7 @@
     "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus",
     "github.com/grpc-ecosystem/go-grpc-middleware/retry",
     "github.com/grpc-ecosystem/go-grpc-middleware/tags/logrus",
+    "github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing",
     "github.com/grpc-ecosystem/go-grpc-prometheus",
     "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway",
     "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger",
@@ -1643,6 +1713,7 @@
     "github.com/grpc-ecosystem/grpc-gateway/utilities",
     "github.com/improbable-eng/grpc-web/go/grpcweb",
     "github.com/kballard/go-shellquote",
+    "github.com/opentracing/opentracing-go",
     "github.com/patrickmn/go-cache",
     "github.com/pkg/errors",
     "github.com/prometheus/client_golang/prometheus",
@@ -1656,6 +1727,10 @@
     "github.com/spf13/pflag",
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/mock",
+    "github.com/uber/jaeger-client-go",
+    "github.com/uber/jaeger-client-go/config",
+    "github.com/uber/jaeger-client-go/log",
+    "github.com/uber/jaeger-lib/metrics",
     "github.com/vmihailenco/msgpack",
     "github.com/yudai/gojsondiff",
     "github.com/yudai/gojsondiff/formatter",

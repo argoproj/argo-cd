@@ -31,19 +31,21 @@ func (c *clientSet) NewRepoServerClient() (util.Closer, RepoServerServiceClient,
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffLinear(1000 * time.Millisecond)),
 	}
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})),
-		grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(
-			grpc_opentracing.UnaryClientInterceptor(grpc_opentracing.WithTracer(opentracing.GlobalTracer())),
-			grpc_retry.UnaryClientInterceptor(retryOpts...)),
-		),
-		grpc.WithStreamInterceptor(grpc_middleware.ChainStreamClient(
-			grpc_opentracing.StreamClientInterceptor(grpc_opentracing.WithTracer(opentracing.GlobalTracer())),
-			grpc_retry.StreamClientInterceptor(retryOpts...),
-		)),
+	unaryInterceptors := []grpc.UnaryClientInterceptor{
+		grpc_opentracing.UnaryClientInterceptor(grpc_opentracing.WithTracer(opentracing.GlobalTracer())),
+		grpc_retry.UnaryClientInterceptor(retryOpts...),
 	}
 	if c.timeoutSeconds > 0 {
-		opts = append(opts, grpc.WithUnaryInterceptor(argogrpc.WithTimeout(time.Duration(c.timeoutSeconds)*time.Second)))
+		unaryInterceptors = append(unaryInterceptors, argogrpc.WithTimeout(time.Duration(c.timeoutSeconds)*time.Second))
+	}
+	streamInterceptors := []grpc.StreamClientInterceptor{
+		grpc_opentracing.StreamClientInterceptor(grpc_opentracing.WithTracer(opentracing.GlobalTracer())),
+		grpc_retry.StreamClientInterceptor(retryOpts...),
+	}
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})),
+		grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(unaryInterceptors...)),
+		grpc.WithStreamInterceptor(grpc_middleware.ChainStreamClient(streamInterceptors...)),
 	}
 	conn, err := grpc.Dial(c.address, opts...)
 	if err != nil {

@@ -8,7 +8,7 @@ import (
 	"github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 	jaegerlog "github.com/uber/jaeger-client-go/log"
-	"github.com/uber/jaeger-lib/metrics/prometheus"
+	"github.com/uber/jaeger-lib/metrics"
 )
 
 func Init(serviceName string) io.Closer {
@@ -24,7 +24,7 @@ func Init(serviceName string) io.Closer {
 	}
 	tracer, closer, err := cfg.NewTracer(
 		jaegercfg.Logger(jaegerlog.StdLogger),
-		jaegercfg.Metrics(prometheus.New()),
+		jaegercfg.Metrics(metrics.NullFactory),
 	)
 	if err != nil {
 		log.Fatal(err)
