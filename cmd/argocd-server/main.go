@@ -12,7 +12,8 @@ import (
 )
 
 func main() {
-	tracer.Init("server")
+	closer := tracer.Init("argocd-server")
+	defer func() { _ = closer.Close() }()
 	err := commands.NewCommand().Execute()
 	errors.CheckError(err)
 }

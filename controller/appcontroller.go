@@ -576,9 +576,6 @@ func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condi
 }
 
 func (ctrl *ApplicationController) processRequestedAppOperation(ctx context.Context, app *appv1.Application) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "processRequestedAppOperation")
-	defer span.Finish()
-
 	logCtx := log.WithField("application", app.Name)
 	var state *appv1.OperationState
 	// Recover from any unexpected panics and automatically set the status to be failed
@@ -712,9 +709,6 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 }
 
 func (ctrl *ApplicationController) processAppRefreshQueueItem(ctx context.Context) (processNext bool) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "processAppRefreshQueueItem")
-	defer span.Finish()
-
 	appKey, shutdown := ctrl.appRefreshQueue.Get()
 	if shutdown {
 		processNext = false
@@ -749,6 +743,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem(ctx context.Contex
 	}
 
 	startTime := time.Now()
+	span, ctx := opentracing.StartSpanFromContext(ctx, "Reconciliation")
+	defer span.Finish()
 	defer func() {
 		reconcileDuration := time.Since(startTime)
 		ctrl.metricsServer.IncReconcile(origApp, reconcileDuration)

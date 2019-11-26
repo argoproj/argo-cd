@@ -87,8 +87,6 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 			if !sso {
 				tokenString = passwordLogin(ctx, acdClient, username, password)
 			} else {
-				span, ctx := opentracing.StartSpanFromContext(context.Background(), "login")
-				defer span.Finish()
 				httpClient, err := acdClient.HTTPClient()
 				errors.CheckError(err)
 				ctx = oidc.ClientContext(ctx, httpClient)

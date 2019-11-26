@@ -1264,7 +1264,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 			}
 			for _, appName := range appNames {
-				_, err := waitOnApplicationStatus(acdClient, appName, timeout, watchSync, watchHealth, watchOperations, watchSuspended, selectedResources)
+				_, err := waitOnApplicationStatus(ctx, acdClient, appName, timeout, watchSync, watchHealth, watchOperations, watchSuspended, selectedResources)
 				errors.CheckError(err)
 			}
 		},
@@ -1420,12 +1420,11 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				default:
 					log.Fatalf("Unknown sync strategy: '%s'", strategy)
 				}
-				ctx := context.Background()
 				_, err := appIf.Sync(ctx, &syncReq)
 				errors.CheckError(err)
 
 				if !async {
-					app, err := waitOnApplicationStatus(acdClient, appName, timeout, false, false, true, false, selectedResources)
+					app, err := waitOnApplicationStatus(ctx, acdClient, appName, timeout, false, false, true, false, selectedResources)
 					errors.CheckError(err)
 
 					// Only get resources to be pruned if sync was application-wide
@@ -1583,11 +1582,9 @@ func checkResourceStatus(watchSync bool, watchHealth bool, watchOperation bool, 
 
 const waitFormatString = "%s\t%5s\t%10s\t%10s\t%20s\t%8s\t%7s\t%10s\t%s\n"
 
-func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout uint, watchSync bool, watchHealth bool, watchOperation bool, watchSuspended bool, selectedResources []argoappv1.SyncOperationResource) (*argoappv1.Application, error) {
-	ctx, cancel := context.WithCancel(context.Background())
+func waitOnApplicationStatus(ctx context.Context, acdClient apiclient.Client, appName string, timeout uint, watchSync bool, watchHealth bool, watchOperation bool, watchSuspended bool, selectedResources []argoappv1.SyncOperationResource) (*argoappv1.Application, error) {
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	span, ctx := opentracing.StartSpanFromContext(ctx, "app history")
-	defer span.Finish()
 
 	// refresh controls whether or not we refresh the app before printing the final status.
 	// We only want to do this when an operation is in progress, since operations are the only
@@ -1791,11 +1788,11 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "app history")
+			defer span.Finish()
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appName := args[0]
-			span, ctx := opentracing.StartSpanFromContext(context.Background(), "app history")
-			defer span.Finish()
 			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
 			if output == "id" {
@@ -1826,11 +1823,11 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			appName := args[0]
 			depID, err := strconv.Atoi(args[1])
 			errors.CheckError(err)
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "app rollback")
+			defer span.Finish()
 			acdClient := argocdclient.NewClientOrDie(clientOpts)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer util.Close(conn)
-			span, ctx := opentracing.StartSpanFromContext(context.Background(), "app rollback")
-			defer span.Finish()
 			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
 			var depInfo *argoappv1.RevisionHistory
@@ -1851,7 +1848,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			})
 			errors.CheckError(err)
 
-			_, err = waitOnApplicationStatus(acdClient, appName, timeout, false, false, true, false, nil)
+			_, err = waitOnApplicationStatus(ctx, acdClient, appName, timeout, false, false, true, false, nil)
 			errors.CheckError(err)
 		},
 	}
@@ -1901,10 +1898,10 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 				os.Exit(1)
 			}
 			appName := args[0]
-			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
-			defer util.Close(conn)
 			span, ctx := opentracing.StartSpanFromContext(context.Background(), "app manifests")
 			defer span.Finish()
+			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+			defer util.Close(conn)
 			resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 			errors.CheckError(err)
 
@@ -1960,10 +1957,10 @@ func NewApplicationTerminateOpCommand(clientOpts *argocdclient.ClientOptions) *c
 				os.Exit(1)
 			}
 			appName := args[0]
-			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
-			defer util.Close(conn)
 			span, ctx := opentracing.StartSpanFromContext(context.Background(), "app terminate-op")
 			defer span.Finish()
+			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+			defer util.Close(conn)
 			_, err := appIf.TerminateOperation(ctx, &applicationpkg.OperationTerminateRequest{Name: &appName})
 			errors.CheckError(err)
 			fmt.Printf("Application '%s' operation terminating\n", appName)
@@ -2122,10 +2119,10 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 		}
 		appName := args[0]
 
-		conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
-		defer util.Close(conn)
 		span, ctx := opentracing.StartSpanFromContext(context.Background(), "app patch-resource")
 		defer span.Finish()
+		conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+		defer util.Close(conn)
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
 		objectsToPatch := filterResources(command, resources.Items, group, kind, namespace, resourceName, all)

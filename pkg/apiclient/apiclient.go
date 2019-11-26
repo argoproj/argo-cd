@@ -402,6 +402,7 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 		grpc_opentracing.UnaryClientInterceptor(grpc_opentracing.WithTracer(opentracing.GlobalTracer())),
 	)))
 
+	// TODO - suspicious
 	ctx := context.Background()
 
 	for _, kv := range c.Headers {

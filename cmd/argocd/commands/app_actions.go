@@ -59,10 +59,10 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 			os.Exit(1)
 		}
 		appName := args[0]
-		conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
-		defer util.Close(conn)
 		span, ctx := opentracing.StartSpanFromContext(context.Background(), "app list")
 		defer span.Finish()
+		conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+		defer util.Close(conn)
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
 		filteredObjects := filterResources(command, resources.Items, group, kind, namespace, resourceName, true)
@@ -145,10 +145,10 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 		appName := args[0]
 		actionName := args[1]
 
-		conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
-		defer util.Close(conn)
 		span, ctx := opentracing.StartSpanFromContext(context.Background(), "app run")
 		defer span.Finish()
+		conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+		defer util.Close(conn)
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
 		filteredObjects := filterResources(command, resources.Items, group, kind, namespace, resourceName, all)

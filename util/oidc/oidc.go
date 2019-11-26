@@ -169,7 +169,7 @@ func (a *ClientApp) verifyAppState(state string) (*servercache.OIDCState, error)
 // HandleLogin formulates the proper OAuth2 URL (auth code or implicit) and redirects the user to
 // the IDp login & consent page
 func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
-	span, ctx := opentracing.StartSpanFromContext(context.Background(), "handle-login")
+	span, ctx := opentracing.StartSpanFromContext(r.Context(), "handle-login")
 	defer span.Finish()
 
 	oidcConf, err := a.provider.ParseConfig(ctx)

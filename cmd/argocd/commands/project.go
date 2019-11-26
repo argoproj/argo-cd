@@ -133,6 +133,8 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 		Use:   "create PROJECT",
 		Short: "Create a project",
 		Run: func(c *cobra.Command, args []string) {
+			span, ctx := opentracing.StartSpanFromContext(context.Background(), "proj create")
+			defer span.Finish()
 			var proj v1alpha1.AppProject
 			if fileURL == "-" {
 				// read stdin
@@ -170,8 +172,6 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 					},
 				}
 			}
-			span, ctx := opentracing.StartSpanFromContext(context.Background(), "proj create")
-			defer span.Finish()
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 			_, err := projIf.Create(ctx, &projectpkg.ProjectCreateRequest{Project: &proj, Upsert: upsert})

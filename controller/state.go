@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -96,6 +97,9 @@ type appStateManager struct {
 }
 
 func (m *appStateManager) getRepoObjs(ctx context.Context, app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "getRepoObjs")
+	defer span.Finish()
+
 	helmRepos, err := m.db.ListHelmRepositories(ctx)
 	if err != nil {
 		return nil, nil, nil, err
@@ -277,6 +281,9 @@ func (m *appStateManager) getComparisonSettings(app *appv1.Application) (string,
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
 func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, noCache bool, localManifests []string) *comparisonResult {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "CompareAppState")
+	defer span.Finish()
+
 	appLabelKey, resourceOverrides, diffNormalizer, err := m.getComparisonSettings(app)
 
 	// return unknown comparison result if basic comparison settings cannot be loaded

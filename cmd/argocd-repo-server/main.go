@@ -78,7 +78,8 @@ func newCommand() *cobra.Command {
 }
 
 func main() {
-	tracer.Init("repo-server")
+	closer := tracer.Init(cliName)
+	defer func() { _ = closer.Close() }()
 	if err := newCommand().Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)

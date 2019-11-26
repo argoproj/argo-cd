@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -63,6 +64,9 @@ type syncContext struct {
 }
 
 func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Application, state *v1alpha1.OperationState) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "SyncAppState")
+	defer span.Finish()
+
 	// Sync requests might be requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
 	// This can change meaning when resuming operations (e.g a hook sync). After calculating a
 	// concrete git commit SHA, the SHA is remembered in the status.operationState.syncResult field.

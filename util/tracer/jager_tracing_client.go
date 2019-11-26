@@ -1,6 +1,7 @@
 package tracer
 
 import (
+	"io"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -11,7 +12,7 @@ import (
 	"github.com/uber/jaeger-lib/metrics"
 )
 
-func Init(serviceName string) {
+func Init(serviceName string) io.Closer {
 	cfg := jaegercfg.Configuration{
 		ServiceName: serviceName,
 		Sampler: &jaegercfg.SamplerConfig{
@@ -22,7 +23,7 @@ func Init(serviceName string) {
 			LogSpans: true,
 		},
 	}
-	tracer, _, err := cfg.NewTracer(
+	tracer, closer, err := cfg.NewTracer(
 		jaegercfg.Logger(jaegerlog.StdLogger),
 		jaegercfg.Metrics(metrics.NewLocalFactory(10*time.Second)),
 	)
@@ -31,4 +32,5 @@ func Init(serviceName string) {
 	}
 	opentracing.SetGlobalTracer(tracer)
 	log.Debugf("tracing enabled for %s", serviceName)
+	return closer
 }

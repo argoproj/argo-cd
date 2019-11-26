@@ -15,6 +15,7 @@ import (
 	"github.com/TomOnTime/utfutil"
 	"github.com/ghodss/yaml"
 	"github.com/google/go-jsonnet"
+	"github.com/opentracing/opentracing-go"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
@@ -181,6 +182,8 @@ func (s *Service) runRepoOperation(
 }
 
 func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "GenerateManifest")
+	defer span.Finish()
 	var res *apiclient.ManifestResponse
 
 	getCached := func(revision string) bool {
@@ -292,6 +295,8 @@ func helmTemplate(ctx context.Context, appPath string, env *v1alpha1.Env, q *api
 
 // GenerateManifests generates manifests from a path
 func GenerateManifests(ctx context.Context, appPath, revision string, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "GenerateManifests")
+	defer span.Finish()
 	var targetObjs []*unstructured.Unstructured
 	var dest *v1alpha1.ApplicationDestination
 
