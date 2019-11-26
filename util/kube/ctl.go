@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	argoexec "github.com/argoproj/pkg/exec"
+	"github.com/opentracing/opentracing-go"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -30,11 +31,11 @@ import (
 type Kubectl interface {
 	ApplyResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) (string, error)
 	ConvertToVersion(ctx context.Context, obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
-	DeleteResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error
-	GetResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
-	PatchResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error)
-	GetAPIResources(config *rest.Config, resourceFilter ResourceFilter) ([]APIResourceInfo, error)
-	GetServerVersion(config *rest.Config) (string, error)
+	DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error
+	GetResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
+	PatchResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error)
+	GetAPIResources(ctx context.Context, config *rest.Config, resourceFilter ResourceFilter) ([]APIResourceInfo, error)
+	GetServerVersion(ctx context.Context, config *rest.Config) (string, error)
 	SetOnKubectlRun(onKubectlRun func(ctx context.Context, command string) (util.Closer, error))
 }
 
@@ -109,7 +110,9 @@ func isSupportedVerb(apiResource *metav1.APIResource, verb string) bool {
 	return false
 }
 
-func (k *KubectlCmd) GetAPIResources(config *rest.Config, resourceFilter ResourceFilter) ([]APIResourceInfo, error) {
+func (k *KubectlCmd) GetAPIResources(ctx context.Context, config *rest.Config, resourceFilter ResourceFilter) ([]APIResourceInfo, error) {
+	span, _ := opentracing.StartSpanFromContext(ctx, "GetAPIResources")
+	defer span.Finish()
 	apiResIfs, err := filterAPIResources(config, resourceFilter, func(apiResource *metav1.APIResource) bool {
 		return isSupportedVerb(apiResource, listVerb) && isSupportedVerb(apiResource, watchVerb)
 	}, "")
@@ -120,7 +123,9 @@ func (k *KubectlCmd) GetAPIResources(config *rest.Config, resourceFilter Resourc
 }
 
 // GetResource returns resource
-func (k *KubectlCmd) GetResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
+func (k *KubectlCmd) GetResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
+	span, _ := opentracing.StartSpanFromContext(ctx, "GetResource")
+	defer span.Finish()
 	dynamicIf, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -139,7 +144,9 @@ func (k *KubectlCmd) GetResource(config *rest.Config, gvk schema.GroupVersionKin
 }
 
 // PatchResource patches resource
-func (k *KubectlCmd) PatchResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error) {
+func (k *KubectlCmd) PatchResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error) {
+	span, _ := opentracing.StartSpanFromContext(ctx, "PatchResource")
+	defer span.Finish()
 	dynamicIf, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -158,7 +165,9 @@ func (k *KubectlCmd) PatchResource(config *rest.Config, gvk schema.GroupVersionK
 }
 
 // DeleteResource deletes resource
-func (k *KubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error {
+func (k *KubectlCmd) DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error {
+	span, _ := opentracing.StartSpanFromContext(ctx, "DeleteResource")
+	defer span.Finish()
 	dynamicIf, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return err
@@ -186,6 +195,8 @@ func (k *KubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVersion
 
 // ApplyResource performs an apply of a unstructured resource
 func (k *KubectlCmd) ApplyResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) (string, error) {
+	span, _ := opentracing.StartSpanFromContext(ctx, "ApplyResource")
+	defer span.Finish()
 	log.Infof("Applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), config.Host, namespace)
 	f, err := ioutil.TempFile(util.TempDir, "")
 	if err != nil {
@@ -331,6 +342,8 @@ func Version(ctx context.Context) (string, error) {
 
 // ConvertToVersion converts an unstructured object into the specified group/version
 func (k *KubectlCmd) ConvertToVersion(ctx context.Context, obj *unstructured.Unstructured, group string, version string) (*unstructured.Unstructured, error) {
+	span, _ := opentracing.StartSpanFromContext(ctx, "ConvertToVersion")
+	defer span.Finish()
 	gvk := obj.GroupVersionKind()
 	if gvk.Group == group && gvk.Version == version {
 		return obj.DeepCopy(), nil
@@ -376,7 +389,9 @@ func (k *KubectlCmd) ConvertToVersion(ctx context.Context, obj *unstructured.Uns
 	return &convertedObj, nil
 }
 
-func (k *KubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
+func (k *KubectlCmd) GetServerVersion(ctx context.Context, config *rest.Config) (string, error) {
+	span, _ := opentracing.StartSpanFromContext(ctx, "GetServerVersion")
+	defer span.Finish()
 	client, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
 		return "", err

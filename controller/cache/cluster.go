@@ -199,7 +199,7 @@ func (c *clusterInfo) stopWatching(ctx context.Context, gk schema.GroupKind) {
 // startMissingWatches lists supported cluster resources and start watching for changes unless watch is already running
 func (c *clusterInfo) startMissingWatches(ctx context.Context) error {
 
-	apis, err := c.kubectl.GetAPIResources(c.cluster.RESTConfig(), c.cacheSettingsSrc().ResourcesFilter)
+	apis, err := c.kubectl.GetAPIResources(ctx, c.cluster.RESTConfig(), c.cacheSettingsSrc().ResourcesFilter)
 	if err != nil {
 		return err
 	}
@@ -310,7 +310,7 @@ func (c *clusterInfo) sync(ctx context.Context) (err error) {
 	c.apisMeta = make(map[schema.GroupKind]*apiMeta)
 	c.nodes = make(map[kube.ResourceKey]*node)
 
-	apis, err := c.kubectl.GetAPIResources(c.cluster.RESTConfig(), c.cacheSettingsSrc().ResourcesFilter)
+	apis, err := c.kubectl.GetAPIResources(ctx, c.cluster.RESTConfig(), c.cacheSettingsSrc().ResourcesFilter)
 	if err != nil {
 		return err
 	}
@@ -434,7 +434,7 @@ func (c *clusterInfo) getManagedLiveObjs(ctx context.Context, a *appv1.Applicati
 					managedObj = existingObj.resource
 				} else {
 					var err error
-					managedObj, err = c.kubectl.GetResource(config, targetObj.GroupVersionKind(), existingObj.ref.Name, existingObj.ref.Namespace)
+					managedObj, err = c.kubectl.GetResource(ctx, config, targetObj.GroupVersionKind(), existingObj.ref.Name, existingObj.ref.Namespace)
 					if err != nil {
 						if errors.IsNotFound(err) {
 							return nil
@@ -444,7 +444,7 @@ func (c *clusterInfo) getManagedLiveObjs(ctx context.Context, a *appv1.Applicati
 				}
 			} else if _, watched := c.apisMeta[key.GroupKind()]; !watched {
 				var err error
-				managedObj, err = c.kubectl.GetResource(config, targetObj.GroupVersionKind(), targetObj.GetName(), targetObj.GetNamespace())
+				managedObj, err = c.kubectl.GetResource(ctx, config, targetObj.GroupVersionKind(), targetObj.GetName(), targetObj.GetNamespace())
 				if err != nil {
 					if errors.IsNotFound(err) {
 						return nil
@@ -459,7 +459,7 @@ func (c *clusterInfo) getManagedLiveObjs(ctx context.Context, a *appv1.Applicati
 			if err != nil {
 				// fallback to loading resource from kubernetes if conversion fails
 				log.Warnf("Failed to convert resource: %v", err)
-				managedObj, err = c.kubectl.GetResource(config, targetObj.GroupVersionKind(), managedObj.GetName(), managedObj.GetNamespace())
+				managedObj, err = c.kubectl.GetResource(ctx, config, targetObj.GroupVersionKind(), managedObj.GetName(), managedObj.GetNamespace())
 				if err != nil {
 					if errors.IsNotFound(err) {
 						return nil

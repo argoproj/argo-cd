@@ -515,7 +515,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(ctx context.Conte
 
 	err = util.RunAllAsync(len(objs), func(i int) error {
 		obj := objs[i]
-		return ctrl.kubectl.DeleteResource(config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), false)
+		return ctrl.kubectl.DeleteResource(ctx, config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), false)
 	})
 	if err != nil {
 		return err

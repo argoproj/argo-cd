@@ -10,6 +10,7 @@ import (
 	"time"
 
 	jsonpatch "github.com/evanphx/json-patch"
+	"github.com/opentracing/opentracing-go"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -158,7 +159,11 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 
 // GetManifests returns application manifests
 func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationManifestQuery) (*apiclient.ManifestResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "GetManifests")
+	defer span.Finish()
+	span2, _ := opentracing.StartSpanFromContext(ctx, "GetApplication")
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
+	span2.Finish()
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +208,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	if err != nil {
 		return nil, err
 	}
-	cluster.ServerVersion, err = s.kubectl.GetServerVersion(cluster.RESTConfig())
+	cluster.ServerVersion, err = s.kubectl.GetServerVersion(ctx, cluster.RESTConfig())
 	if err != nil {
 		return nil, err
 	}
@@ -674,7 +679,7 @@ func (s *Server) GetResource(ctx context.Context, q *application.ApplicationReso
 	if err != nil {
 		return nil, err
 	}
-	obj, err := s.kubectl.GetResource(config, res.GroupKindVersion(), res.Name, res.Namespace)
+	obj, err := s.kubectl.GetResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -718,7 +723,7 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 		return nil, err
 	}
 
-	manifest, err := s.kubectl.PatchResource(config, res.GroupKindVersion(), res.Name, res.Namespace, types.PatchType(q.PatchType), []byte(q.Patch))
+	manifest, err := s.kubectl.PatchResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace, types.PatchType(q.PatchType), []byte(q.Patch))
 	if err != nil {
 		return nil, err
 	}
@@ -758,7 +763,7 @@ func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationR
 	if q.Force != nil {
 		force = *q.Force
 	}
-	err = s.kubectl.DeleteResource(config, res.GroupKindVersion(), res.Name, res.Namespace, force)
+	err = s.kubectl.DeleteResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace, force)
 	if err != nil {
 		return nil, err
 	}
@@ -1107,7 +1112,7 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 	if err != nil {
 		return nil, err
 	}
-	obj, err := s.kubectl.GetResource(config, res.GroupKindVersion(), res.Name, res.Namespace)
+	obj, err := s.kubectl.GetResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -1158,7 +1163,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 	if err != nil {
 		return nil, err
 	}
-	liveObj, err := s.kubectl.GetResource(config, res.GroupKindVersion(), res.Name, res.Namespace)
+	liveObj, err := s.kubectl.GetResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -1202,7 +1207,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		return &application.ApplicationResponse{}, nil
 	}
 
-	_, err = s.kubectl.PatchResource(config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), types.MergePatchType, diffBytes)
+	_, err = s.kubectl.PatchResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), types.MergePatchType, diffBytes)
 	if err != nil {
 		return nil, err
 	}

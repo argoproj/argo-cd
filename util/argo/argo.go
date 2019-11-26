@@ -236,7 +236,7 @@ func ValidateRepo(
 		})
 		return conditions, nil
 	}
-	cluster.ServerVersion, err = kubectl.GetServerVersion(cluster.RESTConfig())
+	cluster.ServerVersion, err = kubectl.GetServerVersion(ctx, cluster.RESTConfig())
 	if err != nil {
 		return nil, err
 	}

@@ -136,7 +136,7 @@ func (m *appStateManager) getRepoObjs(ctx context.Context, app *v1alpha1.Applica
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	cluster.ServerVersion, err = m.kubectl.GetServerVersion(cluster.RESTConfig())
+	cluster.ServerVersion, err = m.kubectl.GetServerVersion(ctx, cluster.RESTConfig())
 	if err != nil {
 		return nil, nil, nil, err
 	}

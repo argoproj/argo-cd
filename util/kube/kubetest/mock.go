@@ -25,19 +25,19 @@ type MockKubectlCmd struct {
 	LastValidate bool
 }
 
-func (k *MockKubectlCmd) GetAPIResources(config *rest.Config, resourceFilter kube.ResourceFilter) ([]kube.APIResourceInfo, error) {
+func (k *MockKubectlCmd) GetAPIResources(ctx context.Context, config *rest.Config, resourceFilter kube.ResourceFilter) ([]kube.APIResourceInfo, error) {
 	return k.APIResources, nil
 }
 
-func (k *MockKubectlCmd) GetResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
+func (k *MockKubectlCmd) GetResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
 	return nil, nil
 }
 
-func (k *MockKubectlCmd) PatchResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error) {
+func (k *MockKubectlCmd) PatchResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error) {
 	return nil, nil
 }
 
-func (k *MockKubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error {
+func (k *MockKubectlCmd) DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error {
 	command, ok := k.Commands[name]
 	if !ok {
 		return nil
@@ -59,7 +59,7 @@ func (k *MockKubectlCmd) ConvertToVersion(ctx context.Context, obj *unstructured
 	return obj, nil
 }
 
-func (k *MockKubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
+func (k *MockKubectlCmd) GetServerVersion(ctx context.Context, config *rest.Config) (string, error) {
 	return "", nil
 }
 

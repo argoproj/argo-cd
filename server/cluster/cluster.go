@@ -41,7 +41,7 @@ func NewServer(db db.ArgoDB, enf *rbac.Enforcer, cache *servercache.Cache, kubec
 	}
 }
 
-func (s *Server) getConnectionState(cluster appv1.Cluster, errorMessage string) (appv1.ConnectionState, string) {
+func (s *Server) getConnectionState(ctx context.Context, cluster appv1.Cluster, errorMessage string) (appv1.ConnectionState, string) {
 	if clusterInfo, err := s.cache.GetClusterInfo(cluster.Server); err == nil {
 		return clusterInfo.ConnectionState, clusterInfo.Version
 	}
@@ -55,7 +55,7 @@ func (s *Server) getConnectionState(cluster appv1.Cluster, errorMessage string) 
 
 	config := cluster.RESTConfig()
 	config.Timeout = time.Second
-	version, err := s.kubectl.GetServerVersion(config)
+	version, err := s.kubectl.GetServerVersion(ctx, config)
 	if err != nil {
 		clusterInfo.Status = appv1.ConnectionStatusFailed
 		clusterInfo.Message = fmt.Sprintf("Unable to connect to cluster: %v", err)
@@ -101,7 +101,7 @@ func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clus
 			warningMessage = fmt.Sprintf("There are %d credentials configured this cluster.", len(clusters))
 		}
 		if clust.ConnectionState.Status == "" {
-			state, serverVersion := s.getConnectionState(clust, warningMessage)
+			state, serverVersion := s.getConnectionState(ctx, clust, warningMessage)
 			clust.ConnectionState = state
 			clust.ServerVersion = serverVersion
 		}
@@ -158,7 +158,7 @@ func (s *Server) Get(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clust
 	if err != nil {
 		return nil, err
 	}
-	c.ServerVersion, err = s.kubectl.GetServerVersion(c.RESTConfig())
+	c.ServerVersion, err = s.kubectl.GetServerVersion(ctx, c.RESTConfig())
 	if err != nil {
 		return nil, err
 	}
