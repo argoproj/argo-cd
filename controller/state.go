@@ -98,6 +98,7 @@ type appStateManager struct {
 
 func (m *appStateManager) getRepoObjs(ctx context.Context, app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "getRepoObjs")
+	span.SetBaggageItem("revision", revision)
 	defer span.Finish()
 
 	helmRepos, err := m.db.ListHelmRepositories(ctx)
@@ -282,6 +283,7 @@ func (m *appStateManager) getComparisonSettings(app *appv1.Application) (string,
 // revision and overrides in the app spec.
 func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, noCache bool, localManifests []string) *comparisonResult {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "CompareAppState")
+	span.SetBaggageItem("revision", revision)
 	defer span.Finish()
 
 	appLabelKey, resourceOverrides, diffNormalizer, err := m.getComparisonSettings(app)
