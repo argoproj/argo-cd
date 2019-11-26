@@ -5,6 +5,7 @@ import (
 	"hash/fnv"
 	"strings"
 
+	"github.com/opentracing/opentracing-go"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -34,6 +35,8 @@ const (
 )
 
 func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "CreateRepository")
+	defer span.Finish()
 	repos, err := db.settingsMgr.GetRepositories()
 	if err != nil {
 		return nil, err
@@ -80,6 +83,8 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 // credentials attached to it, checks if a credential set for the repo's URL is
 // configured and copies them to the returned repository data.
 func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "GetRepository")
+	defer span.Finish()
 	repos, err := db.settingsMgr.GetRepositories()
 	if err != nil {
 		return nil, err
@@ -113,6 +118,8 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 }
 
 func (db *db) ListRepositories(ctx context.Context) ([]*appsv1.Repository, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ListRepositories")
+	defer span.Finish()
 	inRepos, err := db.settingsMgr.GetRepositories()
 	if err != nil {
 		return nil, err
@@ -165,6 +172,8 @@ func (db *db) credentialsToRepositoryCredentials(repoInfo settings.RepositoryCre
 
 // UpdateRepository updates a repository
 func (db *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "UpdateRepository")
+	defer span.Finish()
 	repos, err := db.settingsMgr.GetRepositories()
 	if err != nil {
 		return nil, err
@@ -221,6 +230,8 @@ func (db *db) DeleteRepository(ctx context.Context, repoURL string) error {
 
 // ListRepositoryCredentials returns a list of URLs that contain repo credential sets
 func (db *db) ListRepositoryCredentials(ctx context.Context) ([]string, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ListRepositoryCredentials")
+	defer span.Finish()
 	repos, err := db.settingsMgr.GetRepositoryCredentials()
 	if err != nil {
 		return nil, err
@@ -236,6 +247,8 @@ func (db *db) ListRepositoryCredentials(ctx context.Context) ([]string, error) {
 
 // GetRepositoryCredentials retrieves a repository credential set
 func (db *db) GetRepositoryCredentials(ctx context.Context, repoURL string) (*appsv1.RepoCreds, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "GetRepositoryCredentials")
+	defer span.Finish()
 	var credential *appsv1.RepoCreds
 
 	repoCredentials, err := db.settingsMgr.GetRepositoryCredentials()
@@ -255,6 +268,8 @@ func (db *db) GetRepositoryCredentials(ctx context.Context, repoURL string) (*ap
 
 // CreateRepositoryCredentials creates a repository credential set
 func (db *db) CreateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "CreateRepositoryCredentials")
+	defer span.Finish()
 	creds, err := db.settingsMgr.GetRepositoryCredentials()
 	if err != nil {
 		return nil, err
@@ -284,6 +299,8 @@ func (db *db) CreateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCre
 
 // UpdateRepositoryCredentials updates a repository credential set
 func (db *db) UpdateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "UpdateRepositoryCredentials")
+	defer span.Finish()
 	repos, err := db.settingsMgr.GetRepositoryCredentials()
 	if err != nil {
 		return nil, err
@@ -312,6 +329,8 @@ func (db *db) UpdateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCre
 // DeleteRepositoryCredentials deletes a repository credential set from config, and
 // also all the secrets which actually contained the credentials.
 func (db *db) DeleteRepositoryCredentials(ctx context.Context, name string) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "DeleteRepositoryCredentials")
+	defer span.Finish()
 	repos, err := db.settingsMgr.GetRepositoryCredentials()
 	if err != nil {
 		return err
