@@ -225,14 +225,14 @@ func getHelmRepos(repositories []*v1alpha1.Repository) []helm.HelmRepository {
 
 func helmTemplate(appPath string, env *v1alpha1.Env, q *apiclient.ManifestRequest) ([]*unstructured.Unstructured, error) {
 	templateOpts := &helm.TemplateOpts{
-		Name:              q.AppLabelValue,
-		Namespace:         q.Namespace,
-		KubeVersion:       text.SemVer(q.KubeVersion),
-		Set:               map[string]string{},
-		SetString:         map[string]string{},
+		Name:        q.AppLabelValue,
+		Namespace:   q.Namespace,
+		KubeVersion: text.SemVer(q.KubeVersion),
+		Set:         map[string]string{},
+		SetString:   map[string]string{},
 	}
 
-	baseDirectoryPath  := security.SubtractRelativeFromAbsolutePath(appPath, q.ApplicationSource.Path)
+	baseDirectoryPath := security.SubtractRelativeFromAbsolutePath(appPath, q.ApplicationSource.Path)
 	appHelm := q.ApplicationSource.Helm
 	if appHelm != nil {
 		if appHelm.ReleaseName != "" {

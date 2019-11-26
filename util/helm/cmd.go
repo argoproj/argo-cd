@@ -162,12 +162,12 @@ func (c *Cmd) inspectValues(values string) (string, error) {
 }
 
 type TemplateOpts struct {
-	Name              string
-	Namespace         string
-	KubeVersion       string
-	Set               map[string]string
-	SetString         map[string]string
-	Values            []string
+	Name        string
+	Namespace   string
+	KubeVersion string
+	Set         map[string]string
+	SetString   map[string]string
+	Values      []string
 }
 
 var (
