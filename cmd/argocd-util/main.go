@@ -573,7 +573,8 @@ func redactor(dirtyString string) string {
 }
 
 func main() {
-	closer := tracer.Init("argocd-util")
+	closer, err := tracer.Init("argocd-util")
+	errors.CheckError(err)
 	defer func() { _ = closer.Close() }()
 	if err := NewCommand().Execute(); err != nil {
 		fmt.Println(err)

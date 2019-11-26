@@ -122,7 +122,8 @@ func newCommand() *cobra.Command {
 }
 
 func main() {
-	closer := tracer.Init("argocd-application-controller")
+	closer, err := tracer.Init("argocd-application-controller")
+	errors.CheckError(err)
 	defer func() { _ = closer.Close() }()
 	if err := newCommand().Execute(); err != nil {
 		fmt.Println(err)

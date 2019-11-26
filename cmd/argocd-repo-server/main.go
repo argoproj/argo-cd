@@ -78,7 +78,8 @@ func newCommand() *cobra.Command {
 }
 
 func main() {
-	closer := tracer.Init(cliName)
+	closer, err := tracer.Init(cliName)
+	errors.CheckError(err)
 	defer func() { _ = closer.Close() }()
 	if err := newCommand().Execute(); err != nil {
 		fmt.Println(err)

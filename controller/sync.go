@@ -211,6 +211,8 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 
 // sync has performs the actual apply or hook based sync
 func (sc *syncContext) sync() {
+	span, _ := opentracing.StartSpanFromContext(sc.context, "SyncAppState")
+	defer span.Finish()
 	sc.log.WithFields(log.Fields{"isSelectiveSync": sc.isSelectiveSync(), "skipHooks": sc.skipHooks(), "started": sc.started()}).Info("syncing")
 	tasks, ok := sc.getSyncTasks()
 	if !ok {
@@ -604,6 +606,8 @@ func (sc *syncContext) hasCRDOfGroupKind(group string, kind string) bool {
 
 // terminate looks for any running jobs/workflow hooks and deletes the resource
 func (sc *syncContext) terminate() {
+	span, _ := opentracing.StartSpanFromContext(sc.context, "terminate")
+	defer span.Finish()
 	terminateSuccessful := true
 	sc.log.Debug("terminating")
 	tasks, _ := sc.getSyncTasks()
