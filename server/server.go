@@ -147,6 +147,7 @@ type ArgoCDServerOpts struct {
 	RepoClientset       repoapiclient.Clientset
 	Cache               *servercache.Cache
 	TLSConfigCustomizer tlsutil.ConfigCustomizer
+	XFrameOptions       string
 }
 
 // initializeDefaultProject creates the default project if it does not already exist
@@ -582,7 +583,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 
 	// Serve UI static assets
 	if a.StaticAssetsDir != "" {
-		mux.HandleFunc("/", newStaticAssetsHandler(a.StaticAssetsDir, a.BaseHRef))
+		mux.HandleFunc("/", a.newStaticAssetsHandler(a.StaticAssetsDir, a.BaseHRef))
 	}
 	return &httpS
 }
@@ -688,7 +689,7 @@ func fileExists(filename string) bool {
 }
 
 // newStaticAssetsHandler returns an HTTP handler to serve UI static assets
-func newStaticAssetsHandler(dir string, baseHRef string) func(http.ResponseWriter, *http.Request) {
+func (server *ArgoCDServer) newStaticAssetsHandler(dir string, baseHRef string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		acceptHTML := false
 		for _, acceptType := range strings.Split(r.Header.Get("Accept"), ",") {
@@ -698,6 +699,11 @@ func newStaticAssetsHandler(dir string, baseHRef string) func(http.ResponseWrite
 			}
 		}
 		fileRequest := r.URL.Path != "/index.html" && fileExists(path.Join(dir, r.URL.Path))
+
+		// Set X-Frame-Options according to configuration
+		if server.XFrameOptions != "" {
+			w.Header().Set("X-Frame-Options", server.XFrameOptions)
+		}
 
 		// serve index.html for non file requests to support HTML5 History API
 		if acceptHTML && !fileRequest && (r.Method == "GET" || r.Method == "HEAD") {
