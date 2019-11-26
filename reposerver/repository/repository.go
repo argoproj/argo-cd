@@ -146,6 +146,7 @@ func (s *Service) runRepoOperation(
 	}
 
 	if source.IsHelm() {
+		// TODO - need locking here?
 		version, err := semver.NewVersion(revision)
 		if err != nil {
 			return err
@@ -162,27 +163,24 @@ func (s *Service) runRepoOperation(
 		}
 		defer util.Close(closer)
 		return operation(chartPath, revision)
-	}
-	s.repoLock.Lock(gitClient.Root())
-	defer s.repoLock.Unlock(gitClient.Root())
+	} else {
+		s.repoLock.Lock(gitClient.Root())
+		defer s.repoLock.Unlock(gitClient.Root())
 
-	if !settings.noCache && getCached(revision) {
-		return nil
+		revision, err = checkoutRevision(ctx, gitClient, revision)
+		if err != nil {
+			return err
+		}
+		appPath, err := argopath.Path(gitClient.Root(), source.Path)
+		if err != nil {
+			return err
+		}
+		return operation(appPath, revision)
 	}
-
-	revision, err = checkoutRevision(ctx, gitClient, revision)
-	if err != nil {
-		return err
-	}
-	appPath, err := argopath.Path(gitClient.Root(), source.Path)
-	if err != nil {
-		return err
-	}
-	return operation(appPath, revision)
 }
 
 func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
-	var res *apiclient.ManifestResponse
+	res := &apiclient.ManifestResponse{}
 
 	getCached := func(revision string) bool {
 		err := s.cache.GetManifests(revision, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
@@ -607,17 +605,17 @@ func runConfigManagementPlugin(ctx context.Context, appPath string, envVars *v1a
 }
 
 func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error) {
-	var res apiclient.RepoAppDetailsResponse
+	res := &apiclient.RepoAppDetailsResponse{}
 	getCached := func(revision string) bool {
 		err := s.cache.GetAppDetails(revision, q.Source, &res)
 		if err == nil {
-			log.Infof("manifest cache hit: %s/%s", revision, q.Source.Path)
+			log.Infof("app details cache hit: %s/%s", revision, q.Source.Path)
 			return true
 		} else {
 			if err != reposervercache.ErrCacheMiss {
-				log.Warnf("manifest cache error %s: %v", revision, q.Source)
+				log.Warnf("app details cache error %s: %v", revision, q.Source)
 			} else {
-				log.Infof("manifest cache miss: %s/%s", revision, q.Source)
+				log.Infof("app details cache miss: %s/%s", revision, q.Source)
 			}
 		}
 		return false
@@ -712,7 +710,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		return nil
 	}, operationSettings{})
 
-	return &res, err
+	return res, err
 }
 
 func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
@@ -723,13 +721,13 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 
 	metadata, err := s.cache.GetRevisionMetadata(q.Repo.Repo, commitSHA)
 	if err == nil {
-		log.Infof("manifest cache hit: %s/%s", q.Repo.Repo, commitSHA)
+		log.Infof("revision metadata cache hit: %s/%s", q.Repo.Repo, commitSHA)
 		return metadata, nil
 	} else {
 		if err != reposervercache.ErrCacheMiss {
-			log.Warnf("manifest cache error %s/%s: %v", q.Repo.Repo, commitSHA, err)
+			log.Warnf("revision metadata cache error %s/%s: %v", q.Repo.Repo, commitSHA, err)
 		} else {
-			log.Infof("manifest cache miss: %s/%s", q.Repo.Repo, commitSHA)
+			log.Infof("revision metadata cache miss: %s/%s", q.Repo.Repo, commitSHA)
 		}
 	}
 

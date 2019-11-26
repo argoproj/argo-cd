@@ -63,6 +63,9 @@ type Cache struct {
 }
 
 func (c *Cache) SetItem(key string, item interface{}, expiration time.Duration, delete bool) error {
+	if item == nil {
+		return fmt.Errorf("cannot set item to nil for key %s", key)
+	}
 	key = fmt.Sprintf("%s|%s", key, common.CacheVersion)
 	if delete {
 		return c.client.Delete(key)
@@ -72,6 +75,9 @@ func (c *Cache) SetItem(key string, item interface{}, expiration time.Duration, 
 }
 
 func (c *Cache) GetItem(key string, item interface{}) error {
+	if item == nil {
+		return fmt.Errorf("cannot get item into a nil for key %s", key)
+	}
 	key = fmt.Sprintf("%s|%s", key, common.CacheVersion)
 	return c.client.Get(key, item)
 }
