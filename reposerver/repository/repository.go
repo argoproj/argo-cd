@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -240,22 +241,25 @@ func helmTemplate(appPath string, env *v1alpha1.Env, q *apiclient.ManifestReques
 		}
 
 		for _, val := range appHelm.ValueFiles {
-			absBaseDir, err := filepath.Abs(baseDirectoryPath)
-			if err != nil {
-				return nil, err
-			}
-			if !filepath.IsAbs(val) {
-				absWorkDir, err := filepath.Abs(appPath)
+			// If val is not a URL, run it against the directory enforcer. If it is a URL, use it without checking
+			if _, err := url.ParseRequestURI(val); err != nil {
+				absBaseDir, err := filepath.Abs(baseDirectoryPath)
 				if err != nil {
 					return nil, err
 				}
-				val = filepath.Join(absWorkDir, val)
+				if !filepath.IsAbs(val) {
+					absWorkDir, err := filepath.Abs(appPath)
+					if err != nil {
+						return nil, err
+					}
+					val = filepath.Join(absWorkDir, val)
+				}
+				_, err = security.EnforceToCurrentRoot(absBaseDir, val)
+				if err != nil {
+					return nil, err
+				}
 			}
-			cleanVal, err := security.EnforceToCurrentRoot(absBaseDir, val)
-			if err != nil {
-				return nil, err
-			}
-			templateOpts.Values = append(templateOpts.Values, cleanVal)
+			templateOpts.Values = append(templateOpts.Values, val)
 		}
 
 		if appHelm.Values != "" {
