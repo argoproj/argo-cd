@@ -907,7 +907,6 @@ func (s *Server) getApplicationDestination(name string) (string, string, error) 
 
 // Sync syncs an application to its target state
 func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncRequest) (*appv1.Application, error) {
-	log.Infof("ALEX %v", ctx)
 	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
 	a, err := appIf.Get(*syncReq.Name, metav1.GetOptions{})
 	if err != nil {
