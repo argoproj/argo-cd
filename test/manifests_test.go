@@ -8,15 +8,20 @@ import (
 
 	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-cd/test/fixture/test"
 )
+
+func TestKustomizeVersion(t *testing.T) {
+	test.CIOnly(t)
+	out, err := argoexec.RunCommand("kustomize", argoexec.CmdOpts{}, "version")
+	assert.NoError(t, err)
+	assert.Contains(t, out, "Version:kustomize/v3", "kustomize should be version 3")
+}
 
 // TestBuildManifests makes sure we are consistent in naming, and all kustomization.yamls are buildable
 func TestBuildManifests(t *testing.T) {
-
-	_, err := argoexec.RunCommand("kustomize", argoexec.CmdOpts{}, "version")
-	assert.NoError(t, err)
-
-	err = filepath.Walk("../manifests", func(path string, f os.FileInfo, err error) error {
+	err := filepath.Walk("../manifests", func(path string, f os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
