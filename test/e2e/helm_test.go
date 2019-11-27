@@ -224,7 +224,10 @@ func TestHelmWithDependenciesLegacyRepo(t *testing.T) {
 }
 
 func testHelmWithDependencies(t *testing.T, legacyRepo bool) {
-	ctx := Given(t).CustomCACertAdded()
+	ctx := Given(t).
+		CustomCACertAdded().
+		// these are slow tests
+		Timeout(30)
 	if legacyRepo {
 		ctx.And(func() {
 			errors.FailOnErr(fixture.Run("", "kubectl", "create", "secret", "generic", "helm-repo",

@@ -38,14 +38,13 @@ func (c *clientSet) NewRepoServerClient() (util.Closer, RepoServerServiceClient,
 	if c.timeoutSeconds > 0 {
 		unaryInterceptors = append(unaryInterceptors, argogrpc.WithTimeout(time.Duration(c.timeoutSeconds)*time.Second))
 	}
-	streamInterceptors := []grpc.StreamClientInterceptor{
-		grpc_opentracing.StreamClientInterceptor(grpc_opentracing.WithTracer(opentracing.GlobalTracer())),
-		grpc_retry.StreamClientInterceptor(retryOpts...),
-	}
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})),
 		grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(unaryInterceptors...)),
-		grpc.WithStreamInterceptor(grpc_middleware.ChainStreamClient(streamInterceptors...)),
+		grpc.WithStreamInterceptor(grpc_middleware.ChainStreamClient(
+			grpc_opentracing.StreamClientInterceptor(grpc_opentracing.WithTracer(opentracing.GlobalTracer())),
+			grpc_retry.StreamClientInterceptor(retryOpts...),
+		)),
 	}
 	conn, err := grpc.Dial(c.address, opts...)
 	if err != nil {
