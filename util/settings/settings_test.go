@@ -177,7 +177,13 @@ func TestGetOIDCConfig(t *testing.T) {
 				},
 			},
 			Data: map[string]string{
-				"oidc.config": "\n  requestedIDTokenClaims: {\"groups\": {\"essential\": true}}\n",
+				"oidc.config": `
+requestedIDTokenClaims: 
+  groups: 
+    essential: true
+clientID: my-client-id
+clientSecret: $my.client.secret
+`,
 			},
 		},
 		&v1.Secret{
@@ -191,6 +197,7 @@ func TestGetOIDCConfig(t *testing.T) {
 			Data: map[string][]byte{
 				"admin.password":   nil,
 				"server.secretkey": nil,
+				"my.client.secret": []byte("my-client-secret"),
 			},
 		},
 	)
@@ -204,6 +211,8 @@ func TestGetOIDCConfig(t *testing.T) {
 	claim := oidcConfig.RequestedIDTokenClaims["groups"]
 	assert.NotNil(t, claim)
 	assert.Equal(t, true, claim.Essential)
+	assert.Equal(t, "my-client-id", oidcConfig.ClientID)
+	assert.Equal(t, "my-client-secret", oidcConfig.ClientSecret)
 }
 
 func TestRedirectURL(t *testing.T) {
