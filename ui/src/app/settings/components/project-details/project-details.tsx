@@ -417,7 +417,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                             {helpTip('The kind, start time and duration of the window')}
                                         </div>
                                         <div className='columns small-3'>
-                                            Rules
+                                            RULES
                                             {helpTip('The number of rules, applications, clusters and namespaces configured for the window')}
                                         </div>
                                         <div className='columns small-3'>
