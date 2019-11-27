@@ -128,7 +128,7 @@ func NewProjectWindowsEnableManualSyncCommand(clientOpts *argocdclient.ClientOpt
 // NewProjectWindowsAddWindowCommand returns a new instance of an `argocd proj windows add` command
 func NewProjectWindowsAddWindowCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		window     *argoappv1.SyncWindow
+		window     argoappv1.SyncWindow
 		conditions []string
 	)
 	var command = &cobra.Command{
@@ -153,7 +153,7 @@ func NewProjectWindowsAddWindowCommand(clientOpts *argocdclient.ClientOptions) *
 
 			window.Rules = rules
 
-			err = proj.Spec.AddWindow(window)
+			err = proj.Spec.AddWindow(&window)
 			errors.CheckError(err)
 
 			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
