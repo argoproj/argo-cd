@@ -66,9 +66,9 @@ type ArgoCDSettings struct {
 	// Secrets holds all secrets in argocd-secret as a map[string]string
 	Secrets map[string]string `json:"secrets,omitempty"`
 	// KustomizeBuildOptions is a string of kustomize build parameters
-	KustomizeBuildOptions string
+	KustomizeBuildOptions string `json:"kustomizeBuildOptions,omitempty"`
 	// Indicates if anonymous user is enabled or not
-	AnonymousUserEnabled bool
+	AnonymousUserEnabled bool `json:"anonymousUserEnabled,omitempty"`
 }
 
 type GoogleAnalytics struct {
@@ -341,7 +341,10 @@ func (mgr *SettingsManager) GetKustomizeBuildOptions() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return argoCDCM.Data[kustomizeBuildOptionsKey], nil
+	if value, ok := argoCDCM.Data[kustomizeBuildOptionsKey]; ok {
+		return value, nil
+	}
+	return "", nil
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
