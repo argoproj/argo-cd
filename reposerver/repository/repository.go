@@ -119,19 +119,6 @@ func (s *Service) runRepoOperation(
 
 	revision = util.FirstNonEmpty(revision, source.TargetRevision)
 
-	// attempt to get from cache if resolved revision, as resolving is expensive
-	isResolvedRevision := false
-	if source.IsHelm() {
-		_, err := semver.NewVersion(revision)
-		isResolvedRevision = err == nil
-	} else {
-		isResolvedRevision = git.IsCommitSHA(revision)
-	}
-
-	if isResolvedRevision && !settings.noCache && getCached(revision) {
-		return nil
-	}
-
 	var gitClient git.Client
 	var helmClient helm.Client
 	var err error
@@ -147,7 +134,7 @@ func (s *Service) runRepoOperation(
 		}
 	}
 
-	if !isResolvedRevision && !settings.noCache && getCached(revision) {
+	if !settings.noCache && getCached(revision) {
 		return nil
 	}
 
@@ -808,6 +795,9 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 	if err != nil {
 		return nil, "", err
 	}
+	if git.IsCommitSHA(revision) {
+		return gitClient, revision, nil
+	}
 	commitSHA, err := gitClient.LsRemote(revision)
 	if err != nil {
 		return nil, "", err
@@ -817,6 +807,9 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 
 func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string) (helm.Client, string, error) {
 	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds())
+	if helm.IsVersion(revision) {
+		return helmClient, revision, nil
+	}
 	constraints, err := semver.NewConstraint(revision)
 	if err != nil {
 		return nil, "", fmt.Errorf("invalid revision '%s': %v", revision, err)
