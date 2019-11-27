@@ -196,7 +196,7 @@ func (a *Actions) Sync(args ...string) *Actions {
 	if a.context.name != "" {
 		args = append(args, a.context.name)
 	}
-	args = append(args, "--timeout", "15")
+	args = append(args, "--timeout", "30")
 
 	if a.context.async {
 		args = append(args, "--async")
