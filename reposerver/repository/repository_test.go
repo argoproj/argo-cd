@@ -451,11 +451,11 @@ func TestService_newHelmClientResolveRevision(t *testing.T) {
 	service := newService(".")
 
 	t.Run("EmptyRevision", func(t *testing.T) {
-		_, _, err := service.newHelmClientResolveRevision(&argoappv1.Repository{}, "", "")
+		_, _, err := service.newHelmClientResolveRevision(context.TODO(), &argoappv1.Repository{}, "", "")
 		assert.EqualError(t, err, "invalid revision '': improper constraint: ")
 	})
 	t.Run("InvalidRevision", func(t *testing.T) {
-		_, _, err := service.newHelmClientResolveRevision(&argoappv1.Repository{}, "???", "")
+		_, _, err := service.newHelmClientResolveRevision(context.TODO(), &argoappv1.Repository{}, "???", "")
 		assert.EqualError(t, err, "invalid revision '???': improper constraint: ???")
 	})
 }

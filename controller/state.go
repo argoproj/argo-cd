@@ -97,10 +97,6 @@ type appStateManager struct {
 }
 
 func (m *appStateManager) getRepoObjs(ctx context.Context, app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "getRepoObjs")
-	span.SetBaggageItem("revision", revision)
-	defer span.Finish()
-
 	helmRepos, err := m.db.ListHelmRepositories(ctx)
 	if err != nil {
 		return nil, nil, nil, err

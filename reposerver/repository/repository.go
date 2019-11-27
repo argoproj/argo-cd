@@ -72,7 +72,7 @@ func NewService(metricsServer *metrics.MetricsServer, cache *reposervercache.Cac
 
 // ListDir lists the contents of a GitHub repo
 func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*apiclient.AppList, error) {
-	gitClient, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Revision)
+	gitClient, commitSHA, err := s.newClientResolveRevision(ctx, q.Repo, q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -113,18 +113,20 @@ func (s *Service) runRepoOperation(
 	getCached func(revision string) bool,
 	operation func(appPath string, revision string) error,
 	settings operationSettings) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "runRepoOperation")
+	defer span.Finish()
 
 	var gitClient git.Client
 	var helmClient helm.Client
 	var err error
 	revision = util.FirstNonEmpty(revision, source.TargetRevision)
 	if source.IsHelm() {
-		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart)
+		helmClient, revision, err = s.newHelmClientResolveRevision(ctx, repo, revision, source.Chart)
 		if err != nil {
 			return err
 		}
 	} else {
-		gitClient, revision, err = s.newClientResolveRevision(repo, revision)
+		gitClient, revision, err = s.newClientResolveRevision(ctx, repo, revision)
 		if err != nil {
 			return err
 		}
@@ -714,7 +716,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 }
 
 func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
-	gitClient, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Revision)
+	gitClient, commitSHA, err := s.newClientResolveRevision(ctx, q.Repo, q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -763,7 +765,9 @@ func (s *Service) newClient(repo *v1alpha1.Repository) (git.Client, error) {
 
 // newClientResolveRevision is a helper to perform the common task of instantiating a git client
 // and resolving a revision to a commit SHA
-func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision string) (git.Client, string, error) {
+func (s *Service) newClientResolveRevision(ctx context.Context, repo *v1alpha1.Repository, revision string) (git.Client, string, error) {
+	span, _ := opentracing.StartSpanFromContext(ctx, "newClientResolveRevision")
+	defer span.Finish()
 	gitClient, err := s.newClient(repo)
 	if err != nil {
 		return nil, "", err
@@ -775,7 +779,9 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 	return gitClient, commitSHA, nil
 }
 
-func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string) (helm.Client, string, error) {
+func (s *Service) newHelmClientResolveRevision(ctx context.Context, repo *v1alpha1.Repository, revision string, chart string) (helm.Client, string, error) {
+	span, _ := opentracing.StartSpanFromContext(ctx, "newHelmClientResolveRevision")
+	defer span.Finish()
 	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds())
 	constraints, err := semver.NewConstraint(revision)
 	if err != nil {

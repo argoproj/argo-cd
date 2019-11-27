@@ -27,7 +27,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	certutil "github.com/argoproj/argo-cd/util/cert"
-	executl "github.com/argoproj/argo-cd/util/exec"
+	executil "github.com/argoproj/argo-cd/util/exec"
 )
 
 type RevisionMetadata struct {
@@ -221,7 +221,7 @@ func (m *nativeGitClient) Init(ctx context.Context) error {
 		return err
 	}
 	log.Infof("Initializing %s to %s", m.repoURL, m.root)
-	_, err = executl.Run(ctx, exec.Command("rm", "-rf", m.root))
+	_, err = executil.Run(ctx, exec.Command("rm", "-rf", m.root))
 	if err != nil {
 		return fmt.Errorf("unable to clean repo at %s: %v", m.root, err)
 	}
@@ -482,5 +482,5 @@ func (m *nativeGitClient) runCmdOutput(ctx context.Context, cmd *exec.Cmd) (stri
 			}
 		}
 	}
-	return executl.Run(ctx, cmd)
+	return executil.Run(ctx, cmd)
 }

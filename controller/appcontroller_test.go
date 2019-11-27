@@ -207,7 +207,7 @@ func TestAutoSync(t *testing.T) {
 		Status:   argoappv1.SyncStatusCodeOutOfSync,
 		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 	}
-	cond := ctrl.autoSync(context.TODO(), app, &syncStatus, []argoappv1.ResourceStatus{})
+	cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{})
 	assert.Nil(t, cond)
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
 	assert.NoError(t, err)
@@ -226,7 +226,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   argoappv1.SyncStatusCodeOutOfSync,
 			Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		}
-		cond := ctrl.autoSync(context.TODO(), app, &syncStatus, []argoappv1.ResourceStatus{})
+		cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{})
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
 		assert.NoError(t, err)
@@ -241,7 +241,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   argoappv1.SyncStatusCodeSynced,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
-		cond := ctrl.autoSync(context.TODO(), app, &syncStatus, []argoappv1.ResourceStatus{})
+		cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{})
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
 		assert.NoError(t, err)
@@ -257,7 +257,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   argoappv1.SyncStatusCodeOutOfSync,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
-		cond := ctrl.autoSync(context.TODO(), app, &syncStatus, []argoappv1.ResourceStatus{})
+		cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{})
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
 		assert.NoError(t, err)
@@ -274,7 +274,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   argoappv1.SyncStatusCodeOutOfSync,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
-		cond := ctrl.autoSync(context.TODO(), app, &syncStatus, []argoappv1.ResourceStatus{})
+		cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{})
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
 		assert.NoError(t, err)
@@ -300,7 +300,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   argoappv1.SyncStatusCodeOutOfSync,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
-		cond := ctrl.autoSync(context.TODO(), app, &syncStatus, []argoappv1.ResourceStatus{})
+		cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{})
 		assert.NotNil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
 		assert.NoError(t, err)
@@ -336,7 +336,7 @@ func TestAutoSyncIndicateError(t *testing.T) {
 			Source:   *app.Spec.Source.DeepCopy(),
 		},
 	}
-	cond := ctrl.autoSync(context.TODO(), app, &syncStatus, []argoappv1.ResourceStatus{})
+	cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{})
 	assert.NotNil(t, cond)
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
 	assert.NoError(t, err)
@@ -379,7 +379,7 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 			Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		},
 	}
-	cond := ctrl.autoSync(context.TODO(), app, &syncStatus, []argoappv1.ResourceStatus{})
+	cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{})
 	assert.Nil(t, cond)
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
 	assert.NoError(t, err)

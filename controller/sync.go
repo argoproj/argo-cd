@@ -606,8 +606,6 @@ func (sc *syncContext) hasCRDOfGroupKind(group string, kind string) bool {
 
 // terminate looks for any running jobs/workflow hooks and deletes the resource
 func (sc *syncContext) terminate() {
-	span, _ := opentracing.StartSpanFromContext(sc.context, "terminate")
-	defer span.Finish()
 	terminateSuccessful := true
 	sc.log.Debug("terminating")
 	tasks, _ := sc.getSyncTasks()

@@ -227,8 +227,6 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 }
 
 func (ctrl *ApplicationController) setAppManagedResources(ctx context.Context, a *appv1.Application, comparisonResult *comparisonResult) (*appv1.ApplicationTree, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "setAppManagedResources")
-	defer span.Finish()
 	managedResources, err := ctrl.managedResources(comparisonResult)
 	if err != nil {
 		return nil, err
@@ -256,8 +254,6 @@ func isKnownOrphanedResourceExclusion(key kube.ResourceKey) bool {
 }
 
 func (ctrl *ApplicationController) getResourceTree(ctx context.Context, a *appv1.Application, managedResources []*appv1.ResourceDiff) (*appv1.ApplicationTree, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "getResourceTree")
-	defer span.Finish()
 	nodes := make([]appv1.ResourceNode, 0)
 
 	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace)
@@ -748,6 +744,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem(ctx context.Contex
 
 	startTime := time.Now()
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Reconciliation")
+	span.SetBaggageItem("application", origApp.Name)
 	defer span.Finish()
 	defer func() {
 		reconcileDuration := time.Since(startTime)
@@ -790,7 +787,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem(ctx context.Contex
 			}
 			now := metav1.Now()
 			app.Status.ObservedAt = &now
-			ctrl.persistAppStatus(ctx, origApp, &app.Status)
+			ctrl.persistAppStatus(origApp, &app.Status)
 			return
 		}
 	}
@@ -799,7 +796,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem(ctx context.Contex
 	if hasErrors {
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = appv1.HealthStatusUnknown
-		ctrl.persistAppStatus(ctx, origApp, &app.Status)
+		ctrl.persistAppStatus(origApp, &app.Status)
 		return
 	}
 
@@ -830,7 +827,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem(ctx context.Contex
 		logCtx.Infof("Could not lookup project for %s in order to check schedules state", app.Name)
 	} else {
 		if project.Spec.SyncWindows.Matches(app).CanSync(false) {
-			syncErrCond := ctrl.autoSync(ctx, app, compareResult.syncStatus, compareResult.resources)
+			syncErrCond := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources)
 			if syncErrCond != nil {
 				app.Status.SetConditions(
 					[]appv1.ApplicationCondition{*syncErrCond},
@@ -855,7 +852,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem(ctx context.Contex
 	app.Status.Health = *compareResult.healthStatus
 	app.Status.Resources = compareResult.resources
 	app.Status.SourceType = compareResult.appSourceType
-	ctrl.persistAppStatus(ctx, origApp, &app.Status)
+	ctrl.persistAppStatus(origApp, &app.Status)
 	return
 }
 
@@ -946,9 +943,7 @@ func (ctrl *ApplicationController) normalizeApplication(orig, app *appv1.Applica
 }
 
 // persistAppStatus persists updates to application status. If no changes were made, it is a no-op
-func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *appv1.Application, newStatus *appv1.ApplicationStatus) {
-	span, _ := opentracing.StartSpanFromContext(ctx, "persistAppStatus")
-	defer span.Finish()
+func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, newStatus *appv1.ApplicationStatus) {
 	logCtx := log.WithFields(log.Fields{"application": orig.Name})
 	if orig.Status.Sync.Status != newStatus.Sync.Status {
 		message := fmt.Sprintf("Updated sync status: %s -> %s", orig.Status.Sync.Status, newStatus.Sync.Status)
@@ -988,9 +983,7 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 }
 
 // autoSync will initiate a sync operation for an application configured with automated sync
-func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Application, syncStatus *appv1.SyncStatus, resources []appv1.ResourceStatus) *appv1.ApplicationCondition {
-	span, _ := opentracing.StartSpanFromContext(ctx, "autoSync")
-	defer span.Finish()
+func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *appv1.SyncStatus, resources []appv1.ResourceStatus) *appv1.ApplicationCondition {
 	if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
 		return nil
 	}
