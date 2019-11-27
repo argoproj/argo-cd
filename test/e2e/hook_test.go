@@ -332,6 +332,7 @@ func TestHookBeforeHookCreation(t *testing.T) {
 // edge-case where we are unable to delete the hook because it is still running
 func TestHookBeforeHookCreationFailure(t *testing.T) {
 	Given(t).
+		Timeout(1).
 		Path("hook").
 		When().
 		PatchFile("hook.yaml", `[
