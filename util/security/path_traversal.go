@@ -17,6 +17,22 @@ func EnforceToCurrentRoot(currentRoot, requestedPath string) (string, error) {
 	return requestedDir + string(filepath.Separator) + requestedFile, nil
 }
 
+func SubtractRelativeFromAbsolutePath(abs, rel string) string {
+	if len(rel) == 0 {
+		return abs
+	}
+	if rel[0] == '.' {
+		rel = rel[1:]
+	}
+	if rel[0] != '/' {
+		rel = "/" + rel
+	}
+	if rel[len(rel)-1] == '/' {
+		rel = rel[:len(rel)-1]
+	}
+	return abs[:strings.LastIndex(abs, rel)]
+}
+
 func isRequestedDirUnderCurrentRoot(currentRoot, requestedDir string) bool {
 	if currentRoot == string(filepath.Separator) {
 		return true

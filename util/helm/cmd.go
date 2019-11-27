@@ -7,12 +7,10 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 
 	"github.com/argoproj/argo-cd/util"
 	executil "github.com/argoproj/argo-cd/util/exec"
-	"github.com/argoproj/argo-cd/util/security"
 )
 
 // A thin wrapper around the "helm" command, adding logging and error translation.
@@ -192,18 +190,7 @@ func (c *Cmd) template(ctx context.Context, chart string, opts *TemplateOpts) (s
 		args = append(args, "--set-string", key+"="+cleanSetParameters(val))
 	}
 	for _, val := range opts.Values {
-		absWorkDir, err := filepath.Abs(c.WorkDir)
-		if err != nil {
-			return "", err
-		}
-		if !filepath.IsAbs(val) {
-			val = filepath.Join(absWorkDir, val)
-		}
-		cleanVal, err := security.EnforceToCurrentRoot(absWorkDir, val)
-		if err != nil {
-			return "", err
-		}
-		args = append(args, "--values", cleanVal)
+		args = append(args, "--values", val)
 	}
 
 	return c.run(ctx, args...)
