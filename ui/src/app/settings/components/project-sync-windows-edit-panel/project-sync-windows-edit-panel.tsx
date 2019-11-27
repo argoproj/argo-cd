@@ -7,7 +7,13 @@ import {CheckboxField} from '../../../shared/components';
 import * as models from '../../../shared/models';
 
 import {ProjectSyncWindowsParams} from '../../../shared/services/projects-service';
-import {ProjectSyncWindowRulesEdit, ProjectSyncWindowScheduleEdit} from '../project-sync-windows-edit/project-sync-windows-edit';
+import {
+    ProjectSyncWindowApplicationsEdit,
+    ProjectSyncWindowClusterEdit,
+    ProjectSyncWindowNamespaceEdit,
+    ProjectSyncWindowRulesEdit,
+    ProjectSyncWindowScheduleEdit
+} from '../project-sync-windows-edit/project-sync-windows-edit';
 
 interface ProjectSyncWindowsDefaultParams {
     projName: string;
@@ -55,6 +61,9 @@ export const ProjectSyncWindowsEditPanel = (props: ProjectSyncWindowsEditPanelPr
                             <FormField formApi={api} label='Enable manual sync' field='window.manualSync' component={CheckboxField} />
                         </div>
                         <ProjectSyncWindowRulesEdit projName={api.values.projName} window={api.values.window} formApi={api} />
+                        {api.values.window.applications && <ProjectSyncWindowApplicationsEdit projName={api.values.projName} window={api.values.window} formApi={api} />}
+                        {api.values.window.namespaces && <ProjectSyncWindowNamespaceEdit projName={api.values.projName} window={api.values.window} formApi={api} />}
+                        {api.values.window.clusters && <ProjectSyncWindowClusterEdit projName={api.values.projName} window={api.values.window} formApi={api} />}
                     </form>
                 )}
             </Form>

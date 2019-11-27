@@ -128,10 +128,7 @@ func NewProjectWindowsEnableManualSyncCommand(clientOpts *argocdclient.ClientOpt
 // NewProjectWindowsAddWindowCommand returns a new instance of an `argocd proj windows add` command
 func NewProjectWindowsAddWindowCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		kind       string
-		schedule   string
-		duration   string
-		manualSync bool
+		window     *argoappv1.SyncWindow
 		conditions []string
 	)
 	var command = &cobra.Command{
@@ -154,19 +151,20 @@ func NewProjectWindowsAddWindowCommand(clientOpts *argocdclient.ClientOptions) *
 
 			rules := argoappv1.WindowRules{*rule}
 
-			err = proj.Spec.AddWindow(kind, schedule, duration, rules, manualSync)
+			window.Rules = rules
+
+			err = proj.Spec.AddWindow(window)
 			errors.CheckError(err)
 
 			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
 		},
 	}
-	command.Flags().StringVarP(&kind, "kind", "k", "", "Sync window kind, either allow or deny")
-	command.Flags().StringVar(&schedule, "schedule", "", "Sync window schedule in cron format. (e.g. --schedule \"0 22 * * *\")")
-	command.Flags().StringVar(&duration, "duration", "", "Sync window duration. (e.g. --duration 1h)")
+	command.Flags().StringVarP(&window.Kind, "kind", "k", "", "Sync window kind, either allow or deny")
+	command.Flags().StringVar(&window.Schedule, "schedule", "", "Sync window schedule in cron format. (e.g. --schedule \"0 22 * * *\")")
+	command.Flags().StringVar(&window.Duration, "duration", "", "Sync window duration. (e.g. --duration 1h)")
 	command.Flags().StringArrayVar(&conditions, "condition", []string{}, "Condition for matching the rule, support for multiple conditions per rule. (e.g. --condition \"application in (web-*,db1)\")")
-	command.Flags().BoolVar(&manualSync, "manual-sync", false, "Allow manual syncs for both deny and allow windows")
-
+	command.Flags().BoolVar(&window.ManualSync, "manual-sync", false, "Allow manual syncs for both deny and allow windows")
 	return command
 }
 
@@ -485,7 +483,7 @@ func printSyncWindows(proj *argoappv1.AppProject) {
 				window.Kind,
 				window.Schedule,
 				window.Duration,
-				strconv.Itoa(len(window.Rules)),
+				strconv.Itoa(len(window.Rules) + len(window.Applications) + len(window.Namespaces) + len(window.Clusters)),
 				formatManualOutput(window.ManualSync),
 			}
 			fmt.Fprintf(w, fmtStr, vals...)

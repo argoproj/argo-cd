@@ -1118,11 +1118,18 @@ func TestAppProjectSpec_AddWindow(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			w := &SyncWindow{
+				Kind:       tt.k,
+				Schedule:   tt.s,
+				Duration:   tt.d,
+				Rules:      tt.r,
+				ManualSync: tt.m,
+			}
 			switch tt.want {
 			case "error":
-				assert.Error(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.r, tt.m))
+				assert.Error(t, tt.p.Spec.AddWindow(w))
 			case "noError":
-				assert.NoError(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.r, tt.m))
+				assert.NoError(t, tt.p.Spec.AddWindow(w))
 				assert.NoError(t, tt.p.Spec.DeleteWindow(0))
 			}
 		})

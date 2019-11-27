@@ -492,6 +492,18 @@ spec:
                 this project
               items:
                 properties:
+                  applications:
+                    description: Applications contains a list of applications that
+                      the window will apply to
+                    items:
+                      type: string
+                    type: array
+                  clusters:
+                    description: Clusters contains a list of clusters that the window
+                      will apply to
+                    items:
+                      type: string
+                    type: array
                   duration:
                     description: Duration is the amount of time the sync window will
                       be open
@@ -503,6 +515,12 @@ spec:
                     description: ManualSync enables manual syncs when they would otherwise
                       be blocked
                     type: boolean
+                  namespaces:
+                    description: Namespaces contains a list of namespaces that the
+                      window will apply to
+                    items:
+                      type: string
+                    type: array
                   rules:
                     description: Rules used for assigning applications to windows
                     items:

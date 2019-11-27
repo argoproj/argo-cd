@@ -416,9 +416,9 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                             WINDOW
                                             {helpTip('The kind, start time and duration of the window')}
                                         </div>
-                                        <div className='columns small-3'>
-                                            RULES
-                                            {helpTip('The number of rules configured for the window')}
+                                        <div className='columns small-0.5'>
+                                            Rules
+                                            {helpTip('The number of rules, applications, clusters and namespaces configured for the window')}
                                         </div>
                                         <div className='columns small-3'>
                                             MANUALSYNC
@@ -437,7 +437,12 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                             <div className='columns small-3'>
                                                 {window.kind}:{window.schedule}:{window.duration}
                                             </div>
-                                            <div className='columns small-3'>{window.rules.length}</div>
+                                            <div className='columns small-3'>
+                                                {(window.rules || []).length +
+                                                    (window.applications || []).length +
+                                                    (window.namespaces || []).length +
+                                                    (window.clusters || []).length}
+                                            </div>
                                             <div className='columns small-3'>{window.manualSync ? 'Enabled' : 'Disabled'}</div>
                                         </div>
                                     </div>

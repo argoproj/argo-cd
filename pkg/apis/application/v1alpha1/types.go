@@ -1490,10 +1490,16 @@ type SyncWindow struct {
 	Schedule string `json:"schedule,omitempty" protobuf:"bytes,2,opt,name=schedule"`
 	// Duration is the amount of time the sync window will be open
 	Duration string `json:"duration,omitempty" protobuf:"bytes,3,opt,name=duration"`
+	// Applications contains a list of applications that the window will apply to
+	Applications []string `json:"applications,omitempty" protobuf:"bytes,4,opt,name=applications"`
+	// Namespaces contains a list of namespaces that the window will apply to
+	Namespaces []string `json:"namespaces,omitempty" protobuf:"bytes,5,opt,name=namespaces"`
+	// Clusters contains a list of clusters that the window will apply to
+	Clusters []string `json:"clusters,omitempty" protobuf:"bytes,6,opt,name=clusters"`
 	// Rules used for assigning applications to windows
-	Rules WindowRules `json:"rules,omitempty" protobuf:"bytes,4,opt,name=rules"`
+	Rules WindowRules `json:"rules,omitempty" protobuf:"bytes,7,opt,name=rules"`
 	// ManualSync enables manual syncs when they would otherwise be blocked
-	ManualSync bool `json:"manualSync,omitempty" protobuf:"bytes,5,opt,name=manualSync"`
+	ManualSync bool `json:"manualSync,omitempty" protobuf:"bytes,8,opt,name=manualSync"`
 }
 
 const (
@@ -1551,19 +1557,7 @@ func (s *SyncWindows) InactiveAllows() *SyncWindows {
 }
 
 // AddWindow adds a new sync window to a project
-func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, rules WindowRules, ms bool) error {
-	if len(rules) == 0 {
-		return fmt.Errorf("cannot create window: require kind, schedule, duration and at least one rule")
-	}
-
-	window := &SyncWindow{
-		Kind:       knd,
-		Schedule:   sch,
-		Duration:   dur,
-		ManualSync: ms,
-		Rules:      rules,
-	}
-
+func (s *AppProjectSpec) AddWindow(window *SyncWindow) error {
 	err := window.Validate()
 	if err != nil {
 		return err
@@ -1572,7 +1566,6 @@ func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, rules Win
 	s.SyncWindows = append(s.SyncWindows, window)
 
 	return nil
-
 }
 
 // DeleteWindow deletes a sync window from a project
@@ -1593,6 +1586,30 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 			for _, rule := range w.Rules {
 				if rule.Match(app) {
 					matchingWindows = append(matchingWindows, w)
+				}
+			}
+			if len(w.Applications) > 0 {
+				for _, a := range w.Applications {
+					if globMatch(a, app.Name) {
+						matchingWindows = append(matchingWindows, w)
+						break
+					}
+				}
+			}
+			if len(w.Clusters) > 0 {
+				for _, c := range w.Clusters {
+					if globMatch(c, app.Spec.Destination.Server) {
+						matchingWindows = append(matchingWindows, w)
+						break
+					}
+				}
+			}
+			if len(w.Namespaces) > 0 {
+				for _, n := range w.Namespaces {
+					if globMatch(n, app.Spec.Destination.Namespace) {
+						matchingWindows = append(matchingWindows, w)
+						break
+					}
 				}
 			}
 		}
@@ -1723,9 +1740,10 @@ func (w *SyncWindow) Validate() error {
 		return fmt.Errorf("cannot parse duration '%s': %s", w.Duration, err)
 	}
 
-	if len(w.Rules) == 0 {
-		return status.Errorf(codes.OutOfRange, "window requires rules")
+	if len(w.Rules) == 0 && len(w.Applications) == 0 && len(w.Namespaces) == 0 && len(w.Clusters) == 0 {
+		return status.Errorf(codes.OutOfRange, "window requires rules, application, namespace or cluster")
 	}
+
 	for _, r := range w.Rules {
 		for _, c := range r.Conditions {
 			if err := c.Validate(); err != nil {
