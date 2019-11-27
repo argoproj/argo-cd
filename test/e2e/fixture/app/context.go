@@ -14,12 +14,10 @@ import (
 
 // this implements the "given" part of given/when/then
 type Context struct {
-	t           *testing.T
-	path        string
-	chart       string
-	repoURLType fixture.RepoURLType
-	// seconds
-	timeout                int
+	t                      *testing.T
+	path                   string
+	chart                  string
+	repoURLType            fixture.RepoURLType
 	name                   string
 	destServer             string
 	env                    string
@@ -39,7 +37,7 @@ type Context struct {
 
 func Given(t *testing.T) *Context {
 	fixture.EnsureCleanState(t)
-	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, repoURLType: fixture.RepoURLTypeFile, name: fixture.Name(), timeout: 10, project: "default", prune: true}
+	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, repoURLType: fixture.RepoURLTypeFile, name: fixture.Name(), project: "default", prune: true}
 }
 
 func (c *Context) CustomCACertAdded() *Context {
@@ -146,11 +144,6 @@ func (c *Context) Chart(chart string) *Context {
 
 func (c *Context) Revision(revision string) *Context {
 	c.revision = revision
-	return c
-}
-
-func (c *Context) Timeout(timeout int) *Context {
-	c.timeout = timeout
 	return c
 }
 
