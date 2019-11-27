@@ -337,7 +337,7 @@ func TestHookBeforeHookCreationFailure(t *testing.T) {
 		When().
 		PatchFile("hook.yaml", `[
 	{"op": "add", "path": "/metadata/annotations/argocd.argoproj.io~1hook-delete-policy", "value": "BeforeHookCreation"},
-	{"op": "replace", "path": "/spec/containers/0/command", "value": ["sleep", "3"]}
+	{"op": "replace", "path": "/spec/containers/0/command", "value": ["sleep", "11"]}
 ]`).
 		Create().
 		IgnoreErrors().

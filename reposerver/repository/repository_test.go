@@ -40,7 +40,7 @@ func newServiceWithMocks(root string) (*Service, *gitmocks.Client) {
 	}
 	gitClient.On("Init", mock.Anything).Return(nil)
 	gitClient.On("Fetch", mock.Anything).Return(nil)
-	gitClient.On("Checkout", mock.Anything).Return(nil)
+	gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 	gitClient.On("LsRemote", mock.Anything).Return(mock.Anything, nil)
 	gitClient.On("CommitSHA", mock.Anything).Return(mock.Anything, nil)
 	gitClient.On("Root").Return(root)
@@ -408,7 +408,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 	service, gitClient := newServiceWithMocks("../..")
 	now := time.Now()
 
-	gitClient.On("RevisionMetadata", mock.Anything).Return(&git.RevisionMetadata{
+	gitClient.On("RevisionMetadata", mock.Anything, mock.Anything).Return(&git.RevisionMetadata{
 		Message: strings.Repeat("a", 100) + "\n" + "second line",
 		Author:  "author",
 		Date:    now,
@@ -417,7 +417,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 
 	res, err := service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:     &argoappv1.Repository{},
-		Revision: "123",
+		Revision: "c0b400fc458875d925171398f9ba9eabd5529923",
 	})
 
 	assert.NoError(t, err)

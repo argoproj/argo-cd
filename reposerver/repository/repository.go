@@ -116,10 +116,24 @@ func (s *Service) runRepoOperation(
 	span, ctx := opentracing.StartSpanFromContext(ctx, "runRepoOperation")
 	defer span.Finish()
 
+	revision = util.FirstNonEmpty(revision, source.TargetRevision)
+
+	// attempt to get from cache if resolved revision, as resolving is expensive
+	isResolvedRevision := false
+	if source.IsHelm() {
+		_, err := semver.NewVersion(revision)
+		isResolvedRevision = err == nil
+	} else {
+		isResolvedRevision = git.IsCommitSHA(revision)
+	}
+
+	if isResolvedRevision && !settings.noCache && getCached(revision) {
+		return nil
+	}
+
 	var gitClient git.Client
 	var helmClient helm.Client
 	var err error
-	revision = util.FirstNonEmpty(revision, source.TargetRevision)
 	if source.IsHelm() {
 		helmClient, revision, err = s.newHelmClientResolveRevision(ctx, repo, revision, source.Chart)
 		if err != nil {
@@ -132,7 +146,7 @@ func (s *Service) runRepoOperation(
 		}
 	}
 
-	if !settings.noCache && getCached(revision) {
+	if !isResolvedRevision && !settings.noCache && getCached(revision) {
 		return nil
 	}
 
@@ -140,7 +154,7 @@ func (s *Service) runRepoOperation(
 	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 	if settings.sem != nil {
-		err = settings.sem.Acquire(ctx, 1)
+		err := settings.sem.Acquire(ctx, 1)
 		if err != nil {
 			return err
 		}
@@ -148,7 +162,8 @@ func (s *Service) runRepoOperation(
 	}
 
 	if source.IsHelm() {
-		// TODO - need locking here?
+		s.repoLock.Lock(source.Chart)
+		defer s.repoLock.Unlock(source.Chart)
 		version, err := semver.NewVersion(revision)
 		if err != nil {
 			return err
@@ -716,28 +731,29 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 }
 
 func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
-	gitClient, commitSHA, err := s.newClientResolveRevision(ctx, q.Repo, q.Revision)
-	if err != nil {
-		return nil, err
+	if !git.IsCommitSHA(q.Revision) {
+		return nil, fmt.Errorf("revision %s must be resolved", q.Revision)
 	}
-
-	metadata, err := s.cache.GetRevisionMetadata(q.Repo.Repo, commitSHA)
+	metadata, err := s.cache.GetRevisionMetadata(q.Repo.Repo, q.Revision)
 	if err == nil {
-		log.Infof("revision metadata cache hit: %s/%s", q.Repo.Repo, commitSHA)
+		log.Infof("revision metadata cache hit: %s/%s", q.Repo.Repo, q.Revision)
 		return metadata, nil
 	} else {
 		if err != reposervercache.ErrCacheMiss {
-			log.Warnf("revision metadata cache error %s/%s: %v", q.Repo.Repo, commitSHA, err)
+			log.Warnf("revision metadata cache error %s/%s: %v", q.Repo.Repo, q.Revision, err)
 		} else {
-			log.Infof("revision metadata cache miss: %s/%s", q.Repo.Repo, commitSHA)
+			log.Infof("revision metadata cache miss: %s/%s", q.Repo.Repo, q.Revision)
 		}
 	}
-
-	commitSHA, err = checkoutRevision(ctx, gitClient, commitSHA)
+	gitClient, _, err := s.newClientResolveRevision(ctx, q.Repo, q.Revision)
 	if err != nil {
 		return nil, err
 	}
-	m, err := gitClient.RevisionMetadata(ctx, commitSHA)
+	_, err = checkoutRevision(ctx, gitClient, q.Revision)
+	if err != nil {
+		return nil, err
+	}
+	m, err := gitClient.RevisionMetadata(ctx, q.Revision)
 	if err != nil {
 		return nil, err
 	}
