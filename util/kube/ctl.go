@@ -125,6 +125,8 @@ func (k *KubectlCmd) GetAPIResources(ctx context.Context, config *rest.Config, r
 // GetResource returns resource
 func (k *KubectlCmd) GetResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "GetResource")
+	span.SetBaggageItem("kind", gvk.Kind)
+	span.SetBaggageItem("name", name)
 	defer span.Finish()
 	dynamicIf, err := dynamic.NewForConfig(config)
 	if err != nil {
@@ -146,6 +148,8 @@ func (k *KubectlCmd) GetResource(ctx context.Context, config *rest.Config, gvk s
 // PatchResource patches resource
 func (k *KubectlCmd) PatchResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "PatchResource")
+	span.SetBaggageItem("kind", gvk.Kind)
+	span.SetBaggageItem("name", name)
 	defer span.Finish()
 	dynamicIf, err := dynamic.NewForConfig(config)
 	if err != nil {
@@ -167,6 +171,8 @@ func (k *KubectlCmd) PatchResource(ctx context.Context, config *rest.Config, gvk
 // DeleteResource deletes resource
 func (k *KubectlCmd) DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error {
 	span, _ := opentracing.StartSpanFromContext(ctx, "DeleteResource")
+	span.SetBaggageItem("kind", gvk.Kind)
+	span.SetBaggageItem("name", name)
 	defer span.Finish()
 	dynamicIf, err := dynamic.NewForConfig(config)
 	if err != nil {
@@ -345,6 +351,8 @@ func Version(ctx context.Context) (string, error) {
 // ConvertToVersion converts an unstructured object into the specified group/version
 func (k *KubectlCmd) ConvertToVersion(ctx context.Context, obj *unstructured.Unstructured, group string, version string) (*unstructured.Unstructured, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "ConvertToVersion")
+	span.SetBaggageItem("kind", obj.GetKind())
+	span.SetBaggageItem("name", obj.GetName())
 	defer span.Finish()
 	gvk := obj.GroupVersionKind()
 	if gvk.Group == group && gvk.Version == version {

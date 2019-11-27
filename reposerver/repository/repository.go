@@ -113,8 +113,6 @@ func (s *Service) runRepoOperation(
 	getCached func(revision string) bool,
 	operation func(appPath string, revision string) error,
 	settings operationSettings) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "runRepoOperation")
-	defer span.Finish()
 
 	revision = util.FirstNonEmpty(revision, source.TargetRevision)
 
