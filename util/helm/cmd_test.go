@@ -21,27 +21,3 @@ func TestCmd_template_kubeVersion(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, s)
 }
-
-func TestCmd_template_PathTraversal(t *testing.T) {
-	cmd, err := NewCmd("./testdata/redis")
-	assert.NoError(t, err)
-	s, err := cmd.template(".", &TemplateOpts{
-		KubeVersion: "1.14",
-		Values:      []string{"values.yaml"},
-	})
-	assert.NoError(t, err)
-	assert.NotEmpty(t, s)
-
-	_, err = cmd.template(".", &TemplateOpts{
-		KubeVersion: "1.14",
-		Values:      []string{"../minio/values.yaml"},
-	})
-	assert.Error(t, err)
-
-	s, err = cmd.template(".", &TemplateOpts{
-		KubeVersion: "1.14",
-		Values:      []string{"../minio/../redis/values.yaml"},
-	})
-	assert.NoError(t, err)
-	assert.NotEmpty(t, s)
-}
