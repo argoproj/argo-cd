@@ -890,8 +890,6 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 }
 
 func (ctrl *ApplicationController) refreshAppConditions(ctx context.Context, app *appv1.Application) bool {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "refreshAppConditions")
-	defer span.Finish()
 	errorConditions := make([]appv1.ApplicationCondition, 0)
 	proj, err := ctrl.getAppProj(app)
 	if err != nil {

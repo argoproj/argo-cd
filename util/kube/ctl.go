@@ -196,6 +196,8 @@ func (k *KubectlCmd) DeleteResource(ctx context.Context, config *rest.Config, gv
 // ApplyResource performs an apply of a unstructured resource
 func (k *KubectlCmd) ApplyResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) (string, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "ApplyResource")
+	span.SetBaggageItem("kind", obj.GetKind())
+	span.SetBaggageItem("name", obj.GetName())
 	defer span.Finish()
 	log.Infof("Applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), config.Host, namespace)
 	f, err := ioutil.TempFile(util.TempDir, "")
