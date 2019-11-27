@@ -32,7 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/app/discovery"
 	argopath "github.com/argoproj/argo-cd/util/app/path"
-	"github.com/argoproj/argo-cd/util/config"
+	executil "github.com/argoproj/argo-cd/util/exec"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/ksonnet"
@@ -564,7 +564,7 @@ func runCommand(ctx context.Context, command v1alpha1.Command, path string, env 
 	cmd := exec.Command(command.Command[0], append(command.Command[1:], command.Args...)...)
 	cmd.Env = env
 	cmd.Dir = path
-	return config.RunCommandExt(ctx, cmd, config.CmdOpts())
+	return executil.Run(ctx, cmd)
 }
 
 func findPlugin(plugins []*v1alpha1.ConfigManagementPlugin, name string) *v1alpha1.ConfigManagementPlugin {
@@ -799,7 +799,7 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
 func checkoutRevision(ctx context.Context, gitClient git.Client, commitSHA string) (string, error) {
-	err := gitClient.Init()
+	err := gitClient.Init(ctx)
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
 	}

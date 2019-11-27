@@ -10,10 +10,8 @@ import (
 	"path/filepath"
 	"regexp"
 
-	argoexec "github.com/argoproj/pkg/exec"
-
 	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/config"
+	executil "github.com/argoproj/argo-cd/util/exec"
 	"github.com/argoproj/argo-cd/util/security"
 )
 
@@ -40,10 +38,7 @@ func (c Cmd) run(ctx context.Context, args ...string) (string, error) {
 	cmd.Dir = c.WorkDir
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, fmt.Sprintf("HELM_HOME=%s", c.helmHome))
-	return config.RunCommandExt(ctx, cmd, argoexec.CmdOpts{
-		Timeout:  config.CmdOpts().Timeout,
-		Redactor: redactor,
-	})
+	return executil.RunWithRedactor(ctx, cmd, redactor)
 }
 
 func (c *Cmd) Init(ctx context.Context) (string, error) {

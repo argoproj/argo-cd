@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	argoexec "github.com/argoproj/pkg/exec"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
@@ -28,7 +27,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	certutil "github.com/argoproj/argo-cd/util/cert"
-	argoconfig "github.com/argoproj/argo-cd/util/config"
+	executl "github.com/argoproj/argo-cd/util/exec"
 )
 
 type RevisionMetadata struct {
@@ -41,7 +40,7 @@ type RevisionMetadata struct {
 // Client is a generic git client interface
 type Client interface {
 	Root() string
-	Init() error
+	Init(ctx context.Context) error
 	Fetch(ctx context.Context) error
 	Checkout(ctx context.Context, revision string) error
 	LsRemote(revision string) (string, error)
@@ -213,7 +212,7 @@ func (m *nativeGitClient) Root() string {
 }
 
 // Init initializes a local git repository and sets the remote origin
-func (m *nativeGitClient) Init() error {
+func (m *nativeGitClient) Init(ctx context.Context) error {
 	_, err := git.PlainOpen(m.root)
 	if err == nil {
 		return nil
@@ -222,7 +221,7 @@ func (m *nativeGitClient) Init() error {
 		return err
 	}
 	log.Infof("Initializing %s to %s", m.repoURL, m.root)
-	_, err = argoexec.RunCommand("rm", argoconfig.CmdOpts(), "-rf", m.root)
+	_, err = executl.Run(ctx, exec.Command("rm", "-rf", m.root))
 	if err != nil {
 		return fmt.Errorf("unable to clean repo at %s: %v", m.root, err)
 	}
@@ -483,5 +482,5 @@ func (m *nativeGitClient) runCmdOutput(ctx context.Context, cmd *exec.Cmd) (stri
 			}
 		}
 	}
-	return argoconfig.RunCommandExt(ctx, cmd, argoconfig.CmdOpts())
+	return executl.Run(ctx, cmd)
 }

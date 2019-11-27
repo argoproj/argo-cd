@@ -1,11 +1,10 @@
-package config
+package exec
 
 import (
 	"os"
 	"testing"
 	"time"
 
-	"github.com/argoproj/pkg/exec"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,9 +25,4 @@ func Test_timeout(t *testing.T) {
 			assert.Equal(t, tt.want, timeout)
 		})
 	}
-}
-
-func TestCmdOpts(t *testing.T) {
-	initTimeout()
-	assert.Equal(t, exec.CmdOpts{Timeout: 90 * time.Second}, CmdOpts())
 }

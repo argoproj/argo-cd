@@ -1,4 +1,4 @@
-package config
+package exec
 
 import (
 	"context"
@@ -25,14 +25,16 @@ func initTimeout() {
 	}
 }
 
-func RunCommandExt(ctx context.Context, cmd *exec.Cmd, opts argoexec.CmdOpts) (string, error) {
-	span, _ := opentracing.StartSpanFromContext(ctx, fmt.Sprintf("exec %v", cmd.Args))
-	span.SetBaggageItem("path", cmd.Path)
+func Run(ctx context.Context, cmd *exec.Cmd) (string, error) {
+	return RunWithRedactor(ctx, cmd, nil)
+}
+func RunWithRedactor(ctx context.Context, cmd *exec.Cmd, redactor func(text string) string) (string, error) {
+	span, _ := opentracing.StartSpanFromContext(ctx, fmt.Sprintf("exec %v", cmd.Args[0]))
 	span.SetBaggageItem("args", fmt.Sprintf("%v", cmd.Args))
 	defer span.Finish()
+	opts := argoexec.CmdOpts{Timeout: timeout}
+	if redactor != nil {
+		opts.Redactor = redactor
+	}
 	return argoexec.RunCommandExt(cmd, opts)
-}
-
-func CmdOpts() argoexec.CmdOpts {
-	return argoexec.CmdOpts{Timeout: timeout}
 }

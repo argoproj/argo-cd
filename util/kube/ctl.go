@@ -24,8 +24,8 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/diff"
+	executil "github.com/argoproj/argo-cd/util/exec"
 )
 
 type Kubectl interface {
@@ -315,7 +315,7 @@ func (k *KubectlCmd) runKubectl(ctx context.Context, kubeconfigPath string, name
 		log.Debug(string(redactedBytes))
 	}
 	cmd.Stdin = bytes.NewReader(manifestBytes)
-	out, err := config.RunCommandExt(ctx, cmd, config.CmdOpts())
+	out, err := executil.Run(ctx, cmd)
 	if err != nil {
 		return "", convertKubectlError(err)
 	}
@@ -324,7 +324,7 @@ func (k *KubectlCmd) runKubectl(ctx context.Context, kubeconfigPath string, name
 
 func Version(ctx context.Context) (string, error) {
 	cmd := exec.Command("kubectl", "version", "--client")
-	out, err := config.RunCommandExt(ctx, cmd, config.CmdOpts())
+	out, err := executil.Run(ctx, cmd)
 	if err != nil {
 		return "", fmt.Errorf("could not get kubectl version: %s", err)
 	}
@@ -372,7 +372,7 @@ func (k *KubectlCmd) ConvertToVersion(ctx context.Context, obj *unstructured.Uns
 	outputVersion := fmt.Sprintf("%s/%s", group, version)
 	cmd := exec.Command("kubectl", "convert", "--output-version", outputVersion, "-o", "json", "--local=true", "-f", f.Name())
 	cmd.Stdin = bytes.NewReader(manifestBytes)
-	out, err := config.RunCommandExt(ctx, cmd, config.CmdOpts())
+	out, err := executil.Run(ctx, cmd)
 	if err != nil {
 		return nil, convertKubectlError(err)
 	}

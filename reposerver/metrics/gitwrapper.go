@@ -50,8 +50,8 @@ func (w *gitClientWrapper) Root() string {
 	return w.client.Root()
 }
 
-func (w *gitClientWrapper) Init() error {
-	return w.client.Init()
+func (w *gitClientWrapper) Init(ctx context.Context) error {
+	return w.client.Init(ctx)
 }
 
 func (w *gitClientWrapper) RevisionMetadata(ctx context.Context, revision string) (*git.RevisionMetadata, error) {

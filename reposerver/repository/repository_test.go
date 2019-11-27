@@ -38,7 +38,7 @@ func newServiceWithMocks(root string) (*Service, *gitmocks.Client) {
 	if err != nil {
 		panic(err)
 	}
-	gitClient.On("Init").Return(nil)
+	gitClient.On("Init", mock.Anything).Return(nil)
 	gitClient.On("Fetch", mock.Anything).Return(nil)
 	gitClient.On("Checkout", mock.Anything).Return(nil)
 	gitClient.On("LsRemote", mock.Anything).Return(mock.Anything, nil)

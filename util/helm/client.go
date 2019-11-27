@@ -22,7 +22,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/config"
+	executil "github.com/argoproj/argo-cd/util/exec"
 )
 
 var (
@@ -151,7 +151,7 @@ func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, versio
 	}
 	cmd := exec.Command("tar", "-zxvf", chartPath)
 	cmd.Dir = tempDir
-	_, err = config.RunCommandExt(ctx, cmd, config.CmdOpts())
+	_, err = executil.Run(ctx, cmd)
 	if err != nil {
 		_ = os.RemoveAll(tempDir)
 		return "", nil, err

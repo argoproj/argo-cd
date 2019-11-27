@@ -244,7 +244,7 @@ func TestLFSClient(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEqual(t, "", commitSHA)
 
-	err = client.Init()
+	err = client.Init(context.TODO())
 	assert.NoError(t, err)
 
 	err = client.Fetch(context.TODO())
@@ -301,7 +301,7 @@ func TestNewFactory(t *testing.T) {
 		commitSHA, err := client.LsRemote("HEAD")
 		assert.NoError(t, err)
 
-		err = client.Init()
+		err = client.Init(context.TODO())
 		assert.NoError(t, err)
 
 		err = client.Fetch(context.TODO())
