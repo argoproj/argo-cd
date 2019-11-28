@@ -50,6 +50,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [UBIO](https://ub.io/)
 1. [Universidad Mesoamericana](https://www.umes.edu.gt/)
 1. [Volvo Cars](https://www.volvocars.com/)
+1. [Saloodo! GmbH](https://www.saloodo.com)
 
 ## Documentation
 
