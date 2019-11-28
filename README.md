@@ -23,6 +23,8 @@ name the file corresponding to the title of your proposal, and place it in the
 
 A good starting point to understand the structure is the [GitOps Engine Design spec](specs/design.md).
 
+We tried to answer frequently asked question in a [separate FAQ document](docs/faq.md).
+
 ## Governance
 
 This project is licensed under the [Apache 2 license](LICENSE).
@@ -49,7 +51,6 @@ If you want to immediately kick the tires, you can try out using builds of eithe
 
 [argo-poc]: https://github.com/argoproj/argo-cd/tree/gitops-engine-poc#what-is-gitops-engine-poc-branch
 [flux-poc]: https://github.com/fluxcd/flux/tree/gitops-engine-poc#what-is-gitops-engine-poc-branch
-
 
 ### Events
 
