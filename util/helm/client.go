@@ -164,7 +164,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (s
 func (c *nativeHelmChart) GetIndex() (*Index, error) {
 	cachedIndex, found := indexCache.Get(c.repoURL)
 	if found {
-		log.WithFields(log.Fields{"url": c.repoURL}).Debug("Index cache hit")
+		log.WithFields(log.Fields{"url": c.repoURL}).Debug("index cache hit")
 		i := cachedIndex.(Index)
 		return &i, nil
 	}
@@ -198,13 +198,13 @@ func (c *nativeHelmChart) GetIndex() (*Index, error) {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
-		return nil, errors.New("failed to get Index: " + resp.Status)
+		return nil, errors.New("failed to get index: " + resp.Status)
 	}
 
 	index := &Index{}
 	err = yaml.NewDecoder(resp.Body).Decode(index)
 
-	log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took to get Index")
+	log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took to get index")
 
 	indexCache.Set(c.repoURL, *index, cache.DefaultExpiration)
 
