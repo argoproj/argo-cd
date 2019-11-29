@@ -42,6 +42,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [Riskified](https://www.riskified.com/)
 1. [Red Hat](https://www.redhat.com/)
 1. [Saildrone](https://www.saildrone.com/)
+1. [Saloodo! GmbH](https://www.saloodo.com)
 1. [Tesla](https://tesla.com/)
 1. [tZERO](https://www.tzero.com/)
 1. [Ticketmaster](https://ticketmaster.com)
