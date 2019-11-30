@@ -987,11 +987,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 		return nil, status.Errorf(codes.FailedPrecondition, "application is deleting")
 	}
 	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil {
-		a.Spec.SyncPolicy.Automated = nil
-		a, err = appIf.Update(a)
-		if err != nil {
-			return nil, err
-		}
+		return nil, status.Errorf(codes.FailedPrecondition, "rollback cannot be initiated when auto-sync is enabled")
 	}
 
 	var deploymentInfo *appv1.RevisionHistory
