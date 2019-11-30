@@ -58,7 +58,7 @@ To learn more about Argo CD [go to the complete documentation](https://argoproj.
 
 ## Community Blogs and Presentations
 
-1. [Tutorial: Everything You Need To Become A GitOps Ninja](Anyone who did not make KubeCon can watch the workshop @alexmt and @alexec did on YouTube: https://www.youtube.com/watch?v=r50tRQjisxw) 90m tutorial on GitOps and Argo CD.
+1. [Tutorial: Everything You Need To Become A GitOps Ninja](https://www.youtube.com/watch?v=r50tRQjisxw) 90m tutorial on GitOps and Argo CD.
 1. [Comparison of Argo CD, Spinnaker, Jenkins X, and Tekton](https://www.inovex.de/blog/spinnaker-vs-argo-cd-vs-tekton-vs-jenkins-x/)
 1. [Simplify and Automate Deployments Using GitOps with IBM Multicloud Manager 3.1.2](https://medium.com/ibm-cloud/simplify-and-automate-deployments-using-gitops-with-ibm-multicloud-manager-3-1-2-4395af317359)
 1. [GitOps for Kubeflow using Argo CD](https://www.kubeflow.org/docs/use-cases/gitops-for-kubeflow/)
