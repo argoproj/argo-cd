@@ -432,7 +432,7 @@ func TestConfigMap(t *testing.T) {
 func TestFailedConversion(t *testing.T) {
 
 	defer func() {
-		FailOnErr(Run("", "kubectl", "delete", "apiservice", "v1beta1.metrics.k8s.io"))
+		_, _ = Run("", "kubectl", "delete", "apiservice", "v1beta1.metrics.k8s.io")
 	}()
 
 	testEdgeCasesApplicationResources(t, "failed-conversion", HealthStatusProgressing)
