@@ -116,7 +116,7 @@ func (s *Service) runRepoOperation(
 	getCached func(revision string) bool,
 	operation func(appPath string, revision string) error,
 	settings operationSettings) error {
-		
+
 	var gitClient git.Client
 	var helmClient helm.Client
 	var err error
