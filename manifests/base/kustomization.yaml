@@ -13,6 +13,3 @@ images:
 - name: argoproj/argocd
   newName: argoproj/argocd
   newTag: latest
-- name: argoproj/argocd-ui
-  newName: argoproj/argocd-ui
-  newTag: latest
