@@ -13,9 +13,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"text/tabwriter"
 	"time"
 
+	nestedlog "github.com/antonfisher/nested-logrus-formatter"
+	"github.com/argoproj/argo/util"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync/hook"
@@ -92,6 +95,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationPatchCommand(clientOpts))
 	command.AddCommand(NewApplicationPatchResourceCommand(clientOpts))
 	command.AddCommand(NewApplicationResourceActionsCommand(clientOpts))
+	command.AddCommand(NewApplicationLogsCommand(clientOpts))
 	return command
 }
 
@@ -2267,5 +2271,106 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 		}
 	}
 
+	return command
+}
+
+// NewApplicationLogsCommand returns a new instance of an `argocd app logs` command
+func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		follow       bool
+		tailLines    int64
+		namespace    string
+		resourceName string
+		nodes        []argoappv1.ResourceNode
+		wg           sync.WaitGroup
+	)
+	var command = &cobra.Command{
+		Use:   "logs APPNAME",
+		Short: "Show logs for a pod in an application",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) == 0 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			logPrinter := log.New()
+			logPrinter.SetFormatter(&nestedlog.Formatter{
+				HideKeys: true,
+			})
+
+			acdClient := argocdclient.NewClientOrDie(clientOpts)
+			conn, appIf := acdClient.NewApplicationClientOrDie()
+			defer util.Close(conn)
+			appName := args[0]
+
+			appResourceTree, err := appIf.ResourceTree(
+				context.Background(),
+				&applicationpkg.ResourcesQuery{
+					ApplicationName: &appName,
+				},
+			)
+
+			errors.CheckError(err)
+
+			for _, node := range appResourceTree.Nodes {
+				// We only care about Pods here
+				if node.Kind == "Pod" {
+					for _, parent := range node.ParentRefs {
+						// We check the _start_ of the ParentRef because replication
+						// controllers are named like `deployment-name-01234deadbeef`
+						// while daemonsets are just `deployment-name`
+						if strings.HasPrefix(parent.Name, resourceName) {
+							log.Debugf("adding %s to log tailer", node.Name)
+							nodes = append(nodes, node)
+						}
+					}
+				}
+			}
+
+			if len(nodes) == 0 {
+				log.Fatalf("Unable to find any pods owned by resources like %s", resourceName)
+			}
+
+			for _, node := range nodes {
+				wg.Add(1)
+				go func(node argoappv1.ResourceNode, wg *sync.WaitGroup) {
+					podLogs, err := appIf.PodLogs(
+						context.Background(),
+						&applicationpkg.ApplicationPodLogsQuery{
+							Name:      &appName,
+							PodName:   &node.Name,
+							Namespace: namespace,
+							Follow:    follow,
+							TailLines: tailLines,
+						},
+					)
+					errors.CheckError(err)
+					for {
+						logEntry, err := podLogs.Recv()
+
+						// io.EOF signals that the stream has closed
+						if err == io.EOF {
+							break
+						}
+
+						errors.CheckError(err)
+
+						logPrinter.WithFields(
+							log.Fields{
+								"podName": node.Name,
+							},
+						).Info(logEntry.Content)
+					}
+					wg.Done()
+				}(node, &wg)
+			}
+			wg.Wait()
+		},
+	}
+	command.Flags().BoolVarP(&follow, "follow", "f", false, "Follow log entries. Interrupt to cancel")
+	command.Flags().Int64VarP(&tailLines, "tail-lines", "l", 100, "Number of lines to show")
+	command.Flags().StringVarP(&resourceName, "resource-name", "r", "", "Name of the resource to get logs for")
+	command.MarkFlagRequired("resource-name")
+	command.Flags().StringVarP(&namespace, "namespace", "n", "", "Namespace the pod lives in")
+	command.MarkFlagRequired("namespace")
 	return command
 }
