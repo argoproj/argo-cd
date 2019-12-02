@@ -57,11 +57,9 @@ Update [Github releases](https://github.com/argoproj/argo-cd/releases) with:
 If GA, update Brew formula:
 
 ```bash
-git clone https://github.com/argoproj/homebrew-tap
+git clone git@github.com:argoproj/homebrew-tap.git
 cd homebrew-tap
-git checkout master
-git pull
-./update.sh ~/go/src/github.com/argoproj/argo-cd/dist/argocd-darwin-amd64
+./update.sh argocd $VERSION
 git commit -am "Update argocd to $VERSION"
 git push
 ```
