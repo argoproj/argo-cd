@@ -1033,7 +1033,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 		if err != nil {
 			return "", "", err
 		}
-		if helm.IsVersion(revision) {
+		if helm.IsVersion(ambiguousRevision) {
 			return ambiguousRevision, ambiguousRevision, nil
 		}
 		client := helm.NewClient(repo.Repo, repo.GetHelmCreds())

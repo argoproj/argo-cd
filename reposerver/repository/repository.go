@@ -795,9 +795,6 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 	if err != nil {
 		return nil, "", err
 	}
-	if git.IsCommitSHA(revision) {
-		return gitClient, revision, nil
-	}
 	commitSHA, err := gitClient.LsRemote(revision)
 	if err != nil {
 		return nil, "", err
