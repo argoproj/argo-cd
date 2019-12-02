@@ -142,7 +142,10 @@ jobs:
       - restore_vendor
       - run: dep ensure
       - configure_git
-      - run: make e2e-cli
+      - run:
+          command: |
+            make e2e-cli
+            echo "export PATH=$(pwd)/dist:\$PATH"| tee -a $BASH_ENV
       - run:
           name: Create namespace
           command: |
@@ -181,7 +184,7 @@ jobs:
           command: go run ./cmd/argocd-application-controller/main.go --loglevel debug --redis localhost:6379 --repo-server localhost:8081 --kubeconfig ~/.kube/config
           background: true
       - run:
-          command: PATH=dist:$PATH make test-e2e
+          command: make test-e2e
           environment:
             ARGOCD_OPTS: "--server localhost:8080 --plaintext"
             ARGOCD_E2E_EXPECT_TIMEOUT: "30"
