@@ -116,12 +116,11 @@ func (s *Service) runRepoOperation(
 	getCached func(revision string) bool,
 	operation func(appPath string, revision string) error,
 	settings operationSettings) error {
-
-	revision = util.FirstNonEmpty(revision, source.TargetRevision)
-
+		
 	var gitClient git.Client
 	var helmClient helm.Client
 	var err error
+	revision = util.FirstNonEmpty(revision, source.TargetRevision)
 	if source.IsHelm() {
 		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart)
 		if err != nil {
