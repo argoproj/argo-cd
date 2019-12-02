@@ -25,8 +25,8 @@ if [ "$IMAGE_TAG" = "" ]; then
   IMAGE_TAG=latest
 fi
 
-cd ${SRCROOT}/manifests/base && kustomize edit set image argoproj/argocd=${IMAGE_NAMESPACE}/argocd:${IMAGE_TAG} argoproj/argocd-ui=${IMAGE_NAMESPACE}/argocd-ui:${IMAGE_TAG}
-cd ${SRCROOT}/manifests/ha/base && kustomize edit set image argoproj/argocd=${IMAGE_NAMESPACE}/argocd:${IMAGE_TAG} argoproj/argocd-ui=${IMAGE_NAMESPACE}/argocd-ui:${IMAGE_TAG}
+cd ${SRCROOT}/manifests/base && kustomize edit set image argoproj/argocd=${IMAGE_NAMESPACE}/argocd:${IMAGE_TAG}
+cd ${SRCROOT}/manifests/ha/base && kustomize edit set image argoproj/argocd=${IMAGE_NAMESPACE}/argocd:${IMAGE_TAG}
 
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/install.yaml"
 kustomize build "${SRCROOT}/manifests/cluster-install" >> "${SRCROOT}/manifests/install.yaml"

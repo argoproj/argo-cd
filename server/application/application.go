@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -38,6 +39,7 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/rbac"
@@ -944,14 +946,9 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 			return nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.Revision, a.Spec.Source.TargetRevision)
 		}
 	}
-
-	revision := a.Spec.Source.TargetRevision
-	displayRevision := revision
-	if !a.Spec.Source.IsHelm() {
-		revision, displayRevision, err = s.resolveRevision(ctx, a, syncReq)
-		if err != nil {
-			return nil, status.Errorf(codes.FailedPrecondition, err.Error())
-		}
+	revision, displayRevision, err := s.resolveRevision(ctx, a, syncReq)
+	if err != nil {
+		return nil, status.Errorf(codes.FailedPrecondition, err.Error())
 	}
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
@@ -1030,24 +1027,49 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	if ambiguousRevision == "" {
 		ambiguousRevision = app.Spec.Source.TargetRevision
 	}
-	if git.IsCommitSHA(ambiguousRevision) {
-		// If it's already a commit SHA, then no need to look it up
-		return ambiguousRevision, ambiguousRevision, nil
+	var revision string
+	if app.Spec.Source.IsHelm() {
+		repo, err := s.db.GetRepository(ctx, app.Spec.Source.RepoURL)
+		if err != nil {
+			return "", "", err
+		}
+		client := helm.NewClient(repo.Repo, repo.GetHelmCreds())
+		index, err := client.GetIndex()
+		if err != nil {
+			return "", "", err
+		}
+		entries, err := index.GetEntries(app.Spec.Source.Chart)
+		if err != nil {
+			return "", "", err
+		}
+		constraints, err := semver.NewConstraint(ambiguousRevision)
+		if err != nil {
+			return "", "", err
+		}
+		version, err := entries.MaxVersion(constraints)
+		if err != nil {
+			return "", "", err
+		}
+		return version.String(), fmt.Sprintf("%v (%v)", ambiguousRevision, version.String()), nil
+	} else {
+		if git.IsCommitSHA(ambiguousRevision) {
+			// If it's already a commit SHA, then no need to look it up
+			return ambiguousRevision, ambiguousRevision, nil
+		}
+		repo, err := s.db.GetRepository(ctx, app.Spec.Source.RepoURL)
+		if err != nil {
+			return "", "", err
+		}
+		gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled())
+		if err != nil {
+			return "", "", err
+		}
+		revision, err = gitClient.LsRemote(ambiguousRevision)
+		if err != nil {
+			return "", "", err
+		}
+		return revision, fmt.Sprintf("%s (%s)", ambiguousRevision, revision), nil
 	}
-	repo, err := s.db.GetRepository(ctx, app.Spec.Source.RepoURL)
-	if err != nil {
-		return "", "", err
-	}
-	gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled())
-	if err != nil {
-		return "", "", err
-	}
-	commitSHA, err := gitClient.LsRemote(ambiguousRevision)
-	if err != nil {
-		return "", "", err
-	}
-	displayRevision := fmt.Sprintf("%s (%s)", ambiguousRevision, commitSHA)
-	return commitSHA, displayRevision, nil
 }
 
 func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.OperationTerminateRequest) (*application.OperationTerminateResponse, error) {

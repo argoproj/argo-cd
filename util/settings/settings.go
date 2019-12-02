@@ -66,9 +66,9 @@ type ArgoCDSettings struct {
 	// Secrets holds all secrets in argocd-secret as a map[string]string
 	Secrets map[string]string `json:"secrets,omitempty"`
 	// KustomizeBuildOptions is a string of kustomize build parameters
-	KustomizeBuildOptions string
+	KustomizeBuildOptions string `json:"kustomizeBuildOptions,omitempty"`
 	// Indicates if anonymous user is enabled or not
-	AnonymousUserEnabled bool
+	AnonymousUserEnabled bool `json:"anonymousUserEnabled,omitempty"`
 }
 
 type GoogleAnalytics struct {
@@ -199,8 +199,8 @@ const (
 	resourceInclusionsKey = "resource.inclusions"
 	// configManagementPluginsKey is the key to the list of config management plugins
 	configManagementPluginsKey = "configManagementPlugins"
-	// kustomizeBuildOptions is a string of kustomize build parameters
-	kustomizeBuildOptions = "kustomize.buildOptions"
+	// kustomizeBuildOptionsKey is a string of kustomize build parameters
+	kustomizeBuildOptionsKey = "kustomize.buildOptions"
 	// anonymousUserEnabledKey is the key which enables or disables anonymous user
 	anonymousUserEnabledKey = "users.anonymous.enabled"
 )
@@ -341,7 +341,10 @@ func (mgr *SettingsManager) GetKustomizeBuildOptions() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return argoCDCM.Data[kustomizeBuildOptions], nil
+	if value, ok := argoCDCM.Data[kustomizeBuildOptionsKey]; ok {
+		return value, nil
+	}
+	return "", nil
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
@@ -490,8 +493,9 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 		options.LabelSelector = cmLabelSelector.String()
 	}
 
-	cmInformer := v1.NewFilteredConfigMapInformer(mgr.clientset, mgr.namespace, 3*time.Minute, cache.Indexers{}, tweakConfigMap)
-	secretsInformer := v1.NewSecretInformer(mgr.clientset, mgr.namespace, 3*time.Minute, cache.Indexers{})
+	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
+	cmInformer := v1.NewFilteredConfigMapInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers, tweakConfigMap)
+	secretsInformer := v1.NewSecretInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers)
 
 	log.Info("Starting configmap/secret informers")
 	go func() {
@@ -563,6 +567,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
 	settings.URL = argoCDCM.Data[settingURLKey]
+	settings.KustomizeBuildOptions = argoCDCM.Data[kustomizeBuildOptionsKey]
 	settings.StatusBadgeEnabled = argoCDCM.Data[statusBadgeEnabledKey] == "true"
 	settings.AnonymousUserEnabled = argoCDCM.Data[anonymousUserEnabledKey] == "true"
 }
