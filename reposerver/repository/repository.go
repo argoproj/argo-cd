@@ -12,7 +12,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Masterminds/semver"
 	"github.com/TomOnTime/utfutil"
 	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/ghodss/yaml"
@@ -718,7 +717,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 		return metadata, nil
 	} else {
 		if err != cache.ErrCacheMiss {
-			log.Warnf("revision metadata cache error %s/%s: %v", q.Repo.Repo, commitSHA, err)
+			log.Warnf("revision metadata cache error %s/%s: %v", q.Repo.Repo, q.Revision, err)
 		} else {
 			log.Infof("revision metadata cache miss: %s/%s", q.Repo.Repo, q.Revision)
 		}
@@ -769,30 +768,6 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 		return nil, "", err
 	}
 	return gitClient, commitSHA, nil
-}
-
-func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string) (helm.Client, string, error) {
-	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds())
-	if helm.IsVersion(revision) {
-		return helmClient, revision, nil
-	}
-	constraints, err := semver.NewConstraint(revision)
-	if err != nil {
-		return nil, "", fmt.Errorf("invalid revision '%s': %v", revision, err)
-	}
-	index, err := helmClient.GetIndex()
-	if err != nil {
-		return nil, "", err
-	}
-	entries, err := index.GetEntries(chart)
-	if err != nil {
-		return nil, "", err
-	}
-	version, err := entries.MaxVersion(constraints)
-	if err != nil {
-		return nil, "", err
-	}
-	return helmClient, version.String(), nil
 }
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision

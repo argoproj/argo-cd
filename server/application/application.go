@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Masterminds/semver"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -39,7 +38,6 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/rbac"
@@ -1039,52 +1037,29 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	if ambiguousRevision == "" {
 		ambiguousRevision = app.Spec.Source.TargetRevision
 	}
-	var revision string
+
 	if app.Spec.Source.IsHelm() {
+		return ambiguousRevision, ambiguousRevision, nil
+	} else {
+		if git.IsCommitSHA(ambiguousRevision) {
+			// If it's already a commit SHA, then no need to look it up
+			return ambiguousRevision, ambiguousRevision, nil
+		}
 		repo, err := s.db.GetRepository(ctx, app.Spec.Source.RepoURL)
 		if err != nil {
 			return "", "", err
 		}
-		if helm.IsVersion(ambiguousRevision) {
-			return ambiguousRevision, ambiguousRevision, nil
-		}
-		client := helm.NewClient(repo.Repo, repo.GetHelmCreds())
-		index, err := client.GetIndex()
+		gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled())
 		if err != nil {
 			return "", "", err
 		}
-		entries, err := index.GetEntries(app.Spec.Source.Chart)
+		commitSHA, err := gitClient.LsRemote(ambiguousRevision)
 		if err != nil {
 			return "", "", err
 		}
-		constraints, err := semver.NewConstraint(ambiguousRevision)
-		if err != nil {
-			return "", "", err
-		}
-		version, err := entries.MaxVersion(constraints)
-		if err != nil {
-			return "", "", err
-		}
-		return version.String(), fmt.Sprintf("%v (%v)", ambiguousRevision, version.String()), nil
-	} else {
-	if git.IsCommitSHA(ambiguousRevision) {
-		// If it's already a commit SHA, then no need to look it up
-		return ambiguousRevision, ambiguousRevision, nil
+		displayRevision := fmt.Sprintf("%s (%s)", ambiguousRevision, commitSHA)
+		return commitSHA, displayRevision, nil
 	}
-	repo, err := s.db.GetRepository(ctx, app.Spec.Source.RepoURL)
-	if err != nil {
-		return "", "", err
-	}
-	gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled())
-	if err != nil {
-		return "", "", err
-	}
-	commitSHA, err := gitClient.LsRemote(ambiguousRevision)
-	if err != nil {
-		return "", "", err
-	}
-	displayRevision := fmt.Sprintf("%s (%s)", ambiguousRevision, commitSHA)
-	return commitSHA, displayRevision, nil
 }
 
 func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.OperationTerminateRequest) (*application.OperationTerminateResponse, error) {
