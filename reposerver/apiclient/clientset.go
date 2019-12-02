@@ -32,20 +32,22 @@ func (c *clientSet) NewRepoServerClient() (util.Closer, RepoServerServiceClient,
 		grpc_retry.WithBackoff(grpc_retry.BackoffLinear(1000 * time.Millisecond)),
 	}
 	unaryInterceptors := []grpc.UnaryClientInterceptor{
-		grpc_opentracing.UnaryClientInterceptor(grpc_opentracing.WithTracer(opentracing.GlobalTracer())),
 		grpc_retry.UnaryClientInterceptor(retryOpts...),
+		grpc_opentracing.UnaryClientInterceptor(grpc_opentracing.WithTracer(opentracing.GlobalTracer())),
 	}
 	if c.timeoutSeconds > 0 {
 		unaryInterceptors = append(unaryInterceptors, argogrpc.WithTimeout(time.Duration(c.timeoutSeconds)*time.Second))
 	}
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})),
-		grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(unaryInterceptors...)),
+		grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)),
 		grpc.WithStreamInterceptor(grpc_middleware.ChainStreamClient(
 			grpc_opentracing.StreamClientInterceptor(grpc_opentracing.WithTracer(opentracing.GlobalTracer())),
 			grpc_retry.StreamClientInterceptor(retryOpts...),
 		)),
+		grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(unaryInterceptors...)),
 	}
+
 	conn, err := grpc.Dial(c.address, opts...)
 	if err != nil {
 		log.Errorf("Unable to connect to repository service with address %s", c.address)
