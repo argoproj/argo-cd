@@ -8,5 +8,5 @@ site/
 # delve debug binaries
 cmd/**/debug
 debug.test
-coverage.out
+/coverage*.out
 test-results

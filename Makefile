@@ -76,6 +76,11 @@ codegen: dev-tools-image
 cli: clean-debug
 	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
 
+.PHONY: e2e-cli
+e2e-cli: clean-debug
+	go build -o dist/argocd ./test/e2e/cmd/argocd
+	go test -coverpkg="github.com/argoproj/argo-cd/cmd/argocd/..." -c -tags e2efixtures -o dist/argocd.test ./test/e2e/cmd/argocd
+
 .PHONY: release-cli
 release-cli: clean-debug image
 	docker create --name tmp-argocd-linux $(IMAGE_PREFIX)argocd:$(IMAGE_TAG)
@@ -177,7 +182,7 @@ test-e2e:
 	./hack/test.sh -timeout 15m ./test/e2e
 
 .PHONY: start-e2e
-start-e2e: cli
+start-e2e: e2e-cli
 	killall goreman || true
 	# check we can connect to Docker to start Redis
 	docker version
@@ -189,7 +194,7 @@ start-e2e: cli
 	ARGOCD_TLS_DATA_PATH=/tmp/argo-e2e/app/config/tls \
 	ARGOCD_E2E_DISABLE_AUTH=false \
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
-		goreman start
+		goreman -set-ports=false start
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes
 .PHONY: clean-debug
@@ -208,7 +213,7 @@ start:
 	kubectl create ns argocd || true
 	kubens argocd
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
-		goreman start
+		goreman --set-ports=false start
 
 .PHONY: pre-commit
 pre-commit: dep-ensure codegen build lint test

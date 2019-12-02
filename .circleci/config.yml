@@ -35,7 +35,7 @@ commands:
   save_go_cache:
     steps:
       - save_cache:
-          key: go-v1-{{ .Branch }}-{{ .Environment.CIRCLE_JOB }}
+          key: go-v2-{{ .Branch }}-{{ .Environment.CIRCLE_JOB }}
           # https://circleci.com/docs/2.0/language-go/
           paths:
             - /home/circleci/.cache/go-build
@@ -44,8 +44,16 @@ commands:
     steps:
       - restore_cache:
           keys:
+            - go-v2-{{ .Branch }}-{{ .Environment.CIRCLE_JOB }}
+            - go-v2-master-{{ .Environment.CIRCLE_JOB }}
             - go-v1-{{ .Branch }}-{{ .Environment.CIRCLE_JOB }}
             - go-v1-master-{{ .Environment.CIRCLE_JOB }}
+  upload_codecov:
+    steps:
+      - run:
+          name: Uploading code coverage
+          command: bash <(curl -s https://codecov.io/bash) -f *.out
+          when: always
 jobs:
   codegen:
     docker:
@@ -96,9 +104,7 @@ jobs:
       - run: make test
       - save_vendor
       - save_go_cache
-      - run:
-          name: Uploading code coverage
-          command: bash <(curl -s https://codecov.io/bash) -f coverage.out
+      - upload_codecov
       - store_test_results:
           path: test-results
       - store_artifacts:
@@ -136,7 +142,7 @@ jobs:
       - restore_vendor
       - run: dep ensure
       - configure_git
-      - run: make cli
+      - run: make e2e-cli
       - run:
           name: Create namespace
           command: |
@@ -182,6 +188,12 @@ jobs:
             ARGOCD_E2E_K3S: "true"
       - save_vendor
       - save_go_cache
+      - run:
+          name: Create a combined coverage file
+          #  ...named such that is first in the directory listing, as that is the only file codecov will process
+          command: cat *.out > coverage.0.out
+          when: always
+      - upload_codecov
       - store_test_results:
           path: test-results
       - store_artifacts:
@@ -202,7 +214,10 @@ jobs:
           key: yarn-packages-v4-{{ checksum "yarn.lock" }}
           paths: [~/.cache/yarn, node_modules]
       - run: yarn test
-      - run: ./node_modules/.bin/codecov -p ..
+      - run:
+          name: Upload code coverage
+          command: ./node_modules/.bin/codecov -p ..
+          when: always
       - run: NODE_ENV='production' yarn build
       - run: yarn lint
 workflows:
