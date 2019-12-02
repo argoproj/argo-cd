@@ -79,7 +79,7 @@ cli: clean-debug
 .PHONY: e2e-cli
 e2e-cli: clean-debug
 	go build -o dist/argocd ./test/e2e/cmd/argocd
-	go test -coverpkg="github.com/argoproj/argo-cd/cmd/argocd/..." -c -tags e2efixtures -o dist/argocd.test ./test/e2e/cmd/argocd
+	go test -coverpkg="github.com/argoproj/argo-cd/cmd/argocd/cmd/argocd/commands" -c -tags e2efixtures -o dist/argocd.test ./test/e2e/cmd/argocd
 
 .PHONY: release-cli
 release-cli: clean-debug image
