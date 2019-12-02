@@ -30,16 +30,22 @@ echo ${VERSION:1} > VERSION
 make dev-tools-image
 make manifests IMAGE_TAG=$VERSION
 git commit -am "Update manifests to $VERSION"
+git tag $VERSION
 ```
 
-Tag, build, and push release to Docker Hub
+Build, and push release to Docker Hub
 
 ```bash
-git tag $VERSION
 git clean -fd
 make release IMAGE_NAMESPACE=argoproj IMAGE_TAG=$VERSION DOCKER_PUSH=true
 git push $REPO $BRANCH
 git push $REPO $VERSION
+```
+
+If GA, update `stable` tag:
+
+```bash
+git tag stable --force && git push $REPO stable --force
 ```
 
 Update [Github releases](https://github.com/argoproj/argo-cd/releases) with:
@@ -47,13 +53,6 @@ Update [Github releases](https://github.com/argoproj/argo-cd/releases) with:
 * Getting started (copy from previous release)
 * Changelog
 * Binaries (e.g. `dist/argocd-darwin-amd64`).
-
-
-If GA, update `stable` tag:
-
-```bash
-git tag stable --force && git push $REPO stable --force
-```
 
 If GA, update Brew formula:
 
