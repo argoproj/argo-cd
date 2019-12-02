@@ -16,7 +16,7 @@ test('ProgressPopup.50%', () => {
     expect(state).toMatchSnapshot();
 });
 
-test('ProgressPopup.0%', () => {
+test('ProgressPopup.100%', () => {
     const state = renderer.create(<ProgressPopup onClose={() => {
     }} percentage={100} title={''}/>);
 

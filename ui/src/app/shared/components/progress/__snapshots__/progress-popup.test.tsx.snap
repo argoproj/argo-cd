@@ -11,11 +11,6 @@ exports[`ProgressPopup.0% 1`] = `
       className="row popup-container__header"
     >
       
-       
-      <i
-        className="argo-icon-close"
-        onClick={[Function]}
-      />
     </div>
     <div
       className="row popup-container__body"
@@ -63,7 +58,65 @@ exports[`ProgressPopup.0% 1`] = `
 </div>
 `;
 
-exports[`ProgressPopup.0% 2`] = `
+exports[`ProgressPopup.50% 1`] = `
+<div
+  className="popup-overlay"
+>
+  <div
+    className="popup-container"
+  >
+    <div
+      className="row popup-container__header"
+    >
+      My Title
+    </div>
+    <div
+      className="row popup-container__body"
+    >
+      <div
+        className="columns large-12"
+      >
+        <div
+          style={
+            Object {
+              "background": "#CCD6DD",
+              "borderRadius": "5px",
+              "height": "10px",
+              "margin": "15px auto",
+              "width": "90%",
+            }
+          }
+        >
+          <div
+            style={
+              Object {
+                "background": "#18BE94",
+                "borderRadius": "inherit",
+                "height": "100%",
+                "transition": "width 0.1s ease-in",
+                "width": "100%",
+              }
+            }
+          />
+        </div>
+      </div>
+    </div>
+    <div
+      className="row popup-container__footer"
+    >
+      <div
+        style={
+          Object {
+            "textAlign": "right",
+          }
+        }
+      />
+    </div>
+  </div>
+</div>
+`;
+
+exports[`ProgressPopup.100% 1`] = `
 <div
   className="popup-overlay"
 >
@@ -74,11 +127,6 @@ exports[`ProgressPopup.0% 2`] = `
       className="row popup-container__header"
     >
       
-       
-      <i
-        className="argo-icon-close"
-        onClick={[Function]}
-      />
     </div>
     <div
       className="row popup-container__body"
@@ -128,69 +176,6 @@ exports[`ProgressPopup.0% 2`] = `
           Close
         </button>
       </div>
-    </div>
-  </div>
-</div>
-`;
-
-exports[`ProgressPopup.50% 1`] = `
-<div
-  className="popup-overlay"
->
-  <div
-    className="popup-container"
-  >
-    <div
-      className="row popup-container__header"
-    >
-      My Title
-       
-      <i
-        className="argo-icon-close"
-        onClick={[Function]}
-      />
-    </div>
-    <div
-      className="row popup-container__body"
-    >
-      <div
-        className="columns large-12"
-      >
-        <div
-          style={
-            Object {
-              "background": "#CCD6DD",
-              "borderRadius": "5px",
-              "height": "10px",
-              "margin": "15px auto",
-              "width": "90%",
-            }
-          }
-        >
-          <div
-            style={
-              Object {
-                "background": "#18BE94",
-                "borderRadius": "inherit",
-                "height": "100%",
-                "transition": "width 0.1s ease-in",
-                "width": "100%",
-              }
-            }
-          />
-        </div>
-      </div>
-    </div>
-    <div
-      className="row popup-container__footer"
-    >
-      <div
-        style={
-          Object {
-            "textAlign": "right",
-          }
-        }
-      />
     </div>
   </div>
 </div>
