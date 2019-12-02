@@ -178,7 +178,6 @@ jobs:
           command: PATH=dist:$PATH make test-e2e
           environment:
             ARGOCD_OPTS: "--server localhost:8080 --plaintext"
-            ARGOCD_E2E_EXPECT_TIMEOUT: "30"
             ARGOCD_E2E_K3S: "true"
       - save_vendor
       - save_go_cache

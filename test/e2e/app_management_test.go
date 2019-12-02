@@ -593,6 +593,18 @@ func TestLocalManifestSync(t *testing.T) {
 		})
 }
 
+func TestLocalSync(t *testing.T) {
+	Given(t).
+		// we've got to use Helm as this uses kubeVersion
+		Path("helm").
+		When().
+		Create().
+		Then().
+		And(func(app *Application) {
+			FailOnErr(RunCli("app", "sync", app.Name, "--local", "testdata/helm"))
+		})
+}
+
 func TestNoLocalSyncWithAutosyncEnabled(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
