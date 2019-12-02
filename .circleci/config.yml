@@ -194,7 +194,9 @@ jobs:
       - run:
           name: Create a combined coverage file
           #  ...named such that is first in the directory listing, as that is the only file codecov will process
-          command: cat *.out > coverage.0.out
+          command: |
+            ls
+            cat *.out > coverage.0.out
           when: always
       - upload_codecov
       - store_test_results:
