@@ -2369,8 +2369,16 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVarP(&follow, "follow", "f", false, "Follow log entries. Interrupt to cancel")
 	command.Flags().Int64VarP(&tailLines, "tail-lines", "l", 100, "Number of lines to show")
 	command.Flags().StringVarP(&resourceName, "resource-name", "r", "", "Name of the resource to get logs for")
-	command.MarkFlagRequired("resource-name")
+	err := command.MarkFlagRequired("resource-name")
+	// MarkFlagRequired weirdly returns an error...
+	// https://github.com/spf13/pflag/blob/master/flag.go#L497
+	if err != nil {
+		log.Fatalf("unable to set flag resource-name: %s", err)
+	}
 	command.Flags().StringVarP(&namespace, "namespace", "n", "", "Namespace the pod lives in")
-	command.MarkFlagRequired("namespace")
+	err = command.MarkFlagRequired("namespace")
+	if err != nil {
+		log.Fatalf("unable to set flag namespace: %s", err)
+	}
 	return command
 }
