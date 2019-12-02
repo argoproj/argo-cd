@@ -305,6 +305,7 @@ func TestAppProject_ValidPolicyRules(t *testing.T) {
 		"p, proj:my-proj:my-role, applications, get, my-proj/*-foo, allow",
 		"p, proj:my-proj:my-role, applications, get, my-proj/foo-*, allow",
 		"p, proj:my-proj:my-role, applications, get, my-proj/*-*, allow",
+		"p, proj:my-proj:my-role, applications, get, my-proj/*.*, allow",
 		"p, proj:my-proj:my-role, applications, *, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, create, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, update, my-proj/foo, allow",

@@ -5,11 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/argoproj/argo-cd/util/security"
 
 	"github.com/Masterminds/semver"
 	"github.com/TomOnTime/utfutil"
@@ -229,14 +232,38 @@ func helmTemplate(appPath string, env *v1alpha1.Env, q *apiclient.ManifestReques
 		Set:         map[string]string{},
 		SetString:   map[string]string{},
 	}
+
+	baseDirectoryPath := security.SubtractRelativeFromAbsolutePath(appPath, q.ApplicationSource.Path)
 	appHelm := q.ApplicationSource.Helm
 	if appHelm != nil {
 		if appHelm.ReleaseName != "" {
 			templateOpts.Name = appHelm.ReleaseName
 		}
-		templateOpts.Values = appHelm.ValueFiles
+
+		for _, val := range appHelm.ValueFiles {
+			// If val is not a URL, run it against the directory enforcer. If it is a URL, use it without checking
+			if _, err := url.ParseRequestURI(val); err != nil {
+				absBaseDir, err := filepath.Abs(baseDirectoryPath)
+				if err != nil {
+					return nil, err
+				}
+				if !filepath.IsAbs(val) {
+					absWorkDir, err := filepath.Abs(appPath)
+					if err != nil {
+						return nil, err
+					}
+					val = filepath.Join(absWorkDir, val)
+				}
+				_, err = security.EnforceToCurrentRoot(absBaseDir, val)
+				if err != nil {
+					return nil, err
+				}
+			}
+			templateOpts.Values = append(templateOpts.Values, val)
+		}
+
 		if appHelm.Values != "" {
-			file, err := ioutil.TempFile(appPath, "values-*.yaml")
+			file, err := ioutil.TempFile("", "values-*.yaml")
 			if err != nil {
 				return nil, err
 			}
@@ -248,6 +275,7 @@ func helmTemplate(appPath string, env *v1alpha1.Env, q *apiclient.ManifestReques
 			}
 			templateOpts.Values = append(templateOpts.Values, p)
 		}
+
 		for _, p := range appHelm.Parameters {
 			if p.ForceString {
 				templateOpts.SetString[p.Name] = p.Value
