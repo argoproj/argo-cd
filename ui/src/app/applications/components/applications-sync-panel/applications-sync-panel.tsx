@@ -1,7 +1,7 @@
 import {ErrorNotification, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
 import {Checkbox, Form, FormApi} from 'react-form';
-import {ProgressPopup} from '../../../shared/components/progress/progress-popup';
+import {ProgressPopup} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
