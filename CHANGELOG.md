@@ -16,6 +16,30 @@ Examples:
     ght relnote v1.3.0-rc5..v1.3.0-rc6
 -->
 
+## v1.3.1 (2019-12-02)
+
+#### Bug Fixes
+
+- #2664 update account password from API resulted 404
+- #2716 Make directory enforcer more lenient and add flag
+- #2724 Can't use `DNS-1123` compliant app name when creating project role
+- #2726 App list does not show chart for Helm app
+- #2741 argocd local sync cannot parse kubernetes version
+- #2754 BeforeHookCreation should be the default hook
+- #2767 Fix bug whereby retry does not work for CLI
+- #2770 Always cache miss for manifests
+
+#### Other
+
+- #1345 argocd-application-controller: can not retrieve list of objects using index : Index with name namespace does not exist
+- Update manifests to v1.3.1
+- lint
+
+#### Contributors
+
+* Alex Collins <!-- num=11 -->
+* Simon Behar <!-- num=1 -->
+
 ## v1.3.0 (2019-11-13)
 
 #### Enhancements
