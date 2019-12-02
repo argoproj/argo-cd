@@ -11,10 +11,10 @@ patchesStrategicMerge:
 images:
 - name: argoproj/argocd
   newName: argoproj/argocd
-  newTag: v1.3.0
+  newTag: v1.3.1
 - name: argoproj/argocd-ui
   newName: argoproj/argocd-ui
-  newTag: v1.3.0
+  newTag: v1.3.1
 resources:
 - ../../base/application-controller
 - ../../base/dex
