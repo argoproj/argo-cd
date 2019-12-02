@@ -452,7 +452,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 
 	res, err := service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:     &argoappv1.Repository{},
-		Revision: "123",
+		Revision: "c0b400fc458875d925171398f9ba9eabd5529923",
 	})
 
 	assert.NoError(t, err)
