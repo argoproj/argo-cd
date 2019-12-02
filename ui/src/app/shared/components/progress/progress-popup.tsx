@@ -2,12 +2,8 @@ import {Popup} from 'argo-ui/src/app/shared/components/popup/popup';
 import * as React from 'react';
 import {ProgressBar} from './progress-bar';
 
-const Title = ({title, onClose}: {title: string; onClose: () => void}) => {
-    return (
-        <React.Fragment>
-            {title} <i className='argo-icon-close' onClick={() => onClose()} />
-        </React.Fragment>
-    );
+const Title = ({title}: {title: string}) => {
+    return <React.Fragment>{title}</React.Fragment>;
 };
 
 const Footer = ({percentage, onClose}: {percentage: number; onClose: () => void}) => {
@@ -24,7 +20,7 @@ const Footer = ({percentage, onClose}: {percentage: number; onClose: () => void}
 
 export const ProgressPopup = ({title, percentage, onClose}: {title: string; percentage: number; onClose: () => void}) => {
     return (
-        <Popup title={<Title title={title} onClose={onClose} />} footer={<Footer percentage={percentage} onClose={onClose} />}>
+        <Popup title={<Title title={title} />} footer={<Footer percentage={percentage} onClose={onClose} />}>
             <ProgressBar percentage={percentage} />
         </Popup>
     );
