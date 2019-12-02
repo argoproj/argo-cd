@@ -24,3 +24,18 @@ func TestEnforceToCurrentRoot(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "/home/argo/helmapp/values.yaml", cleanDir)
 }
+
+func TestSubtractRelativeFromAbsolutePath(t *testing.T) {
+	for _, test := range []string{"env", "/env", "env/", "/env/", "./env"} {
+		subtracted := SubtractRelativeFromAbsolutePath("/argocd-example-apps/helm-guestbook/env/guestbook/env", test)
+		assert.Equal(t, "/argocd-example-apps/helm-guestbook/env/guestbook", subtracted)
+	}
+	for _, test := range []string{"guestbook/env", "/guestbook/env", "guestbook/env/", "/guestbook/env/", "./guestbook/env"} {
+		subtracted := SubtractRelativeFromAbsolutePath("/argocd-example-apps/helm-guestbook/env/guestbook/env", test)
+		assert.Equal(t, "/argocd-example-apps/helm-guestbook/env", subtracted)
+	}
+	for _, test := range []string{"", "/", "./"} {
+		subtracted := SubtractRelativeFromAbsolutePath("/argocd-example-apps/helm-guestbook/env/guestbook/env", test)
+		assert.Equal(t, "/argocd-example-apps/helm-guestbook/env/guestbook/env", subtracted)
+	}
+}

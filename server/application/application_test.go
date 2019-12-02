@@ -317,6 +317,28 @@ func TestSyncAndTerminate(t *testing.T) {
 	assert.Equal(t, appsv1.OperationTerminating, app.Status.OperationState.Phase)
 }
 
+func TestSyncHelm(t *testing.T) {
+	ctx := context.Background()
+	appServer := newTestAppServer()
+	testApp := newTestApp()
+	testApp.Spec.Source.RepoURL = "https://argoproj.github.io/argo-helm"
+	testApp.Spec.Source.Path = ""
+	testApp.Spec.Source.Chart = "argo-cd"
+	testApp.Spec.Source.TargetRevision = "0.7.*"
+
+	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: *testApp})
+	assert.NoError(t, err)
+
+	app, err = appServer.Sync(ctx, &application.ApplicationSyncRequest{Name: &app.Name})
+	assert.NoError(t, err)
+	assert.NotNil(t, app)
+	assert.NotNil(t, app.Operation)
+
+	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(metav1.ListOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, "Unknown user initiated sync to 0.7.* (0.7.2)", events.Items[1].Message)
+}
+
 func TestRollbackApp(t *testing.T) {
 	testApp := newTestApp()
 	testApp.Status.History = []appsv1.RevisionHistory{{

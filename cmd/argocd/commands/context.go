@@ -8,8 +8,6 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/spf13/pflag"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -22,7 +20,7 @@ import (
 func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var delete bool
 	var command = &cobra.Command{
-		Use:     "context",
+		Use:     "context [CONTEXT]",
 		Aliases: []string{"ctx"},
 		Short:   "Switch between contexts",
 		Run: func(c *cobra.Command, args []string) {
@@ -30,22 +28,19 @@ func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 			errors.CheckError(err)
 
-			deletePresentContext := false
-			c.Flags().Visit(func(f *pflag.Flag) {
-				if f.Name == "delete" {
-					deletePresentContext = true
+			if delete {
+				if len(args) == 0 {
+					c.HelpFunc()(c, args)
+					os.Exit(1)
 				}
-			})
+				err := deleteContext(args[0], clientOpts.ConfigPath)
+				errors.CheckError(err)
+				return
+			}
 
 			if len(args) == 0 {
-				if deletePresentContext {
-					err := deleteContext(localCfg.CurrentContext, clientOpts.ConfigPath)
-					errors.CheckError(err)
-					return
-				} else {
-					printArgoCDContexts(clientOpts.ConfigPath)
-					return
-				}
+				printArgoCDContexts(clientOpts.ConfigPath)
+				return
 			}
 
 			ctxName := args[0]
@@ -100,7 +95,7 @@ func deleteContext(context, configPath string) error {
 		errors.CheckError(err)
 	} else {
 		if localCfg.CurrentContext == context {
-			localCfg.CurrentContext = localCfg.Contexts[0].Name
+			localCfg.CurrentContext = ""
 		}
 		err = localconfig.ValidateLocalConfig(*localCfg)
 		if err != nil {
