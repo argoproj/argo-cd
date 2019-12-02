@@ -150,8 +150,6 @@ func (s *Service) runRepoOperation(
 	}
 
 	if source.IsHelm() {
-		s.repoLock.Lock(source.Chart)
-		defer s.repoLock.Unlock(source.Chart)
 		version, err := semver.NewVersion(revision)
 		if err != nil {
 			return err
@@ -171,7 +169,10 @@ func (s *Service) runRepoOperation(
 	} else {
 		s.repoLock.Lock(gitClient.Root())
 		defer s.repoLock.Unlock(gitClient.Root())
-
+		// double-check locking
+		if !settings.noCache && getCached(revision) {
+			return nil
+		}
 		revision, err = checkoutRevision(gitClient, revision)
 		if err != nil {
 			return err
