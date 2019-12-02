@@ -10,16 +10,16 @@ Export the upstream repository and branch name, e.g.:
 
 ```bash
 REPO=upstream ;# or origin 
-BRANCH=release-1.0
+BRANCH=release-1.3
 ```
 
 Set the `VERSION` environment variable:
 
 ```bash 
 # release candidate
-VERSION=v1.0.0-rc1
+VERSION=v1.3.0-rc1
 # GA release
-VERSION=v1.0.2
+VERSION=v1.3.1
 ```
 
 Update `VERSION` and manifests with new version:
@@ -27,9 +27,9 @@ Update `VERSION` and manifests with new version:
 ```bash
 git checkout $BRANCH
 echo ${VERSION:1} > VERSION
+make dev-tools-image
 make manifests IMAGE_TAG=$VERSION
 git commit -am "Update manifests to $VERSION"
-git push $REPO $BRANCH
 ```
 
 Tag, build, and push release to Docker Hub
@@ -38,6 +38,7 @@ Tag, build, and push release to Docker Hub
 git tag $VERSION
 git clean -fd
 make release IMAGE_NAMESPACE=argoproj IMAGE_TAG=$VERSION DOCKER_PUSH=true
+git push $REPO $BRANCH
 git push $REPO $VERSION
 ```
 
