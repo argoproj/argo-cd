@@ -20,5 +20,8 @@ func DeletePolicies(obj *unstructured.Unstructured) []v1alpha1.HookDeletePolicy 
 	for _, p := range helmhook.DeletePolicies(obj) {
 		policies = append(policies, p.DeletePolicy())
 	}
+	if len(policies) == 0 {
+		policies = append(policies, v1alpha1.HookDeletePolicyBeforeHookCreation)
+	}
 	return policies
 }
