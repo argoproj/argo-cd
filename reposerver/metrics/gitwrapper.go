@@ -21,8 +21,8 @@ func (w *gitClientWrapper) Fetch(ctx context.Context) error {
 	return w.client.Fetch(ctx)
 }
 
-func (w *gitClientWrapper) LsRemote(revision string) (string, error) {
-	sha, err := w.client.LsRemote(revision)
+func (w *gitClientWrapper) LsRemote(ctx context.Context, revision string) (string, error) {
+	sha, err := w.client.LsRemote(ctx, revision)
 	if sha != revision {
 		// This is true only if specified revision is a tag, branch or HEAD and client had to use 'ls-remote'
 		w.metricsServer.IncGitRequest(w.repo, GitRequestTypeLsRemote)

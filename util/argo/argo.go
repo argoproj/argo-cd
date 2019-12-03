@@ -123,20 +123,20 @@ func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, na
 	return nil, fmt.Errorf("application refresh deadline exceeded")
 }
 
-func TestRepoWithKnownType(repo *argoappv1.Repository, isHelm bool) error {
+func TestRepoWithKnownType(ctx context.Context, repo *argoappv1.Repository, isHelm bool) error {
 	repo = repo.DeepCopy()
 	if isHelm {
 		repo.Type = "helm"
 	} else {
 		repo.Type = "git"
 	}
-	return TestRepo(repo)
+	return TestRepo(ctx, repo)
 }
 
-func TestRepo(repo *argoappv1.Repository) error {
+func TestRepo(ctx context.Context, repo *argoappv1.Repository) error {
 	checks := map[string]func() error{
 		"git": func() error {
-			return git.TestRepo(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled())
+			return git.TestRepo(ctx, repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled())
 		},
 		"helm": func() error {
 			_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds()).GetIndex()
@@ -185,7 +185,7 @@ func ValidateRepo(
 	}
 
 	repoAccessible := false
-	err = TestRepoWithKnownType(repo, app.Spec.Source.IsHelm())
+	err = TestRepoWithKnownType(ctx, repo, app.Spec.Source.IsHelm())
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,

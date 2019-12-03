@@ -66,7 +66,7 @@ func (s *Server) getConnectionState(ctx context.Context, url string, forceRefres
 	var err error
 	repo, err := s.db.GetRepository(ctx, url)
 	if err == nil {
-		err = argo.TestRepo(repo)
+		err = argo.TestRepo(ctx, repo)
 	}
 	if err != nil {
 		connectionState.Status = appsv1.ConnectionStatusFailed
@@ -223,7 +223,7 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 			}
 			repo.CopyCredentialsFrom(creds)
 		}
-		err = argo.TestRepo(repo)
+		err = argo.TestRepo(ctx, repo)
 		if err != nil {
 			return nil, err
 		}
@@ -324,7 +324,7 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 			repo.CopyCredentialsFrom(repoCreds)
 		}
 	}
-	err = argo.TestRepo(repo)
+	err = argo.TestRepo(ctx, repo)
 	if err != nil {
 		return nil, err
 	}

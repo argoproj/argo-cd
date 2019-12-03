@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
@@ -43,7 +44,7 @@ type Client interface {
 	Init(ctx context.Context) error
 	Fetch(ctx context.Context) error
 	Checkout(ctx context.Context, revision string) error
-	LsRemote(revision string) (string, error)
+	LsRemote(ctx context.Context, revision string) (string, error)
 	LsFiles(ctx context.Context, path string) ([]string, error)
 	LsLargeFiles(ctx context.Context) ([]string, error)
 	CommitSHA(ctx context.Context) (string, error)
@@ -321,7 +322,9 @@ func (m *nativeGitClient) Checkout(ctx context.Context, revision string) error {
 // Otherwise, it returns an error indicating that the revision could not be resolved. This method
 // runs with in-memory storage and is safe to run concurrently, or to be run without a git
 // repository locally cloned.
-func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
+func (m *nativeGitClient) LsRemote(ctx context.Context, revision string) (res string, err error) {
+	span, _ := opentracing.StartSpanFromContext(ctx, "LsRemote")
+	defer span.Finish()
 	for attempt := 0; attempt < maxAttemptsCount; attempt++ {
 		if res, err = m.lsRemote(revision); err == nil {
 			return

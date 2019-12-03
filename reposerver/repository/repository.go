@@ -796,12 +796,13 @@ func (s *Service) newClient(repo *v1alpha1.Repository) (git.Client, error) {
 // and resolving a revision to a commit SHA
 func (s *Service) newClientResolveRevision(ctx context.Context, repo *v1alpha1.Repository, revision string) (git.Client, string, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "newClientResolveRevision")
+	span.SetBaggageItem("revision", revision)
 	defer span.Finish()
 	gitClient, err := s.newClient(repo)
 	if err != nil {
 		return nil, "", err
 	}
-	commitSHA, err := gitClient.LsRemote(revision)
+	commitSHA, err := gitClient.LsRemote(ctx, revision)
 	if err != nil {
 		return nil, "", err
 	}
