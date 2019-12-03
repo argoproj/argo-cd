@@ -117,11 +117,10 @@ func (s *Service) runRepoOperation(
 	operation func(appPath string, revision string) error,
 	settings operationSettings) error {
 
-	revision = util.FirstNonEmpty(revision, source.TargetRevision)
-
 	var gitClient git.Client
 	var helmClient helm.Client
 	var err error
+	revision = util.FirstNonEmpty(revision, source.TargetRevision)
 	if source.IsHelm() {
 		helmClient, revision, err = s.newHelmClientResolveRevision(ctx, repo, revision, source.Chart)
 		if err != nil {
@@ -150,8 +149,6 @@ func (s *Service) runRepoOperation(
 	}
 
 	if source.IsHelm() {
-		s.repoLock.Lock(source.Chart)
-		defer s.repoLock.Unlock(source.Chart)
 		version, err := semver.NewVersion(revision)
 		if err != nil {
 			return err
@@ -803,9 +800,6 @@ func (s *Service) newClientResolveRevision(ctx context.Context, repo *v1alpha1.R
 	gitClient, err := s.newClient(repo)
 	if err != nil {
 		return nil, "", err
-	}
-	if git.IsCommitSHA(revision) {
-		return gitClient, revision, nil
 	}
 	commitSHA, err := gitClient.LsRemote(revision)
 	if err != nil {
