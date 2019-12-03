@@ -46,7 +46,6 @@ import (
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
-	"github.com/argoproj/argo-cd/util/tracer"
 )
 
 // Server provides a Application service

@@ -43,7 +43,6 @@ import (
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/kube"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
-	"github.com/argoproj/argo-cd/util/tracer"
 )
 
 const (
