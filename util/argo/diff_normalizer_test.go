@@ -79,9 +79,9 @@ const testCRDYAML = `
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: certificates.certmanager.k8s.io
+  name: certificates.cert-manager.io
 spec:
-  group: certmanager.k8s.io
+  group: cert-manager.io
   names:
     kind: Certificate
     listKind: CertificateList

@@ -30,12 +30,12 @@ There are two ways to configure a custom health check. The next two sections des
 
 ### Way 1. Define a Custom Health Check in `argocd-cm` ConfigMap
 
-Custom health checks can be defined in `resource.customizations` field of `argocd-cm`. Following example demonstrates a health check for `certmanager.k8s.io/Certificate`.
+Custom health checks can be defined in `resource.customizations` field of `argocd-cm`. Following example demonstrates a health check for `cert-manager.io/Certificate`.
 
 ```yaml
 data:
   resource.customizations: |
-    certmanager.k8s.io/Certificate:
+    cert-manager.io/Certificate:
       health.lua: |
         hs = {}
         if obj.status ~= nil then

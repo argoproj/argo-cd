@@ -6,6 +6,7 @@ import * as React from 'react';
 import * as models from '../../../shared/models';
 
 import {EmptyState} from '../../../shared/components';
+import {Consumer} from '../../../shared/context';
 import {ApplicationURLs} from '../application-urls';
 import {ResourceIcon} from '../resource-icon';
 import {ComparisonStatusIcon, getAppOverridesCount, HealthStatusIcon, isAppNode, NodeId, nodeKey} from '../utils';
@@ -214,9 +215,13 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                     {healthState != null && <HealthStatusIcon state={healthState} />}
                     {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus} resource={!rootNode && node} />}
                     {appNode && !rootNode && (
-                        <a href={'/applications/' + node.name} title='Open application'>
-                            <i className='fa fa-external-link-alt' />
-                        </a>
+                        <Consumer>
+                            {ctx => (
+                                <a href={ctx.baseHref + 'applications/' + node.name} title='Open application'>
+                                    <i className='fa fa-external-link-alt' />
+                                </a>
+                            )}
+                        </Consumer>
                     )}
                     <ApplicationURLs urls={rootNode ? props.app.status.summary.externalURLs : node.networkingInfo && node.networkingInfo.externalURLs} />
                 </div>
