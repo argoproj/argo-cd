@@ -2,6 +2,7 @@ package commands
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -17,7 +18,6 @@ import (
 	"text/tabwriter"
 	"time"
 
-	nestedlog "github.com/antonfisher/nested-logrus-formatter"
 	"github.com/argoproj/argo/util"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -27,6 +27,7 @@ import (
 	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/ghodss/yaml"
+	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -2274,6 +2275,32 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 	return command
 }
 
+// used to format the output of when tailing pod logs
+type podLogFormatter struct{}
+
+// takes a log entry from PodLogs(), and makes it readable
+func (plf *podLogFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	var b *bytes.Buffer
+
+	if entry.Buffer != nil {
+		b = entry.Buffer
+	} else {
+		b = &bytes.Buffer{}
+	}
+
+	b.WriteByte('[')
+	b.WriteString(fmt.Sprintf("%v", entry.Data["podName"]))
+	b.WriteByte(']')
+	b.WriteByte(' ')
+	if entry.Message != "" {
+		b.WriteString(" - ")
+		b.WriteString(entry.Message)
+	}
+	b.WriteByte('\n')
+
+	return b.Bytes(), nil
+}
+
 // NewApplicationLogsCommand returns a new instance of an `argocd app logs` command
 func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -2293,9 +2320,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				os.Exit(1)
 			}
 			logPrinter := log.New()
-			logPrinter.SetFormatter(&nestedlog.Formatter{
-				HideKeys: true,
-			})
+			logPrinter.SetFormatter(&podLogFormatter{})
 
 			acdClient := argocdclient.NewClientOrDie(clientOpts)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
@@ -2315,6 +2340,14 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				// We only care about Pods here
 				if node.Kind == "Pod" {
 					for _, parent := range node.ParentRefs {
+						if parent.Namespace != namespace {
+							log.WithFields(log.Fields{
+								"requestedNamespace": namespace,
+								"actualNamespace":    parent.Namespace,
+								"podName":            node.Name,
+							}).Debugln("ignoring pod, as it is not part of the requested namespace")
+							continue
+						}
 						// We check the _start_ of the ParentRef because replication
 						// controllers are named like `deployment-name-01234deadbeef`
 						// while daemonsets are just `deployment-name`

@@ -156,6 +156,13 @@ func SetLogLevel(logLevel string) {
 	level, err := log.ParseLevel(logLevel)
 	errors.CheckError(err)
 	log.SetLevel(level)
+	if os.Getenv("FORCE_LOG_COLORS") == "1" {
+		log.SetFormatter(
+			&log.TextFormatter{
+				ForceColors: true,
+			},
+		)
+	}
 }
 
 // SetGLogLevel set the glog level for the k8s go-client
