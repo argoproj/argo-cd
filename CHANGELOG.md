@@ -2,6 +2,18 @@
 
 ## v1.3.2 (2019-12-03)
 
+## Quick Start
+### Non-HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.3.2/manifests/install.yaml
+```
+### HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.3.2/manifests/ha/install.yaml
+```
+
 #### Pull Requests
 
 - #2696 Revert "Use Kustomize 3 to generate manifetsts. Closes #2487 (#2510)"
@@ -15,6 +27,18 @@
 See also [milestone v1.3](https://github.com/argoproj/argo-cd/milestone/15?closed=1)
 
 ## v1.3.1 (2019-12-02)
+
+## Quick Start
+### Non-HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.3.1/manifests/install.yaml
+```
+### HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.3.1/manifests/ha/install.yaml
+```
 
 #### Bug Fixes
 
@@ -50,6 +74,18 @@ See also [milestone v1.3](https://github.com/argoproj/argo-cd/milestone/15?close
 See also [milestone v1.3](https://github.com/argoproj/argo-cd/milestone/15?closed=1)
 
 ## v1.3.0 (2019-11-13)
+
+## Quick Start
+### Non-HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.3.0/manifests/install.yaml
+```
+### HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.3.0/manifests/ha/install.yaml
+```
 
 #### New Features
 
@@ -340,11 +376,35 @@ See also [milestone v1.3](https://github.com/argoproj/argo-cd/milestone/15?close
 
 ## v1.2.5 (2019-10-29)
 
+## Quick Start
+### Non-HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.5/manifests/install.yaml
+```
+### HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.5/manifests/ha/install.yaml
+```
+
 ### Changes since v1.2.4
 
 - Issue #2339 - Don't update 'status.reconciledAt' unless compared with latest git version
 
 ## v1.2.4 (2019-10-23)
+
+## Quick Start
+### Non-HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.4/manifests/install.yaml
+```
+### HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.4/manifests/ha/install.yaml
+```
 
 ### Changes since v1.2.3
 
@@ -355,6 +415,18 @@ See also [milestone v1.3](https://github.com/argoproj/argo-cd/milestone/15?close
 
 ## v1.2.3 (2019-10-01)
 
+## Quick Start
+### Non-HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.3/manifests/install.yaml
+```
+### HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.3/manifests/ha/install.yaml
+```
+
 ### Changes since v1.2.2
 * Make argo-cd docker images openshift friendly (#2362) (@duboisf)
 * Add dest-server and dest-namespace field to reconciliation logs (#2354)
@@ -363,6 +435,18 @@ See also [milestone v1.3](https://github.com/argoproj/argo-cd/milestone/15?close
 
 ## v1.2.2 (2019-09-24)
 
+## Quick Start
+### Non-HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.2/manifests/install.yaml
+```
+### HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.2/manifests/ha/install.yaml
+```
+
 ### Changes since v1.2.1
 + Resource action equivalent to `kubectl rollout restart` (#2177)
 
@@ -370,6 +454,18 @@ See also [milestone v1.3](https://github.com/argoproj/argo-cd/milestone/15?close
 - Make sure the controller uses the latest git version if app reconciliation result expired (#2339)
 
 ## v1.2.1 (2019-09-12)
+
+## Quick Start
+### Non-HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.1/manifests/install.yaml
+```
+### HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.1/manifests/ha/install.yaml
+```
 
 ### Changes since v1.2.0
 
@@ -380,6 +476,18 @@ See also [milestone v1.3](https://github.com/argoproj/argo-cd/milestone/15?close
 - Fix nil pointer dereference in application controller (#2290)
 
 ## v1.2.0 (2019-09-04)
+
+## Quick Start
+### Non-HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.0/manifests/install.yaml
+```
+### HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.0/manifests/ha/install.yaml
+```
 
 ### New Features
 
@@ -483,6 +591,18 @@ See also [milestone v1.2](https://github.com/argoproj/argo-cd/issues?q=is%3Aissu
 
 ## v1.1.2 (2019-07-30)
 
+## Quick Start
+### Non-HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.1.2/manifests/install.yaml
+```
+### HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.1.2/manifests/ha/install.yaml
+```
+
 ### Changes since v1.1.1
 
 -  'argocd app wait' should print correct sync status (#2049)
@@ -491,12 +611,36 @@ See also [milestone v1.2](https://github.com/argoproj/argo-cd/issues?q=is%3Aissu
 
 ## v1.1.1 (2019-07-24)
 
+## Quick Start
+### Non-HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.1.1/manifests/install.yaml
+```
+### HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.1.1/manifests/ha/install.yaml
+```
+
 ### Changes since v1.1.0
 
 - Support 'override' action in UI/API (#1984)
 - Fix argocd app wait message (#1982)
 
 ## v1.1.0 (2019-07-24)
+
+## Quick Start
+### Non-HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.1.0/manifests/install.yaml
+```
+### HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.1.0/manifests/ha/install.yaml
+```
 
 ### New Features
 
@@ -585,6 +729,18 @@ See also [milestone v1.1](https://github.com/argoproj/argo-cd/milestone/13)
 
 ## v1.0.2 (2019-06-14)
 
+## Quick Start
+### Non-HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.0.2/manifests/install.yaml
+```
+### HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.0.2/manifests/ha/install.yaml
+```
+
 ### Changes since v1.0.1
 
 * Cluster registration was unintentionally persisting client-cert auth credentials (#1742)
@@ -615,11 +771,35 @@ $ argocd cluster add CONTEXTNAME
 
 ## v1.0.1 (2019-05-28)
 
+## Quick Start
+### Non-HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.0.1/manifests/install.yaml
+```
+### HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.0.1/manifests/ha/install.yaml
+```
+
 ### Changes since v1.0.1
 
 * Public git creds (#1625)
 
 ## v1.0.0 (2019-05-16)
+
+## Quick Start
+### Non-HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.0.0/manifests/install.yaml
+```
+### HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.0.0/manifests/ha/install.yaml
+```
 
 ### New Features
 
@@ -702,11 +882,36 @@ Argo CD introduces Custom Resource Actions to allow users to provide their own L
 
 ## v0.12.3 (2019-04-30)
 
+## Quick Start
+### Non-HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.12.3/manifests/install.yaml
+```
+### HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.12.3/manifests/ha/install.yaml
+```
+
+
 ## Changes since v0.12.2
 
 - Application controller becomes unresponsive (#1476)
 
 ## v0.12.2 (2019-04-22)
+
+## Quick Start
+### Non-HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.12.2/manifests/install.yaml
+```
+### HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.12.2/manifests/ha/install.yaml
+```
 
 ## Changes since v0.12.1
 
@@ -719,6 +924,18 @@ Argo CD introduces Custom Resource Actions to allow users to provide their own L
 - UI is unable to load cluster level resource manifest (#1429)
 
 ## v0.12.1 (2019-04-09)
+
+## Quick Start
+### Non-HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.12.1/manifests/install.yaml
+```
+### HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.12.1/manifests/ha/install.yaml
+```
 
 ## Changes since v0.12.0
 
@@ -739,6 +956,18 @@ Argo CD introduces Custom Resource Actions to allow users to provide their own L
 + Update argocd-util import/export to support proper backup and restore (#1048)
 
 ## v0.12.0 (2019-03-23)
+
+## Quick Start
+### Non-HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.12.0/manifests/install.yaml
+```
+### HA:
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.12.0/manifests/ha/install.yaml
+```
 
 ## New Features
 
@@ -929,6 +1158,12 @@ has a minimum client version of v0.12.0. Older CLI clients will be rejected.
 
 ## v0.11.2 (2019-02-19)
 
+# Quickstart
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.11.2/manifests/install.yaml
+```
+
 # Changes since v0.11.1:
 + Adds client retry. Fixes #959 (#1119)
 - Prevent deletion hotloop (#1115)
@@ -939,6 +1174,12 @@ has a minimum client version of v0.12.0. Older CLI clients will be rejected.
 - [UI] Correctly handle empty response from repository/<repo>/apps API
 
 ## v0.11.1 (2019-01-18)
+
+# Quickstart
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.11.1/manifests/install.yaml
+```
 
 ## Changes since v0.11.0:
 + Allow using redis as a cache in repo-server (#1020)
@@ -955,6 +1196,12 @@ has a minimum client version of v0.12.0. Older CLI clients will be rejected.
 - Fix `app diff --local` command (#1008)
 
 ## v0.11.0 (2019-01-11)
+
+# Quickstart
+```
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.11.0/manifests/install.yaml
+```
 
 This is Argo CD's biggest release ever and introduces a completely redesigned controller architecture.
 
@@ -1355,7 +1602,7 @@ Refresh flag to sync should be optional, not required
 
 ## v0.4.1 (2018-05-18)
 
-Implemented `argocd app wait` command
++ Implemented `argocd app wait` command
 
 ## v0.4.0 (2018-05-17)
 
