@@ -491,7 +491,6 @@ See also [milestone v1.2](https://github.com/argoproj/argo-cd/issues?q=is%3Aissu
 
 ## v1.1.1 (2019-07-24)
 
-
 ### Changes since v1.1.0
 
 - Support 'override' action in UI/API (#1984)
@@ -941,7 +940,6 @@ has a minimum client version of v0.12.0. Older CLI clients will be rejected.
 
 ## v0.11.1 (2019-01-18)
 
-
 ## Changes since v0.11.0:
 + Allow using redis as a cache in repo-server (#1020)
 - Fix controller deadlock when checking for stale cache (#1044)
@@ -1158,13 +1156,11 @@ argocd project allow-cluster-resource default '*' '*'
 - Branch tracking not working properly (issue #567)
 - Controller hot loop when application source has bad manifests (issue #568)
 
-
 ## v0.8.2 (2018-09-12)
 
 ## v0.8.2 (2018-09-12)
 - Downgrade ksonnet from v0.12.0 to v0.11.0 due to quote unescape regression
 - Fix CLI panic when performing an initial `argocd sync/wait`
-
 
 ## v0.8.1 (2018-09-11)
 
@@ -1178,7 +1174,6 @@ argocd project allow-cluster-resource default '*' '*'
 * [UI] Provide a YAML view of resources (issue #396)
 * Fix issue where changes were not pulled when tracking a branch (issue #567)
 * Fix controller hot loop when app source contains bad manifests (issue #568)
-
 
 ## v0.8.0 (2018-09-05)
 
