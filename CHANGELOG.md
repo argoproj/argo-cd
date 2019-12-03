@@ -1,19 +1,6 @@
 # Changelog
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v1.3.2 -->
 ## v1.3.2 (2019-12-03)
-
-## Quick Start
-### Non-HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.3.2/manifests/install.yaml
-```
-### HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.3.2/manifests/ha/install.yaml
-```
 
 #### Pull Requests
 
@@ -27,20 +14,7 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1
 
 See also [milestone v1.3](https://github.com/argoproj/argo-cd/milestone/15?closed=1)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v1.3.1 -->
 ## v1.3.1 (2019-12-02)
-
-## Quick Start
-### Non-HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.3.1/manifests/install.yaml
-```
-### HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.3.1/manifests/ha/install.yaml
-```
 
 #### Bug Fixes
 
@@ -75,20 +49,7 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1
 
 See also [milestone v1.3](https://github.com/argoproj/argo-cd/milestone/15?closed=1)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v1.3.0 -->
 ## v1.3.0 (2019-11-13)
-
-## Quick Start
-### Non-HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.3.0/manifests/install.yaml
-```
-### HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.3.0/manifests/ha/install.yaml
-```
 
 #### New Features
 
@@ -377,39 +338,13 @@ There may be instances when you want to control the times during which an Argo C
 
 See also [milestone v1.3](https://github.com/argoproj/argo-cd/milestone/15?closed=1)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v1.2.5 -->
 ## v1.2.5 (2019-10-29)
-
-## Quick Start
-### Non-HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.5/manifests/install.yaml
-```
-### HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.5/manifests/ha/install.yaml
-```
 
 ### Changes since v1.2.4
 
 - Issue #2339 - Don't update 'status.reconciledAt' unless compared with latest git version
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v1.2.4 -->
 ## v1.2.4 (2019-10-23)
-
-## Quick Start
-### Non-HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.4/manifests/install.yaml
-```
-### HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.4/manifests/ha/install.yaml
-```
 
 ### Changes since v1.2.3
 
@@ -418,20 +353,7 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1
 - Unknown child app should not affect app health (#2544)
 - Redact secrets in dex logs (#2538)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v1.2.3 -->
 ## v1.2.3 (2019-10-01)
-
-## Quick Start
-### Non-HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.3/manifests/install.yaml
-```
-### HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.3/manifests/ha/install.yaml
-```
 
 ### Changes since v1.2.2
 * Make argo-cd docker images openshift friendly (#2362) (@duboisf)
@@ -439,20 +361,7 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1
 
 - Stop loggin /repository.RepositoryService/ValidateAccess parameters (#2386)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v1.2.2 -->
 ## v1.2.2 (2019-09-24)
-
-## Quick Start
-### Non-HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.2/manifests/install.yaml
-```
-### HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.2/manifests/ha/install.yaml
-```
 
 ### Changes since v1.2.1
 + Resource action equivalent to `kubectl rollout restart` (#2177)
@@ -460,20 +369,7 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1
 - Badge response does not contain cache-control header (#2317) (@greenstatic)
 - Make sure the controller uses the latest git version if app reconciliation result expired (#2339)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v1.2.1 -->
 ## v1.2.1 (2019-09-12)
-
-## Quick Start
-### Non-HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.1/manifests/install.yaml
-```
-### HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.1/manifests/ha/install.yaml
-```
 
 ### Changes since v1.2.0
 
@@ -483,20 +379,7 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1
 - Fix degraded proxy support for http(s) git repository (#2243)
 - Fix nil pointer dereference in application controller (#2290)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v1.2.0 -->
 ## v1.2.0 (2019-09-04)
-
-## Quick Start
-### Non-HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.0/manifests/install.yaml
-```
-### HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.0/manifests/ha/install.yaml
-```
 
 ### New Features
 
@@ -598,20 +481,7 @@ Support for Git LFS enabled repositories - now you can store Helm charts as tar 
 
 See also [milestone v1.2](https://github.com/argoproj/argo-cd/issues?q=is%3Aissue+milestone%3Av1.2+is%3Aclosed)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v1.1.2 -->
 ## v1.1.2 (2019-07-30)
-
-## Quick Start
-### Non-HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.1.2/manifests/install.yaml
-```
-### HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.1.2/manifests/ha/install.yaml
-```
 
 ### Changes since v1.1.1
 
@@ -619,40 +489,15 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1
 - Check that TLS is enabled when registering DEX Handlers (#2047)
 - Do not ignore Argo hooks when there is a Helm hook. (#1952)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v1.1.1 -->
 ## v1.1.1 (2019-07-24)
 
-## Quick Start
-### Non-HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.1.1/manifests/install.yaml
-```
-### HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.1.1/manifests/ha/install.yaml
-```
 
 ### Changes since v1.1.0
 
 - Support 'override' action in UI/API (#1984)
 - Fix argocd app wait message (#1982)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v1.1.0 -->
 ## v1.1.0 (2019-07-24)
-
-## Quick Start
-### Non-HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.1.0/manifests/install.yaml
-```
-### HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.1.0/manifests/ha/install.yaml
-```
 
 ### New Features
 
@@ -739,20 +584,7 @@ systems by making it easier to find other components inside and outside Argo CD.
 
 See also [milestone v1.1](https://github.com/argoproj/argo-cd/milestone/13)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v1.0.2 -->
-##  (2019-06-14)
-
-## Quick Start
-### Non-HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.0.2/manifests/install.yaml
-```
-### HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.0.2/manifests/ha/install.yaml
-```
+## v1.0.2 (2019-06-14)
 
 ### Changes since v1.0.1
 
@@ -782,39 +614,13 @@ $ argocd cluster rm CLUSTERURL
 $ argocd cluster add CONTEXTNAME
 ```
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v1.0.1 -->
 ## v1.0.1 (2019-05-28)
-
-## Quick Start
-### Non-HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.0.1/manifests/install.yaml
-```
-### HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.0.1/manifests/ha/install.yaml
-```
 
 ### Changes since v1.0.1
 
 * Public git creds (#1625)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v1.0.0 -->
 ## v1.0.0 (2019-05-16)
-
-## Quick Start
-### Non-HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.0.0/manifests/install.yaml
-```
-### HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1.0.0/manifests/ha/install.yaml
-```
 
 ### New Features
 
@@ -895,40 +701,13 @@ Argo CD introduces Custom Resource Actions to allow users to provide their own L
 - Fix kustomize manifest generation crash is manifest has image without version (#1540)
 - Supply resourceVersion to watch request to prevent reading of stale cache (#1605)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.12.3 -->
 ## v0.12.3 (2019-04-30)
-
-## Quick Start
-### Non-HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.12.3/manifests/install.yaml
-```
-### HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.12.3/manifests/ha/install.yaml
-```
-
 
 ## Changes since v0.12.2
 
 - Application controller becomes unresponsive (#1476)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.12.2 -->
 ## v0.12.2 (2019-04-22)
-
-## Quick Start
-### Non-HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.12.2/manifests/install.yaml
-```
-### HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.12.2/manifests/ha/install.yaml
-```
 
 ## Changes since v0.12.1
 
@@ -940,20 +719,7 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0
 - Argo CD should not delete CRDs(#1425)
 - UI is unable to load cluster level resource manifest (#1429)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.12.1 -->
 ## v0.12.1 (2019-04-09)
-
-## Quick Start
-### Non-HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.12.1/manifests/install.yaml
-```
-### HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.12.1/manifests/ha/install.yaml
-```
 
 ## Changes since v0.12.0
 
@@ -973,20 +739,7 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0
 + Allow using any name for secrets which store cluster credentials (#1218)
 + Update argocd-util import/export to support proper backup and restore (#1048)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.12.0 -->
 ## v0.12.0 (2019-03-23)
-
-## Quick Start
-### Non-HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.12.0/manifests/install.yaml
-```
-### HA:
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.12.0/manifests/ha/install.yaml
-```
 
 ## New Features
 
@@ -1175,14 +928,7 @@ has a minimum client version of v0.12.0. Older CLI clients will be rejected.
 - Fix issue where CLI would panic after timeout when cli did not have get permissions (#1209)
 - invalidate repo cache on delete (#1182) (@narg95)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.11.2 -->
 ## v0.11.2 (2019-02-19)
-
-# Quickstart
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.11.2/manifests/install.yaml
-```
 
 # Changes since v0.11.1:
 + Adds client retry. Fixes #959 (#1119)
@@ -1193,14 +939,8 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0
 - Relax ingress/service health check to accept non-empty ingress list (#1053)
 - [UI] Correctly handle empty response from repository/<repo>/apps API
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.11.1 -->
 ## v0.11.1 (2019-01-18)
 
-# Quickstart
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.11.1/manifests/install.yaml
-```
 
 ## Changes since v0.11.0:
 + Allow using redis as a cache in repo-server (#1020)
@@ -1216,14 +956,7 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0
 - Handle k8s resources circular dependency (#1016)
 - Fix `app diff --local` command (#1008)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.11.0 -->
 ## v0.11.0 (2019-01-11)
-
-# Quickstart
-```
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.11.0/manifests/install.yaml
-```
 
 This is Argo CD's biggest release ever and introduces a completely redesigned controller architecture.
 
@@ -1292,12 +1025,10 @@ Helm repositories can be configured at the system level, enabling the deployment
 - Out of sync reported if Secrets with stringData are used (#763)
 - Unable to delete application in K8s v1.12 (#718)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.10.6 -->
 ## v0.10.6 (2018-11-15)
 
 - Fix issue preventing in-cluster app sync due to go-client changes (issue #774)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.10.5 -->
 ## v0.10.5 (2018-11-14)
 
 + Increase concurrency of application controller
@@ -1307,33 +1038,28 @@ Helm repositories can be configured at the system level, enabling the deployment
 - [UI] Allow 'syncApplication' action to reference target revision rather then hard-coding to 'HEAD'
 - [UI] Issue #768 - Fix application wizard crash
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.10.4 -->
 ## v0.10.4 (2018-11-08)
 
 * Upgrade to Helm v0.11.0 (@amarrella)
 - Health check is not discerning apiVersion when assessing CRDs (issue #753)
 - Fix nil pointer dereference in util/health (@mduarte)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.10.3 -->
 ## v0.10.3 (2018-10-29)
 
 - Fix applying TLS version settings
 * Update to kustomize 1.0.10
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.10.2 -->
 ## v0.10.2 (2018-10-25)
 
 - Fix app refresh err when k8s patch is too slow
 
 * Update to kustomize 1.0.9
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.10.1 -->
 ## v0.10.1 (2018-10-24)
 
 - Handle case where OIDC settings become invalid after dex server restart (issue #710)
 - git clean also needs to clean files under gitignore (issue #711)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.10.0 -->
 ## v0.10.0 (2018-10-19)
 
 ### Changes since v0.9:
@@ -1368,7 +1094,6 @@ Helm repositories can be configured at the system level, enabling the deployment
 - Sync always suggest using latest revision instead of target UI bug (issue #669)
 - Temporary ignore service catalog resources (issue #650)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.9.2 -->
 ## v0.9.2 (2018-09-28)
 
 * Update to kustomize 1.0.8
@@ -1378,12 +1103,10 @@ Helm repositories can be configured at the system level, enabling the deployment
 - Temporary ignore service catalog resources (issue #650)
 - Normalize policies by always adding space after comma
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.9.1 -->
 ## v0.9.1 (2018-09-24)
 
 - Repo server unable to execute ls-remote for private repos (issue #639)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.9.0 -->
 ## v0.9.0 (2018-09-24)
 
 ### Notes about upgrading from v0.8
@@ -1435,14 +1158,14 @@ argocd project allow-cluster-resource default '*' '*'
 - Branch tracking not working properly (issue #567)
 - Controller hot loop when application source has bad manifests (issue #568)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.8.2 -->
+
 ## v0.8.2 (2018-09-12)
 
 ## v0.8.2 (2018-09-12)
 - Downgrade ksonnet from v0.12.0 to v0.11.0 due to quote unescape regression
 - Fix CLI panic when performing an initial `argocd sync/wait`
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.8.1 -->
+
 ## v0.8.1 (2018-09-11)
 
 # v0.8.1
@@ -1456,7 +1179,7 @@ argocd project allow-cluster-resource default '*' '*'
 * Fix issue where changes were not pulled when tracking a branch (issue #567)
 * Fix controller hot loop when app source contains bad manifests (issue #568)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.8.0 -->
+
 ## v0.8.0 (2018-09-05)
 
 # Notes about upgrading from v0.7
@@ -1487,13 +1210,11 @@ RBAC policy rules, need to be rewritten to include one extra column with the eff
 - Fix issue where argocd could not sync to a tag (#541)
 - Fix issue where static assets were browser cached between upgrades (issue #489)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.7.2 -->
 ## v0.7.2 (2018-08-21)
 
 Fixed:
 - API discovery becomes best effort when partial resource list is returned (issue #524)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.7.1 -->
 ## v0.7.1 (2018-08-03)
 
 # Changes from v0.7.0
@@ -1516,7 +1237,6 @@ Fixed:
 - AppProjectSpec SourceRepos mislabeled (#490)
 - Failed e2e test was not failing CI workflow
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.7.0 -->
 ## v0.7.0 (2018-07-28)
 
 New Features:
@@ -1537,20 +1257,17 @@ Bug Fixes:
 - Fix memory leak in the cluster resource watch
 - Health check for StatefulSets, DaemonSet, and ReplicaSets were failing due to use of wrong converters
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.6.2 -->
 ## v0.6.2 (2018-07-24)
 
 Bug fixes:
 * Health check for StatefulSets, DaemonSet, and ReplicaSets were failing due to use of wrong converters
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.6.1 -->
 ## v0.6.1 (2018-07-18)
 
 Bug Fixes:
 - Fix regression where deployment health check incorrectly reported Healthy
 - Intercept dex SSO errors and present them in Argo login page
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.6.0 -->
 ## v0.6.0 (2018-07-17)
 
 Features:
@@ -1569,12 +1286,10 @@ Bug Fixes:
 - Fix git authentication implementation when using using SSH key
 - app-name label was inadvertently injected into spec.selector if selector was omitted from v1beta1 specs
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.5.4 -->
 ## v0.5.4 (2018-06-27)
 
 Refresh flag to sync should be optional, not required
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.5.3 -->
 ## v0.5.3 (2018-06-21)
 
 + Support cluster management using the internal k8s API address https://kubernetes.default.svc (#307)
@@ -1584,19 +1299,16 @@ Refresh flag to sync should be optional, not required
 + Add ability to force a refresh of an app during get (resolves #269) (#293)
 + Automatically restart API server upon certificate changes (#292)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.5.2 -->
 ## v0.5.2 (2018-06-14)
 
 + Resource events tab on application details page (#286)
 + Display pod status on application details page (#231)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.5.1 -->
 ## v0.5.1 (2018-06-13)
 
 * API server incorrectly compose application fully qualified name for RBAC check (#283)
 * UI crash while rendering application operation info if operation failed
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.5.0 -->
 ## v0.5.0 (2018-06-12)
 
 + RBAC access control
@@ -1612,23 +1324,19 @@ Refresh flag to sync should be optional, not required
 * Cookie token was not parsed properly when mixed with other site cookies
 * Add ability to show parameters and overrides in CLI (resolves #240)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.4.7 -->
 ## v0.4.7 (2018-06-07)
 
 * Fix `argocd app wait` health checking logic
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.4.6 -->
 ## v0.4.6 (2018-06-06)
 
 - Retry `argocd app wait` connection errors from EOF watch. Show detailed state changes
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.4.5 -->
 ## v0.4.5 (2018-05-31)
 
 + Add `argocd app unset` command to unset parameter overrides
 - Cookie token was not parsed properly when mixed with other site cookies
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.4.4 -->
 ## v0.4.4 (2018-05-30)
 
 + Add ability to show parameters and overrides in CLI (resolves #240)
@@ -1639,25 +1347,21 @@ Refresh flag to sync should be optional, not required
 - Issue #233 - Controller does not persist rollback operation result
 - App sync frequently fails due to concurrent app modification
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.4.3 -->
 ## v0.4.3 (2018-05-21)
 
 - Move local branch deletion as part of git Reset() (resolves #185) (#222)
 - Fix exit code for app wait (#219)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.4.2 -->
 ## v0.4.2 (2018-05-21)
 
 * Remove interactive context name prompt during login which broke login automation
 * Show URL in argocd app get
 * Rename force flag to cascade in argocd app delete
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.4.1 -->
 ## v0.4.1 (2018-05-18)
 
 Implemented `argocd app wait` command
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.4.0 -->
 ## v0.4.0 (2018-05-17)
 
 ## v0.4.0 (2018-05-17)
@@ -1672,7 +1376,6 @@ Implemented `argocd app wait` command
 * Manifests are memoized in repo server
 - Fix connection timeouts to SSH repos
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.3.2 -->
 ## v0.3.2 (2018-05-03)
 
 * Application sync should delete 'unexpected' resources https://github.com/argoproj/argo-cd/issues/139
@@ -1681,7 +1384,6 @@ Implemented `argocd app wait` command
 * Fix: App sync frequently fails due to concurrent app modification https://github.com/argoproj/argo-cd/issues/147
 *  Fix: improve app state comparator: https://github.com/argoproj/argo-cd/issues/136, https://github.com/argoproj/argo-cd/issues/132
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.3.1 -->
 ## v0.3.1 (2018-04-24)
 
 - Add new rollback RPC with numeric identifiers
@@ -1690,7 +1392,6 @@ Implemented `argocd app wait` command
 - Fix: create .argocd directory during `argo login` (issue #123)
 - Fix: Allow overriding server or namespace separately (issue #110)
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.3.0 -->
 ## v0.3.0 (2018-04-23)
 
 * Auth support
@@ -1701,14 +1402,12 @@ Implemented `argocd app wait` command
 * kubectl apply deployment strategy
 * CLI improvements for app management
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.2.0 -->
 ## v0.2.0 (2018-04-03)
 
 - Bug fixes
 - Rollback UI
 - Override parameters
 
-<!-- https://github.com/argoproj/argo-cd/releases/tag/v0.1.0 -->
 ## v0.1.0 (2018-03-13)
 
 - Define app in Github with dev and preprod environment using KSonnet
