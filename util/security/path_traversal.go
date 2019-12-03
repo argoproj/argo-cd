@@ -17,20 +17,27 @@ func EnforceToCurrentRoot(currentRoot, requestedPath string) (string, error) {
 	return requestedDir + string(filepath.Separator) + requestedFile, nil
 }
 
-func SubtractRelativeFromAbsolutePath(abs, rel string) string {
+func SubtractRelativeFromAbsolutePath(abs, rel string) (string, error) {
 	if len(rel) == 0 {
-		return abs
+		return abs, nil
 	}
 	if rel[0] == '.' {
-		rel = rel[1:]
+		return SubtractRelativeFromAbsolutePath(abs, rel[1:])
 	}
 	if rel[0] != '/' {
-		rel = "/" + rel
+		return SubtractRelativeFromAbsolutePath(abs, "/"+rel)
 	}
 	if rel[len(rel)-1] == '/' {
-		rel = rel[:len(rel)-1]
+		return SubtractRelativeFromAbsolutePath(abs, rel[:len(rel)-1])
 	}
-	return abs[:strings.LastIndex(abs, rel)]
+	rel = filepath.Clean(rel)
+	lastIndex := strings.LastIndex(abs, rel)
+	if lastIndex < 0 {
+		// This should be unreachable, because by this point the App Path will have already been validated by Path in
+		// util/app/path/path.go
+		return "", fmt.Errorf("app path is not under repo path (unreachable and most likely a bug)")
+	}
+	return abs[:lastIndex], nil
 }
 
 func isRequestedDirUnderCurrentRoot(currentRoot, requestedDir string) bool {

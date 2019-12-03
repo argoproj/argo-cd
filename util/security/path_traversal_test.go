@@ -27,15 +27,29 @@ func TestEnforceToCurrentRoot(t *testing.T) {
 
 func TestSubtractRelativeFromAbsolutePath(t *testing.T) {
 	for _, test := range []string{"env", "/env", "env/", "/env/", "./env"} {
-		subtracted := SubtractRelativeFromAbsolutePath("/argocd-example-apps/helm-guestbook/env/guestbook/env", test)
+		subtracted, err := SubtractRelativeFromAbsolutePath("/argocd-example-apps/helm-guestbook/env/guestbook/env", test)
+		assert.NoError(t, err)
 		assert.Equal(t, "/argocd-example-apps/helm-guestbook/env/guestbook", subtracted)
 	}
 	for _, test := range []string{"guestbook/env", "/guestbook/env", "guestbook/env/", "/guestbook/env/", "./guestbook/env"} {
-		subtracted := SubtractRelativeFromAbsolutePath("/argocd-example-apps/helm-guestbook/env/guestbook/env", test)
+		subtracted, err := SubtractRelativeFromAbsolutePath("/argocd-example-apps/helm-guestbook/env/guestbook/env", test)
+		assert.NoError(t, err)
 		assert.Equal(t, "/argocd-example-apps/helm-guestbook/env", subtracted)
 	}
-	for _, test := range []string{"", "/", "./"} {
-		subtracted := SubtractRelativeFromAbsolutePath("/argocd-example-apps/helm-guestbook/env/guestbook/env", test)
+	for _, test := range []string{"", ".", "/", "./"} {
+		subtracted, err := SubtractRelativeFromAbsolutePath("/argocd-example-apps/helm-guestbook/env/guestbook/env", test)
+		assert.NoError(t, err)
 		assert.Equal(t, "/argocd-example-apps/helm-guestbook/env/guestbook/env", subtracted)
+	}
+	// "Dirty" strings
+	for _, test := range []string{"guestbook/foo/../env", "/guestbook//env", "../guestbook/env/", "/../guestbook/env/", "./guestbook/env///"} {
+		subtracted, err := SubtractRelativeFromAbsolutePath("/argocd-example-apps/helm-guestbook/env/guestbook/env", test)
+		assert.NoError(t, err)
+		assert.Equal(t, "/argocd-example-apps/helm-guestbook/env", subtracted)
+	}
+	// Invalid strings
+	for _, test := range []string{"/not/in/path", "../not/in/path", "not/in/path"} {
+		_, err := SubtractRelativeFromAbsolutePath("/argocd-example-apps/helm-guestbook/env/guestbook/env", test)
+		assert.Error(t, err)
 	}
 }

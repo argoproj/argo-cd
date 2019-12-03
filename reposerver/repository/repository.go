@@ -233,7 +233,6 @@ func helmTemplate(appPath string, env *v1alpha1.Env, q *apiclient.ManifestReques
 		SetString:   map[string]string{},
 	}
 
-	baseDirectoryPath := security.SubtractRelativeFromAbsolutePath(appPath, q.ApplicationSource.Path)
 	appHelm := q.ApplicationSource.Helm
 	if appHelm != nil {
 		if appHelm.ReleaseName != "" {
@@ -243,6 +242,10 @@ func helmTemplate(appPath string, env *v1alpha1.Env, q *apiclient.ManifestReques
 		for _, val := range appHelm.ValueFiles {
 			// If val is not a URL, run it against the directory enforcer. If it is a URL, use it without checking
 			if _, err := url.ParseRequestURI(val); err != nil {
+				baseDirectoryPath, err := security.SubtractRelativeFromAbsolutePath(appPath, q.ApplicationSource.Path)
+				if err != nil {
+					return nil, err
+				}
 				absBaseDir, err := filepath.Abs(baseDirectoryPath)
 				if err != nil {
 					return nil, err

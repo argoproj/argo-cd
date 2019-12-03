@@ -100,3 +100,31 @@ func TestRotateServiceAccountSecrets(t *testing.T) {
 	_, err = secretsClient.Get(testClaims.SecretName, metav1.GetOptions{})
 	assert.True(t, apierr.IsNotFound(err))
 }
+
+func TestGetServiceAccountBearerToken(t *testing.T) {
+	sa := newServiceAccount()
+	tokenSecret := newServiceAccountSecret()
+	dockercfgSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-manager-dockercfg-d8j66",
+			Namespace: "kube-system",
+		},
+		Type: corev1.SecretTypeDockercfg,
+		// Skipping data, doesn't really matter.
+	}
+	sa.Secrets = []corev1.ObjectReference{
+		{
+			Name:      dockercfgSecret.Name,
+			Namespace: dockercfgSecret.Namespace,
+		},
+		{
+			Name:      tokenSecret.Name,
+			Namespace: tokenSecret.Namespace,
+		},
+	}
+	kubeclientset := fake.NewSimpleClientset(sa, dockercfgSecret, tokenSecret)
+
+	token, err := getServiceAccountBearerToken(kubeclientset, "kube-system")
+	assert.NoError(t, err)
+	assert.Equal(t, testToken, token)
+}
