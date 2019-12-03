@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ghodss/yaml"
+	"github.com/opentracing/opentracing-go"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -235,7 +236,9 @@ func IsCRD(obj *unstructured.Unstructured) bool {
 }
 
 // See: https://github.com/ksonnet/ksonnet/blob/master/utils/client.go
-func ServerResourceForGroupVersionKind(disco discovery.DiscoveryInterface, gvk schema.GroupVersionKind) (*metav1.APIResource, error) {
+func ServerResourceForGroupVersionKind(ctx context.Context, disco discovery.DiscoveryInterface, gvk schema.GroupVersionKind) (*metav1.APIResource, error) {
+	span, _ := opentracing.StartSpanFromContext(ctx, "ServerResourceForGroupVersionKind")
+	defer span.Finish()
 	resources, err := disco.ServerResourcesForGroupVersion(gvk.GroupVersion().String())
 	if err != nil {
 		return nil, err

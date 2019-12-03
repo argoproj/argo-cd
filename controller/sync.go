@@ -475,7 +475,7 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 
 	// check permissions
 	for _, task := range tasks {
-		serverRes, err := kube.ServerResourceForGroupVersionKind(sc.disco, task.groupVersionKind())
+		serverRes, err := kube.ServerResourceForGroupVersionKind(sc.context, sc.disco, task.groupVersionKind())
 		if err != nil {
 			// Special case for custom resources: if CRD is not yet known by the K8s API server,
 			// skip verification during `kubectl apply --dry-run` since we expect the CRD
@@ -641,7 +641,7 @@ func (sc *syncContext) deleteResource(task *syncTask) error {
 }
 
 func (sc *syncContext) getResourceIf(task *syncTask) (dynamic.ResourceInterface, error) {
-	apiResource, err := kube.ServerResourceForGroupVersionKind(sc.disco, task.groupVersionKind())
+	apiResource, err := kube.ServerResourceForGroupVersionKind(sc.context, sc.disco, task.groupVersionKind())
 	if err != nil {
 		return nil, err
 	}

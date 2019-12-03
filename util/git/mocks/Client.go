@@ -123,20 +123,20 @@ func (_m *Client) LsLargeFiles(ctx context.Context) ([]string, error) {
 	return r0, r1
 }
 
-// LsRemote provides a mock function with given fields: revision
-func (_m *Client) LsRemote(revision string) (string, error) {
-	ret := _m.Called(revision)
+// LsRemote provides a mock function with given fields: ctx, revision
+func (_m *Client) LsRemote(ctx context.Context, revision string) (string, error) {
+	ret := _m.Called(ctx, revision)
 
 	var r0 string
-	if rf, ok := ret.Get(0).(func(string) string); ok {
-		r0 = rf(revision)
+	if rf, ok := ret.Get(0).(func(context.Context, string) string); ok {
+		r0 = rf(ctx, revision)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(revision)
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, revision)
 	} else {
 		r1 = ret.Error(1)
 	}

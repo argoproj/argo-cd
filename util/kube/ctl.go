@@ -136,7 +136,7 @@ func (k *KubectlCmd) GetResource(ctx context.Context, config *rest.Config, gvk s
 	if err != nil {
 		return nil, err
 	}
-	apiResource, err := ServerResourceForGroupVersionKind(disco, gvk)
+	apiResource, err := ServerResourceForGroupVersionKind(ctx, disco, gvk)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +159,7 @@ func (k *KubectlCmd) PatchResource(ctx context.Context, config *rest.Config, gvk
 	if err != nil {
 		return nil, err
 	}
-	apiResource, err := ServerResourceForGroupVersionKind(disco, gvk)
+	apiResource, err := ServerResourceForGroupVersionKind(ctx, disco, gvk)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +182,7 @@ func (k *KubectlCmd) DeleteResource(ctx context.Context, config *rest.Config, gv
 	if err != nil {
 		return err
 	}
-	apiResource, err := ServerResourceForGroupVersionKind(disco, gvk)
+	apiResource, err := ServerResourceForGroupVersionKind(ctx,disco, gvk)
 	if err != nil {
 		return err
 	}

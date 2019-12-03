@@ -203,13 +203,13 @@ func TestLsRemote(t *testing.T) {
 		//"4e22a3c",
 	}
 	for _, revision := range xpass {
-		commitSHA, err := clnt.LsRemote(revision)
+		commitSHA, err := clnt.LsRemote(context.TODO(), revision)
 		assert.NoError(t, err)
 		assert.True(t, IsCommitSHA(commitSHA))
 	}
 
 	// We do not resolve truncated git hashes and return the commit as-is if it appears to be a commit
-	commitSHA, err := clnt.LsRemote("4e22a3c")
+	commitSHA, err := clnt.LsRemote(context.TODO(), "4e22a3c")
 	assert.NoError(t, err)
 	assert.False(t, IsCommitSHA(commitSHA))
 	assert.True(t, IsTruncatedCommitSHA(commitSHA))
@@ -219,7 +219,7 @@ func TestLsRemote(t *testing.T) {
 		"4e22a3", // too short (6 characters)
 	}
 	for _, revision := range xfail {
-		_, err := clnt.LsRemote(revision)
+		_, err := clnt.LsRemote(context.TODO(), revision)
 		assert.Error(t, err)
 	}
 }
@@ -240,7 +240,7 @@ func TestLFSClient(t *testing.T) {
 	client, err := NewClientExt("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true)
 	assert.NoError(t, err)
 
-	commitSHA, err := client.LsRemote("HEAD")
+	commitSHA, err := client.LsRemote(context.TODO(), "HEAD")
 	assert.NoError(t, err)
 	assert.NotEqual(t, "", commitSHA)
 
@@ -298,7 +298,7 @@ func TestNewFactory(t *testing.T) {
 
 		client, err := NewClientExt(tt.args.url, dirName, NopCreds{}, tt.args.insecureIgnoreHostKey, false)
 		assert.NoError(t, err)
-		commitSHA, err := client.LsRemote("HEAD")
+		commitSHA, err := client.LsRemote(context.TODO(), "HEAD")
 		assert.NoError(t, err)
 
 		err = client.Init(context.TODO())

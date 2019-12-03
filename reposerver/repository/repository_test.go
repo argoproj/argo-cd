@@ -41,7 +41,7 @@ func newServiceWithMocks(root string) (*Service, *gitmocks.Client) {
 	gitClient.On("Init", mock.Anything).Return(nil)
 	gitClient.On("Fetch", mock.Anything).Return(nil)
 	gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
-	gitClient.On("LsRemote", mock.Anything).Return(mock.Anything, nil)
+	gitClient.On("LsRemote", mock.Anything, mock.Anything).Return(mock.Anything, nil)
 	gitClient.On("CommitSHA", mock.Anything).Return(mock.Anything, nil)
 	gitClient.On("Root").Return(root)
 
@@ -114,7 +114,7 @@ func TestGenerateManifestsUseExactRevision(t *testing.T) {
 	res1, err := service.GenerateManifest(context.Background(), &q)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res1.Manifests))
-	assert.Equal(t, gitClient.Calls[0].Arguments[0], "abc")
+	assert.Equal(t, gitClient.Calls[0].Arguments[1], "abc")
 }
 
 func TestRecurseManifestsInDir(t *testing.T) {
