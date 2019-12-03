@@ -352,20 +352,25 @@ func Version(ctx context.Context) (string, error) {
 // ConvertToVersion converts an unstructured object into the specified group/version
 func (k *KubectlCmd) ConvertToVersion(ctx context.Context, obj *unstructured.Unstructured, group string, version string) (*unstructured.Unstructured, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "ConvertToVersion")
-	span.SetBaggageItem("group", group)
-	span.SetBaggageItem("version", version)
+	from := obj.GroupVersionKind().GroupVersion()
+	to := schema.GroupVersion{Group: group, Version: version}
+	span.SetBaggageItem("from", from.String())
+	span.SetBaggageItem("to", version)
 	defer span.Finish()
-	out, err := k.convertToVersionWithScheme(ctx, obj, group, version)
-	if err != nil {
-		return k.convertToVersionWithKubectl(ctx, obj, group, version)
+	if from.Group == group && from.Version == version {
+		return obj.DeepCopy(), nil
 	}
-	return out, nil
+	out, err := k.convertToVersionWithScheme(ctx, obj, to)
+	if err == nil {
+		return out, nil
+	}
+	return k.convertToVersionWithKubectl(ctx, obj, to)
 }
 
-func (k *KubectlCmd) convertToVersionWithScheme(ctx context.Context, obj *unstructured.Unstructured, group string, version string) (*unstructured.Unstructured, error) {
+func (k *KubectlCmd) convertToVersionWithScheme(ctx context.Context, obj *unstructured.Unstructured, to schema.GroupVersion) (*unstructured.Unstructured, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "convertToVersionWithScheme")
 	defer span.Finish()
-	v, err := scheme.Scheme.ConvertToVersion(obj, schema.GroupVersion{Group: group, Version: version})
+	v, err := scheme.Scheme.ConvertToVersion(obj, to)
 	if err != nil {
 		return nil, err
 	}
@@ -380,7 +385,7 @@ func (k *KubectlCmd) convertToVersionWithScheme(ctx context.Context, obj *unstru
 	}
 	return out, nil
 }
-func (k *KubectlCmd) convertToVersionWithKubectl(ctx context.Context, obj *unstructured.Unstructured, group string, version string) (*unstructured.Unstructured, error) {
+func (k *KubectlCmd) convertToVersionWithKubectl(ctx context.Context, obj *unstructured.Unstructured, to schema.GroupVersion) (*unstructured.Unstructured, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "convertToVersionWithKubectl")
 	defer span.Finish()
 	manifestBytes, err := json.Marshal(obj)
@@ -403,7 +408,7 @@ func (k *KubectlCmd) convertToVersionWithKubectl(ctx context.Context, obj *unstr
 	}
 	defer util.Close(closer)
 
-	outputVersion := fmt.Sprintf("%s/%s", group, version)
+	outputVersion := fmt.Sprintf("%s/%s", to.Group, to.Version)
 	cmd := exec.Command("kubectl", "convert", "--output-version", outputVersion, "-o", "json", "--local=true", "-f", f.Name())
 	cmd.Stdin = bytes.NewReader(manifestBytes)
 	out, err := executil.Run(ctx, cmd)
