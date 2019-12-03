@@ -26,7 +26,6 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1
 
 See also [milestone v1.3](https://github.com/argoproj/argo-cd/milestone/15?closed=1)
 
-
 ## v1.3.1 (2019-12-02)
 
 ## Quick Start
@@ -73,7 +72,6 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1
 * Simon Behar <!-- num=1 -->
 
 See also [milestone v1.3](https://github.com/argoproj/argo-cd/milestone/15?closed=1)
-
 
 ## v1.3.0 (2019-11-13)
 
@@ -376,7 +374,6 @@ There may be instances when you want to control the times during which an Argo C
 
 See also [milestone v1.3](https://github.com/argoproj/argo-cd/milestone/15?closed=1)
 
-
 ## v1.2.5 (2019-10-29)
 
 ## Quick Start
@@ -394,7 +391,6 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1
 ### Changes since v1.2.4
 
 - Issue #2339 - Don't update 'status.reconciledAt' unless compared with latest git version
-
 ## v1.2.4 (2019-10-23)
 
 ## Quick Start
@@ -415,7 +411,6 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1
 - Issue #2339 - Controller should compare with latest git revision if app has changed (#2543)
 - Unknown child app should not affect app health (#2544)
 - Redact secrets in dex logs (#2538)
-
 ## v1.2.3 (2019-10-01)
 
 ## Quick Start
@@ -435,7 +430,6 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1
 * Add dest-server and dest-namespace field to reconciliation logs (#2354)
 
 - Stop loggin /repository.RepositoryService/ValidateAccess parameters (#2386)
-
 ## v1.2.2 (2019-09-24)
 
 ## Quick Start
@@ -455,7 +449,6 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1
 
 - Badge response does not contain cache-control header (#2317) (@greenstatic)
 - Make sure the controller uses the latest git version if app reconciliation result expired (#2339)
-
 ## v1.2.1 (2019-09-12)
 
 ## Quick Start
@@ -477,7 +470,6 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1
 
 - Fix degraded proxy support for http(s) git repository (#2243)
 - Fix nil pointer dereference in application controller (#2290)
-
 ## v1.2.0 (2019-09-04)
 
 ## Quick Start
@@ -591,7 +583,6 @@ Support for Git LFS enabled repositories - now you can store Helm charts as tar 
 * [stgarf](https://github.com/stgarf)
 
 See also [milestone v1.2](https://github.com/argoproj/argo-cd/issues?q=is%3Aissue+milestone%3Av1.2+is%3Aclosed)
-
 ## v1.1.2 (2019-07-30)
 
 ## Quick Start
@@ -611,7 +602,6 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1
 -  'argocd app wait' should print correct sync status (#2049)
 - Check that TLS is enabled when registering DEX Handlers (#2047)
 - Do not ignore Argo hooks when there is a Helm hook. (#1952)
-
 ## v1.1.1 (2019-07-24)
 
 ## Quick Start
@@ -630,7 +620,6 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1
 
 - Support 'override' action in UI/API (#1984)
 - Fix argocd app wait message (#1982)
-
 ## v1.1.0 (2019-07-24)
 
 ## Quick Start
@@ -730,7 +719,6 @@ systems by making it easier to find other components inside and outside Argo CD.
 
 See also [milestone v1.1](https://github.com/argoproj/argo-cd/milestone/13)
 
-
 ##  (2019-06-14)
 
 ## Quick Start
@@ -773,7 +761,6 @@ $ argocd cluster rm CLUSTERURL
 $ argocd cluster add CONTEXTNAME
 ```
 
-
 ## v1.0.1 (2019-05-28)
 
 ## Quick Start
@@ -791,7 +778,6 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v1
 ### Changes since v1.0.1
 
 * Public git creds (#1625)
-
 ## v1.0.0 (2019-05-16)
 
 ## Quick Start
@@ -884,7 +870,6 @@ Argo CD introduces Custom Resource Actions to allow users to provide their own L
 - Controller incorrectly report health state of self managed application (#1557)
 - Fix kustomize manifest generation crash is manifest has image without version (#1540)
 - Supply resourceVersion to watch request to prevent reading of stale cache (#1605)
-
 ## v0.12.3 (2019-04-30)
 
 ## Quick Start
@@ -903,7 +888,6 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0
 ## Changes since v0.12.2
 
 - Application controller becomes unresponsive (#1476)
-
 
 ## v0.12.2 (2019-04-22)
 
@@ -928,7 +912,6 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0
 - Fix null pointer exception in secret normalization function (#1389)
 - Argo CD should not delete CRDs(#1425)
 - UI is unable to load cluster level resource manifest (#1429)
-
 ## v0.12.1 (2019-04-09)
 
 ## Quick Start
@@ -960,7 +943,6 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0
 + Adds support for `kustomize edit set image`. (#1275)
 + Allow using any name for secrets which store cluster credentials (#1218)
 + Update argocd-util import/export to support proper backup and restore (#1048)
-
 
 
 ## v0.12.0 (2019-03-23)
@@ -1163,7 +1145,6 @@ has a minimum client version of v0.12.0. Older CLI clients will be rejected.
 - Deprecated resource kinds from 'extensions' groups are not reconciled correctly (#1232)
 - Fix issue where CLI would panic after timeout when cli did not have get permissions (#1209)
 - invalidate repo cache on delete (#1182) (@narg95)
-
 ## v0.11.2 (2019-02-19)
 
 # Quickstart
@@ -1180,7 +1161,6 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0
 - Fix issue where dex restart could cause login failures (#1114)
 - Relax ingress/service health check to accept non-empty ingress list (#1053)
 - [UI] Correctly handle empty response from repository/<repo>/apps API
-
 ## v0.11.1 (2019-01-18)
 
 # Quickstart
@@ -1202,7 +1182,6 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0
 - Graceful handling of clusters where API resource discovery is partially successful (#1018)
 - Handle k8s resources circular dependency (#1016)
 - Fix `app diff --local` command (#1008)
-
 ## v0.11.0 (2019-01-11)
 
 # Quickstart
@@ -1277,11 +1256,9 @@ Helm repositories can be configured at the system level, enabling the deployment
 - Failed to deploy helm chart with local dependencies and no internet access (#786)
 - Out of sync reported if Secrets with stringData are used (#763)
 - Unable to delete application in K8s v1.12 (#718)
-
 ## v0.10.6 (2018-11-15)
 
 - Fix issue preventing in-cluster app sync due to go-client changes (issue #774)
-
 ## v0.10.5 (2018-11-14)
 
 + Increase concurrency of application controller
@@ -1291,30 +1268,25 @@ Helm repositories can be configured at the system level, enabling the deployment
 - [UI] Allow 'syncApplication' action to reference target revision rather then hard-coding to 'HEAD'
 - [UI] Issue #768 - Fix application wizard crash
 
-
 ## v0.10.4 (2018-11-08)
 
 * Upgrade to Helm v0.11.0 (@amarrella)
 - Health check is not discerning apiVersion when assessing CRDs (issue #753)
 - Fix nil pointer dereference in util/health (@mduarte)
 
-
 ## v0.10.3 (2018-10-29)
 
 - Fix applying TLS version settings
 * Update to kustomize 1.0.10
-
 ## v0.10.2 (2018-10-25)
 
 - Fix app refresh err when k8s patch is too slow
 
 * Update to kustomize 1.0.9
-
 ## v0.10.1 (2018-10-24)
 
 - Handle case where OIDC settings become invalid after dex server restart (issue #710)
 - git clean also needs to clean files under gitignore (issue #711)
-
 ## v0.10.0 (2018-10-19)
 
 ### Changes since v0.9:
@@ -1349,7 +1321,6 @@ Helm repositories can be configured at the system level, enabling the deployment
 - Sync always suggest using latest revision instead of target UI bug (issue #669)
 - Temporary ignore service catalog resources (issue #650)
 
-
 ## v0.9.2 (2018-09-28)
 
 * Update to kustomize 1.0.8
@@ -1359,11 +1330,9 @@ Helm repositories can be configured at the system level, enabling the deployment
 - Temporary ignore service catalog resources (issue #650)
 - Normalize policies by always adding space after comma
 
-
 ## v0.9.1 (2018-09-24)
 
 - Repo server unable to execute ls-remote for private repos (issue #639)
-
 ## v0.9.0 (2018-09-24)
 
 ### Notes about upgrading from v0.8
@@ -1414,13 +1383,11 @@ argocd project allow-cluster-resource default '*' '*'
 - ArgoCD fails to deploy resources list (issue #584)
 - Branch tracking not working properly (issue #567)
 - Controller hot loop when application source has bad manifests (issue #568)
-
 ## v0.8.2 (2018-09-12)
 
 ## v0.8.2 (2018-09-12)
 - Downgrade ksonnet from v0.12.0 to v0.11.0 due to quote unescape regression
 - Fix CLI panic when performing an initial `argocd sync/wait`
-
 
 ## v0.8.1 (2018-09-11)
 
@@ -1434,7 +1401,6 @@ argocd project allow-cluster-resource default '*' '*'
 * [UI] Provide a YAML view of resources (issue #396)
 * Fix issue where changes were not pulled when tracking a branch (issue #567)
 * Fix controller hot loop when app source contains bad manifests (issue #568)
-
 ## v0.8.0 (2018-09-05)
 
 # Notes about upgrading from v0.7
@@ -1465,12 +1431,10 @@ RBAC policy rules, need to be rewritten to include one extra column with the eff
 - Fix issue where argocd could not sync to a tag (#541)
 - Fix issue where static assets were browser cached between upgrades (issue #489)
 
-
 ## v0.7.2 (2018-08-21)
 
 Fixed:
 - API discovery becomes best effort when partial resource list is returned (issue #524)
-
 
 ## v0.7.1 (2018-08-03)
 
@@ -1494,7 +1458,6 @@ Fixed:
 - AppProjectSpec SourceRepos mislabeled (#490)
 - Failed e2e test was not failing CI workflow
 
-
 ## v0.7.0 (2018-07-28)
 
 New Features:
@@ -1514,18 +1477,15 @@ Bug Fixes:
 - Fix undesired fail-fast behavior of health check
 - Fix memory leak in the cluster resource watch
 - Health check for StatefulSets, DaemonSet, and ReplicaSets were failing due to use of wrong converters
-
 ## v0.6.2 (2018-07-24)
 
 Bug fixes:
 * Health check for StatefulSets, DaemonSet, and ReplicaSets were failing due to use of wrong converters
-
 ## v0.6.1 (2018-07-18)
 
 Bug Fixes:
 - Fix regression where deployment health check incorrectly reported Healthy
 - Intercept dex SSO errors and present them in Argo login page
-
 ## v0.6.0 (2018-07-17)
 
 Features:
@@ -1543,11 +1503,9 @@ Refactoring & Improvements
 Bug Fixes:
 - Fix git authentication implementation when using using SSH key
 - app-name label was inadvertently injected into spec.selector if selector was omitted from v1beta1 specs
-
 ## v0.5.4 (2018-06-27)
 
 Refresh flag to sync should be optional, not required
-
 ## v0.5.3 (2018-06-21)
 
 + Support cluster management using the internal k8s API address https://kubernetes.default.svc (#307)
@@ -1557,17 +1515,14 @@ Refresh flag to sync should be optional, not required
 + Add ability to force a refresh of an app during get (resolves #269) (#293)
 + Automatically restart API server upon certificate changes (#292)
 
-
 ## v0.5.2 (2018-06-14)
 
 + Resource events tab on application details page (#286)
 + Display pod status on application details page (#231)
-
 ## v0.5.1 (2018-06-13)
 
 * API server incorrectly compose application fully qualified name for RBAC check (#283)
 * UI crash while rendering application operation info if operation failed
-
 
 ## v0.5.0 (2018-06-12)
 
@@ -1586,20 +1541,16 @@ Refresh flag to sync should be optional, not required
 
 
 
-
 ## v0.4.7 (2018-06-07)
 
 * Fix `argocd app wait` health checking logic
-
 ## v0.4.6 (2018-06-06)
 
 - Retry `argocd app wait` connection errors from EOF watch. Show detailed state changes
-
 ## v0.4.5 (2018-05-31)
 
 + Add `argocd app unset` command to unset parameter overrides
 - Cookie token was not parsed properly when mixed with other site cookies
-
 ## v0.4.4 (2018-05-30)
 
 + Add ability to show parameters and overrides in CLI (resolves #240)
@@ -1610,23 +1561,19 @@ Refresh flag to sync should be optional, not required
 - Issue #233 - Controller does not persist rollback operation result
 - App sync frequently fails due to concurrent app modification 
 
-
 ## v0.4.3 (2018-05-21)
 
 - Move local branch deletion as part of git Reset() (resolves #185) (#222)
 - Fix exit code for app wait (#219)
-
 ## v0.4.2 (2018-05-21)
 
 * Remove interactive context name prompt during login which broke login automation
 * Show URL in argocd app get
 * Rename force flag to cascade in argocd app delete
 
-
 ## v0.4.1 (2018-05-18)
 
 Implemented `argocd app wait` command
-
 ## v0.4.0 (2018-05-17)
 
 ## v0.4.0 (2018-05-17)
@@ -1642,7 +1589,6 @@ Implemented `argocd app wait` command
 - Fix connection timeouts to SSH repos
 
 
-
 ## v0.3.2 (2018-05-03)
 
 * Application sync should delete 'unexpected' resources https://github.com/argoproj/argo-cd/issues/139
@@ -1650,7 +1596,6 @@ Implemented `argocd app wait` command
 * Detect `unexpected` resources 
 * Fix: App sync frequently fails due to concurrent app modification https://github.com/argoproj/argo-cd/issues/147
 *  Fix: improve app state comparator: https://github.com/argoproj/argo-cd/issues/136, https://github.com/argoproj/argo-cd/issues/132
-
 ## v0.3.1 (2018-04-24)
 
 - Add new rollback RPC with numeric identifiers
@@ -1658,7 +1603,6 @@ Implemented `argocd app wait` command
 - Switch to gogo/protobuf for golang code generation
 - Fix: create .argocd directory during `argo login` (issue #123)
 - Fix: Allow overriding server or namespace separately (issue #110)
-
 ## v0.3.0 (2018-04-23)
 
 * Auth support
@@ -1668,13 +1612,11 @@ Implemented `argocd app wait` command
 * ksonnet v0.10.0-alpha.3
 * kubectl apply deployment strategy
 * CLI improvements for app management
-
 ## v0.2.0 (2018-04-03)
 
 - Bug fixes
 - Rollback UI
 - Override parameters
-
 ## v0.1.0 (2018-03-13)
 
 - Define app in Github with dev and preprod environment using KSonnet
@@ -1682,4 +1624,3 @@ Implemented `argocd app wait` command
 -  Deploy a new version of the app in the cluster
 - App sync based on Github app config change - polling only
 - Basic UI: App diff between Git and k8s cluster for all environments Basic GUI
-
