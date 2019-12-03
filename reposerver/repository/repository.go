@@ -171,7 +171,10 @@ func (s *Service) runRepoOperation(
 	} else {
 		s.repoLock.Lock(gitClient.Root())
 		defer s.repoLock.Unlock(gitClient.Root())
-
+		// double-check locking
+		if !settings.noCache && getCached(revision) {
+			return nil
+		}
 		revision, err = checkoutRevision(ctx, gitClient, revision)
 		if err != nil {
 			return err
