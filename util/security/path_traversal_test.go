@@ -34,8 +34,13 @@ func TestSubtractRelativeFromAbsolutePath(t *testing.T) {
 		subtracted := SubtractRelativeFromAbsolutePath("/argocd-example-apps/helm-guestbook/env/guestbook/env", test)
 		assert.Equal(t, "/argocd-example-apps/helm-guestbook/env", subtracted)
 	}
-	for _, test := range []string{"", "/", "./"} {
+	for _, test := range []string{"", ".", "/", "./"} {
 		subtracted := SubtractRelativeFromAbsolutePath("/argocd-example-apps/helm-guestbook/env/guestbook/env", test)
 		assert.Equal(t, "/argocd-example-apps/helm-guestbook/env/guestbook/env", subtracted)
+	}
+	// "Dirty" strings
+	for _, test := range []string{"guestbook/foo/../env", "/guestbook//env", "../guestbook/env/", "/../guestbook/env/", "./guestbook/env///"} {
+		subtracted := SubtractRelativeFromAbsolutePath("/argocd-example-apps/helm-guestbook/env/guestbook/env", test)
+		assert.Equal(t, "/argocd-example-apps/helm-guestbook/env", subtracted)
 	}
 }

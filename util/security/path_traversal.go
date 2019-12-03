@@ -22,14 +22,15 @@ func SubtractRelativeFromAbsolutePath(abs, rel string) string {
 		return abs
 	}
 	if rel[0] == '.' {
-		rel = rel[1:]
+		return SubtractRelativeFromAbsolutePath(abs, rel[1:])
 	}
 	if rel[0] != '/' {
-		rel = "/" + rel
+		return SubtractRelativeFromAbsolutePath(abs, "/"+rel)
 	}
 	if rel[len(rel)-1] == '/' {
-		rel = rel[:len(rel)-1]
+		return SubtractRelativeFromAbsolutePath(abs, rel[:len(rel)-1])
 	}
+	rel = filepath.Clean(rel)
 	return abs[:strings.LastIndex(abs, rel)]
 }
 
