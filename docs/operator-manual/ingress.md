@@ -54,7 +54,7 @@ metadata:
   name: argocd-server-ingress
   namespace: argocd
   annotations:
-    certmanager.k8s.io/cluster-issuer: letsencrypt-prod
+    cert-manager.io/cluster-issuer: letsencrypt-prod
     kubernetes.io/ingress.class: nginx
     kubernetes.io/tls-acme: "true"
     nginx.ingress.kubernetes.io/ssl-passthrough: "true"
