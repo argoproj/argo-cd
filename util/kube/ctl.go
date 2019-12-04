@@ -16,13 +16,14 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/kubernetes/pkg/api/legacyscheme"
 
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/diff"
@@ -353,39 +354,71 @@ func Version(ctx context.Context) (string, error) {
 func (k *KubectlCmd) ConvertToVersion(ctx context.Context, obj *unstructured.Unstructured, group string, version string) (*unstructured.Unstructured, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "ConvertToVersion")
 	from := obj.GroupVersionKind().GroupVersion()
-	to := schema.GroupVersion{Group: group, Version: version}
 	span.SetBaggageItem("from", from.String())
-	span.SetBaggageItem("to", version)
+	span.SetBaggageItem("to", schema.GroupVersion{Group: group, Version: version}.String())
 	defer span.Finish()
 	if from.Group == group && from.Version == version {
 		return obj.DeepCopy(), nil
 	}
-	out, err := k.convertToVersionWithScheme(ctx, obj, to)
+	out, err := k.convertToVersionWithScheme(ctx, obj, group, version)
+	if err != nil {
+		return nil, err
+	}
 	if err == nil {
 		return out, nil
 	}
-	return k.convertToVersionWithKubectl(ctx, obj, to)
+	return k.convertToVersionWithKubectl(ctx, obj, group, version)
 }
 
-func (k *KubectlCmd) convertToVersionWithScheme(ctx context.Context, obj *unstructured.Unstructured, to schema.GroupVersion) (*unstructured.Unstructured, error) {
+func (k *KubectlCmd) convertToVersionWithScheme(ctx context.Context, obj *unstructured.Unstructured, group string, version string) (*unstructured.Unstructured, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "convertToVersionWithScheme")
 	defer span.Finish()
-	v, err := scheme.Scheme.ConvertToVersion(obj, to)
+	s := legacyscheme.Scheme
+	gvks, _, err := s.ObjectKinds(obj)
 	if err != nil {
 		return nil, err
 	}
-	objBytes, err := json.Marshal(v)
+	object, err := s.New(gvks[0])
 	if err != nil {
 		return nil, err
 	}
-	out := &unstructured.Unstructured{}
-	err = json.Unmarshal(objBytes, out)
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, object)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	kinds := []schema.GroupVersionKind{{
+		Group:   group,
+		Version: version,
+
+	}}
+	target, ok := runtime.InternalGroupVersioner.KindForGroupVersionKinds(kinds)
+	if !ok {
+		return nil, fmt.Errorf("wha?")
+	}
+	unmarshalledObj, err := s.ConvertToVersion(object, target.GroupVersion())
+	if err != nil {
+		return nil, err
+	}
+	unstrBody, err := runtime.DefaultUnstructuredConverter.ToUnstructured(unmarshalledObj)
+	if err != nil {
+		return nil, err
+	}
+	convertedObj := &unstructured.Unstructured{Object: unstrBody}
+	setTargetKind(convertedObj, kinds[0])
+	return convertedObj, nil
 }
-func (k *KubectlCmd) convertToVersionWithKubectl(ctx context.Context, obj *unstructured.Unstructured, to schema.GroupVersion) (*unstructured.Unstructured, error) {
+
+func setTargetKind(obj runtime.Object, kind schema.GroupVersionKind) {
+	if kind.Version == runtime.APIVersionInternal {
+		// internal is a special case
+		// TODO: look at removing the need to special case this
+		obj.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{})
+		return
+	}
+	obj.GetObjectKind().SetGroupVersionKind(kind)
+}
+
+func (k *KubectlCmd) convertToVersionWithKubectl(ctx context.Context, obj *unstructured.Unstructured, group string, version string) (*unstructured.Unstructured, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "convertToVersionWithKubectl")
 	defer span.Finish()
 	manifestBytes, err := json.Marshal(obj)
@@ -408,7 +441,7 @@ func (k *KubectlCmd) convertToVersionWithKubectl(ctx context.Context, obj *unstr
 	}
 	defer util.Close(closer)
 
-	outputVersion := fmt.Sprintf("%s/%s", to.Group, to.Version)
+	outputVersion := fmt.Sprintf("%s/%s", group, version)
 	cmd := exec.Command("kubectl", "convert", "--output-version", outputVersion, "-o", "json", "--local=true", "-f", f.Name())
 	cmd.Stdin = bytes.NewReader(manifestBytes)
 	out, err := executil.Run(ctx, cmd)
