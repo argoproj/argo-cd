@@ -15,6 +15,7 @@ import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.prot
 // ClusterQuery is a query for cluster resources
 message ClusterQuery {
 	string server = 1;
+	string name = 2;
 }
 
 message ClusterResponse {}

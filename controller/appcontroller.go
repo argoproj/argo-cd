@@ -993,6 +993,10 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 			})
 		}
 	} else {
+		destCondition := argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db)
+		if destCondition != nil {
+			errorConditions = append(errorConditions, *destCondition)
+		}
 		specConditions, err := argo.ValidatePermissions(context.Background(), &app.Spec, proj, ctrl.db)
 		if err != nil {
 			errorConditions = append(errorConditions, appv1.ApplicationCondition{

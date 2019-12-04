@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	coreerrors "errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -196,9 +197,46 @@ spec:
     server: https://cluster-api.com
 `
 
-func newTestApp(opts ...func(app *appsv1.Application)) *appsv1.Application {
+const fakeAppWithDestName = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: test-app
+  namespace: default
+spec:
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    ksonnet:
+      environment: default
+  destination:
+    namespace: ` + test.FakeDestNamespace + `
+    name: fake-cluster
+`
+
+const fakeAppWithDestMismatch = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: test-app
+  namespace: default
+spec:
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    ksonnet:
+      environment: default
+  destination:
+    namespace: ` + test.FakeDestNamespace + `
+    name: another-fake-cluster
+    server: https://cluster-api.com
+`
+
+func newTestApp(testApp string) *appsv1.Application {
 	var app appsv1.Application
-	err := yaml.Unmarshal([]byte(fakeApp), &app)
+	err := yaml.Unmarshal([]byte(testApp), &app)
 	if err != nil {
 		panic(err)
 	}
@@ -227,7 +265,7 @@ func TestListApps(t *testing.T) {
 }
 
 func TestCreateApp(t *testing.T) {
-	testApp := newTestApp()
+	testApp := newTestApp(fakeApp)
 	appServer := newTestAppServer()
 	testApp.Spec.Project = ""
 	createReq := application.ApplicationCreateRequest{
@@ -240,8 +278,33 @@ func TestCreateApp(t *testing.T) {
 	assert.Equal(t, app.Spec.Project, "default")
 }
 
+func TestCreateAppWithDestName(t *testing.T) {
+	appServer := newTestAppServer()
+	testApp := newTestApp(fakeAppWithDestName)
+	createReq := application.ApplicationCreateRequest{
+		Application: *testApp,
+	}
+	app, err := appServer.Create(context.Background(), &createReq)
+	assert.NoError(t, err)
+	assert.NotNil(t, app)
+	assert.Equal(t, app.Spec.Destination.Server, "https://cluster-api.com")
+}
+
+func TestCreateAppWithDestMismatch(t *testing.T) {
+	appServer := newTestAppServer()
+	testApp := newTestApp(fakeAppWithDestMismatch)
+	createReq := application.ApplicationCreateRequest{
+		Application: *testApp,
+	}
+	app, err := appServer.Create(context.Background(), &createReq)
+	assert.Error(t, err)
+	assert.Nil(t, app)
+	assert.True(t, strings.HasSuffix(err.Error(), "Application references destination cluster another-fake-cluster and server https://cluster-api.com which don't match"))
+
+}
+
 func TestUpdateApp(t *testing.T) {
-	testApp := newTestApp()
+	testApp := newTestApp(fakeApp)
 	appServer := newTestAppServer(testApp)
 	testApp.Spec.Project = ""
 	app, err := appServer.Update(context.Background(), &application.ApplicationUpdateRequest{
@@ -252,7 +315,7 @@ func TestUpdateApp(t *testing.T) {
 }
 
 func TestUpdateAppSpec(t *testing.T) {
-	testApp := newTestApp()
+	testApp := newTestApp(fakeApp)
 	appServer := newTestAppServer(testApp)
 	testApp.Spec.Project = ""
 	spec, err := appServer.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{
@@ -270,7 +333,7 @@ func TestDeleteApp(t *testing.T) {
 	ctx := context.Background()
 	appServer := newTestAppServer()
 	createReq := application.ApplicationCreateRequest{
-		Application: *newTestApp(),
+		Application: *newTestApp(fakeApp),
 	}
 	app, err := appServer.Create(ctx, &createReq)
 	assert.Nil(t, err)
@@ -324,7 +387,7 @@ func TestDeleteApp_InvalidName(t *testing.T) {
 func TestSyncAndTerminate(t *testing.T) {
 	ctx := context.Background()
 	appServer := newTestAppServer()
-	testApp := newTestApp()
+	testApp := newTestApp(fakeApp)
 	testApp.Spec.Source.RepoURL = "https://github.com/argoproj/argo-cd.git"
 	createReq := application.ApplicationCreateRequest{
 		Application: *testApp,
@@ -365,7 +428,7 @@ func TestSyncAndTerminate(t *testing.T) {
 func TestSyncHelm(t *testing.T) {
 	ctx := context.Background()
 	appServer := newTestAppServer()
-	testApp := newTestApp()
+	testApp := newTestApp(fakeApp)
 	testApp.Spec.Source.RepoURL = "https://argoproj.github.io/argo-helm"
 	testApp.Spec.Source.Path = ""
 	testApp.Spec.Source.Chart = "argo-cd"
@@ -385,7 +448,7 @@ func TestSyncHelm(t *testing.T) {
 }
 
 func TestRollbackApp(t *testing.T) {
-	testApp := newTestApp()
+	testApp := newTestApp(fakeApp)
 	testApp.Status.History = []appsv1.RevisionHistory{{
 		ID:       1,
 		Revision: "abc",
@@ -407,7 +470,7 @@ func TestRollbackApp(t *testing.T) {
 }
 
 func TestUpdateAppProject(t *testing.T) {
-	testApp := newTestApp()
+	testApp := newTestApp(fakeApp)
 	ctx := context.Background()
 	// nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
@@ -460,7 +523,7 @@ p, admin, applications, update, my-proj/test-app, allow
 }
 
 func TestAppJsonPatch(t *testing.T) {
-	testApp := newTestApp()
+	testApp := newTestApp(fakeApp)
 	ctx := context.Background()
 	// nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
@@ -481,7 +544,7 @@ func TestAppJsonPatch(t *testing.T) {
 }
 
 func TestAppMergePatch(t *testing.T) {
-	testApp := newTestApp()
+	testApp := newTestApp(fakeApp)
 	ctx := context.Background()
 	// nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
@@ -496,7 +559,7 @@ func TestAppMergePatch(t *testing.T) {
 
 func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 	t.Run("Active", func(t *testing.T) {
-		testApp := newTestApp()
+		testApp := newTestApp(fakeApp)
 		testApp.Spec.Project = "proj-maint"
 		appServer := newTestAppServer(testApp)
 
@@ -505,7 +568,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 		assert.Equal(t, 1, len(active.ActiveWindows))
 	})
 	t.Run("Inactive", func(t *testing.T) {
-		testApp := newTestApp()
+		testApp := newTestApp(fakeApp)
 		testApp.Spec.Project = "default"
 		appServer := newTestAppServer(testApp)
 
@@ -514,7 +577,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 		assert.Equal(t, 0, len(active.ActiveWindows))
 	})
 	t.Run("ProjectDoesNotExist", func(t *testing.T) {
-		testApp := newTestApp()
+		testApp := newTestApp(fakeApp)
 		testApp.Spec.Project = "none"
 		appServer := newTestAppServer(testApp)
 
@@ -525,7 +588,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 }
 
 func TestGetCachedAppState(t *testing.T) {
-	testApp := newTestApp()
+	testApp := newTestApp(fakeApp)
 	testApp.Spec.Project = "none"
 	appServer := newTestAppServer(testApp)
 

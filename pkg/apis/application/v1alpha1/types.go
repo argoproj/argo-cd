@@ -402,6 +402,8 @@ type ApplicationDestination struct {
 	Server string `json:"server,omitempty" protobuf:"bytes,1,opt,name=server"`
 	// Namespace overrides the environment namespace value in the ksonnet app.yaml
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
+	// Name of the destination cluster which can be used instead of server (url) field
+	Name string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
 }
 
 // ApplicationStatus contains information about application sync, health status

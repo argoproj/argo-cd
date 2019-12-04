@@ -15,7 +15,7 @@ import (
 )
 
 func TestPersistRevisionHistory(t *testing.T) {
-	app := newFakeApp()
+	app := newFakeApp(fakeApp)
 	app.Status.OperationState = nil
 	app.Status.History = nil
 
@@ -53,7 +53,7 @@ func TestPersistRevisionHistory(t *testing.T) {
 }
 
 func TestPersistRevisionHistoryRollback(t *testing.T) {
-	app := newFakeApp()
+	app := newFakeApp(fakeApp)
 	app.Status.OperationState = nil
 	app.Status.History = nil
 	defaultProject := &v1alpha1.AppProject{

@@ -688,7 +688,11 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		return err
 	}
 
-	conditions, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl)
+	if cond := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); cond != nil {
+		return status.Errorf(codes.InvalidArgument, "application destination spec is invalid: %s", argo.FormatAppConditions([]appv1.ApplicationCondition{*cond}))
+	}
+
+	conditions, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, &kustomizeOptions, plugins, s.kubectl)
 	if err != nil {
 		return err
 	}

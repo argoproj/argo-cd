@@ -433,6 +433,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationDestination(ref common.Refe
 							Format:      "",
 						},
 					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of the destination cluster which can be used instead of server (url) field",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

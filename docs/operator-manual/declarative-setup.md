@@ -25,7 +25,7 @@ The Application CRD is the Kubernetes resource object representing a deployed ap
 in an environment. It is defined by two key pieces of information:
 
 * `source` reference to the desired state in Git (repository, revision, path, environment)
-* `destination` reference to the target cluster and namespace.
+* `destination` reference to the target cluster and namespace. For the cluster both server and/or name can be used, but behind the hood the server is being calculated when missing and then used for the operations. Also when there is a mismatch between the name and server an error will be thrown.
 
 A minimal Application spec is as follows:
 
@@ -42,6 +42,7 @@ spec:
     targetRevision: HEAD
     path: guestbook
   destination:
+    name: minikube
     server: https://kubernetes.default.svc
     namespace: guestbook
 ```
@@ -73,7 +74,7 @@ The AppProject CRD is the Kubernetes resource object representing a logical grou
 It is defined by the following key pieces of information:
 
 * `sourceRepos` reference to the repositories that applications within the project can pull manifests from.
-* `destinations` reference to clusters and namespaces that applications within the project can deploy into.
+* `destinations` reference to clusters and namespaces that applications within the project can deploy into (don't use the name field, only server is being matched).
 * `roles` list of entities with definitions of their access to resources within the project.
 
 An example spec is as follows:

@@ -1090,6 +1090,11 @@
             "type": "string",
             "name": "server",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "name",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1173,6 +1178,11 @@
             "name": "server",
             "in": "path",
             "required": true
+          },
+          {
+            "type": "string",
+            "name": "name",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3292,6 +3302,10 @@
       "type": "object",
       "title": "ApplicationDestination contains deployment destination information",
       "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name of the destination cluster which can be used instead of server (url) field"
+        },
         "namespace": {
           "type": "string",
           "title": "Namespace overrides the environment namespace value in the ksonnet app.yaml"
