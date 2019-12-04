@@ -22,8 +22,9 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/diff"
+	executil "github.com/argoproj/argo-cd/util/exec"
+	"github.com/argoproj/argo-cd/util/tracing"
 )
 
 type Kubectl interface {
@@ -109,6 +110,8 @@ func isSupportedVerb(apiResource *metav1.APIResource, verb string) bool {
 }
 
 func (k *KubectlCmd) GetAPIResources(config *rest.Config, resourceFilter ResourceFilter) ([]APIResourceInfo, error) {
+	span := tracing.StartSpan("GetAPIResources")
+	defer span.Finish()
 	apiResIfs, err := filterAPIResources(config, resourceFilter, func(apiResource *metav1.APIResource) bool {
 		return isSupportedVerb(apiResource, listVerb) && isSupportedVerb(apiResource, watchVerb)
 	}, "")
@@ -120,6 +123,10 @@ func (k *KubectlCmd) GetAPIResources(config *rest.Config, resourceFilter Resourc
 
 // GetResource returns resource
 func (k *KubectlCmd) GetResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
+	span := tracing.StartSpan("GetResource")
+	span.SetBaggageItem("kind", gvk.Kind)
+	span.SetBaggageItem("name", name)
+	defer span.Finish()
 	dynamicIf, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -139,6 +146,10 @@ func (k *KubectlCmd) GetResource(config *rest.Config, gvk schema.GroupVersionKin
 
 // PatchResource patches resource
 func (k *KubectlCmd) PatchResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error) {
+	span := tracing.StartSpan("PatchResource")
+	span.SetBaggageItem("kind", gvk.Kind)
+	span.SetBaggageItem("name", name)
+	defer span.Finish()
 	dynamicIf, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -158,6 +169,10 @@ func (k *KubectlCmd) PatchResource(config *rest.Config, gvk schema.GroupVersionK
 
 // DeleteResource deletes resource
 func (k *KubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error {
+	span := tracing.StartSpan("DeleteResource")
+	span.SetBaggageItem("kind", gvk.Kind)
+	span.SetBaggageItem("name", name)
+	defer span.Finish()
 	dynamicIf, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return err
@@ -185,6 +200,10 @@ func (k *KubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVersion
 
 // ApplyResource performs an apply of a unstructured resource
 func (k *KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) (string, error) {
+	span := tracing.StartSpan("ApplyResource")
+	span.SetBaggageItem("kind", obj.GetKind())
+	span.SetBaggageItem("name", obj.GetName())
+	defer span.Finish()
 	log.Infof("Applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), config.Host, namespace)
 	f, err := ioutil.TempFile(util.TempDir, "")
 	if err != nil {
@@ -303,7 +322,7 @@ func (k *KubectlCmd) runKubectl(kubeconfigPath string, namespace string, args []
 		log.Debug(string(redactedBytes))
 	}
 	cmd.Stdin = bytes.NewReader(manifestBytes)
-	out, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
+	out, err := executil.Run(cmd)
 	if err != nil {
 		return "", convertKubectlError(err)
 	}
@@ -311,8 +330,10 @@ func (k *KubectlCmd) runKubectl(kubeconfigPath string, namespace string, args []
 }
 
 func Version() (string, error) {
+	span := tracing.StartSpan("Version")
+	defer span.Finish()
 	cmd := exec.Command("kubectl", "version", "--client")
-	out, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
+	out, err := executil.Run(cmd)
 	if err != nil {
 		return "", fmt.Errorf("could not get kubectl version: %s", err)
 	}
@@ -330,8 +351,12 @@ func Version() (string, error) {
 
 // ConvertToVersion converts an unstructured object into the specified group/version
 func (k *KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group string, version string) (*unstructured.Unstructured, error) {
-	gvk := obj.GroupVersionKind()
-	if gvk.Group == group && gvk.Version == version {
+	span := tracing.StartSpan("ConvertToVersion")
+	from := obj.GroupVersionKind().GroupVersion()
+	span.SetBaggageItem("from", from.String())
+	span.SetBaggageItem("to", schema.GroupVersion{Group: group, Version: version}.String())
+	defer span.Finish()
+	if from.Group == group && from.Version == version {
 		return obj.DeepCopy(), nil
 	}
 
@@ -358,7 +383,7 @@ func (k *KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group stri
 	outputVersion := fmt.Sprintf("%s/%s", group, version)
 	cmd := exec.Command("kubectl", "convert", "--output-version", outputVersion, "-o", "json", "--local=true", "-f", f.Name())
 	cmd.Stdin = bytes.NewReader(manifestBytes)
-	out, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
+	out, err := executil.Run(cmd)
 	if err != nil {
 		return nil, convertKubectlError(err)
 	}
@@ -376,6 +401,8 @@ func (k *KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group stri
 }
 
 func (k *KubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
+	span := tracing.StartSpan("GetServerVersion")
+	defer span.Finish()
 	client, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
 		return "", err
