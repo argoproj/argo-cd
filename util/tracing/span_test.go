@@ -34,7 +34,7 @@ func TestStartSpan(t *testing.T) {
 		e := hook.LastEntry()
 		if assert.NotNil(t, e) {
 			assert.Empty(t, e.Message)
-			assert.Equal(t, "my-operation", e.Data["operationName"])
+			assert.Equal(t, "my-operation", e.Data["operation_name"])
 			assert.Equal(t, "my-value", e.Data["my-key"])
 			assert.Contains(t, e.Data, "time_ms")
 		}
