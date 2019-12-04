@@ -11,7 +11,7 @@ import (
 	Poor Mans OpenTracing.
 
 	Standardizes logging of operation duration.
- */
+*/
 
 var enabled = false
 var logger = log.New()
