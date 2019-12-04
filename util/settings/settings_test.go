@@ -51,6 +51,17 @@ func TestSaveRepositories(t *testing.T) {
 	assert.ElementsMatch(t, repos, []Repository{{URL: "http://foo"}})
 }
 
+func TestSaveRepositoresNoConfigMap(t *testing.T) {
+	kubeClient := fake.NewSimpleClientset()
+	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+
+	err := settingsManager.SaveRepositories([]Repository{{URL: "http://foo"}})
+	assert.NoError(t, err)
+	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, cm.Data["repositories"], "- url: http://foo\n")
+}
+
 func TestSaveRepositoryCredentials(t *testing.T) {
 	kubeClient, settingsManager := fixtures(nil)
 	err := settingsManager.SaveRepositoryCredentials([]RepositoryCredentials{{URL: "http://foo"}})
