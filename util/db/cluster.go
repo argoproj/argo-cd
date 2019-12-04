@@ -256,6 +256,9 @@ func clusterToData(c *appv1.Cluster) map[string][]byte {
 	} else {
 		data["name"] = []byte(c.Name)
 	}
+	if len(c.Namespaces) != 0 {
+		data["namespaces"] = []byte(strings.Join(c.Namespaces, ","))
+	}
 	configBytes, err := json.Marshal(c.Config)
 	if err != nil {
 		panic(err)
@@ -271,10 +274,18 @@ func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
 	if err != nil {
 		panic(err)
 	}
+	var namespaces []string
+	for _, ns := range strings.Split(string(s.Data["namespaces"]), ",") {
+		if ns = strings.TrimSpace(ns); ns != "" {
+			namespaces = append(namespaces, ns)
+		}
+	}
+
 	cluster := appv1.Cluster{
-		Server: string(s.Data["server"]),
-		Name:   string(s.Data["name"]),
-		Config: config,
+		Server:     string(s.Data["server"]),
+		Name:       string(s.Data["name"]),
+		Namespaces: namespaces,
+		Config:     config,
 	}
 	return &cluster
 }

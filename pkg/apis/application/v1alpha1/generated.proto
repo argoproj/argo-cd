@@ -307,6 +307,9 @@ message Cluster {
 
   // The server version
   optional string serverVersion = 5;
+
+  // Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list if not empty.
+  repeated string namespaces = 6;
 }
 
 // ClusterConfig is the configuration attributes. This structure is subset of the go-client

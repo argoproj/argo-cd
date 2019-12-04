@@ -46,19 +46,14 @@ type KubectlCmd struct {
 }
 
 type APIResourceInfo struct {
-	GroupKind schema.GroupKind
-	Meta      metav1.APIResource
-	Interface dynamic.ResourceInterface
+	GroupKind            schema.GroupKind
+	Meta                 metav1.APIResource
+	GroupVersionResource schema.GroupVersionResource
 }
 
 type filterFunc func(apiResource *metav1.APIResource) bool
 
-func filterAPIResources(config *rest.Config, resourceFilter ResourceFilter, filter filterFunc, namespace string) ([]APIResourceInfo, error) {
-	dynamicIf, err := dynamic.NewForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-
+func filterAPIResources(config *rest.Config, resourceFilter ResourceFilter, filter filterFunc) ([]APIResourceInfo, error) {
 	disco, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
 		return nil, err
@@ -85,15 +80,14 @@ func filterAPIResources(config *rest.Config, resourceFilter ResourceFilter, filt
 
 			if filter(&apiResource) {
 				resource := ToGroupVersionResource(apiResourcesList.GroupVersion, &apiResource)
-				resourceIf := ToResourceInterface(dynamicIf, &apiResource, resource, namespace)
 				gv, err := schema.ParseGroupVersion(apiResourcesList.GroupVersion)
 				if err != nil {
 					return nil, err
 				}
 				apiResIf := APIResourceInfo{
-					GroupKind: schema.GroupKind{Group: gv.Group, Kind: apiResource.Kind},
-					Meta:      apiResource,
-					Interface: resourceIf,
+					GroupKind:            schema.GroupKind{Group: gv.Group, Kind: apiResource.Kind},
+					Meta:                 apiResource,
+					GroupVersionResource: resource,
 				}
 				apiResIfs = append(apiResIfs, apiResIf)
 			}
@@ -117,7 +111,7 @@ func (k *KubectlCmd) GetAPIResources(config *rest.Config, resourceFilter Resourc
 	defer span.Finish()
 	apiResIfs, err := filterAPIResources(config, resourceFilter, func(apiResource *metav1.APIResource) bool {
 		return isSupportedVerb(apiResource, listVerb) && isSupportedVerb(apiResource, watchVerb)
-	}, "")
+	})
 	if err != nil {
 		return nil, err
 	}
