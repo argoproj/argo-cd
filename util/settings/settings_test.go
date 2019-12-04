@@ -40,11 +40,20 @@ func TestGetRepositories(t *testing.T) {
 
 func TestSaveRepositories(t *testing.T) {
 	kubeClient, settingsManager := fixtures(nil)
-	err := settingsManager.SaveRepositories([]Repository{{URL: "http://foo"}})
-	assert.NoError(t, err)
-	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.Equal(t, cm.Data["repositories"], "- url: http://foo\n")
+	t.Run("Save", func(t *testing.T) {
+		err := settingsManager.SaveRepositories([]Repository{{URL: "http://foo"}})
+		assert.NoError(t, err)
+		cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, cm.Data["repositories"], "- url: http://foo\n")
+	})
+	t.Run("Changed", func(t *testing.T) {
+		err := settingsManager.SaveRepositories([]Repository{{URL: "http://bar"}})
+		assert.NoError(t, err)
+		cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, cm.Data["repositories"], "- url: http://bar\n")
+	})
 }
 
 func TestGetRepositoryCredentials(t *testing.T) {
@@ -69,6 +78,7 @@ func TestGetResourceFilter(t *testing.T) {
 		ResourceInclusions: []FilteredResource{{APIGroups: []string{"group2"}, Kinds: []string{"kind2"}, Clusters: []string{"cluster2"}}},
 	}, filter)
 }
+
 func TestGetConfigManagementPlugins(t *testing.T) {
 	data := map[string]string{
 		"configManagementPlugins": `

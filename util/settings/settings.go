@@ -30,6 +30,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/settings/oidc"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/hash"
 	"github.com/argoproj/argo-cd/util/password"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 )
@@ -205,6 +206,11 @@ const (
 	anonymousUserEnabledKey = "users.anonymous.enabled"
 )
 
+type RepositoriesCache struct {
+	hash         uint32
+	repositories []Repository
+}
+
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
 type SettingsManager struct {
 	ctx        context.Context
@@ -217,6 +223,7 @@ type SettingsManager struct {
 	// mutex protects concurrency sensitive parts of settings manager: access to subscribers list and initialization flag
 	mutex             *sync.Mutex
 	initContextCancel func()
+	repositoriesCache *RepositoriesCache
 }
 
 type incompleteSettingsError struct {
@@ -369,15 +376,26 @@ func (mgr *SettingsManager) GetRepositories() ([]Repository, error) {
 	if err != nil {
 		return nil, err
 	}
-	repositories := make([]Repository, 0)
 	repositoriesStr := argoCDCM.Data[repositoriesKey]
-	if repositoriesStr != "" {
-		err := yaml.Unmarshal([]byte(repositoriesStr), &repositories)
-		if err != nil {
-			return nil, err
+
+	h := hash.FNVa(repositoriesStr)
+
+	if mgr.repositoriesCache == nil || mgr.repositoriesCache.hash != h {
+		mgr.mutex.Lock()
+		defer mgr.mutex.Unlock()
+		repositories := make([]Repository, 0)
+		if repositoriesStr != "" {
+			err := yaml.Unmarshal([]byte(repositoriesStr), &repositories)
+			if err != nil {
+				return nil, err
+			}
 		}
+		mgr.repositoriesCache = &RepositoriesCache{h, repositories}
+		log.Info("get repositories cache miss")
+	} else {
+		log.Info("get repositories cache hit")
 	}
-	return repositories, nil
+	return mgr.repositoriesCache.repositories, nil
 }
 
 func (mgr *SettingsManager) SaveRepositories(repos []Repository) error {
