@@ -129,11 +129,7 @@ func (m *appStateManager) getRepoObjs(ctx context.Context, app *v1alpha1.Applica
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	cluster, err := m.db.GetCluster(ctx, app.Spec.Destination.Server)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	cluster.ServerVersion, err = m.kubectl.GetServerVersion(ctx, cluster.RESTConfig())
+	serverVersion, err := m.liveStateCache.GetServerVersion(ctx, app.Spec.Destination.Server)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -150,7 +146,7 @@ func (m *appStateManager) getRepoObjs(ctx context.Context, app *v1alpha1.Applica
 		KustomizeOptions: &appv1.KustomizeOptions{
 			BuildOptions: buildOptions,
 		},
-		KubeVersion: cluster.ServerVersion,
+		KubeVersion: serverVersion,
 	})
 	if err != nil {
 		return nil, nil, nil, err

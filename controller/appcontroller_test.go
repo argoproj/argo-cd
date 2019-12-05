@@ -109,7 +109,8 @@ func newFakeController(data *fakeData) *ApplicationController {
 	mockStateCache := mockstatecache.LiveStateCache{}
 	ctrl.appStateManager.(*appStateManager).liveStateCache = &mockStateCache
 	ctrl.stateCache = &mockStateCache
-	mockStateCache.On("IsNamespaced", mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
+	mockStateCache.On("IsNamespaced", mock.Anything, mock.Anything).Return(true, nil)
+	mockStateCache.On("GetManagedLiveObjs", mock.Anything, mock.Anything).Return(data.managedLiveObjs, nil)
 	mockStateCache.On("GetManagedLiveObjs", mock.Anything, mock.Anything, mock.Anything).Return(data.managedLiveObjs, nil)
 	response := make(map[kube.ResourceKey]argoappv1.ResourceNode)
 	for k, v := range data.namespacedResources {

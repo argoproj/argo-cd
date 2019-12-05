@@ -66,6 +66,27 @@ func (_m *LiveStateCache) GetNamespaceTopLevelResources(ctx context.Context, ser
 	return r0, r1
 }
 
+// GetServerVersion provides a mock function with given fields: server
+func (_m *LiveStateCache) GetServerVersion(server string) (string, error) {
+	ret := _m.Called(server)
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(string) string); ok {
+		r0 = rf(server)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(server)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // Invalidate provides a mock function with given fields:
 func (_m *LiveStateCache) Invalidate() {
 	_m.Called()

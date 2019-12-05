@@ -27,6 +27,9 @@ type cacheSettings struct {
 }
 
 type LiveStateCache interface {
+	// Returns k8s server version
+	GetServerVersion(ctx context.Context, serverURL string) (string, error)
+	// Returns true of given group kind is a namespaced resource
 	IsNamespaced(ctx context.Context, server string, gk schema.GroupKind) (bool, error)
 	// Executes give callback against resource specified by the key and all its children
 	IterateHierarchy(ctx context.Context, server string, key kube.ResourceKey, action func(child appv1.ResourceNode, appName string)) error
@@ -186,6 +189,13 @@ func (c *liveStateCache) GetManagedLiveObjs(ctx context.Context, a *appv1.Applic
 		return nil, err
 	}
 	return clusterInfo.getManagedLiveObjs(ctx, a, targetObjs, c.metricsServer)
+}
+func (c *liveStateCache) GetServerVersion(ctx context.Context, serverURL string) (string, error) {
+	clusterInfo, err := c.getSyncedCluster(ctx, serverURL)
+	if err != nil {
+		return "", err
+	}
+	return clusterInfo.serverVersion, nil
 }
 
 func isClusterHasApps(apps []interface{}, cluster *appv1.Cluster) bool {
