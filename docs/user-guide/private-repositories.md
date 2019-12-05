@@ -35,7 +35,7 @@ or UI:
 1. Navigate to `Settings/Repositories`
 1. Click `Connect Repo` button and enter HTTP credentials
 
-![connect repo](../assets/connect_repo.png)
+![connect repo](../assets/connect-repo.png)
 
 #### Access Token
 
