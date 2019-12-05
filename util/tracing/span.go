@@ -18,7 +18,6 @@ var logger = log.New()
 
 func init() {
 	enabled = os.Getenv("ARGOCD_TRACING_ENABLED") == "1"
-	logger.Infof("tracing enabled=%v", enabled)
 }
 
 type Span struct {
