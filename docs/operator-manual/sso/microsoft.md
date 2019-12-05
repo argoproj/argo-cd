@@ -13,19 +13,16 @@ ConfigMap -> argocd-cm
 
 data:
     dex.config: |
-        logger:
-        level: debug
-        format: json
-        connectors:
-        - type: microsoft
+      connectors:
+      - type: microsoft
         id: microsoft
         name: Your Company GmbH
         config:
-            clientID: $MICROSOFT_APPLICATION_ID
-            clientSecret: $MICROSOFT_CLIENT_SECRET
-            redirectURI: http://localhost:8080/api/dex/callback
-            tenant: ffffffff-ffff-ffff-ffff-ffffffffffff
-            groups: 
+          clientID: $MICROSOFT_APPLICATION_ID
+          clientSecret: $MICROSOFT_CLIENT_SECRET
+          redirectURI: http://localhost:8080/api/dex/callback
+          tenant: ffffffff-ffff-ffff-ffff-ffffffffffff
+          groups: 
             - DevOps
 ```
 
@@ -42,7 +39,7 @@ data:
         p, role:org-admin, repositories, create, *, allow
         p, role:org-admin, repositories, update, *, allow
         p, role:org-admin, repositories, delete, *, allow
-    
+
         g, DevOps, role:org-admin
     
     policy.default: role:readonly
