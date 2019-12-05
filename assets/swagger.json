@@ -3301,7 +3301,7 @@
           "type": "string"
         },
         "revisionHistoryLimit": {
-          "description": "RevisionHistoryLimit is the history limit for this app, this is 10 by default, increasing will increase the space\nused to store the history, so we do not recommend setting above 20. Setting to zero will store no history.",
+          "description": "This limits this number of items kept in the apps revision history.\nThis should only be changed in exceptional circumstances.\nSetting to zero will store no history. This will reduce storage used.\nIncreasing will increase the space used to store the history, so we do not recommend increasing it.\nDefault is 10.",
           "type": "string",
           "format": "int64"
         },
