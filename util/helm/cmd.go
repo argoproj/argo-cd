@@ -8,10 +8,8 @@ import (
 	"os/exec"
 	"regexp"
 
-	argoexec "github.com/argoproj/pkg/exec"
-
 	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/config"
+	executil "github.com/argoproj/argo-cd/util/exec"
 )
 
 // A thin wrapper around the "helm" command, adding logging and error translation.
@@ -37,10 +35,7 @@ func (c Cmd) run(args ...string) (string, error) {
 	cmd.Dir = c.WorkDir
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, fmt.Sprintf("HELM_HOME=%s", c.helmHome))
-	return argoexec.RunCommandExt(cmd, argoexec.CmdOpts{
-		Timeout:  config.CmdOpts().Timeout,
-		Redactor: redactor,
-	})
+	return executil.RunWithRedactor(cmd, redactor)
 }
 
 func (c *Cmd) Init() (string, error) {
