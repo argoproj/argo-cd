@@ -39,10 +39,11 @@ type apiMeta struct {
 }
 
 type clusterInfo struct {
-	syncLock  *sync.Mutex
-	syncTime  *time.Time
-	syncError error
-	apisMeta  map[schema.GroupKind]*apiMeta
+	syncLock      *sync.Mutex
+	syncTime      *time.Time
+	syncError     error
+	apisMeta      map[schema.GroupKind]*apiMeta
+	serverVersion string
 
 	lock    *sync.Mutex
 	nodes   map[kube.ResourceKey]*node
@@ -309,8 +310,13 @@ func (c *clusterInfo) sync() (err error) {
 	}
 	c.apisMeta = make(map[schema.GroupKind]*apiMeta)
 	c.nodes = make(map[kube.ResourceKey]*node)
-
-	apis, err := c.kubectl.GetAPIResources(c.cluster.RESTConfig(), c.cacheSettingsSrc().ResourcesFilter)
+	config := c.cluster.RESTConfig()
+	version, err := c.kubectl.GetServerVersion(config)
+	if err != nil {
+		return err
+	}
+	c.serverVersion = version
+	apis, err := c.kubectl.GetAPIResources(config, c.cacheSettingsSrc().ResourcesFilter)
 	if err != nil {
 		return err
 	}

@@ -156,7 +156,7 @@ export class App extends React.Component<{}, {popupProps: PopupProps; error: Err
                     <link rel='icon' type='image/png' href={`${base}assets/favicon/favicon-16x16.png`} sizes='16x16' />
                 </Helmet>
                 <PageContext.Provider value={{title: 'Argo CD'}}>
-                    <Provider value={{history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager}}>
+                    <Provider value={{history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager, baseHref: base}}>
                         {this.state.popupProps && <Popup {...this.state.popupProps} />}
                         <Router history={history}>
                             <Switch>
