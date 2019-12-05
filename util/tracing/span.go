@@ -31,7 +31,7 @@ func (s Span) Finish() {
 	if enabled {
 		logger.WithFields(s.baggage).
 			WithField("operation_name", s.operationName).
-			WithField("time_ms", time.Since(s.start).Seconds() * 1e3).
+			WithField("time_ms", time.Since(s.start).Seconds()*1e3).
 			Info()
 	}
 }
