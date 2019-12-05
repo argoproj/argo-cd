@@ -662,6 +662,13 @@ spec:
               description: Project is a application project name. Empty name means
                 that application belongs to 'default' project.
               type: string
+            revisionHistoryLimit:
+              description: RevisionHistoryLimit is the history limit for this app,
+                this is 10 by default, increasing will increase the space used to
+                store the history, so we do not recommend setting above 20. Setting
+                to zero will store no history.
+              format: int64
+              type: integer
             source:
               description: Source is a reference to the location ksonnet application
                 definition

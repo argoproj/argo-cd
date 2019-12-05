@@ -1638,3 +1638,27 @@ func assertConditions(t *testing.T, expected []ApplicationCondition, actual []Ap
 		assert.Equal(t, expected[i].Message, actual[i].Message)
 	}
 }
+
+func TestRevisionHistories_Trunc(t *testing.T) {
+	assert.Len(t, RevisionHistories{}.Trunc(1), 0)
+	assert.Len(t, RevisionHistories{{}}.Trunc(1), 1)
+	assert.Len(t, RevisionHistories{{}, {}}.Trunc(1), 1)
+	// keep the last element, even with longer list
+	assert.Equal(t, RevisionHistories{{Revision: "my-revision"}}, RevisionHistories{{}, {}, {Revision: "my-revision"}}.Trunc(1))
+}
+
+func TestApplicationSpec_GetRevisionHistoryLimit(t *testing.T) {
+	// default
+	assert.Equal(t, 10, ApplicationSpec{}.GetRevisionHistoryLimit())
+	// configured
+	n := int64(11)
+	assert.Equal(t, 11, ApplicationSpec{RevisionHistoryLimit: &n}.GetRevisionHistoryLimit())
+}
+
+func TestRevisionHistories_Find(t *testing.T) {
+	assert.Nil(t, RevisionHistories{}.Find(func(h RevisionHistory) bool { return false }))
+	assert.Nil(t, RevisionHistories{{}}.Find(func(h RevisionHistory) bool { return false }))
+	// edge case where we have any empty array
+	assert.Nil(t, RevisionHistories{}.Find(func(h RevisionHistory) bool { return true }))
+	assert.NotNil(t, RevisionHistories{{}}.Find(func(h RevisionHistory) bool { return true }))
+}

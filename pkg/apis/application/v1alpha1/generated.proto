@@ -228,6 +228,10 @@ message ApplicationSpec {
 
   // Infos contains a list of useful information (URLs, email addresses, and plain text) that relates to the application
   repeated Info info = 6;
+
+  // RevisionHistoryLimit is the history limit for this app, this is 10 by default, increasing will increase the space
+  // used to store the history, so we do not recommend setting above 20. Setting to zero will store no history.
+  optional int64 revisionHistoryLimit = 7;
 }
 
 // ApplicationStatus contains information about application sync, health status
