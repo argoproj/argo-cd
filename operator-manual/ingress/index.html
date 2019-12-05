@@ -1324,7 +1324,7 @@ requires that the <code>--enable-ssl-passthrough</code> flag be added to the com
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server-ingress</span>
   <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
   <span class="nt">annotations</span><span class="p">:</span>
-    <span class="nt">certmanager.k8s.io/cluster-issuer</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">letsencrypt-prod</span>
+    <span class="nt">cert-manager.io/cluster-issuer</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">letsencrypt-prod</span>
     <span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
     <span class="nt">kubernetes.io/tls-acme</span><span class="p">:</span> <span class="s">&quot;true&quot;</span>
     <span class="nt">nginx.ingress.kubernetes.io/ssl-passthrough</span><span class="p">:</span> <span class="s">&quot;true&quot;</span>

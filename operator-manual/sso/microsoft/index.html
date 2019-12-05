@@ -1122,6 +1122,43 @@
 <div style="text-align:center"><img src="../../../assets/argo.png" /></div>
 
 <!-- markdownlint-enable MD033 -->
+
+<!-- markdownlint-disable MD046 -->
+
+<div class="codehilite"><pre><span></span><span class="l l-Scalar l-Scalar-Plain">ConfigMap -&gt; argocd-cm</span>
+
+<span class="l l-Scalar l-Scalar-Plain">data</span><span class="p p-Indicator">:</span>
+    <span class="nt">dex.config</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+      <span class="no">connectors:</span>
+      <span class="no">- type: microsoft</span>
+        <span class="no">id: microsoft</span>
+        <span class="no">name: Your Company GmbH</span>
+        <span class="no">config:</span>
+          <span class="no">clientID: $MICROSOFT_APPLICATION_ID</span>
+          <span class="no">clientSecret: $MICROSOFT_CLIENT_SECRET</span>
+          <span class="no">redirectURI: http://localhost:8080/api/dex/callback</span>
+          <span class="no">tenant: ffffffff-ffff-ffff-ffff-ffffffffffff</span>
+          <span class="no">groups: </span>
+            <span class="no">- DevOps</span>
+</pre></div>
+
+
+<p>https://github.com/dexidp/dex/blob/master/Documentation/connectors/microsoft.md#groups</p>
+<div class="codehilite"><pre><span></span><span class="l l-Scalar l-Scalar-Plain">ConfigMap -&gt; argocd-rbac-cm</span>
+
+<span class="l l-Scalar l-Scalar-Plain">data</span><span class="p p-Indicator">:</span>
+    <span class="nt">policy.csv</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+        <span class="no">p, role:org-admin, applications, *, */*, allow</span>
+        <span class="no">p, role:org-admin, clusters, get, *, allow</span>
+        <span class="no">p, role:org-admin, repositories, get, *, allow</span>
+        <span class="no">p, role:org-admin, repositories, create, *, allow</span>
+        <span class="no">p, role:org-admin, repositories, update, *, allow</span>
+        <span class="no">p, role:org-admin, repositories, delete, *, allow</span>
+
+        <span class="no">g, DevOps, role:org-admin</span>
+
+    <span class="nt">policy.default</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">role:readonly</span>
+</pre></div>
                 
                   
                 
