@@ -2,7 +2,6 @@ package kube
 
 import (
 	"context"
-	"io/ioutil"
 	"regexp"
 	"testing"
 
