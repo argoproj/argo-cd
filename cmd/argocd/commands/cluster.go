@@ -63,6 +63,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 		awsRoleArn      string
 		awsClusterName  string
 		systemNamespace string
+		namespaces      []string
 	)
 	var command = &cobra.Command{
 		Use:   "add CONTEXT",
@@ -100,12 +101,12 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				// Install RBAC resources for managing the cluster
 				clientset, err := kubernetes.NewForConfig(conf)
 				errors.CheckError(err)
-				managerBearerToken, err = clusterauth.InstallClusterManagerRBAC(clientset, systemNamespace)
+				managerBearerToken, err = clusterauth.InstallClusterManagerRBAC(clientset, systemNamespace, namespaces)
 				errors.CheckError(err)
 			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
-			clst := NewCluster(contextName, conf, managerBearerToken, awsAuthConf)
+			clst := newCluster(contextName, namespaces, conf, managerBearerToken, awsAuthConf)
 			if inCluster {
 				clst.Server = common.KubernetesInternalAPIServerAddr
 			}
@@ -124,6 +125,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	command.Flags().StringVar(&awsClusterName, "aws-cluster-name", "", "AWS Cluster name if set then aws-iam-authenticator will be used to access cluster")
 	command.Flags().StringVar(&awsRoleArn, "aws-role-arn", "", "Optional AWS role arn. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.")
 	command.Flags().StringVar(&systemNamespace, "system-namespace", common.DefaultSystemNamespace, "Use different system namespace")
+	command.Flags().StringArrayVar(&namespaces, "namespace", nil, "List of namespaces which are allowed to manage")
 	return command
 }
 
@@ -166,7 +168,7 @@ func printKubeContexts(ca clientcmd.ConfigAccess) {
 	}
 }
 
-func NewCluster(name string, conf *rest.Config, managerBearerToken string, awsAuthConf *argoappv1.AWSAuthConfig) *argoappv1.Cluster {
+func newCluster(name string, namespaces []string, conf *rest.Config, managerBearerToken string, awsAuthConf *argoappv1.AWSAuthConfig) *argoappv1.Cluster {
 	tlsClientConfig := argoappv1.TLSClientConfig{
 		Insecure:   conf.TLSClientConfig.Insecure,
 		ServerName: conf.TLSClientConfig.ServerName,
@@ -178,8 +180,9 @@ func NewCluster(name string, conf *rest.Config, managerBearerToken string, awsAu
 		tlsClientConfig.CAData = data
 	}
 	clst := argoappv1.Cluster{
-		Server: conf.Host,
-		Name:   name,
+		Server:     conf.Host,
+		Name:       name,
+		Namespaces: namespaces,
 		Config: argoappv1.ClusterConfig{
 			BearerToken:     managerBearerToken,
 			TLSClientConfig: tlsClientConfig,
@@ -205,11 +208,11 @@ func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
-			clusters := make([]*argoappv1.Cluster, 0)
+			clusters := make([]argoappv1.Cluster, 0)
 			for _, clusterName := range args {
 				clst, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: clusterName})
 				errors.CheckError(err)
-				clusters = append(clusters, clst)
+				clusters = append(clusters, *clst)
 			}
 			switch output {
 			case "yaml", "json":
@@ -217,6 +220,8 @@ func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				errors.CheckError(err)
 			case "wide", "":
 				printClusterDetails(clusters)
+			case "server":
+				printClusterServers(clusters)
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
@@ -234,12 +239,20 @@ func strWithDefault(value string, def string) string {
 	return value
 }
 
-func printClusterDetails(clusters []*argoappv1.Cluster) {
+func formatNamespaces(cluster argoappv1.Cluster) string {
+	if len(cluster.Namespaces) == 0 {
+		return "all namespaces"
+	}
+	return strings.Join(cluster.Namespaces, ", ")
+}
+
+func printClusterDetails(clusters []argoappv1.Cluster) {
 	for _, cluster := range clusters {
 		fmt.Printf("Cluster information\n\n")
 		fmt.Printf("  Server URL:            %s\n", cluster.Server)
 		fmt.Printf("  Server Name:           %s\n", strWithDefault(cluster.Name, "-"))
 		fmt.Printf("  Server Version:        %s\n", cluster.ServerVersion)
+		fmt.Printf("  Namespaces:        	 %s\n", formatNamespaces(cluster))
 		fmt.Printf("\nTLS configuration\n\n")
 		fmt.Printf("  Client cert:           %v\n", string(cluster.Config.TLSClientConfig.CertData) != "")
 		fmt.Printf("  Cert validation:       %v\n", !cluster.Config.TLSClientConfig.Insecure)
@@ -285,7 +298,11 @@ func printClusterTable(clusters []argoappv1.Cluster) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	_, _ = fmt.Fprintf(w, "SERVER\tNAME\tVERSION\tSTATUS\tMESSAGE\n")
 	for _, c := range clusters {
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", c.Server, c.Name, c.ServerVersion, c.ConnectionState.Status, c.ConnectionState.Message)
+		server := c.Server
+		if len(c.Namespaces) > 0 {
+			server = fmt.Sprintf("%s (%d namespaces)", c.Server, len(c.Namespaces))
+		}
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", server, c.Name, c.ServerVersion, c.ConnectionState.Status, c.ConnectionState.Message)
 	}
 	_ = w.Flush()
 }

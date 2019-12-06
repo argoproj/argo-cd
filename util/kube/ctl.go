@@ -40,6 +40,7 @@ type Kubectl interface {
 	PatchResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error)
 	GetAPIResources(config *rest.Config, resourceFilter ResourceFilter) ([]APIResourceInfo, error)
 	GetServerVersion(config *rest.Config) (string, error)
+	NewDynamicClient(config *rest.Config) (dynamic.Interface, error)
 }
 
 type KubectlCmd struct {
@@ -452,4 +453,8 @@ func (k *KubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("%s.%s", v.Major, v.Minor), nil
+}
+
+func (k *KubectlCmd) NewDynamicClient(config *rest.Config) (dynamic.Interface, error) {
+	return dynamic.NewForConfig(config)
 }

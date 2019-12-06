@@ -207,7 +207,10 @@ func (c *clusterInfo) startMissingWatches() error {
 	if err != nil {
 		return err
 	}
-	client, err := dynamic.NewForConfig(config)
+	client, err := c.kubectl.NewDynamicClient(config)
+	if err != nil {
+		return err
+	}
 
 	for i := range apis {
 		api := apis[i]
@@ -350,7 +353,7 @@ func (c *clusterInfo) sync() (err error) {
 	if err != nil {
 		return err
 	}
-	client, err := dynamic.NewForConfig(config)
+	client, err := c.kubectl.NewDynamicClient(config)
 	if err != nil {
 		return err
 	}
