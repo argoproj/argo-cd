@@ -16,14 +16,12 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/kubernetes/pkg/api/legacyscheme"
 
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/diff"
@@ -368,7 +366,7 @@ func (k *KubectlCmd) ConvertToVersion(ctx context.Context, obj *unstructured.Uns
 }
 
 func (k *KubectlCmd) convertToVersionWithKubectl(ctx context.Context, obj *unstructured.Unstructured, group string, version string) (*unstructured.Unstructured, error) {
-	span, ctx := opentracing.StartSpan("convertToVersionWithKubectl")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "convertToVersionWithKubectl")
 	defer span.Finish()
 	manifestBytes, err := json.Marshal(obj)
 	if err != nil {

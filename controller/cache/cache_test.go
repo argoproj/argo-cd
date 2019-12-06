@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
@@ -21,7 +22,7 @@ func TestGetServerVersion(t *testing.T) {
 			},
 		}}
 
-	version, err := cache.GetServerVersion("http://localhost")
+	version, err := cache.GetServerVersion(context.TODO(), "http://localhost")
 	assert.NoError(t, err)
 	assert.Equal(t, "123", version)
 }

@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"context"
 	"io/ioutil"
 	"testing"
 
@@ -81,7 +82,7 @@ func Test_convertToVersionWithScheme(t *testing.T) {
 			assert.NoError(t, err)
 			target, err := schema.ParseGroupVersion(tt.outputVersion)
 			assert.NoError(t, err)
-			out, err := convertToVersionWithScheme(obj, target.Group, target.Version)
+			out, err := convertToVersionWithScheme(context.TODO(), obj, target.Group, target.Version)
 			if assert.NoError(t, err) {
 				assert.NotNil(t, out)
 				assert.Equal(t, target.Group, out.GroupVersionKind().Group)

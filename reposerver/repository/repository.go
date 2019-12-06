@@ -12,9 +12,6 @@ import (
 	"regexp"
 	"strings"
 
-	executil "github.com/argoproj/argo-cd/util/exec"
-	"github.com/argoproj/argo-cd/util/security"
-
 	"github.com/Masterminds/semver"
 	"github.com/TomOnTime/utfutil"
 	"github.com/ghodss/yaml"
@@ -42,6 +39,7 @@ import (
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"
+	"github.com/argoproj/argo-cd/util/security"
 	"github.com/argoproj/argo-cd/util/text"
 )
 
