@@ -358,54 +358,7 @@ func (k *KubectlCmd) ConvertToVersion(ctx context.Context, obj *unstructured.Uns
 	if from.Group == group && from.Version == version {
 		return obj.DeepCopy(), nil
 	}
-	out, err := convertToVersionWithScheme(ctx, obj, group, version)
-	if err == nil {
-		return out, nil
-	}
-	return k.convertToVersionWithKubectl(ctx, obj, group, version)
-}
-
-func (k *KubectlCmd) convertToVersionWithKubectl(ctx context.Context, obj *unstructured.Unstructured, group string, version string) (*unstructured.Unstructured, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "convertToVersionWithKubectl")
-	defer span.Finish()
-	manifestBytes, err := json.Marshal(obj)
-	if err != nil {
-		return nil, err
-	}
-	f, err := ioutil.TempFile(util.TempDir, "")
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate temp file for kubectl: %v", err)
-	}
-	_ = f.Close()
-	if err := ioutil.WriteFile(f.Name(), manifestBytes, 0600); err != nil {
-		return nil, err
-	}
-	defer util.DeleteFile(f.Name())
-
-	closer, err := k.processKubectlRun(ctx, []string{"convert"})
-	if err != nil {
-		return nil, err
-	}
-	defer util.Close(closer)
-
-	outputVersion := fmt.Sprintf("%s/%s", group, version)
-	cmd := exec.Command("kubectl", "convert", "--output-version", outputVersion, "-o", "json", "--local=true", "-f", f.Name())
-	cmd.Stdin = bytes.NewReader(manifestBytes)
-	out, err := executil.Run(ctx, cmd)
-	if err != nil {
-		return nil, convertKubectlError(err)
-	}
-	// NOTE: when kubectl convert runs against stdin (i.e. kubectl convert -f -), the output is
-	// a unstructured list instead of an unstructured object
-	var convertedObj unstructured.Unstructured
-	err = json.Unmarshal([]byte(out), &convertedObj)
-	if err != nil {
-		return nil, err
-	}
-	if convertedObj.GetNamespace() == "" {
-		convertedObj.SetNamespace(obj.GetNamespace())
-	}
-	return &convertedObj, nil
+	return convertToVersionWithScheme(ctx, obj, group, version)
 }
 
 func (k *KubectlCmd) GetServerVersion(ctx context.Context, config *rest.Config) (string, error) {

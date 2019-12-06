@@ -6,35 +6,28 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util"
 
-	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 func TestConvertToVersion(t *testing.T) {
 	kubectl := KubectlCmd{}
 	t.Run("AppsDeployment", func(t *testing.T) {
-		manifest, err := ioutil.ReadFile("testdata/appsdeployment.yaml")
-		assert.NoError(t, err)
-		obj := &unstructured.Unstructured{}
-		err = yaml.Unmarshal(manifest, obj)
-		assert.NoError(t, err)
-
-		newObj, err := kubectl.ConvertToVersion(context.TODO(), obj, "extensions", "v1beta1")
+		newObj, err := kubectl.ConvertToVersion(context.TODO(), test.UnstructuredFromFile("testdata/appsdeployment.yaml"), "extensions", "v1beta1")
 		if assert.NoError(t, err) {
 			gvk := newObj.GroupVersionKind()
 			assert.Equal(t, "extensions", gvk.Group)
 			assert.Equal(t, "v1beta1", gvk.Version)
 		}
 	})
+	t.Run("CustomResource", func(t *testing.T) {
+		_, err := kubectl.ConvertToVersion(context.TODO(), test.UnstructuredFromFile("testdata/cr.yaml"), "argoproj.io", "v1")
+		assert.Error(t, err)
+	})
 	t.Run("ExtensionsDeployment", func(t *testing.T) {
-		manifest, err := ioutil.ReadFile("testdata/nginx.yaml")
-		assert.NoError(t, err)
-		obj := &unstructured.Unstructured{}
-		err = yaml.Unmarshal(manifest, obj)
-		assert.NoError(t, err)
+		obj := test.UnstructuredFromFile("testdata/nginx.yaml")
 
 		// convert an extensions/v1beta1 object into itself
 		newObj, err := kubectl.ConvertToVersion(context.TODO(), obj, "extensions", "v1beta1")
