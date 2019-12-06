@@ -22,7 +22,11 @@ func SubtractRelativeFromAbsolutePath(abs, rel string) (string, error) {
 		return abs, nil
 	}
 	if rel[0] == '.' {
-		return SubtractRelativeFromAbsolutePath(abs, rel[1:])
+		// Check if this refers to a hidden directory (".foo/") or a self reference ("./")
+		if len(rel) < 2 || rel[1] == '/' {
+			// This is a self reference
+			return SubtractRelativeFromAbsolutePath(abs, rel[1:])
+		}
 	}
 	if rel[0] != '/' {
 		return SubtractRelativeFromAbsolutePath(abs, "/"+rel)

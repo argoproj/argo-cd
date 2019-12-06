@@ -41,6 +41,12 @@ func TestSubtractRelativeFromAbsolutePath(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "/argocd-example-apps/helm-guestbook/env/guestbook/env", subtracted)
 	}
+	// Hidden directories
+	for _, test := range []string{".guestbook/env", "/.guestbook/env", ".guestbook/env/", "/.guestbook/env/", "./.guestbook/env"} {
+		subtracted, err := SubtractRelativeFromAbsolutePath("/argocd-example-apps/helm-guestbook/env/.guestbook/env", test)
+		assert.NoError(t, err)
+		assert.Equal(t, "/argocd-example-apps/helm-guestbook/env", subtracted)
+	}
 	// "Dirty" strings
 	for _, test := range []string{"guestbook/foo/../env", "/guestbook//env", "../guestbook/env/", "/../guestbook/env/", "./guestbook/env///"} {
 		subtracted, err := SubtractRelativeFromAbsolutePath("/argocd-example-apps/helm-guestbook/env/guestbook/env", test)
