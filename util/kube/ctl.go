@@ -359,7 +359,19 @@ func (k *KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group stri
 	if from.Group == group && from.Version == version {
 		return obj.DeepCopy(), nil
 	}
+	out, err := convertToVersionWithScheme(obj, group, version)
+	if err != nil {
+		return nil, err
+	}
+	if err == nil {
+		return out, nil
+	}
+	return k.convertToVersionWithKubectl(obj, group, version)
+}
 
+func (k *KubectlCmd) convertToVersionWithKubectl(obj *unstructured.Unstructured, group string, version string) (*unstructured.Unstructured, error) {
+	span := tracing.StartSpan("convertToVersionWithKubectl")
+	defer span.Finish()
 	manifestBytes, err := json.Marshal(obj)
 	if err != nil {
 		return nil, err
