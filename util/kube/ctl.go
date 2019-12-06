@@ -360,9 +360,6 @@ func (k *KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group stri
 		return obj.DeepCopy(), nil
 	}
 	out, err := convertToVersionWithScheme(obj, group, version)
-	if err != nil {
-		return nil, err
-	}
 	if err == nil {
 		return out, nil
 	}

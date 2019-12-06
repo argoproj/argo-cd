@@ -13,15 +13,11 @@ func convertToVersionWithScheme(obj *unstructured.Unstructured, group string, ve
 	span := tracing.StartSpan("convertToVersionWithScheme")
 	defer span.Finish()
 	s := legacyscheme.Scheme
-	target := schema.GroupVersionKind{
-		Group:   group,
-		Version: version,
-	}
 	object, err := s.ConvertToVersion(obj, runtime.InternalGroupVersioner)
 	if err != nil {
 		return nil, err
 	}
-	unmarshalledObj, err := s.ConvertToVersion(object, target.GroupVersion())
+	unmarshalledObj, err := s.ConvertToVersion(object, schema.GroupVersion{Group: group, Version: version})
 	if err != nil {
 		return nil, err
 	}
