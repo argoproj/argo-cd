@@ -1,7 +1,6 @@
 package kube
 
 import (
-	"context"
 	"io/ioutil"
 	"regexp"
 	"testing"
@@ -22,7 +21,7 @@ func TestConvertToVersion(t *testing.T) {
 		err = yaml.Unmarshal(manifest, obj)
 		assert.NoError(t, err)
 
-		newObj, err := kubectl.ConvertToVersion(context.TODO(), obj, "extensions", "v1beta1")
+		newObj, err := kubectl.ConvertToVersion(obj, "extensions", "v1beta1")
 		if assert.NoError(t, err) {
 			gvk := newObj.GroupVersionKind()
 			assert.Equal(t, "extensions", gvk.Group)
@@ -37,7 +36,7 @@ func TestConvertToVersion(t *testing.T) {
 		assert.NoError(t, err)
 
 		// convert an extensions/v1beta1 object into itself
-		newObj, err := kubectl.ConvertToVersion(context.TODO(), obj, "extensions", "v1beta1")
+		newObj, err := kubectl.ConvertToVersion(obj, "extensions", "v1beta1")
 		if assert.NoError(t, err) {
 			gvk := newObj.GroupVersionKind()
 			assert.Equal(t, "extensions", gvk.Group)
@@ -45,7 +44,7 @@ func TestConvertToVersion(t *testing.T) {
 		}
 
 		// convert an extensions/v1beta1 object into an apps/v1
-		newObj, err = kubectl.ConvertToVersion(context.TODO(), obj, "apps", "v1")
+		newObj, err = kubectl.ConvertToVersion(obj, "apps", "v1")
 		if assert.NoError(t, err) {
 			gvk := newObj.GroupVersionKind()
 			assert.Equal(t, "apps", gvk.Group)
@@ -53,7 +52,7 @@ func TestConvertToVersion(t *testing.T) {
 		}
 
 		// converting it again should not have any affect
-		newObj, err = kubectl.ConvertToVersion(context.TODO(), obj, "apps", "v1")
+		newObj, err = kubectl.ConvertToVersion(obj, "apps", "v1")
 		if assert.NoError(t, err) {
 			gvk := newObj.GroupVersionKind()
 			assert.Equal(t, "apps", gvk.Group)
@@ -66,7 +65,7 @@ func TestRunKubectl(t *testing.T) {
 	callbackExecuted := false
 	closerExecuted := false
 	kubectl := KubectlCmd{
-		func(ctx context.Context, command string) (util.Closer, error) {
+		func(command string) (util.Closer, error) {
 			callbackExecuted = true
 			return util.NewCloser(func() error {
 				closerExecuted = true
@@ -75,13 +74,13 @@ func TestRunKubectl(t *testing.T) {
 		},
 	}
 
-	_, _ = kubectl.runKubectl(context.TODO(), "/dev/null", "default", []string{"command-name"}, nil, false)
+	_, _ = kubectl.runKubectl("/dev/null", "default", []string{"command-name"}, nil, false)
 	assert.True(t, callbackExecuted)
 	assert.True(t, closerExecuted)
 }
 
 func TestVersion(t *testing.T) {
-	ver, err := Version(context.TODO())
+	ver, err := Version()
 	assert.NoError(t, err)
 	SemverRegexValidation := `^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$`
 	re := regexp.MustCompile(SemverRegexValidation)
