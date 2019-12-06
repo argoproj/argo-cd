@@ -45,7 +45,7 @@ func TestCompareAppStateMissing(t *testing.T) {
 	data := fakeData{
 		apps: []runtime.Object{app},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{string(test.PodManifest)},
+			Manifests: []string{test.PodManifest},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
