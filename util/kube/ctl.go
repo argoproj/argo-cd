@@ -12,14 +12,16 @@ import (
 
 	argoexec "github.com/argoproj/pkg/exec"
 	log "github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v2"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/diff"
@@ -144,12 +146,7 @@ func (k *KubectlCmd) GetResource(config *rest.Config, gvk schema.GroupVersionKin
 	return resourceIf.Get(name, metav1.GetOptions{})
 }
 
-// PatchResource patches resource
-func (k *KubectlCmd) PatchResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error) {
-	span := tracing.StartSpan("PatchResource")
-	span.SetBaggageItem("kind", gvk.Kind)
-	span.SetBaggageItem("name", name)
-	defer span.Finish()
+func getResourceIf(config *rest.Config, gvk schema.GroupVersionKind, namespace string) (dynamic.ResourceInterface, error) {
 	dynamicIf, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -162,8 +159,20 @@ func (k *KubectlCmd) PatchResource(config *rest.Config, gvk schema.GroupVersionK
 	if err != nil {
 		return nil, err
 	}
-	resource := gvk.GroupVersion().WithResource(apiResource.Name)
-	resourceIf := ToResourceInterface(dynamicIf, apiResource, resource, namespace)
+	return ToResourceInterface(dynamicIf, apiResource, gvk.GroupVersion().
+		WithResource(apiResource.Name), namespace), nil
+}
+
+// PatchResource patches resource
+func (k *KubectlCmd) PatchResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error) {
+	span := tracing.StartSpan("PatchResource")
+	span.SetBaggageItem("kind", gvk.Kind)
+	span.SetBaggageItem("name", name)
+	defer span.Finish()
+	resourceIf, err := getResourceIf(config, gvk, namespace)
+	if err != nil {
+		return nil, err
+	}
 	return resourceIf.Patch(name, patchType, patchBytes, metav1.PatchOptions{})
 }
 
@@ -173,20 +182,10 @@ func (k *KubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVersion
 	span.SetBaggageItem("kind", gvk.Kind)
 	span.SetBaggageItem("name", name)
 	defer span.Finish()
-	dynamicIf, err := dynamic.NewForConfig(config)
+	resourceIf, err := getResourceIf(config, gvk, namespace)
 	if err != nil {
 		return err
 	}
-	disco, err := discovery.NewDiscoveryClientForConfig(config)
-	if err != nil {
-		return err
-	}
-	apiResource, err := ServerResourceForGroupVersionKind(disco, gvk)
-	if err != nil {
-		return err
-	}
-	resource := gvk.GroupVersion().WithResource(apiResource.Name)
-	resourceIf := ToResourceInterface(dynamicIf, apiResource, resource, namespace)
 	propagationPolicy := metav1.DeletePropagationForeground
 	deleteOptions := &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
 	if forceDelete {
@@ -194,7 +193,6 @@ func (k *KubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVersion
 		zeroGracePeriod := int64(0)
 		deleteOptions.GracePeriodSeconds = &zeroGracePeriod
 	}
-
 	return resourceIf.Delete(name, deleteOptions)
 }
 
@@ -205,63 +203,52 @@ func (k *KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstru
 	span.SetBaggageItem("name", obj.GetName())
 	defer span.Finish()
 	log.Infof("Applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), config.Host, namespace)
-	f, err := ioutil.TempFile(util.TempDir, "")
-	if err != nil {
-		return "", fmt.Errorf("Failed to generate temp file for kubeconfig: %v", err)
-	}
-	_ = f.Close()
-	err = WriteKubeConfig(config, namespace, f.Name())
-	if err != nil {
-		return "", fmt.Errorf("Failed to write kubeconfig: %v", err)
-	}
-	defer util.DeleteFile(f.Name())
-	manifestBytes, err := json.Marshal(obj)
+
+	resourceIf, err := getResourceIf(config, obj.GroupVersionKind(), namespace)
 	if err != nil {
 		return "", err
 	}
-	var out []string
-	// If it is an RBAC resource, run `kubectl auth reconcile`. This is preferred over
-	// `kubectl apply`, which cannot tolerate changes in roleRef, which is an immutable field.
-	// See: https://github.com/kubernetes/kubernetes/issues/66353
-	// `auth reconcile` will delete and recreate the resource if necessary
-	if obj.GetAPIVersion() == "rbac.authorization.k8s.io/v1" {
-		// `kubectl auth reconcile` has a side effect of auto-creating namespaces if it doesn't exist.
-		// See: https://github.com/kubernetes/kubernetes/issues/71185. This is behavior which we do
-		// not want. We need to check if the namespace exists, before know if it is safe to run this
-		// command. Skip this for dryRuns.
-		if !dryRun && namespace != "" {
-			kubeClient, err := kubernetes.NewForConfig(config)
-			if err != nil {
-				return "", err
-			}
-			_, err = kubeClient.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
-			if err != nil {
-				return "", err
-			}
+	objBytes, err := yaml.Marshal(obj)
+	if err != nil {
+		return "", err
+	}
+
+	_, err = resourceIf.Get(obj.GetName(), metav1.GetOptions{})
+
+	// TODO validate!
+
+	if kubeerrors.IsNotFound(err) {
+		options := metav1.CreateOptions{}
+		if dryRun {
+			options.DryRun = append(options.DryRun, "All")
 		}
-		outReconcile, err := k.runKubectl(f.Name(), namespace, []string{"auth", "reconcile"}, manifestBytes, dryRun)
+		out, err := resourceIf.Create(obj, options)
 		if err != nil {
 			return "", err
 		}
-		out = append(out, outReconcile)
-		// We still want to fallthrough and run `kubectl apply` in order set the
-		// last-applied-configuration annotation in the object.
+		outBytes, err := yaml.Marshal(out)
+		if err != nil {
+			return "", err
+		}
+		return string(outBytes), nil
+	} else {
+		options := metav1.PatchOptions{}
+		if dryRun {
+			options.DryRun = append(options.DryRun, "All")
+		}
+		if force {
+			options.Force = pointer.BoolPtr(force)
+		}
+		out, err := resourceIf.Patch(obj.GetName(), types.StrategicMergePatchType, objBytes, options)
+		if err != nil {
+			return "", err
+		}
+		outBytes, err := yaml.Marshal(out)
+		if err != nil {
+			return "", err
+		}
+		return string(outBytes), nil
 	}
-
-	// Run kubectl apply
-	applyArgs := []string{"apply"}
-	if force {
-		applyArgs = append(applyArgs, "--force")
-	}
-	if !validate {
-		applyArgs = append(applyArgs, "--validate=false")
-	}
-	outApply, err := k.runKubectl(f.Name(), namespace, applyArgs, manifestBytes, dryRun)
-	if err != nil {
-		return "", err
-	}
-	out = append(out, outApply)
-	return strings.Join(out, ". "), nil
 }
 
 func convertKubectlError(err error) error {
