@@ -1,13 +1,13 @@
 package kube
 
 import (
-	"io/ioutil"
 	"testing"
 
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/argoproj/argo-cd/test"
 )
 
 type testcase struct {
@@ -74,11 +74,7 @@ func Test_convertToVersionWithScheme(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			manifest, err := ioutil.ReadFile("testdata/" + tt.file)
-			assert.NoError(t, err)
-			obj := &unstructured.Unstructured{}
-			err = yaml.Unmarshal(manifest, obj)
-			assert.NoError(t, err)
+			obj := test.UnstructuredFromFile("testdata/" + tt.file)
 			target, err := schema.ParseGroupVersion(tt.outputVersion)
 			assert.NoError(t, err)
 			out, err := convertToVersionWithScheme(obj, target.Group, target.Version)
