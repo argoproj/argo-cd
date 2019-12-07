@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -37,11 +38,13 @@ func fakeServer() *ArgoCDServer {
 	appClientSet := apps.NewSimpleClientset()
 
 	argoCDOpts := ArgoCDServerOpts{
-		Namespace:     test.FakeArgoCDNamespace,
-		KubeClientset: kubeclientset,
-		AppClientset:  appClientSet,
-		Insecure:      true,
-		DisableAuth:   true,
+		Namespace:       test.FakeArgoCDNamespace,
+		KubeClientset:   kubeclientset,
+		AppClientset:    appClientSet,
+		Insecure:        true,
+		DisableAuth:     true,
+		StaticAssetsDir: "../test/testdata/static",
+		XFrameOptions:   "sameorigin",
 	}
 	return NewServer(context.Background(), argoCDOpts)
 }
@@ -462,6 +465,97 @@ func TestAuthenticate(t *testing.T) {
 			}
 
 		})
+	}
+}
+
+func Test_StaticHeaders(t *testing.T) {
+	// Test default policy "sameorigin"
+	{
+		s := fakeServer()
+		cancelInformer := test.StartInformer(s.projInformer)
+		defer cancelInformer()
+		port, err := test.GetFreePort()
+		assert.NoError(t, err)
+		metricsPort, err := test.GetFreePort()
+		assert.NoError(t, err)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go s.Run(ctx, port, metricsPort)
+		defer func() { time.Sleep(3 * time.Second) }()
+
+		err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
+		assert.NoError(t, err)
+
+		// Allow server startup
+		time.Sleep(1 * time.Second)
+
+		client := http.Client{}
+		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", port)
+		req, err := http.NewRequest("GET", url, nil)
+		assert.NoError(t, err)
+		resp, err := client.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, "sameorigin", resp.Header.Get("X-Frame-Options"))
+	}
+
+	// Test custom policy
+	{
+		s := fakeServer()
+		s.XFrameOptions = "deny"
+		cancelInformer := test.StartInformer(s.projInformer)
+		defer cancelInformer()
+		port, err := test.GetFreePort()
+		assert.NoError(t, err)
+		metricsPort, err := test.GetFreePort()
+		assert.NoError(t, err)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go s.Run(ctx, port, metricsPort)
+		defer func() { time.Sleep(3 * time.Second) }()
+
+		err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
+		assert.NoError(t, err)
+
+		// Allow server startup
+		time.Sleep(1 * time.Second)
+
+		client := http.Client{}
+		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", port)
+		req, err := http.NewRequest("GET", url, nil)
+		assert.NoError(t, err)
+		resp, err := client.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, "deny", resp.Header.Get("X-Frame-Options"))
+	}
+
+	// Test disabled
+	{
+		s := fakeServer()
+		s.XFrameOptions = ""
+		cancelInformer := test.StartInformer(s.projInformer)
+		defer cancelInformer()
+		port, err := test.GetFreePort()
+		assert.NoError(t, err)
+		metricsPort, err := test.GetFreePort()
+		assert.NoError(t, err)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go s.Run(ctx, port, metricsPort)
+		defer func() { time.Sleep(3 * time.Second) }()
+
+		err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
+		assert.NoError(t, err)
+
+		// Allow server startup
+		time.Sleep(1 * time.Second)
+
+		client := http.Client{}
+		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", port)
+		req, err := http.NewRequest("GET", url, nil)
+		assert.NoError(t, err)
+		resp, err := client.Do(req)
+		assert.NoError(t, err)
+		assert.Empty(t, resp.Header.Get("X-Frame-Options"))
 	}
 }
 

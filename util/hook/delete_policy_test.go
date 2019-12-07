@@ -10,8 +10,8 @@ import (
 )
 
 func TestDeletePolicies(t *testing.T) {
-	assert.Nil(t, DeletePolicies(NewPod()))
-	assert.Nil(t, DeletePolicies(Annotate(NewPod(), "argocd.argoproj.io/hook-delete-policy", "garbage")))
+	assert.Equal(t, []HookDeletePolicy{HookDeletePolicyBeforeHookCreation}, DeletePolicies(NewPod()))
+	assert.Equal(t, []HookDeletePolicy{HookDeletePolicyBeforeHookCreation}, DeletePolicies(Annotate(NewPod(), "argocd.argoproj.io/hook-delete-policy", "garbage")))
 	assert.Equal(t, []HookDeletePolicy{HookDeletePolicyBeforeHookCreation}, DeletePolicies(Annotate(NewPod(), "argocd.argoproj.io/hook-delete-policy", "BeforeHookCreation")))
 	assert.Equal(t, []HookDeletePolicy{HookDeletePolicyHookSucceeded}, DeletePolicies(Annotate(NewPod(), "argocd.argoproj.io/hook-delete-policy", "HookSucceeded")))
 	assert.Equal(t, []HookDeletePolicy{HookDeletePolicyHookFailed}, DeletePolicies(Annotate(NewPod(), "argocd.argoproj.io/hook-delete-policy", "HookFailed")))
