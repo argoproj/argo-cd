@@ -40,12 +40,12 @@ func fakeServer(disableAuth bool, disableCsrf bool) *ArgoCDServer {
 	appClientSet := apps.NewSimpleClientset()
 
 	argoCDOpts := ArgoCDServerOpts{
-		Namespace:     test.FakeArgoCDNamespace,
-		KubeClientset: kubeclientset,
-		AppClientset:  appClientSet,
-		Insecure:      true,
-		DisableAuth:   disableAuth,
-		DisableCsrf:   disableCsrf,
+		Namespace:       test.FakeArgoCDNamespace,
+		KubeClientset:   kubeclientset,
+		AppClientset:    appClientSet,
+		Insecure:        true,
+		DisableAuth:     disableAuth,
+		DisableCsrf:     disableCsrf,
 		StaticAssetsDir: "../test/testdata/static",
 		XFrameOptions:   "sameorigin",
 	}
