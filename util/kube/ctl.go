@@ -359,45 +359,7 @@ func (k *KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group stri
 	if from.Group == group && from.Version == version {
 		return obj.DeepCopy(), nil
 	}
-
-	manifestBytes, err := json.Marshal(obj)
-	if err != nil {
-		return nil, err
-	}
-	f, err := ioutil.TempFile(util.TempDir, "")
-	if err != nil {
-		return nil, fmt.Errorf("Failed to generate temp file for kubectl: %v", err)
-	}
-	_ = f.Close()
-	if err := ioutil.WriteFile(f.Name(), manifestBytes, 0600); err != nil {
-		return nil, err
-	}
-	defer util.DeleteFile(f.Name())
-
-	closer, err := k.processKubectlRun([]string{"convert"})
-	if err != nil {
-		return nil, err
-	}
-	defer util.Close(closer)
-
-	outputVersion := fmt.Sprintf("%s/%s", group, version)
-	cmd := exec.Command("kubectl", "convert", "--output-version", outputVersion, "-o", "json", "--local=true", "-f", f.Name())
-	cmd.Stdin = bytes.NewReader(manifestBytes)
-	out, err := executil.Run(cmd)
-	if err != nil {
-		return nil, convertKubectlError(err)
-	}
-	// NOTE: when kubectl convert runs against stdin (i.e. kubectl convert -f -), the output is
-	// a unstructured list instead of an unstructured object
-	var convertedObj unstructured.Unstructured
-	err = json.Unmarshal([]byte(out), &convertedObj)
-	if err != nil {
-		return nil, err
-	}
-	if convertedObj.GetNamespace() == "" {
-		convertedObj.SetNamespace(obj.GetNamespace())
-	}
-	return &convertedObj, nil
+	return convertToVersionWithScheme(obj, group, version)
 }
 
 func (k *KubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
