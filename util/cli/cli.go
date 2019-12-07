@@ -20,7 +20,7 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
-	"k8s.io/kubernetes/pkg/kubectl/util/term"
+	"k8s.io/kubectl/pkg/util/term"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
