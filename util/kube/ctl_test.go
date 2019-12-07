@@ -1,50 +1,56 @@
 package kube
 
 import (
-	"io/ioutil"
 	"regexp"
 	"testing"
 
+	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util"
 
-	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 func TestConvertToVersion(t *testing.T) {
-	callbackExecuted := false
-	closerExecuted := false
 	kubectl := KubectlCmd{}
-	kubectl.SetOnKubectlRun(func(command string) (util.Closer, error) {
-		callbackExecuted = true
-		return util.NewCloser(func() error {
-			closerExecuted = true
-			return nil
-		}), nil
+	t.Run("AppsDeployment", func(t *testing.T) {
+		newObj, err := kubectl.ConvertToVersion(test.UnstructuredFromFile("testdata/appsdeployment.yaml"), "extensions", "v1beta1")
+		if assert.NoError(t, err) {
+			gvk := newObj.GroupVersionKind()
+			assert.Equal(t, "extensions", gvk.Group)
+			assert.Equal(t, "v1beta1", gvk.Version)
+		}
 	})
+	t.Run("CustomResource", func(t *testing.T) {
+		_, err := kubectl.ConvertToVersion(test.UnstructuredFromFile("testdata/cr.yaml"), "argoproj.io", "v1")
+		assert.Error(t, err)
+	})
+	t.Run("ExtensionsDeployment", func(t *testing.T) {
+		obj := test.UnstructuredFromFile("testdata/nginx.yaml")
 
-	yamlBytes, err := ioutil.ReadFile("testdata/nginx.yaml")
-	assert.Nil(t, err)
-	var obj unstructured.Unstructured
-	err = yaml.Unmarshal(yamlBytes, &obj)
-	assert.Nil(t, err)
+		// convert an extensions/v1beta1 object into itself
+		newObj, err := kubectl.ConvertToVersion(obj, "extensions", "v1beta1")
+		if assert.NoError(t, err) {
+			gvk := newObj.GroupVersionKind()
+			assert.Equal(t, "extensions", gvk.Group)
+			assert.Equal(t, "v1beta1", gvk.Version)
+		}
 
-	// convert an extensions/v1beta1 object into an apps/v1
-	newObj, err := kubectl.ConvertToVersion(&obj, "apps", "v1")
-	assert.Nil(t, err)
-	gvk := newObj.GroupVersionKind()
-	assert.Equal(t, "apps", gvk.Group)
-	assert.Equal(t, "v1", gvk.Version)
-	assert.True(t, callbackExecuted)
-	assert.True(t, closerExecuted)
+		// convert an extensions/v1beta1 object into an apps/v1
+		newObj, err = kubectl.ConvertToVersion(obj, "apps", "v1")
+		if assert.NoError(t, err) {
+			gvk := newObj.GroupVersionKind()
+			assert.Equal(t, "apps", gvk.Group)
+			assert.Equal(t, "v1", gvk.Version)
+		}
 
-	// converting it again should not have any affect
-	newObj, err = kubectl.ConvertToVersion(&obj, "apps", "v1")
-	assert.Nil(t, err)
-	gvk = newObj.GroupVersionKind()
-	assert.Equal(t, "apps", gvk.Group)
-	assert.Equal(t, "v1", gvk.Version)
+		// converting it again should not have any affect
+		newObj, err = kubectl.ConvertToVersion(obj, "apps", "v1")
+		if assert.NoError(t, err) {
+			gvk := newObj.GroupVersionKind()
+			assert.Equal(t, "apps", gvk.Group)
+			assert.Equal(t, "v1", gvk.Version)
+		}
+	})
 }
 
 func TestRunKubectl(t *testing.T) {
