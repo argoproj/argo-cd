@@ -168,7 +168,8 @@ func (e *Enforcer) newInformer() cache.SharedIndexInformer {
 		cmFieldSelector := fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", e.configmap))
 		options.FieldSelector = cmFieldSelector.String()
 	}
-	return v1.NewFilteredConfigMapInformer(e.clientset, e.namespace, defaultRBACSyncPeriod, cache.Indexers{}, tweakConfigMap)
+	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
+	return v1.NewFilteredConfigMapInformer(e.clientset, e.namespace, defaultRBACSyncPeriod, indexers, tweakConfigMap)
 }
 
 // RunPolicyLoader runs the policy loader which watches policy updates from the configmap and reloads them

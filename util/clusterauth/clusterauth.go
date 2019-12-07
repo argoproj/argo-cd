@@ -155,29 +155,40 @@ func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string) (strin
 		return "", err
 	}
 
+	return getServiceAccountBearerToken(clientset, ns)
+}
+
+// getServiceAccountBearerToken will attempt to get the Argo manager service account until it
+// exists, iterate the secrets associated with it looking for one of type
+// kubernetes.io/service-account-token, and return it's token if found.
+func getServiceAccountBearerToken(clientset kubernetes.Interface, ns string) (string, error) {
 	var serviceAccount *corev1.ServiceAccount
-	var secretName string
+	var secret *corev1.Secret
+	var err error
 	err = wait.Poll(500*time.Millisecond, 30*time.Second, func() (bool, error) {
 		serviceAccount, err = clientset.CoreV1().ServiceAccounts(ns).Get(ArgoCDManagerServiceAccount, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}
-		if len(serviceAccount.Secrets) == 0 {
-			return false, nil
+		// Scan all secrets looking for one of the correct type:
+		for _, oRef := range serviceAccount.Secrets {
+			var getErr error
+			secret, err = clientset.CoreV1().Secrets(ns).Get(oRef.Name, metav1.GetOptions{})
+			if err != nil {
+				return false, fmt.Errorf("Failed to retrieve secret %q: %v", oRef.Name, getErr)
+			}
+			if secret.Type == corev1.SecretTypeServiceAccountToken {
+				return true, nil
+			}
 		}
-		secretName = serviceAccount.Secrets[0].Name
-		return true, nil
+		return false, nil
 	})
 	if err != nil {
 		return "", fmt.Errorf("Failed to wait for service account secret: %v", err)
 	}
-	secret, err := clientset.CoreV1().Secrets(ns).Get(secretName, metav1.GetOptions{})
-	if err != nil {
-		return "", fmt.Errorf("Failed to retrieve secret %q: %v", secretName, err)
-	}
 	token, ok := secret.Data["token"]
 	if !ok {
-		return "", fmt.Errorf("Secret %q for service account %q did not have a token", secretName, serviceAccount)
+		return "", fmt.Errorf("Secret %q for service account %q did not have a token", secret.Name, serviceAccount)
 	}
 	return string(token), nil
 }

@@ -37,6 +37,7 @@ func NewCommand() *cobra.Command {
 		disableCsrf              bool
 		tlsConfigCustomizerSrc   func() (tls.ConfigCustomizer, error)
 		cacheSrc                 func() (*servercache.Cache, error)
+		frameOptions             string
 	)
 	var command = &cobra.Command{
 		Use:   cliName,
@@ -78,6 +79,7 @@ func NewCommand() *cobra.Command {
 				DisableCsrf:         disableCsrf,
 				TLSConfigCustomizer: tlsConfigCustomizer,
 				Cache:               cache,
+				XFrameOptions:       frameOptions,
 			}
 
 			stats.RegisterStackDumper()
@@ -108,6 +110,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortAPIServer, "Listen on given port")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDAPIServerMetrics, "Start metrics on given port")
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", 60, "Repo server RPC call timeout seconds.")
+	command.Flags().StringVar(&frameOptions, "x-frame-options", "sameorigin", "Set X-Frame-Options header in HTTP responses to `value`. To disable, set to \"\".")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
 	cacheSrc = servercache.AddCacheFlagsToCmd(command)
 	return command
