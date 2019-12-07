@@ -474,7 +474,7 @@ func TestAuthenticate(t *testing.T) {
 func Test_StaticHeaders(t *testing.T) {
 	// Test default policy "sameorigin"
 	{
-		s := fakeServer()
+		s := fakeServer(false, false)
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
 		port, err := test.GetFreePort()
@@ -503,7 +503,7 @@ func Test_StaticHeaders(t *testing.T) {
 
 	// Test custom policy
 	{
-		s := fakeServer()
+		s := fakeServer(false, false)
 		s.XFrameOptions = "deny"
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
@@ -533,7 +533,7 @@ func Test_StaticHeaders(t *testing.T) {
 
 	// Test disabled
 	{
-		s := fakeServer()
+		s := fakeServer(false, true)
 		s.XFrameOptions = ""
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
