@@ -22,6 +22,7 @@ Application deployment and lifecycle management should be automated, auditable, 
 Organizations below are **officially** using Argo CD. Please send a PR with your organization name if you are using Argo CD.
 
 1. [127Labs](https://127labs.com/)
+1. [Adevinta](https://www.adevinta.com/)
 1. [ANSTO - Australian Synchrotron](https://www.synchrotron.org.au/)
 1. [CARFAX](https://www.carfax.com)
 1. [Codility](https://www.codility.com/)
