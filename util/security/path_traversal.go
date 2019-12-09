@@ -17,31 +17,17 @@ func EnforceToCurrentRoot(currentRoot, requestedPath string) (string, error) {
 	return requestedDir + string(filepath.Separator) + requestedFile, nil
 }
 
-func SubtractRelativeFromAbsolutePath(abs, rel string) (string, error) {
-	if len(rel) == 0 {
-		return abs, nil
-	}
-	if rel[0] == '.' {
-		// Check if this refers to a hidden directory (".foo/") or a self reference ("./")
-		if len(rel) < 2 || rel[1] == '/' {
-			// This is a self reference
-			return SubtractRelativeFromAbsolutePath(abs, rel[1:])
+// Determine the original repo path by progressively constructing the appPath the same way it was originally
+// done by Path() in util/app/path/path.go until we determine the original repo path
+func SubtractRelativeFromAbsolutePath(appPath, rel string) string {
+	separatedAbs := strings.Split(appPath, string(filepath.Separator))
+	for i := 0; i < len(separatedAbs)+1; i++ {
+		possibleRepoPath := strings.Join(separatedAbs[:i], string(filepath.Separator))
+		if filepath.Join(possibleRepoPath, rel) == appPath {
+			return possibleRepoPath
 		}
 	}
-	if rel[0] != '/' {
-		return SubtractRelativeFromAbsolutePath(abs, "/"+rel)
-	}
-	if rel[len(rel)-1] == '/' {
-		return SubtractRelativeFromAbsolutePath(abs, rel[:len(rel)-1])
-	}
-	rel = filepath.Clean(rel)
-	lastIndex := strings.LastIndex(abs, rel)
-	if lastIndex < 0 {
-		// This should be unreachable, because by this point the App Path will have already been validated by Path in
-		// util/app/path/path.go
-		return "", fmt.Errorf("app path is not under repo path (unreachable and most likely a bug)")
-	}
-	return abs[:lastIndex], nil
+	return ""
 }
 
 func isRequestedDirUnderCurrentRoot(currentRoot, requestedDir string) bool {
