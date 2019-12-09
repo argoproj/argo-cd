@@ -24,6 +24,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [127Labs](https://127labs.com/)
 1. [Adevinta](https://www.adevinta.com/)
 1. [ANSTO - Australian Synchrotron](https://www.synchrotron.org.au/)
+1. [Baloise](https://www.baloise.com)
 1. [CARFAX](https://www.carfax.com)
 1. [Codility](https://www.codility.com/)
 1. [Commonbond](https://commonbond.co/)
