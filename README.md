@@ -26,6 +26,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [ANSTO - Australian Synchrotron](https://www.synchrotron.org.au/)
 1. [Baloise](https://www.baloise.com)
 1. [CARFAX](https://www.carfax.com)
+1. [Celonis](https://www.celonis.com/)
 1. [Codility](https://www.codility.com/)
 1. [Commonbond](https://commonbond.co/)
 1. [CyberAgent](https://www.cyberagent.co.jp/en/)
