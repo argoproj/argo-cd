@@ -34,6 +34,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [Fave](https://myfave.com)
 1. [Future PLC](https://www.futureplc.com/)
 1. [GMETRI](https://gmetri.com/)
+1. [hipages](https://hipages.com.au/)
 1. [Intuit](https://www.intuit.com/)
 1. [KintoHub](https://www.kintohub.com/)
 1. [KompiTech GmbH](https://www.kompitech.com/)
