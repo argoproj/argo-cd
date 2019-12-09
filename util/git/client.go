@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	argoexec "github.com/argoproj/pkg/exec"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
@@ -27,7 +26,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	certutil "github.com/argoproj/argo-cd/util/cert"
-	argoconfig "github.com/argoproj/argo-cd/util/config"
+	executil "github.com/argoproj/argo-cd/util/exec"
 )
 
 type RevisionMetadata struct {
@@ -221,7 +220,7 @@ func (m *nativeGitClient) Init() error {
 		return err
 	}
 	log.Infof("Initializing %s to %s", m.repoURL, m.root)
-	_, err = argoexec.RunCommand("rm", argoconfig.CmdOpts(), "-rf", m.root)
+	_, err = executil.Run(exec.Command("rm", "-rf", m.root))
 	if err != nil {
 		return fmt.Errorf("unable to clean repo at %s: %v", m.root, err)
 	}
@@ -482,5 +481,5 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 			}
 		}
 	}
-	return argoexec.RunCommandExt(cmd, argoconfig.CmdOpts())
+	return executil.Run(cmd)
 }

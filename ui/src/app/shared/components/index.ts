@@ -19,5 +19,6 @@ export * from './autocomplete/autocomplete';
 export * from './autocomplete/autocomplete-field';
 export * from './monaco-editor';
 export * from './yaml-editor/yaml-editor';
+export * from './progress/progress-popup';
 export * from './repo';
 export * from './revision';
