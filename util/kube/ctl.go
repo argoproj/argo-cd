@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -18,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/pointer"
 
@@ -28,7 +30,7 @@ import (
 )
 
 type Kubectl interface {
-	ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) error
+	ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) (string, error)
 	ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
 	DeleteResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error
 	GetResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
@@ -195,7 +197,7 @@ func (k *KubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVersion
 }
 
 // ApplyResource performs an apply of a unstructured resource
-func (k *KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) error {
+func (k *KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) (string, error) {
 	span := tracing.StartSpan("ApplyResource")
 	span.SetBaggageItem("kind", obj.GetKind())
 	span.SetBaggageItem("name", obj.GetName())
@@ -204,7 +206,47 @@ func (k *KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstru
 
 	resourceIf, err := getResourceIf(config, obj.GroupVersionKind(), namespace)
 	if err != nil {
-		return err
+		return "", err
+	}
+	manifestBytes, err := json.Marshal(obj)
+	if err != nil {
+		return "", err
+	}
+	// If it is an RBAC resource, run `kubectl auth reconcile`. This is preferred over
+	// `kubectl apply`, which cannot tolerate changes in roleRef, which is an immutable field.
+	// See: https://github.com/kubernetes/kubernetes/issues/66353
+	// `auth reconcile` will delete and recreate the resource if necessary
+	if obj.GetAPIVersion() == "rbac.authorization.k8s.io/v1" {
+		f, err := ioutil.TempFile(util.TempDir, "")
+		if err != nil {
+			return "", fmt.Errorf("Failed to generate temp file for kubeconfig: %v", err)
+		}
+		_ = f.Close()
+		err = WriteKubeConfig(config, namespace, f.Name())
+		if err != nil {
+			return "", fmt.Errorf("Failed to write kubeconfig: %v", err)
+		}
+		defer util.DeleteFile(f.Name())
+		// `kubectl auth reconcile` has a side effect of auto-creating namespaces if it doesn't exist.
+		// See: https://github.com/kubernetes/kubernetes/issues/71185. This is behavior which we do
+		// not want. We need to check if the namespace exists, before know if it is safe to run this
+		// command. Skip this for dryRuns.
+		if !dryRun && namespace != "" {
+			kubeClient, err := kubernetes.NewForConfig(config)
+			if err != nil {
+				return "", err
+			}
+			_, err = kubeClient.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
+			if err != nil {
+				return "", err
+			}
+		}
+		out, err := k.runKubectl(f.Name(), namespace, []string{"auth", "reconcile"}, manifestBytes, dryRun)
+		if err != nil {
+			return out, err
+		}
+		// We still want to fallthrough and run `kubectl apply` in order set the
+		// last-applied-configuration annotation in the object.
 	}
 
 	// TODO validate!
@@ -215,11 +257,7 @@ func (k *KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstru
 	if force {
 		options.Force = pointer.BoolPtr(force)
 	}
-	objBytes, err := json.Marshal(obj)
-	if err != nil {
-		return err
-	}
-	_, err = resourceIf.Patch(obj.GetName(), types.StrategicMergePatchType, objBytes, options)
+	_, err = resourceIf.Patch(obj.GetName(), types.StrategicMergePatchType, manifestBytes, options)
 
 	if kubeerrors.IsNotFound(err) {
 		options := metav1.CreateOptions{}
@@ -227,9 +265,16 @@ func (k *KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstru
 			options.DryRun = append(options.DryRun, "All")
 		}
 		_, err := resourceIf.Create(obj, options)
-		return err
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("%s/%s created", strings.ToLower(obj.GetKind()), obj.GetName()), nil
+	} else if err != nil {
+		return "", err
 	} else {
-		return err
+		// TODO LastAppliedConfigAnnotation
+		return fmt.Sprintf("%s/%s configured", strings.ToLower(obj.GetKind()), obj.GetName()), nil
+
 	}
 }
 

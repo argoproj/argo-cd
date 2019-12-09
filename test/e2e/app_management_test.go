@@ -96,7 +96,7 @@ func TestImmutableChange(t *testing.T) {
 			HookPhase: "Failed",
 			Message:   fmt.Sprintf(`Service "my-service" is invalid: spec.clusterIP: Invalid value: "%s": field is immutable`, ip2),
 		})).
-		// now we can do this will a force
+		// now we can do this with a force
 		Given().
 		Force().
 		When().
