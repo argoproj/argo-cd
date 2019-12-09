@@ -97,7 +97,7 @@ manifests-local:
 	./hack/update-manifests.sh
 
 .PHONY: manifests
-manifests:
+manifests: dev-tools-image
 	$(call run-in-dev-tool,make manifests-local IMAGE_TAG='${IMAGE_TAG}')
 
 
