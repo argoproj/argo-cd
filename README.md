@@ -51,13 +51,5 @@ If you want to immediately kick the tires, you can try out using builds of eithe
 
 [argo-poc]: https://github.com/argoproj/argo-cd/tree/gitops-engine-poc#what-is-gitops-engine-poc-branch
 [flux-poc]: https://github.com/fluxcd/flux/tree/gitops-engine-poc#what-is-gitops-engine-poc-branch
-
-### Events
-
-Join us at the following events to learn more about the project:
-
-- November 26, 10:00 - 11:00am PT: [Weave Online User Group - Join the online call with members from the Flux CD and Argo CD project](https://www.meetup.com/Weave-User-Group/events/266410126/)
-- December 3, 10:00 - 11:00am PT: [Weave Online User Group - Join the online call with members from the Flux CD and Argo CD project](https://www.meetup.com/Weave-User-Group/events/266411987/)
-
 [kube-slack]: https://slack.k8s.io/
 [gitops-slack]: https://kubernetes.slack.com/messages/gitops
