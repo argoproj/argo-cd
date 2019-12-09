@@ -44,13 +44,13 @@ func (k *MockKubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVer
 	return command.Err
 }
 
-func (k *MockKubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) (string, error) {
+func (k *MockKubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) error {
 	k.LastValidate = validate
 	command, ok := k.Commands[obj.GetName()]
 	if !ok {
-		return "", nil
+		return nil
 	}
-	return command.Output, command.Err
+	return command.Err
 }
 
 // ConvertToVersion converts an unstructured object into the specified group/version

@@ -5,14 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os/exec"
 	"regexp"
 	"strings"
 
 	argoexec "github.com/argoproj/pkg/exec"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -30,7 +28,7 @@ import (
 )
 
 type Kubectl interface {
-	ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) (string, error)
+	ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) error
 	ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
 	DeleteResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error
 	GetResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
@@ -197,7 +195,7 @@ func (k *KubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVersion
 }
 
 // ApplyResource performs an apply of a unstructured resource
-func (k *KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) (string, error) {
+func (k *KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force, validate bool) error {
 	span := tracing.StartSpan("ApplyResource")
 	span.SetBaggageItem("kind", obj.GetKind())
 	span.SetBaggageItem("name", obj.GetName())
@@ -206,48 +204,32 @@ func (k *KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstru
 
 	resourceIf, err := getResourceIf(config, obj.GroupVersionKind(), namespace)
 	if err != nil {
-		return "", err
+		return err
 	}
-	objBytes, err := yaml.Marshal(obj)
-	if err != nil {
-		return "", err
-	}
-
-	_, err = resourceIf.Get(obj.GetName(), metav1.GetOptions{})
 
 	// TODO validate!
+	options := metav1.PatchOptions{}
+	if dryRun {
+		options.DryRun = append(options.DryRun, "All")
+	}
+	if force {
+		options.Force = pointer.BoolPtr(force)
+	}
+	objBytes, err := json.Marshal(obj)
+	if err != nil {
+		return err
+	}
+	_, err = resourceIf.Patch(obj.GetName(), types.StrategicMergePatchType, objBytes, options)
 
 	if kubeerrors.IsNotFound(err) {
 		options := metav1.CreateOptions{}
 		if dryRun {
 			options.DryRun = append(options.DryRun, "All")
 		}
-		out, err := resourceIf.Create(obj, options)
-		if err != nil {
-			return "", err
-		}
-		outBytes, err := yaml.Marshal(out)
-		if err != nil {
-			return "", err
-		}
-		return string(outBytes), nil
+		_, err := resourceIf.Create(obj, options)
+		return err
 	} else {
-		options := metav1.PatchOptions{}
-		if dryRun {
-			options.DryRun = append(options.DryRun, "All")
-		}
-		if force {
-			options.Force = pointer.BoolPtr(force)
-		}
-		out, err := resourceIf.Patch(obj.GetName(), types.StrategicMergePatchType, objBytes, options)
-		if err != nil {
-			return "", err
-		}
-		outBytes, err := yaml.Marshal(out)
-		if err != nil {
-			return "", err
-		}
-		return string(outBytes), nil
+		return err
 	}
 }
 

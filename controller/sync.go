@@ -544,14 +544,14 @@ func (sc *syncContext) ensureCRDReady(name string) {
 // applyObject performs a `kubectl apply` of a single resource
 func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun bool, force bool) (v1alpha1.ResultCode, string) {
 	validate := !resource.HasAnnotationOption(targetObj, common.AnnotationSyncOptions, "Validate=false")
-	message, err := sc.kubectl.ApplyResource(sc.config, targetObj, targetObj.GetNamespace(), dryRun, force, validate)
+	err := sc.kubectl.ApplyResource(sc.config, targetObj, targetObj.GetNamespace(), dryRun, force, validate)
 	if err != nil {
 		return v1alpha1.ResultCodeSyncFailed, err.Error()
 	}
 	if kube.IsCRD(targetObj) && !dryRun {
 		sc.ensureCRDReady(targetObj.GetName())
 	}
-	return v1alpha1.ResultCodeSynced, message
+	return v1alpha1.ResultCodeSynced, ""
 }
 
 // pruneObject deletes the object if both prune is true and dryRun is false. Otherwise appropriate message
