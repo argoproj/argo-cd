@@ -27,6 +27,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [Codility](https://www.codility.com/)
 1. [Commonbond](https://commonbond.co/)
 1. [CyberAgent](https://www.cyberagent.co.jp/en/)
+1. [EDF Renewables](https://www.edf-re.com/)
 1. [END.](https://www.endclothing.com/)
 1. [Fave](https://myfave.com)
 1. [Future PLC](https://www.futureplc.com/)
