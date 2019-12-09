@@ -21,6 +21,7 @@ type MockKubectlCmd struct {
 	Commands     map[string]KubectlOutput
 	Events       chan watch.Event
 	LastValidate bool
+	Version      string
 }
 
 func (k *MockKubectlCmd) GetAPIResources(config *rest.Config, resourceFilter kube.ResourceFilter) ([]kube.APIResourceInfo, error) {
@@ -58,7 +59,7 @@ func (k *MockKubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group,
 }
 
 func (k *MockKubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
-	return "", nil
+	return k.Version, nil
 }
 
 func (k *MockKubectlCmd) SetOnKubectlRun(onKubectlRun func(command string) (util.Closer, error)) {

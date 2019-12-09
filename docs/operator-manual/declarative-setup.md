@@ -517,7 +517,7 @@ Resources can be excluded from discovery and sync so that ArgoCD is unaware of t
 To configure this, edit the `argcd-cm` config map:
 
 ```shell
-kubectl edit configmap argocd-cm -n argocdconfigmap/argocd-cm edited
+kubectl edit configmap argocd-cm -n argocd
 ```
 
 Add `resource.exclusions`, e.g.:

@@ -12,11 +12,11 @@ import (
 	"regexp"
 	"strings"
 
+	executil "github.com/argoproj/argo-cd/util/exec"
 	"github.com/argoproj/argo-cd/util/security"
 
 	"github.com/Masterminds/semver"
 	"github.com/TomOnTime/utfutil"
-	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/ghodss/yaml"
 	"github.com/google/go-jsonnet"
 	log "github.com/sirupsen/logrus"
@@ -35,7 +35,6 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/app/discovery"
 	argopath "github.com/argoproj/argo-cd/util/app/path"
-	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/ksonnet"
@@ -593,7 +592,7 @@ func runCommand(command v1alpha1.Command, path string, env []string) (string, er
 	cmd := exec.Command(command.Command[0], append(command.Command[1:], command.Args...)...)
 	cmd.Env = env
 	cmd.Dir = path
-	return argoexec.RunCommandExt(cmd, config.CmdOpts())
+	return executil.Run(cmd)
 }
 
 func findPlugin(plugins []*v1alpha1.ConfigManagementPlugin, name string) *v1alpha1.ConfigManagementPlugin {

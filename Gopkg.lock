@@ -138,6 +138,17 @@
   version = "v3.2.0"
 
 [[projects]]
+  digest = "1:c05f1899f086e3b4613d94d9e6f7ba6f4b6587498a1aa6037c5c294b22f5a743"
+  name = "github.com/docker/distribution"
+  packages = [
+    "digestset",
+    "reference",
+  ]
+  pruneopts = ""
+  revision = "2461543d988979529609e8cb6fca9ca190dc48da"
+  version = "v2.7.1"
+
+[[projects]]
   digest = "1:b021ef379356343bdc13ec101e546b756fcef4b1186d08163bef7d3bc8c1e07f"
   name = "github.com/docker/docker"
   packages = [
@@ -652,6 +663,14 @@
   pruneopts = ""
   revision = "4b7aa43c6742a2c18fdef89dd197aaae7dac7ccd"
   version = "1.0.1"
+
+[[projects]]
+  digest = "1:5d9b668b0b4581a978f07e7d2e3314af18eb27b3fb5d19b70185b7c575723d11"
+  name = "github.com/opencontainers/go-digest"
+  packages = ["."]
+  pruneopts = ""
+  revision = "279bed98673dd5bef374d3b6e4b09e2af76183bf"
+  version = "v1.0.0-rc1"
 
 [[projects]]
   digest = "1:4c0404dc03d974acd5fcd8b8d3ce687b13bd169db032b89275e8b9d77b98ce8c"
@@ -1550,16 +1569,75 @@
   digest = "1:78aa6079e011ece0d28513c7fe1bd64284fa9eb5d671760803a839ffdf0e9e38"
   name = "k8s.io/kubernetes"
   packages = [
+    "pkg/api/legacyscheme",
     "pkg/api/v1/pod",
     "pkg/apis/apps",
+    "pkg/apis/apps/install",
+    "pkg/apis/apps/v1",
+    "pkg/apis/apps/v1beta1",
+    "pkg/apis/apps/v1beta2",
+    "pkg/apis/authentication",
+    "pkg/apis/authentication/install",
+    "pkg/apis/authentication/v1",
+    "pkg/apis/authentication/v1beta1",
+    "pkg/apis/authorization",
+    "pkg/apis/authorization/install",
+    "pkg/apis/authorization/v1",
+    "pkg/apis/authorization/v1beta1",
     "pkg/apis/autoscaling",
+    "pkg/apis/autoscaling/install",
+    "pkg/apis/autoscaling/v1",
+    "pkg/apis/autoscaling/v2beta1",
+    "pkg/apis/autoscaling/v2beta2",
     "pkg/apis/batch",
+    "pkg/apis/batch/install",
+    "pkg/apis/batch/v1",
+    "pkg/apis/batch/v1beta1",
+    "pkg/apis/batch/v2alpha1",
+    "pkg/apis/certificates",
+    "pkg/apis/certificates/install",
+    "pkg/apis/certificates/v1beta1",
+    "pkg/apis/coordination",
+    "pkg/apis/coordination/install",
+    "pkg/apis/coordination/v1",
+    "pkg/apis/coordination/v1beta1",
     "pkg/apis/core",
+    "pkg/apis/core/install",
+    "pkg/apis/core/v1",
+    "pkg/apis/events",
+    "pkg/apis/events/install",
+    "pkg/apis/events/v1beta1",
+    "pkg/apis/extensions",
+    "pkg/apis/extensions/install",
+    "pkg/apis/extensions/v1beta1",
+    "pkg/apis/networking",
+    "pkg/apis/policy",
+    "pkg/apis/policy/install",
+    "pkg/apis/policy/v1beta1",
+    "pkg/apis/rbac",
+    "pkg/apis/rbac/install",
+    "pkg/apis/rbac/v1",
+    "pkg/apis/rbac/v1alpha1",
+    "pkg/apis/rbac/v1beta1",
+    "pkg/apis/scheduling",
+    "pkg/apis/scheduling/install",
+    "pkg/apis/scheduling/v1",
+    "pkg/apis/scheduling/v1alpha1",
+    "pkg/apis/scheduling/v1beta1",
+    "pkg/apis/settings",
+    "pkg/apis/settings/install",
+    "pkg/apis/settings/v1alpha1",
+    "pkg/apis/storage",
+    "pkg/apis/storage/install",
+    "pkg/apis/storage/v1",
+    "pkg/apis/storage/v1alpha1",
+    "pkg/apis/storage/v1beta1",
     "pkg/kubectl/scheme",
     "pkg/kubectl/util/slice",
     "pkg/kubectl/util/term",
     "pkg/util/interrupt",
     "pkg/util/node",
+    "pkg/util/parsers",
   ]
   pruneopts = ""
   revision = "2d20b5759406ded89f8b25cf085ff4733b144ba5"
@@ -1736,10 +1814,26 @@
     "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1beta1",
     "k8s.io/kube-openapi/cmd/openapi-gen",
     "k8s.io/kube-openapi/pkg/common",
+    "k8s.io/kubernetes/pkg/api/legacyscheme",
     "k8s.io/kubernetes/pkg/api/v1/pod",
     "k8s.io/kubernetes/pkg/apis/apps",
+    "k8s.io/kubernetes/pkg/apis/apps/install",
+    "k8s.io/kubernetes/pkg/apis/authentication/install",
+    "k8s.io/kubernetes/pkg/apis/authorization/install",
+    "k8s.io/kubernetes/pkg/apis/autoscaling/install",
     "k8s.io/kubernetes/pkg/apis/batch",
+    "k8s.io/kubernetes/pkg/apis/batch/install",
+    "k8s.io/kubernetes/pkg/apis/certificates/install",
+    "k8s.io/kubernetes/pkg/apis/coordination/install",
     "k8s.io/kubernetes/pkg/apis/core",
+    "k8s.io/kubernetes/pkg/apis/core/install",
+    "k8s.io/kubernetes/pkg/apis/events/install",
+    "k8s.io/kubernetes/pkg/apis/extensions/install",
+    "k8s.io/kubernetes/pkg/apis/policy/install",
+    "k8s.io/kubernetes/pkg/apis/rbac/install",
+    "k8s.io/kubernetes/pkg/apis/scheduling/install",
+    "k8s.io/kubernetes/pkg/apis/settings/install",
+    "k8s.io/kubernetes/pkg/apis/storage/install",
     "k8s.io/kubernetes/pkg/kubectl/scheme",
     "k8s.io/kubernetes/pkg/kubectl/util/slice",
     "k8s.io/kubernetes/pkg/kubectl/util/term",
