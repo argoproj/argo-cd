@@ -23,6 +23,12 @@ func isRequestedDirUnderCurrentRoot(currentRoot, requestedPath string) bool {
 	} else if currentRoot == requestedPath {
 		return true
 	}
+	if requestedPath[len(requestedPath)-1] != '/' {
+		requestedPath = requestedPath + "/"
+	}
+	if currentRoot[len(currentRoot)-1] != '/' {
+		currentRoot = currentRoot + "/"
+	}
 	return strings.HasPrefix(requestedPath, currentRoot)
 }
 
