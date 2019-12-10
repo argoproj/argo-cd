@@ -25,11 +25,14 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [Adevinta](https://www.adevinta.com/)
 1. [ANSTO - Australian Synchrotron](https://www.synchrotron.org.au/)
 1. [Baloise](https://www.baloise.com)
+1. [BioBox Analytics](https://biobox.io)
 1. [CARFAX](https://www.carfax.com)
+1. [Celonis](https://www.celonis.com/)
 1. [Codility](https://www.codility.com/)
 1. [Commonbond](https://commonbond.co/)
 1. [CyberAgent](https://www.cyberagent.co.jp/en/)
 1. [EDF Renewables](https://www.edf-re.com/)
+1. [Elium](https://www.elium.com)
 1. [END.](https://www.endclothing.com/)
 1. [Fave](https://myfave.com)
 1. [Future PLC](https://www.futureplc.com/)
@@ -44,10 +47,12 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [Mirantis](https://mirantis.com/)
 1. [OpenSaaS Studio](https://opensaas.studio)
 1. [Optoro](https://www.optoro.com/)
+1. [Pipefy](https://www.pipefy.com/)
 1. [Riskified](https://www.riskified.com/)
 1. [Red Hat](https://www.redhat.com/)
 1. [Saildrone](https://www.saildrone.com/)
 1. [Saloodo! GmbH](https://www.saloodo.com)
+1. [Sunbit](https://www.sunbit.com/)
 1. [Tesla](https://tesla.com/)
 1. [tZERO](https://www.tzero.com/)
 1. [Ticketmaster](https://ticketmaster.com)
@@ -55,8 +60,9 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [Yieldlab](https://www.yieldlab.de/)
 1. [UBIO](https://ub.io/)
 1. [Universidad Mesoamericana](https://www.umes.edu.gt/)
+1. [Viaduct](https://www.viaduct.ai/)
 1. [Volvo Cars](https://www.volvocars.com/)
-1. [Sunbit](https://www.sunbit.com/)
+1. [Walkbase](https://www.walkbase.com/)
 
 ## Documentation
 
@@ -74,4 +80,3 @@ To learn more about Argo CD [go to the complete documentation](https://argoproj.
 1. [Machine Learning as Code](https://www.youtube.com/watch?v=VXrGp5er1ZE&t=0s&index=135&list=PLj6h78yzYM2PZf9eA7bhWnIh_mK1vyOfU). Among other things, describes how Kubeflow uses Argo CD to implement GitOPs for ML
 1. [Argo CD - GitOps Continuous Delivery for Kubernetes](https://www.youtube.com/watch?v=aWDIQMbp1cc&feature=youtu.be&t=1m4s)
 1. [Introduction to Argo CD : Kubernetes DevOps CI/CD](https://www.youtube.com/watch?v=2WSJF7d8dUg&feature=youtu.be)
-
