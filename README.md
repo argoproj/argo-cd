@@ -61,6 +61,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [Viaduct](https://www.viaduct.ai/)
 1. [Volvo Cars](https://www.volvocars.com/)
 1. [Walkbase](https://www.walkbase.com/)
+1. [BioBox Analytics](https://biobox.io)
 
 ## Documentation
 
