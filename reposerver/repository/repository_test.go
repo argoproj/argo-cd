@@ -42,6 +42,7 @@ func newServiceWithMocks(root string) (*Service, *gitmocks.Client, *helmmocks.Cl
 	gitClient.On("CommitSHA").Return(mock.Anything, nil)
 	gitClient.On("Root").Return(root)
 
+	helmClient.On("CleanChartCache", mock.Anything, mock.Anything).Return(nil)
 	helmClient.On("ExtractChart", mock.Anything, mock.Anything).Return(func(chart string, version string) string {
 		return path.Join(root, chart)
 	}, util.NewCloser(func() error {
@@ -240,8 +241,8 @@ func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
 	service := newService(".")
 	source := &argoappv1.ApplicationSource{
-		Chart:          "my-chart",
-		TargetRevision: ">= 1.0.0",
+		Chart:          "./testdata/my-chart",
+		TargetRevision: "1.1.0",
 		Helm: &argoappv1.ApplicationSourceHelm{
 			ValueFiles: []string{"./my-chart-values.yaml"},
 		},
@@ -264,8 +265,8 @@ func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
 func TestHelmManifestFromChartRepoWithValueFileOutsideRepo(t *testing.T) {
 	service := newService(".")
 	source := &argoappv1.ApplicationSource{
-		Chart:          "my-chart",
-		TargetRevision: ">= 1.0.0",
+		Chart:          "./testdata/my-chart",
+		TargetRevision: "1.0.0",
 		Helm: &argoappv1.ApplicationSourceHelm{
 			ValueFiles: []string{"../my-chart-2/my-chart-2-values.yaml"},
 		},
