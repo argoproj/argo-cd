@@ -784,7 +784,7 @@ func getLocalObjects(app *argoappv1.Application, local, appLabelKey, kubeVersion
 }
 
 func getLocalObjectsString(app *argoappv1.Application, local, appLabelKey, kubeVersion string, kustomizeOptions *argoappv1.KustomizeOptions) []string {
-	res, err := repository.GenerateManifests(local, &repoapiclient.ManifestRequest{
+	res, err := repository.GenerateManifests(local, "/", &repoapiclient.ManifestRequest{
 		ApplicationSource: &app.Spec.Source,
 		AppLabelKey:       appLabelKey,
 		AppLabelValue:     app.Name,

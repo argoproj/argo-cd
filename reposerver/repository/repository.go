@@ -117,7 +117,7 @@ func (s *Service) runRepoOperation(
 	repo *v1alpha1.Repository,
 	source *v1alpha1.ApplicationSource,
 	getCached func(revision string) bool,
-	operation func(appPath string, revision string) error,
+	operation func(appPath, repoRoot, revision string) error,
 	settings operationSettings) error {
 
 	var gitClient git.Client
@@ -158,7 +158,7 @@ func (s *Service) runRepoOperation(
 			return err
 		}
 		defer util.Close(closer)
-		return operation(chartPath, revision)
+		return operation(chartPath, chartPath, revision)
 	} else {
 		s.repoLock.Lock(gitClient.Root())
 		defer s.repoLock.Unlock(gitClient.Root())
@@ -174,7 +174,7 @@ func (s *Service) runRepoOperation(
 		if err != nil {
 			return err
 		}
-		return operation(appPath, revision)
+		return operation(appPath, gitClient.Root(), revision)
 	}
 }
 
@@ -194,9 +194,9 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 		}
 		return false
 	}
-	err := s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, getCached, func(appPath string, revision string) error {
+	err := s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, getCached, func(appPath, repoRoot, revision string) error {
 		var err error
-		res, err = GenerateManifests(appPath, q)
+		res, err = GenerateManifests(appPath, repoRoot, q)
 		if err != nil {
 			return err
 		}
@@ -218,7 +218,7 @@ func getHelmRepos(repositories []*v1alpha1.Repository) []helm.HelmRepository {
 	return repos
 }
 
-func helmTemplate(appPath string, q *apiclient.ManifestRequest) ([]*unstructured.Unstructured, error) {
+func helmTemplate(appPath string, repoRoot string, q *apiclient.ManifestRequest) ([]*unstructured.Unstructured, error) {
 	templateOpts := &helm.TemplateOpts{
 		Name:        q.AppLabelValue,
 		Namespace:   q.Namespace,
@@ -236,22 +236,24 @@ func helmTemplate(appPath string, q *apiclient.ManifestRequest) ([]*unstructured
 		for _, val := range appHelm.ValueFiles {
 			// If val is not a URL, run it against the directory enforcer. If it is a URL, use it without checking
 			if _, err := url.ParseRequestURI(val); err != nil {
-				baseDirectoryPath, err := security.SubtractRelativeFromAbsolutePath(appPath, q.ApplicationSource.Path)
+
+				// Ensure that the repo root provided is absolute
+				absRepoPath, err := filepath.Abs(repoRoot)
 				if err != nil {
 					return nil, err
 				}
-				absBaseDir, err := filepath.Abs(baseDirectoryPath)
-				if err != nil {
-					return nil, err
-				}
-				if !filepath.IsAbs(val) {
+
+				// If the path to the file is relative, join it with the current working directory (appPath)
+				path := val
+				if !filepath.IsAbs(path) {
 					absWorkDir, err := filepath.Abs(appPath)
 					if err != nil {
 						return nil, err
 					}
-					val = filepath.Join(absWorkDir, val)
+					path = filepath.Join(absWorkDir, path)
 				}
-				_, err = security.EnforceToCurrentRoot(absBaseDir, val)
+
+				_, err = security.EnforceToCurrentRoot(absRepoPath, path)
 				if err != nil {
 					return nil, err
 				}
@@ -312,7 +314,7 @@ func helmTemplate(appPath string, q *apiclient.ManifestRequest) ([]*unstructured
 }
 
 // GenerateManifests generates manifests from a path
-func GenerateManifests(appPath string, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
+func GenerateManifests(appPath, repoRoot string, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
 	var targetObjs []*unstructured.Unstructured
 	var dest *v1alpha1.ApplicationDestination
 
@@ -325,7 +327,7 @@ func GenerateManifests(appPath string, q *apiclient.ManifestRequest) (*apiclient
 	case v1alpha1.ApplicationSourceTypeKsonnet:
 		targetObjs, dest, err = ksShow(q.AppLabelKey, appPath, q.ApplicationSource.Ksonnet)
 	case v1alpha1.ApplicationSourceTypeHelm:
-		targetObjs, err = helmTemplate(appPath, q)
+		targetObjs, err = helmTemplate(appPath, repoRoot, q)
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), repoURL)
 		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions)
@@ -618,7 +620,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		return false
 	}
 
-	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, getCached, func(appPath string, revision string) error {
+	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, getCached, func(appPath, repoRoot, revision string) error {
 		appSourceType, err := GetAppSourceType(q.Source, appPath)
 		if err != nil {
 			return err
