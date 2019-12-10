@@ -210,8 +210,9 @@ func InteractiveEdit(filePattern string, data []byte, save func(input []byte) er
 	if editor == "" {
 		editor = defaultEditor
 	}
+	var editorArgs []string
 	if strings.Contains(editor, " ") {
-		editorArgs := strings.Split(editor, " ")
+		editorArgs = strings.Split(editor, " ")
 	}
 	errorComment := ""
 	for {
