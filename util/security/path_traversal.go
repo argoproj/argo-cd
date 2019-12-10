@@ -17,26 +17,13 @@ func EnforceToCurrentRoot(currentRoot, requestedPath string) (string, error) {
 	return requestedDir + string(filepath.Separator) + requestedFile, nil
 }
 
-// Determine the original repo path by progressively constructing the appPath the same way it was originally
-// done by Path() in util/app/path/path.go until we determine the original repo path
-func SubtractRelativeFromAbsolutePath(appPath, rel string) string {
-	separatedAbs := strings.Split(appPath, string(filepath.Separator))
-	for i := 0; i < len(separatedAbs)+1; i++ {
-		possibleRepoPath := strings.Join(separatedAbs[:i], string(filepath.Separator))
-		if filepath.Join(possibleRepoPath, rel) == appPath {
-			return possibleRepoPath
-		}
-	}
-	return ""
-}
-
-func isRequestedDirUnderCurrentRoot(currentRoot, requestedDir string) bool {
+func isRequestedDirUnderCurrentRoot(currentRoot, requestedPath string) bool {
 	if currentRoot == string(filepath.Separator) {
 		return true
-	} else if currentRoot == requestedDir {
+	} else if currentRoot == requestedPath {
 		return true
 	}
-	return strings.HasPrefix(requestedDir, currentRoot+string(filepath.Separator))
+	return strings.HasPrefix(requestedPath, currentRoot)
 }
 
 func parsePath(path string) (string, string) {
