@@ -50,7 +50,7 @@ func newServiceWithMocks(root string) (*Service, *gitmocks.Client) {
 	helmClient.On("GetIndex").Return(&helm.Index{Entries: map[string]helm.Entries{
 		chart: {{Version: "1.0.0"}, {Version: version.String()}},
 	}}, nil)
-	helmClient.On("ExtractChart", chart, version).Return("./testdata/my-chart", util.NopCloser, nil)
+	helmClient.On("ExtractChart", chart, version).Return("./testdata/my-chart", "/", util.NopCloser, nil)
 	helmClient.On("CleanChartCache", chart, version).Return(nil)
 
 	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool) (client git.Client, e error) {

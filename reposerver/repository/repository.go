@@ -241,6 +241,14 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		for _, val := range appHelm.ValueFiles {
 			// If val is not a URL, run it against the directory enforcer. If it is a URL, use it without checking
 			if _, err := url.ParseRequestURI(val); err != nil {
+
+				// Ensure that the repo root provided is absolute
+				absRepoPath, err := filepath.Abs(repoRoot)
+				if err != nil {
+					return nil, err
+				}
+
+				// If the path to the file is relative, join it with the current working directory (appPath)
 				path := val
 				if !filepath.IsAbs(path) {
 					absWorkDir, err := filepath.Abs(appPath)
@@ -249,7 +257,8 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 					}
 					path = filepath.Join(absWorkDir, path)
 				}
-				_, err = security.EnforceToCurrentRoot(repoRoot, path)
+
+				_, err = security.EnforceToCurrentRoot(absRepoPath, path)
 				if err != nil {
 					return nil, err
 				}
