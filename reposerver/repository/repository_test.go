@@ -50,11 +50,7 @@ func newServiceWithMocks(root string) (*Service, *gitmocks.Client) {
 	helmClient.On("GetIndex").Return(&helm.Index{Entries: map[string]helm.Entries{
 		chart: {{Version: "1.0.0"}, {Version: version.String()}},
 	}}, nil)
-	currentWorkingDirectory, err := filepath.Abs(".")
-	if err != nil {
-		panic(err)
-	}
-	helmClient.On("ExtractChart", chart, version).Return("./testdata/my-chart", currentWorkingDirectory, util.NopCloser, nil)
+	helmClient.On("ExtractChart", chart, version).Return("./testdata/my-chart", util.NopCloser, nil)
 	helmClient.On("CleanChartCache", chart, version).Return(nil)
 
 	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool) (client git.Client, e error) {
@@ -258,7 +254,7 @@ func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
 		Chart:          "my-chart",
 		TargetRevision: ">= 1.0.0",
 		Helm: &argoappv1.ApplicationSourceHelm{
-			ValueFiles: []string{"../my-chart-2/values.yaml"},
+			ValueFiles: []string{"./my-chart-values.yaml"},
 		},
 	}
 	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: source, NoCache: true}
@@ -282,7 +278,7 @@ func TestHelmManifestFromChartRepoWithValueFileOutsideRepo(t *testing.T) {
 		Chart:          "my-chart",
 		TargetRevision: ">= 1.0.0",
 		Helm: &argoappv1.ApplicationSourceHelm{
-			ValueFiles: []string{"../../../../util/helm/testdata/minio/values.yaml"},
+			ValueFiles: []string{"../my-chart-2/my-chart-2-values.yaml"},
 		},
 	}
 	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: source, NoCache: true}

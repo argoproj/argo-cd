@@ -31,7 +31,7 @@ func (_m *Client) CleanChartCache(chart string, version *semver.Version) error {
 }
 
 // ExtractChart provides a mock function with given fields: chart, version
-func (_m *Client) ExtractChart(chart string, version *semver.Version) (string, string, util.Closer, error) {
+func (_m *Client) ExtractChart(chart string, version *semver.Version) (string, util.Closer, error) {
 	ret := _m.Called(chart, version)
 
 	var r0 string
@@ -41,30 +41,23 @@ func (_m *Client) ExtractChart(chart string, version *semver.Version) (string, s
 		r0 = ret.Get(0).(string)
 	}
 
-	var r1 string
-	if rf, ok := ret.Get(1).(func(string, *semver.Version) string); ok {
+	var r1 util.Closer
+	if rf, ok := ret.Get(1).(func(string, *semver.Version) util.Closer); ok {
 		r1 = rf(chart, version)
 	} else {
-		r1 = ret.Get(1).(string)
-	}
-
-	var r2 util.Closer
-	if rf, ok := ret.Get(2).(func(string, *semver.Version) util.Closer); ok {
-		r2 = rf(chart, version)
-	} else {
-		if ret.Get(2) != nil {
-			r2 = ret.Get(2).(util.Closer)
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(util.Closer)
 		}
 	}
 
-	var r3 error
-	if rf, ok := ret.Get(3).(func(string, *semver.Version) error); ok {
-		r3 = rf(chart, version)
+	var r2 error
+	if rf, ok := ret.Get(2).(func(string, *semver.Version) error); ok {
+		r2 = rf(chart, version)
 	} else {
-		r3 = ret.Error(3)
+		r2 = ret.Error(2)
 	}
 
-	return r0, r1, r2, r3
+	return r0, r1, r2
 }
 
 // GetIndex provides a mock function with given fields:

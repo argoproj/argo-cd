@@ -158,12 +158,12 @@ func (s *Service) runRepoOperation(
 				return err
 			}
 		}
-		chartPath, repoRoot, closer, err := helmClient.ExtractChart(source.Chart, version)
+		chartPath, closer, err := helmClient.ExtractChart(source.Chart, version)
 		if err != nil {
 			return err
 		}
 		defer util.Close(closer)
-		return operation(chartPath, repoRoot, revision)
+		return operation(chartPath, chartPath, revision)
 	} else {
 		s.repoLock.Lock(gitClient.Root())
 		defer s.repoLock.Unlock(gitClient.Root())

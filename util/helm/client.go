@@ -38,7 +38,7 @@ type Creds struct {
 
 type Client interface {
 	CleanChartCache(chart string, version *semver.Version) error
-	ExtractChart(chart string, version *semver.Version) (string, string, util.Closer, error)
+	ExtractChart(chart string, version *semver.Version) (string, util.Closer, error)
 	GetIndex() (*Index, error)
 }
 
@@ -88,10 +88,10 @@ func (c *nativeHelmChart) CleanChartCache(chart string, version *semver.Version)
 	return os.RemoveAll(c.getChartPath(chart, version))
 }
 
-func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (string, string, util.Closer, error) {
+func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (string, util.Closer, error) {
 	err := c.helmChartRepoPath()
 	if err != nil {
-		return "", "", nil, err
+		return "", nil, err
 	}
 	chartPath := c.getChartPath(chart, version)
 
@@ -100,62 +100,62 @@ func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (s
 
 	exists, err := fileExist(chartPath)
 	if err != nil {
-		return "", "", nil, err
+		return "", nil, err
 	}
 	if !exists {
 		helmCmd, err := NewCmd(c.repoPath)
 		if err != nil {
-			return "", "", nil, err
+			return "", nil, err
 		}
 		defer helmCmd.Close()
 
 		_, err = helmCmd.Init()
 		if err != nil {
-			return "", "", nil, err
+			return "", nil, err
 		}
 
 		_, err = helmCmd.RepoUpdate()
 		if err != nil {
-			return "", "", nil, err
+			return "", nil, err
 		}
 
 		// (1) because `helm fetch` downloads an arbitrary file name, we download to an empty temp directory
 		tempDest, err := ioutil.TempDir("", "helm")
 		if err != nil {
-			return "", "", nil, err
+			return "", nil, err
 		}
 		defer func() { _ = os.RemoveAll(tempDest) }()
 		_, err = helmCmd.Fetch(c.repoURL, chart, version.String(), tempDest, c.creds)
 		if err != nil {
-			return "", "", nil, err
+			return "", nil, err
 		}
 		// (2) then we assume that the only file downloaded into the directory is the tgz file
 		// and we move that to where we want it
 		infos, err := ioutil.ReadDir(tempDest)
 		if err != nil {
-			return "", "", nil, err
+			return "", nil, err
 		}
 		if len(infos) != 1 {
-			return "", "", nil, fmt.Errorf("expected 1 file, found %v", len(infos))
+			return "", nil, fmt.Errorf("expected 1 file, found %v", len(infos))
 		}
 		err = os.Rename(filepath.Join(tempDest, infos[0].Name()), chartPath)
 		if err != nil {
-			return "", "", nil, err
+			return "", nil, err
 		}
 	}
 	// untar helm chart into throw away temp directory which should be deleted as soon as no longer needed
 	tempDir, err := ioutil.TempDir("", "helm")
 	if err != nil {
-		return "", "", nil, err
+		return "", nil, err
 	}
 	cmd := exec.Command("tar", "-zxvf", chartPath)
 	cmd.Dir = tempDir
 	_, err = executil.Run(cmd)
 	if err != nil {
 		_ = os.RemoveAll(tempDir)
-		return "", "", nil, err
+		return "", nil, err
 	}
-	return path.Join(tempDir, chart), tempDir, util.NewCloser(func() error {
+	return path.Join(tempDir, chart), util.NewCloser(func() error {
 		return os.RemoveAll(tempDir)
 	}), nil
 }
