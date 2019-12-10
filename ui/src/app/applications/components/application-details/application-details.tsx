@@ -508,6 +508,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
     private async updateApp(app: appModels.Application) {
         const latestApp = await services.applications.get(app.metadata.name);
         latestApp.metadata.labels = app.metadata.labels;
+        latestApp.metadata.annotations = app.metadata.annotations;
         latestApp.spec = app.spec;
         await services.applications.update(latestApp);
         this.refreshRequested.next({});
