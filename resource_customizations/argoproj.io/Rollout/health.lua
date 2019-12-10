@@ -34,16 +34,13 @@ end
 
 function checkPaused(obj)
   hs = {}
-  local paused = false
-  if obj.status.verifyingPreview ~= nil then
-    paused = obj.status.verifyingPreview
-  elseif obj.spec.paused ~= nil then
-    paused = obj.spec.paused
+  hs.status = "Suspended"
+  hs.message = "Rollout is paused"
+  if obj.status.pauseConditions ~= nil and table.getn(obj.status.pauseConditions) > 0 then
+    return hs
   end
 
-  if paused then
-    hs.status = "Suspended"
-    hs.message = "Rollout is paused"
+  if obj.spec.paused ~= nil and obj.spec.paused then
     return hs
   end
   return nil
