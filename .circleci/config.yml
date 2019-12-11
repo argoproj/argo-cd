@@ -54,12 +54,13 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          keys: [codegen-v2]
+          keys:
+            - codegen-v1-{{ checksum "Gopkg.lock" }}-{{ checksum "hack/installers/install-codegen-go-tools.sh" }}
       - run: ./hack/install.sh codegen-go-tools
       - run: sudo ./hack/install.sh codegen-tools
-      - run: dep ensure
+      - run: dep ensure -v
       - save_cache:
-          key: codegen-v2
+          key: codegen-v1-{{ checksum "Gopkg.lock" }}-{{ checksum "hack/installers/install-codegen-go-tools.sh" }}
           paths: [vendor, /tmp/dl, /go/pkg]
       - run: helm init --client-only
       - run: make codegen-local
@@ -92,7 +93,7 @@ jobs:
       - configure_git
       - run: go get github.com/jstemmer/go-junit-report
       - restore_vendor
-      - run: dep ensure
+      - run: dep ensure -v
       - run: make test
       - save_vendor
       - save_go_cache
@@ -134,7 +135,7 @@ jobs:
           key: e2e-dl-v10
           paths: [/tmp/dl]
       - restore_vendor
-      - run: dep ensure
+      - run: dep ensure -v
       - configure_git
       - run: make cli
       - run:
