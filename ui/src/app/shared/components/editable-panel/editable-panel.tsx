@@ -41,7 +41,9 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
 
     public UNSAFE_componentWillReceiveProps(nextProps: EditablePanelProps<T>) {
         if (this.formApi && JSON.stringify(this.props.values) !== JSON.stringify(nextProps.values)) {
-            this.formApi.setAllValues(nextProps.values);
+            if (!!nextProps.noReadonlyMode) {
+                this.formApi.setAllValues(nextProps.values);
+            }
         }
     }
 

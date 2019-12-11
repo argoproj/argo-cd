@@ -1,6 +1,7 @@
 import {DropDownMenu, FormField, FormSelect, PopupApi} from 'argo-ui';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
+
 import {AutocompleteField, Cluster, clusterTitle, DataLoader, EditablePanel, EditablePanelItem, MapInputField, Repo, Revision, RevisionHelpIcon} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -41,6 +42,13 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                 .map(label => `${label}=${app.metadata.labels[label]}`)
                 .join(' '),
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='metadata.labels' component={MapInputField} />
+        },
+        {
+            title: 'ANNOTATIONS',
+            view: Object.keys(app.metadata.annotations || {})
+                .map(annotation => `${annotation}=${app.metadata.annotations[annotation]}`)
+                .join(' '),
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='metadata.annotations' component={MapInputField} />
         },
         {
             title: 'CLUSTER',
