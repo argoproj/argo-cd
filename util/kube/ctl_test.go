@@ -4,10 +4,9 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/argoproj/argo-cd/test"
-	"github.com/argoproj/argo-cd/util"
-
 	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-cd/test"
 )
 
 func TestConvertToVersion(t *testing.T) {
@@ -51,24 +50,6 @@ func TestConvertToVersion(t *testing.T) {
 			assert.Equal(t, "v1", gvk.Version)
 		}
 	})
-}
-
-func TestRunKubectl(t *testing.T) {
-	callbackExecuted := false
-	closerExecuted := false
-	kubectl := KubectlCmd{
-		func(command string) (util.Closer, error) {
-			callbackExecuted = true
-			return util.NewCloser(func() error {
-				closerExecuted = true
-				return nil
-			}), nil
-		},
-	}
-
-	_, _ = kubectl.runKubectl("/dev/null", "default", []string{"command-name"}, nil, false)
-	assert.True(t, callbackExecuted)
-	assert.True(t, closerExecuted)
 }
 
 func TestVersion(t *testing.T) {

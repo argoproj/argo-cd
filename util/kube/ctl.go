@@ -10,16 +10,21 @@ import (
 	"regexp"
 	"strings"
 
-	argoexec "github.com/argoproj/pkg/exec"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/kubectl/pkg/cmd/apply"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubernetes/pkg/kubectl/cmd/auth"
 
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/diff"
@@ -35,11 +40,9 @@ type Kubectl interface {
 	PatchResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error)
 	GetAPIResources(config *rest.Config, resourceFilter ResourceFilter) ([]APIResourceInfo, error)
 	GetServerVersion(config *rest.Config) (string, error)
-	SetOnKubectlRun(onKubectlRun func(command string) (util.Closer, error))
 }
 
 type KubectlCmd struct {
-	OnKubectlRun func(command string) (util.Closer, error)
 }
 
 type APIResourceInfo struct {
@@ -219,92 +222,19 @@ func (k *KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstru
 	if err != nil {
 		return "", err
 	}
-	var out []string
-	// If it is an RBAC resource, run `kubectl auth reconcile`. This is preferred over
-	// `kubectl apply`, which cannot tolerate changes in roleRef, which is an immutable field.
-	// See: https://github.com/kubernetes/kubernetes/issues/66353
-	// `auth reconcile` will delete and recreate the resource if necessary
-	if obj.GetAPIVersion() == "rbac.authorization.k8s.io/v1" {
-		// `kubectl auth reconcile` has a side effect of auto-creating namespaces if it doesn't exist.
-		// See: https://github.com/kubernetes/kubernetes/issues/71185. This is behavior which we do
-		// not want. We need to check if the namespace exists, before know if it is safe to run this
-		// command. Skip this for dryRuns.
-		if !dryRun && namespace != "" {
-			kubeClient, err := kubernetes.NewForConfig(config)
-			if err != nil {
-				return "", err
-			}
-			_, err = kubeClient.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
-			if err != nil {
-				return "", err
-			}
-		}
-		outReconcile, err := k.runKubectl(f.Name(), namespace, []string{"auth", "reconcile"}, manifestBytes, dryRun)
-		if err != nil {
-			return "", err
-		}
-		out = append(out, outReconcile)
-		// We still want to fallthrough and run `kubectl apply` in order set the
-		// last-applied-configuration annotation in the object.
-	}
-
-	// Run kubectl apply
-	applyArgs := []string{"apply"}
-	if force {
-		applyArgs = append(applyArgs, "--force")
-	}
-	if !validate {
-		applyArgs = append(applyArgs, "--validate=false")
-	}
-	outApply, err := k.runKubectl(f.Name(), namespace, applyArgs, manifestBytes, dryRun)
+	manifestFile, err := ioutil.TempFile(util.TempDir, "")
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("Failed to generate temp file for manifest: %v", err)
 	}
-	out = append(out, outApply)
-	return strings.Join(out, ". "), nil
-}
+	if _, err = manifestFile.Write(manifestBytes); err != nil {
+		return "", fmt.Errorf("Failed to write manifest: %v", err)
+	}
+	if err = manifestFile.Close(); err != nil {
+		return "", fmt.Errorf("Failed to close manifest: %v", err)
+	}
+	defer util.DeleteFile(manifestFile.Name())
 
-func convertKubectlError(err error) error {
-	errorStr := err.Error()
-	if cmdErr, ok := err.(*argoexec.CmdError); ok {
-		parts := []string{fmt.Sprintf("kubectl failed %s", cmdErr.Cause.Error())}
-		if cmdErr.Stderr != "" {
-			parts = append(parts, cleanKubectlOutput(cmdErr.Stderr))
-		}
-		errorStr = strings.Join(parts, ": ")
-	}
-	return fmt.Errorf(errorStr)
-}
-
-func (k *KubectlCmd) processKubectlRun(args []string) (util.Closer, error) {
-	if k.OnKubectlRun != nil {
-		cmd := "unknown"
-		if len(args) > 0 {
-			cmd = args[0]
-		}
-		return k.OnKubectlRun(cmd)
-	}
-	return util.NewCloser(func() error {
-		return nil
-		// do nothing
-	}), nil
-}
-
-func (k *KubectlCmd) runKubectl(kubeconfigPath string, namespace string, args []string, manifestBytes []byte, dryRun bool) (string, error) {
-	closer, err := k.processKubectlRun(args)
-	if err != nil {
-		return "", err
-	}
-	defer util.Close(closer)
-
-	cmdArgs := append([]string{"--kubeconfig", kubeconfigPath, "-f", "-"}, args...)
-	if namespace != "" {
-		cmdArgs = append(cmdArgs, "-n", namespace)
-	}
-	if dryRun {
-		cmdArgs = append(cmdArgs, "--dry-run")
-	}
-	cmd := exec.Command("kubectl", cmdArgs...)
+	// log manifest
 	if log.IsLevelEnabled(log.DebugLevel) {
 		var obj unstructured.Unstructured
 		err := json.Unmarshal(manifestBytes, &obj)
@@ -321,12 +251,166 @@ func (k *KubectlCmd) runKubectl(kubeconfigPath string, namespace string, args []
 		}
 		log.Debug(string(redactedBytes))
 	}
-	cmd.Stdin = bytes.NewReader(manifestBytes)
-	out, err := executil.Run(cmd)
-	if err != nil {
-		return "", convertKubectlError(err)
+
+	var out []string
+	if obj.GetAPIVersion() == "rbac.authorization.k8s.io/v1" {
+		// If it is an RBAC resource, run `kubectl auth reconcile`. This is preferred over
+		// `kubectl apply`, which cannot tolerate changes in roleRef, which is an immutable field.
+		// See: https://github.com/kubernetes/kubernetes/issues/66353
+		// `auth reconcile` will delete and recreate the resource if necessary
+		outReconcile, err := k.authReconcile(config, f.Name(), manifestFile.Name(), namespace, dryRun)
+		if err != nil {
+			return "", err
+		}
+		out = append(out, outReconcile)
+		// We still want to fallthrough and run `kubectl apply` in order set the
+		// last-applied-configuration annotation in the object.
 	}
-	return out, nil
+
+	// Run kubectl apply
+	fact, ioStreams := kubeCmdFactory(f.Name(), namespace)
+	applyOpts, err := newApplyOptions(config, fact, ioStreams, manifestFile.Name(), namespace, validate, force, dryRun)
+	if err != nil {
+		return "", err
+	}
+	err = applyOpts.Run()
+	if err != nil {
+		return "", errors.New(cleanKubectlOutput(err.Error()))
+	}
+	if buf := strings.TrimSpace(ioStreams.Out.(*bytes.Buffer).String()); len(buf) > 0 {
+		out = append(out, buf)
+	}
+	if buf := strings.TrimSpace(ioStreams.ErrOut.(*bytes.Buffer).String()); len(buf) > 0 {
+		out = append(out, buf)
+	}
+	return strings.Join(out, ". "), nil
+}
+
+func kubeCmdFactory(kubeconfig, ns string) (cmdutil.Factory, genericclioptions.IOStreams) {
+	kubeConfigFlags := genericclioptions.NewConfigFlags(true)
+	if ns != "" {
+		kubeConfigFlags.Namespace = &ns
+	}
+	kubeConfigFlags.KubeConfig = &kubeconfig
+	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)
+	f := cmdutil.NewFactory(matchVersionKubeConfigFlags)
+	ioStreams := genericclioptions.IOStreams{
+		In:     &bytes.Buffer{},
+		Out:    &bytes.Buffer{},
+		ErrOut: &bytes.Buffer{},
+	}
+	return f, ioStreams
+}
+
+func newApplyOptions(config *rest.Config, f cmdutil.Factory, ioStreams genericclioptions.IOStreams, fileName string, namespace string, validate bool, force bool, dryRun bool) (*apply.ApplyOptions, error) {
+	o := apply.NewApplyOptions(ioStreams)
+	dynamicClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	o.DynamicClient = dynamicClient
+	o.DeleteOptions = o.DeleteFlags.ToOptions(dynamicClient, o.IOStreams)
+	o.OpenAPISchema, _ = f.OpenAPISchema()
+	o.Validator, err = f.Validator(validate)
+	if err != nil {
+		return nil, err
+	}
+	o.Builder = f.NewBuilder()
+	o.Mapper, err = f.ToRESTMapper()
+	if err != nil {
+		return nil, err
+	}
+
+	o.ToPrinter = func(operation string) (printers.ResourcePrinter, error) {
+		o.PrintFlags.NamePrintFlags.Operation = operation
+		if o.DryRun {
+			err = o.PrintFlags.Complete("%s (dry run)")
+			if err != nil {
+				return nil, err
+			}
+		}
+		if o.ServerDryRun {
+			err = o.PrintFlags.Complete("%s (server dry run)")
+			if err != nil {
+				return nil, err
+			}
+		}
+		return o.PrintFlags.ToPrinter()
+	}
+	o.DeleteOptions.FilenameOptions.Filenames = []string{fileName}
+	o.Namespace = namespace
+	o.DeleteOptions.ForceDeletion = force
+	o.DryRun = dryRun
+	return o, nil
+}
+
+func newReconcileOptions(f cmdutil.Factory, kubeClient *kubernetes.Clientset, fileName string, ioStreams genericclioptions.IOStreams, namespace string, dryRun bool) (*auth.ReconcileOptions, error) {
+	o := auth.NewReconcileOptions(ioStreams)
+	o.RBACClient = kubeClient.RbacV1()
+	o.NamespaceClient = kubeClient.CoreV1()
+	o.FilenameOptions.Filenames = []string{fileName}
+	o.DryRun = dryRun
+
+	r := f.NewBuilder().
+		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
+		NamespaceParam(namespace).DefaultNamespace().
+		FilenameParam(false, o.FilenameOptions).
+		Flatten().
+		Do()
+	o.Visitor = r
+
+	if o.DryRun {
+		err := o.PrintFlags.Complete("%s (dry run)")
+		if err != nil {
+			return nil, err
+		}
+	}
+	printer, err := o.PrintFlags.ToPrinter()
+	if err != nil {
+		return nil, err
+	}
+	o.PrintObject = printer.PrintObj
+	return o, nil
+}
+
+func (k *KubectlCmd) authReconcile(config *rest.Config, kubeconfigPath string, manifestFile string, namespace string, dryRun bool) (string, error) {
+	kubeClient, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return "", err
+	}
+	// `kubectl auth reconcile` has a side effect of auto-creating namespaces if it doesn't exist.
+	// See: https://github.com/kubernetes/kubernetes/issues/71185. This is behavior which we do
+	// not want. We need to check if the namespace exists, before know if it is safe to run this
+	// command. Skip this for dryRuns.
+	if !dryRun && namespace != "" {
+		_, err = kubeClient.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
+		if err != nil {
+			return "", err
+		}
+	}
+	fact, ioStreams := kubeCmdFactory(kubeconfigPath, namespace)
+	reconcileOpts, err := newReconcileOptions(fact, kubeClient, manifestFile, ioStreams, namespace, dryRun)
+	if err != nil {
+		return "", err
+	}
+
+	err = reconcileOpts.Validate()
+	if err != nil {
+		return "", errors.New(cleanKubectlOutput(err.Error()))
+	}
+	err = reconcileOpts.RunReconcile()
+	if err != nil {
+		return "", errors.New(cleanKubectlOutput(err.Error()))
+	}
+
+	var out []string
+	if buf := strings.TrimSpace(ioStreams.Out.(*bytes.Buffer).String()); len(buf) > 0 {
+		out = append(out, buf)
+	}
+	if buf := strings.TrimSpace(ioStreams.ErrOut.(*bytes.Buffer).String()); len(buf) > 0 {
+		out = append(out, buf)
+	}
+	return strings.Join(out, ". "), nil
 }
 
 func Version() (string, error) {
@@ -374,8 +458,4 @@ func (k *KubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("%s.%s", v.Major, v.Minor), nil
-}
-
-func (k *KubectlCmd) SetOnKubectlRun(onKubectlRun func(command string) (util.Closer, error)) {
-	k.OnKubectlRun = onKubectlRun
 }
