@@ -55,6 +55,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [Saildrone](https://www.saildrone.com/)
 1. [Saloodo! GmbH](https://www.saloodo.com)
 1. [Tesla](https://tesla.com/)
+1. [Tiger Analytics](https://www.tigeranalytics.com/)
 1. [tZERO](https://www.tzero.com/)
 1. [Ticketmaster](https://ticketmaster.com)
 1. [Twilio SendGrid](https://sendgrid.com)
