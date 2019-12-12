@@ -62,6 +62,8 @@ export class ApplicationsService {
                 items.forEach(item => {
                     item.liveState = JSON.parse(item.liveState);
                     item.targetState = JSON.parse(item.targetState);
+                    item.predictedLiveState = JSON.parse(item.predictedLiveState);
+                    item.normalizedLiveState = JSON.parse(item.normalizedLiveState);
                 });
                 return items as models.ResourceDiff[];
             });

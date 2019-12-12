@@ -10,6 +10,7 @@ import (
 	"path"
 	"reflect"
 
+	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ghodss/yaml"
 	"github.com/google/shlex"
 	log "github.com/sirupsen/logrus"
@@ -18,6 +19,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/jsonmergepatch"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/kubernetes/pkg/apis/core"
@@ -26,8 +28,11 @@ import (
 )
 
 type DiffResult struct {
-	Diff     gojsondiff.Diff
-	Modified bool
+	// Deprecated: Use PredictedLive and NormalizedLive instead
+	Diff           gojsondiff.Diff
+	Modified       bool
+	PredictedLive  []byte
+	NormalizedLive []byte
 }
 
 type DiffResultList struct {
@@ -41,7 +46,7 @@ type Normalizer interface {
 
 // Diff performs a diff on two unstructured objects. If the live object happens to have a
 // "kubectl.kubernetes.io/last-applied-configuration", then perform a three way diff.
-func Diff(config, live *unstructured.Unstructured, normalizer Normalizer) *DiffResult {
+func Diff(config, live *unstructured.Unstructured, normalizer Normalizer) (*DiffResult, error) {
 	if config != nil {
 		config = remarshal(config)
 		Normalize(config, normalizer)
@@ -55,17 +60,14 @@ func Diff(config, live *unstructured.Unstructured, normalizer Normalizer) *DiffR
 		Normalize(orig, normalizer)
 		dr, err := ThreeWayDiff(orig, config, live)
 		if err == nil {
-			return dr
+			return dr, nil
 		}
 		log.Debugf("three-way diff calculation failed: %v. Falling back to two-way diff", err)
 	}
 	return TwoWayDiff(config, live)
 }
 
-// TwoWayDiff performs a normal two-way diff between two unstructured objects. Ignores extra fields
-// in the live object.
-// Inputs are assumed to be stripped of type information
-func TwoWayDiff(config, live *unstructured.Unstructured) *DiffResult {
+func getLegacyTwoWayDiff(config, live *unstructured.Unstructured) gojsondiff.Diff {
 	var configObj, liveObj map[string]interface{}
 	if config != nil {
 		config = removeNamespaceAnnotation(config)
@@ -74,12 +76,28 @@ func TwoWayDiff(config, live *unstructured.Unstructured) *DiffResult {
 	if live != nil {
 		liveObj = jsonutil.RemoveMapFields(configObj, live.Object)
 	}
-	gjDiff := gojsondiff.New().CompareObjects(liveObj, configObj)
-	dr := DiffResult{
-		Diff:     gjDiff,
-		Modified: gjDiff.Modified(),
+	return gojsondiff.New().CompareObjects(liveObj, configObj)
+}
+
+// TwoWayDiff performs a three-way diff and uses specified config as a recently applied config
+func TwoWayDiff(config, live *unstructured.Unstructured) (*DiffResult, error) {
+	if live != nil && config != nil {
+		return ThreeWayDiff(config, config.DeepCopy(), live)
+	} else if live != nil {
+		liveData, err := json.Marshal(live)
+		if err != nil {
+			return nil, err
+		}
+		return &DiffResult{Modified: false, Diff: getLegacyTwoWayDiff(config, live), NormalizedLive: liveData, PredictedLive: []byte("null")}, nil
+	} else if config != nil {
+		predictedLiveData, err := json.Marshal(config.Object)
+		if err != nil {
+			return nil, err
+		}
+		return &DiffResult{Modified: true, NormalizedLive: []byte("null"), PredictedLive: predictedLiveData, Diff: getLegacyTwoWayDiff(config, live)}, nil
+	} else {
+		return nil, errors.New("both live and config are null objects")
 	}
-	return &dr
 }
 
 // ThreeWayDiff performs a diff with the understanding of how to incorporate the
@@ -88,41 +106,51 @@ func TwoWayDiff(config, live *unstructured.Unstructured) *DiffResult {
 func ThreeWayDiff(orig, config, live *unstructured.Unstructured) (*DiffResult, error) {
 	orig = removeNamespaceAnnotation(orig)
 	config = removeNamespaceAnnotation(config)
+
 	// Remove defaulted fields from the live object.
 	// This subtracts any extra fields in the live object which are not present in last-applied-configuration.
 	// This is needed to perform a fair comparison when we send the objects to gojsondiff
+	// TODO: Remove line below to fix https://github.com/argoproj/argo-cd/issues/2865 and add special case for StatefulSet
 	live = &unstructured.Unstructured{Object: jsonutil.RemoveMapFields(orig.Object, live.Object)}
 
 	// 1. calculate a 3-way merge patch
-	patchBytes, err := threeWayMergePatch(orig, config, live)
+	patchBytes, versionedObject, err := threeWayMergePatch(orig, config, live)
 	if err != nil {
 		return nil, err
 	}
 
-	// 2. apply the patch against the live object
+	// 2. get expected live object by applying the patch against the live object
 	liveBytes, err := json.Marshal(live)
 	if err != nil {
 		return nil, err
 	}
-	versionedObject, err := scheme.Scheme.New(orig.GroupVersionKind())
-	if err != nil {
-		return nil, err
+
+	var predictedLiveBytes []byte
+	if versionedObject != nil {
+		predictedLiveBytes, err = strategicpatch.StrategicMergePatch(liveBytes, patchBytes, versionedObject)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		predictedLiveBytes, err = jsonpatch.MergePatch(liveBytes, patchBytes)
+		if err != nil {
+			return nil, err
+		}
 	}
-	patchedLiveBytes, err := strategicpatch.StrategicMergePatch(liveBytes, patchBytes, versionedObject)
-	if err != nil {
-		return nil, err
-	}
-	var patchedLive unstructured.Unstructured
-	err = json.Unmarshal(patchedLiveBytes, &patchedLive)
+
+	predictedLive := &unstructured.Unstructured{}
+	err = json.Unmarshal(predictedLiveBytes, predictedLive)
 	if err != nil {
 		return nil, err
 	}
 
-	// 3. diff the live object vs. the patched live object
-	gjDiff := gojsondiff.New().CompareObjects(live.Object, patchedLive.Object)
+	// 3. compare live and expected live object
 	dr := DiffResult{
-		Diff:     gjDiff,
-		Modified: gjDiff.Modified(),
+		PredictedLive:  predictedLiveBytes,
+		NormalizedLive: liveBytes,
+		Modified:       string(predictedLiveBytes) != string(liveBytes),
+		// legacy diff for backward compatibility
+		Diff: gojsondiff.New().CompareObjects(live.Object, predictedLive.Object),
 	}
 	return &dr, nil
 }
@@ -170,29 +198,36 @@ func removeNamespaceAnnotation(orig *unstructured.Unstructured) *unstructured.Un
 	return orig
 }
 
-func threeWayMergePatch(orig, config, live *unstructured.Unstructured) ([]byte, error) {
+func threeWayMergePatch(orig, config, live *unstructured.Unstructured) ([]byte, runtime.Object, error) {
 	origBytes, err := json.Marshal(orig.Object)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	configBytes, err := json.Marshal(config.Object)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	liveBytes, err := json.Marshal(live.Object)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	gvk := orig.GroupVersionKind()
-	versionedObject, err := scheme.Scheme.New(gvk)
-	if err != nil {
-		return nil, err
+	if versionedObject, err := scheme.Scheme.New(orig.GroupVersionKind()); err == nil {
+		lookupPatchMeta, err := strategicpatch.NewPatchMetaFromStruct(versionedObject)
+		if err != nil {
+			return nil, nil, err
+		}
+		patch, err := strategicpatch.CreateThreeWayMergePatch(origBytes, configBytes, liveBytes, lookupPatchMeta, true)
+		if err != nil {
+			return nil, nil, err
+		}
+		return patch, versionedObject, nil
+	} else {
+		patch, err := jsonmergepatch.CreateThreeWayJSONMergePatch(origBytes, configBytes, liveBytes)
+		if err != nil {
+			return nil, nil, err
+		}
+		return patch, nil, nil
 	}
-	lookupPatchMeta, err := strategicpatch.NewPatchMetaFromStruct(versionedObject)
-	if err != nil {
-		return nil, err
-	}
-	return strategicpatch.CreateThreeWayMergePatch(origBytes, configBytes, liveBytes, lookupPatchMeta, true)
 }
 
 func GetLastAppliedConfigAnnotation(live *unstructured.Unstructured) *unstructured.Unstructured {
@@ -230,7 +265,10 @@ func DiffArray(configArray, liveArray []*unstructured.Unstructured, normalizer N
 	for i := 0; i < numItems; i++ {
 		config := configArray[i]
 		live := liveArray[i]
-		diffRes := Diff(config, live, normalizer)
+		diffRes, err := Diff(config, live, normalizer)
+		if err != nil {
+			return nil, err
+		}
 		diffResultList.Diffs[i] = *diffRes
 		if diffRes.Modified {
 			diffResultList.Modified = true
@@ -239,16 +277,13 @@ func DiffArray(configArray, liveArray []*unstructured.Unstructured, normalizer N
 	return &diffResultList, nil
 }
 
-// ASCIIFormat returns the ASCII format of the diff
-func (d *DiffResult) ASCIIFormat(left *unstructured.Unstructured, formatOpts formatter.AsciiFormatterConfig) (string, error) {
+// JSONFormat returns the diff as a JSON string
+func (d *DiffResult) JSONFormat() (string, error) {
 	if !d.Diff.Modified() {
 		return "", nil
 	}
-	if left == nil {
-		return "", errors.New("Supplied nil left object")
-	}
-	asciiFmt := formatter.NewAsciiFormatter(left.Object, formatOpts)
-	return asciiFmt.Format(d.Diff)
+	jsonFmt := formatter.NewDeltaFormatter()
+	return jsonFmt.Format(d.Diff)
 }
 
 func Normalize(un *unstructured.Unstructured, normalizer Normalizer) {
@@ -259,6 +294,7 @@ func Normalize(un *unstructured.Unstructured, normalizer Normalizer) {
 	// creationTimestamp is sometimes set to null in the config when exported (e.g. SealedSecrets)
 	// Removing the field allows a cleaner diff.
 	unstructured.RemoveNestedField(un.Object, "metadata", "creationTimestamp")
+
 	gvk := un.GroupVersionKind()
 	if gvk.Group == "" && gvk.Kind == "Secret" {
 		NormalizeSecret(un)
@@ -338,15 +374,6 @@ func normalizeRole(un *unstructured.Unstructured) {
 	if rules != nil && len(rules) == 0 {
 		un.Object["rules"] = nil
 	}
-}
-
-// JSONFormat returns the diff as a JSON string
-func (d *DiffResult) JSONFormat() (string, error) {
-	if !d.Diff.Modified() {
-		return "", nil
-	}
-	jsonFmt := formatter.NewDeltaFormatter()
-	return jsonFmt.Format(d.Diff)
 }
 
 // CreateTwoWayMergePatch is a helper to construct a two-way merge patch from objects (instead of bytes)

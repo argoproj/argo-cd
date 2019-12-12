@@ -19,7 +19,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"github.com/yudai/gojsondiff"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -1005,16 +1004,19 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 				normalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, overrides)
 				errors.CheckError(err)
-				// Diff is already available in ResourceDiff Diff field but we have to recalculate diff again due to https://github.com/yudai/gojsondiff/issues/31
-				diffRes := diff.Diff(item.target, item.live, normalizer)
+
+				diffRes, err := diff.Diff(item.target, item.live, normalizer)
+				errors.CheckError(err)
+
 				if diffRes.Modified || item.target == nil || item.live == nil {
 					fmt.Printf("===== %s/%s %s/%s ======\n", item.key.Group, item.key.Kind, item.key.Namespace, item.key.Name)
 					var live *unstructured.Unstructured
 					var target *unstructured.Unstructured
 					if item.target != nil && item.live != nil {
 						target = item.live
-						live = item.live.DeepCopy()
-						gojsondiff.New().ApplyPatch(live.Object, diffRes.Diff)
+						live = &unstructured.Unstructured{}
+						err = json.Unmarshal(diffRes.PredictedLive, live)
+						errors.CheckError(err)
 					} else {
 						live = item.live
 						target = item.target

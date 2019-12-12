@@ -314,7 +314,8 @@ export interface ResourceDiff {
     name: string;
     targetState: State;
     liveState: State;
-    diff: string;
+    predictedLiveState: State;
+    normalizedLiveState: State;
     hook: boolean;
 }
 

@@ -647,13 +647,23 @@ message ResourceDiff {
 
   optional string name = 4;
 
+  // TargetState contains the JSON serialized resource manifest defined in the Git/Helm
   optional string targetState = 5;
 
+  // TargetState contains the JSON live resource manifest
   optional string liveState = 6;
 
+  // Diff contains the JSON patch between target and live resource
+  // Deprecated: use NormalizedLiveState and PredictedLiveState to render the difference
   optional string diff = 7;
 
   optional bool hook = 8;
+
+  // NormalizedLiveState contains JSON serialized live resource state with applied normalizations
+  optional string normalizedLiveState = 9;
+
+  // PredictedLiveState contains JSON serialized resource state that is calculated based on normalized and target resource state
+  optional string predictedLiveState = 10;
 }
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.

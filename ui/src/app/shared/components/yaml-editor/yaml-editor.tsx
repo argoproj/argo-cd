@@ -14,7 +14,7 @@ export class YamlEditor<T> extends React.Component<
         input: T;
         hideModeButtons?: boolean;
         initialEditMode?: boolean;
-        onSave: (patch: string, patchType: string) => Promise<any>;
+        onSave?: (patch: string, patchType: string) => Promise<any>;
         onCancel?: () => any;
         minHeight?: number;
     },

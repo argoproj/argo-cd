@@ -355,7 +355,11 @@ func (ctrl *ApplicationController) managedResources(comparisonResult *comparison
 			if err != nil {
 				return nil, err
 			}
-			resDiff = *diff.Diff(target, live, comparisonResult.diffNormalizer)
+			resDiffPtr, err := diff.Diff(target, live, comparisonResult.diffNormalizer)
+			if err != nil {
+				return nil, err
+			}
+			resDiff = *resDiffPtr
 		}
 
 		if live != nil {
@@ -382,6 +386,8 @@ func (ctrl *ApplicationController) managedResources(comparisonResult *comparison
 			return nil, err
 		}
 		item.Diff = jsonDiff
+		item.PredictedLiveState = string(resDiff.PredictedLive)
+		item.NormalizedLiveState = string(resDiff.NormalizedLive)
 
 		items[i] = &item
 	}
