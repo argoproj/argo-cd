@@ -307,11 +307,14 @@ export interface ApplicationTree {
     orphanedNodes: ResourceNode[];
 }
 
-export interface ResourceDiff {
+export interface ResourceID {
     group: string;
     kind: string;
     namespace: string;
     name: string;
+}
+
+export interface ResourceDiff extends ResourceID {
     targetState: State;
     liveState: State;
     predictedLiveState: State;

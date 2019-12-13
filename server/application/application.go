@@ -795,6 +795,13 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{Repo: repo, Revision: q.GetRevision()})
 }
 
+func isMatchingResource(q *application.ResourcesQuery, key kube.ResourceKey) bool {
+	return (q.Name == "" || q.Name == key.Name) &&
+		(q.Namespace == "" || q.Namespace == key.Namespace) &&
+		(q.Group == "" || q.Group == key.Group) &&
+		(q.Kind == "" || q.Kind == key.Kind)
+}
+
 func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQuery) (*application.ManagedResourcesResponse, error) {
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.ApplicationName, metav1.GetOptions{})
 	if err != nil {
@@ -810,7 +817,15 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 	if err != nil {
 		return nil, err
 	}
-	return &application.ManagedResourcesResponse{Items: items}, nil
+	res := &application.ManagedResourcesResponse{}
+	for i := range items {
+		item := items[i]
+		if isMatchingResource(q, kube.ResourceKey{Name: item.Name, Namespace: item.Namespace, Kind: item.Kind, Group: item.Group}) {
+			res.Items = append(res.Items, item)
+		}
+	}
+
+	return res, nil
 }
 
 func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.ApplicationService_PodLogsServer) error {
