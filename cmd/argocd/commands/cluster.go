@@ -195,8 +195,9 @@ func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		output string
 	)
 	var command = &cobra.Command{
-		Use:   "get CLUSTER",
-		Short: "Get cluster information",
+		Use:     "get SERVER",
+		Short:   "Get cluster information",
+		Example: `argocd cluster get https://12.34.567.89`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
@@ -253,8 +254,9 @@ func printClusterDetails(clusters []*argoappv1.Cluster) {
 // NewClusterRemoveCommand returns a new instance of an `argocd cluster list` command
 func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "rm CLUSTER",
-		Short: "Remove cluster credentials",
+		Use:     "rm SERVER",
+		Short:   "Remove cluster credentials",
+		Example: `argocd cluster rm https://12.34.567.89`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
@@ -328,8 +330,9 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 // NewClusterRotateAuthCommand returns a new instance of an `argocd cluster rotate-auth` command
 func NewClusterRotateAuthCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "rotate-auth CLUSTER",
-		Short: fmt.Sprintf("%s cluster rotate-auth CLUSTER", cliName),
+		Use:     "rotate-auth SERVER",
+		Short:   fmt.Sprintf("%s cluster rotate-auth SERVER", cliName),
+		Example: fmt.Sprintf("%s cluster rotate-auth https://12.34.567.89", cliName),
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
