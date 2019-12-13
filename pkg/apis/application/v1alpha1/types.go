@@ -399,15 +399,6 @@ func (in RevisionHistories) Trunc(n int) RevisionHistories {
 	return in
 }
 
-func (in RevisionHistories) Find(predicate func(h RevisionHistory) bool) *RevisionHistory {
-	for _, h := range in {
-		if predicate(h) {
-			return &h
-		}
-	}
-	return nil
-}
-
 // HasIdentity determines whether a sync operation is identified by a manifest.
 func (r SyncOperationResource) HasIdentity(name string, gvk schema.GroupVersionKind) bool {
 	if name == r.Name && gvk.Kind == r.Kind && gvk.Group == r.Group {

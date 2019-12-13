@@ -1654,11 +1654,3 @@ func TestApplicationSpec_GetRevisionHistoryLimit(t *testing.T) {
 	n := int64(11)
 	assert.Equal(t, 11, ApplicationSpec{RevisionHistoryLimit: &n}.GetRevisionHistoryLimit())
 }
-
-func TestRevisionHistories_Find(t *testing.T) {
-	assert.Nil(t, RevisionHistories{}.Find(func(h RevisionHistory) bool { return false }))
-	assert.Nil(t, RevisionHistories{{}}.Find(func(h RevisionHistory) bool { return false }))
-	// edge case where we have any empty array
-	assert.Nil(t, RevisionHistories{}.Find(func(h RevisionHistory) bool { return true }))
-	assert.NotNil(t, RevisionHistories{{}}.Find(func(h RevisionHistory) bool { return true }))
-}
