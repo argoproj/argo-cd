@@ -1,4 +1,4 @@
-import {DropDownMenu, FormField, FormSelect, PopupApi} from 'argo-ui';
+import {DropDownMenu, FormField, FormSelect, HelpIcon, PopupApi} from 'argo-ui';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
 
@@ -146,6 +146,24 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                       edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.path' component={Text} />
                   }
               ]),
+
+        {
+            title: 'REVISION HISTORY LIMIT',
+            view: app.spec.revisionHistoryLimit,
+            edit: (formApi: FormApi) => (
+                <React.Fragment>
+                    <FormField formApi={formApi} field='spec.revisionHistoryLimit' component={Text} />
+                    <HelpIcon
+                        title='This limits this number of items kept in the apps revision history.
+This should only be changed in exceptional circumstances.
+Setting to zero will store no history. This will reduce storage used.
+Increasing will increase the space used to store the history, so we do not recommend increasing it.
+Default is 10.
+'
+                    />
+                </React.Fragment>
+            )
+        },
         {
             title: 'STATUS',
             view: (

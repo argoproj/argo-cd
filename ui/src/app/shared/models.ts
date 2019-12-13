@@ -221,6 +221,7 @@ export interface ApplicationSpec {
     destination: ApplicationDestination;
     syncPolicy?: SyncPolicy;
     info?: Info[];
+    revisionHistoryLimit?: number;
 }
 
 /**

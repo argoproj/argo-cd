@@ -331,6 +331,14 @@ spec:
               description: Project is a application project name. Empty name means
                 that application belongs to 'default' project.
               type: string
+            revisionHistoryLimit:
+              description: This limits this number of items kept in the apps revision
+                history. This should only be changed in exceptional circumstances.
+                Setting to zero will store no history. This will reduce storage used.
+                Increasing will increase the space used to store the history, so we
+                do not recommend increasing it. Default is 10.
+              format: int64
+              type: integer
             source:
               description: Source is a reference to the location ksonnet application
                 definition
@@ -551,6 +559,8 @@ spec:
                   type: string
               type: object
             history:
+              description: RevisionHistories is a array of history, oldest first and
+                newest last
               items:
                 description: RevisionHistory contains information relevant to an application
                   deployment

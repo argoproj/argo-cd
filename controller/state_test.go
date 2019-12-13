@@ -391,3 +391,50 @@ func Test_comparisonResult_obs(t *testing.T) {
 	assert.Len(t, (&comparisonResult{managedResources: []managedResource{{Target: test.NewPod()}}}).targetObjs(), 1)
 	assert.Len(t, (&comparisonResult{hooks: []*unstructured.Unstructured{{}}}).targetObjs(), 1)
 }
+
+func Test_appStateManager_persistRevisionHistory(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(&fakeData{
+		apps: []runtime.Object{app},
+	})
+	manager := ctrl.appStateManager.(*appStateManager)
+	setRevisionHistoryLimit := func(value int) {
+		i := int64(value)
+		app.Spec.RevisionHistoryLimit = &i
+	}
+	addHistory := func() {
+		err := manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{})
+		assert.NoError(t, err)
+	}
+	addHistory()
+	assert.Len(t, app.Status.History, 1)
+	addHistory()
+	assert.Len(t, app.Status.History, 2)
+	addHistory()
+	assert.Len(t, app.Status.History, 3)
+	addHistory()
+	assert.Len(t, app.Status.History, 4)
+	addHistory()
+	assert.Len(t, app.Status.History, 5)
+	addHistory()
+	assert.Len(t, app.Status.History, 6)
+	addHistory()
+	assert.Len(t, app.Status.History, 7)
+	addHistory()
+	assert.Len(t, app.Status.History, 8)
+	addHistory()
+	assert.Len(t, app.Status.History, 9)
+	addHistory()
+	assert.Len(t, app.Status.History, 10)
+	// default limit is 10
+	addHistory()
+	assert.Len(t, app.Status.History, 10)
+	// increase limit
+	setRevisionHistoryLimit(11)
+	addHistory()
+	assert.Len(t, app.Status.History, 11)
+	// decrease limit
+	setRevisionHistoryLimit(9)
+	addHistory()
+	assert.Len(t, app.Status.History, 9)
+}

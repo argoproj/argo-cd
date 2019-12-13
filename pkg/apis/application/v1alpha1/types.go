@@ -59,6 +59,12 @@ type ApplicationSpec struct {
 	IgnoreDifferences []ResourceIgnoreDifferences `json:"ignoreDifferences,omitempty" protobuf:"bytes,5,name=ignoreDifferences"`
 	// Infos contains a list of useful information (URLs, email addresses, and plain text) that relates to the application
 	Info []Info `json:"info,omitempty" protobuf:"bytes,6,name=info"`
+	// This limits this number of items kept in the apps revision history.
+	// This should only be changed in exceptional circumstances.
+	// Setting to zero will store no history. This will reduce storage used.
+	// Increasing will increase the space used to store the history, so we do not recommend increasing it.
+	// Default is 10.
+	RevisionHistoryLimit *int64 `json:"revisionHistoryLimit,omitempty" protobuf:"bytes,7,name=revisionHistoryLimit"`
 }
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
@@ -359,7 +365,7 @@ type ApplicationStatus struct {
 	Resources  []ResourceStatus       `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
 	Sync       SyncStatus             `json:"sync,omitempty" protobuf:"bytes,2,opt,name=sync"`
 	Health     HealthStatus           `json:"health,omitempty" protobuf:"bytes,3,opt,name=health"`
-	History    []RevisionHistory      `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
+	History    RevisionHistories      `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
 	Conditions []ApplicationCondition `json:"conditions,omitempty" protobuf:"bytes,5,opt,name=conditions"`
 	// ReconciledAt indicates when the application state was reconciled using the latest git version
 	ReconciledAt   *metav1.Time    `json:"reconciledAt,omitempty" protobuf:"bytes,6,opt,name=reconciledAt"`
@@ -380,6 +386,17 @@ type SyncOperationResource struct {
 	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
 	Kind  string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
 	Name  string `json:"name" protobuf:"bytes,3,opt,name=name"`
+}
+
+// RevisionHistories is a array of history, oldest first and newest last
+type RevisionHistories []RevisionHistory
+
+func (in RevisionHistories) Trunc(n int) RevisionHistories {
+	i := len(in) - n
+	if i > 0 {
+		in = in[i:]
+	}
+	return in
 }
 
 // HasIdentity determines whether a sync operation is identified by a manifest.
@@ -1984,6 +2001,13 @@ func (spec ApplicationSpec) GetProject() string {
 		return common.DefaultAppProjectName
 	}
 	return spec.Project
+}
+
+func (spec ApplicationSpec) GetRevisionHistoryLimit() int {
+	if spec.RevisionHistoryLimit != nil {
+		return int(*spec.RevisionHistoryLimit)
+	}
+	return common.RevisionHistoryLimit
 }
 
 func isResourceInList(res metav1.GroupKind, list []metav1.GroupKind) bool {

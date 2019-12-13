@@ -818,6 +818,29 @@ func TestExcludedResource(t *testing.T) {
 		Expect(Condition(ApplicationConditionExcludedResourceWarning, "Resource apps/Deployment guestbook-ui is excluded in the settings"))
 }
 
+func TestRevisionHistoryLimit(t *testing.T) {
+	Given(t).
+		Path("config-map").
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Len(t, app.Status.History, 1)
+		}).
+		When().
+		AppSet("--revision-history-limit", "1").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Len(t, app.Status.History, 1)
+		})
+}
+
 func TestOrphanedResource(t *testing.T) {
 	Given(t).
 		ProjectSpec(AppProjectSpec{
