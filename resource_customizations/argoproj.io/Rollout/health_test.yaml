@@ -21,14 +21,6 @@ tests:
     message: The active Service is serving traffic to the current pod spec
   inputPath: testdata/bluegreen/healthy_servingActiveService.yaml
 - healthStatus:
-    status: Suspended
-    message: Rollout is paused
-  inputPath: testdata/bluegreen/suspended_servingPreviewService.yaml
-- healthStatus:
-    status: Suspended
-    message: Rollout is paused
-  inputPath: testdata/v0.2_suspended_servingPreviewService.yaml
-- healthStatus:
     status: Progressing
     message: "Waiting for roll out to finish: More replicas need to be updated"
   inputPath: testdata/bluegreen/progressing_addingMoreReplicas.yaml
@@ -48,7 +40,11 @@ tests:
 - healthStatus:
     status: Suspended
     message: Rollout is paused
-  inputPath: testdata/canary/suspended_pausedStep.yaml
+  inputPath: testdata/suspended_controllerPause.yaml
+- healthStatus:
+    status: Suspended
+    message: Rollout is paused
+  inputPath: testdata/suspended_userPause.yaml
 - healthStatus:
     status: Healthy
     message: The rollout has completed all steps

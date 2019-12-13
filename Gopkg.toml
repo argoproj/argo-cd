@@ -19,7 +19,7 @@ required = [
 
 [[constraint]]
   name = "github.com/gogo/protobuf"
-  version = "1.1.1"
+  version = "1.3.1"
 
 # override github.com/grpc-ecosystem/go-grpc-middleware's constraint on master
 [[override]]
@@ -36,23 +36,35 @@ required = [
   revision = "7858729281ec582767b20e0d696b6041d995d5e0"
 
 [[override]]
-  branch = "release-1.14"
+  branch = "release-1.16"
   name = "k8s.io/api"
 
 [[override]]
-  branch = "release-1.14"
+  branch = "release-1.16"
   name = "k8s.io/kubernetes"
 
 [[override]]
-  branch = "release-1.14"
+  branch = "release-1.16"
   name = "k8s.io/code-generator"
 
 [[override]]
-  branch = "release-1.14"
+  branch = "release-1.16"
   name = "k8s.io/apimachinery"
 
 [[override]]
-  branch = "release-11.0"
+  branch = "release-1.16"
+  name = "k8s.io/apiextensions-apiserver"
+
+[[override]]
+  branch = "release-1.16"
+  name = "k8s.io/apiserver"
+
+[[override]]
+  branch = "release-1.16"
+  name = "k8s.io/kubectl"
+
+[[override]]
+  branch = "release-13.0"
   name = "k8s.io/client-go"
 
 [[override]]
@@ -82,5 +94,5 @@ required = [
 # TODO: move off of k8s.io/kube-openapi and use controller-tools for CRD spec generation
 # (override argoproj/argo contraint on master)
 [[override]]
-  revision = "411b2483e5034420675ebcdd4a55fc76fe5e55cf"
+  revision = "30be4d16710ac61bce31eb28a01054596fe6a9f1"
   name = "k8s.io/kube-openapi"

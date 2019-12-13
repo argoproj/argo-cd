@@ -67,7 +67,9 @@ export const ApplicationDeploymentHistory = ({
                             source={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision}}
                         />
                         {selectedRollbackDeploymentIndex === index ? (
-                            <DataLoader input={recentDeployments[index].source} load={src => services.repos.appDetails(src)}>
+                            <DataLoader
+                                input={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision}}
+                                load={src => services.repos.appDetails(src)}>
                                 {(details: models.RepoAppDetails) => (
                                     <div>
                                         <ApplicationParameters

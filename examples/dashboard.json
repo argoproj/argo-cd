@@ -56,7 +56,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "Prometheus",
+      "datasource": "$Source",
       "format": "dtdurations",
       "gauge": {
         "maxValue": 100,
@@ -138,7 +138,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "Prometheus",
+      "datasource": "$Source",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -218,7 +218,7 @@
       "bars": false,
       "cacheTimeout": null,
       "dashLength": 10,
-      "datasource": "Prometheus",
+      "datasource": "$Source",
       "dashes": false,
       "fill": 0,
       "gridPos": {
@@ -328,7 +328,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#629e51"
       ],
-      "datasource": "Prometheus",
+      "datasource": "$Source",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -409,7 +409,7 @@
         "#5794F2",
         "#5794F2"
       ],
-      "datasource": "Prometheus",
+      "datasource": "$Source",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -489,7 +489,7 @@
         "#FF9830",
         "#FF9830"
       ],
-      "datasource": "Prometheus",
+      "datasource": "$Source",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -569,7 +569,7 @@
         "#F2495C",
         "#F2495C"
       ],
-      "datasource": "Prometheus",
+      "datasource": "$Source",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -649,7 +649,7 @@
         "#B877D9",
         "#A352CC"
       ],
-      "datasource": "Prometheus",
+      "datasource": "$Source",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -729,7 +729,7 @@
         "rgba(237, 129, 40, 0.89)",
         "rgb(0, 0, 0)"
       ],
-      "datasource": "Prometheus",
+      "datasource": "$Source",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -822,7 +822,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#299c46"
       ],
-      "datasource": "Prometheus",
+      "datasource": "$Source",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -902,7 +902,7 @@
         "#F2495C",
         "#F2495C"
       ],
-      "datasource": "Prometheus",
+      "datasource": "$Source",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -982,7 +982,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#299c46"
       ],
-      "datasource": "Prometheus",
+      "datasource": "$Source",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -1071,7 +1071,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "Prometheus",
+      "datasource": "$Source",
       "fill": 1,
       "gridPos": {
         "h": 5,
@@ -1163,7 +1163,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "Prometheus",
+      "datasource": "$Source",
       "fill": 1,
       "gridPos": {
         "h": 5,
@@ -1252,7 +1252,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "Prometheus",
+      "datasource": "$Source",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -1338,7 +1338,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "Prometheus",
+      "datasource": "$Source",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -1432,7 +1432,7 @@
         "mode": "spectrum"
       },
       "dataFormat": "tsbuckets",
-      "datasource": "Prometheus",
+      "datasource": "$Source",
       "gridPos": {
         "h": 9,
         "w": 24,
@@ -1488,7 +1488,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "Prometheus",
+      "datasource": "$Source",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -1574,7 +1574,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "Prometheus",
+      "datasource": "$Source",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -1672,7 +1672,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "Prometheus",
+          "datasource": "$Source",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -1758,7 +1758,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "Prometheus",
+          "datasource": "$Source",
           "fill": 1,
           "gridPos": {
             "h": 9,
@@ -1844,7 +1844,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "Prometheus",
+          "datasource": "$Source",
           "fill": 1,
           "gridPos": {
             "h": 9,
@@ -1945,7 +1945,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "Prometheus",
+          "datasource": "$Source",
           "fill": 1,
           "gridPos": {
             "h": 9,
@@ -2039,7 +2039,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "Prometheus",
+          "datasource": "$Source",
           "fill": 1,
           "gridPos": {
             "h": 9,
@@ -2133,7 +2133,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "Prometheus",
+          "datasource": "$Source",
           "fill": 1,
           "gridPos": {
             "h": 9,
@@ -2227,7 +2227,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "Prometheus",
+          "datasource": "$Source",
           "fill": 1,
           "gridPos": {
             "h": 9,
@@ -2321,7 +2321,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "Prometheus",
+          "datasource": "$Source",
           "fill": 1,
           "gridPos": {
             "h": 9,
@@ -2415,7 +2415,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "Prometheus",
+          "datasource": "$Source",
           "fill": 1,
           "gridPos": {
             "h": 9,
@@ -2509,7 +2509,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "Prometheus",
+          "datasource": "$Source",
           "fill": 1,
           "gridPos": {
             "h": 9,
@@ -2620,7 +2620,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "Prometheus",
+      "datasource": "$Source",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -2706,7 +2706,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "Prometheus",
+      "datasource": "$Source",
       "fill": 1,
       "gridPos": {
         "h": 9,
@@ -2792,7 +2792,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "Prometheus",
+      "datasource": "$Source",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -2876,7 +2876,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "Prometheus",
+      "datasource": "$Source",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -2963,12 +2963,24 @@
   "templating": {
     "list": [
       {
+        "hide": 0,
+        "includeAll": false,
+        "label": "Prometheus",
+        "multi": false,
+        "name": "Source",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "skipUrlSync": false,
+        "type": "datasource"
+      },
+      {
         "allValue": ".*",
         "current": {
           "text": "All",
           "value": "$__all"
         },
-        "datasource": "Prometheus",
+        "datasource": "$Source",
         "definition": "label_values(kube_pod_info, namespace)",
         "hide": 0,
         "includeAll": true,
@@ -2995,7 +3007,7 @@
             "$__all"
           ]
         },
-        "datasource": "Prometheus",
+        "datasource": "$Source",
         "definition": "label_values(argocd_app_health_status, project)",
         "hide": 0,
         "includeAll": true,

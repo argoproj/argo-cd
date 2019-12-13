@@ -2565,7 +2565,7 @@
         },
         "state": {
           "type": "string",
-          "title": "State of this Series: Ongoing or Finished"
+          "title": "State of this Series: Ongoing or Finished\nDeprecated. Planned removal for 1.18"
         }
       }
     },
@@ -2583,16 +2583,14 @@
         }
       }
     },
-    "v1Fields": {
+    "v1FieldsV1": {
+      "description": "FieldsV1 stores a set of fields in a data structure like a Trie, in JSON format.\n\nEach key is either a '.' representing the field itself, and will always map to an empty set,\nor a string representing a sub-field or item. The string will follow one of these four formats:\n'f:<name>', where <name> is the name of a field in a struct, or key in a map\n'v:<value>', where <value> is the exact json formatted value of a list item\n'i:<index>', where <index> is position of a item in a list\n'k:<keys>', where <keys> is a map of  a list item's key fields to their unique values\nIf a key maps to an empty Fields value, the field that key represents is part of the set.\n\nThe exact format is defined in sigs.k8s.io/structured-merge-diff",
       "type": "object",
-      "title": "Fields stores a set of fields in a data structure like a Trie.\nTo understand how this is used, see: https://github.com/kubernetes-sigs/structured-merge-diff",
       "properties": {
-        "map": {
-          "description": "Map stores a set of fields in a data structure like a Trie.\n\nEach key is either a '.' representing the field itself, and will always map to an empty set,\nor a string representing a sub-field or item. The string will follow one of these four formats:\n'f:<name>', where <name> is the name of a field in a struct, or key in a map\n'v:<value>', where <value> is the exact json formatted value of a list item\n'i:<index>', where <index> is position of a item in a list\n'k:<keys>', where <keys> is a map of  a list item's key fields to their unique values\nIf a key maps to an empty Fields value, the field that key represents is part of the set.\n\nThe exact format is defined in k8s.io/apiserver/pkg/endpoints/handlers/fieldmanager/internal",
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/v1Fields"
-          }
+        "Raw": {
+          "description": "Raw is the underlying serialization of this object.",
+          "type": "string",
+          "format": "byte"
         }
       }
     },
@@ -2609,32 +2607,6 @@
         }
       }
     },
-    "v1Initializer": {
-      "description": "Initializer is information about an initializer that has not yet completed.",
-      "type": "object",
-      "properties": {
-        "name": {
-          "description": "name of the process that is responsible for initializing this object.",
-          "type": "string"
-        }
-      }
-    },
-    "v1Initializers": {
-      "description": "Initializers tracks the progress of initialization.",
-      "type": "object",
-      "properties": {
-        "pending": {
-          "type": "array",
-          "title": "Pending is a list of initializers that must execute in order before this object is visible.\nWhen the last pending initializer is removed, and no failing result is set, the initializers\nstruct will be set to nil and the object is considered as initialized and visible to all\nclients.\n+patchMergeKey=name\n+patchStrategy=merge",
-          "items": {
-            "$ref": "#/definitions/v1Initializer"
-          }
-        },
-        "result": {
-          "$ref": "#/definitions/v1Status"
-        }
-      }
-    },
     "v1ListMeta": {
       "description": "ListMeta describes metadata that synthetic resources must have, including lists and\nvarious status objects. A resource may have only one of {ObjectMeta, ListMeta}.",
       "type": "object",
@@ -2643,13 +2615,18 @@
           "description": "continue may be set if the user set a limit on the number of items returned, and indicates that\nthe server has more data available. The value is opaque and may be used to issue another request\nto the endpoint that served this list to retrieve the next set of available objects. Continuing a\nconsistent list may not be possible if the server configuration has changed or more than a few\nminutes have passed. The resourceVersion field returned when using this continue value will be\nidentical to the value in the first response, unless you have received this token from an error\nmessage.",
           "type": "string"
         },
+        "remainingItemCount": {
+          "type": "string",
+          "format": "int64",
+          "title": "remainingItemCount is the number of subsequent items in the list which are not included in this\nlist response. If the list request contained label or field selectors, then the number of\nremaining items is unknown and the field will be left unset and omitted during serialization.\nIf the list is complete (either because it is not chunking or because this is the last chunk),\nthen there are no more remaining items and this field will be left unset and omitted during\nserialization.\nServers older than v1.15 do not set this field.\nThe intended use of the remainingItemCount is *estimating* the size of a collection. Clients\nshould not rely on the remainingItemCount to be set or to be exact.\n+optional"
+        },
         "resourceVersion": {
           "type": "string",
-          "title": "String that identifies the server's internal version of this object that\ncan be used by clients to determine when objects have changed.\nValue must be treated as opaque by clients and passed unmodified back to the server.\nPopulated by the system.\nRead-only.\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#concurrency-control-and-consistency\n+optional"
+          "title": "String that identifies the server's internal version of this object that\ncan be used by clients to determine when objects have changed.\nValue must be treated as opaque by clients and passed unmodified back to the server.\nPopulated by the system.\nRead-only.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency\n+optional"
         },
         "selfLink": {
-          "type": "string",
-          "title": "selfLink is a URL representing this object.\nPopulated by the system.\nRead-only.\n+optional"
+          "description": "selfLink is a URL representing this object.\nPopulated by the system.\nRead-only.\n\nDEPRECATED\nKubernetes will stop propagating this field in 1.20 release and the field is planned\nto be removed in 1.21 release.\n+optional",
+          "type": "string"
         }
       }
     },
@@ -2675,8 +2652,12 @@
           "description": "APIVersion defines the version of this resource that this field set\napplies to. The format is \"group/version\" just like the top-level\nAPIVersion field. It is necessary to track the version of a field\nset because it cannot be automatically converted.",
           "type": "string"
         },
-        "fields": {
-          "$ref": "#/definitions/v1Fields"
+        "fieldsType": {
+          "type": "string",
+          "title": "FieldsType is the discriminator for the different fields format and version.\nThere is currently only one possible value: \"FieldsV1\""
+        },
+        "fieldsV1": {
+          "$ref": "#/definitions/v1FieldsV1"
         },
         "manager": {
           "description": "Manager is an identifier of the workflow managing these fields.",
@@ -2741,16 +2722,13 @@
           }
         },
         "generateName": {
-          "description": "GenerateName is an optional prefix, used by the server, to generate a unique\nname ONLY IF the Name field has not been provided.\nIf this field is used, the name returned to the client will be different\nthan the name passed. This value will also be combined with a unique suffix.\nThe provided value has the same validation rules as the Name field,\nand may be truncated by the length of the suffix required to make the value\nunique on the server.\n\nIf this field is specified and the generated name exists, the server will\nNOT return a 409 - instead, it will either return 201 Created or 500 with Reason\nServerTimeout indicating a unique name could not be found in the time allotted, and the client\nshould retry (optionally after the time indicated in the Retry-After header).\n\nApplied only if Name is not specified.\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#idempotency\n+optional",
+          "description": "GenerateName is an optional prefix, used by the server, to generate a unique\nname ONLY IF the Name field has not been provided.\nIf this field is used, the name returned to the client will be different\nthan the name passed. This value will also be combined with a unique suffix.\nThe provided value has the same validation rules as the Name field,\nand may be truncated by the length of the suffix required to make the value\nunique on the server.\n\nIf this field is specified and the generated name exists, the server will\nNOT return a 409 - instead, it will either return 201 Created or 500 with Reason\nServerTimeout indicating a unique name could not be found in the time allotted, and the client\nshould retry (optionally after the time indicated in the Retry-After header).\n\nApplied only if Name is not specified.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency\n+optional",
           "type": "string"
         },
         "generation": {
           "type": "string",
           "format": "int64",
           "title": "A sequence number representing a specific generation of the desired state.\nPopulated by the system. Read-only.\n+optional"
-        },
-        "initializers": {
-          "$ref": "#/definitions/v1Initializers"
         },
         "labels": {
           "type": "object",
@@ -2760,7 +2738,7 @@
           }
         },
         "managedFields": {
-          "description": "ManagedFields maps workflow-id and version to the set of fields\nthat are managed by that workflow. This is mostly for internal\nhousekeeping, and users typically shouldn't need to set or\nunderstand this field. A workflow can be the user's name, a\ncontroller's name, or the name of a specific apply path like\n\"ci-cd\". The set of fields is always in the version that the\nworkflow used when modifying the object.\n\nThis field is alpha and can be changed or removed without notice.\n\n+optional",
+          "description": "ManagedFields maps workflow-id and version to the set of fields\nthat are managed by that workflow. This is mostly for internal\nhousekeeping, and users typically shouldn't need to set or\nunderstand this field. A workflow can be the user's name, a\ncontroller's name, or the name of a specific apply path like\n\"ci-cd\". The set of fields is always in the version that the\nworkflow used when modifying the object.\n\n+optional",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1ManagedFieldsEntry"
@@ -2782,12 +2760,12 @@
           }
         },
         "resourceVersion": {
-          "description": "An opaque value that represents the internal version of this object that can\nbe used by clients to determine when objects have changed. May be used for optimistic\nconcurrency, change detection, and the watch operation on a resource or set of resources.\nClients must treat these values as opaque and passed unmodified back to the server.\nThey may only be valid for a particular resource or set of resources.\n\nPopulated by the system.\nRead-only.\nValue must be treated as opaque by clients and .\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#concurrency-control-and-consistency\n+optional",
+          "description": "An opaque value that represents the internal version of this object that can\nbe used by clients to determine when objects have changed. May be used for optimistic\nconcurrency, change detection, and the watch operation on a resource or set of resources.\nClients must treat these values as opaque and passed unmodified back to the server.\nThey may only be valid for a particular resource or set of resources.\n\nPopulated by the system.\nRead-only.\nValue must be treated as opaque by clients and .\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency\n+optional",
           "type": "string"
         },
         "selfLink": {
-          "type": "string",
-          "title": "SelfLink is a URL representing this object.\nPopulated by the system.\nRead-only.\n+optional"
+          "description": "SelfLink is a URL representing this object.\nPopulated by the system.\nRead-only.\n\nDEPRECATED\nKubernetes will stop propagating this field in 1.20 release and the field is planned\nto be removed in 1.21 release.\n+optional",
+          "type": "string"
         },
         "uid": {
           "description": "UID is the unique in time and space value for this object. It is typically generated by\nthe server on successful creation of a resource and is not allowed to change on PUT\noperations.\n\nPopulated by the system.\nRead-only.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#uids\n+optional",
@@ -2809,7 +2787,7 @@
         },
         "kind": {
           "type": "string",
-          "title": "Kind of the referent.\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds\n+optional"
+          "title": "Kind of the referent.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds\n+optional"
         },
         "name": {
           "type": "string",
@@ -2821,7 +2799,7 @@
         },
         "resourceVersion": {
           "type": "string",
-          "title": "Specific resourceVersion to which this reference is made, if any.\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#concurrency-control-and-consistency\n+optional"
+          "title": "Specific resourceVersion to which this reference is made, if any.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency\n+optional"
         },
         "uid": {
           "type": "string",
@@ -2849,7 +2827,7 @@
         },
         "kind": {
           "type": "string",
-          "title": "Kind of the referent.\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds"
+          "title": "Kind of the referent.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds"
         },
         "name": {
           "type": "string",
@@ -2858,87 +2836,6 @@
         "uid": {
           "type": "string",
           "title": "UID of the referent.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#uids"
-        }
-      }
-    },
-    "v1Status": {
-      "description": "Status is a return value for calls that don't return other objects.",
-      "type": "object",
-      "properties": {
-        "code": {
-          "type": "integer",
-          "format": "int32",
-          "title": "Suggested HTTP return code for this status, 0 if not set.\n+optional"
-        },
-        "details": {
-          "$ref": "#/definitions/v1StatusDetails"
-        },
-        "message": {
-          "type": "string",
-          "title": "A human-readable description of the status of this operation.\n+optional"
-        },
-        "metadata": {
-          "$ref": "#/definitions/v1ListMeta"
-        },
-        "reason": {
-          "type": "string",
-          "title": "A machine-readable description of why this operation is in the\n\"Failure\" status. If this value is empty there\nis no information available. A Reason clarifies an HTTP status\ncode but does not override it.\n+optional"
-        },
-        "status": {
-          "type": "string",
-          "title": "Status of the operation.\nOne of: \"Success\" or \"Failure\".\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status\n+optional"
-        }
-      }
-    },
-    "v1StatusCause": {
-      "description": "StatusCause provides more information about an api.Status failure, including\ncases when multiple errors are encountered.",
-      "type": "object",
-      "properties": {
-        "field": {
-          "description": "The field of the resource that has caused this error, as named by its JSON\nserialization. May include dot and postfix notation for nested attributes.\nArrays are zero-indexed.  Fields may appear more than once in an array of\ncauses due to fields having multiple errors.\nOptional.\n\nExamples:\n  \"name\" - the field \"name\" on the current resource\n  \"items[0].name\" - the field \"name\" on the first array entry in \"items\"\n+optional",
-          "type": "string"
-        },
-        "message": {
-          "type": "string",
-          "title": "A human-readable description of the cause of the error.  This field may be\npresented as-is to a reader.\n+optional"
-        },
-        "reason": {
-          "type": "string",
-          "title": "A machine-readable description of the cause of the error. If this value is\nempty there is no information available.\n+optional"
-        }
-      }
-    },
-    "v1StatusDetails": {
-      "description": "StatusDetails is a set of additional properties that MAY be set by the\nserver to provide additional information about a response. The Reason\nfield of a Status object defines what attributes will be set. Clients\nmust ignore fields that do not match the defined type of each attribute,\nand should assume that any attribute may be empty, invalid, or under\ndefined.",
-      "type": "object",
-      "properties": {
-        "causes": {
-          "type": "array",
-          "title": "The Causes array includes more details associated with the StatusReason\nfailure. Not all StatusReasons may provide detailed causes.\n+optional",
-          "items": {
-            "$ref": "#/definitions/v1StatusCause"
-          }
-        },
-        "group": {
-          "type": "string",
-          "title": "The group attribute of the resource associated with the status StatusReason.\n+optional"
-        },
-        "kind": {
-          "type": "string",
-          "title": "The kind attribute of the resource associated with the status StatusReason.\nOn some operations may differ from the requested resource Kind.\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds\n+optional"
-        },
-        "name": {
-          "type": "string",
-          "title": "The name attribute of the resource associated with the status StatusReason\n(when there is a single name which can be described).\n+optional"
-        },
-        "retryAfterSeconds": {
-          "type": "integer",
-          "format": "int32",
-          "title": "If specified, the time in seconds before the operation should be retried. Some errors may indicate\nthe client must take an alternate action - for those errors this field may indicate how long to wait\nbefore taking the alternate action.\n+optional"
-        },
-        "uid": {
-          "type": "string",
-          "title": "UID of the resource.\n(when there is a single resource which can be described).\nMore info: http://kubernetes.io/docs/user-guide/identifiers#uids\n+optional"
         }
       }
     },
