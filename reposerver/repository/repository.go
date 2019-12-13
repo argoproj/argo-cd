@@ -82,6 +82,10 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 		log.Infof("cache hit: %s/%s", q.Repo.Repo, q.Revision)
 		return &apiclient.AppList{Apps: apps}, nil
 	}
+
+	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
+	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
+
 	s.repoLock.Lock(gitClient.Root())
 	defer s.repoLock.Unlock(gitClient.Root())
 
@@ -758,14 +762,18 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 			log.Infof("revision metadata cache miss: %s/%s", q.Repo.Repo, q.Revision)
 		}
 	}
+
 	gitClient, _, err := s.newClientResolveRevision(q.Repo, q.Revision)
 	if err != nil {
 		return nil, err
 	}
-	_, err = checkoutRevision(gitClient, q.Revision)
-	if err != nil {
-		return nil, err
-	}
+
+	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
+	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
+
+	s.repoLock.Lock(gitClient.Root())
+	defer s.repoLock.Unlock(gitClient.Root())
+
 	m, err := gitClient.RevisionMetadata(q.Revision)
 	if err != nil {
 		return nil, err
