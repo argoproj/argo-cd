@@ -73,4 +73,4 @@ stringData:
   webhook.gogs.secret: shhhh! it's a gogs server secret
 ```
 
-After saving, the changes should take affect automatically.
+After saving, the changes should take effect automatically.
