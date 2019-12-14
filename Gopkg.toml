@@ -64,6 +64,19 @@ required = [
   name = "k8s.io/kubectl"
 
 [[override]]
+  branch = "release-1.16"
+  name = "k8s.io/cli-runtime"
+
+[[override]]
+  version = "2.0.3"
+  name = "sigs.k8s.io/kustomize"
+
+# ASCIIRenderer does not implement blackfriday.Renderer
+[[override]]
+  name = "github.com/russross/blackfriday"
+  version = "1.5.2"
+ 
+[[override]]
   branch = "release-13.0"
   name = "k8s.io/client-go"
 
@@ -87,12 +100,18 @@ required = [
   branch = "master"
   name = "github.com/yudai/gojsondiff"
 
-[[constraint]]
+# Fixes: Could not introduce sigs.k8s.io/kustomize@v2.0.3, as it has a dependency on github.com/spf13/cobra with constraint ^0.0.2, which has no overlap with existing constraint 0.0.5 from (root)
+[[override]]
   name = "github.com/spf13/cobra"
-  revision = "fe5e611709b0c57fa4a89136deaa8e1d4004d053"
+  revision = "0.0.5"
 
 # TODO: move off of k8s.io/kube-openapi and use controller-tools for CRD spec generation
 # (override argoproj/argo contraint on master)
 [[override]]
   revision = "30be4d16710ac61bce31eb28a01054596fe6a9f1"
   name = "k8s.io/kube-openapi"
+
+# jsonpatch replace operation does not apply: doc is missing key: /metadata/annotations
+[[override]]
+  name = "github.com/evanphx/json-patch"
+  version = "v4.1.0"
