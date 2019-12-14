@@ -62,26 +62,28 @@ export const ApplicationDeploymentHistory = ({
                                 </div>
                             </div>
                         </div>
-                        <RevisionMetadataRows
-                            applicationName={app.metadata.name}
-                            source={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision}}
-                        />
                         {selectedRollbackDeploymentIndex === index ? (
-                            <DataLoader
-                                input={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision}}
-                                load={src => services.repos.appDetails(src)}>
-                                {(details: models.RepoAppDetails) => (
-                                    <div>
-                                        <ApplicationParameters
-                                            application={{
-                                                ...app,
-                                                spec: {...app.spec, source: recentDeployments[index].source}
-                                            }}
-                                            details={details}
-                                        />
-                                    </div>
-                                )}
-                            </DataLoader>
+                            <React.Fragment>
+                                <RevisionMetadataRows
+                                    applicationName={app.metadata.name}
+                                    source={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision}}
+                                />
+                                <DataLoader
+                                    input={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision}}
+                                    load={src => services.repos.appDetails(src)}>
+                                    {(details: models.RepoAppDetails) => (
+                                        <div>
+                                            <ApplicationParameters
+                                                application={{
+                                                    ...app,
+                                                    spec: {...app.spec, source: recentDeployments[index].source}
+                                                }}
+                                                details={details}
+                                            />
+                                        </div>
+                                    )}
+                                </DataLoader>
+                            </React.Fragment>
                         ) : null}
                     </div>
                 </div>
