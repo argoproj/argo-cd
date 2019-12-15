@@ -1,4 +1,4 @@
-import {DataLoader, Layout, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps} from 'argo-ui';
+import {DataLoader, Layout, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps, Tooltip} from 'argo-ui';
 import {createBrowserHistory} from 'history';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -175,7 +175,15 @@ export class App extends React.Component<{}, {popupProps: PopupProps; error: Err
                                                 ) : (
                                                     <Layout
                                                         navItems={navItems}
-                                                        version={() => <DataLoader load={() => services.version.version()}>{msg => msg.Version}</DataLoader>}>
+                                                        version={() => (
+                                                            <DataLoader load={() => services.version.version()}>
+                                                                {msg => (
+                                                                    <Tooltip content={msg.Version}>
+                                                                        <span>{msg.Version}</span>
+                                                                    </Tooltip>
+                                                                )}
+                                                            </DataLoader>
+                                                        )}>
                                                         <route.component {...routeProps} />
                                                     </Layout>
                                                 )
