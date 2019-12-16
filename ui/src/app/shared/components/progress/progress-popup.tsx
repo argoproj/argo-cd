@@ -1,4 +1,4 @@
-import {Popup} from 'argo-ui/src/app/shared/components/popup/popup';
+import {Popup} from 'argo-ui';
 import * as React from 'react';
 import {ProgressBar} from './progress-bar';
 
