@@ -74,7 +74,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                             }
                         />
                     </div>
-                    {appOperationState.syncResult && (
+                    {appOperationState.syncResult && appOperationState.syncResult.revision && (
                         <div className='application-status-panel__item-name'>
                             To <Revision repoUrl={application.spec.source.repoURL} revision={appOperationState.syncResult.revision} />
                         </div>
@@ -82,7 +82,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                     <div className='application-status-panel__item-name'>
                         {appOperationState.phase} <Timestamp date={appOperationState.finishedAt || appOperationState.startedAt} />
                     </div>
-                    {appOperationState.syncResult && (
+                    {appOperationState.syncResult && appOperationState.syncResult.revision && (
                         <RevisionMetadataPanel
                             appName={application.metadata.name}
                             type={application.spec.source.chart && 'helm'}
