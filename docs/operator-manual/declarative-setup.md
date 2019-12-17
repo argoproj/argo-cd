@@ -551,8 +551,8 @@ Notes:
 
 ## SSO & RBAC
 
-* SSO configuration details: [SSO](../sso)
-* RBAC configuration details: [RBAC](../rbac)
+* SSO configuration details: [SSO](./sso/index.md)
+* RBAC configuration details: [RBAC](./rbac.md)
 
 ## Manage Argo CD Using Argo CD
 
