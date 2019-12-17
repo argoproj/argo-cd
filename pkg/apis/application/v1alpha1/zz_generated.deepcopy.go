@@ -604,6 +604,11 @@ func (in *Cluster) DeepCopyInto(out *Cluster) {
 	*out = *in
 	in.Config.DeepCopyInto(&out.Config)
 	in.ConnectionState.DeepCopyInto(&out.ConnectionState)
+	if in.Namespaces != nil {
+		in, out := &in.Namespaces, &out.Namespaces
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

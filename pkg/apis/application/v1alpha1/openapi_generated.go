@@ -1102,6 +1102,20 @@ func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) 
 							Format:      "",
 						},
 					},
+					"namespaces": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list if not empty.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"server", "name", "config"},
 			},
