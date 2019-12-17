@@ -1,9 +1,6 @@
 package test
 
 import (
-	"encoding/json"
-
-	"github.com/ghodss/yaml"
 	appsv1 "k8s.io/api/apps/v1"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,7 +20,7 @@ const (
 	FakeClusterURL      = "https://fake-cluster:443"
 )
 
-var PodManifest = []byte(`
+var PodManifest = `
 {
   "apiVersion": "v1",
   "kind": "Pod",
@@ -44,15 +41,10 @@ var PodManifest = []byte(`
     ]
   }
 }
-`)
+`
 
 func NewPod() *unstructured.Unstructured {
-	var un unstructured.Unstructured
-	err := json.Unmarshal(PodManifest, &un)
-	if err != nil {
-		panic(err)
-	}
-	return &un
+	return Unstructured(PodManifest)
 }
 
 func NewControllerRevision() *unstructured.Unstructured {
@@ -75,8 +67,7 @@ revision: 2
 }
 
 func NewCRD() *unstructured.Unstructured {
-	var un unstructured.Unstructured
-	err := yaml.Unmarshal([]byte(`apiVersion: apiextensions.k8s.io/v1beta1
+	return Unstructured(`apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   name: testcrds.argoproj.io
@@ -86,11 +77,7 @@ spec:
   scope: Namespaced
   names:
     plural: testcrds
-    kind: TestCrd`), &un)
-	if err != nil {
-		panic(err)
-	}
-	return &un
+    kind: TestCrd`)
 }
 
 // DEPRECATED
@@ -117,7 +104,7 @@ func Annotate(obj *unstructured.Unstructured, key, val string) *unstructured.Uns
 	return obj
 }
 
-var ServiceManifest = []byte(`
+var ServiceManifest = `
 {
   "apiVersion": "v1",
   "kind": "Service",
@@ -138,18 +125,13 @@ var ServiceManifest = []byte(`
     }
   }
 }
-`)
+`
 
 func NewService() *unstructured.Unstructured {
-	var un unstructured.Unstructured
-	err := json.Unmarshal(ServiceManifest, &un)
-	if err != nil {
-		panic(err)
-	}
-	return &un
+	return Unstructured(ServiceManifest)
 }
 
-var DeploymentManifest = []byte(`
+var DeploymentManifest = `
 {
   "apiVersion": "apps/v1",
   "kind": "Deployment",
@@ -188,15 +170,10 @@ var DeploymentManifest = []byte(`
     }
   }
 }
-`)
+`
 
 func NewDeployment() *unstructured.Unstructured {
-	var un unstructured.Unstructured
-	err := json.Unmarshal(DeploymentManifest, &un)
-	if err != nil {
-		panic(err)
-	}
-	return &un
+	return Unstructured(DeploymentManifest)
 }
 
 func DemoDeployment() *appsv1.Deployment {

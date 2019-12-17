@@ -74,37 +74,51 @@ test('OperationState.undefined', () => {
     expect(tree).toMatchSnapshot();
 });
 
-test('OperationState.Default', () => {
+test('OperationState.quiet', () => {
+    const tree = renderer.create(<OperationState app={{metadata: {}, status: {operationState: {}}} as Application}
+                                                 quiet={true}/>).toJSON();
+
+    expect(tree).toMatchSnapshot();
+});
+
+test('OperationState.Unknown', () => {
     const tree = renderer.create(<OperationState
         app={{metadata: {}, status: {operationState: {}}} as Application}/>).toJSON();
 
     expect(tree).toMatchSnapshot();
 });
 
-test('OperationPhaseIcon.Succeeded', () => {
-    const tree = renderer.create(<OperationPhaseIcon
-        app={{metadata: {}, status: {operationState: {phase: OperationPhases.Succeeded}}} as Application}/>).toJSON();
+test('OperationState.Deleting', () => {
+    const tree = renderer.create(<OperationState
+        app={{metadata: {deletionTimestamp: zero}, status: {operationState: {}}} as Application}/>).toJSON();
 
     expect(tree).toMatchSnapshot();
 });
 
-test('OperationPhaseIcon.Error', () => {
-    const tree = renderer.create(<OperationPhaseIcon
-        app={{metadata: {}, status: {operationState: {phase: OperationPhases.Error}}} as Application}/>).toJSON();
+test('OperationState.Sync OK', () => {
+    const tree = renderer.create(<OperationState
+        app={{metadata: {}, status: {operationState: {operation: {sync:{}}, phase: OperationPhases.Succeeded}}} as Application}/>).toJSON();
 
     expect(tree).toMatchSnapshot();
 });
 
-test('OperationPhaseIcon.Failed', () => {
-    const tree = renderer.create(<OperationPhaseIcon
-        app={{metadata: {}, status: {operationState: {phase: OperationPhases.Failed}}} as Application}/>).toJSON();
+test('OperationState.Sync error', () => {
+    const tree = renderer.create(<OperationState
+        app={{metadata: {}, status: {operationState: {operation: {sync:{}}, phase: OperationPhases.Error}}} as Application}/>).toJSON();
 
     expect(tree).toMatchSnapshot();
 });
 
-test('OperationPhaseIcon.Running', () => {
-    const tree = renderer.create(<OperationPhaseIcon
-        app={{metadata: {}, status: {operationState: {phase: OperationPhases.Running}}} as Application}/>).toJSON();
+test('OperationState.Sync failed', () => {
+    const tree = renderer.create(<OperationState
+        app={{metadata: {}, status: {operationState: {operation: {sync:{}}, phase: OperationPhases.Failed}}} as Application}/>).toJSON();
+
+    expect(tree).toMatchSnapshot();
+});
+
+test('OperationState.Syncing', () => {
+    const tree = renderer.create(<OperationState
+        app={{metadata: {}, status: {operationState: {operation: {sync:{}}, phase: OperationPhases.Running}}} as Application}/>).toJSON();
 
     expect(tree).toMatchSnapshot();
 });

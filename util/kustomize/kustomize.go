@@ -9,13 +9,12 @@ import (
 	"sort"
 	"strings"
 
-	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/config"
+	executil "github.com/argoproj/argo-cd/util/exec"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/kube"
 
@@ -55,7 +54,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		if opts.NamePrefix != "" {
 			cmd := exec.Command("kustomize", "edit", "set", "nameprefix", "--", opts.NamePrefix)
 			cmd.Dir = k.path
-			_, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
+			_, err := executil.Run(cmd)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -63,7 +62,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		if opts.NameSuffix != "" {
 			cmd := exec.Command("kustomize", "edit", "set", "namesuffix", "--", opts.NameSuffix)
 			cmd.Dir = k.path
-			_, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
+			_, err := executil.Run(cmd)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -77,7 +76,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			}
 			cmd := exec.Command("kustomize", args...)
 			cmd.Dir = k.path
-			_, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
+			_, err := executil.Run(cmd)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -96,7 +95,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			args = append(args, arg)
 			cmd := exec.Command("kustomize", args...)
 			cmd.Dir = k.path
-			_, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
+			_, err := executil.Run(cmd)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -140,7 +139,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	}
 
 	cmd.Env = append(cmd.Env, environ...)
-	out, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
+	out, err := executil.Run(cmd)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -181,7 +180,7 @@ func IsKustomization(path string) bool {
 
 func Version() (string, error) {
 	cmd := exec.Command("kustomize", "version")
-	out, err := argoexec.RunCommandExt(cmd, config.CmdOpts())
+	out, err := executil.Run(cmd)
 	if err != nil {
 		return "", fmt.Errorf("could not get kustomize version: %s", err)
 	}

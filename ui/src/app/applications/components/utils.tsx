@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import {Checkbox, NotificationsApi, NotificationType} from 'argo-ui';
+import {Checkbox, NotificationType} from 'argo-ui';
 import {COLORS, ErrorNotification, Revision} from '../../shared/components';
 import {ContextApis} from '../../shared/context';
 import * as appModels from '../../shared/models';
@@ -59,19 +59,6 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
     return false;
 }
 
-export async function createApplication(app: appModels.Application, notifications: NotificationsApi): Promise<boolean> {
-    try {
-        await services.applications.create(app);
-        return true;
-    } catch (e) {
-        notifications.show({
-            content: <ErrorNotification title='Unable to create application' e={e} />,
-            type: NotificationType.Error
-        });
-    }
-    return false;
-}
-
 export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
     const operationState = getAppOperationState(app);
     if (operationState === undefined) {
@@ -85,11 +72,11 @@ export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
             color = COLORS.operation.success;
             break;
         case appModels.OperationPhases.Error:
-            className = 'fa fa-times';
+            className = 'fa fa-times-circle';
             color = COLORS.operation.error;
             break;
         case appModels.OperationPhases.Failed:
-            className = 'fa fa-times';
+            className = 'fa fa-times-circle';
             color = COLORS.operation.failed;
             break;
         default:
@@ -97,26 +84,28 @@ export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
             color = COLORS.operation.running;
             break;
     }
-    return <i title={operationState.phase} className={className} style={{color}} />;
+    return <i title={getOperationStateTitle(app)} className={className} style={{color}} />;
 };
 
 export const ComparisonStatusIcon = ({status, resource, label}: {status: appModels.SyncStatusCode; resource?: {requiresPruning?: boolean}; label?: boolean}) => {
     let className = 'fa fa-question-circle';
     let color = COLORS.sync.unknown;
-    let title: string = status;
+    let title: string = 'Unknown';
 
     switch (status) {
         case appModels.SyncStatuses.Synced:
             className = 'fa fa-check-circle';
             color = COLORS.sync.synced;
+            title = 'Synced';
             break;
         case appModels.SyncStatuses.OutOfSync:
             const requiresPruning = resource && resource.requiresPruning;
-            className = requiresPruning ? 'fa fa-times-circle' : 'fa fa-times';
+            className = requiresPruning ? 'fa fa-times-circle' : 'fa fa-arrow-alt-circle-up';
             if (requiresPruning) {
                 title = `${title} (requires pruning)`;
             }
             color = COLORS.sync.out_of_sync;
+            title = 'OutOfSync';
             break;
         case appModels.SyncStatuses.Unknown:
             className = 'fa fa-circle-notch fa-spin';
@@ -130,7 +119,7 @@ export const ComparisonStatusIcon = ({status, resource, label}: {status: appMode
 };
 
 export function syncStatusMessage(app: appModels.Application) {
-    let rev = app.spec.source.targetRevision || 'latest';
+    let rev = app.spec.source.targetRevision;
     if (app.status.sync.revision) {
         if (app.spec.source.chart) {
             rev += ' (' + app.status.sync.revision + ')';
@@ -143,7 +132,7 @@ export function syncStatusMessage(app: appModels.Application) {
             return (
                 <span>
                     To{' '}
-                    <Revision repoUrl={app.spec.source.repoURL} revision={app.spec.source.targetRevision || 'latest'}>
+                    <Revision repoUrl={app.spec.source.repoURL} revision={app.spec.source.targetRevision}>
                         {rev}
                     </Revision>{' '}
                 </span>
@@ -152,7 +141,7 @@ export function syncStatusMessage(app: appModels.Application) {
             return (
                 <span>
                     From{' '}
-                    <Revision repoUrl={app.spec.source.repoURL} revision={app.spec.source.targetRevision || 'latest'}>
+                    <Revision repoUrl={app.spec.source.repoURL} revision={app.spec.source.targetRevision}>
                         {rev}
                     </Revision>{' '}
                 </span>
@@ -169,11 +158,11 @@ export const HealthStatusIcon = ({state}: {state: appModels.HealthStatus}) => {
     switch (state.status) {
         case appModels.HealthStatuses.Healthy:
             color = COLORS.health.healthy;
-            icon = 'fa-heartbeat';
+            icon = 'fa-heart';
             break;
         case appModels.HealthStatuses.Suspended:
             color = COLORS.health.suspended;
-            icon = 'fa-heartbeat';
+            icon = 'fa-heart';
             break;
         case appModels.HealthStatuses.Degraded:
             color = COLORS.health.degraded;
@@ -199,18 +188,18 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
         switch (resource.status) {
             case appModels.ResultCodes.Synced:
                 color = COLORS.sync_result.synced;
-                icon = 'fa-heartbeat';
+                icon = 'fa-heart';
                 break;
             case appModels.ResultCodes.Pruned:
                 color = COLORS.sync_result.pruned;
-                icon = 'fa-heartbeat';
+                icon = 'fa-heart';
                 break;
             case appModels.ResultCodes.SyncFailed:
                 color = COLORS.sync_result.failed;
                 icon = 'fa-heart-broken';
                 break;
             case appModels.ResultCodes.PruneSkipped:
-                icon = 'fa-heartbeat';
+                icon = 'fa-heart';
                 break;
         }
         let title: string = resource.message;
@@ -236,7 +225,7 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
                 break;
             case appModels.OperationPhases.Succeeded:
                 color = COLORS.operation.success;
-                className = 'fa fa-heartbeat';
+                className = 'fa fa-heart';
                 break;
             case appModels.OperationPhases.Terminating:
                 color = COLORS.operation.terminating;
@@ -282,16 +271,41 @@ export function getOperationType(application: appModels.Application) {
     return 'Unknown';
 }
 
-export const OperationState = ({app}: {app: appModels.Application}) => {
+const getOperationStateTitle = (app: appModels.Application) => {
+    const appOperationState = getAppOperationState(app);
+    const operationType = getOperationType(app);
+    switch (operationType) {
+        case 'Delete':
+            return 'Deleting';
+        case 'Sync':
+            switch (appOperationState.phase) {
+                case 'Running':
+                    return 'Syncing';
+                case 'Error':
+                    return 'Sync error';
+                case 'Failed':
+                    return 'Sync failed';
+                case 'Succeeded':
+                    return 'Sync OK';
+                case 'Terminating':
+                    return 'Terminated';
+            }
+    }
+    return 'Unknown';
+};
+
+export const OperationState = ({app, quiet}: {app: appModels.Application; quiet?: boolean}) => {
     const appOperationState = getAppOperationState(app);
     if (appOperationState === undefined) {
         return <React.Fragment />;
     }
+    if (quiet && appOperationState.phase !== appModels.OperationPhases.Running) {
+        return <React.Fragment />;
+    }
+
     return (
         <React.Fragment>
-            <OperationPhaseIcon app={app} />
-            &nbsp;
-            {getOperationType(app)}
+            <OperationPhaseIcon app={app} /> {getOperationStateTitle(app)}
         </React.Fragment>
     );
 };

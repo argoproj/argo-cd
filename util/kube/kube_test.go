@@ -198,8 +198,20 @@ func TestSetSvcLabel(t *testing.T) {
 }
 
 func TestCleanKubectlOutput(t *testing.T) {
-	testString := `error: error validating "STDIN": error validating data: ValidationError(Deployment.spec): missing required field "selector" in io.k8s.api.apps.v1beta2.DeploymentSpec; if you choose to ignore these errors, turn validation off with --validate=false`
-	assert.Equal(t, cleanKubectlOutput(testString), `error validating data: ValidationError(Deployment.spec): missing required field "selector" in io.k8s.api.apps.v1beta2.DeploymentSpec`)
+	{
+		s := `error: error validating "STDIN": error validating data: ValidationError(Deployment.spec): missing required field "selector" in io.k8s.api.apps.v1beta2.DeploymentSpec; if you choose to ignore these errors, turn validation off with --validate=false`
+		assert.Equal(t, cleanKubectlOutput(s), `error validating data: ValidationError(Deployment.spec): missing required field "selector" in io.k8s.api.apps.v1beta2.DeploymentSpec`)
+	}
+	{
+		s := `error when applying patch:
+{"metadata":{"annotations":{"kubectl.kubernetes.io/last-applied-configuration":"{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"annotations\":{},\"labels\":{\"app.kubernetes.io/instance\":\"test-immutable-change\"},\"name\":\"my-service\",\"namespace\":\"argocd-e2e--test-immutable-change-ysfud\"},\"spec\":{\"clusterIP\":\"10.96.0.44\",\"ports\":[{\"port\":80,\"protocol\":\"TCP\",\"targetPort\":9376}],\"selector\":{\"app\":\"MyApp\"}}}\n"}},"spec":{"clusterIP":"10.96.0.44"}}
+to:
+Resource: "/v1, Resource=services", GroupVersionKind: "/v1, Kind=Service"
+Name: "my-service", Namespace: "argocd-e2e--test-immutable-change-ysfud"
+Object: &{map["apiVersion":"v1" "kind":"Service" "metadata":map["annotations":map["kubectl.kubernetes.io/last-applied-configuration":"{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"annotations\":{},\"labels\":{\"app.kubernetes.io/instance\":\"test-immutable-change\"},\"name\":\"my-service\",\"namespace\":\"argocd-e2e--test-immutable-change-ysfud\"},\"spec\":{\"clusterIP\":\"10.96.0.43\",\"ports\":[{\"port\":80,\"protocol\":\"TCP\",\"targetPort\":9376}],\"selector\":{\"app\":\"MyApp\"}}}\n"] "creationTimestamp":"2019-12-11T15:29:56Z" "labels":map["app.kubernetes.io/instance":"test-immutable-change"] "name":"my-service" "namespace":"argocd-e2e--test-immutable-change-ysfud" "resourceVersion":"157426" "selfLink":"/api/v1/namespaces/argocd-e2e--test-immutable-change-ysfud/services/my-service" "uid":"339cf96f-47eb-4759-ac95-30a169dce004"] "spec":map["clusterIP":"10.96.0.43" "ports":[map["port":'P' "protocol":"TCP" "targetPort":'\u24a0']] "selector":map["app":"MyApp"] "sessionAffinity":"None" "type":"ClusterIP"] "status":map["loadBalancer":map[]]]}
+for: "/var/folders/_m/991sn1ds7g39lnbhp6wvqp9d_j5476/T/224503547": Service "my-service" is invalid: spec.clusterIP: Invalid value: "10.96.0.44": field is immutable`
+		assert.Equal(t, cleanKubectlOutput(s), `Service "my-service" is invalid: spec.clusterIP: Invalid value: "10.96.0.44": field is immutable`)
+	}
 }
 
 func TestInClusterKubeConfig(t *testing.T) {

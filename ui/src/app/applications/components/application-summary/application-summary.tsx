@@ -1,6 +1,7 @@
-import {DropDownMenu, FormField, FormSelect, PopupApi} from 'argo-ui';
+import {DropDownMenu, FormField, FormSelect, HelpIcon, PopupApi} from 'argo-ui';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
+
 import {AutocompleteField, Cluster, clusterTitle, DataLoader, EditablePanel, EditablePanelItem, MapInputField, Repo, Revision, RevisionHelpIcon} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -41,6 +42,13 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                 .map(label => `${label}=${app.metadata.labels[label]}`)
                 .join(' '),
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='metadata.labels' component={MapInputField} />
+        },
+        {
+            title: 'ANNOTATIONS',
+            view: Object.keys(app.metadata.annotations || {})
+                .map(annotation => `${annotation}=${app.metadata.annotations[annotation]}`)
+                .join(' '),
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='metadata.annotations' component={MapInputField} />
         },
         {
             title: 'CLUSTER',
@@ -138,6 +146,24 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                       edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.path' component={Text} />
                   }
               ]),
+
+        {
+            title: 'REVISION HISTORY LIMIT',
+            view: app.spec.revisionHistoryLimit,
+            edit: (formApi: FormApi) => (
+                <React.Fragment>
+                    <FormField formApi={formApi} field='spec.revisionHistoryLimit' component={Text} />
+                    <HelpIcon
+                        title='This limits this number of items kept in the apps revision history.
+This should only be changed in exceptional circumstances.
+Setting to zero will store no history. This will reduce storage used.
+Increasing will increase the space used to store the history, so we do not recommend increasing it.
+Default is 10.
+'
+                    />
+                </React.Fragment>
+            )
+        },
         {
             title: 'STATUS',
             view: (

@@ -14,16 +14,16 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/argoproj/argo/util"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
-	"k8s.io/kubernetes/pkg/kubectl/util/term"
+	"k8s.io/kubectl/pkg/util/term"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/util"
 )
 
 // NewVersionCmd returns a new `version` command to be used as a sub-command to root
@@ -204,16 +204,23 @@ func setComments(input []byte, comments string) []byte {
 	return []byte(strings.Join(parts, "\n"))
 }
 
+// InteractiveEdit launches an interactive editor
 func InteractiveEdit(filePattern string, data []byte, save func(input []byte) error) {
-	editor := os.Getenv(editorEnv)
-	if editor == "" {
+	var editor string
+	var editorArgs []string
+	if overrideEditor := os.Getenv(editorEnv); overrideEditor == "" {
 		editor = defaultEditor
+	} else {
+		parts := strings.Fields(overrideEditor)
+		editor = parts[0]
+		editorArgs = parts[1:]
 	}
+
 	errorComment := ""
 	for {
 		data = setComments(data, errorComment)
 		tempFile := writeToTempFile(filePattern, data)
-		cmd := exec.Command(editor, tempFile)
+		cmd := exec.Command(editor, append(editorArgs, tempFile)...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin

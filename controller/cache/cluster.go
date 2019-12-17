@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"k8s.io/client-go/dynamic"
+
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-cd/controller/metrics"
@@ -199,8 +201,13 @@ func (c *clusterInfo) stopWatching(gk schema.GroupKind) {
 
 // startMissingWatches lists supported cluster resources and start watching for changes unless watch is already running
 func (c *clusterInfo) startMissingWatches() error {
+	config := c.cluster.RESTConfig()
 
-	apis, err := c.kubectl.GetAPIResources(c.cluster.RESTConfig(), c.cacheSettingsSrc().ResourcesFilter)
+	apis, err := c.kubectl.GetAPIResources(config, c.cacheSettingsSrc().ResourcesFilter)
+	if err != nil {
+		return err
+	}
+	client, err := c.kubectl.NewDynamicClient(config)
 	if err != nil {
 		return err
 	}
@@ -211,7 +218,14 @@ func (c *clusterInfo) startMissingWatches() error {
 			ctx, cancel := context.WithCancel(context.Background())
 			info := &apiMeta{namespaced: api.Meta.Namespaced, watchCancel: cancel}
 			c.apisMeta[api.GroupKind] = info
-			go c.watchEvents(ctx, api, info)
+
+			err = c.processApi(client, api, func(resClient dynamic.ResourceInterface) error {
+				go c.watchEvents(ctx, api, info, resClient)
+				return nil
+			})
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -223,7 +237,7 @@ func runSynced(lock *sync.Mutex, action func() error) error {
 	return action()
 }
 
-func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo, info *apiMeta) {
+func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo, info *apiMeta, resClient dynamic.ResourceInterface) {
 	util.RetryUntilSucceed(func() (err error) {
 		defer func() {
 			if r := recover(); r != nil {
@@ -233,7 +247,7 @@ func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo,
 
 		err = runSynced(c.syncLock, func() error {
 			if info.resourceVersion == "" {
-				list, err := api.Interface.List(metav1.ListOptions{})
+				list, err := resClient.List(metav1.ListOptions{})
 				if err != nil {
 					return err
 				}
@@ -246,7 +260,7 @@ func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo,
 			return err
 		}
 
-		w, err := api.Interface.Watch(metav1.ListOptions{ResourceVersion: info.resourceVersion})
+		w, err := resClient.Watch(metav1.ListOptions{ResourceVersion: info.resourceVersion})
 		if errors.IsNotFound(err) {
 			c.stopWatching(api.GroupKind)
 			return nil
@@ -301,6 +315,25 @@ func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo,
 	}, fmt.Sprintf("watch %s on %s", api.GroupKind, c.cluster.Server), ctx, watchResourcesRetryTimeout)
 }
 
+func (c *clusterInfo) processApi(client dynamic.Interface, api kube.APIResourceInfo, callback func(resClient dynamic.ResourceInterface) error) error {
+	resClient := client.Resource(api.GroupVersionResource)
+	if len(c.cluster.Namespaces) == 0 {
+		return callback(resClient)
+	}
+
+	if !api.Meta.Namespaced {
+		return nil
+	}
+
+	for _, ns := range c.cluster.Namespaces {
+		err := callback(resClient.Namespace(ns))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (c *clusterInfo) sync() (err error) {
 
 	c.log.Info("Start syncing cluster")
@@ -320,20 +353,25 @@ func (c *clusterInfo) sync() (err error) {
 	if err != nil {
 		return err
 	}
+	client, err := c.kubectl.NewDynamicClient(config)
+	if err != nil {
+		return err
+	}
 	lock := sync.Mutex{}
 	err = util.RunAllAsync(len(apis), func(i int) error {
-		api := apis[i]
-		list, err := api.Interface.List(metav1.ListOptions{})
-		if err != nil {
-			return err
-		}
+		return c.processApi(client, apis[i], func(resClient dynamic.ResourceInterface) error {
+			list, err := resClient.List(metav1.ListOptions{})
+			if err != nil {
+				return err
+			}
 
-		lock.Lock()
-		for i := range list.Items {
-			c.setNode(c.createObjInfo(&list.Items[i], c.cacheSettingsSrc().AppInstanceLabelKey))
-		}
-		lock.Unlock()
-		return nil
+			lock.Lock()
+			for i := range list.Items {
+				c.setNode(c.createObjInfo(&list.Items[i], c.cacheSettingsSrc().AppInstanceLabelKey))
+			}
+			lock.Unlock()
+			return nil
+		})
 	})
 
 	if err == nil {

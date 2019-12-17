@@ -82,7 +82,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	assert.Equal(t, countOfManifests, len(res1.Manifests))
 
 	// this will test concatenated manifests to verify we split YAMLs correctly
-	res2, err := GenerateManifests("./testdata/concatenated", "", &q)
+	res2, err := GenerateManifests("./testdata/concatenated", "/", "", &q)
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(res2.Manifests))
 }
@@ -221,7 +221,6 @@ func TestGenerateHelmWithValues(t *testing.T) {
 // since the requested value is sill under the repo directory (`~/go/src/github.com/argoproj/argo-cd`), it is allowed
 func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 	service := newService("../..")
-
 	_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 		Repo:          &argoappv1.Repository{},
 		AppLabelValue: "test",
@@ -234,6 +233,57 @@ func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 		},
 	})
 	assert.NoError(t, err)
+
+	// Test the case where the path is "."
+	service = newService("./testdata/my-chart")
+	_, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		Repo:          &argoappv1.Repository{},
+		AppLabelValue: "test",
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: ".",
+		},
+	})
+	assert.NoError(t, err)
+}
+
+// This is a Helm first-class app with a values file inside the repo directory
+// (`~/go/src/github.com/argoproj/argo-cd/reposerver/repository`), so it is allowed
+func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
+	service := newService(".")
+	source := &argoappv1.ApplicationSource{
+		Chart:          "my-chart",
+		TargetRevision: ">= 1.0.0",
+		Helm: &argoappv1.ApplicationSourceHelm{
+			ValueFiles: []string{"./my-chart-values.yaml"},
+		},
+	}
+	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: source, NoCache: true}
+	response, err := service.GenerateManifest(context.Background(), request)
+	assert.NoError(t, err)
+	assert.NotNil(t, response)
+	assert.Equal(t, &apiclient.ManifestResponse{
+		Manifests:  []string{"{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"my-map\"}}"},
+		Namespace:  "",
+		Server:     "",
+		Revision:   "1.1.0",
+		SourceType: "Helm",
+	}, response)
+}
+
+// This is a Helm first-class app with a values file outside the repo directory
+// (`~/go/src/github.com/argoproj/argo-cd/reposerver/repository`), so it is not allowed
+func TestHelmManifestFromChartRepoWithValueFileOutsideRepo(t *testing.T) {
+	service := newService(".")
+	source := &argoappv1.ApplicationSource{
+		Chart:          "my-chart",
+		TargetRevision: ">= 1.0.0",
+		Helm: &argoappv1.ApplicationSourceHelm{
+			ValueFiles: []string{"../my-chart-2/my-chart-2-values.yaml"},
+		},
+	}
+	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: source, NoCache: true}
+	_, err := service.GenerateManifest(context.Background(), request)
+	assert.Error(t, err, "should be on or under current directory")
 }
 
 func TestGenerateHelmWithURL(t *testing.T) {
@@ -257,7 +307,6 @@ func TestGenerateHelmWithURL(t *testing.T) {
 // (`~/go/src/github.com/argoproj/argo-cd`), so it is blocked
 func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 	service := newService("../..")
-
 	_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 		Repo:          &argoappv1.Repository{},
 		AppLabelValue: "test",
@@ -265,6 +314,20 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			Path: "./util/helm/testdata/redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles: []string{"../../../../../minio/values.yaml"},
+				Values:     `cluster: {slaveCount: 2}`,
+			},
+		},
+	})
+	assert.Error(t, err, "should be on or under current directory")
+
+	service = newService("./testdata/my-chart")
+	_, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		Repo:          &argoappv1.Repository{},
+		AppLabelValue: "test",
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: ".",
+			Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"../my-chart-2/values.yaml"},
 				Values:     `cluster: {slaveCount: 2}`,
 			},
 		},
@@ -354,7 +417,7 @@ func TestGenerateFromUTF16(t *testing.T) {
 		Repo:              &argoappv1.Repository{},
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
-	res1, err := GenerateManifests("./testdata/utf-16", "", &q)
+	res1, err := GenerateManifests("./testdata/utf-16", "/", "", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res1.Manifests))
 }
@@ -372,6 +435,7 @@ func TestListApps(t *testing.T) {
 		"kustomization_yaml": "Kustomize",
 		"kustomization_yml":  "Kustomize",
 		"my-chart":           "Helm",
+		"my-chart-2":         "Helm",
 	}
 	assert.Equal(t, expectedApps, res.Apps)
 }

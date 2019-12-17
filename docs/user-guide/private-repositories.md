@@ -35,7 +35,7 @@ or UI:
 1. Navigate to `Settings/Repositories`
 1. Click `Connect Repo` button and enter HTTP credentials
 
-![connect repo](../assets/connect_repo.png)
+![connect repo](../assets/connect-repo.png)
 
 #### Access Token
 
@@ -345,6 +345,8 @@ argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-ke
     For Kustomize support, see [#827](https://github.com/argoproj/argo-cd/issues/827).
 
 ## Git Submodules
+
+> v1.4 or later
 
 Submodules are supported and will be picked up automatically. If the submodule repository requires authentication then the credentials will need to match the credentials of the parent repository. Set ARGOCD_GIT_MODULES_ENABLED=false to disable submodule support
 

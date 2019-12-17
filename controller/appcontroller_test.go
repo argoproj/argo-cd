@@ -192,6 +192,17 @@ status:
         repoURL: https://github.com/argoproj/argocd-example-apps.git
 `
 
+var fakeStrayResource = `
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-cm
+  namespace: invalid
+  labels:
+    app.kubernetes.io/instance: my-app
+data:
+`
+
 func newFakeApp() *argoappv1.Application {
 	var app argoappv1.Application
 	err := yaml.Unmarshal([]byte(fakeApp), &app)
@@ -199,6 +210,15 @@ func newFakeApp() *argoappv1.Application {
 		panic(err)
 	}
 	return &app
+}
+
+func newFakeCM() map[string]interface{} {
+	var cm map[string]interface{}
+	err := yaml.Unmarshal([]byte(fakeStrayResource), &cm)
+	if err != nil {
+		panic(err)
+	}
+	return cm
 }
 
 func TestAutoSync(t *testing.T) {
@@ -389,27 +409,118 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 
 // TestFinalizeAppDeletion verifies application deletion
 func TestFinalizeAppDeletion(t *testing.T) {
-	app := newFakeApp()
-	app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
-	appObj := kube.MustToUnstructured(&app)
-	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
-		kube.GetResourceKey(appObj): appObj,
-	}})
+	// Ensure app can be deleted cascading
+	{
+		defaultProj := argoappv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "default",
+				Namespace: test.FakeArgoCDNamespace,
+			},
+			Spec: argoappv1.AppProjectSpec{
+				SourceRepos: []string{"*"},
+				Destinations: []argoappv1.ApplicationDestination{
+					{
+						Server:    "*",
+						Namespace: "*",
+					},
+				},
+			},
+		}
+		app := newFakeApp()
+		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+		appObj := kube.MustToUnstructured(&app)
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+			kube.GetResourceKey(appObj): appObj,
+		}})
 
-	patched := false
-	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	defaultReactor := fakeAppCs.ReactionChain[0]
-	fakeAppCs.ReactionChain = nil
-	fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		return defaultReactor.React(action)
-	})
-	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		patched = true
-		return true, nil, nil
-	})
-	err := ctrl.finalizeApplicationDeletion(app)
-	assert.NoError(t, err)
-	assert.True(t, patched)
+		patched := false
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patched = true
+			return true, nil, nil
+		})
+		_, err := ctrl.finalizeApplicationDeletion(app)
+		assert.NoError(t, err)
+		assert.True(t, patched)
+	}
+
+	// Ensure any stray resources irregulary labeled with instance label of app are not deleted upon deleting,
+	// when app project restriction is in place
+	{
+		defaultProj := argoappv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "default",
+				Namespace: test.FakeArgoCDNamespace,
+			},
+			Spec: argoappv1.AppProjectSpec{
+				SourceRepos: []string{"*"},
+				Destinations: []argoappv1.ApplicationDestination{
+					{
+						Server:    "*",
+						Namespace: "*",
+					},
+				},
+			},
+		}
+		restrictedProj := argoappv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "restricted",
+				Namespace: test.FakeArgoCDNamespace,
+			},
+			Spec: argoappv1.AppProjectSpec{
+				SourceRepos: []string{"*"},
+				Destinations: []argoappv1.ApplicationDestination{
+					{
+						Server:    "*",
+						Namespace: "my-app",
+					},
+				},
+			},
+		}
+		app := newFakeApp()
+		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+		app.Spec.Project = "restricted"
+		appObj := kube.MustToUnstructured(&app)
+		cm := newFakeCM()
+		strayObj := kube.MustToUnstructured(&cm)
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app, &defaultProj, &restrictedProj},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+				kube.GetResourceKey(appObj):   appObj,
+				kube.GetResourceKey(strayObj): strayObj,
+			},
+		})
+
+		patched := false
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patched = true
+			return true, nil, nil
+		})
+		objs, err := ctrl.finalizeApplicationDeletion(app)
+		assert.NoError(t, err)
+		assert.True(t, patched)
+		objsMap, err := ctrl.stateCache.GetManagedLiveObjs(app, []*unstructured.Unstructured{})
+		if err != nil {
+			assert.NoError(t, err)
+		}
+		// Managed objects must be empty
+		assert.Empty(t, objsMap)
+		// Loop through all deleted objects, ensure that test-cm is none of them
+		for _, o := range objs {
+			assert.NotEqual(t, "test-cm", o.GetName())
+		}
+	}
 }
 
 // TestNormalizeApplication verifies we normalize an application during reconciliation

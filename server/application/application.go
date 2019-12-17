@@ -303,32 +303,53 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 	return kubeClientset.CoreV1().Events(namespace).List(opts)
 }
 
+func (s *Server) updateApp(ctx context.Context, newApp *appv1.Application) (*appv1.Application, error) {
+	s.projectLock.Lock(newApp.Spec.GetProject())
+	defer s.projectLock.Unlock(newApp.Spec.GetProject())
+
+	app, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(newApp.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.validateAndNormalizeApp(ctx, newApp)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := 0; i < 10; i++ {
+		app.Spec = newApp.Spec
+		app.Labels = newApp.Labels
+		app.Annotations = newApp.Annotations
+
+		res, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(app)
+		if err == nil {
+			s.logAppEvent(app, ctx, argo.EventReasonResourceUpdated, "updated application spec")
+			return res, nil
+		}
+		if !apierr.IsConflict(err) {
+			return nil, err
+		}
+
+		app, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(newApp.Name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+	}
+	return nil, status.Errorf(codes.Internal, "Failed to update application. Too many conflicts")
+}
+
 // Update updates an application
 func (s *Server) Update(ctx context.Context, q *application.ApplicationUpdateRequest) (*appv1.Application, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(*q.Application)); err != nil {
 		return nil, err
 	}
 
-	s.projectLock.Lock(q.Application.Spec.Project)
-	defer s.projectLock.Unlock(q.Application.Spec.Project)
-
-	a := q.Application
-	err := s.validateAndNormalizeApp(ctx, a)
-	if err != nil {
-		return nil, err
-	}
-	out, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
-	if err == nil {
-		s.logAppEvent(a, ctx, argo.EventReasonResourceUpdated, "updated application")
-	}
-	return out, err
+	return s.updateApp(ctx, q.Application)
 }
 
 // UpdateSpec updates an application spec and filters out any invalid parameter overrides
 func (s *Server) UpdateSpec(ctx context.Context, q *application.ApplicationUpdateSpecRequest) (*appv1.ApplicationSpec, error) {
-	s.projectLock.Lock(q.Spec.Project)
-	defer s.projectLock.Unlock(q.Spec.Project)
-
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -337,28 +358,11 @@ func (s *Server) UpdateSpec(ctx context.Context, q *application.ApplicationUpdat
 		return nil, err
 	}
 	a.Spec = q.Spec
-	err = s.validateAndNormalizeApp(ctx, a)
+	a, err = s.updateApp(ctx, a)
 	if err != nil {
 		return nil, err
 	}
-	normalizedSpec := a.Spec.DeepCopy()
-
-	for i := 0; i < 10; i++ {
-		a.Spec = *normalizedSpec
-		_, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
-		if err == nil {
-			s.logAppEvent(a, ctx, argo.EventReasonResourceUpdated, "updated application spec")
-			return normalizedSpec, nil
-		}
-		if !apierr.IsConflict(err) {
-			return nil, err
-		}
-		a, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
-	}
-	return nil, status.Errorf(codes.Internal, "Failed to update application spec. Too many conflicts")
+	return &a.Spec, nil
 }
 
 // Patch patches an application
@@ -369,7 +373,7 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 		return nil, err
 	}
 
-	if err = s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionOverride, appRBACName(*app)); err != nil {
+	if err = s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(*app)); err != nil {
 		return nil, err
 	}
 
@@ -399,19 +403,11 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("Patch type '%s' is not supported", q.PatchType))
 	}
 
-	s.logAppEvent(app, ctx, argo.EventReasonResourceUpdated, fmt.Sprintf("patched application %s/%s", app.Namespace, app.Name))
-
 	err = json.Unmarshal(patchApp, &app)
 	if err != nil {
 		return nil, err
 	}
-
-	err = s.validateAndNormalizeApp(ctx, app)
-	if err != nil {
-		return nil, err
-	}
-
-	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(app)
+	return s.updateApp(ctx, app)
 }
 
 // Delete removes an application and all associated resources
