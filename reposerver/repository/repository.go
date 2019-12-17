@@ -774,6 +774,11 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	s.repoLock.Lock(gitClient.Root())
 	defer s.repoLock.Unlock(gitClient.Root())
 
+	_, err = checkoutRevision(gitClient, q.Revision)
+	if err != nil {
+		return nil, err
+	}
+
 	m, err := gitClient.RevisionMetadata(q.Revision)
 	if err != nil {
 		return nil, err
