@@ -3,7 +3,7 @@
 exports[`ComparisonStatusIcon.OutOfSync 1`] = `
 Array [
   <i
-    className="fa fa-times"
+    className="fa fa-arrow-alt-circle-up"
     style={
       Object {
         "color": "#f4c030",
@@ -59,7 +59,7 @@ exports[`HealthStatusIcon.Degraded 1`] = `
 
 exports[`HealthStatusIcon.Healthy 1`] = `
 <i
-  className="fa fa-heartbeat"
+  className="fa fa-heart"
   style={
     Object {
       "color": "#18BE94",
@@ -95,7 +95,7 @@ exports[`HealthStatusIcon.Progressing 1`] = `
 
 exports[`HealthStatusIcon.Suspended 1`] = `
 <i
-  className="fa fa-heartbeat"
+  className="fa fa-heart"
   style={
     Object {
       "color": "#CCD6DD",
@@ -117,55 +117,7 @@ exports[`HealthStatusIcon.Unknown 1`] = `
 />
 `;
 
-exports[`OperationPhaseIcon.Error 1`] = `
-<i
-  className="fa fa-times"
-  style={
-    Object {
-      "color": "#E96D76",
-    }
-  }
-  title="Error"
-/>
-`;
-
-exports[`OperationPhaseIcon.Failed 1`] = `
-<i
-  className="fa fa-times"
-  style={
-    Object {
-      "color": "#E96D76",
-    }
-  }
-  title="Failed"
-/>
-`;
-
-exports[`OperationPhaseIcon.Running 1`] = `
-<i
-  className="fa fa-circle-notch fa-spin"
-  style={
-    Object {
-      "color": "#0DADEA",
-    }
-  }
-  title="Running"
-/>
-`;
-
-exports[`OperationPhaseIcon.Succeeded 1`] = `
-<i
-  className="fa fa-check-circle"
-  style={
-    Object {
-      "color": "#18BE94",
-    }
-  }
-  title="Succeeded"
-/>
-`;
-
-exports[`OperationState.Default 1`] = `
+exports[`OperationState.Deleting 1`] = `
 Array [
   <i
     className="fa fa-circle-notch fa-spin"
@@ -174,11 +126,94 @@ Array [
         "color": "#0DADEA",
       }
     }
+    title="Deleting"
   />,
-  " ",
+  " ",
+  "Deleting",
+]
+`;
+
+exports[`OperationState.Sync OK 1`] = `
+Array [
+  <i
+    className="fa fa-check-circle"
+    style={
+      Object {
+        "color": "#18BE94",
+      }
+    }
+    title="Sync OK"
+  />,
+  " ",
+  "Sync OK",
+]
+`;
+
+exports[`OperationState.Sync error 1`] = `
+Array [
+  <i
+    className="fa fa-times-circle"
+    style={
+      Object {
+        "color": "#E96D76",
+      }
+    }
+    title="Sync error"
+  />,
+  " ",
+  "Sync error",
+]
+`;
+
+exports[`OperationState.Sync failed 1`] = `
+Array [
+  <i
+    className="fa fa-times-circle"
+    style={
+      Object {
+        "color": "#E96D76",
+      }
+    }
+    title="Sync failed"
+  />,
+  " ",
+  "Sync failed",
+]
+`;
+
+exports[`OperationState.Syncing 1`] = `
+Array [
+  <i
+    className="fa fa-circle-notch fa-spin"
+    style={
+      Object {
+        "color": "#0DADEA",
+      }
+    }
+    title="Syncing"
+  />,
+  " ",
+  "Syncing",
+]
+`;
+
+exports[`OperationState.Unknown 1`] = `
+Array [
+  <i
+    className="fa fa-circle-notch fa-spin"
+    style={
+      Object {
+        "color": "#0DADEA",
+      }
+    }
+    title="Unknown"
+  />,
+  " ",
   "Unknown",
 ]
 `;
+
+exports[`OperationState.quiet 1`] = `null`;
 
 exports[`OperationState.undefined 1`] = `null`;
 
@@ -218,7 +253,7 @@ exports[`ResourceResultIcon.Hook.Running 1`] = `
 
 exports[`ResourceResultIcon.Hook.Succeeded 1`] = `
 <i
-  className="fa fa-heartbeat"
+  className="fa fa-heart"
   style={
     Object {
       "color": "#18BE94",
@@ -240,7 +275,7 @@ exports[`ResourceResultIcon.Hook.Terminating 1`] = `
 
 exports[`ResourceResultIcon.Pruned 1`] = `
 <i
-  className="fa fa-heartbeat"
+  className="fa fa-heart"
   style={
     Object {
       "color": "#CCD6DD",
@@ -262,7 +297,7 @@ exports[`ResourceResultIcon.SyncFailed 1`] = `
 
 exports[`ResourceResultIcon.Synced 1`] = `
 <i
-  className="fa fa-heartbeat"
+  className="fa fa-heart"
   style={
     Object {
       "color": "#18BE94",
