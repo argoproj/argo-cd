@@ -738,7 +738,13 @@ func (a *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error
 	if a.DisableAuth {
 		return ctx, nil
 	}
-	if claims, claimsErr := a.getClaims(ctx); claimsErr != nil {
+	claims, claimsErr := a.getClaims(ctx)
+	if claims != nil {
+		// Add claims to the context to inspect for RBAC
+		ctx = context.WithValue(ctx, "claims", claims)
+	}
+
+	if claimsErr != nil {
 		argoCDSettings, err := a.settingsMgr.GetSettings()
 		if err != nil {
 			return ctx, status.Errorf(codes.Internal, "unable to load settings: %v", err)
@@ -746,9 +752,6 @@ func (a *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error
 		if !argoCDSettings.AnonymousUserEnabled {
 			return ctx, claimsErr
 		}
-	} else {
-		// Add claims to the context to inspect for RBAC
-		ctx = context.WithValue(ctx, "claims", claims)
 	}
 
 	return ctx, nil
@@ -765,7 +768,7 @@ func (a *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, error) {
 	}
 	claims, err := a.sessionMgr.VerifyToken(tokenString)
 	if err != nil {
-		return nil, status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
+		return claims, status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
 	return claims, nil
 }
