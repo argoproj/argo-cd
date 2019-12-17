@@ -48,8 +48,7 @@ func NewPod() *unstructured.Unstructured {
 }
 
 func NewControllerRevision() *unstructured.Unstructured {
-	var un unstructured.Unstructured
-	err := yaml.Unmarshal([]byte(`
+	return Unstructured(`
 kind: ControllerRevision
 apiVersion: metacontroller.k8s.io/v1alpha1
 metadata:
@@ -59,11 +58,7 @@ metadata:
   name: web-c7cd8d57f
   namespace: statefulset
 revision: 2
-`), &un)
-	if err != nil {
-		panic(err)
-	}
-	return &un
+`)
 }
 
 func NewCRD() *unstructured.Unstructured {
