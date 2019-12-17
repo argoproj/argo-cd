@@ -52,6 +52,8 @@ const navItems = [
     }
 ];
 
+const versionInfo = services.version.version();
+
 async function isExpiredSSO() {
     try {
         const {loggedIn, iss} = await services.users.get();
@@ -176,7 +178,7 @@ export class App extends React.Component<{}, {popupProps: PopupProps; error: Err
                                                     <Layout
                                                         navItems={navItems}
                                                         version={() => (
-                                                            <DataLoader load={() => services.version.version()}>
+                                                            <DataLoader load={() => versionInfo}>
                                                                 {msg => (
                                                                     <Tooltip content={msg.Version}>
                                                                         <span>{msg.Version}</span>
