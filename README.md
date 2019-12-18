@@ -49,6 +49,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [Mirantis](https://mirantis.com/)
 1. [OpenSaaS Studio](https://opensaas.studio)
 1. [Optoro](https://www.optoro.com/)
+1. [Peloton Interactive](https://www.onepeloton.com/)
 1. [Pipefy](https://www.pipefy.com/)
 1. [Riskified](https://www.riskified.com/)
 1. [Red Hat](https://www.redhat.com/)
