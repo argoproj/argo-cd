@@ -2,18 +2,7 @@ import {AutocompleteField, DropDownMenu, FormField, FormSelect, HelpIcon, PopupA
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
 
-import {
-    Cluster,
-    clusterTitle,
-    DataLoader,
-    EditablePanel,
-    EditablePanelItem,
-    Expandable,
-    MapInputField,
-    Repo,
-    Revision,
-    RevisionHelpIcon
-} from '../../../shared/components';
+import {Cluster, clusterTitle, DataLoader, EditablePanel, EditablePanelItem, Expandable, MapInputField, Repo, Revision, RevisionHelpIcon} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
