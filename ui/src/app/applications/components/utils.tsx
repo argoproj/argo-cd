@@ -119,12 +119,13 @@ export const ComparisonStatusIcon = ({status, resource, label}: {status: appMode
 };
 
 export function syncStatusMessage(app: appModels.Application) {
-    let rev = app.spec.source.targetRevision;
+    const rev = app.status.sync.revision || app.spec.source.targetRevision || 'HEAD';
+    let message = app.spec.source.targetRevision || 'HEAD';
     if (app.status.sync.revision) {
         if (app.spec.source.chart) {
-            rev += ' (' + app.status.sync.revision + ')';
+            message += ' (' + app.status.sync.revision + ')';
         } else if (app.status.sync.revision.length >= 7 && !app.status.sync.revision.startsWith(app.spec.source.targetRevision)) {
-            rev += ' (' + app.status.sync.revision.substr(0, 7) + ')';
+            message += ' (' + app.status.sync.revision.substr(0, 7) + ')';
         }
     }
     switch (app.status.sync.status) {
@@ -132,8 +133,8 @@ export function syncStatusMessage(app: appModels.Application) {
             return (
                 <span>
                     To{' '}
-                    <Revision repoUrl={app.spec.source.repoURL} revision={app.spec.source.targetRevision}>
-                        {rev}
+                    <Revision repoUrl={app.spec.source.repoURL} revision={rev}>
+                        {message}
                     </Revision>{' '}
                 </span>
             );
@@ -141,13 +142,13 @@ export function syncStatusMessage(app: appModels.Application) {
             return (
                 <span>
                     From{' '}
-                    <Revision repoUrl={app.spec.source.repoURL} revision={app.spec.source.targetRevision}>
-                        {rev}
+                    <Revision repoUrl={app.spec.source.repoURL} revision={rev}>
+                        {message}
                     </Revision>{' '}
                 </span>
             );
         default:
-            return <span>{rev}</span>;
+            return <span>{message}</span>;
     }
 }
 
@@ -299,7 +300,7 @@ export const OperationState = ({app, quiet}: {app: appModels.Application; quiet?
     if (appOperationState === undefined) {
         return <React.Fragment />;
     }
-    if (quiet && appOperationState.phase !== appModels.OperationPhases.Running) {
+    if (quiet && [appModels.OperationPhases.Running, appModels.OperationPhases.Failed, appModels.OperationPhases.Error].indexOf(appOperationState.phase) === -1) {
         return <React.Fragment />;
     }
 
