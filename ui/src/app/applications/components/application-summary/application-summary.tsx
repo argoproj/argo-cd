@@ -1,9 +1,8 @@
-import {DropDownMenu, FormField, FormSelect, HelpIcon, PopupApi} from 'argo-ui';
+import {AutocompleteField, DropDownMenu, FormField, FormSelect, HelpIcon, PopupApi} from 'argo-ui';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
 
 import {
-    AutocompleteField,
     Cluster,
     clusterTitle,
     DataLoader,

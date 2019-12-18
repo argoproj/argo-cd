@@ -1,11 +1,11 @@
-import {ErrorNotification, MockupList, NotificationType, SlidingPanel} from 'argo-ui';
+import {Autocomplete, ErrorNotification, MockupList, NotificationType, SlidingPanel} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as minimatch from 'minimatch';
 import * as React from 'react';
 import {RouteComponentProps} from 'react-router';
 import {Observable} from 'rxjs';
 
-import {Autocomplete, ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Query} from '../../../shared/components';
+import {ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Query} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {AppsListPreferences, AppsListViewType, services} from '../../../shared/services';
