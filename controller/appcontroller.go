@@ -24,6 +24,9 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
+	// make sure to register workqueue prometheus metrics
+	_ "k8s.io/kubernetes/pkg/util/workqueue/prometheus"
+
 	"github.com/argoproj/argo-cd/common"
 	statecache "github.com/argoproj/argo-cd/controller/cache"
 	"github.com/argoproj/argo-cd/controller/metrics"
@@ -119,8 +122,8 @@ func NewApplicationController(
 		kubectl:                   kubectl,
 		applicationClientset:      applicationClientset,
 		repoClientset:             repoClientset,
-		appRefreshQueue:           workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
-		appOperationQueue:         workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
+		appRefreshQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "app_reconciliation_queue"),
+		appOperationQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "app_operation_processing_queue"),
 		db:                        db,
 		statusRefreshTimeout:      appResyncPeriod,
 		refreshRequestedApps:      make(map[string]CompareWith),
@@ -144,6 +147,7 @@ func NewApplicationController(
 		return err
 	})
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectl, ctrl.metricsServer, ctrl.handleObjectUpdated)
+	ctrl.metricsServer.RegisterClustersInfoSource(stateCache)
 	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister

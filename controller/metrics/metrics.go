@@ -23,6 +23,7 @@ type MetricsServer struct {
 	kubectlExecCounter      *prometheus.CounterVec
 	kubectlExecPendingGauge *prometheus.GaugeVec
 	reconcileHistogram      *prometheus.HistogramVec
+	registry                *prometheus.Registry
 }
 
 const (
@@ -64,10 +65,13 @@ var (
 // NewMetricsServer returns a new prometheus server which collects application metrics
 func NewMetricsServer(addr string, appLister applister.ApplicationLister, healthCheck func() error) *MetricsServer {
 	mux := http.NewServeMux()
-	appRegistry := NewAppRegistry(appLister)
-	appRegistry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
-	appRegistry.MustRegister(prometheus.NewGoCollector())
-	mux.Handle(MetricsPath, promhttp.HandlerFor(appRegistry, promhttp.HandlerOpts{}))
+	registry := NewAppRegistry(appLister)
+	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
+		// contains app controller specific metrics
+		registry,
+		// contains process, golang and controller workqueues metrics
+		prometheus.DefaultGatherer,
+	}, promhttp.HandlerOpts{}))
 	healthz.ServeHealthCheck(mux, healthCheck)
 
 	syncCounter := prometheus.NewCounterVec(
@@ -77,17 +81,17 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, health
 		},
 		append(descAppDefaultLabels, "phase"),
 	)
-	appRegistry.MustRegister(syncCounter)
+	registry.MustRegister(syncCounter)
 	kubectlExecCounter := prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "argocd_kubectl_exec_total",
 		Help: "Number of kubectl executions",
 	}, []string{"command"})
-	appRegistry.MustRegister(kubectlExecCounter)
+	registry.MustRegister(kubectlExecCounter)
 	kubectlExecPendingGauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "argocd_kubectl_exec_pending",
 		Help: "Number of pending kubectl executions",
 	}, []string{"command"})
-	appRegistry.MustRegister(kubectlExecPendingGauge)
+	registry.MustRegister(kubectlExecPendingGauge)
 	k8sRequestCounter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "argocd_app_k8s_request_total",
@@ -95,7 +99,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, health
 		},
 		append(descAppDefaultLabels, "response_code"),
 	)
-	appRegistry.MustRegister(k8sRequestCounter)
+	registry.MustRegister(k8sRequestCounter)
 
 	reconcileHistogram := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
@@ -107,9 +111,10 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, health
 		descAppDefaultLabels,
 	)
 
-	appRegistry.MustRegister(reconcileHistogram)
+	registry.MustRegister(reconcileHistogram)
 
 	return &MetricsServer{
+		registry: registry,
 		Server: &http.Server{
 			Addr:    addr,
 			Handler: mux,
@@ -120,6 +125,10 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, health
 		kubectlExecCounter:      kubectlExecCounter,
 		kubectlExecPendingGauge: kubectlExecPendingGauge,
 	}
+}
+
+func (m *MetricsServer) RegisterClustersInfoSource(source HasClustersInfo) {
+	m.registry.MustRegister(&clusterCollector{infoSource: source})
 }
 
 // IncSync increments the sync counter for an application
