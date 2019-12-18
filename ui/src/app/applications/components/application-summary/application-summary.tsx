@@ -2,7 +2,19 @@ import {DropDownMenu, FormField, FormSelect, HelpIcon, PopupApi} from 'argo-ui';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
 
-import {AutocompleteField, Cluster, clusterTitle, DataLoader, EditablePanel, EditablePanelItem, MapInputField, Repo, Revision, RevisionHelpIcon} from '../../../shared/components';
+import {
+    AutocompleteField,
+    Cluster,
+    clusterTitle,
+    DataLoader,
+    EditablePanel,
+    EditablePanelItem,
+    Expandable,
+    MapInputField,
+    Repo,
+    Revision,
+    RevisionHelpIcon
+} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -45,9 +57,13 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
         },
         {
             title: 'ANNOTATIONS',
-            view: Object.keys(app.metadata.annotations || {})
-                .map(annotation => `${annotation}=${app.metadata.annotations[annotation]}`)
-                .join(' '),
+            view: (
+                <Expandable height={48}>
+                    {Object.keys(app.metadata.annotations || {})
+                        .map(annotation => `${annotation}=${app.metadata.annotations[annotation]}`)
+                        .join(' ')}
+                </Expandable>
+            ),
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='metadata.annotations' component={MapInputField} />
         },
         {
