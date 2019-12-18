@@ -1228,7 +1228,7 @@
   resolved "https://registry.yarnpkg.com/@types/prop-types/-/prop-types-15.7.1.tgz#f1a11e7babb0c3cad68100be381d1e064c68f1f6"
   integrity sha512-CFzn9idOEpHrgdw8JsoTkaDDyRWk1jrzIV8djzcgpq0y9tG4B4lFT+Nxh52DVpDXV+n4+NPNv7M1Dj5uMp6XFg==
 
-"@types/react-autocomplete@^1.8.4":
+"@types/react-autocomplete@^1.8.4", "@types/react-autocomplete@^1.8.5":
   version "1.8.5"
   resolved "https://registry.yarnpkg.com/@types/react-autocomplete/-/react-autocomplete-1.8.5.tgz#d26a027850cfb963a628145f5745834b06a23884"
   integrity sha512-O9DENAvxh66Bz7ODa9tCYqHBxvw/bALB8FxKWuPIizo3J+0Qx3Et+x9qMwCEsk5pcAxmRk34MFNalyc9thYT6g==
@@ -1690,10 +1690,11 @@ are-we-there-yet@~1.1.2:
 
 "argo-ui@https://github.com/argoproj/argo-ui.git":
   version "1.0.0"
-  resolved "https://github.com/argoproj/argo-ui.git#ce762319ed4d6ebdeb812a2c149001ded4e9b3b2"
+  resolved "https://github.com/argoproj/argo-ui.git#7dacff7da9bc4a1dee73af302342786aaffc7ea1"
   dependencies:
     "@fortawesome/fontawesome-free" "^5.8.1"
     "@tippy.js/react" "^2.1.2"
+    "@types/react-autocomplete" "^1.8.5"
     "@types/react-form" "^2.16.1"
     "@types/react-helmet" "^5.0.8"
     classnames "^2.2.5"
@@ -1704,6 +1705,7 @@ are-we-there-yet@~1.1.2:
     moment "^2.20.1"
     prop-types "^15.6.0"
     react "^16.8.3"
+    react-autocomplete "^1.8.1"
     react-dom "^16.8.3"
     react-form "2.16.0"
     react-helmet "^5.2.0"
