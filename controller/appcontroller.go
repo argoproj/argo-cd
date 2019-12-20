@@ -195,7 +195,7 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 					continue
 				}
 				// exclude resource unless it is permitted in the app project. If project is not permitted then it is not controlled by the user and there is no point showing the warning.
-				if proj, err := ctrl.getAppProj(app); err == nil && proj.IsResourcePermitted(metav1.GroupKind{Group: ref.GroupVersionKind().Group, Kind: ref.Kind}, true) &&
+				if proj, err := ctrl.getAppProj(app); err == nil && proj.IsGroupKindPermitted(ref.GroupVersionKind().GroupKind(), true) &&
 					!isKnownOrphanedResourceExclusion(kube.NewResourceKey(ref.GroupVersionKind().Group, ref.GroupVersionKind().Kind, ref.Namespace, ref.Name)) {
 
 					managedByApp[app.Name] = false
@@ -302,7 +302,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	}
 	orphanedNodes := make([]appv1.ResourceNode, 0)
 	for k := range orphanedNodesMap {
-		if k.Namespace != "" && proj.IsResourcePermitted(metav1.GroupKind{Group: k.Group, Kind: k.Kind}, true) && !isKnownOrphanedResourceExclusion(k) {
+		if k.Namespace != "" && proj.IsGroupKindPermitted(k.GroupKind(), true) && !isKnownOrphanedResourceExclusion(k) {
 			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, k, func(child appv1.ResourceNode, appName string) {
 				belongToAnotherApp := false
 				if appName != "" {
@@ -478,16 +478,22 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 }
 
 // shouldbeDeleted returns whether a given resource obj should be deleted on cascade delete of application app
-func (ctrl *ApplicationController) shouldBeDeleted(app *appv1.Application, obj *unstructured.Unstructured) (bool, error) {
-	permitted := false
-	// Check whether we are allowed to delete the given resource by project restrictions
-	if proj, err := ctrl.getAppProj(app); err != nil {
-		return false, err
-	} else {
-		dest := appv1.ApplicationDestination{Namespace: obj.GetNamespace(), Server: app.Spec.Destination.Server}
-		permitted = proj.IsDestinationPermitted(dest)
+func (ctrl *ApplicationController) shouldBeDeleted(app *appv1.Application, obj *unstructured.Unstructured) bool {
+	return !kube.IsCRD(obj) && !isSelfReferencedApp(app, kube.GetObjectRef(obj))
+}
+
+func (ctrl *ApplicationController) getPermittedAppLiveObjects(app *appv1.Application, proj *appv1.AppProject) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
+	objsMap, err := ctrl.stateCache.GetManagedLiveObjs(app, []*unstructured.Unstructured{})
+	if err != nil {
+		return nil, err
 	}
-	return !kube.IsCRD(obj) && !isSelfReferencedApp(app, kube.GetObjectRef(obj)) && permitted, nil
+	// Don't delete live resources which are not permitted in the app project
+	for k, v := range objsMap {
+		if !proj.IsLiveResourcePermitted(v, app.Spec.Destination.Server) {
+			delete(objsMap, k)
+		}
+	}
+	return objsMap, nil
 }
 
 func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Application) ([]*unstructured.Unstructured, error) {
@@ -501,18 +507,19 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		}
 		return nil, nil
 	}
-
-	objsMap, err := ctrl.stateCache.GetManagedLiveObjs(app, []*unstructured.Unstructured{})
+	proj, err := ctrl.getAppProj(app)
 	if err != nil {
 		return nil, err
 	}
+
+	objsMap, err := ctrl.getPermittedAppLiveObjects(app, proj)
+	if err != nil {
+		return nil, err
+	}
+
 	objs := make([]*unstructured.Unstructured, 0)
 	for k := range objsMap {
-		shallDelete, err := ctrl.shouldBeDeleted(app, objsMap[k])
-		if err != nil {
-			return nil, err
-		}
-		if shallDelete && objsMap[k].GetDeletionTimestamp() == nil {
+		if ctrl.shouldBeDeleted(app, objsMap[k]) && objsMap[k].GetDeletionTimestamp() == nil {
 			objs = append(objs, objsMap[k])
 		}
 	}
@@ -531,16 +538,13 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		return objs, err
 	}
 
-	objsMap, err = ctrl.stateCache.GetManagedLiveObjs(app, []*unstructured.Unstructured{})
+	objsMap, err = ctrl.getPermittedAppLiveObjects(app, proj)
 	if err != nil {
-		return objs, err
+		return nil, err
 	}
+
 	for k, obj := range objsMap {
-		shallDelete, err := ctrl.shouldBeDeleted(app, obj)
-		if err != nil {
-			return objs, err
-		}
-		if !shallDelete {
+		if !ctrl.shouldBeDeleted(app, obj) {
 			delete(objsMap, k)
 		}
 	}
@@ -803,7 +807,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		}
 	}
 
-	hasErrors := ctrl.refreshAppConditions(app)
+	project, hasErrors := ctrl.refreshAppConditions(app)
 	if hasErrors {
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = appv1.HealthStatusUnknown
@@ -822,7 +826,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 
 	observedAt := metav1.Now()
-	compareResult := ctrl.appStateManager.CompareAppState(app, revision, app.Spec.Source, refreshType == appv1.RefreshTypeHard, localManifests)
+	compareResult := ctrl.appStateManager.CompareAppState(app, project, revision, app.Spec.Source, refreshType == appv1.RefreshTypeHard, localManifests)
 
 	ctrl.normalizeApplication(origApp, app)
 
@@ -833,26 +837,21 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		app.Status.Summary = tree.GetSummary()
 	}
 
-	project, err := ctrl.getAppProj(app)
-	if err != nil {
-		logCtx.Infof("Could not lookup project for %s in order to check schedules state", app.Name)
-	} else {
-		if project.Spec.SyncWindows.Matches(app).CanSync(false) {
-			syncErrCond := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources)
-			if syncErrCond != nil {
-				app.Status.SetConditions(
-					[]appv1.ApplicationCondition{*syncErrCond},
-					map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true},
-				)
-			} else {
-				app.Status.SetConditions(
-					[]appv1.ApplicationCondition{},
-					map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true},
-				)
-			}
+	if project.Spec.SyncWindows.Matches(app).CanSync(false) {
+		syncErrCond := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources)
+		if syncErrCond != nil {
+			app.Status.SetConditions(
+				[]appv1.ApplicationCondition{*syncErrCond},
+				map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true},
+			)
 		} else {
-			logCtx.Infof("Sync prevented by sync window")
+			app.Status.SetConditions(
+				[]appv1.ApplicationCondition{},
+				map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true},
+			)
 		}
+	} else {
+		logCtx.Infof("Sync prevented by sync window")
 	}
 
 	if app.Status.ReconciledAt == nil || comparisonLevel == CompareWithLatest {
@@ -883,7 +882,14 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 		refreshType = requestedType
 		reason = fmt.Sprintf("%s refresh requested", refreshType)
 	} else if expired {
-		reason = fmt.Sprintf("comparison expired. reconciledAt: %v, expiry: %v", app.Status.ReconciledAt, statusRefreshTimeout)
+		// The commented line below mysteriously crashes if app.Status.ReconciledAt is nil
+		// reason = fmt.Sprintf("comparison expired. reconciledAt: %v, expiry: %v", app.Status.ReconciledAt, statusRefreshTimeout)
+		//TODO: find existing Golang bug or create a new one
+		reconciledAtStr := "never"
+		if app.Status.ReconciledAt != nil {
+			reconciledAtStr = app.Status.ReconciledAt.String()
+		}
+		reason = fmt.Sprintf("comparison expired. reconciledAt: %v, expiry: %v", reconciledAtStr, statusRefreshTimeout)
 	} else if !app.Spec.Source.Equals(app.Status.Sync.ComparedTo.Source) {
 		reason = "spec.source differs"
 	} else if !app.Spec.Destination.Equals(app.Status.Sync.ComparedTo.Destination) {
@@ -900,7 +906,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	return false, refreshType, compareWith
 }
 
-func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) bool {
+func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) (*appv1.AppProject, bool) {
 	errorConditions := make([]appv1.ApplicationCondition, 0)
 	proj, err := ctrl.getAppProj(app)
 	if err != nil {
@@ -930,7 +936,7 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 		appv1.ApplicationConditionInvalidSpecError: true,
 		appv1.ApplicationConditionUnknownError:     true,
 	})
-	return len(errorConditions) > 0
+	return proj, len(errorConditions) > 0
 }
 
 // normalizeApplication normalizes an application.spec and additionally persists updates if it changed

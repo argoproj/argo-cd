@@ -755,7 +755,7 @@ func TestRefreshAppConditions(t *testing.T) {
 		app := newFakeApp()
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
 
-		hasErrors := ctrl.refreshAppConditions(app)
+		_, hasErrors := ctrl.refreshAppConditions(app)
 		assert.False(t, hasErrors)
 		assert.Len(t, app.Status.Conditions, 0)
 	})
@@ -766,7 +766,7 @@ func TestRefreshAppConditions(t *testing.T) {
 
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
 
-		hasErrors := ctrl.refreshAppConditions(app)
+		_, hasErrors := ctrl.refreshAppConditions(app)
 		assert.False(t, hasErrors)
 		assert.Len(t, app.Status.Conditions, 1)
 		assert.Equal(t, argoappv1.ApplicationConditionExcludedResourceWarning, app.Status.Conditions[0].Type)
@@ -779,7 +779,7 @@ func TestRefreshAppConditions(t *testing.T) {
 
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
 
-		hasErrors := ctrl.refreshAppConditions(app)
+		_, hasErrors := ctrl.refreshAppConditions(app)
 		assert.True(t, hasErrors)
 		assert.Len(t, app.Status.Conditions, 1)
 		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)

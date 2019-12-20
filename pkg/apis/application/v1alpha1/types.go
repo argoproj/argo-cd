@@ -2025,13 +2025,24 @@ func isResourceInList(res metav1.GroupKind, list []metav1.GroupKind) bool {
 	return false
 }
 
-// IsResourcePermitted validates if the given resource group/kind is permitted to be deployed in the project
-func (proj AppProject) IsResourcePermitted(res metav1.GroupKind, namespaced bool) bool {
+// IsGroupKindPermitted validates if the given resource group/kind is permitted to be deployed in the project
+func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool) bool {
+	res := metav1.GroupKind{Group: gk.Group, Kind: gk.Kind}
 	if namespaced {
 		return !isResourceInList(res, proj.Spec.NamespaceResourceBlacklist)
 	} else {
 		return isResourceInList(res, proj.Spec.ClusterResourceWhitelist)
 	}
+}
+
+func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, server string) bool {
+	if !proj.IsGroupKindPermitted(un.GroupVersionKind().GroupKind(), un.GetNamespace() != "") {
+		return false
+	}
+	if un.GetNamespace() != "" {
+		return proj.IsDestinationPermitted(ApplicationDestination{Server: server, Namespace: un.GetNamespace()})
+	}
+	return true
 }
 
 func globMatch(pattern string, val string) bool {

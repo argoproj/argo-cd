@@ -58,7 +58,7 @@ type ResourceInfoProvider interface {
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
-	CompareAppState(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, noCache bool, localObjects []string) *comparisonResult
+	CompareAppState(app *v1alpha1.Application, project *appv1.AppProject, revision string, source v1alpha1.ApplicationSource, noCache bool, localObjects []string) *comparisonResult
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
 }
 
@@ -271,7 +271,7 @@ func (m *appStateManager) getComparisonSettings(app *appv1.Application) (string,
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
-func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, noCache bool, localManifests []string) *comparisonResult {
+func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *appv1.AppProject, revision string, source v1alpha1.ApplicationSource, noCache bool, localManifests []string) *comparisonResult {
 	appLabelKey, resourceOverrides, diffNormalizer, err := m.getComparisonSettings(app)
 
 	// return unknown comparison result if basic comparison settings cannot be loaded
@@ -340,12 +340,19 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 
 	logCtx.Debugf("Generated config manifests")
 	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(app, targetObjs)
-	dedupLiveResources(targetObjs, liveObjByKey)
 	if err != nil {
 		liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 		failedToLoadObjs = true
 	}
+	dedupLiveResources(targetObjs, liveObjByKey)
+	// filter out all resources which are not permitted in the application project
+	for k, v := range liveObjByKey {
+		if !project.IsLiveResourcePermitted(v, app.Spec.Destination.Server) {
+			delete(liveObjByKey, k)
+		}
+	}
+
 	logCtx.Debugf("Retrieved lived manifests")
 	for _, liveObj := range liveObjByKey {
 		if liveObj != nil {
@@ -433,6 +440,12 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		} else {
 			resState.Status = v1alpha1.SyncStatusCodeSynced
 		}
+		// set unknown status to all resource that are not permitted in the app project
+		isNamespaced, err := m.liveStateCache.IsNamespaced(app.Spec.Destination.Server, gvk.GroupKind())
+		if !project.IsGroupKindPermitted(gvk.GroupKind(), isNamespaced && err == nil) {
+			resState.Status = v1alpha1.SyncStatusCodeUnknown
+		}
+
 		// we can't say anything about the status if we were unable to get the target objects
 		if failedToLoadObjs {
 			resState.Status = v1alpha1.SyncStatusCodeUnknown
