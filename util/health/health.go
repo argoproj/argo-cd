@@ -121,6 +121,11 @@ func GetResourceHealth(obj *unstructured.Unstructured, resourceOverrides map[str
 		case kube.APIServiceKind:
 			health, err = getAPIServiceHealth(obj)
 		}
+	case "networking.k8s.io":
+		switch gvk.Kind {
+		case kube.IngressKind:
+			health, err = getIngressHealth(obj)
+		}
 	case "":
 		switch gvk.Kind {
 		case kube.ServiceKind:
