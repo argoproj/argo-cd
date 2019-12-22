@@ -1658,7 +1658,7 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 			if prevState, found := prevStates[stateKey]; found {
 				if watchHealth && prevState.Health != argoappv1.HealthStatusUnknown && prevState.Health != argoappv1.HealthStatusDegraded && newState.Health == argoappv1.HealthStatusDegraded {
 					printFinalStatus(app)
-					return nil, fmt.Errorf("Application '%s' health state has transitioned from %s to %s", appName, prevState.Health, newState.Health)
+					return nil, fmt.Errorf("application '%s' health state has transitioned from %s to %s", appName, prevState.Health, newState.Health)
 				}
 				doPrint = prevState.Merge(newState)
 			} else {
@@ -1672,7 +1672,7 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 		_ = w.Flush()
 	}
 	printFinalStatus(app)
-	return nil, fmt.Errorf("Timed out (%ds) waiting for app %q match desired state", timeout, appName)
+	return nil, fmt.Errorf("timed out (%ds) waiting for app %q match desired state", timeout, appName)
 }
 
 // setParameterOverrides updates an existing or appends a new parameter override in the application
@@ -2058,8 +2058,8 @@ func filterResources(command *cobra.Command, resources []*argoappv1.ResourceDiff
 		if kind != gvk.Kind {
 			continue
 		}
-		copy := obj.DeepCopy()
-		filteredObjects = append(filteredObjects, copy)
+		deepCopy := obj.DeepCopy()
+		filteredObjects = append(filteredObjects, deepCopy)
 	}
 	if len(filteredObjects) == 0 {
 		log.Fatal("No matching resource found")
