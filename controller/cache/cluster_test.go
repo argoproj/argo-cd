@@ -135,20 +135,20 @@ func newCluster(objs ...*unstructured.Unstructured) *clusterInfo {
 	client := fake.NewSimpleDynamicClient(scheme, runtimeObjs...)
 
 	apiResources := []kube.APIResourceInfo{{
-		GroupKind: schema.GroupKind{Group: "", Kind: "Pod"},
-		Interface: client.Resource(schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"}),
-		Meta:      metav1.APIResource{Namespaced: true},
+		GroupKind:            schema.GroupKind{Group: "", Kind: "Pod"},
+		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"},
+		Meta:                 metav1.APIResource{Namespaced: true},
 	}, {
-		GroupKind: schema.GroupKind{Group: "apps", Kind: "ReplicaSet"},
-		Interface: client.Resource(schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "replicasets"}),
-		Meta:      metav1.APIResource{Namespaced: true},
+		GroupKind:            schema.GroupKind{Group: "apps", Kind: "ReplicaSet"},
+		GroupVersionResource: schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "replicasets"},
+		Meta:                 metav1.APIResource{Namespaced: true},
 	}, {
-		GroupKind: schema.GroupKind{Group: "apps", Kind: "Deployment"},
-		Interface: client.Resource(schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}),
-		Meta:      metav1.APIResource{Namespaced: true},
+		GroupKind:            schema.GroupKind{Group: "apps", Kind: "Deployment"},
+		GroupVersionResource: schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"},
+		Meta:                 metav1.APIResource{Namespaced: true},
 	}}
 
-	return newClusterExt(&kubetest.MockKubectlCmd{APIResources: apiResources})
+	return newClusterExt(&kubetest.MockKubectlCmd{APIResources: apiResources, DynamicClient: client})
 }
 
 func newClusterExt(kubectl kube.Kubectl) *clusterInfo {
@@ -175,6 +175,55 @@ func getChildren(cluster *clusterInfo, un *unstructured.Unstructured) []appv1.Re
 		hierarchy = append(hierarchy, child)
 	})
 	return hierarchy[1:]
+}
+
+func TestEnsureSynced(t *testing.T) {
+	obj1 := strToUnstructured(`
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata: {"name": "helm-guestbook1", "namespace": "default1"}
+`)
+	obj2 := strToUnstructured(`
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata: {"name": "helm-guestbook2", "namespace": "default2"}
+`)
+
+	cluster := newCluster(obj1, obj2)
+	err := cluster.ensureSynced()
+	assert.Nil(t, err)
+
+	assert.Len(t, cluster.nodes, 2)
+	var names []string
+	for k := range cluster.nodes {
+		names = append(names, k.Name)
+	}
+	assert.ElementsMatch(t, []string{"helm-guestbook1", "helm-guestbook2"}, names)
+}
+
+func TestEnsureSyncedSingleNamespace(t *testing.T) {
+	obj1 := strToUnstructured(`
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata: {"name": "helm-guestbook1", "namespace": "default1"}
+`)
+	obj2 := strToUnstructured(`
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata: {"name": "helm-guestbook2", "namespace": "default2"}
+`)
+
+	cluster := newCluster(obj1, obj2)
+	cluster.cluster.Namespaces = []string{"default1"}
+	err := cluster.ensureSynced()
+	assert.Nil(t, err)
+
+	assert.Len(t, cluster.nodes, 1)
+	var names []string
+	for k := range cluster.nodes {
+		names = append(names, k.Name)
+	}
+	assert.ElementsMatch(t, []string{"helm-guestbook1"}, names)
 }
 
 func TestGetNamespaceResources(t *testing.T) {

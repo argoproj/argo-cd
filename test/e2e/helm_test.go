@@ -215,6 +215,20 @@ func TestKubeVersion(t *testing.T) {
 		})
 }
 
+func TestHelmValuesHiddenDirectory(t *testing.T) {
+	Given(t).
+		Path(".hidden-helm").
+		When().
+		AddFile("foo.yaml", "").
+		Create().
+		AppSet("--values", "foo.yaml").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
 func TestHelmWithDependencies(t *testing.T) {
 	testHelmWithDependencies(t, false)
 }
@@ -224,7 +238,10 @@ func TestHelmWithDependenciesLegacyRepo(t *testing.T) {
 }
 
 func testHelmWithDependencies(t *testing.T, legacyRepo bool) {
-	ctx := Given(t).CustomCACertAdded()
+	ctx := Given(t).
+		CustomCACertAdded().
+		// these are slow tests
+		Timeout(30)
 	if legacyRepo {
 		ctx.And(func() {
 			errors.FailOnErr(fixture.Run("", "kubectl", "create", "secret", "generic", "helm-repo",

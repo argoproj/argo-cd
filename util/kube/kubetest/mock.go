@@ -5,9 +5,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
@@ -17,10 +17,16 @@ type KubectlOutput struct {
 }
 
 type MockKubectlCmd struct {
-	APIResources []kube.APIResourceInfo
-	Commands     map[string]KubectlOutput
-	Events       chan watch.Event
-	LastValidate bool
+	APIResources  []kube.APIResourceInfo
+	Commands      map[string]KubectlOutput
+	Events        chan watch.Event
+	LastValidate  bool
+	Version       string
+	DynamicClient dynamic.Interface
+}
+
+func (k *MockKubectlCmd) NewDynamicClient(config *rest.Config) (dynamic.Interface, error) {
+	return k.DynamicClient, nil
 }
 
 func (k *MockKubectlCmd) GetAPIResources(config *rest.Config, resourceFilter kube.ResourceFilter) ([]kube.APIResourceInfo, error) {
@@ -58,8 +64,5 @@ func (k *MockKubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group,
 }
 
 func (k *MockKubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
-	return "", nil
-}
-
-func (k *MockKubectlCmd) SetOnKubectlRun(onKubectlRun func(command string) (util.Closer, error)) {
+	return k.Version, nil
 }

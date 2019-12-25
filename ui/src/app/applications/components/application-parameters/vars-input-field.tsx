@@ -2,7 +2,7 @@ import {Checkbox} from 'argo-ui';
 import * as React from 'react';
 import * as ReactForm from 'react-form';
 
-import {ArrayInput, hasNameAndValue, NameValueEditor} from '../../../shared/components';
+import {ArrayInput, NameValueEditor} from '../../../shared/components';
 
 export interface Var {
     name: string;
@@ -21,8 +21,17 @@ const VarInputEditor = (item: Var, onChange: (item: Var) => any) => (
 
 export const VarsInputField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
     const {
-        fieldApi: {getValue, setValue}
+        fieldApi: {getValue, setValue, setTouched}
     } = props;
     const val = getValue() || [];
-    return <ArrayInput editor={VarInputEditor} items={val} onChange={setValue} valid={hasNameAndValue} />;
+    return (
+        <ArrayInput
+            editor={VarInputEditor}
+            items={val}
+            onChange={items => {
+                setTouched(true);
+                setValue(items);
+            }}
+        />
+    );
 });

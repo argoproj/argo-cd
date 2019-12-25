@@ -6,8 +6,10 @@ import * as React from 'react';
 import * as models from '../../../shared/models';
 
 import {EmptyState} from '../../../shared/components';
+import {Consumer} from '../../../shared/context';
 import {ApplicationURLs} from '../application-urls';
 import {ResourceIcon} from '../resource-icon';
+import {ResourceLabel} from '../resource-label';
 import {ComparisonStatusIcon, getAppOverridesCount, HealthStatusIcon, isAppNode, NodeId, nodeKey} from '../utils';
 import {NodeUpdateAnimation} from './node-update-animation';
 
@@ -179,6 +181,15 @@ function renderLoadBalancerNode(node: dagre.Node & {label: string; color: string
     );
 }
 
+export const describeNode = (node: ResourceTreeNode) => {
+    const lines = [`Kind: ${node.kind}`, `Namespace: ${node.namespace}`, `Name: ${node.name}`];
+    if (node.images) {
+        lines.push('Images:');
+        node.images.forEach(i => lines.push(`- ${i}`));
+    }
+    return lines.join('\n');
+};
+
 function renderResourceNode(props: ApplicationResourceTreeProps, id: string, node: (ResourceTreeNode) & dagre.Node) {
     const fullName = nodeKey(node);
     let comparisonStatus: models.SyncStatusCode = null;
@@ -196,6 +207,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 'active': fullName === props.selectedNodeFullName,
                 'application-resource-tree__node--orphaned': node.orphaned
             })}
+            title={describeNode(node)}
             style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
             {!appNode && <NodeUpdateAnimation resourceVersion={node.resourceVersion} />}
             <div
@@ -203,10 +215,13 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                     'application-resource-tree__node-kind-icon--big': rootNode
                 })}>
                 <ResourceIcon kind={node.kind} />
+                <br />
+                {!rootNode && <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>}
             </div>
             <div className='application-resource-tree__node-content'>
                 <span className='application-resource-tree__node-title'>{node.name}</span>
-                <div
+                <br />
+                <span
                     className={classNames('application-resource-tree__node-status-icon', {
                         'application-resource-tree__node-status-icon--offset': rootNode
                     })}>
@@ -214,12 +229,16 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                     {healthState != null && <HealthStatusIcon state={healthState} />}
                     {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus} resource={!rootNode && node} />}
                     {appNode && !rootNode && (
-                        <a href={'/applications/' + node.name} title='Open application'>
-                            <i className='fa fa-external-link-alt' />
-                        </a>
+                        <Consumer>
+                            {ctx => (
+                                <a href={ctx.baseHref + 'applications/' + node.name} title='Open application'>
+                                    <i className='fa fa-external-link-alt' />
+                                </a>
+                            )}
+                        </Consumer>
                     )}
                     <ApplicationURLs urls={rootNode ? props.app.status.summary.externalURLs : node.networkingInfo && node.networkingInfo.externalURLs} />
-                </div>
+                </span>
             </div>
             <div className='application-resource-tree__node-labels'>
                 {(node.info || []).map((tag, i) => (
@@ -227,7 +246,6 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                         {tag.value}
                     </span>
                 ))}
-                <span>{node.kind}</span>
             </div>
             {props.nodeMenu && (
                 <div className='application-resource-tree__node-menu'>
@@ -264,7 +282,7 @@ function findNetworkTargets(nodes: ResourceTreeNode[], networkingInfo: models.Re
 }
 export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => {
     const graph = new dagre.graphlib.Graph();
-    graph.setGraph({rankdir: 'LR', marginx: -100});
+    graph.setGraph({nodesep: 15, rankdir: 'LR', marginx: -100});
     graph.setDefaultEdgeLabel(() => ({}));
     const overridesCount = getAppOverridesCount(props.app);
     const appNode = {

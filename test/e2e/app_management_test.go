@@ -94,7 +94,7 @@ func TestImmutableChange(t *testing.T) {
 			SyncPhase: "Sync",
 			Status:    "SyncFailed",
 			HookPhase: "Failed",
-			Message:   fmt.Sprintf(`kubectl failed exit status 1: The Service "my-service" is invalid: spec.clusterIP: Invalid value: "%s": field is immutable`, ip2),
+			Message:   fmt.Sprintf(`Service "my-service" is invalid: spec.clusterIP: Invalid value: "%s": field is immutable`, ip2),
 		})).
 		// now we can do this will a force
 		Given().
@@ -816,6 +816,29 @@ func TestExcludedResource(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(Condition(ApplicationConditionExcludedResourceWarning, "Resource apps/Deployment guestbook-ui is excluded in the settings"))
+}
+
+func TestRevisionHistoryLimit(t *testing.T) {
+	Given(t).
+		Path("config-map").
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Len(t, app.Status.History, 1)
+		}).
+		When().
+		AppSet("--revision-history-limit", "1").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Len(t, app.Status.History, 1)
+		})
 }
 
 func TestOrphanedResource(t *testing.T) {

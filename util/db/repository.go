@@ -113,6 +113,10 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 }
 
 func (db *db) ListRepositories(ctx context.Context) ([]*appsv1.Repository, error) {
+	return db.listRepositories(ctx, nil)
+}
+
+func (db *db) listRepositories(ctx context.Context, repoType *string) ([]*appsv1.Repository, error) {
 	inRepos, err := db.settingsMgr.GetRepositories()
 	if err != nil {
 		return nil, err
@@ -120,12 +124,13 @@ func (db *db) ListRepositories(ctx context.Context) ([]*appsv1.Repository, error
 
 	var repos []*appsv1.Repository
 	for _, inRepo := range inRepos {
-		r, err := db.GetRepository(ctx, inRepo.URL)
-		if err != nil {
-			return nil, err
+		if repoType == nil || *repoType == inRepo.Type {
+			r, err := db.GetRepository(ctx, inRepo.URL)
+			if err != nil {
+				return nil, err
+			}
+			repos = append(repos, r)
 		}
-		repos = append(repos, r)
-
 	}
 	return repos, nil
 }

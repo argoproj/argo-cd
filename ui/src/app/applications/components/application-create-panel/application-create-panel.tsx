@@ -1,8 +1,8 @@
-import {Checkbox, DataLoader, DropDownMenu, FormField, Select} from 'argo-ui';
+import {AutocompleteField, Checkbox, DataLoader, DropDownMenu, FormField, Select} from 'argo-ui';
 import * as deepMerge from 'deepmerge';
 import * as React from 'react';
 import {FieldApi, Form, FormApi, FormField as ReactFormField, Text} from 'react-form';
-import {AutocompleteField, clusterTitle, RevisionHelpIcon, YamlEditor} from '../../../shared/components';
+import {clusterTitle, RevisionHelpIcon, YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';

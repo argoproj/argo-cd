@@ -17,13 +17,19 @@ func EnforceToCurrentRoot(currentRoot, requestedPath string) (string, error) {
 	return requestedDir + string(filepath.Separator) + requestedFile, nil
 }
 
-func isRequestedDirUnderCurrentRoot(currentRoot, requestedDir string) bool {
+func isRequestedDirUnderCurrentRoot(currentRoot, requestedPath string) bool {
 	if currentRoot == string(filepath.Separator) {
 		return true
-	} else if currentRoot == requestedDir {
+	} else if currentRoot == requestedPath {
 		return true
 	}
-	return strings.HasPrefix(requestedDir, currentRoot+string(filepath.Separator))
+	if requestedPath[len(requestedPath)-1] != '/' {
+		requestedPath = requestedPath + "/"
+	}
+	if currentRoot[len(currentRoot)-1] != '/' {
+		currentRoot = currentRoot + "/"
+	}
+	return strings.HasPrefix(requestedPath, currentRoot)
 }
 
 func parsePath(path string) (string, string) {

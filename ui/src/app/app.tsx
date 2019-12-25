@@ -1,4 +1,4 @@
-import {DataLoader, Layout, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps} from 'argo-ui';
+import {DataLoader, Layout, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps, Tooltip} from 'argo-ui';
 import {createBrowserHistory} from 'history';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -51,6 +51,8 @@ const navItems = [
         iconClassName: 'argo-icon-docs'
     }
 ];
+
+const versionInfo = services.version.version();
 
 async function isExpiredSSO() {
     try {
@@ -156,7 +158,7 @@ export class App extends React.Component<{}, {popupProps: PopupProps; error: Err
                     <link rel='icon' type='image/png' href={`${base}assets/favicon/favicon-16x16.png`} sizes='16x16' />
                 </Helmet>
                 <PageContext.Provider value={{title: 'Argo CD'}}>
-                    <Provider value={{history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager}}>
+                    <Provider value={{history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager, baseHref: base}}>
                         {this.state.popupProps && <Popup {...this.state.popupProps} />}
                         <Router history={history}>
                             <Switch>
@@ -175,7 +177,15 @@ export class App extends React.Component<{}, {popupProps: PopupProps; error: Err
                                                 ) : (
                                                     <Layout
                                                         navItems={navItems}
-                                                        version={() => <DataLoader load={() => services.version.version()}>{msg => msg.Version}</DataLoader>}>
+                                                        version={() => (
+                                                            <DataLoader load={() => versionInfo}>
+                                                                {msg => (
+                                                                    <Tooltip content={msg.Version}>
+                                                                        <span>{msg.Version}</span>
+                                                                    </Tooltip>
+                                                                )}
+                                                            </DataLoader>
+                                                        )}>
                                                         <route.component {...routeProps} />
                                                     </Layout>
                                                 )

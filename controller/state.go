@@ -128,11 +128,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	cluster, err := m.db.GetCluster(context.Background(), app.Spec.Destination.Server)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	cluster.ServerVersion, err = m.kubectl.GetServerVersion(cluster.RESTConfig())
+	serverVersion, err := m.liveStateCache.GetServerVersion(app.Spec.Destination.Server)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -149,7 +145,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		KustomizeOptions: &appv1.KustomizeOptions{
 			BuildOptions: buildOptions,
 		},
-		KubeVersion: cluster.ServerVersion,
+		KubeVersion: serverVersion,
 	})
 	if err != nil {
 		return nil, nil, nil, err
@@ -502,20 +498,18 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 	if len(app.Status.History) > 0 {
 		nextID = app.Status.History[len(app.Status.History)-1].ID + 1
 	}
-	history := append(app.Status.History, v1alpha1.RevisionHistory{
+	app.Status.History = append(app.Status.History, v1alpha1.RevisionHistory{
 		Revision:   revision,
 		DeployedAt: metav1.NewTime(time.Now().UTC()),
 		ID:         nextID,
 		Source:     source,
 	})
 
-	if len(history) > common.RevisionHistoryLimit {
-		history = history[1 : common.RevisionHistoryLimit+1]
-	}
+	app.Status.History = app.Status.History.Trunc(app.Spec.GetRevisionHistoryLimit())
 
 	patch, err := json.Marshal(map[string]map[string][]v1alpha1.RevisionHistory{
 		"status": {
-			"history": history,
+			"history": app.Status.History,
 		},
 	})
 	if err != nil {

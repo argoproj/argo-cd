@@ -682,12 +682,14 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
 			wg.Add(1)
 			go func(t *syncTask) {
 				defer wg.Done()
-				sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t}).Debug("pruning")
+				logCtx := sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t})
+				logCtx.Debug("pruning")
 				result, message := sc.pruneObject(t.liveObj, sc.syncOp.Prune, dryRun)
 				if result == v1alpha1.ResultCodeSyncFailed {
 					runState = failed
+					logCtx.WithField("message", message).Info("pruning failed")
 				}
-				if !dryRun || result == v1alpha1.ResultCodeSyncFailed {
+				if !dryRun || sc.syncOp.DryRun || result == v1alpha1.ResultCodeSyncFailed {
 					sc.setResourceResult(t, result, operationPhases[result], message)
 				}
 			}(task)
@@ -733,12 +735,14 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
 				createWg.Add(1)
 				go func(t *syncTask) {
 					defer createWg.Done()
-					sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t}).Debug("applying")
+					logCtx := sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t})
+					logCtx.Debug("applying")
 					result, message := sc.applyObject(t.targetObj, dryRun, sc.syncOp.SyncStrategy.Force())
 					if result == v1alpha1.ResultCodeSyncFailed {
+						logCtx.WithField("message", message).Info("apply failed")
 						runState = failed
 					}
-					if !dryRun || result == v1alpha1.ResultCodeSyncFailed {
+					if !dryRun || sc.syncOp.DryRun || result == v1alpha1.ResultCodeSyncFailed {
 						sc.setResourceResult(t, result, operationPhases[result], message)
 					}
 				}(task)

@@ -58,6 +58,7 @@ dep ensure
 make dev-tools-image
 make install-lint-tools
 go get github.com/mattn/goreman
+go get github.com/jstemmer/go-junit-report
 ```
 
 Common make targets:
