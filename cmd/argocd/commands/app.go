@@ -1040,30 +1040,61 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		cascade bool
+		wait    bool
+		timeout uint
 	)
 	var command = &cobra.Command{
 		Use:   "delete APPNAME",
 		Short: "Delete an application",
+		Example: `
+  # Delete an app and all resources created by the app
+  argocd app delete app1
+
+  # Delete only the app manifest and leave all resources untouched
+  argocd app delete app2 --cascade false
+
+  # Wait for app to be deleted before returning
+  argocd app delete app3 --wait
+
+  # Wait for 60s for app to be deleted before returning
+  argocd app delete app4 --wait --timeout 60`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
+
 			for _, appName := range args {
 				appDeleteReq := applicationpkg.ApplicationDeleteRequest{
 					Name: &appName,
 				}
-				if c.Flag("cascade").Changed {
+				if cascade {
 					appDeleteReq.Cascade = &cascade
 				}
+
 				_, err := appIf.Delete(context.Background(), &appDeleteReq)
 				errors.CheckError(err)
+
+				if wait {
+					appStatusOpts := applicationStatusOpts{
+						client:  argocdclient.NewClientOrDie(clientOpts),
+						appName: appName,
+						timeout: timeout,
+						watch:   watchOpts{delete: true},
+					}
+					_, err := waitOnApplicationStatus(appStatusOpts)
+					errors.CheckError(err)
+				}
 			}
 		},
 	}
 	command.Flags().BoolVar(&cascade, "cascade", true, "Perform a cascaded deletion of all application resources")
+	command.Flags().BoolVar(&wait, "wait", false, "Will cause the command to only return once the application has been deleted")
+	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time to spend waiting for application to delete, default is no timeout")
+
 	return command
 }
 
@@ -1212,13 +1243,10 @@ func parseSelectedResources(resources []string) []argoappv1.SyncOperationResourc
 // NewApplicationWaitCommand returns a new instance of an `argocd app wait` command
 func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		watchSync       bool
-		watchHealth     bool
-		watchSuspended  bool
-		watchOperations bool
-		timeout         uint
-		selector        string
-		resources       []string
+		watch     watchOpts
+		timeout   uint
+		selector  string
+		resources []string
 	)
 	var command = &cobra.Command{
 		Use:   "wait [APPNAME.. | -l selector]",
@@ -1236,16 +1264,22 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			if !watchSync && !watchHealth && !watchOperations && !watchSuspended {
-				watchSync = true
-				watchHealth = true
-				watchOperations = true
-				watchSuspended = false
+			appStatusOpts := applicationStatusOpts{
+				client:            argocdclient.NewClientOrDie(clientOpts),
+				timeout:           timeout,
+				selectedResources: parseSelectedResources(resources),
 			}
-			selectedResources := parseSelectedResources(resources)
+			if !watch.sync && !watch.health && !watch.operation && !watch.suspended && !watch.delete {
+				appStatusOpts.watch = watchOpts{
+					sync:      true,
+					health:    true,
+					operation: true,
+				}
+			} else {
+				appStatusOpts.watch = watch
+			}
 			appNames := args
-			acdClient := argocdclient.NewClientOrDie(clientOpts)
-			closer, appIf := acdClient.NewApplicationClientOrDie()
+			closer, appIf := appStatusOpts.client.NewApplicationClientOrDie()
 			defer util.Close(closer)
 			if selector != "" {
 				list, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: selector})
@@ -1255,17 +1289,19 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 			}
 			for _, appName := range appNames {
-				_, err := waitOnApplicationStatus(acdClient, appName, timeout, watchSync, watchHealth, watchOperations, watchSuspended, selectedResources)
+				appStatusOpts.appName = appName
+				_, err := waitOnApplicationStatus(appStatusOpts)
 				errors.CheckError(err)
 			}
 		},
 	}
-	command.Flags().BoolVar(&watchSync, "sync", false, "Wait for sync")
-	command.Flags().BoolVar(&watchHealth, "health", false, "Wait for health")
-	command.Flags().BoolVar(&watchSuspended, "suspended", false, "Wait for suspended")
+	command.Flags().BoolVar(&watch.sync, "sync", false, "Wait for sync")
+	command.Flags().BoolVar(&watch.health, "health", false, "Wait for health")
+	command.Flags().BoolVar(&watch.suspended, "suspended", false, "Wait for suspended")
 	command.Flags().StringVarP(&selector, "selector", "l", "", "Wait for apps by label")
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%sKIND%sNAME. Fields may be blank. This option may be specified repeatedly", resourceFieldDelimiter, resourceFieldDelimiter))
-	command.Flags().BoolVar(&watchOperations, "operation", false, "Wait for pending operations")
+	command.Flags().BoolVar(&watch.operation, "operation", false, "Wait for pending operations")
+	command.Flags().BoolVar(&watch.delete, "delete", false, "wait for application to be deleted")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	return command
 }
@@ -1415,7 +1451,14 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 
 				if !async {
-					app, err := waitOnApplicationStatus(acdClient, appName, timeout, false, false, true, false, selectedResources)
+					appStatusOpts := applicationStatusOpts{
+						client:            acdClient,
+						appName:           appName,
+						timeout:           timeout,
+						watch:             watchOpts{operation: true},
+						selectedResources: selectedResources,
+					}
+					app, err := waitOnApplicationStatus(appStatusOpts)
 					errors.CheckError(err)
 
 					// Only get resources to be pruned if sync was application-wide
@@ -1555,25 +1598,42 @@ func groupResourceStates(app *argoappv1.Application, selectedResources []argoapp
 	return resStates
 }
 
-func checkResourceStatus(watchSync bool, watchHealth bool, watchOperation bool, watchSuspended bool, healthStatus string, syncStatus string, operationStatus *argoappv1.Operation) bool {
+func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string, operationStatus *argoappv1.Operation) bool {
 	healthCheckPassed := true
-	if watchSuspended && watchHealth {
+	if watch.suspended && watch.health {
 		healthCheckPassed = healthStatus == argoappv1.HealthStatusHealthy ||
 			healthStatus == argoappv1.HealthStatusSuspended
-	} else if watchSuspended {
+	} else if watch.suspended {
 		healthCheckPassed = healthStatus == argoappv1.HealthStatusSuspended
-	} else if watchHealth {
+	} else if watch.health {
 		healthCheckPassed = healthStatus == argoappv1.HealthStatusHealthy
 	}
 
-	synced := !watchSync || syncStatus == string(argoappv1.SyncStatusCodeSynced)
-	operational := !watchOperation || operationStatus == nil
+	synced := !watch.sync || syncStatus == string(argoappv1.SyncStatusCodeSynced)
+	operational := !watch.operation || operationStatus == nil
 	return synced && healthCheckPassed && operational
 }
 
 const waitFormatString = "%s\t%5s\t%10s\t%10s\t%20s\t%8s\t%7s\t%10s\t%s\n"
 
-func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout uint, watchSync bool, watchHealth bool, watchOperation bool, watchSuspended bool, selectedResources []argoappv1.SyncOperationResource) (*argoappv1.Application, error) {
+type applicationStatusOpts struct {
+	client            apiclient.Client
+	appName           string
+	timeout           uint
+	watch             watchOpts
+	selectedResources []argoappv1.SyncOperationResource
+}
+
+type watchOpts struct {
+	sync      bool
+	health    bool
+	operation bool
+	suspended bool
+	delete    bool
+}
+
+func waitOnApplicationStatus(opts applicationStatusOpts) (*argoappv1.Application, error) {
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -1585,17 +1645,17 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 	printFinalStatus := func(app *argoappv1.Application) {
 		var err error
 		if refresh {
-			conn, appClient := acdClient.NewApplicationClientOrDie()
+			conn, appClient := opts.client.NewApplicationClientOrDie()
 			refreshType := string(argoappv1.RefreshTypeNormal)
-			app, err = appClient.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName, Refresh: &refreshType})
+			app, err = appClient.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &opts.appName, Refresh: &refreshType})
 			errors.CheckError(err)
 			_ = conn.Close()
 		}
 
 		fmt.Println()
-		printAppSummaryTable(app, appURL(acdClient, appName), nil)
+		printAppSummaryTable(app, appURL(opts.client, opts.appName), nil)
 		fmt.Println()
-		if watchOperation {
+		if opts.watch.operation {
 			printOperationResult(app.Status.OperationState)
 		}
 
@@ -1607,8 +1667,8 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 		}
 	}
 
-	if timeout != 0 {
-		time.AfterFunc(time.Duration(timeout)*time.Second, func() {
+	if opts.timeout != 0 {
+		time.AfterFunc(time.Duration(opts.timeout)*time.Second, func() {
 			cancel()
 		})
 	}
@@ -1617,10 +1677,10 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 	_, _ = fmt.Fprintf(w, waitFormatString, "TIMESTAMP", "GROUP", "KIND", "NAMESPACE", "NAME", "STATUS", "HEALTH", "HOOK", "MESSAGE")
 
 	prevStates := make(map[string]*resourceState)
-	appEventCh := acdClient.WatchApplicationWithRetry(ctx, appName)
-	conn, appClient := acdClient.NewApplicationClientOrDie()
+	appEventCh := opts.client.WatchApplicationWithRetry(ctx, opts.appName)
+	conn, appClient := opts.client.NewApplicationClientOrDie()
 	defer util.Close(conn)
-	app, err := appClient.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
+	app, err := appClient.Get(ctx, &applicationpkg.ApplicationQuery{Name: &opts.appName})
 	errors.CheckError(err)
 
 	for appEvent := range appEventCh {
@@ -1632,10 +1692,10 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 		var selectedResourcesAreReady bool
 
 		// If selected resources are included, wait only on those resources, otherwise wait on the application as a whole.
-		if len(selectedResources) > 0 {
+		if len(opts.selectedResources) > 0 {
 			selectedResourcesAreReady = true
-			for _, state := range getResourceStates(app, selectedResources) {
-				resourceIsReady := checkResourceStatus(watchSync, watchHealth, watchOperation, watchSuspended, state.Health, state.Status, appEvent.Application.Operation)
+			for _, state := range getResourceStates(app, opts.selectedResources) {
+				resourceIsReady := checkResourceStatus(opts.watch, state.Health, state.Status, appEvent.Application.Operation)
 				if !resourceIsReady {
 					selectedResourcesAreReady = false
 					break
@@ -1643,24 +1703,31 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 			}
 		} else {
 			// Wait on the application as a whole
-			selectedResourcesAreReady = checkResourceStatus(watchSync, watchHealth, watchOperation, watchSuspended, app.Status.Health.Status, string(app.Status.Sync.Status), appEvent.Application.Operation)
+			selectedResourcesAreReady = checkResourceStatus(opts.watch, app.Status.Health.Status, string(app.Status.Sync.Status), appEvent.Application.Operation)
 		}
 
-		if selectedResourcesAreReady {
+		if selectedResourcesAreReady && !opts.watch.delete {
 			printFinalStatus(app)
 			return app, nil
 		}
 
-		newStates := groupResourceStates(app, selectedResources)
+		newStates := groupResourceStates(app, opts.selectedResources)
 		for _, newState := range newStates {
 			var doPrint bool
 			stateKey := newState.Key()
 			if prevState, found := prevStates[stateKey]; found {
-				if watchHealth && prevState.Health != argoappv1.HealthStatusUnknown && prevState.Health != argoappv1.HealthStatusDegraded && newState.Health == argoappv1.HealthStatusDegraded {
+				if opts.watch.health && prevState.Health != argoappv1.HealthStatusUnknown && prevState.Health != argoappv1.HealthStatusDegraded && newState.Health == argoappv1.HealthStatusDegraded {
 					printFinalStatus(app)
-					return nil, fmt.Errorf("Application '%s' health state has transitioned from %s to %s", appName, prevState.Health, newState.Health)
+					return nil, fmt.Errorf("Application '%s' health state has transitioned from %s to %s", opts.appName, prevState.Health, newState.Health)
 				}
-				doPrint = prevState.Merge(newState)
+				if opts.watch.delete {
+					if newState.Health == argoappv1.HealthStatusMissing {
+						newState.Message = strings.Replace(newState.Message, "created", "deleted", 1)
+						doPrint = prevState.Merge(newState)
+					}
+				} else {
+					doPrint = prevState.Merge(newState)
+				}
 			} else {
 				prevStates[stateKey] = newState
 				doPrint = true
@@ -1670,9 +1737,17 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 			}
 		}
 		_ = w.Flush()
+		if opts.watch.delete {
+			_, err := appClient.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &opts.appName})
+			if err != nil {
+				if strings.HasSuffix(err.Error(), "not found") {
+					return nil, nil
+				}
+			}
+		}
 	}
 	printFinalStatus(app)
-	return nil, fmt.Errorf("Timed out (%ds) waiting for app %q match desired state", timeout, appName)
+	return nil, fmt.Errorf("Timed out (%ds) waiting for app %q match desired state", opts.timeout, opts.appName)
 }
 
 // setParameterOverrides updates an existing or appends a new parameter override in the application
@@ -1836,7 +1911,13 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			})
 			errors.CheckError(err)
 
-			_, err = waitOnApplicationStatus(acdClient, appName, timeout, false, false, true, false, nil)
+			appStatusOpts := applicationStatusOpts{
+				client:  acdClient,
+				appName: appName,
+				timeout: timeout,
+				watch:   watchOpts{operation: true},
+			}
+			_, err = waitOnApplicationStatus(appStatusOpts)
 			errors.CheckError(err)
 		},
 	}
