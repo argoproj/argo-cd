@@ -11,11 +11,15 @@ import (
 	"testing"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
+	networkingv1beta "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/common"
@@ -877,4 +881,90 @@ func TestOrphanedResource(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(NoConditions())
+}
+
+func TestNotPermittedResources(t *testing.T) {
+	ctx := Given(t)
+
+	ingress := &networkingv1beta.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "sample-ingress",
+			Labels: map[string]string{
+				common.LabelKeyAppInstance: ctx.GetName(),
+			},
+		},
+		Spec: networkingv1beta.IngressSpec{
+			Rules: []networkingv1beta.IngressRule{{
+				IngressRuleValue: networkingv1beta.IngressRuleValue{
+					HTTP: &networkingv1beta.HTTPIngressRuleValue{
+						Paths: []networkingv1beta.HTTPIngressPath{{
+							Path: "/",
+							Backend: networkingv1beta.IngressBackend{
+								ServiceName: "guestbook-ui",
+								ServicePort: intstr.IntOrString{Type: intstr.Int, IntVal: 80},
+							},
+						}},
+					},
+				},
+			}},
+		},
+	}
+	defer func() {
+		log.Infof("Ingress 'sample-ingress' deleted from %s", ArgoCDNamespace)
+		CheckError(KubeClientset.NetworkingV1beta1().Ingresses(ArgoCDNamespace).Delete("sample-ingress", &metav1.DeleteOptions{}))
+	}()
+
+	svc := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "guestbook-ui",
+			Labels: map[string]string{
+				common.LabelKeyAppInstance: ctx.GetName(),
+			},
+		},
+		Spec: v1.ServiceSpec{
+			Ports: []v1.ServicePort{{
+				Port:       80,
+				TargetPort: intstr.IntOrString{Type: intstr.Int, IntVal: 80},
+			}},
+			Selector: map[string]string{
+				"app": "guestbook-ui",
+			},
+		},
+	}
+
+	ctx.ProjectSpec(AppProjectSpec{
+		SourceRepos:  []string{"*"},
+		Destinations: []ApplicationDestination{{Namespace: DeploymentNamespace(), Server: "*"}},
+		NamespaceResourceBlacklist: []metav1.GroupKind{
+			{Group: "", Kind: "Service"},
+		}}).
+		And(func() {
+			FailOnErr(KubeClientset.NetworkingV1beta1().Ingresses(ArgoCDNamespace).Create(ingress))
+			FailOnErr(KubeClientset.CoreV1().Services(DeploymentNamespace()).Create(svc))
+		}).
+		Path(guestbookPath).
+		When().
+		Create().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		And(func(app *Application) {
+			statusByKind := make(map[string]ResourceStatus)
+			for _, res := range app.Status.Resources {
+				statusByKind[res.Kind] = res
+			}
+			_, hasIngress := statusByKind[kube.IngressKind]
+			assert.False(t, hasIngress, "Ingress is prohibited not managed object and should be even visible to user")
+			serviceStatus := statusByKind[kube.ServiceKind]
+			assert.Equal(t, serviceStatus.Status, SyncStatusCodeUnknown, "Service is prohibited managed resource so should be set to Unknown")
+			deploymentStatus := statusByKind[kube.DeploymentKind]
+			assert.Equal(t, deploymentStatus.Status, SyncStatusCodeOutOfSync)
+		}).
+		When().
+		Delete(true).
+		Then().
+		Expect(DoesNotExist())
+
+	// Make sure prohibited resources are not deleted during application deletion
+	FailOnErr(KubeClientset.NetworkingV1beta1().Ingresses(ArgoCDNamespace).Get("sample-ingress", metav1.GetOptions{}))
+	FailOnErr(KubeClientset.CoreV1().Services(DeploymentNamespace()).Get("guestbook-ui", metav1.GetOptions{}))
 }

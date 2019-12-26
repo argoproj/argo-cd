@@ -30,7 +30,7 @@ func TestCompareAppStateEmpty(t *testing.T) {
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
 	ctrl := newFakeController(&data)
-	compRes := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -53,7 +53,7 @@ func TestCompareAppStateMissing(t *testing.T) {
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
 	ctrl := newFakeController(&data)
-	compRes := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
 	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
@@ -80,7 +80,7 @@ func TestCompareAppStateExtra(t *testing.T) {
 		},
 	}
 	ctrl := newFakeController(&data)
-	compRes := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
 	assert.Equal(t, 1, len(compRes.resources))
@@ -106,7 +106,7 @@ func TestCompareAppStateHook(t *testing.T) {
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
 	ctrl := newFakeController(&data)
-	compRes := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, 0, len(compRes.resources))
@@ -132,7 +132,7 @@ func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
 	}
 	ctrl := newFakeController(&data)
 
-	compRes := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
 
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -160,7 +160,7 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 		},
 	}
 	ctrl := newFakeController(&data)
-	compRes := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
 
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -197,7 +197,7 @@ func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
 		},
 	}
 	ctrl := newFakeController(&data)
-	compRes := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
 
 	assert.NotNil(t, compRes)
 	assert.Equal(t, 1, len(app.Status.Conditions))
@@ -248,7 +248,7 @@ func TestSetHealth(t *testing.T) {
 		},
 	})
 
-	compRes := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
 
 	assert.Equal(t, compRes.healthStatus.Status, argoappv1.HealthStatusHealthy)
 }
@@ -280,7 +280,7 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 		},
 	})
 
-	compRes := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
 
 	assert.Equal(t, compRes.healthStatus.Status, argoappv1.HealthStatusHealthy)
 }
@@ -350,7 +350,7 @@ func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 		},
 	})
 
-	compRes := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false, nil)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
 
 	assert.Equal(t, argoappv1.HealthStatusUnknown, compRes.healthStatus.Status)
 	assert.Equal(t, argoappv1.SyncStatusCodeUnknown, compRes.syncStatus.Status)

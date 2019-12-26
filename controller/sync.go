@@ -17,6 +17,7 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
@@ -106,7 +107,14 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		revision = syncOp.Revision
 	}
 
-	compareResult := m.CompareAppState(app, revision, source, false, syncOp.Manifests)
+	proj, err := argo.GetAppProject(&app.Spec, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace)
+	if err != nil {
+		state.Phase = v1alpha1.OperationError
+		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
+		return
+	}
+
+	compareResult := m.CompareAppState(app, proj, revision, source, false, syncOp.Manifests)
 
 	// If there are any comparison or spec errors error conditions do not perform the operation
 	if errConditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{
@@ -147,13 +155,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	if err != nil {
 		state.Phase = v1alpha1.OperationError
 		state.Message = fmt.Sprintf("Failed to initialize extensions client: %v", err)
-		return
-	}
-
-	proj, err := argo.GetAppProject(&app.Spec, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace)
-	if err != nil {
-		state.Phase = v1alpha1.OperationError
-		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
 		return
 	}
 
@@ -480,7 +481,7 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 				successful = false
 			}
 		} else {
-			if !sc.proj.IsResourcePermitted(metav1.GroupKind{Group: task.group(), Kind: task.kind()}, serverRes.Namespaced) {
+			if !sc.proj.IsGroupKindPermitted(schema.GroupKind{Group: task.group(), Kind: task.kind()}, serverRes.Namespaced) {
 				sc.setResourceResult(task, v1alpha1.ResultCodeSyncFailed, "", fmt.Sprintf("Resource %s:%s is not permitted in project %s.", task.group(), task.kind(), sc.proj.Name))
 				successful = false
 			}
