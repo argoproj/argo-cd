@@ -2256,26 +2256,43 @@ func schema_pkg_apis_application_v1alpha1_ResourceDiff(ref common.ReferenceCallb
 					},
 					"targetState": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "TargetState contains the JSON serialized resource manifest defined in the Git/Helm",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"liveState": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "TargetState contains the JSON live resource manifest",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"diff": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "Diff contains the JSON patch between target and live resource Deprecated: use NormalizedLiveState and PredictedLiveState to render the difference",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"hook": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"boolean"},
 							Format: "",
+						},
+					},
+					"normalizedLiveState": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NormalizedLiveState contains JSON serialized live resource state with applied normalizations",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"predictedLiveState": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PredictedLiveState contains JSON serialized resource state that is calculated based on normalized and target resource state",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},

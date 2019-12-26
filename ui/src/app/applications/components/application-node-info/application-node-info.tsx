@@ -81,7 +81,7 @@ export const ApplicationNodeInfo = (props: {
     const tabs: Tab[] = [
         {
             key: 'manifest',
-            title: 'Manifest',
+            title: 'Live Manifest',
             content: (
                 <YamlEditor
                     input={props.live}
@@ -97,6 +97,11 @@ export const ApplicationNodeInfo = (props: {
             icon: 'fa fa-file-medical',
             title: 'Diff',
             content: <ApplicationResourcesDiff states={[props.controlled.state]} />
+        });
+        tabs.push({
+            key: 'desiredManifest',
+            title: 'Desired Manifest',
+            content: <YamlEditor input={props.controlled.state.targetState} hideModeButtons={true} />
         });
     }
 

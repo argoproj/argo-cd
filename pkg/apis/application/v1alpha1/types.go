@@ -894,14 +894,22 @@ func (r *ResourceStatus) GroupVersionKind() schema.GroupVersionKind {
 
 // ResourceDiff holds the diff of a live and target resource object
 type ResourceDiff struct {
-	Group       string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
-	Kind        string `json:"kind,omitempty" protobuf:"bytes,2,opt,name=kind"`
-	Namespace   string `json:"namespace,omitempty" protobuf:"bytes,3,opt,name=namespace"`
-	Name        string `json:"name,omitempty" protobuf:"bytes,4,opt,name=name"`
+	Group     string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Kind      string `json:"kind,omitempty" protobuf:"bytes,2,opt,name=kind"`
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,3,opt,name=namespace"`
+	Name      string `json:"name,omitempty" protobuf:"bytes,4,opt,name=name"`
+	// TargetState contains the JSON serialized resource manifest defined in the Git/Helm
 	TargetState string `json:"targetState,omitempty" protobuf:"bytes,5,opt,name=targetState"`
-	LiveState   string `json:"liveState,omitempty" protobuf:"bytes,6,opt,name=liveState"`
-	Diff        string `json:"diff,omitempty" protobuf:"bytes,7,opt,name=diff"`
-	Hook        bool   `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
+	// TargetState contains the JSON live resource manifest
+	LiveState string `json:"liveState,omitempty" protobuf:"bytes,6,opt,name=liveState"`
+	// Diff contains the JSON patch between target and live resource
+	// Deprecated: use NormalizedLiveState and PredictedLiveState to render the difference
+	Diff string `json:"diff,omitempty" protobuf:"bytes,7,opt,name=diff"`
+	Hook bool   `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
+	// NormalizedLiveState contains JSON serialized live resource state with applied normalizations
+	NormalizedLiveState string `json:"normalizedLiveState,omitempty" protobuf:"bytes,9,opt,name=normalizedLiveState"`
+	// PredictedLiveState contains JSON serialized resource state that is calculated based on normalized and target resource state
+	PredictedLiveState string `json:"predictedLiveState,omitempty" protobuf:"bytes,10,opt,name=predictedLiveState"`
 }
 
 // ConnectionStatus represents connection status

@@ -184,8 +184,15 @@ message ApplicationSyncWindow {
 message OperationTerminateResponse {
 }
 
+
 message ResourcesQuery {
 	required string applicationName = 1 [(gogoproto.nullable) = true];
+
+	optional string namespace = 2 [(gogoproto.nullable) = false];
+	optional string name = 3 [(gogoproto.nullable) = false];
+	optional string version = 4 [(gogoproto.nullable) = false];
+	optional string group = 5 [(gogoproto.nullable) = false];
+	optional string kind = 6 [(gogoproto.nullable) = false];
 }
 
 message ManagedResourcesResponse {

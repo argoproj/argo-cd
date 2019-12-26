@@ -201,6 +201,31 @@
             "name": "applicationName",
             "in": "path",
             "required": true
+          },
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "name",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "version",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "group",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "kind",
+            "in": "query"
           }
         ],
         "responses": {
@@ -225,6 +250,31 @@
             "name": "applicationName",
             "in": "path",
             "required": true
+          },
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "name",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "version",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "group",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "kind",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3810,7 +3860,8 @@
       "title": "ResourceDiff holds the diff of a live and target resource object",
       "properties": {
         "diff": {
-          "type": "string"
+          "type": "string",
+          "title": "Diff contains the JSON patch between target and live resource\nDeprecated: use NormalizedLiveState and PredictedLiveState to render the difference"
         },
         "group": {
           "type": "string"
@@ -3823,7 +3874,8 @@
           "type": "string"
         },
         "liveState": {
-          "type": "string"
+          "type": "string",
+          "title": "TargetState contains the JSON live resource manifest"
         },
         "name": {
           "type": "string"
@@ -3831,8 +3883,17 @@
         "namespace": {
           "type": "string"
         },
+        "normalizedLiveState": {
+          "type": "string",
+          "title": "NormalizedLiveState contains JSON serialized live resource state with applied normalizations"
+        },
+        "predictedLiveState": {
+          "type": "string",
+          "title": "PredictedLiveState contains JSON serialized resource state that is calculated based on normalized and target resource state"
+        },
         "targetState": {
-          "type": "string"
+          "type": "string",
+          "title": "TargetState contains the JSON serialized resource manifest defined in the Git/Helm"
         }
       }
     },
