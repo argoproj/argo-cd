@@ -41,7 +41,6 @@ type apiMeta struct {
 }
 
 type clusterInfo struct {
-	syncLock      *sync.Mutex
 	syncTime      *time.Time
 	syncError     error
 	apisMeta      map[schema.GroupKind]*apiMeta
@@ -59,8 +58,6 @@ type clusterInfo struct {
 }
 
 func (c *clusterInfo) replaceResourceCache(gk schema.GroupKind, resourceVersion string, objs []unstructured.Unstructured) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
 	info, ok := c.apisMeta[gk]
 	if ok {
 		objByKind := make(map[kube.ResourceKey]*unstructured.Unstructured)
@@ -169,8 +166,8 @@ func (c *clusterInfo) removeNode(key kube.ResourceKey) {
 }
 
 func (c *clusterInfo) invalidate() {
-	c.syncLock.Lock()
-	defer c.syncLock.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	c.syncTime = nil
 	for i := range c.apisMeta {
 		c.apisMeta[i].watchCancel()
@@ -189,8 +186,8 @@ func (c *clusterInfo) synced() bool {
 }
 
 func (c *clusterInfo) stopWatching(gk schema.GroupKind) {
-	c.syncLock.Lock()
-	defer c.syncLock.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	if info, ok := c.apisMeta[gk]; ok {
 		info.watchCancel()
 		delete(c.apisMeta, gk)
@@ -245,7 +242,7 @@ func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo,
 			}
 		}()
 
-		err = runSynced(c.syncLock, func() error {
+		err = runSynced(c.lock, func() error {
 			if info.resourceVersion == "" {
 				list, err := resClient.List(metav1.ListOptions{})
 				if err != nil {
@@ -266,7 +263,7 @@ func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo,
 			return nil
 		}
 
-		err = runSynced(c.syncLock, func() error {
+		err = runSynced(c.lock, func() error {
 			if errors.IsGone(err) {
 				info.resourceVersion = ""
 				log.Warnf("Resource version of %s on %s is too old.", api.GroupKind, c.cluster.Server)
@@ -297,7 +294,7 @@ func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo,
 								c.stopWatching(gk)
 							}
 						} else {
-							err = runSynced(c.syncLock, func() error {
+							err = runSynced(c.lock, func() error {
 								return c.startMissingWatches()
 							})
 
@@ -388,8 +385,8 @@ func (c *clusterInfo) sync() (err error) {
 }
 
 func (c *clusterInfo) ensureSynced() error {
-	c.syncLock.Lock()
-	defer c.syncLock.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	if c.synced() {
 		return c.syncError
 	}
@@ -581,6 +578,18 @@ var (
 		"/" + kube.EndpointsKind: true,
 	}
 )
+
+func (c *clusterInfo) getClusterInfo() metrics.ClusterInfo {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	return metrics.ClusterInfo{
+		APIsCount:         len(c.apisMeta),
+		K8SVersion:        c.serverVersion,
+		ResourcesCount:    len(c.nodes),
+		Server:            c.cluster.Server,
+		LastCacheSyncTime: c.syncTime,
+	}
+}
 
 // skipAppRequeing checks if the object is an API type which we want to skip requeuing against.
 // We ignore API types which have a high churn rate, and/or whose updates are irrelevant to the app

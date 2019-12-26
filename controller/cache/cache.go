@@ -41,6 +41,8 @@ type LiveStateCache interface {
 	Run(ctx context.Context) error
 	// Invalidate invalidates the entire cluster state cache
 	Invalidate()
+	// Returns information about monitored clusters
+	GetClustersInfo() []metrics.ClusterInfo
 }
 
 type ObjectUpdatedHandler = func(managedByApp map[string]bool, ref v1.ObjectReference)
@@ -124,7 +126,6 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 			kubectl:          c.kubectl,
 			cluster:          cluster,
 			syncTime:         nil,
-			syncLock:         &sync.Mutex{},
 			log:              log.WithField("server", cluster.Server),
 			cacheSettingsSrc: c.getCacheSettings,
 		}
@@ -151,9 +152,7 @@ func (c *liveStateCache) Invalidate() {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	for _, clust := range c.clusters {
-		clust.lock.Lock()
 		clust.invalidate()
-		clust.lock.Unlock()
 	}
 	log.Info("live state cache invalidated")
 }
@@ -282,4 +281,14 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 
 	<-ctx.Done()
 	return nil
+}
+
+func (c *liveStateCache) GetClustersInfo() []metrics.ClusterInfo {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	res := make([]metrics.ClusterInfo, 0)
+	for _, info := range c.clusters {
+		res = append(res, info.getClusterInfo())
+	}
+	return res
 }

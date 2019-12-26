@@ -160,7 +160,6 @@ func newClusterExt(kubectl kube.Kubectl) *clusterInfo {
 		nsIndex:         make(map[string]map[kube.ResourceKey]*node),
 		cluster:         &appv1.Cluster{},
 		syncTime:        nil,
-		syncLock:        &sync.Mutex{},
 		apisMeta:        make(map[schema.GroupKind]*apiMeta),
 		log:             log.WithField("cluster", "test"),
 		cacheSettingsSrc: func() *cacheSettings {
