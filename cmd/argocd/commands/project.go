@@ -479,8 +479,9 @@ func NewProjectRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *cobr
 // NewProjectDeleteCommand returns a new instance of an `argocd proj delete` command
 func NewProjectDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "delete PROJECT",
-		Short: "Delete project",
+		Use:     "delete PROJECT",
+		Aliases: []string{"del", "rm"},
+		Short:   "Delete project",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)

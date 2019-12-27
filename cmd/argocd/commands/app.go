@@ -1042,8 +1042,9 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		cascade bool
 	)
 	var command = &cobra.Command{
-		Use:   "delete APPNAME",
-		Short: "Delete an application",
+		Use:     "delete APPNAME",
+		Short:   "Delete an application",
+		Aliases: []string{"rm", "del"},
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)

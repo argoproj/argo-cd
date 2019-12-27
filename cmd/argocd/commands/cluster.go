@@ -269,6 +269,7 @@ func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 	var command = &cobra.Command{
 		Use:     "rm SERVER",
 		Short:   "Remove cluster credentials",
+		Aliases: []string{"del", "delete"},
 		Example: `argocd cluster rm https://12.34.567.89`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {

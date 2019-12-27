@@ -211,8 +211,9 @@ func NewCertRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		certQuery   certificatepkg.RepositoryCertificateQuery
 	)
 	var command = &cobra.Command{
-		Use:   "rm REPOSERVER",
-		Short: "Remove certificate of TYPE for REPOSERVER",
+		Use:     "rm REPOSERVER",
+		Short:   "Remove certificate of TYPE for REPOSERVER",
+		Aliases: []string{"delete", "del"},
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) < 1 {
 				c.HelpFunc()(c, args)

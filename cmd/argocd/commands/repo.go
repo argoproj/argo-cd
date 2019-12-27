@@ -184,8 +184,9 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 // NewRepoRemoveCommand returns a new instance of an `argocd repo list` command
 func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "rm REPO",
-		Short: "Remove repository credentials",
+		Use:     "rm REPO",
+		Short:   "Remove repository credentials",
+		Aliases: []string{"del", "delete"},
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
