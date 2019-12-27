@@ -1,9 +1,15 @@
 package metrics
 
 import (
+	"context"
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+)
+
+const (
+	metricsCollectionInterval = 30 * time.Second
 )
 
 var (
@@ -49,6 +55,24 @@ type HasClustersInfo interface {
 
 type clusterCollector struct {
 	infoSource HasClustersInfo
+	info       []ClusterInfo
+	lock       sync.Mutex
+}
+
+func (c *clusterCollector) Run(ctx context.Context) {
+	tick := time.Tick(metricsCollectionInterval)
+	for {
+		select {
+		case <-ctx.Done():
+			break
+		case <-tick:
+			info := c.infoSource.GetClustersInfo()
+
+			c.lock.Lock()
+			c.info = info
+			c.lock.Unlock()
+		}
+	}
 }
 
 // Describe implements the prometheus.Collector interface
@@ -61,7 +85,7 @@ func (c *clusterCollector) Describe(ch chan<- *prometheus.Desc) {
 
 func (c *clusterCollector) Collect(ch chan<- prometheus.Metric) {
 	now := time.Now()
-	for _, c := range c.infoSource.GetClustersInfo() {
+	for _, c := range c.info {
 		defaultValues := []string{c.Server}
 		ch <- prometheus.MustNewConstMetric(descClusterInfo, prometheus.GaugeValue, 1, append(defaultValues, c.K8SVersion)...)
 		ch <- prometheus.MustNewConstMetric(descClusterCacheResourcesCount, prometheus.GaugeValue, float64(c.ResourcesCount), defaultValues...)

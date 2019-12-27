@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"time"
@@ -18,12 +19,11 @@ import (
 
 type MetricsServer struct {
 	*http.Server
-	syncCounter             *prometheus.CounterVec
-	k8sRequestCounter       *prometheus.CounterVec
-	kubectlExecCounter      *prometheus.CounterVec
-	kubectlExecPendingGauge *prometheus.GaugeVec
-	reconcileHistogram      *prometheus.HistogramVec
-	registry                *prometheus.Registry
+	syncCounter          *prometheus.CounterVec
+	k8sRequestCounter    *prometheus.CounterVec
+	clusterEventsCounter *prometheus.CounterVec
+	reconcileHistogram   *prometheus.HistogramVec
+	registry             *prometheus.Registry
 }
 
 const (
@@ -82,16 +82,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, health
 		append(descAppDefaultLabels, "phase"),
 	)
 	registry.MustRegister(syncCounter)
-	kubectlExecCounter := prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "argocd_kubectl_exec_total",
-		Help: "Number of kubectl executions",
-	}, []string{"command"})
-	registry.MustRegister(kubectlExecCounter)
-	kubectlExecPendingGauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "argocd_kubectl_exec_pending",
-		Help: "Number of pending kubectl executions",
-	}, []string{"command"})
-	registry.MustRegister(kubectlExecPendingGauge)
+
 	k8sRequestCounter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "argocd_app_k8s_request_total",
@@ -112,6 +103,11 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, health
 	)
 
 	registry.MustRegister(reconcileHistogram)
+	clusterEventsCounter := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "argocd_cluster_events_count",
+		Help: "Number of processes k8s resource events.",
+	}, descClusterDefaultLabels)
+	registry.MustRegister(clusterEventsCounter)
 
 	return &MetricsServer{
 		registry: registry,
@@ -119,16 +115,17 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, health
 			Addr:    addr,
 			Handler: mux,
 		},
-		syncCounter:             syncCounter,
-		k8sRequestCounter:       k8sRequestCounter,
-		reconcileHistogram:      reconcileHistogram,
-		kubectlExecCounter:      kubectlExecCounter,
-		kubectlExecPendingGauge: kubectlExecPendingGauge,
+		syncCounter:          syncCounter,
+		k8sRequestCounter:    k8sRequestCounter,
+		reconcileHistogram:   reconcileHistogram,
+		clusterEventsCounter: clusterEventsCounter,
 	}
 }
 
-func (m *MetricsServer) RegisterClustersInfoSource(source HasClustersInfo) {
-	m.registry.MustRegister(&clusterCollector{infoSource: source})
+func (m *MetricsServer) RegisterClustersInfoSource(ctx context.Context, source HasClustersInfo) {
+	collector := &clusterCollector{infoSource: source}
+	go collector.Run(ctx)
+	m.registry.MustRegister(collector)
 }
 
 // IncSync increments the sync counter for an application
@@ -139,6 +136,11 @@ func (m *MetricsServer) IncSync(app *argoappv1.Application, state *argoappv1.Ope
 	m.syncCounter.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), string(state.Phase)).Inc()
 }
 
+// IncClusterEventsCount increments the number of cluster events
+func (m *MetricsServer) IncClusterEventsCount(server string) {
+	m.clusterEventsCounter.WithLabelValues(server).Inc()
+}
+
 // IncKubernetesRequest increments the kubernetes requests counter for an application
 func (m *MetricsServer) IncKubernetesRequest(app *argoappv1.Application, statusCode int) {
 	m.k8sRequestCounter.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), strconv.Itoa(statusCode)).Inc()
@@ -147,18 +149,6 @@ func (m *MetricsServer) IncKubernetesRequest(app *argoappv1.Application, statusC
 // IncReconcile increments the reconcile counter for an application
 func (m *MetricsServer) IncReconcile(app *argoappv1.Application, duration time.Duration) {
 	m.reconcileHistogram.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject()).Observe(duration.Seconds())
-}
-
-func (m *MetricsServer) IncKubectlExec(command string) {
-	m.kubectlExecCounter.WithLabelValues(command).Inc()
-}
-
-func (m *MetricsServer) IncKubectlExecPending(command string) {
-	m.kubectlExecPendingGauge.WithLabelValues(command).Inc()
-}
-
-func (m *MetricsServer) DecKubectlExecPending(command string) {
-	m.kubectlExecPendingGauge.WithLabelValues(command).Dec()
 }
 
 type appCollector struct {
