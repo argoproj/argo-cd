@@ -128,6 +128,9 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 			syncTime:         nil,
 			log:              log.WithField("server", cluster.Server),
 			cacheSettingsSrc: c.getCacheSettings,
+			onEventReceived: func(event watch.EventType, un *unstructured.Unstructured) {
+				c.metricsServer.IncClusterEventsCount(cluster.Server)
+			},
 		}
 
 		c.clusters[cluster.Server] = info

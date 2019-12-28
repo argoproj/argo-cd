@@ -51,6 +51,7 @@ type clusterInfo struct {
 	nsIndex map[string]map[kube.ResourceKey]*node
 
 	onObjectUpdated  ObjectUpdatedHandler
+	onEventReceived  func(event watch.EventType, un *unstructured.Unstructured)
 	kubectl          kube.Kubectl
 	cluster          *appv1.Cluster
 	log              *log.Entry
@@ -524,6 +525,9 @@ func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*uns
 }
 
 func (c *clusterInfo) processEvent(event watch.EventType, un *unstructured.Unstructured) {
+	if c.onEventReceived != nil {
+		c.onEventReceived(event, un)
+	}
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	key := kube.GetResourceKey(un)
