@@ -239,6 +239,7 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 			return nil, status.Errorf(codes.Internal, "unable to check existing repository details: %v", getErr)
 		}
 
+		existing.Type = util.FirstNonEmpty(existing.Type, "git")
 		// repository ConnectionState may differ, so make consistent before testing
 		existing.ConnectionState = r.ConnectionState
 		if reflect.DeepEqual(existing, r) {
