@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"regexp"
 	"syscall"
 
 	"github.com/ghodss/yaml"
@@ -561,9 +560,36 @@ func NewClusterConfig() *cobra.Command {
 	return command
 }
 
+func iterateStringFields(obj interface{}, callback func(name string, val string) string) {
+	if mapField, ok := obj.(map[string]interface{}); ok {
+		for field, val := range mapField {
+			if strVal, ok := val.(string); ok {
+				mapField[field] = callback(field, strVal)
+			} else {
+				iterateStringFields(val, callback)
+			}
+		}
+	} else if arrayField, ok := obj.([]interface{}); ok {
+		for i := range arrayField {
+			iterateStringFields(arrayField[i], callback)
+		}
+	}
+}
+
 func redactor(dirtyString string) string {
-	dirtyString = regexp.MustCompile("(clientSecret: )[^ \n]*").ReplaceAllString(dirtyString, "$1********")
-	return regexp.MustCompile("(secret: )[^ \n]*").ReplaceAllString(dirtyString, "$1********")
+	config := make(map[string]interface{})
+	err := yaml.Unmarshal([]byte(dirtyString), &config)
+	errors.CheckError(err)
+	iterateStringFields(config, func(name string, val string) string {
+		if name == "clientSecret" || name == "secret" {
+			return "********"
+		} else {
+			return val
+		}
+	})
+	data, err := yaml.Marshal(config)
+	errors.CheckError(err)
+	return string(data)
 }
 
 func main() {
