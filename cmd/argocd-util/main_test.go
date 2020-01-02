@@ -7,9 +7,11 @@ import (
 )
 
 var textToRedact = `
+connectors:
 - config:
     clientID: aabbccddeeff00112233
-    clientSecret: $dex.github.clientSecret
+    clientSecret: |
+      theSecret
     orgs:
     - name: your-github-org
     redirectURI: https://argocd.example.com/api/dex/callback
@@ -37,10 +39,10 @@ storage:
 web:
   http: 0.0.0.0:5556`
 
-var expectedRedaction = `
+var expectedRedaction = `connectors:
 - config:
     clientID: aabbccddeeff00112233
-    clientSecret: ********
+    clientSecret: '********'
     orgs:
     - name: your-github-org
     redirectURI: https://argocd.example.com/api/dex/callback
@@ -57,7 +59,7 @@ staticClients:
   name: Argo CD
   redirectURIs:
   - https://argocd.example.com/auth/callback
-  secret: ********
+  secret: '********'
 - id: argo-cd-cli
   name: Argo CD CLI
   public: true
@@ -66,7 +68,8 @@ staticClients:
 storage:
   type: memory
 web:
-  http: 0.0.0.0:5556`
+  http: 0.0.0.0:5556
+`
 
 func TestSecretsRedactor(t *testing.T) {
 	assert.Equal(t, expectedRedaction, redactor(textToRedact))
