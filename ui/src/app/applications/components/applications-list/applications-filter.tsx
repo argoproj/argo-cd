@@ -130,7 +130,7 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
                             type='health'
                         />
                     </div>
-                    <div className='columns small-12 medium-3 xxlarge-12'>
+                    <div className='columns small-12 medium-6 xxlarge-12'>
                         <div className='applications-list__filter'>
                             <p>Labels</p>
                             <ul>
