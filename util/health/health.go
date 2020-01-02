@@ -115,6 +115,8 @@ func GetResourceHealth(obj *unstructured.Unstructured, resourceOverrides map[str
 		switch gvk.Kind {
 		case "Application":
 			health, err = getApplicationHealth(obj)
+		case "Workflow":
+			health, err = getArgoWorkflowHealth(obj)
 		}
 	case "apiregistration.k8s.io":
 		switch gvk.Kind {
@@ -509,6 +511,21 @@ func getPodHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 		}
 	}
 
+	getFailMessage := func(ctr *coreV1.ContainerStatus) string {
+		if ctr.State.Terminated != nil {
+			if ctr.State.Terminated.Message != "" {
+				return ctr.State.Terminated.Message
+			}
+			if ctr.State.Terminated.Reason == "OOMKilled" {
+				return ctr.State.Terminated.Reason
+			}
+			if ctr.State.Terminated.ExitCode != 0 {
+				return fmt.Sprintf("container %q failed with exit code %d", ctr.Name, ctr.State.Terminated.ExitCode)
+			}
+		}
+		return ""
+	}
+
 	switch pod.Status.Phase {
 	case coreV1.PodPending:
 		return &appv1.HealthStatus{
@@ -521,10 +538,17 @@ func getPodHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 			Message: pod.Status.Message,
 		}, nil
 	case coreV1.PodFailed:
-		return &appv1.HealthStatus{
-			Status:  appv1.HealthStatusDegraded,
-			Message: pod.Status.Message,
-		}, nil
+		if pod.Status.Message != "" {
+			// Pod has a nice error message. Use that.
+			return &appv1.HealthStatus{Status: appv1.HealthStatusDegraded, Message: pod.Status.Message}, nil
+		}
+		for _, ctr := range append(pod.Status.InitContainerStatuses, pod.Status.ContainerStatuses...) {
+			if msg := getFailMessage(&ctr); msg != "" {
+				return &appv1.HealthStatus{Status: appv1.HealthStatusDegraded, Message: msg}, nil
+			}
+		}
+
+		return &appv1.HealthStatus{Status: appv1.HealthStatusDegraded, Message: ""}, nil
 	case coreV1.PodRunning:
 		switch pod.Spec.RestartPolicy {
 		case coreV1.RestartPolicyAlways:
@@ -615,21 +639,19 @@ type ArgoWorkflow struct {
 	}
 }
 
-func GetStatusFromArgoWorkflow(hook *unstructured.Unstructured) (operation appv1.OperationPhase, message string) {
+func getArgoWorkflowHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 	var wf ArgoWorkflow
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(hook.Object, &wf)
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &wf)
 	if err != nil {
-		return appv1.OperationError, err.Error()
+		return nil, err
 	}
 	switch wf.Status.Phase {
 	case NodePending, NodeRunning:
-		return appv1.OperationRunning, wf.Status.Message
+		return &appv1.HealthStatus{Status: appv1.HealthStatusProgressing, Message: wf.Status.Message}, nil
 	case NodeSucceeded:
-		return appv1.OperationSucceeded, wf.Status.Message
-	case NodeFailed:
-		return appv1.OperationFailed, wf.Status.Message
-	case NodeError:
-		return appv1.OperationError, wf.Status.Message
+		return &appv1.HealthStatus{Status: appv1.HealthStatusHealthy, Message: wf.Status.Message}, nil
+	case NodeFailed, NodeError:
+		return &appv1.HealthStatus{Status: appv1.HealthStatusDegraded, Message: wf.Status.Message}, nil
 	}
-	return appv1.OperationSucceeded, wf.Status.Message
+	return &appv1.HealthStatus{Status: appv1.HealthStatusHealthy, Message: wf.Status.Message}, nil
 }

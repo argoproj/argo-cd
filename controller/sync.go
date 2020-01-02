@@ -236,16 +236,21 @@ func (sc *syncContext) sync() {
 	}) {
 		if task.isHook() {
 			// update the hook's result
-			operationState, message := getOperationPhase(task.liveObj)
-			sc.setResourceResult(task, "", operationState, message)
+			operationState, message, err := sc.getOperationPhase(task.liveObj)
+			if err != nil {
+				sc.setResourceResult(task, "", v1alpha1.OperationError, fmt.Sprintf("failed to get resource health: %v", err))
+			} else {
+				sc.setResourceResult(task, "", operationState, message)
 
-			// maybe delete the hook
-			if task.needsDeleting() {
-				err := sc.deleteResource(task)
-				if err != nil && !errors.IsNotFound(err) {
-					sc.setResourceResult(task, "", v1alpha1.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
+				// maybe delete the hook
+				if task.needsDeleting() {
+					err := sc.deleteResource(task)
+					if err != nil && !errors.IsNotFound(err) {
+						sc.setResourceResult(task, "", v1alpha1.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
+					}
 				}
 			}
+
 		} else {
 			// this must be calculated on the live object
 			healthStatus, err := health.GetResourceHealth(task.liveObj, sc.resourceOverrides)
@@ -603,10 +608,15 @@ func (sc *syncContext) terminate() {
 	sc.log.Debug("terminating")
 	tasks, _ := sc.getSyncTasks()
 	for _, task := range tasks {
-		if !task.isHook() || !task.completed() {
+		if !task.isHook() || task.liveObj == nil {
 			continue
 		}
-		if isRunnable(task.groupVersionKind()) {
+		phase, msg, err := sc.getOperationPhase(task.liveObj)
+		if err != nil {
+			sc.setOperationPhase(v1alpha1.OperationError, fmt.Sprintf("Failed to get hook health: %v", err))
+			return
+		}
+		if phase == v1alpha1.OperationRunning {
 			err := sc.deleteResource(task)
 			if err != nil {
 				sc.setResourceResult(task, "", v1alpha1.OperationFailed, fmt.Sprintf("Failed to delete: %v", err))
@@ -614,6 +624,8 @@ func (sc *syncContext) terminate() {
 			} else {
 				sc.setResourceResult(task, "", v1alpha1.OperationSucceeded, fmt.Sprintf("Deleted"))
 			}
+		} else {
+			sc.setResourceResult(task, "", phase, msg)
 		}
 	}
 	if terminateSuccessful {
