@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"reflect"
 	"syscall"
 
 	"github.com/ghodss/yaml"
@@ -24,9 +25,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/util"
-
 	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/dex"
@@ -243,43 +243,49 @@ func NewImportCommand() *cobra.Command {
 			// pruneObjects tracks live objects and it's current resource version. any remaining
 			// items in this map indicates the resource should be pruned since it no longer appears
 			// in the backup
-			pruneObjects := make(map[kube.ResourceKey]string)
+			pruneObjects := make(map[kube.ResourceKey]unstructured.Unstructured)
 			configMaps, err := acdClients.configMaps.List(metav1.ListOptions{})
 			errors.CheckError(err)
+			// referencedSecrets holds any secrets referenced in the argocd-cm configmap. These
+			// secrets need to be imported too
+			var referencedSecrets map[string]bool
 			for _, cm := range configMaps.Items {
-				cmName := cm.GetName()
-				if cmName == common.ArgoCDConfigMapName || cmName == common.ArgoCDRBACConfigMapName {
-					pruneObjects[kube.ResourceKey{Group: "", Kind: "ConfigMap", Name: cm.GetName()}] = cm.GetResourceVersion()
+				if isArgoCDConfigMap(cm.GetName()) {
+					pruneObjects[kube.ResourceKey{Group: "", Kind: "ConfigMap", Name: cm.GetName()}] = cm
+				}
+				if cm.GetName() == common.ArgoCDConfigMapName {
+					referencedSecrets = getReferencedSecrets(cm)
 				}
 			}
+
 			secrets, err := acdClients.secrets.List(metav1.ListOptions{})
 			errors.CheckError(err)
 			for _, secret := range secrets.Items {
-				if isArgoCDSecret(nil, secret) {
-					pruneObjects[kube.ResourceKey{Group: "", Kind: "Secret", Name: secret.GetName()}] = secret.GetResourceVersion()
+				if isArgoCDSecret(referencedSecrets, secret) {
+					pruneObjects[kube.ResourceKey{Group: "", Kind: "Secret", Name: secret.GetName()}] = secret
 				}
 			}
 			applications, err := acdClients.applications.List(metav1.ListOptions{})
 			errors.CheckError(err)
 			for _, app := range applications.Items {
-				pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "Application", Name: app.GetName()}] = app.GetResourceVersion()
+				pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "Application", Name: app.GetName()}] = app
 			}
 			projects, err := acdClients.projects.List(metav1.ListOptions{})
 			errors.CheckError(err)
 			for _, proj := range projects.Items {
-				pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "AppProject", Name: proj.GetName()}] = proj.GetResourceVersion()
+				pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "AppProject", Name: proj.GetName()}] = proj
 			}
 
 			// Create or replace existing object
-			objs, err := kube.SplitYAML(string(input))
+			backupObjects, err := kube.SplitYAML(string(input))
 			errors.CheckError(err)
-			for _, obj := range objs {
-				gvk := obj.GroupVersionKind()
-				key := kube.ResourceKey{Group: gvk.Group, Kind: gvk.Kind, Name: obj.GetName()}
-				resourceVersion, exists := pruneObjects[key]
+			for _, bakObj := range backupObjects {
+				gvk := bakObj.GroupVersionKind()
+				key := kube.ResourceKey{Group: gvk.Group, Kind: gvk.Kind, Name: bakObj.GetName()}
+				liveObj, exists := pruneObjects[key]
 				delete(pruneObjects, key)
 				var dynClient dynamic.ResourceInterface
-				switch obj.GetKind() {
+				switch bakObj.GetKind() {
 				case "Secret":
 					dynClient = acdClients.secrets
 				case "ConfigMap":
@@ -291,17 +297,19 @@ func NewImportCommand() *cobra.Command {
 				}
 				if !exists {
 					if !dryRun {
-						_, err = dynClient.Create(obj, metav1.CreateOptions{})
+						_, err = dynClient.Create(bakObj, metav1.CreateOptions{})
 						errors.CheckError(err)
 					}
-					fmt.Printf("%s/%s %s created%s\n", gvk.Group, gvk.Kind, obj.GetName(), dryRunMsg)
+					fmt.Printf("%s/%s %s created%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
+				} else if specsEqual(*bakObj, liveObj) {
+					fmt.Printf("%s/%s %s unchanged%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
 				} else {
 					if !dryRun {
-						obj.SetResourceVersion(resourceVersion)
-						_, err = dynClient.Update(obj, metav1.UpdateOptions{})
+						newLive := updateLive(bakObj, &liveObj)
+						_, err = dynClient.Update(newLive, metav1.UpdateOptions{})
 						errors.CheckError(err)
 					}
-					fmt.Printf("%s/%s %s replaced%s\n", gvk.Group, gvk.Kind, obj.GetName(), dryRunMsg)
+					fmt.Printf("%s/%s %s updated%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
 				}
 			}
 
@@ -503,6 +511,57 @@ func isArgoCDSecret(repoSecretRefs map[string]bool, un unstructured.Unstructured
 		}
 	}
 	return false
+}
+
+// isArgoCDConfigMap returns true if the configmap name is one of argo cd's well known configmaps
+func isArgoCDConfigMap(name string) bool {
+	switch name {
+	case common.ArgoCDConfigMapName, common.ArgoCDRBACConfigMapName, common.ArgoCDKnownHostsConfigMapName, common.ArgoCDTLSCertsConfigMapName:
+		return true
+	}
+	return false
+
+}
+
+// specsEqual returns if the spec, data, labels, annotations, and finalizers of the two
+// supplied objects are equal, indicating that no update is necessary during importing
+func specsEqual(left, right unstructured.Unstructured) bool {
+	if !reflect.DeepEqual(left.GetAnnotations(), right.GetAnnotations()) {
+		return false
+	}
+	if !reflect.DeepEqual(left.GetLabels(), right.GetLabels()) {
+		return false
+	}
+	if !reflect.DeepEqual(left.GetFinalizers(), right.GetFinalizers()) {
+		return false
+	}
+	switch left.GetKind() {
+	case "Secret", "ConfigMap":
+		leftData, _, _ := unstructured.NestedMap(left.Object, "data")
+		rightData, _, _ := unstructured.NestedMap(right.Object, "data")
+		return reflect.DeepEqual(leftData, rightData)
+	case "AppProject", "Application":
+		leftSpec, _, _ := unstructured.NestedMap(left.Object, "spec")
+		rightSpec, _, _ := unstructured.NestedMap(right.Object, "spec")
+		return reflect.DeepEqual(leftSpec, rightSpec)
+	}
+	return false
+}
+
+// updateLive replaces the live object's finalizers, spec, annotations, labels, and data from the
+// backup object but leaves all other fields intact (status, other metadata, etc...)
+func updateLive(bak, live *unstructured.Unstructured) *unstructured.Unstructured {
+	newLive := live.DeepCopy()
+	newLive.SetAnnotations(bak.GetAnnotations())
+	newLive.SetLabels(bak.GetLabels())
+	newLive.SetFinalizers(bak.GetFinalizers())
+	switch live.GetKind() {
+	case "Secret", "ConfigMap":
+		newLive.Object["data"] = bak.Object["data"]
+	case "AppProject", "Application":
+		newLive.Object["spec"] = bak.Object["spec"]
+	}
+	return newLive
 }
 
 // export writes the unstructured object and removes extraneous cruft from output before writing
