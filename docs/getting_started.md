@@ -23,6 +23,13 @@ On GKE, you will need grant your account the ability to create new cluster roles
 kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole=cluster-admin --user=YOUREMAIL@gmail.com
 ```
 
+!!! note
+    If you are not interested in UI, SSO, multi-cluster management and just want to pull changes into the cluster then you can disable
+    authentication using `--disable-auth` flag and access Argo CD via CLI using `--port-forward` or `--port-forward-namespace` flags
+    and proceed to step [#6](#6-create-an-application-from-a-git-repository):
+    
+    `kubectl patch deploy argocd-server -n argocd -p '[{"op": "add", "path": "/spec/template/spec/containers/0/command/-", "value": "--disable-auth"}]' --type json`
+
 ## 2. Download Argo CD CLI
 
 Download the latest Argo CD version from [https://github.com/argoproj/argo-cd/releases/latest](https://github.com/argoproj/argo-cd/releases/latest). More detailed installation instructions can be found via the [CLI installation documentation](cli_installation.md).
@@ -113,13 +120,10 @@ An example repository containing a guestbook application is available at
 
 ### Creating Apps Via CLI
 
-~~~bash
-argocd app create guestbook \
-  --repo https://github.com/argoproj/argocd-example-apps.git \
-  --path guestbook \
-  --dest-server https://kubernetes.default.svc \
-  --dest-namespace default
-~~~
+!!! note
+    You can access Argo CD using port forwarding: add `--port-forward-namespace argocd` flag to every CLI command or set `ARGOCD_OPTS` environment variable: `export ARGOCD_OPTS='--port-forward-namespace argocd'`:
+
+    `argocd app create guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --dest-server https://kubernetes.default.svc --dest-namespace default`
 
 ### Creating Apps Via UI
 
