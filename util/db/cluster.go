@@ -2,6 +2,7 @@ package db
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"net/url"
@@ -126,14 +127,18 @@ func (db *db) WatchClusters(ctx context.Context, callback func(*ClusterEvent)) e
 	}
 
 	defer w.Stop()
-	done := make(chan bool)
+	watchErr := make(chan error)
 
 	// trigger callback with event for local cluster since it always considered added
 	callback(&ClusterEvent{Type: watch.Added, Cluster: localCls})
 
 	go func() {
 		for next := range w.ResultChan() {
-			secret := next.Object.(*apiv1.Secret)
+			secret, ok := next.Object.(*apiv1.Secret)
+			if !ok {
+				watchErr <- fmt.Errorf("failed to convert event object to secret")
+				return
+			}
 			cluster := secretToCluster(secret)
 
 			// change local cluster event to modified or deleted, since it cannot be re-added or deleted
@@ -158,14 +163,14 @@ func (db *db) WatchClusters(ctx context.Context, callback func(*ClusterEvent)) e
 				Cluster: cluster,
 			})
 		}
-		done <- true
+		watchErr <- errors.New("secret watch closed")
 	}()
 
 	select {
-	case <-done:
+	case err = <-watchErr:
 	case <-ctx.Done():
 	}
-	return nil
+	return err
 }
 
 func (db *db) getClusterSecret(server string) (*apiv1.Secret, error) {
