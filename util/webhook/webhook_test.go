@@ -81,3 +81,19 @@ func TestGogsPushEvent(t *testing.T) {
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	hook.Reset()
 }
+
+func TestGitLabPushEvent(t *testing.T) {
+	hook := test.NewGlobal()
+	h := NewMockHandler()
+	req := httptest.NewRequest("POST", "/api/webhook", nil)
+	req.Header.Set("X-Gitlab-Event", "Push Hook")
+	eventJSON, err := ioutil.ReadFile("gitlab-event.json")
+	assert.NoError(t, err)
+	req.Body = ioutil.NopCloser(bytes.NewReader(eventJSON))
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	assert.Equal(t, w.Code, http.StatusOK)
+	expectedLogResult := "Received push event repo: https://gitlab/group/name, revision: master, touchedHead: true"
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	hook.Reset()
+}

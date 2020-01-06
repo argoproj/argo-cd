@@ -87,7 +87,6 @@ func affectedRevisionInfo(payloadIf interface{}) (string, string, bool) {
 		touchedHead = bool(payload.Repository.DefaultBranch == revision)
 	case gitlab.PushEventPayload:
 		// See: https://docs.gitlab.com/ee/user/project/integrations/webhooks.html
-		// NOTE: this is untested
 		webURL = payload.Project.WebURL
 		revision = parseRef(payload.Ref)
 		touchedHead = bool(payload.Project.DefaultBranch == revision)

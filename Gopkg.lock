@@ -1649,6 +1649,7 @@
     "tools/clientcmd/api/v1",
     "tools/metrics",
     "tools/pager",
+    "tools/portforward",
     "tools/reference",
     "tools/remotecommand",
     "tools/watch",
@@ -1853,6 +1854,7 @@
     "pkg/util/node",
     "pkg/util/parsers",
     "pkg/util/slice",
+    "pkg/util/workqueue/prometheus",
   ]
   pruneopts = ""
   revision = "bfafae8f1c2fdf3c3cfef04674db028531a7c098"
@@ -2020,6 +2022,7 @@
     "k8s.io/api/batch/v1",
     "k8s.io/api/core/v1",
     "k8s.io/api/extensions/v1beta1",
+    "k8s.io/api/networking/v1beta1",
     "k8s.io/api/rbac/v1",
     "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1",
     "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset",
@@ -2034,6 +2037,8 @@
     "k8s.io/apimachinery/pkg/runtime/serializer",
     "k8s.io/apimachinery/pkg/selection",
     "k8s.io/apimachinery/pkg/types",
+    "k8s.io/apimachinery/pkg/util/intstr",
+    "k8s.io/apimachinery/pkg/util/jsonmergepatch",
     "k8s.io/apimachinery/pkg/util/runtime",
     "k8s.io/apimachinery/pkg/util/strategicpatch",
     "k8s.io/apimachinery/pkg/util/wait",
@@ -2056,6 +2061,8 @@
     "k8s.io/client-go/tools/cache",
     "k8s.io/client-go/tools/clientcmd",
     "k8s.io/client-go/tools/clientcmd/api",
+    "k8s.io/client-go/tools/portforward",
+    "k8s.io/client-go/transport/spdy",
     "k8s.io/client-go/util/flowcontrol",
     "k8s.io/client-go/util/workqueue",
     "k8s.io/code-generator/cmd/go-to-protobuf",
@@ -2090,6 +2097,7 @@
     "k8s.io/kubernetes/pkg/kubectl/cmd/auth",
     "k8s.io/kubernetes/pkg/util/node",
     "k8s.io/kubernetes/pkg/util/slice",
+    "k8s.io/kubernetes/pkg/util/workqueue/prometheus",
     "k8s.io/utils/pointer",
     "layeh.com/gopher-json",
   ]
