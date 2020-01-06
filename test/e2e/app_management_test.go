@@ -370,7 +370,7 @@ func TestAppWithSecrets(t *testing.T) {
 
 			// ignore missing field and make sure diff shows no difference
 			app.Spec.IgnoreDifferences = []ResourceIgnoreDifferences{{
-				Kind: kube.SecretKind, JSONPointers: []string{"/data/username", "/data/password"},
+				Kind: kube.SecretKind, JSONPointers: []string{"/data"},
 			}}
 			FailOnErr(client.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: app.Spec}))
 		}).
