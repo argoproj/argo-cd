@@ -41,9 +41,11 @@ type Kubectl interface {
 	GetAPIResources(config *rest.Config, resourceFilter ResourceFilter) ([]APIResourceInfo, error)
 	GetServerVersion(config *rest.Config) (string, error)
 	NewDynamicClient(config *rest.Config) (dynamic.Interface, error)
+	SetOnKubectlRun(onKubectlRun func(command string) (util.Closer, error))
 }
 
 type KubectlCmd struct {
+	OnKubectlRun func(command string) (util.Closer, error)
 }
 
 type APIResourceInfo struct {
@@ -253,7 +255,12 @@ func (k *KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstru
 		// `kubectl apply`, which cannot tolerate changes in roleRef, which is an immutable field.
 		// See: https://github.com/kubernetes/kubernetes/issues/66353
 		// `auth reconcile` will delete and recreate the resource if necessary
+		closer, err := k.processKubectlRun("auth")
+		if err != nil {
+			return "", err
+		}
 		outReconcile, err := k.authReconcile(config, f.Name(), manifestFile.Name(), namespace, dryRun)
+		util.Close(closer)
 		if err != nil {
 			return "", err
 		}
@@ -261,6 +268,12 @@ func (k *KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstru
 		// We still want to fallthrough and run `kubectl apply` in order set the
 		// last-applied-configuration annotation in the object.
 	}
+
+	closer, err := k.processKubectlRun("apply")
+	if err != nil {
+		return "", err
+	}
+	defer util.Close(closer)
 
 	// Run kubectl apply
 	fact, ioStreams := kubeCmdFactory(f.Name(), namespace)
@@ -457,4 +470,18 @@ func (k *KubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
 
 func (k *KubectlCmd) NewDynamicClient(config *rest.Config) (dynamic.Interface, error) {
 	return dynamic.NewForConfig(config)
+}
+
+func (k *KubectlCmd) processKubectlRun(cmd string) (util.Closer, error) {
+	if k.OnKubectlRun != nil {
+		return k.OnKubectlRun(cmd)
+	}
+	return util.NewCloser(func() error {
+		return nil
+		// do nothing
+	}), nil
+}
+
+func (k *KubectlCmd) SetOnKubectlRun(onKubectlRun func(command string) (util.Closer, error)) {
+	k.OnKubectlRun = onKubectlRun
 }
