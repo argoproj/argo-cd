@@ -673,8 +673,8 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 	assert.False(t, needRefresh)
 
 	// refresh app using the 'deepest' requested comparison level
-	ctrl.requestAppRefresh(app.Name, CompareWithRecent)
-	ctrl.requestAppRefresh(app.Name, ComparisonWithNothing)
+	ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
+	ctrl.requestAppRefresh(app.Name, ComparisonWithNothing.Pointer(), nil)
 
 	needRefresh, refreshType, compareWith := ctrl.needRefreshAppStatus(app, 1*time.Hour)
 	assert.True(t, needRefresh)
@@ -692,7 +692,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 	{
 		// refresh app using the 'latest' level if comparison expired
 		app := app.DeepCopy()
-		ctrl.requestAppRefresh(app.Name, CompareWithRecent)
+		ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
 		reconciledAt := metav1.NewTime(time.Now().UTC().Add(-1 * time.Hour))
 		app.Status.ReconciledAt = &reconciledAt
 		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Minute)
@@ -718,7 +718,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 	{
 		app := app.DeepCopy()
 		// ensure that CompareWithLatest level is used if application source has changed
-		ctrl.requestAppRefresh(app.Name, ComparisonWithNothing)
+		ctrl.requestAppRefresh(app.Name, ComparisonWithNothing.Pointer(), nil)
 		// sample app source change
 		app.Spec.Source.Helm = &argoappv1.ApplicationSourceHelm{
 			Parameters: []argoappv1.HelmParameter{{
@@ -815,7 +815,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 
 	t.Run("UpdatedOnFullReconciliation", func(t *testing.T) {
 		receivedPatch = map[string]interface{}{}
-		ctrl.requestAppRefresh(app.Name, CompareWithLatest)
+		ctrl.requestAppRefresh(app.Name, CompareWithLatest.Pointer(), nil)
 		ctrl.appRefreshQueue.Add(key)
 
 		ctrl.processAppRefreshQueueItem()
@@ -832,7 +832,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 	t.Run("NotUpdatedOnPartialReconciliation", func(t *testing.T) {
 		receivedPatch = map[string]interface{}{}
 		ctrl.appRefreshQueue.Add(key)
-		ctrl.requestAppRefresh(app.Name, CompareWithRecent)
+		ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
 
 		ctrl.processAppRefreshQueueItem()
 
