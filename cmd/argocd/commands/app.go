@@ -919,22 +919,13 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				defer util.Close(conn)
 				cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: app.Spec.Destination.Server})
 				errors.CheckError(err)
-				util.Close(conn)
 				localObjs := groupLocalObjs(getLocalObjects(app, local, argoSettings.AppLabelKey, cluster.ServerVersion, argoSettings.KustomizeOptions), liveObjs, app.Spec.Destination.Namespace)
 				for _, res := range resources.Items {
 					var live = &unstructured.Unstructured{}
-					err := json.Unmarshal([]byte(res.LiveState), &live)
+					err := json.Unmarshal([]byte(res.NormalizedLiveState), &live)
 					errors.CheckError(err)
 
-					var key kube.ResourceKey
-					if live != nil {
-						key = kube.GetResourceKey(live)
-					} else {
-						var target = &unstructured.Unstructured{}
-						err = json.Unmarshal([]byte(res.TargetState), &target)
-						errors.CheckError(err)
-						key = kube.GetResourceKey(target)
-					}
+					key := kube.ResourceKey{Name: res.Name, Namespace: res.Namespace, Group: res.Group, Kind: res.Kind}
 					if key.Kind == kube.SecretKind && key.Group == "" {
 						// Don't bother comparing secrets, argo-cd doesn't have access to k8s secret data
 						delete(localObjs, key)
@@ -973,7 +964,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				for i := range resources.Items {
 					res := resources.Items[i]
 					var live = &unstructured.Unstructured{}
-					err := json.Unmarshal([]byte(res.LiveState), &live)
+					err := json.Unmarshal([]byte(res.NormalizedLiveState), &live)
 					errors.CheckError(err)
 
 					var target = &unstructured.Unstructured{}
