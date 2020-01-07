@@ -135,6 +135,7 @@ func NewApplicationController(
 	if kubectlParallelismLimit > 0 {
 		ctrl.kubectlSemaphore = semaphore.NewWeighted(kubectlParallelismLimit)
 	}
+	kubectl.SetOnKubectlRun(ctrl.onKubectlRun)
 	appInformer, appLister, err := ctrl.newApplicationInformerAndLister()
 	if err != nil {
 		return nil, err
@@ -155,6 +156,23 @@ func NewApplicationController(
 	ctrl.stateCache = stateCache
 
 	return &ctrl, nil
+}
+
+func (ctrl *ApplicationController) onKubectlRun(command string) (util.Closer, error) {
+	ctrl.metricsServer.IncKubectlExec(command)
+	if ctrl.kubectlSemaphore != nil {
+		if err := ctrl.kubectlSemaphore.Acquire(context.Background(), 1); err != nil {
+			return nil, err
+		}
+		ctrl.metricsServer.IncKubectlExecPending(command)
+	}
+	return util.NewCloser(func() error {
+		if ctrl.kubectlSemaphore != nil {
+			ctrl.kubectlSemaphore.Release(1)
+			ctrl.metricsServer.DecKubectlExecPending(command)
+		}
+		return nil
+	}), nil
 }
 
 func isSelfReferencedApp(app *appv1.Application, ref v1.ObjectReference) bool {

@@ -19,11 +19,13 @@ import (
 
 type MetricsServer struct {
 	*http.Server
-	syncCounter          *prometheus.CounterVec
-	k8sRequestCounter    *prometheus.CounterVec
-	clusterEventsCounter *prometheus.CounterVec
-	reconcileHistogram   *prometheus.HistogramVec
-	registry             *prometheus.Registry
+	syncCounter             *prometheus.CounterVec
+	kubectlExecCounter      *prometheus.CounterVec
+	kubectlExecPendingGauge *prometheus.GaugeVec
+	k8sRequestCounter       *prometheus.CounterVec
+	clusterEventsCounter    *prometheus.CounterVec
+	reconcileHistogram      *prometheus.HistogramVec
+	registry                *prometheus.Registry
 }
 
 const (
@@ -92,6 +94,17 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, health
 	)
 	registry.MustRegister(k8sRequestCounter)
 
+	kubectlExecCounter := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "argocd_kubectl_exec_total",
+		Help: "Number of kubectl executions",
+	}, []string{"command"})
+	registry.MustRegister(kubectlExecCounter)
+	kubectlExecPendingGauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "argocd_kubectl_exec_pending_total",
+		Help: "Number of pending kubectl executions",
+	}, []string{"command"})
+	registry.MustRegister(kubectlExecPendingGauge)
+
 	reconcileHistogram := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "argocd_app_reconcile",
@@ -104,7 +117,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, health
 
 	registry.MustRegister(reconcileHistogram)
 	clusterEventsCounter := prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "argocd_cluster_events_count",
+		Name: "argocd_cluster_events_total",
 		Help: "Number of processes k8s resource events.",
 	}, descClusterDefaultLabels)
 	registry.MustRegister(clusterEventsCounter)
@@ -115,10 +128,12 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, health
 			Addr:    addr,
 			Handler: mux,
 		},
-		syncCounter:          syncCounter,
-		k8sRequestCounter:    k8sRequestCounter,
-		reconcileHistogram:   reconcileHistogram,
-		clusterEventsCounter: clusterEventsCounter,
+		syncCounter:             syncCounter,
+		k8sRequestCounter:       k8sRequestCounter,
+		kubectlExecCounter:      kubectlExecCounter,
+		kubectlExecPendingGauge: kubectlExecPendingGauge,
+		reconcileHistogram:      reconcileHistogram,
+		clusterEventsCounter:    clusterEventsCounter,
 	}
 }
 
@@ -134,6 +149,18 @@ func (m *MetricsServer) IncSync(app *argoappv1.Application, state *argoappv1.Ope
 		return
 	}
 	m.syncCounter.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), string(state.Phase)).Inc()
+}
+
+func (m *MetricsServer) IncKubectlExec(command string) {
+	m.kubectlExecCounter.WithLabelValues(command).Inc()
+}
+
+func (m *MetricsServer) IncKubectlExecPending(command string) {
+	m.kubectlExecPendingGauge.WithLabelValues(command).Inc()
+}
+
+func (m *MetricsServer) DecKubectlExecPending(command string) {
+	m.kubectlExecPendingGauge.WithLabelValues(command).Dec()
 }
 
 // IncClusterEventsCount increments the number of cluster events
