@@ -87,7 +87,6 @@ func affectedRevisionInfo(payloadIf interface{}) (string, string, bool) {
 		touchedHead = bool(payload.Repository.DefaultBranch == revision)
 	case gitlab.PushEventPayload:
 		// See: https://docs.gitlab.com/ee/user/project/integrations/webhooks.html
-		// NOTE: this is untested
 		webURL = payload.Project.WebURL
 		revision = parseRef(payload.Ref)
 		touchedHead = bool(payload.Project.DefaultBranch == revision)
@@ -159,7 +158,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 		log.Warnf("Failed to parse repoURL '%s'", webURL)
 		return
 	}
-	regexpStr := "(?i)(http://|https://|git@)" + urlObj.Host + "[:/]" + urlObj.Path[1:] + "(\\.git)?"
+	regexpStr := "(?i)(http://|https://|git@|ssh://git@)" + urlObj.Host + "(:[0-9]+|)[:/]" + urlObj.Path[1:] + "(\\.git)?"
 	repoRegexp, err := regexp.Compile(regexpStr)
 	if err != nil {
 		log.Warn("Failed to compile repoURL regexp")
