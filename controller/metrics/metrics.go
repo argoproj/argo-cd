@@ -100,7 +100,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, health
 	}, []string{"command"})
 	registry.MustRegister(kubectlExecCounter)
 	kubectlExecPendingGauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "argocd_kubectl_exec_pending",
+		Name: "argocd_kubectl_exec_pending_total",
 		Help: "Number of pending kubectl executions",
 	}, []string{"command"})
 	registry.MustRegister(kubectlExecPendingGauge)
@@ -117,7 +117,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, health
 
 	registry.MustRegister(reconcileHistogram)
 	clusterEventsCounter := prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "argocd_cluster_events_count",
+		Name: "argocd_cluster_events_total",
 		Help: "Number of processes k8s resource events.",
 	}, descClusterDefaultLabels)
 	registry.MustRegister(clusterEventsCounter)
