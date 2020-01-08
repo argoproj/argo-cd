@@ -44,6 +44,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [KintoHub](https://www.kintohub.com/)
 1. [KompiTech GmbH](https://www.kompitech.com/)
 1. [Lytt](https://www.lytt.co/)
+1. [Major League Baseball](https://mlb.com)
 1. [Mambu](https://www.mambu.com/)
 1. [Max Kelsen](https://www.maxkelsen.com/)
 1. [Mirantis](https://mirantis.com/)
