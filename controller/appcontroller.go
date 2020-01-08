@@ -1233,19 +1233,19 @@ func isOperationInProgress(app *appv1.Application) bool {
 
 // automatedSyncEnabled tests if an app went from auto-sync disabled to enabled.
 // if it was toggled to be enabled, the informer handler will force a refresh
-func automatedSyncEnabled(old *appv1.Application, new *appv1.Application) bool {
+func automatedSyncEnabled(oldApp *appv1.Application, newApp *appv1.Application) bool {
 	oldEnabled := false
 	oldSelfHealEnabled := false
-	if old.Spec.SyncPolicy != nil && old.Spec.SyncPolicy.Automated != nil {
+	if oldApp.Spec.SyncPolicy != nil && oldApp.Spec.SyncPolicy.Automated != nil {
 		oldEnabled = true
-		oldSelfHealEnabled = old.Spec.SyncPolicy.Automated.SelfHeal
+		oldSelfHealEnabled = oldApp.Spec.SyncPolicy.Automated.SelfHeal
 	}
 
 	newEnabled := false
 	newSelfHealEnabled := false
-	if new.Spec.SyncPolicy != nil && new.Spec.SyncPolicy.Automated != nil {
+	if newApp.Spec.SyncPolicy != nil && newApp.Spec.SyncPolicy.Automated != nil {
 		newEnabled = true
-		newSelfHealEnabled = new.Spec.SyncPolicy.Automated.SelfHeal
+		newSelfHealEnabled = newApp.Spec.SyncPolicy.Automated.SelfHeal
 	}
 	if !oldEnabled && newEnabled {
 		return true
