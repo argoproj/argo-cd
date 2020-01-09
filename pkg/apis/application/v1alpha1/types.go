@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -1935,6 +1936,11 @@ func (status *ApplicationStatus) SetConditions(conditions []ApplicationCondition
 			appConditions = append(appConditions, condition)
 		}
 	}
+	sort.Slice(appConditions, func(i, j int) bool {
+		left := appConditions[i]
+		right := appConditions[j]
+		return fmt.Sprintf("%s/%s/%v", left.Type, left.Message, left.LastTransitionTime) < fmt.Sprintf("%s/%s/%v", right.Type, right.Message, right.LastTransitionTime)
+	})
 	status.Conditions = appConditions
 }
 
