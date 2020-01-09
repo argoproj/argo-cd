@@ -42,7 +42,9 @@ const (
 )
 
 func TestAppCreation(t *testing.T) {
-	Given(t).
+	ctx := Given(t)
+
+	ctx.
 		Path(guestbookPath).
 		When().
 		Create().
@@ -61,6 +63,25 @@ func TestAppCreation(t *testing.T) {
 			output, err := RunCli("app", "list")
 			assert.NoError(t, err)
 			assert.Contains(t, output, Name())
+		}).
+		When().
+		// ensure that create is idempotent
+		Create().
+		Then().
+		Given().
+		Revision("master").
+		When().
+		// ensure that update replaces spec and merge labels and annotations
+		And(func() {
+			FailOnErr(AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Patch(
+				ctx.GetName(), types.MergePatchType, []byte(`{"metadata": {"labels": { "test": "label" }, "annotations": { "test": "annotation" }}}`)))
+		}).
+		Create("--upsert").
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, "label", app.Labels["test"])
+			assert.Equal(t, "annotation", app.Annotations["test"])
+			assert.Equal(t, "master", app.Spec.Source.TargetRevision)
 		})
 }
 

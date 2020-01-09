@@ -142,10 +142,9 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 			if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(a)); err != nil {
 				return nil, err
 			}
-			existing.Spec = a.Spec
-			out, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(existing)
+			out, err = s.updateApp(existing, &a, ctx)
 		} else {
-			if !reflect.DeepEqual(existing.Spec, a.Spec) {
+			if !reflect.DeepEqual(existing.Spec, a.Spec) || !reflect.DeepEqual(existing.Labels, a.Labels) || !reflect.DeepEqual(existing.Annotations, a.Annotations) {
 				return nil, status.Errorf(codes.InvalidArgument, "existing application spec is different, use upsert flag to force update")
 			}
 			return existing, nil
@@ -303,7 +302,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 	return kubeClientset.CoreV1().Events(namespace).List(opts)
 }
 
-func (s *Server) updateApp(ctx context.Context, newApp *appv1.Application) (*appv1.Application, error) {
+func (s *Server) validateAndUpdateApp(ctx context.Context, newApp *appv1.Application) (*appv1.Application, error) {
 	s.projectLock.Lock(newApp.Spec.GetProject())
 	defer s.projectLock.Unlock(newApp.Spec.GetProject())
 
@@ -317,10 +316,27 @@ func (s *Server) updateApp(ctx context.Context, newApp *appv1.Application) (*app
 		return nil, err
 	}
 
+	return s.updateApp(app, newApp, ctx)
+}
+
+func mergeStringMaps(items ...map[string]string) map[string]string {
+	res := make(map[string]string)
+	for _, m := range items {
+		if m == nil {
+			continue
+		}
+		for k, v := range m {
+			res[k] = v
+		}
+	}
+	return res
+}
+
+func (s *Server) updateApp(app *appv1.Application, newApp *appv1.Application, ctx context.Context) (*appv1.Application, error) {
 	for i := 0; i < 10; i++ {
 		app.Spec = newApp.Spec
-		app.Labels = newApp.Labels
-		app.Annotations = newApp.Annotations
+		app.Labels = mergeStringMaps(app.Labels, newApp.Labels)
+		app.Annotations = mergeStringMaps(app.Annotations, newApp.Annotations)
 
 		res, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(app)
 		if err == nil {
@@ -345,7 +361,7 @@ func (s *Server) Update(ctx context.Context, q *application.ApplicationUpdateReq
 		return nil, err
 	}
 
-	return s.updateApp(ctx, q.Application)
+	return s.validateAndUpdateApp(ctx, q.Application)
 }
 
 // UpdateSpec updates an application spec and filters out any invalid parameter overrides
@@ -358,7 +374,7 @@ func (s *Server) UpdateSpec(ctx context.Context, q *application.ApplicationUpdat
 		return nil, err
 	}
 	a.Spec = q.Spec
-	a, err = s.updateApp(ctx, a)
+	a, err = s.validateAndUpdateApp(ctx, a)
 	if err != nil {
 		return nil, err
 	}
@@ -407,7 +423,7 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 	if err != nil {
 		return nil, err
 	}
-	return s.updateApp(ctx, app)
+	return s.validateAndUpdateApp(ctx, app)
 }
 
 // Delete removes an application and all associated resources
