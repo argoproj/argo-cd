@@ -209,9 +209,10 @@ workflows:
   version: 2
   workflow:
     jobs:
-      - test
-      - codegen
+      - test: {filters: {branches: {ignore: [gh-pages]}}}
+      - codegen: {filters: {branches: {ignore: [gh-pages]}}}
       - ui:
+          filters: {branches: {ignore: [gh-pages]}}
           requires:
             - codegen
-      - e2e
+      - e2e: {filters: {branches: {ignore: [gh-pages]}}}
