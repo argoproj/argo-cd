@@ -1,1 +1,5 @@
-{version: '2.1', jobs:{}}
+version: 2
+  jobs:
+     build:
+        branches:
+         ignore: gh-pages
