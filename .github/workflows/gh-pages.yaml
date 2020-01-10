@@ -18,6 +18,7 @@ jobs:
         run: |
           pip install mkdocs mkdocs_material
           mkdocs build
+          mkdir ./site/.circleci && echo '{version: 2, jobs: {build: {branches: {ignore: gh-pages}}}}' > ./site/.circleci/config.yml
       - name: deploy
         uses: peaceiris/actions-gh-pages@v2.5.0
         env:
