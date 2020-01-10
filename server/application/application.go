@@ -144,7 +144,11 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 			}
 			out, err = s.updateApp(existing, &a, ctx)
 		} else {
-			if !reflect.DeepEqual(existing.Spec, a.Spec) || !reflect.DeepEqual(existing.Labels, a.Labels) || !reflect.DeepEqual(existing.Annotations, a.Annotations) {
+			if !reflect.DeepEqual(existing.Spec, a.Spec) ||
+				!reflect.DeepEqual(existing.Labels, a.Labels) ||
+				!reflect.DeepEqual(existing.Annotations, a.Annotations) ||
+				!reflect.DeepEqual(existing.Finalizers, a.Finalizers) {
+
 				return nil, status.Errorf(codes.InvalidArgument, "existing application spec is different, use upsert flag to force update")
 			}
 			return existing, nil
@@ -337,6 +341,7 @@ func (s *Server) updateApp(app *appv1.Application, newApp *appv1.Application, ct
 		app.Spec = newApp.Spec
 		app.Labels = mergeStringMaps(app.Labels, newApp.Labels)
 		app.Annotations = mergeStringMaps(app.Annotations, newApp.Annotations)
+		app.Finalizers = newApp.Finalizers
 
 		res, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(app)
 		if err == nil {
