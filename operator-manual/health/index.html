@@ -32,7 +32,7 @@
         <meta name="lang:search.tokenizer" content="[\s\-]+">
       
       <link rel="shortcut icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.0.4, mkdocs-material-4.5.0">
+      <meta name="generator" content="mkdocs-1.0.4, mkdocs-material-4.6.0">
     
     
       
@@ -56,7 +56,7 @@
     
       
         <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Work+Sans:300,400,400i,700|&display=fallback">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Work+Sans:300,400,400i,700%7C&display=fallback">
         <style>body,input{font-family:"Work Sans","Helvetica Neue",Helvetica,Arial,sans-serif}code,kbd,pre{font-family:"","Courier New",Courier,monospace}</style>
       
     
@@ -1341,13 +1341,13 @@ with at least one value for <code>hostname</code> or <code>IP</code>.</li>
 <p>NOTE: as a security measure you don't have access to most of the standard Lua libraries.</p>
 <h3 id="way-2-contribute-a-custom-health-check">Way 2. Contribute a Custom Health Check<a class="headerlink" href="#way-2-contribute-a-custom-health-check" title="Permanent link">&para;</a></h3>
 <p>A health check can be bundled into Argo CD. Custom health check scripts are located in the <code>resource_customizations</code> directory of <a href="https://github.com/argoproj/argo-cd">https://github.com/argoproj/argo-cd</a>. This must have the following directory structure:</p>
-<div class="codehilite"><pre><span></span><span class="n">argo</span><span class="o">-</span><span class="n">cd</span>
-<span class="o">|</span><span class="c1">-- resource_customizations</span>
-<span class="o">|</span>    <span class="o">|</span><span class="c1">-- your.crd.group.io               # CRD group</span>
-<span class="o">|</span>    <span class="o">|</span>    <span class="o">|</span><span class="c1">-- MyKind                     # Resource kind</span>
-<span class="o">|</span>    <span class="o">|</span>    <span class="o">|</span>    <span class="o">|</span><span class="c1">-- health.lua            # Health check</span>
-<span class="o">|</span>    <span class="o">|</span>    <span class="o">|</span>    <span class="o">|</span><span class="c1">-- health_test.yaml      # Test inputs and expected results</span>
-<span class="o">|</span>    <span class="o">|</span>    <span class="o">|</span>    <span class="o">+</span><span class="c1">-- testdata              # Directory with test resource YAML definitions</span>
+<div class="codehilite"><pre><span></span><span class="err">argo-cd</span>
+<span class="err">|-- resource_customizations</span>
+<span class="err">|    |-- your.crd.group.io               # CRD group</span>
+<span class="err">|    |    |-- MyKind                     # Resource kind</span>
+<span class="err">|    |    |    |-- health.lua            # Health check</span>
+<span class="err">|    |    |    |-- health_test.yaml      # Test inputs and expected results</span>
+<span class="err">|    |    |    +-- testdata              # Directory with test resource YAML definitions</span>
 </pre></div>
 
 
@@ -1363,6 +1363,7 @@ with at least one value for <code>hostname</code> or <code>IP</code>.</li>
 <p>The <a href="https://github.com/argoproj/argo-cd/pull/1139">PR#1139</a> is an example of Cert Manager CRDs custom health check.</p>
                 
                   
+                
                 
               
               
@@ -1430,7 +1431,7 @@ with at least one value for <code>hostname</code> or <code>IP</code>.</li>
       
     </div>
     
-      <script src="../../assets/javascripts/application.a8b5e56f.js"></script>
+      <script src="../../assets/javascripts/application.808e90bb.js"></script>
       
       <script>app.initialize({version:"1.0.4",url:{base:"../.."}})</script>
       

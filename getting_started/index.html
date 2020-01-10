@@ -32,7 +32,7 @@
         <meta name="lang:search.tokenizer" content="[\s\-]+">
       
       <link rel="shortcut icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.0.4, mkdocs-material-4.5.0">
+      <meta name="generator" content="mkdocs-1.0.4, mkdocs-material-4.6.0">
     
     
       
@@ -56,7 +56,7 @@
     
       
         <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Work+Sans:300,400,400i,700|&display=fallback">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Work+Sans:300,400,400i,700%7C&display=fallback">
         <style>body,input{font-family:"Work Sans","Helvetica Neue",Helvetica,Arial,sans-serif}code,kbd,pre{font-family:"","Courier New",Courier,monospace}</style>
       
     
@@ -1393,6 +1393,13 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 </pre></div>
 
 
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If you are not interested in UI, SSO, multi-cluster management and just want to pull changes into the cluster then you can disable
+authentication using <code>--disable-auth</code> flag and access Argo CD via CLI using <code>--port-forward</code> or <code>--port-forward-namespace</code> flags
+and proceed to step <a href="#6-create-an-application-from-a-git-repository">#6</a>:</p>
+<p><code>kubectl patch deploy argocd-server -n argocd -p '[{"op": "add", "path": "/spec/template/spec/containers/0/command/-", "value": "--disable-auth"}]' --type json</code></p>
+</div>
 <h2 id="2-download-argo-cd-cli">2. Download Argo CD CLI<a class="headerlink" href="#2-download-argo-cd-cli" title="Permanent link">&para;</a></h2>
 <p>Download the latest Argo CD version from <a href="https://github.com/argoproj/argo-cd/releases/latest">https://github.com/argoproj/argo-cd/releases/latest</a>. More detailed installation instructions can be found via the <a href="../cli_installation/">CLI installation documentation</a>.</p>
 <p>Also available in Mac Homebrew:</p>
@@ -1463,14 +1470,11 @@ However <code>get</code>, <code>list</code>, <code>watch</code> privileges are r
 <p>An example repository containing a guestbook application is available at
 <a href="https://github.com/argoproj/argocd-example-apps.git">https://github.com/argoproj/argocd-example-apps.git</a> to demonstrate how Argo CD works.</p>
 <h3 id="creating-apps-via-cli">Creating Apps Via CLI<a class="headerlink" href="#creating-apps-via-cli" title="Permanent link">&para;</a></h3>
-<div class="codehilite"><pre><span></span>argocd app create guestbook <span class="se">\</span>
-  --repo https://github.com/argoproj/argocd-example-apps.git <span class="se">\</span>
-  --path guestbook <span class="se">\</span>
-  --dest-server https://kubernetes.default.svc <span class="se">\</span>
-  --dest-namespace default
-</pre></div>
-
-
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>You can access Argo CD using port forwarding: add <code>--port-forward-namespace argocd</code> flag to every CLI command or set <code>ARGOCD_OPTS</code> environment variable: <code>export ARGOCD_OPTS='--port-forward-namespace argocd'</code>:</p>
+<p><code>argocd app create guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --dest-server https://kubernetes.default.svc --dest-namespace default</code></p>
+</div>
 <h3 id="creating-apps-via-ui">Creating Apps Via UI<a class="headerlink" href="#creating-apps-via-ui" title="Permanent link">&para;</a></h3>
 <p>Open a browser to the Argo CD external UI, and login by visiting the IP/hostname in a browser and use the credentials set in step 4.</p>
 <p>After logging in, click the <strong>+ New App</strong> button as shown below:</p>
@@ -1517,6 +1521,7 @@ events, and assessed health status:</p>
 <img alt="view app" src="../assets/guestbook-tree.png" /></p>
                 
                   
+                
                 
               
               
@@ -1584,7 +1589,7 @@ events, and assessed health status:</p>
       
     </div>
     
-      <script src="../assets/javascripts/application.a8b5e56f.js"></script>
+      <script src="../assets/javascripts/application.808e90bb.js"></script>
       
       <script>app.initialize({version:"1.0.4",url:{base:".."}})</script>
       

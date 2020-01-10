@@ -32,7 +32,7 @@
         <meta name="lang:search.tokenizer" content="[\s\-]+">
       
       <link rel="shortcut icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.0.4, mkdocs-material-4.5.0">
+      <meta name="generator" content="mkdocs-1.0.4, mkdocs-material-4.6.0">
     
     
       
@@ -56,7 +56,7 @@
     
       
         <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Work+Sans:300,400,400i,700|&display=fallback">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Work+Sans:300,400,400i,700%7C&display=fallback">
         <style>body,input{font-family:"Work Sans","Helvetica Neue",Helvetica,Arial,sans-serif}code,kbd,pre{font-family:"","Courier New",Courier,monospace}</style>
       
     
@@ -417,9 +417,45 @@
       
     
     
+      <label class="md-nav__link md-nav__link--active" for="__toc">
+        Microsoft
+      </label>
+    
     <a href="./" title="Microsoft" class="md-nav__link md-nav__link--active">
       Microsoft
     </a>
+    
+      
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#oidc-without-dex-to-azure-ad" class="md-nav__link">
+    OIDC (without Dex) to Azure AD
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#with-dex" class="md-nav__link">
+    With Dex
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
     
   </li>
 
@@ -1099,6 +1135,29 @@
     
   
   
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#oidc-without-dex-to-azure-ad" class="md-nav__link">
+    OIDC (without Dex) to Azure AD
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#with-dex" class="md-nav__link">
+    With Dex
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1117,14 +1176,70 @@
 <p class="admonition-title">Are you using this? Please contribute!</p>
 <p>If you're using this IdP please consider <a href="../../../developer-guide/site/">contributing</a> to this document.</p>
 </div>
-<!-- markdownlint-disable MD033 -->
+<ul>
+<li><a href="#oidc-without-dex-to-azure-ad">OIDC (without Dex) to Azure AD</a></li>
+<li><a href="#with-dex">With Dex</a></li>
+</ul>
+<h2 id="oidc-without-dex-to-azure-ad">OIDC (without Dex) to Azure AD<a class="headerlink" href="#oidc-without-dex-to-azure-ad" title="Permanent link">&para;</a></h2>
+<ol>
+<li>
+<p>Register a new Azure AD Application</p>
+<p><a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/quickstart-register-app">Quickstart: Register an application</a></p>
+<div class="codehilite"><pre><span></span><span class="err">App Registrations Inputs</span>
+<span class="err">    Redirect URI: https://argocd.example.com/auth/callback</span>
+<span class="err">Outputs</span>
+<span class="err">    Application (client) ID: aaaaaaaa-1111-bbbb-2222-cccccccccccc</span>
+<span class="err">    Directory (tenant) ID: 33333333-dddd-4444-eeee-555555555555</span>
+<span class="err">    Secret: some_secret</span>
+</pre></div>
 
-<div style="text-align:center"><img src="../../../assets/argo.png" /></div>
 
-<!-- markdownlint-enable MD033 -->
+</li>
+<li>
+<p>Edit <code>argocd-cm</code> and configure the <code>data.oidc.config</code> section:</p>
+<div class="codehilite"><pre><span></span><span class="n">ConfigMap</span> <span class="o">-&gt;</span> <span class="n">argocd</span><span class="o">-</span><span class="n">cm</span>
 
-<!-- markdownlint-disable MD046 -->
+<span class="k">data</span><span class="p">:</span>
+    <span class="n">url</span><span class="p">:</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">argocd</span><span class="p">.</span><span class="n">example</span><span class="p">.</span><span class="n">com</span><span class="o">/</span>
+    <span class="n">oidc</span><span class="p">.</span><span class="n">config</span><span class="p">:</span> <span class="o">|</span>
+        <span class="n">name</span><span class="p">:</span> <span class="n">Azure</span>
+        <span class="n">issuer</span><span class="p">:</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">sts</span><span class="p">.</span><span class="n">windows</span><span class="p">.</span><span class="n">net</span><span class="o">/</span><span class="err">{</span><span class="n">directory_tenant_id</span><span class="err">}</span><span class="o">/</span>
+        <span class="n">clientID</span><span class="p">:</span> <span class="err">{</span><span class="n">azure_ad_application_client_id</span><span class="err">}</span>
+        <span class="n">clientSecret</span><span class="p">:</span> <span class="err">$</span><span class="n">oidc</span><span class="p">.</span><span class="n">azure</span><span class="p">.</span><span class="n">clientSecret</span>
+</pre></div>
 
+
+</li>
+<li>
+<p>Edit <code>argocd-secret</code> and configure the <code>data.oidc.azure.clientSecret</code> section:</p>
+<div class="codehilite"><pre><span></span><span class="n">Secret</span> <span class="o">-&gt;</span> <span class="n">argocd</span><span class="o">-</span><span class="n">secret</span>
+
+<span class="k">data</span><span class="p">:</span>
+    <span class="n">oidc</span><span class="p">.</span><span class="n">azure</span><span class="p">.</span><span class="n">clientSecret</span><span class="p">:</span> <span class="err">{</span><span class="n">client_secret</span> <span class="o">|</span> <span class="n">base64_encoded</span><span class="err">}</span>
+</pre></div>
+
+
+</li>
+<li>
+<p>Edit <code>argocd-rbac-cm</code> to configure permissions</p>
+<p><a href="../../rbac/">RBAC Configurations</a></p>
+<div class="codehilite"><pre><span></span><span class="n">ConfigMap</span> <span class="o">-&gt;</span> <span class="n">argocd</span><span class="o">-</span><span class="n">cm</span>
+
+<span class="n">policy</span><span class="p">.</span><span class="k">default</span><span class="p">:</span> <span class="k">role</span><span class="p">:</span><span class="n">readonly</span>
+<span class="n">policy</span><span class="p">.</span><span class="n">csv</span><span class="p">:</span> <span class="o">|</span>
+    <span class="n">p</span><span class="p">,</span> <span class="k">role</span><span class="p">:</span><span class="n">org</span><span class="o">-</span><span class="k">admin</span><span class="p">,</span> <span class="n">applications</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="o">*</span><span class="cm">/*, allow</span>
+<span class="cm">    p, role:org-admin, clusters, get, *, allow</span>
+<span class="cm">    p, role:org-admin, repositories, get, *, allow</span>
+<span class="cm">    p, role:org-admin, repositories, create, *, allow</span>
+<span class="cm">    p, role:org-admin, repositories, update, *, allow</span>
+<span class="cm">    p, role:org-admin, repositories, delete, *, allow</span>
+<span class="cm">    g, &quot;Grp Argo CD&quot;, role:org-admin</span>
+</pre></div>
+
+
+</li>
+</ol>
+<h2 id="with-dex">With Dex<a class="headerlink" href="#with-dex" title="Permanent link">&para;</a></h2>
 <div class="codehilite"><pre><span></span><span class="l l-Scalar l-Scalar-Plain">ConfigMap -&gt; argocd-cm</span>
 
 <span class="l l-Scalar l-Scalar-Plain">data</span><span class="p p-Indicator">:</span>
@@ -1141,26 +1256,9 @@
           <span class="no">groups: </span>
             <span class="no">- DevOps</span>
 </pre></div>
-
-
-<p>https://github.com/dexidp/dex/blob/master/Documentation/connectors/microsoft.md#groups</p>
-<div class="codehilite"><pre><span></span><span class="l l-Scalar l-Scalar-Plain">ConfigMap -&gt; argocd-rbac-cm</span>
-
-<span class="l l-Scalar l-Scalar-Plain">data</span><span class="p p-Indicator">:</span>
-    <span class="nt">policy.csv</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-        <span class="no">p, role:org-admin, applications, *, */*, allow</span>
-        <span class="no">p, role:org-admin, clusters, get, *, allow</span>
-        <span class="no">p, role:org-admin, repositories, get, *, allow</span>
-        <span class="no">p, role:org-admin, repositories, create, *, allow</span>
-        <span class="no">p, role:org-admin, repositories, update, *, allow</span>
-        <span class="no">p, role:org-admin, repositories, delete, *, allow</span>
-
-        <span class="no">g, DevOps, role:org-admin</span>
-
-    <span class="nt">policy.default</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">role:readonly</span>
-</pre></div>
                 
                   
+                
                 
               
               
@@ -1228,7 +1326,7 @@
       
     </div>
     
-      <script src="../../../assets/javascripts/application.a8b5e56f.js"></script>
+      <script src="../../../assets/javascripts/application.808e90bb.js"></script>
       
       <script>app.initialize({version:"1.0.4",url:{base:"../../.."}})</script>
       

@@ -32,7 +32,7 @@
         <meta name="lang:search.tokenizer" content="[\s\-]+">
       
       <link rel="shortcut icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.0.4, mkdocs-material-4.5.0">
+      <meta name="generator" content="mkdocs-1.0.4, mkdocs-material-4.6.0">
     
     
       
@@ -56,7 +56,7 @@
     
       
         <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Work+Sans:300,400,400i,700|&display=fallback">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Work+Sans:300,400,400i,700%7C&display=fallback">
         <style>body,input{font-family:"Work Sans","Helvetica Neue",Helvetica,Arial,sans-serif}code,kbd,pre{font-family:"","Courier New",Courier,monospace}</style>
       
     
@@ -1190,13 +1190,13 @@
 <h3 id="helm-example">Helm Example<a class="headerlink" href="#helm-example" title="Permanent link">&para;</a></h3>
 <p>This example shows how to use Helm to achieve this. You can, of course, use another tool if you like.</p>
 <p>A typical layout of your Git repository for this might be:</p>
-<div class="codehilite"><pre><span></span><span class="err">├──</span> <span class="n">Chart</span><span class="p">.</span><span class="n">yaml</span>
-<span class="err">├──</span> <span class="n">templates</span>
-<span class="err">│</span>   <span class="err">├──</span> <span class="n">guestbook</span><span class="p">.</span><span class="n">yaml</span>
-<span class="err">│</span>   <span class="err">├──</span> <span class="n">helm</span><span class="o">-</span><span class="n">dependency</span><span class="p">.</span><span class="n">yaml</span>
-<span class="err">│</span>   <span class="err">├──</span> <span class="n">helm</span><span class="o">-</span><span class="n">guestbook</span><span class="p">.</span><span class="n">yaml</span>
-<span class="err">│</span>   <span class="err">└──</span> <span class="n">kustomize</span><span class="o">-</span><span class="n">guestbook</span><span class="p">.</span><span class="n">yaml</span>
-<span class="err">└──</span> <span class="k">values</span><span class="p">.</span><span class="n">yaml</span>
+<div class="codehilite"><pre><span></span><span class="err">├── Chart.yaml</span>
+<span class="err">├── templates</span>
+<span class="err">│   ├── guestbook.yaml</span>
+<span class="err">│   ├── helm-dependency.yaml</span>
+<span class="err">│   ├── helm-guestbook.yaml</span>
+<span class="err">│   └── kustomize-guestbook.yaml</span>
+<span class="err">└── values.yaml</span>
 </pre></div>
 
 
@@ -1221,7 +1221,7 @@
 </pre></div>
 
 
-<p>The sync policy to automated + prune, so that child app is are automatically created, synced, and deleted when the manifest is changed, but you may wish to disable this. I've also added the finalizer, which will ensure that you apps are deleted correctly.</p>
+<p>The sync policy to automated + prune, so that child apps are automatically created, synced, and deleted when the manifest is changed, but you may wish to disable this. I've also added the finalizer, which will ensure that your apps are deleted correctly.</p>
 <p>Fix the revision to a specific Git commit SHA to make sure that, even if the child apps repo changes, the app will only change when the parent app change that revision. Alternatively, you can set it to HEAD or a branch name.</p>
 <p>As you probably want to override the cluster server, this is a templated values.</p>
 <p><code>values.yaml</code> contains the default values:</p>
@@ -1245,7 +1245,7 @@ argocd app sync apps
 <p><img alt="New App Of Apps" src="../../assets/new-app-of-apps.png" /></p>
 <p>You can either sync via the UI, firstly filter by the correct label:</p>
 <p><img alt="Filter Apps" src="../../assets/filter-apps.png" /></p>
-<p>The select the "out of sync" apps and sync: </p>
+<p>Then select the "out of sync" apps and sync: </p>
 <p><img alt="Sync Apps" src="../../assets/sync-apps.png" /></p>
 <p>Or, via the CLI: </p>
 <div class="codehilite"><pre><span></span>argocd app sync -l app.kubernetes.io/instance<span class="o">=</span>apps
@@ -1255,6 +1255,7 @@ argocd app sync apps
 <p>View <a href="https://github.com/argoproj/argocd-example-apps/tree/master/apps">the example on Github</a>.</p>
                 
                   
+                
                 
               
               
@@ -1322,7 +1323,7 @@ argocd app sync apps
       
     </div>
     
-      <script src="../../assets/javascripts/application.a8b5e56f.js"></script>
+      <script src="../../assets/javascripts/application.808e90bb.js"></script>
       
       <script>app.initialize({version:"1.0.4",url:{base:"../.."}})</script>
       

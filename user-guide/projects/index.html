@@ -32,7 +32,7 @@
         <meta name="lang:search.tokenizer" content="[\s\-]+">
       
       <link rel="shortcut icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.0.4, mkdocs-material-4.5.0">
+      <meta name="generator" content="mkdocs-1.0.4, mkdocs-material-4.6.0">
     
     
       
@@ -56,7 +56,7 @@
     
       
         <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Work+Sans:300,400,400i,700|&display=fallback">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Work+Sans:300,400,400i,700%7C&display=fallback">
         <style>body,input{font-family:"Work Sans","Helvetica Neue",Helvetica,Arial,sans-serif}code,kbd,pre{font-family:"","Courier New",Courier,monospace}</style>
       
     
@@ -1308,7 +1308,7 @@ argocd proj deny-namespace-resource &lt;PROJECT&gt; &lt;GROUP&gt; &lt;KIND&gt;
 <h3 id="assign-application-to-a-project">Assign Application To A Project<a class="headerlink" href="#assign-application-to-a-project" title="Permanent link">&para;</a></h3>
 <p>The application project can be changed using <code>app set</code> command. In order to change the project of
 an app, the user must have permissions to access the new project.</p>
-<div class="codehilite"><pre><span></span><span class="n">argocd</span> <span class="n">app</span> <span class="k">set</span> <span class="n">guestbook</span><span class="o">-</span><span class="k">default</span> <span class="c1">--project myproject</span>
+<div class="codehilite"><pre><span></span><span class="err">argocd app set guestbook-default --project myproject</span>
 </pre></div>
 
 
@@ -1411,6 +1411,7 @@ argocd app get <span class="nv">$APP</span> --auth-token <span class="nv">$JWT</
                 
                   
                 
+                
               
               
                 
@@ -1477,7 +1478,7 @@ argocd app get <span class="nv">$APP</span> --auth-token <span class="nv">$JWT</
       
     </div>
     
-      <script src="../../assets/javascripts/application.a8b5e56f.js"></script>
+      <script src="../../assets/javascripts/application.808e90bb.js"></script>
       
       <script>app.initialize({version:"1.0.4",url:{base:"../.."}})</script>
       

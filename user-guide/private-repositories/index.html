@@ -32,7 +32,7 @@
         <meta name="lang:search.tokenizer" content="[\s\-]+">
       
       <link rel="shortcut icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.0.4, mkdocs-material-4.5.0">
+      <meta name="generator" content="mkdocs-1.0.4, mkdocs-material-4.6.0">
     
     
       
@@ -56,7 +56,7 @@
     
       
         <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Work+Sans:300,400,400i,700|&display=fallback">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Work+Sans:300,400,400i,700%7C&display=fallback">
         <style>body,input{font-family:"Work Sans","Helvetica Neue",Helvetica,Arial,sans-serif}code,kbd,pre{font-family:"","Courier New",Courier,monospace}</style>
       
     
@@ -1466,7 +1466,7 @@
 <p>v1.2 and later</p>
 </blockquote>
 <p>If your repository server requires you to use TLS client certificates for authentication, you can configure ArgoCD repositories to make use of them. For this purpose, <code>--tls-client-cert-path</code> and <code>--tls-client-cert-key-path</code> switches to the <code>argocd repo add</code> command can be used to specify the files on your local system containing client certificate and the corresponding key, respectively:</p>
-<div class="codehilite"><pre><span></span><span class="n">argocd</span> <span class="n">repo</span> <span class="k">add</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">repo</span><span class="p">.</span><span class="n">example</span><span class="p">.</span><span class="n">com</span><span class="o">/</span><span class="n">repo</span><span class="p">.</span><span class="n">git</span> <span class="c1">--tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key</span>
+<div class="codehilite"><pre><span></span><span class="err">argocd repo add https://repo.example.com/repo.git --tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key</span>
 </pre></div>
 
 
@@ -1487,7 +1487,7 @@
 </blockquote>
 <p>You can configure your Git repository using HTTPS either using the CLI or the UI.</p>
 <p>Using the CLI:</p>
-<div class="codehilite"><pre><span></span><span class="n">argocd</span><span class="w"> </span><span class="n">repo</span><span class="w"> </span><span class="k">add</span><span class="w"> </span><span class="n">git</span><span class="nv">@github</span><span class="p">.</span><span class="nl">com</span><span class="p">:</span><span class="n">argoproj</span><span class="o">/</span><span class="n">argocd</span><span class="o">-</span><span class="n">example</span><span class="o">-</span><span class="n">apps</span><span class="p">.</span><span class="n">git</span><span class="w"> </span><span class="c1">--ssh-private-key-path ~/.ssh/id_rsa</span>
+<div class="codehilite"><pre><span></span><span class="err">argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-key-path ~/.ssh/id_rsa</span>
 </pre></div>
 
 
@@ -1513,7 +1513,7 @@
 <p>earlier than v1.2</p>
 </blockquote>
 <p>The Argo CD UI don't support configuring SSH credentials. The SSH credentials can only be configured using the Argo CD CLI:</p>
-<div class="codehilite"><pre><span></span><span class="n">argocd</span><span class="w"> </span><span class="n">repo</span><span class="w"> </span><span class="k">add</span><span class="w"> </span><span class="n">git</span><span class="nv">@github</span><span class="p">.</span><span class="nl">com</span><span class="p">:</span><span class="n">argoproj</span><span class="o">/</span><span class="n">argocd</span><span class="o">-</span><span class="n">example</span><span class="o">-</span><span class="n">apps</span><span class="p">.</span><span class="n">git</span><span class="w"> </span><span class="c1">--ssh-private-key-path ~/.ssh/id_rsa</span>
+<div class="codehilite"><pre><span></span><span class="err">argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-key-path ~/.ssh/id_rsa</span>
 </pre></div>
 
 
@@ -1748,11 +1748,15 @@ vs-ssh.visualstudio.com  ssh   ssh-rsa              SHA256:ohD8VZEXGWo6Ez8GSEJQ9
 <p>For Kustomize support, see <a href="https://github.com/argoproj/argo-cd/issues/827">#827</a>.</p>
 </div>
 <h2 id="git-submodules">Git Submodules<a class="headerlink" href="#git-submodules" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p>v1.4 or later</p>
+</blockquote>
 <p>Submodules are supported and will be picked up automatically. If the submodule repository requires authentication then the credentials will need to match the credentials of the parent repository. Set ARGOCD_GIT_MODULES_ENABLED=false to disable submodule support</p>
 <h2 id="declarative-configuration">Declarative Configuration<a class="headerlink" href="#declarative-configuration" title="Permanent link">&para;</a></h2>
 <p>See <a href="../../operator-manual/declarative-setup#Repositories">declarative setup</a></p>
                 
                   
+                
                 
               
               
@@ -1820,7 +1824,7 @@ vs-ssh.visualstudio.com  ssh   ssh-rsa              SHA256:ohD8VZEXGWo6Ez8GSEJQ9
       
     </div>
     
-      <script src="../../assets/javascripts/application.a8b5e56f.js"></script>
+      <script src="../../assets/javascripts/application.808e90bb.js"></script>
       
       <script>app.initialize({version:"1.0.4",url:{base:"../.."}})</script>
       

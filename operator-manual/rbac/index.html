@@ -32,7 +32,7 @@
         <meta name="lang:search.tokenizer" content="[\s\-]+">
       
       <link rel="shortcut icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.0.4, mkdocs-material-4.5.0">
+      <meta name="generator" content="mkdocs-1.0.4, mkdocs-material-4.6.0">
     
     
       
@@ -56,7 +56,7 @@
     
       
         <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Work+Sans:300,400,400i,700|&display=fallback">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Work+Sans:300,400,400i,700%7C&display=fallback">
         <style>body,input{font-family:"Work Sans","Helvetica Neue",Helvetica,Arial,sans-serif}code,kbd,pre{font-family:"","Courier New",Courier,monospace}</style>
       
     
@@ -1279,14 +1279,14 @@ which cannot modify Argo CD settings.</p>
 
 <hr />
 <p>Another <code>policy.csv</code> example might look as follows:</p>
-<div class="codehilite"><pre><span></span><span class="n">p</span><span class="p">,</span> <span class="k">role</span><span class="p">:</span><span class="n">staging</span><span class="o">-</span><span class="n">db</span><span class="o">-</span><span class="n">admins</span><span class="p">,</span> <span class="n">applications</span><span class="p">,</span> <span class="k">create</span><span class="p">,</span> <span class="n">staging</span><span class="o">-</span><span class="n">db</span><span class="o">-</span><span class="n">admins</span><span class="cm">/*, allow</span>
-<span class="cm">p, role:staging-db-admins, applications, delete, staging-db-admins/*, allow</span>
-<span class="cm">p, role:staging-db-admins, applications, get, staging-db-admins/*, allow</span>
-<span class="cm">p, role:staging-db-admins, applications, override, staging-db-admins/*, allow</span>
-<span class="cm">p, role:staging-db-admins, applications, sync, staging-db-admins/*, allow</span>
-<span class="cm">p, role:staging-db-admins, applications, update, staging-db-admins/*, allow</span>
-<span class="cm">p, role:staging-db-admins, projects, get, staging-db-admins, allow</span>
-<span class="cm">g, db-admins, role:staging-db-admins</span>
+<div class="codehilite"><pre><span></span><span class="err">p, role:staging-db-admins, applications, create, staging-db-admins/*, allow</span>
+<span class="err">p, role:staging-db-admins, applications, delete, staging-db-admins/*, allow</span>
+<span class="err">p, role:staging-db-admins, applications, get, staging-db-admins/*, allow</span>
+<span class="err">p, role:staging-db-admins, applications, override, staging-db-admins/*, allow</span>
+<span class="err">p, role:staging-db-admins, applications, sync, staging-db-admins/*, allow</span>
+<span class="err">p, role:staging-db-admins, applications, update, staging-db-admins/*, allow</span>
+<span class="err">p, role:staging-db-admins, projects, get, staging-db-admins, allow</span>
+<span class="err">g, db-admins, role:staging-db-admins</span>
 </pre></div>
 
 
@@ -1296,6 +1296,7 @@ which cannot modify Argo CD settings.</p>
 The anonymous users get default role permissions specified by <code>policy.default</code> in <code>argocd-rbac-cm.yaml</code>. For read-only access you'll want <code>policy.default: role:readonly</code> as above</p>
                 
                   
+                
                 
               
               
@@ -1363,7 +1364,7 @@ The anonymous users get default role permissions specified by <code>policy.defau
       
     </div>
     
-      <script src="../../assets/javascripts/application.a8b5e56f.js"></script>
+      <script src="../../assets/javascripts/application.808e90bb.js"></script>
       
       <script>app.initialize({version:"1.0.4",url:{base:"../.."}})</script>
       

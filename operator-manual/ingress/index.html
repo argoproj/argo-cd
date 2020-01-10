@@ -32,7 +32,7 @@
         <meta name="lang:search.tokenizer" content="[\s\-]+">
       
       <link rel="shortcut icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.0.4, mkdocs-material-4.5.0">
+      <meta name="generator" content="mkdocs-1.0.4, mkdocs-material-4.6.0">
     
     
       
@@ -56,7 +56,7 @@
     
       
         <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Work+Sans:300,400,400i,700|&display=fallback">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Work+Sans:300,400,400i,700%7C&display=fallback">
         <style>body,input{font-family:"Work Sans","Helvetica Neue",Helvetica,Arial,sans-serif}code,kbd,pre{font-family:"","Courier New",Courier,monospace}</style>
       
     
@@ -1476,31 +1476,32 @@ To configure the UI path add the <code>--basehref</code> flag into the <code>arg
 
 <p>NOTE: The flag <code>--basehref</code> only changes the UI base URL. The API server will keep using the <code>/</code> path so you need to add a URL rewrite rule to the proxy config.
 Example nginx.conf with URL rewrite:</p>
-<div class="codehilite"><pre><span></span><span class="nv">worker_processes</span> <span class="mi">1</span><span class="c1">;</span>
+<div class="codehilite"><pre><span></span><span class="nt">worker_processes</span> <span class="nt">1</span><span class="o">;</span>
 
-<span class="nv">events</span> { <span class="nv">worker_connections</span> <span class="mi">1024</span><span class="c1">; }</span>
+<span class="nt">events</span> <span class="p">{</span> <span class="err">worker_connections</span> <span class="err">1024</span><span class="p">;</span> <span class="p">}</span>
 
-<span class="nv">http</span> {
+<span class="nt">http</span> <span class="p">{</span>
 
-    <span class="k">sendfile</span> <span class="nv">on</span><span class="c1">;</span>
+    <span class="err">sendfile</span> <span class="err">on</span><span class="p">;</span>
 
-    <span class="nv">server</span> {
-        <span class="nv">listen</span> <span class="mi">443</span><span class="c1">;</span>
+    <span class="err">server</span> <span class="err">{</span>
+        <span class="err">listen</span> <span class="err">443</span><span class="p">;</span>
 
-        <span class="nv">location</span> <span class="o">/</span><span class="nv">argo</span><span class="o">-</span><span class="nv">cd</span> {
-            <span class="nv">rewrite</span> <span class="o">/</span><span class="nv">argo</span><span class="o">-</span><span class="nv">cd</span><span class="o">/</span><span class="ss">(</span>.<span class="o">*</span><span class="ss">)</span> <span class="o">/</span><span class="mh">$1</span>  <span class="k">break</span><span class="c1">;</span>
-            <span class="nv">proxy_pass</span>         <span class="nv">https</span>:<span class="o">//</span><span class="nv">localhost</span>:<span class="mi">8080</span><span class="c1">;</span>
-            <span class="nv">proxy_redirect</span>     <span class="nv">off</span><span class="c1">;</span>
-            <span class="nv">proxy_set_header</span>   <span class="nv">Host</span> $<span class="nv">host</span><span class="c1">;</span>
-            <span class="nv">proxy_set_header</span>   <span class="nv">X</span><span class="o">-</span><span class="nv">Real</span><span class="o">-</span><span class="nv">IP</span> $<span class="nv">remote_addr</span><span class="c1">;</span>
-            <span class="nv">proxy_set_header</span>   <span class="nv">X</span><span class="o">-</span><span class="nv">Forwarded</span><span class="o">-</span><span class="k">For</span> $<span class="nv">proxy_add_x_forwarded_for</span><span class="c1">;</span>
-            <span class="nv">proxy_set_header</span>   <span class="nv">X</span><span class="o">-</span><span class="nv">Forwarded</span><span class="o">-</span><span class="nv">Host</span> $<span class="nv">server_name</span><span class="c1">;</span>
-        }
-    }
-}
+        <span class="err">location</span> <span class="err">/argo-cd</span> <span class="err">{</span>
+            <span class="err">rewrite</span> <span class="err">/argo-cd/(.*)</span> <span class="err">/$1</span>  <span class="err">break</span><span class="p">;</span>
+            <span class="err">proxy_pass</span>         <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">localhost</span><span class="o">:</span><span class="mi">8080</span><span class="p">;</span>
+            <span class="err">proxy_redirect</span>     <span class="err">off</span><span class="p">;</span>
+            <span class="err">proxy_set_header</span>   <span class="err">Host</span> <span class="err">$host</span><span class="p">;</span>
+            <span class="err">proxy_set_header</span>   <span class="err">X-Real-IP</span> <span class="err">$remote_addr</span><span class="p">;</span>
+            <span class="err">proxy_set_header</span>   <span class="err">X-Forwarded-For</span> <span class="err">$proxy_add_x_forwarded_for</span><span class="p">;</span>
+            <span class="err">proxy_set_header</span>   <span class="err">X-Forwarded-Host</span> <span class="err">$server_name</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="err">}</span>
+<span class="err">}</span>
 </pre></div>
                 
                   
+                
                 
               
               
@@ -1568,7 +1569,7 @@ Example nginx.conf with URL rewrite:</p>
       
     </div>
     
-      <script src="../../assets/javascripts/application.a8b5e56f.js"></script>
+      <script src="../../assets/javascripts/application.808e90bb.js"></script>
       
       <script>app.initialize({version:"1.0.4",url:{base:"../.."}})</script>
       
