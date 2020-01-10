@@ -21,15 +21,15 @@ var (
 		append(descClusterDefaultLabels, "k8s_version"),
 		nil,
 	)
-	descClusterCacheResourcesCount = prometheus.NewDesc(
-		"argocd_cluster_resources_count",
-		"Number of k8s resources in cache.",
+	descClusterCacheResources = prometheus.NewDesc(
+		"argocd_cluster_api_resource_objects",
+		"Number of k8s resource objects in the cache.",
 		descClusterDefaultLabels,
 		nil,
 	)
-	descClusterAPIsCount = prometheus.NewDesc(
-		"argocd_cluster_apis_count",
-		"Number of monitored kubernetes APIs.",
+	descClusterAPIs = prometheus.NewDesc(
+		"argocd_cluster_api_resources",
+		"Number of monitored kubernetes API resources.",
 		descClusterDefaultLabels,
 		nil,
 	)
@@ -78,8 +78,8 @@ func (c *clusterCollector) Run(ctx context.Context) {
 // Describe implements the prometheus.Collector interface
 func (c *clusterCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- descClusterInfo
-	ch <- descClusterCacheResourcesCount
-	ch <- descClusterAPIsCount
+	ch <- descClusterCacheResources
+	ch <- descClusterAPIs
 	ch <- descClusterCacheAgeSeconds
 }
 
@@ -88,8 +88,8 @@ func (c *clusterCollector) Collect(ch chan<- prometheus.Metric) {
 	for _, c := range c.info {
 		defaultValues := []string{c.Server}
 		ch <- prometheus.MustNewConstMetric(descClusterInfo, prometheus.GaugeValue, 1, append(defaultValues, c.K8SVersion)...)
-		ch <- prometheus.MustNewConstMetric(descClusterCacheResourcesCount, prometheus.GaugeValue, float64(c.ResourcesCount), defaultValues...)
-		ch <- prometheus.MustNewConstMetric(descClusterAPIsCount, prometheus.GaugeValue, float64(c.APIsCount), defaultValues...)
+		ch <- prometheus.MustNewConstMetric(descClusterCacheResources, prometheus.GaugeValue, float64(c.ResourcesCount), defaultValues...)
+		ch <- prometheus.MustNewConstMetric(descClusterAPIs, prometheus.GaugeValue, float64(c.APIsCount), defaultValues...)
 		cacheAgeSeconds := -1
 		if c.LastCacheSyncTime != nil {
 			cacheAgeSeconds = int(now.Sub(*c.LastCacheSyncTime).Seconds())
