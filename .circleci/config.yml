@@ -1,1 +1,1 @@
-{version: 2, {jobs: {build: {branches: {ignore: gh-pages}}}}
+{version: 2, jobs: {build: {branches: {ignore: gh-pages}}}}
