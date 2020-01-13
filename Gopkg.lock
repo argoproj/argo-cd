@@ -2081,7 +2081,6 @@
     "k8s.io/kubernetes/pkg/apis/authentication/install",
     "k8s.io/kubernetes/pkg/apis/authorization/install",
     "k8s.io/kubernetes/pkg/apis/autoscaling/install",
-    "k8s.io/kubernetes/pkg/apis/batch",
     "k8s.io/kubernetes/pkg/apis/batch/install",
     "k8s.io/kubernetes/pkg/apis/certificates/install",
     "k8s.io/kubernetes/pkg/apis/coordination/install",

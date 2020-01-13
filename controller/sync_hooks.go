@@ -3,9 +3,10 @@ package controller
 import (
 	"fmt"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/health"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 // getOperationPhase returns a hook status from an _live_ unstructured object
