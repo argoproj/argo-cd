@@ -86,7 +86,7 @@ Unsupported hooks are ignored. In Argo CD, hooks are created by using `kubectl a
 * Annotate  `pre-install` and `post-install` with `hook-weight: "-1"`. This will make sure it runs to success before any upgrade hooks.
 * Annotate `pre-upgrade` and `post-upgrade` with `hook-delete-policy: before-hook-creation` to make sure it runs on every sync.
 
-Read more about [Argo hooks](resource_hooks.md) and [Helm hooks](https://github.com/kubernetes/helm/blob/master/docs/charts_hooks.md).
+Read more about [Argo hooks](resource_hooks.md) and [Helm hooks](https://github.com/helm/helm/blob/dev-v2/docs/charts_hooks.md).
 
 ## Random Data
 
@@ -118,7 +118,7 @@ argocd app set redis -p password=abc123
 
 > v1.4
 
-Helm apps have access to the [standard build environment](build-environment.md) via substitution as parameters. 
+Helm apps have access to the [standard build environment](build-environment.md) via substitution as parameters.
 
 E.g. via the CLI:
 
