@@ -181,7 +181,7 @@ export class App extends React.Component<{}, {popupProps: PopupProps; error: Err
                                                             <DataLoader load={() => versionInfo}>
                                                                 {msg => (
                                                                     <Tooltip content={msg.Version}>
-                                                                        <span>{msg.Version}</span>
+                                                                        <span style={{whiteSpace: 'nowrap'}}>{msg.Version}</span>
                                                                     </Tooltip>
                                                                 )}
                                                             </DataLoader>
