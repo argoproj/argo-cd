@@ -1380,7 +1380,7 @@ is any normal Kubernetes resource annotated with the <code>helm.sh/hook</code> a
 <li>Annotate  <code>pre-install</code> and <code>post-install</code> with <code>hook-weight: "-1"</code>. This will make sure it runs to success before any upgrade hooks.</li>
 <li>Annotate <code>pre-upgrade</code> and <code>post-upgrade</code> with <code>hook-delete-policy: before-hook-creation</code> to make sure it runs on every sync.</li>
 </ul>
-<p>Read more about <a href="../resource_hooks/">Argo hooks</a> and <a href="https://github.com/helm/helm/blob/dev-v2/docs/charts_hooks.md">Helm hooks</a>.</p>
+<p>Read more about <a href="../resource_hooks/">Argo hooks</a> and <a href="https://github.com/kubernetes/helm/blob/master/docs/charts_hooks.md">Helm hooks</a>.</p>
 <h2 id="random-data">Random Data<a class="headerlink" href="#random-data" title="Permanent link">&para;</a></h2>
 <p>Helm templating has the ability to generate random data during chart rendering via the
 <code>randAlphaNum</code> function. Many helm charts from the <a href="https://github.com/helm/charts">charts repository</a>
@@ -1408,7 +1408,7 @@ value, in the values.yaml such that the value is stable between each comparison.
 <blockquote>
 <p>v1.4</p>
 </blockquote>
-<p>Helm apps have access to the <a href="../build-environment/">standard build environment</a> via substitution as parameters.</p>
+<p>Helm apps have access to the <a href="../build-environment/">standard build environment</a> via substitution as parameters. </p>
 <p>E.g. via the CLI:</p>
 <div class="codehilite"><pre><span></span>argocd app create APPNAME <span class="se">\</span>
   --helm-set-string <span class="s1">&#39;app=${ARGOCD_APP_NAME}&#39;</span>
