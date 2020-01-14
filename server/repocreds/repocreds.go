@@ -75,7 +75,7 @@ func (s *Server) CreateRepositoryCredentials(ctx context.Context, q *repocredspk
 		return nil, status.Errorf(codes.InvalidArgument, "must specify URL")
 	}
 
-	creds, err := s.db.CreateRepositoryCredentials(ctx, r)
+	_, err := s.db.CreateRepositoryCredentials(ctx, r)
 	if status.Convert(err).Code() == codes.AlreadyExists {
 		// act idempotent if existing spec matches new spec
 		existing, getErr := s.db.GetRepositoryCredentials(ctx, r.URL)
@@ -84,14 +84,14 @@ func (s *Server) CreateRepositoryCredentials(ctx context.Context, q *repocredspk
 		}
 
 		if reflect.DeepEqual(existing, r) {
-			creds, err = existing, nil
+			err = nil
 		} else if q.Upsert {
 			return s.UpdateRepositoryCredentials(ctx, &repocredspkg.RepoCredsUpdateRequest{Creds: r})
 		} else {
 			return nil, status.Errorf(codes.InvalidArgument, "existing repository credentials spec is different; use upsert flag to force update")
 		}
 	}
-	return &appsv1.RepoCreds{URL: creds.URL}, err
+	return &appsv1.RepoCreds{URL: r.URL}, err
 }
 
 // UpdateRepositoryCredentials updates a repository credential set
