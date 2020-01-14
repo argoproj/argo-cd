@@ -100,7 +100,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, health
 	}, []string{"command"})
 	registry.MustRegister(kubectlExecCounter)
 	kubectlExecPendingGauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "argocd_kubectl_exec_pending_total",
+		Name: "argocd_kubectl_exec_pending",
 		Help: "Number of pending kubectl executions",
 	}, []string{"command"})
 	registry.MustRegister(kubectlExecPendingGauge)
