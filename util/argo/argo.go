@@ -492,14 +492,18 @@ func getDestinationServer(ctx context.Context, db db.ArgoDB, clusterName string)
 	if err != nil {
 		return "", err
 	}
-
+	var servers []string
 	for _, c := range clusterList.Items {
 		if c.Name == clusterName {
-			return c.Server, nil
+			servers = append(servers, c.Server)
 		}
 	}
-
-	return "", nil
+	if len(servers) > 1 {
+		return "", fmt.Errorf("there are %d clusters with the same name: %v", len(servers), servers)
+	} else if len(servers) == 0 {
+		return "", fmt.Errorf("there are no clusters with this name: %s", clusterName)
+	}
+	return servers[0], nil
 }
 
 func matchDestinationCluster(ctx context.Context, db db.ArgoDB, d argoappv1.ApplicationDestination) (bool, error) {
