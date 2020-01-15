@@ -15,7 +15,7 @@ interface Progress {
 export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: models.Application[]; hide: () => void}) => {
     const [form, setForm] = React.useState<FormApi>(null);
     const [progress, setProgress] = React.useState<Progress>(null);
-    const getSelectedApps = (params: any) => apps.filter(app => params['app/' + app.metadata.name]);
+    const getSelectedApps = (params: any) => apps.filter((_, i) => params['app/' + i]);
     return (
         <Consumer>
             {ctx => (
@@ -83,20 +83,17 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                         </label>
                                     </div>
                                     <label>
-                                        Apps (<a onClick={() => apps.forEach(app => formApi.setValue('app/' + app.metadata.name, true))}>all</a>/
-                                        <a
-                                            onClick={() =>
-                                                apps.forEach(app => formApi.setValue('app/' + app.metadata.name, app.status.sync.status === models.SyncStatuses.OutOfSync))
-                                            }>
+                                        Apps (<a onClick={() => apps.forEach((_, i) => formApi.setValue('app/' + i, true))}>all</a>/
+                                        <a onClick={() => apps.forEach((app, i) => formApi.setValue('app/' + i, app.status.sync.status === models.SyncStatuses.OutOfSync))}>
                                             out of sync
                                         </a>
-                                        /<a onClick={() => apps.forEach(app => formApi.setValue('app/' + app.metadata.name, false))}>none</a>
+                                        /<a onClick={() => apps.forEach((_, i) => formApi.setValue('app/' + i, false))}>none</a>
                                         ):
                                     </label>
                                     <div style={{paddingLeft: '1em'}}>
-                                        {apps.map(app => (
+                                        {apps.map((app, i) => (
                                             <label key={app.metadata.name}>
-                                                <Checkbox field={`app/${app.metadata.name}`} />
+                                                <Checkbox field={`app/${i}`} />
                                                 &nbsp;
                                                 {app.metadata.name}
                                                 &nbsp;
