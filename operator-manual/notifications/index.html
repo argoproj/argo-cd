@@ -36,7 +36,7 @@
     
     
       
-        <title>Architectural Overview - Argo CD - Declarative GitOps CD for Kubernetes</title>
+        <title>Notifications - Argo CD - Declarative GitOps CD for Kubernetes</title>
       
     
     
@@ -110,7 +110,7 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
     
-      <a href="#architectural-overview" tabindex="1" class="md-skip">
+      <a href="#notifications" tabindex="1" class="md-skip">
         Skip to content
       </a>
     
@@ -136,7 +136,7 @@
             </span>
             <span class="md-header-nav__topic">
               
-                Architectural Overview
+                Notifications
               
             </span>
           
@@ -326,76 +326,11 @@
           
           
 
-  
 
-
-  <li class="md-nav__item md-nav__item--active">
-    
-    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
-    
-      
-    
-    
-      <label class="md-nav__link md-nav__link--active" for="__toc">
-        Architectural Overview
-      </label>
-    
-    <a href="./" title="Architectural Overview" class="md-nav__link md-nav__link--active">
+  <li class="md-nav__item">
+    <a href="../architecture/" title="Architectural Overview" class="md-nav__link">
       Architectural Overview
     </a>
-    
-      
-<nav class="md-nav md-nav--secondary">
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">Table of contents</label>
-    <ul class="md-nav__list" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#components" class="md-nav__link">
-    Components
-  </a>
-  
-    <nav class="md-nav">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#api-server" class="md-nav__link">
-    API Server
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#repository-server" class="md-nav__link">
-    Repository Server
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#application-controller" class="md-nav__link">
-    Application Controller
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-      
-      
-      
-      
-    </ul>
-  
-</nav>
-    
   </li>
 
         
@@ -631,11 +566,20 @@
           
           
 
+  
 
-  <li class="md-nav__item">
-    <a href="../notifications/" title="Notifications" class="md-nav__link">
+
+  <li class="md-nav__item md-nav__item--active">
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    
+      
+    
+    
+    <a href="./" title="Notifications" class="md-nav__link md-nav__link--active">
       Notifications
     </a>
+    
   </li>
 
         
@@ -1165,49 +1109,6 @@
     
   
   
-    <label class="md-nav__title" for="__toc">Table of contents</label>
-    <ul class="md-nav__list" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#components" class="md-nav__link">
-    Components
-  </a>
-  
-    <nav class="md-nav">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#api-server" class="md-nav__link">
-    API Server
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#repository-server" class="md-nav__link">
-    Repository Server
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#application-controller" class="md-nav__link">
-    Application Controller
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-      
-      
-      
-      
-    </ul>
-  
 </nav>
                   </div>
                 </div>
@@ -1218,38 +1119,25 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/operator-manual/architecture.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/operator-manual/notifications.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
-                <h1 id="architectural-overview">Architectural Overview<a class="headerlink" href="#architectural-overview" title="Permanent link">&para;</a></h1>
-<p><img alt="Argo CD Architecture" src="../../assets/argocd_architecture.png" /></p>
-<h2 id="components">Components<a class="headerlink" href="#components" title="Permanent link">&para;</a></h2>
-<h3 id="api-server">API Server<a class="headerlink" href="#api-server" title="Permanent link">&para;</a></h3>
-<p>The API server is a gRPC/REST server which exposes the API consumed by the Web UI, CLI, and CI/CD 
-systems. It has the following responsibilities:</p>
+                <h1 id="notifications">Notifications<a class="headerlink" href="#notifications" title="Permanent link">&para;</a></h1>
+<p>The notifications support is not bundled into the Argo CD itself. Instead of reinventing the wheel and implementing opinionated notifications system Argo CD leverages integrations
+with the third-party notification system. Following integrations are recommended:</p>
 <ul>
-<li>application management and status reporting</li>
-<li>invoking of application operations (e.g. sync, rollback, user-defined actions)</li>
-<li>repository and cluster credential management (stored as K8s secrets)</li>
-<li>authentication and auth delegation to external identity providers</li>
-<li>RBAC enforcement</li>
-<li>listener/forwarder for Git webhook events</li>
+<li>To monitor Argo CD performance or health state of managed applications use <a href="../metrics/">Prometheus Metrics</a> in combination with <a href="https://grafana.com/">Grafana</a>,
+<a href="https://prometheus.io/docs/alerting/alertmanager/">Alertmanager</a>.</li>
+<li>To notify the end-users of  Argo CD about events like application upgrades, user errors in application definition, etc use one of the following projects:<ul>
+<li><a href="https://github.com/argoproj-labs/argocd-notifications">ArgoCD Notifications</a> - Argo CD specific notification system that continuously monitors Argo CD applications 
+and aims to integrate with various notification services such as Slack, SMTP, Telegram, Discord, etc.</li>
+<li><a href="https://github.com/argoproj-labs/argo-kube-notifier">Argo Kube Notifier</a> - generic Kubernetes resource controller that allows monitoring any Kubernetes resource and sends a
+notification when the configured rule is met.</li>
+<li><a href="https://github.com/bitnami-labs/kubewatch">Kube Watch</a> - a Kubernetes watcher that could publishes notification to Slack/hipchat/mattermost/flock channels. It watches the
+cluster for resource changes and notifies them through webhooks.</li>
 </ul>
-<h3 id="repository-server">Repository Server<a class="headerlink" href="#repository-server" title="Permanent link">&para;</a></h3>
-<p>The repository server is an internal service which maintains a local cache of the Git repository
-holding the application manifests. It is responsible for generating and returning the Kubernetes
-manifests when provided the following inputs:</p>
-<ul>
-<li>repository URL</li>
-<li>revision (commit, tag, branch)</li>
-<li>application path</li>
-<li>template specific settings: parameters, ksonnet environments, helm values.yaml</li>
+</li>
 </ul>
-<h3 id="application-controller">Application Controller<a class="headerlink" href="#application-controller" title="Permanent link">&para;</a></h3>
-<p>The application controller is a Kubernetes controller which continuously monitors running
-applications and compares the current, live state against the desired target state (as specified in
-the repo). It detects <code>OutOfSync</code> application state and optionally takes corrective action. It
-is responsible for invoking any user-defined hooks for lifecycle events (PreSync, Sync, PostSync)</p>
                 
                   
                 
@@ -1271,7 +1159,7 @@ is responsible for invoking any user-defined hooks for lifecycle events (PreSync
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
         
-          <a href="../" title="Overview" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+          <a href="../metrics/" title="Metrics" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
             <div class="md-flex__cell md-flex__cell--shrink">
               <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
             </div>
@@ -1280,19 +1168,19 @@ is responsible for invoking any user-defined hooks for lifecycle events (PreSync
                 <span class="md-footer-nav__direction">
                   Previous
                 </span>
-                Overview
+                Metrics
               </span>
             </div>
           </a>
         
         
-          <a href="../declarative-setup/" title="Declarative Setup" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+          <a href="../../user-guide/" title="Overview" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
               <span class="md-flex__ellipsis">
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                Declarative Setup
+                Overview
               </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink">
