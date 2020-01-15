@@ -72,6 +72,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 ## Documentation
 
 To learn more about Argo CD [go to the complete documentation](https://argoproj.github.io/argo-cd/).
+Check live demo at https://cd.apps.argoproj.io/.
 
 ## Community Blogs and Presentations
 

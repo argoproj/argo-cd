@@ -42,6 +42,7 @@ nav:
     - operator-manual/health.md
     - operator-manual/custom_tools.md
     - operator-manual/metrics.md
+    - operator-manual/notifications.md
   - User Guide:
     - user-guide/index.md
     - user-guide/application_sources.md
