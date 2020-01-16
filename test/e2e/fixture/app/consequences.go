@@ -6,7 +6,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 )
@@ -71,7 +72,7 @@ func (c *Consequences) resource(kind, name string) ResourceStatus {
 	}
 	return ResourceStatus{
 		Health: &HealthStatus{
-			Status:  HealthStatusMissing,
+			Status:  health.HealthStatusMissing,
 			Message: "not found",
 		},
 	}

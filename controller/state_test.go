@@ -11,10 +11,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/test"
-	"github.com/argoproj/argo-cd/util/kube"
 )
 
 // TestCompareAppStateEmpty tests comparison when both git and live have no objects
@@ -250,7 +251,7 @@ func TestSetHealth(t *testing.T) {
 
 	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
 
-	assert.Equal(t, compRes.healthStatus.Status, argoappv1.HealthStatusHealthy)
+	assert.Equal(t, compRes.healthStatus.Status, health.HealthStatusHealthy)
 }
 
 func TestSetHealthSelfReferencedApp(t *testing.T) {
@@ -282,7 +283,7 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 
 	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
 
-	assert.Equal(t, compRes.healthStatus.Status, argoappv1.HealthStatusHealthy)
+	assert.Equal(t, compRes.healthStatus.Status, health.HealthStatusHealthy)
 }
 
 func TestSetManagedResourcesWithOrphanedResources(t *testing.T) {
@@ -352,7 +353,7 @@ func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 
 	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
 
-	assert.Equal(t, argoappv1.HealthStatusUnknown, compRes.healthStatus.Status)
+	assert.Equal(t, health.HealthStatusUnknown, compRes.healthStatus.Status)
 	assert.Equal(t, argoappv1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
 }
 

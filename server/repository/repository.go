@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
 	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
@@ -165,7 +166,7 @@ func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (
 	if err != nil {
 		return nil, err
 	}
-	defer util.Close(conn)
+	defer io.Close(conn)
 
 	apps, err := repoClient.ListApps(ctx, &apiclient.ListAppsRequest{
 		Repo:     repo,
@@ -193,7 +194,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if err != nil {
 		return nil, err
 	}
-	defer util.Close(conn)
+	defer io.Close(conn)
 	helmRepos, err := s.db.ListHelmRepositories(ctx)
 	if err != nil {
 		return nil, err
@@ -226,7 +227,7 @@ func (s *Server) GetHelmCharts(ctx context.Context, q *repositorypkg.RepoQuery) 
 	if err != nil {
 		return nil, err
 	}
-	defer util.Close(conn)
+	defer io.Close(conn)
 	return repoClient.GetHelmCharts(ctx, &apiclient.HelmChartsRequest{Repo: repo})
 }
 

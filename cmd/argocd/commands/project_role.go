@@ -10,11 +10,11 @@ import (
 	timeutil "github.com/argoproj/pkg/time"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	projectpkg "github.com/argoproj/argo-cd/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util"
 )
 
 const (
@@ -60,7 +60,7 @@ func NewProjectRoleAddPolicyCommand(clientOpts *argocdclient.ClientOptions) *cob
 			projName := args[0]
 			roleName := args[1]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -95,7 +95,7 @@ func NewProjectRoleRemovePolicyCommand(clientOpts *argocdclient.ClientOptions) *
 			projName := args[0]
 			roleName := args[1]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -140,7 +140,7 @@ func NewProjectRoleCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			projName := args[0]
 			roleName := args[1]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -174,7 +174,7 @@ func NewProjectRoleDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			projName := args[0]
 			roleName := args[1]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -211,7 +211,7 @@ func NewProjectRoleCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *c
 			projName := args[0]
 			roleName := args[1]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 			duration, err := timeutil.ParseDuration(expiresIn)
 			errors.CheckError(err)
 			token, err := projIf.CreateToken(context.Background(), &projectpkg.ProjectTokenCreateRequest{Project: projName, Role: roleName, ExpiresIn: int64(duration.Seconds())})
@@ -240,7 +240,7 @@ func NewProjectRoleDeleteTokenCommand(clientOpts *argocdclient.ClientOptions) *c
 			errors.CheckError(err)
 
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 
 			_, err = projIf.DeleteToken(context.Background(), &projectpkg.ProjectTokenDeleteRequest{Project: projName, Role: roleName, Iat: issuedAt})
 			errors.CheckError(err)
@@ -281,7 +281,7 @@ func NewProjectRoleListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 			projName := args[0]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 
 			project, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -315,7 +315,7 @@ func NewProjectRoleGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			projName := args[0]
 			roleName := args[1]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -357,7 +357,7 @@ func NewProjectRoleAddGroupCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			}
 			projName, roleName, groupName := args[0], args[1], args[2]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 			updated, err := proj.AddGroupToRole(roleName, groupName)
@@ -386,7 +386,7 @@ func NewProjectRoleRemoveGroupCommand(clientOpts *argocdclient.ClientOptions) *c
 			}
 			projName, roleName, groupName := args[0], args[1], args[2]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 			updated, err := proj.RemoveGroupFromRole(roleName, groupName)

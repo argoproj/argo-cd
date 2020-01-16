@@ -17,6 +17,10 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	statecache "github.com/argoproj/argo-cd/controller/cache"
 	"github.com/argoproj/argo-cd/controller/metrics"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/diff"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
+	kubeutil "github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
@@ -24,10 +28,8 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/diff"
-	"github.com/argoproj/argo-cd/util/health"
+	argohealth "github.com/argoproj/argo-cd/util/health"
 	hookutil "github.com/argoproj/argo-cd/util/hook"
-	kubeutil "github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/resource"
 	"github.com/argoproj/argo-cd/util/resource/ignore"
 	"github.com/argoproj/argo-cd/util/settings"
@@ -115,7 +117,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	defer util.Close(conn)
+	defer io.Close(conn)
 
 	if revision == "" {
 		revision = source.TargetRevision
@@ -307,7 +309,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 				ComparedTo: appv1.ComparedTo{Source: source, Destination: app.Spec.Destination},
 				Status:     appv1.SyncStatusCodeUnknown,
 			},
-			healthStatus: &appv1.HealthStatus{Status: appv1.HealthStatusUnknown},
+			healthStatus: &appv1.HealthStatus{Status: health.HealthStatusUnknown},
 		}
 	}
 
@@ -517,7 +519,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	}
 	ts.AddCheckpoint("sync_ms")
 
-	healthStatus, err := health.SetApplicationHealth(resourceSummaries, GetLiveObjs(managedResources), resourceOverrides, func(obj *unstructured.Unstructured) bool {
+	healthStatus, err := argohealth.SetApplicationHealth(resourceSummaries, GetLiveObjs(managedResources), resourceOverrides, func(obj *unstructured.Unstructured) bool {
 		return !isSelfReferencedApp(app, kubeutil.GetObjectRef(obj))
 	})
 

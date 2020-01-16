@@ -26,10 +26,10 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubernetes/pkg/kubectl/cmd/auth"
 
-	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/diff"
-	executil "github.com/argoproj/argo-cd/util/exec"
-	"github.com/argoproj/argo-cd/util/tracing"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/diff"
+	executil "github.com/argoproj/argo-cd/engine/pkg/utils/exec"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/tracing"
 )
 
 type Kubectl interface {
@@ -42,11 +42,11 @@ type Kubectl interface {
 	GetAPIGroups(config *rest.Config) ([]metav1.APIGroup, error)
 	GetServerVersion(config *rest.Config) (string, error)
 	NewDynamicClient(config *rest.Config) (dynamic.Interface, error)
-	SetOnKubectlRun(onKubectlRun func(command string) (util.Closer, error))
+	SetOnKubectlRun(onKubectlRun func(command string) (io.Closer, error))
 }
 
 type KubectlCmd struct {
-	OnKubectlRun func(command string) (util.Closer, error)
+	OnKubectlRun func(command string) (io.Closer, error)
 }
 
 type APIResourceInfo struct {
@@ -218,7 +218,7 @@ func (k *KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstru
 	span.SetBaggageItem("name", obj.GetName())
 	defer span.Finish()
 	log.Infof("Applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), config.Host, namespace)
-	f, err := ioutil.TempFile(util.TempDir, "")
+	f, err := ioutil.TempFile(io.TempDir, "")
 	if err != nil {
 		return "", fmt.Errorf("Failed to generate temp file for kubeconfig: %v", err)
 	}
@@ -227,12 +227,12 @@ func (k *KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstru
 	if err != nil {
 		return "", fmt.Errorf("Failed to write kubeconfig: %v", err)
 	}
-	defer util.DeleteFile(f.Name())
+	defer io.DeleteFile(f.Name())
 	manifestBytes, err := json.Marshal(obj)
 	if err != nil {
 		return "", err
 	}
-	manifestFile, err := ioutil.TempFile(util.TempDir, "")
+	manifestFile, err := ioutil.TempFile(io.TempDir, "")
 	if err != nil {
 		return "", fmt.Errorf("Failed to generate temp file for manifest: %v", err)
 	}
@@ -242,7 +242,7 @@ func (k *KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstru
 	if err = manifestFile.Close(); err != nil {
 		return "", fmt.Errorf("Failed to close manifest: %v", err)
 	}
-	defer util.DeleteFile(manifestFile.Name())
+	defer io.DeleteFile(manifestFile.Name())
 
 	// log manifest
 	if log.IsLevelEnabled(log.DebugLevel) {
@@ -273,7 +273,7 @@ func (k *KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstru
 			return "", err
 		}
 		outReconcile, err := k.authReconcile(config, f.Name(), manifestFile.Name(), namespace, dryRun)
-		util.Close(closer)
+		io.Close(closer)
 		if err != nil {
 			return "", err
 		}
@@ -286,7 +286,7 @@ func (k *KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstru
 	if err != nil {
 		return "", err
 	}
-	defer util.Close(closer)
+	defer io.Close(closer)
 
 	// Run kubectl apply
 	fact, ioStreams := kubeCmdFactory(f.Name(), namespace)
@@ -485,16 +485,16 @@ func (k *KubectlCmd) NewDynamicClient(config *rest.Config) (dynamic.Interface, e
 	return dynamic.NewForConfig(config)
 }
 
-func (k *KubectlCmd) processKubectlRun(cmd string) (util.Closer, error) {
+func (k *KubectlCmd) processKubectlRun(cmd string) (io.Closer, error) {
 	if k.OnKubectlRun != nil {
 		return k.OnKubectlRun(cmd)
 	}
-	return util.NewCloser(func() error {
+	return io.NewCloser(func() error {
 		return nil
 		// do nothing
 	}), nil
 }
 
-func (k *KubectlCmd) SetOnKubectlRun(onKubectlRun func(command string) (util.Closer, error)) {
+func (k *KubectlCmd) SetOnKubectlRun(onKubectlRun func(command string) (io.Closer, error)) {
 	k.OnKubectlRun = onKubectlRun
 }

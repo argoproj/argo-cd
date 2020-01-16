@@ -19,10 +19,11 @@ import (
 	"k8s.io/client-go/dynamic/fake"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/kubetest"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/kube/kubetest"
 )
 
 func strToUnstructured(jsonStr string) *unstructured.Unstructured {
@@ -279,7 +280,7 @@ func TestGetChildren(t *testing.T) {
 			Name:      "helm-guestbook-rs",
 			UID:       "2",
 		}},
-		Health:          &appv1.HealthStatus{Status: appv1.HealthStatusUnknown},
+		Health:          &appv1.HealthStatus{Status: health.HealthStatusUnknown},
 		NetworkingInfo:  &appv1.ResourceNetworkingInfo{Labels: testPod.GetLabels()},
 		ResourceVersion: "123",
 		Info:            []appv1.InfoItem{{Name: "Containers", Value: "0/0"}},
@@ -296,7 +297,7 @@ func TestGetChildren(t *testing.T) {
 			UID:       "2",
 		},
 		ResourceVersion: "123",
-		Health:          &appv1.HealthStatus{Status: appv1.HealthStatusHealthy},
+		Health:          &appv1.HealthStatus{Status: health.HealthStatusHealthy},
 		Info:            []appv1.InfoItem{{Name: "Revision", Value: "Rev:2"}},
 		ParentRefs:      []appv1.ResourceRef{{Group: "apps", Version: "", Kind: "Deployment", Namespace: "default", Name: "helm-guestbook", UID: "3"}},
 	}}, rsChildren...), deployChildren)
@@ -375,7 +376,7 @@ func TestProcessNewChildEvent(t *testing.T) {
 			UID:       "1",
 		},
 		Info:           []appv1.InfoItem{{Name: "Containers", Value: "0/0"}},
-		Health:         &appv1.HealthStatus{Status: appv1.HealthStatusUnknown},
+		Health:         &appv1.HealthStatus{Status: health.HealthStatusUnknown},
 		NetworkingInfo: &appv1.ResourceNetworkingInfo{Labels: testPod.GetLabels()},
 		ParentRefs: []appv1.ResourceRef{{
 			Group:     "apps",
@@ -397,7 +398,7 @@ func TestProcessNewChildEvent(t *testing.T) {
 		},
 		NetworkingInfo: &appv1.ResourceNetworkingInfo{Labels: testPod.GetLabels()},
 		Info:           []appv1.InfoItem{{Name: "Containers", Value: "0/0"}},
-		Health:         &appv1.HealthStatus{Status: appv1.HealthStatusUnknown},
+		Health:         &appv1.HealthStatus{Status: health.HealthStatusUnknown},
 		ParentRefs: []appv1.ResourceRef{{
 			Group:     "apps",
 			Version:   "",

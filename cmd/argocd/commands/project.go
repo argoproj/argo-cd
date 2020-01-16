@@ -20,11 +20,11 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
-	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
+	argoio "github.com/argoproj/argo-cd/engine/pkg/utils/io"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	projectpkg "github.com/argoproj/argo-cd/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/git"
@@ -170,7 +170,7 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 				}
 			}
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
+			defer argoio.Close(conn)
 			_, err := projIf.Create(context.Background(), &projectpkg.ProjectCreateRequest{Project: &proj, Upsert: upsert})
 			errors.CheckError(err)
 		},
@@ -200,7 +200,7 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			}
 			projName := args[0]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
+			defer argoio.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -247,7 +247,7 @@ func NewProjectAddDestinationCommand(clientOpts *argocdclient.ClientOptions) *co
 			server := args[1]
 			namespace := args[2]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
+			defer argoio.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -279,7 +279,7 @@ func NewProjectRemoveDestinationCommand(clientOpts *argocdclient.ClientOptions) 
 			server := args[1]
 			namespace := args[2]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
+			defer argoio.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -317,7 +317,7 @@ func NewProjectAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			projName := args[0]
 			url := args[1]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
+			defer argoio.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -352,7 +352,7 @@ func modifyClusterResourceCmd(cmdUse, cmdDesc string, clientOpts *argocdclient.C
 			}
 			projName, group, kind := args[0], args[1], args[2]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
+			defer argoio.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -379,7 +379,7 @@ func modifyNamespaceResourceCmd(cmdUse, cmdDesc string, clientOpts *argocdclient
 			}
 			projName, group, kind := args[0], args[1], args[2]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
+			defer argoio.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -515,7 +515,7 @@ func NewProjectRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			projName := args[0]
 			url := args[1]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
+			defer argoio.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -551,7 +551,7 @@ func NewProjectDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 				os.Exit(1)
 			}
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
+			defer argoio.Close(conn)
 			for _, name := range args {
 				_, err := projIf.Delete(context.Background(), &projectpkg.ProjectQuery{Name: name})
 				errors.CheckError(err)
@@ -588,7 +588,7 @@ func NewProjectListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Short: "List projects",
 		Run: func(c *cobra.Command, args []string) {
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
+			defer argoio.Close(conn)
 			projects, err := projIf.List(context.Background(), &projectpkg.ProjectQuery{})
 			errors.CheckError(err)
 			switch output {
@@ -714,7 +714,7 @@ func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			}
 			projName := args[0]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
+			defer argoio.Close(conn)
 			p, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
@@ -744,7 +744,7 @@ func NewProjectEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			}
 			projName := args[0]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
+			defer argoio.Close(conn)
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 			projData, err := json.Marshal(proj.Spec)

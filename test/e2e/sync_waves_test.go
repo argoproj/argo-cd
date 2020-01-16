@@ -3,6 +3,7 @@ package e2e
 import (
 	"testing"
 
+	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 )
@@ -18,12 +19,12 @@ func TestFixingDegradedApp(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(HealthStatusMissing)).
+		Expect(HealthIs(health.HealthStatusMissing)).
 		Expect(ResourceResultNumbering(1)).
 		Expect(ResourceSyncStatusIs("Pod", "pod-1", SyncStatusCodeSynced)).
-		Expect(ResourceHealthIs("Pod", "pod-1", HealthStatusDegraded)).
+		Expect(ResourceHealthIs("Pod", "pod-1", health.HealthStatusDegraded)).
 		Expect(ResourceSyncStatusIs("Pod", "pod-2", SyncStatusCodeOutOfSync)).
-		Expect(ResourceHealthIs("Pod", "pod-2", HealthStatusMissing)).
+		Expect(ResourceHealthIs("Pod", "pod-2", health.HealthStatusMissing)).
 		When().
 		PatchFile("pod-1.yaml", `[{"op": "replace", "path": "/spec/containers/0/image", "value": "nginx:1.17.4-alpine"}]`).
 		// need to force a refresh here
@@ -35,23 +36,23 @@ func TestFixingDegradedApp(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(HealthStatusMissing)).
+		Expect(HealthIs(health.HealthStatusMissing)).
 		Expect(ResourceResultNumbering(1)).
 		Expect(ResourceSyncStatusIs("Pod", "pod-1", SyncStatusCodeSynced)).
-		Expect(ResourceHealthIs("Pod", "pod-1", HealthStatusHealthy)).
+		Expect(ResourceHealthIs("Pod", "pod-1", health.HealthStatusHealthy)).
 		Expect(ResourceSyncStatusIs("Pod", "pod-2", SyncStatusCodeOutOfSync)).
-		Expect(ResourceHealthIs("Pod", "pod-2", HealthStatusMissing)).
+		Expect(ResourceHealthIs("Pod", "pod-2", health.HealthStatusMissing)).
 		When().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(ResourceResultNumbering(2)).
 		Expect(ResourceSyncStatusIs("Pod", "pod-1", SyncStatusCodeSynced)).
-		Expect(ResourceHealthIs("Pod", "pod-1", HealthStatusHealthy)).
+		Expect(ResourceHealthIs("Pod", "pod-1", health.HealthStatusHealthy)).
 		Expect(ResourceSyncStatusIs("Pod", "pod-2", SyncStatusCodeSynced)).
-		Expect(ResourceHealthIs("Pod", "pod-2", HealthStatusHealthy))
+		Expect(ResourceHealthIs("Pod", "pod-2", health.HealthStatusHealthy))
 }
 
 func TestOneProgressingDeploymentIsSucceededAndSynced(t *testing.T) {
@@ -70,7 +71,7 @@ func TestOneProgressingDeploymentIsSucceededAndSynced(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(HealthIs(HealthStatusProgressing)).
+		Expect(HealthIs(health.HealthStatusProgressing)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(ResourceResultNumbering(1))
 }
@@ -96,7 +97,7 @@ func TestDegradedDeploymentIsSucceededAndSynced(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(HealthIs(HealthStatusDegraded)).
+		Expect(HealthIs(health.HealthStatusDegraded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(ResourceResultNumbering(1))
 }

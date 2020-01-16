@@ -12,9 +12,6 @@ import (
 	"regexp"
 	"strings"
 
-	executil "github.com/argoproj/argo-cd/util/exec"
-	"github.com/argoproj/argo-cd/util/security"
-
 	"github.com/Masterminds/semver"
 	"github.com/TomOnTime/utfutil"
 	"github.com/ghodss/yaml"
@@ -28,6 +25,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-cd/common"
+	executil "github.com/argoproj/argo-cd/engine/pkg/utils/exec"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	reposervercache "github.com/argoproj/argo-cd/reposerver/cache"
@@ -38,8 +38,9 @@ import (
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/ksonnet"
-	"github.com/argoproj/argo-cd/util/kube"
+	argokube "github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"
+	"github.com/argoproj/argo-cd/util/security"
 	"github.com/argoproj/argo-cd/util/text"
 )
 
@@ -166,7 +167,7 @@ func (s *Service) runRepoOperation(
 		if err != nil {
 			return err
 		}
-		defer util.Close(closer)
+		defer io.Close(closer)
 		return operation(chartPath, chartPath, revision)
 	} else {
 		s.repoLock.Lock(gitClient.Root())
@@ -399,7 +400,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 
 		for _, target := range targets {
 			if q.AppLabelKey != "" && q.AppLabelValue != "" && !kube.IsCRD(target) {
-				err = kube.SetAppInstanceLabel(target, q.AppLabelKey, q.AppLabelValue)
+				err = argokube.SetAppInstanceLabel(target, q.AppLabelKey, q.AppLabelValue)
 				if err != nil {
 					return nil, err
 				}

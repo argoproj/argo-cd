@@ -6,7 +6,7 @@ import (
 	context "context"
 
 	metrics "github.com/argoproj/argo-cd/controller/metrics"
-	kube "github.com/argoproj/argo-cd/util/kube"
+	kube "github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 
 	mock "github.com/stretchr/testify/mock"
 

@@ -1,11 +1,11 @@
 package cache
 
 import (
-	log "github.com/sirupsen/logrus"
-
+	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/kube"
 
+	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -23,7 +23,7 @@ type node struct {
 	// networkingInfo are available only for known types involved into networking: Ingress, Service, Pod
 	networkingInfo *appv1.ResourceNetworkingInfo
 	images         []string
-	health         *appv1.HealthStatus
+	health         *health.HealthStatus
 }
 
 func (n *node) isRootAppNode() bool {
@@ -109,6 +109,10 @@ func (n *node) asResourceNode() appv1.ResourceNode {
 		ownerKey := kube.NewResourceKey(ownerGvk.Group, ownerRef.Kind, n.ref.Namespace, ownerRef.Name)
 		parentRefs[0] = appv1.ResourceRef{Name: ownerRef.Name, Kind: ownerKey.Kind, Namespace: n.ref.Namespace, Group: ownerKey.Group, UID: string(ownerRef.UID)}
 	}
+	var health *appv1.HealthStatus
+	if n.health != nil {
+		health = &appv1.HealthStatus{Status: n.health.Status, Message: n.health.Message}
+	}
 	return appv1.ResourceNode{
 		ResourceRef: appv1.ResourceRef{
 			UID:       string(n.ref.UID),
@@ -123,7 +127,7 @@ func (n *node) asResourceNode() appv1.ResourceNode {
 		ResourceVersion: n.resourceVersion,
 		NetworkingInfo:  n.networkingInfo,
 		Images:          n.images,
-		Health:          n.health,
+		Health:          health,
 	}
 }
 

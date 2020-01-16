@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"

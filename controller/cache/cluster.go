@@ -13,19 +13,19 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
-
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/pager"
 
 	"github.com/argoproj/argo-cd/controller/metrics"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/health"
-	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/lua"
 )
 
 const (
@@ -167,8 +167,7 @@ func (c *clusterInfo) createObjInfo(un *unstructured.Unstructured, appInstanceLa
 			nodeInfo.resource = un
 		}
 	}
-
-	nodeInfo.health, _ = health.GetResourceHealth(un, c.cacheSettingsSrc().ResourceOverrides)
+	nodeInfo.health, _ = health.GetResourceHealth(un, lua.ResourceHealthOverrides(c.cacheSettingsSrc().ResourceOverrides))
 	return nodeInfo
 }
 

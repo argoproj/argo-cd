@@ -22,12 +22,12 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/diff"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
+	healthutil "github.com/argoproj/argo-cd/engine/pkg/utils/health"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/diff"
-	"github.com/argoproj/argo-cd/util/health"
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -448,7 +448,7 @@ argocd-util settings resource-overrides health ./deploy.yaml --argocd-cm-path ./
 					return
 				}
 
-				resHealth, err := health.GetResourceHealth(&res, overrides)
+				resHealth, err := healthutil.GetResourceHealth(&res, lua.ResourceHealthOverrides(overrides))
 				errors.CheckError(err)
 
 				_, _ = fmt.Printf("STATUS: %s\n", resHealth.Status)

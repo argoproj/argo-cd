@@ -24,7 +24,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/kubernetes/pkg/apis/core"
 
-	jsonutil "github.com/argoproj/argo-cd/util/json"
+	jsonutil "github.com/argoproj/argo-cd/engine/pkg/utils/json"
 )
 
 type DiffOptions struct {

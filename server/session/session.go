@@ -6,8 +6,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	util "github.com/argoproj/argo-cd/engine/pkg/utils/io"
 	"github.com/argoproj/argo-cd/pkg/apiclient/session"
-	"github.com/argoproj/argo-cd/util"
 	sessionmgr "github.com/argoproj/argo-cd/util/session"
 )
 

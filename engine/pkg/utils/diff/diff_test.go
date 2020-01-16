@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yudai/gojsondiff"
 	"github.com/yudai/gojsondiff/formatter"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -18,8 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/argoproj/argo-cd/errors"
-	"github.com/argoproj/argo-cd/test"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
 )
 
 var (
@@ -69,6 +69,48 @@ func unmarshalFile(path string) *unstructured.Unstructured {
 	return &un
 }
 
+func newDeployment() *appsv1.Deployment {
+	var two int32 = 2
+	return &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1beta1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo",
+			Namespace: "test",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &two,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "demo",
+				},
+			},
+			Template: v1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": "demo",
+					},
+				},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Name:  "demo",
+							Image: "gcr.io/kuar-demo/kuard-amd64:1",
+							Ports: []v1.ContainerPort{
+								{
+									ContainerPort: 80,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func diff(t *testing.T, config, live *unstructured.Unstructured, options DiffOptions) *DiffResult {
 	res, err := Diff(config, live, nil, options)
 	assert.NoError(t, err)
@@ -76,7 +118,7 @@ func diff(t *testing.T, config, live *unstructured.Unstructured, options DiffOpt
 }
 
 func TestDiff(t *testing.T) {
-	leftDep := test.DemoDeployment()
+	leftDep := newDeployment()
 	leftUn := mustToUnstructured(leftDep)
 
 	diffRes := diff(t, leftUn, leftUn, GetDefaultDiffOptions())
@@ -89,7 +131,7 @@ func TestDiff(t *testing.T) {
 }
 
 func TestDiffWithNils(t *testing.T) {
-	dep := test.DemoDeployment()
+	dep := newDeployment()
 	resource := mustToUnstructured(dep)
 
 	diffRes := diff(t, nil, resource, GetDefaultDiffOptions())
@@ -108,7 +150,7 @@ func TestDiffWithNils(t *testing.T) {
 }
 
 func TestDiffNilFieldInLive(t *testing.T) {
-	leftDep := test.DemoDeployment()
+	leftDep := newDeployment()
 	rightDep := leftDep.DeepCopy()
 
 	leftUn := mustToUnstructured(leftDep)
@@ -121,7 +163,7 @@ func TestDiffNilFieldInLive(t *testing.T) {
 }
 
 func TestDiffArraySame(t *testing.T) {
-	leftDep := test.DemoDeployment()
+	leftDep := newDeployment()
 	rightDep := leftDep.DeepCopy()
 
 	leftUn := mustToUnstructured(leftDep)
@@ -135,7 +177,7 @@ func TestDiffArraySame(t *testing.T) {
 }
 
 func TestDiffArrayAdditions(t *testing.T) {
-	leftDep := test.DemoDeployment()
+	leftDep := newDeployment()
 	rightDep := leftDep.DeepCopy()
 	rightDep.Status.Replicas = 1
 
@@ -150,7 +192,7 @@ func TestDiffArrayAdditions(t *testing.T) {
 }
 
 func TestDiffArrayModification(t *testing.T) {
-	leftDep := test.DemoDeployment()
+	leftDep := newDeployment()
 	rightDep := leftDep.DeepCopy()
 	ten := int32(10)
 	rightDep.Spec.Replicas = &ten
@@ -169,7 +211,7 @@ func TestDiffArrayModification(t *testing.T) {
 // present in the live object.
 func TestThreeWayDiff(t *testing.T) {
 	// 1. get config and live to be the same. Both have a foo annotation.
-	configDep := test.DemoDeployment()
+	configDep := newDeployment()
 	configDep.ObjectMeta.Namespace = ""
 	configDep.Annotations = map[string]string{
 		"foo": "bar",

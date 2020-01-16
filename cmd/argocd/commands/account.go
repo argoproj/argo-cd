@@ -16,12 +16,12 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
 
-	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/localconfig"
 	sessionutil "github.com/argoproj/argo-cd/util/session"
@@ -62,7 +62,7 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 			}
 			acdClient := argocdclient.NewClientOrDie(clientOpts)
 			conn, usrIf := acdClient.NewAccountClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 
 			userInfo := getCurrentAccount(acdClient)
 
@@ -131,7 +131,7 @@ func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			}
 
 			conn, client := argocdclient.NewClientOrDie(clientOpts).NewSessionClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 
 			ctx := context.Background()
 			response, err := client.GetUserInfo(ctx, &session.GetUserInfoRequest{})
@@ -186,7 +186,7 @@ Resources: %v
 			}
 
 			conn, client := argocdclient.NewClientOrDie(clientOpts).NewAccountClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 
 			ctx := context.Background()
 			response, err := client.CanI(ctx, &accountpkg.CanIRequest{
@@ -226,7 +226,7 @@ func NewAccountListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Run: func(c *cobra.Command, args []string) {
 
 			conn, client := argocdclient.NewClientOrDie(clientOpts).NewAccountClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 
 			ctx := context.Background()
 			response, err := client.ListAccounts(ctx, &accountpkg.ListAccountRequest{})
@@ -251,7 +251,7 @@ func NewAccountListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 
 func getCurrentAccount(clientset argocdclient.Client) session.GetUserInfoResponse {
 	conn, client := clientset.NewSessionClientOrDie()
-	defer util.Close(conn)
+	defer io.Close(conn)
 	userInfo, err := client.GetUserInfo(context.Background(), &session.GetUserInfoRequest{})
 	errors.CheckError(err)
 	return *userInfo
@@ -278,7 +278,7 @@ argocd account get --account <account-name>`,
 			}
 
 			conn, client := clientset.NewAccountClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 
 			acc, err := client.GetAccount(context.Background(), &accountpkg.GetAccountRequest{Name: account})
 
@@ -345,7 +345,7 @@ argocd account generate-token --account <account-name>`,
 
 			clientset := argocdclient.NewClientOrDie(clientOpts)
 			conn, client := clientset.NewAccountClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 			if account == "" {
 				account = getCurrentAccount(clientset).Username
 			}
@@ -387,7 +387,7 @@ argocd account generate-token --account <account-name>`,
 
 			clientset := argocdclient.NewClientOrDie(clientOpts)
 			conn, client := clientset.NewAccountClientOrDie()
-			defer util.Close(conn)
+			defer io.Close(conn)
 			if account == "" {
 				account = getCurrentAccount(clientset).Username
 			}

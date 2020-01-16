@@ -13,10 +13,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	executil "github.com/argoproj/argo-cd/engine/pkg/utils/exec"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	executil "github.com/argoproj/argo-cd/util/exec"
 	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/kube"
 
 	certutil "github.com/argoproj/argo-cd/util/cert"
 )

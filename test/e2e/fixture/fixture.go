@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
+
 	"github.com/argoproj/pkg/errors"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ghodss/yaml"
@@ -23,12 +25,11 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/common"
-	. "github.com/argoproj/argo-cd/errors"
+	. "github.com/argoproj/argo-cd/engine/pkg/utils/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/util"
 	grpcutil "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/rand"
 	"github.com/argoproj/argo-cd/util/settings"
@@ -112,7 +113,7 @@ func init() {
 
 	closer, client, err := ArgoCDClientset.NewSessionClient()
 	CheckError(err)
-	defer util.Close(closer)
+	defer io.Close(closer)
 
 	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: "admin", Password: adminPassword})
 	CheckError(err)

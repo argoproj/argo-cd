@@ -1,6 +1,7 @@
 package kubetest
 
 import (
+	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -9,8 +10,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 
-	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 )
 
 type KubectlOutput struct {
@@ -74,5 +74,5 @@ func (k *MockKubectlCmd) GetAPIGroups(config *rest.Config) ([]metav1.APIGroup, e
 	return k.APIGroups, nil
 }
 
-func (k *MockKubectlCmd) SetOnKubectlRun(onKubectlRun func(command string) (util.Closer, error)) {
+func (k *MockKubectlCmd) SetOnKubectlRun(onKubectlRun func(command string) (io.Closer, error)) {
 }

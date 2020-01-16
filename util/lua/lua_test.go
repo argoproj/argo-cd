@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/argo-cd/util/json"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
+
+	"github.com/argoproj/argo-cd/engine/pkg/utils/json"
 
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
@@ -57,7 +59,7 @@ func TestExecuteNewHealthStatusFunction(t *testing.T) {
 	vm := VM{}
 	status, err := vm.ExecuteHealthLua(testObj, newHealthStatusFunction)
 	assert.Nil(t, err)
-	expectedHealthStatus := &appv1.HealthStatus{
+	expectedHealthStatus := &health.HealthStatus{
 		Status:  "Healthy",
 		Message: "testMessage",
 	}
@@ -94,8 +96,8 @@ func TestInvalidHealthStatusStatus(t *testing.T) {
 	vm := VM{}
 	status, err := vm.ExecuteHealthLua(testObj, invalidHealthStatusStatus)
 	assert.Nil(t, err)
-	expectedStatus := &appv1.HealthStatus{
-		Status:  appv1.HealthStatusUnknown,
+	expectedStatus := &health.HealthStatus{
+		Status:  health.HealthStatusUnknown,
 		Message: invalidHealthStatus,
 	}
 	assert.Equal(t, expectedStatus, status)

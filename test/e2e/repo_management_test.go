@@ -4,13 +4,14 @@ import (
 	"context"
 	"testing"
 
+	argoio "github.com/argoproj/argo-cd/engine/pkg/utils/io"
+
 	"github.com/stretchr/testify/assert"
 
 	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/test/e2e/fixture/app"
 	"github.com/argoproj/argo-cd/test/e2e/fixture/repos"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -22,7 +23,7 @@ func TestAddRemovePublicRepo(t *testing.T) {
 
 		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
 		assert.NoError(t, err)
-		defer util.Close(conn)
+		defer argoio.Close(conn)
 
 		repo, err := repoClient.List(context.Background(), &repositorypkg.RepoQuery{})
 
@@ -80,7 +81,7 @@ func TestAddRemoveHelmRepo(t *testing.T) {
 
 		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
 		assert.NoError(t, err)
-		defer util.Close(conn)
+		defer argoio.Close(conn)
 
 		repo, err := repoClient.List(context.Background(), &repositorypkg.RepoQuery{})
 

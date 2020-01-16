@@ -8,6 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	healthutil "github.com/argoproj/argo-cd/engine/pkg/utils/health"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/util/assets"
@@ -61,7 +62,7 @@ func replaceFirstGroupSubMatch(re *regexp.Regexp, str string, repl string) strin
 //ServeHTTP returns badge with health and sync status for application
 //(or an error badge if wrong query or application name is given)
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	health := appv1.HealthStatusUnknown
+	health := healthutil.HealthStatusUnknown
 	status := appv1.SyncStatusCodeUnknown
 	revision := ""
 	revisionEnabled := false
@@ -103,7 +104,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		rightColorString = toRGBString(Grey)
 	}
 
-	leftText := health
+	leftText := string(health)
 	rightText := string(status)
 
 	if notFound {

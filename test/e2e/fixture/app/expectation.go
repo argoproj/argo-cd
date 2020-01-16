@@ -9,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 
+	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 )
@@ -72,7 +73,7 @@ func NoConditions() Expectation {
 	}
 }
 
-func HealthIs(expected HealthStatusCode) Expectation {
+func HealthIs(expected health.HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.app().Status.Health.Status
 		return simple(actual == expected, fmt.Sprintf("health to should %s, is %s", expected, actual))
@@ -86,7 +87,7 @@ func ResourceSyncStatusIs(kind, resource string, expected SyncStatusCode) Expect
 	}
 }
 
-func ResourceHealthIs(kind, resource string, expected HealthStatusCode) Expectation {
+func ResourceHealthIs(kind, resource string, expected health.HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.resource(kind, resource).Health.Status
 		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' health should be %s, is %s", kind, resource, expected, actual))

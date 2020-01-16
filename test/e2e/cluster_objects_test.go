@@ -3,6 +3,7 @@ package e2e
 import (
 	"testing"
 
+	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 )
@@ -16,6 +17,6 @@ func TestClusterRoleBinding(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }

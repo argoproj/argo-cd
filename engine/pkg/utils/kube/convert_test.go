@@ -3,11 +3,11 @@ package kube
 import (
 	"testing"
 
+	testingutils "github.com/argoproj/argo-cd/engine/pkg/utils/testing"
+
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-
-	"github.com/argoproj/argo-cd/test"
 )
 
 type testcase struct {
@@ -74,7 +74,7 @@ func Test_convertToVersionWithScheme(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			obj := test.UnstructuredFromFile("testdata/" + tt.file)
+			obj := testingutils.UnstructuredFromFile("testdata/" + tt.file)
 			target, err := schema.ParseGroupVersion(tt.outputVersion)
 			assert.NoError(t, err)
 			out, err := convertToVersionWithScheme(obj, target.Group, target.Version)

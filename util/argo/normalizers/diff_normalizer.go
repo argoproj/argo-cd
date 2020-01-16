@@ -3,8 +3,8 @@ package normalizers
 import (
 	"encoding/json"
 
+	"github.com/argoproj/argo-cd/engine/pkg/utils/diff"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/diff"
 
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"

@@ -31,7 +31,11 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	statecache "github.com/argoproj/argo-cd/controller/cache"
 	"github.com/argoproj/argo-cd/controller/metrics"
-	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/diff"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 	"github.com/argoproj/argo-cd/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
@@ -43,8 +47,6 @@ import (
 	"github.com/argoproj/argo-cd/util/argo"
 	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/diff"
-	"github.com/argoproj/argo-cd/util/kube"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -171,7 +173,7 @@ func (ctrl *ApplicationController) GetMetricsServer() *metrics.MetricsServer {
 	return ctrl.metricsServer
 }
 
-func (ctrl *ApplicationController) onKubectlRun(command string) (util.Closer, error) {
+func (ctrl *ApplicationController) onKubectlRun(command string) (io.Closer, error) {
 	ctrl.metricsServer.IncKubectlExec(command)
 	if ctrl.kubectlSemaphore != nil {
 		if err := ctrl.kubectlSemaphore.Acquire(context.Background(), 1); err != nil {
@@ -179,7 +181,7 @@ func (ctrl *ApplicationController) onKubectlRun(command string) (util.Closer, er
 		}
 		ctrl.metricsServer.IncKubectlExecPending(command)
 	}
-	return util.NewCloser(func() error {
+	return io.NewCloser(func() error {
 		if ctrl.kubectlSemaphore != nil {
 			ctrl.kubectlSemaphore.Release(1)
 			ctrl.metricsServer.DecKubectlExecPending(command)
@@ -877,7 +879,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	project, hasErrors := ctrl.refreshAppConditions(app)
 	if hasErrors {
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
-		app.Status.Health.Status = appv1.HealthStatusUnknown
+		app.Status.Health.Status = health.HealthStatusUnknown
 		ctrl.persistAppStatus(origApp, &app.Status)
 		return
 	}

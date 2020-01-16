@@ -25,12 +25,13 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller/metrics"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	listersv1alpha1 "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/argo"
-	"github.com/argoproj/argo-cd/util/health"
 	"github.com/argoproj/argo-cd/util/hook"
-	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/rand"
 	"github.com/argoproj/argo-cd/util/resource"
 )
@@ -255,7 +256,7 @@ func (sc *syncContext) sync() {
 
 		} else {
 			// this must be calculated on the live object
-			healthStatus, err := health.GetResourceHealth(task.liveObj, sc.resourceOverrides)
+			healthStatus, err := health.GetResourceHealth(task.liveObj, lua.ResourceHealthOverrides(sc.resourceOverrides))
 			if err == nil {
 				log.WithFields(log.Fields{"task": task, "healthStatus": healthStatus}).Debug("attempting to update health of running task")
 				if healthStatus == nil {
@@ -263,9 +264,9 @@ func (sc *syncContext) sync() {
 					sc.setResourceResult(task, task.syncStatus, v1alpha1.OperationSucceeded, task.message)
 				} else {
 					switch healthStatus.Status {
-					case v1alpha1.HealthStatusHealthy:
+					case health.HealthStatusHealthy:
 						sc.setResourceResult(task, task.syncStatus, v1alpha1.OperationSucceeded, healthStatus.Message)
-					case v1alpha1.HealthStatusDegraded:
+					case health.HealthStatusDegraded:
 						sc.setResourceResult(task, task.syncStatus, v1alpha1.OperationFailed, healthStatus.Message)
 					}
 				}

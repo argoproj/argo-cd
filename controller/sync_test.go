@@ -18,12 +18,13 @@ import (
 	testcore "k8s.io/client-go/testing"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/kubetest"
+	testingutils "github.com/argoproj/argo-cd/engine/pkg/utils/testing"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/test"
-	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/kube/kubetest"
 )
 
 func newTestSyncCtx(resources ...*v1.APIResourceList) *syncContext {
@@ -529,7 +530,7 @@ func TestSyncCustomResources(t *testing.T) {
 				},
 			)
 
-			cr := test.Unstructured(`
+			cr := testingutils.Unstructured(`
 {
   "apiVersion": "argoproj.io/v1",
   "kind": "TestCrd",
