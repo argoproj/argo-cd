@@ -3,7 +3,6 @@ package application
 import (
 	"context"
 	coreerrors "errors"
-	"strings"
 	"testing"
 	"time"
 
@@ -215,25 +214,6 @@ spec:
     name: fake-cluster
 `
 
-const fakeAppWithDestMismatch = `
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: test-app
-  namespace: default
-spec:
-  source:
-    path: some/path
-    repoURL: https://github.com/argoproj/argocd-example-apps.git
-    targetRevision: HEAD
-    ksonnet:
-      environment: default
-  destination:
-    namespace: ` + test.FakeDestNamespace + `
-    name: another-fake-cluster
-    server: https://cluster-api.com
-`
-
 func newTestApp(testApp string) *appsv1.Application {
 	var app appsv1.Application
 	err := yaml.Unmarshal([]byte(testApp), &app)
@@ -288,19 +268,6 @@ func TestCreateAppWithDestName(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, app)
 	assert.Equal(t, app.Spec.Destination.Server, "https://cluster-api.com")
-}
-
-func TestCreateAppWithDestMismatch(t *testing.T) {
-	appServer := newTestAppServer()
-	testApp := newTestApp(fakeAppWithDestMismatch)
-	createReq := application.ApplicationCreateRequest{
-		Application: *testApp,
-	}
-	app, err := appServer.Create(context.Background(), &createReq)
-	assert.Error(t, err)
-	assert.Nil(t, app)
-	assert.True(t, strings.HasSuffix(err.Error(), "Application references destination cluster another-fake-cluster and server https://cluster-api.com which don't match"))
-
 }
 
 func TestUpdateApp(t *testing.T) {

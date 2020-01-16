@@ -710,7 +710,7 @@ func TestSetOperationStateOnDeletedApp(t *testing.T) {
 		patched = true
 		return true, nil, apierr.NewNotFound(schema.GroupResource{}, "my-app")
 	})
-	ctrl.setOperationState(newFakeApp(fakeApp), &argoappv1.OperationState{Phase: argoappv1.OperationSucceeded})
+	ctrl.setOperationState(newFakeApp(fakeApp), &argoappv1.OperationState{Phase: synccommon.OperationSucceeded})
 	assert.True(t, patched)
 }
 
@@ -850,20 +850,20 @@ func TestRefreshAppConditions(t *testing.T) {
 		app := newFakeApp(fakeAppWithDestName)
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
 
-		hasErrors := ctrl.refreshAppConditions(app)
+		_, hasErrors := ctrl.refreshAppConditions(app)
 		assert.False(t, hasErrors)
 		assert.Len(t, app.Status.Conditions, 0)
 	})
 
-	t.Run("ErrorOnDestMismatch", func(t *testing.T) {
+	t.Run("ErrorOnBothDestNameAndServer", func(t *testing.T) {
 		app := newFakeApp(fakeAppWithDestMismatch)
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
 
-		hasErrors := ctrl.refreshAppConditions(app)
+		_, hasErrors := ctrl.refreshAppConditions(app)
 		assert.True(t, hasErrors)
 		assert.Len(t, app.Status.Conditions, 1)
 		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
-		assert.Equal(t, "Application references destination cluster another-cluster and server https://localhost:6443 which don't match", app.Status.Conditions[0].Message)
+		assert.Equal(t, "application destination can't have both name and server defined: another-cluster https://localhost:6443", app.Status.Conditions[0].Message)
 	})
 }
 

@@ -276,29 +276,20 @@ func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestina
 			if err != nil {
 				return &argoappv1.ApplicationCondition{
 					Type:    argoappv1.ApplicationConditionInvalidSpecError,
-					Message: fmt.Sprintf("Unable to get destination server: %v", err),
+					Message: fmt.Sprintf("unable to find destination server: %v", err),
 				}
 			}
 			if server == "" {
 				return &argoappv1.ApplicationCondition{
 					Type:    argoappv1.ApplicationConditionInvalidSpecError,
-					Message: fmt.Sprintf("Application references destination cluster %s which does not exist", dest.Name),
+					Message: fmt.Sprintf("application references destination cluster %s which does not exist", dest.Name),
 				}
 			}
 			dest.Server = server
 		} else {
-			isMatch, err := matchDestinationCluster(ctx, db, *dest)
-			if err != nil {
-				return &argoappv1.ApplicationCondition{
-					Type:    argoappv1.ApplicationConditionInvalidSpecError,
-					Message: fmt.Sprintf("Unable to get destination server: %v", err),
-				}
-			}
-			if !isMatch {
-				return &argoappv1.ApplicationCondition{
-					Type:    argoappv1.ApplicationConditionInvalidSpecError,
-					Message: fmt.Sprintf("Application references destination cluster %s and server %s which don't match", dest.Name, dest.Server),
-				}
+			return &argoappv1.ApplicationCondition{
+				Type:    argoappv1.ApplicationConditionInvalidSpecError,
+				Message: fmt.Sprintf("application destination can't have both name and server defined: %s %s", dest.Name, dest.Server),
 			}
 		}
 	}
@@ -504,18 +495,4 @@ func getDestinationServer(ctx context.Context, db db.ArgoDB, clusterName string)
 		return "", fmt.Errorf("there are no clusters with this name: %s", clusterName)
 	}
 	return servers[0], nil
-}
-
-func matchDestinationCluster(ctx context.Context, db db.ArgoDB, d argoappv1.ApplicationDestination) (bool, error) {
-	clusterList, err := db.ListClusters(ctx)
-	if err != nil {
-		return false, err
-	}
-	for _, c := range clusterList.Items {
-		if c.Name == d.Name && c.Server == d.Server {
-			return true, nil
-		}
-	}
-
-	return false, nil
 }
