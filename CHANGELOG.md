@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.4.0 (Not Released)
+## v1.4.0 (2020-01-17)
 
 The v1.4.0 is a stability release that brings multiple bug fixes, security, performance enhancements, and multiple usability improvements.
 
@@ -121,18 +121,55 @@ an in-flight state for all Kubernetes resources including `Deployment`, `PVC`, `
 
 #### Contributors
 
-* [@abhishekjiitr](https://github.com/abhishekjiitr)
-* [@adamjohnson01](https://github.com/adamjohnson01)
-* [@alexec](https://github.com/alexec)
-* [@alexmt](https://github.com/alexmt)
-* [@binoue](https://github.com/binoue)
-* [@cabrinha](https://github.com/cabrinha)
-* [@cbanek](https://github.com/cbanek)
-* [@dgoodwin](https://github.com/dgoodwin)
-* [@jannfis](https://github.com/jannfis)
-* [@jessesuen](https://github.com/jessesuen)
-* [@masa213f](https://github.com/masa213f)
-* [@whs](https://github.com/whs)
+* Aalok Ahluwalia
+* Aananth K
+* Abhishek Jaisingh
+* Adam Johnson
+* Alan Tang
+* Alex Collins
+* Alexander Matyushentsev
+* Andrew Waters
+* Byungjin Park
+* Christine Banek
+* Daniel Helfand
+* David Hong
+* David J. M. Karlsen
+* David Maciel
+* Devan Goodwin
+* Devin Stein
+* dthomson25
+* Gene Liverman
+* Gregor Krmelj
+* Guido Maria Serra
+* Ilir Bekteshi
+* Imran Ismail
+* INOUE BANJI
+* Isaac Gaskin
+* jannfis
+* Jeff Hastings
+* Jesse Suen
+* John Girvan
+* Konstantin
+* Lev Aminov
+* Manatsawin Hanmongkolchai
+* Marco Schmid
+* Masayuki Ishii
+* Michael Bridgen
+* Naoki Oketani
+* niqdev
+* nitinpatil1992
+* Olivier Boukili
+* Olivier Lemasle
+* Omer Kahani
+* Paul Brit
+* Qingbo Zhou
+* Saradhi Sreegiriraju
+* Scott Cabrinha
+* shlo
+* Simon Behar
+* stgarf
+* Yujun Zhang
+* Zoltán Reegn
 
 ## v1.3.4 (2019-12-05)
 - #2819 Fixes logging of tracing option in CLI
