@@ -268,7 +268,7 @@ func enrichSpec(spec *argoappv1.ApplicationSpec, appDetails *apiclient.RepoAppDe
 
 // ValidateDestination checks:
 // if we used destination name instead of server to we fill the server part if exists
-// if we used both name and server then we need to see that a matching cluster exists
+// if we used both name and server then we return an invalid spec error
 func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestination, db db.ArgoDB) *argoappv1.ApplicationCondition {
 	if dest.Name != "" {
 		if dest.Server == "" {

@@ -504,6 +504,10 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		log.Warnf("Key '%s' in index is not an application", appKey)
 		return
 	}
+	if destCond := argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db); destCond != nil {
+		ctrl.setAppCondition(app, *destCond)
+		ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonStatusRefreshed, Type: v1.EventTypeWarning}, destCond.Message)
+	}
 	if app.Operation != nil {
 		ctrl.processRequestedAppOperation(app)
 	} else if app.DeletionTimestamp != nil && app.CascadedDeletion() {
