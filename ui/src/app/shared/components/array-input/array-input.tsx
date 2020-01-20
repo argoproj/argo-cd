@@ -28,9 +28,27 @@ export interface NameValue {
 
 export const NameValueEditor = (item: NameValue, onChange: (item: NameValue) => any) => (
     <React.Fragment>
-        <input placeholder='Name' value={item.name || ''} onChange={e => onChange({...item, name: e.target.value})} title='Name' />
+        <input
+            // disable chrome autocomplete
+            autoComplete='fake'
+            className='argo-field'
+            style={{width: '40%'}}
+            placeholder='Name'
+            value={item.name || ''}
+            onChange={e => onChange({...item, name: e.target.value})}
+            title='Name'
+        />
         &nbsp; = &nbsp;
-        <input placeholder='Value' value={item.value || ''} onChange={e => onChange({...item, value: e.target.value})} title='Value' />
+        <input
+            // disable chrome autocomplete
+            autoComplete='fake'
+            className='argo-field'
+            style={{width: '40%'}}
+            placeholder='Value'
+            value={item.value || ''}
+            onChange={e => onChange({...item, value: e.target.value})}
+            title='Value'
+        />
         &nbsp;
     </React.Fragment>
 );
@@ -39,7 +57,6 @@ interface Props<T> {
     items: T[];
     onChange: (items: T[]) => void;
     editor: (item: T, onChange: (updated: T) => any) => React.ReactNode;
-    valid: (item: T) => boolean;
 }
 
 export function ArrayInput<T>(props: Props<T>) {
@@ -58,46 +75,33 @@ export function ArrayInput<T>(props: Props<T>) {
         items.splice(i, 1);
         props.onChange(items);
     };
-    const [newItem, setNewItem] = React.useState({} as T);
 
     return (
-        <div className='argo-field' style={{border: 0}}>
-            <div>
-                {props.items.map((item, i) => (
-                    <div key={`item-${i}`}>
-                        {props.editor(item, (updated: T) => replaceItem(updated, i))}
-                        &nbsp;
-                        <button>
-                            <i className='fa fa-times' style={{cursor: 'pointer'}} onClick={() => removeItem(i)} />
-                        </button>
-                    </div>
-                ))}
-                <div>
-                    {props.editor(newItem, setNewItem)}
+        <div className='argo-field' style={{border: 0, marginTop: '15px', zIndex: 1}}>
+            {props.items.map((item, i) => (
+                <div key={`item-${i}`} style={{marginBottom: '5px'}}>
+                    {props.editor(item, (updated: T) => replaceItem(updated, i))}
                     &nbsp;
-                    <button
-                        disabled={!props.valid(newItem)}
-                        onClick={() => {
-                            addItem(newItem);
-                            setNewItem({} as T);
-                        }}>
-                        <i style={{cursor: 'pointer'}} className='fa fa-plus' />
-                    </button>
+                    <button>
+                        <i className='fa fa-times' style={{cursor: 'pointer'}} onClick={() => removeItem(i)} />
+                    </button>{' '}
                 </div>
+            ))}
+            {props.items.length === 0 && <label>No items</label>}
+            <div>
+                <button className='argo-button argo-button--base argo-button--short' onClick={() => addItem({} as T)}>
+                    <i style={{cursor: 'pointer'}} className='fa fa-plus' />
+                </button>
             </div>
         </div>
     );
-}
-
-export function hasNameAndValue(item: {name?: string; value?: string}) {
-    return (item.name || '').trim() !== '' && (item.value || '').trim() !== '';
 }
 
 export const ArrayInputField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
     const {
         fieldApi: {getValue, setValue}
     } = props;
-    return <ArrayInput editor={NameValueEditor} items={getValue() || []} onChange={setValue} valid={hasNameAndValue} />;
+    return <ArrayInput editor={NameValueEditor} items={getValue() || []} onChange={setValue} />;
 });
 
 export const MapInputField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
@@ -111,10 +115,9 @@ export const MapInputField = ReactForm.FormField((props: {fieldApi: ReactForm.Fi
         <ArrayInput
             editor={NameValueEditor}
             items={items}
-            valid={hasNameAndValue}
             onChange={array => {
                 const newMap = {} as any;
-                array.forEach(item => (newMap[item.name] = item.value));
+                array.forEach(item => (newMap[item.name || ''] = item.value || ''));
                 setValue(newMap);
             }}
         />

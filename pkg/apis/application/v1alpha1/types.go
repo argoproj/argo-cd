@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -59,6 +60,12 @@ type ApplicationSpec struct {
 	IgnoreDifferences []ResourceIgnoreDifferences `json:"ignoreDifferences,omitempty" protobuf:"bytes,5,name=ignoreDifferences"`
 	// Infos contains a list of useful information (URLs, email addresses, and plain text) that relates to the application
 	Info []Info `json:"info,omitempty" protobuf:"bytes,6,name=info"`
+	// This limits this number of items kept in the apps revision history.
+	// This should only be changed in exceptional circumstances.
+	// Setting to zero will store no history. This will reduce storage used.
+	// Increasing will increase the space used to store the history, so we do not recommend increasing it.
+	// Default is 10.
+	RevisionHistoryLimit *int64 `json:"revisionHistoryLimit,omitempty" protobuf:"bytes,7,name=revisionHistoryLimit"`
 }
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
@@ -359,7 +366,7 @@ type ApplicationStatus struct {
 	Resources  []ResourceStatus       `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
 	Sync       SyncStatus             `json:"sync,omitempty" protobuf:"bytes,2,opt,name=sync"`
 	Health     HealthStatus           `json:"health,omitempty" protobuf:"bytes,3,opt,name=health"`
-	History    []RevisionHistory      `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
+	History    RevisionHistories      `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
 	Conditions []ApplicationCondition `json:"conditions,omitempty" protobuf:"bytes,5,opt,name=conditions"`
 	// ReconciledAt indicates when the application state was reconciled using the latest git version
 	ReconciledAt   *metav1.Time    `json:"reconciledAt,omitempty" protobuf:"bytes,6,opt,name=reconciledAt"`
@@ -380,6 +387,17 @@ type SyncOperationResource struct {
 	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
 	Kind  string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
 	Name  string `json:"name" protobuf:"bytes,3,opt,name=name"`
+}
+
+// RevisionHistories is a array of history, oldest first and newest last
+type RevisionHistories []RevisionHistory
+
+func (in RevisionHistories) Trunc(n int) RevisionHistories {
+	i := len(in) - n
+	if i > 0 {
+		in = in[i:]
+	}
+	return in
 }
 
 // HasIdentity determines whether a sync operation is identified by a manifest.
@@ -877,14 +895,22 @@ func (r *ResourceStatus) GroupVersionKind() schema.GroupVersionKind {
 
 // ResourceDiff holds the diff of a live and target resource object
 type ResourceDiff struct {
-	Group       string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
-	Kind        string `json:"kind,omitempty" protobuf:"bytes,2,opt,name=kind"`
-	Namespace   string `json:"namespace,omitempty" protobuf:"bytes,3,opt,name=namespace"`
-	Name        string `json:"name,omitempty" protobuf:"bytes,4,opt,name=name"`
+	Group     string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Kind      string `json:"kind,omitempty" protobuf:"bytes,2,opt,name=kind"`
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,3,opt,name=namespace"`
+	Name      string `json:"name,omitempty" protobuf:"bytes,4,opt,name=name"`
+	// TargetState contains the JSON serialized resource manifest defined in the Git/Helm
 	TargetState string `json:"targetState,omitempty" protobuf:"bytes,5,opt,name=targetState"`
-	LiveState   string `json:"liveState,omitempty" protobuf:"bytes,6,opt,name=liveState"`
-	Diff        string `json:"diff,omitempty" protobuf:"bytes,7,opt,name=diff"`
-	Hook        bool   `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
+	// TargetState contains the JSON live resource manifest
+	LiveState string `json:"liveState,omitempty" protobuf:"bytes,6,opt,name=liveState"`
+	// Diff contains the JSON patch between target and live resource
+	// Deprecated: use NormalizedLiveState and PredictedLiveState to render the difference
+	Diff string `json:"diff,omitempty" protobuf:"bytes,7,opt,name=diff"`
+	Hook bool   `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
+	// NormalizedLiveState contains JSON serialized live resource state with applied normalizations
+	NormalizedLiveState string `json:"normalizedLiveState,omitempty" protobuf:"bytes,9,opt,name=normalizedLiveState"`
+	// PredictedLiveState contains JSON serialized resource state that is calculated based on normalized and target resource state
+	PredictedLiveState string `json:"predictedLiveState,omitempty" protobuf:"bytes,10,opt,name=predictedLiveState"`
 }
 
 // ConnectionStatus represents connection status
@@ -914,6 +940,8 @@ type Cluster struct {
 	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,4,opt,name=connectionState"`
 	// The server version
 	ServerVersion string `json:"serverVersion,omitempty" protobuf:"bytes,5,opt,name=serverVersion"`
+	// Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list if not empty.
+	Namespaces []string `json:"namespaces,omitempty" protobuf:"bytes,6,opt,name=namespaces"`
 }
 
 // ClusterList is a collection of Clusters.
@@ -1908,6 +1936,11 @@ func (status *ApplicationStatus) SetConditions(conditions []ApplicationCondition
 			appConditions = append(appConditions, condition)
 		}
 	}
+	sort.Slice(appConditions, func(i, j int) bool {
+		left := appConditions[i]
+		right := appConditions[j]
+		return fmt.Sprintf("%s/%s/%v", left.Type, left.Message, left.LastTransitionTime) < fmt.Sprintf("%s/%s/%v", right.Type, right.Message, right.LastTransitionTime)
+	})
 	status.Conditions = appConditions
 }
 
@@ -1986,6 +2019,13 @@ func (spec ApplicationSpec) GetProject() string {
 	return spec.Project
 }
 
+func (spec ApplicationSpec) GetRevisionHistoryLimit() int {
+	if spec.RevisionHistoryLimit != nil {
+		return int(*spec.RevisionHistoryLimit)
+	}
+	return common.RevisionHistoryLimit
+}
+
 func isResourceInList(res metav1.GroupKind, list []metav1.GroupKind) bool {
 	for _, item := range list {
 		ok, err := filepath.Match(item.Kind, res.Kind)
@@ -1999,13 +2039,24 @@ func isResourceInList(res metav1.GroupKind, list []metav1.GroupKind) bool {
 	return false
 }
 
-// IsResourcePermitted validates if the given resource group/kind is permitted to be deployed in the project
-func (proj AppProject) IsResourcePermitted(res metav1.GroupKind, namespaced bool) bool {
+// IsGroupKindPermitted validates if the given resource group/kind is permitted to be deployed in the project
+func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool) bool {
+	res := metav1.GroupKind{Group: gk.Group, Kind: gk.Kind}
 	if namespaced {
 		return !isResourceInList(res, proj.Spec.NamespaceResourceBlacklist)
 	} else {
 		return isResourceInList(res, proj.Spec.ClusterResourceWhitelist)
 	}
+}
+
+func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, server string) bool {
+	if !proj.IsGroupKindPermitted(un.GroupVersionKind().GroupKind(), un.GetNamespace() != "") {
+		return false
+	}
+	if un.GetNamespace() != "" {
+		return proj.IsDestinationPermitted(ApplicationDestination{Server: server, Namespace: un.GetNamespace()})
+	}
+	return true
 }
 
 func globMatch(pattern string, val string) bool {

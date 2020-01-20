@@ -23,7 +23,7 @@ export const RevisionMetadataPanel = (props: {appName: string; type: string; rev
                                     <br />
                                 </span>
                             )}
-                            (m.message}
+                            {m.message}
                         </span>
                     }
                     placement='bottom'

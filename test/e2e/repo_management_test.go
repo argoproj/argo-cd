@@ -4,20 +4,19 @@ import (
 	"context"
 	"testing"
 
-	"github.com/argoproj/argo-cd/test/e2e/fixture/repos"
-
-	"github.com/argoproj/argo-cd/test/e2e/fixture/app"
-
 	"github.com/stretchr/testify/assert"
 
 	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/test/e2e/fixture/repos"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 func TestAddRemovePublicRepo(t *testing.T) {
 	app.Given(t).And(func() {
-		repoUrl := "https://github.com/argoproj/argocd-example-apps.git"
+		repoUrl := fixture.RepoURL(fixture.RepoURLTypeFile)
 		_, err := fixture.RunCli("repo", "add", repoUrl)
 		assert.NoError(t, err)
 
@@ -50,6 +49,21 @@ func TestAddRemovePublicRepo(t *testing.T) {
 			}
 		}
 		assert.False(t, exists)
+	})
+}
+
+func TestUpsertExistingRepo(t *testing.T) {
+	app.Given(t).And(func() {
+		fixture.SetRepos(settings.RepositoryCredentials{URL: fixture.RepoURL(fixture.RepoURLTypeFile)})
+		repoUrl := fixture.RepoURL(fixture.RepoURLTypeFile)
+		_, err := fixture.RunCli("repo", "add", repoUrl)
+		assert.NoError(t, err)
+
+		_, err = fixture.RunCli("repo", "add", repoUrl, "--username", fixture.GitUsername, "--password", fixture.GitPassword)
+		assert.Error(t, err)
+
+		_, err = fixture.RunCli("repo", "add", repoUrl, "--upsert", "--username", fixture.GitUsername, "--password", fixture.GitPassword)
+		assert.NoError(t, err)
 	})
 }
 

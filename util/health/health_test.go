@@ -197,7 +197,7 @@ func TestAPIService(t *testing.T) {
 	assertAppHealth(t, "./testdata/apiservice-v1beta1-false.yaml", appv1.HealthStatusProgressing)
 }
 
-func TestGetStatusFromArgoWorkflow(t *testing.T) {
+func TestGetArgoWorkflowHealth(t *testing.T) {
 	sampleWorkflow := unstructured.Unstructured{Object: map[string]interface{}{
 		"spec": map[string]interface{}{
 			"entrypoint":    "sampleEntryPoint",
@@ -210,9 +210,10 @@ func TestGetStatusFromArgoWorkflow(t *testing.T) {
 	},
 	}
 
-	status, message := GetStatusFromArgoWorkflow(&sampleWorkflow)
-	assert.Equal(t, appv1.OperationRunning, status)
-	assert.Equal(t, "This node is running", message)
+	health, err := getArgoWorkflowHealth(&sampleWorkflow)
+	assert.NoError(t, err)
+	assert.Equal(t, appv1.HealthStatusProgressing, health.Status)
+	assert.Equal(t, "This node is running", health.Message)
 
 	sampleWorkflow = unstructured.Unstructured{Object: map[string]interface{}{
 		"spec": map[string]interface{}{
@@ -226,10 +227,10 @@ func TestGetStatusFromArgoWorkflow(t *testing.T) {
 	},
 	}
 
-	status, message = GetStatusFromArgoWorkflow(&sampleWorkflow)
-	assert.Equal(t, appv1.OperationSucceeded, status)
-	assert.Equal(t, "This node is has succeeded", message)
-
+	health, err = getArgoWorkflowHealth(&sampleWorkflow)
+	assert.NoError(t, err)
+	assert.Equal(t, appv1.HealthStatusHealthy, health.Status)
+	assert.Equal(t, "This node is has succeeded", health.Message)
 }
 
 func noFilter(obj *unstructured.Unstructured) bool {

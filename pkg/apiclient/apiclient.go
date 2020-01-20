@@ -85,16 +85,18 @@ type Client interface {
 
 // ClientOptions hold address, security, and other settings for the API client.
 type ClientOptions struct {
-	ServerAddr string
-	PlainText  bool
-	Insecure   bool
-	CertFile   string
-	AuthToken  string
-	ConfigPath string
-	Context    string
-	UserAgent  string
-	GRPCWeb    bool
-	Headers    []string
+	ServerAddr           string
+	PlainText            bool
+	Insecure             bool
+	CertFile             string
+	AuthToken            string
+	ConfigPath           string
+	Context              string
+	UserAgent            string
+	GRPCWeb              bool
+	PortForward          bool
+	PortForwardNamespace string
+	Headers              []string
 }
 
 type client struct {
@@ -152,6 +154,14 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	// Override server address if specified in env or CLI flag
 	if serverFromEnv := os.Getenv(EnvArgoCDServer); serverFromEnv != "" {
 		c.ServerAddr = serverFromEnv
+	}
+	if opts.PortForward || opts.PortForwardNamespace != "" {
+		port, err := portForward("app.kubernetes.io/name=argocd-server", opts.PortForwardNamespace)
+		if err != nil {
+			return nil, err
+		}
+		opts.ServerAddr = fmt.Sprintf("127.0.0.1:%d", port)
+		opts.Insecure = true
 	}
 	if opts.ServerAddr != "" {
 		c.ServerAddr = opts.ServerAddr

@@ -1,7 +1,7 @@
 import * as classNames from 'classnames';
 import * as React from 'react';
 
-import {Autocomplete, AutocompleteApi, AutocompleteOption} from '../autocomplete/autocomplete';
+import {Autocomplete, AutocompleteApi, AutocompleteOption} from 'argo-ui';
 
 export interface TagsInputProps {
     tags: string[];

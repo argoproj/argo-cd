@@ -124,6 +124,10 @@ func (c *Context) RepoURLType(urlType fixture.RepoURLType) *Context {
 	return c
 }
 
+func (c *Context) GetName() string {
+	return c.name
+}
+
 func (c *Context) Name(name string) *Context {
 	c.name = name
 	return c

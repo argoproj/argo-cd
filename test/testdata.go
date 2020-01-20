@@ -47,6 +47,20 @@ func NewPod() *unstructured.Unstructured {
 	return Unstructured(PodManifest)
 }
 
+func NewControllerRevision() *unstructured.Unstructured {
+	return Unstructured(`
+kind: ControllerRevision
+apiVersion: metacontroller.k8s.io/v1alpha1
+metadata:
+  labels:
+    app: nginx
+    controller.kubernetes.io/hash: c7cd8d57f
+  name: web-c7cd8d57f
+  namespace: statefulset
+revision: 2
+`)
+}
+
 func NewCRD() *unstructured.Unstructured {
 	return Unstructured(`apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -170,6 +184,11 @@ func DemoDeployment() *appsv1.Deployment {
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &two,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "demo",
+				},
+			},
 			Template: apiv1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{

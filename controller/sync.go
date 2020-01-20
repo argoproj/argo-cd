@@ -17,6 +17,7 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
@@ -106,7 +107,14 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		revision = syncOp.Revision
 	}
 
-	compareResult := m.CompareAppState(app, revision, source, false, syncOp.Manifests)
+	proj, err := argo.GetAppProject(&app.Spec, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace)
+	if err != nil {
+		state.Phase = v1alpha1.OperationError
+		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
+		return
+	}
+
+	compareResult := m.CompareAppState(app, proj, revision, source, false, syncOp.Manifests)
 
 	// If there are any comparison or spec errors error conditions do not perform the operation
 	if errConditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{
@@ -147,13 +155,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	if err != nil {
 		state.Phase = v1alpha1.OperationError
 		state.Message = fmt.Sprintf("Failed to initialize extensions client: %v", err)
-		return
-	}
-
-	proj, err := argo.GetAppProject(&app.Spec, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace)
-	if err != nil {
-		state.Phase = v1alpha1.OperationError
-		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
 		return
 	}
 
@@ -235,16 +236,21 @@ func (sc *syncContext) sync() {
 	}) {
 		if task.isHook() {
 			// update the hook's result
-			operationState, message := getOperationPhase(task.liveObj)
-			sc.setResourceResult(task, "", operationState, message)
+			operationState, message, err := sc.getOperationPhase(task.liveObj)
+			if err != nil {
+				sc.setResourceResult(task, "", v1alpha1.OperationError, fmt.Sprintf("failed to get resource health: %v", err))
+			} else {
+				sc.setResourceResult(task, "", operationState, message)
 
-			// maybe delete the hook
-			if task.needsDeleting() {
-				err := sc.deleteResource(task)
-				if err != nil && !errors.IsNotFound(err) {
-					sc.setResourceResult(task, "", v1alpha1.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
+				// maybe delete the hook
+				if task.needsDeleting() {
+					err := sc.deleteResource(task)
+					if err != nil && !errors.IsNotFound(err) {
+						sc.setResourceResult(task, "", v1alpha1.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
+					}
 				}
 			}
+
 		} else {
 			// this must be calculated on the live object
 			healthStatus, err := health.GetResourceHealth(task.liveObj, sc.resourceOverrides)
@@ -480,7 +486,7 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 				successful = false
 			}
 		} else {
-			if !sc.proj.IsResourcePermitted(metav1.GroupKind{Group: task.group(), Kind: task.kind()}, serverRes.Namespaced) {
+			if !sc.proj.IsGroupKindPermitted(schema.GroupKind{Group: task.group(), Kind: task.kind()}, serverRes.Namespaced) {
 				sc.setResourceResult(task, v1alpha1.ResultCodeSyncFailed, "", fmt.Sprintf("Resource %s:%s is not permitted in project %s.", task.group(), task.kind(), sc.proj.Name))
 				successful = false
 			}
@@ -602,10 +608,15 @@ func (sc *syncContext) terminate() {
 	sc.log.Debug("terminating")
 	tasks, _ := sc.getSyncTasks()
 	for _, task := range tasks {
-		if !task.isHook() || !task.completed() {
+		if !task.isHook() || task.liveObj == nil {
 			continue
 		}
-		if isRunnable(task.groupVersionKind()) {
+		phase, msg, err := sc.getOperationPhase(task.liveObj)
+		if err != nil {
+			sc.setOperationPhase(v1alpha1.OperationError, fmt.Sprintf("Failed to get hook health: %v", err))
+			return
+		}
+		if phase == v1alpha1.OperationRunning {
 			err := sc.deleteResource(task)
 			if err != nil {
 				sc.setResourceResult(task, "", v1alpha1.OperationFailed, fmt.Sprintf("Failed to delete: %v", err))
@@ -613,6 +624,8 @@ func (sc *syncContext) terminate() {
 			} else {
 				sc.setResourceResult(task, "", v1alpha1.OperationSucceeded, fmt.Sprintf("Deleted"))
 			}
+		} else {
+			sc.setResourceResult(task, "", phase, msg)
 		}
 	}
 	if terminateSuccessful {
@@ -682,12 +695,14 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
 			wg.Add(1)
 			go func(t *syncTask) {
 				defer wg.Done()
-				sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t}).Debug("pruning")
+				logCtx := sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t})
+				logCtx.Debug("pruning")
 				result, message := sc.pruneObject(t.liveObj, sc.syncOp.Prune, dryRun)
 				if result == v1alpha1.ResultCodeSyncFailed {
 					runState = failed
+					logCtx.WithField("message", message).Info("pruning failed")
 				}
-				if !dryRun || result == v1alpha1.ResultCodeSyncFailed {
+				if !dryRun || sc.syncOp.DryRun || result == v1alpha1.ResultCodeSyncFailed {
 					sc.setResourceResult(t, result, operationPhases[result], message)
 				}
 			}(task)
@@ -733,12 +748,14 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
 				createWg.Add(1)
 				go func(t *syncTask) {
 					defer createWg.Done()
-					sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t}).Debug("applying")
+					logCtx := sc.log.WithFields(log.Fields{"dryRun": dryRun, "task": t})
+					logCtx.Debug("applying")
 					result, message := sc.applyObject(t.targetObj, dryRun, sc.syncOp.SyncStrategy.Force())
 					if result == v1alpha1.ResultCodeSyncFailed {
+						logCtx.WithField("message", message).Info("apply failed")
 						runState = failed
 					}
-					if !dryRun || result == v1alpha1.ResultCodeSyncFailed {
+					if !dryRun || sc.syncOp.DryRun || result == v1alpha1.ResultCodeSyncFailed {
 						sc.setResourceResult(t, result, operationPhases[result], message)
 					}
 				}(task)

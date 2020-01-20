@@ -192,6 +192,17 @@ status:
         repoURL: https://github.com/argoproj/argocd-example-apps.git
 `
 
+var fakeStrayResource = `
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-cm
+  namespace: invalid
+  labels:
+    app.kubernetes.io/instance: my-app
+data:
+`
+
 func newFakeApp() *argoappv1.Application {
 	var app argoappv1.Application
 	err := yaml.Unmarshal([]byte(fakeApp), &app)
@@ -199,6 +210,15 @@ func newFakeApp() *argoappv1.Application {
 		panic(err)
 	}
 	return &app
+}
+
+func newFakeCM() map[string]interface{} {
+	var cm map[string]interface{}
+	err := yaml.Unmarshal([]byte(fakeStrayResource), &cm)
+	if err != nil {
+		panic(err)
+	}
+	return cm
 }
 
 func TestAutoSync(t *testing.T) {
@@ -389,27 +409,118 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 
 // TestFinalizeAppDeletion verifies application deletion
 func TestFinalizeAppDeletion(t *testing.T) {
-	app := newFakeApp()
-	app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
-	appObj := kube.MustToUnstructured(&app)
-	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
-		kube.GetResourceKey(appObj): appObj,
-	}})
+	// Ensure app can be deleted cascading
+	{
+		defaultProj := argoappv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "default",
+				Namespace: test.FakeArgoCDNamespace,
+			},
+			Spec: argoappv1.AppProjectSpec{
+				SourceRepos: []string{"*"},
+				Destinations: []argoappv1.ApplicationDestination{
+					{
+						Server:    "*",
+						Namespace: "*",
+					},
+				},
+			},
+		}
+		app := newFakeApp()
+		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+		appObj := kube.MustToUnstructured(&app)
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+			kube.GetResourceKey(appObj): appObj,
+		}})
 
-	patched := false
-	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	defaultReactor := fakeAppCs.ReactionChain[0]
-	fakeAppCs.ReactionChain = nil
-	fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		return defaultReactor.React(action)
-	})
-	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		patched = true
-		return true, nil, nil
-	})
-	err := ctrl.finalizeApplicationDeletion(app)
-	assert.NoError(t, err)
-	assert.True(t, patched)
+		patched := false
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patched = true
+			return true, nil, nil
+		})
+		_, err := ctrl.finalizeApplicationDeletion(app)
+		assert.NoError(t, err)
+		assert.True(t, patched)
+	}
+
+	// Ensure any stray resources irregulary labeled with instance label of app are not deleted upon deleting,
+	// when app project restriction is in place
+	{
+		defaultProj := argoappv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "default",
+				Namespace: test.FakeArgoCDNamespace,
+			},
+			Spec: argoappv1.AppProjectSpec{
+				SourceRepos: []string{"*"},
+				Destinations: []argoappv1.ApplicationDestination{
+					{
+						Server:    "*",
+						Namespace: "*",
+					},
+				},
+			},
+		}
+		restrictedProj := argoappv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "restricted",
+				Namespace: test.FakeArgoCDNamespace,
+			},
+			Spec: argoappv1.AppProjectSpec{
+				SourceRepos: []string{"*"},
+				Destinations: []argoappv1.ApplicationDestination{
+					{
+						Server:    "*",
+						Namespace: "my-app",
+					},
+				},
+			},
+		}
+		app := newFakeApp()
+		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+		app.Spec.Project = "restricted"
+		appObj := kube.MustToUnstructured(&app)
+		cm := newFakeCM()
+		strayObj := kube.MustToUnstructured(&cm)
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app, &defaultProj, &restrictedProj},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+				kube.GetResourceKey(appObj):   appObj,
+				kube.GetResourceKey(strayObj): strayObj,
+			},
+		})
+
+		patched := false
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patched = true
+			return true, nil, nil
+		})
+		objs, err := ctrl.finalizeApplicationDeletion(app)
+		assert.NoError(t, err)
+		assert.True(t, patched)
+		objsMap, err := ctrl.stateCache.GetManagedLiveObjs(app, []*unstructured.Unstructured{})
+		if err != nil {
+			assert.NoError(t, err)
+		}
+		// Managed objects must be empty
+		assert.Empty(t, objsMap)
+		// Loop through all deleted objects, ensure that test-cm is none of them
+		for _, o := range objs {
+			assert.NotEqual(t, "test-cm", o.GetName())
+		}
+	}
 }
 
 // TestNormalizeApplication verifies we normalize an application during reconciliation
@@ -562,8 +673,8 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 	assert.False(t, needRefresh)
 
 	// refresh app using the 'deepest' requested comparison level
-	ctrl.requestAppRefresh(app.Name, CompareWithRecent)
-	ctrl.requestAppRefresh(app.Name, ComparisonWithNothing)
+	ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
+	ctrl.requestAppRefresh(app.Name, ComparisonWithNothing.Pointer(), nil)
 
 	needRefresh, refreshType, compareWith := ctrl.needRefreshAppStatus(app, 1*time.Hour)
 	assert.True(t, needRefresh)
@@ -581,7 +692,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 	{
 		// refresh app using the 'latest' level if comparison expired
 		app := app.DeepCopy()
-		ctrl.requestAppRefresh(app.Name, CompareWithRecent)
+		ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
 		reconciledAt := metav1.NewTime(time.Now().UTC().Add(-1 * time.Hour))
 		app.Status.ReconciledAt = &reconciledAt
 		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Minute)
@@ -607,7 +718,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 	{
 		app := app.DeepCopy()
 		// ensure that CompareWithLatest level is used if application source has changed
-		ctrl.requestAppRefresh(app.Name, ComparisonWithNothing)
+		ctrl.requestAppRefresh(app.Name, ComparisonWithNothing.Pointer(), nil)
 		// sample app source change
 		app.Spec.Source.Helm = &argoappv1.ApplicationSourceHelm{
 			Parameters: []argoappv1.HelmParameter{{
@@ -644,7 +755,7 @@ func TestRefreshAppConditions(t *testing.T) {
 		app := newFakeApp()
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
 
-		hasErrors := ctrl.refreshAppConditions(app)
+		_, hasErrors := ctrl.refreshAppConditions(app)
 		assert.False(t, hasErrors)
 		assert.Len(t, app.Status.Conditions, 0)
 	})
@@ -655,7 +766,7 @@ func TestRefreshAppConditions(t *testing.T) {
 
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
 
-		hasErrors := ctrl.refreshAppConditions(app)
+		_, hasErrors := ctrl.refreshAppConditions(app)
 		assert.False(t, hasErrors)
 		assert.Len(t, app.Status.Conditions, 1)
 		assert.Equal(t, argoappv1.ApplicationConditionExcludedResourceWarning, app.Status.Conditions[0].Type)
@@ -668,7 +779,7 @@ func TestRefreshAppConditions(t *testing.T) {
 
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
 
-		hasErrors := ctrl.refreshAppConditions(app)
+		_, hasErrors := ctrl.refreshAppConditions(app)
 		assert.True(t, hasErrors)
 		assert.Len(t, app.Status.Conditions, 1)
 		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
@@ -704,7 +815,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 
 	t.Run("UpdatedOnFullReconciliation", func(t *testing.T) {
 		receivedPatch = map[string]interface{}{}
-		ctrl.requestAppRefresh(app.Name, CompareWithLatest)
+		ctrl.requestAppRefresh(app.Name, CompareWithLatest.Pointer(), nil)
 		ctrl.appRefreshQueue.Add(key)
 
 		ctrl.processAppRefreshQueueItem()
@@ -721,7 +832,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 	t.Run("NotUpdatedOnPartialReconciliation", func(t *testing.T) {
 		receivedPatch = map[string]interface{}{}
 		ctrl.appRefreshQueue.Add(key)
-		ctrl.requestAppRefresh(app.Name, CompareWithRecent)
+		ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
 
 		ctrl.processAppRefreshQueueItem()
 

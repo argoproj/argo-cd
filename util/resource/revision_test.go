@@ -23,6 +23,7 @@ func TestGetRevision(t *testing.T) {
 		{"Garbage", args{obj: revisionExample("garbage.kubernetes.io/revision", "1")}, 0},
 		{"Deployments", args{obj: revisionExample("deployment.kubernetes.io/revision", "1")}, 1},
 		{"Rollouts", args{obj: revisionExample("rollout.argoproj.io/revision", "1")}, 1},
+		{"ControllerRevision", args{obj: test.NewControllerRevision()}, 2},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

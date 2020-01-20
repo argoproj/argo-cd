@@ -5,8 +5,7 @@ export type AppsDetailsViewType = 'tree' | 'network' | 'list';
 export interface AppDetailsPreferences {
     resourceFilter: string[];
     view: AppsDetailsViewType;
-    resourceView: 'manifest' | 'diff';
-    hideDefaultedFields: boolean;
+    resourceView: 'manifest' | 'diff' | 'desiredManifest';
     inlineDiff: boolean;
     compactDiff: boolean;
     orphanedResources: boolean;
@@ -41,7 +40,6 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
     appDetails: {
         view: 'tree',
         resourceFilter: ['kind:Deployment', 'kind:Service', 'kind:Pod', 'kind:StatefulSet', 'kind:Ingress', 'kind:ConfigMap', 'kind:Job', 'kind:DaemonSet', 'kind:Workflow'],
-        hideDefaultedFields: false,
         inlineDiff: false,
         compactDiff: false,
         resourceView: 'manifest',

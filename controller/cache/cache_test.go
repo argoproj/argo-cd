@@ -15,7 +15,6 @@ func TestGetServerVersion(t *testing.T) {
 		clusters: map[string]*clusterInfo{
 			"http://localhost": {
 				syncTime:      &now,
-				syncLock:      &sync.Mutex{},
 				lock:          &sync.Mutex{},
 				serverVersion: "123",
 			},

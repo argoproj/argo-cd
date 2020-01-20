@@ -290,18 +290,18 @@ export const ApplicationParameters = (props: {
         attributes.push({
             title: 'TOP-LEVEL ARGUMENTS',
             view: ((directory.jsonnet && directory.jsonnet.tlas) || []).map((i, j) => (
-                <p key={j}>
+                <label key={j}>
                     {i.name}='{i.value}' {i.code && 'code'}
-                </p>
+                </label>
             )),
             edit: (formApi: FormApi) => <FormField field='spec.source.directory.jsonnet.tlas' formApi={formApi} component={VarsInputField} />
         });
         attributes.push({
             title: 'EXTERNAL VARIABLES',
             view: ((directory.jsonnet && directory.jsonnet.extVars) || []).map((i, j) => (
-                <p key={j}>
+                <label key={j}>
                     {i.name}='{i.value}' {i.code && 'code'}
-                </p>
+                </label>
             )),
             edit: (formApi: FormApi) => <FormField field='spec.source.directory.jsonnet.extVars' formApi={formApi} component={VarsInputField} />
         });
@@ -330,6 +330,16 @@ export const ApplicationParameters = (props: {
                 })
             }
             values={app}
+            validate={updatedApp => {
+                const errors = {} as any;
+
+                for (const fieldPath of ['spec.source.directory.jsonnet.tlas', 'spec.source.directory.jsonnet.extVars']) {
+                    const invalid = ((getNestedField(updatedApp, fieldPath) || []) as Array<models.JsonnetVar>).filter(item => !item.name && !item.code);
+                    errors[fieldPath] = invalid.length > 0 ? 'All fields must have name' : null;
+                }
+
+                return errors;
+            }}
             title={props.details.type.toLocaleUpperCase()}
             items={attributes}
             noReadonlyMode={props.noReadonlyMode}

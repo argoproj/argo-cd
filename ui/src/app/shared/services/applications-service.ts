@@ -54,14 +54,25 @@ export class ApplicationsService {
         return requests.get(`/applications/${name}/resource-tree`).then(res => res.body as models.ApplicationTree);
     }
 
-    public managedResources(name: string): Promise<models.ResourceDiff[]> {
+    public managedResources(name: string, options: {id?: models.ResourceID; fields?: string[]} = {}): Promise<models.ResourceDiff[]> {
         return requests
             .get(`/applications/${name}/managed-resources`)
+            .query({...options.id, fields: (options.fields || []).join(',')})
             .then(res => (res.body.items as any[]) || [])
             .then(items => {
                 items.forEach(item => {
-                    item.liveState = JSON.parse(item.liveState);
-                    item.targetState = JSON.parse(item.targetState);
+                    if (item.liveState) {
+                        item.liveState = JSON.parse(item.liveState);
+                    }
+                    if (item.targetState) {
+                        item.targetState = JSON.parse(item.targetState);
+                    }
+                    if (item.predictedLiveState) {
+                        item.predictedLiveState = JSON.parse(item.predictedLiveState);
+                    }
+                    if (item.normalizedLiveState) {
+                        item.normalizedLiveState = JSON.parse(item.normalizedLiveState);
+                    }
                 });
                 return items as models.ResourceDiff[];
             });
