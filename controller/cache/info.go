@@ -14,27 +14,26 @@ import (
 	"github.com/argoproj/argo-cd/util/resource"
 )
 
-func populateNodeInfo(un *unstructured.Unstructured, node *node) {
-
+func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	gvk := un.GroupVersionKind()
 	revision := resource.GetRevision(un)
 	if revision > 0 {
-		node.info = append(node.info, v1alpha1.InfoItem{Name: "Revision", Value: fmt.Sprintf("Rev:%v", revision)})
+		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Revision", Value: fmt.Sprintf("Rev:%v", revision)})
 	}
 	switch gvk.Group {
 	case "":
 		switch gvk.Kind {
 		case kube.PodKind:
-			populatePodInfo(un, node)
+			populatePodInfo(un, res)
 			return
 		case kube.ServiceKind:
-			populateServiceInfo(un, node)
+			populateServiceInfo(un, res)
 			return
 		}
 	case "extensions", "networking.k8s.io":
 		switch gvk.Kind {
 		case kube.IngressKind:
-			populateIngressInfo(un, node)
+			populateIngressInfo(un, res)
 			return
 		}
 	}
@@ -58,16 +57,16 @@ func getIngress(un *unstructured.Unstructured) []v1.LoadBalancerIngress {
 	return res
 }
 
-func populateServiceInfo(un *unstructured.Unstructured, node *node) {
+func populateServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	targetLabels, _, _ := unstructured.NestedStringMap(un.Object, "spec", "selector")
 	ingress := make([]v1.LoadBalancerIngress, 0)
 	if serviceType, ok, err := unstructured.NestedString(un.Object, "spec", "type"); ok && err == nil && serviceType == string(v1.ServiceTypeLoadBalancer) {
 		ingress = getIngress(un)
 	}
-	node.networkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress}
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress}
 }
 
-func populateIngressInfo(un *unstructured.Unstructured, node *node) {
+func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	ingress := getIngress(un)
 	targetsMap := make(map[v1alpha1.ResourceRef]bool)
 	if backend, ok, err := unstructured.NestedMap(un.Object, "spec", "backend"); ok && err == nil {
@@ -155,10 +154,10 @@ func populateIngressInfo(un *unstructured.Unstructured, node *node) {
 	for url := range urlsSet {
 		urls = append(urls, url)
 	}
-	node.networkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, Ingress: ingress, ExternalURLs: urls}
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, Ingress: ingress, ExternalURLs: urls}
 }
 
-func populatePodInfo(un *unstructured.Unstructured, node *node) {
+func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	pod := v1.Pod{}
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &pod)
 	if err != nil {
@@ -181,9 +180,9 @@ func populatePodInfo(un *unstructured.Unstructured, node *node) {
 		imagesSet[container.Image] = true
 	}
 
-	node.images = nil
+	res.Images = nil
 	for image := range imagesSet {
-		node.images = append(node.images, image)
+		res.Images = append(res.Images, image)
 	}
 
 	initializing := false
@@ -250,8 +249,8 @@ func populatePodInfo(un *unstructured.Unstructured, node *node) {
 	}
 
 	if reason != "" {
-		node.info = append(node.info, v1alpha1.InfoItem{Name: "Status Reason", Value: reason})
+		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Status Reason", Value: reason})
 	}
-	node.info = append(node.info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
-	node.networkingInfo = &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels()}
+	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels()}
 }

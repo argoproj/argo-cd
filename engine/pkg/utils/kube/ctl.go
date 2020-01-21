@@ -8,7 +8,9 @@ import (
 	"io/ioutil"
 	"os/exec"
 	"regexp"
+	"runtime/debug"
 	"strings"
+	"sync"
 
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -497,4 +499,30 @@ func (k *KubectlCmd) processKubectlRun(cmd string) (io.Closer, error) {
 
 func (k *KubectlCmd) SetOnKubectlRun(onKubectlRun func(command string) (io.Closer, error)) {
 	k.OnKubectlRun = onKubectlRun
+}
+
+func RunAllAsync(count int, action func(i int) error) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			message := fmt.Sprintf("Recovered from panic: %+v\n%s", r, debug.Stack())
+			log.Error(message)
+			err = errors.New(message)
+		}
+	}()
+	var wg sync.WaitGroup
+	for i := 0; i < count; i++ {
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			actionErr := action(index)
+			if actionErr != nil {
+				err = actionErr
+			}
+		}(i)
+		if err != nil {
+			break
+		}
+	}
+	wg.Wait()
+	return err
 }

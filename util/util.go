@@ -1,16 +1,9 @@
 package util
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"errors"
-	"fmt"
-	"runtime/debug"
-	"sync"
 	"time"
-
-	log "github.com/sirupsen/logrus"
 )
 
 // Wait takes a check interval and timeout and waits for a function to return `true`.
@@ -49,35 +42,6 @@ func MakeSignature(size int) ([]byte, error) {
 	return b, err
 }
 
-// RetryUntilSucceed keep retrying given action with specified timeout until action succeed or specified context is done.
-func RetryUntilSucceed(action func() error, desc string, ctx context.Context, timeout time.Duration) {
-	ctxCompleted := false
-	stop := make(chan bool)
-	defer close(stop)
-	go func() {
-		select {
-		case <-ctx.Done():
-			ctxCompleted = true
-		case <-stop:
-		}
-	}()
-	for {
-		log.Debugf("Start %s", desc)
-		err := action()
-		if err == nil {
-			log.Debugf("Completed %s", desc)
-			return
-		}
-		if ctxCompleted {
-			log.Debugf("Stop retrying %s", desc)
-			return
-		}
-		log.Debugf("Failed to %s: %+v, retrying in %v", desc, err, timeout)
-		time.Sleep(timeout)
-
-	}
-}
-
 func FirstNonEmpty(args ...string) string {
 	for _, value := range args {
 		if len(value) > 0 {
@@ -85,30 +49,4 @@ func FirstNonEmpty(args ...string) string {
 		}
 	}
 	return ""
-}
-
-func RunAllAsync(count int, action func(i int) error) (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			message := fmt.Sprintf("Recovered from panic: %+v\n%s", r, debug.Stack())
-			log.Error(message)
-			err = errors.New(message)
-		}
-	}()
-	var wg sync.WaitGroup
-	for i := 0; i < count; i++ {
-		wg.Add(1)
-		go func(index int) {
-			defer wg.Done()
-			actionErr := action(index)
-			if actionErr != nil {
-				err = actionErr
-			}
-		}(i)
-		if err != nil {
-			break
-		}
-	}
-	wg.Wait()
-	return err
 }

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
+
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -141,7 +143,7 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 			})
 		}
 	}
-	err = util.RunAllAsync(len(items), func(i int) error {
+	err = kube.RunAllAsync(len(items), func(i int) error {
 		items[i].ConnectionState = s.getConnectionState(ctx, items[i].Repo, q.ForceRefresh)
 		return nil
 	})

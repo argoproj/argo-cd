@@ -357,3 +357,32 @@ func GetDeploymentReplicas(u *unstructured.Unstructured) *int64 {
 	}
 	return &val
 }
+
+// RetryUntilSucceed keep retrying given action with specified timeout until action succeed or specified context is done.
+func RetryUntilSucceed(action func() error, desc string, ctx context.Context, timeout time.Duration) {
+	ctxCompleted := false
+	stop := make(chan bool)
+	defer close(stop)
+	go func() {
+		select {
+		case <-ctx.Done():
+			ctxCompleted = true
+		case <-stop:
+		}
+	}()
+	for {
+		log.Debugf("Start %s", desc)
+		err := action()
+		if err == nil {
+			log.Debugf("Completed %s", desc)
+			return
+		}
+		if ctxCompleted {
+			log.Debugf("Stop retrying %s", desc)
+			return
+		}
+		log.Debugf("Failed to %s: %+v, retrying in %v", desc, err, timeout)
+		time.Sleep(timeout)
+
+	}
+}
