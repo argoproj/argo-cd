@@ -270,10 +270,7 @@ func newAdapter(builtinPolicy, userDefinedPolicy, runtimePolicy string) *argocdA
 func (a *argocdAdapter) LoadPolicy(model model.Model) error {
 	for _, policyStr := range []string{a.builtinPolicy, a.userDefinedPolicy, a.runtimePolicy} {
 		for _, line := range strings.Split(policyStr, "\n") {
-			if line == "" {
-				continue
-			}
-			if err := loadPolicyLine(line, model); err != nil {
+			if err := loadPolicyLine(strings.TrimSpace(line), model); err != nil {
 				return err
 			}
 		}
@@ -281,7 +278,8 @@ func (a *argocdAdapter) LoadPolicy(model model.Model) error {
 	return nil
 }
 
-// loadPolicyLine loads a text line as a policy rule to model.
+// The modified version of LoadPolicyLine function defined in "persist" package of github.com/casbin/casbin.
+// Uses CVS parser to correctly handle quotes in policy line.
 func loadPolicyLine(line string, model model.Model) error {
 	if line == "" || strings.HasPrefix(line, "#") {
 		return nil

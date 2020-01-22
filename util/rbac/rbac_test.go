@@ -373,6 +373,7 @@ func TestValidatePolicy(t *testing.T) {
 		"",
 		"#",
 		`p, "role,admin", projects, delete, *, allow`,
+		` p, role:admin, projects, delete, *, allow `,
 	}
 	for _, good := range goodPolicies {
 		assert.Nil(t, ValidatePolicy(good))
