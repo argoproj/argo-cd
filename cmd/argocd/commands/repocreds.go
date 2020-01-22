@@ -19,7 +19,7 @@ import (
 	"github.com/argoproj/argo-cd/util/git"
 )
 
-// NewRepoCredsCommand returns a new instance of an `argocd repo` command
+// NewRepoCredsCommand returns a new instance of an `argocd repocreds` command
 func NewRepoCredsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "repocreds",
@@ -36,7 +36,7 @@ func NewRepoCredsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 	return command
 }
 
-// NewRepoCredsAddCommand returns a new instance of an `argocd repo add` command
+// NewRepoCredsAddCommand returns a new instance of an `argocd repocreds add` command
 func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		repo                 appsv1.RepoCreds
@@ -131,7 +131,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 	return command
 }
 
-// NewRepoCredsRemoveCommand returns a new instance of an `argocd repo list` command
+// NewRepoCredsRemoveCommand returns a new instance of an `argocd repocreds rm` command
 func NewRepoCredsRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "rm CREDSURL",
@@ -172,7 +172,7 @@ func printRepoCredsUrls(repos []appsv1.RepoCreds) {
 	}
 }
 
-// NewRepoCredsListCommand returns a new instance of an `argocd repo rm` command
+// NewRepoCredsListCommand returns a new instance of an `argocd repo list` command
 func NewRepoCredsListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		output string
