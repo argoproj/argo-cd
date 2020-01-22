@@ -2,6 +2,7 @@ package rbac
 
 import (
 	"context"
+	"encoding/csv"
 	"errors"
 	"fmt"
 	"strings"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/casbin/casbin"
 	"github.com/casbin/casbin/model"
-	"github.com/casbin/casbin/persist"
 	jwt "github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -273,9 +273,30 @@ func (a *argocdAdapter) LoadPolicy(model model.Model) error {
 			if line == "" {
 				continue
 			}
-			persist.LoadPolicyLine(line, model)
+			if err := loadPolicyLine(line, model); err != nil {
+				return err
+			}
 		}
 	}
+	return nil
+}
+
+// loadPolicyLine loads a text line as a policy rule to model.
+func loadPolicyLine(line string, model model.Model) error {
+	if line == "" || strings.HasPrefix(line, "#") {
+		return nil
+	}
+
+	reader := csv.NewReader(strings.NewReader(line))
+	reader.TrimLeadingSpace = true
+	tokens, err := reader.Read()
+	if err != nil {
+		return err
+	}
+
+	key := tokens[0]
+	sec := key[:1]
+	model[sec][key].Policy = append(model[sec][key].Policy, tokens[1:])
 	return nil
 }
 
