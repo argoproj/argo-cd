@@ -1933,7 +1933,6 @@
     "github.com/argoproj/pkg/time",
     "github.com/casbin/casbin",
     "github.com/casbin/casbin/model",
-    "github.com/casbin/casbin/persist",
     "github.com/coreos/go-oidc",
     "github.com/dgrijalva/jwt-go",
     "github.com/dustin/go-humanize",
