@@ -1,6 +1,6 @@
 # Disaster Recovery
 
-You can use `argocd-util` can be used to import and export all Argo CD data.
+You can use `argocd-util` to import and export all Argo CD data.
 
 Make sure you have `~/.kube/config` pointing to your Argo CD cluster.
 
