@@ -504,7 +504,7 @@ func TestWatchCacheUpdated(t *testing.T) {
 
 	podGroupKind := testPod.GroupVersionKind().GroupKind()
 
-	cluster.replaceResourceCache(podGroupKind, "updated-list-version", []unstructured.Unstructured{*updated, *added})
+	cluster.replaceResourceCache(podGroupKind, "updated-list-version", []unstructured.Unstructured{*updated, *added}, "")
 
 	_, ok := cluster.nodes[kube.GetResourceKey(removed)]
 	assert.False(t, ok)
@@ -514,6 +514,28 @@ func TestWatchCacheUpdated(t *testing.T) {
 	assert.Equal(t, updatedNode.resourceVersion, "updated-pod-version")
 
 	_, ok = cluster.nodes[kube.GetResourceKey(added)]
+	assert.True(t, ok)
+}
+
+func TestNamespaceModeReplace(t *testing.T) {
+	ns1Pod := testPod.DeepCopy()
+	ns1Pod.SetNamespace("ns1")
+	ns1Pod.SetName("pod1")
+
+	ns2Pod := testPod.DeepCopy()
+	ns2Pod.SetNamespace("ns2")
+	podGroupKind := testPod.GroupVersionKind().GroupKind()
+
+	cluster := newCluster(ns1Pod, ns2Pod)
+	err := cluster.ensureSynced()
+	assert.Nil(t, err)
+
+	cluster.replaceResourceCache(podGroupKind, "", nil, "ns1")
+
+	_, ok := cluster.nodes[kube.GetResourceKey(ns1Pod)]
+	assert.False(t, ok)
+
+	_, ok = cluster.nodes[kube.GetResourceKey(ns2Pod)]
 	assert.True(t, ok)
 }
 
