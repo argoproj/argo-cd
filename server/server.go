@@ -642,7 +642,7 @@ func registerDownloadHandlers(mux *http.ServeMux, base string) {
 	}
 	windowsPath, err := exec.LookPath("argocd-windows-amd64.exe")
 	if err != nil {
-		log.Warnf("argocd-windows-amd64 not in PATH")
+		log.Warnf("argocd-windows-amd64.exe not in PATH")
 	} else {
 		mux.HandleFunc(base+"/argocd-windows-amd64.exe", func(w http.ResponseWriter, r *http.Request) {
 			http.ServeFile(w, r, windowsPath)
