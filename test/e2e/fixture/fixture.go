@@ -55,7 +55,6 @@ var (
 	KubeClientset       kubernetes.Interface
 	AppClientset        appclientset.Interface
 	ArgoCDClientset     argocdclient.Client
-	settingsManager     *settings.SettingsManager
 	apiServerAddress    string
 	token               string
 	plainText           bool
@@ -123,7 +122,6 @@ func init() {
 	})
 	CheckError(err)
 
-	settingsManager = settings.NewSettingsManager(context.Background(), KubeClientset, "argocd-e2e")
 	token = sessionResponse.Token
 	plainText = !tlsTestResult.TLS
 
