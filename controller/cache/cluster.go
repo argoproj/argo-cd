@@ -58,14 +58,15 @@ type clusterInfo struct {
 	cacheSettingsSrc func() *cacheSettings
 }
 
-func (c *clusterInfo) replaceResourceCache(gk schema.GroupKind, resourceVersion string, objs []unstructured.Unstructured) {
+func (c *clusterInfo) replaceResourceCache(gk schema.GroupKind, resourceVersion string, objs []unstructured.Unstructured, ns string) {
 	info, ok := c.apisMeta[gk]
 	if ok {
-		objByKind := make(map[kube.ResourceKey]*unstructured.Unstructured)
+		objByKey := make(map[kube.ResourceKey]*unstructured.Unstructured)
 		for i := range objs {
-			objByKind[kube.GetResourceKey(&objs[i])] = &objs[i]
+			objByKey[kube.GetResourceKey(&objs[i])] = &objs[i]
 		}
 
+		// update existing nodes
 		for i := range objs {
 			obj := &objs[i]
 			key := kube.GetResourceKey(&objs[i])
@@ -73,12 +74,13 @@ func (c *clusterInfo) replaceResourceCache(gk schema.GroupKind, resourceVersion 
 			c.onNodeUpdated(exists, existingNode, obj, key)
 		}
 
+		// remove existing nodes that a no longer exist
 		for key, existingNode := range c.nodes {
-			if key.Kind != gk.Kind || key.Group != gk.Group {
+			if key.Kind != gk.Kind || key.Group != gk.Group || ns != "" && key.Namespace != ns {
 				continue
 			}
 
-			if _, ok := objByKind[key]; !ok {
+			if _, ok := objByKey[key]; !ok {
 				c.onNodeRemoved(key, existingNode)
 			}
 		}
@@ -186,13 +188,13 @@ func (c *clusterInfo) synced() bool {
 	return time.Now().Before(c.syncTime.Add(clusterSyncTimeout))
 }
 
-func (c *clusterInfo) stopWatching(gk schema.GroupKind) {
+func (c *clusterInfo) stopWatching(gk schema.GroupKind, ns string) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	if info, ok := c.apisMeta[gk]; ok {
 		info.watchCancel()
 		delete(c.apisMeta, gk)
-		c.replaceResourceCache(gk, "", []unstructured.Unstructured{})
+		c.replaceResourceCache(gk, "", []unstructured.Unstructured{}, ns)
 		log.Warnf("Stop watching %s not found on %s.", gk, c.cluster.Server)
 	}
 }
@@ -217,8 +219,8 @@ func (c *clusterInfo) startMissingWatches() error {
 			info := &apiMeta{namespaced: api.Meta.Namespaced, watchCancel: cancel}
 			c.apisMeta[api.GroupKind] = info
 
-			err = c.processApi(client, api, func(resClient dynamic.ResourceInterface) error {
-				go c.watchEvents(ctx, api, info, resClient)
+			err = c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
+				go c.watchEvents(ctx, api, info, resClient, ns)
 				return nil
 			})
 			if err != nil {
@@ -235,7 +237,7 @@ func runSynced(lock *sync.Mutex, action func() error) error {
 	return action()
 }
 
-func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo, info *apiMeta, resClient dynamic.ResourceInterface) {
+func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo, info *apiMeta, resClient dynamic.ResourceInterface, ns string) {
 	util.RetryUntilSucceed(func() (err error) {
 		defer func() {
 			if r := recover(); r != nil {
@@ -249,7 +251,7 @@ func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo,
 				if err != nil {
 					return err
 				}
-				c.replaceResourceCache(api.GroupKind, list.GetResourceVersion(), list.Items)
+				c.replaceResourceCache(api.GroupKind, list.GetResourceVersion(), list.Items, ns)
 			}
 			return nil
 		})
@@ -260,7 +262,7 @@ func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo,
 
 		w, err := resClient.Watch(metav1.ListOptions{ResourceVersion: info.resourceVersion})
 		if errors.IsNotFound(err) {
-			c.stopWatching(api.GroupKind)
+			c.stopWatching(api.GroupKind, ns)
 			return nil
 		}
 
@@ -292,7 +294,7 @@ func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo,
 
 							if groupOk && groupErr == nil && kindOk && kindErr == nil {
 								gk := schema.GroupKind{Group: group, Kind: kind}
-								c.stopWatching(gk)
+								c.stopWatching(gk, ns)
 							}
 						} else {
 							err = runSynced(c.lock, func() error {
@@ -313,10 +315,10 @@ func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo,
 	}, fmt.Sprintf("watch %s on %s", api.GroupKind, c.cluster.Server), ctx, watchResourcesRetryTimeout)
 }
 
-func (c *clusterInfo) processApi(client dynamic.Interface, api kube.APIResourceInfo, callback func(resClient dynamic.ResourceInterface) error) error {
+func (c *clusterInfo) processApi(client dynamic.Interface, api kube.APIResourceInfo, callback func(resClient dynamic.ResourceInterface, ns string) error) error {
 	resClient := client.Resource(api.GroupVersionResource)
 	if len(c.cluster.Namespaces) == 0 {
-		return callback(resClient)
+		return callback(resClient, "")
 	}
 
 	if !api.Meta.Namespaced {
@@ -324,7 +326,7 @@ func (c *clusterInfo) processApi(client dynamic.Interface, api kube.APIResourceI
 	}
 
 	for _, ns := range c.cluster.Namespaces {
-		err := callback(resClient.Namespace(ns))
+		err := callback(resClient.Namespace(ns), ns)
 		if err != nil {
 			return err
 		}
@@ -357,7 +359,7 @@ func (c *clusterInfo) sync() (err error) {
 	}
 	lock := sync.Mutex{}
 	err = util.RunAllAsync(len(apis), func(i int) error {
-		return c.processApi(client, apis[i], func(resClient dynamic.ResourceInterface) error {
+		return c.processApi(client, apis[i], func(resClient dynamic.ResourceInterface, _ string) error {
 			list, err := resClient.List(metav1.ListOptions{})
 			if err != nil {
 				return err
