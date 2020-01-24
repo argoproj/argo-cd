@@ -496,19 +496,5 @@ func getRepositoryCredentialIndex(repoCredentials []settings.RepositoryCredentia
 func repoURLToSecretName(prefix string, repo string) string {
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(repo))
-	// Part of the original repo name is incorporated into the secret name for debugging purposes
-	// If we do not have a repo name (i.e. when URL ends on '/', as can happen with templates)
-	// we use the complete URL as identifier.
-	parts := strings.Split(strings.TrimSuffix(repo, ".git"), "/")
-	shortName := ""
-	if parts[len(parts)-1] == "" {
-		shortName = strings.TrimSuffix(strings.ToLower(repo), "/")
-	} else {
-		shortName = strings.ToLower(parts[len(parts)-1])
-	}
-	shortName = strings.Replace(shortName, "_", "-", -1)
-	shortName = strings.Replace(shortName, "@", "-", -1)
-	shortName = strings.Replace(shortName, ":", "-", -1)
-
-	return fmt.Sprintf("%s-%s-%v", prefix, shortName, h.Sum32())
+	return fmt.Sprintf("%s-%v", prefix, h.Sum32())
 }
