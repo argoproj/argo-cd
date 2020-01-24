@@ -621,31 +621,8 @@ func setJsonnetOpt(src *argoappv1.ApplicationSource, tlaParameters []string, cod
 	if src.Directory == nil {
 		src.Directory = &argoappv1.ApplicationSourceDirectory{}
 	}
-
-	if len(tlaParameters) != 0 {
-		tlas := make([]argoappv1.JsonnetVar, len(tlaParameters))
-		for index, paramStr := range tlaParameters {
-			parts := strings.SplitN(paramStr, "=", 2)
-			if len(parts) != 2 {
-				log.Fatalf("Expected parameter of the form: param=value. Received: %s", paramStr)
-				break
-			}
-			tlas[index] = argoappv1.JsonnetVar{
-				Name:  parts[0],
-				Value: parts[1],
-				Code:  code}
-		}
-		var existingTLAs []argoappv1.JsonnetVar
-		for i := range src.Directory.Jsonnet.TLAs {
-			if src.Directory.Jsonnet.TLAs[i].Code != code {
-				existingTLAs = append(existingTLAs, src.Directory.Jsonnet.TLAs[i])
-			}
-		}
-		src.Directory.Jsonnet.TLAs = append(existingTLAs, tlas...)
-	}
-
-	if src.Directory.IsZero() {
-		src.Directory = nil
+	for _, j := range tlaParameters {
+		src.Directory.Jsonnet.TLAs = append(src.Directory.Jsonnet.TLAs, argoappv1.NewJsonnetVar(j, code))
 	}
 }
 
