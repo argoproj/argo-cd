@@ -25,10 +25,10 @@ func TestRepoURLToSecretName(t *testing.T) {
 
 func Test_CredsURLToSecretName(t *testing.T) {
 	tables := map[string]string{
-		"git://git@github.com:argoproj": "creds-2483499391",
+		"git://git@github.com:argoproj":  "creds-2483499391",
 		"git://git@github.com:argoproj/": "creds-1465032944",
-		"git@github.com:argoproj": "creds-2666065091",
-		"git@github.com:argoproj/": "creds-346879876",
+		"git@github.com:argoproj":        "creds-2666065091",
+		"git@github.com:argoproj/":       "creds-346879876",
 	}
 
 	for k, v := range tables {
