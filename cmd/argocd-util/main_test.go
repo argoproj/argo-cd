@@ -18,6 +18,13 @@ connectors:
   id: github
   name: GitHub
   type: github
+- config:
+    bindDN: uid=serviceaccount,cn=users,dc=example,dc=com
+    bindPW: theSecret
+    host: ldap.example.com:636
+  id: ldap
+  name: LDAP
+  type: ldap
 grpc:
   addr: 0.0.0.0:5557
 issuer: https://argocd.example.com/api/dex
@@ -49,6 +56,13 @@ var expectedRedaction = `connectors:
   id: github
   name: GitHub
   type: github
+- config:
+    bindDN: uid=serviceaccount,cn=users,dc=example,dc=com
+    bindPW: '********'
+    host: ldap.example.com:636
+  id: ldap
+  name: LDAP
+  type: ldap
 grpc:
   addr: 0.0.0.0:5557
 issuer: https://argocd.example.com/api/dex

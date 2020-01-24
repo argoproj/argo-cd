@@ -109,7 +109,7 @@ func NewRunDexCommand() *cobra.Command {
 				} else {
 					err = ioutil.WriteFile("/tmp/dex.yaml", dexCfgBytes, 0644)
 					errors.CheckError(err)
-					log.Info(redactor(string(dexCfgBytes)))
+					log.Debug(redactor(string(dexCfgBytes)))
 					cmd = exec.Command("dex", "serve", "/tmp/dex.yaml")
 					cmd.Stdout = os.Stdout
 					cmd.Stderr = os.Stderr
@@ -640,7 +640,7 @@ func redactor(dirtyString string) string {
 	err := yaml.Unmarshal([]byte(dirtyString), &config)
 	errors.CheckError(err)
 	iterateStringFields(config, func(name string, val string) string {
-		if name == "clientSecret" || name == "secret" {
+		if name == "clientSecret" || name == "secret" || name == "bindPW" {
 			return "********"
 		} else {
 			return val
