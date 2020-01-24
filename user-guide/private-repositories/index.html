@@ -1521,6 +1521,10 @@
 <p class="admonition-title">Note</p>
 <p>When pasting SSH private key in the UI, make sure there are no unintended line breaks or additional characters in the text area</p>
 </div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When your SSH repository is served from a non-standard port, you have to use <code>ssh://</code>-style URLs to specify your repository. The scp-style <code>git@yourgit.com:yourrepo</code> URLs do <strong>not</strong> support port specification, and will treat any port number as part of the repository's path.</p>
+</div>
 <blockquote>
 <p>earlier than v1.2</p>
 </blockquote>
