@@ -497,8 +497,8 @@ func repoURLToSecretName(prefix string, repo string) string {
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(repo))
 	// Part of the original repo name is incorporated into the secret name for debugging purposes
-	// If we do not have a repo name (i.e. can happen when setting up credentials instead of repo)
-	// we use a fix pseudo string as identifier.
+	// If we do not have a repo name (i.e. when URL ends on '/', as can happen with templates)
+	// we use the complete URL as identifier.
 	parts := strings.Split(strings.TrimSuffix(repo, ".git"), "/")
 	shortName := ""
 	if parts[len(parts)-1] == "" {
