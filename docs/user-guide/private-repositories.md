@@ -99,6 +99,9 @@ Using the UI:
 !!!note
     When pasting SSH private key in the UI, make sure there are no unintended line breaks or additional characters in the text area
 
+!!!note 
+    When your SSH repository is served from a non-standard port, you have to use `ssh://`-style URLs to specify your repository. The scp-style `git@yourgit.com:yourrepo` URLs do **not** support port specification, and will treat any port number as part of the repository's path.
+
 > earlier than v1.2
 
 The Argo CD UI don't support configuring SSH credentials. The SSH credentials can only be configured using the Argo CD CLI:
