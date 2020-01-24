@@ -115,7 +115,8 @@ RUN cd ${GOPATH}/src/dummy && \
 WORKDIR /go/src/github.com/argoproj/argo-cd
 COPY . .
 RUN make cli server controller repo-server argocd-util && \
-    make CLI_NAME=argocd-darwin-amd64 GOOS=darwin cli
+    make CLI_NAME=argocd-darwin-amd64 GOOS=darwin cli && \
+    make CLI_NAME=argocd-windows-amd64.exe GOOS=windows cli
 
 
 ####################################################################################################
