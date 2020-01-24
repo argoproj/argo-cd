@@ -228,7 +228,7 @@ func TestInClusterKubeConfig(t *testing.T) {
 	restConfig = &rest.Config{
 		ExecProvider: &clientcmdapi.ExecConfig{
 			APIVersion: "client.authentication.k8s.io/v1alpha1",
-			Command:    "aws-iam-authenticator",
+			Command:    "aws",
 		},
 	}
 	kubeConfig = NewKubeConfig(restConfig, "")

@@ -2113,16 +2113,16 @@ func (c *Cluster) RESTConfig() *rest.Config {
 			CAData:     c.Config.TLSClientConfig.CAData,
 		}
 		if c.Config.AWSAuthConfig != nil {
-			args := []string{"token", "-i", c.Config.AWSAuthConfig.ClusterName}
+			args := []string{"eks", "get-token", "--cluster-name", c.Config.AWSAuthConfig.ClusterName}
 			if c.Config.AWSAuthConfig.RoleARN != "" {
-				args = append(args, "-r", c.Config.AWSAuthConfig.RoleARN)
+				args = append(args, "--role-arn", c.Config.AWSAuthConfig.RoleARN)
 			}
 			config = &rest.Config{
 				Host:            c.Server,
 				TLSClientConfig: tlsClientConfig,
 				ExecProvider: &api.ExecConfig{
 					APIVersion: "client.authentication.k8s.io/v1alpha1",
-					Command:    "aws-iam-authenticator",
+					Command:    "aws",
 					Args:       args,
 				},
 			}
