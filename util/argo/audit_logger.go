@@ -72,7 +72,7 @@ func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, i
 			Name:            objMeta.Name,
 			Namespace:       objMeta.Namespace,
 			ResourceVersion: objMeta.ResourceVersion,
-			APIVersion:      gvk.Version,
+			APIVersion:      gvk.GroupVersion().String(),
 			UID:             objMeta.UID,
 		},
 		FirstTimestamp: t,
