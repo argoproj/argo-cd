@@ -21,6 +21,10 @@ import (
 )
 
 const (
+	// Prefix to use for naming repository secrets
+	repoSecretPrefix = "repo"
+	// Prefix to use for naming credential template secrets
+	credSecretPrefix = "creds"
 	// The name of the key storing the username in the secret
 	username = "username"
 	// The name of the key storing the password in the secret
@@ -349,56 +353,13 @@ func (db *db) updateCredentialsSecret(credsInfo *settings.RepositoryCredentials,
 		TLSClientCertData: c.TLSClientCertData,
 		TLSClientCertKey:  c.TLSClientCertKey,
 	}
-	var repoInfo settings.Repository
-
-	err := db.updateRepositorySecrets(&repoInfo, r)
-	if err != nil {
-		return err
-	}
-
-	credsInfo.UsernameSecret = repoInfo.UsernameSecret
-	credsInfo.PasswordSecret = repoInfo.PasswordSecret
-	credsInfo.SSHPrivateKeySecret = repoInfo.SSHPrivateKeySecret
-	credsInfo.TLSClientCertDataSecret = repoInfo.TLSClientCertDataSecret
-	credsInfo.TLSClientCertKeySecret = repoInfo.TLSClientCertKeySecret
-
-	return nil
-}
-
-func (db *db) updateRepositorySecrets(repoInfo *settings.Repository, r *appsv1.Repository) error {
 	secretsData := make(map[string]map[string][]byte)
 
-	setSecretData := func(secretKey *apiv1.SecretKeySelector, value string, defaultKeyName string) *apiv1.SecretKeySelector {
-		if secretKey == nil && value != "" {
-			secretKey = &apiv1.SecretKeySelector{
-				LocalObjectReference: apiv1.LocalObjectReference{Name: repoURLToSecretName(r.Repo)},
-				Key:                  defaultKeyName,
-			}
-		}
-
-		if secretKey != nil {
-			data, ok := secretsData[secretKey.Name]
-			if !ok {
-				data = map[string][]byte{}
-			}
-			if value != "" {
-				data[secretKey.Key] = []byte(value)
-			}
-			secretsData[secretKey.Name] = data
-		}
-
-		if value == "" {
-			secretKey = nil
-		}
-
-		return secretKey
-	}
-
-	repoInfo.UsernameSecret = setSecretData(repoInfo.UsernameSecret, r.Username, username)
-	repoInfo.PasswordSecret = setSecretData(repoInfo.PasswordSecret, r.Password, password)
-	repoInfo.SSHPrivateKeySecret = setSecretData(repoInfo.SSHPrivateKeySecret, r.SSHPrivateKey, sshPrivateKey)
-	repoInfo.TLSClientCertDataSecret = setSecretData(repoInfo.TLSClientCertDataSecret, r.TLSClientCertData, tlsClientCertData)
-	repoInfo.TLSClientCertKeySecret = setSecretData(repoInfo.TLSClientCertKeySecret, r.TLSClientCertKey, tlsClientCertKey)
+	credsInfo.UsernameSecret = setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.UsernameSecret, r.Username, username)
+	credsInfo.PasswordSecret = setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.PasswordSecret, r.Password, password)
+	credsInfo.SSHPrivateKeySecret = setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.SSHPrivateKeySecret, r.SSHPrivateKey, sshPrivateKey)
+	credsInfo.TLSClientCertDataSecret = setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.TLSClientCertDataSecret, r.TLSClientCertData, tlsClientCertData)
+	credsInfo.TLSClientCertKeySecret = setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.TLSClientCertKeySecret, r.TLSClientCertKey, tlsClientCertKey)
 	for k, v := range secretsData {
 		err := db.upsertSecret(k, v)
 		if err != nil {
@@ -406,6 +367,52 @@ func (db *db) updateRepositorySecrets(repoInfo *settings.Repository, r *appsv1.R
 		}
 	}
 	return nil
+}
+
+func (db *db) updateRepositorySecrets(repoInfo *settings.Repository, r *appsv1.Repository) error {
+	secretsData := make(map[string]map[string][]byte)
+
+	repoInfo.UsernameSecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.UsernameSecret, r.Username, username)
+	repoInfo.PasswordSecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.PasswordSecret, r.Password, password)
+	repoInfo.SSHPrivateKeySecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.SSHPrivateKeySecret, r.SSHPrivateKey, sshPrivateKey)
+	repoInfo.TLSClientCertDataSecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.TLSClientCertDataSecret, r.TLSClientCertData, tlsClientCertData)
+	repoInfo.TLSClientCertKeySecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.TLSClientCertKeySecret, r.TLSClientCertKey, tlsClientCertKey)
+	for k, v := range secretsData {
+		err := db.upsertSecret(k, v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Set data to be stored in a given secret used for repository credentials and templates.
+// The name of the secret is a combination of the prefix given, and a calculated value
+// from the repository or template URL.
+func setSecretData(prefix string, url string, secretsData map[string]map[string][]byte, secretKey *apiv1.SecretKeySelector, value string, defaultKeyName string) *apiv1.SecretKeySelector {
+	if secretKey == nil && value != "" {
+		secretKey = &apiv1.SecretKeySelector{
+			LocalObjectReference: apiv1.LocalObjectReference{Name: repoURLToSecretName(prefix, url)},
+			Key:                  defaultKeyName,
+		}
+	}
+
+	if secretKey != nil {
+		data, ok := secretsData[secretKey.Name]
+		if !ok {
+			data = map[string][]byte{}
+		}
+		if value != "" {
+			data[secretKey.Key] = []byte(value)
+		}
+		secretsData[secretKey.Name] = data
+	}
+
+	if value == "" {
+		secretKey = nil
+	}
+
+	return secretKey
 }
 
 func (db *db) upsertSecret(name string, data map[string][]byte) error {
@@ -486,11 +493,8 @@ func getRepositoryCredentialIndex(repoCredentials []settings.RepositoryCredentia
 // repositories are _imperatively_ created and need its credentials to be stored in a secret.
 // NOTE: this formula should not be considered stable and may change in future releases.
 // Do NOT rely on this formula as a means of secret lookup, only secret creation.
-func repoURLToSecretName(repo string) string {
+func repoURLToSecretName(prefix string, repo string) string {
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(repo))
-	// Part of the original repo name is incorporated into the secret name for debugging purposes
-	parts := strings.Split(strings.TrimSuffix(repo, ".git"), "/")
-	shortName := strings.ToLower(strings.Replace(parts[len(parts)-1], "_", "-", -1))
-	return fmt.Sprintf("repo-%s-%v", shortName, h.Sum32())
+	return fmt.Sprintf("%s-%v", prefix, h.Sum32())
 }
