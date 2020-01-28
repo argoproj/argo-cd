@@ -74,7 +74,7 @@ oidc.config: |
   issuer: https://yourorganization.oktapreview.com
   clientID: 0oaltaqg3oAIf2NOa0h3
   clientSecret: ZXF_CfUc-rtwNfzFecGquzdeJ_MxM4sGc8pDT2Tg6t
-  requestedScopes: ["openid", "profile", "email", "groups"].
+  requestedScopes: ["openid", "profile", "email", "groups"]
   requestedIDTokenClaims: {"groups": {"essential": true}}
 ```
 <!-- markdownlint-enable MD046 -->
