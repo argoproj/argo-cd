@@ -167,6 +167,18 @@ func TestHelmSetString(t *testing.T) {
 		})
 }
 
+func TestHelmSetFile(t *testing.T) {
+	Given(t).
+		Path("helm").
+		When().
+		Create().
+		AppSet("--helm-set-file", "foo=bar.yaml", "--helm-set-file", "foo=baz.yaml").
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, []HelmFileParameter{{Name: "foo", Path: "baz.yaml"}}, app.Spec.Source.Helm.FileParameters)
+		})
+}
+
 // ensure we can use envsubst in "set" variables
 func TestHelmSetEnv(t *testing.T) {
 	Given(t).

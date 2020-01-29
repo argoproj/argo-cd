@@ -181,6 +181,8 @@ type ApplicationSourceHelm struct {
 	ReleaseName string `json:"releaseName,omitempty" protobuf:"bytes,3,opt,name=releaseName"`
 	// Values is Helm values, typically defined as a block
 	Values string `json:"values,omitempty" protobuf:"bytes,4,opt,name=values"`
+	// FileParameters are file parameters to the helm template
+	FileParameters []HelmFileParameter `json:"fileParameters,omitempty" protobuf:"bytes,5,opt,name=fileParameters"`
 }
 
 // HelmParameter is a parameter to a helm template
@@ -191,6 +193,14 @@ type HelmParameter struct {
 	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
 	// ForceString determines whether to tell Helm to interpret booleans and numbers as strings
 	ForceString bool `json:"forceString,omitempty" protobuf:"bytes,3,opt,name=forceString"`
+}
+
+// HelmFileParameter is a file parameter to a helm template
+type HelmFileParameter struct {
+	// Name is the name of the helm parameter
+	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	// Path is the path value for the helm parameter
+	Path string `json:"path,omitempty" protobuf:"bytes,2,opt,name=path"`
 }
 
 var helmParameterRx = regexp.MustCompile(`([^\\]),`)
@@ -204,6 +214,17 @@ func NewHelmParameter(text string, forceString bool) (*HelmParameter, error) {
 		Name:        parts[0],
 		Value:       helmParameterRx.ReplaceAllString(parts[1], `$1\,`),
 		ForceString: forceString,
+	}, nil
+}
+
+func NewHelmFileParameter(text string) (*HelmFileParameter, error) {
+	parts := strings.SplitN(text, "=", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("Expected helm file parameter of the form: param=path. Received: %s", text)
+	}
+	return &HelmFileParameter{
+		Name: parts[0],
+		Path: helmParameterRx.ReplaceAllString(parts[1], `$1\,`),
 	}, nil
 }
 
@@ -221,8 +242,22 @@ func (in *ApplicationSourceHelm) AddParameter(p HelmParameter) {
 	}
 }
 
+func (in *ApplicationSourceHelm) AddFileParameter(p HelmFileParameter) {
+	found := false
+	for i, cp := range in.FileParameters {
+		if cp.Name == p.Name {
+			found = true
+			in.FileParameters[i] = p
+			break
+		}
+	}
+	if !found {
+		in.FileParameters = append(in.FileParameters, p)
+	}
+}
+
 func (h *ApplicationSourceHelm) IsZero() bool {
-	return h == nil || (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && h.Values == ""
+	return h == nil || (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.Values == ""
 }
 
 type KustomizeImage string

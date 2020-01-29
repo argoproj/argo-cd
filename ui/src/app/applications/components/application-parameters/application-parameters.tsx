@@ -263,6 +263,29 @@ export const ApplicationParameters = (props: {
                 })
             )
         );
+        const fileParamsByName = new Map<string, models.HelmFileParameter>();
+        (props.details.helm.fileParameters || []).forEach(param => fileParamsByName.set(param.name, param));
+        const fileOverridesByName = new Map<string, number>();
+        ((source.helm && source.helm.fileParameters) || []).forEach((override, i) => fileOverridesByName.set(override.name, i));
+        attributes = attributes.concat(
+            getParamsEditableItems(
+                app,
+                'PARAMETERS',
+                'spec.source.helm.parameters',
+                removedOverrides,
+                setRemovedOverrides,
+                distinct(fileParamsByName.keys(), fileOverridesByName.keys()).map(name => {
+                    const param = fileParamsByName.get(name);
+                    const original = (param && param.path) || '';
+                    let overrideIndex = fileOverridesByName.get(name);
+                    if (overrideIndex === undefined) {
+                        overrideIndex = -1;
+                    }
+                    const value = (overrideIndex > -1 && source.helm.fileParameters[overrideIndex].path) || original;
+                    return {overrideIndex, original, metadata: {name, value}};
+                })
+            )
+        );
     } else if (props.details.type === 'Plugin') {
         attributes.push({
             title: 'NAME',

@@ -346,7 +346,11 @@ export const ApplicationCreatePanel = (props: {
                                                     if (details.type !== type) {
                                                         switch (type) {
                                                             case 'Helm':
-                                                                details = {type, path: details.path, helm: {name: '', valueFiles: [], path: '', parameters: []}};
+                                                                details = {
+                                                                    type,
+                                                                    path: details.path,
+                                                                    helm: {name: '', valueFiles: [], path: '', parameters: [], fileParameters: []}
+                                                                };
                                                                 break;
                                                             case 'Kustomize':
                                                                 details = {type, path: details.path, kustomize: {path: ''}};

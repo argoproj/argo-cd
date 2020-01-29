@@ -496,6 +496,8 @@ func setAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			setHelmOpt(&spec.Source, helmOpts{helmSets: appOpts.helmSets})
 		case "helm-set-string":
 			setHelmOpt(&spec.Source, helmOpts{helmSetStrings: appOpts.helmSetStrings})
+		case "helm-set-file":
+			setHelmOpt(&spec.Source, helmOpts{helmSetFiles: appOpts.helmSetFiles})
 		case "directory-recurse":
 			spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: appOpts.directoryRecurse}
 		case "config-management-plugin":
@@ -586,6 +588,7 @@ type helmOpts struct {
 	releaseName    string
 	helmSets       []string
 	helmSetStrings []string
+	helmSetFiles   []string
 }
 
 func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
@@ -611,6 +614,13 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 			log.Fatal(err)
 		}
 		src.Helm.AddParameter(*p)
+	}
+	for _, text := range opts.helmSetFiles {
+		p, err := argoappv1.NewHelmFileParameter(text)
+		if err != nil {
+			log.Fatal(err)
+		}
+		src.Helm.AddFileParameter(*p)
 	}
 	if src.Helm.IsZero() {
 		src.Helm = nil
@@ -649,6 +659,7 @@ type appOptions struct {
 	releaseName            string
 	helmSets               []string
 	helmSetStrings         []string
+	helmSetFiles           []string
 	project                string
 	syncPolicy             string
 	autoPrune              bool
@@ -678,6 +689,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringVar(&opts.releaseName, "release-name", "", "Helm release-name")
 	command.Flags().StringArrayVar(&opts.helmSets, "helm-set", []string{}, "Helm set values on the command line (can be repeated to set several values: --helm-set key1=val1 --helm-set key2=val2)")
 	command.Flags().StringArrayVar(&opts.helmSetStrings, "helm-set-string", []string{}, "Helm set STRING values on the command line (can be repeated to set several values: --helm-set-string key1=val1 --helm-set-string key2=val2)")
+	command.Flags().StringArrayVar(&opts.helmSetFiles, "helm-set-file", []string{}, "Helm set values from respective files specified via the command line (can be repeated to set several values: --helm-set-file key1=path1 --helm-set-file key2=path2)")
 	command.Flags().StringVar(&opts.project, "project", "", "Application project name")
 	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: automated, none)")
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")

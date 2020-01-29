@@ -84,6 +84,8 @@ message HelmAppSpec {
 	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.HelmParameter parameters = 4;
 	// the contents of values.yaml
 	string values = 5;
+    // helm file parameters
+    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.HelmFileParameter fileParameters = 6;
 }
 
 // KustomizeAppSpec contains kustomize images

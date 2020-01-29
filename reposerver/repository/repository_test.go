@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -333,6 +335,68 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 		},
 	})
 	assert.Error(t, err, "should be on or under current directory")
+}
+
+// The requested file parameter (`/tmp/external-secret.txt`) is outside the app path
+// (`./util/helm/testdata/redis`), and outside the repo directory. It is used as a means
+// of providing direct content to a helm chart via a specific key.
+func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
+	service := newService("../..")
+
+	file, err := ioutil.TempFile("", "external-secret.txt")
+	assert.NoError(t, err)
+	externalSecretPath := file.Name()
+	defer func() { _ = os.RemoveAll(externalSecretPath) }()
+	expectedFileContent, err := ioutil.ReadFile("../../util/helm/testdata/external/external-secret.txt")
+	assert.NoError(t, err)
+	err = ioutil.WriteFile(externalSecretPath, expectedFileContent, 0644)
+	assert.NoError(t, err)
+
+	_, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		Repo:          &argoappv1.Repository{},
+		AppLabelValue: "test",
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: "./util/helm/testdata/redis",
+			Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"values-production.yaml"},
+				Values:     `cluster: {slaveCount: 2}`,
+				FileParameters: []argoappv1.HelmFileParameter{
+					argoappv1.HelmFileParameter{
+						Name: "passwordContent",
+						Path: externalSecretPath,
+					},
+				},
+			},
+		},
+	})
+	assert.NoError(t, err)
+}
+
+// The requested file parameter (`../external/external-secret.txt`) is outside the app path
+// (`./util/helm/testdata/redis`), however  since the requested value is sill under the repo
+// directory (`~/go/src/github.com/argoproj/argo-cd`), it is allowed. It is used as a means of
+// providing direct content to a helm chart via a specific key.
+func TestGenerateHelmWithFileParameter(t *testing.T) {
+	service := newService("../..")
+
+	_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		Repo:          &argoappv1.Repository{},
+		AppLabelValue: "test",
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: "./util/helm/testdata/redis",
+			Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"values-production.yaml"},
+				Values:     `cluster: {slaveCount: 2}`,
+				FileParameters: []argoappv1.HelmFileParameter{
+					argoappv1.HelmFileParameter{
+						Name: "passwordContent",
+						Path: "../external/external-secret.txt",
+					},
+				},
+			},
+		},
+	})
+	assert.NoError(t, err)
 }
 
 func TestGenerateNullList(t *testing.T) {
