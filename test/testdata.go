@@ -1,14 +1,14 @@
 package test
 
 import (
-	"github.com/argoproj/argo-cd/engine/pkg/utils/testing"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	synccommon "github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/testing"
 	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
 	applister "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
@@ -77,11 +77,11 @@ spec:
 
 // DEPRECATED
 // use `Hook(NewPod())` or similar instead
-func NewHook(hookType v1alpha1.HookType) *unstructured.Unstructured {
+func NewHook(hookType synccommon.HookType) *unstructured.Unstructured {
 	return Hook(NewPod(), hookType)
 }
 
-func Hook(obj *unstructured.Unstructured, hookType v1alpha1.HookType) *unstructured.Unstructured {
+func Hook(obj *unstructured.Unstructured, hookType synccommon.HookType) *unstructured.Unstructured {
 	return Annotate(obj, "argocd.argoproj.io/hook", string(hookType))
 }
 

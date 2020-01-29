@@ -4,16 +4,16 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
-
-	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/common"
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
+	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
 func TestSetApplicationHealth(t *testing.T) {

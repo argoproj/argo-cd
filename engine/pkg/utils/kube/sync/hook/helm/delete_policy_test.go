@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
 	. "github.com/argoproj/argo-cd/test"
 )
 
@@ -17,7 +17,7 @@ func TestDeletePolicies(t *testing.T) {
 }
 
 func TestDeletePolicy_DeletePolicy(t *testing.T) {
-	assert.Equal(t, v1alpha1.HookDeletePolicyBeforeHookCreation, BeforeHookCreation.DeletePolicy())
-	assert.Equal(t, v1alpha1.HookDeletePolicyHookSucceeded, HookSucceeded.DeletePolicy())
-	assert.Equal(t, v1alpha1.HookDeletePolicyHookFailed, HookFailed.DeletePolicy())
+	assert.Equal(t, common.HookDeletePolicyBeforeHookCreation, BeforeHookCreation.DeletePolicy())
+	assert.Equal(t, common.HookDeletePolicyHookSucceeded, HookSucceeded.DeletePolicy())
+	assert.Equal(t, common.HookDeletePolicyHookFailed, HookFailed.DeletePolicy())
 }

@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
 	. "github.com/argoproj/argo-cd/test"
 )
 
@@ -25,8 +25,8 @@ func TestTypes(t *testing.T) {
 }
 
 func TestType_HookType(t *testing.T) {
-	assert.Equal(t, v1alpha1.HookTypePreSync, PreInstall.HookType())
-	assert.Equal(t, v1alpha1.HookTypePreSync, PreUpgrade.HookType())
-	assert.Equal(t, v1alpha1.HookTypePostSync, PostUpgrade.HookType())
-	assert.Equal(t, v1alpha1.HookTypePostSync, PostInstall.HookType())
+	assert.Equal(t, common.HookTypePreSync, PreInstall.HookType())
+	assert.Equal(t, common.HookTypePreSync, PreUpgrade.HookType())
+	assert.Equal(t, common.HookTypePostSync, PostUpgrade.HookType())
+	assert.Equal(t, common.HookTypePostSync, PostInstall.HookType())
 }

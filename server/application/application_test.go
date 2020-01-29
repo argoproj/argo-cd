@@ -23,6 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
 	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/kubetest"
+	synccommon "github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
@@ -332,7 +333,7 @@ func TestSyncAndTerminate(t *testing.T) {
 	// set status.operationState to pretend that an operation has started by controller
 	app.Status.OperationState = &appsv1.OperationState{
 		Operation: *app.Operation,
-		Phase:     appsv1.OperationRunning,
+		Phase:     synccommon.OperationRunning,
 		StartedAt: metav1.NewTime(time.Now()),
 	}
 	_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(appServer.ns).Update(app)
@@ -345,7 +346,7 @@ func TestSyncAndTerminate(t *testing.T) {
 	app, err = appServer.Get(ctx, &application.ApplicationQuery{Name: &app.Name})
 	assert.Nil(t, err)
 	assert.NotNil(t, app)
-	assert.Equal(t, appsv1.OperationTerminating, app.Status.OperationState.Phase)
+	assert.Equal(t, synccommon.OperationTerminating, app.Status.OperationState.Phase)
 }
 
 func TestSyncHelm(t *testing.T) {

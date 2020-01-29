@@ -3,7 +3,7 @@ package ignore
 import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/util/hook"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/hook"
 )
 
 // should we Ignore this resource?

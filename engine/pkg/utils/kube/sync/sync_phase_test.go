@@ -1,4 +1,4 @@
-package controller
+package sync
 
 import (
 	"testing"
@@ -6,20 +6,20 @@ import (
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
 	"github.com/argoproj/argo-cd/test"
 )
 
 func TestSyncPhaseNone(t *testing.T) {
-	assert.Equal(t, []SyncPhase{SyncPhaseSync}, syncPhases(&unstructured.Unstructured{}))
+	assert.Equal(t, []common.SyncPhase{common.SyncPhaseSync}, syncPhases(&unstructured.Unstructured{}))
 }
 
 func TestSyncPhasePreSync(t *testing.T) {
-	assert.Equal(t, []SyncPhase{SyncPhasePreSync}, syncPhases(pod("PreSync")))
+	assert.Equal(t, []common.SyncPhase{common.SyncPhasePreSync}, syncPhases(pod("PreSync")))
 }
 
 func TestSyncPhaseSync(t *testing.T) {
-	assert.Equal(t, []SyncPhase{SyncPhaseSync}, syncPhases(pod("Sync")))
+	assert.Equal(t, []common.SyncPhase{common.SyncPhaseSync}, syncPhases(pod("Sync")))
 }
 
 func TestSyncPhaseSkip(t *testing.T) {
@@ -32,20 +32,20 @@ func TestSyncPhaseGarbage(t *testing.T) {
 }
 
 func TestSyncPhasePost(t *testing.T) {
-	assert.Equal(t, []SyncPhase{SyncPhasePostSync}, syncPhases(pod("PostSync")))
+	assert.Equal(t, []common.SyncPhase{common.SyncPhasePostSync}, syncPhases(pod("PostSync")))
 }
 
 func TestSyncPhaseFail(t *testing.T) {
-	assert.Equal(t, []SyncPhase{SyncPhaseSyncFail}, syncPhases(pod("SyncFail")))
+	assert.Equal(t, []common.SyncPhase{common.SyncPhaseSyncFail}, syncPhases(pod("SyncFail")))
 }
 
 func TestSyncPhaseTwoPhases(t *testing.T) {
-	assert.ElementsMatch(t, []SyncPhase{SyncPhasePreSync, SyncPhasePostSync}, syncPhases(pod("PreSync,PostSync")))
+	assert.ElementsMatch(t, []common.SyncPhase{common.SyncPhasePreSync, common.SyncPhasePostSync}, syncPhases(pod("PreSync,PostSync")))
 }
 
 func TestSyncDuplicatedPhases(t *testing.T) {
-	assert.ElementsMatch(t, []SyncPhase{SyncPhasePreSync}, syncPhases(pod("PreSync,PreSync")))
-	assert.ElementsMatch(t, []SyncPhase{SyncPhasePreSync}, syncPhases(podWithHelmHook("pre-install,pre-upgrade")))
+	assert.ElementsMatch(t, []common.SyncPhase{common.SyncPhasePreSync}, syncPhases(pod("PreSync,PreSync")))
+	assert.ElementsMatch(t, []common.SyncPhase{common.SyncPhasePreSync}, syncPhases(podWithHelmHook("pre-install,pre-upgrade")))
 }
 
 func pod(hookType string) *unstructured.Unstructured {

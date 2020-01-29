@@ -4,9 +4,9 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	helmhook "github.com/argoproj/argo-cd/util/hook/helm"
-	"github.com/argoproj/argo-cd/util/resource"
+	synccommon "github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
+	helmhook "github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/hook/helm"
+	resourceutil "github.com/argoproj/argo-cd/engine/pkg/utils/resource"
 )
 
 func IsHook(obj *unstructured.Unstructured) bool {
@@ -19,17 +19,17 @@ func IsHook(obj *unstructured.Unstructured) bool {
 
 func Skip(obj *unstructured.Unstructured) bool {
 	for _, hookType := range Types(obj) {
-		if hookType == v1alpha1.HookTypeSkip {
+		if hookType == synccommon.HookTypeSkip {
 			return len(Types(obj)) == 1
 		}
 	}
 	return false
 }
 
-func Types(obj *unstructured.Unstructured) []v1alpha1.HookType {
-	var types []v1alpha1.HookType
-	for _, text := range resource.GetAnnotationCSVs(obj, common.AnnotationKeyHook) {
-		t, ok := v1alpha1.NewHookType(text)
+func Types(obj *unstructured.Unstructured) []synccommon.HookType {
+	var types []synccommon.HookType
+	for _, text := range resourceutil.GetAnnotationCSVs(obj, common.AnnotationKeyHook) {
+		t, ok := synccommon.NewHookType(text)
 		if ok {
 			types = append(types, t)
 		}

@@ -105,7 +105,7 @@ func GetResourceHealth(obj *unstructured.Unstructured, healthOverride HealthOver
 	case "argoproj.io":
 		switch gvk.Kind {
 		case "Application":
-			health, err = getApplicationHealth(obj)
+			health = getApplicationHealth(obj)
 		case "Workflow":
 			health, err = getArgoWorkflowHealth(obj)
 		}
@@ -246,10 +246,10 @@ func init() {
 	_ = apiregistrationv1beta1.SchemeBuilder.AddToScheme(scheme.Scheme)
 }
 
-func getApplicationHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
+func getApplicationHealth(obj *unstructured.Unstructured) *HealthStatus {
 	status, _, _ := unstructured.NestedString(obj.Object, "status", "health", "status")
 	message, _, _ := unstructured.NestedString(obj.Object, "status", "health", "message")
-	return &HealthStatus{Status: HealthStatusCode(status), Message: message}, nil
+	return &HealthStatus{Status: HealthStatusCode(status), Message: message}
 }
 
 func getDaemonSetHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {

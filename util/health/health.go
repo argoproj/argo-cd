@@ -1,12 +1,13 @@
 package health
 
 import (
-	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	hookutil "github.com/argoproj/argo-cd/util/hook"
-	"github.com/argoproj/argo-cd/util/lua"
-	"github.com/argoproj/argo-cd/util/resource/ignore"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
+	hookutil "github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/hook"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/resource/ignore"
+	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/lua"
 )
 
 // SetApplicationHealth updates the health statuses of all resources performed in the comparison

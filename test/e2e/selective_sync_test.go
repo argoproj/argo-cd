@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
+	. "github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
 )
@@ -25,7 +26,8 @@ func TestSelectiveSync(t *testing.T) {
 }
 
 // when running selective sync, hooks do not run
-func TestSelectiveSyncDoesRunHooks(t *testing.T) {
+// hooks don't run even if all resources are selected
+func TestSelectiveSyncDoesNotRunHooks(t *testing.T) {
 	Given(t).
 		Path("hook").
 		SelectedResource(":Pod:pod").
@@ -38,5 +40,5 @@ func TestSelectiveSyncDoesRunHooks(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(ResourceHealthIs("Pod", "pod", health.HealthStatusHealthy)).
-		Expect(ResourceHealthIs("Pod", "hook", health.HealthStatusHealthy))
+		Expect(ResourceResultNumbering(1))
 }

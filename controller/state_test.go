@@ -112,7 +112,7 @@ func TestCompareAppStateHook(t *testing.T) {
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, 0, len(compRes.resources))
 	assert.Equal(t, 0, len(compRes.managedResources))
-	assert.Equal(t, 1, len(compRes.hooks))
+	assert.Equal(t, 1, len(compRes.reconciliationResult.Hooks))
 	assert.Equal(t, 0, len(app.Status.Conditions))
 }
 
@@ -167,7 +167,7 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, 1, len(compRes.resources))
 	assert.Equal(t, 1, len(compRes.managedResources))
-	assert.Equal(t, 0, len(compRes.hooks))
+	assert.Equal(t, 0, len(compRes.reconciliationResult.Hooks))
 	assert.Equal(t, 0, len(app.Status.Conditions))
 }
 
@@ -384,13 +384,6 @@ func TestSetManagedResourcesKnownOrphanedResourceExceptions(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, tree.OrphanedNodes, 1)
 	assert.Equal(t, "guestbook", tree.OrphanedNodes[0].Name)
-}
-
-func Test_comparisonResult_obs(t *testing.T) {
-	assert.Len(t, (&comparisonResult{}).targetObjs(), 0)
-	assert.Len(t, (&comparisonResult{managedResources: []managedResource{{}}}).targetObjs(), 0)
-	assert.Len(t, (&comparisonResult{managedResources: []managedResource{{Target: test.NewPod()}}}).targetObjs(), 1)
-	assert.Len(t, (&comparisonResult{hooks: []*unstructured.Unstructured{{}}}).targetObjs(), 1)
 }
 
 func Test_appStateManager_persistRevisionHistory(t *testing.T) {

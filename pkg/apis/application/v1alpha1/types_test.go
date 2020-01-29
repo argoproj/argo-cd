@@ -5,10 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 func TestAppProject_IsSourcePermitted(t *testing.T) {
@@ -647,50 +648,6 @@ func TestRepository_CopySettingsFrom(t *testing.T) {
 	}
 }
 
-func TestNewHookType(t *testing.T) {
-	t.Run("Garbage", func(t *testing.T) {
-		_, ok := NewHookType("Garbage")
-		assert.False(t, ok)
-	})
-	t.Run("PreSync", func(t *testing.T) {
-		hookType, ok := NewHookType("PreSync")
-		assert.True(t, ok)
-		assert.Equal(t, HookTypePreSync, hookType)
-	})
-	t.Run("Sync", func(t *testing.T) {
-		hookType, ok := NewHookType("Sync")
-		assert.True(t, ok)
-		assert.Equal(t, HookTypeSync, hookType)
-	})
-	t.Run("PostSync", func(t *testing.T) {
-		hookType, ok := NewHookType("PostSync")
-		assert.True(t, ok)
-		assert.Equal(t, HookTypePostSync, hookType)
-	})
-}
-
-func TestNewHookDeletePolicy(t *testing.T) {
-	t.Run("Garbage", func(t *testing.T) {
-		_, ok := NewHookDeletePolicy("Garbage")
-		assert.False(t, ok)
-	})
-	t.Run("HookSucceeded", func(t *testing.T) {
-		p, ok := NewHookDeletePolicy("HookSucceeded")
-		assert.True(t, ok)
-		assert.Equal(t, HookDeletePolicyHookSucceeded, p)
-	})
-	t.Run("HookFailed", func(t *testing.T) {
-		p, ok := NewHookDeletePolicy("HookFailed")
-		assert.True(t, ok)
-		assert.Equal(t, HookDeletePolicyHookFailed, p)
-	})
-	t.Run("BeforeHookCreation", func(t *testing.T) {
-		p, ok := NewHookDeletePolicy("BeforeHookCreation")
-		assert.True(t, ok)
-		assert.Equal(t, HookDeletePolicyBeforeHookCreation, p)
-	})
-}
-
 func TestSyncStrategy_Force(t *testing.T) {
 	type fields struct {
 		Apply *SyncStrategyApply
@@ -745,37 +702,13 @@ func TestSyncOperation_IsApplyStrategy(t *testing.T) {
 	}
 }
 
-func TestResourceResults_Filter(t *testing.T) {
-	type args struct {
-		predicate func(r *ResourceResult) bool
-	}
-	tests := []struct {
-		name string
-		r    ResourceResults
-		args args
-		want ResourceResults
-	}{
-		{"Nil", nil, args{predicate: func(r *ResourceResult) bool { return true }}, ResourceResults{}},
-		{"Empty", ResourceResults{}, args{predicate: func(r *ResourceResult) bool { return true }}, ResourceResults{}},
-		{"All", ResourceResults{{}}, args{predicate: func(r *ResourceResult) bool { return true }}, ResourceResults{{}}},
-		{"None", ResourceResults{{}}, args{predicate: func(r *ResourceResult) bool { return false }}, ResourceResults{}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.r.Filter(tt.args.predicate); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ResourceResults.Filter() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestResourceResults_Find(t *testing.T) {
 	type args struct {
 		group     string
 		kind      string
 		namespace string
 		name      string
-		phase     SyncPhase
+		phase     common.SyncPhase
 	}
 	foo := &ResourceResult{Group: "foo"}
 	results := ResourceResults{
@@ -807,7 +740,7 @@ func TestResourceResults_Find(t *testing.T) {
 }
 
 func TestResourceResults_PruningRequired(t *testing.T) {
-	needsPruning := &ResourceResult{Status: ResultCodePruneSkipped}
+	needsPruning := &ResourceResult{Status: common.ResultCodePruneSkipped}
 	tests := []struct {
 		name    string
 		r       ResourceResults

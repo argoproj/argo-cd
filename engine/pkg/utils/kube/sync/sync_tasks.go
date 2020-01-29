@@ -1,17 +1,17 @@
-package controller
+package sync
 
 import (
 	"strings"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
 )
 
 // kindOrder represents the correct order of Kubernetes resources within a manifest
-var syncPhaseOrder = map[v1alpha1.SyncPhase]int{
-	v1alpha1.SyncPhasePreSync:  -1,
-	v1alpha1.SyncPhaseSync:     0,
-	v1alpha1.SyncPhasePostSync: 1,
-	v1alpha1.SyncPhaseSyncFail: 2,
+var syncPhaseOrder = map[common.SyncPhase]int{
+	common.SyncPhasePreSync:  -1,
+	common.SyncPhaseSync:     0,
+	common.SyncPhasePostSync: 1,
+	common.SyncPhaseSyncFail: 2,
 }
 
 // kindOrder represents the correct order of Kubernetes resources within a manifest
@@ -152,7 +152,7 @@ func (s syncTasks) String() string {
 	return "[" + strings.Join(values, ", ") + "]"
 }
 
-func (s syncTasks) phase() v1alpha1.SyncPhase {
+func (s syncTasks) phase() common.SyncPhase {
 	if len(s) > 0 {
 		return s[0].phase
 	}
@@ -166,7 +166,7 @@ func (s syncTasks) wave() int {
 	return 0
 }
 
-func (s syncTasks) lastPhase() v1alpha1.SyncPhase {
+func (s syncTasks) lastPhase() common.SyncPhase {
 	if len(s) > 0 {
 		return s[len(s)-1].phase
 	}

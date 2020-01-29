@@ -1,4 +1,4 @@
-package controller
+package sync
 
 import (
 	"sort"
@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/common"
-	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	synccommon "github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
 	. "github.com/argoproj/argo-cd/test"
 )
 
@@ -83,7 +83,7 @@ var unsortedTasks = syncTasks{
 		},
 	},
 	{
-		phase: SyncPhaseSyncFail, targetObj: &unstructured.Unstructured{},
+		phase: synccommon.SyncPhaseSyncFail, targetObj: &unstructured.Unstructured{},
 	},
 	{
 		targetObj: &unstructured.Unstructured{
@@ -133,11 +133,11 @@ var unsortedTasks = syncTasks{
 		},
 	},
 	{
-		phase:     SyncPhasePreSync,
+		phase:     synccommon.SyncPhasePreSync,
 		targetObj: &unstructured.Unstructured{},
 	},
 	{
-		phase: SyncPhasePostSync, targetObj: &unstructured.Unstructured{},
+		phase: synccommon.SyncPhasePostSync, targetObj: &unstructured.Unstructured{},
 	},
 	{
 		targetObj: &unstructured.Unstructured{
@@ -151,7 +151,7 @@ var unsortedTasks = syncTasks{
 
 var sortedTasks = syncTasks{
 	{
-		phase:     SyncPhasePreSync,
+		phase:     synccommon.SyncPhasePreSync,
 		targetObj: &unstructured.Unstructured{},
 	},
 	{
@@ -234,11 +234,11 @@ var sortedTasks = syncTasks{
 		},
 	},
 	{
-		phase:     SyncPhasePostSync,
+		phase:     synccommon.SyncPhasePostSync,
 		targetObj: &unstructured.Unstructured{},
 	},
 	{
-		phase:     SyncPhaseSyncFail,
+		phase:     synccommon.SyncPhaseSyncFail,
 		targetObj: &unstructured.Unstructured{},
 	},
 }
@@ -266,7 +266,7 @@ var namedObjTasks = syncTasks{
 
 var unnamedTasks = syncTasks{
 	{
-		phase:     SyncPhasePreSync,
+		phase:     synccommon.SyncPhasePreSync,
 		targetObj: &unstructured.Unstructured{},
 	},
 	{
@@ -331,20 +331,20 @@ var unnamedTasks = syncTasks{
 		},
 	},
 	{
-		phase:     SyncPhasePostSync,
+		phase:     synccommon.SyncPhasePostSync,
 		targetObj: &unstructured.Unstructured{},
 	},
 	{
-		phase:     SyncPhaseSyncFail,
+		phase:     synccommon.SyncPhaseSyncFail,
 		targetObj: &unstructured.Unstructured{},
 	},
 }
 
 func Test_syncTasks_Filter(t *testing.T) {
-	tasks := syncTasks{{phase: SyncPhaseSync}, {phase: SyncPhasePostSync}}
+	tasks := syncTasks{{phase: synccommon.SyncPhaseSync}, {phase: synccommon.SyncPhasePostSync}}
 
-	assert.Equal(t, syncTasks{{phase: SyncPhaseSync}}, tasks.Filter(func(t *syncTask) bool {
-		return t.phase == SyncPhaseSync
+	assert.Equal(t, syncTasks{{phase: synccommon.SyncPhaseSync}}, tasks.Filter(func(t *syncTask) bool {
+		return t.phase == synccommon.SyncPhaseSync
 	}))
 }
 
@@ -371,21 +371,21 @@ func TestSyncNamespaceAgainstCRD(t *testing.T) {
 
 func Test_syncTasks_multiStep(t *testing.T) {
 	t.Run("Single", func(t *testing.T) {
-		tasks := syncTasks{{liveObj: Annotate(NewPod(), common.AnnotationSyncWave, "-1"), phase: SyncPhaseSync}}
-		assert.Equal(t, SyncPhaseSync, tasks.phase())
+		tasks := syncTasks{{liveObj: Annotate(NewPod(), common.AnnotationSyncWave, "-1"), phase: synccommon.SyncPhaseSync}}
+		assert.Equal(t, synccommon.SyncPhaseSync, string(tasks.phase()))
 		assert.Equal(t, -1, tasks.wave())
-		assert.Equal(t, SyncPhaseSync, tasks.lastPhase())
+		assert.Equal(t, synccommon.SyncPhaseSync, string(tasks.lastPhase()))
 		assert.Equal(t, -1, tasks.lastWave())
 		assert.False(t, tasks.multiStep())
 	})
 	t.Run("Double", func(t *testing.T) {
 		tasks := syncTasks{
-			{liveObj: Annotate(NewPod(), common.AnnotationSyncWave, "-1"), phase: SyncPhasePreSync},
-			{liveObj: Annotate(NewPod(), common.AnnotationSyncWave, "1"), phase: SyncPhasePostSync},
+			{liveObj: Annotate(NewPod(), common.AnnotationSyncWave, "-1"), phase: synccommon.SyncPhasePreSync},
+			{liveObj: Annotate(NewPod(), common.AnnotationSyncWave, "1"), phase: synccommon.SyncPhasePostSync},
 		}
-		assert.Equal(t, SyncPhasePreSync, tasks.phase())
+		assert.Equal(t, synccommon.SyncPhasePreSync, string(tasks.phase()))
 		assert.Equal(t, -1, tasks.wave())
-		assert.Equal(t, SyncPhasePostSync, tasks.lastPhase())
+		assert.Equal(t, synccommon.SyncPhasePostSync, string(tasks.lastPhase()))
 		assert.Equal(t, 1, tasks.lastWave())
 		assert.True(t, tasks.multiStep())
 	})
