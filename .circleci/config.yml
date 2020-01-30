@@ -25,13 +25,13 @@ commands:
   install_golang:
     steps:
       - run:
-          name: Install Golang v1.13.6
+          name: Install Golang v1.13.7
           command: |
-            go get golang.org/dl/go1.13.6
-            [ -e /home/circleci/sdk/go1.13.6 ] || go1.13.6 download
+            go get golang.org/dl/go1.13.7
+            [ -e /home/circleci/sdk/go1.13.7 ] || go1.13.7 download
             go env
             echo "export GOPATH=/home/circleci/.go_workspace" | tee -a $BASH_ENV
-            echo "export PATH=/home/circleci/sdk/go1.13.6/bin:\$PATH" | tee -a $BASH_ENV
+            echo "export PATH=/home/circleci/sdk/go1.13.7/bin:\$PATH" | tee -a $BASH_ENV
   save_go_cache:
     steps:
       - save_cache:
@@ -39,7 +39,7 @@ commands:
           # https://circleci.com/docs/2.0/language-go/
           paths:
             - /home/circleci/.cache/go-build
-            - /home/circleci/sdk/go1.13.6
+            - /home/circleci/sdk/go1.13.7
   restore_go_cache:
     steps:
       - restore_cache:
