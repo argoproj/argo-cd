@@ -68,8 +68,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [Viaduct](https://www.viaduct.ai/)
 1. [Volvo Cars](https://www.volvocars.com/)
 1. [Walkbase](https://www.walkbase.com/)
-1. [Whitehat Berlin](https://whitehat.berlin) at ATU/Mobivia & UMI/WeShare/Volkswagen
-
+1. [Whitehat Berlin](https://whitehat.berlin) at [ATU](https://www.atu.de/)/[Mobivia](https://www.mobivia.com/) & [UMI](https://www.linkedin.com/company/urban-mobility-international/)/[WeShare](http://we-share.io/)/[Volkswagen](http://volkswagen.de/)
 ## Documentation
 
 To learn more about Argo CD [go to the complete documentation](https://argoproj.github.io/argo-cd/).
