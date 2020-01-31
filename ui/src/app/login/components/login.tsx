@@ -62,7 +62,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                             <a href={`auth/login?return_url=${encodeURIComponent(this.state.returnUrl)}`}>
                                 <button className='argo-button argo-button--base argo-button--full-width argo-button--xlg'>
                                     {(authSettings.oidcConfig && <span>Login via {authSettings.oidcConfig.name}</span>) ||
-                                        (authSettings.dexConfig.connectors.length > 0 && <span>Login via {authSettings.dexConfig.connectors[0].name}</span>) || (
+                                        (authSettings.dexConfig.connectors.length === 1 && <span>Login via {authSettings.dexConfig.connectors[0].name}</span>) || (
                                             <span>SSO Login</span>
                                         )}
                                 </button>

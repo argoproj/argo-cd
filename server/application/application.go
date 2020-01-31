@@ -1272,8 +1272,9 @@ func (s *Server) plugins() ([]*v1alpha1.ConfigManagementPlugin, error) {
 		return nil, err
 	}
 	tools := make([]*v1alpha1.ConfigManagementPlugin, len(plugins))
-	for i, plugin := range plugins {
-		tools[i] = &plugin
+	for i, p := range plugins {
+		p := p
+		tools[i] = &p
 	}
 	return tools, nil
 }
