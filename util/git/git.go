@@ -42,7 +42,9 @@ func IsTruncatedCommitSHA(sha string) bool {
 
 // SameURL returns whether or not the two repository URLs are equivalent in location
 func SameURL(leftRepo, rightRepo string) bool {
-	return NormalizeGitURL(leftRepo) == NormalizeGitURL(rightRepo)
+	normalLeft := NormalizeGitURL(leftRepo)
+	normalRight := NormalizeGitURL(rightRepo)
+	return normalLeft != "" && normalRight != "" && normalLeft == normalRight
 }
 
 // NormalizeGitURL normalizes a git URL for purposes of comparison, as well as preventing redundant
@@ -52,7 +54,12 @@ func SameURL(leftRepo, rightRepo string) bool {
 func NormalizeGitURL(repo string) string {
 	repo = strings.ToLower(strings.TrimSpace(repo))
 	if yes, _ := IsSSHURL(repo); yes {
-		repo = ensurePrefix(repo, "ssh://")
+		if !strings.HasPrefix(repo, "ssh://") {
+			// We need to replace the first colon in git@server... style SSH URLs with a slash, otherwise
+			// net/url.Parse will interpret it incorrectly as the port.
+			repo = strings.Replace(repo, ":", "/", 1)
+			repo = ensurePrefix(repo, "ssh://")
+		}
 	}
 	repo = removeSuffix(repo, ".git")
 	repoURL, err := url.Parse(repo)
