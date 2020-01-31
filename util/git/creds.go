@@ -157,7 +157,7 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 	}
 	defer file.Close()
 
-	_, err = file.WriteString(c.sshPrivateKey)
+	_, err = file.WriteString(c.sshPrivateKey + "\n")
 	if err != nil {
 		return nil, nil, err
 	}
