@@ -79,6 +79,9 @@ func init() {
 
 func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool) (Client, error) {
 	root := filepath.Join(os.TempDir(), strings.Replace(NormalizeGitURL(rawRepoURL), "/", "_", -1))
+	if root == os.TempDir() {
+		return nil, fmt.Errorf("Repository '%s' cannot be initialized, because its root would be system temp at %s", rawRepoURL, root)
+	}
 	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs)
 }
 
