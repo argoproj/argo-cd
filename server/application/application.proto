@@ -202,8 +202,14 @@ message ManagedResourcesResponse {
 // ApplicationService
 service ApplicationService {
 
-	// List returns list of applications
+	// DEPRECATED: List returns list of applications
 	rpc List(ApplicationQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationList) {
+		option (google.api.http).get = "/api/v1/applications";
+		option deprecated = true;
+	}
+
+	// ListApplications returns list of applications
+	rpc ListApplications(ApplicationQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationList) {
 		option (google.api.http).get = "/api/v1/applications";
 	}
 
@@ -215,6 +221,12 @@ service ApplicationService {
 	// Watch returns stream of application change events.
 	rpc Watch(ApplicationQuery) returns (stream github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationWatchEvent) {
 		option (google.api.http).get = "/api/v1/stream/applications";
+		option deprecated = true;
+	}
+
+	// WatchApplications returns stream of application change events.
+	rpc WatchApplications(ApplicationQuery) returns (stream github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationWatchEvent) {
+		option (google.api.http).get = "/api/v1/stream/applications";
 	}
 
 	// Create creates an application
@@ -223,10 +235,25 @@ service ApplicationService {
 			post: "/api/v1/applications"
 			body: "application"
 		};
+		option deprecated = true;
+	}
+
+	// CreateApplication creates an application
+	rpc CreateApplication (ApplicationCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
+		option (google.api.http) = {
+			post: "/api/v1/applications"
+			body: "application"
+		};
 	}
 
 	// Get returns an application by name
 	rpc Get (ApplicationQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
+		option (google.api.http).get = "/api/v1/applications/{name}";
+	}
+
+
+	// GetApplication returns an application by name
+	rpc GetApplication (ApplicationQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http).get = "/api/v1/applications/{name}";
 	}
 
@@ -251,6 +278,15 @@ service ApplicationService {
 			put: "/api/v1/applications/{application.metadata.name}"
 			body: "application"
 		};
+		option deprecated = true;
+	}
+
+	// UpdateApplication updates an application
+	rpc UpdateApplication(ApplicationUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
+		option (google.api.http) = {
+			put: "/api/v1/applications/{application.metadata.name}"
+			body: "application"
+		};
 	}
 
 	// UpdateSpec updates an application spec
@@ -261,21 +297,46 @@ service ApplicationService {
 		};
 	}
 
-	// Patch patch an application
+	// DEPRECATED: Patch patch an application
 	rpc Patch(ApplicationPatchRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
+		option (google.api.http) = {
+			patch: "/api/v1/applications/{name}"
+			body: "*"
+		};
+		option deprecated = true;
+	}
+
+	// Patch patch an application
+	rpc PatchApplication(ApplicationPatchRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
 			patch: "/api/v1/applications/{name}"
 			body: "*"
 		};
 	}
 
-	// Delete deletes an application
+	// DEPRECATED: Delete deletes an application
 	rpc Delete(ApplicationDeleteRequest) returns (ApplicationResponse) {
 		option (google.api.http).delete = "/api/v1/applications/{name}";
+		option deprecated = true;
 	}
 
-	// Sync syncs an application to its target state
+	// DeleteApplication deletes an application
+	rpc DeleteApplication(ApplicationDeleteRequest) returns (ApplicationResponse) {
+		option (google.api.http).delete = "/api/v1/applications/{name}";
+		option deprecated = true;
+	}
+
+	// DEPRECATED: Sync syncs an application to its target state
 	rpc Sync(ApplicationSyncRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
+		option (google.api.http) = {
+			post: "/api/v1/applications/{name}/sync"
+			body: "*"
+		};
+		option deprecated = true;
+	}
+
+	// SyncApplication syncs an application to its target state
+	rpc SyncApplication(ApplicationSyncRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
 			post: "/api/v1/applications/{name}/sync"
 			body: "*"
@@ -289,8 +350,18 @@ service ApplicationService {
 	rpc ResourceTree(ResourcesQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationTree) {
 		option (google.api.http).get = "/api/v1/applications/{applicationName}/resource-tree";
 	}
-	// Rollback syncs an application to its target state
+
+	// DEPRECATED: Rollback syncs an application to its target state
 	rpc Rollback(ApplicationRollbackRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
+		option (google.api.http) = {
+			post: "/api/v1/applications/{name}/rollback"
+			body: "*"
+		};
+		option deprecated = true;
+	}
+
+	// RollbackApplication syncs an application to its target state
+	rpc RollbackApplication(ApplicationRollbackRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
 			post: "/api/v1/applications/{name}/rollback"
 			body: "*"

@@ -96,8 +96,8 @@ func appRBACName(app appv1.Application) string {
 	return fmt.Sprintf("%s/%s", app.Spec.GetProject(), app.Name)
 }
 
-// List returns list of applications
-func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*appv1.ApplicationList, error) {
+// ListApplications returns list of applications
+func (s *Server) ListApplications(ctx context.Context, q *application.ApplicationQuery) (*appv1.ApplicationList, error) {
 	appList, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(metav1.ListOptions{LabelSelector: q.Selector})
 	if err != nil {
 		return nil, err
@@ -117,8 +117,13 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 	return appList, nil
 }
 
-// Create creates an application
-func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateRequest) (*appv1.Application, error) {
+// DEPRECATED: Use ListApplication() instead
+func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*appv1.ApplicationList, error) {
+	return s.ListApplications(ctx, q)
+}
+
+// CreateApplication creates an application
+func (s *Server) CreateApplication(ctx context.Context, q *application.ApplicationCreateRequest) (*appv1.Application, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionCreate, appRBACName(q.Application)); err != nil {
 		return nil, err
 	}
@@ -159,6 +164,11 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 		s.logAppEvent(out, ctx, argo.EventReasonResourceCreated, "created application")
 	}
 	return out, err
+}
+
+// DEPRECATED: Use CreateApplication instead
+func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateRequest) (*appv1.Application, error) {
+	return s.CreateApplication(ctx, q)
 }
 
 // GetManifests returns application manifests
@@ -231,8 +241,8 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	return manifestInfo, nil
 }
 
-// Get returns an application by name
-func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*appv1.Application, error) {
+// GetApplication returns an application by name
+func (s *Server) GetApplication(ctx context.Context, q *application.ApplicationQuery) (*appv1.Application, error) {
 	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
 	a, err := appIf.Get(*q.Name, metav1.GetOptions{})
 	if err != nil {
@@ -256,6 +266,10 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 		}
 	}
 	return a, nil
+}
+
+func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*appv1.Application, error) {
+	return s.GetApplication(ctx, q)
 }
 
 // ListResourceEvents returns a list of event resources
@@ -360,13 +374,18 @@ func (s *Server) updateApp(app *appv1.Application, newApp *appv1.Application, ct
 	return nil, status.Errorf(codes.Internal, "Failed to update application. Too many conflicts")
 }
 
-// Update updates an application
-func (s *Server) Update(ctx context.Context, q *application.ApplicationUpdateRequest) (*appv1.Application, error) {
+// UpdateApplication updates an application
+func (s *Server) UpdateApplication(ctx context.Context, q *application.ApplicationUpdateRequest) (*appv1.Application, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(*q.Application)); err != nil {
 		return nil, err
 	}
 
 	return s.validateAndUpdateApp(ctx, q.Application)
+}
+
+// DEPRECATED: Update updates an application
+func (s *Server) Update(ctx context.Context, q *application.ApplicationUpdateRequest) (*appv1.Application, error) {
+	return s.UpdateApplication(ctx, q)
 }
 
 // UpdateSpec updates an application spec and filters out any invalid parameter overrides
@@ -386,8 +405,8 @@ func (s *Server) UpdateSpec(ctx context.Context, q *application.ApplicationUpdat
 	return &a.Spec, nil
 }
 
-// Patch patches an application
-func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchRequest) (*appv1.Application, error) {
+// PatchApplication patches an application
+func (s *Server) PatchApplication(ctx context.Context, q *application.ApplicationPatchRequest) (*appv1.Application, error) {
 
 	app, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 	if err != nil {
@@ -431,8 +450,13 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 	return s.validateAndUpdateApp(ctx, app)
 }
 
-// Delete removes an application and all associated resources
-func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteRequest) (*application.ApplicationResponse, error) {
+// Patch patches an application
+func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchRequest) (*appv1.Application, error) {
+	return s.PatchApplication(ctx, q)
+}
+
+// DeleteApplication removes an application and all associated resources
+func (s *Server) DeleteApplication(ctx context.Context, q *application.ApplicationDeleteRequest) (*application.ApplicationResponse, error) {
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 	if err != nil && !apierr.IsNotFound(err) {
 		return nil, err
@@ -485,7 +509,13 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	return &application.ApplicationResponse{}, nil
 }
 
-func (s *Server) Watch(q *application.ApplicationQuery, ws application.ApplicationService_WatchServer) error {
+// DEPRECATED: Delete removes an application and all associated resources
+func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteRequest) (*application.ApplicationResponse, error) {
+	return s.DeleteApplication(ctx, q)
+}
+
+// WatchApplications serves a stream of application change events
+func (s *Server) WatchApplications(q *application.ApplicationQuery, ws application.ApplicationService_WatchApplicationsServer) error {
 	logCtx := log.NewEntry(log.New())
 	if q.Name != nil {
 		logCtx = logCtx.WithField("application", *q.Name)
@@ -556,6 +586,11 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	case <-done:
 	}
 	return nil
+}
+
+// DEPRECATED: Watch serves a stream of application change events
+func (s *Server) Watch(q *application.ApplicationQuery, ws application.ApplicationService_WatchServer) error {
+	return s.WatchApplications(q, ws)
 }
 
 func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Application) error {
@@ -939,8 +974,8 @@ func (s *Server) getApplicationDestination(name string) (string, string, error) 
 	return server, namespace, nil
 }
 
-// Sync syncs an application to its target state
-func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncRequest) (*appv1.Application, error) {
+// SyncApplication syncs an application to its target state
+func (s *Server) SyncApplication(ctx context.Context, syncReq *application.ApplicationSyncRequest) (*appv1.Application, error) {
 	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
 	a, err := appIf.Get(*syncReq.Name, metav1.GetOptions{})
 	if err != nil {
@@ -1003,7 +1038,13 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	return a, err
 }
 
-func (s *Server) Rollback(ctx context.Context, rollbackReq *application.ApplicationRollbackRequest) (*appv1.Application, error) {
+// DEPRECATED: Sync syncs an application to its target state
+func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncRequest) (*appv1.Application, error) {
+	return s.SyncApplication(ctx, syncReq)
+}
+
+// RollbackApplication syncs given application to any previously synced revision
+func (s *Server) RollbackApplication(ctx context.Context, rollbackReq *application.ApplicationRollbackRequest) (*appv1.Application, error) {
 	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
 	a, err := appIf.Get(*rollbackReq.Name, metav1.GetOptions{})
 	if err != nil {
@@ -1050,6 +1091,11 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 		s.logAppEvent(a, ctx, argo.EventReasonOperationStarted, fmt.Sprintf("initiated rollback to %d", rollbackReq.ID))
 	}
 	return a, err
+}
+
+// DEPRECATED: Rollback syncs given application to any previously synced revision
+func (s *Server) Rollback(ctx context.Context, rollbackReq *application.ApplicationRollbackRequest) (*appv1.Application, error) {
+	return s.RollbackApplication(ctx, rollbackReq)
 }
 
 // resolveRevision resolves the revision specified either in the sync request, or the

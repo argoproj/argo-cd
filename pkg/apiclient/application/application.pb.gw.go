@@ -46,6 +46,23 @@ func request_ApplicationService_List_0(ctx context.Context, marshaler runtime.Ma
 }
 
 var (
+	filter_ApplicationService_ListApplications_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+)
+
+func request_ApplicationService_ListApplications_0(ctx context.Context, marshaler runtime.Marshaler, client ApplicationServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq ApplicationQuery
+	var metadata runtime.ServerMetadata
+
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_ApplicationService_ListApplications_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := client.ListApplications(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+var (
 	filter_ApplicationService_ListResourceEvents_0 = &utilities.DoubleArray{Encoding: map[string]int{"name": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
 )
 
@@ -106,6 +123,31 @@ func request_ApplicationService_Watch_0(ctx context.Context, marshaler runtime.M
 }
 
 var (
+	filter_ApplicationService_WatchApplications_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+)
+
+func request_ApplicationService_WatchApplications_0(ctx context.Context, marshaler runtime.Marshaler, client ApplicationServiceClient, req *http.Request, pathParams map[string]string) (ApplicationService_WatchApplicationsClient, runtime.ServerMetadata, error) {
+	var protoReq ApplicationQuery
+	var metadata runtime.ServerMetadata
+
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_ApplicationService_WatchApplications_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	stream, err := client.WatchApplications(ctx, &protoReq)
+	if err != nil {
+		return nil, metadata, err
+	}
+	header, err := stream.Header()
+	if err != nil {
+		return nil, metadata, err
+	}
+	metadata.HeaderMD = header
+	return stream, metadata, nil
+
+}
+
+var (
 	filter_ApplicationService_Create_0 = &utilities.DoubleArray{Encoding: map[string]int{"application": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
 )
 
@@ -122,6 +164,27 @@ func request_ApplicationService_Create_0(ctx context.Context, marshaler runtime.
 	}
 
 	msg, err := client.Create(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+var (
+	filter_ApplicationService_CreateApplication_0 = &utilities.DoubleArray{Encoding: map[string]int{"application": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
+)
+
+func request_ApplicationService_CreateApplication_0(ctx context.Context, marshaler runtime.Marshaler, client ApplicationServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq ApplicationCreateRequest
+	var metadata runtime.ServerMetadata
+
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq.Application); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_ApplicationService_CreateApplication_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := client.CreateApplication(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
@@ -157,6 +220,41 @@ func request_ApplicationService_Get_0(ctx context.Context, marshaler runtime.Mar
 	}
 
 	msg, err := client.Get(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+var (
+	filter_ApplicationService_GetApplication_0 = &utilities.DoubleArray{Encoding: map[string]int{"name": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
+)
+
+func request_ApplicationService_GetApplication_0(ctx context.Context, marshaler runtime.Marshaler, client ApplicationServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq ApplicationQuery
+	var metadata runtime.ServerMetadata
+
+	var (
+		val string
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["name"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
+	}
+
+	protoReq.Name, err = runtime.StringP(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
+	}
+
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_ApplicationService_GetApplication_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := client.GetApplication(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
@@ -292,6 +390,37 @@ func request_ApplicationService_Update_0(ctx context.Context, marshaler runtime.
 
 }
 
+func request_ApplicationService_UpdateApplication_0(ctx context.Context, marshaler runtime.Marshaler, client ApplicationServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq ApplicationUpdateRequest
+	var metadata runtime.ServerMetadata
+
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq.Application); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	var (
+		val string
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["application.metadata.name"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "application.metadata.name")
+	}
+
+	protoReq.GetApplication().GetMetadata().Name, err = runtime.StringP(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "application.metadata.name", err)
+	}
+
+	msg, err := client.UpdateApplication(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
 func request_ApplicationService_UpdateSpec_0(ctx context.Context, marshaler runtime.Marshaler, client ApplicationServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq ApplicationUpdateSpecRequest
 	var metadata runtime.ServerMetadata
@@ -354,6 +483,37 @@ func request_ApplicationService_Patch_0(ctx context.Context, marshaler runtime.M
 
 }
 
+func request_ApplicationService_PatchApplication_0(ctx context.Context, marshaler runtime.Marshaler, client ApplicationServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq ApplicationPatchRequest
+	var metadata runtime.ServerMetadata
+
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	var (
+		val string
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["name"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
+	}
+
+	protoReq.Name, err = runtime.StringP(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
+	}
+
+	msg, err := client.PatchApplication(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
 var (
 	filter_ApplicationService_Delete_0 = &utilities.DoubleArray{Encoding: map[string]int{"name": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
 )
@@ -389,6 +549,41 @@ func request_ApplicationService_Delete_0(ctx context.Context, marshaler runtime.
 
 }
 
+var (
+	filter_ApplicationService_DeleteApplication_0 = &utilities.DoubleArray{Encoding: map[string]int{"name": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
+)
+
+func request_ApplicationService_DeleteApplication_0(ctx context.Context, marshaler runtime.Marshaler, client ApplicationServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq ApplicationDeleteRequest
+	var metadata runtime.ServerMetadata
+
+	var (
+		val string
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["name"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
+	}
+
+	protoReq.Name, err = runtime.StringP(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
+	}
+
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_ApplicationService_DeleteApplication_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := client.DeleteApplication(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
 func request_ApplicationService_Sync_0(ctx context.Context, marshaler runtime.Marshaler, client ApplicationServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq ApplicationSyncRequest
 	var metadata runtime.ServerMetadata
@@ -416,6 +611,37 @@ func request_ApplicationService_Sync_0(ctx context.Context, marshaler runtime.Ma
 	}
 
 	msg, err := client.Sync(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func request_ApplicationService_SyncApplication_0(ctx context.Context, marshaler runtime.Marshaler, client ApplicationServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq ApplicationSyncRequest
+	var metadata runtime.ServerMetadata
+
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	var (
+		val string
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["name"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
+	}
+
+	protoReq.Name, err = runtime.StringP(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
+	}
+
+	msg, err := client.SyncApplication(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
@@ -517,6 +743,37 @@ func request_ApplicationService_Rollback_0(ctx context.Context, marshaler runtim
 	}
 
 	msg, err := client.Rollback(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func request_ApplicationService_RollbackApplication_0(ctx context.Context, marshaler runtime.Marshaler, client ApplicationServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq ApplicationRollbackRequest
+	var metadata runtime.ServerMetadata
+
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	var (
+		val string
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["name"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
+	}
+
+	protoReq.Name, err = runtime.StringP(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
+	}
+
+	msg, err := client.RollbackApplication(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
@@ -852,6 +1109,35 @@ func RegisterApplicationServiceHandlerClient(ctx context.Context, mux *runtime.S
 
 	})
 
+	mux.Handle("GET", pattern_ApplicationService_ListApplications_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		if cn, ok := w.(http.CloseNotifier); ok {
+			go func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		}
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_ApplicationService_ListApplications_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_ApplicationService_ListApplications_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
 	mux.Handle("GET", pattern_ApplicationService_ListResourceEvents_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -910,6 +1196,35 @@ func RegisterApplicationServiceHandlerClient(ctx context.Context, mux *runtime.S
 
 	})
 
+	mux.Handle("GET", pattern_ApplicationService_WatchApplications_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		if cn, ok := w.(http.CloseNotifier); ok {
+			go func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		}
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_ApplicationService_WatchApplications_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_ApplicationService_WatchApplications_0(ctx, mux, outboundMarshaler, w, req, func() (proto.Message, error) { return resp.Recv() }, mux.GetForwardResponseOptions()...)
+
+	})
+
 	mux.Handle("POST", pattern_ApplicationService_Create_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -939,6 +1254,35 @@ func RegisterApplicationServiceHandlerClient(ctx context.Context, mux *runtime.S
 
 	})
 
+	mux.Handle("POST", pattern_ApplicationService_CreateApplication_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		if cn, ok := w.(http.CloseNotifier); ok {
+			go func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		}
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_ApplicationService_CreateApplication_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_ApplicationService_CreateApplication_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
 	mux.Handle("GET", pattern_ApplicationService_Get_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -965,6 +1309,35 @@ func RegisterApplicationServiceHandlerClient(ctx context.Context, mux *runtime.S
 		}
 
 		forward_ApplicationService_Get_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("GET", pattern_ApplicationService_GetApplication_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		if cn, ok := w.(http.CloseNotifier); ok {
+			go func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		}
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_ApplicationService_GetApplication_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_ApplicationService_GetApplication_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -1084,6 +1457,35 @@ func RegisterApplicationServiceHandlerClient(ctx context.Context, mux *runtime.S
 
 	})
 
+	mux.Handle("PUT", pattern_ApplicationService_UpdateApplication_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		if cn, ok := w.(http.CloseNotifier); ok {
+			go func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		}
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_ApplicationService_UpdateApplication_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_ApplicationService_UpdateApplication_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
 	mux.Handle("PUT", pattern_ApplicationService_UpdateSpec_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -1142,6 +1544,35 @@ func RegisterApplicationServiceHandlerClient(ctx context.Context, mux *runtime.S
 
 	})
 
+	mux.Handle("PATCH", pattern_ApplicationService_PatchApplication_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		if cn, ok := w.(http.CloseNotifier); ok {
+			go func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		}
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_ApplicationService_PatchApplication_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_ApplicationService_PatchApplication_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
 	mux.Handle("DELETE", pattern_ApplicationService_Delete_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -1171,6 +1602,35 @@ func RegisterApplicationServiceHandlerClient(ctx context.Context, mux *runtime.S
 
 	})
 
+	mux.Handle("DELETE", pattern_ApplicationService_DeleteApplication_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		if cn, ok := w.(http.CloseNotifier); ok {
+			go func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		}
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_ApplicationService_DeleteApplication_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_ApplicationService_DeleteApplication_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
 	mux.Handle("POST", pattern_ApplicationService_Sync_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -1197,6 +1657,35 @@ func RegisterApplicationServiceHandlerClient(ctx context.Context, mux *runtime.S
 		}
 
 		forward_ApplicationService_Sync_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("POST", pattern_ApplicationService_SyncApplication_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		if cn, ok := w.(http.CloseNotifier); ok {
+			go func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		}
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_ApplicationService_SyncApplication_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_ApplicationService_SyncApplication_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -1284,6 +1773,35 @@ func RegisterApplicationServiceHandlerClient(ctx context.Context, mux *runtime.S
 		}
 
 		forward_ApplicationService_Rollback_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("POST", pattern_ApplicationService_RollbackApplication_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		if cn, ok := w.(http.CloseNotifier); ok {
+			go func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		}
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_ApplicationService_RollbackApplication_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_ApplicationService_RollbackApplication_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -1496,13 +2014,21 @@ func RegisterApplicationServiceHandlerClient(ctx context.Context, mux *runtime.S
 var (
 	pattern_ApplicationService_List_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "applications"}, ""))
 
+	pattern_ApplicationService_ListApplications_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "applications"}, ""))
+
 	pattern_ApplicationService_ListResourceEvents_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "applications", "name", "events"}, ""))
 
 	pattern_ApplicationService_Watch_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "stream", "applications"}, ""))
 
+	pattern_ApplicationService_WatchApplications_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "stream", "applications"}, ""))
+
 	pattern_ApplicationService_Create_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "applications"}, ""))
 
+	pattern_ApplicationService_CreateApplication_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "applications"}, ""))
+
 	pattern_ApplicationService_Get_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "applications", "name"}, ""))
+
+	pattern_ApplicationService_GetApplication_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "applications", "name"}, ""))
 
 	pattern_ApplicationService_GetApplicationSyncWindows_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "applications", "name", "syncwindows"}, ""))
 
@@ -1512,19 +2038,29 @@ var (
 
 	pattern_ApplicationService_Update_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "applications", "application.metadata.name"}, ""))
 
+	pattern_ApplicationService_UpdateApplication_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "applications", "application.metadata.name"}, ""))
+
 	pattern_ApplicationService_UpdateSpec_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "applications", "name", "spec"}, ""))
 
 	pattern_ApplicationService_Patch_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "applications", "name"}, ""))
 
+	pattern_ApplicationService_PatchApplication_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "applications", "name"}, ""))
+
 	pattern_ApplicationService_Delete_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "applications", "name"}, ""))
 
+	pattern_ApplicationService_DeleteApplication_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "applications", "name"}, ""))
+
 	pattern_ApplicationService_Sync_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "applications", "name", "sync"}, ""))
+
+	pattern_ApplicationService_SyncApplication_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "applications", "name", "sync"}, ""))
 
 	pattern_ApplicationService_ManagedResources_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "applications", "applicationName", "managed-resources"}, ""))
 
 	pattern_ApplicationService_ResourceTree_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "applications", "applicationName", "resource-tree"}, ""))
 
 	pattern_ApplicationService_Rollback_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "applications", "name", "rollback"}, ""))
+
+	pattern_ApplicationService_RollbackApplication_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "applications", "name", "rollback"}, ""))
 
 	pattern_ApplicationService_TerminateOperation_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "applications", "name", "operation"}, ""))
 
@@ -1544,13 +2080,21 @@ var (
 var (
 	forward_ApplicationService_List_0 = runtime.ForwardResponseMessage
 
+	forward_ApplicationService_ListApplications_0 = runtime.ForwardResponseMessage
+
 	forward_ApplicationService_ListResourceEvents_0 = runtime.ForwardResponseMessage
 
 	forward_ApplicationService_Watch_0 = runtime.ForwardResponseStream
 
+	forward_ApplicationService_WatchApplications_0 = runtime.ForwardResponseStream
+
 	forward_ApplicationService_Create_0 = runtime.ForwardResponseMessage
 
+	forward_ApplicationService_CreateApplication_0 = runtime.ForwardResponseMessage
+
 	forward_ApplicationService_Get_0 = runtime.ForwardResponseMessage
+
+	forward_ApplicationService_GetApplication_0 = runtime.ForwardResponseMessage
 
 	forward_ApplicationService_GetApplicationSyncWindows_0 = runtime.ForwardResponseMessage
 
@@ -1560,19 +2104,29 @@ var (
 
 	forward_ApplicationService_Update_0 = runtime.ForwardResponseMessage
 
+	forward_ApplicationService_UpdateApplication_0 = runtime.ForwardResponseMessage
+
 	forward_ApplicationService_UpdateSpec_0 = runtime.ForwardResponseMessage
 
 	forward_ApplicationService_Patch_0 = runtime.ForwardResponseMessage
 
+	forward_ApplicationService_PatchApplication_0 = runtime.ForwardResponseMessage
+
 	forward_ApplicationService_Delete_0 = runtime.ForwardResponseMessage
 
+	forward_ApplicationService_DeleteApplication_0 = runtime.ForwardResponseMessage
+
 	forward_ApplicationService_Sync_0 = runtime.ForwardResponseMessage
+
+	forward_ApplicationService_SyncApplication_0 = runtime.ForwardResponseMessage
 
 	forward_ApplicationService_ManagedResources_0 = runtime.ForwardResponseMessage
 
 	forward_ApplicationService_ResourceTree_0 = runtime.ForwardResponseMessage
 
 	forward_ApplicationService_Rollback_0 = runtime.ForwardResponseMessage
+
+	forward_ApplicationService_RollbackApplication_0 = runtime.ForwardResponseMessage
 
 	forward_ApplicationService_TerminateOperation_0 = runtime.ForwardResponseMessage
 
