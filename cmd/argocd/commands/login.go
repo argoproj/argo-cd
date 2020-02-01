@@ -288,7 +288,7 @@ func passwordLogin(acdClient argocdclient.Client, username, password string) str
 		Username: username,
 		Password: password,
 	}
-	createdSession, err := sessionIf.Create(context.Background(), &sessionRequest)
+	createdSession, err := sessionIf.CreateSession(context.Background(), &sessionRequest)
 	errors.CheckError(err)
 	return createdSession.Token
 }

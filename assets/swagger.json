@@ -1743,8 +1743,8 @@
         "tags": [
           "SessionService"
         ],
-        "summary": "Create a new JWT for authentication and set a cookie if using HTTP.",
-        "operationId": "Create",
+        "summary": "CreateSession a new JWT for authentication and set a cookie if using HTTP.",
+        "operationId": "CreateSession",
         "parameters": [
           {
             "name": "body",
@@ -1768,8 +1768,8 @@
         "tags": [
           "SessionService"
         ],
-        "summary": "Delete an existing JWT cookie if using HTTP.",
-        "operationId": "Delete",
+        "summary": "DeleteSession an existing JWT cookie if using HTTP.",
+        "operationId": "DeleteSession",
         "responses": {
           "200": {
             "description": "(empty)",

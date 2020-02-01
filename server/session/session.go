@@ -25,9 +25,9 @@ func NewServer(mgr *sessionmgr.SessionManager, authenticator Authenticator) *Ser
 	return &Server{mgr, authenticator}
 }
 
-// Create generates a JWT token signed by Argo CD intended for web/CLI logins of the admin user
+// CreateSession generates a JWT token signed by Argo CD intended for web/CLI logins of the admin user
 // using username/password
-func (s *Server) Create(ctx context.Context, q *session.SessionCreateRequest) (*session.SessionResponse, error) {
+func (s *Server) CreateSession(ctx context.Context, q *session.SessionCreateRequest) (*session.SessionResponse, error) {
 	if q.Token != "" {
 		return nil, status.Errorf(codes.Unauthenticated, "token-based session creation no longer supported. please upgrade argocd cli to v0.7+")
 	}
@@ -45,9 +45,20 @@ func (s *Server) Create(ctx context.Context, q *session.SessionCreateRequest) (*
 	return &session.SessionResponse{Token: jwtToken}, nil
 }
 
-// Delete an authentication cookie from the client.  This makes sense only for the Web client.
-func (s *Server) Delete(ctx context.Context, q *session.SessionDeleteRequest) (*session.SessionResponse, error) {
+// DEPRECATED: Create generates a JWT token signed by Argo CD intended for web/CLI logins of the admin user
+// using username/password
+func (s *Server) Create(ctx context.Context, q *session.SessionCreateRequest) (*session.SessionResponse, error) {
+	return s.CreateSession(ctx, q)
+}
+
+// DeleteSession deletes an authentication cookie from the client.  This makes sense only for the Web client.
+func (s *Server) DeleteSession(ctx context.Context, q *session.SessionDeleteRequest) (*session.SessionResponse, error) {
 	return &session.SessionResponse{Token: ""}, nil
+}
+
+// DEPRECATED: Delete an authentication cookie from the client.  This makes sense only for the Web client.
+func (s *Server) Delete(ctx context.Context, q *session.SessionDeleteRequest) (*session.SessionResponse, error) {
+	return s.DeleteSession(ctx, q)
 }
 
 // AuthFuncOverride overrides the authentication function and let us not require auth to receive auth.
