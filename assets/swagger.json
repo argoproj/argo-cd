@@ -1136,8 +1136,8 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "List returns list of projects",
-        "operationId": "List",
+        "summary": "ListProjects returns list of projects",
+        "operationId": "ListProjects",
         "parameters": [
           {
             "type": "string",
@@ -1158,8 +1158,8 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "Create a new project.",
-        "operationId": "Create",
+        "summary": "CreateProject a new project.",
+        "operationId": "CreateProject",
         "parameters": [
           {
             "name": "body",
@@ -1185,8 +1185,8 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "Get returns a project by name",
-        "operationId": "Get",
+        "summary": "GetProject returns a project by name",
+        "operationId": "GetProject",
         "parameters": [
           {
             "type": "string",
@@ -1208,8 +1208,8 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "Delete deletes a project",
-        "operationId": "Delete",
+        "summary": "DeleteProject deletes a project",
+        "operationId": "DeleteProject",
         "parameters": [
           {
             "type": "string",
@@ -1283,8 +1283,8 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "Update updates a project",
-        "operationId": "Update",
+        "summary": "UpdateProject updates a project",
+        "operationId": "UpdateProject",
         "parameters": [
           {
             "type": "string",
@@ -1744,7 +1744,7 @@
           "SessionService"
         ],
         "summary": "Create a new JWT for authentication and set a cookie if using HTTP.",
-        "operationId": "CreateMixin10",
+        "operationId": "Create",
         "parameters": [
           {
             "name": "body",
@@ -1769,7 +1769,7 @@
           "SessionService"
         ],
         "summary": "Delete an existing JWT cookie if using HTTP.",
-        "operationId": "DeleteMixin10",
+        "operationId": "Delete",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -1803,7 +1803,7 @@
           "SettingsService"
         ],
         "summary": "Get returns Argo CD settings",
-        "operationId": "GetMixin7",
+        "operationId": "Get",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -2064,7 +2064,8 @@
       }
     },
     "clusterClusterResponse": {
-      "type": "object"
+      "type": "object",
+      "title": "ClusterResponse is a generic and empty response for methods in ClusterService API"
     },
     "clusterConnector": {
       "type": "object",

@@ -147,8 +147,8 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 	return &project.EmptyResponse{}, nil
 }
 
-// Create a new project.
-func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*v1alpha1.AppProject, error) {
+// CreateProject a new project.
+func (s *Server) CreateProject(ctx context.Context, q *project.ProjectCreateRequest) (*v1alpha1.AppProject, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionCreate, q.Project.Name); err != nil {
 		return nil, err
 	}
@@ -182,8 +182,13 @@ func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*
 	return res, err
 }
 
-// List returns list of projects
-func (s *Server) List(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.AppProjectList, error) {
+// DEPRECATED: Create a new project.
+func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*v1alpha1.AppProject, error) {
+	return s.CreateProject(ctx, q)
+}
+
+// ListProjects returns list of projects
+func (s *Server) ListProjects(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.AppProjectList, error) {
 	list, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).List(metav1.ListOptions{})
 	if list != nil {
 		newItems := make([]v1alpha1.AppProject, 0)
@@ -198,16 +203,26 @@ func (s *Server) List(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.A
 	return list, err
 }
 
-// Get returns a project by name
-func (s *Server) Get(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.AppProject, error) {
+// DEPRECATED: List returns list of projects
+func (s *Server) List(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.AppProjectList, error) {
+	return s.ListProjects(ctx, q)
+}
+
+// GetProject returns a project by name
+func (s *Server) GetProject(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.AppProject, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name); err != nil {
 		return nil, err
 	}
 	return s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Name, metav1.GetOptions{})
 }
 
-// Update updates a project
-func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*v1alpha1.AppProject, error) {
+// DEPRECATED: Get returns a project by name
+func (s *Server) Get(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.AppProject, error) {
+	return s.GetProject(ctx, q)
+}
+
+// UpdateProject updates a project
+func (s *Server) UpdateProject(ctx context.Context, q *project.ProjectUpdateRequest) (*v1alpha1.AppProject, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionUpdate, q.Project.Name); err != nil {
 		return nil, err
 	}
@@ -295,8 +310,13 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 	return res, err
 }
 
-// Delete deletes a project
-func (s *Server) Delete(ctx context.Context, q *project.ProjectQuery) (*project.EmptyResponse, error) {
+// DEPRECATED: Update updates a project
+func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*v1alpha1.AppProject, error) {
+	return s.UpdateProject(ctx, q)
+}
+
+// DeleteProject deletes a project
+func (s *Server) DeleteProject(ctx context.Context, q *project.ProjectQuery) (*project.EmptyResponse, error) {
 	if q.Name == common.DefaultAppProjectName {
 		return nil, status.Errorf(codes.InvalidArgument, "name '%s' is reserved and cannot be deleted", q.Name)
 	}
@@ -325,6 +345,11 @@ func (s *Server) Delete(ctx context.Context, q *project.ProjectQuery) (*project.
 		s.logEvent(p, ctx, argo.EventReasonResourceDeleted, "deleted project")
 	}
 	return &project.EmptyResponse{}, err
+}
+
+// DEPRECATED: Delete deletes a project
+func (s *Server) Delete(ctx context.Context, q *project.ProjectQuery) (*project.EmptyResponse, error) {
+	return s.DeleteProject(ctx, q)
 }
 
 func (s *Server) ListEvents(ctx context.Context, q *project.ProjectQuery) (*v1.EventList, error) {

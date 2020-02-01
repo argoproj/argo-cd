@@ -82,6 +82,7 @@ func (m *ClusterQuery) GetServer() string {
 	return ""
 }
 
+// ClusterResponse is a generic and empty response for methods in ClusterService API
 type ClusterResponse struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -121,6 +122,7 @@ func (m *ClusterResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ClusterResponse proto.InternalMessageInfo
 
+// ClusterCreateRequest is a request for creating a new cluster resource
 type ClusterCreateRequest struct {
 	Cluster              *v1alpha1.Cluster `protobuf:"bytes,1,opt,name=cluster,proto3" json:"cluster,omitempty"`
 	Upsert               bool              `protobuf:"varint,2,opt,name=upsert,proto3" json:"upsert,omitempty"`
@@ -176,6 +178,7 @@ func (m *ClusterCreateRequest) GetUpsert() bool {
 	return false
 }
 
+// ClusterUpdateRequest is a request for updating an existing cluster resource
 type ClusterUpdateRequest struct {
 	Cluster              *v1alpha1.Cluster `protobuf:"bytes,1,opt,name=cluster,proto3" json:"cluster,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}          `json:"-"`

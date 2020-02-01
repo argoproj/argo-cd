@@ -171,7 +171,7 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 			}
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
-			_, err := projIf.Create(context.Background(), &projectpkg.ProjectCreateRequest{Project: &proj, Upsert: upsert})
+			_, err := projIf.CreateProject(context.Background(), &projectpkg.ProjectCreateRequest{Project: &proj, Upsert: upsert})
 			errors.CheckError(err)
 		},
 	}
@@ -202,7 +202,7 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			proj, err := projIf.GetProject(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
 			visited := 0
@@ -225,7 +225,7 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				os.Exit(1)
 			}
 
-			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+			_, err = projIf.UpdateProject(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
 		},
 	}
@@ -249,7 +249,7 @@ func NewProjectAddDestinationCommand(clientOpts *argocdclient.ClientOptions) *co
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			proj, err := projIf.GetProject(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
 			for _, dest := range proj.Spec.Destinations {
@@ -258,7 +258,7 @@ func NewProjectAddDestinationCommand(clientOpts *argocdclient.ClientOptions) *co
 				}
 			}
 			proj.Spec.Destinations = append(proj.Spec.Destinations, v1alpha1.ApplicationDestination{Server: server, Namespace: namespace})
-			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+			_, err = projIf.UpdateProject(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
 		},
 	}
@@ -281,7 +281,7 @@ func NewProjectRemoveDestinationCommand(clientOpts *argocdclient.ClientOptions) 
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			proj, err := projIf.GetProject(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
 			index := -1
@@ -295,7 +295,7 @@ func NewProjectRemoveDestinationCommand(clientOpts *argocdclient.ClientOptions) 
 				log.Fatal("Specified destination does not exist in project")
 			} else {
 				proj.Spec.Destinations = append(proj.Spec.Destinations[:index], proj.Spec.Destinations[index+1:]...)
-				_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+				_, err = projIf.UpdateProject(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
 				errors.CheckError(err)
 			}
 		},
@@ -319,7 +319,7 @@ func NewProjectAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			proj, err := projIf.GetProject(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
 			for _, item := range proj.Spec.SourceRepos {
@@ -333,7 +333,7 @@ func NewProjectAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				}
 			}
 			proj.Spec.SourceRepos = append(proj.Spec.SourceRepos, url)
-			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+			_, err = projIf.UpdateProject(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
 		},
 	}
@@ -353,11 +353,11 @@ func modifyProjectResourceCmd(cmdUse, cmdDesc string, clientOpts *argocdclient.C
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			proj, err := projIf.GetProject(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
 			if action(proj, group, kind) {
-				_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+				_, err = projIf.UpdateProject(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
 				errors.CheckError(err)
 			}
 		},
@@ -453,7 +453,7 @@ func NewProjectRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			proj, err := projIf.GetProject(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
 			index := -1
@@ -467,7 +467,7 @@ func NewProjectRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *cobr
 				fmt.Printf("Source repository '%s' does not exist in project\n", url)
 			} else {
 				proj.Spec.SourceRepos = append(proj.Spec.SourceRepos[:index], proj.Spec.SourceRepos[index+1:]...)
-				_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+				_, err = projIf.UpdateProject(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
 				errors.CheckError(err)
 			}
 		},
@@ -489,7 +489,7 @@ func NewProjectDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 			for _, name := range args {
-				_, err := projIf.Delete(context.Background(), &projectpkg.ProjectQuery{Name: name})
+				_, err := projIf.DeleteProject(context.Background(), &projectpkg.ProjectQuery{Name: name})
 				errors.CheckError(err)
 			}
 		},
@@ -525,7 +525,7 @@ func NewProjectListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Run: func(c *cobra.Command, args []string) {
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
-			projects, err := projIf.List(context.Background(), &projectpkg.ProjectQuery{})
+			projects, err := projIf.ListProjects(context.Background(), &projectpkg.ProjectQuery{})
 			errors.CheckError(err)
 			switch output {
 			case "yaml", "json":
@@ -651,7 +651,7 @@ func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			projName := args[0]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
-			p, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			p, err := projIf.GetProject(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
 			switch output {
@@ -681,7 +681,7 @@ func NewProjectEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			projName := args[0]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			proj, err := projIf.GetProject(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 			projData, err := json.Marshal(proj.Spec)
 			errors.CheckError(err)
@@ -698,12 +698,12 @@ func NewProjectEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 				if err != nil {
 					return err
 				}
-				proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+				proj, err := projIf.GetProject(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 				if err != nil {
 					return err
 				}
 				proj.Spec = updatedSpec
-				_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+				_, err = projIf.UpdateProject(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
 				if err != nil {
 					return fmt.Errorf("Failed to update project:\n%v", err)
 				}
