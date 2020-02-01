@@ -17,13 +17,16 @@ message ClusterQuery {
 	string server = 1;
 }
 
+// ClusterResponse is a generic and empty response for methods in ClusterService API
 message ClusterResponse {}
 
+// ClusterCreateRequest is a request for creating a new cluster resource
 message ClusterCreateRequest {
 	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster cluster = 1;
 	bool upsert = 2;
 }
 
+// ClusterUpdateRequest is a request for updating an existing cluster resource
 message ClusterUpdateRequest {
 	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster cluster = 1;
 }
@@ -31,38 +34,74 @@ message ClusterUpdateRequest {
 // ClusterService 
 service ClusterService {
 
-	// List returns list of clusters
+	// DEPRECATED: List returns list of clusters
 	rpc List(ClusterQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ClusterList) {
+		option (google.api.http).get = "/api/v1/clusters";
+		option deprecated = true;
+	}
+
+	// ListClusters returns list of clusters
+	rpc ListClusters(ClusterQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ClusterList) {
 		option (google.api.http).get = "/api/v1/clusters";
 	}
 
-	// Create creates a cluster
+	// DEPRECATED: Create creates a cluster
 	rpc Create(ClusterCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
+		option (google.api.http) = {
+			post: "/api/v1/clusters"
+			body: "cluster"
+		};
+		option deprecated = true;
+	}
+
+	// CreateCluster creates a cluster
+	rpc CreateCluster(ClusterCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
 		option (google.api.http) = {
 			post: "/api/v1/clusters"
 			body: "cluster"
 		};
 	}
 
-	// Get returns a cluster by server address
+	// DEPRECATED: Get returns a cluster by server address
 	rpc Get(ClusterQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
+		option (google.api.http).get = "/api/v1/clusters/{server}";
+		option deprecated = true;
+	}
+
+	// GetCluster returns a cluster by server address
+	rpc GetCluster(ClusterQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
 		option (google.api.http).get = "/api/v1/clusters/{server}";
 	}
 
-	// Update updates a cluster
+	// DEPRECATED: Update updates a cluster
 	rpc Update(ClusterUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
+		option (google.api.http) = {
+			put: "/api/v1/clusters/{cluster.server}"
+			body: "cluster"
+		};
+		option deprecated = true;
+	}
+
+	// UpdateCluster updates a cluster
+	rpc UpdateCluster(ClusterUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
 		option (google.api.http) = {
 			put: "/api/v1/clusters/{cluster.server}"
 			body: "cluster"
 		};
 	}
 
-	// Delete deletes a cluster
+	// DEPRECATED: Delete deletes a cluster
 	rpc Delete(ClusterQuery) returns (ClusterResponse) {
+		option (google.api.http).delete = "/api/v1/clusters/{server}";
+		option deprecated = true;
+	}
+
+	// DeleteCluster deletes a cluster
+	rpc DeleteCluster(ClusterQuery) returns (ClusterResponse) {
 		option (google.api.http).delete = "/api/v1/clusters/{server}";
 	}
 
-	// RotateAuth returns a cluster by server address
+  // RotateAuth rotates the bearer token used for a cluster
 	rpc RotateAuth(ClusterQuery) returns (ClusterResponse) {
 		option (google.api.http).post = "/api/v1/clusters/{server}/rotate-auth";
 	}

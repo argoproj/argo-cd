@@ -75,8 +75,8 @@ func (s *Server) getConnectionState(cluster appv1.Cluster, errorMessage string) 
 	return clusterInfo.ConnectionState, clusterInfo.Version
 }
 
-// List returns list of clusters
-func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.ClusterList, error) {
+// ListClusters returns list of clusters
+func (s *Server) ListClusters(ctx context.Context, q *cluster.ClusterQuery) (*appv1.ClusterList, error) {
 	clusterList, err := s.db.ListClusters(ctx)
 	if err != nil {
 		return nil, err
@@ -116,8 +116,13 @@ func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clus
 	return clusterList, err
 }
 
-// Create creates a cluster
-func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*appv1.Cluster, error) {
+// DEPRECATED: List returns list of clusters
+func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.ClusterList, error) {
+	return s.ListClusters(ctx, q)
+}
+
+// CreateCluster creates a cluster
+func (s *Server) CreateCluster(ctx context.Context, q *cluster.ClusterCreateRequest) (*appv1.Cluster, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionCreate, q.Cluster.Server); err != nil {
 		return nil, err
 	}
@@ -149,8 +154,13 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 	return redact(clust), err
 }
 
-// Get returns a cluster from a query
-func (s *Server) Get(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Cluster, error) {
+// DEPRECATED: Create creates a cluster
+func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*appv1.Cluster, error) {
+	return s.CreateCluster(ctx, q)
+}
+
+// GetCluster returns a cluster from a query
+func (s *Server) GetCluster(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Cluster, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionGet, q.Server); err != nil {
 		return nil, err
 	}
@@ -165,8 +175,13 @@ func (s *Server) Get(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clust
 	return redact(c), nil
 }
 
-// Update updates a cluster
-func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*appv1.Cluster, error) {
+// DEPRECATED: Get returns a cluster from a query
+func (s *Server) Get(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Cluster, error) {
+	return s.GetCluster(ctx, q)
+}
+
+// UpdateCluster updates a cluster
+func (s *Server) UpdateCluster(ctx context.Context, q *cluster.ClusterUpdateRequest) (*appv1.Cluster, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, q.Cluster.Server); err != nil {
 		return nil, err
 	}
@@ -178,13 +193,23 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 	return redact(clust), err
 }
 
-// Delete deletes a cluster by name
-func (s *Server) Delete(ctx context.Context, q *cluster.ClusterQuery) (*cluster.ClusterResponse, error) {
+// DEPRECATED: Update updates a cluster
+func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*appv1.Cluster, error) {
+	return s.UpdateCluster(ctx, q)
+}
+
+// DeleteCluster deletes a cluster by name
+func (s *Server) DeleteCluster(ctx context.Context, q *cluster.ClusterQuery) (*cluster.ClusterResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionDelete, q.Server); err != nil {
 		return nil, err
 	}
 	err := s.db.DeleteCluster(ctx, q.Server)
 	return &cluster.ClusterResponse{}, err
+}
+
+// DEPRECATED: Delete deletes a cluster by name
+func (s *Server) Delete(ctx context.Context, q *cluster.ClusterQuery) (*cluster.ClusterResponse, error) {
+	return s.DeleteCluster(ctx, q)
 }
 
 // RotateAuth rotates the bearer token used for a cluster

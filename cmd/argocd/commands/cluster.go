@@ -114,7 +114,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				Cluster: clst,
 				Upsert:  upsert,
 			}
-			_, err = clusterIf.Create(context.Background(), &clstCreateReq)
+			_, err = clusterIf.CreateCluster(context.Background(), &clstCreateReq)
 			errors.CheckError(err)
 			fmt.Printf("Cluster '%s' added\n", clst.Server)
 		},
@@ -210,7 +210,7 @@ func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			defer util.Close(conn)
 			clusters := make([]argoappv1.Cluster, 0)
 			for _, clusterName := range args {
-				clst, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: clusterName})
+				clst, err := clusterIf.GetCluster(context.Background(), &clusterpkg.ClusterQuery{Server: clusterName})
 				errors.CheckError(err)
 				clusters = append(clusters, *clst)
 			}
@@ -285,7 +285,7 @@ func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 				// TODO(jessesuen): find the right context and remove manager RBAC artifacts
 				// err := clusterauth.UninstallClusterManagerRBAC(clientset)
 				// errors.CheckError(err)
-				_, err := clusterIf.Delete(context.Background(), &clusterpkg.ClusterQuery{Server: clusterName})
+				_, err := clusterIf.DeleteCluster(context.Background(), &clusterpkg.ClusterQuery{Server: clusterName})
 				errors.CheckError(err)
 			}
 		},
@@ -325,7 +325,7 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Run: func(c *cobra.Command, args []string) {
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
-			clusters, err := clusterIf.List(context.Background(), &clusterpkg.ClusterQuery{})
+			clusters, err := clusterIf.ListClusters(context.Background(), &clusterpkg.ClusterQuery{})
 			errors.CheckError(err)
 			switch output {
 			case "yaml", "json":

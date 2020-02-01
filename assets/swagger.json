@@ -981,8 +981,8 @@
         "tags": [
           "ClusterService"
         ],
-        "summary": "List returns list of clusters",
-        "operationId": "List",
+        "summary": "ListClusters returns list of clusters",
+        "operationId": "ListClusters",
         "parameters": [
           {
             "type": "string",
@@ -1003,8 +1003,8 @@
         "tags": [
           "ClusterService"
         ],
-        "summary": "Create creates a cluster",
-        "operationId": "Create",
+        "summary": "CreateCluster creates a cluster",
+        "operationId": "CreateCluster",
         "parameters": [
           {
             "name": "body",
@@ -1030,8 +1030,8 @@
         "tags": [
           "ClusterService"
         ],
-        "summary": "Update updates a cluster",
-        "operationId": "Update",
+        "summary": "UpdateCluster updates a cluster",
+        "operationId": "UpdateCluster",
         "parameters": [
           {
             "type": "string",
@@ -1063,8 +1063,8 @@
         "tags": [
           "ClusterService"
         ],
-        "summary": "Get returns a cluster by server address",
-        "operationId": "Get",
+        "summary": "GetCluster returns a cluster by server address",
+        "operationId": "GetCluster",
         "parameters": [
           {
             "type": "string",
@@ -1086,8 +1086,8 @@
         "tags": [
           "ClusterService"
         ],
-        "summary": "Delete deletes a cluster",
-        "operationId": "Delete",
+        "summary": "DeleteCluster deletes a cluster",
+        "operationId": "DeleteCluster",
         "parameters": [
           {
             "type": "string",
@@ -1111,7 +1111,7 @@
         "tags": [
           "ClusterService"
         ],
-        "summary": "RotateAuth returns a cluster by server address",
+        "summary": "RotateAuth rotates the bearer token used for a cluster",
         "operationId": "RotateAuth",
         "parameters": [
           {
@@ -1137,7 +1137,7 @@
           "ProjectService"
         ],
         "summary": "List returns list of projects",
-        "operationId": "ListMixin5",
+        "operationId": "List",
         "parameters": [
           {
             "type": "string",
@@ -1159,7 +1159,7 @@
           "ProjectService"
         ],
         "summary": "Create a new project.",
-        "operationId": "CreateMixin5",
+        "operationId": "Create",
         "parameters": [
           {
             "name": "body",
@@ -1186,7 +1186,7 @@
           "ProjectService"
         ],
         "summary": "Get returns a project by name",
-        "operationId": "GetMixin5",
+        "operationId": "Get",
         "parameters": [
           {
             "type": "string",
@@ -1209,7 +1209,7 @@
           "ProjectService"
         ],
         "summary": "Delete deletes a project",
-        "operationId": "DeleteMixin5",
+        "operationId": "Delete",
         "parameters": [
           {
             "type": "string",
@@ -1284,7 +1284,7 @@
           "ProjectService"
         ],
         "summary": "Update updates a project",
-        "operationId": "UpdateMixin5",
+        "operationId": "Update",
         "parameters": [
           {
             "type": "string",
