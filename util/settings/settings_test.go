@@ -6,6 +6,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/diff"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -142,6 +143,20 @@ func TestGetResourceOverrides(t *testing.T) {
 	assert.Equal(t, v1alpha1.ResourceOverride{
 		IgnoreDifferences: "jsonPointers:\n- /webhooks/0/clientConfig/caBundle",
 	}, webHookOverrides)
+}
+
+func TestGetResourceCompareOptions(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"resource.compareoptions": "ignoreAggregatedRoles: true",
+	})
+	compareOptions, err := settingsManager.GetResourceCompareOptions()
+	assert.NoError(t, err)
+	assert.True(t, compareOptions.IgnoreAggregatedRoles)
+	_, settingsManager = fixtures(map[string]string{})
+	compareOptions, err = settingsManager.GetResourceCompareOptions()
+	defaultOptions := diff.GetDefaultDiffOptions()
+	assert.NoError(t, err)
+	assert.Equal(t, defaultOptions.IgnoreAggregatedRoles, compareOptions.IgnoreAggregatedRoles)
 }
 
 func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
