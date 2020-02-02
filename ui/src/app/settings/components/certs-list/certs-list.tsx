@@ -224,10 +224,10 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                             const subType = knownHosts[1].match(/^(ssh\-[a-z0-9]+|ecdsa-[a-z0-9\-]+)$/gi);
                             if (subType != null) {
                                 // Key could be valid for multiple hosts
-                                const hostnames = knownHosts[0].split(',')
-                                for (let i = 0; i < hostnames.length; i++) {
+                                const hostnames = knownHosts[0].split(',');
+                                for (const hostname of hostnames) {
                                     knownHostEntries = knownHostEntries.concat({
-                                        serverName: hostnames[i],
+                                        serverName: hostname,
                                         certType: 'ssh',
                                         certSubType: knownHosts[1],
                                         certData: btoa(knownHosts[2]),
@@ -235,7 +235,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                                     });
                                 }
                             } else {
-                                throw new Error('Invalid SSH subtype: ' + subType)
+                                throw new Error('Invalid SSH subtype: ' + subType);
                             }
                         }
                     }
