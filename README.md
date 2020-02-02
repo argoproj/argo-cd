@@ -68,6 +68,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [Viaduct](https://www.viaduct.ai/)
 1. [Volvo Cars](https://www.volvocars.com/)
 1. [Walkbase](https://www.walkbase.com/)
+1. [Whitehat Berlin](https://whitehat.berlin) by Guido Maria Serra +Fenaroli
 1. [Yieldlab](https://www.yieldlab.de/)
 
 ## Documentation
