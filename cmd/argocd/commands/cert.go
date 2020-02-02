@@ -179,7 +179,7 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				hostnameList, _, err := certutil.KnownHostsLineToPublicKey(knownHostsEntry)
 				errors.CheckError(err)
 				// Each key could be valid for multiple hostnames
-				for _, hostname := range(hostnameList) {
+				for _, hostname := range hostnameList {
 					certificate := appsv1.RepositoryCertificate{
 						ServerName:  hostname,
 						CertType:    "ssh",
