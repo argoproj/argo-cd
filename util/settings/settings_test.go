@@ -154,7 +154,7 @@ func TestGetResourceCompareOptions(t *testing.T) {
 		compareOptions, err := settingsManager.GetResourceCompareOptions()
 		assert.NoError(t, err)
 		assert.True(t, compareOptions.IgnoreAggregatedRoles)
-  }
+	}
 
 	// ignoreAggregratedRules is true
 	{
@@ -164,7 +164,7 @@ func TestGetResourceCompareOptions(t *testing.T) {
 		compareOptions, err := settingsManager.GetResourceCompareOptions()
 		assert.NoError(t, err)
 		assert.False(t, compareOptions.IgnoreAggregatedRoles)
-  }
+	}
 
 	// The empty resource.compareoptions should result in default being returned
 	{
@@ -174,7 +174,7 @@ func TestGetResourceCompareOptions(t *testing.T) {
 		compareOptions, err := settingsManager.GetResourceCompareOptions()
 		assert.NoError(t, err)
 		assert.False(t, compareOptions.IgnoreAggregatedRoles)
-  }
+	}
 
 	// resource.compareoptions not defined - should result in the default being returned
 	{
