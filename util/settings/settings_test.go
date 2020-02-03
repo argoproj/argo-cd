@@ -172,11 +172,12 @@ func TestGetResourceCompareOptions(t *testing.T) {
 			"resource.compareoptions": "",
 		})
 		compareOptions, err := settingsManager.GetResourceCompareOptions()
+		defaultOptions := diff.GetDefaultDiffOptions()
 		assert.NoError(t, err)
-		assert.False(t, compareOptions.IgnoreAggregatedRoles)
+		assert.Equal(t, defaultOptions.IgnoreAggregatedRoles, compareOptions.IgnoreAggregatedRoles)
 	}
 
-	// resource.compareoptions not defined - should result in the default being returned
+	// resource.compareoptions not defined - should result in default being returned
 	{
 		_, settingsManager := fixtures(map[string]string{})
 		compareOptions, err := settingsManager.GetResourceCompareOptions()
