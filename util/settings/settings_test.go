@@ -149,7 +149,7 @@ func TestGetResourceCompareOptions(t *testing.T) {
 	// ignoreAggregratedRules is true
 	{
 		_, settingsManager := fixtures(map[string]string{
-			"resource.compareoptions": "ignoreAggregratedRoles: true",
+			"resource.compareoptions": "ignoreAggregatedRoles: true",
 		})
 		compareOptions, err := settingsManager.GetResourceCompareOptions()
 		assert.NoError(t, err)
@@ -159,7 +159,7 @@ func TestGetResourceCompareOptions(t *testing.T) {
 	// ignoreAggregratedRules is true
 	{
 		_, settingsManager := fixtures(map[string]string{
-			"resource.compareoptions": "ignoreAggregratedRoles: false",
+			"resource.compareoptions": "ignoreAggregatedRoles: false",
 		})
 		compareOptions, err := settingsManager.GetResourceCompareOptions()
 		assert.NoError(t, err)
