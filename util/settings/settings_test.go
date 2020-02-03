@@ -146,17 +146,44 @@ func TestGetResourceOverrides(t *testing.T) {
 }
 
 func TestGetResourceCompareOptions(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
-		"resource.compareoptions": "ignoreAggregatedRoles: true",
-	})
-	compareOptions, err := settingsManager.GetResourceCompareOptions()
-	assert.NoError(t, err)
-	assert.True(t, compareOptions.IgnoreAggregatedRoles)
-	_, settingsManager = fixtures(map[string]string{})
-	compareOptions, err = settingsManager.GetResourceCompareOptions()
-	defaultOptions := diff.GetDefaultDiffOptions()
-	assert.NoError(t, err)
-	assert.Equal(t, defaultOptions.IgnoreAggregatedRoles, compareOptions.IgnoreAggregatedRoles)
+	// ignoreAggregratedRules is true
+	{
+		_, settingsManager := fixtures(map[string]string{
+			"resource.compareoptions": "ignoreAggregratedRoles: true",
+		})
+		compareOptions, err := settingsManager.GetResourceCompareOptions()
+		assert.NoError(t, err)
+		assert.True(t, compareOptions.IgnoreAggregatedRoles)
+  }
+
+	// ignoreAggregratedRules is true
+	{
+		_, settingsManager := fixtures(map[string]string{
+			"resource.compareoptions": "ignoreAggregratedRoles: false",
+		})
+		compareOptions, err := settingsManager.GetResourceCompareOptions()
+		assert.NoError(t, err)
+		assert.False(t, compareOptions.IgnoreAggregatedRoles)
+  }
+
+	// The empty resource.compareoptions should result in default being returned
+	{
+		_, settingsManager := fixtures(map[string]string{
+			"resource.compareoptions": "",
+		})
+		compareOptions, err := settingsManager.GetResourceCompareOptions()
+		assert.NoError(t, err)
+		assert.False(t, compareOptions.IgnoreAggregatedRoles)
+  }
+
+	// resource.compareoptions not defined - should result in the default being returned
+	{
+		_, settingsManager := fixtures(map[string]string{})
+		compareOptions, err := settingsManager.GetResourceCompareOptions()
+		defaultOptions := diff.GetDefaultDiffOptions()
+		assert.NoError(t, err)
+		assert.Equal(t, defaultOptions.IgnoreAggregatedRoles, compareOptions.IgnoreAggregatedRoles)
+	}
 }
 
 func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
