@@ -162,13 +162,13 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 		urlObj, err := url.Parse(webURL)
 		if err != nil {
 			log.Warnf("Failed to parse repoURL '%s'", webURL)
-			return
+			continue
 		}
 		regexpStr := `(?i)(http://|https://|\w+@|ssh://(\w+@)?)` + urlObj.Host + "(:[0-9]+|)[:/]" + urlObj.Path[1:] + "(\\.git)?"
 		repoRegexp, err := regexp.Compile(regexpStr)
 		if err != nil {
 			log.Warn("Failed to compile repoURL regexp")
-			return
+			continue
 		}
 
 		for _, app := range apps.Items {
