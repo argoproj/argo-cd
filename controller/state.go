@@ -92,7 +92,6 @@ type appStateManager struct {
 	kubectl        kubeutil.Kubectl
 	repoClientset  apiclient.Clientset
 	liveStateCache statecache.LiveStateCache
-	diffOptions    diff.DiffOptions
 	namespace      string
 }
 
