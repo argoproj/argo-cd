@@ -28,7 +28,7 @@ import (
 )
 
 type DiffOptions struct {
-	IgnoreAggregatedRoles bool `json:ignoreAggregratedRoles,omitempty`
+	IgnoreAggregatedRoles bool `json:"ignoreAggregratedRoles,omitempty"`
 }
 
 type DiffResult struct {
