@@ -378,15 +378,13 @@ func normalizeRole(un *unstructured.Unstructured, options DiffOptions) {
 	// Check whether the role we're checking is an aggregation role. If it is, we ignore any differences in rules.
 	if options.IgnoreAggregatedRoles {
 		aggrIf, ok := un.Object["aggregationRule"]
-		if !ok {
-			return
-		}
-		_, ok = aggrIf.(map[string]interface{})
-		if !ok {
-			return
-		} else {
-			log.Printf("Setting rules to nil because of options")
-			un.Object["rules"] = nil
+		if ok {
+			_, ok = aggrIf.(map[string]interface{})
+			if !ok {
+				return
+			} else {
+				un.Object["rules"] = nil
+			}
 		}
 	}
 
