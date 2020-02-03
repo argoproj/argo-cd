@@ -38,7 +38,7 @@ type LiveStateCache interface {
 	// Starts watching resources of each controlled cluster.
 	Run(ctx context.Context) error
 	// Returns information about monitored clusters
-	GetClustersInfo() []metrics.ClusterInfo
+	GetClustersInfo() []clustercache.ClusterInfo
 }
 
 type ObjectUpdatedHandler = func(managedByApp map[string]bool, ref v1.ObjectReference)
@@ -421,10 +421,10 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 	return nil
 }
 
-func (c *liveStateCache) GetClustersInfo() []metrics.ClusterInfo {
+func (c *liveStateCache) GetClustersInfo() []clustercache.ClusterInfo {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
-	res := make([]metrics.ClusterInfo, 0)
+	res := make([]clustercache.ClusterInfo, 0)
 	for _, info := range c.clusters {
 		res = append(res, info.GetClusterInfo())
 	}
