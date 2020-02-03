@@ -28,6 +28,7 @@ import (
 	executil "github.com/argoproj/argo-cd/engine/pkg/utils/exec"
 	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
 	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
+	textutils "github.com/argoproj/argo-cd/engine/pkg/utils/text"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	reposervercache "github.com/argoproj/argo-cd/reposerver/cache"
@@ -124,7 +125,7 @@ func (s *Service) runRepoOperation(
 	var gitClient git.Client
 	var helmClient helm.Client
 	var err error
-	revision = util.FirstNonEmpty(revision, source.TargetRevision)
+	revision = textutils.FirstNonEmpty(revision, source.TargetRevision)
 	if source.IsHelm() {
 		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart)
 		if err != nil {

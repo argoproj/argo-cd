@@ -1,14 +1,14 @@
 package sync
 
 import (
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/types"
+
 	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 	kubeutil "github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 	hookutil "github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/hook"
 	"github.com/argoproj/argo-cd/engine/pkg/utils/resource/ignore"
-	"github.com/argoproj/argo-cd/util"
-
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/types"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/text"
 )
 
 func splitHooks(target []*unstructured.Unstructured) ([]*unstructured.Unstructured, []*unstructured.Unstructured) {
@@ -76,7 +76,7 @@ func Reconcile(targetObjs []*unstructured.Unstructured, liveObjByKey map[kube.Re
 	managedLiveObj := make([]*unstructured.Unstructured, len(targetObjs))
 	for i, obj := range targetObjs {
 		gvk := obj.GroupVersionKind()
-		ns := util.FirstNonEmpty(obj.GetNamespace(), namespace)
+		ns := text.FirstNonEmpty(obj.GetNamespace(), namespace)
 		if namespaced, err := resInfo.IsNamespaced(server, obj.GroupVersionKind().GroupKind()); err == nil && !namespaced {
 			ns = ""
 		}

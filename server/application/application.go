@@ -33,6 +33,7 @@ import (
 	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
 	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/text"
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -1062,7 +1063,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		return nil, status.Errorf(codes.FailedPrecondition, "application is deleting")
 	}
 	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil {
-		if syncReq.Revision != "" && syncReq.Revision != util.FirstNonEmpty(a.Spec.Source.TargetRevision, "HEAD") {
+		if syncReq.Revision != "" && syncReq.Revision != text.FirstNonEmpty(a.Spec.Source.TargetRevision, "HEAD") {
 			return nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.Revision, a.Spec.Source.TargetRevision)
 		}
 	}

@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
-
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -14,12 +12,13 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/text"
 	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	servercache "github.com/argoproj/argo-cd/server/cache"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/rbac"
@@ -274,7 +273,7 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 			return nil, status.Errorf(codes.Internal, "unable to check existing repository details: %v", getErr)
 		}
 
-		existing.Type = util.FirstNonEmpty(existing.Type, "git")
+		existing.Type = text.FirstNonEmpty(existing.Type, "git")
 		// repository ConnectionState may differ, so make consistent before testing
 		existing.ConnectionState = r.ConnectionState
 		if reflect.DeepEqual(existing, r) {

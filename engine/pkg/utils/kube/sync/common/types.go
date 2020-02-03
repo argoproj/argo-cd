@@ -7,6 +7,17 @@ import (
 	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 )
 
+const (
+	// AnnotationSyncOptions is a comma-separated list of options for syncing
+	AnnotationSyncOptions = "argocd.argoproj.io/sync-options"
+	// AnnotationSyncWave indicates which wave of the sync the resource or hook should be in
+	AnnotationSyncWave = "argocd.argoproj.io/sync-wave"
+	// AnnotationKeyHook contains the hook type of a resource
+	AnnotationKeyHook = "argocd.argoproj.io/hook"
+	// AnnotationKeyHookDeletePolicy is the policy of deleting a hook
+	AnnotationKeyHookDeletePolicy = "argocd.argoproj.io/hook-delete-policy"
+)
+
 type PermissionValidator func(un *unstructured.Unstructured, res *metav1.APIResource) error
 
 type SyncPhase string

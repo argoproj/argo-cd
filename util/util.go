@@ -41,12 +41,3 @@ func MakeSignature(size int) ([]byte, error) {
 	b = []byte(base64.StdEncoding.EncodeToString(b))
 	return b, err
 }
-
-func FirstNonEmpty(args ...string) string {
-	for _, value := range args {
-		if len(value) > 0 {
-			return value
-		}
-	}
-	return ""
-}

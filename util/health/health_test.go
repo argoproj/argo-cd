@@ -4,13 +4,14 @@ import (
 	"io/ioutil"
 	"testing"
 
+	synccommon "github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
 	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -52,7 +53,7 @@ func TestSetApplicationHealth(t *testing.T) {
 	assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
 
 	// now mark the job as a hook and retry. it should ignore the hook and consider the app healthy
-	failedJob.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
+	failedJob.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync"})
 	healthStatus, err = SetApplicationHealth(resources, liveObjs, nil, noFilter)
 	assert.NoError(t, err)
 	assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)

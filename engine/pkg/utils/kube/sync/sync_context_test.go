@@ -17,9 +17,9 @@ import (
 	"k8s.io/client-go/rest"
 	testcore "k8s.io/client-go/testing"
 
-	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/kubetest"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
 	synccommon "github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
 	"github.com/argoproj/argo-cd/test"
 )
@@ -48,6 +48,7 @@ func newTestSyncCtx(opts ...SyncOpt) *syncContext {
 		log:       log.WithFields(log.Fields{"application": "fake-app"}),
 		resources: map[kube.ResourceKey]reconciledResource{},
 		syncRes:   map[string]synccommon.ResourceSyncResult{},
+		validate:  true,
 	}
 	sc.permissionValidator = func(un *unstructured.Unstructured, res *v1.APIResource) error {
 		return nil

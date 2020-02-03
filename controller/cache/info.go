@@ -9,8 +9,8 @@ import (
 	k8snode "k8s.io/kubernetes/pkg/util/node"
 
 	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/text"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/resource"
 )
 
@@ -87,7 +87,7 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 			host := rule["host"]
 			if host == nil || host == "" {
 				for i := range ingress {
-					host = util.FirstNonEmpty(ingress[i].Hostname, ingress[i].IP)
+					host = text.FirstNonEmpty(ingress[i].Hostname, ingress[i].IP)
 					if host != "" {
 						break
 					}

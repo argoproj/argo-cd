@@ -5,7 +5,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
 	helmhook "github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/hook/helm"
 )
 

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
+	synccommon "github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
+
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -93,7 +95,7 @@ func TestCompareAppStateExtra(t *testing.T) {
 // considered as part of resources when assessing Synced status
 func TestCompareAppStateHook(t *testing.T) {
 	pod := test.NewPod()
-	pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
+	pod.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync"})
 	podBytes, _ := json.Marshal(pod)
 	app := newFakeApp()
 	data := fakeData{
@@ -145,7 +147,7 @@ func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
 // TestCompareAppStateExtraHook tests when there is an extra _hook_ object in live but not defined in git
 func TestCompareAppStateExtraHook(t *testing.T) {
 	pod := test.NewPod()
-	pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
+	pod.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync"})
 	pod.SetNamespace(test.FakeDestNamespace)
 	app := newFakeApp()
 	key := kube.ResourceKey{Group: "", Kind: "Pod", Namespace: test.FakeDestNamespace, Name: app.Name}
