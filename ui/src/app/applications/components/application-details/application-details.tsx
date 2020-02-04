@@ -384,7 +384,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 <ApplicationDeploymentHistory
                                                     app={application}
                                                     selectedRollbackDeploymentIndex={this.selectedRollbackDeploymentIndex}
-                                                    rollbackApp={info => this.rollbackApplication(info)}
+                                                    rollbackApp={info => this.rollbackApplication(info, application)}
                                                     selectDeployment={i => this.setRollbackPanelVisible(i)}
                                                 />
                                             )}
@@ -576,7 +576,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         this.appContext.apis.navigation.goto('.', {node, tab});
     }
 
-    private async rollbackApplication(revisionHistory: appModels.RevisionHistory) {
+    private async rollbackApplication(revisionHistory: appModels.RevisionHistory, application: appModels.Application) {
+        if (application.spec.syncPolicy.automated) {
+            const confirmDisable = await this.appContext.apis.popup.confirm('Disable Auto-Sync?', 'Auto-Sync needs to be disabled in order for rollback to occur');
+            if (confirmDisable) {
+                const update = JSON.parse(JSON.stringify(application)) as appModels.Application;
+                update.spec.syncPolicy = {automated: null};
+                await services.applications.update(application);
+            }
+        }
         try {
             const confirmed = await this.appContext.apis.popup.confirm('Rollback application', `Are you sure you want to rollback application '${this.props.match.params.name}'?`);
             if (confirmed) {
