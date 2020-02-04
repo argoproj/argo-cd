@@ -142,7 +142,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 			if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(a)); err != nil {
 				return nil, err
 			}
-			out, err = s.updateApp(existing, &a, ctx)
+			out, err = s.updateApp(existing, &a, ctx, true)
 		} else {
 			if !reflect.DeepEqual(existing.Spec, a.Spec) ||
 				!reflect.DeepEqual(existing.Labels, a.Labels) ||
@@ -306,7 +306,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 	return kubeClientset.CoreV1().Events(namespace).List(opts)
 }
 
-func (s *Server) validateAndUpdateApp(ctx context.Context, newApp *appv1.Application) (*appv1.Application, error) {
+func (s *Server) validateAndUpdateApp(ctx context.Context, newApp *appv1.Application, merge bool) (*appv1.Application, error) {
 	s.projectLock.Lock(newApp.Spec.GetProject())
 	defer s.projectLock.Unlock(newApp.Spec.GetProject())
 
@@ -320,7 +320,7 @@ func (s *Server) validateAndUpdateApp(ctx context.Context, newApp *appv1.Applica
 		return nil, err
 	}
 
-	return s.updateApp(app, newApp, ctx)
+	return s.updateApp(app, newApp, ctx, merge)
 }
 
 func mergeStringMaps(items ...map[string]string) map[string]string {
@@ -336,11 +336,17 @@ func mergeStringMaps(items ...map[string]string) map[string]string {
 	return res
 }
 
-func (s *Server) updateApp(app *appv1.Application, newApp *appv1.Application, ctx context.Context) (*appv1.Application, error) {
+func (s *Server) updateApp(app *appv1.Application, newApp *appv1.Application, ctx context.Context, merge bool) (*appv1.Application, error) {
 	for i := 0; i < 10; i++ {
 		app.Spec = newApp.Spec
-		app.Labels = mergeStringMaps(app.Labels, newApp.Labels)
-		app.Annotations = mergeStringMaps(app.Annotations, newApp.Annotations)
+		if merge {
+			app.Labels = mergeStringMaps(app.Labels, newApp.Labels)
+			app.Annotations = mergeStringMaps(app.Annotations, newApp.Annotations)
+		} else {
+			app.Labels = newApp.Labels
+			app.Annotations = newApp.Annotations
+		}
+
 		app.Finalizers = newApp.Finalizers
 
 		res, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(app)
@@ -366,7 +372,7 @@ func (s *Server) Update(ctx context.Context, q *application.ApplicationUpdateReq
 		return nil, err
 	}
 
-	return s.validateAndUpdateApp(ctx, q.Application)
+	return s.validateAndUpdateApp(ctx, q.Application, false)
 }
 
 // UpdateSpec updates an application spec and filters out any invalid parameter overrides
@@ -379,7 +385,7 @@ func (s *Server) UpdateSpec(ctx context.Context, q *application.ApplicationUpdat
 		return nil, err
 	}
 	a.Spec = q.Spec
-	a, err = s.validateAndUpdateApp(ctx, a)
+	a, err = s.validateAndUpdateApp(ctx, a, false)
 	if err != nil {
 		return nil, err
 	}
@@ -428,7 +434,7 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 	if err != nil {
 		return nil, err
 	}
-	return s.validateAndUpdateApp(ctx, app)
+	return s.validateAndUpdateApp(ctx, app, false)
 }
 
 // Delete removes an application and all associated resources
