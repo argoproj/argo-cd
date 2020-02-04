@@ -5,7 +5,7 @@ import (
 
 	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
 	helmhook "github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/hook/helm"
-	resourceutil "github.com/argoproj/argo-cd/engine/pkg/utils/resource"
+	resourceutil "github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/resource"
 )
 
 func IsHook(obj *unstructured.Unstructured) bool {

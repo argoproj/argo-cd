@@ -7,7 +7,7 @@ import (
 	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 	kubeutil "github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 	hookutil "github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/hook"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/resource/ignore"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/ignore"
 	"github.com/argoproj/argo-cd/engine/pkg/utils/text"
 )
 

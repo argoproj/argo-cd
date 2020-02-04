@@ -5,7 +5,7 @@ import (
 
 	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
 	hookutil "github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/hook"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/resource/ignore"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/ignore"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/lua"
 )

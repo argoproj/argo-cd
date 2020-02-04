@@ -9,7 +9,7 @@ import (
 	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
 	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/hook"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/resource/syncwaves"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/syncwaves"
 )
 
 // syncTask holds the live and target object. At least one should be non-nil. A targetObj of nil

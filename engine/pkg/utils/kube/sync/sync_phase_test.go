@@ -7,7 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
-	"github.com/argoproj/argo-cd/test"
+	. "github.com/argoproj/argo-cd/engine/pkg/utils/testing"
 )
 
 func TestSyncPhaseNone(t *testing.T) {
@@ -49,9 +49,9 @@ func TestSyncDuplicatedPhases(t *testing.T) {
 }
 
 func pod(hookType string) *unstructured.Unstructured {
-	return test.Annotate(test.NewPod(), "argocd.argoproj.io/hook", hookType)
+	return Annotate(NewPod(), "argocd.argoproj.io/hook", hookType)
 }
 
 func podWithHelmHook(hookType string) *unstructured.Unstructured {
-	return test.Annotate(test.NewPod(), "helm.sh/hook", hookType)
+	return Annotate(NewPod(), "helm.sh/hook", hookType)
 }

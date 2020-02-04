@@ -32,7 +32,7 @@ import (
 	argoio "github.com/argoproj/argo-cd/engine/pkg/utils/io"
 	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/hook"
-	"github.com/argoproj/argo-cd/engine/pkg/utils/resource/ignore"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/ignore"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"

@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/test"
+	. "github.com/argoproj/argo-cd/engine/pkg/utils/testing"
 )
 
 func TestHasAnnotationOption(t *testing.T) {
@@ -21,7 +21,7 @@ func TestHasAnnotationOption(t *testing.T) {
 		wantVals []string
 		want     bool
 	}{
-		{"Nil", args{test.NewPod(), "foo", "bar"}, nil, false},
+		{"Nil", args{NewPod(), "foo", "bar"}, nil, false},
 		{"Empty", args{example(""), "foo", "bar"}, nil, false},
 		{"Single", args{example("bar"), "foo", "bar"}, []string{"bar"}, true},
 		{"DeDup", args{example("bar,bar"), "foo", "bar"}, []string{"bar"}, true},
@@ -37,5 +37,5 @@ func TestHasAnnotationOption(t *testing.T) {
 }
 
 func example(val string) *unstructured.Unstructured {
-	return test.Annotate(test.NewPod(), "foo", val)
+	return Annotate(NewPod(), "foo", val)
 }

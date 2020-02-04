@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
-	. "github.com/argoproj/argo-cd/test"
+	. "github.com/argoproj/argo-cd/engine/pkg/utils/testing"
 )
 
 func Test_syncTasks_kindOrder(t *testing.T) {

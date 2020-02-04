@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	. "github.com/argoproj/argo-cd/test"
+	. "github.com/argoproj/argo-cd/engine/pkg/utils/testing"
 )
 
 func TestIsHook(t *testing.T) {

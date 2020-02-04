@@ -2,7 +2,7 @@ package helm
 
 import (
 	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
-	resourceutil "github.com/argoproj/argo-cd/engine/pkg/utils/resource"
+	resourceutil "github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/resource"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )

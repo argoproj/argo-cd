@@ -7,8 +7,12 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
-	. "github.com/argoproj/argo-cd/test"
+	. "github.com/argoproj/argo-cd/engine/pkg/utils/testing"
 )
+
+func newHook(hookType common.HookType) *unstructured.Unstructured {
+	return Annotate(NewPod(), "argocd.argoproj.io/hook", string(hookType))
+}
 
 func Test_syncTask_hookType(t *testing.T) {
 	type fields struct {
@@ -21,9 +25,9 @@ func Test_syncTask_hookType(t *testing.T) {
 		want   common.HookType
 	}{
 		{"Empty", fields{common.SyncPhaseSync, NewPod()}, ""},
-		{"PreSyncHook", fields{common.SyncPhasePreSync, NewHook(common.HookTypePreSync)}, common.HookTypePreSync},
-		{"SyncHook", fields{common.SyncPhaseSync, NewHook(common.HookTypeSync)}, common.HookTypeSync},
-		{"PostSyncHook", fields{common.SyncPhasePostSync, NewHook(common.HookTypePostSync)}, common.HookTypePostSync},
+		{"PreSyncHook", fields{common.SyncPhasePreSync, newHook(common.HookTypePreSync)}, common.HookTypePreSync},
+		{"SyncHook", fields{common.SyncPhaseSync, newHook(common.HookTypeSync)}, common.HookTypeSync},
+		{"PostSyncHook", fields{common.SyncPhasePostSync, newHook(common.HookTypePostSync)}, common.HookTypePostSync},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

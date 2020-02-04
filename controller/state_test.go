@@ -15,6 +15,7 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/engine/pkg/utils/health"
 	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
+	. "github.com/argoproj/argo-cd/engine/pkg/utils/testing"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/test"
@@ -48,7 +49,7 @@ func TestCompareAppStateMissing(t *testing.T) {
 	data := fakeData{
 		apps: []runtime.Object{app},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{test.PodManifest},
+			Manifests: []string{PodManifest},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -67,7 +68,7 @@ func TestCompareAppStateMissing(t *testing.T) {
 
 // TestCompareAppStateExtra tests when there is an extra object in live but not defined in git
 func TestCompareAppStateExtra(t *testing.T) {
-	pod := test.NewPod()
+	pod := NewPod()
 	pod.SetNamespace(test.FakeDestNamespace)
 	app := newFakeApp()
 	key := kube.ResourceKey{Group: "", Kind: "Pod", Namespace: test.FakeDestNamespace, Name: app.Name}
@@ -94,7 +95,7 @@ func TestCompareAppStateExtra(t *testing.T) {
 // TestCompareAppStateHook checks that hooks are detected during manifest generation, and not
 // considered as part of resources when assessing Synced status
 func TestCompareAppStateHook(t *testing.T) {
-	pod := test.NewPod()
+	pod := NewPod()
 	pod.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync"})
 	podBytes, _ := json.Marshal(pod)
 	app := newFakeApp()
@@ -120,7 +121,7 @@ func TestCompareAppStateHook(t *testing.T) {
 
 // checks that ignore resources are detected, but excluded from status
 func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
-	pod := test.NewPod()
+	pod := NewPod()
 	pod.SetAnnotations(map[string]string{common.AnnotationCompareOptions: "IgnoreExtraneous"})
 	app := newFakeApp()
 	data := fakeData{
@@ -146,7 +147,7 @@ func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
 
 // TestCompareAppStateExtraHook tests when there is an extra _hook_ object in live but not defined in git
 func TestCompareAppStateExtraHook(t *testing.T) {
-	pod := test.NewPod()
+	pod := NewPod()
 	pod.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync"})
 	pod.SetNamespace(test.FakeDestNamespace)
 	app := newFakeApp()
@@ -180,10 +181,10 @@ func toJSON(t *testing.T, obj *unstructured.Unstructured) string {
 }
 
 func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
-	obj1 := test.NewPod()
+	obj1 := NewPod()
 	obj1.SetNamespace(test.FakeDestNamespace)
-	obj2 := test.NewPod()
-	obj3 := test.NewPod()
+	obj2 := NewPod()
+	obj3 := NewPod()
 	obj3.SetNamespace("kube-system")
 
 	app := newFakeApp()

@@ -3,9 +3,9 @@ package helm
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	. "github.com/argoproj/argo-cd/engine/pkg/utils/testing"
 
-	. "github.com/argoproj/argo-cd/test"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestWeight(t *testing.T) {
