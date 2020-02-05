@@ -1,0 +1,11 @@
+- op: add
+  path: /spec/template/spec/volumes/0
+  value:
+    emptyDir: {}
+    name: tmp-dir
+
+- op: add
+  path: /spec/template/spec/containers/0/volumeMounts/0
+  value:
+    mountPath: /tmp
+    name: tmp-dir

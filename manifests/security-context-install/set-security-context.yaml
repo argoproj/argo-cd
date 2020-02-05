@@ -1,0 +1,6 @@
+- op: add
+  path: /spec/template/spec/securityContext
+  value:
+    runAsUser: 999
+    runAsGroup: 999
+    fsGroup: 999

@@ -1,0 +1,46 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+bases:
+- ../base
+- ../../crds
+
+patchesJson6902:
+# Apply set-security-context.yaml
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: argocd-application-controller
+    path: set-security-context.yaml
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: argocd-dex-server
+    path: set-security-context.yaml
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: argocd-redis
+    path: set-security-context.yaml
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: argocd-repo-server
+    path: set-security-context.yaml
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: argocd-server
+    path: set-security-context.yaml
+# Apply set-tmp-as-read-write.yaml
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: argocd-repo-server
+    path: set-tmp-as-read-write.yaml
