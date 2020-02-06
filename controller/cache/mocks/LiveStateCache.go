@@ -25,6 +25,29 @@ type LiveStateCache struct {
 	mock.Mock
 }
 
+// GetClusterCache provides a mock function with given fields: server
+func (_m *LiveStateCache) GetClusterCache(server string) (cache.ClusterCache, error) {
+	ret := _m.Called(server)
+
+	var r0 cache.ClusterCache
+	if rf, ok := ret.Get(0).(func(string) cache.ClusterCache); ok {
+		r0 = rf(server)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(cache.ClusterCache)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(server)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetClustersInfo provides a mock function with given fields:
 func (_m *LiveStateCache) GetClustersInfo() []cache.ClusterInfo {
 	ret := _m.Called()

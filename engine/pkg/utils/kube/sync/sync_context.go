@@ -124,6 +124,10 @@ func NewSyncContext(
 		namespace:           namespace,
 		log:                 log,
 		validate:            true,
+		syncRes:             map[string]common.ResourceSyncResult{},
+		permissionValidator: func(_ *unstructured.Unstructured, _ *metav1.APIResource) error {
+			return nil
+		},
 	}
 	for _, opt := range opts {
 		opt(ctx)

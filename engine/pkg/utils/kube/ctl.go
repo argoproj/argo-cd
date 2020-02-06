@@ -526,7 +526,3 @@ func RunAllAsync(count int, action func(i int) error) (err error) {
 	wg.Wait()
 	return err
 }
-
-type ResourceInfoProvider interface {
-	IsNamespaced(server string, gk schema.GroupKind) (bool, error)
-}

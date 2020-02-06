@@ -268,11 +268,10 @@ func TestGetChildren(t *testing.T) {
 
 func TestGetManagedLiveObjs(t *testing.T) {
 	cluster := newCluster(testPod, testRS, testDeploy)
-	cluster.handlers = EventHandlers{
-		OnPopulateResourceInfo: func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
-			return nil, true
-		},
-	}
+	cluster.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
+		return nil, true
+	})
+
 	err := cluster.EnsureSynced()
 	assert.Nil(t, err)
 

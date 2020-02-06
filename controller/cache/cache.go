@@ -29,6 +29,8 @@ type LiveStateCache interface {
 	GetVersionsInfo(serverURL string) (string, []metav1.APIGroup, error)
 	// Returns true of given group kind is a namespaced resource
 	IsNamespaced(server string, gk schema.GroupKind) (bool, error)
+	// Returns synced cluster cache
+	GetClusterCache(server string) (clustercache.ClusterCache, error)
 	// Executes give callback against resource specified by the key and all its children
 	IterateHierarchy(server string, key kube.ResourceKey, action func(child appv1.ResourceNode, appName string)) error
 	// Returns state of live nodes which correspond for target nodes of specified application.
@@ -215,44 +217,47 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, err
 	}
 
-	clusterCache = clustercache.NewClusterCache(c.cacheSettings, cluster.RESTConfig(), cluster.Namespaces, c.kubectl, clustercache.EventHandlers{
-		OnEvent: func(event watch.EventType, un *unstructured.Unstructured) {
-			gvk := un.GroupVersionKind()
-			c.metricsServer.IncClusterEventsCount(cluster.Server, gvk.Group, gvk.Kind)
-		},
-		OnPopulateResourceInfo: func(un *unstructured.Unstructured, isRoot bool) (interface{}, bool) {
-			res := &ResourceInfo{}
-			populateNodeInfo(un, res)
-			res.Health, _ = health.GetResourceHealth(un, c.cacheSettings.ResourceHealthOverride)
-			appName := kube.GetAppInstanceLabel(un, c.appInstanceLabelKey)
-			if isRoot && appName != "" {
-				res.AppName = appName
-			}
-			// edge case. we do not label CRDs, so they miss the tracking label we inject. But we still
-			// want the full resource to be available in our cache (to diff), so we store all CRDs
-			return res, res.AppName != "" || un.GroupVersionKind().Kind == kube.CustomResourceDefinitionKind
-		},
-		OnResourceUpdated: func(newRes *clustercache.Resource, oldRes *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) {
-			toNotify := make(map[string]bool)
-			var ref v1.ObjectReference
-			if newRes != nil {
-				ref = newRes.Ref
-			} else {
-				ref = oldRes.Ref
-			}
-			for _, r := range []*clustercache.Resource{newRes, oldRes} {
-				if r == nil {
-					continue
-				}
-				app := getApp(r, namespaceResources)
-				if app == "" || skipAppRequeing(r.ResourceKey()) {
-					continue
-				}
-				toNotify[app] = isRootAppNode(r) || toNotify[app]
-			}
-			c.onObjectUpdated(toNotify, ref)
-		},
+	clusterCache = clustercache.NewClusterCache(c.cacheSettings, cluster.RESTConfig(), cluster.Namespaces, c.kubectl)
+	clusterCache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (interface{}, bool) {
+		res := &ResourceInfo{}
+		populateNodeInfo(un, res)
+		res.Health, _ = health.GetResourceHealth(un, c.cacheSettings.ResourceHealthOverride)
+		appName := kube.GetAppInstanceLabel(un, c.appInstanceLabelKey)
+		if isRoot && appName != "" {
+			res.AppName = appName
+		}
+
+		// edge case. we do not label CRDs, so they miss the tracking label we inject. But we still
+		// want the full resource to be available in our cache (to diff), so we store all CRDs
+		return res, res.AppName != "" || un.GroupVersionKind().Kind == kube.CustomResourceDefinitionKind
 	})
+
+	_ = clusterCache.OnResourceUpdated(func(newRes *clustercache.Resource, oldRes *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) {
+		toNotify := make(map[string]bool)
+		var ref v1.ObjectReference
+		if newRes != nil {
+			ref = newRes.Ref
+		} else {
+			ref = oldRes.Ref
+		}
+		for _, r := range []*clustercache.Resource{newRes, oldRes} {
+			if r == nil {
+				continue
+			}
+			app := getApp(r, namespaceResources)
+			if app == "" || skipAppRequeing(r.ResourceKey()) {
+				continue
+			}
+			toNotify[app] = isRootAppNode(r) || toNotify[app]
+		}
+		c.onObjectUpdated(toNotify, ref)
+	})
+
+	_ = clusterCache.OnEvent(func(event watch.EventType, un *unstructured.Unstructured) {
+		gvk := un.GroupVersionKind()
+		c.metricsServer.IncClusterEventsCount(cluster.Server, gvk.Group, gvk.Kind)
+	})
+
 	c.clusters[cluster.Server] = clusterCache
 
 	return clusterCache, nil
@@ -429,4 +434,8 @@ func (c *liveStateCache) GetClustersInfo() []clustercache.ClusterInfo {
 		res = append(res, info.GetClusterInfo())
 	}
 	return res
+}
+
+func (c *liveStateCache) GetClusterCache(server string) (clustercache.ClusterCache, error) {
+	return c.getSyncedCluster(server)
 }

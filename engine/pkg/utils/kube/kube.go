@@ -48,6 +48,10 @@ const (
 	APIServiceKind               = "APIService"
 )
 
+type ResourceInfoProvider interface {
+	IsNamespaced(gk schema.GroupKind) bool
+}
+
 type ResourceKey struct {
 	Group     string
 	Kind      string

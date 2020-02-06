@@ -22,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	mockstatecache "github.com/argoproj/argo-cd/controller/cache/mocks"
 	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/cache/mocks"
 	"github.com/argoproj/argo-cd/engine/pkg/utils/kube/kubetest"
 	synccommon "github.com/argoproj/argo-cd/engine/pkg/utils/kube/sync/common"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -106,6 +107,9 @@ func newFakeController(data *fakeData) *ApplicationController {
 	defer cancelProj()
 	cancelApp := test.StartInformer(ctrl.appInformer)
 	defer cancelApp()
+	clusterCacheMock := mocks.ClusterCache{}
+	clusterCacheMock.On("IsNamespaced", mock.Anything).Return(true, nil)
+
 	mockStateCache := mockstatecache.LiveStateCache{}
 	ctrl.appStateManager.(*appStateManager).liveStateCache = &mockStateCache
 	ctrl.stateCache = &mockStateCache
@@ -117,6 +121,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		response[k] = v.ResourceNode
 	}
 	mockStateCache.On("GetNamespaceTopLevelResources", mock.Anything, mock.Anything).Return(response, nil)
+	mockStateCache.On("GetClusterCache", mock.Anything).Return(&clusterCacheMock, nil)
 	mockStateCache.On("IterateHierarchy", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		key := args[1].(kube.ResourceKey)
 		action := args[2].(func(child argoappv1.ResourceNode, appName string))

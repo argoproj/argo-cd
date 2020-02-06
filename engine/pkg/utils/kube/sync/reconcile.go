@@ -69,7 +69,7 @@ type ReconciliationResult struct {
 	Hooks  []*unstructured.Unstructured
 }
 
-func Reconcile(targetObjs []*unstructured.Unstructured, liveObjByKey map[kube.ResourceKey]*unstructured.Unstructured, server string, namespace string, resInfo kubeutil.ResourceInfoProvider) ReconciliationResult {
+func Reconcile(targetObjs []*unstructured.Unstructured, liveObjByKey map[kube.ResourceKey]*unstructured.Unstructured, namespace string, resInfo kubeutil.ResourceInfoProvider) ReconciliationResult {
 	targetObjs, hooks := splitHooks(targetObjs)
 	dedupLiveResources(targetObjs, liveObjByKey)
 
@@ -77,7 +77,7 @@ func Reconcile(targetObjs []*unstructured.Unstructured, liveObjByKey map[kube.Re
 	for i, obj := range targetObjs {
 		gvk := obj.GroupVersionKind()
 		ns := text.FirstNonEmpty(obj.GetNamespace(), namespace)
-		if namespaced, err := resInfo.IsNamespaced(server, obj.GroupVersionKind().GroupKind()); err == nil && !namespaced {
+		if namespaced := resInfo.IsNamespaced(obj.GroupVersionKind().GroupKind()); !namespaced {
 			ns = ""
 		}
 		key := kubeutil.NewResourceKey(gvk.Group, gvk.Kind, ns, obj.GetName())
