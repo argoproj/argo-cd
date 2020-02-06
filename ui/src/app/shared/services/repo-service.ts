@@ -16,7 +16,7 @@ export class RepositoriesService {
             .then(list => list.items || []);
     }
 
-    public createHTTPS({
+    public async createHTTPS({
         type,
         name,
         url,
@@ -37,13 +37,15 @@ export class RepositoriesService {
         insecure: boolean;
         enableLfs: boolean;
     }): Promise<models.Repository> {
+        const csrfToken = await requests.getCsrfToken();
         return requests
             .post('/repositories')
+            .set(requests.csrfHeaderName, csrfToken)
             .send({type, name, repo: url, username, password, tlsClientCertData, tlsClientCertKey, insecure, enableLfs})
             .then(res => res.body as models.Repository);
     }
 
-    public createSSH({
+    public async createSSH({
         type,
         name,
         url,
@@ -58,15 +60,19 @@ export class RepositoriesService {
         insecure: boolean;
         enableLfs: boolean;
     }): Promise<models.Repository> {
+        const csrfToken = await requests.getCsrfToken();
         return requests
             .post('/repositories')
+            .set(requests.csrfHeaderName, csrfToken)
             .send({type, name, repo: url, sshPrivateKey, insecure, enableLfs})
             .then(res => res.body as models.Repository);
     }
 
-    public delete(url: string): Promise<models.Repository> {
+    public async delete(url: string): Promise<models.Repository> {
+        const csrfToken = await requests.getCsrfToken();
         return requests
             .delete(`/repositories/${encodeURIComponent(url)}`)
+            .set(requests.csrfHeaderName, csrfToken)
             .send()
             .then(res => res.body as models.Repository);
     }
@@ -82,9 +88,11 @@ export class RepositoriesService {
         return requests.get(`/repositories/${encodeURIComponent(repo)}/helmcharts`).then(res => (res.body.items as models.HelmChart[]) || []);
     }
 
-    public appDetails(source: models.ApplicationSource): Promise<models.RepoAppDetails> {
+    public async appDetails(source: models.ApplicationSource): Promise<models.RepoAppDetails> {
+        const csrfToken = await requests.getCsrfToken();
         return requests
             .post(`/repositories/${encodeURIComponent(source.repoURL)}/appdetails`)
+            .set(requests.csrfHeaderName, csrfToken)
             .send({source})
             .then(res => res.body as models.RepoAppDetails);
     }

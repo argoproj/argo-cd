@@ -242,8 +242,9 @@ func NewFakeSecret(policy ...string) *apiv1.Secret {
 			Namespace: FakeArgoCDNamespace,
 		},
 		Data: map[string][]byte{
-			"admin.password":   []byte("test"),
+			"admin.password":   []byte("$2b$05$24l8KdAu5yvekU9KDKxgMuKboLDEAz/2bA4hbd185M/vxIg7uFx/."), // bcrypted value for "test"
 			"server.secretkey": []byte("test"),
+			"server.csrfkey":   []byte("12345678901234567890123456789012"),
 		},
 	}
 	return &secret

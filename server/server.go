@@ -20,6 +20,7 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	golang_proto "github.com/golang/protobuf/proto"
+	"github.com/gorilla/csrf"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
@@ -135,6 +136,7 @@ type ArgoCDServer struct {
 
 type ArgoCDServerOpts struct {
 	DisableAuth         bool
+	DisableCsrf         bool
 	Insecure            bool
 	ListenPort          int
 	MetricsPort         int
@@ -264,6 +266,10 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	// Start the muxed listeners for our servers
 	log.Infof("argocd %s serving on port %d (url: %s, tls: %v, namespace: %s, sso: %v)",
 		common.GetVersion(), port, a.settings.URL, a.useTLS(), a.Namespace, a.settings.IsSSOConfigured())
+
+	if a.DisableAuth {
+		log.Warnf("API authentication is disabled -- do not use in production")
+	}
 
 	go a.projInformer.Run(ctx.Done())
 	go func() { a.checkServeErr("grpcS", grpcS.Serve(grpcL)) }()
@@ -552,8 +558,49 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	// we use our own Marshaler
 	gwMuxOpts := runtime.WithMarshalerOption(runtime.MIMEWildcard, new(jsonutil.JSONMarshaler))
 	gwCookieOpts := runtime.WithForwardResponseOption(a.translateGrpcCookieHeader)
-	gwmux := runtime.NewServeMux(gwMuxOpts, gwCookieOpts)
-	mux.Handle("/api/", gwmux)
+
+	// This function adds the X-CSRF-Token header to the HTTP response so the browser can supply it
+	// with POST/PUT/DELETE requests.
+	//
+	// gorilla-csrf uses context from a http.Request object, so we have to supply an empty request
+	// with the current context set in our grpc-gateway setup for gorilla to create a proper token.
+	csrfAddResponseHeaderFunc := func(ctx context.Context, w http.ResponseWriter, resp golang_proto.Message) error {
+		r := http.Request{}
+		token := csrf.Token(r.WithContext(ctx))
+		if token != "" {
+			w.Header().Set("X-CSRF-Token", token)
+		}
+		return nil
+	}
+
+	gwForwarder := runtime.WithForwardResponseOption(csrfAddResponseHeaderFunc)
+
+	// Our HTTP JSON API is CSRF protected, so we add Gorilla CSRF middleware
+	//
+	// Client must either send the "Authorization" header (API usage from non-browser clients) or a valid
+	// CSRF token in "X-CSRF-Token" header to pass CSRF protection middleware.
+	//
+	var gwmux *runtime.ServeMux
+
+	if a.ArgoCDServerOpts.DisableCsrf {
+		log.Warnf("CSRF protection is disabled -- do not use this in production")
+		gwmux = runtime.NewServeMux(gwMuxOpts, gwCookieOpts)
+		mux.Handle("/api/", gwmux)
+	} else {
+		// We need 32-byte non-changing key which we use from server.csrfkey in argocd-secret
+		gwmux = runtime.NewServeMux(gwMuxOpts, gwCookieOpts, gwForwarder)
+		if a.settings.CsrfKey != nil && len(a.settings.CsrfKey) == 32 {
+			csrfKey := a.settings.CsrfKey
+			protmux := csrf.Protect(csrfKey,
+				csrf.Secure(a.useTLS()),
+				csrf.Path("/api/v1"),
+			)(gwmux)
+			mux.Handle("/api/", protmux)
+		} else {
+			panic("server.csrfkey must be exactly 32 byte long -- consider another value or --disable-csrf")
+		}
+	}
+
 	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(clusterpkg.RegisterClusterServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(applicationpkg.RegisterApplicationServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
@@ -826,12 +873,53 @@ type handlerSwitcher struct {
 	contentTypeToHandler map[string]http.Handler
 }
 
+// Add JSON API paths to NoCsrfHeaderPatterns slice that allow unauthenticated
+// GET requests, so that they will not return X-CSRF-Token header on response.
+var NoCsrfHeaderPattern = []*regexp.Regexp{
+	regexp.MustCompile(`/api/version.*`),
+	regexp.MustCompile(`/api/v1/settings.*`),
+}
+
 func (s *handlerSwitcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if urlHandler, ok := s.urlToHandler[r.URL.Path]; ok {
 		urlHandler.ServeHTTP(w, r)
 	} else if contentHandler, ok := s.contentTypeToHandler[r.Header.Get("content-type")]; ok {
 		contentHandler.ServeHTTP(w, r)
 	} else {
+		// If we have a valid authorization header for API access, skip CSRF protection for this request
+		// This is accomplished by setting the key gorilla.csrf.Skip in the request's context.
+		//
+		// We don't validate the JWT token here - this is done at API level. But we make sure that the
+		// request does not carry a cookie named "argocd.token" as sent by the browser. This would
+		// circumvent CSRF protection.
+		//
+		// API access from scripts or other clients therefore MUST always set "Authorization" header
+		// and MUST NOT send the JWT in a cookie (or MUST ALSO send the X-CSRF-Token header along)
+		//
+		// We do allow a POST on /api/v1/session to get a valid JWT token without having to also
+		// supply the X-CSRF-Token header, as long as the argocd.token is not set.
+		//
+		if _, err := r.Cookie(common.AuthCookieName); err != nil {
+			if authHdr := r.Header.Get("Authorization"); strings.HasPrefix(authHdr, "Bearer ") {
+				r = csrf.UnsafeSkipCheck(r)
+			} else if r.URL.Path == "/api/v1/session" && r.Method == "POST" {
+				r = csrf.UnsafeSkipCheck(r)
+			}
+		}
+
+		// We do not want to send X-CSRF-Token on unauthenticated requests, so we skip CSRF checks
+		// on safe requests to our unauthenticated URLs
+		switch strings.ToUpper(r.Method) {
+		case "GET", "HEAD", "OPTIONS", "TRACE":
+			for _, pattern := range NoCsrfHeaderPattern {
+				if pattern.MatchString(r.URL.Path) {
+					r = csrf.UnsafeSkipCheck(r)
+					break
+				}
+			}
+		}
+
+		// gorilla-csrf takes care that this request is properly protected
 		s.handler.ServeHTTP(w, r)
 	}
 }

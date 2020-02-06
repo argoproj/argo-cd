@@ -2,15 +2,21 @@ import {UserInfo} from '../models';
 import requests from './requests';
 
 export class UserService {
-    public login(username: string, password: string): Promise<{token: string}> {
+    public async login(username: string, password: string): Promise<{token: string}> {
+        const csrfToken = await requests.getCsrfToken();
         return requests
             .post('/session')
+            .set(requests.csrfHeaderName, csrfToken)
             .send({username, password})
             .then(res => ({token: res.body.token}));
     }
 
-    public logout(): Promise<boolean> {
-        return requests.delete('/session').then(() => true);
+    public async logout(): Promise<boolean> {
+        const csrfToken = await requests.getCsrfToken();
+        return requests
+            .delete('/session')
+            .set(requests.csrfHeaderName, csrfToken)
+            .then(() => true);
     }
 
     public get(): Promise<UserInfo> {

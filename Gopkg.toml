@@ -111,6 +111,10 @@ required = [
   revision = "30be4d16710ac61bce31eb28a01054596fe6a9f1"
   name = "k8s.io/kube-openapi"
 
+[[constraint]]
+  name = "github.com/gorilla/csrf"
+  version = "1.6.1"
+  
 # jsonpatch replace operation does not apply: doc is missing key: /metadata/annotations
 [[override]]
   name = "github.com/evanphx/json-patch"
