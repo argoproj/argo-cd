@@ -1,3 +1,4 @@
+import * as path from 'path';
 import * as superagent from 'superagent';
 const superagentPromise = require('superagent-promise');
 import {BehaviorSubject, Observable, Observer} from 'rxjs';
@@ -22,9 +23,17 @@ enum ReadyState {
 
 const agent: superagent.SuperAgentStatic = superagentPromise(superagent, global.Promise);
 
-let apiRoot = '/api/v1';
+let baseHRef = '/';
 
 const onError = new BehaviorSubject<superagent.ResponseError>(null);
+
+function toAbsURL(val: string): string {
+    return path.join(baseHRef, val);
+}
+
+function apiRoot(): string {
+    return toAbsURL('/api/v1');
+}
 
 function initHandlers(req: superagent.Request) {
     req.on('error', err => onError.next(err));
@@ -32,34 +41,35 @@ function initHandlers(req: superagent.Request) {
 }
 
 export default {
-    setApiRoot(val: string) {
-        apiRoot = val;
+    setBaseHRef(val: string) {
+        baseHRef = val;
     },
     agent,
+    toAbsURL,
     onError: onError.asObservable().filter(err => err != null),
     get(url: string) {
-        return initHandlers(agent.get(`${apiRoot}${url}`));
+        return initHandlers(agent.get(`${apiRoot()}${url}`));
     },
 
     post(url: string) {
-        return initHandlers(agent.post(`${apiRoot}${url}`));
+        return initHandlers(agent.post(`${apiRoot()}${url}`));
     },
 
     put(url: string) {
-        return initHandlers(agent.put(`${apiRoot}${url}`));
+        return initHandlers(agent.put(`${apiRoot()}${url}`));
     },
 
     patch(url: string) {
-        return initHandlers(agent.patch(`${apiRoot}${url}`));
+        return initHandlers(agent.patch(`${apiRoot()}${url}`));
     },
 
     delete(url: string) {
-        return initHandlers(agent.del(`${apiRoot}${url}`));
+        return initHandlers(agent.del(`${apiRoot()}${url}`));
     },
 
     loadEventSource(url: string, allowAutoRetry = false): Observable<string> {
         return Observable.create((observer: Observer<any>) => {
-            const eventSource = new EventSource(`${apiRoot}${url}`);
+            const eventSource = new EventSource(`${apiRoot()}${url}`);
             let opened = false;
             eventSource.onopen = msg => {
                 if (!opened) {
