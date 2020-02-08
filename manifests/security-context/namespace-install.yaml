@@ -1965,57 +1965,6 @@ rules:
   - list
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  labels:
-    app.kubernetes.io/component: application-controller
-    app.kubernetes.io/name: argocd-application-controller
-    app.kubernetes.io/part-of: argocd
-  name: argocd-application-controller
-rules:
-- apiGroups:
-  - '*'
-  resources:
-  - '*'
-  verbs:
-  - '*'
-- nonResourceURLs:
-  - '*'
-  verbs:
-  - '*'
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  labels:
-    app.kubernetes.io/component: server
-    app.kubernetes.io/name: argocd-server
-    app.kubernetes.io/part-of: argocd
-  name: argocd-server
-rules:
-- apiGroups:
-  - '*'
-  resources:
-  - '*'
-  verbs:
-  - delete
-  - get
-  - patch
-- apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - list
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  - pods/log
-  verbs:
-  - get
----
-apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   labels:
@@ -2062,40 +2011,6 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: argocd-server
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  labels:
-    app.kubernetes.io/component: application-controller
-    app.kubernetes.io/name: argocd-application-controller
-    app.kubernetes.io/part-of: argocd
-  name: argocd-application-controller
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: argocd-application-controller
-subjects:
-- kind: ServiceAccount
-  name: argocd-application-controller
-  namespace: argocd
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  labels:
-    app.kubernetes.io/component: server
-    app.kubernetes.io/name: argocd-server
-    app.kubernetes.io/part-of: argocd
-  name: argocd-server
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: argocd-server
-subjects:
-- kind: ServiceAccount
-  name: argocd-server
-  namespace: argocd
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -2304,6 +2219,10 @@ spec:
             port: 8082
           initialDelaySeconds: 5
           periodSeconds: 10
+      securityContext:
+        fsGroup: 999
+        runAsGroup: 999
+        runAsUser: 999
       serviceAccountName: argocd-application-controller
 ---
 apiVersion: apps/v1
@@ -2347,6 +2266,10 @@ spec:
         volumeMounts:
         - mountPath: /shared
           name: static-files
+      securityContext:
+        fsGroup: 999
+        runAsGroup: 999
+        runAsUser: 999
       serviceAccountName: argocd-dex-server
       volumes:
       - emptyDir: {}
@@ -2380,6 +2303,10 @@ spec:
         name: redis
         ports:
         - containerPort: 6379
+      securityContext:
+        fsGroup: 999
+        runAsGroup: 999
+        runAsUser: 999
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -2422,11 +2349,19 @@ spec:
           tcpSocket:
             port: 8081
         volumeMounts:
+        - mountPath: /tmp
+          name: tmp-dir
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
         - mountPath: /app/config/tls
           name: tls-certs
+      securityContext:
+        fsGroup: 999
+        runAsGroup: 999
+        runAsUser: 999
       volumes:
+      - emptyDir: {}
+        name: tmp-dir
       - configMap:
           name: argocd-ssh-known-hosts-cm
         name: ssh-known-hosts
@@ -2479,6 +2414,10 @@ spec:
           name: ssh-known-hosts
         - mountPath: /app/config/tls
           name: tls-certs
+      securityContext:
+        fsGroup: 999
+        runAsGroup: 999
+        runAsUser: 999
       serviceAccountName: argocd-server
       volumes:
       - emptyDir: {}

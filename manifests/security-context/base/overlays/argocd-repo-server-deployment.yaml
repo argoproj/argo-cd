@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-repo-server
+spec:
+  template:
+    spec:
+      securityContext:
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+      containers:
+        - name: argocd-repo-server
+          volumeMounts:
+            - mountPath: /tmp
+              name: tmp-dir
+      volumes:
+        - emptyDir: {}
+          name: tmp-dir

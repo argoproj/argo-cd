@@ -13,3 +13,4 @@ images:
 - name: argoproj/argocd
   newName: argoproj/argocd
   newTag: latest
+

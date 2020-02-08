@@ -2304,6 +2304,10 @@ spec:
             port: 8082
           initialDelaySeconds: 5
           periodSeconds: 10
+      securityContext:
+        fsGroup: 999
+        runAsGroup: 999
+        runAsUser: 999
       serviceAccountName: argocd-application-controller
 ---
 apiVersion: apps/v1
@@ -2347,6 +2351,10 @@ spec:
         volumeMounts:
         - mountPath: /shared
           name: static-files
+      securityContext:
+        fsGroup: 999
+        runAsGroup: 999
+        runAsUser: 999
       serviceAccountName: argocd-dex-server
       volumes:
       - emptyDir: {}
@@ -2380,6 +2388,10 @@ spec:
         name: redis
         ports:
         - containerPort: 6379
+      securityContext:
+        fsGroup: 999
+        runAsGroup: 999
+        runAsUser: 999
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -2422,11 +2434,19 @@ spec:
           tcpSocket:
             port: 8081
         volumeMounts:
+        - mountPath: /tmp
+          name: tmp-dir
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
         - mountPath: /app/config/tls
           name: tls-certs
+      securityContext:
+        fsGroup: 999
+        runAsGroup: 999
+        runAsUser: 999
       volumes:
+      - emptyDir: {}
+        name: tmp-dir
       - configMap:
           name: argocd-ssh-known-hosts-cm
         name: ssh-known-hosts
@@ -2479,6 +2499,10 @@ spec:
           name: ssh-known-hosts
         - mountPath: /app/config/tls
           name: tls-certs
+      securityContext:
+        fsGroup: 999
+        runAsGroup: 999
+        runAsUser: 999
       serviceAccountName: argocd-server
       volumes:
       - emptyDir: {}
