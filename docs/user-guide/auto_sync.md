@@ -37,6 +37,22 @@ spec:
   syncPolicy:
     automated:
       prune: true
+```
+
+## Automatic Self-Healing
+By default, changes that are made to the live cluster will not trigger automated sync. To enable automatic sync 
+when the live cluster's state deviates from the state defined in Git, run:
+
+```bash
+argocd app set <APPNAME> --self-heal
+```
+
+Or by setting the self heal option to true in the automated sync policy:
+
+```yaml
+spec:
+  syncPolicy:
+    automated:
       selfHeal: true
 ```
 
