@@ -1,4 +1,4 @@
-import {AutocompleteField, Checkbox, DataLoader, DropDownMenu, FormField, Select} from 'argo-ui';
+import {AutocompleteField, Checkbox, DataLoader, DropDownMenu, FormField, Select, HelpIcon} from 'argo-ui';
 import * as deepMerge from 'deepmerge';
 import * as React from 'react';
 import {FieldApi, Form, FormApi, FormField as ReactFormField, Text} from 'react-form';
@@ -60,10 +60,16 @@ const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi; className:
             />
             {policy && policy.automated && (
                 <div className='application-create-panel__sync-params'>
-                    <Checkbox onChange={val => setValue({automated: {...policy.automated, prune: val}})} checked={policy.automated.prune} id='policyPrune' />{' '}
-                    <label htmlFor='policyPrune'>Prune Resources</label>{' '}
-                    <Checkbox onChange={val => setValue({automated: {...policy.automated, selfHeal: val}})} checked={policy.automated.selfHeal} id='policySelfHeal' />{' '}
-                    <label htmlFor='selfHeal'>Self Heal</label>
+                    <div className='checkbox-container'>
+                        <Checkbox onChange={val => setValue({automated: {...policy.automated, prune: val}})} checked={policy.automated.prune} id='policyPrune' />
+                        <label htmlFor='policyPrune'>Prune Resources</label>
+                        <HelpIcon title='If checked, Argo will delete resources if they are no longer defined in git' />
+                    </div>
+                    <div className='checkbox-container'>
+                        <Checkbox onChange={val => setValue({automated: {...policy.automated, selfHeal: val}})} checked={policy.automated.selfHeal} id='policySelfHeal' />
+                        <label htmlFor='selfHeal'>Self Heal</label>
+                        <HelpIcon title='If checked, Argo will force the state defined in Git into the cluster when a deviation in the cluster is detected' />
+                    </div>
                 </div>
             )}
         </React.Fragment>
