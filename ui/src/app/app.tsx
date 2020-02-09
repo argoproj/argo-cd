@@ -19,7 +19,7 @@ services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
 const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
 export const history = createBrowserHistory({basename: base});
-requests.setApiRoot(`${base}api/v1`);
+requests.setBaseHRef(base);
 
 const routes: {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean}} = {
     '/login': {component: login.component as any, noLayout: true},

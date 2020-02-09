@@ -227,6 +227,24 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	if err != nil {
 		return nil, err
 	}
+	for i, manifest := range manifestInfo.Manifests {
+		obj := &unstructured.Unstructured{}
+		err = json.Unmarshal([]byte(manifest), obj)
+		if err != nil {
+			return nil, err
+		}
+		if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
+			obj, _, err = diff.HideSecretData(obj, nil)
+			if err != nil {
+				return nil, err
+			}
+			data, err := json.Marshal(obj)
+			if err != nil {
+				return nil, err
+			}
+			manifestInfo.Manifests[i] = string(data)
+		}
+	}
 
 	return manifestInfo, nil
 }
