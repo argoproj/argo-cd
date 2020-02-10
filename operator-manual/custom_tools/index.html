@@ -1209,7 +1209,7 @@ other than what Argo CD bundles. Some reasons to do this might be:</p>
 <p>As the Argo CD repo-server is the single service responsible for generating Kubernetes manifests, it
 can be customized to use alternative toolchain required by your environment.</p>
 <h2 id="adding-tools-via-volume-mounts">Adding Tools Via Volume Mounts<a class="headerlink" href="#adding-tools-via-volume-mounts" title="Permanent link">&para;</a></h2>
-<p>The first technique is to use an <code>init</code> container and a <code>volumeMount</code> to copy a different verison of
+<p>The first technique is to use an <code>init</code> container and a <code>volumeMount</code> to copy a different version of
 a tool into the repo-server container. In the following example, an init container is overwriting
 the helm binary with a different version than what is bundled in Argo CD:</p>
 <div class="codehilite"><pre><span></span><code>    <span class="nt">spec</span><span class="p">:</span>
