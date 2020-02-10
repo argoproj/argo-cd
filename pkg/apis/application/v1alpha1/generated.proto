@@ -851,6 +851,9 @@ message SyncOperation {
 
   // Manifests is an optional field that overrides sync source with a local directory for development
   repeated string manifests = 8;
+
+  // SyncOptions provide per-sync sync-options, e.g. Validate=false
+  repeated string syncOptions = 9;
 }
 
 // SyncOperationResource contains resources to sync.
@@ -878,6 +881,9 @@ message SyncOperationResult {
 message SyncPolicy {
   // Automated will keep an application synced to the target revision
   optional SyncPolicyAutomated automated = 1;
+
+  // Options allow youe to specify whole app sync-options
+  repeated string syncOptions = 2;
 }
 
 // SyncPolicyAutomated controls the behavior of an automated sync

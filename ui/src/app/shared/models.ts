@@ -207,8 +207,14 @@ export interface ApplicationSourceDirectory {
     jsonnet?: ApplicationSourceJsonnet;
 }
 
+export interface Automated {
+    prune: boolean;
+    selfHeal: boolean;
+}
+
 export interface SyncPolicy {
-    automated?: {prune: boolean; selfHeal: boolean};
+    automated?: Automated;
+    syncOptions?: string[];
 }
 
 export interface Info {

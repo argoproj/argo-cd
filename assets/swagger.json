@@ -85,7 +85,7 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "List",
+        "operationId": "ListMixin8",
         "parameters": [
           {
             "type": "string",
@@ -135,7 +135,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "Create",
+        "operationId": "CreateMixin8",
         "parameters": [
           {
             "name": "body",
@@ -162,7 +162,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "Update",
+        "operationId": "UpdateMixin8",
         "parameters": [
           {
             "type": "string",
@@ -293,7 +293,7 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "Get",
+        "operationId": "GetMixin8",
         "parameters": [
           {
             "type": "string",
@@ -343,7 +343,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "Delete",
+        "operationId": "DeleteMixin8",
         "parameters": [
           {
             "type": "string",
@@ -982,7 +982,7 @@
           "ClusterService"
         ],
         "summary": "List returns list of clusters",
-        "operationId": "ListMixin3",
+        "operationId": "List",
         "parameters": [
           {
             "type": "string",
@@ -1004,7 +1004,7 @@
           "ClusterService"
         ],
         "summary": "Create creates a cluster",
-        "operationId": "CreateMixin3",
+        "operationId": "Create",
         "parameters": [
           {
             "name": "body",
@@ -1031,7 +1031,7 @@
           "ClusterService"
         ],
         "summary": "Update updates a cluster",
-        "operationId": "UpdateMixin3",
+        "operationId": "Update",
         "parameters": [
           {
             "type": "string",
@@ -1064,7 +1064,7 @@
           "ClusterService"
         ],
         "summary": "Get returns a cluster by server address",
-        "operationId": "GetMixin3",
+        "operationId": "GetMixin2",
         "parameters": [
           {
             "type": "string",
@@ -1087,7 +1087,7 @@
           "ClusterService"
         ],
         "summary": "Delete deletes a cluster",
-        "operationId": "DeleteMixin3",
+        "operationId": "Delete",
         "parameters": [
           {
             "type": "string",
@@ -1137,7 +1137,7 @@
           "ProjectService"
         ],
         "summary": "List returns list of projects",
-        "operationId": "ListMixin4",
+        "operationId": "ListMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1159,7 +1159,7 @@
           "ProjectService"
         ],
         "summary": "Create a new project.",
-        "operationId": "CreateMixin4",
+        "operationId": "CreateMixin6",
         "parameters": [
           {
             "name": "body",
@@ -1186,7 +1186,7 @@
           "ProjectService"
         ],
         "summary": "Get returns a project by name",
-        "operationId": "GetMixin4",
+        "operationId": "GetMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1209,7 +1209,7 @@
           "ProjectService"
         ],
         "summary": "Delete deletes a project",
-        "operationId": "DeleteMixin4",
+        "operationId": "DeleteMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1284,7 +1284,7 @@
           "ProjectService"
         ],
         "summary": "Update updates a project",
-        "operationId": "UpdateMixin4",
+        "operationId": "UpdateMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1744,7 +1744,7 @@
           "SessionService"
         ],
         "summary": "Create a new JWT for authentication and set a cookie if using HTTP.",
-        "operationId": "CreateMixin7",
+        "operationId": "CreateMixin10",
         "parameters": [
           {
             "name": "body",
@@ -1769,7 +1769,7 @@
           "SessionService"
         ],
         "summary": "Delete an existing JWT cookie if using HTTP.",
-        "operationId": "DeleteMixin7",
+        "operationId": "DeleteMixin10",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -1803,7 +1803,7 @@
           "SettingsService"
         ],
         "summary": "Get returns Argo CD settings",
-        "operationId": "GetMixin9",
+        "operationId": "Get",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -4215,6 +4215,13 @@
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
         },
+        "syncOptions": {
+          "type": "array",
+          "title": "SyncOptions provide per-sync sync-options, e.g. Validate=false",
+          "items": {
+            "type": "string"
+          }
+        },
         "syncStrategy": {
           "$ref": "#/definitions/v1alpha1SyncStrategy"
         }
@@ -4261,6 +4268,13 @@
       "properties": {
         "automated": {
           "$ref": "#/definitions/v1alpha1SyncPolicyAutomated"
+        },
+        "syncOptions": {
+          "type": "array",
+          "title": "Options allow youe to specify whole app sync-options",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
