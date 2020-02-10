@@ -39,12 +39,14 @@ export const ApplicationSyncOptionsField = ReactForm.FormField((props: {fieldApi
     } = props;
     const val = getValue() || [];
     return (
-        <ApplicationSyncOptions
-            options={val}
-            onChanged={opts => {
-                setTouched(true);
-                setValue(opts);
-            }}
-        />
+        <div className='argo-field'>
+            <ApplicationSyncOptions
+                options={val}
+                onChanged={opts => {
+                    setTouched(true);
+                    setValue(opts);
+                }}
+            />
+        </div>
     );
 });
