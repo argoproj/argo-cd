@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"k8s.io/client-go/dynamic"
+
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-cd/controller/metrics"
@@ -39,32 +41,32 @@ type apiMeta struct {
 }
 
 type clusterInfo struct {
-	syncLock  *sync.Mutex
-	syncTime  *time.Time
-	syncError error
-	apisMeta  map[schema.GroupKind]*apiMeta
+	syncTime      *time.Time
+	syncError     error
+	apisMeta      map[schema.GroupKind]*apiMeta
+	serverVersion string
 
 	lock    *sync.Mutex
 	nodes   map[kube.ResourceKey]*node
 	nsIndex map[string]map[kube.ResourceKey]*node
 
 	onObjectUpdated  ObjectUpdatedHandler
+	onEventReceived  func(event watch.EventType, un *unstructured.Unstructured)
 	kubectl          kube.Kubectl
 	cluster          *appv1.Cluster
 	log              *log.Entry
 	cacheSettingsSrc func() *cacheSettings
 }
 
-func (c *clusterInfo) replaceResourceCache(gk schema.GroupKind, resourceVersion string, objs []unstructured.Unstructured) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+func (c *clusterInfo) replaceResourceCache(gk schema.GroupKind, resourceVersion string, objs []unstructured.Unstructured, ns string) {
 	info, ok := c.apisMeta[gk]
 	if ok {
-		objByKind := make(map[kube.ResourceKey]*unstructured.Unstructured)
+		objByKey := make(map[kube.ResourceKey]*unstructured.Unstructured)
 		for i := range objs {
-			objByKind[kube.GetResourceKey(&objs[i])] = &objs[i]
+			objByKey[kube.GetResourceKey(&objs[i])] = &objs[i]
 		}
 
+		// update existing nodes
 		for i := range objs {
 			obj := &objs[i]
 			key := kube.GetResourceKey(&objs[i])
@@ -72,12 +74,13 @@ func (c *clusterInfo) replaceResourceCache(gk schema.GroupKind, resourceVersion 
 			c.onNodeUpdated(exists, existingNode, obj, key)
 		}
 
+		// remove existing nodes that a no longer exist
 		for key, existingNode := range c.nodes {
-			if key.Kind != gk.Kind || key.Group != gk.Group {
+			if key.Kind != gk.Kind || key.Group != gk.Group || ns != "" && key.Namespace != ns {
 				continue
 			}
 
-			if _, ok := objByKind[key]; !ok {
+			if _, ok := objByKey[key]; !ok {
 				c.onNodeRemoved(key, existingNode)
 			}
 		}
@@ -166,8 +169,8 @@ func (c *clusterInfo) removeNode(key kube.ResourceKey) {
 }
 
 func (c *clusterInfo) invalidate() {
-	c.syncLock.Lock()
-	defer c.syncLock.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	c.syncTime = nil
 	for i := range c.apisMeta {
 		c.apisMeta[i].watchCancel()
@@ -185,21 +188,26 @@ func (c *clusterInfo) synced() bool {
 	return time.Now().Before(c.syncTime.Add(clusterSyncTimeout))
 }
 
-func (c *clusterInfo) stopWatching(gk schema.GroupKind) {
-	c.syncLock.Lock()
-	defer c.syncLock.Unlock()
+func (c *clusterInfo) stopWatching(gk schema.GroupKind, ns string) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	if info, ok := c.apisMeta[gk]; ok {
 		info.watchCancel()
 		delete(c.apisMeta, gk)
-		c.replaceResourceCache(gk, "", []unstructured.Unstructured{})
+		c.replaceResourceCache(gk, "", []unstructured.Unstructured{}, ns)
 		log.Warnf("Stop watching %s not found on %s.", gk, c.cluster.Server)
 	}
 }
 
 // startMissingWatches lists supported cluster resources and start watching for changes unless watch is already running
 func (c *clusterInfo) startMissingWatches() error {
+	config := c.cluster.RESTConfig()
 
-	apis, err := c.kubectl.GetAPIResources(c.cluster.RESTConfig(), c.cacheSettingsSrc().ResourcesFilter)
+	apis, err := c.kubectl.GetAPIResources(config, c.cacheSettingsSrc().ResourcesFilter)
+	if err != nil {
+		return err
+	}
+	client, err := c.kubectl.NewDynamicClient(config)
 	if err != nil {
 		return err
 	}
@@ -210,7 +218,14 @@ func (c *clusterInfo) startMissingWatches() error {
 			ctx, cancel := context.WithCancel(context.Background())
 			info := &apiMeta{namespaced: api.Meta.Namespaced, watchCancel: cancel}
 			c.apisMeta[api.GroupKind] = info
-			go c.watchEvents(ctx, api, info)
+
+			err = c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
+				go c.watchEvents(ctx, api, info, resClient, ns)
+				return nil
+			})
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -222,7 +237,7 @@ func runSynced(lock *sync.Mutex, action func() error) error {
 	return action()
 }
 
-func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo, info *apiMeta) {
+func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo, info *apiMeta, resClient dynamic.ResourceInterface, ns string) {
 	util.RetryUntilSucceed(func() (err error) {
 		defer func() {
 			if r := recover(); r != nil {
@@ -230,13 +245,13 @@ func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo,
 			}
 		}()
 
-		err = runSynced(c.syncLock, func() error {
+		err = runSynced(c.lock, func() error {
 			if info.resourceVersion == "" {
-				list, err := api.Interface.List(metav1.ListOptions{})
+				list, err := resClient.List(metav1.ListOptions{})
 				if err != nil {
 					return err
 				}
-				c.replaceResourceCache(api.GroupKind, list.GetResourceVersion(), list.Items)
+				c.replaceResourceCache(api.GroupKind, list.GetResourceVersion(), list.Items, ns)
 			}
 			return nil
 		})
@@ -245,13 +260,13 @@ func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo,
 			return err
 		}
 
-		w, err := api.Interface.Watch(metav1.ListOptions{ResourceVersion: info.resourceVersion})
+		w, err := resClient.Watch(metav1.ListOptions{ResourceVersion: info.resourceVersion})
 		if errors.IsNotFound(err) {
-			c.stopWatching(api.GroupKind)
+			c.stopWatching(api.GroupKind, ns)
 			return nil
 		}
 
-		err = runSynced(c.syncLock, func() error {
+		err = runSynced(c.lock, func() error {
 			if errors.IsGone(err) {
 				info.resourceVersion = ""
 				log.Warnf("Resource version of %s on %s is too old.", api.GroupKind, c.cluster.Server)
@@ -279,10 +294,10 @@ func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo,
 
 							if groupOk && groupErr == nil && kindOk && kindErr == nil {
 								gk := schema.GroupKind{Group: group, Kind: kind}
-								c.stopWatching(gk)
+								c.stopWatching(gk, ns)
 							}
 						} else {
-							err = runSynced(c.syncLock, func() error {
+							err = runSynced(c.lock, func() error {
 								return c.startMissingWatches()
 							})
 
@@ -300,6 +315,25 @@ func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo,
 	}, fmt.Sprintf("watch %s on %s", api.GroupKind, c.cluster.Server), ctx, watchResourcesRetryTimeout)
 }
 
+func (c *clusterInfo) processApi(client dynamic.Interface, api kube.APIResourceInfo, callback func(resClient dynamic.ResourceInterface, ns string) error) error {
+	resClient := client.Resource(api.GroupVersionResource)
+	if len(c.cluster.Namespaces) == 0 {
+		return callback(resClient, "")
+	}
+
+	if !api.Meta.Namespaced {
+		return nil
+	}
+
+	for _, ns := range c.cluster.Namespaces {
+		err := callback(resClient.Namespace(ns), ns)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (c *clusterInfo) sync() (err error) {
 
 	c.log.Info("Start syncing cluster")
@@ -309,25 +343,35 @@ func (c *clusterInfo) sync() (err error) {
 	}
 	c.apisMeta = make(map[schema.GroupKind]*apiMeta)
 	c.nodes = make(map[kube.ResourceKey]*node)
-
-	apis, err := c.kubectl.GetAPIResources(c.cluster.RESTConfig(), c.cacheSettingsSrc().ResourcesFilter)
+	config := c.cluster.RESTConfig()
+	version, err := c.kubectl.GetServerVersion(config)
+	if err != nil {
+		return err
+	}
+	c.serverVersion = version
+	apis, err := c.kubectl.GetAPIResources(config, c.cacheSettingsSrc().ResourcesFilter)
+	if err != nil {
+		return err
+	}
+	client, err := c.kubectl.NewDynamicClient(config)
 	if err != nil {
 		return err
 	}
 	lock := sync.Mutex{}
 	err = util.RunAllAsync(len(apis), func(i int) error {
-		api := apis[i]
-		list, err := api.Interface.List(metav1.ListOptions{})
-		if err != nil {
-			return err
-		}
+		return c.processApi(client, apis[i], func(resClient dynamic.ResourceInterface, _ string) error {
+			list, err := resClient.List(metav1.ListOptions{})
+			if err != nil {
+				return err
+			}
 
-		lock.Lock()
-		for i := range list.Items {
-			c.setNode(c.createObjInfo(&list.Items[i], c.cacheSettingsSrc().AppInstanceLabelKey))
-		}
-		lock.Unlock()
-		return nil
+			lock.Lock()
+			for i := range list.Items {
+				c.setNode(c.createObjInfo(&list.Items[i], c.cacheSettingsSrc().AppInstanceLabelKey))
+			}
+			lock.Unlock()
+			return nil
+		})
 	})
 
 	if err == nil {
@@ -344,8 +388,8 @@ func (c *clusterInfo) sync() (err error) {
 }
 
 func (c *clusterInfo) ensureSynced() error {
-	c.syncLock.Lock()
-	defer c.syncLock.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	if c.synced() {
 		return c.syncError
 	}
@@ -483,6 +527,9 @@ func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*uns
 }
 
 func (c *clusterInfo) processEvent(event watch.EventType, un *unstructured.Unstructured) {
+	if c.onEventReceived != nil {
+		c.onEventReceived(event, un)
+	}
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	key := kube.GetResourceKey(un)
@@ -537,6 +584,18 @@ var (
 		"/" + kube.EndpointsKind: true,
 	}
 )
+
+func (c *clusterInfo) getClusterInfo() metrics.ClusterInfo {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	return metrics.ClusterInfo{
+		APIsCount:         len(c.apisMeta),
+		K8SVersion:        c.serverVersion,
+		ResourcesCount:    len(c.nodes),
+		Server:            c.cluster.Server,
+		LastCacheSyncTime: c.syncTime,
+	}
+}
 
 // skipAppRequeing checks if the object is an API type which we want to skip requeuing against.
 // We ignore API types which have a high churn rate, and/or whose updates are irrelevant to the app

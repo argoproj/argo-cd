@@ -147,6 +147,7 @@ type ArgoCDServerOpts struct {
 	RepoClientset       repoapiclient.Clientset
 	Cache               *servercache.Cache
 	TLSConfigCustomizer tlsutil.ConfigCustomizer
+	XFrameOptions       string
 }
 
 // initializeDefaultProject creates the default project if it does not already exist
@@ -456,7 +457,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	)))
 	grpcS := grpc.NewServer(sOpts...)
 	db := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
-	kubectl := kube.KubectlCmd{}
+	kubectl := &kube.KubectlCmd{}
 	clusterService := cluster.NewServer(db, a.enf, a.Cache, kubectl)
 	repoService := repository.NewServer(a.RepoClientset, db, a.enf, a.Cache, a.settingsMgr)
 	repoCredsService := repocreds.NewServer(a.RepoClientset, db, a.enf, a.settingsMgr)
@@ -561,6 +562,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	mustRegisterGWHandler(sessionpkg.RegisterSessionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(settingspkg.RegisterSettingsServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(projectpkg.RegisterProjectServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
+	mustRegisterGWHandler(accountpkg.RegisterAccountServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(certificatepkg.RegisterCertificateServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 
 	// Swagger UI
@@ -582,7 +584,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 
 	// Serve UI static assets
 	if a.StaticAssetsDir != "" {
-		mux.HandleFunc("/", newStaticAssetsHandler(a.StaticAssetsDir, a.BaseHRef))
+		mux.HandleFunc("/", a.newStaticAssetsHandler(a.StaticAssetsDir, a.BaseHRef))
 	}
 	return &httpS
 }
@@ -638,6 +640,14 @@ func registerDownloadHandlers(mux *http.ServeMux, base string) {
 			http.ServeFile(w, r, darwinPath)
 		})
 	}
+	windowsPath, err := exec.LookPath("argocd-windows-amd64.exe")
+	if err != nil {
+		log.Warnf("argocd-windows-amd64.exe not in PATH")
+	} else {
+		mux.HandleFunc(base+"/argocd-windows-amd64.exe", func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, windowsPath)
+		})
+	}
 }
 
 func indexFilePath(srcPath string, baseHRef string) (string, error) {
@@ -688,7 +698,7 @@ func fileExists(filename string) bool {
 }
 
 // newStaticAssetsHandler returns an HTTP handler to serve UI static assets
-func newStaticAssetsHandler(dir string, baseHRef string) func(http.ResponseWriter, *http.Request) {
+func (server *ArgoCDServer) newStaticAssetsHandler(dir string, baseHRef string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		acceptHTML := false
 		for _, acceptType := range strings.Split(r.Header.Get("Accept"), ",") {
@@ -698,6 +708,11 @@ func newStaticAssetsHandler(dir string, baseHRef string) func(http.ResponseWrite
 			}
 		}
 		fileRequest := r.URL.Path != "/index.html" && fileExists(path.Join(dir, r.URL.Path))
+
+		// Set X-Frame-Options according to configuration
+		if server.XFrameOptions != "" {
+			w.Header().Set("X-Frame-Options", server.XFrameOptions)
+		}
 
 		// serve index.html for non file requests to support HTML5 History API
 		if acceptHTML && !fileRequest && (r.Method == "GET" || r.Method == "HEAD") {
@@ -731,7 +746,13 @@ func (a *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error
 	if a.DisableAuth {
 		return ctx, nil
 	}
-	if claims, claimsErr := a.getClaims(ctx); claimsErr != nil {
+	claims, claimsErr := a.getClaims(ctx)
+	if claims != nil {
+		// Add claims to the context to inspect for RBAC
+		ctx = context.WithValue(ctx, "claims", claims)
+	}
+
+	if claimsErr != nil {
 		argoCDSettings, err := a.settingsMgr.GetSettings()
 		if err != nil {
 			return ctx, status.Errorf(codes.Internal, "unable to load settings: %v", err)
@@ -739,9 +760,6 @@ func (a *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error
 		if !argoCDSettings.AnonymousUserEnabled {
 			return ctx, claimsErr
 		}
-	} else {
-		// Add claims to the context to inspect for RBAC
-		ctx = context.WithValue(ctx, "claims", claims)
 	}
 
 	return ctx, nil
@@ -758,7 +776,7 @@ func (a *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, error) {
 	}
 	claims, err := a.sessionMgr.VerifyToken(tokenString)
 	if err != nil {
-		return nil, status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
+		return claims, status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
 	return claims, nil
 }

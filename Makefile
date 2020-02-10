@@ -9,7 +9,7 @@ GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
 PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run vendor/github.com/gobuffalo/packr/packr/main.go"; fi)
-VOLUME_MOUNT=$(shell [[ $(go env GOOS)=="darwin" ]] && echo ":delegated" || echo "")
+VOLUME_MOUNT=$(shell if [[ selinuxenabled -eq 0 ]]; then echo ":Z"; elif [[ $(go env GOOS)=="darwin" ]]; then echo ":delegated"; else echo ""; fi)
 
 define run-in-dev-tool
     docker run --rm -it -u $(shell id -u) -e HOME=/home/user -v ${CURRENT_DIR}:/go/src/github.com/argoproj/argo-cd${VOLUME_MOUNT} -w /go/src/github.com/argoproj/argo-cd argocd-dev-tools bash -c "GOPATH=/go $(1)"
@@ -38,6 +38,8 @@ endif
 ifneq (${GIT_TAG},)
 IMAGE_TAG=${GIT_TAG}
 LDFLAGS += -X ${PACKAGE}.gitTag=${GIT_TAG}
+else
+IMAGE_TAG?=latest
 endif
 
 ifeq (${DOCKER_PUSH},true)
@@ -81,6 +83,7 @@ release-cli: clean-debug image
 	docker create --name tmp-argocd-linux $(IMAGE_PREFIX)argocd:$(IMAGE_TAG)
 	docker cp tmp-argocd-linux:/usr/local/bin/argocd ${DIST_DIR}/argocd-linux-amd64
 	docker cp tmp-argocd-linux:/usr/local/bin/argocd-darwin-amd64 ${DIST_DIR}/argocd-darwin-amd64
+	docker cp tmp-argocd-linux:/usr/local/bin/argocd-windows-amd64.exe ${DIST_DIR}/argocd-windows-amd64.exe
 	docker rm tmp-argocd-linux
 
 .PHONY: argocd-util
@@ -97,7 +100,7 @@ manifests-local:
 	./hack/update-manifests.sh
 
 .PHONY: manifests
-manifests:
+manifests: dev-tools-image
 	$(call run-in-dev-tool,make manifests-local IMAGE_TAG='${IMAGE_TAG}')
 
 
@@ -134,6 +137,7 @@ image: packr
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 dist/packr build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-util ./cmd/argocd-util
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 dist/packr build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd ./cmd/argocd
 	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 dist/packr build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-darwin-amd64 ./cmd/argocd
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 dist/packr build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-windows-amd64.exe ./cmd/argocd
 	cp Dockerfile.dev dist
 	docker build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) -f dist/Dockerfile.dev dist
 else
@@ -162,7 +166,9 @@ install-lint-tools:
 .PHONY: lint
 lint:
 	golangci-lint --version
-	golangci-lint run --fix --verbose
+	# NOTE: If you get a "Killed" OOM message, try reducing the value of GOGC
+	# See https://github.com/golangci/golangci-lint#memory-usage-of-golangci-lint
+	GOGC=100 golangci-lint run --fix --verbose
 
 .PHONY: build
 build:
@@ -170,11 +176,12 @@ build:
 
 .PHONY: test
 test:
-	 ./hack/test.sh -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`
+	./hack/test.sh -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`
 
 .PHONY: test-e2e
 test-e2e:
-	./hack/test.sh -timeout 15m ./test/e2e
+	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
+	NO_PROXY=* ./hack/test.sh -timeout 15m ./test/e2e
 
 .PHONY: start-e2e
 start-e2e: cli

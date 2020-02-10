@@ -167,6 +167,18 @@ func TestHelmSetString(t *testing.T) {
 		})
 }
 
+func TestHelmSetFile(t *testing.T) {
+	Given(t).
+		Path("helm").
+		When().
+		Create().
+		AppSet("--helm-set-file", "foo=bar.yaml", "--helm-set-file", "foo=baz.yaml").
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, []HelmFileParameter{{Name: "foo", Path: "baz.yaml"}}, app.Spec.Source.Helm.FileParameters)
+		})
+}
+
 // ensure we can use envsubst in "set" variables
 func TestHelmSetEnv(t *testing.T) {
 	Given(t).
@@ -215,6 +227,20 @@ func TestKubeVersion(t *testing.T) {
 		})
 }
 
+func TestHelmValuesHiddenDirectory(t *testing.T) {
+	Given(t).
+		Path(".hidden-helm").
+		When().
+		AddFile("foo.yaml", "").
+		Create().
+		AppSet("--values", "foo.yaml").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
 func TestHelmWithDependencies(t *testing.T) {
 	testHelmWithDependencies(t, false)
 }
@@ -224,7 +250,10 @@ func TestHelmWithDependenciesLegacyRepo(t *testing.T) {
 }
 
 func testHelmWithDependencies(t *testing.T, legacyRepo bool) {
-	ctx := Given(t).CustomCACertAdded()
+	ctx := Given(t).
+		CustomCACertAdded().
+		// these are slow tests
+		Timeout(30)
 	if legacyRepo {
 		ctx.And(func() {
 			errors.FailOnErr(fixture.Run("", "kubectl", "create", "secret", "generic", "helm-repo",

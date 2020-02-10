@@ -258,7 +258,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         noLoaderOnInputChange={true}
                                                         input={selectedNode.resourceVersion}
                                                         load={async () => {
-                                                            const managedResources = await services.applications.managedResources(application.metadata.name);
+                                                            const managedResources = await services.applications.managedResources(application.metadata.name, {
+                                                                id: {name: selectedNode.name, namespace: selectedNode.namespace, kind: selectedNode.kind, group: selectedNode.group}
+                                                            });
                                                             const controlled = managedResources.find(item => isSameNode(selectedNode, item));
                                                             const summary = application.status.resources.find(item => isSameNode(selectedNode, item));
                                                             const controlledState = (controlled && summary && {summary, state: controlled}) || null;
@@ -348,7 +350,18 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                 content: (
                                                                     <DataLoader
                                                                         key='diff'
-                                                                        load={async () => await services.applications.managedResources(application.metadata.name)}>
+                                                                        load={async () =>
+                                                                            await services.applications.managedResources(application.metadata.name, {
+                                                                                fields: [
+                                                                                    'items.normalizedLiveState',
+                                                                                    'items.predictedLiveState',
+                                                                                    'items.group',
+                                                                                    'items.kind',
+                                                                                    'items.namespace',
+                                                                                    'items.name'
+                                                                                ]
+                                                                            })
+                                                                        }>
                                                                         {managedResources => <ApplicationResourcesDiff states={managedResources} />}
                                                                     </DataLoader>
                                                                 )
@@ -371,7 +384,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 <ApplicationDeploymentHistory
                                                     app={application}
                                                     selectedRollbackDeploymentIndex={this.selectedRollbackDeploymentIndex}
-                                                    rollbackApp={info => this.rollbackApplication(info)}
+                                                    rollbackApp={info => this.rollbackApplication(info, application)}
                                                     selectDeployment={i => this.setRollbackPanelVisible(i)}
                                                 />
                                             )}
@@ -508,6 +521,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
     private async updateApp(app: appModels.Application) {
         const latestApp = await services.applications.get(app.metadata.name);
         latestApp.metadata.labels = app.metadata.labels;
+        latestApp.metadata.annotations = app.metadata.annotations;
         latestApp.spec = app.spec;
         await services.applications.update(latestApp);
         this.refreshRequested.next({});
@@ -562,14 +576,26 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         this.appContext.apis.navigation.goto('.', {node, tab});
     }
 
-    private async rollbackApplication(revisionHistory: appModels.RevisionHistory) {
+    private async rollbackApplication(revisionHistory: appModels.RevisionHistory, application: appModels.Application) {
         try {
-            const confirmed = await this.appContext.apis.popup.confirm('Rollback application', `Are you sure you want to rollback application '${this.props.match.params.name}'?`);
+            const needDisableRollback = application.spec.syncPolicy && application.spec.syncPolicy.automated;
+            let confirmationMessage = `Are you sure you want to rollback application '${this.props.match.params.name}'?`;
+            if (needDisableRollback) {
+                confirmationMessage = `Auto-Sync needs to be disabled in order for rollback to occur.
+Are you sure you want to disable auto-sync and rollback application '${this.props.match.params.name}'?`;
+            }
+
+            const confirmed = await this.appContext.apis.popup.confirm('Rollback application', confirmationMessage);
             if (confirmed) {
+                if (needDisableRollback) {
+                    const update = JSON.parse(JSON.stringify(application)) as appModels.Application;
+                    update.spec.syncPolicy = {automated: null};
+                    await services.applications.update(update);
+                }
                 await services.applications.rollback(this.props.match.params.name, revisionHistory.id);
                 this.refreshRequested.next({});
+                this.setRollbackPanelVisible(-1);
             }
-            this.setRollbackPanelVisible(-1);
         } catch (e) {
             this.appContext.apis.notifications.show({
                 content: <ErrorNotification title='Unable to rollback application' e={e} />,

@@ -2,6 +2,7 @@ package db
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"net/url"
@@ -126,14 +127,18 @@ func (db *db) WatchClusters(ctx context.Context, callback func(*ClusterEvent)) e
 	}
 
 	defer w.Stop()
-	done := make(chan bool)
+	watchErr := make(chan error)
 
 	// trigger callback with event for local cluster since it always considered added
 	callback(&ClusterEvent{Type: watch.Added, Cluster: localCls})
 
 	go func() {
 		for next := range w.ResultChan() {
-			secret := next.Object.(*apiv1.Secret)
+			secret, ok := next.Object.(*apiv1.Secret)
+			if !ok {
+				watchErr <- fmt.Errorf("failed to convert event object to secret")
+				return
+			}
 			cluster := secretToCluster(secret)
 
 			// change local cluster event to modified or deleted, since it cannot be re-added or deleted
@@ -158,14 +163,14 @@ func (db *db) WatchClusters(ctx context.Context, callback func(*ClusterEvent)) e
 				Cluster: cluster,
 			})
 		}
-		done <- true
+		watchErr <- errors.New("secret watch closed")
 	}()
 
 	select {
-	case <-done:
+	case err = <-watchErr:
 	case <-ctx.Done():
 	}
-	return nil
+	return err
 }
 
 func (db *db) getClusterSecret(server string) (*apiv1.Secret, error) {
@@ -256,6 +261,9 @@ func clusterToData(c *appv1.Cluster) map[string][]byte {
 	} else {
 		data["name"] = []byte(c.Name)
 	}
+	if len(c.Namespaces) != 0 {
+		data["namespaces"] = []byte(strings.Join(c.Namespaces, ","))
+	}
 	configBytes, err := json.Marshal(c.Config)
 	if err != nil {
 		panic(err)
@@ -271,10 +279,18 @@ func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
 	if err != nil {
 		panic(err)
 	}
+	var namespaces []string
+	for _, ns := range strings.Split(string(s.Data["namespaces"]), ",") {
+		if ns = strings.TrimSpace(ns); ns != "" {
+			namespaces = append(namespaces, ns)
+		}
+	}
+
 	cluster := appv1.Cluster{
-		Server: string(s.Data["server"]),
-		Name:   string(s.Data["name"]),
-		Config: config,
+		Server:     string(s.Data["server"]),
+		Name:       string(s.Data["name"]),
+		Namespaces: namespaces,
+		Config:     config,
 	}
 	return &cluster
 }

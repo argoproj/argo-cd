@@ -6,13 +6,13 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/argoproj/argo-cd/util/settings"
-
+	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/util/assets"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 //NewHandler creates handler serving to do api/badge endpoint
@@ -68,6 +68,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	health := appv1.HealthStatusUnknown
 	status := appv1.SyncStatusCodeUnknown
 	enabled := false
+	notFound := false
 	if sets, err := h.settingsMgr.GetSettings(); err == nil {
 		enabled = sets.StatusBadgeEnabled
 	}
@@ -82,6 +83,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if app, err := h.appClientset.ArgoprojV1alpha1().Applications(h.namespace).Get(key, v1.GetOptions{}); err == nil {
 			health = app.Status.Health.Status
 			status = app.Status.Sync.Status
+		} else if errors.IsNotFound(err) {
+			notFound = true
 		}
 	}
 
@@ -89,6 +92,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rightColor := ""
 	leftText := health
 	rightText := string(status)
+	if notFound {
+		leftText = "Not Found"
+		rightText = ""
+	}
 
 	switch health {
 	case appv1.HealthStatusHealthy:

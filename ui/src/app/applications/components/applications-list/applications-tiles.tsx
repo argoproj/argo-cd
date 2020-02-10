@@ -70,7 +70,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                             &nbsp;
                                             <AppUtils.ComparisonStatusIcon status={app.status.sync.status} /> {app.status.sync.status}
                                             &nbsp;
-                                            <OperationState app={app} />
+                                            <OperationState app={app} quiet={true} />
                                         </div>
                                     </div>
                                     <div className='row'>
@@ -83,12 +83,20 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                     </div>
                                     <div className='row'>
                                         <div className='columns small-3'>Target Revision:</div>
-                                        <div className='columns small-9'>{app.spec.source.targetRevision || 'latest'}</div>
+                                        <div className='columns small-9'>{app.spec.source.targetRevision}</div>
                                     </div>
-                                    <div className='row'>
-                                        <div className='columns small-3'>Path:</div>
-                                        <div className='columns small-9'>{app.spec.source.path}</div>
-                                    </div>
+                                    {app.spec.source.path && (
+                                        <div className='row'>
+                                            <div className='columns small-3'>Path:</div>
+                                            <div className='columns small-9'>{app.spec.source.path}</div>
+                                        </div>
+                                    )}
+                                    {app.spec.source.chart && (
+                                        <div className='row'>
+                                            <div className='columns small-3'>Chart:</div>
+                                            <div className='columns small-9'>{app.spec.source.chart}</div>
+                                        </div>
+                                    )}
                                     <div className='row'>
                                         <div className='columns small-3'>Destination:</div>
                                         <div className='columns small-9'>{app.spec.destination.server}</div>

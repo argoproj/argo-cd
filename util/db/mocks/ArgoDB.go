@@ -5,9 +5,8 @@ package mocks
 import (
 	context "context"
 
-	mock "github.com/stretchr/testify/mock"
-
 	db "github.com/argoproj/argo-cd/util/db"
+	mock "github.com/stretchr/testify/mock"
 
 	v1alpha1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
@@ -40,6 +39,29 @@ func (_m *ArgoDB) CreateCluster(ctx context.Context, c *v1alpha1.Cluster) (*v1al
 	return r0, r1
 }
 
+// CreateRepoCertificate provides a mock function with given fields: ctx, certificate, upsert
+func (_m *ArgoDB) CreateRepoCertificate(ctx context.Context, certificate *v1alpha1.RepositoryCertificateList, upsert bool) (*v1alpha1.RepositoryCertificateList, error) {
+	ret := _m.Called(ctx, certificate, upsert)
+
+	var r0 *v1alpha1.RepositoryCertificateList
+	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.RepositoryCertificateList, bool) *v1alpha1.RepositoryCertificateList); ok {
+		r0 = rf(ctx, certificate, upsert)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*v1alpha1.RepositoryCertificateList)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *v1alpha1.RepositoryCertificateList, bool) error); ok {
+		r1 = rf(ctx, certificate, upsert)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // CreateRepository provides a mock function with given fields: ctx, r
 func (_m *ArgoDB) CreateRepository(ctx context.Context, r *v1alpha1.Repository) (*v1alpha1.Repository, error) {
 	ret := _m.Called(ctx, r)
@@ -63,13 +85,36 @@ func (_m *ArgoDB) CreateRepository(ctx context.Context, r *v1alpha1.Repository) 
 	return r0, r1
 }
 
-// DeleteCluster provides a mock function with given fields: ctx, name
-func (_m *ArgoDB) DeleteCluster(ctx context.Context, name string) error {
-	ret := _m.Called(ctx, name)
+// CreateRepositoryCredentials provides a mock function with given fields: ctx, r
+func (_m *ArgoDB) CreateRepositoryCredentials(ctx context.Context, r *v1alpha1.RepoCreds) (*v1alpha1.RepoCreds, error) {
+	ret := _m.Called(ctx, r)
+
+	var r0 *v1alpha1.RepoCreds
+	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.RepoCreds) *v1alpha1.RepoCreds); ok {
+		r0 = rf(ctx, r)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*v1alpha1.RepoCreds)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *v1alpha1.RepoCreds) error); ok {
+		r1 = rf(ctx, r)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// DeleteCluster provides a mock function with given fields: ctx, server
+func (_m *ArgoDB) DeleteCluster(ctx context.Context, server string) error {
+	ret := _m.Called(ctx, server)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
-		r0 = rf(ctx, name)
+		r0 = rf(ctx, server)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -91,13 +136,27 @@ func (_m *ArgoDB) DeleteRepository(ctx context.Context, name string) error {
 	return r0
 }
 
-// GetCluster provides a mock function with given fields: ctx, name
-func (_m *ArgoDB) GetCluster(ctx context.Context, name string) (*v1alpha1.Cluster, error) {
+// DeleteRepositoryCredentials provides a mock function with given fields: ctx, name
+func (_m *ArgoDB) DeleteRepositoryCredentials(ctx context.Context, name string) error {
 	ret := _m.Called(ctx, name)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, name)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// GetCluster provides a mock function with given fields: ctx, server
+func (_m *ArgoDB) GetCluster(ctx context.Context, server string) (*v1alpha1.Cluster, error) {
+	ret := _m.Called(ctx, server)
 
 	var r0 *v1alpha1.Cluster
 	if rf, ok := ret.Get(0).(func(context.Context, string) *v1alpha1.Cluster); ok {
-		r0 = rf(ctx, name)
+		r0 = rf(ctx, server)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*v1alpha1.Cluster)
@@ -106,7 +165,7 @@ func (_m *ArgoDB) GetCluster(ctx context.Context, name string) (*v1alpha1.Cluste
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, name)
+		r1 = rf(ctx, server)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -114,16 +173,39 @@ func (_m *ArgoDB) GetCluster(ctx context.Context, name string) (*v1alpha1.Cluste
 	return r0, r1
 }
 
-// GetRepository provides a mock function with given fields: ctx, name
-func (_m *ArgoDB) GetRepository(ctx context.Context, name string) (*v1alpha1.Repository, error) {
-	ret := _m.Called(ctx, name)
+// GetRepository provides a mock function with given fields: ctx, url
+func (_m *ArgoDB) GetRepository(ctx context.Context, url string) (*v1alpha1.Repository, error) {
+	ret := _m.Called(ctx, url)
 
 	var r0 *v1alpha1.Repository
 	if rf, ok := ret.Get(0).(func(context.Context, string) *v1alpha1.Repository); ok {
-		r0 = rf(ctx, name)
+		r0 = rf(ctx, url)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*v1alpha1.Repository)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, url)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetRepositoryCredentials provides a mock function with given fields: ctx, name
+func (_m *ArgoDB) GetRepositoryCredentials(ctx context.Context, name string) (*v1alpha1.RepoCreds, error) {
+	ret := _m.Called(ctx, name)
+
+	var r0 *v1alpha1.RepoCreds
+	if rf, ok := ret.Get(0).(func(context.Context, string) *v1alpha1.RepoCreds); ok {
+		r0 = rf(ctx, name)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*v1alpha1.RepoCreds)
 		}
 	}
 
@@ -160,6 +242,52 @@ func (_m *ArgoDB) ListClusters(ctx context.Context) (*v1alpha1.ClusterList, erro
 	return r0, r1
 }
 
+// ListHelmRepositories provides a mock function with given fields: ctx
+func (_m *ArgoDB) ListHelmRepositories(ctx context.Context) ([]*v1alpha1.Repository, error) {
+	ret := _m.Called(ctx)
+
+	var r0 []*v1alpha1.Repository
+	if rf, ok := ret.Get(0).(func(context.Context) []*v1alpha1.Repository); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*v1alpha1.Repository)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ListRepoCertificates provides a mock function with given fields: ctx, selector
+func (_m *ArgoDB) ListRepoCertificates(ctx context.Context, selector *db.CertificateListSelector) (*v1alpha1.RepositoryCertificateList, error) {
+	ret := _m.Called(ctx, selector)
+
+	var r0 *v1alpha1.RepositoryCertificateList
+	if rf, ok := ret.Get(0).(func(context.Context, *db.CertificateListSelector) *v1alpha1.RepositoryCertificateList); ok {
+		r0 = rf(ctx, selector)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*v1alpha1.RepositoryCertificateList)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *db.CertificateListSelector) error); ok {
+		r1 = rf(ctx, selector)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // ListRepositories provides a mock function with given fields: ctx
 func (_m *ArgoDB) ListRepositories(ctx context.Context) ([]*v1alpha1.Repository, error) {
 	ret := _m.Called(ctx)
@@ -176,6 +304,52 @@ func (_m *ArgoDB) ListRepositories(ctx context.Context) ([]*v1alpha1.Repository,
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
 		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ListRepositoryCredentials provides a mock function with given fields: ctx
+func (_m *ArgoDB) ListRepositoryCredentials(ctx context.Context) ([]string, error) {
+	ret := _m.Called(ctx)
+
+	var r0 []string
+	if rf, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// RemoveRepoCertificates provides a mock function with given fields: ctx, selector
+func (_m *ArgoDB) RemoveRepoCertificates(ctx context.Context, selector *db.CertificateListSelector) (*v1alpha1.RepositoryCertificateList, error) {
+	ret := _m.Called(ctx, selector)
+
+	var r0 *v1alpha1.RepositoryCertificateList
+	if rf, ok := ret.Get(0).(func(context.Context, *db.CertificateListSelector) *v1alpha1.RepositoryCertificateList); ok {
+		r0 = rf(ctx, selector)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*v1alpha1.RepositoryCertificateList)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *db.CertificateListSelector) error); ok {
+		r1 = rf(ctx, selector)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -221,6 +395,29 @@ func (_m *ArgoDB) UpdateRepository(ctx context.Context, r *v1alpha1.Repository) 
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, *v1alpha1.Repository) error); ok {
+		r1 = rf(ctx, r)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// UpdateRepositoryCredentials provides a mock function with given fields: ctx, r
+func (_m *ArgoDB) UpdateRepositoryCredentials(ctx context.Context, r *v1alpha1.RepoCreds) (*v1alpha1.RepoCreds, error) {
+	ret := _m.Called(ctx, r)
+
+	var r0 *v1alpha1.RepoCreds
+	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.RepoCreds) *v1alpha1.RepoCreds); ok {
+		r0 = rf(ctx, r)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*v1alpha1.RepoCreds)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *v1alpha1.RepoCreds) error); ok {
 		r1 = rf(ctx, r)
 	} else {
 		r1 = ret.Error(1)

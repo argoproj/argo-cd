@@ -170,11 +170,11 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, error) {
 		// IDP signed token
 		prov, err := mgr.provider()
 		if err != nil {
-			return nil, err
+			return claims, err
 		}
 		idToken, err := prov.Verify(claims.Audience, tokenString)
 		if err != nil {
-			return nil, err
+			return claims, err
 		}
 		var claims jwt.MapClaims
 		err = idToken.Claims(&claims)

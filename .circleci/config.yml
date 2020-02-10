@@ -25,13 +25,13 @@ commands:
   install_golang:
     steps:
       - run:
-          name: Install Golang v1.12.6
+          name: Install Golang v1.13.7
           command: |
-            go get golang.org/dl/go1.12.6
-            [ -e /home/circleci/sdk/go1.12.6 ] || go1.12.6 download
+            go get golang.org/dl/go1.13.7
+            [ -e /home/circleci/sdk/go1.13.7 ] || go1.13.7 download
             go env
             echo "export GOPATH=/home/circleci/.go_workspace" | tee -a $BASH_ENV
-            echo "export PATH=/home/circleci/sdk/go1.12.6/bin:\$PATH" | tee -a $BASH_ENV
+            echo "export PATH=/home/circleci/sdk/go1.13.7/bin:\$PATH" | tee -a $BASH_ENV
   save_go_cache:
     steps:
       - save_cache:
@@ -39,7 +39,7 @@ commands:
           # https://circleci.com/docs/2.0/language-go/
           paths:
             - /home/circleci/.cache/go-build
-            - /home/circleci/sdk/go1.12.6
+            - /home/circleci/sdk/go1.13.7
   restore_go_cache:
     steps:
       - restore_cache:
@@ -54,12 +54,13 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          keys: [codegen-v2]
+          keys:
+            - codegen-v1-{{ checksum "Gopkg.lock" }}-{{ checksum "hack/installers/install-codegen-go-tools.sh" }}
       - run: ./hack/install.sh codegen-go-tools
       - run: sudo ./hack/install.sh codegen-tools
-      - run: dep ensure
+      - run: dep ensure -v
       - save_cache:
-          key: codegen-v2
+          key: codegen-v1-{{ checksum "Gopkg.lock" }}-{{ checksum "hack/installers/install-codegen-go-tools.sh" }}
           paths: [vendor, /tmp/dl, /go/pkg]
       - run: helm init --client-only
       - run: make codegen-local
@@ -92,7 +93,7 @@ jobs:
       - configure_git
       - run: go get github.com/jstemmer/go-junit-report
       - restore_vendor
-      - run: dep ensure
+      - run: dep ensure -v
       - run: make test
       - save_vendor
       - save_go_cache
@@ -134,7 +135,7 @@ jobs:
           key: e2e-dl-v10
           paths: [/tmp/dl]
       - restore_vendor
-      - run: dep ensure
+      - run: dep ensure -v
       - configure_git
       - run: make cli
       - run:
@@ -178,7 +179,6 @@ jobs:
           command: PATH=dist:$PATH make test-e2e
           environment:
             ARGOCD_OPTS: "--server localhost:8080 --plaintext"
-            ARGOCD_E2E_EXPECT_TIMEOUT: "30"
             ARGOCD_E2E_K3S: "true"
       - save_vendor
       - save_go_cache
@@ -203,7 +203,7 @@ jobs:
           paths: [~/.cache/yarn, node_modules]
       - run: yarn test
       - run: ./node_modules/.bin/codecov -p ..
-      - run: yarn build
+      - run: NODE_ENV='production' yarn build
       - run: yarn lint
 workflows:
   version: 2

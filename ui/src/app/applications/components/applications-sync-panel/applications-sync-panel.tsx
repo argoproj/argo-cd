@@ -1,14 +1,21 @@
 import {ErrorNotification, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
 import {Checkbox, Form, FormApi} from 'react-form';
+import {ProgressPopup} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ComparisonStatusIcon, HealthStatusIcon, OperationPhaseIcon} from '../utils';
 
+interface Progress {
+    percentage: number;
+    title: string;
+}
+
 export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: models.Application[]; hide: () => void}) => {
     const [form, setForm] = React.useState<FormApi>(null);
-    const getSelectedApps = (params: any) => apps.filter(app => params['app/' + app.metadata.name]);
+    const [progress, setProgress] = React.useState<Progress>(null);
+    const getSelectedApps = (params: any) => apps.filter((_, i) => params['app/' + i]);
     return (
         <Consumer>
             {ctx => (
@@ -33,11 +40,9 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                 ctx.notifications.show({content: `No apps selected`, type: NotificationType.Error});
                                 return;
                             }
-                            ctx.notifications.show({
-                                content: `Syncing ${selectedApps.length} app(s)`,
-                                type: NotificationType.Success
-                            });
                             const syncStrategy = (params.applyOnly ? {apply: {force: params.force}} : {hook: {force: params.force}}) as models.SyncStrategy;
+                            setProgress({percentage: 0, title: 'Starting...'});
+                            let i = 0;
                             for (const app of selectedApps) {
                                 await services.applications.sync(app.metadata.name, app.spec.source.targetRevision, params.prune, params.dryRun, syncStrategy, null).catch(e => {
                                     ctx.notifications.show({
@@ -45,14 +50,20 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                         type: NotificationType.Error
                                     });
                                 });
+                                i++;
+                                setProgress({
+                                    percentage: i / selectedApps.length,
+                                    title: `${i} of ${selectedApps.length} apps synced`
+                                });
                             }
-                            hide();
+                            setProgress({percentage: 100, title: 'Complete'});
                         }}
                         getApi={setForm}>
                         {formApi => (
                             <React.Fragment>
                                 <div className='argo-form-row'>
                                     <h4>Sync app(s)</h4>
+                                    {progress !== null && <ProgressPopup onClose={() => setProgress(null)} percentage={progress.percentage} title={progress.title} />}
                                     <label>Options:</label>
                                     <div style={{paddingLeft: '1em'}}>
                                         <label>
@@ -72,20 +83,17 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                         </label>
                                     </div>
                                     <label>
-                                        Apps (<a onClick={() => apps.forEach(app => formApi.setValue('app/' + app.metadata.name, true))}>all</a>/
-                                        <a
-                                            onClick={() =>
-                                                apps.forEach(app => formApi.setValue('app/' + app.metadata.name, app.status.sync.status === models.SyncStatuses.OutOfSync))
-                                            }>
+                                        Apps (<a onClick={() => apps.forEach((_, i) => formApi.setValue('app/' + i, true))}>all</a>/
+                                        <a onClick={() => apps.forEach((app, i) => formApi.setValue('app/' + i, app.status.sync.status === models.SyncStatuses.OutOfSync))}>
                                             out of sync
                                         </a>
-                                        /<a onClick={() => apps.forEach(app => formApi.setValue('app/' + app.metadata.name, false))}>none</a>
+                                        /<a onClick={() => apps.forEach((_, i) => formApi.setValue('app/' + i, false))}>none</a>
                                         ):
                                     </label>
                                     <div style={{paddingLeft: '1em'}}>
-                                        {apps.map(app => (
+                                        {apps.map((app, i) => (
                                             <label key={app.metadata.name}>
-                                                <Checkbox field={`app/${app.metadata.name}`} />
+                                                <Checkbox field={`app/${i}`} />
                                                 &nbsp;
                                                 {app.metadata.name}
                                                 &nbsp;

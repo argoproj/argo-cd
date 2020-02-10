@@ -7,8 +7,6 @@ import {diffLines, formatLines} from 'unidiff';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
-const jsonDiffPatch = require('jsondiffpatch');
-
 require('./application-resources-diff.scss');
 
 export interface ApplicationResourcesDiffProps {
@@ -20,20 +18,9 @@ export const ApplicationResourcesDiff = (props: ApplicationResourcesDiffProps) =
         {pref => {
             const diffText = props.states
                 .map(state => {
-                    let live = state.liveState;
-                    if (pref.appDetails.hideDefaultedFields && live) {
-                        live = removeDefaultedFields(state.targetState, live);
-                    }
-
-                    const liveCopy = JSON.parse(JSON.stringify(live || {}));
-                    let target: any = null;
-                    if (state.targetState) {
-                        target = state.diff ? jsonDiffPatch.patch(liveCopy, JSON.parse(state.diff)) : liveCopy;
-                    }
-
                     return {
-                        a: live ? jsYaml.safeDump(live, {indent: 2}) : '',
-                        b: target ? jsYaml.safeDump(target, {indent: 2}) : '',
+                        a: state.normalizedLiveState ? jsYaml.safeDump(state.normalizedLiveState, {indent: 2}) : '',
+                        b: state.predictedLiveState ? jsYaml.safeDump(state.predictedLiveState, {indent: 2}) : '',
                         hook: state.hook,
                         // doubles as sort order
                         name: (state.group || '') + '/' + state.kind + '/' + state.namespace + '/' + state.name
@@ -83,19 +70,6 @@ ${formatLines(diffLines(i.a, i.b), {context, aname: `a/${name}}`, bname: `b/${i.
                             }
                         />
                         <label htmlFor='inlineDiff'>Inline Diff</label>
-                        <Checkbox
-                            id='hideDefaultedFields'
-                            checked={pref.appDetails.hideDefaultedFields}
-                            onChange={() =>
-                                services.viewPreferences.updatePreferences({
-                                    appDetails: {
-                                        ...pref.appDetails,
-                                        hideDefaultedFields: !pref.appDetails.hideDefaultedFields
-                                    }
-                                })
-                            }
-                        />
-                        <label htmlFor='hideDefaultedFields'>Hide default fields</label>
                     </div>
                     {files
                         .sort((a: any, b: any) => a.newPath.localeCompare(b.newPath))
@@ -112,35 +86,3 @@ ${formatLines(diffLines(i.a, i.b), {context, aname: `a/${name}}`, bname: `b/${i.
         }}
     </DataLoader>
 );
-
-function removeDefaultedFields(config: any, obj: any): any {
-    if (config instanceof Array) {
-        const result = [];
-        for (let i = 0; i < obj.length; i++) {
-            let v2 = obj[i];
-            if (config.length > i) {
-                if (v2) {
-                    v2 = removeDefaultedFields(config[i], v2);
-                }
-                result.push(v2);
-            } else {
-                result.push(v2);
-            }
-        }
-        return result;
-    } else if (config instanceof Object) {
-        const result: any = {};
-        for (const k of Object.keys(config)) {
-            const v1 = config[k];
-            if (obj.hasOwnProperty(k)) {
-                let v2 = obj[k];
-                if (v2) {
-                    v2 = removeDefaultedFields(v1, v2);
-                }
-                result[k] = v2;
-            }
-        }
-        return result;
-    }
-    return obj;
-}

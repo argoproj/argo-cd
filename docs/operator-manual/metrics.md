@@ -43,7 +43,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: argocd-server
+      app.kubernetes.io/name: argocd-server-metrics
   endpoints:
   - port: metrics
 ```
@@ -65,6 +65,7 @@ spec:
 
 ## Dashboards
 
-You can find an example Grafana dashboard [here](https://github.com/argoproj/argo-cd/blob/master/examples/dashboard.json)
+You can find an example Grafana dashboard [here](https://github.com/argoproj/argo-cd/blob/master/examples/dashboard.json) or check demo instance
+[dashboard](https://grafana.apps.argoproj.io).
 
 ![dashboard](../assets/dashboard.jpg)

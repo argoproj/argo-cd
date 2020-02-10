@@ -92,7 +92,8 @@ func TestLuaResourceActionsScript(t *testing.T) {
 				assert.NoError(t, err)
 				expectedObj := getObj(filepath.Join(dir, test.ExpectedOutputPath))
 				// Ideally, we would use a assert.Equal to detect the difference, but the Lua VM returns a object with float64 instead of the original int32.  As a result, the assert.Equal is never true despite that the change has been applied.
-				diffResult := diff.Diff(expectedObj, result, testNormalizer{})
+				diffResult, err := diff.Diff(expectedObj, result, testNormalizer{})
+				assert.NoError(t, err)
 				if diffResult.Modified {
 					t.Error("Output does not match input:")
 					err = diff.PrintDiff(test.Action, expectedObj, result)

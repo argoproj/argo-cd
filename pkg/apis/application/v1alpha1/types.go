@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -59,6 +60,12 @@ type ApplicationSpec struct {
 	IgnoreDifferences []ResourceIgnoreDifferences `json:"ignoreDifferences,omitempty" protobuf:"bytes,5,name=ignoreDifferences"`
 	// Infos contains a list of useful information (URLs, email addresses, and plain text) that relates to the application
 	Info []Info `json:"info,omitempty" protobuf:"bytes,6,name=info"`
+	// This limits this number of items kept in the apps revision history.
+	// This should only be changed in exceptional circumstances.
+	// Setting to zero will store no history. This will reduce storage used.
+	// Increasing will increase the space used to store the history, so we do not recommend increasing it.
+	// Default is 10.
+	RevisionHistoryLimit *int64 `json:"revisionHistoryLimit,omitempty" protobuf:"bytes,7,name=revisionHistoryLimit"`
 }
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
@@ -174,6 +181,8 @@ type ApplicationSourceHelm struct {
 	ReleaseName string `json:"releaseName,omitempty" protobuf:"bytes,3,opt,name=releaseName"`
 	// Values is Helm values, typically defined as a block
 	Values string `json:"values,omitempty" protobuf:"bytes,4,opt,name=values"`
+	// FileParameters are file parameters to the helm template
+	FileParameters []HelmFileParameter `json:"fileParameters,omitempty" protobuf:"bytes,5,opt,name=fileParameters"`
 }
 
 // HelmParameter is a parameter to a helm template
@@ -184,6 +193,14 @@ type HelmParameter struct {
 	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
 	// ForceString determines whether to tell Helm to interpret booleans and numbers as strings
 	ForceString bool `json:"forceString,omitempty" protobuf:"bytes,3,opt,name=forceString"`
+}
+
+// HelmFileParameter is a file parameter to a helm template
+type HelmFileParameter struct {
+	// Name is the name of the helm parameter
+	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	// Path is the path value for the helm parameter
+	Path string `json:"path,omitempty" protobuf:"bytes,2,opt,name=path"`
 }
 
 var helmParameterRx = regexp.MustCompile(`([^\\]),`)
@@ -197,6 +214,17 @@ func NewHelmParameter(text string, forceString bool) (*HelmParameter, error) {
 		Name:        parts[0],
 		Value:       helmParameterRx.ReplaceAllString(parts[1], `$1\,`),
 		ForceString: forceString,
+	}, nil
+}
+
+func NewHelmFileParameter(text string) (*HelmFileParameter, error) {
+	parts := strings.SplitN(text, "=", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("Expected helm file parameter of the form: param=path. Received: %s", text)
+	}
+	return &HelmFileParameter{
+		Name: parts[0],
+		Path: helmParameterRx.ReplaceAllString(parts[1], `$1\,`),
 	}, nil
 }
 
@@ -214,8 +242,22 @@ func (in *ApplicationSourceHelm) AddParameter(p HelmParameter) {
 	}
 }
 
+func (in *ApplicationSourceHelm) AddFileParameter(p HelmFileParameter) {
+	found := false
+	for i, cp := range in.FileParameters {
+		if cp.Name == p.Name {
+			found = true
+			in.FileParameters[i] = p
+			break
+		}
+	}
+	if !found {
+		in.FileParameters = append(in.FileParameters, p)
+	}
+}
+
 func (h *ApplicationSourceHelm) IsZero() bool {
-	return h == nil || (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && h.Values == ""
+	return h == nil || (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.Values == ""
 }
 
 type KustomizeImage string
@@ -359,7 +401,7 @@ type ApplicationStatus struct {
 	Resources  []ResourceStatus       `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
 	Sync       SyncStatus             `json:"sync,omitempty" protobuf:"bytes,2,opt,name=sync"`
 	Health     HealthStatus           `json:"health,omitempty" protobuf:"bytes,3,opt,name=health"`
-	History    []RevisionHistory      `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
+	History    RevisionHistories      `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
 	Conditions []ApplicationCondition `json:"conditions,omitempty" protobuf:"bytes,5,opt,name=conditions"`
 	// ReconciledAt indicates when the application state was reconciled using the latest git version
 	ReconciledAt   *metav1.Time    `json:"reconciledAt,omitempty" protobuf:"bytes,6,opt,name=reconciledAt"`
@@ -380,6 +422,17 @@ type SyncOperationResource struct {
 	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
 	Kind  string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
 	Name  string `json:"name" protobuf:"bytes,3,opt,name=name"`
+}
+
+// RevisionHistories is a array of history, oldest first and newest last
+type RevisionHistories []RevisionHistory
+
+func (in RevisionHistories) Trunc(n int) RevisionHistories {
+	i := len(in) - n
+	if i > 0 {
+		in = in[i:]
+	}
+	return in
 }
 
 // HasIdentity determines whether a sync operation is identified by a manifest.
@@ -914,14 +967,22 @@ func (r *ResourceStatus) GroupVersionKind() schema.GroupVersionKind {
 
 // ResourceDiff holds the diff of a live and target resource object
 type ResourceDiff struct {
-	Group       string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
-	Kind        string `json:"kind,omitempty" protobuf:"bytes,2,opt,name=kind"`
-	Namespace   string `json:"namespace,omitempty" protobuf:"bytes,3,opt,name=namespace"`
-	Name        string `json:"name,omitempty" protobuf:"bytes,4,opt,name=name"`
+	Group     string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Kind      string `json:"kind,omitempty" protobuf:"bytes,2,opt,name=kind"`
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,3,opt,name=namespace"`
+	Name      string `json:"name,omitempty" protobuf:"bytes,4,opt,name=name"`
+	// TargetState contains the JSON serialized resource manifest defined in the Git/Helm
 	TargetState string `json:"targetState,omitempty" protobuf:"bytes,5,opt,name=targetState"`
-	LiveState   string `json:"liveState,omitempty" protobuf:"bytes,6,opt,name=liveState"`
-	Diff        string `json:"diff,omitempty" protobuf:"bytes,7,opt,name=diff"`
-	Hook        bool   `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
+	// TargetState contains the JSON live resource manifest
+	LiveState string `json:"liveState,omitempty" protobuf:"bytes,6,opt,name=liveState"`
+	// Diff contains the JSON patch between target and live resource
+	// Deprecated: use NormalizedLiveState and PredictedLiveState to render the difference
+	Diff string `json:"diff,omitempty" protobuf:"bytes,7,opt,name=diff"`
+	Hook bool   `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
+	// NormalizedLiveState contains JSON serialized live resource state with applied normalizations
+	NormalizedLiveState string `json:"normalizedLiveState,omitempty" protobuf:"bytes,9,opt,name=normalizedLiveState"`
+	// PredictedLiveState contains JSON serialized resource state that is calculated based on normalized and target resource state
+	PredictedLiveState string `json:"predictedLiveState,omitempty" protobuf:"bytes,10,opt,name=predictedLiveState"`
 }
 
 // ConnectionStatus represents connection status
@@ -951,6 +1012,8 @@ type Cluster struct {
 	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,4,opt,name=connectionState"`
 	// The server version
 	ServerVersion string `json:"serverVersion,omitempty" protobuf:"bytes,5,opt,name=serverVersion"`
+	// Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list if not empty.
+	Namespaces []string `json:"namespaces,omitempty" protobuf:"bytes,6,opt,name=namespaces"`
 }
 
 // ClusterList is a collection of Clusters.
@@ -1372,8 +1435,20 @@ var validActions = map[string]bool{
 	"*":        true,
 }
 
+var validActionPatterns = []*regexp.Regexp{
+	regexp.MustCompile("action/.*"),
+}
+
 func isValidAction(action string) bool {
-	return validActions[action]
+	if validActions[action] {
+		return true
+	}
+	for i := range validActionPatterns {
+		if validActionPatterns[i].MatchString(action) {
+			return true
+		}
+	}
+	return false
 }
 
 func validatePolicy(proj string, role string, policy string) error {
@@ -1399,7 +1474,7 @@ func validatePolicy(proj string, role string, policy string) error {
 	}
 	// object
 	object := strings.Trim(policyComponents[4], " ")
-	objectRegexp, err := regexp.Compile(fmt.Sprintf(`^%s/[*\w-]+$`, proj))
+	objectRegexp, err := regexp.Compile(fmt.Sprintf(`^%s/[*\w-.]+$`, proj))
 	if err != nil || !objectRegexp.MatchString(object) {
 		return status.Errorf(codes.InvalidArgument, "invalid policy rule '%s': object must be of form '%s/*' or '%s/<APPNAME>', not '%s'", policy, proj, proj, object)
 	}
@@ -1933,6 +2008,11 @@ func (status *ApplicationStatus) SetConditions(conditions []ApplicationCondition
 			appConditions = append(appConditions, condition)
 		}
 	}
+	sort.Slice(appConditions, func(i, j int) bool {
+		left := appConditions[i]
+		right := appConditions[j]
+		return fmt.Sprintf("%s/%s/%v", left.Type, left.Message, left.LastTransitionTime) < fmt.Sprintf("%s/%s/%v", right.Type, right.Message, right.LastTransitionTime)
+	})
 	status.Conditions = appConditions
 }
 
@@ -2011,6 +2091,13 @@ func (spec ApplicationSpec) GetProject() string {
 	return spec.Project
 }
 
+func (spec ApplicationSpec) GetRevisionHistoryLimit() int {
+	if spec.RevisionHistoryLimit != nil {
+		return int(*spec.RevisionHistoryLimit)
+	}
+	return common.RevisionHistoryLimit
+}
+
 func isResourceInList(res metav1.GroupKind, list []metav1.GroupKind) bool {
 	for _, item := range list {
 		ok, err := filepath.Match(item.Kind, res.Kind)
@@ -2024,13 +2111,24 @@ func isResourceInList(res metav1.GroupKind, list []metav1.GroupKind) bool {
 	return false
 }
 
-// IsResourcePermitted validates if the given resource group/kind is permitted to be deployed in the project
-func (proj AppProject) IsResourcePermitted(res metav1.GroupKind, namespaced bool) bool {
+// IsGroupKindPermitted validates if the given resource group/kind is permitted to be deployed in the project
+func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool) bool {
+	res := metav1.GroupKind{Group: gk.Group, Kind: gk.Kind}
 	if namespaced {
 		return !isResourceInList(res, proj.Spec.NamespaceResourceBlacklist)
 	} else {
 		return isResourceInList(res, proj.Spec.ClusterResourceWhitelist)
 	}
+}
+
+func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, server string) bool {
+	if !proj.IsGroupKindPermitted(un.GroupVersionKind().GroupKind(), un.GetNamespace() != "") {
+		return false
+	}
+	if un.GetNamespace() != "" {
+		return proj.IsDestinationPermitted(ApplicationDestination{Server: server, Namespace: un.GetNamespace()})
+	}
+	return true
 }
 
 func globMatch(pattern string, val string) bool {
@@ -2087,16 +2185,16 @@ func (c *Cluster) RESTConfig() *rest.Config {
 			CAData:     c.Config.TLSClientConfig.CAData,
 		}
 		if c.Config.AWSAuthConfig != nil {
-			args := []string{"token", "-i", c.Config.AWSAuthConfig.ClusterName}
+			args := []string{"eks", "get-token", "--cluster-name", c.Config.AWSAuthConfig.ClusterName}
 			if c.Config.AWSAuthConfig.RoleARN != "" {
-				args = append(args, "-r", c.Config.AWSAuthConfig.RoleARN)
+				args = append(args, "--role-arn", c.Config.AWSAuthConfig.RoleARN)
 			}
 			config = &rest.Config{
 				Host:            c.Server,
 				TLSClientConfig: tlsClientConfig,
 				ExecProvider: &api.ExecConfig{
 					APIVersion: "client.authentication.k8s.io/v1alpha1",
-					Command:    "aws-iam-authenticator",
+					Command:    "aws",
 					Args:       args,
 				},
 			}

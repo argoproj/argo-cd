@@ -135,20 +135,20 @@ func newCluster(objs ...*unstructured.Unstructured) *clusterInfo {
 	client := fake.NewSimpleDynamicClient(scheme, runtimeObjs...)
 
 	apiResources := []kube.APIResourceInfo{{
-		GroupKind: schema.GroupKind{Group: "", Kind: "Pod"},
-		Interface: client.Resource(schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"}),
-		Meta:      metav1.APIResource{Namespaced: true},
+		GroupKind:            schema.GroupKind{Group: "", Kind: "Pod"},
+		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"},
+		Meta:                 metav1.APIResource{Namespaced: true},
 	}, {
-		GroupKind: schema.GroupKind{Group: "apps", Kind: "ReplicaSet"},
-		Interface: client.Resource(schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "replicasets"}),
-		Meta:      metav1.APIResource{Namespaced: true},
+		GroupKind:            schema.GroupKind{Group: "apps", Kind: "ReplicaSet"},
+		GroupVersionResource: schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "replicasets"},
+		Meta:                 metav1.APIResource{Namespaced: true},
 	}, {
-		GroupKind: schema.GroupKind{Group: "apps", Kind: "Deployment"},
-		Interface: client.Resource(schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}),
-		Meta:      metav1.APIResource{Namespaced: true},
+		GroupKind:            schema.GroupKind{Group: "apps", Kind: "Deployment"},
+		GroupVersionResource: schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"},
+		Meta:                 metav1.APIResource{Namespaced: true},
 	}}
 
-	return newClusterExt(&kubetest.MockKubectlCmd{APIResources: apiResources})
+	return newClusterExt(&kubetest.MockKubectlCmd{APIResources: apiResources, DynamicClient: client})
 }
 
 func newClusterExt(kubectl kube.Kubectl) *clusterInfo {
@@ -160,7 +160,6 @@ func newClusterExt(kubectl kube.Kubectl) *clusterInfo {
 		nsIndex:         make(map[string]map[kube.ResourceKey]*node),
 		cluster:         &appv1.Cluster{},
 		syncTime:        nil,
-		syncLock:        &sync.Mutex{},
 		apisMeta:        make(map[schema.GroupKind]*apiMeta),
 		log:             log.WithField("cluster", "test"),
 		cacheSettingsSrc: func() *cacheSettings {
@@ -175,6 +174,55 @@ func getChildren(cluster *clusterInfo, un *unstructured.Unstructured) []appv1.Re
 		hierarchy = append(hierarchy, child)
 	})
 	return hierarchy[1:]
+}
+
+func TestEnsureSynced(t *testing.T) {
+	obj1 := strToUnstructured(`
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata: {"name": "helm-guestbook1", "namespace": "default1"}
+`)
+	obj2 := strToUnstructured(`
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata: {"name": "helm-guestbook2", "namespace": "default2"}
+`)
+
+	cluster := newCluster(obj1, obj2)
+	err := cluster.ensureSynced()
+	assert.Nil(t, err)
+
+	assert.Len(t, cluster.nodes, 2)
+	var names []string
+	for k := range cluster.nodes {
+		names = append(names, k.Name)
+	}
+	assert.ElementsMatch(t, []string{"helm-guestbook1", "helm-guestbook2"}, names)
+}
+
+func TestEnsureSyncedSingleNamespace(t *testing.T) {
+	obj1 := strToUnstructured(`
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata: {"name": "helm-guestbook1", "namespace": "default1"}
+`)
+	obj2 := strToUnstructured(`
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata: {"name": "helm-guestbook2", "namespace": "default2"}
+`)
+
+	cluster := newCluster(obj1, obj2)
+	cluster.cluster.Namespaces = []string{"default1"}
+	err := cluster.ensureSynced()
+	assert.Nil(t, err)
+
+	assert.Len(t, cluster.nodes, 1)
+	var names []string
+	for k := range cluster.nodes {
+		names = append(names, k.Name)
+	}
+	assert.ElementsMatch(t, []string{"helm-guestbook1"}, names)
 }
 
 func TestGetNamespaceResources(t *testing.T) {
@@ -456,7 +504,7 @@ func TestWatchCacheUpdated(t *testing.T) {
 
 	podGroupKind := testPod.GroupVersionKind().GroupKind()
 
-	cluster.replaceResourceCache(podGroupKind, "updated-list-version", []unstructured.Unstructured{*updated, *added})
+	cluster.replaceResourceCache(podGroupKind, "updated-list-version", []unstructured.Unstructured{*updated, *added}, "")
 
 	_, ok := cluster.nodes[kube.GetResourceKey(removed)]
 	assert.False(t, ok)
@@ -466,6 +514,28 @@ func TestWatchCacheUpdated(t *testing.T) {
 	assert.Equal(t, updatedNode.resourceVersion, "updated-pod-version")
 
 	_, ok = cluster.nodes[kube.GetResourceKey(added)]
+	assert.True(t, ok)
+}
+
+func TestNamespaceModeReplace(t *testing.T) {
+	ns1Pod := testPod.DeepCopy()
+	ns1Pod.SetNamespace("ns1")
+	ns1Pod.SetName("pod1")
+
+	ns2Pod := testPod.DeepCopy()
+	ns2Pod.SetNamespace("ns2")
+	podGroupKind := testPod.GroupVersionKind().GroupKind()
+
+	cluster := newCluster(ns1Pod, ns2Pod)
+	err := cluster.ensureSynced()
+	assert.Nil(t, err)
+
+	cluster.replaceResourceCache(podGroupKind, "", nil, "ns1")
+
+	_, ok := cluster.nodes[kube.GetResourceKey(ns1Pod)]
+	assert.False(t, ok)
+
+	_, ok = cluster.nodes[kube.GetResourceKey(ns2Pod)]
 	assert.True(t, ok)
 }
 

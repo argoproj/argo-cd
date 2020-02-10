@@ -249,14 +249,20 @@ func ServerResourceForGroupVersionKind(disco discovery.DiscoveryInterface, gvk s
 	return nil, apierr.NewNotFound(schema.GroupResource{Group: gvk.Group, Resource: gvk.Kind}, "")
 }
 
+var (
+	kubectlErrOutRegexp = regexp.MustCompile(`^(error: )?(error validating|error when creating|error when creating) "\S+": `)
+
+	// See ApplyOpts::Run()
+	// cmdutil.AddSourceToErr(fmt.Sprintf("applying patch:\n%s\nto:\n%v\nfor:", patchBytes, info), info.Source, err)
+	kubectlApplyPatchErrOutRegexp = regexp.MustCompile(`(?s)^error when applying patch:.*\nfor: "\S+": `)
+)
+
 // cleanKubectlOutput makes the error output of kubectl a little better to read
 func cleanKubectlOutput(s string) string {
 	s = strings.TrimSpace(s)
-	s = strings.Replace(s, ": error validating \"STDIN\"", "", -1)
-	s = strings.Replace(s, ": unable to recognize \"STDIN\"", "", -1)
-	s = strings.Replace(s, ": error when creating \"STDIN\"", "", -1)
+	s = kubectlErrOutRegexp.ReplaceAllString(s, "")
+	s = kubectlApplyPatchErrOutRegexp.ReplaceAllString(s, "")
 	s = strings.Replace(s, "; if you choose to ignore these errors, turn validation off with --validate=false", "", -1)
-	s = strings.Replace(s, "error: error", "error", -1)
 	return s
 }
 

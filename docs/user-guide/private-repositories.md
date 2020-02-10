@@ -35,7 +35,7 @@ or UI:
 1. Navigate to `Settings/Repositories`
 1. Click `Connect Repo` button and enter HTTP credentials
 
-![connect repo](../assets/connect_repo.png)
+![connect repo](../assets/connect-repo.png)
 
 #### Access Token
 
@@ -98,6 +98,9 @@ Using the UI:
 
 !!!note
     When pasting SSH private key in the UI, make sure there are no unintended line breaks or additional characters in the text area
+
+!!!note 
+    When your SSH repository is served from a non-standard port, you have to use `ssh://`-style URLs to specify your repository. The scp-style `git@yourgit.com:yourrepo` URLs do **not** support port specification, and will treat any port number as part of the repository's path.
 
 > earlier than v1.2
 
@@ -345,6 +348,8 @@ argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-ke
     For Kustomize support, see [#827](https://github.com/argoproj/argo-cd/issues/827).
 
 ## Git Submodules
+
+> v1.4 or later
 
 Submodules are supported and will be picked up automatically. If the submodule repository requires authentication then the credentials will need to match the credentials of the parent repository. Set ARGOCD_GIT_MODULES_ENABLED=false to disable submodule support
 

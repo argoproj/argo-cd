@@ -23,7 +23,7 @@ const (
 )
 
 // ArgoCDManagerPolicyRules are the policies to give argocd-manager
-var ArgoCDManagerPolicyRules = []rbacv1.PolicyRule{
+var ArgoCDManagerClusterPolicyRules = []rbacv1.PolicyRule{
 	{
 		APIGroups: []string{"*"},
 		Resources: []string{"*"},
@@ -32,6 +32,15 @@ var ArgoCDManagerPolicyRules = []rbacv1.PolicyRule{
 	{
 		NonResourceURLs: []string{"*"},
 		Verbs:           []string{"*"},
+	},
+}
+
+// ArgoCDManagerNamespacePolicyRules are the namespace level policies to give argocd-manager
+var ArgoCDManagerNamespacePolicyRules = []rbacv1.PolicyRule{
+	{
+		APIGroups: []string{"*"},
+		Resources: []string{"*"},
+		Verbs:     []string{"*"},
 	},
 }
 
@@ -63,121 +72,179 @@ func CreateServiceAccount(
 	return nil
 }
 
-// CreateClusterRole creates a cluster role
-func CreateClusterRole(
-	clientset kubernetes.Interface,
-	clusterRoleName string,
-	rules []rbacv1.PolicyRule,
-) error {
+func upsert(kind string, name string, create func() (interface{}, error), update func() (interface{}, error)) error {
+	_, err := create()
+	if err != nil {
+		if !apierr.IsAlreadyExists(err) {
+			return fmt.Errorf("Failed to create %s %q: %v", kind, name, err)
+		}
+		_, err = update()
+		if err != nil {
+			return fmt.Errorf("Failed to update %s %q: %v", kind, name, err)
+		}
+		log.Infof("%s %q updated", kind, name)
+	} else {
+		log.Infof("%s %q created", kind, name)
+	}
+	return nil
+}
+
+func upsertClusterRole(clientset kubernetes.Interface, name string, rules []rbacv1.PolicyRule) error {
 	clusterRole := rbacv1.ClusterRole{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
 			Kind:       "ClusterRole",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: clusterRoleName,
+			Name: name,
 		},
 		Rules: rules,
 	}
-	crclient := clientset.RbacV1().ClusterRoles()
-	_, err := crclient.Create(&clusterRole)
-	if err != nil {
-		if !apierr.IsAlreadyExists(err) {
-			return fmt.Errorf("Failed to create ClusterRole %q: %v", clusterRoleName, err)
-		}
-		_, err = crclient.Update(&clusterRole)
-		if err != nil {
-			return fmt.Errorf("Failed to update ClusterRole %q: %v", clusterRoleName, err)
-		}
-		log.Infof("ClusterRole %q updated", clusterRoleName)
-	} else {
-		log.Infof("ClusterRole %q created", clusterRoleName)
-	}
-	return nil
+	return upsert("ClusterRole", name, func() (interface{}, error) {
+		return clientset.RbacV1().ClusterRoles().Create(&clusterRole)
+	}, func() (interface{}, error) {
+		return clientset.RbacV1().ClusterRoles().Update(&clusterRole)
+	})
 }
 
-// CreateClusterRoleBinding create a ClusterRoleBinding
-func CreateClusterRoleBinding(
-	clientset kubernetes.Interface,
-	clusterBindingRoleName,
-	serviceAccountName,
-	clusterRoleName string,
-	namespace string,
-) error {
+func upsertRole(clientset kubernetes.Interface, name string, namespace string, rules []rbacv1.PolicyRule) error {
+	role := rbacv1.Role{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "Role",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Rules: rules,
+	}
+	return upsert("Role", fmt.Sprintf("%s/%s", namespace, name), func() (interface{}, error) {
+		return clientset.RbacV1().Roles(namespace).Create(&role)
+	}, func() (interface{}, error) {
+		return clientset.RbacV1().Roles(namespace).Update(&role)
+	})
+}
+
+func upsertClusterRoleBinding(clientset kubernetes.Interface, name string, clusterRoleName string, subject rbacv1.Subject) error {
 	roleBinding := rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
 			Kind:       "ClusterRoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: clusterBindingRoleName,
+			Name: name,
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
 			Name:     clusterRoleName,
 		},
-		Subjects: []rbacv1.Subject{
-			{
-				Kind:      rbacv1.ServiceAccountKind,
-				Name:      serviceAccountName,
-				Namespace: namespace,
-			},
+		Subjects: []rbacv1.Subject{subject},
+	}
+	return upsert("ClusterRoleBinding", name, func() (interface{}, error) {
+		return clientset.RbacV1().ClusterRoleBindings().Create(&roleBinding)
+	}, func() (interface{}, error) {
+		return clientset.RbacV1().ClusterRoleBindings().Update(&roleBinding)
+	})
+}
+
+func upsertRoleBinding(clientset kubernetes.Interface, name string, roleName string, namespace string, subject rbacv1.Subject) error {
+	roleBinding := rbacv1.RoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "RoleBinding",
 		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     roleName,
+		},
+		Subjects: []rbacv1.Subject{subject},
 	}
-	_, err := clientset.RbacV1().ClusterRoleBindings().Create(&roleBinding)
-	if err != nil {
-		if !apierr.IsAlreadyExists(err) {
-			return fmt.Errorf("Failed to create ClusterRoleBinding %s: %v", clusterBindingRoleName, err)
-		}
-		log.Infof("ClusterRoleBinding %q already exists", clusterBindingRoleName)
-		return nil
-	}
-	log.Infof("ClusterRoleBinding %q created, bound %q to %q", clusterBindingRoleName, serviceAccountName, clusterRoleName)
-	return nil
+	return upsert("RoleBinding", fmt.Sprintf("%s/%s", namespace, name), func() (interface{}, error) {
+		return clientset.RbacV1().RoleBindings(namespace).Create(&roleBinding)
+	}, func() (interface{}, error) {
+		return clientset.RbacV1().RoleBindings(namespace).Update(&roleBinding)
+	})
 }
 
 // InstallClusterManagerRBAC installs RBAC resources for a cluster manager to operate a cluster. Returns a token
-func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string) (string, error) {
+func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string, namespaces []string) (string, error) {
 
 	err := CreateServiceAccount(clientset, ArgoCDManagerServiceAccount, ns)
 	if err != nil {
 		return "", err
 	}
 
-	err = CreateClusterRole(clientset, ArgoCDManagerClusterRole, ArgoCDManagerPolicyRules)
-	if err != nil {
-		return "", err
+	if len(namespaces) == 0 {
+		err = upsertClusterRole(clientset, ArgoCDManagerClusterRole, ArgoCDManagerClusterPolicyRules)
+		if err != nil {
+			return "", err
+		}
+
+		err = upsertClusterRoleBinding(clientset, ArgoCDManagerClusterRoleBinding, ArgoCDManagerClusterRole, rbacv1.Subject{
+			Kind:      rbacv1.ServiceAccountKind,
+			Name:      ArgoCDManagerServiceAccount,
+			Namespace: ns,
+		})
+		if err != nil {
+			return "", err
+		}
+	} else {
+		for _, namespace := range namespaces {
+			err = upsertRole(clientset, ArgoCDManagerClusterRole, namespace, ArgoCDManagerNamespacePolicyRules)
+			if err != nil {
+				return "", err
+			}
+
+			err = upsertRoleBinding(clientset, ArgoCDManagerClusterRoleBinding, ArgoCDManagerClusterRole, namespace, rbacv1.Subject{
+				Kind:      rbacv1.ServiceAccountKind,
+				Name:      ArgoCDManagerServiceAccount,
+				Namespace: ns,
+			})
+			if err != nil {
+				return "", err
+			}
+		}
 	}
 
-	err = CreateClusterRoleBinding(clientset, ArgoCDManagerClusterRoleBinding, ArgoCDManagerServiceAccount, ArgoCDManagerClusterRole, ns)
-	if err != nil {
-		return "", err
-	}
+	return getServiceAccountBearerToken(clientset, ns)
+}
 
+// getServiceAccountBearerToken will attempt to get the Argo manager service account until it
+// exists, iterate the secrets associated with it looking for one of type
+// kubernetes.io/service-account-token, and return it's token if found.
+func getServiceAccountBearerToken(clientset kubernetes.Interface, ns string) (string, error) {
 	var serviceAccount *corev1.ServiceAccount
-	var secretName string
+	var secret *corev1.Secret
+	var err error
 	err = wait.Poll(500*time.Millisecond, 30*time.Second, func() (bool, error) {
 		serviceAccount, err = clientset.CoreV1().ServiceAccounts(ns).Get(ArgoCDManagerServiceAccount, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}
-		if len(serviceAccount.Secrets) == 0 {
-			return false, nil
+		// Scan all secrets looking for one of the correct type:
+		for _, oRef := range serviceAccount.Secrets {
+			var getErr error
+			secret, err = clientset.CoreV1().Secrets(ns).Get(oRef.Name, metav1.GetOptions{})
+			if err != nil {
+				return false, fmt.Errorf("Failed to retrieve secret %q: %v", oRef.Name, getErr)
+			}
+			if secret.Type == corev1.SecretTypeServiceAccountToken {
+				return true, nil
+			}
 		}
-		secretName = serviceAccount.Secrets[0].Name
-		return true, nil
+		return false, nil
 	})
 	if err != nil {
 		return "", fmt.Errorf("Failed to wait for service account secret: %v", err)
 	}
-	secret, err := clientset.CoreV1().Secrets(ns).Get(secretName, metav1.GetOptions{})
-	if err != nil {
-		return "", fmt.Errorf("Failed to retrieve secret %q: %v", secretName, err)
-	}
 	token, ok := secret.Data["token"]
 	if !ok {
-		return "", fmt.Errorf("Secret %q for service account %q did not have a token", secretName, serviceAccount)
+		return "", fmt.Errorf("Secret %q for service account %q did not have a token", secret.Name, serviceAccount)
 	}
 	return string(token), nil
 }

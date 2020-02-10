@@ -55,7 +55,6 @@ var (
 	KubeClientset       kubernetes.Interface
 	AppClientset        appclientset.Interface
 	ArgoCDClientset     argocdclient.Client
-	settingsManager     *settings.SettingsManager
 	apiServerAddress    string
 	token               string
 	plainText           bool
@@ -123,7 +122,6 @@ func init() {
 	})
 	CheckError(err)
 
-	settingsManager = settings.NewSettingsManager(context.Background(), KubeClientset, "argocd-e2e")
 	token = sessionResponse.Token
 	plainText = !tlsTestResult.TLS
 
@@ -195,13 +193,6 @@ func CreateSecret(username, password string) string {
 	return secretName
 }
 
-func Settings(consumer func(s *settings.ArgoCDSettings)) {
-	s, err := settingsManager.GetSettings()
-	CheckError(err)
-	consumer(s)
-	CheckError(settingsManager.SaveSettings(s))
-}
-
 func updateSettingConfigMap(updater func(cm *corev1.ConfigMap) error) {
 	cm, err := KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Get(common.ArgoCDConfigMapName, v1.GetOptions{})
 	errors.CheckError(err)
@@ -262,6 +253,17 @@ func SetHelmRepos(repos ...settings.HelmRepoCredentials) {
 			return err
 		}
 		cm.Data["helm.repositories"] = string(yamlBytes)
+		return nil
+	})
+}
+
+func SetRepos(repos ...settings.RepositoryCredentials) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		yamlBytes, err := yaml.Marshal(repos)
+		if err != nil {
+			return err
+		}
+		cm.Data["repositories"] = string(yamlBytes)
 		return nil
 	})
 }

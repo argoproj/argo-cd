@@ -305,11 +305,14 @@ func TestAppProject_ValidPolicyRules(t *testing.T) {
 		"p, proj:my-proj:my-role, applications, get, my-proj/*-foo, allow",
 		"p, proj:my-proj:my-role, applications, get, my-proj/foo-*, allow",
 		"p, proj:my-proj:my-role, applications, get, my-proj/*-*, allow",
+		"p, proj:my-proj:my-role, applications, get, my-proj/*.*, allow",
 		"p, proj:my-proj:my-role, applications, *, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, create, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, update, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, sync, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, delete, my-proj/foo, allow",
+		"p, proj:my-proj:my-role, applications, action/*, my-proj/foo, allow",
+		"p, proj:my-proj:my-role, applications, action/apps/Deployment/restart, my-proj/foo, allow",
 	}
 	for _, good := range goodPolicies {
 		p.Spec.Roles[0].Policies = []string{good}
@@ -838,6 +841,19 @@ func TestApplicationSourceHelm_AddParameter(t *testing.T) {
 	})
 }
 
+func TestApplicationSourceHelm_AddFileParameter(t *testing.T) {
+	src := ApplicationSourceHelm{}
+	t.Run("Add", func(t *testing.T) {
+		src.AddFileParameter(HelmFileParameter{Name: "foo", Path: "bar"})
+		assert.ElementsMatch(t, []HelmFileParameter{{Name: "foo", Path: "bar"}}, src.FileParameters)
+
+	})
+	t.Run("Replace", func(t *testing.T) {
+		src.AddFileParameter(HelmFileParameter{Name: "foo", Path: "baz"})
+		assert.ElementsMatch(t, []HelmFileParameter{{Name: "foo", Path: "baz"}}, src.FileParameters)
+	})
+}
+
 func TestNewHelmParameter(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
 		_, err := NewHelmParameter("garbage", false)
@@ -866,6 +882,7 @@ func TestApplicationSourceHelm_IsZero(t *testing.T) {
 		{"ValueFiles", &ApplicationSourceHelm{ValueFiles: []string{""}}, false},
 		{"Parameters", &ApplicationSourceHelm{Parameters: []HelmParameter{{}}}, false},
 		{"ReleaseName", &ApplicationSourceHelm{ReleaseName: "foa"}, false},
+		{"FileParameters", &ApplicationSourceHelm{FileParameters: []HelmFileParameter{{}}}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1661,4 +1678,20 @@ func TestSyncOptions_RemoveOption(t *testing.T) {
 	options := SyncOptions{"a=1"}
 	assert.Len(t, options.RemoveOption("a=1"), 0)
 	assert.Len(t, options.RemoveOption("a=1").RemoveOption("a=1"), 0)
+}
+
+func TestRevisionHistories_Trunc(t *testing.T) {
+	assert.Len(t, RevisionHistories{}.Trunc(1), 0)
+	assert.Len(t, RevisionHistories{{}}.Trunc(1), 1)
+	assert.Len(t, RevisionHistories{{}, {}}.Trunc(1), 1)
+	// keep the last element, even with longer list
+	assert.Equal(t, RevisionHistories{{Revision: "my-revision"}}, RevisionHistories{{}, {}, {Revision: "my-revision"}}.Trunc(1))
+}
+
+func TestApplicationSpec_GetRevisionHistoryLimit(t *testing.T) {
+	// default
+	assert.Equal(t, 10, ApplicationSpec{}.GetRevisionHistoryLimit())
+	// configured
+	n := int64(11)
+	assert.Equal(t, 11, ApplicationSpec{RevisionHistoryLimit: &n}.GetRevisionHistoryLimit())
 }

@@ -27,6 +27,9 @@ type cacheSettings struct {
 }
 
 type LiveStateCache interface {
+	// Returns k8s server version
+	GetServerVersion(serverURL string) (string, error)
+	// Returns true of given group kind is a namespaced resource
 	IsNamespaced(server string, gk schema.GroupKind) (bool, error)
 	// Executes give callback against resource specified by the key and all its children
 	IterateHierarchy(server string, key kube.ResourceKey, action func(child appv1.ResourceNode, appName string)) error
@@ -38,6 +41,8 @@ type LiveStateCache interface {
 	Run(ctx context.Context) error
 	// Invalidate invalidates the entire cluster state cache
 	Invalidate()
+	// Returns information about monitored clusters
+	GetClustersInfo() []metrics.ClusterInfo
 }
 
 type ObjectUpdatedHandler = func(managedByApp map[string]bool, ref v1.ObjectReference)
@@ -121,9 +126,11 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 			kubectl:          c.kubectl,
 			cluster:          cluster,
 			syncTime:         nil,
-			syncLock:         &sync.Mutex{},
 			log:              log.WithField("server", cluster.Server),
 			cacheSettingsSrc: c.getCacheSettings,
+			onEventReceived: func(event watch.EventType, un *unstructured.Unstructured) {
+				c.metricsServer.IncClusterEventsCount(cluster.Server)
+			},
 		}
 
 		c.clusters[cluster.Server] = info
@@ -148,9 +155,7 @@ func (c *liveStateCache) Invalidate() {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	for _, clust := range c.clusters {
-		clust.lock.Lock()
 		clust.invalidate()
-		clust.lock.Unlock()
 	}
 	log.Info("live state cache invalidated")
 }
@@ -186,6 +191,13 @@ func (c *liveStateCache) GetManagedLiveObjs(a *appv1.Application, targetObjs []*
 		return nil, err
 	}
 	return clusterInfo.getManagedLiveObjs(a, targetObjs, c.metricsServer)
+}
+func (c *liveStateCache) GetServerVersion(serverURL string) (string, error) {
+	clusterInfo, err := c.getSyncedCluster(serverURL)
+	if err != nil {
+		return "", err
+	}
+	return clusterInfo.serverVersion, nil
 }
 
 func isClusterHasApps(apps []interface{}, cluster *appv1.Cluster) bool {
@@ -272,4 +284,14 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 
 	<-ctx.Done()
 	return nil
+}
+
+func (c *liveStateCache) GetClustersInfo() []metrics.ClusterInfo {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	res := make([]metrics.ClusterInfo, 0)
+	for _, info := range c.clusters {
+		res = append(res, info.getClusterInfo())
+	}
+	return res
 }

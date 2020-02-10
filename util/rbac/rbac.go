@@ -2,6 +2,7 @@ package rbac
 
 import (
 	"context"
+	"encoding/csv"
 	"errors"
 	"fmt"
 	"strings"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/casbin/casbin"
 	"github.com/casbin/casbin/model"
-	"github.com/casbin/casbin/persist"
 	jwt "github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -168,7 +168,8 @@ func (e *Enforcer) newInformer() cache.SharedIndexInformer {
 		cmFieldSelector := fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", e.configmap))
 		options.FieldSelector = cmFieldSelector.String()
 	}
-	return v1.NewFilteredConfigMapInformer(e.clientset, e.namespace, defaultRBACSyncPeriod, cache.Indexers{}, tweakConfigMap)
+	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
+	return v1.NewFilteredConfigMapInformer(e.clientset, e.namespace, defaultRBACSyncPeriod, indexers, tweakConfigMap)
 }
 
 // RunPolicyLoader runs the policy loader which watches policy updates from the configmap and reloads them
@@ -269,12 +270,31 @@ func newAdapter(builtinPolicy, userDefinedPolicy, runtimePolicy string) *argocdA
 func (a *argocdAdapter) LoadPolicy(model model.Model) error {
 	for _, policyStr := range []string{a.builtinPolicy, a.userDefinedPolicy, a.runtimePolicy} {
 		for _, line := range strings.Split(policyStr, "\n") {
-			if line == "" {
-				continue
+			if err := loadPolicyLine(strings.TrimSpace(line), model); err != nil {
+				return err
 			}
-			persist.LoadPolicyLine(line, model)
 		}
 	}
+	return nil
+}
+
+// The modified version of LoadPolicyLine function defined in "persist" package of github.com/casbin/casbin.
+// Uses CVS parser to correctly handle quotes in policy line.
+func loadPolicyLine(line string, model model.Model) error {
+	if line == "" || strings.HasPrefix(line, "#") {
+		return nil
+	}
+
+	reader := csv.NewReader(strings.NewReader(line))
+	reader.TrimLeadingSpace = true
+	tokens, err := reader.Read()
+	if err != nil {
+		return err
+	}
+
+	key := tokens[0]
+	sec := key[:1]
+	model[sec][key].Policy = append(model[sec][key].Policy, tokens[1:])
 	return nil
 }
 

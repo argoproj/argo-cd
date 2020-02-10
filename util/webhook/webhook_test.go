@@ -61,8 +61,10 @@ func TestBitbucketServerRepositoryReferenceChangedEvent(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
 	assert.Equal(t, w.Code, http.StatusOK)
-	expectedLogResult := "Received push event repo: https://bitbucketserver/scm/myproject/test-repo.git, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	expectedLogResultSsh := "Received push event repo: ssh://git@bitbucketserver:7999/myproject/test-repo.git, revision: master, touchedHead: true"
+	assert.Equal(t, expectedLogResultSsh, hook.AllEntries()[len(hook.AllEntries())-2].Message)
+	expectedLogResultHttps := "Received push event repo: https://bitbucketserver/scm/myproject/test-repo.git, revision: master, touchedHead: true"
+	assert.Equal(t, expectedLogResultHttps, hook.LastEntry().Message)
 	hook.Reset()
 }
 
@@ -78,6 +80,22 @@ func TestGogsPushEvent(t *testing.T) {
 	h.Handler(w, req)
 	assert.Equal(t, w.Code, http.StatusOK)
 	expectedLogResult := "Received push event repo: http://gogs-server/john/repo-test, revision: master, touchedHead: true"
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	hook.Reset()
+}
+
+func TestGitLabPushEvent(t *testing.T) {
+	hook := test.NewGlobal()
+	h := NewMockHandler()
+	req := httptest.NewRequest("POST", "/api/webhook", nil)
+	req.Header.Set("X-Gitlab-Event", "Push Hook")
+	eventJSON, err := ioutil.ReadFile("gitlab-event.json")
+	assert.NoError(t, err)
+	req.Body = ioutil.NopCloser(bytes.NewReader(eventJSON))
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	assert.Equal(t, w.Code, http.StatusOK)
+	expectedLogResult := "Received push event repo: https://gitlab/group/name, revision: master, touchedHead: true"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	hook.Reset()
 }

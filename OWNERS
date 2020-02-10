@@ -3,10 +3,8 @@ owners:
 - alexmt
 - jessesuen
 
-reviewers:
-- jannfis
-
 approvers:
 - alexec
 - alexmt
+- jannfis
 - jessesuen

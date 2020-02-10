@@ -1,4 +1,4 @@
-@import 'node_modules/argo-ui/src/app/shared/styles/config';
+@import 'node_modules/argo-ui/src/styles/config';
 @import 'node_modules/foundation-sites/scss/util/util';
 
 .applications-list {
@@ -102,7 +102,7 @@
 
         &--expanded {
             overflow-y: auto;
-            max-height: calc(1.55em * 15);
+            max-height: calc(1.55em * 17);
             transition: max-height 1s ease-in-out;
             &::before {
                 display: none;
@@ -119,7 +119,7 @@
         li {
             list-style: none;
         }
-        max-height: calc(1.55em * 10);
+        max-height: calc(1.55em * 14);
         transition: max-height 0.25s cubic-bezier(0, 1, 0, 1);
         overflow-y: auto;
     }

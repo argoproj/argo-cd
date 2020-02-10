@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -38,6 +39,7 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/rbac"
@@ -140,10 +142,13 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 			if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(a)); err != nil {
 				return nil, err
 			}
-			existing.Spec = a.Spec
-			out, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(existing)
+			out, err = s.updateApp(existing, &a, ctx, true)
 		} else {
-			if !reflect.DeepEqual(existing.Spec, a.Spec) {
+			if !reflect.DeepEqual(existing.Spec, a.Spec) ||
+				!reflect.DeepEqual(existing.Labels, a.Labels) ||
+				!reflect.DeepEqual(existing.Annotations, a.Annotations) ||
+				!reflect.DeepEqual(existing.Finalizers, a.Finalizers) {
+
 				return nil, status.Errorf(codes.InvalidArgument, "existing application spec is different, use upsert flag to force update")
 			}
 			return existing, nil
@@ -221,6 +226,24 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	})
 	if err != nil {
 		return nil, err
+	}
+	for i, manifest := range manifestInfo.Manifests {
+		obj := &unstructured.Unstructured{}
+		err = json.Unmarshal([]byte(manifest), obj)
+		if err != nil {
+			return nil, err
+		}
+		if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
+			obj, _, err = diff.HideSecretData(obj, nil)
+			if err != nil {
+				return nil, err
+			}
+			data, err := json.Marshal(obj)
+			if err != nil {
+				return nil, err
+			}
+			manifestInfo.Manifests[i] = string(data)
+		}
 	}
 
 	return manifestInfo, nil
@@ -301,32 +324,77 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 	return kubeClientset.CoreV1().Events(namespace).List(opts)
 }
 
+func (s *Server) validateAndUpdateApp(ctx context.Context, newApp *appv1.Application, merge bool) (*appv1.Application, error) {
+	s.projectLock.Lock(newApp.Spec.GetProject())
+	defer s.projectLock.Unlock(newApp.Spec.GetProject())
+
+	app, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(newApp.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.validateAndNormalizeApp(ctx, newApp)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.updateApp(app, newApp, ctx, merge)
+}
+
+func mergeStringMaps(items ...map[string]string) map[string]string {
+	res := make(map[string]string)
+	for _, m := range items {
+		if m == nil {
+			continue
+		}
+		for k, v := range m {
+			res[k] = v
+		}
+	}
+	return res
+}
+
+func (s *Server) updateApp(app *appv1.Application, newApp *appv1.Application, ctx context.Context, merge bool) (*appv1.Application, error) {
+	for i := 0; i < 10; i++ {
+		app.Spec = newApp.Spec
+		if merge {
+			app.Labels = mergeStringMaps(app.Labels, newApp.Labels)
+			app.Annotations = mergeStringMaps(app.Annotations, newApp.Annotations)
+		} else {
+			app.Labels = newApp.Labels
+			app.Annotations = newApp.Annotations
+		}
+
+		app.Finalizers = newApp.Finalizers
+
+		res, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(app)
+		if err == nil {
+			s.logAppEvent(app, ctx, argo.EventReasonResourceUpdated, "updated application spec")
+			return res, nil
+		}
+		if !apierr.IsConflict(err) {
+			return nil, err
+		}
+
+		app, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(newApp.Name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+	}
+	return nil, status.Errorf(codes.Internal, "Failed to update application. Too many conflicts")
+}
+
 // Update updates an application
 func (s *Server) Update(ctx context.Context, q *application.ApplicationUpdateRequest) (*appv1.Application, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(*q.Application)); err != nil {
 		return nil, err
 	}
 
-	s.projectLock.Lock(q.Application.Spec.Project)
-	defer s.projectLock.Unlock(q.Application.Spec.Project)
-
-	a := q.Application
-	err := s.validateAndNormalizeApp(ctx, a)
-	if err != nil {
-		return nil, err
-	}
-	out, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
-	if err == nil {
-		s.logAppEvent(a, ctx, argo.EventReasonResourceUpdated, "updated application")
-	}
-	return out, err
+	return s.validateAndUpdateApp(ctx, q.Application, false)
 }
 
 // UpdateSpec updates an application spec and filters out any invalid parameter overrides
 func (s *Server) UpdateSpec(ctx context.Context, q *application.ApplicationUpdateSpecRequest) (*appv1.ApplicationSpec, error) {
-	s.projectLock.Lock(q.Spec.Project)
-	defer s.projectLock.Unlock(q.Spec.Project)
-
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -335,28 +403,11 @@ func (s *Server) UpdateSpec(ctx context.Context, q *application.ApplicationUpdat
 		return nil, err
 	}
 	a.Spec = q.Spec
-	err = s.validateAndNormalizeApp(ctx, a)
+	a, err = s.validateAndUpdateApp(ctx, a, false)
 	if err != nil {
 		return nil, err
 	}
-	normalizedSpec := a.Spec.DeepCopy()
-
-	for i := 0; i < 10; i++ {
-		a.Spec = *normalizedSpec
-		_, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
-		if err == nil {
-			s.logAppEvent(a, ctx, argo.EventReasonResourceUpdated, "updated application spec")
-			return normalizedSpec, nil
-		}
-		if !apierr.IsConflict(err) {
-			return nil, err
-		}
-		a, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
-	}
-	return nil, status.Errorf(codes.Internal, "Failed to update application spec. Too many conflicts")
+	return &a.Spec, nil
 }
 
 // Patch patches an application
@@ -367,7 +418,7 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 		return nil, err
 	}
 
-	if err = s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionOverride, appRBACName(*app)); err != nil {
+	if err = s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(*app)); err != nil {
 		return nil, err
 	}
 
@@ -397,19 +448,11 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("Patch type '%s' is not supported", q.PatchType))
 	}
 
-	s.logAppEvent(app, ctx, argo.EventReasonResourceUpdated, fmt.Sprintf("patched application %s/%s", app.Namespace, app.Name))
-
 	err = json.Unmarshal(patchApp, &app)
 	if err != nil {
 		return nil, err
 	}
-
-	err = s.validateAndNormalizeApp(ctx, app)
-	if err != nil {
-		return nil, err
-	}
-
-	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(app)
+	return s.validateAndUpdateApp(ctx, app, false)
 }
 
 // Delete removes an application and all associated resources
@@ -797,6 +840,13 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{Repo: repo, Revision: q.GetRevision()})
 }
 
+func isMatchingResource(q *application.ResourcesQuery, key kube.ResourceKey) bool {
+	return (q.Name == "" || q.Name == key.Name) &&
+		(q.Namespace == "" || q.Namespace == key.Namespace) &&
+		(q.Group == "" || q.Group == key.Group) &&
+		(q.Kind == "" || q.Kind == key.Kind)
+}
+
 func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQuery) (*application.ManagedResourcesResponse, error) {
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.ApplicationName, metav1.GetOptions{})
 	if err != nil {
@@ -812,7 +862,15 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 	if err != nil {
 		return nil, err
 	}
-	return &application.ManagedResourcesResponse{Items: items}, nil
+	res := &application.ManagedResourcesResponse{}
+	for i := range items {
+		item := items[i]
+		if isMatchingResource(q, kube.ResourceKey{Name: item.Name, Namespace: item.Namespace, Kind: item.Kind, Group: item.Group}) {
+			res.Items = append(res.Items, item)
+		}
+	}
+
+	return res, nil
 }
 
 func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.ApplicationService_PodLogsServer) error {
@@ -944,14 +1002,9 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 			return nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.Revision, a.Spec.Source.TargetRevision)
 		}
 	}
-
-	revision := a.Spec.Source.TargetRevision
-	displayRevision := revision
-	if !a.Spec.Source.IsHelm() {
-		revision, displayRevision, err = s.resolveRevision(ctx, a, syncReq)
-		if err != nil {
-			return nil, status.Errorf(codes.FailedPrecondition, err.Error())
-		}
+	revision, displayRevision, err := s.resolveRevision(ctx, a, syncReq)
+	if err != nil {
+		return nil, status.Errorf(codes.FailedPrecondition, err.Error())
 	}
 	var syncOptions appv1.SyncOptions
 	if a.Spec.SyncPolicy != nil {
@@ -1041,24 +1094,52 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	if ambiguousRevision == "" {
 		ambiguousRevision = app.Spec.Source.TargetRevision
 	}
-	if git.IsCommitSHA(ambiguousRevision) {
-		// If it's already a commit SHA, then no need to look it up
-		return ambiguousRevision, ambiguousRevision, nil
+	var revision string
+	if app.Spec.Source.IsHelm() {
+		repo, err := s.db.GetRepository(ctx, app.Spec.Source.RepoURL)
+		if err != nil {
+			return "", "", err
+		}
+		if helm.IsVersion(ambiguousRevision) {
+			return ambiguousRevision, ambiguousRevision, nil
+		}
+		client := helm.NewClient(repo.Repo, repo.GetHelmCreds())
+		index, err := client.GetIndex()
+		if err != nil {
+			return "", "", err
+		}
+		entries, err := index.GetEntries(app.Spec.Source.Chart)
+		if err != nil {
+			return "", "", err
+		}
+		constraints, err := semver.NewConstraint(ambiguousRevision)
+		if err != nil {
+			return "", "", err
+		}
+		version, err := entries.MaxVersion(constraints)
+		if err != nil {
+			return "", "", err
+		}
+		return version.String(), fmt.Sprintf("%v (%v)", ambiguousRevision, version.String()), nil
+	} else {
+		if git.IsCommitSHA(ambiguousRevision) {
+			// If it's already a commit SHA, then no need to look it up
+			return ambiguousRevision, ambiguousRevision, nil
+		}
+		repo, err := s.db.GetRepository(ctx, app.Spec.Source.RepoURL)
+		if err != nil {
+			return "", "", err
+		}
+		gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled())
+		if err != nil {
+			return "", "", err
+		}
+		revision, err = gitClient.LsRemote(ambiguousRevision)
+		if err != nil {
+			return "", "", err
+		}
+		return revision, fmt.Sprintf("%s (%s)", ambiguousRevision, revision), nil
 	}
-	repo, err := s.db.GetRepository(ctx, app.Spec.Source.RepoURL)
-	if err != nil {
-		return "", "", err
-	}
-	gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled())
-	if err != nil {
-		return "", "", err
-	}
-	commitSHA, err := gitClient.LsRemote(ambiguousRevision)
-	if err != nil {
-		return "", "", err
-	}
-	displayRevision := fmt.Sprintf("%s (%s)", ambiguousRevision, commitSHA)
-	return commitSHA, displayRevision, nil
 }
 
 func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.OperationTerminateRequest) (*application.OperationTerminateResponse, error) {
@@ -1226,8 +1307,9 @@ func (s *Server) plugins() ([]*v1alpha1.ConfigManagementPlugin, error) {
 		return nil, err
 	}
 	tools := make([]*v1alpha1.ConfigManagementPlugin, len(plugins))
-	for i, plugin := range plugins {
-		tools[i] = &plugin
+	for i, p := range plugins {
+		p := p
+		tools[i] = &p
 	}
 	return tools, nil
 }

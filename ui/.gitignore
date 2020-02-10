@@ -3,3 +3,4 @@ dist
 .vscode
 junit.xml
 coverage
+/yarn-error.log

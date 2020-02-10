@@ -1,6 +1,6 @@
 # Disaster Recovery
 
-You can use `argocd-util` can be used to import and export all Argo CD data.
+You can use `argocd-util` to import and export all Argo CD data.
 
 Make sure you have `~/.kube/config` pointing to your Argo CD cluster.
 
@@ -23,3 +23,6 @@ Import from a backup:
 ```bash
 docker run -v ~/.kube:/home/argocd/.kube --rm argoproj/argocd:$VERSION argocd-util import - < backup.yaml
 ```
+
+!!! note
+    If you are running Argo CD on a namespace different than default remember to pass the namespace parameter (-n <namespace>). 'argocd-util export' will not fail if you run it in the wrong namespace.

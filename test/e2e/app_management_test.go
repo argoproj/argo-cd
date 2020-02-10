@@ -11,11 +11,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/pkg/errors"
+
+	log "github.com/sirupsen/logrus"
+
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
+	networkingv1beta "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/common"
@@ -38,7 +44,9 @@ const (
 )
 
 func TestAppCreation(t *testing.T) {
-	Given(t).
+	ctx := Given(t)
+
+	ctx.
 		Path(guestbookPath).
 		When().
 		Create().
@@ -57,6 +65,25 @@ func TestAppCreation(t *testing.T) {
 			output, err := RunCli("app", "list")
 			assert.NoError(t, err)
 			assert.Contains(t, output, Name())
+		}).
+		When().
+		// ensure that create is idempotent
+		Create().
+		Then().
+		Given().
+		Revision("master").
+		When().
+		// ensure that update replaces spec and merge labels and annotations
+		And(func() {
+			FailOnErr(AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Patch(
+				ctx.GetName(), types.MergePatchType, []byte(`{"metadata": {"labels": { "test": "label" }, "annotations": { "test": "annotation" }}}`)))
+		}).
+		Create("--upsert").
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, "label", app.Labels["test"])
+			assert.Equal(t, "annotation", app.Annotations["test"])
+			assert.Equal(t, "master", app.Spec.Source.TargetRevision)
 		})
 }
 
@@ -94,7 +121,7 @@ func TestImmutableChange(t *testing.T) {
 			SyncPhase: "Sync",
 			Status:    "SyncFailed",
 			HookPhase: "Failed",
-			Message:   fmt.Sprintf(`kubectl failed exit status 1: The Service "my-service" is invalid: spec.clusterIP: Invalid value: "%s": field is immutable`, ip2),
+			Message:   fmt.Sprintf(`Service "my-service" is invalid: spec.clusterIP: Invalid value: "%s": field is immutable`, ip2),
 		})).
 		// now we can do this will a force
 		Given().
@@ -340,6 +367,13 @@ func TestAppWithSecrets(t *testing.T) {
 			})).(*applicationpkg.ApplicationResourceResponse)
 			assetSecretDataHidden(t, res.Manifest)
 
+			manifests, err := client.GetManifests(context.Background(), &applicationpkg.ApplicationManifestQuery{Name: &app.Name})
+			errors.CheckError(err)
+
+			for _, manifest := range manifests.Manifests {
+				assetSecretDataHidden(t, manifest)
+			}
+
 			diffOutput := FailOnErr(RunCli("app", "diff", app.Name)).(string)
 			assert.Empty(t, diffOutput)
 
@@ -366,7 +400,7 @@ func TestAppWithSecrets(t *testing.T) {
 
 			// ignore missing field and make sure diff shows no difference
 			app.Spec.IgnoreDifferences = []ResourceIgnoreDifferences{{
-				Kind: kube.SecretKind, JSONPointers: []string{"/data/username", "/data/password"},
+				Kind: kube.SecretKind, JSONPointers: []string{"/data"},
 			}}
 			FailOnErr(client.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: app.Spec}))
 		}).
@@ -593,6 +627,18 @@ func TestLocalManifestSync(t *testing.T) {
 		})
 }
 
+func TestLocalSync(t *testing.T) {
+	Given(t).
+		// we've got to use Helm as this uses kubeVersion
+		Path("helm").
+		When().
+		Create().
+		Then().
+		And(func(app *Application) {
+			FailOnErr(RunCli("app", "sync", app.Name, "--local", "testdata/helm"))
+		})
+}
+
 func TestNoLocalSyncWithAutosyncEnabled(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
@@ -806,6 +852,29 @@ func TestExcludedResource(t *testing.T) {
 		Expect(Condition(ApplicationConditionExcludedResourceWarning, "Resource apps/Deployment guestbook-ui is excluded in the settings"))
 }
 
+func TestRevisionHistoryLimit(t *testing.T) {
+	Given(t).
+		Path("config-map").
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Len(t, app.Status.History, 1)
+		}).
+		When().
+		AppSet("--revision-history-limit", "1").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Len(t, app.Status.History, 1)
+		})
+}
+
 func TestOrphanedResource(t *testing.T) {
 	Given(t).
 		ProjectSpec(AppProjectSpec{
@@ -842,4 +911,90 @@ func TestOrphanedResource(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(NoConditions())
+}
+
+func TestNotPermittedResources(t *testing.T) {
+	ctx := Given(t)
+
+	ingress := &networkingv1beta.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "sample-ingress",
+			Labels: map[string]string{
+				common.LabelKeyAppInstance: ctx.GetName(),
+			},
+		},
+		Spec: networkingv1beta.IngressSpec{
+			Rules: []networkingv1beta.IngressRule{{
+				IngressRuleValue: networkingv1beta.IngressRuleValue{
+					HTTP: &networkingv1beta.HTTPIngressRuleValue{
+						Paths: []networkingv1beta.HTTPIngressPath{{
+							Path: "/",
+							Backend: networkingv1beta.IngressBackend{
+								ServiceName: "guestbook-ui",
+								ServicePort: intstr.IntOrString{Type: intstr.Int, IntVal: 80},
+							},
+						}},
+					},
+				},
+			}},
+		},
+	}
+	defer func() {
+		log.Infof("Ingress 'sample-ingress' deleted from %s", ArgoCDNamespace)
+		CheckError(KubeClientset.NetworkingV1beta1().Ingresses(ArgoCDNamespace).Delete("sample-ingress", &metav1.DeleteOptions{}))
+	}()
+
+	svc := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "guestbook-ui",
+			Labels: map[string]string{
+				common.LabelKeyAppInstance: ctx.GetName(),
+			},
+		},
+		Spec: v1.ServiceSpec{
+			Ports: []v1.ServicePort{{
+				Port:       80,
+				TargetPort: intstr.IntOrString{Type: intstr.Int, IntVal: 80},
+			}},
+			Selector: map[string]string{
+				"app": "guestbook-ui",
+			},
+		},
+	}
+
+	ctx.ProjectSpec(AppProjectSpec{
+		SourceRepos:  []string{"*"},
+		Destinations: []ApplicationDestination{{Namespace: DeploymentNamespace(), Server: "*"}},
+		NamespaceResourceBlacklist: []metav1.GroupKind{
+			{Group: "", Kind: "Service"},
+		}}).
+		And(func() {
+			FailOnErr(KubeClientset.NetworkingV1beta1().Ingresses(ArgoCDNamespace).Create(ingress))
+			FailOnErr(KubeClientset.CoreV1().Services(DeploymentNamespace()).Create(svc))
+		}).
+		Path(guestbookPath).
+		When().
+		Create().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		And(func(app *Application) {
+			statusByKind := make(map[string]ResourceStatus)
+			for _, res := range app.Status.Resources {
+				statusByKind[res.Kind] = res
+			}
+			_, hasIngress := statusByKind[kube.IngressKind]
+			assert.False(t, hasIngress, "Ingress is prohibited not managed object and should be even visible to user")
+			serviceStatus := statusByKind[kube.ServiceKind]
+			assert.Equal(t, serviceStatus.Status, SyncStatusCodeUnknown, "Service is prohibited managed resource so should be set to Unknown")
+			deploymentStatus := statusByKind[kube.DeploymentKind]
+			assert.Equal(t, deploymentStatus.Status, SyncStatusCodeOutOfSync)
+		}).
+		When().
+		Delete(true).
+		Then().
+		Expect(DoesNotExist())
+
+	// Make sure prohibited resources are not deleted during application deletion
+	FailOnErr(KubeClientset.NetworkingV1beta1().Ingresses(ArgoCDNamespace).Get("sample-ingress", metav1.GetOptions{}))
+	FailOnErr(KubeClientset.CoreV1().Services(DeploymentNamespace()).Get("guestbook-ui", metav1.GetOptions{}))
 }

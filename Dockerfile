@@ -4,7 +4,7 @@ ARG BASE_IMAGE=debian:10-slim
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM golang:1.12.6 as builder
+FROM golang:1.13.7 as builder
 
 RUN echo 'deb http://deb.debian.org/debian buster-backports main' >> /etc/apt/sources.list
 
@@ -32,7 +32,6 @@ RUN ./install.sh kubectl-linux
 RUN ./install.sh ksonnet-linux
 RUN ./install.sh helm-linux
 RUN ./install.sh kustomize-linux
-RUN ./install.sh aws-iam-authenticator-linux
 
 ####################################################################################################
 # Argo CD Base - used as the base for both the release and dev argocd images
@@ -50,8 +49,9 @@ RUN groupadd -g 999 argocd && \
     chmod g=u /home/argocd && \
     chmod g=u /etc/passwd && \
     apt-get update && \
-    apt-get install -y git git-lfs && \
+    apt-get install -y git git-lfs python3-pip && \
     apt-get clean && \
+    pip3 install awscli==1.17.7 && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY hack/git-ask-pass.sh /usr/local/bin/git-ask-pass.sh
@@ -59,7 +59,6 @@ COPY --from=builder /usr/local/bin/ks /usr/local/bin/ks
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
 COPY --from=builder /usr/local/bin/kubectl /usr/local/bin/kubectl
 COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
-COPY --from=builder /usr/local/bin/aws-iam-authenticator /usr/local/bin/aws-iam-authenticator
 # script to add current (possibly arbitrary) user to /etc/passwd at runtime
 # (if it's not already there, to be openshift friendly)
 COPY uid_entrypoint.sh /usr/local/bin/uid_entrypoint.sh
@@ -96,7 +95,7 @@ RUN NODE_ENV='production' yarn build
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
 ####################################################################################################
-FROM golang:1.12.6 as argocd-build
+FROM golang:1.13.7 as argocd-build
 
 COPY --from=builder /usr/local/bin/dep /usr/local/bin/dep
 COPY --from=builder /usr/local/bin/packr /usr/local/bin/packr
@@ -115,7 +114,8 @@ RUN cd ${GOPATH}/src/dummy && \
 WORKDIR /go/src/github.com/argoproj/argo-cd
 COPY . .
 RUN make cli server controller repo-server argocd-util && \
-    make CLI_NAME=argocd-darwin-amd64 GOOS=darwin cli
+    make CLI_NAME=argocd-darwin-amd64 GOOS=darwin cli && \
+    make CLI_NAME=argocd-windows-amd64.exe GOOS=windows cli
 
 
 ####################################################################################################

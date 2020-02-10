@@ -1,11 +1,12 @@
-import {Checkbox, DataLoader, DropDownMenu, FormField, Select} from 'argo-ui';
+import {AutocompleteField, Checkbox, DataLoader, DropDownMenu, FormField, Select} from 'argo-ui';
 import * as deepMerge from 'deepmerge';
 import * as React from 'react';
 import {FieldApi, Form, FormApi, FormField as ReactFormField, Text} from 'react-form';
-import {AutocompleteField, clusterTitle, RevisionHelpIcon, ValueArrayInputField, YamlEditor} from '../../../shared/components';
+import {clusterTitle, RevisionHelpIcon, YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
+import {ApplicationSyncOptionsField} from '../application-sync-options';
 
 const jsonMergePatch = require('json-merge-patch');
 
@@ -183,7 +184,7 @@ export const ApplicationCreatePanel = (props: {
                                                 </div>
                                                 <div className='argo-form-row'>
                                                     <label>Sync Options</label>
-                                                    <FormField formApi={api} field='spec.syncPolicy.syncOptions' component={ValueArrayInputField} />
+                                                    <FormField formApi={api} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsField} />
                                                 </div>
                                             </div>
                                         );
@@ -349,7 +350,11 @@ export const ApplicationCreatePanel = (props: {
                                                     if (details.type !== type) {
                                                         switch (type) {
                                                             case 'Helm':
-                                                                details = {type, path: details.path, helm: {name: '', valueFiles: [], path: '', parameters: []}};
+                                                                details = {
+                                                                    type,
+                                                                    path: details.path,
+                                                                    helm: {name: '', valueFiles: [], path: '', parameters: [], fileParameters: []}
+                                                                };
                                                                 break;
                                                             case 'Kustomize':
                                                                 details = {type, path: details.path, kustomize: {path: ''}};

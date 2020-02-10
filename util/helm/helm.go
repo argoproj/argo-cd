@@ -10,10 +10,10 @@ import (
 	"regexp"
 	"strings"
 
-	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/ghodss/yaml"
 
 	"github.com/argoproj/argo-cd/util/config"
+	executil "github.com/argoproj/argo-cd/util/exec"
 )
 
 type HelmRepository struct {
@@ -87,10 +87,7 @@ func (h *helm) Dispose() {
 
 func Version() (string, error) {
 	cmd := exec.Command("helm", "version", "--client")
-	out, err := argoexec.RunCommandExt(cmd, argoexec.CmdOpts{
-		Timeout:  config.CmdOpts().Timeout,
-		Redactor: redactor,
-	})
+	out, err := executil.RunWithRedactor(cmd, redactor)
 	if err != nil {
 		return "", fmt.Errorf("could not get helm version: %s", err)
 	}

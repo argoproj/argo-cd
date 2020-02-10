@@ -49,7 +49,7 @@ spec:
     targetRevision: HEAD
 ``` 
 
-The sync policy to automated + prune, so that child app is are automatically created, synced, and deleted when the manifest is changed, but you may wish to disable this. I've also added the finalizer, which will ensure that you apps are deleted correctly.
+The sync policy to automated + prune, so that child apps are automatically created, synced, and deleted when the manifest is changed, but you may wish to disable this. I've also added the finalizer, which will ensure that your apps are deleted correctly.
 
 Fix the revision to a specific Git commit SHA to make sure that, even if the child apps repo changes, the app will only change when the parent app change that revision. Alternatively, you can set it to HEAD or a branch name.
 
@@ -82,7 +82,7 @@ You can either sync via the UI, firstly filter by the correct label:
 
 ![Filter Apps](../assets/filter-apps.png)
 
-The select the "out of sync" apps and sync: 
+Then select the "out of sync" apps and sync: 
 
 ![Sync Apps](../assets/sync-apps.png)
 
