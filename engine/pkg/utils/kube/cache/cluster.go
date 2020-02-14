@@ -51,6 +51,8 @@ type Settings struct {
 	ResourcesFilter        kube.ResourceFilter
 }
 
+var handlerKey uint64
+
 type OnEventHandler func(event watch.EventType, un *unstructured.Unstructured)
 type OnPopulateResourceInfoHandler func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool)
 type OnResourceUpdatedHandler func(newRes *Resource, oldRes *Resource, namespaceResources map[kube.ResourceKey]*Resource)
@@ -107,34 +109,43 @@ type clusterCache struct {
 	namespaces []string
 	settings   Settings
 
+	handlersLock                sync.Mutex
 	populateResourceInfoHandler OnPopulateResourceInfoHandler
 	resourceUpdatedHandlers     map[uint64]OnResourceUpdatedHandler
 	eventHandlers               map[uint64]OnEventHandler
 }
 
 func (c *clusterCache) SetPopulateResourceInfoHandler(handler OnPopulateResourceInfoHandler) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.handlersLock.Lock()
+	defer c.handlersLock.Unlock()
 	c.populateResourceInfoHandler = handler
 }
 
 func (c *clusterCache) OnResourceUpdated(handler OnResourceUpdatedHandler) Unsubscribe {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.handlersLock.Lock()
+	defer c.handlersLock.Unlock()
 	key := atomic.AddUint64(&handlerKey, 1)
 	c.resourceUpdatedHandlers[key] = handler
 	return func() {
-		c.lock.Lock()
-		defer c.lock.Unlock()
+		c.handlersLock.Lock()
+		defer c.handlersLock.Unlock()
 		delete(c.resourceUpdatedHandlers, key)
 	}
 }
 
-var handlerKey uint64
+func (c *clusterCache) getResourceUpdatedHandlers() []OnResourceUpdatedHandler {
+	c.handlersLock.Lock()
+	defer c.handlersLock.Unlock()
+	var handlers []OnResourceUpdatedHandler
+	for _, h := range c.resourceUpdatedHandlers {
+		handlers = append(handlers, h)
+	}
+	return handlers
+}
 
 func (c *clusterCache) OnEvent(handler OnEventHandler) Unsubscribe {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.handlersLock.Lock()
+	defer c.handlersLock.Unlock()
 	key := atomic.AddUint64(&handlerKey, 1)
 	c.eventHandlers[key] = handler
 	return func() {
@@ -142,6 +153,16 @@ func (c *clusterCache) OnEvent(handler OnEventHandler) Unsubscribe {
 		defer c.lock.Unlock()
 		delete(c.eventHandlers, key)
 	}
+}
+
+func (c *clusterCache) getEventHandlers() []OnEventHandler {
+	c.handlersLock.Lock()
+	defer c.handlersLock.Unlock()
+	var handlers []OnEventHandler
+	for _, h := range c.eventHandlers {
+		handlers = append(handlers, h)
+	}
+	return handlers
 }
 
 func (c *clusterCache) GetServerVersion() string {
@@ -678,7 +699,7 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 }
 
 func (c *clusterCache) processEvent(event watch.EventType, un *unstructured.Unstructured) {
-	for _, h := range c.eventHandlers {
+	for _, h := range c.getEventHandlers() {
 		h(event, un)
 	}
 	key := kube.GetResourceKey(un)
@@ -701,7 +722,7 @@ func (c *clusterCache) processEvent(event watch.EventType, un *unstructured.Unst
 func (c *clusterCache) onNodeUpdated(oldRes *Resource, un *unstructured.Unstructured) {
 	newRes := c.newResource(un)
 	c.setNode(newRes)
-	for _, h := range c.resourceUpdatedHandlers {
+	for _, h := range c.getResourceUpdatedHandlers() {
 		h(newRes, oldRes, c.nsIndex[newRes.Ref.Namespace])
 	}
 }
@@ -717,7 +738,7 @@ func (c *clusterCache) onNodeRemoved(key kube.ResourceKey) {
 				delete(c.nsIndex, key.Namespace)
 			}
 		}
-		for _, h := range c.resourceUpdatedHandlers {
+		for _, h := range c.getResourceUpdatedHandlers() {
 			h(nil, existing, ns)
 		}
 	}
