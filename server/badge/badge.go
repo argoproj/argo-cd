@@ -101,7 +101,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		rightColorString = toRGBString(Grey)
 	}
 
-	leftText := string(health)
+	leftText := health
 	rightText := string(status)
 
 	if notFound {
