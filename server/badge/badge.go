@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
-	"strings"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,10 +27,18 @@ type Handler struct {
 }
 
 var (
-	leftRectColorPattern  = regexp.MustCompile(`id="leftRect" fill="([^"]*)"`)
-	rightRectColorPattern = regexp.MustCompile(`id="rightRect" fill="([^"]*)"`)
-	leftTextPattern       = regexp.MustCompile(`id="leftText" [^>]*>([^<]*)`)
-	rightTextPattern      = regexp.MustCompile(`id="rightText" [^>]*>([^<]*)`)
+	svgWidthPattern          = regexp.MustCompile(`^<svg width="([^"]*)"`)
+	displayNonePattern       = regexp.MustCompile(`display="none"`)
+	leftRectColorPattern     = regexp.MustCompile(`id="leftRect" fill="([^"]*)"`)
+	rightRectColorPattern    = regexp.MustCompile(`id="rightRect" fill="([^"]*)"`)
+	revisionRectColorPattern = regexp.MustCompile(`id="revisionRect" fill="([^"]*)"`)
+	leftTextPattern          = regexp.MustCompile(`id="leftText" [^>]*>([^<]*)`)
+	rightTextPattern         = regexp.MustCompile(`id="rightText" [^>]*>([^<]*)`)
+	revisionTextPattern      = regexp.MustCompile(`id="revisionText" [^>]*>([^<]*)`)
+)
+
+const (
+	svgWidthWithRevision = 192
 )
 
 func replaceFirstGroupSubMatch(re *regexp.Regexp, str string, repl string) string {
@@ -56,6 +63,8 @@ func replaceFirstGroupSubMatch(re *regexp.Regexp, str string, repl string) strin
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	health := appv1.HealthStatusUnknown
 	status := appv1.SyncStatusCodeUnknown
+	revision := ""
+	revisionEnabled := false
 	enabled := false
 	notFound := false
 	if sets, err := h.settingsMgr.GetSettings(); err == nil {
@@ -63,18 +72,19 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Sample url: http://localhost:8080/api/badge?name=123
-	if keys, ok := r.URL.Query()["name"]; ok && enabled {
-		key := keys[0]
-		//if another query is added after the application name and is separated by a / this will make sure it only looks at
-		//what is between the name= and / and will open the applicaion by that name
-		q := strings.Split(key, "/")
-		key = q[0]
-		if app, err := h.appClientset.ArgoprojV1alpha1().Applications(h.namespace).Get(key, v1.GetOptions{}); err == nil {
+	if name, ok := r.URL.Query()["name"]; ok && enabled {
+		if app, err := h.appClientset.ArgoprojV1alpha1().Applications(h.namespace).Get(name[0], v1.GetOptions{}); err == nil {
 			health = app.Status.Health.Status
 			status = app.Status.Sync.Status
+			revision = app.Status.OperationState.SyncResult.Revision
 		} else if errors.IsNotFound(err) {
 			notFound = true
 		}
+	}
+
+	//Sample url: http://localhost:8080/api/badge?name=123&revision=true
+	if _, ok := r.URL.Query()["revision"]; ok && enabled {
+		revisionEnabled = true
 	}
 
 	leftColorString := ""
@@ -104,6 +114,15 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	badge = rightRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="rightRect" fill="%s" $2`, rightColorString))
 	badge = replaceFirstGroupSubMatch(leftTextPattern, badge, leftText)
 	badge = replaceFirstGroupSubMatch(rightTextPattern, badge, rightText)
+
+	if !notFound && revisionEnabled {
+		// Increase width of SVG and enable display of revision components
+		badge = svgWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`<svg width="%d" $2`, svgWidthWithRevision))
+		badge = displayNonePattern.ReplaceAllString(badge, `display="inline"`)
+		badge = revisionRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="revisionRect" fill="%s" $2`, rightColorString))
+		badge = replaceFirstGroupSubMatch(revisionTextPattern, badge, fmt.Sprintf("(%s)", revision[:7]))
+	}
+
 	w.Header().Set("Content-Type", "image/svg+xml")
 
 	//Ask cache's to not cache the contents in order prevent the badge from becoming stale
