@@ -27,22 +27,11 @@ type Handler struct {
 	settingsMgr  *settings.SettingsManager
 }
 
-const (
-	unknown     = "rgb(178,102,255)"
-	success     = "#18be52"
-	warning     = "#f4c030"
-	failed      = "#E96D76"
-	progressing = "#0DADEA"
-	suspended   = "#CCD6DD"
-)
-
 var (
-	leftPathColorPattern  = regexp.MustCompile(`id="leftPath" fill="([^"]*)"`)
-	rightPathColorPattern = regexp.MustCompile(`id="rightPath" fill="([^"]*)"`)
-	leftText1Pattern      = regexp.MustCompile(`id="leftText1" [^>]*>([^<]*)`)
-	leftText2Pattern      = regexp.MustCompile(`id="leftText2" [^>]*>([^<]*)`)
-	rightText1Pattern     = regexp.MustCompile(`id="rightText1" [^>]*>([^<]*)`)
-	rightText2Pattern     = regexp.MustCompile(`id="rightText2" [^>]*>([^<]*)`)
+	leftRectColorPattern  = regexp.MustCompile(`id="leftRect" fill="([^"]*)"`)
+	rightRectColorPattern = regexp.MustCompile(`id="rightRect" fill="([^"]*)"`)
+	leftTextPattern       = regexp.MustCompile(`id="leftText" [^>]*>([^<]*)`)
+	rightTextPattern      = regexp.MustCompile(`id="rightText" [^>]*>([^<]*)`)
 )
 
 func replaceFirstGroupSubMatch(re *regexp.Regexp, str string, repl string) string {
@@ -88,45 +77,33 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	leftColor := ""
-	rightColor := ""
-	leftText := health
+	leftColorString := ""
+	if leftColor, ok := HealthStatusColors[health]; ok {
+		leftColorString = toRGBString(leftColor)
+	} else {
+		leftColorString = toRGBString(Grey)
+	}
+
+	rightColorString := ""
+	if rightColor, ok := SyncStatusColors[status]; ok {
+		rightColorString = toRGBString(rightColor)
+	} else {
+		rightColorString = toRGBString(Grey)
+	}
+
+	leftText := string(health)
 	rightText := string(status)
+
 	if notFound {
 		leftText = "Not Found"
 		rightText = ""
 	}
 
-	switch health {
-	case appv1.HealthStatusHealthy:
-		leftColor = success
-	case appv1.HealthStatusProgressing:
-		leftColor = progressing
-	case appv1.HealthStatusSuspended:
-		leftColor = suspended
-	case appv1.HealthStatusDegraded:
-		leftColor = failed
-	case appv1.HealthStatusMissing:
-		leftColor = unknown
-	default:
-		leftColor = unknown
-	}
-
-	switch status {
-	case appv1.SyncStatusCodeSynced:
-		rightColor = success
-	case appv1.SyncStatusCodeOutOfSync:
-		rightColor = warning
-	default:
-		rightColor = unknown
-	}
 	badge := assets.BadgeSVG
-	badge = leftPathColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="leftPath" fill="%s" $2`, leftColor))
-	badge = rightPathColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="rightPath" fill="%s" $2`, rightColor))
-	badge = replaceFirstGroupSubMatch(leftText1Pattern, badge, leftText)
-	badge = replaceFirstGroupSubMatch(leftText2Pattern, badge, leftText)
-	badge = replaceFirstGroupSubMatch(rightText1Pattern, badge, rightText)
-	badge = replaceFirstGroupSubMatch(rightText2Pattern, badge, rightText)
+	badge = leftRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="leftRect" fill="%s" $2`, leftColorString))
+	badge = rightRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="rightRect" fill="%s" $2`, rightColorString))
+	badge = replaceFirstGroupSubMatch(leftTextPattern, badge, leftText)
+	badge = replaceFirstGroupSubMatch(rightTextPattern, badge, rightText)
 	w.Header().Set("Content-Type", "image/svg+xml")
 
 	//Ask cache's to not cache the contents in order prevent the badge from becoming stale

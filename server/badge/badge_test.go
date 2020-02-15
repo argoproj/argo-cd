@@ -57,10 +57,10 @@ func TestHandlerFeatureIsEnabled(t *testing.T) {
 	assert.Equal(t, "private, no-store", rr.Header().Get("Cache-Control"))
 
 	response := rr.Body.String()
-	assert.Equal(t, success, leftPathColorPattern.FindStringSubmatch(response)[1])
-	assert.Equal(t, success, rightPathColorPattern.FindStringSubmatch(response)[1])
-	assert.Equal(t, "Healthy", leftText1Pattern.FindStringSubmatch(response)[1])
-	assert.Equal(t, "Synced", rightText1Pattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, toRGBString(Green), leftRectColorPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, toRGBString(Green), rightRectColorPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, "Healthy", leftTextPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
 }
 
 func TestHandlerFeatureIsDisabled(t *testing.T) {
@@ -79,8 +79,8 @@ func TestHandlerFeatureIsDisabled(t *testing.T) {
 	assert.Equal(t, "private, no-store", rr.Header().Get("Cache-Control"))
 
 	response := rr.Body.String()
-	assert.Equal(t, unknown, leftPathColorPattern.FindStringSubmatch(response)[1])
-	assert.Equal(t, unknown, rightPathColorPattern.FindStringSubmatch(response)[1])
-	assert.Equal(t, "Unknown", leftText1Pattern.FindStringSubmatch(response)[1])
-	assert.Equal(t, "Unknown", rightText1Pattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, toRGBString(Purple), leftRectColorPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, toRGBString(Purple), rightRectColorPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, "Unknown", leftTextPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, "Unknown", rightTextPattern.FindStringSubmatch(response)[1])
 }
