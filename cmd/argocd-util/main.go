@@ -3,12 +3,14 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"reflect"
+	"strings"
 	"syscall"
 
 	"github.com/ghodss/yaml"
@@ -29,6 +31,7 @@ import (
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/dex"
+	"github.com/argoproj/argo-cd/util/jwt/zjwt"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/settings"
 
@@ -73,9 +76,53 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewExportCommand())
 	command.AddCommand(NewClusterConfig())
 	command.AddCommand(NewProjectsCommand())
+	command.AddCommand(NewDecompressZJWTCommand())
 
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	return command
+}
+
+// Decompresses a ZJWT token and possibly prints the JSON data to stdout.
+// Input can either be plain, uncompressed JWT or compressed ZJWT.
+func NewDecompressZJWTCommand() *cobra.Command {
+	var (
+		decodeToJSON bool
+	)
+	var command = cobra.Command{
+		Use: "decompress-token",
+		Short: "Decompress a compressed JWT (ZJWT) token read on stdin into human readable form",
+		Run: func(c *cobra.Command, args []string) {
+			r := bufio.NewReader(os.Stdin)
+			fmt.Println("Enter zJWT token on a single line:")
+			inputToken, err := r.ReadString('\n')
+			errors.CheckError(err)
+			if strings.TrimSpace(inputToken) == "" {
+				fmt.Println("No data found, abort.")
+				return
+			}
+			outputToken, err := zjwt.JWT(inputToken)
+			errors.CheckError(err)
+			
+			if !decodeToJSON {
+				fmt.Printf("Uncompressed JWT:\n%s\n", outputToken)
+			} else {
+				token := strings.SplitN(outputToken, ".", 3)
+				if len(token) != 3 {
+					errors.CheckError(fmt.Errorf("Invalid input data."))
+				}
+				encoding := base64.RawStdEncoding
+				header, err := encoding.DecodeString(token[0])
+				errors.CheckError(err)
+				fmt.Printf("Header:\n%s\n", header)
+				body, err := encoding.DecodeString(token[1])
+				errors.CheckError(err)
+				fmt.Printf("Body:\n%s\n", body)
+				fmt.Printf("Sig:\n%s\n", token[2])
+			}
+		},
+	}
+	command.Flags().BoolVar(&decodeToJSON, "decode", false, "Decode and print the decompressed JWT into JSON")
+	return &command
 }
 
 func NewRunDexCommand() *cobra.Command {
