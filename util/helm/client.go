@@ -188,7 +188,10 @@ func (c *nativeHelmChart) GetIndex() (*Index, error) {
 	if err != nil {
 		return nil, err
 	}
-	tr := &http.Transport{TLSClientConfig: tlsConf}
+	tr := &http.Transport{
+		Proxy:           http.ProxyFromEnvironment,
+		TLSClientConfig: tlsConf,
+	}
 	client := http.Client{Transport: tr}
 	resp, err := client.Do(req)
 	if err != nil {

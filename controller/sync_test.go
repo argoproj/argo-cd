@@ -365,6 +365,20 @@ func TestSyncOptionValidate(t *testing.T) {
 	}
 }
 
+// make sure Validate means we don't validate
+func TestSyncValidate(t *testing.T) {
+	syncCtx := newTestSyncCtx()
+	pod := test.NewPod()
+	pod.SetNamespace(test.FakeArgoCDNamespace)
+	syncCtx.compareResult = &comparisonResult{managedResources: []managedResource{{Target: pod, Live: pod}}}
+	syncCtx.syncOp.SyncOptions = SyncOptions{"Validate=false"}
+
+	syncCtx.sync()
+
+	kubectl := syncCtx.kubectl.(*kubetest.MockKubectlCmd)
+	assert.False(t, kubectl.LastValidate)
+}
+
 func TestSelectiveSyncOnly(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	pod1 := test.NewPod()

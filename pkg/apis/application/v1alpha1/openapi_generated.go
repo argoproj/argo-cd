@@ -2960,6 +2960,20 @@ func schema_pkg_apis_application_v1alpha1_SyncOperation(ref common.ReferenceCall
 							},
 						},
 					},
+					"syncOptions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SyncOptions provide per-sync sync-options, e.g. Validate=false",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -3053,6 +3067,20 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicy(ref common.ReferenceCallbac
 						SchemaProps: spec.SchemaProps{
 							Description: "Automated will keep an application synced to the target revision",
 							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncPolicyAutomated"),
+						},
+					},
+					"syncOptions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Options allow youe to specify whole app sync-options",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
 						},
 					},
 				},

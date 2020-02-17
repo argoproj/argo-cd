@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.2 (2020-01-24)
+
+- fix: correctly replace cache in namespace isolation mode (#3023)
+
+## v1.4.1 (2020-01-23)
+
+- fix: impossible to config RBAC if group name includes ',' (#3013)
+
 ## v1.4.0 (2020-01-17)
 
 The v1.4.0 is a stability release that brings multiple bug fixes, security, performance enhancements, and multiple usability improvements.
@@ -314,6 +322,10 @@ There may be instances when you want to control the times during which an Argo C
 - API server does not allow creating role with action `action/*` (#2670)
 - Application controller `kubectl-parallelism-limit` flag is broken (#2673)
 - Annoying toolbar flickering (#2691)
+
+## v1.2.5 (2019-10-29)
+
+- Issue #2339 - Don't update `status.reconciledAt` unless compared with latest git version (#2581)
 
 ## v1.2.4 (2019-10-23)
 

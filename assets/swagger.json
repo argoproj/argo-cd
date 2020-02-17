@@ -84,8 +84,8 @@
         "tags": [
           "ApplicationService"
         ],
-        "summary": "ListApplications returns list of applications",
-        "operationId": "ListApplications",
+        "summary": "List returns list of applications",
+        "operationId": "ListMixin8",
         "parameters": [
           {
             "type": "string",
@@ -134,8 +134,8 @@
         "tags": [
           "ApplicationService"
         ],
-        "summary": "CreateApplication creates an application",
-        "operationId": "CreateApplication",
+        "summary": "Create creates an application",
+        "operationId": "CreateMixin8",
         "parameters": [
           {
             "name": "body",
@@ -161,8 +161,8 @@
         "tags": [
           "ApplicationService"
         ],
-        "summary": "UpdateApplication updates an application",
-        "operationId": "UpdateApplication",
+        "summary": "Update updates an application",
+        "operationId": "UpdateMixin8",
         "parameters": [
           {
             "type": "string",
@@ -292,8 +292,8 @@
         "tags": [
           "ApplicationService"
         ],
-        "summary": "GetApplication returns an application by name",
-        "operationId": "GetApplication",
+        "summary": "Get returns an application by name",
+        "operationId": "GetMixin8",
         "parameters": [
           {
             "type": "string",
@@ -342,8 +342,8 @@
         "tags": [
           "ApplicationService"
         ],
-        "summary": "DeleteApplication deletes an application",
-        "operationId": "DeleteApplication",
+        "summary": "Delete deletes an application",
+        "operationId": "DeleteMixin8",
         "parameters": [
           {
             "type": "string",
@@ -981,8 +981,8 @@
         "tags": [
           "ClusterService"
         ],
-        "summary": "ListClusters returns list of clusters",
-        "operationId": "ListClusters",
+        "summary": "List returns list of clusters",
+        "operationId": "List",
         "parameters": [
           {
             "type": "string",
@@ -1003,8 +1003,8 @@
         "tags": [
           "ClusterService"
         ],
-        "summary": "CreateCluster creates a cluster",
-        "operationId": "CreateCluster",
+        "summary": "Create creates a cluster",
+        "operationId": "Create",
         "parameters": [
           {
             "name": "body",
@@ -1030,8 +1030,8 @@
         "tags": [
           "ClusterService"
         ],
-        "summary": "UpdateCluster updates a cluster",
-        "operationId": "UpdateCluster",
+        "summary": "Update updates a cluster",
+        "operationId": "Update",
         "parameters": [
           {
             "type": "string",
@@ -1063,8 +1063,8 @@
         "tags": [
           "ClusterService"
         ],
-        "summary": "GetCluster returns a cluster by server address",
-        "operationId": "GetCluster",
+        "summary": "Get returns a cluster by server address",
+        "operationId": "GetMixin2",
         "parameters": [
           {
             "type": "string",
@@ -1086,8 +1086,8 @@
         "tags": [
           "ClusterService"
         ],
-        "summary": "DeleteCluster deletes a cluster",
-        "operationId": "DeleteCluster",
+        "summary": "Delete deletes a cluster",
+        "operationId": "Delete",
         "parameters": [
           {
             "type": "string",
@@ -1136,8 +1136,8 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "ListProjects returns list of projects",
-        "operationId": "ListProjects",
+        "summary": "List returns list of projects",
+        "operationId": "ListMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1158,8 +1158,8 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "CreateProject a new project.",
-        "operationId": "CreateProject",
+        "summary": "Create a new project.",
+        "operationId": "CreateMixin6",
         "parameters": [
           {
             "name": "body",
@@ -1185,8 +1185,8 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "GetProject returns a project by name",
-        "operationId": "GetProject",
+        "summary": "Get returns a project by name",
+        "operationId": "GetMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1208,8 +1208,8 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "DeleteProject deletes a project",
-        "operationId": "DeleteProject",
+        "summary": "Delete deletes a project",
+        "operationId": "DeleteMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1283,8 +1283,8 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "UpdateProject updates a project",
-        "operationId": "UpdateProject",
+        "summary": "Update updates a project",
+        "operationId": "UpdateMixin6",
         "parameters": [
           {
             "type": "string",
@@ -1743,8 +1743,8 @@
         "tags": [
           "SessionService"
         ],
-        "summary": "CreateSession a new JWT for authentication and set a cookie if using HTTP.",
-        "operationId": "CreateSession",
+        "summary": "Create a new JWT for authentication and set a cookie if using HTTP.",
+        "operationId": "CreateMixin10",
         "parameters": [
           {
             "name": "body",
@@ -1768,8 +1768,8 @@
         "tags": [
           "SessionService"
         ],
-        "summary": "DeleteSession an existing JWT cookie if using HTTP.",
-        "operationId": "DeleteSession",
+        "summary": "Delete an existing JWT cookie if using HTTP.",
+        "operationId": "DeleteMixin10",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -4216,6 +4216,13 @@
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
         },
+        "syncOptions": {
+          "type": "array",
+          "title": "SyncOptions provide per-sync sync-options, e.g. Validate=false",
+          "items": {
+            "type": "string"
+          }
+        },
         "syncStrategy": {
           "$ref": "#/definitions/v1alpha1SyncStrategy"
         }
@@ -4262,6 +4269,13 @@
       "properties": {
         "automated": {
           "$ref": "#/definitions/v1alpha1SyncPolicyAutomated"
+        },
+        "syncOptions": {
+          "type": "array",
+          "title": "Options allow youe to specify whole app sync-options",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

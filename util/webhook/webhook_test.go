@@ -61,8 +61,10 @@ func TestBitbucketServerRepositoryReferenceChangedEvent(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
 	assert.Equal(t, w.Code, http.StatusOK)
-	expectedLogResult := "Received push event repo: https://bitbucketserver/scm/myproject/test-repo.git, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	expectedLogResultSsh := "Received push event repo: ssh://git@bitbucketserver:7999/myproject/test-repo.git, revision: master, touchedHead: true"
+	assert.Equal(t, expectedLogResultSsh, hook.AllEntries()[len(hook.AllEntries())-2].Message)
+	expectedLogResultHttps := "Received push event repo: https://bitbucketserver/scm/myproject/test-repo.git, revision: master, touchedHead: true"
+	assert.Equal(t, expectedLogResultHttps, hook.LastEntry().Message)
 	hook.Reset()
 }
 

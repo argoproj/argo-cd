@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/pkg/errors"
+
 	log "github.com/sirupsen/logrus"
 
 	"github.com/stretchr/testify/assert"
@@ -364,6 +366,13 @@ func TestAppWithSecrets(t *testing.T) {
 				ResourceName: "test-secret",
 			})).(*applicationpkg.ApplicationResourceResponse)
 			assetSecretDataHidden(t, res.Manifest)
+
+			manifests, err := client.GetManifests(context.Background(), &applicationpkg.ApplicationManifestQuery{Name: &app.Name})
+			errors.CheckError(err)
+
+			for _, manifest := range manifests.Manifests {
+				assetSecretDataHidden(t, manifest)
+			}
 
 			diffOutput := FailOnErr(RunCli("app", "diff", app.Name)).(string)
 			assert.Empty(t, diffOutput)

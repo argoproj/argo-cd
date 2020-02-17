@@ -1,12 +1,12 @@
 import {AutocompleteField, DropDownMenu, FormField, FormSelect, HelpIcon, PopupApi} from 'argo-ui';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
-
 import {Cluster, clusterTitle, DataLoader, EditablePanel, EditablePanelItem, Expandable, MapInputField, Repo, Revision, RevisionHelpIcon} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
+import {ApplicationSyncOptionsField} from '../application-sync-options';
 import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage} from '../utils';
 
 require('./application-summary.scss');
@@ -169,6 +169,11 @@ Default is 10.
             )
         },
         {
+            title: 'SYNC OPTIONS',
+            view: ((app.spec.syncPolicy || {}).syncOptions || []).join(', '),
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsField} />
+        },
+        {
             title: 'STATUS',
             view: (
                 <span>
@@ -221,7 +226,7 @@ Default is 10.
         const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);
         if (confirmed) {
             const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
-            updatedApp.spec.syncPolicy = {automated: {prune, selfHeal}};
+            updatedApp.spec.syncPolicy.automated = {prune, selfHeal};
             props.updateApp(updatedApp);
         }
     }
@@ -230,7 +235,7 @@ Default is 10.
         const confirmed = await ctx.popup.confirm('Disable Auto-Sync?', 'Are you sure you want to disable automated application synchronization');
         if (confirmed) {
             const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
-            updatedApp.spec.syncPolicy = {automated: null};
+            updatedApp.spec.syncPolicy.automated = null;
             props.updateApp(updatedApp);
         }
     }
