@@ -84,8 +84,8 @@
         "tags": [
           "ApplicationService"
         ],
-        "summary": "List returns list of applications",
-        "operationId": "ListMixin8",
+        "summary": "ListApplications returns list of applications",
+        "operationId": "ListApplications",
         "parameters": [
           {
             "type": "string",
@@ -134,8 +134,8 @@
         "tags": [
           "ApplicationService"
         ],
-        "summary": "Create creates an application",
-        "operationId": "CreateMixin8",
+        "summary": "CreateApplication creates an application",
+        "operationId": "CreateApplication",
         "parameters": [
           {
             "name": "body",
@@ -161,8 +161,8 @@
         "tags": [
           "ApplicationService"
         ],
-        "summary": "Update updates an application",
-        "operationId": "UpdateMixin8",
+        "summary": "UpdateApplication updates an application",
+        "operationId": "UpdateApplication",
         "parameters": [
           {
             "type": "string",
@@ -292,8 +292,8 @@
         "tags": [
           "ApplicationService"
         ],
-        "summary": "Get returns an application by name",
-        "operationId": "GetMixin8",
+        "summary": "GetApplication returns an application by name",
+        "operationId": "GetApplication",
         "parameters": [
           {
             "type": "string",
@@ -342,8 +342,8 @@
         "tags": [
           "ApplicationService"
         ],
-        "summary": "Delete deletes an application",
-        "operationId": "DeleteMixin8",
+        "summary": "DeleteApplication deletes an application",
+        "operationId": "DeleteApplication",
         "parameters": [
           {
             "type": "string",
@@ -981,8 +981,8 @@
         "tags": [
           "ClusterService"
         ],
-        "summary": "List returns list of clusters",
-        "operationId": "List",
+        "summary": "ListClusters returns list of clusters",
+        "operationId": "ListClusters",
         "parameters": [
           {
             "type": "string",
@@ -1003,8 +1003,8 @@
         "tags": [
           "ClusterService"
         ],
-        "summary": "Create creates a cluster",
-        "operationId": "Create",
+        "summary": "CreateCluster creates a cluster",
+        "operationId": "CreateCluster",
         "parameters": [
           {
             "name": "body",
@@ -1030,8 +1030,8 @@
         "tags": [
           "ClusterService"
         ],
-        "summary": "Update updates a cluster",
-        "operationId": "Update",
+        "summary": "UpdateCluster updates a cluster",
+        "operationId": "UpdateCluster",
         "parameters": [
           {
             "type": "string",
@@ -1063,8 +1063,8 @@
         "tags": [
           "ClusterService"
         ],
-        "summary": "Get returns a cluster by server address",
-        "operationId": "GetMixin2",
+        "summary": "GetCluster returns a cluster by server address",
+        "operationId": "GetCluster",
         "parameters": [
           {
             "type": "string",
@@ -1086,8 +1086,8 @@
         "tags": [
           "ClusterService"
         ],
-        "summary": "Delete deletes a cluster",
-        "operationId": "Delete",
+        "summary": "DeleteCluster deletes a cluster",
+        "operationId": "DeleteCluster",
         "parameters": [
           {
             "type": "string",
@@ -1136,8 +1136,8 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "List returns list of projects",
-        "operationId": "ListMixin6",
+        "summary": "ListProjects returns list of projects",
+        "operationId": "ListProjects",
         "parameters": [
           {
             "type": "string",
@@ -1158,8 +1158,8 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "Create a new project.",
-        "operationId": "CreateMixin6",
+        "summary": "CreateProject a new project.",
+        "operationId": "CreateProject",
         "parameters": [
           {
             "name": "body",
@@ -1185,8 +1185,8 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "Get returns a project by name",
-        "operationId": "GetMixin6",
+        "summary": "GetProject returns a project by name",
+        "operationId": "GetProject",
         "parameters": [
           {
             "type": "string",
@@ -1208,8 +1208,8 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "Delete deletes a project",
-        "operationId": "DeleteMixin6",
+        "summary": "DeleteProject deletes a project",
+        "operationId": "DeleteProject",
         "parameters": [
           {
             "type": "string",
@@ -1283,8 +1283,8 @@
         "tags": [
           "ProjectService"
         ],
-        "summary": "Update updates a project",
-        "operationId": "UpdateMixin6",
+        "summary": "UpdateProject updates a project",
+        "operationId": "UpdateProject",
         "parameters": [
           {
             "type": "string",
@@ -1743,8 +1743,8 @@
         "tags": [
           "SessionService"
         ],
-        "summary": "Create a new JWT for authentication and set a cookie if using HTTP.",
-        "operationId": "CreateMixin10",
+        "summary": "CreateSession a new JWT for authentication and set a cookie if using HTTP.",
+        "operationId": "CreateSession",
         "parameters": [
           {
             "name": "body",
@@ -1768,8 +1768,8 @@
         "tags": [
           "SessionService"
         ],
-        "summary": "Delete an existing JWT cookie if using HTTP.",
-        "operationId": "DeleteMixin10",
+        "summary": "DeleteSession an existing JWT cookie if using HTTP.",
+        "operationId": "DeleteSession",
         "responses": {
           "200": {
             "description": "(empty)",
