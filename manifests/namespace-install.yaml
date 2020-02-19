@@ -2270,6 +2270,7 @@ spec:
       initContainers:
       - command:
         - cp
+        - -n
         - /usr/local/bin/argocd-util
         - /shared
         image: argoproj/argocd:latest
