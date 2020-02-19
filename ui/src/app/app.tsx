@@ -85,9 +85,9 @@ requests.onError.subscribe(async err => {
             .getAttribute('href')
             .replace(/\/$/, '');
         if (isSSO) {
-            window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
+            window.location.href = `/auth/login?return_url=${encodeURIComponent(location.href)}`;
         } else {
-            history.push(`${basehref}/login?return_url=${encodeURIComponent(location.href)}`);
+            history.push(`/login?return_url=${encodeURIComponent(location.href)}`);
         }
     }
 });
