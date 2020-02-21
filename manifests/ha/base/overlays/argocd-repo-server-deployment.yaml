@@ -25,11 +25,5 @@ spec:
         command:
         - uid_entrypoint.sh
         - argocd-repo-server
-        - --sentinel
-        - $(ARGOCD_REDIS_HA_ANNOUNCE_0_SERVICE):26379
-        - --sentinel
-        - $(ARGOCD_REDIS_HA_ANNOUNCE_1_SERVICE):26379
-        - --sentinel
-        - $(ARGOCD_REDIS_HA_ANNOUNCE_2_SERVICE):26379
-        - --sentinelmaster
-        - argocd
+        - --redis
+        - "argocd-redis-ha-haproxy:6379"

@@ -5,3 +5,5 @@ redis-ha:
     masterGroupName: argocd
     config:
       save: "\"\""
+  haproxy:
+    enabled: true
