@@ -34,7 +34,7 @@ As workaround Argo CD allows providing [health check](operator-manual/health.md)
 By default the password is set to the name of the server pod, as per [the getting started guide](getting_started.md).
 
 To change the password, edit the `argocd-secret` secret and update the `admin.password` field with a new bcrypt hash. You
-can use a site like https://www.browserling.com/tools/bcrypt to generate a new hash. For example:
+can use a site like https://bcrypt-generator.com/ to generate a new hash. For example:
 
 ```bash
 # bcrypt(password)=$2a$10$rRyBsGSHK6.uc8fntPwVIuLVHgsAhAX7TcdrqW/RADU0uh7CaChLa
