@@ -196,5 +196,5 @@ data:
 
   # The metadata.label key name where Argo CD injects the app name as a tracking label (optional).
   # Tracking labels are used to determine which resources need to be deleted when pruning.
-  # If omitted, Argo CD injects the app name into the label: 'app.kubernetes.io/instance'
+  # If omitted, Argo CD injects the app name into the label: 'argocd.argoproj.io/instance'
   application.instanceLabelKey: mycompany.com/appname
