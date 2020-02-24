@@ -7,15 +7,15 @@ patchesStrategicMerge:
 - overlays/argocd-server-deployment.yaml
 - overlays/argocd-application-controller-deployment.yaml
 
-
-images:
-- name: argoproj/argocd
-  newName: argoproj/argocd
-  newTag: latest
-resources:
+bases:
 - ../../base/application-controller
 - ../../base/dex
 - ../../base/repo-server
 - ../../base/server
 - ../../base/config
 - ./redis-ha
+
+images:
+- name: argoproj/argocd
+  newName: argoproj/argocd
+  newTag: latest
