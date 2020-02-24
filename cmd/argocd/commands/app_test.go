@@ -1,12 +1,23 @@
 package commands
 
 import (
+	"fmt"
+	"io/ioutil"
+	"net/url"
+	"os"
+	"sort"
+	"strings"
 	"testing"
+
+	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/util/cert"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/helm"
 )
 
 func Test_setHelmOpt(t *testing.T) {
@@ -101,4 +112,131 @@ func Test_setAppSpecOptions(t *testing.T) {
 		assert.NoError(t, f.SetFlag("sync-option", "!a=1"))
 		assert.Nil(t, f.spec.SyncPolicy)
 	})
+}
+
+func Test_mergeHelmRepositories(t *testing.T) {
+	testCases := []struct {
+		name     string
+		local    []helm.LocalRepository
+		server   []*argoappv1.Repository
+		expected []*argoappv1.Repository
+	}{
+		{name: "LocalPrio",
+			local: []helm.LocalRepository{
+				helm.LocalRepository{Name: "stable", URL: "https://kubernetes-charts.mirror.io"},
+			},
+			server: []*argoappv1.Repository{
+				&argoappv1.Repository{Type: "helm", Name: "stable", Repo: "https://kubernetes-charts.storage.googleapis.com"},
+			},
+			expected: []*argoappv1.Repository{
+				&argoappv1.Repository{Type: "helm", Name: "stable", Repo: "https://kubernetes-charts.mirror.io"},
+			},
+		},
+		{name: "ExtraFromServer",
+			local: []helm.LocalRepository{
+				helm.LocalRepository{Name: "stable", URL: "https://kubernetes-charts.storage.googleapis.com"},
+			},
+			server: []*argoappv1.Repository{
+				&argoappv1.Repository{Type: "helm", Name: "incubator", Repo: "http://storage.googleapis.com/kubernetes-charts-incubator"},
+			},
+			expected: []*argoappv1.Repository{
+				&argoappv1.Repository{Type: "helm", Name: "stable", Repo: "https://kubernetes-charts.storage.googleapis.com"},
+				&argoappv1.Repository{Type: "helm", Name: "incubator", Repo: "http://storage.googleapis.com/kubernetes-charts-incubator"},
+			},
+		},
+		{name: "NoLocal",
+			local: []helm.LocalRepository{},
+			server: []*argoappv1.Repository{
+				&argoappv1.Repository{Type: "helm", Name: "stable", Repo: "https://kubernetes-charts.storage.googleapis.com"},
+			},
+			expected: []*argoappv1.Repository{
+				&argoappv1.Repository{Type: "helm", Name: "stable", Repo: "https://kubernetes-charts.storage.googleapis.com"},
+			},
+		},
+		{name: "UsernamePassword",
+			local: []helm.LocalRepository{
+				helm.LocalRepository{Name: "stable", URL: "https://kubernetes-charts.mirror.io", Username: "example", Password: "welcome01"},
+			},
+			server: []*argoappv1.Repository{},
+			expected: []*argoappv1.Repository{
+				&argoappv1.Repository{Type: "helm", Name: "stable", Repo: "https://kubernetes-charts.mirror.io", Username: "example", Password: "welcome01"},
+			},
+		},
+		{name: "MissingCAFile",
+			local: []helm.LocalRepository{
+				helm.LocalRepository{Name: "stable", URL: "https://kubernetes-charts.mirror.io", CAFile: "does-not-exists.crt"},
+			},
+			server:   []*argoappv1.Repository{},
+			expected: []*argoappv1.Repository{},
+		},
+		{name: "CAFile",
+			local: []helm.LocalRepository{
+				helm.LocalRepository{Name: "stable", URL: "https://kubernetes-charts.mirror.io", CAFile: "testdata/bundle.crt"},
+			},
+			server: []*argoappv1.Repository{},
+			expected: []*argoappv1.Repository{
+				&argoappv1.Repository{Type: "helm", Name: "stable", Repo: "https://kubernetes-charts.mirror.io"},
+			},
+		},
+		{name: "MissingTLSClientCertFile",
+			local: []helm.LocalRepository{
+				helm.LocalRepository{Name: "stable", URL: "https://kubernetes-charts.mirror.io", CertFile: "testdata/missing_client.crt"},
+			},
+			server: []*argoappv1.Repository{
+				&argoappv1.Repository{Type: "helm", Name: "stable", Repo: "https://kubernetes-charts.storage.googleapis.com"},
+			},
+			expected: []*argoappv1.Repository{
+				&argoappv1.Repository{Type: "helm", Name: "stable", Repo: "https://kubernetes-charts.storage.googleapis.com"},
+			},
+		},
+		{name: "MissingTLSClientKeyFile",
+			local: []helm.LocalRepository{
+				helm.LocalRepository{Name: "stable", URL: "https://kubernetes-charts.mirror.io", KeyFile: "testdata/missing_client.key"},
+			},
+			server: []*argoappv1.Repository{
+				&argoappv1.Repository{Type: "helm", Name: "stable", Repo: "https://kubernetes-charts.storage.googleapis.com"},
+			},
+			expected: []*argoappv1.Repository{
+				&argoappv1.Repository{Type: "helm", Name: "stable", Repo: "https://kubernetes-charts.storage.googleapis.com"},
+			},
+		},
+		{name: "TLSClientAuth",
+			local: []helm.LocalRepository{
+				helm.LocalRepository{Name: "stable", URL: "https://kubernetes-charts.mirror.io", CertFile: "testdata/client.crt", KeyFile: "testdata/client.key"},
+			},
+			server: []*argoappv1.Repository{},
+			expected: []*argoappv1.Repository{
+				&argoappv1.Repository{Type: "helm", Name: "stable", Repo: "https://kubernetes-charts.mirror.io", TLSClientCertData: "--- CERTIFICATE --- ... --- END CERTIFICATE ---", TLSClientCertKey: "--- PRIVATE KEY --- ... --- END PRIVATE KEY ---"},
+			},
+		},
+	}
+
+	tmp, err := ioutil.TempDir("", "helm")
+	assert.NoError(t, err)
+	defer func() { _ = os.RemoveAll(tmp) }()
+	os.Setenv(common.EnvVarTLSDataPath, tmp)
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(tt *testing.T) {
+			actual := mergeHelmRepositories(tc.local, tc.server)
+			sort.Slice(actual, func(i, j int) bool {
+				return strings.Compare(actual[i].Name, actual[j].Name) < 0
+			})
+			sort.Slice(tc.expected, func(i, j int) bool {
+				return strings.Compare(tc.expected[i].Name, tc.expected[j].Name) < 0
+			})
+			assert.EqualValues(tt, tc.expected, actual)
+
+			for _, local := range tc.local {
+				if strings.HasPrefix(local.CAFile, "testdata/") {
+					parsedURL, err := url.Parse(local.URL)
+					assert.NoError(t, err)
+					certPath := fmt.Sprintf("%s/%s", cert.GetTLSCertificateDataPath(), cert.ServerNameWithoutPort(parsedURL.Hostname()))
+					_, err = os.Stat(certPath)
+					println(certPath, os.IsNotExist(err))
+					assert.False(t, os.IsNotExist(err))
+				}
+			}
+		})
+	}
 }

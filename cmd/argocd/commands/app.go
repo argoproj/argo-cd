@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/url"
 	"os"
 	"reflect"
@@ -32,16 +33,19 @@ import (
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
 	projectpkg "github.com/argoproj/argo-cd/pkg/apiclient/project"
+	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	repoapiclient "github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
+	"github.com/argoproj/argo-cd/util/cert"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/hook"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/resource/ignore"
@@ -831,8 +835,8 @@ func liveObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstructu
 	return objs, nil
 }
 
-func getLocalObjects(app *argoappv1.Application, local, appLabelKey, kubeVersion string, kustomizeOptions *argoappv1.KustomizeOptions) []*unstructured.Unstructured {
-	manifestStrings := getLocalObjectsString(app, local, appLabelKey, kubeVersion, kustomizeOptions)
+func getLocalObjects(app *argoappv1.Application, local, appLabelKey, kubeVersion string, helmRepositories []*argoappv1.Repository, kustomizeOptions *argoappv1.KustomizeOptions) []*unstructured.Unstructured {
+	manifestStrings := getLocalObjectsString(app, local, appLabelKey, kubeVersion, helmRepositories, kustomizeOptions)
 	objs := make([]*unstructured.Unstructured, len(manifestStrings))
 	for i := range manifestStrings {
 		obj := unstructured.Unstructured{}
@@ -843,7 +847,8 @@ func getLocalObjects(app *argoappv1.Application, local, appLabelKey, kubeVersion
 	return objs
 }
 
-func getLocalObjectsString(app *argoappv1.Application, local, appLabelKey, kubeVersion string, kustomizeOptions *argoappv1.KustomizeOptions) []string {
+func getLocalObjectsString(app *argoappv1.Application, local, appLabelKey, kubeVersion string, helmRepositories []*argoappv1.Repository, kustomizeOptions *argoappv1.KustomizeOptions) []string {
+
 	res, err := repository.GenerateManifests(local, "/", app.Spec.Source.TargetRevision, &repoapiclient.ManifestRequest{
 		Repo:              &argoappv1.Repository{Repo: app.Spec.Source.RepoURL},
 		AppLabelKey:       appLabelKey,
@@ -852,6 +857,7 @@ func getLocalObjectsString(app *argoappv1.Application, local, appLabelKey, kubeV
 		ApplicationSource: &app.Spec.Source,
 		KustomizeOptions:  kustomizeOptions,
 		KubeVersion:       kubeVersion,
+		Repos:             helmRepositories,
 	})
 	errors.CheckError(err)
 
@@ -888,6 +894,93 @@ func groupLocalObjs(localObs []*unstructured.Unstructured, liveObjs []*unstructu
 	return objByKey
 }
 
+func getLocalHelmRepositories() []helm.LocalRepository {
+	localRepositoryConfig, err := helm.DefaultLocalRepositoryConfigPath()
+	if err != nil {
+		return []helm.LocalRepository{}
+	}
+	repos, err := helm.ReadLocalRepositoryConfig(localRepositoryConfig)
+	if repos == nil || err != nil {
+		return []helm.LocalRepository{}
+	}
+	return repos
+}
+
+func getHelmRepositoriesFromServer(clientset *argocdclient.Client) []*argoappv1.Repository {
+	conn, repoIf := (*clientset).NewRepoClientOrDie()
+	defer util.Close(conn)
+	repositoryList, err := repoIf.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
+	errors.CheckError(err)
+	helmRepositories := make([]*argoappv1.Repository, 0)
+	helmRepositories = append(helmRepositories, repositoryList.Items.Filter(func(r *argoappv1.Repository) bool {
+		return r.Type == "helm" && r.Name != ""
+	})...)
+	return helmRepositories
+}
+
+func mergeHelmRepositories(localRepos []helm.LocalRepository, serverRepos []*argoappv1.Repository) []*argoappv1.Repository {
+	helmRepositoriesMap := make(map[string]*argoappv1.Repository)
+	for _, repo := range localRepos {
+		helmRepo := &argoappv1.Repository{
+			Type:     "helm",
+			Name:     repo.Name,
+			Repo:     repo.URL,
+			Username: repo.Username,
+			Password: repo.Password,
+		}
+		if repo.CAFile != "" {
+			b, err := ioutil.ReadFile(repo.CAFile)
+			if err != nil {
+				log.Errorf("Failed to read CA file '%s': %v", repo.CAFile, err)
+				continue
+			}
+			parsedURL, err := url.Parse(repo.URL)
+			if err != nil {
+				log.Errorf("Failed to parse url '%s': %v", repo.URL, err)
+				continue
+			}
+			certPath := fmt.Sprintf("%s/%s", cert.GetTLSCertificateDataPath(), cert.ServerNameWithoutPort(parsedURL.Hostname()))
+			err = ioutil.WriteFile(certPath, b, 0600)
+			if err != nil {
+				log.Errorf("Failed to write CA file '%s': %v", repo.CAFile, err)
+				continue
+			}
+		}
+		if repo.CertFile != "" {
+			b, err := ioutil.ReadFile(repo.CertFile)
+			if err != nil {
+				log.Errorf("Failed to read certificate file '%s': %v", repo.CertFile, err)
+				continue
+			}
+			helmRepo.TLSClientCertData = string(b[:])
+		}
+		if repo.KeyFile != "" {
+			b, err := ioutil.ReadFile(repo.KeyFile)
+			if err != nil {
+				log.Errorf("Failed to read certificate file '%s': %v", repo.KeyFile, err)
+				continue
+			}
+			helmRepo.TLSClientCertKey = string(b[:])
+		}
+		helmRepositoriesMap[repo.Name] = helmRepo
+	}
+	for _, repo := range serverRepos {
+		if _, ok := helmRepositoriesMap[repo.Name]; !ok {
+			helmRepositoriesMap[repo.Name] = repo
+		}
+	}
+
+	helmRepositories := make([]*argoappv1.Repository, 0)
+	for _, repo := range helmRepositoriesMap {
+		helmRepositories = append(helmRepositories, repo)
+	}
+	return helmRepositories
+}
+
+func getHelmRepositories(clientset *argocdclient.Client) []*argoappv1.Repository {
+	return mergeHelmRepositories(getLocalHelmRepositories(), getHelmRepositoriesFromServer(clientset))
+}
+
 // NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
 func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -921,7 +1014,6 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				live   *unstructured.Unstructured
 				target *unstructured.Unstructured
 			}, 0)
-
 			conn, settingsIf := clientset.NewSettingsClientOrDie()
 			defer util.Close(conn)
 			argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
@@ -932,7 +1024,16 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				defer util.Close(conn)
 				cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: app.Spec.Destination.Server})
 				errors.CheckError(err)
-				localObjs := groupLocalObjs(getLocalObjects(app, local, argoSettings.AppLabelKey, cluster.ServerVersion, argoSettings.KustomizeOptions), liveObjs, app.Spec.Destination.Namespace)
+
+				if cert.GetTLSCertificateDataPath() == common.DefaultPathTLSConfig {
+					tmp, err := ioutil.TempDir("", "helm")
+					errors.CheckError(err)
+					defer func() { _ = os.RemoveAll(tmp) }()
+					os.Setenv(common.EnvVarTLSDataPath, tmp)
+				}
+				helmRepositories := getHelmRepositories(&clientset)
+
+				localObjs := groupLocalObjs(getLocalObjects(app, local, argoSettings.AppLabelKey, cluster.ServerVersion, helmRepositories, argoSettings.KustomizeOptions), liveObjs, app.Spec.Destination.Namespace)
 				for _, res := range resources.Items {
 					var live = &unstructured.Unstructured{}
 					err := json.Unmarshal([]byte(res.NormalizedLiveState), &live)
@@ -1395,7 +1496,10 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: app.Spec.Destination.Server})
 					errors.CheckError(err)
 					util.Close(conn)
-					localObjsStrings = getLocalObjectsString(app, local, argoSettings.AppLabelKey, cluster.ServerVersion, argoSettings.KustomizeOptions)
+
+					helmRepositories := getHelmRepositories(&acdClient)
+
+					localObjsStrings = getLocalObjectsString(app, local, argoSettings.AppLabelKey, cluster.ServerVersion, helmRepositories, argoSettings.KustomizeOptions)
 				}
 
 				syncReq := applicationpkg.ApplicationSyncRequest{

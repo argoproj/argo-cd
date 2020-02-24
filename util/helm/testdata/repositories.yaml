@@ -1,0 +1,9 @@
+apiVersion: v1
+repositories:
+- caFile: ""
+  certFile: ""
+  keyFile: ""
+  name: stable
+  password: ""
+  url: https://kubernetes-charts.storage.googleapis.com
+  username: ""
