@@ -601,7 +601,7 @@ func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 		tlsConfig := a.settings.TLSConfig()
 		tlsConfig.InsecureSkipVerify = true
 	}
-	a.ssoClientApp, err = oidc.NewClientApp(a.settings, a.Cache, a.DexServerAddr)
+	a.ssoClientApp, err = oidc.NewClientApp(a.settings, a.Cache, a.DexServerAddr, a.BaseHRef)
 	errors.CheckError(err)
 	mux.HandleFunc(common.LoginEndpoint, a.ssoClientApp.HandleLogin)
 	mux.HandleFunc(common.CallbackEndpoint, a.ssoClientApp.HandleCallback)
