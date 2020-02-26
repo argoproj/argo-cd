@@ -1860,7 +1860,6 @@ metadata:
     app.kubernetes.io/name: argocd-redis-ha-haproxy
     app.kubernetes.io/part-of: argocd
   name: argocd-redis-ha-haproxy
-  namespace: default
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -1870,7 +1869,6 @@ metadata:
     app.kubernetes.io/name: argocd-redis-ha
     app.kubernetes.io/part-of: argocd
   name: argocd-redis-ha
-  namespace: default
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -1907,7 +1905,6 @@ metadata:
     app.kubernetes.io/name: argocd-redis-ha
     app.kubernetes.io/part-of: argocd
   name: argocd-redis-ha
-  namespace: default
 rules:
 - apiGroups:
   - ""
@@ -2025,7 +2022,6 @@ metadata:
     app.kubernetes.io/name: argocd-redis-ha
     app.kubernetes.io/part-of: argocd
   name: argocd-redis-ha
-  namespace: default
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -2336,7 +2332,6 @@ metadata:
     app.kubernetes.io/name: argocd-redis-ha
     app.kubernetes.io/part-of: argocd
   name: argocd-redis-ha-configmap
-  namespace: default
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -2399,7 +2394,6 @@ metadata:
     app.kubernetes.io/name: argocd-redis-ha
     app.kubernetes.io/part-of: argocd
   name: argocd-redis-ha-announce-0
-  namespace: default
 spec:
   ports:
   - name: server
@@ -2426,7 +2420,6 @@ metadata:
     app.kubernetes.io/name: argocd-redis-ha
     app.kubernetes.io/part-of: argocd
   name: argocd-redis-ha-announce-1
-  namespace: default
 spec:
   ports:
   - name: server
@@ -2453,7 +2446,6 @@ metadata:
     app.kubernetes.io/name: argocd-redis-ha
     app.kubernetes.io/part-of: argocd
   name: argocd-redis-ha-announce-2
-  namespace: default
 spec:
   ports:
   - name: server
@@ -2479,7 +2471,6 @@ metadata:
     app.kubernetes.io/name: argocd-redis-ha-haproxy
     app.kubernetes.io/part-of: argocd
   name: argocd-redis-ha-haproxy
-  namespace: default
 spec:
   ports:
   - name: haproxy
@@ -2499,7 +2490,6 @@ metadata:
     app.kubernetes.io/name: argocd-redis-ha
     app.kubernetes.io/part-of: argocd
   name: argocd-redis-ha
-  namespace: default
 spec:
   clusterIP: None
   ports:
@@ -2620,7 +2610,6 @@ metadata:
     app.kubernetes.io/name: argocd-redis-ha-haproxy
     app.kubernetes.io/part-of: argocd
   name: argocd-redis-ha-haproxy
-  namespace: default
 spec:
   replicas: 3
   revisionHistoryLimit: 1
@@ -2943,7 +2932,6 @@ metadata:
     app.kubernetes.io/name: argocd-redis-ha
     app.kubernetes.io/part-of: argocd
   name: argocd-redis-ha-server
-  namespace: default
 spec:
   podManagementPolicy: OrderedReady
   replicas: 3
