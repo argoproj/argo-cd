@@ -1856,6 +1856,24 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-ha-haproxy
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis-ha-haproxy
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-ha
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis-ha
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
     app.kubernetes.io/component: application-controller
     app.kubernetes.io/name: argocd-application-controller
     app.kubernetes.io/part-of: argocd
@@ -1874,19 +1892,26 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   labels:
-    app.kubernetes.io/component: redis
-    app.kubernetes.io/name: argocd-redis-ha
-    app.kubernetes.io/part-of: argocd
-  name: argocd-redis-ha
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  labels:
     app.kubernetes.io/component: server
     app.kubernetes.io/name: argocd-server
     app.kubernetes.io/part-of: argocd
   name: argocd-server
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-ha
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis-ha
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - endpoints
+  verbs:
+  - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -1945,22 +1970,6 @@ rules:
   - get
   - list
   - watch
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  labels:
-    app.kubernetes.io/component: redis
-    app.kubernetes.io/name: argocd-redis-ha
-    app.kubernetes.io/part-of: argocd
-  name: argocd-redis-ha
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - endpoints
-  verbs:
-  - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -2060,6 +2069,22 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-ha
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis-ha
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-redis-ha
+subjects:
+- kind: ServiceAccount
+  name: argocd-redis-ha
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
     app.kubernetes.io/component: application-controller
     app.kubernetes.io/name: argocd-application-controller
     app.kubernetes.io/part-of: argocd
@@ -2092,22 +2117,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   labels:
-    app.kubernetes.io/component: redis
-    app.kubernetes.io/name: argocd-redis-ha
-    app.kubernetes.io/part-of: argocd
-  name: argocd-redis-ha
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: argocd-redis-ha
-subjects:
-- kind: ServiceAccount
-  name: argocd-redis-ha
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  labels:
     app.kubernetes.io/component: server
     app.kubernetes.io/name: argocd-server
     app.kubernetes.io/part-of: argocd
@@ -2155,6 +2164,261 @@ subjects:
   namespace: argocd
 ---
 apiVersion: v1
+data:
+  haproxy.cfg: |-
+    defaults REDIS
+      mode tcp
+      timeout connect 4s
+      timeout server 30s
+      timeout client 30s
+      timeout check 2s
+
+    listen health_check_http_url
+      bind :8888
+      mode http
+      monitor-uri /healthz
+      option      dontlognull
+    # Check Sentinel and whether they are nominated master
+    backend check_if_redis_is_master_0
+      mode tcp
+      option tcp-check
+      tcp-check connect
+      tcp-check send PING\r\n
+      tcp-check expect string +PONG
+      tcp-check send SENTINEL\ get-master-addr-by-name\ argocd\r\n
+      tcp-check expect string REPLACE_ANNOUNCE0
+      tcp-check send QUIT\r\n
+      tcp-check expect string +OK
+      server R0 argocd-redis-ha-announce-0:26379 check inter 1s
+      server R1 argocd-redis-ha-announce-1:26379 check inter 1s
+      server R2 argocd-redis-ha-announce-2:26379 check inter 1s
+    # Check Sentinel and whether they are nominated master
+    backend check_if_redis_is_master_1
+      mode tcp
+      option tcp-check
+      tcp-check connect
+      tcp-check send PING\r\n
+      tcp-check expect string +PONG
+      tcp-check send SENTINEL\ get-master-addr-by-name\ argocd\r\n
+      tcp-check expect string REPLACE_ANNOUNCE1
+      tcp-check send QUIT\r\n
+      tcp-check expect string +OK
+      server R0 argocd-redis-ha-announce-0:26379 check inter 1s
+      server R1 argocd-redis-ha-announce-1:26379 check inter 1s
+      server R2 argocd-redis-ha-announce-2:26379 check inter 1s
+    # Check Sentinel and whether they are nominated master
+    backend check_if_redis_is_master_2
+      mode tcp
+      option tcp-check
+      tcp-check connect
+      tcp-check send PING\r\n
+      tcp-check expect string +PONG
+      tcp-check send SENTINEL\ get-master-addr-by-name\ argocd\r\n
+      tcp-check expect string REPLACE_ANNOUNCE2
+      tcp-check send QUIT\r\n
+      tcp-check expect string +OK
+      server R0 argocd-redis-ha-announce-0:26379 check inter 1s
+      server R1 argocd-redis-ha-announce-1:26379 check inter 1s
+      server R2 argocd-redis-ha-announce-2:26379 check inter 1s
+
+    # decide redis backend to use
+    #master
+    frontend ft_redis_master
+      bind *:6379
+      use_backend bk_redis_master
+    # Check all redis servers to see if they think they are master
+    backend bk_redis_master
+      mode tcp
+      option tcp-check
+      tcp-check connect
+      tcp-check send PING\r\n
+      tcp-check expect string +PONG
+      tcp-check send info\ replication\r\n
+      tcp-check expect string role:master
+      tcp-check send QUIT\r\n
+      tcp-check expect string +OK
+      use-server R0 if { srv_is_up(R0) } { nbsrv(check_if_redis_is_master_0) ge 2 }
+      server R0 argocd-redis-ha-announce-0:6379 check inter 1s fall 1 rise 1
+      use-server R1 if { srv_is_up(R1) } { nbsrv(check_if_redis_is_master_1) ge 2 }
+      server R1 argocd-redis-ha-announce-1:6379 check inter 1s fall 1 rise 1
+      use-server R2 if { srv_is_up(R2) } { nbsrv(check_if_redis_is_master_2) ge 2 }
+      server R2 argocd-redis-ha-announce-2:6379 check inter 1s fall 1 rise 1
+  haproxy_init.sh: |
+    HAPROXY_CONF=/data/haproxy.cfg
+    cp /readonly/haproxy.cfg "$HAPROXY_CONF"
+    for loop in $(seq 1 10); do
+      getent hosts argocd-redis-ha-announce-0 && break
+      echo "Waiting for service argocd-redis-ha-announce-0 to be ready ($loop) ..." && sleep 1
+    done
+    ANNOUNCE_IP0=$(getent hosts "argocd-redis-ha-announce-0" | awk '{ print $1 }')
+    if [ -z "$ANNOUNCE_IP0" ]; then
+      echo "Could not resolve the announce ip for argocd-redis-ha-announce-0"
+      exit 1
+    fi
+    sed -i "s/REPLACE_ANNOUNCE0/$ANNOUNCE_IP0/" "$HAPROXY_CONF"
+
+    if [ "${AUTH:-}" ]; then
+        echo "Setting auth values"
+        ESCAPED_AUTH=$(echo "$AUTH" | sed -e 's/[\/&]/\\&/g');
+        sed -i "s/REPLACE_AUTH_SECRET/${ESCAPED_AUTH}/" "$HAPROXY_CONF"
+    fi
+    for loop in $(seq 1 10); do
+      getent hosts argocd-redis-ha-announce-1 && break
+      echo "Waiting for service argocd-redis-ha-announce-1 to be ready ($loop) ..." && sleep 1
+    done
+    ANNOUNCE_IP1=$(getent hosts "argocd-redis-ha-announce-1" | awk '{ print $1 }')
+    if [ -z "$ANNOUNCE_IP1" ]; then
+      echo "Could not resolve the announce ip for argocd-redis-ha-announce-1"
+      exit 1
+    fi
+    sed -i "s/REPLACE_ANNOUNCE1/$ANNOUNCE_IP1/" "$HAPROXY_CONF"
+
+    if [ "${AUTH:-}" ]; then
+        echo "Setting auth values"
+        ESCAPED_AUTH=$(echo "$AUTH" | sed -e 's/[\/&]/\\&/g');
+        sed -i "s/REPLACE_AUTH_SECRET/${ESCAPED_AUTH}/" "$HAPROXY_CONF"
+    fi
+    for loop in $(seq 1 10); do
+      getent hosts argocd-redis-ha-announce-2 && break
+      echo "Waiting for service argocd-redis-ha-announce-2 to be ready ($loop) ..." && sleep 1
+    done
+    ANNOUNCE_IP2=$(getent hosts "argocd-redis-ha-announce-2" | awk '{ print $1 }')
+    if [ -z "$ANNOUNCE_IP2" ]; then
+      echo "Could not resolve the announce ip for argocd-redis-ha-announce-2"
+      exit 1
+    fi
+    sed -i "s/REPLACE_ANNOUNCE2/$ANNOUNCE_IP2/" "$HAPROXY_CONF"
+
+    if [ "${AUTH:-}" ]; then
+        echo "Setting auth values"
+        ESCAPED_AUTH=$(echo "$AUTH" | sed -e 's/[\/&]/\\&/g');
+        sed -i "s/REPLACE_AUTH_SECRET/${ESCAPED_AUTH}/" "$HAPROXY_CONF"
+    fi
+  init.sh: |
+    HOSTNAME="$(hostname)"
+    INDEX="${HOSTNAME##*-}"
+    MASTER="$(redis-cli -h argocd-redis-ha -p 26379 sentinel get-master-addr-by-name argocd | grep -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')"
+    MASTER_GROUP="argocd"
+    QUORUM="2"
+    REDIS_CONF=/data/conf/redis.conf
+    REDIS_PORT=6379
+    SENTINEL_CONF=/data/conf/sentinel.conf
+    SENTINEL_PORT=26379
+    SERVICE=argocd-redis-ha
+    set -eu
+
+    sentinel_update() {
+        echo "Updating sentinel config with master $MASTER"
+        eval MY_SENTINEL_ID="\${SENTINEL_ID_$INDEX}"
+        sed -i "1s/^/sentinel myid $MY_SENTINEL_ID\\n/" "$SENTINEL_CONF"
+        sed -i "2s/^/sentinel monitor $MASTER_GROUP $1 $REDIS_PORT $QUORUM \\n/" "$SENTINEL_CONF"
+        echo "sentinel announce-ip $ANNOUNCE_IP" >> $SENTINEL_CONF
+        echo "sentinel announce-port $SENTINEL_PORT" >> $SENTINEL_CONF
+    }
+
+    redis_update() {
+        echo "Updating redis config"
+        echo "slaveof $1 $REDIS_PORT" >> "$REDIS_CONF"
+        echo "slave-announce-ip $ANNOUNCE_IP" >> $REDIS_CONF
+        echo "slave-announce-port $REDIS_PORT" >> $REDIS_CONF
+    }
+
+    copy_config() {
+        cp /readonly-config/redis.conf "$REDIS_CONF"
+        cp /readonly-config/sentinel.conf "$SENTINEL_CONF"
+    }
+
+    setup_defaults() {
+        echo "Setting up defaults"
+        if [ "$INDEX" = "0" ]; then
+            echo "Setting this pod as the default master"
+            redis_update "$ANNOUNCE_IP"
+            sentinel_update "$ANNOUNCE_IP"
+            sed -i "s/^.*slaveof.*//" "$REDIS_CONF"
+        else
+            DEFAULT_MASTER="$(getent hosts "$SERVICE-announce-0" | awk '{ print $1 }')"
+            if [ -z "$DEFAULT_MASTER" ]; then
+                echo "Unable to resolve host"
+                exit 1
+            fi
+            echo "Setting default slave config.."
+            redis_update "$DEFAULT_MASTER"
+            sentinel_update "$DEFAULT_MASTER"
+        fi
+    }
+
+    find_master() {
+        echo "Attempting to find master"
+        if [ "$(redis-cli -h "$MASTER" ping)" != "PONG" ]; then
+           echo "Can't ping master, attempting to force failover"
+           if redis-cli -h "$SERVICE" -p "$SENTINEL_PORT" sentinel failover "$MASTER_GROUP" | grep -q 'NOGOODSLAVE' ; then
+               setup_defaults
+               return 0
+           fi
+           sleep 10
+           MASTER="$(redis-cli -h $SERVICE -p $SENTINEL_PORT sentinel get-master-addr-by-name $MASTER_GROUP | grep -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')"
+           if [ "$MASTER" ]; then
+               sentinel_update "$MASTER"
+               redis_update "$MASTER"
+           else
+              echo "Could not failover, exiting..."
+              exit 1
+           fi
+        else
+            echo "Found reachable master, updating config"
+            sentinel_update "$MASTER"
+            redis_update "$MASTER"
+        fi
+    }
+
+    mkdir -p /data/conf/
+
+    echo "Initializing config.."
+    copy_config
+
+    ANNOUNCE_IP=$(getent hosts "$SERVICE-announce-$INDEX" | awk '{ print $1 }')
+    if [ -z "$ANNOUNCE_IP" ]; then
+        "Could not resolve the announce ip for this pod"
+        exit 1
+    elif [ "$MASTER" ]; then
+        find_master
+    else
+        setup_defaults
+    fi
+
+    if [ "${AUTH:-}" ]; then
+        echo "Setting auth values"
+        ESCAPED_AUTH=$(echo "$AUTH" | sed -e 's/[\/&]/\\&/g');
+        sed -i "s/replace-default-auth/${ESCAPED_AUTH}/" "$REDIS_CONF" "$SENTINEL_CONF"
+    fi
+
+    echo "Ready..."
+  redis.conf: |
+    dir "/data"
+    port 6379
+    maxmemory 0
+    maxmemory-policy volatile-lru
+    min-replicas-max-lag 5
+    min-replicas-to-write 1
+    rdbchecksum yes
+    rdbcompression yes
+    repl-diskless-sync yes
+    save ""
+  sentinel.conf: |
+    dir "/data"
+        sentinel down-after-milliseconds argocd 10000
+        sentinel failover-timeout argocd 180000
+        maxclients 10000
+        sentinel parallel-syncs argocd 5
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-ha
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis-ha-configmap
+---
+apiVersion: v1
 kind: ConfigMap
 metadata:
   labels:
@@ -2169,107 +2433,6 @@ metadata:
     app.kubernetes.io/name: argocd-rbac-cm
     app.kubernetes.io/part-of: argocd
   name: argocd-rbac-cm
----
-apiVersion: v1
-data:
-  init.sh: "HOSTNAME=\"$(hostname)\"\nINDEX=\"${HOSTNAME##*-}\"\nMASTER=\"$(redis-cli
-    -h argocd-redis-ha -p 26379 sentinel get-master-addr-by-name argocd | grep -E
-    '[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}')\"\nMASTER_GROUP=\"argocd\"\nQUORUM=\"2\"\nREDIS_CONF=/data/conf/redis.conf\nREDIS_PORT=6379\nSENTINEL_CONF=/data/conf/sentinel.conf\nSENTINEL_PORT=26379\nSERVICE=argocd-redis-ha\nset
-    -eu\n\nsentinel_update() {\n    echo \"Updating sentinel config\"\n    eval MY_SENTINEL_ID=\"\\${SENTINEL_ID_$INDEX}\"\n
-    \   sed -i \"1s/^/sentinel myid $MY_SENTINEL_ID\\\\n/\" \"$SENTINEL_CONF\"\n    sed
-    -i \"2s/^/sentinel monitor $MASTER_GROUP $1 $REDIS_PORT $QUORUM \\\\n/\" \"$SENTINEL_CONF\"\n
-    \   echo \"sentinel announce-ip $ANNOUNCE_IP\" >> $SENTINEL_CONF\n    echo \"sentinel
-    announce-port $SENTINEL_PORT\" >> $SENTINEL_CONF\n}\n\nredis_update() {\n    echo
-    \"Updating redis config\"\n    echo \"slaveof $1 $REDIS_PORT\" >> \"$REDIS_CONF\"\n
-    \   echo \"slave-announce-ip $ANNOUNCE_IP\" >> $REDIS_CONF\n    echo \"slave-announce-port
-    $REDIS_PORT\" >> $REDIS_CONF\n}\n\ncopy_config() {\n    cp /readonly-config/redis.conf
-    \"$REDIS_CONF\"\n    cp /readonly-config/sentinel.conf \"$SENTINEL_CONF\"\n}\n\nsetup_defaults()
-    {\n    echo \"Setting up defaults\"\n    if [ \"$INDEX\" = \"0\" ]; then\n        echo
-    \"Setting this pod as the default master\"\n        redis_update \"$ANNOUNCE_IP\"\n
-    \       sentinel_update \"$ANNOUNCE_IP\"\n        sed -i \"s/^.*slaveof.*//\"
-    \"$REDIS_CONF\"\n    else\n        DEFAULT_MASTER=\"$(getent hosts \"$SERVICE-announce-0\"
-    | awk '{ print $1 }')\"\n        if [ -z \"$DEFAULT_MASTER\" ]; then\n            echo
-    \"Unable to resolve host\"\n            exit 1\n        fi\n        echo \"Setting
-    default slave config..\"\n        redis_update \"$DEFAULT_MASTER\"\n        sentinel_update
-    \"$DEFAULT_MASTER\"\n    fi\n}\n\nfind_master() {\n    echo \"Attempting to find
-    master\"\n    if [ \"$(redis-cli -h \"$MASTER\" ping)\" != \"PONG\" ]; then\n
-    \      echo \"Can't ping master, attempting to force failover\"\n       if redis-cli
-    -h \"$SERVICE\" -p \"$SENTINEL_PORT\" sentinel failover \"$MASTER_GROUP\" | grep
-    -q 'NOGOODSLAVE' ; then \n           setup_defaults\n           return 0\n       fi\n
-    \      sleep 10\n       MASTER=\"$(redis-cli -h $SERVICE -p $SENTINEL_PORT sentinel
-    get-master-addr-by-name $MASTER_GROUP | grep -E '[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}')\"\n
-    \      if [ \"$MASTER\" ]; then\n           sentinel_update \"$MASTER\"\n           redis_update
-    \"$MASTER\"\n       else\n          echo \"Could not failover, exiting...\"\n
-    \         exit 1\n       fi\n    else\n        echo \"Found reachable master,
-    updating config\"\n        sentinel_update \"$MASTER\"\n        redis_update \"$MASTER\"\n
-    \   fi\n}\n\nmkdir -p /data/conf/\n\necho \"Initializing config..\"\ncopy_config\n\nANNOUNCE_IP=$(getent
-    hosts \"$SERVICE-announce-$INDEX\" | awk '{ print $1 }')\nif [ -z \"$ANNOUNCE_IP\"
-    ]; then\n    \"Could not resolve the announce ip for this pod\"\n    exit 1\nelif
-    [ \"$MASTER\" ]; then\n    find_master\nelse\n    setup_defaults\nfi\n\nif [ \"${AUTH:-}\"
-    ]; then\n    echo \"Setting auth values\"\n    sed -i \"s/replace-default-auth/$AUTH/\"
-    \"$REDIS_CONF\" \"$SENTINEL_CONF\"\nfi\n\necho \"Ready...\"\n"
-  redis.conf: |
-    dir "/data"
-    maxmemory 0
-    maxmemory-policy volatile-lru
-    min-slaves-max-lag 5
-    min-slaves-to-write 1
-    rdbchecksum yes
-    rdbcompression yes
-    repl-diskless-sync yes
-    save ""
-  sentinel.conf: |
-    dir "/data"
-    sentinel down-after-milliseconds argocd 10000
-    sentinel failover-timeout argocd 180000
-    sentinel parallel-syncs argocd 5
-kind: ConfigMap
-metadata:
-  labels:
-    app.kubernetes.io/component: redis
-    app.kubernetes.io/name: argocd-redis-ha
-    app.kubernetes.io/part-of: argocd
-  name: argocd-redis-ha-configmap
----
-apiVersion: v1
-data:
-  check-quorum.sh: |
-    #!/bin/sh
-    set -eu
-    MASTER_GROUP="argocd"
-    SENTINEL_PORT=26379
-    REDIS_PORT=6379
-    NUM_SLAVES=$(redis-cli -p "$SENTINEL_PORT" sentinel master argocd | awk '/num-slaves/{getline; print}')
-    MIN_SLAVES=1
-
-    if [ "$1" = "$SENTINEL_PORT" ]; then
-        if redis-cli -p "$SENTINEL_PORT" sentinel ckquorum "$MASTER_GROUP" | grep -q NOQUORUM ; then
-            echo "ERROR: NOQUORUM. Sentinel quorum check failed, not enough sentinels found"
-            exit 1
-        fi
-    elif [ "$1" = "$REDIS_PORT" ]; then
-        if [ "$MIN_SLAVES" -gt "$NUM_SLAVES" ]; then
-            echo "Could not find enough replicating slaves. Needed $MIN_SLAVES but found $NUM_SLAVES"
-            exit 1
-        fi
-    fi
-    sh /probes/readiness.sh "$1"
-  readiness.sh: |
-    #!/bin/sh
-    set -eu
-    CHECK_SERVER="$(redis-cli -p "$1" ping)"
-
-    if [ "$CHECK_SERVER" != "PONG" ]; then
-        echo "Server check failed with: $CHECK_SERVER"
-        exit 1
-    fi
-kind: ConfigMap
-metadata:
-  labels:
-    app.kubernetes.io/component: redis
-    app.kubernetes.io/name: argocd-redis-ha
-    app.kubernetes.io/part-of: argocd
-  name: argocd-redis-ha-probes
 ---
 apiVersion: v1
 data:
@@ -2305,44 +2468,6 @@ metadata:
     app.kubernetes.io/part-of: argocd
   name: argocd-secret
 type: Opaque
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app.kubernetes.io/component: dex-server
-    app.kubernetes.io/name: argocd-dex-server
-    app.kubernetes.io/part-of: argocd
-  name: argocd-dex-server
-spec:
-  ports:
-  - name: http
-    port: 5556
-    protocol: TCP
-    targetPort: 5556
-  - name: grpc
-    port: 5557
-    protocol: TCP
-    targetPort: 5557
-  selector:
-    app.kubernetes.io/name: argocd-dex-server
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app.kubernetes.io/component: metrics
-    app.kubernetes.io/name: argocd-metrics
-    app.kubernetes.io/part-of: argocd
-  name: argocd-metrics
-spec:
-  ports:
-  - name: metrics
-    port: 8082
-    protocol: TCP
-    targetPort: 8082
-  selector:
-    app.kubernetes.io/name: argocd-application-controller
 ---
 apiVersion: v1
 kind: Service
@@ -2428,6 +2553,25 @@ metadata:
   annotations: null
   labels:
     app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-ha-haproxy
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis-ha-haproxy
+spec:
+  ports:
+  - name: haproxy
+    port: 6379
+    protocol: TCP
+    targetPort: redis
+  selector:
+    app.kubernetes.io/name: argocd-redis-ha-haproxy
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations: null
+  labels:
+    app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
     app.kubernetes.io/part-of: argocd
   name: argocd-redis-ha
@@ -2445,6 +2589,44 @@ spec:
   selector:
     app.kubernetes.io/name: argocd-redis-ha
   type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: dex-server
+    app.kubernetes.io/name: argocd-dex-server
+    app.kubernetes.io/part-of: argocd
+  name: argocd-dex-server
+spec:
+  ports:
+  - name: http
+    port: 5556
+    protocol: TCP
+    targetPort: 5556
+  - name: grpc
+    port: 5557
+    protocol: TCP
+    targetPort: 5557
+  selector:
+    app.kubernetes.io/name: argocd-dex-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/name: argocd-metrics
+    app.kubernetes.io/part-of: argocd
+  name: argocd-metrics
+spec:
+  ports:
+  - name: metrics
+    port: 8082
+    protocol: TCP
+    targetPort: 8082
+  selector:
+    app.kubernetes.io/name: argocd-application-controller
 ---
 apiVersion: v1
 kind: Service
@@ -2509,6 +2691,94 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-ha-haproxy
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis-ha-haproxy
+spec:
+  replicas: 3
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-redis-ha-haproxy
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        checksum/config: 790be9eae7c7e468c497c0256949ab96cb3f14b935c6702424647c3c60fba91c
+      labels:
+        app.kubernetes.io/name: argocd-redis-ha-haproxy
+      name: argocd-redis-ha-haproxy
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-redis-ha-haproxy
+              topologyKey: failure-domain.beta.kubernetes.io/zone
+            weight: 100
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: argocd-redis-ha-haproxy
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - image: haproxy:2.0.4
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8888
+          initialDelaySeconds: 5
+          periodSeconds: 3
+        name: haproxy
+        ports:
+        - containerPort: 6379
+          name: redis
+        resources: {}
+        volumeMounts:
+        - mountPath: /usr/local/etc/haproxy
+          name: data
+        - mountPath: /run/haproxy
+          name: shared-socket
+      initContainers:
+      - args:
+        - /readonly/haproxy_init.sh
+        command:
+        - sh
+        image: haproxy:2.0.4
+        imagePullPolicy: IfNotPresent
+        name: config-init
+        resources: {}
+        volumeMounts:
+        - mountPath: /readonly
+          name: config-volume
+          readOnly: true
+        - mountPath: /data
+          name: data
+      nodeSelector: {}
+      securityContext:
+        fsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+      serviceAccountName: argocd-redis-ha-haproxy
+      tolerations: null
+      volumes:
+      - configMap:
+          name: argocd-redis-ha-configmap
+        name: config-volume
+      - emptyDir: {}
+        name: shared-socket
+      - emptyDir: {}
+        name: data
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
     app.kubernetes.io/component: application-controller
     app.kubernetes.io/name: argocd-application-controller
     app.kubernetes.io/part-of: argocd
@@ -2531,14 +2801,8 @@ spec:
         - "20"
         - --operation-processors
         - "10"
-        - --sentinel
-        - argocd-redis-ha-announce-0:26379
-        - --sentinel
-        - argocd-redis-ha-announce-1:26379
-        - --sentinel
-        - argocd-redis-ha-announce-2:26379
-        - --sentinelmaster
-        - argocd
+        - --redis
+        - argocd-redis-ha-haproxy:6379
         image: argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -2642,14 +2906,8 @@ spec:
       - command:
         - uid_entrypoint.sh
         - argocd-repo-server
-        - --sentinel
-        - argocd-redis-ha-announce-0:26379
-        - --sentinel
-        - argocd-redis-ha-announce-1:26379
-        - --sentinel
-        - argocd-redis-ha-announce-2:26379
-        - --sentinelmaster
-        - argocd
+        - --redis
+        - argocd-redis-ha-haproxy:6379
         image: argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -2716,14 +2974,8 @@ spec:
         - argocd-server
         - --staticassets
         - /shared/app
-        - --sentinel
-        - argocd-redis-ha-announce-0:26379
-        - --sentinel
-        - argocd-redis-ha-announce-1:26379
-        - --sentinel
-        - argocd-redis-ha-announce-2:26379
-        - --sentinelmaster
-        - argocd
+        - --redis
+        - argocd-redis-ha-haproxy:6379
         image: argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -2776,8 +3028,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/init-config: 06440ee4a409be2aa01dfa08c14dd964fe3bad2ada57da1a538ad5cd771a045f
-        checksum/probe-config: 4b9888f173366e436f167856ee3469e8c1fd5221e29caa2129373db23578ec10
+        checksum/init-config: 552ee3bec8fe5d9d865e371f7b615c6d472253649eb65d53ed4ae874f782647c
       labels:
         app.kubernetes.io/name: argocd-redis-ha
     spec:
@@ -2800,66 +3051,39 @@ spec:
         - /data/conf/redis.conf
         command:
         - redis-server
-        image: redis:5.0.3-alpine
+        env: null
+        image: redis:5.0.6-alpine
         imagePullPolicy: IfNotPresent
         livenessProbe:
-          exec:
-            command:
-            - sh
-            - /probes/readiness.sh
-            - "6379"
           initialDelaySeconds: 15
-          periodSeconds: 5
+          tcpSocket:
+            port: 6379
         name: redis
         ports:
         - containerPort: 6379
           name: redis
-        readinessProbe:
-          exec:
-            command:
-            - sh
-            - /probes/readiness.sh
-            - "6379"
-          initialDelaySeconds: 15
-          periodSeconds: 5
         resources: {}
         volumeMounts:
         - mountPath: /data
           name: data
-        - mountPath: /probes
-          name: probes
       - args:
         - /data/conf/sentinel.conf
         command:
         - redis-sentinel
-        image: redis:5.0.3-alpine
+        image: redis:5.0.6-alpine
         imagePullPolicy: IfNotPresent
         livenessProbe:
-          exec:
-            command:
-            - sh
-            - /probes/readiness.sh
-            - "26379"
           initialDelaySeconds: 15
-          periodSeconds: 5
+          tcpSocket:
+            port: 26379
         name: sentinel
         ports:
         - containerPort: 26379
           name: sentinel
-        readinessProbe:
-          exec:
-            command:
-            - sh
-            - /probes/readiness.sh
-            - "26379"
-          initialDelaySeconds: 15
-          periodSeconds: 5
         resources: {}
         volumeMounts:
         - mountPath: /data
           name: data
-        - mountPath: /probes
-          name: probes
       initContainers:
       - args:
         - /readonly-config/init.sh
@@ -2867,12 +3091,12 @@ spec:
         - sh
         env:
         - name: SENTINEL_ID_0
-          value: e791a161cb06f0d3eb0cc392117d34cf0eae9d71
+          value: 25b71bd9d0e4a51945d8422cab53f27027397c12
         - name: SENTINEL_ID_1
-          value: d9b3204a90597a7500530efd881942d8145996ac
+          value: 896627000a81c7bdad8dbdcffd39728c9c17b309
         - name: SENTINEL_ID_2
-          value: d9deb539c0402841c2492e9959c8086602fa4284
-        image: redis:5.0.3-alpine
+          value: 3acbca861108bc47379b71b1d87d1c137dce591f
+        image: redis:5.0.6-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         resources: {}
@@ -2891,9 +3115,6 @@ spec:
       - configMap:
           name: argocd-redis-ha-configmap
         name: config
-      - configMap:
-          name: argocd-redis-ha-probes
-        name: probes
       - emptyDir: {}
         name: data
   updateStrategy:
