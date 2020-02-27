@@ -294,7 +294,7 @@ func (c *liveStateCache) IsNamespaced(server string, gk schema.GroupKind) (bool,
 	if err != nil {
 		return false, err
 	}
-	return clusterInfo.IsNamespaced(gk), nil
+	return clusterInfo.IsNamespaced(gk)
 }
 
 func (c *liveStateCache) IterateHierarchy(server string, key kube.ResourceKey, action func(child appv1.ResourceNode, appName string)) error {

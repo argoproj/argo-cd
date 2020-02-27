@@ -65,7 +65,7 @@ type ClusterCache interface {
 	Invalidate(settingsCallback func(*rest.Config, []string, Settings) (*rest.Config, []string, Settings))
 	GetNamespaceTopLevelResources(namespace string) map[kube.ResourceKey]*Resource
 	IterateHierarchy(key kube.ResourceKey, action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource))
-	IsNamespaced(gk schema.GroupKind) bool
+	IsNamespaced(gk schema.GroupKind) (bool, error)
 	GetManagedLiveObjs(targetObjs []*unstructured.Unstructured, isManaged func(r *Resource) bool) (map[kube.ResourceKey]*unstructured.Unstructured, error)
 	GetClusterInfo() ClusterInfo
 	SetPopulateResourceInfoHandler(handler OnPopulateResourceInfoHandler)
@@ -615,13 +615,11 @@ func (c *clusterCache) IterateHierarchy(key kube.ResourceKey, action func(resour
 	}
 }
 
-func (c *clusterCache) IsNamespaced(gk schema.GroupKind) bool {
-	// this is safe to access without a lock since we always replace the entire map instead of mutating keys
+func (c *clusterCache) IsNamespaced(gk schema.GroupKind) (bool, error) {
 	if isNamespaced, ok := c.namespacedResources[gk]; ok {
-		return isNamespaced
+		return isNamespaced, nil
 	}
-	log.Warnf("group/kind %s scope is unknown (known objects: %d). assuming namespaced object", gk, len(c.namespacedResources))
-	return true
+	return false, errors.NewNotFound(schema.GroupResource{Group: gk.Group}, "")
 }
 
 func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructured, isManaged func(r *Resource) bool) (map[kube.ResourceKey]*unstructured.Unstructured, error) {

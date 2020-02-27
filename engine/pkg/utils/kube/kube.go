@@ -49,7 +49,12 @@ const (
 )
 
 type ResourceInfoProvider interface {
-	IsNamespaced(gk schema.GroupKind) bool
+	IsNamespaced(gk schema.GroupKind) (bool, error)
+}
+
+func IsNamespacedOrUnknown(provider ResourceInfoProvider, gk schema.GroupKind) bool {
+	namespaced, err := provider.IsNamespaced(gk)
+	return namespaced || err != nil
 }
 
 type ResourceKey struct {

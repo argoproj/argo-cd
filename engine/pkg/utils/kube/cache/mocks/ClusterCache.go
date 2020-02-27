@@ -118,7 +118,7 @@ func (_m *ClusterCache) Invalidate(settingsCallback func(*rest.Config, []string,
 }
 
 // IsNamespaced provides a mock function with given fields: gk
-func (_m *ClusterCache) IsNamespaced(gk schema.GroupKind) bool {
+func (_m *ClusterCache) IsNamespaced(gk schema.GroupKind) (bool, error) {
 	ret := _m.Called(gk)
 
 	var r0 bool
@@ -128,7 +128,14 @@ func (_m *ClusterCache) IsNamespaced(gk schema.GroupKind) bool {
 		r0 = ret.Get(0).(bool)
 	}
 
-	return r0
+	var r1 error
+	if rf, ok := ret.Get(1).(func(schema.GroupKind) error); ok {
+		r1 = rf(gk)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // IterateHierarchy provides a mock function with given fields: key, action
