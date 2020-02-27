@@ -52,6 +52,8 @@ type ClientApp struct {
 	redirectURI string
 	// URL of the issuer (e.g. https://argocd.example.com/api/dex)
 	issuerURL string
+	// The URL endpoint at which the ArgoCD server is accessed.
+	baseHRef string
 	// client is the HTTP client which is used to query the IDp
 	client *http.Client
 	// secureCookie indicates if the cookie should be set with the Secure flag, meaning it should
@@ -75,7 +77,7 @@ func GetScopesOrDefault(scopes []string) []string {
 
 // NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an
 // object which has HTTP handlers for handling the HTTP responses for login and callback
-func NewClientApp(settings *settings.ArgoCDSettings, cache *servercache.Cache, dexServerAddr string) (*ClientApp, error) {
+func NewClientApp(settings *settings.ArgoCDSettings, cache *servercache.Cache, dexServerAddr, baseHRef string) (*ClientApp, error) {
 	redirectURL, err := settings.RedirectURL()
 	if err != nil {
 		return nil, err
@@ -85,6 +87,7 @@ func NewClientApp(settings *settings.ArgoCDSettings, cache *servercache.Cache, d
 		clientSecret: settings.OAuth2ClientSecret(),
 		redirectURI:  redirectURL,
 		issuerURL:    settings.IssuerURL(),
+		baseHRef:     baseHRef,
 		cache:        cache,
 	}
 	log.Infof("Creating client app (%s)", a.clientID)
@@ -140,7 +143,7 @@ func (a *ClientApp) oauth2Config(scopes []string) (*oauth2.Config, error) {
 func (a *ClientApp) generateAppState(returnURL string) string {
 	randStr := rand.RandString(10)
 	if returnURL == "" {
-		returnURL = "/"
+		returnURL = a.baseHRef
 	}
 	err := a.cache.SetOIDCState(randStr, &servercache.OIDCState{ReturnURL: returnURL})
 	if err != nil {
