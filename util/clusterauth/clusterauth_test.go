@@ -124,7 +124,7 @@ func TestGetServiceAccountBearerToken(t *testing.T) {
 	}
 	kubeclientset := fake.NewSimpleClientset(sa, dockercfgSecret, tokenSecret)
 
-	token, err := getServiceAccountBearerToken(kubeclientset, "kube-system")
+	token, err := GetServiceAccountBearerToken(kubeclientset, "kube-system")
 	assert.NoError(t, err)
 	assert.Equal(t, testToken, token)
 }
