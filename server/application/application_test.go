@@ -214,7 +214,7 @@ spec:
     name: fake-cluster
 `
 
-func newTestApp(testApp string) *appsv1.Application {
+func newTestApp(testApp string, opts ...func(app *appsv1.Application)) *appsv1.Application {
 	var app appsv1.Application
 	err := yaml.Unmarshal([]byte(testApp), &app)
 	if err != nil {
@@ -227,11 +227,11 @@ func newTestApp(testApp string) *appsv1.Application {
 }
 
 func TestListApps(t *testing.T) {
-	appServer := newTestAppServer(newTestApp(func(app *appsv1.Application) {
+	appServer := newTestAppServer(newTestApp(fakeApp, func(app *appsv1.Application) {
 		app.Name = "bcd"
-	}), newTestApp(func(app *appsv1.Application) {
+	}), newTestApp(fakeApp, func(app *appsv1.Application) {
 		app.Name = "abc"
-	}), newTestApp(func(app *appsv1.Application) {
+	}), newTestApp(fakeApp, func(app *appsv1.Application) {
 		app.Name = "def"
 	}))
 

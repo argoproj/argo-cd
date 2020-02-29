@@ -66,6 +66,8 @@ spec:
                 description: ApplicationDestination contains deployment destination
                   information
                 properties:
+                  isServerInferred:
+                    type: boolean
                   name:
                     description: Name of the destination cluster which can be used
                       instead of server (url) field

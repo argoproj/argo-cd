@@ -440,6 +440,12 @@ func schema_pkg_apis_application_v1alpha1_ApplicationDestination(ref common.Refe
 							Format:      "",
 						},
 					},
+					"isServerInferred": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
 				},
 			},
 		},

@@ -284,7 +284,7 @@ func TestAutoSync(t *testing.T) {
 func TestSkipAutoSync(t *testing.T) {
 	// Verify we skip when we previously synced to it in our most recent history
 	// Set current to 'aaaaa', desired to 'aaaa' and mark system OutOfSync
-	{
+	t.Run("PreviouslySyncedToRevision", func(t *testing.T) {
 		app := newFakeApp(fakeApp)
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 		syncStatus := argoappv1.SyncStatus{
@@ -299,7 +299,7 @@ func TestSkipAutoSync(t *testing.T) {
 	})
 
 	// Verify we skip when we are already Synced (even if revision is different)
-	{
+	t.Run("AlreadyInSyncedState", func(t *testing.T) {
 		app := newFakeApp(fakeApp)
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 		syncStatus := argoappv1.SyncStatus{
@@ -314,7 +314,7 @@ func TestSkipAutoSync(t *testing.T) {
 	})
 
 	// Verify we skip when auto-sync is disabled
-	{
+	t.Run("AutoSyncIsDisabled", func(t *testing.T) {
 		app := newFakeApp(fakeApp)
 		app.Spec.SyncPolicy = nil
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
@@ -330,7 +330,7 @@ func TestSkipAutoSync(t *testing.T) {
 	})
 
 	// Verify we skip when application is marked for deletion
-	{
+	t.Run("ApplicationIsMarkedForDeletion", func(t *testing.T) {
 		app := newFakeApp(fakeApp)
 		now := metav1.Now()
 		app.DeletionTimestamp = &now
@@ -348,7 +348,7 @@ func TestSkipAutoSync(t *testing.T) {
 
 	// Verify we skip when previous sync attempt failed and return error condition
 	// Set current to 'aaaaa', desired to 'bbbbb' and add 'bbbbb' to failure history
-	{
+	t.Run("PreviousSyncAttemptFailed", func(t *testing.T) {
 		app := newFakeApp(fakeApp)
 		app.Status.OperationState = &argoappv1.OperationState{
 			Operation: argoappv1.Operation{
@@ -373,7 +373,7 @@ func TestSkipAutoSync(t *testing.T) {
 	})
 
 	t.Run("NeedsToPruneResourcesOnlyButAutomatedPruneDisabled", func(t *testing.T) {
-		app := newFakeApp()
+		app := newFakeApp(fakeApp)
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 		syncStatus := argoappv1.SyncStatus{
 			Status:   argoappv1.SyncStatusCodeOutOfSync,

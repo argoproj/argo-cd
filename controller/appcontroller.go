@@ -833,6 +833,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if !needRefresh {
 		return
 	}
+	argo.ValidateDestination(context.Background(), &origApp.Spec.Destination, ctrl.db)
 
 	app := origApp.DeepCopy()
 	logCtx := log.WithFields(log.Fields{"application": app.Name})

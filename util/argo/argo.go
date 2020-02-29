@@ -267,7 +267,7 @@ func enrichSpec(spec *argoappv1.ApplicationSpec, appDetails *apiclient.RepoAppDe
 }
 
 // ValidateDestination checks:
-// if we used destination name instead of server to we fill the server part if exists
+// if we used destination name we infer the server url
 // if we used both name and server then we return an invalid spec error
 func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestination, db db.ArgoDB) *argoappv1.ApplicationCondition {
 	if dest.Name != "" {
@@ -285,7 +285,7 @@ func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestina
 					Message: fmt.Sprintf("application references destination cluster %s which does not exist", dest.Name),
 				}
 			}
-			dest.Server = server
+			dest.SetInferredServer(server)
 		} else {
 			return &argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
