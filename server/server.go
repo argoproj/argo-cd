@@ -148,6 +148,7 @@ type ArgoCDServerOpts struct {
 	Cache               *servercache.Cache
 	TLSConfigCustomizer tlsutil.ConfigCustomizer
 	XFrameOptions       string
+	DisableAdmin        bool
 }
 
 // initializeDefaultProject creates the default project if it does not already exist
@@ -170,7 +171,7 @@ func initializeDefaultProject(opts ArgoCDServerOpts) error {
 
 // NewServer returns a new instance of the Argo CD API server
 func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
-	settingsMgr := settings_util.NewSettingsManager(ctx, opts.KubeClientset, opts.Namespace)
+	settingsMgr := settings_util.NewSettingsManager(ctx, opts.KubeClientset, opts.Namespace, opts.DisableAdmin)
 	settings, err := settingsMgr.InitializeSettings(opts.Insecure)
 	errors.CheckError(err)
 	err = initializeDefaultProject(opts)

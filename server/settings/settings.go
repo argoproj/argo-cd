@@ -70,6 +70,7 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 			ChatText: help.ChatText,
 		},
 		Plugins: plugins,
+		DisableAdmin: argoCDSettings.DisableAdmin,
 	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg settingspkg.DexConfig

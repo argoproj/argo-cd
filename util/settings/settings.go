@@ -42,6 +42,7 @@ type ArgoCDSettings struct {
 	// Indicates if status badge is enabled or not.
 	StatusBadgeEnabled bool `json:"statusBadgeEnable"`
 	// Admin superuser password storage
+	DisableAdmin  bool `json:"disableAdmin,omitempty"`
 	AdminPasswordHash  string    `json:"adminPasswordHash,omitempty"`
 	AdminPasswordMtime time.Time `json:"adminPasswordMtime,omitempty"`
 	// DexConfig contains portions of a dex config yaml
@@ -219,6 +220,7 @@ type SettingsManager struct {
 	initContextCancel func()
 	reposCache        []Repository
 	repoCredsCache    []RepositoryCredentials
+	disableAdmin      bool
 }
 
 type incompleteSettingsError struct {
@@ -522,6 +524,8 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	if len(errs) > 0 {
 		return &settings, errs[0]
 	}
+
+	settings.DisableAdmin = mgr.disableAdmin
 	return &settings, nil
 }
 
@@ -812,13 +816,14 @@ func (mgr *SettingsManager) SaveTLSCertificateData(ctx context.Context, tlsCerti
 }
 
 // NewSettingsManager generates a new SettingsManager pointer and returns it
-func NewSettingsManager(ctx context.Context, clientset kubernetes.Interface, namespace string) *SettingsManager {
+func NewSettingsManager(ctx context.Context, clientset kubernetes.Interface, namespace string, disableAdmin bool) *SettingsManager {
 
 	mgr := &SettingsManager{
 		ctx:       ctx,
 		clientset: clientset,
 		namespace: namespace,
 		mutex:     &sync.Mutex{},
+		disableAdmin: disableAdmin,
 	}
 
 	return mgr
@@ -1015,7 +1020,6 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		cdSettings.AdminPasswordMtime = time.Now().UTC()
 		log.Info("Initialized admin mtime")
 	}
-
 	if cdSettings.Certificate == nil && !insecureModeEnabled {
 		// generate TLS cert
 		hosts := []string{
