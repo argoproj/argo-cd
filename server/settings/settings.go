@@ -69,7 +69,7 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 			ChatUrl:  help.ChatURL,
 			ChatText: help.ChatText,
 		},
-		Plugins: plugins,
+		Plugins:      plugins,
 		DisableAdmin: argoCDSettings.DisableAdmin,
 	}
 	if argoCDSettings.DexConfig != "" {

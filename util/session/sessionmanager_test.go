@@ -2,10 +2,12 @@ package session
 
 import (
 	"context"
-	"github.com/argoproj/argo-cd/common"
+	"testing"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"testing"
+
+	"github.com/argoproj/argo-cd/common"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +22,7 @@ import (
 
 const password = "password"
 
-func getKubeClient() *fake.Clientset{
+func getKubeClient() *fake.Clientset {
 	const defaultSecretKey = "Hello, world!"
 
 	bcrypt, err := p.HashPassword(password)
@@ -46,10 +48,9 @@ func getKubeClient() *fake.Clientset{
 	})
 }
 
-
 func TestSessionManager(t *testing.T) {
 	const (
-		defaultSubject   = "argo"
+		defaultSubject = "argo"
 	)
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(), "argocd", false)
 	mgr := NewSessionManager(settingsMgr, "")
@@ -99,13 +100,13 @@ func TestGroups(t *testing.T) {
 }
 
 func TestVerifyUsernamePassword(t *testing.T) {
-	for _, tc := range []struct{
-		name			string
-		disableAdmin	bool
-		userName		string
-		password		string
-		expected		error
-	} {
+	for _, tc := range []struct {
+		name         string
+		disableAdmin bool
+		userName     string
+		password     string
+		expected     error
+	}{
 		{
 			name:         "Success if userName and password is correct",
 			disableAdmin: false,
@@ -141,19 +142,18 @@ func TestVerifyUsernamePassword(t *testing.T) {
 			password:     password,
 			expected:     status.Errorf(codes.Unauthenticated, adminDisable),
 		},
-	}{
+	} {
 		t.Run(tc.name, func(t *testing.T) {
 			settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(), "argocd", tc.disableAdmin)
 			mgr := NewSessionManager(settingsMgr, "")
 
-			err := mgr.VerifyUsernamePassword(tc.userName,tc.password)
+			err := mgr.VerifyUsernamePassword(tc.userName, tc.password)
 
 			if tc.expected == nil {
 				assert.Nil(t, err)
 			} else {
 				assert.EqualError(t, err, tc.expected.Error())
 			}
-
 
 		})
 	}

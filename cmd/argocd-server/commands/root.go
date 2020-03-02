@@ -37,7 +37,7 @@ func NewCommand() *cobra.Command {
 		tlsConfigCustomizerSrc   func() (tls.ConfigCustomizer, error)
 		cacheSrc                 func() (*servercache.Cache, error)
 		frameOptions             string
-		disableAdmin			 bool
+		disableAdmin             bool
 	)
 	var command = &cobra.Command{
 		Use:   cliName,
@@ -79,7 +79,7 @@ func NewCommand() *cobra.Command {
 				TLSConfigCustomizer: tlsConfigCustomizer,
 				Cache:               cache,
 				XFrameOptions:       frameOptions,
-				DisableAdmin:		 disableAdmin,
+				DisableAdmin:        disableAdmin,
 			}
 
 			stats.RegisterStackDumper()

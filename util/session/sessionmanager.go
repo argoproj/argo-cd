@@ -37,7 +37,7 @@ const (
 	invalidLoginError  = "Invalid username or password"
 	blankPasswordError = "Blank passwords are not allowed"
 	badUserError       = "Bad local superuser username"
-	adminDisable	   = "Admin login is disabled"
+	adminDisable       = "Admin login is disabled"
 )
 
 // NewSessionManager creates a new session manager from Argo CD settings

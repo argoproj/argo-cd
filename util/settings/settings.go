@@ -42,7 +42,7 @@ type ArgoCDSettings struct {
 	// Indicates if status badge is enabled or not.
 	StatusBadgeEnabled bool `json:"statusBadgeEnable"`
 	// Admin superuser password storage
-	DisableAdmin  bool `json:"disableAdmin,omitempty"`
+	DisableAdmin       bool      `json:"disableAdmin,omitempty"`
 	AdminPasswordHash  string    `json:"adminPasswordHash,omitempty"`
 	AdminPasswordMtime time.Time `json:"adminPasswordMtime,omitempty"`
 	// DexConfig contains portions of a dex config yaml
@@ -819,10 +819,10 @@ func (mgr *SettingsManager) SaveTLSCertificateData(ctx context.Context, tlsCerti
 func NewSettingsManager(ctx context.Context, clientset kubernetes.Interface, namespace string, disableAdmin bool) *SettingsManager {
 
 	mgr := &SettingsManager{
-		ctx:       ctx,
-		clientset: clientset,
-		namespace: namespace,
-		mutex:     &sync.Mutex{},
+		ctx:          ctx,
+		clientset:    clientset,
+		namespace:    namespace,
+		mutex:        &sync.Mutex{},
 		disableAdmin: disableAdmin,
 	}
 
