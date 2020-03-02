@@ -24,7 +24,7 @@ func fixtures(data map[string]string) (*fake.Clientset, *SettingsManager) {
 		},
 		Data: data,
 	})
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default", false)
 
 	return kubeClient, settingsManager
 }
@@ -53,7 +53,7 @@ func TestSaveRepositories(t *testing.T) {
 
 func TestSaveRepositoresNoConfigMap(t *testing.T) {
 	kubeClient := fake.NewSimpleClientset()
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default", false)
 
 	err := settingsManager.SaveRepositories([]Repository{{URL: "http://foo"}})
 	assert.NoError(t, err)
@@ -222,7 +222,7 @@ func TestGetOIDCConfig(t *testing.T) {
 			},
 		},
 	)
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default", false)
 	settings, err := settingsManager.GetSettings()
 	assert.NoError(t, err)
 

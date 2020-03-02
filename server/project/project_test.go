@@ -48,7 +48,7 @@ func TestProjectServer(t *testing.T) {
 			"server.secretkey": []byte("test"),
 		},
 	})
-	settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, testNamespace)
+	settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, testNamespace, false)
 	enforcer := newEnforcer(kubeclientset)
 	existingProj := v1alpha1.AppProject{
 		ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: testNamespace},

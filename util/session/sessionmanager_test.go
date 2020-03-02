@@ -42,7 +42,7 @@ func TestSessionManager(t *testing.T) {
 		},
 	})
 
-	settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, "argocd")
+	settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, "argocd", false)
 	mgr := NewSessionManager(settingsMgr, "")
 
 	token, err := mgr.Create(defaultSubject, 0)

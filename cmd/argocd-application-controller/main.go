@@ -76,7 +76,7 @@ func newCommand() *cobra.Command {
 			cache, err := cacheSrc()
 			errors.CheckError(err)
 
-			settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
+			settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace, false)
 			kubectl := &kube.KubectlCmd{}
 			appController, err := controller.NewApplicationController(
 				namespace,

@@ -45,7 +45,7 @@ func newTestAccountServer(ctx context.Context) (*fake.Clientset, *Server, *sessi
 			"server.secretkey": []byte("test"),
 		},
 	})
-	settingsMgr := settings.NewSettingsManager(ctx, kubeclientset, testNamespace)
+	settingsMgr := settings.NewSettingsManager(ctx, kubeclientset, testNamespace, false)
 	sessionMgr := sessionutil.NewSessionManager(settingsMgr, "")
 	return kubeclientset, NewServer(sessionMgr, settingsMgr, nil), session.NewServer(sessionMgr, nil)
 }
