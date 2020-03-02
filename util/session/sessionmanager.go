@@ -37,6 +37,7 @@ const (
 	invalidLoginError  = "Invalid username or password"
 	blankPasswordError = "Blank passwords are not allowed"
 	badUserError       = "Bad local superuser username"
+	adminDisable	   = "Admin login is disabled"
 )
 
 // NewSessionManager creates a new session manager from Argo CD settings
@@ -134,16 +135,20 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 
 // VerifyUsernamePassword verifies if a username/password combo is correct
 func (mgr *SessionManager) VerifyUsernamePassword(username, password string) error {
+	settings, err := mgr.settingsMgr.GetSettings()
+	if err != nil {
+		return err
+	}
+	if settings.DisableAdmin {
+		return status.Errorf(codes.Unauthenticated, adminDisable)
+	}
 	if username != common.ArgoCDAdminUsername {
 		return status.Errorf(codes.Unauthenticated, badUserError)
 	}
 	if password == "" {
 		return status.Errorf(codes.Unauthenticated, blankPasswordError)
 	}
-	settings, err := mgr.settingsMgr.GetSettings()
-	if err != nil {
-		return err
-	}
+
 	valid, _ := passwordutil.VerifyPassword(password, settings.AdminPasswordHash)
 	if !valid {
 		return status.Errorf(codes.Unauthenticated, invalidLoginError)
