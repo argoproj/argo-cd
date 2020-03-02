@@ -516,6 +516,7 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 		return nil, err
 	}
 	var settings ArgoCDSettings
+	settings.DisableAdmin = mgr.disableAdmin
 	var errs []error
 	updateSettingsFromConfigMap(&settings, argoCDCM)
 	if err := updateSettingsFromSecret(&settings, argoCDSecret); err != nil {
@@ -525,7 +526,6 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 		return &settings, errs[0]
 	}
 
-	settings.DisableAdmin = mgr.disableAdmin
 	return &settings, nil
 }
 
@@ -1003,22 +1003,26 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		cdSettings.ServerSignature = signature
 		log.Info("Initialized server signature")
 	}
-	if cdSettings.AdminPasswordHash == "" {
-		defaultPassword, err := os.Hostname()
-		if err != nil {
-			return nil, err
+	if !cdSettings.DisableAdmin {
+		if cdSettings.AdminPasswordHash == "" {
+			defaultPassword, err := os.Hostname()
+			if err != nil {
+				return nil, err
+			}
+			hashedPassword, err := password.HashPassword(defaultPassword)
+			if err != nil {
+				return nil, err
+			}
+			cdSettings.AdminPasswordHash = hashedPassword
+			cdSettings.AdminPasswordMtime = time.Now().UTC()
+			log.Info("Initialized admin password")
 		}
-		hashedPassword, err := password.HashPassword(defaultPassword)
-		if err != nil {
-			return nil, err
+		if cdSettings.AdminPasswordMtime.IsZero() {
+			cdSettings.AdminPasswordMtime = time.Now().UTC()
+			log.Info("Initialized admin mtime")
 		}
-		cdSettings.AdminPasswordHash = hashedPassword
-		cdSettings.AdminPasswordMtime = time.Now().UTC()
-		log.Info("Initialized admin password")
-	}
-	if cdSettings.AdminPasswordMtime.IsZero() {
-		cdSettings.AdminPasswordMtime = time.Now().UTC()
-		log.Info("Initialized admin mtime")
+	} else {
+		log.Info("admin disabled")
 	}
 	if cdSettings.Certificate == nil && !insecureModeEnabled {
 		// generate TLS cert
