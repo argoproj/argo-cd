@@ -2,6 +2,9 @@ package session
 
 import (
 	"context"
+	"github.com/argoproj/argo-cd/common"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"testing"
 
 	"github.com/dgrijalva/jwt-go"
@@ -11,19 +14,19 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/errors"
-	"github.com/argoproj/argo-cd/util/password"
+	p "github.com/argoproj/argo-cd/util/password"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
-func TestSessionManager(t *testing.T) {
-	const (
-		defaultSecretKey = "Hello, world!"
-		defaultSubject   = "argo"
-	)
+const password = "password"
 
-	bcrypt, err := password.HashPassword("password")
+func getKubeClient() *fake.Clientset{
+	const defaultSecretKey = "Hello, world!"
+
+	bcrypt, err := p.HashPassword(password)
 	errors.CheckError(err)
-	kubeclientset := fake.NewSimpleClientset(&corev1.ConfigMap{
+
+	return fake.NewSimpleClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
 			Namespace: "argocd",
@@ -41,8 +44,14 @@ func TestSessionManager(t *testing.T) {
 			"server.secretkey": []byte(defaultSecretKey),
 		},
 	})
+}
 
-	settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, "argocd", false)
+
+func TestSessionManager(t *testing.T) {
+	const (
+		defaultSubject   = "argo"
+	)
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(), "argocd", false)
 	mgr := NewSessionManager(settingsMgr, "")
 
 	token, err := mgr.Create(defaultSubject, 0)
@@ -87,4 +96,66 @@ func TestSub(t *testing.T) {
 func TestGroups(t *testing.T) {
 	assert.Empty(t, Groups(loggedOutContext))
 	assert.Equal(t, []string{"baz"}, Groups(loggedInContext))
+}
+
+func TestVerifyUsernamePassword(t *testing.T) {
+	for _, tc := range []struct{
+		name			string
+		disableAdmin	bool
+		userName		string
+		password		string
+		expected		error
+	} {
+		{
+			name:         "Success if userName and password is correct",
+			disableAdmin: false,
+			userName:     common.ArgoCDAdminUsername,
+			password:     password,
+			expected:     nil,
+		},
+		{
+			name:         "Return error if userName is not admin",
+			disableAdmin: false,
+			userName:     "foo",
+			password:     password,
+			expected:     status.Errorf(codes.Unauthenticated, badUserError),
+		},
+		{
+			name:         "Return error if password is empty",
+			disableAdmin: false,
+			userName:     common.ArgoCDAdminUsername,
+			password:     "",
+			expected:     status.Errorf(codes.Unauthenticated, blankPasswordError),
+		},
+		{
+			name:         "Return error if password is not correct",
+			disableAdmin: false,
+			userName:     common.ArgoCDAdminUsername,
+			password:     "foo",
+			expected:     status.Errorf(codes.Unauthenticated, invalidLoginError),
+		},
+		{
+			name:         "Return error if disableAdmin is true",
+			disableAdmin: true,
+			userName:     common.ArgoCDAdminUsername,
+			password:     password,
+			expected:     status.Errorf(codes.Unauthenticated, adminDisable),
+		},
+	}{
+		t.Run(tc.name, func(t *testing.T) {
+			settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(), "argocd", tc.disableAdmin)
+			mgr := NewSessionManager(settingsMgr, "")
+
+			err := mgr.VerifyUsernamePassword(tc.userName,tc.password)
+
+			if tc.expected == nil {
+				assert.Nil(t, err)
+			} else {
+				assert.EqualError(t, err, tc.expected.Error())
+			}
+
+
+		})
+	}
+
 }
