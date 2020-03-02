@@ -242,14 +242,18 @@ func TestHelmValuesHiddenDirectory(t *testing.T) {
 }
 
 func TestHelmWithDependencies(t *testing.T) {
-	testHelmWithDependencies(t, false)
+	testHelmWithDependencies(t, "helm-with-dependencies", false)
+}
+
+func TestHelm2WithDependencies(t *testing.T) {
+	testHelmWithDependencies(t, "helm2-with-dependencies", false)
 }
 
 func TestHelmWithDependenciesLegacyRepo(t *testing.T) {
-	testHelmWithDependencies(t, true)
+	testHelmWithDependencies(t, "helm2-with-dependencies", false)
 }
 
-func testHelmWithDependencies(t *testing.T, legacyRepo bool) {
+func testHelmWithDependencies(t *testing.T, chartPath string, legacyRepo bool) {
 	ctx := Given(t).
 		CustomCACertAdded().
 		// these are slow tests
@@ -279,7 +283,7 @@ func testHelmWithDependencies(t *testing.T, legacyRepo bool) {
 		ctx = ctx.HelmRepoAdded("custom-repo")
 	}
 
-	ctx.Path("helm-with-dependencies").
+	ctx.Path(chartPath).
 		When().
 		Create().
 		Sync().

@@ -14,16 +14,26 @@ import (
 
 // A thin wrapper around the "helm" command, adding logging and error translation.
 type Cmd struct {
+	HelmVer
 	helmHome string
 	WorkDir  string
 }
 
 func NewCmd(workDir string) (*Cmd, error) {
+	helmVersion, err := getHelmVersion(workDir)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewCmdWithVersion(workDir, *helmVersion)
+}
+
+func NewCmdWithVersion(workDir string, version HelmVer) (*Cmd, error) {
 	tmpDir, err := ioutil.TempDir("", "helm")
 	if err != nil {
 		return nil, err
 	}
-	return &Cmd{WorkDir: workDir, helmHome: tmpDir}, err
+	return &Cmd{WorkDir: workDir, helmHome: tmpDir, HelmVer: version}, err
 }
 
 var redactor = func(text string) string {
@@ -31,7 +41,7 @@ var redactor = func(text string) string {
 }
 
 func (c Cmd) run(args ...string) (string, error) {
-	cmd := exec.Command("helm", args...)
+	cmd := exec.Command(c.binaryName, args...)
 	cmd.Dir = c.WorkDir
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, fmt.Sprintf("HELM_HOME=%s", c.helmHome))
@@ -39,11 +49,13 @@ func (c Cmd) run(args ...string) (string, error) {
 }
 
 func (c *Cmd) Init() (string, error) {
-	return c.run("init", "--client-only", "--skip-refresh")
+	if c.initSupported {
+		return c.run("init", "--client-only", "--skip-refresh")
+	}
+	return "", nil
 }
 
-func (c *Cmd) RepoAdd(name, url string, opts Creds) (string, error) {
-
+func (c *Cmd) RepoAdd(name string, url string, opts Creds) (string, error) {
 	tmp, err := ioutil.TempDir("", "helm")
 	if err != nil {
 		return "", err
@@ -93,10 +105,6 @@ func (c *Cmd) RepoAdd(name, url string, opts Creds) (string, error) {
 	return c.run(args...)
 }
 
-func (c *Cmd) RepoUpdate() (string, error) {
-	return c.run("repo", "update")
-}
-
 func writeToTmp(data []byte) (string, io.Closer, error) {
 	file, err := ioutil.TempFile("", "")
 	if err != nil {
@@ -113,7 +121,7 @@ func writeToTmp(data []byte) (string, io.Closer, error) {
 }
 
 func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds) (string, error) {
-	args := []string{"fetch", "--destination", destination}
+	args := []string{c.pullCommand, "--destination", destination}
 
 	if version != "" {
 		args = append(args, "--version", version)
@@ -153,7 +161,7 @@ func (c *Cmd) dependencyBuild() (string, error) {
 }
 
 func (c *Cmd) inspectValues(values string) (string, error) {
-	return c.run("inspect", "values", values)
+	return c.run(c.showCommand, "values", values)
 }
 
 type TemplateOpts struct {
@@ -174,13 +182,13 @@ func cleanSetParameters(val string) string {
 	return re.ReplaceAllString(val, `$1\,`)
 }
 
-func (c *Cmd) template(chart string, opts *TemplateOpts) (string, error) {
-	args := []string{"template", chart, "--name", opts.Name}
+func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, error) {
+	args := []string{"template", chartPath, c.templateNameArg, opts.Name}
 
 	if opts.Namespace != "" {
 		args = append(args, "--namespace", opts.Namespace)
 	}
-	if opts.KubeVersion != "" {
+	if opts.KubeVersion != "" && c.kubeVersionSupported {
 		args = append(args, "--kube-version", opts.KubeVersion)
 	}
 	for key, val := range opts.Set {

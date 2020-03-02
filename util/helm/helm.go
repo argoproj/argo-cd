@@ -52,7 +52,8 @@ type helm struct {
 
 // IsMissingDependencyErr tests if the error is related to a missing chart dependency
 func IsMissingDependencyErr(err error) bool {
-	return strings.Contains(err.Error(), "found in requirements.yaml, but missing in charts")
+	return strings.Contains(err.Error(), "found in requirements.yaml, but missing in charts") ||
+		strings.Contains(err.Error(), "found in Chart.yaml, but missing in charts/ directory")
 }
 
 func (h *helm) Template(templateOpts *TemplateOpts) (string, error) {

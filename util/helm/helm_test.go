@@ -2,7 +2,6 @@ package helm
 
 import (
 	"os"
-	"regexp"
 	"testing"
 
 	"github.com/argoproj/argo-cd/util/kube"
@@ -110,6 +109,32 @@ func TestHelmDependencyBuild(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestHelm3Template(t *testing.T) {
+	h, err := NewHelmApp("./testdata/helm3", nil)
+	assert.NoError(t, err)
+
+	err = h.Init()
+	assert.NoError(t, err)
+
+	output, err := h.Template(&TemplateOpts{Name: "test"})
+	assert.NoError(t, err)
+	assert.Contains(t, output, "name: test-my-map")
+}
+
+func TestHelm3GetParameters(t *testing.T) {
+	h, err := NewHelmApp("./testdata/helm3", nil)
+	assert.NoError(t, err)
+
+	err = h.Init()
+	assert.NoError(t, err)
+
+	params, err := h.GetParameters(nil)
+	assert.NoError(t, err)
+	assert.Len(t, params, 2)
+	assert.Equal(t, params["foo"], "bar")
+	assert.Equal(t, params["test.foo"], "bar")
+}
+
 func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
 	h, err := NewHelmApp("./testdata/redis", nil)
 	assert.NoError(t, err)
@@ -155,14 +180,6 @@ func TestHelmArgCleaner(t *testing.T) {
 		cleaned := cleanSetParameters(input)
 		assert.Equal(t, expected, cleaned)
 	}
-}
-
-func TestVersion(t *testing.T) {
-	ver, err := Version()
-	assert.NoError(t, err)
-	SemverRegexValidation := `^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$`
-	re := regexp.MustCompile(SemverRegexValidation)
-	assert.True(t, re.MatchString(ver))
 }
 
 func Test_flatVals(t *testing.T) {

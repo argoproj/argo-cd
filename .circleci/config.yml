@@ -85,10 +85,10 @@ jobs:
       - install_golang
       - checkout
       - restore_cache:
-          key: test-dl-v1
-      - run: sudo ./hack/install.sh kubectl-linux kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
+          key: test-dl-v2
+      - run: sudo ./hack/install.sh kubectl-linux kubectx-linux dep-linux ksonnet-linux helm-linux helm2-linux kustomize-linux
       - save_cache:
-          key: test-dl-v1
+          key: test-dl-v2
           paths: [/tmp/dl]
       - configure_git
       - run: go get github.com/jstemmer/go-junit-report
@@ -128,11 +128,11 @@ jobs:
       - install_golang
       - checkout
       - restore_cache:
-          keys: [e2e-dl-v1]
-      - run: sudo ./hack/install.sh kubectx-linux dep-linux ksonnet-linux helm-linux kustomize-linux
+          keys: [e2e-dl-v2]
+      - run: sudo ./hack/install.sh kubectx-linux dep-linux ksonnet-linux helm-linux helm2-linux kustomize-linux
       - run: go get github.com/jstemmer/go-junit-report
       - save_cache:
-          key: e2e-dl-v10
+          key: e2e-dl-v2
           paths: [/tmp/dl]
       - restore_vendor
       - run: dep ensure -v
