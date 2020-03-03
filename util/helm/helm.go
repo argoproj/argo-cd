@@ -1,13 +1,11 @@
 package helm
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/url"
 	"os/exec"
 	"path"
-	"regexp"
 	"strings"
 
 	"github.com/ghodss/yaml"
@@ -88,18 +86,9 @@ func (h *helm) Dispose() {
 
 func Version() (string, error) {
 	cmd := exec.Command("helm", "version", "--client")
-	out, err := executil.RunWithRedactor(cmd, redactor)
+	version, err := executil.RunWithRedactor(cmd, redactor)
 	if err != nil {
 		return "", fmt.Errorf("could not get helm version: %s", err)
-	}
-	re := regexp.MustCompile(`SemVer:"([a-zA-Z0-9\.]+)"`)
-	matches := re.FindStringSubmatch(out)
-	if len(matches) != 2 {
-		return "", errors.New("could not get helm version")
-	}
-	version := matches[1]
-	if version[0] != 'v' {
-		version = "v" + version
 	}
 	return strings.TrimSpace(version), nil
 }

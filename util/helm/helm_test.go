@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -91,34 +92,29 @@ func TestHelmGetParamsValueFiles(t *testing.T) {
 	assert.Equal(t, slaveCountParam, "3")
 }
 
-func TestHelm2DependencyBuild(t *testing.T) {
-	clean := func() {
-		_ = os.RemoveAll("./testdata/helm2-dependency/charts")
-	}
-	clean()
-	defer clean()
-	h, err := NewHelmApp("./testdata/helm2-dependency", nil)
-	assert.NoError(t, err)
-	err = h.Init()
-	assert.NoError(t, err)
-	_, err = h.Template(&TemplateOpts{Name: "wordpress"})
-	assert.Error(t, err)
-	err = h.DependencyBuild()
-	assert.NoError(t, err)
-	_, err = h.Template(&TemplateOpts{Name: "wordpress"})
-	assert.NoError(t, err)
-}
-
 func TestHelmDependencyBuild(t *testing.T) {
-	h, err := NewHelmApp("./testdata/dependency", nil)
-	assert.NoError(t, err)
-
-	err = h.Init()
-	assert.NoError(t, err)
-
-	output, err := h.Template(&TemplateOpts{Name: "test"})
-	assert.NoError(t, err)
-	assert.Contains(t, output, "name: test-my-map")
+	testCases := map[string]string{"Helm": "dependency", "Helm2": "helm2-dependency"}
+	for name := range testCases {
+		t.Run(name, func(t *testing.T) {
+			chart := testCases[name]
+			clean := func() {
+				_ = os.RemoveAll(fmt.Sprintf("./testdata/%s/charts", chart))
+				_ = os.RemoveAll(fmt.Sprintf("./testdata/%s/Chart.lock", chart))
+			}
+			clean()
+			defer clean()
+			h, err := NewHelmApp(fmt.Sprintf("./testdata/%s", chart), nil)
+			assert.NoError(t, err)
+			err = h.Init()
+			assert.NoError(t, err)
+			_, err = h.Template(&TemplateOpts{Name: "wordpress"})
+			assert.Error(t, err)
+			err = h.DependencyBuild()
+			assert.NoError(t, err)
+			_, err = h.Template(&TemplateOpts{Name: "wordpress"})
+			assert.NoError(t, err)
+		})
+	}
 }
 
 func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
@@ -166,6 +162,12 @@ func TestHelmArgCleaner(t *testing.T) {
 		cleaned := cleanSetParameters(input)
 		assert.Equal(t, expected, cleaned)
 	}
+}
+
+func TestVersion(t *testing.T) {
+	ver, err := Version()
+	assert.NoError(t, err)
+	assert.NotEmpty(t, ver)
 }
 
 func Test_flatVals(t *testing.T) {

@@ -10,6 +10,7 @@ import (
 )
 
 var (
+	// HelmV2 represents helm V2 specific settings
 	HelmV2 = HelmVer{
 		binaryName:           "helm2",
 		templateNameArg:      "--name",
@@ -18,6 +19,7 @@ var (
 		pullCommand:          "fetch",
 		initSupported:        true,
 	}
+	// HelmV3 represents helm V3 specific settings
 	HelmV3 = HelmVer{
 		binaryName:           "helm",
 		templateNameArg:      "--name-template",
@@ -49,6 +51,7 @@ func getHelmVersion(chartPath string) (*HelmVer, error) {
 	return nil, fmt.Errorf("helm chart version '%s' is not supported", version)
 }
 
+// HelmVer contains Helm version specific settings such as helm binary and command names
 type HelmVer struct {
 	binaryName           string
 	initSupported        bool
