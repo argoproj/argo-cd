@@ -154,8 +154,6 @@ func TestVerifyUsernamePassword(t *testing.T) {
 			} else {
 				assert.EqualError(t, err, tc.expected.Error())
 			}
-
 		})
 	}
-
 }
