@@ -91,13 +91,13 @@ func TestHelmGetParamsValueFiles(t *testing.T) {
 	assert.Equal(t, slaveCountParam, "3")
 }
 
-func TestHelmDependencyBuild(t *testing.T) {
+func TestHelm2DependencyBuild(t *testing.T) {
 	clean := func() {
-		_ = os.RemoveAll("./testdata/wordpress/charts")
+		_ = os.RemoveAll("./testdata/helm2-dependency/charts")
 	}
 	clean()
 	defer clean()
-	h, err := NewHelmApp("./testdata/wordpress", nil)
+	h, err := NewHelmApp("./testdata/helm2-dependency", nil)
 	assert.NoError(t, err)
 	err = h.Init()
 	assert.NoError(t, err)
@@ -109,8 +109,8 @@ func TestHelmDependencyBuild(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestHelm3Template(t *testing.T) {
-	h, err := NewHelmApp("./testdata/helm3", nil)
+func TestHelmDependencyBuild(t *testing.T) {
+	h, err := NewHelmApp("./testdata/dependency", nil)
 	assert.NoError(t, err)
 
 	err = h.Init()
@@ -119,20 +119,6 @@ func TestHelm3Template(t *testing.T) {
 	output, err := h.Template(&TemplateOpts{Name: "test"})
 	assert.NoError(t, err)
 	assert.Contains(t, output, "name: test-my-map")
-}
-
-func TestHelm3GetParameters(t *testing.T) {
-	h, err := NewHelmApp("./testdata/helm3", nil)
-	assert.NoError(t, err)
-
-	err = h.Init()
-	assert.NoError(t, err)
-
-	params, err := h.GetParameters(nil)
-	assert.NoError(t, err)
-	assert.Len(t, params, 2)
-	assert.Equal(t, params["foo"], "bar")
-	assert.Equal(t, params["test.foo"], "bar")
 }
 
 func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
