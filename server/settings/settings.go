@@ -11,13 +11,15 @@ import (
 
 // Server provides a Settings service
 type Server struct {
-	mgr *settings.SettingsManager
+	mgr          *settings.SettingsManager
+	disableAdmin bool
 }
 
 // NewServer returns a new instance of the Settings service
-func NewServer(mgr *settings.SettingsManager) *Server {
+func NewServer(mgr *settings.SettingsManager, disableAdmin bool) *Server {
 	return &Server{
-		mgr: mgr,
+		mgr:          mgr,
+		disableAdmin: disableAdmin,
 	}
 }
 
@@ -70,7 +72,7 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 			ChatText: help.ChatText,
 		},
 		Plugins:      plugins,
-		DisableAdmin: argoCDSettings.DisableAdmin,
+		DisableAdmin: s.disableAdmin,
 	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg settingspkg.DexConfig

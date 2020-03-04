@@ -42,7 +42,6 @@ type ArgoCDSettings struct {
 	// Indicates if status badge is enabled or not.
 	StatusBadgeEnabled bool `json:"statusBadgeEnable"`
 	// Admin superuser password storage
-	DisableAdmin       bool      `json:"disableAdmin,omitempty"`
 	AdminPasswordHash  string    `json:"adminPasswordHash,omitempty"`
 	AdminPasswordMtime time.Time `json:"adminPasswordMtime,omitempty"`
 	// DexConfig contains portions of a dex config yaml
@@ -220,7 +219,6 @@ type SettingsManager struct {
 	initContextCancel func()
 	reposCache        []Repository
 	repoCredsCache    []RepositoryCredentials
-	disableAdmin      bool
 }
 
 type incompleteSettingsError struct {
@@ -516,7 +514,6 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 		return nil, err
 	}
 	var settings ArgoCDSettings
-	settings.DisableAdmin = mgr.disableAdmin
 	var errs []error
 	updateSettingsFromConfigMap(&settings, argoCDCM)
 	if err := updateSettingsFromSecret(&settings, argoCDSecret); err != nil {
@@ -1021,7 +1018,6 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool, disable
 			log.Info("Initialized admin mtime")
 		}
 	} else {
-		mgr.disableAdmin = disableAdmin
 		log.Info("admin disabled")
 	}
 	if cdSettings.Certificate == nil && !insecureModeEnabled {
